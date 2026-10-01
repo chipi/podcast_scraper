@@ -1438,5 +1438,195 @@
         "voice_type": "commercial"
       }
     ]
+  },
+  "p10_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Javier Benavides",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Javier Benavides",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p11_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Marco Bellini",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Marco Bellini",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p12_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Julien Mercier",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Julien Mercier",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p13_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_02",
+      "Stefan Brandt"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Stefan Brandt",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p14_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Rafael Vasconcelos",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Rafael Vasconcelos",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
   }
 }

@@ -48,12 +48,26 @@ _GOLDEN = _REPO / "tests" / "fixtures" / "goldens" / "naming_decision.golden.jso
 
 
 def _episodes() -> List[Tuple[str, Path]]:
-    """``(episode_key, segments_path)`` for every fixture episode, in a stable order."""
+    """``(episode_key, segments_path)`` for every fixture episode, in a stable order.
+
+    D-34 DECIDES WHICH SEGMENTS THESE ARE. Naming runs AFTER translation, on the English render, so
+    for a translated episode the input the naming code actually receives is `.en.segments.json` —
+    the source-language sidecar is the body naming never sees.
+
+    This used to exclude `.en.segments.json` outright, which was right while no fixture had one and
+    wrong the moment p10-p14's renders landed: it fed the resolver the SPANISH (and Italian, French,
+    German, Portuguese) body for precisely the five episodes D-34 exists for. The deterministic cue
+    path looks for English self-introduction cues, found none, and returned bare `SPEAKER_NN` — a
+    correct answer to the wrong question, and it would have pinned "non-English episodes cannot be
+    named" into the golden as if it were the design.
+    """
     out: List[Tuple[str, Path]] = []
     for path in sorted(_CORPUS.glob("*/run_*/transcripts/*.segments.json")):
         if path.name.endswith((".adfree.segments.json", ".en.segments.json")):
             continue
-        out.append((path.name[: -len(".segments.json")], path))
+        key = path.name[: -len(".segments.json")]
+        english = path.with_name(f"{key}.en.segments.json")
+        out.append((key, english if english.is_file() else path))
     return out
 
 

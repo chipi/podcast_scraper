@@ -474,6 +474,97 @@ def _moved_fields(actual: Dict[str, Any], expected: Dict[str, Any]) -> Dict[str,
     return moved
 
 
+def _app_corpus_episode_count() -> int:
+    """How many episodes the app corpus holds. Counted, never written as a literal."""
+    return len(
+        [
+            m
+            for m in (_REPO / "tests/fixtures/app-validation-corpus/v3").glob(
+                "feeds/*/**/metadata/*.metadata.json"
+            )
+        ]
+    )
+
+
+def _translated_app_episodes_with_an_adfree_body() -> int:
+    """App-corpus episodes whose ad-free body is the ENGLISH one (`.en.adfree.txt`).
+
+    These are the episodes RFC-124 gave an analysis base to. They are the difference between "every
+    app episode falls back to the raw body" (true before translation landed in the corpus) and
+    "every app episode that has no ad-free body does" (true now).
+    """
+    total = 0
+    app_root = _REPO / "tests/fixtures/app-validation-corpus/v3"
+    for ep in _episodes():
+        if app_root not in ep["meta_path"].parents:
+            continue
+        src = ep["run_root"] / ep["transcript_rel"]
+        if not src.name.endswith(".txt"):
+            continue
+        stem = src.name[: -len(".txt")]
+        if src.with_name(stem + ".en.adfree.txt").is_file():
+            total += 1
+    return total
+
+
+def _episodes_with_an_adfree_body() -> int:
+    """Episodes where the ad-free and raw bodies are DIFFERENT files, so purpose is observable.
+
+    Counts an English ad-free body (`.en.adfree.txt`) as well as a source one: once p10-p14's
+    renders landed, the translated app episodes gained an ad-free body too, and a reader switching
+    purpose moves on them for exactly the same reason it moves on the viewer corpus.
+
+    Derived rather than written as `40`, which is what that literal used to say — the number is a
+    property of the corpora and changes whenever a fixture is translated or an ad-free body is
+    added, neither of which is a statement about the resolver.
+    """
+    total = 0
+    for ep in _episodes():
+        src = ep["run_root"] / ep["transcript_rel"]
+        if not src.name.endswith(".txt"):
+            continue
+        stem = src.name[: -len(".txt")]
+        if (
+            src.with_name(stem + ".adfree.txt").is_file()
+            or src.with_name(stem + ".en.adfree.txt").is_file()
+        ):
+            total += 1
+    return total
+
+
+def _moved_episodes(actual: Dict[str, Any], expected: Dict[str, Any]) -> Dict[str, List[str]]:
+    """Which EPISODES differ, and in which fields.
+
+    The per-episode counterpart of :func:`_moved_fields`. Needed once the corpus contains both
+    translated and untranslated episodes: "one field moved on five episodes" and "one field moved
+    on five of the WRONG episodes" are the same number.
+    """
+    moved: Dict[str, List[str]] = {}
+    for key, arow in actual["per_episode"].items():
+        erow = expected["per_episode"][key]
+        diff = sorted(f for f in arow if arow[f] != erow[f])
+        if diff:
+            moved[key] = diff
+    return moved
+
+
+def _translated_episode_keys() -> List[str]:
+    """Episode keys whose corpus artifacts include an `.en.txt` — derived, never listed.
+
+    Derived from disk so that translating a sixth fixture episode is a fixture change rather than
+    a test edit, and so this cannot silently disagree with what the corpus actually holds.
+    """
+    keys = []
+    for ep in _episodes():
+        src = ep["run_root"] / ep["transcript_rel"]
+        if (
+            src.name.endswith(".txt")
+            and src.with_name(src.name[: -len(".txt")] + ".en.txt").is_file()
+        ):
+            keys.append(ep["key"])
+    return sorted(keys)
+
+
 def test_golden_catches_a_reader_switching_purpose(monkeypatch: pytest.MonkeyPatch) -> None:
     """The regression the resolver exists to prevent: an analysis reader served the timeline.
 
@@ -494,10 +585,15 @@ def test_golden_catches_a_reader_switching_purpose(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(indexer, "resolve_text_path", forced_timeline)
     moved = _moved_fields(_build(), _committed())
     assert set(moved) == {"A4_search_indexer"}, f"expected only A4 to move, got {moved}"
-    # The 40 episodes that have both variants. The other 40 have no ad-free body, so for
-    # them the two purposes resolve the same file and nothing moves — which is why a golden
-    # over one corpus would have proved nothing.
-    assert moved["A4_search_indexer"] == 40
+    # Only the episodes whose ad-free and raw bodies are DIFFERENT files can move: where the two
+    # purposes resolve the same file, flipping purpose is unobservable — which is why a golden over
+    # one corpus would have proved nothing. Counted, because the set grew when p10-p14 were
+    # translated and gained an `.en.adfree.txt`.
+    expected_a4 = _episodes_with_an_adfree_body()
+    assert moved["A4_search_indexer"] == expected_a4, (
+        f"{moved['A4_search_indexer']} episodes moved but {expected_a4} have a distinct ad-free "
+        "body"
+    )
 
 
 def test_golden_catches_the_adfree_fallback_being_deleted(
@@ -528,18 +624,12 @@ def test_golden_catches_the_adfree_fallback_being_deleted(
     monkeypatch.setattr(tr, "text_relpath_candidates", first_source_choice_only)
     moved = _moved_fields(_build(), _committed())
     assert moved, "deleting the fallback moved nothing — the golden is not load-bearing"
-    # EVERY episode in the app corpus loses the raw fallback, because none of them has an
-    # ad-free body. Counted from the corpus rather than written as a literal: it was `40` and
-    # went stale the moment `p10` landed, which says nothing about the resolver and everything
-    # about the number being hardcoded. The claim is "all of them", so assert that.
-    expected = len(
-        [
-            m
-            for m in (_REPO / "tests/fixtures/app-validation-corpus/v3").glob(
-                "feeds/*/**/metadata/*.metadata.json"
-            )
-        ]
-    )
+    # Every app-corpus episode WITHOUT an ad-free body loses the raw fallback. It used to be
+    # every episode full stop, because none of them had one; p10-p14's English renders carry an
+    # `.en.adfree.txt`, so those five resolve to an ad-free body and have no fallback to lose.
+    # Counted rather than written as a literal — it was `40`, went stale when `p10` landed, and
+    # the number is a property of the corpus rather than a statement about the resolver.
+    expected = _app_corpus_episode_count() - _translated_app_episodes_with_an_adfree_body()
     assert "A1A2_gi_kg" in moved
     assert moved["A1A2_gi_kg"] == expected, (
         f"{moved['A1A2_gi_kg']} episodes moved but the app corpus has {expected} — the fault "
@@ -547,20 +637,31 @@ def test_golden_catches_the_adfree_fallback_being_deleted(
     )
 
 
-def test_the_english_branch_is_inert_on_this_corpus(monkeypatch: pytest.MonkeyPatch) -> None:
-    """S2.1b's pure-addition claim, at corpus scale: remove the English head, nothing moves.
+def test_removing_the_english_head_moves_EXACTLY_the_translated_episodes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The two-language golden this replaced a tripwire to become.
 
-    Every one of the 80 episodes resolves to exactly the file it resolved to before the English
-    branch existed, because none of them has a ``.en.*`` artifact — translation does not run yet.
-    That is the claim S2.1b is allowed to make and no more, so this asserts precisely it.
+    WHAT THIS USED TO BE. `test_the_english_branch_is_inert_on_this_corpus` asserted that removing
+    the English head moved NOTHING, because no fixture episode had a `.en.*` artifact. Its own
+    docstring called itself a tripwire and said that the moment one gained them, the fix was to
+    convert it into a real two-language golden rather than to relax it. That moment arrived when
+    p10-p14's renders were captured into the corpus, so this is that conversion.
 
-    NOT COVERAGE OF THE ENGLISH BRANCH. An inert branch and a broken one look identical here.
-    What the branch does when the files DO exist is covered by
-    ``test_transcript_resolution.TestTheEnglishBranch``, which writes real ``.en.*`` bodies.
+    WHY THE OLD SHAPE WAS WORTH REPLACING RATHER THAN DELETING. An inert branch and a broken one
+    are indistinguishable on an all-English corpus, so the old test could never have caught the
+    English branch resolving wrongly — only that it was not firing. This asserts the branch fires
+    on exactly the episodes that have a render and on no others, which is the claim that actually
+    protects D-38.
 
-    THIS TEST IS A TRIPWIRE. The moment a fixture episode gains ``.en.*`` artifacts, removing the
-    head will move rows and this will fail — which is the signal to convert it into a real
-    two-language golden rather than to relax it.
+    THE PARTITION IS THE POINT. `moved` must equal the translated set exactly:
+
+    * a translated episode that does NOT move means the English branch is not resolving its
+      render — the corpus would claim `translation_status: translated` while every reader still
+      served the source body, which is the `.en.adfree.txt` fall-through trap in
+      `translation_stage.py` and is strictly worse than having no render at all;
+    * an UNTRANSLATED episode that DOES move means the branch reaches episodes with no render,
+      which is S2.1b's pure-addition claim broken.
     """
     from podcast_scraper.workflow import transcript_resolution as tr
 
@@ -573,10 +674,32 @@ def test_the_english_branch_is_inert_on_this_corpus(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(tr, "text_relpath_candidates", source_candidates_only)
     built = _build()
     committed = _committed()
-    moved = _moved_fields(built, committed)
-    # The candidate-ORDER rows legitimately shrink (that is the head being removed). Every row
-    # that names a RESOLVED path must be untouched.
-    assert set(moved) <= {"B1_player_segments_order"}, moved
+
+    translated = _translated_episode_keys()
+    assert translated, (
+        "no fixture episode has an `.en.txt`, so this golden is vacuous — if the corpus lost its "
+        "renders, fix the corpus rather than this test"
+    )
+
+    moved = _moved_episodes(built, committed)
+    # `B1_player_segments_order` is the candidate ORDER, not a resolved path: it legitimately
+    # shrinks on every episode when the head is removed. Judge only the rows that name a file.
+    resolved_moves = {
+        k: [f for f in fields if f != "B1_player_segments_order"] for k, fields in moved.items()
+    }
+    resolved_moves = {k: v for k, v in resolved_moves.items() if v}
+
+    assert sorted(resolved_moves) == translated, (
+        "the English branch fired on a different set of episodes than the ones carrying a "
+        f"render.\n  moved:      {sorted(resolved_moves)}\n  translated: {translated}"
+    )
+
+    # And the direction: with the head removed each one falls back to its SOURCE body.
+    for key in translated:
+        before = committed["per_episode"][key]["A1A2_gi_kg"]["ref"]
+        after = built["per_episode"][key]["A1A2_gi_kg"]["ref"]
+        assert ".en." in before, f"{key}: the committed golden does not resolve English: {before}"
+        assert ".en." not in after, f"{key}: head removed but still resolving English: {after}"
 
 
 def test_golden_catches_the_gi_load_fix_being_reverted(
@@ -592,7 +715,11 @@ def test_golden_catches_the_gi_load_fix_being_reverted(
     monkeypatch.setattr(gi_load, "resolve_text_path", lambda *a, **k: None)
     moved = _moved_fields(_build(), _committed())
     assert set(moved) == {"A10_gi_load_evidence"}, f"expected only A10 to move, got {moved}"
-    assert moved["A10_gi_load_evidence"] == 40
+    # Every app-corpus episode, counted rather than hardcoded — `40` went stale when p10 landed.
+    expected_a10 = _app_corpus_episode_count()
+    assert (
+        moved["A10_gi_load_evidence"] == expected_a10
+    ), f"{moved['A10_gi_load_evidence']} episodes moved but the app corpus has {expected_a10}"
 
 
 def test_the_sidecar_mismatch_regression_is_covered_by_assertion_not_injection() -> None:

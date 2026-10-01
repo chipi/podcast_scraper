@@ -205,3 +205,81 @@ class TestTheCommittedCorporaStillNeedRegenerating:
         }
         assert "es-ES" in raws, f"p10's raw tag is missing: {sorted(r for r in raws if r)}"
         assert "en-us" in raws, f"the English raw tags are missing: {sorted(r for r in raws if r)}"
+
+
+class TestANonEnglishCorpusEpisodeCarriesItsEnglishRender:
+    """RFC-124's output must survive into the corpus, not just into a run's output directory.
+
+    THE GAP THIS CLOSES. The committed app corpus had five non-English episodes and ZERO English
+    renders, and every gate stayed green. `test_translation_artifacts.py` proves the stage writes
+    `.en.txt` + `.en.segments.json` — but it runs the stage against a temp dir, so it says nothing
+    about what the corpus ends up holding. The corpus side was never asked the question. The
+    translation really did run (the committed summaries, GI and KG for p10-p14 are English,
+    derived from it); the assembling script simply did not carry the English transcript across.
+
+    Why it matters beyond tidiness: `.en.txt` IS the gate. RFC-124 makes the absence of that file
+    mean "no complete translation exists", so a corpus missing it does not look half-built to the
+    rest of the system — it looks like five untranslated episodes. The indexer then does the
+    correct thing for that input and emits a single source-language layer, so RFC-124 6.2's
+    two-layer path (Goal 6, "findable in the language it was spoken in") gets no corpus coverage
+    at all while appearing to be exercised by the only corpus we base tests on.
+    """
+
+    @staticmethod
+    def _english_render_for(meta_path: Path, doc: dict) -> Path:
+        """The `.en.txt` the pipeline would write beside this episode's source transcript.
+
+        The suffix STACK is only well-defined from a CANONICAL path, so this derives from
+        `content.transcript_file_path` rather than guessing at the episode id.
+        """
+        rel = (doc.get("content") or {}).get("transcript_file_path")
+        assert rel, f"{meta_path.name} has no content.transcript_file_path"
+        source = meta_path.parent.parent / str(rel)
+        assert source.name.endswith(".txt"), f"unexpected transcript suffix: {source.name}"
+        return source.with_name(source.name[: -len(".txt")] + ".en.txt")
+
+    def _non_english_episodes(self) -> list[tuple[Path, dict]]:
+        import json
+
+        root = REPO / "tests/fixtures/app-validation-corpus/v3"
+        out = []
+        for m in sorted(root.glob("feeds/*/**/metadata/*.metadata.json")):
+            doc = json.loads(m.read_text(encoding="utf-8"))
+            lang = (doc.get("episode") or {}).get("language") or (doc.get("feed") or {}).get(
+                "language"
+            )
+            if lang and str(lang) != "en":
+                out.append((m, doc))
+        return out
+
+    def test_the_corpus_has_non_english_episodes_to_check(self) -> None:
+        """Guard the guard: if the corpus loses its non-English shows, the assertion below would
+        pass vacuously and the regression would be invisible again."""
+        eps = self._non_english_episodes()
+        assert len(eps) >= 5, f"expected the five non-English shows, found {len(eps)}"
+
+    def test_every_non_english_episode_has_an_english_render(self) -> None:
+        """The `.en.txt` beside the source transcript, resolved the way the pipeline names it."""
+        missing = []
+        for meta_path, doc in self._non_english_episodes():
+            english = self._english_render_for(meta_path, doc)
+            if not english.exists():
+                missing.append(str(english.relative_to(REPO)))
+        assert not missing, (
+            "non-English corpus episodes with no English render — RFC-124 reads this as "
+            "'never translated', so the two-layer index path has no corpus coverage:\n  "
+            + "\n  ".join(missing)
+        )
+
+    def test_the_english_render_is_actually_english(self) -> None:
+        """A present-but-source-language file would pass the existence check and still leave the
+        corpus wrong, which is the failure mode that made the original gap so quiet."""
+        bad = []
+        for meta_path, doc in self._non_english_episodes():
+            english = self._english_render_for(meta_path, doc)
+            if not english.exists():
+                continue  # the test above owns that failure
+            head = english.read_text(encoding="utf-8")[:400].lower()
+            if not re.search(r"\b(the|and|is|that|with|for)\b", head):
+                bad.append(str(english.relative_to(REPO)))
+        assert not bad, f"an .en.txt that does not read as English: {bad}"

@@ -176,6 +176,81 @@ CAPTURED_SUMMARY_DIR = Path("tests/fixtures/pipeline-summaries")
 CAPTURED_KG_DIR = Path("tests/fixtures/pipeline-kg")
 
 
+def glob_escape(text: str) -> str:
+    """Escape glob metacharacters so an episode title containing ``[`` still matches literally."""
+    return re.sub(r"([\[\]*?])", r"[\1]", text)
+
+
+#: Real ENGLISH RENDERS (RFC-124 `.en.txt` + `.en.segments.json`), captured from a pipeline run.
+#:
+#: The third leg of the same loop, and the one whose absence was invisible. Summaries and topics
+#: were captured because they are expensive to regenerate; the English render was not, because it
+#: looked like a derived file. It is not — RFC-124 makes the ABSENCE of `.en.txt` mean "no complete
+#: translation exists", so a corpus without it does not read as half-built, it reads as five
+#: untranslated episodes, and the indexer then correctly emits a single source-language layer.
+#: RFC-124 §6.2's two-layer path got no corpus coverage at all while appearing to be covered.
+CAPTURED_RENDER_DIR = Path("tests/fixtures/pipeline-renders")
+
+
+def _captured_render_for(ep_label: str, version: str) -> dict[str, Any] | None:
+    """The English render a REAL translation produced for this episode, replayed from disk."""
+    path = CAPTURED_RENDER_DIR / version / f"{ep_label}.json"
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    render = doc.get("render") if isinstance(doc, dict) else None
+    if not isinstance(render, dict) or not str(render.get("text") or "").strip():
+        return None
+    return render
+
+
+def _capture_english_renders(
+    pipeline_outputs: dict[str, Any], version: str, run_root: Path
+) -> tuple[int, list[str]]:
+    """Write this run's `.en.*` artifacts back out as committed fixture INPUTS.
+
+    Only episodes the run actually translated have one, so an English episode being skipped here
+    is the correct outcome rather than a miss — which is why the skip list is returned and
+    reported rather than warned about.
+
+    Returns ``(written, skipped_episode_labels)``.
+    """
+    out_dir = CAPTURED_RENDER_DIR / version
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    written, skipped = 0, []
+    for ep_label, payload in sorted(pipeline_outputs.items()):
+        if not isinstance(payload, dict):
+            continue
+        text = str(payload.get("english_render") or "").strip()
+        if not text:
+            skipped.append(f"{ep_label} (no .en.txt in the run — not translated)")
+            continue
+        doc = {
+            "episode_id": ep_label,
+            "captured_from": str(run_root),
+            "captured_at": stamp,
+            "provenance": (
+                "captured by build_app_validation_corpus.py --capture-summaries " f"from {run_root}"
+            ),
+            "render": {
+                "text": text,
+                "segments": payload.get("english_segments") or [],
+                "stack": payload.get("english_stack") or {},
+                "source_language": payload.get("source_language"),
+                "translated_title": payload.get("translated_title"),
+                "translation_status": payload.get("translation_status"),
+            },
+        }
+        (out_dir / f"{ep_label}.json").write_text(
+            json.dumps(doc, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        written += 1
+    return written, skipped
+
+
 def _captured_topics_for(ep_label: str, version: str) -> list[str]:
     """Topic ids a REAL extraction produced for this episode, replayed from disk.
 
@@ -349,6 +424,13 @@ def _capture_or_remind(
         print("    ^ commit these; later builds replay them with no --pipeline-run.")
         if skipped:
             print(f"    skipped {len(skipped)}: {', '.join(skipped[:8])}")
+        # The English render rides the SAME gesture. A separate flag would be a second thing to
+        # remember, and forgetting it is exactly how the corpus ended up with five non-English
+        # episodes and no `.en.txt` while every gate stayed green.
+        r_written, r_skipped = _capture_english_renders(pipeline_outputs, version, run_root)
+        print(f"  CAPTURED {r_written} English renders -> {CAPTURED_RENDER_DIR / version}")
+        if r_skipped:
+            print(f"    no render for {len(r_skipped)}: {', '.join(r_skipped[:4])}")
         return
     if pipeline_outputs and from_pipeline:
         # Not an error — but a real run is expensive, and its output is about to exist only in
@@ -471,11 +553,60 @@ def _load_pipeline_outputs(run_root: Path) -> dict[str, dict[str, Any]]:
         # episode to the 1800s default. p01_e02 in the committed fixture is exactly this: 1800s
         # recorded against 360.8s of real audio, the only episode in the corpus that disagrees with
         # its own file. Summary quality and duration measurement are independent facts.
+        # RFC-124's English render, read from the run the same way the pipeline names it: the
+        # suffix stack is only well-defined from the CANONICAL transcript path.
+        en_text, en_segments = "", []
+        en_title, translation_status = None, None
+        en_stack: dict[str, str] = {}
+        t_rel = (doc.get("content") or {}).get("transcript_file_path")
+        if isinstance(t_rel, str) and t_rel.endswith(".txt"):
+            src = (meta_path.parent.parent / t_rel).resolve()
+            en_path = src.with_name(src.name[: -len(".txt")] + ".en.txt")
+            seg_path = src.with_name(src.name[: -len(".txt")] + ".en.segments.json")
+            try:
+                en_text = en_path.read_text(encoding="utf-8")
+            except OSError:
+                en_text = ""
+            try:
+                parsed = json.loads(seg_path.read_text(encoding="utf-8"))
+                en_segments = parsed if isinstance(parsed, list) else []
+            except (OSError, ValueError):
+                en_segments = []
+            # THE WHOLE `.en.*` STACK, not just the two files the completeness gate reads.
+            # Capturing only `.en.txt` + `.en.segments.json` recreates the state
+            # translation_stage.py warns about: the gate passes, `translation_status` says
+            # `translated`, and then every ANALYSIS reader falls through the ABSENT
+            # `.en.adfree.txt` back to the source body. The corpus would claim to be translated
+            # and behave as though it were not — strictly worse than having no render at all.
+            stem = src.name[: -len(".txt")]
+            for sib in sorted(src.parent.glob(f"{glob_escape(stem)}.en.*")):
+                en_stack[sib.name[len(stem) + 1 :]] = sib.read_text(encoding="utf-8")
+            # `title_en` lives in the LEDGER, not the metadata: the run deliberately keeps
+            # `episode.title` in the source language, so reading the title from there would
+            # capture `Construyendo Senderos Que Duran` into a field named for the translation.
+            led_path = src.with_name(src.name[: -len(".txt")] + ".translation.json")
+            try:
+                ledger = json.loads(led_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                ledger = {}
+            if isinstance(ledger, dict):
+                en_title = str(ledger.get("title_en") or "").strip() or None
+                translation_status = ledger.get("status")
         out[guid] = {
             "title": (summary.get("title") or "").strip() or None,
             "bullets": bullets,
             "raw_text": body,
             "duration_seconds": episode.get("duration_seconds"),
+            #: RFC-124 artifacts. Empty for an English episode, which never has a render.
+            "english_render": en_text,
+            "english_segments": en_segments,
+            #: The full `.en.*` stack as ``{suffix: text}`` — `en.txt`, `en.segments.json`,
+            #: `en.cleaned.txt`, `en.adfree.txt`, `en.adfree.segments.json`, `en.adfree.admap.json`.
+            "english_stack": en_stack,
+            "source_language": (doc.get("episode") or {}).get("language")
+            or (doc.get("feed") or {}).get("language"),
+            "translated_title": en_title,
+            "translation_status": translation_status,
             #: False when the guard dropped the summary. The caller falls back for the summary and
             #: counts it in the stand-in report, while still taking the duration.
             "has_summary": bool(body or bullets),
@@ -1787,6 +1918,25 @@ def main() -> int:
 
             # Transcript text + RAW canonical segments (player contract).
             (run_tr_dir / f"{ep_label}.txt").write_text(raw_text, encoding="utf-8")
+            # RFC-124: a translated episode's ENGLISH RENDER travels with it. Replayed from the
+            # captured run, never synthesised -- a hand-written "English" body would make the
+            # two-layer index path look covered while testing nothing real. Absent for English
+            # episodes, which is correct: they have no render and must not get one (D-38 serves
+            # the source body directly), so this is keyed on a captured render existing, not on
+            # the episode's language.
+            _captured_render = _captured_render_for(ep_label, version)
+            if _captured_render:
+                # The whole stack, verbatim as the run wrote it. Writing the files back byte-for
+                # byte is what keeps the ANALYSIS chain intact: `.en.adfree.txt` is the analysis
+                # base every GI/KG/index reader resolves to, and reconstructing it from
+                # `.en.txt` here would be inventing an ad-free body rather than replaying one.
+                _stack = _captured_render.get("stack") or {}
+                for _suffix, _body in sorted(_stack.items()):
+                    (run_tr_dir / f"{ep_label}.{_suffix}").write_text(_body, encoding="utf-8")
+                if not _stack:  # pre-stack captures carried only the two gate files
+                    (run_tr_dir / f"{ep_label}.en.txt").write_text(
+                        str(_captured_render.get("text") or ""), encoding="utf-8"
+                    )
             (run_tr_dir / f"{ep_label}.segments.json").write_text(
                 json.dumps(_raw_canonical_segments(offset_segs), indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",

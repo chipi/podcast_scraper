@@ -113,21 +113,54 @@ class TestTheTranscriberAndTheMetadataWriterAGREE:
         assert (language, source) == ("es", "rss")
 
 
+def _a_declared_but_disabled_language() -> str:
+    """A language the registry DECLARES but has not enabled — read from the registry, not named.
+
+    This test used to hardcode `de`, whose docstring read "`de` is declared in the registry but not
+    enabled". Enabling German made that sentence false and the assertion wrong, and `ci-fast` did
+    not catch it: `test-fast` selects integration tests marked `critical_path` or
+    `app and not ml_models`, and this file is neither. So the literal was both the bug and the
+    reason the bug was quiet. Derived now, so the next enablement moves nothing here.
+    """
+    from podcast_scraper.languages import language_registry
+
+    disabled = sorted(
+        code for code, entry in language_registry().items() if not getattr(entry, "enabled", False)
+    )
+    assert disabled, (
+        "every declared language is enabled, so the skip gate cannot be exercised — if that is "
+        "intentional, this gate and its tests should go, not be relaxed"
+    )
+    return disabled[0]
+
+
 class TestTheSkipGateFiresOnADeclaredLanguage:
-    def test_a_de_tagged_feed_is_REFUSED(self) -> None:
-        """The arc's §3.1 acceptance, which was unmeetable before: "a `de`-tagged feed is
-        skipped, with a reason". `de` is declared in the registry but not enabled, and the
-        alternative to refusing is transcribing German with an English-only chain."""
-        cfg = _cfg().model_copy(update={"feed_declared_language": "de"})
+    def test_a_declared_but_disabled_feed_is_REFUSED(self) -> None:
+        """The arc's §3.1 acceptance, which was unmeetable before: a feed tagged with a language
+        we have not enabled is skipped, WITH a reason. The alternative to refusing is transcribing
+        it with an English-only chain."""
+        code = _a_declared_but_disabled_language()
+        cfg = _cfg().model_copy(update={"feed_declared_language": code})
         reason = _unsupported_language_skip_reason(cfg)
-        assert reason is not None
-        assert "'de'" in reason
+        assert reason is not None, f"a {code!r}-tagged feed was not refused"
+        assert f"'{code}'" in reason
         assert "not enabled" in reason
+
+    def test_an_ENABLED_non_english_feed_is_NOT_refused(self) -> None:
+        """The other half of the gate, and the half that had no test: enabling a language must
+        actually let its feeds through. `de` was enabled while the only assertion about it still
+        said it would be refused, so nothing anywhere checked this direction."""
+        for code in ("es", "de", "fr", "it", "pt"):
+            cfg = _cfg().model_copy(update={"feed_declared_language": code})
+            assert (
+                _unsupported_language_skip_reason(cfg) is None
+            ), f"{code} is enabled in the registry but the gate still refuses it"
 
     def test_the_reason_names_the_FEED_as_the_source(self) -> None:
         """It used to say "the profile default" for a feed-declared language, pointing an
         operator at the wrong thing to change."""
-        cfg = _cfg().model_copy(update={"feed_declared_language": "de"})
+        code = _a_declared_but_disabled_language()
+        cfg = _cfg().model_copy(update={"feed_declared_language": code})
         reason = _unsupported_language_skip_reason(cfg) or ""
         assert "feed's declared <language> tag" in reason
 
