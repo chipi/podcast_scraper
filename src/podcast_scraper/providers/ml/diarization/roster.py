@@ -2914,6 +2914,14 @@ def resolve_speaker_roster(
     if not diarization.segments:
         return SpeakerRoster(by_voice={}, num_speakers=diarization.num_speakers or 0)
 
+    # One space between words, whoever built the text. Turns are joined with " " and ASR segments
+    # start with a space, so every turn boundary carried two — and the speech-act and self-intro
+    # patterns are written for one. "welcome back to  Conversations with Tyler" matched no host
+    # act, the host's own thank-you-for-having-me echo made him a guest, and the host seat went to
+    # the guest's voice (#2224).
+    if voice_texts:
+        voice_texts = {v: " ".join((t or "").split()) for v, t in voice_texts.items()}
+
     # Ad voices are established BEFORE anything can be named from them: the pre-roll opens the
     # episode and reads its own name, so it wins both the "opening voice = host" rule and the
     # most-trusted self-introduction rule unless it is removed from contention up front.

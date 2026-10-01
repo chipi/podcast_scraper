@@ -395,6 +395,20 @@ _HOST_WITH_ME_INTRO = re.compile(
 )
 
 
+# "Let's say I'm Cass Sunstein" is a hypothetical, not a self-introduction: the host was posing a
+# scenario and got named after a past guest (#2224). Checked against the few words BEFORE the match.
+_HYPOTHETICAL_LEAD = re.compile(
+    r"(?:\blet'?s\s+say|\blet\s+us\s+say|\bsuppose|\bsupposing|\bimagine|\bpretend|\bif)"
+    r"(?:\s+that)?,?\s*$",
+    re.IGNORECASE,
+)
+
+
+def _is_hypothetical(head: str, match: "re.Match[str]") -> bool:
+    """True when *match* sits right after a hypothetical lead-in ("let's say", "imagine", "if")."""
+    return bool(_HYPOTHETICAL_LEAD.search(head[max(0, match.start() - 30) : match.start()]))
+
+
 def _branded_intro_matches(head: str, feed_title: Optional[str]) -> List["re.Match[str]"]:
     """`it's <Name> with <Show>` matches, but only where the fronted thing IS this show."""
     if not feed_title:
@@ -433,6 +447,8 @@ def extract_self_introduced_host(
         + _branded_intro_matches(head, feed_title)
     )
     for match in matches:
+        if _is_hypothetical(head, match):
+            continue
         # Collapse runs of whitespace: word-level ASR segments join as "Amanda  Aronchik" — a
         # different person id from "Amanda Aronchik" on every other surface.
         name = " ".join(match.group(1).split()).strip(" .,")
@@ -485,6 +501,8 @@ def distinct_self_introductions(
         + _branded_intro_matches(head, feed_title)
     )
     for match in matches:
+        if _is_hypothetical(head, match):
+            continue
         # Collapse runs of whitespace: word-level ASR segments join as "Amanda  Aronchik" — a
         # different person id from "Amanda Aronchik" on every other surface.
         name = " ".join(match.group(1).split()).strip(" .,")
