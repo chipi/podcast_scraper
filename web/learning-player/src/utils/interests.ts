@@ -32,13 +32,22 @@ export type InterestKind = 'topic' | 'theme' | 'storyline' | 'person'
  * "topic cluster" and is what a reader calls a THEME. This function is the boundary where the wire
  * names stop mattering, and every surface should take its word from here rather than the prefix.
  *
- * The inversion is DEFERRED, not permanent. Pre-launch there are no users whose tokens must be
- * preserved, so renaming the prefixes — and the modules, and the artifact — is a bounded
- * mechanical refactor rather than a migration. It goes all the way down (`storylines.py`
- * serves storylines; `topic_clusters.py` serves themes; the artifact is `topic_theme_clusters`),
- * which is why #1603 keeps being reopened by people reading it the natural way. A comment warning
- * that something "WILL mislead" is the codebase admitting a fix was available and declined; that
- * option closes at launch, and after it this note becomes retroactively true.
+ * The inversion is PERMANENT — decided 2026-10-01, after it was costed. This note used to say the
+ * rename was "deferred, not permanent" and "a bounded mechanical refactor rather than a
+ * migration". That was wrong about the data: the prefixes are not computed per request, they are
+ * WRITTEN INTO persisted artifacts — `topic_clusters.json`, `topic_theme_clusters.json`,
+ * `digest.json`, per-episode `*.metadata.json`, and `graph_events.jsonl`. Renaming them means
+ * rewriting ids inside an append-only event log across the whole corpus, which is a migration, not
+ * a refactor. Measured in fixtures alone: 80 files, 168 occurrences, 7 artifact kinds.
+ *
+ * So the wire keeps its names and THIS FUNCTION stays the boundary. That is the whole mitigation:
+ * no surface anywhere should branch on a prefix, because the prefix lies and this does not. As of
+ * 2026-10-01 no non-test file outside this one reads a prefix — `FollowedInterests` and
+ * `LibraryView` used to, and were routed through here.
+ *
+ * #1603 was reopened repeatedly by people reading the names the natural way. It is closed, and the
+ * reason is recorded here and in both Python modules' docstrings rather than left to be
+ * rediscovered.
  */
 export function interestKind(id: string): InterestKind {
   if (id.startsWith('person:')) return 'person'
