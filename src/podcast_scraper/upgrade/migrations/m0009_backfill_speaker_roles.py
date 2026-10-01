@@ -708,19 +708,50 @@ class BackfillSpeakerRolesMigration(Migration):
             return False, f"role ledger is unreadable: {exc}"
         if not rows:
             return True, "no ledger to verify against (corpus predates it, or nothing changed)"
-        present = 0
-        for row in rows:
-            payload, _err = _load(Path(ctx.corpus_root) / row.episode)
-            if payload is None:
-                continue
+        # A ROW IS ONLY EVIDENCE WHILE ITS FILE IS THE ONE THIS MIGRATION WROTE. Every later
+        # relabel / rederive rebuilds the .kg.json from the current roster, so its roles are that
+        # run's answer, not this migration's — and since #2075 a roster entry that names someone
+        # no voice was matched to (`placed: false`) is deliberately NOT a speaker. Counting those
+        # rows as "lost" failed verify on 339 of 3,214 rows on prod (2026-10-01), every one in a
+        # file rewritten after 2026-09-22. Same rule undo uses (`role_ledger._undo_locked`): a
+        # changed file is somebody else's — UNLESS the undo wrote it, which must still fail verify.
+        # Roles cannot tell those apart (a rebuild that resets a role to `mentioned` looks exactly
+        # like an undo: 32 such rows on prod), so the undo's own record of what it wrote does.
+        from ..role_ledger import undone_shas
+
+        undone_files = undone_shas(ctx.corpus_root)
+
+        def _role_of(payload: dict, node_id: str) -> Optional[str]:
             for node in payload.get("nodes") or []:
-                if not isinstance(node, dict) or str(node.get("id") or "") != row.node_id:
-                    continue
-                if str((node.get("properties") or {}).get("role") or "") == row.role_after:
+                if isinstance(node, dict) and str(node.get("id") or "") == node_id:
+                    return str((node.get("properties") or {}).get("role") or "")
+            return None
+
+        by_file: Dict[str, List[RoleChange]] = {}
+        for row in rows:
+            by_file.setdefault(row.episode, []).append(row)
+        checked = present = superseded = 0
+        for episode, file_rows in by_file.items():
+            path = Path(ctx.corpus_root) / episode
+            payload, _err = _load(path)
+            if payload is None:
+                superseded += len(file_rows)
+                continue
+            current = file_sha(path)
+            changed = any(r.file_sha_after and current != r.file_sha_after for r in file_rows)
+            undone = (episode, current) in undone_files
+            if changed and not undone:
+                superseded += len(file_rows)
+                continue
+            for row in file_rows:
+                checked += 1
+                if _role_of(payload, row.node_id) == row.role_after:
                     present += 1
-                break
-        ok = present == len(rows)
-        return ok, f"{present} of {len(rows)} recorded role(s) still present"
+        ok = present == checked
+        return ok, (
+            f"{present} of {checked} recorded role(s) still present in files this migration "
+            f"last wrote; {superseded} row(s) in files rewritten since (not judged)"
+        )
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
         """Reconcile every episode's Person roles with its roster; report both demotion routes.

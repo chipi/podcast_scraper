@@ -8,6 +8,7 @@ from typing import Any, cast, Dict, List, Optional, Set
 
 from .. import config_constants
 from ..graph_id_utils import (
+    canonical_person_name,
     entity_node_id,
     episode_node_id,
     is_person_or_org_node,
@@ -740,6 +741,11 @@ def _typed_person_org_node(
     """
     name_s = (name or "").strip()[:500]
     ek: str = _normalize_entity_kind(entity_kind)
+    if ek == ENTITY_KIND_PERSON:
+        # The id is minted from the canonical spelling (`entity_node_id`); the PUBLISHED name must
+        # be the same one, or every rebuild re-writes what m0010 cleaned (`Donald Trump Jr.`,
+        # `Aaron Levie)` on KGs written after it ran — #2130).
+        name_s = canonical_person_name(name_s) or name_s
     # No `.get` default that says Person: `_normalize_entity_kind` only ever returns a member of
     # ENTITY_KINDS, all three of which are mapped. A default here would silently re-introduce the
     # person fallback the type system exists to prevent (#2057).

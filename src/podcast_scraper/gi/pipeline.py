@@ -21,6 +21,7 @@ from unittest.mock import Mock
 from .. import config_constants
 from ..exceptions import GILGroundingUnsatisfiedError
 from ..graph_id_utils import (
+    canonical_person_name,
     canonical_topic_slug,
     episode_node_id,
     gil_insight_node_id,
@@ -1404,6 +1405,7 @@ def _attach_person_for_quote(
     ):
         return
     raw = str(display_name or speaker_label).strip()
+    raw = canonical_person_name(raw) or raw  # the spelling the id was minted from (#2130)
     pid = str(person_id_value).strip()
     if pid not in persons_added:
         nodes.append(

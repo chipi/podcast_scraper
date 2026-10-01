@@ -507,6 +507,28 @@ class TestTheMigrationCanVerifyItself:
         assert not ok, "the roles are back where they started; verify must say so"
         assert "0 of 1" in message or "not present" in message.lower(), message
 
+    def test_a_file_a_later_job_rebuilt_is_not_judged(self, tmp_path: Path) -> None:
+        """A relabel/rederive rebuilds the KG from the CURRENT roster; its roles are that run's
+        answer. On prod (2026-10-01) 339 of 3,214 rows sat in files rewritten after the migration
+        and failed verify, though nothing was lost by this migration."""
+        _episode(
+            tmp_path,
+            "e1",
+            [("person:africa-tech-summit", "Africa Tech Summit", "host")],
+            feed="Africa Tech Summit Podcast",
+        )
+        ctx = MigrationContext(corpus_root=tmp_path, dry_run=False)
+        BackfillSpeakerRolesMigration().apply(ctx)
+        kg = next(tmp_path.rglob("*.kg.json"))
+        payload = json.loads(kg.read_text(encoding="utf-8"))
+        for node in payload["nodes"]:
+            if node.get("id") == "person:africa-tech-summit":
+                node["properties"]["role"] = "guest"  # a later run's own answer
+        kg.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        ok, message = BackfillSpeakerRolesMigration().verify(ctx)
+        assert ok, message
+        assert "rewritten since" in message and "1 row" in message, message
+
     def test_verify_with_no_ledger_says_so_rather_than_claiming_success(
         self, tmp_path: Path
     ) -> None:

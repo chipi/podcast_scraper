@@ -49,6 +49,7 @@ from pydantic import (
 from .. import config, config_constants, models
 from ..graph_id_utils import is_bare_speaker_label
 from ..identity.roster_provenance import roster_source, RosterSource
+from ..identity.slugify import canonical_person_name
 from ..speaker_detectors.hosts import looks_like_publisher
 
 if TYPE_CHECKING:
@@ -1060,6 +1061,9 @@ def _unplaced_speakers(
             continue
         if feed_title and names_the_show(name, feed_title):
             continue
+        # The record publishes the canonical spelling (#2130: `Ali Ghodsi)`, `Peter Attia, MD`).
+        # Only AFTER the filters above, which keep judging the stated string exactly as before.
+        name = canonical_person_name(name) or name
         if any(name.lower() == p.name.lower() or _same_person(name, p.name) for p in placed):
             continue
         if any(name.lower() == k.name.lower() or _same_person(name, k.name) for k in kept):

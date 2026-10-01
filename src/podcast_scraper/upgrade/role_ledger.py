@@ -46,11 +46,44 @@ import time
 import uuid
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 #: Corpus-root sibling of ``upgrade_ledger.json``. Named for what it holds rather than for m0009,
 #: because the next role-writing migration appends to it rather than inventing a second format.
 LEDGER_FILE = "speaker_roles_ledger.jsonl"
+
+#: The sha of every artifact an UNDO wrote, one JSON object per line. `verify` needs to tell "this
+#: migration was rolled back" (must fail) from "a later relabel rebuilt the file" (not this
+#: migration's to judge): on prod both leave the recorded nodes at `role_before`, so the roles
+#: cannot say which happened — only who wrote the file can.
+UNDO_FILE = "speaker_roles_undone.jsonl"
+
+
+def record_undone(root: Path | str, relpath: str, sha: str) -> None:
+    """Append one undo-written artifact's sha (append-only, flushed like the ledger)."""
+    path = Path(root) / UNDO_FILE
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"episode": relpath, "sha": sha}) + "\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+
+
+def undone_shas(root: Path | str) -> Set[Tuple[str, str]]:
+    """``{(relpath, sha)}`` for every artifact an undo wrote; empty when none was."""
+    path = Path(root) / UNDO_FILE
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return set()
+    out: Set[Tuple[str, str]] = set()
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        out.add((str(row.get("episode") or ""), str(row.get("sha") or "")))
+    return out
+
 
 MIGRATION_ID = "0009_backfill_speaker_roles"
 
@@ -460,6 +493,7 @@ def _undo_locked(root: Path, changes: List[RoleChange]) -> Tuple[int, List[str],
                 with os.fdopen(fd, "w", encoding="utf-8") as fh:
                     fh.write(json.dumps(payload, indent=2) + "\n")
                 os.replace(tmp, path)
+                record_undone(root, relpath, file_sha(path))
             except Exception:
                 try:
                     os.unlink(tmp)
