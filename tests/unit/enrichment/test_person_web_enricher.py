@@ -238,6 +238,62 @@ def test_refresh_bypasses_the_cache(monkeypatch, tmp_path: Path) -> None:
     assert refetch.fetch_calls == 2  # both re-fetched despite the cache
 
 
+def _seed_prior_rows(tmp_path: Path, ids: list[str]) -> None:
+    import json
+
+    doc = {"data": {"persons": [{"person_id": i, "name": i, "bio": "b"} for i in ids]}}
+    (tmp_path / "enrichments").mkdir(exist_ok=True)
+    (tmp_path / "enrichments" / "person_web.json").write_text(json.dumps(doc), encoding="utf-8")
+
+
+def _corpus_with_a_kg_only_mention(monkeypatch) -> None:
+    monkeypatch.setattr(person_web, "load_gi", lambda _b: _GI)
+    kg = {"nodes": [{"id": "person:mentioned", "type": "Person", "properties": {"role": "x"}}]}
+    monkeypatch.setattr(person_web, "load_kg", lambda _b: kg)
+    monkeypatch.setattr(person_web, "load_bridge", lambda _b: {})
+
+
+def test_carried_row_is_dropped_once_its_person_leaves_the_corpus(monkeypatch, tmp_path) -> None:
+    """A bio must not outlive the person: prod held 103 such rows (2026-10-01)."""
+    _corpus_with_a_kg_only_mention(monkeypatch)
+    _seed_prior_rows(tmp_path, ["person:jane", "person:mentioned", "person:ghost"])
+    result = _run(PersonWebEnricher(provider=_FakeProvider(set())), tmp_path)
+    ids = [r["person_id"] for r in result.data["persons"]]
+    # jane is a GI speaker; "mentioned" is only in a KG but still has a card, so it stays.
+    assert ids == ["person:jane", "person:mentioned"]
+
+
+def test_no_bundles_keeps_every_carried_row(monkeypatch, tmp_path) -> None:
+    """An empty walk cannot tell present from absent — it must never wipe the artifact."""
+    _corpus_with_a_kg_only_mention(monkeypatch)
+    _seed_prior_rows(tmp_path, ["person:jane", "person:ghost"])
+    result = asyncio.run(
+        PersonWebEnricher(provider=_FakeProvider(set())).enrich(
+            bundle=None, corpus_root=tmp_path, all_bundles=[], config={}, ctx=_ctx()
+        )
+    )
+    assert result.data is not None
+    assert [r["person_id"] for r in result.data["persons"]] == ["person:ghost", "person:jane"]
+
+
+def test_delta_pass_drops_rows_for_persons_no_longer_in_the_corpus(monkeypatch, tmp_path) -> None:
+    from types import SimpleNamespace
+
+    _corpus_with_a_kg_only_mention(monkeypatch)
+    prior = {"persons": [{"person_id": "person:jane"}, {"person_id": "person:ghost"}]}
+    result = asyncio.run(
+        PersonWebEnricher(provider=_FakeProvider(set())).enrich_incremental(
+            delta=SimpleNamespace(all_bundles=[_bundle("a")], forced=False),
+            prior_output=prior,
+            corpus_root=tmp_path,
+            config={},
+            ctx=_ctx(),
+        )
+    )
+    assert result.data is not None
+    assert [r["person_id"] for r in result.data["persons"]] == ["person:jane"]
+
+
 def test_enrich_respects_max_persons(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(person_web, "load_gi", lambda _b: _GI)
     result = _run(
