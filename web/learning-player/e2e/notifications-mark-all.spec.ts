@@ -58,4 +58,6 @@ test('mark all read survives a refresh that was already in flight', async ({ pag
   await expect.poll(() => answered, { timeout: 10_000 }).toBeGreaterThanOrEqual(inFlight)
   await expect(page.getByTestId('notifications-badge')).toHaveCount(0)
   for (const i of await items.all()) await expect(i).toHaveAttribute('data-read', 'true')
+  // A later refresh may still be held back by the handler above; do not let it outlive the test.
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
 })

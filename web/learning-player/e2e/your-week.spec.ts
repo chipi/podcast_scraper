@@ -117,4 +117,7 @@ test('Your Week drops the revisit section even when the digest carries one', asy
   await yourWeek.getByTestId('yourweek-toggle').click()
   await expect(yourWeek.getByText('New in your follows')).toBeVisible()
   await expect(page.getByText(REVISIT_TITLE)).toHaveCount(0)
+  // The handler fetches the real response, so a refetch still in flight when the test ends would
+  // throw "while running route callback" and fail the whole run outside any test.
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
 })
