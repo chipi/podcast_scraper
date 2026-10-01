@@ -42,6 +42,10 @@ corpus-wide umbrellas in front of a user, where they can only ever return the re
 xfail therefore moved from the whole class onto the one assertion that still holds — a strict xfail
 on a passing test is itself a failure, which is how this surfaced.
 
+#1669 is CLOSED, so the surviving half is tracked by **#2247**. A strict xfail whose reason points
+at a closed issue tells the next reader the defect is already fixed, which is the opposite of what
+the marker means.
+
 The two layers here:
   * `TestRankerDiscriminates` — the ranker's power, on the REAL corpus. Passes; locks in that a
     niche follow surfaces its show, so a refactor cannot quietly flatten it.
@@ -184,7 +188,8 @@ class TestPickerOffersARealChoice:
     @pytest.mark.xfail(
         strict=True,
         reason=(
-            "#1669 — the picker ranks options by PREVALENCE, so the two corpus-wide umbrellas "
+            "#2247 (successor to the closed #1669) — the picker ranks options by PREVALENCE, "
+            "so the two corpus-wide umbrellas "
             "(tc:dialogue, tc:lifelong-learning) are still offered, and following either can only "
             "return the recency ordering. Narrower than when this marker covered the whole class: "
             "it then read 'EVERY option covers 100%', which was true of the two hand-authored "

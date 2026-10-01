@@ -234,10 +234,11 @@ them, as it always did.
 the normal outcome for a grouping whose members are abstract labels nobody utters aloud
 (`tc:lifelong-learning` is exactly that), and showing nothing beats showing unrelated quotes.
 
-**Known limit.** Ranking is `salience` descending (ADR-135/#1191). Where artifacts carry no
+**Known limit (#2248).** Ranking is `salience` descending (ADR-135/#1191). Where artifacts carry no
 salience the sort degenerates to `position_hint` ascending — earliest-in-episode first — which
 surfaces greetings rather than claims. Visible on the v3 fixture, whose insights all have
-`salience: null`; **not verified against production**.
+`salience: null`; **not verified against production**, and that measurement is what decides whether
+this is a fixture gap or a live product defect.
 
 ### `TopicConversationArc` — how a topic moved over time
 
