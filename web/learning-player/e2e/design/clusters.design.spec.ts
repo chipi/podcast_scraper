@@ -57,6 +57,11 @@ test('cluster-topic', async ({ page }) => {
   // Proof the page loaded its subject rather than an error card — otherwise the shot is of a
   // failure state and the comparison is worthless.
   await expect(page.getByTestId('topic-view')).toBeVisible()
+  // The quotes section must be IN the shot. It renders far below the fold, so a viewport crop
+  // cannot show it and a reviewer reading only that crop concludes it was never built — which is
+  // exactly what happened (operator 2026-10-01: "I don't see any of the quotes and insights").
+  // Asserting it here means a shot that lost the section fails instead of looking fine.
+  await expect(page.getByTestId('topic-perspectives')).toBeVisible()
   await shoot(page, 'cluster-1-topic')
 })
 
@@ -69,11 +74,15 @@ test('cluster-theme', async ({ page }) => {
   await expect(page.getByTestId('theme-view')).toBeVisible()
   // The merge is the page's reason to exist, so the shot must not be taken before it lands.
   await expect(page.getByTestId('episodes-order')).toBeVisible()
+  // Scoped to the UNION of the theme's members — see the topic shot above for why this is asserted.
+  await expect(page.getByTestId('topic-perspectives')).toBeVisible()
   await shoot(page, 'cluster-2-theme')
 })
 
 test('cluster-storyline', async ({ page }) => {
   await signIn(page)
   await page.goto(`/storyline/${encodeURIComponent(STORYLINE_ANCHOR)}`)
+  await expect(page.getByTestId('storyline-view')).toBeVisible()
+  await expect(page.getByTestId('topic-perspectives')).toBeVisible()
   await shoot(page, 'cluster-3-storyline')
 })

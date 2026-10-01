@@ -356,14 +356,6 @@ function searchLibrary(): void {
   <!-- Top voices (wave-G): the people who drive THIS topic. Shared with the storyline page. -->
   <TopVoices class="mb-4" :people="topVoices" @open="(id) => openPerson(id)" />
 
-  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none.
-       Directly under Top voices (operator 2026-09-19) — it names the same people and says what they
-       actually argued, so it belongs beside the faces rather than at the foot of the page. -->
-  <TopicPerspectives
-    :id="topic.id"
-    @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"
-  />
-
   <!-- Search transcripts — between the strongest shows and the episode list (operator review). -->
   <button
     type="button"
@@ -373,6 +365,21 @@ function searchLibrary(): void {
   >
     {{ t("ec.searchLibrary", { term: label }) }}
   </button>
+
+  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none.
+       Directly ABOVE the episode list (operator 2026-10-01), the same place it sits on the theme
+       and storyline pages — a reader meets what people SAID about the subject before being handed
+       everything that mentions it. It used to sit under Top voices (operator 2026-09-19, because
+       it names those same people); the across-all-three consistency won.
+       The order asked for, in the operator's words: "between topics, list of topics, and the list
+       of episodes ... on all three surfaces". -->
+  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none.
+       Directly under Top voices (operator 2026-09-19) — it names the same people and says what they
+       actually argued, so it belongs beside the faces rather than at the foot of the page. -->
+  <TopicPerspectives
+    :id="topic.id"
+    @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"
+  />
 
   <!-- Episodes (newest-first, STATED not offered as a control — #2004 item 11). -->
   <section v-if="episodes.length" class="mb-4">

@@ -250,6 +250,16 @@ function goBack(): void {
 
     <template v-else>
       <!-- Member topics, an ordered list (SL.1). -->
+      <!-- ORDER (operator 2026-10-01): members -> what they SAID -> episodes -> voices.
+           The quotes used to sit at the foot, under the episode list, where nobody reaching the
+           page ever saw them — the episode list is long, so the one section that explains what the
+           grouping is about sat below ~4,000px of it. They now answer "what is this?" before the
+           page offers "here is everything in it".
+
+           The quotes go DIRECTLY between the member list and the episode list, with nothing in
+           between: "between topics, list of topics, and the list of episodes ... on all three
+           surfaces". Top voices moves below the episodes rather than staying beside the quotes —
+           pairing the faces with what they argued was my addition, not the request. -->
       <section class="mt-6">
         <h2 class="lp-section mb-1">{{ t("home.storylineTopicsHeading") }}</h2>
         <!-- WHY these topics are one storyline, stated as a fact rather than asserted by the
@@ -311,10 +321,18 @@ function goBack(): void {
         </ol>
       </section>
 
-      <!-- In the OVERLAY the episodes + people below just re-present the topic card sitting beneath
-           it, so the sheet stays a compact preview (members + momentum + follow) and links out to
-           the full storyline page for the rest. The standalone page has nothing beneath it, so it
-           shows everything. This link doubles as the overlay's "open in page" escape hatch. -->
+      <!-- What is SAID across the storyline — its members' insights, grouped by speaker, each with
+           a jump-to-moment link. Until this, nothing on the page was a sentence anybody actually
+           uttered: it listed member topics and episodes and left the reader to infer what the
+           storyline sounded like. Scoped to the UNION of the member topics, which is what the
+           storyline IS — a single member's perspectives would be the anchor topic's page again.
+           Renders nothing when no member has a speaker-attributable insight. -->
+      <TopicPerspectives
+        class="mt-6"
+        :id="id"
+        kind="storyline"
+        @open="openPerspective"
+      />
 
       <!-- Top episodes for the storyline (SL.2). Standalone page only — see the note above. -->
       <section v-if="episodes.length" class="mt-6">
@@ -339,19 +357,10 @@ function goBack(): void {
         @open="(id, e) => openEntity('person', id, e)"
       />
 
-      <!-- What is SAID across the storyline — its members' insights, grouped by speaker, each with
-           a jump-to-moment link. Until this, nothing on the page was a sentence anybody actually
-           uttered: it listed member topics and episodes and left the reader to infer what the
-           storyline sounded like. Scoped to the UNION of the member topics, which is what the
-           storyline IS — a single member's perspectives would be the anchor topic's page again.
-           Renders nothing when no member has a speaker-attributable insight. -->
-      <TopicPerspectives
-        class="mt-6"
-        :id="id"
-        kind="storyline"
-        @open="openPerspective"
-      />
-
+      <!-- In the OVERLAY the episodes + people below just re-present the topic card sitting beneath
+           it, so the sheet stays a compact preview (members + momentum + follow) and links out to
+           the full storyline page for the rest. The standalone page has nothing beneath it, so it
+           shows everything. This link doubles as the overlay's "open in page" escape hatch. -->
       <!-- Notes on this storyline (SL.3). Shown in the sheet too (operator 2026-09-16): the sheet is
            no longer a preview of the page, it IS the page's content, so withholding notes here was
            the last thing making the two differ. -->

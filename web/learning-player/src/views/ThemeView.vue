@@ -246,6 +246,16 @@ function goBack(): void {
       <!-- The members, ranked by how much of the corpus each carries, so the first row is the one a
            reader is most likely to recognise. The heading is the product distinction: these mean
            the same thing, as against a storyline's "discussed together". -->
+      <!-- ORDER (operator 2026-10-01): members -> what they SAID -> episodes -> voices.
+           The quotes used to sit at the foot, under the episode list, where nobody reaching the
+           page ever saw them — the episode list is long, so the one section that explains what the
+           grouping is about sat below ~4,000px of it. They now answer "what is this?" before the
+           page offers "here is everything in it".
+
+           The quotes go DIRECTLY between the member list and the episode list, with nothing in
+           between: "between topics, list of topics, and the list of episodes ... on all three
+           surfaces". Top voices moves below the episodes rather than staying beside the quotes —
+           pairing the faces with what they argued was my addition, not the request. -->
       <section class="mt-6">
         <h2 class="lp-section mb-2">{{ t("home.themeTopicsHeading") }}</h2>
         <ol class="flex flex-col">
@@ -275,6 +285,19 @@ function goBack(): void {
         </ol>
       </section>
 
+      <!-- What is SAID across the grouping — its members' insights, grouped by speaker, each with
+           a jump-to-moment link. Until this, nothing on either grouping page was a sentence anybody
+           actually uttered: the pages listed member topics and episodes and left the reader to
+           infer what the grouping sounded like. Renders nothing when no member has a
+           speaker-attributable insight, which is the honest outcome for a grouping whose members
+           are abstract labels nobody says aloud. -->
+      <TopicPerspectives
+        class="mt-6"
+        :id="id"
+        kind="theme"
+        @open="openPerspective"
+      />
+
       <!-- The MERGED list: every episode discussing any member, de-duplicated. This is the page's
            reason to exist — a reader on one member's topic page sees only that member's episodes,
            and a similarity grouping exists precisely because that misses the rest. -->
@@ -298,19 +321,6 @@ function goBack(): void {
         @open="(pid, e) => openEntity('person', pid, e)"
       />
 
-
-      <!-- What is SAID across the grouping — its members' insights, grouped by speaker, each with
-           a jump-to-moment link. Until this, nothing on either grouping page was a sentence anybody
-           actually uttered: the pages listed member topics and episodes and left the reader to
-           infer what the grouping sounded like. Renders nothing when no member has a
-           speaker-attributable insight, which is the honest outcome for a grouping whose members
-           are abstract labels nobody says aloud. -->
-      <TopicPerspectives
-        class="mt-6"
-        :id="id"
-        kind="theme"
-        @open="openPerspective"
-      />
 
       <!-- Notes, like the storyline and topic pages. Keyed by the theme's own id. -->
       <NoteComposer target="theme" :target-id="id" />
