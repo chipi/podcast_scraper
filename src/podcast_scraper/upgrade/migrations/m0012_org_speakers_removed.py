@@ -304,6 +304,12 @@ class OrgSpeakersRemovedMigration(Migration):
         return True, f"no served surface names any of {len(orgs)} org(s) as a speaker"
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
+        """Remove every organisation name from every speaker surface it reached.
+
+        One pass per episode across all of them — roster, segment labels, KG host/guest
+        nodes, GI Person / SPOKEN_BY / quote / insight attribution and bridge identities —
+        because a name left on any ONE of those re-mints the speaker on the next rederive.
+        """
         root = ctx.corpus_root
         orgs = org_names(root)
         totals: Dict[str, int] = {}

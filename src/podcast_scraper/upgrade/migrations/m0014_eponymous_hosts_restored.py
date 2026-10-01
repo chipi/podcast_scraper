@@ -253,6 +253,12 @@ class EponymousHostsRestoredMigration(Migration):
         return True, "every self-introduced eponymous host holds their seat"
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
+        """Restore a host the show-name rule unseated, where their own voice introduced them.
+
+        Reads the STORED self-introduction rather than re-deriving: the evidence that this
+        person is the host is already in the corpus, and re-running detection would make
+        the repair depend on whatever the detector does today.
+        """
         root = ctx.corpus_root
         eps = self._episodes(root)
         receipts = []
