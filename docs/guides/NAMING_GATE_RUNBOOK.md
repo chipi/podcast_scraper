@@ -130,7 +130,8 @@ One problem at a time, no rush. For each problem (slice):
    slice's failing voices, with zero regressions on labelled hosts.
 2. **Loop** on development: design, replay, read every change, adjust.
 3. **Validate** once on the 500. Same direction as development, or it is not accepted.
-4. If validation disagrees, loop again. **At most 3 loops per problem.** After 3, stop: record
+4. If validation disagrees, loop again. **At most 2 loops per problem** (operator lowered it from
+   3 on 2026-10-02). After 2, stop: record
    where it landed and why in the table, and move to the next problem.
 5. After all problems, review the cumulative table and decide what comes next.
 

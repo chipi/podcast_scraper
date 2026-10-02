@@ -1326,8 +1326,92 @@ _ORG_TAIL_TOKENS = frozenset(
         "initiative",
         "association",
         "commission",
+        # Show and brand tails seen as published "hosts" (show sidecar census, 2026-10-02):
+        # "Timmerman Report", "Americas Online", "Africa Tech Summit", "Brilliant Experience",
+        # "Turkey Book", "Fable Tech", "Norman Conquest". ("street" is deliberately absent: a real
+        # surname, e.g. Picabo Street.)
+        "report",
+        "online",
+        "summit",
+        "experience",
+        "book",
+        "tech",
+        "conquest",
+        "media",
+        "studios",
+        "podcast",
+        "show",
+        "network",
     }
 )
+#: A name whose LAST token is a country or region is a desk or an organisation ("Carnegie India",
+#: "Trivium China", "China Plus"-style feeds), not a person.
+_PLACE_TAIL_TOKENS = frozenset(
+    # Regions only: country words that are also surnames (Sam Brazil, Anatole France) are left out.
+    {"china", "india", "africa", "america", "americas", "asia", "europe"}
+)
+#: A name is never introduced by a count ("Two Carnegie Mellon faculty explore…").
+_NUMBER_WORDS = frozenset(
+    {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "both"}
+)
+#: Role words that, as the FIRST word of a two-word name, mean the role was captured with the
+#: name ("Host Mike", "Guest Host Tim", "Mister Rob"). Inside a longer real name they are not
+#: rejected ("Christopher Guest" ends with one, so it is unaffected).
+_LEADING_ROLE_WORDS = frozenset(
+    {
+        "host",
+        "co-host",
+        "cohost",
+        "guest",
+        "speaker",
+        "narrator",
+        "announcer",
+        "reporter",
+        "producer",
+        "mister",
+        "presenter",
+        "moderator",
+    }
+)
+#: Job and seniority words: a "name" of three or more words containing one is a title plus a
+#: name the prefix stripper did not cut ("Senior User Experience Specialist Therese Fessenden").
+_JOB_TITLE_TOKENS = frozenset(
+    {
+        "specialist",
+        "director",
+        "manager",
+        "president",
+        "chairman",
+        "columnist",
+        "correspondent",
+        "editor",
+        "founder",
+        "partner",
+        "analyst",
+        "senior",
+        "executive",
+    }
+)
+#: Products and companies that introduce themselves in ads ("I'm Gemini", "Hey, it's Claude").
+_BRAND_MONONYMS = frozenset(
+    {
+        "apple",
+        "google",
+        "meta",
+        "amazon",
+        "microsoft",
+        "openai",
+        "nvidia",
+        "gemini",
+        "claude",
+        "chatgpt",
+        "siri",
+        "alexa",
+        "copilot",
+    }
+)
+#: Stray brackets are an artefact the canonicaliser strips ("Aaron Levie)"), so they do not reject.
+_NOT_IN_A_NAME = re.compile(r"[?{}<>!/@#|]")
 _ROLE_PREFIX = re.compile(
     r"^(?:your\s+)?(?:(?:co-?)?host|(?:(?:deputy|senior|executive|managing|contributing)\s+)?"
     r"editor|producer|correspondent|reporter)\s*,?\s+",
@@ -1370,6 +1454,9 @@ def is_publishable_speaker_name(name: Optional[str]) -> bool:
     # University"), which no candidate-list filter upstream can see.
     if looks_like_publisher(nm):
         return False
+    # Punctuation a person's name never carries: "Premier Unbelievable?".
+    if _NOT_IN_A_NAME.search(nm):
+        return False
     toks = nm.split()
     lowered = [t.lower().strip(".,'’") for t in toks]
     # Role and filler words disqualify a ONE-word name, or a name made of nothing else. Inside a
@@ -1378,6 +1465,15 @@ def is_publishable_speaker_name(name: Optional[str]) -> bool:
         return False
     if len(toks) >= 2:
         if lowered[-1] in _ORG_TAIL_TOKENS or any(t.endswith(("'s", "’s")) for t in toks):
+            return False
+        if lowered[-1] in _PLACE_TAIL_TOKENS or lowered[0] in _NUMBER_WORDS:
+            return False
+        # "Host Mike", "Guest Host Tim": every word before the last is a role word.
+        if all(t in _LEADING_ROLE_WORDS for t in lowered[:-1]):
+            return False
+        if len(toks) >= 3 and any(t in _JOB_TITLE_TOKENS for t in lowered):
+            return False
+        if len(toks) >= 6:
             return False
         return looks_like_a_person_name(nm)
     if len(toks) == 1:
@@ -1388,7 +1484,10 @@ def is_publishable_speaker_name(name: Optional[str]) -> bool:
         if letters.isalpha() and letters.isupper() and len(letters) <= 3:
             return False
         return (
-            tl not in _NOT_A_NAME_TOKEN and tl not in _NOT_A_MONONYM and tl not in HONORIFIC_TITLES
+            tl not in _NOT_A_NAME_TOKEN
+            and tl not in _NOT_A_MONONYM
+            and tl not in HONORIFIC_TITLES
+            and tl not in _BRAND_MONONYMS
         )
     return False
 
