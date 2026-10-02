@@ -211,7 +211,7 @@ measured by. Neither depends on anything in this arc.
 **STATUS: every slice below is DONE**, shipped on `feat/multilingual-ingest`; the linked issues stay
 open until that branch merges. The `Size` column is the original estimate, kept because it is what
 the sequencing was argued from — it is not a status. Phases −1, 1, 2 and 3 are likewise complete, so
-Gate V's **V.2** is the only open item in the arc, and it is the operator's.
+nothing in this arc is open.
 
 **Ships as one release.** No new models, no GPU, no user-visible chrome — the badge moved to v2 (D-11).
 At the end, "this episode is in English" is something the system parses and checks rather than assumes,
@@ -254,9 +254,8 @@ consumers are **v2** ([V2-D](MULTILINGUAL_ARC_V2.md#6-turns-consumers)).
 | --- | --- | --- | --- | --- |
 | **V.1** | ~~Verify translation model availability and licences~~ | **DONE 2026-09-28 — §6.1.** | — | closed |
 | **V.5** | ~~Choose the pilot language by measurement~~ | **CLOSED by D-29.** The language roadmap is decided and the pilot is Spanish or Italian. The one residual check is confirming the chosen model covers tier 1 — trivially true for everything except **Catalan**, which needs the gated TranslateGemma card opened or MiLMMT-46 chosen. Folded into V.3. | — | closed |
-| **V.2** | Demand check with the beta cohort | Needs the instrument written first: question wording, cohort size, how "≥30%" is computed. | — | S |
 | **V.3** | ~~Model selection and the quality gate~~ | **DONE 2026-09-29 — [ADR-157](../adr/ADR-157-translation-model-and-serving.md).** `google/translategemma-12b-it` is deployed co-resident on `:8005` and translates the V.6a fixture correctly: speaker labels survive verbatim, and the English render carries **two** `_AD_PATTERNS` hits against **zero** on the Spanish source. Two plan changes fell out of it — S2.3 must use `/v1/completions` (the chat route is unusable) and S2.4 must decide about titles (the model renamed the show) — **decided, D-42**. **The quality gate itself is NOT done**: throughput measured 4.3 tok/s under a ~96% loaded box, which is contention, not capacity, and a bake-off needs a quiet DGX. | S0.10, V.6 | closed |
-| **V.4** | ~~Gate V decision record~~ | **DONE — [ADR-157](../adr/ADR-157-translation-model-and-serving.md)**: the model and pinned revision, the co-resident serving decision and why it departs from the single-owner rule, the `/v1/completions` contract, the memory sizing (and the boot that failed to find it), the evidence, and the Gemma licence position. **The language decision is NOT in it** — that is V.2's, and it is yours. | V.2, V.3 | closed |
+| **V.4** | ~~Gate V decision record~~ | **DONE — [ADR-157](../adr/ADR-157-translation-model-and-serving.md)**: the model and pinned revision, the co-resident serving decision and why it departs from the single-owner rule, the `/v1/completions` contract, the memory sizing (and the boot that failed to find it), the evidence, and the Gemma licence position. **The language decision is NOT in it** — which language to enable next is the operator's, made from the tier roadmap (D-29) and the cost measurement (S2.10), not from a gate. | V.3 | closed |
 | **V.6a** | ~~Non-English fixtures: observe the hazards~~ | **DONE 2026-09-29 (#2186), transcripts only.** All three transcript-observable hazards measured against an English control — and **two of the three predictions were WRONG**, both in the same direction (§5.2). Ad excision confirmed (0 patterns vs 6). The sniff gate *over*-counts (98 vs 65). Naming finds **both** real names but ships **four phantom people** past `_looks_like_person`. English NLP on non-English text is confidently wrong, not blind — which is why S2.14 now exists. Audio (V.6b, #2187) is deferred; the two hazards it would show are closed by construction in S0.6/S0.7. | — | closed |
 
 ---
@@ -318,8 +317,8 @@ S0.1a → S0.1b → S0.4 ──┐
 S0.1a → S0.2 ──────────┼→ S0.6 → S0.7 → S0.8 ═══ PHASE 0 SHIPS ═══╗
 S0.1a → S0.5 ──────────┘                                          ║
                                                                   ▼
-S1.1 → S1.2 ═══ PHASE 1 ═══╗       V.6 → V.3 ──┬── V.4 ═══ GATE V ═══╗
-                           ║  V.2 ─────────────┘                     ║
+S1.1 → S1.2 ═══ PHASE 1 ═══╗       V.6 → V.3 ── V.4 ═══ GATE V ═══╗
+                           ║                                      ║
                            ▼                                         ▼
   S2.1b → S2.2 → S2.3 → S2.4 → S2.5 → {S2.6, S2.7, S2.8, S2.9, S2.10,
                                        S2.11} → S2.13 ═══ PHASE 2 ═══╗
@@ -329,8 +328,7 @@ S1.1 → S1.2 ═══ PHASE 1 ═══╗       V.6 → V.3 ──┬── V
 
 Phase 0 is close to serial through `S0.1a → S0.2 → S0.6`, and V.6 — the non-English fixture, run end to
 end locally — is the cheapest thing in the whole plan that can invalidate a design assumption, so it
-should happen on day one rather than when Gate V formally starts. V.2's demand instrument is the only
-human-shaped item and has the longest lead time; nothing blocks on it, so start it early.
+should happen on day one rather than when Gate V formally starts.
 
 ## 5. Code facts this arc rests on
 
