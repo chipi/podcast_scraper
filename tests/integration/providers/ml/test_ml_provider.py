@@ -373,7 +373,7 @@ class TestMLProviderTranscription(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             provider.transcribe("/path/to/audio.mp3", language="fr")
 
-        self.assertIn("English-only", str(ctx.exception))
+        self.assertIn("supports ['en']", str(ctx.exception))
         mock_model.transcribe.assert_not_called()
 
     def test_transcribe_not_initialized(self):

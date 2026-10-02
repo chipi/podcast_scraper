@@ -426,13 +426,30 @@ def _replay_english_stack(run_tr_dir: Path, ep_label: str, version: str) -> int:
         return 0
     stack = captured.get("stack") or {}
     if not stack:
-        # Pre-stack captures carried only the gate pair; honour them rather than failing a rebuild.
-        (run_tr_dir / f"{ep_label}.en.txt").write_text(
-            str(captured.get("text") or ""), encoding="utf-8"
-        )
-        return 1
-    for suffix, body in sorted(stack.items()):
-        (run_tr_dir / f"{ep_label}.{suffix}").write_text(body, encoding="utf-8")
+        return 0
+
+    # THE SWAP, replayed (D-44). The builder has just written the SOURCE body to the canonical
+    # names, so before the captured translation can take them the source has to move to its
+    # language-tagged name — the same trade the translation stage performs, in the same order. A
+    # side-by-side write would leave the source at the canonical path and the translation nowhere a
+    # generic reader looks, which is the pre-D-44 layout this replaced.
+    suffix = str(captured.get("source_suffix") or "").strip()
+    if not suffix:
+        lang = str(captured.get("source_language") or "").strip().lower().split(".")[0]
+        lang = lang.split("-")[0]
+        suffix = f"{lang}.txt" if lang and lang != "en" else ""
+    if suffix:
+        lang = suffix[: -len(".txt")] if suffix.endswith(".txt") else suffix
+        for canon, tagged in (
+            (f"{ep_label}.txt", f"{ep_label}.{lang}.txt"),
+            (f"{ep_label}.segments.json", f"{ep_label}.{lang}.segments.json"),
+        ):
+            src = run_tr_dir / canon
+            if src.is_file():
+                src.replace(run_tr_dir / tagged)
+
+    for stack_suffix, body in sorted(stack.items()):
+        (run_tr_dir / f"{ep_label}.{stack_suffix}").write_text(body, encoding="utf-8")
     return len(stack)
 
 

@@ -86,7 +86,11 @@ class TestTheLocalProviderRefusesNonEnglish:
 
         with pytest.raises(ValueError) as exc:
             _guard_supported_languages("es")
-        assert "English-only" in str(exc.value)
+        # The guard names the SUPPORTED SET rather than hardcoding a language in its prose
+        # (D-44): widening `LOCAL_WHISPER_SUPPORTED_LANGUAGES` changes the message with no
+        # test edit, which is the point of routing on a parameter.
+        assert "supports ['en']" in str(exc.value)
+        assert "'es'" in str(exc.value)
         assert "base.en" in str(exc.value), "the message must name the mechanism, not just refuse"
 
     @pytest.mark.parametrize("code", ["es", "de", "ja", "pt-BR", "es-ES"])

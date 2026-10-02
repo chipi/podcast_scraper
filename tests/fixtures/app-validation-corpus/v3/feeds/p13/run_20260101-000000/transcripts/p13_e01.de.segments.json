@@ -1,0 +1,345 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Katrin Vogel",
+    "start": 0.0,
+    "text": "Willkommen zur\u00fcck bei Pfadgespr\u00e4che. Heute sprechen wir \u00fcber Wegebau, und bei mir ist Stefan Brandt, Wegebauer der Cascadia-Allianz. Stefan Brandt, danke, dass du hier bist."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Stefan Brandt",
+    "start": 6.0,
+    "text": "Danke, Katrin. Sehr gern \u2014 Wegebau ist etwas, wor\u00fcber ich ziemlich viel nachgedacht habe."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Katrin Vogel",
+    "start": 12.0,
+    "text": "Diese Folge wird unterst\u00fctzt von Strava. Strava ist die Heimat der Athleten. Starte auf strava.com/podcast."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Katrin Vogel",
+    "start": 18.0,
+    "text": "Erz\u00e4hl mir, wie du die Entscheidung getroffen hast. Wie passt RockShox in dieses Bild?"
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Stefan Brandt",
+    "start": 24.0,
+    "text": "Ehrlich gesagt ist die Entw\u00e4sserung die Gestaltungsentscheidung mit der gr\u00f6\u00dften Wirkung auf jedem Weg. Wir haben das bei Teams gesehen, die die Cascadia-Allianz nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Katrin Vogel",
+    "start": 30.0,
+    "text": "Erz\u00e4hl mir, wie du die Entscheidung getroffen hast. Was ist die Fassung der Frage, auf die es wirklich ankommt?"
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Stefan Brandt",
+    "start": 36.0,
+    "text": "Ja, schau \u2014 der h\u00e4ufigste Fehler neuer Wegebauer ist, mit zu starkem Gef\u00e4lle zu graben. Wenn man das einmal verinnerlicht hat, werden die \u00fcbrigen Entscheidungen leichter."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Katrin Vogel",
+    "start": 42.0,
+    "text": "Das m\u00f6chte ich vertiefen. Wo \u00fcberschneiden sich Bodenerosion und Wegebau?"
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Stefan Brandt",
+    "start": 48.0,
+    "text": "Klar. Die Gespr\u00e4che \u00fcber Landpflege m\u00fcssen vor dem ersten Spatenstich stattfinden. Wir haben das bei Teams gesehen, die RockShox nutzen. Der Rahmen z\u00e4hlt, weil er dir sagt, welche Abw\u00e4gungen du triffst."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Katrin Vogel",
+    "start": 54.0,
+    "text": "Erz\u00e4hl mir mehr dar\u00fcber."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Stefan Brandt",
+    "start": 60.0,
+    "text": "Und wenn Teams Spoke & Wrench in diesen Ablauf aufnehmen, wird die Abw\u00e4gung sichtbar \u2014 wenn du das ignorierst, baust du ein Jahr sp\u00e4ter alles von vorn."
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Katrin Vogel",
+    "start": 66.0,
+    "text": "Erz\u00e4hl mir, wie du die Entscheidung getroffen hast. Wo \u00fcberschneiden sich Bodenerosion und Wegebau?"
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Stefan Brandt",
+    "start": 72.0,
+    "text": "Klar. Bankette am Hang sind nicht optional. Die Abk\u00fcrzung am ersten Tag ist der Ausbruch im dritten Jahr. Und der Effekt zweiter Ordnung ist der Teil, den fast alle \u00fcbersehen."
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Katrin Vogel",
+    "start": 78.0,
+    "text": "Das ist ein n\u00fctzlicher Rahmen. Was ist die Fassung der Frage, auf die es wirklich ankommt?"
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Stefan Brandt",
+    "start": 84.0,
+    "text": "Ja, schau \u2014 die Bodenstruktur z\u00e4hlt mehr, als die Leute glauben. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Katrin Vogel",
+    "start": 90.0,
+    "text": "Wie sieht der Fehlermodus aus? Was ist der strukturelle Blickwinkel, zu dem die meisten H\u00f6rer keinen Zugang haben?"
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Stefan Brandt",
+    "start": 96.0,
+    "text": "Lass mich dir die Fassung geben, an die ich wirklich glaube. Ich habe meine Meinung \u00fcber maschinell gebaute gegen\u00fcber handgebauten Wegen ge\u00e4ndert. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Katrin Vogel",
+    "start": 102.0,
+    "text": "Erz\u00e4hl mir mehr dar\u00fcber."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Stefan Brandt",
+    "start": 108.0,
+    "text": "Und wenn Teams die Cascadia-Allianz in diesen Ablauf aufnehmen, wird die Abw\u00e4gung sichtbar \u2014 wenn du das ignorierst, baust du ein Jahr sp\u00e4ter alles von vorn."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Katrin Vogel",
+    "start": 114.0,
+    "text": "Wir sind gleich zur\u00fcck, nach einer kurzen Werbepause."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Ad",
+    "start": 120.0,
+    "text": "Die heutige Folge wird pr\u00e4sentiert von Stripe. Stripe macht Zahlungen einfach, ob du einen Marktplatz oder ein Abo-Gesch\u00e4ft betreibst. Besuche stripe.com/podcast f\u00fcr eine kostenlose Testphase."
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Katrin Vogel",
+    "start": 126.0,
+    "text": "Willkommen zur\u00fcck in der Sendung. Wie sieht der Fehlermodus aus? Wo \u00fcberschneiden sich Bodenerosion und Wegebau?"
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Stefan Brandt",
+    "start": 132.0,
+    "text": "So sehe ich das. Die Entw\u00e4sserung ist die Gestaltungsentscheidung mit der gr\u00f6\u00dften Wirkung auf jedem Weg. Wir haben das bei Teams gesehen, die Shimano nutzen. Wenn du das ignorierst, baust du ein Jahr sp\u00e4ter alles von vorn."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Katrin Vogel",
+    "start": 138.0,
+    "text": "Erz\u00e4hl mir, wie du die Entscheidung getroffen hast. Wie passt RockShox in dieses Bild?"
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Stefan Brandt",
+    "start": 144.0,
+    "text": "Ja, schau \u2014 der h\u00e4ufigste Fehler neuer Wegebauer ist, mit zu starkem Gef\u00e4lle zu graben. Wenn man das einmal verinnerlicht hat, werden die \u00fcbrigen Entscheidungen leichter."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Katrin Vogel",
+    "start": 150.0,
+    "text": "Stell die g\u00e4ngige Meinung f\u00fcr mich infrage. Was hast du fr\u00fcher dar\u00fcber geglaubt und inzwischen revidiert?"
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Stefan Brandt",
+    "start": 156.0,
+    "text": "Lass mich dir die Fassung geben, an die ich wirklich glaube. Die Gespr\u00e4che \u00fcber Landpflege m\u00fcssen vor dem ersten Spatenstich stattfinden. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Katrin Vogel",
+    "start": 162.0,
+    "text": "Das passt."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Stefan Brandt",
+    "start": 168.0,
+    "text": "Au\u00dferhalb der Werkzeuge auf dem Niveau der Cascadia-Allianz ist der Fehlermodus schwerer zu erkennen. Und der Effekt zweiter Ordnung ist der Teil, den fast alle \u00fcbersehen."
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Katrin Vogel",
+    "start": 174.0,
+    "text": "Was ist die Faustregel, zu der du immer zur\u00fcckkehrst? Was ist die Fassung der Frage, auf die es wirklich ankommt?"
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Stefan Brandt",
+    "start": 180.0,
+    "text": "Es l\u00e4uft auf Folgendes hinaus: Bankette am Hang sind nicht optional. Die Abk\u00fcrzung am ersten Tag ist der Ausbruch im dritten Jahr. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Katrin Vogel",
+    "start": 186.0,
+    "text": "Wie sieht der Fehlermodus aus? Was ist der am meisten untersch\u00e4tzte Aspekt des Wegebaus?"
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Stefan Brandt",
+    "start": 192.0,
+    "text": "Lass mich dir die Fassung geben, an die ich wirklich glaube. Die Bodenstruktur z\u00e4hlt mehr, als die Leute glauben. Wir haben das bei Teams gesehen, die die Cascadia-Allianz nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Katrin Vogel",
+    "start": 198.0,
+    "text": "Das m\u00f6chte ich vertiefen. Wie passt Shimano in dieses Bild?"
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Stefan Brandt",
+    "start": 204.0,
+    "text": "Ja, schau \u2014 ich habe meine Meinung \u00fcber maschinell gebaute gegen\u00fcber handgebauten Wegen ge\u00e4ndert. Wenn man das einmal verinnerlicht hat, werden die \u00fcbrigen Entscheidungen leichter."
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Katrin Vogel",
+    "start": 210.0,
+    "text": "Wo h\u00f6rt das auf zu funktionieren?"
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Stefan Brandt",
+    "start": 216.0,
+    "text": "Au\u00dferhalb der Werkzeuge auf dem Niveau von RockShox ist der Fehlermodus schwerer zu erkennen. Wenn man das einmal verinnerlicht hat, werden die \u00fcbrigen Entscheidungen leichter."
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Katrin Vogel",
+    "start": 222.0,
+    "text": "Wechseln wir das Thema \u2014 ich m\u00f6chte den letzten Abschnitt der Landpflege widmen."
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Stefan Brandt",
+    "start": 228.0,
+    "text": "Da wird das Gespr\u00e4ch interessant, weil die Abw\u00e4gungen rund um die Landpflege alles durchziehen, was wir behandelt haben."
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Katrin Vogel",
+    "start": 234.0,
+    "text": "Das m\u00f6chte ich vertiefen. Was ist der Gegenblickwinkel, zu dem die meisten H\u00f6rer keinen Zugang haben?"
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Stefan Brandt",
+    "start": 240.0,
+    "text": "Es l\u00e4uft auf Folgendes hinaus: Die Entw\u00e4sserung ist die Gestaltungsentscheidung mit der gr\u00f6\u00dften Wirkung auf jedem Weg. Wir haben das bei Teams gesehen, die RockShox nutzen. Wenn du das ignorierst, baust du ein Jahr sp\u00e4ter alles von vorn."
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Katrin Vogel",
+    "start": 246.0,
+    "text": "Wie sieht der Fehlermodus aus? Was ist der am meisten untersch\u00e4tzte Aspekt des Wegebaus?"
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Stefan Brandt",
+    "start": 252.0,
+    "text": "Ehrlich gesagt ist der h\u00e4ufigste Fehler neuer Wegebauer, mit zu starkem Gef\u00e4lle zu graben. Der Rahmen z\u00e4hlt, weil er dir sagt, welche Abw\u00e4gungen du triffst."
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Katrin Vogel",
+    "start": 258.0,
+    "text": "Bevor wir schlie\u00dfen, was ist eine Sache, die die H\u00f6rer diese Woche ausprobieren k\u00f6nnen?"
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Stefan Brandt",
+    "start": 264.0,
+    "text": "Nimm eine der Ideen, die wir behandelt haben, und wende sie zwei Wochen lang an. Der Rest ist Iteration."
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Katrin Vogel",
+    "start": 270.0,
+    "text": "Und zum Schluss ein gro\u00dfes Dankesch\u00f6n an unsere Partner von Linear. Linear ist der Issue-Tracker, gebaut f\u00fcr Geschwindigkeit \u2014 f\u00fcr die Tastatur gedacht. Schau auf linear.com vorbei."
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Katrin Vogel",
+    "start": 276.0,
+    "text": "Stefan Brandt, danke f\u00fcr das Gespr\u00e4ch."
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Stefan Brandt",
+    "start": 282.0,
+    "text": "Danke, Katrin."
+  },
+  {
+    "end": 294.0,
+    "id": 48,
+    "speaker_label": "Katrin Vogel",
+    "start": 288.0,
+    "text": "Das war es f\u00fcr die heutige Folge von Pfadgespr\u00e4che. Bis zum n\u00e4chsten Mal."
+  }
+]

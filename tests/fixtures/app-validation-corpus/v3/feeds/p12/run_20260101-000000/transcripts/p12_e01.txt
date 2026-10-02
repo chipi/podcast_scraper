@@ -1,47 +1,56 @@
-Camille Dubois: Bienvenue à nouveau dans Sessions Sentier. Aujourd'hui nous parlons de construction de sentiers, et je reçois Julien Mercier, constructeur de sentiers de l'Alliance Cascadia. Julien Mercier, merci d'être là.
-Julien Mercier: Merci, Camille. Avec grand plaisir — la construction de sentiers est un sujet auquel j'ai beaucoup réfléchi.
-Camille Dubois: Cet épisode vous est proposé par Strava. Strava est la maison des athlètes. Commencez sur strava.com/podcast.Raconte-moi comment tu as pris la décision. Comment RockShox s'inscrit-il dans ce tableau ?
-Julien Mercier: Honnêtement, le drainage est la décision de conception la plus déterminante sur n'importe quel sentier. On l'a vu dans des équipes qui utilisent l'Alliance Cascadia. J'ai vu ce schéma se répéter dans trois équipes différentes.
-Camille Dubois: Raconte-moi comment tu as pris la décision. Quelle est la version de la question qui compte vraiment ?
-Julien Mercier: Oui, écoute — l'erreur la plus courante des constructeurs débutants est de creuser avec une pente trop forte. Une fois que tu as intégré ça, le reste des décisions devient plus simple.
-Camille Dubois: Je veux approfondir. Où l'érosion des sols et la construction de sentiers se croisent-elles ?
-Julien Mercier: Bien sûr. Les conversations sur la gestion du territoire doivent avoir lieu avant le premier coup de pelle. On l'a vu dans des équipes qui utilisent RockShox. Le cadre compte parce qu'il te dit quels compromis tu fais.
-Camille Dubois: Dis-m'en plus.
-Julien Mercier: Et quand les équipes adoptent Spoke & Wrench dans ce flux, le compromis devient visible — si tu ignores ça, tu finis par tout reconstruire de zéro un an plus tard.
-Camille Dubois: Raconte-moi comment tu as pris la décision. Où l'érosion des sols et la construction de sentiers se croisent-elles ?
-Julien Mercier: Bien sûr. Les banquettes à flanc de coteau ne sont pas facultatives. Le raccourci du premier jour est le ravinement de la troisième année. Et l'effet de second ordre est la partie que presque tout le monde néglige.
-Camille Dubois: C'est un cadre utile. Quelle est la version de la question qui compte vraiment ?
-Julien Mercier: Oui, écoute — la structure du sol compte plus que les gens ne le croient. On l'a vu dans des équipes qui utilisent Spoke & Wrench. J'ai vu ce schéma se répéter dans trois équipes différentes.
-Camille Dubois: À quoi ressemble le mode de défaillance ? Quel est l'angle structurel auquel la plupart des auditeurs n'ont pas accès ?
-Julien Mercier: Laisse-moi te donner la version à laquelle je crois vraiment. J'ai changé d'avis sur les sentiers faits à la machine par rapport à ceux faits à la main. J'ai vu ce schéma se répéter dans trois équipes différentes.
-Camille Dubois: Dis-m'en plus.
-Julien Mercier: Et quand les équipes adoptent l'Alliance Cascadia dans ce flux, le compromis devient visible — si tu ignores ça, tu finis par tout reconstruire de zéro un an plus tard.
-Camille Dubois: Nous revenons tout de suite, après une courte pause publicitaire.
-Ad: L'épisode d'aujourd'hui vous est présenté par Stripe. Stripe simplifie les paiements, que vous gériez une place de marché ou une activité par abonnement. Rendez-vous sur stripe.com/podcast pour un essai gratuit.
-Camille Dubois: Bienvenue à nouveau dans l'émission. À quoi ressemble le mode de défaillance ? Où l'érosion des sols et la construction de sentiers se croisent-elles ?
-Julien Mercier: Voilà comment je le vois. Le drainage est la décision de conception la plus déterminante sur n'importe quel sentier. On l'a vu dans des équipes qui utilisent Shimano. Si tu ignores ça, tu finis par tout reconstruire de zéro un an plus tard.
-Camille Dubois: Raconte-moi comment tu as pris la décision. Comment RockShox s'inscrit-il dans ce tableau ?
-Julien Mercier: Oui, écoute — l'erreur la plus courante des constructeurs débutants est de creuser avec une pente trop forte. Une fois que tu as intégré ça, le reste des décisions devient plus simple.
-Camille Dubois: Remets en cause la sagesse conventionnelle pour moi. Qu'est-ce que tu croyais autrefois là-dessus et que tu as révisé ?
-Julien Mercier: Laisse-moi te donner la version à laquelle je crois vraiment. Les conversations sur la gestion du territoire doivent avoir lieu avant le premier coup de pelle. On l'a vu dans des équipes qui utilisent Spoke & Wrench. J'ai vu ce schéma se répéter dans trois équipes différentes.
-Camille Dubois: Ça se tient.
-Julien Mercier: En dehors des outils du niveau de l'Alliance Cascadia, le mode de défaillance est plus difficile à repérer. Et l'effet de second ordre est la partie que presque tout le monde néglige.
-Camille Dubois: Quelle est l'heuristique à laquelle tu reviens toujours ? Quelle est la version de la question qui compte vraiment ?
-Julien Mercier: Ça se résume à ceci : les banquettes à flanc de coteau ne sont pas facultatives. Le raccourci du premier jour est le ravinement de la troisième année. J'ai vu ce schéma se répéter dans trois équipes différentes.
-Camille Dubois: À quoi ressemble le mode de défaillance ? Quel est l'aspect le plus sous-estimé de la construction de sentiers ?
-Julien Mercier: Laisse-moi te donner la version à laquelle je crois vraiment. La structure du sol compte plus que les gens ne le croient. On l'a vu dans des équipes qui utilisent l'Alliance Cascadia. J'ai vu ce schéma se répéter dans trois équipes différentes.
-Camille Dubois: Je veux approfondir. Comment Shimano s'inscrit-il dans ce tableau ?
-Julien Mercier: Oui, écoute — j'ai changé d'avis sur les sentiers faits à la machine par rapport à ceux faits à la main. Une fois que tu as intégré ça, le reste des décisions devient plus simple.
-Camille Dubois: Où est-ce que ça cesse de fonctionner ?
-Julien Mercier: En dehors des outils du niveau de RockShox, le mode de défaillance est plus difficile à repérer. Une fois que tu as intégré ça, le reste des décisions devient plus simple.
-Camille Dubois: Changeons de sujet — je veux consacrer la dernière ligne droite à la gestion du territoire.
-Julien Mercier: C'est là que la conversation devient intéressante, parce que les compromis autour de la gestion du territoire traversent tout ce qu'on a couvert.
-Camille Dubois: Je veux approfondir. Quel est l'angle contraire auquel la plupart des auditeurs n'ont pas accès ?
-Julien Mercier: Ça se résume à ceci : le drainage est la décision de conception la plus déterminante sur n'importe quel sentier. On l'a vu dans des équipes qui utilisent RockShox. Si tu ignores ça, tu finis par tout reconstruire de zéro un an plus tard.
-Camille Dubois: À quoi ressemble le mode de défaillance ? Quel est l'aspect le plus sous-estimé de la construction de sentiers ?
-Julien Mercier: Honnêtement, l'erreur la plus courante des constructeurs débutants est de creuser avec une pente trop forte. Le cadre compte parce qu'il te dit quels compromis tu fais.
-Camille Dubois: Avant de conclure, quelle est une chose que les auditeurs peuvent essayer cette semaine ?
-Julien Mercier: Choisis une des idées qu'on a couvertes et applique-la pendant deux semaines. Le reste est de l'itération.
-Camille Dubois: Et pour finir, un grand merci à nos partenaires de Linear. Linear est le gestionnaire de tickets conçu pour la vitesse — pensé pour le clavier. Allez voir sur linear.com.Julien Mercier, merci pour cette conversation.
-Julien Mercier: Merci, Camille.
-Camille Dubois: C'est tout pour l'épisode d'aujourd'hui de Sessions Sentier. À la prochaine.
+Camille Dubois: Welcome back to Sessions Sentier. Today, we're talking about trail building, and I'm joined by Julien Mercier, a trail builder from the Cascadia Alliance. Julien Mercier, thank you for being here.
+Julien Mercier: Thank you, Camille. My pleasure – trail construction is a topic I've given a lot of thought to.
+Camille Dubois: This episode is brought to you by Strava. Strava is the home of athletes. Start at strava.com/podcast. Tell me about how you made that decision. How does RockShox fit into this picture?
+Julien Mercier: Honestly, drainage is the most crucial design decision for any trail. We've seen this in teams that use the Alliance Cascadia. I've observed this pattern repeating itself in three different teams.
+Camille Dubois: Tell me how you came to that decision. Which version of the question is truly important?
+Julien Mercier: Yes, listen – the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.
+Camille Dubois: I want to delve deeper. Where do soil erosion and trail construction intersect?
+Julien Mercier: Of course. Discussions about land management should take place before the first shovel hits the ground. We've seen this in teams that use RockShox. The frame matters because it tells you what compromises you're making.
+Camille Dubois: Tell me more.
+Julien Mercier: And when teams adopt Spoke & Wrench within this workflow, the trade-offs become apparent. If you ignore these trade-offs, you'll end up having to rebuild everything from scratch a year later.
+Camille Dubois: Tell me how you came to that decision. Where do soil erosion and trail construction intersect?
+Julien Mercier: Of course. The benches along the hillside are not optional. The shortcut of the first year is the ravine of the third year. And the second-order effect is the part that almost everyone overlooks.
+Camille Dubois: This is a useful framework. Which version of the question is truly important?
+Julien Mercier: Yes, listen – the structure of the team is more important than people realize. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.
+Camille Dubois: What does the failure mode look like? What is the structural aspect that most auditors do not have access to?
+Julien Mercier: Let me tell you the version that I truly believe in. I've changed my mind about machine-made trails compared to those made by hand. I've seen this pattern repeat itself in three different teams.
+Camille Dubois: Tell me more.
+Julien Mercier: And when teams adopt the Cascadia Alliance within this process, the trade-offs become apparent. If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.
+Camille Dubois: We'll be right back after a short commercial break.
+SPEAKER_02: Today's episode is brought to you by Stripe. Stripe simplifies payments, whether you're running a marketplace or a subscription-based business. Visit stripe.com/podcast for a free trial.
+Camille Dubois: Welcome back to the show. What does the failure mode look like? Where do soil erosion and trail construction intersect?
+Julien Mercier: That's how I see it. Drainage is the most crucial design decision for any trail. We've seen it in teams that use Shimano components. If you ignore that, you'll end up having to rebuild everything from scratch a year later.
+Camille Dubois: Tell me how you came to that decision. How does RockShox fit into this picture?
+Julien Mercier: Yes, listen – the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.
+Camille Dubois: Challenge my conventional wisdom. What did you used to believe about this, and what have you revised your views on?
+Julien Mercier: Let me give you the version that I truly believe in. Discussions about land management should take place before the first shovel hits the ground. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.
+Camille Dubois: It's settled.
+Or:
+It's a done deal.
+Or:
+That's confirmed.
+Or:
+It's arranged.
+Or:
+It's agreed.
+(The best option depends on the context.)
+Julien Mercier: Outside of the tools available at the Cascadia Alliance level, it is more difficult to identify the failure mode. And the second-order effect is the part that almost everyone overlooks.
+Camille Dubois: What heuristic do you always find yourself returning to? Which version of the question is truly the most important?
+Julien Mercier: It boils down to this: benches along the hillside are not optional. The shortcut of the first year leads to the ravine of the third year. I've seen this pattern repeat itself in three different teams.
+Camille Dubois: What does the failure mode look like? What is the most underestimated aspect of trail construction?
+Julien Mercier: Let me give you the version that I truly believe in. The structure of the soil is more important than people realize. We've seen this in teams that use the Alliance Cascadia. I've seen this pattern repeat itself in three different teams.
+Camille Dubois: I want to delve deeper. How does Shimano fit into this picture?
+Julien Mercier: Yes, listen – I've changed my mind about machine-made trails versus those made by hand. Once you understand that, the rest of the decisions become easier.
+Camille Dubois: Where does it stop working?
+Julien Mercier: Outside of issues related to RockShox components, the failure mode is more difficult to identify. Once you understand that, the rest of the decisions become easier.
+Camille Dubois: Let's change the subject – I want to dedicate the final section to the management of the territory.
+Julien Mercier: That's where the conversation becomes interesting, because the compromises surrounding land management touch upon everything we've discussed.
+Camille Dubois: I want to delve deeper. What is the opposing perspective that most listeners don't have access to?
+Julien Mercier: It all boils down to this: drainage is the most crucial design decision for any trail. We've seen this with teams that use RockShox components. If you ignore this, you'll end up having to rebuild everything from scratch a year later.
+Camille Dubois: What does the failure mode look like? What is the most underestimated aspect of trail construction?
+Julien Mercier: Honestly, the most common mistake that beginner builders make is digging with too steep a slope. The framework is important because it tells you what compromises you are making.
+Camille Dubois: Before we conclude, what is one thing that listeners can try this week?
+Julien Mercier: Choose one of the ideas we discussed and implement it for two weeks. Everything else is iteration.
+Camille Dubois: And finally, a big thank you to our partners at Linear. Linear is the ticketing system designed for speed – built for the keyboard. Check them out at linear.com. Julien Mercier, thank you for this conversation.
+Julien Mercier: Thank you, Camille.
+Camille Dubois: That's all for today's episode of Sessions Sentier. See you next time.

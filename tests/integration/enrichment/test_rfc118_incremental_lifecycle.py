@@ -41,9 +41,16 @@ class HashConsensusScorer:
 
     def __init__(self) -> None:
         self.calls = 0
+        #: DISTINCT text pairs seen. `calls` counts invocations, and the two differ: the same pair
+        #: can be scored more than once in a run (including self-pairs, where `ea == eb`). An
+        #: assertion that compares one run's CALLS against another's cached KEYS is therefore
+        #: comparing different units, and silently held only while the corpus was small enough for
+        #: the two to coincide — it broke when p10-p14 took the corpus from 40 episodes to 45.
+        self.pairs: set = set()
 
     async def score(self, text_a: str, text_b: str) -> ConsensusSignal:
         self.calls += 1
+        self.pairs.add((text_a, text_b))
         digest = hashlib.sha256(f"{text_a}\x1f{text_b}".encode("utf-8")).digest()
         return ConsensusSignal(cosine=digest[0] / 255.0, contradiction=digest[1] / 255.0)
 
@@ -210,19 +217,23 @@ class TestReconciliationOnTier3Corpus:
         assert incr.status == STATUS_OK
         assert _canon(incr.data) == _canon(full.data)
         assert full.data is not None
-        # The delta path must have re-scored ONLY pairs touching the changed episode.
+        # The delta path must have re-scored ONLY pairs touching the changed episode — and must not
+        # SKIP any the full run covered. The second half used to compare the incremental run's CALLS
+        # plus the cache's KEYS against the full run's CALLS, which are different units: a pair can
+        # be scored twice in one run, so calls exceed distinct pairs and the sum came up short with
+        # nothing actually skipped. Compared in DISTINCT PAIRS now, which is what "covered" means.
         if full.data["pairs_scored"] > 0:
             assert incr_scorer.calls <= full_scorer.calls
-            assert (
-                incr_scorer.calls
-                + len(
-                    json.loads(
-                        (incr_root / "enrichments" / "topic_consensus.pairs_cache.json").read_text(
-                            encoding="utf-8"
-                        )
-                    )["pairs"]
+
+            cache = json.loads(
+                (incr_root / "enrichments" / "topic_consensus.pairs_cache.json").read_text(
+                    encoding="utf-8"
                 )
-                >= full_scorer.calls
+            )["pairs"]
+            covered = len(cache) + len(incr_scorer.pairs)
+            assert covered >= len(full_scorer.pairs), (
+                f"the incremental path covered {covered} distinct pairs but the full run scored "
+                f"{len(full_scorer.pairs)} — it skipped work rather than reusing it"
             )
 
     def test_backbone_delta_on_this_corpus_is_stable(self, corpus: Path) -> None:

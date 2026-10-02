@@ -80,4 +80,6 @@ accepted:
   transcription_fallback_provider: "pre-ratchet divergence, seeded 2026-08-30 — review when next touched (see #1878)"
   transcription_timeout: "pre-ratchet divergence, seeded 2026-08-30 — review when next touched (see #1878)"
   vector_search: "pre-ratchet divergence, seeded 2026-08-30 — review when next touched (see #1878)"
+  vllm_insight_model: "set ONLY on fixture_validation_dgx, to the model actually served on :8003 (NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4). That profile exists to run the fixture corpus through the real DGX with ASR skipped, so its summaries and GI/KG are real output rather than stubs — and it has to name the deployed model because a default that drifted would silently change what the committed corpus contains. Operational profiles leave it unset and take the registry default"
+  vllm_temperature: "0.0 ONLY on fixture_validation_dgx, for DETERMINISM: its output is captured into tests/fixtures/pipeline-summaries and replayed on every later corpus build, so a temperature above zero would make the committed fixtures unreproducible and every rebuild a diff. Operational profiles want the registry default, where some variation is fine"
   whisper_model: "pre-ratchet divergence, seeded 2026-08-30 — review when next touched (see #1878)"

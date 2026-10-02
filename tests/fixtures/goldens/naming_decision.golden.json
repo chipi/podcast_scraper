@@ -1477,6 +1477,44 @@
       }
     ]
   },
+  "p10_e01.es": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
   "p11_e01": {
     "input_voices": 3,
     "num_speakers": 3,
@@ -1512,6 +1550,44 @@
         "source": "raw",
         "voice": "SPEAKER_02",
         "voice_type": "commercial"
+      }
+    ]
+  },
+  "p11_e01.it": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
       }
     ]
   },
@@ -1553,6 +1629,44 @@
       }
     ]
   },
+  "p12_e01.fr": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
   "p13_e01": {
     "input_voices": 3,
     "num_speakers": 3,
@@ -1591,6 +1705,44 @@
       }
     ]
   },
+  "p13_e01.de": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
   "p14_e01": {
     "input_voices": 3,
     "num_speakers": 3,
@@ -1626,6 +1778,44 @@
         "source": "raw",
         "voice": "SPEAKER_02",
         "voice_type": "commercial"
+      }
+    ]
+  },
+  "p14_e01.pt": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
       }
     ]
   }

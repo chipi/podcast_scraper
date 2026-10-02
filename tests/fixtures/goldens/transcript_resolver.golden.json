@@ -59,19 +59,19 @@
       "p09_e04.txt"
     ],
     "app-validation-corpus/v3::p10": [
-      "p10_e01.en.adfree.txt"
+      "p10_e01.adfree.txt"
     ],
     "app-validation-corpus/v3::p11": [
-      "p11_e01.en.adfree.txt"
+      "p11_e01.adfree.txt"
     ],
     "app-validation-corpus/v3::p12": [
-      "p12_e01.en.adfree.txt"
+      "p12_e01.adfree.txt"
     ],
     "app-validation-corpus/v3::p13": [
-      "p13_e01.en.adfree.txt"
+      "p13_e01.adfree.txt"
     ],
     "app-validation-corpus/v3::p14": [
-      "p14_e01.en.adfree.txt"
+      "p14_e01.adfree.txt"
     ],
     "viewer-validation-corpus/v3::p01": [],
     "viewer-validation-corpus/v3::p02": [],
@@ -110,7 +110,6 @@
       "A8_m0009_sidecar": "transcripts/p01_e01.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p01_e01.en.segments.json",
         "transcripts/p01_e01.segments.json",
         "transcripts/p01_e01.adfree.segments.json"
       ],
@@ -143,7 +142,6 @@
       "A8_m0009_sidecar": "transcripts/p01_e02.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p01_e02.en.segments.json",
         "transcripts/p01_e02.segments.json",
         "transcripts/p01_e02.adfree.segments.json"
       ],
@@ -176,7 +174,6 @@
       "A8_m0009_sidecar": "transcripts/p01_e03.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p01_e03.en.segments.json",
         "transcripts/p01_e03.segments.json",
         "transcripts/p01_e03.adfree.segments.json"
       ],
@@ -208,7 +205,6 @@
       "A8_m0009_sidecar": "transcripts/p01_e04.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p01_e04.en.segments.json",
         "transcripts/p01_e04.segments.json",
         "transcripts/p01_e04.adfree.segments.json"
       ],
@@ -241,7 +237,6 @@
       "A8_m0009_sidecar": "transcripts/p02_e01.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p02_e01.en.segments.json",
         "transcripts/p02_e01.segments.json",
         "transcripts/p02_e01.adfree.segments.json"
       ],
@@ -274,7 +269,6 @@
       "A8_m0009_sidecar": "transcripts/p02_e02.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p02_e02.en.segments.json",
         "transcripts/p02_e02.segments.json",
         "transcripts/p02_e02.adfree.segments.json"
       ],
@@ -307,7 +301,6 @@
       "A8_m0009_sidecar": "transcripts/p02_e03.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p02_e03.en.segments.json",
         "transcripts/p02_e03.segments.json",
         "transcripts/p02_e03.adfree.segments.json"
       ],
@@ -339,7 +332,6 @@
       "A8_m0009_sidecar": "transcripts/p02_e04.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p02_e04.en.segments.json",
         "transcripts/p02_e04.segments.json",
         "transcripts/p02_e04.adfree.segments.json"
       ],
@@ -372,7 +364,6 @@
       "A8_m0009_sidecar": "transcripts/p02_e05.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p02_e05.en.segments.json",
         "transcripts/p02_e05.segments.json",
         "transcripts/p02_e05.adfree.segments.json"
       ],
@@ -405,7 +396,6 @@
       "A8_m0009_sidecar": "transcripts/p03_e01.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p03_e01.en.segments.json",
         "transcripts/p03_e01.segments.json",
         "transcripts/p03_e01.adfree.segments.json"
       ],
@@ -438,7 +428,6 @@
       "A8_m0009_sidecar": "transcripts/p03_e02.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p03_e02.en.segments.json",
         "transcripts/p03_e02.segments.json",
         "transcripts/p03_e02.adfree.segments.json"
       ],
@@ -471,7 +460,6 @@
       "A8_m0009_sidecar": "transcripts/p03_e03.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p03_e03.en.segments.json",
         "transcripts/p03_e03.segments.json",
         "transcripts/p03_e03.adfree.segments.json"
       ],
@@ -503,7 +491,6 @@
       "A8_m0009_sidecar": "transcripts/p03_e04.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p03_e04.en.segments.json",
         "transcripts/p03_e04.segments.json",
         "transcripts/p03_e04.adfree.segments.json"
       ],
@@ -536,7 +523,6 @@
       "A8_m0009_sidecar": "transcripts/p04_e01.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p04_e01.en.segments.json",
         "transcripts/p04_e01.segments.json",
         "transcripts/p04_e01.adfree.segments.json"
       ],
@@ -569,7 +555,6 @@
       "A8_m0009_sidecar": "transcripts/p04_e02.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p04_e02.en.segments.json",
         "transcripts/p04_e02.segments.json",
         "transcripts/p04_e02.adfree.segments.json"
       ],
@@ -602,7 +587,6 @@
       "A8_m0009_sidecar": "transcripts/p04_e03.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p04_e03.en.segments.json",
         "transcripts/p04_e03.segments.json",
         "transcripts/p04_e03.adfree.segments.json"
       ],
@@ -635,7 +619,6 @@
       "A8_m0009_sidecar": "transcripts/p04_e04.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p04_e04.en.segments.json",
         "transcripts/p04_e04.segments.json",
         "transcripts/p04_e04.adfree.segments.json"
       ],
@@ -668,7 +651,6 @@
       "A8_m0009_sidecar": "transcripts/p05_e01.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p05_e01.en.segments.json",
         "transcripts/p05_e01.segments.json",
         "transcripts/p05_e01.adfree.segments.json"
       ],
@@ -701,7 +683,6 @@
       "A8_m0009_sidecar": "transcripts/p05_e02.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p05_e02.en.segments.json",
         "transcripts/p05_e02.segments.json",
         "transcripts/p05_e02.adfree.segments.json"
       ],
@@ -734,7 +715,6 @@
       "A8_m0009_sidecar": "transcripts/p05_e03.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p05_e03.en.segments.json",
         "transcripts/p05_e03.segments.json",
         "transcripts/p05_e03.adfree.segments.json"
       ],
@@ -767,7 +747,6 @@
       "A8_m0009_sidecar": "transcripts/p05_e04.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p05_e04.en.segments.json",
         "transcripts/p05_e04.segments.json",
         "transcripts/p05_e04.adfree.segments.json"
       ],
@@ -800,7 +779,6 @@
       "A8_m0009_sidecar": "transcripts/p05_e05.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p05_e05.en.segments.json",
         "transcripts/p05_e05.segments.json",
         "transcripts/p05_e05.adfree.segments.json"
       ],
@@ -833,7 +811,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e01.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p06_e01.en.segments.json",
         "transcripts/p06_e01.segments.json",
         "transcripts/p06_e01.adfree.segments.json"
       ],
@@ -866,7 +843,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e02.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p06_e02.en.segments.json",
         "transcripts/p06_e02.segments.json",
         "transcripts/p06_e02.adfree.segments.json"
       ],
@@ -899,7 +875,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e03.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p06_e03.en.segments.json",
         "transcripts/p06_e03.segments.json",
         "transcripts/p06_e03.adfree.segments.json"
       ],
@@ -932,7 +907,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e04.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p06_e04.en.segments.json",
         "transcripts/p06_e04.segments.json",
         "transcripts/p06_e04.adfree.segments.json"
       ],
@@ -963,7 +937,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e05.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p06_e05.en.segments.json",
         "transcripts/p06_e05.segments.json",
         "transcripts/p06_e05.adfree.segments.json"
       ],
@@ -995,7 +968,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e06.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p06_e06.en.segments.json",
         "transcripts/p06_e06.segments.json",
         "transcripts/p06_e06.adfree.segments.json"
       ],
@@ -1028,7 +1000,6 @@
       "A8_m0009_sidecar": "transcripts/p07_e01.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p07_e01.en.segments.json",
         "transcripts/p07_e01.segments.json",
         "transcripts/p07_e01.adfree.segments.json"
       ],
@@ -1061,7 +1032,6 @@
       "A8_m0009_sidecar": "transcripts/p07_e02.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p07_e02.en.segments.json",
         "transcripts/p07_e02.segments.json",
         "transcripts/p07_e02.adfree.segments.json"
       ],
@@ -1093,7 +1063,6 @@
       "A8_m0009_sidecar": "transcripts/p07_e03.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p07_e03.en.segments.json",
         "transcripts/p07_e03.segments.json",
         "transcripts/p07_e03.adfree.segments.json"
       ],
@@ -1125,7 +1094,6 @@
       "A8_m0009_sidecar": "transcripts/p07_e04.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p07_e04.en.segments.json",
         "transcripts/p07_e04.segments.json",
         "transcripts/p07_e04.adfree.segments.json"
       ],
@@ -1158,7 +1126,6 @@
       "A8_m0009_sidecar": "transcripts/p08_e01.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p08_e01.en.segments.json",
         "transcripts/p08_e01.segments.json",
         "transcripts/p08_e01.adfree.segments.json"
       ],
@@ -1191,7 +1158,6 @@
       "A8_m0009_sidecar": "transcripts/p08_e02.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p08_e02.en.segments.json",
         "transcripts/p08_e02.segments.json",
         "transcripts/p08_e02.adfree.segments.json"
       ],
@@ -1224,7 +1190,6 @@
       "A8_m0009_sidecar": "transcripts/p08_e03.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p08_e03.en.segments.json",
         "transcripts/p08_e03.segments.json",
         "transcripts/p08_e03.adfree.segments.json"
       ],
@@ -1257,7 +1222,6 @@
       "A8_m0009_sidecar": "transcripts/p08_e04.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p08_e04.en.segments.json",
         "transcripts/p08_e04.segments.json",
         "transcripts/p08_e04.adfree.segments.json"
       ],
@@ -1290,7 +1254,6 @@
       "A8_m0009_sidecar": "transcripts/p09_e01.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p09_e01.en.segments.json",
         "transcripts/p09_e01.segments.json",
         "transcripts/p09_e01.adfree.segments.json"
       ],
@@ -1323,7 +1286,6 @@
       "A8_m0009_sidecar": "transcripts/p09_e02.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p09_e02.en.segments.json",
         "transcripts/p09_e02.segments.json",
         "transcripts/p09_e02.adfree.segments.json"
       ],
@@ -1356,7 +1318,6 @@
       "A8_m0009_sidecar": "transcripts/p09_e03.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p09_e03.en.segments.json",
         "transcripts/p09_e03.segments.json",
         "transcripts/p09_e03.adfree.segments.json"
       ],
@@ -1389,7 +1350,6 @@
       "A8_m0009_sidecar": "transcripts/p09_e04.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p09_e04.en.segments.json",
         "transcripts/p09_e04.segments.json",
         "transcripts/p09_e04.adfree.segments.json"
       ],
@@ -1403,26 +1363,25 @@
         "has_segments": true,
         "has_text": true,
         "is_adfree": true,
-        "ref": "transcripts/p10_e01.en.adfree.txt"
+        "ref": "transcripts/p10_e01.adfree.txt"
       },
       "A3_speaker_record": {
         "named": [],
         "num_speakers": null
       },
-      "A4_search_indexer": "transcripts/p10_e01.en.adfree.txt",
-      "A5_gi_repair_text": "p10_e01.en.adfree.txt",
+      "A4_search_indexer": "transcripts/p10_e01.adfree.txt",
+      "A5_gi_repair_text": "p10_e01.adfree.txt",
       "A6_gi_repair_segments": {
         "count": 93,
         "shape": "adfree"
       },
-      "A8_m0009_sidecar": "transcripts/p10_e01.en.adfree.segments.json",
+      "A8_m0009_sidecar": "transcripts/p10_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p10_e01.en.segments.json",
         "transcripts/p10_e01.segments.json",
         "transcripts/p10_e01.adfree.segments.json"
       ],
-      "B1_player_segments_resolved": "transcripts/p10_e01.en.segments.json",
+      "B1_player_segments_resolved": "transcripts/p10_e01.segments.json",
       "B2_viewer_text_route": "p10_e01.txt",
       "C_summary_faithfulness": "transcripts/p10_e01.txt"
     },
@@ -1432,26 +1391,25 @@
         "has_segments": true,
         "has_text": true,
         "is_adfree": true,
-        "ref": "transcripts/p11_e01.en.adfree.txt"
+        "ref": "transcripts/p11_e01.adfree.txt"
       },
       "A3_speaker_record": {
         "named": [],
         "num_speakers": null
       },
-      "A4_search_indexer": "transcripts/p11_e01.en.adfree.txt",
-      "A5_gi_repair_text": "p11_e01.en.adfree.txt",
+      "A4_search_indexer": "transcripts/p11_e01.adfree.txt",
+      "A5_gi_repair_text": "p11_e01.adfree.txt",
       "A6_gi_repair_segments": {
         "count": 96,
         "shape": "adfree"
       },
-      "A8_m0009_sidecar": "transcripts/p11_e01.en.adfree.segments.json",
+      "A8_m0009_sidecar": "transcripts/p11_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p11_e01.en.segments.json",
         "transcripts/p11_e01.segments.json",
         "transcripts/p11_e01.adfree.segments.json"
       ],
-      "B1_player_segments_resolved": "transcripts/p11_e01.en.segments.json",
+      "B1_player_segments_resolved": "transcripts/p11_e01.segments.json",
       "B2_viewer_text_route": "p11_e01.txt",
       "C_summary_faithfulness": "transcripts/p11_e01.txt"
     },
@@ -1461,26 +1419,25 @@
         "has_segments": true,
         "has_text": true,
         "is_adfree": true,
-        "ref": "transcripts/p12_e01.en.adfree.txt"
+        "ref": "transcripts/p12_e01.adfree.txt"
       },
       "A3_speaker_record": {
         "named": [],
         "num_speakers": null
       },
-      "A4_search_indexer": "transcripts/p12_e01.en.adfree.txt",
-      "A5_gi_repair_text": "p12_e01.en.adfree.txt",
+      "A4_search_indexer": "transcripts/p12_e01.adfree.txt",
+      "A5_gi_repair_text": "p12_e01.adfree.txt",
       "A6_gi_repair_segments": {
         "count": 94,
         "shape": "adfree"
       },
-      "A8_m0009_sidecar": "transcripts/p12_e01.en.adfree.segments.json",
+      "A8_m0009_sidecar": "transcripts/p12_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p12_e01.en.segments.json",
         "transcripts/p12_e01.segments.json",
         "transcripts/p12_e01.adfree.segments.json"
       ],
-      "B1_player_segments_resolved": "transcripts/p12_e01.en.segments.json",
+      "B1_player_segments_resolved": "transcripts/p12_e01.segments.json",
       "B2_viewer_text_route": "p12_e01.txt",
       "C_summary_faithfulness": "transcripts/p12_e01.txt"
     },
@@ -1490,26 +1447,25 @@
         "has_segments": true,
         "has_text": true,
         "is_adfree": true,
-        "ref": "transcripts/p13_e01.en.adfree.txt"
+        "ref": "transcripts/p13_e01.adfree.txt"
       },
       "A3_speaker_record": {
         "named": [],
         "num_speakers": null
       },
-      "A4_search_indexer": "transcripts/p13_e01.en.adfree.txt",
-      "A5_gi_repair_text": "p13_e01.en.adfree.txt",
+      "A4_search_indexer": "transcripts/p13_e01.adfree.txt",
+      "A5_gi_repair_text": "p13_e01.adfree.txt",
       "A6_gi_repair_segments": {
         "count": 92,
         "shape": "adfree"
       },
-      "A8_m0009_sidecar": "transcripts/p13_e01.en.adfree.segments.json",
+      "A8_m0009_sidecar": "transcripts/p13_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p13_e01.en.segments.json",
         "transcripts/p13_e01.segments.json",
         "transcripts/p13_e01.adfree.segments.json"
       ],
-      "B1_player_segments_resolved": "transcripts/p13_e01.en.segments.json",
+      "B1_player_segments_resolved": "transcripts/p13_e01.segments.json",
       "B2_viewer_text_route": "p13_e01.txt",
       "C_summary_faithfulness": "transcripts/p13_e01.txt"
     },
@@ -1519,26 +1475,25 @@
         "has_segments": true,
         "has_text": true,
         "is_adfree": true,
-        "ref": "transcripts/p14_e01.en.adfree.txt"
+        "ref": "transcripts/p14_e01.adfree.txt"
       },
       "A3_speaker_record": {
         "named": [],
         "num_speakers": null
       },
-      "A4_search_indexer": "transcripts/p14_e01.en.adfree.txt",
-      "A5_gi_repair_text": "p14_e01.en.adfree.txt",
+      "A4_search_indexer": "transcripts/p14_e01.adfree.txt",
+      "A5_gi_repair_text": "p14_e01.adfree.txt",
       "A6_gi_repair_segments": {
         "count": 94,
         "shape": "adfree"
       },
-      "A8_m0009_sidecar": "transcripts/p14_e01.en.adfree.segments.json",
+      "A8_m0009_sidecar": "transcripts/p14_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "raw",
       "B1_player_segments_order": [
-        "transcripts/p14_e01.en.segments.json",
         "transcripts/p14_e01.segments.json",
         "transcripts/p14_e01.adfree.segments.json"
       ],
-      "B1_player_segments_resolved": "transcripts/p14_e01.en.segments.json",
+      "B1_player_segments_resolved": "transcripts/p14_e01.segments.json",
       "B2_viewer_text_route": "p14_e01.txt",
       "C_summary_faithfulness": "transcripts/p14_e01.txt"
     },
@@ -1567,7 +1522,6 @@
       "A8_m0009_sidecar": "transcripts/p01_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p01_e01.en.segments.json",
         "transcripts/p01_e01.segments.json",
         "transcripts/p01_e01.adfree.segments.json"
       ],
@@ -1600,7 +1554,6 @@
       "A8_m0009_sidecar": "transcripts/p01_e02.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p01_e02.en.segments.json",
         "transcripts/p01_e02.segments.json",
         "transcripts/p01_e02.adfree.segments.json"
       ],
@@ -1633,7 +1586,6 @@
       "A8_m0009_sidecar": "transcripts/p01_e03.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p01_e03.en.segments.json",
         "transcripts/p01_e03.segments.json",
         "transcripts/p01_e03.adfree.segments.json"
       ],
@@ -1665,7 +1617,6 @@
       "A8_m0009_sidecar": "transcripts/p01_e04.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p01_e04.en.segments.json",
         "transcripts/p01_e04.segments.json",
         "transcripts/p01_e04.adfree.segments.json"
       ],
@@ -1698,7 +1649,6 @@
       "A8_m0009_sidecar": "transcripts/p02_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p02_e01.en.segments.json",
         "transcripts/p02_e01.segments.json",
         "transcripts/p02_e01.adfree.segments.json"
       ],
@@ -1731,7 +1681,6 @@
       "A8_m0009_sidecar": "transcripts/p02_e02.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p02_e02.en.segments.json",
         "transcripts/p02_e02.segments.json",
         "transcripts/p02_e02.adfree.segments.json"
       ],
@@ -1764,7 +1713,6 @@
       "A8_m0009_sidecar": "transcripts/p02_e03.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p02_e03.en.segments.json",
         "transcripts/p02_e03.segments.json",
         "transcripts/p02_e03.adfree.segments.json"
       ],
@@ -1796,7 +1744,6 @@
       "A8_m0009_sidecar": "transcripts/p02_e04.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p02_e04.en.segments.json",
         "transcripts/p02_e04.segments.json",
         "transcripts/p02_e04.adfree.segments.json"
       ],
@@ -1829,7 +1776,6 @@
       "A8_m0009_sidecar": "transcripts/p02_e05.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p02_e05.en.segments.json",
         "transcripts/p02_e05.segments.json",
         "transcripts/p02_e05.adfree.segments.json"
       ],
@@ -1862,7 +1808,6 @@
       "A8_m0009_sidecar": "transcripts/p03_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p03_e01.en.segments.json",
         "transcripts/p03_e01.segments.json",
         "transcripts/p03_e01.adfree.segments.json"
       ],
@@ -1895,7 +1840,6 @@
       "A8_m0009_sidecar": "transcripts/p03_e02.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p03_e02.en.segments.json",
         "transcripts/p03_e02.segments.json",
         "transcripts/p03_e02.adfree.segments.json"
       ],
@@ -1928,7 +1872,6 @@
       "A8_m0009_sidecar": "transcripts/p03_e03.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p03_e03.en.segments.json",
         "transcripts/p03_e03.segments.json",
         "transcripts/p03_e03.adfree.segments.json"
       ],
@@ -1960,7 +1903,6 @@
       "A8_m0009_sidecar": "transcripts/p03_e04.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p03_e04.en.segments.json",
         "transcripts/p03_e04.segments.json",
         "transcripts/p03_e04.adfree.segments.json"
       ],
@@ -1993,7 +1935,6 @@
       "A8_m0009_sidecar": "transcripts/p04_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p04_e01.en.segments.json",
         "transcripts/p04_e01.segments.json",
         "transcripts/p04_e01.adfree.segments.json"
       ],
@@ -2026,7 +1967,6 @@
       "A8_m0009_sidecar": "transcripts/p04_e02.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p04_e02.en.segments.json",
         "transcripts/p04_e02.segments.json",
         "transcripts/p04_e02.adfree.segments.json"
       ],
@@ -2059,7 +1999,6 @@
       "A8_m0009_sidecar": "transcripts/p04_e03.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p04_e03.en.segments.json",
         "transcripts/p04_e03.segments.json",
         "transcripts/p04_e03.adfree.segments.json"
       ],
@@ -2092,7 +2031,6 @@
       "A8_m0009_sidecar": "transcripts/p04_e04.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p04_e04.en.segments.json",
         "transcripts/p04_e04.segments.json",
         "transcripts/p04_e04.adfree.segments.json"
       ],
@@ -2125,7 +2063,6 @@
       "A8_m0009_sidecar": "transcripts/p05_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p05_e01.en.segments.json",
         "transcripts/p05_e01.segments.json",
         "transcripts/p05_e01.adfree.segments.json"
       ],
@@ -2158,7 +2095,6 @@
       "A8_m0009_sidecar": "transcripts/p05_e02.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p05_e02.en.segments.json",
         "transcripts/p05_e02.segments.json",
         "transcripts/p05_e02.adfree.segments.json"
       ],
@@ -2191,7 +2127,6 @@
       "A8_m0009_sidecar": "transcripts/p05_e03.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p05_e03.en.segments.json",
         "transcripts/p05_e03.segments.json",
         "transcripts/p05_e03.adfree.segments.json"
       ],
@@ -2224,7 +2159,6 @@
       "A8_m0009_sidecar": "transcripts/p05_e04.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p05_e04.en.segments.json",
         "transcripts/p05_e04.segments.json",
         "transcripts/p05_e04.adfree.segments.json"
       ],
@@ -2257,7 +2191,6 @@
       "A8_m0009_sidecar": "transcripts/p05_e05.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p05_e05.en.segments.json",
         "transcripts/p05_e05.segments.json",
         "transcripts/p05_e05.adfree.segments.json"
       ],
@@ -2290,7 +2223,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p06_e01.en.segments.json",
         "transcripts/p06_e01.segments.json",
         "transcripts/p06_e01.adfree.segments.json"
       ],
@@ -2323,7 +2255,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e02.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p06_e02.en.segments.json",
         "transcripts/p06_e02.segments.json",
         "transcripts/p06_e02.adfree.segments.json"
       ],
@@ -2356,7 +2287,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e03.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p06_e03.en.segments.json",
         "transcripts/p06_e03.segments.json",
         "transcripts/p06_e03.adfree.segments.json"
       ],
@@ -2389,7 +2319,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e04.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p06_e04.en.segments.json",
         "transcripts/p06_e04.segments.json",
         "transcripts/p06_e04.adfree.segments.json"
       ],
@@ -2420,7 +2349,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e05.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p06_e05.en.segments.json",
         "transcripts/p06_e05.segments.json",
         "transcripts/p06_e05.adfree.segments.json"
       ],
@@ -2452,7 +2380,6 @@
       "A8_m0009_sidecar": "transcripts/p06_e06.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p06_e06.en.segments.json",
         "transcripts/p06_e06.segments.json",
         "transcripts/p06_e06.adfree.segments.json"
       ],
@@ -2485,7 +2412,6 @@
       "A8_m0009_sidecar": "transcripts/p07_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p07_e01.en.segments.json",
         "transcripts/p07_e01.segments.json",
         "transcripts/p07_e01.adfree.segments.json"
       ],
@@ -2518,7 +2444,6 @@
       "A8_m0009_sidecar": "transcripts/p07_e02.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p07_e02.en.segments.json",
         "transcripts/p07_e02.segments.json",
         "transcripts/p07_e02.adfree.segments.json"
       ],
@@ -2550,7 +2475,6 @@
       "A8_m0009_sidecar": "transcripts/p07_e03.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p07_e03.en.segments.json",
         "transcripts/p07_e03.segments.json",
         "transcripts/p07_e03.adfree.segments.json"
       ],
@@ -2582,7 +2506,6 @@
       "A8_m0009_sidecar": "transcripts/p07_e04.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p07_e04.en.segments.json",
         "transcripts/p07_e04.segments.json",
         "transcripts/p07_e04.adfree.segments.json"
       ],
@@ -2615,7 +2538,6 @@
       "A8_m0009_sidecar": "transcripts/p08_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p08_e01.en.segments.json",
         "transcripts/p08_e01.segments.json",
         "transcripts/p08_e01.adfree.segments.json"
       ],
@@ -2648,7 +2570,6 @@
       "A8_m0009_sidecar": "transcripts/p08_e02.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p08_e02.en.segments.json",
         "transcripts/p08_e02.segments.json",
         "transcripts/p08_e02.adfree.segments.json"
       ],
@@ -2681,7 +2602,6 @@
       "A8_m0009_sidecar": "transcripts/p08_e03.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p08_e03.en.segments.json",
         "transcripts/p08_e03.segments.json",
         "transcripts/p08_e03.adfree.segments.json"
       ],
@@ -2714,7 +2634,6 @@
       "A8_m0009_sidecar": "transcripts/p08_e04.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p08_e04.en.segments.json",
         "transcripts/p08_e04.segments.json",
         "transcripts/p08_e04.adfree.segments.json"
       ],
@@ -2747,7 +2666,6 @@
       "A8_m0009_sidecar": "transcripts/p09_e01.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p09_e01.en.segments.json",
         "transcripts/p09_e01.segments.json",
         "transcripts/p09_e01.adfree.segments.json"
       ],
@@ -2780,7 +2698,6 @@
       "A8_m0009_sidecar": "transcripts/p09_e02.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p09_e02.en.segments.json",
         "transcripts/p09_e02.segments.json",
         "transcripts/p09_e02.adfree.segments.json"
       ],
@@ -2813,7 +2730,6 @@
       "A8_m0009_sidecar": "transcripts/p09_e03.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p09_e03.en.segments.json",
         "transcripts/p09_e03.segments.json",
         "transcripts/p09_e03.adfree.segments.json"
       ],
@@ -2846,7 +2762,6 @@
       "A8_m0009_sidecar": "transcripts/p09_e04.adfree.segments.json",
       "A9_capability_audit_opening_variant": "adfree",
       "B1_player_segments_order": [
-        "transcripts/p09_e04.en.segments.json",
         "transcripts/p09_e04.segments.json",
         "transcripts/p09_e04.adfree.segments.json"
       ],

@@ -1,0 +1,345 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Camille Dubois",
+    "start": 0.0,
+    "text": "Bienvenue \u00e0 nouveau dans Sessions Sentier. Aujourd'hui nous parlons de construction de sentiers, et je re\u00e7ois Julien Mercier, constructeur de sentiers de l'Alliance Cascadia. Julien Mercier, merci d'\u00eatre l\u00e0."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Julien Mercier",
+    "start": 6.0,
+    "text": "Merci, Camille. Avec grand plaisir \u2014 la construction de sentiers est un sujet auquel j'ai beaucoup r\u00e9fl\u00e9chi."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Camille Dubois",
+    "start": 12.0,
+    "text": "Cet \u00e9pisode vous est propos\u00e9 par Strava. Strava est la maison des athl\u00e8tes. Commencez sur strava.com/podcast."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Camille Dubois",
+    "start": 18.0,
+    "text": "Raconte-moi comment tu as pris la d\u00e9cision. Comment RockShox s'inscrit-il dans ce tableau ?"
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Julien Mercier",
+    "start": 24.0,
+    "text": "Honn\u00eatement, le drainage est la d\u00e9cision de conception la plus d\u00e9terminante sur n'importe quel sentier. On l'a vu dans des \u00e9quipes qui utilisent l'Alliance Cascadia. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Camille Dubois",
+    "start": 30.0,
+    "text": "Raconte-moi comment tu as pris la d\u00e9cision. Quelle est la version de la question qui compte vraiment ?"
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Julien Mercier",
+    "start": 36.0,
+    "text": "Oui, \u00e9coute \u2014 l'erreur la plus courante des constructeurs d\u00e9butants est de creuser avec une pente trop forte. Une fois que tu as int\u00e9gr\u00e9 \u00e7a, le reste des d\u00e9cisions devient plus simple."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Camille Dubois",
+    "start": 42.0,
+    "text": "Je veux approfondir. O\u00f9 l'\u00e9rosion des sols et la construction de sentiers se croisent-elles ?"
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Julien Mercier",
+    "start": 48.0,
+    "text": "Bien s\u00fbr. Les conversations sur la gestion du territoire doivent avoir lieu avant le premier coup de pelle. On l'a vu dans des \u00e9quipes qui utilisent RockShox. Le cadre compte parce qu'il te dit quels compromis tu fais."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Camille Dubois",
+    "start": 54.0,
+    "text": "Dis-m'en plus."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Julien Mercier",
+    "start": 60.0,
+    "text": "Et quand les \u00e9quipes adoptent Spoke & Wrench dans ce flux, le compromis devient visible \u2014 si tu ignores \u00e7a, tu finis par tout reconstruire de z\u00e9ro un an plus tard."
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Camille Dubois",
+    "start": 66.0,
+    "text": "Raconte-moi comment tu as pris la d\u00e9cision. O\u00f9 l'\u00e9rosion des sols et la construction de sentiers se croisent-elles ?"
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Julien Mercier",
+    "start": 72.0,
+    "text": "Bien s\u00fbr. Les banquettes \u00e0 flanc de coteau ne sont pas facultatives. Le raccourci du premier jour est le ravinement de la troisi\u00e8me ann\u00e9e. Et l'effet de second ordre est la partie que presque tout le monde n\u00e9glige."
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Camille Dubois",
+    "start": 78.0,
+    "text": "C'est un cadre utile. Quelle est la version de la question qui compte vraiment ?"
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Julien Mercier",
+    "start": 84.0,
+    "text": "Oui, \u00e9coute \u2014 la structure du sol compte plus que les gens ne le croient. On l'a vu dans des \u00e9quipes qui utilisent Spoke & Wrench. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Camille Dubois",
+    "start": 90.0,
+    "text": "\u00c0 quoi ressemble le mode de d\u00e9faillance ? Quel est l'angle structurel auquel la plupart des auditeurs n'ont pas acc\u00e8s ?"
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Julien Mercier",
+    "start": 96.0,
+    "text": "Laisse-moi te donner la version \u00e0 laquelle je crois vraiment. J'ai chang\u00e9 d'avis sur les sentiers faits \u00e0 la machine par rapport \u00e0 ceux faits \u00e0 la main. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Camille Dubois",
+    "start": 102.0,
+    "text": "Dis-m'en plus."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Julien Mercier",
+    "start": 108.0,
+    "text": "Et quand les \u00e9quipes adoptent l'Alliance Cascadia dans ce flux, le compromis devient visible \u2014 si tu ignores \u00e7a, tu finis par tout reconstruire de z\u00e9ro un an plus tard."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Camille Dubois",
+    "start": 114.0,
+    "text": "Nous revenons tout de suite, apr\u00e8s une courte pause publicitaire."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Ad",
+    "start": 120.0,
+    "text": "L'\u00e9pisode d'aujourd'hui vous est pr\u00e9sent\u00e9 par Stripe. Stripe simplifie les paiements, que vous g\u00e9riez une place de march\u00e9 ou une activit\u00e9 par abonnement. Rendez-vous sur stripe.com/podcast pour un essai gratuit."
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Camille Dubois",
+    "start": 126.0,
+    "text": "Bienvenue \u00e0 nouveau dans l'\u00e9mission. \u00c0 quoi ressemble le mode de d\u00e9faillance ? O\u00f9 l'\u00e9rosion des sols et la construction de sentiers se croisent-elles ?"
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Julien Mercier",
+    "start": 132.0,
+    "text": "Voil\u00e0 comment je le vois. Le drainage est la d\u00e9cision de conception la plus d\u00e9terminante sur n'importe quel sentier. On l'a vu dans des \u00e9quipes qui utilisent Shimano. Si tu ignores \u00e7a, tu finis par tout reconstruire de z\u00e9ro un an plus tard."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Camille Dubois",
+    "start": 138.0,
+    "text": "Raconte-moi comment tu as pris la d\u00e9cision. Comment RockShox s'inscrit-il dans ce tableau ?"
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Julien Mercier",
+    "start": 144.0,
+    "text": "Oui, \u00e9coute \u2014 l'erreur la plus courante des constructeurs d\u00e9butants est de creuser avec une pente trop forte. Une fois que tu as int\u00e9gr\u00e9 \u00e7a, le reste des d\u00e9cisions devient plus simple."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Camille Dubois",
+    "start": 150.0,
+    "text": "Remets en cause la sagesse conventionnelle pour moi. Qu'est-ce que tu croyais autrefois l\u00e0-dessus et que tu as r\u00e9vis\u00e9 ?"
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Julien Mercier",
+    "start": 156.0,
+    "text": "Laisse-moi te donner la version \u00e0 laquelle je crois vraiment. Les conversations sur la gestion du territoire doivent avoir lieu avant le premier coup de pelle. On l'a vu dans des \u00e9quipes qui utilisent Spoke & Wrench. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes."
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Camille Dubois",
+    "start": 162.0,
+    "text": "\u00c7a se tient."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Julien Mercier",
+    "start": 168.0,
+    "text": "En dehors des outils du niveau de l'Alliance Cascadia, le mode de d\u00e9faillance est plus difficile \u00e0 rep\u00e9rer. Et l'effet de second ordre est la partie que presque tout le monde n\u00e9glige."
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Camille Dubois",
+    "start": 174.0,
+    "text": "Quelle est l'heuristique \u00e0 laquelle tu reviens toujours ? Quelle est la version de la question qui compte vraiment ?"
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Julien Mercier",
+    "start": 180.0,
+    "text": "\u00c7a se r\u00e9sume \u00e0 ceci : les banquettes \u00e0 flanc de coteau ne sont pas facultatives. Le raccourci du premier jour est le ravinement de la troisi\u00e8me ann\u00e9e. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Camille Dubois",
+    "start": 186.0,
+    "text": "\u00c0 quoi ressemble le mode de d\u00e9faillance ? Quel est l'aspect le plus sous-estim\u00e9 de la construction de sentiers ?"
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Julien Mercier",
+    "start": 192.0,
+    "text": "Laisse-moi te donner la version \u00e0 laquelle je crois vraiment. La structure du sol compte plus que les gens ne le croient. On l'a vu dans des \u00e9quipes qui utilisent l'Alliance Cascadia. J'ai vu ce sch\u00e9ma se r\u00e9p\u00e9ter dans trois \u00e9quipes diff\u00e9rentes."
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Camille Dubois",
+    "start": 198.0,
+    "text": "Je veux approfondir. Comment Shimano s'inscrit-il dans ce tableau ?"
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Julien Mercier",
+    "start": 204.0,
+    "text": "Oui, \u00e9coute \u2014 j'ai chang\u00e9 d'avis sur les sentiers faits \u00e0 la machine par rapport \u00e0 ceux faits \u00e0 la main. Une fois que tu as int\u00e9gr\u00e9 \u00e7a, le reste des d\u00e9cisions devient plus simple."
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Camille Dubois",
+    "start": 210.0,
+    "text": "O\u00f9 est-ce que \u00e7a cesse de fonctionner ?"
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Julien Mercier",
+    "start": 216.0,
+    "text": "En dehors des outils du niveau de RockShox, le mode de d\u00e9faillance est plus difficile \u00e0 rep\u00e9rer. Une fois que tu as int\u00e9gr\u00e9 \u00e7a, le reste des d\u00e9cisions devient plus simple."
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Camille Dubois",
+    "start": 222.0,
+    "text": "Changeons de sujet \u2014 je veux consacrer la derni\u00e8re ligne droite \u00e0 la gestion du territoire."
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Julien Mercier",
+    "start": 228.0,
+    "text": "C'est l\u00e0 que la conversation devient int\u00e9ressante, parce que les compromis autour de la gestion du territoire traversent tout ce qu'on a couvert."
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Camille Dubois",
+    "start": 234.0,
+    "text": "Je veux approfondir. Quel est l'angle contraire auquel la plupart des auditeurs n'ont pas acc\u00e8s ?"
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Julien Mercier",
+    "start": 240.0,
+    "text": "\u00c7a se r\u00e9sume \u00e0 ceci : le drainage est la d\u00e9cision de conception la plus d\u00e9terminante sur n'importe quel sentier. On l'a vu dans des \u00e9quipes qui utilisent RockShox. Si tu ignores \u00e7a, tu finis par tout reconstruire de z\u00e9ro un an plus tard."
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Camille Dubois",
+    "start": 246.0,
+    "text": "\u00c0 quoi ressemble le mode de d\u00e9faillance ? Quel est l'aspect le plus sous-estim\u00e9 de la construction de sentiers ?"
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Julien Mercier",
+    "start": 252.0,
+    "text": "Honn\u00eatement, l'erreur la plus courante des constructeurs d\u00e9butants est de creuser avec une pente trop forte. Le cadre compte parce qu'il te dit quels compromis tu fais."
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Camille Dubois",
+    "start": 258.0,
+    "text": "Avant de conclure, quelle est une chose que les auditeurs peuvent essayer cette semaine ?"
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Julien Mercier",
+    "start": 264.0,
+    "text": "Choisis une des id\u00e9es qu'on a couvertes et applique-la pendant deux semaines. Le reste est de l'it\u00e9ration."
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Camille Dubois",
+    "start": 270.0,
+    "text": "Et pour finir, un grand merci \u00e0 nos partenaires de Linear. Linear est le gestionnaire de tickets con\u00e7u pour la vitesse \u2014 pens\u00e9 pour le clavier. Allez voir sur linear.com."
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Camille Dubois",
+    "start": 276.0,
+    "text": "Julien Mercier, merci pour cette conversation."
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Julien Mercier",
+    "start": 282.0,
+    "text": "Merci, Camille."
+  },
+  {
+    "end": 294.0,
+    "id": 48,
+    "speaker_label": "Camille Dubois",
+    "start": 288.0,
+    "text": "C'est tout pour l'\u00e9pisode d'aujourd'hui de Sessions Sentier. \u00c0 la prochaine."
+  }
+]

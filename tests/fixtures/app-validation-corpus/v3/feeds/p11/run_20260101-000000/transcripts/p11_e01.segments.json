@@ -1,345 +1,1062 @@
 [
   {
-    "end": 6.0,
-    "id": 0,
-    "speaker_label": "Giulia Ferrara",
     "start": 0.0,
-    "text": "Bentornati a Sentieri d'Autore. Oggi parliamo di costruzione di sentieri, e con me c'\u00e8 Marco Bellini, costruttore di sentieri dell'Alleanza Cascadia. Marco Bellini, grazie di essere qui."
+    "end": 1.86,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Welcome back to \"Trails by the Experts.\"",
+    "char_start": 16,
+    "char_end": 56,
+    "unit_id": "t0000.u01",
+    "sent_id": "t0000.s01"
   },
   {
-    "end": 12.0,
-    "id": 1,
+    "start": 1.92,
+    "end": 8.94,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Today, we're talking about trail construction, and I'm joined by Marco Bellini, a trail builder with the Cascadia Alliance.",
+    "char_start": 57,
+    "char_end": 180,
+    "unit_id": "t0000.u01",
+    "sent_id": "t0000.s02"
+  },
+  {
+    "start": 9.0,
+    "end": 11.16,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Marco Bellini, thank you for being here.",
+    "char_start": 181,
+    "char_end": 221,
+    "unit_id": "t0000.u01",
+    "sent_id": "t0000.s03"
+  },
+  {
+    "start": 11.16,
+    "end": 12.06,
     "speaker_label": "Marco Bellini",
-    "start": 6.0,
-    "text": "Grazie, Giulia. Con molto piacere \u2014 la costruzione di sentieri \u00e8 una cosa a cui ho pensato parecchio."
+    "text": "Thank you, Giulia.",
+    "char_start": 237,
+    "char_end": 255,
+    "unit_id": "t0001.u01",
+    "sent_id": "t0001.s01"
   },
   {
-    "end": 18.0,
-    "id": 2,
-    "speaker_label": "Giulia Ferrara",
-    "start": 12.0,
-    "text": "Questo episodio \u00e8 sponsorizzato da Strava. Strava \u00e8 la casa degli atleti. Inizia su strava.com/podcast."
-  },
-  {
-    "end": 24.0,
-    "id": 3,
-    "speaker_label": "Giulia Ferrara",
-    "start": 18.0,
-    "text": "Raccontami come hai preso la decisione. Come si inserisce RockShox in questo quadro?"
-  },
-  {
-    "end": 30.0,
-    "id": 4,
+    "start": 12.12,
+    "end": 17.22,
     "speaker_label": "Marco Bellini",
-    "start": 24.0,
-    "text": "Sinceramente, il drenaggio \u00e8 la decisione progettuale con pi\u00f9 impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano l'Alleanza Cascadia. Ho visto questo schema ripetersi in tre squadre diverse."
+    "text": "It's my pleasure – building trails is something I've given a lot of thought to.",
+    "char_start": 256,
+    "char_end": 335,
+    "unit_id": "t0001.u01",
+    "sent_id": "t0001.s02"
   },
   {
-    "end": 36.0,
-    "id": 5,
+    "start": 17.22,
+    "end": 19.74,
     "speaker_label": "Giulia Ferrara",
-    "start": 30.0,
-    "text": "Raccontami come hai preso la decisione. Qual \u00e8 la versione della domanda che conta davvero?"
+    "text": "This episode is sponsored by Strava.",
+    "char_start": 352,
+    "char_end": 388,
+    "unit_id": "t0002.u01",
+    "sent_id": "t0002.s01"
   },
   {
-    "end": 42.0,
-    "id": 6,
-    "speaker_label": "Marco Bellini",
-    "start": 36.0,
-    "text": "S\u00ec, guarda \u2014 l'errore pi\u00f9 comune dei costruttori alle prime armi \u00e8 scavare con una pendenza troppo ripida. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile."
-  },
-  {
-    "end": 48.0,
-    "id": 7,
+    "start": 19.8,
+    "end": 21.6,
     "speaker_label": "Giulia Ferrara",
-    "start": 42.0,
-    "text": "Voglio approfondire. Dove si incrociano l'erosione del suolo e la costruzione di sentieri?"
+    "text": "Strava is the home of athletes.",
+    "char_start": 389,
+    "char_end": 420,
+    "unit_id": "t0002.u01",
+    "sent_id": "t0002.s02"
   },
   {
-    "end": 54.0,
-    "id": 8,
-    "speaker_label": "Marco Bellini",
-    "start": 48.0,
-    "text": "Certo. Le conversazioni sulla gestione del territorio devono avvenire prima del primo scavo. L'abbiamo visto in squadre che usano RockShox. Il quadro conta perch\u00e9 ti dice quali compromessi stai facendo."
-  },
-  {
-    "end": 60.0,
-    "id": 9,
+    "start": 21.66,
+    "end": 23.4,
     "speaker_label": "Giulia Ferrara",
-    "start": 54.0,
-    "text": "Raccontami di pi\u00f9."
+    "text": "Start at strava.com/podcast.",
+    "char_start": 421,
+    "char_end": 449,
+    "unit_id": "t0002.u01",
+    "sent_id": "t0002.s03"
   },
   {
-    "end": 66.0,
-    "id": 10,
-    "speaker_label": "Marco Bellini",
-    "start": 60.0,
-    "text": "E quando le squadre adottano Spoke & Wrench in quel flusso, il compromesso diventa visibile \u2014 se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
-  },
-  {
-    "end": 72.0,
-    "id": 11,
-    "speaker_label": "Giulia Ferrara",
-    "start": 66.0,
-    "text": "Raccontami come hai preso la decisione. Dove si incrociano l'erosione del suolo e la costruzione di sentieri?"
-  },
-  {
-    "end": 78.0,
-    "id": 12,
-    "speaker_label": "Marco Bellini",
-    "start": 72.0,
-    "text": "Certo. I tagli a mezza costa sui pendii non sono facoltativi. La scorciatoia del primo giorno \u00e8 la frana del terzo anno. E l'effetto di secondo ordine \u00e8 la parte che quasi tutti trascurano."
-  },
-  {
-    "end": 84.0,
-    "id": 13,
-    "speaker_label": "Giulia Ferrara",
-    "start": 78.0,
-    "text": "\u00c8 un quadro utile. Qual \u00e8 la versione della domanda che conta davvero?"
-  },
-  {
-    "end": 90.0,
-    "id": 14,
-    "speaker_label": "Marco Bellini",
-    "start": 84.0,
-    "text": "S\u00ec, guarda \u2014 la struttura del suolo conta pi\u00f9 di quanto la gente creda. L'abbiamo visto in squadre che usano Spoke & Wrench. Ho visto questo schema ripetersi in tre squadre diverse."
-  },
-  {
-    "end": 96.0,
-    "id": 15,
-    "speaker_label": "Giulia Ferrara",
-    "start": 90.0,
-    "text": "Com'\u00e8 fatto il modo di guasto? Qual \u00e8 l'angolo strutturale a cui la maggior parte degli ascoltatori non ha accesso?"
-  },
-  {
-    "end": 102.0,
-    "id": 16,
-    "speaker_label": "Marco Bellini",
-    "start": 96.0,
-    "text": "Lascia che ti dia la versione in cui credo davvero. Ho cambiato idea sui sentieri fatti a macchina rispetto a quelli fatti a mano. Ho visto questo schema ripetersi in tre squadre diverse."
-  },
-  {
-    "end": 108.0,
-    "id": 17,
-    "speaker_label": "Giulia Ferrara",
-    "start": 102.0,
-    "text": "Raccontami di pi\u00f9."
-  },
-  {
-    "end": 114.0,
-    "id": 18,
-    "speaker_label": "Marco Bellini",
-    "start": 108.0,
-    "text": "E quando le squadre adottano l'Alleanza Cascadia in quel flusso, il compromesso diventa visibile \u2014 se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
-  },
-  {
-    "end": 120.0,
-    "id": 19,
-    "speaker_label": "Giulia Ferrara",
-    "start": 114.0,
-    "text": "Torniamo subito, dopo una breve pausa pubblicitaria."
-  },
-  {
-    "end": 126.0,
-    "id": 20,
-    "speaker_label": "Ad",
-    "start": 120.0,
-    "text": "L'episodio di oggi \u00e8 sponsorizzato da Stripe. Stripe semplifica i pagamenti, che tu gestisca un marketplace o un'attivit\u00e0 in abbonamento. Visita stripe.com/podcast per una prova gratuita."
-  },
-  {
-    "end": 132.0,
-    "id": 21,
-    "speaker_label": "Giulia Ferrara",
-    "start": 126.0,
-    "text": "Bentornati alla trasmissione. Com'\u00e8 fatto il modo di guasto? Dove si incrociano l'erosione del suolo e la costruzione di sentieri?"
-  },
-  {
-    "end": 138.0,
-    "id": 22,
-    "speaker_label": "Marco Bellini",
-    "start": 132.0,
-    "text": "Io la vedo cos\u00ec. Il drenaggio \u00e8 la decisione progettuale con pi\u00f9 impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano Shimano. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
-  },
-  {
-    "end": 144.0,
-    "id": 23,
-    "speaker_label": "Giulia Ferrara",
-    "start": 138.0,
-    "text": "Raccontami come hai preso la decisione. Come si inserisce RockShox in questo quadro?"
-  },
-  {
-    "end": 150.0,
-    "id": 24,
-    "speaker_label": "Marco Bellini",
-    "start": 144.0,
-    "text": "S\u00ec, guarda \u2014 l'errore pi\u00f9 comune dei costruttori alle prime armi \u00e8 scavare con una pendenza troppo ripida. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile."
-  },
-  {
-    "end": 156.0,
-    "id": 25,
-    "speaker_label": "Giulia Ferrara",
-    "start": 150.0,
-    "text": "Metti in discussione la saggezza convenzionale per me. Cosa credevi su questo tema e hai poi rivisto?"
-  },
-  {
-    "end": 162.0,
-    "id": 26,
-    "speaker_label": "Marco Bellini",
-    "start": 156.0,
-    "text": "Lascia che ti dia la versione in cui credo davvero. Le conversazioni sulla gestione del territorio devono avvenire prima del primo scavo. L'abbiamo visto in squadre che usano Spoke & Wrench. Ho visto questo schema ripetersi in tre squadre diverse."
-  },
-  {
-    "end": 168.0,
-    "id": 27,
-    "speaker_label": "Giulia Ferrara",
-    "start": 162.0,
-    "text": "Quadra."
-  },
-  {
-    "end": 174.0,
-    "id": 28,
-    "speaker_label": "Marco Bellini",
-    "start": 168.0,
-    "text": "Fuori dagli strumenti del livello dell'Alleanza Cascadia, il modo di guasto \u00e8 pi\u00f9 difficile da individuare. E l'effetto di secondo ordine \u00e8 la parte che quasi tutti trascurano."
-  },
-  {
-    "end": 180.0,
-    "id": 29,
-    "speaker_label": "Giulia Ferrara",
-    "start": 174.0,
-    "text": "Qual \u00e8 l'euristica a cui torni sempre? Qual \u00e8 la versione della domanda che conta davvero?"
-  },
-  {
-    "end": 186.0,
-    "id": 30,
-    "speaker_label": "Marco Bellini",
-    "start": 180.0,
-    "text": "Si riduce a questo: i tagli a mezza costa sui pendii non sono facoltativi. La scorciatoia del primo giorno \u00e8 la frana del terzo anno. Ho visto questo schema ripetersi in tre squadre diverse."
-  },
-  {
-    "end": 192.0,
-    "id": 31,
-    "speaker_label": "Giulia Ferrara",
-    "start": 186.0,
-    "text": "Com'\u00e8 fatto il modo di guasto? Qual \u00e8 l'aspetto pi\u00f9 sottovalutato della costruzione di sentieri?"
-  },
-  {
-    "end": 198.0,
-    "id": 32,
-    "speaker_label": "Marco Bellini",
-    "start": 192.0,
-    "text": "Lascia che ti dia la versione in cui credo davvero. La struttura del suolo conta pi\u00f9 di quanto la gente creda. L'abbiamo visto in squadre che usano l'Alleanza Cascadia. Ho visto questo schema ripetersi in tre squadre diverse."
-  },
-  {
-    "end": 204.0,
-    "id": 33,
-    "speaker_label": "Giulia Ferrara",
-    "start": 198.0,
-    "text": "Voglio approfondire. Come si inserisce Shimano in questo quadro?"
-  },
-  {
-    "end": 210.0,
-    "id": 34,
-    "speaker_label": "Marco Bellini",
-    "start": 204.0,
-    "text": "S\u00ec, guarda \u2014 ho cambiato idea sui sentieri fatti a macchina rispetto a quelli fatti a mano. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile."
-  },
-  {
-    "end": 216.0,
-    "id": 35,
-    "speaker_label": "Giulia Ferrara",
     "start": 210.0,
-    "text": "Dove smette di funzionare?"
+    "end": 212.34,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Tell me about how you made that decision.",
+    "char_start": 450,
+    "char_end": 491,
+    "unit_id": "t0002.u01",
+    "sent_id": "t0002.s04"
   },
   {
-    "end": 222.0,
-    "id": 36,
+    "start": 212.4,
+    "end": 215.04,
+    "speaker_label": "Giulia Ferrara",
+    "text": "How does RockShox fit into this picture?",
+    "char_start": 492,
+    "char_end": 532,
+    "unit_id": "t0002.u01",
+    "sent_id": "t0002.s05"
+  },
+  {
+    "start": 215.04,
+    "end": 220.56,
     "speaker_label": "Marco Bellini",
-    "start": 216.0,
-    "text": "Fuori dagli strumenti del livello di RockShox, il modo di guasto \u00e8 pi\u00f9 difficile da individuare. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile."
+    "text": "Honestly, drainage is the design decision that has the biggest impact on any trail.",
+    "char_start": 548,
+    "char_end": 631,
+    "unit_id": "t0003.u01",
+    "sent_id": "t0003.s01"
   },
   {
-    "end": 228.0,
-    "id": 37,
-    "speaker_label": "Giulia Ferrara",
-    "start": 222.0,
-    "text": "Cambiamo argomento \u2014 voglio dedicare l'ultimo tratto alla gestione del territorio."
-  },
-  {
-    "end": 234.0,
-    "id": 38,
+    "start": 220.62,
+    "end": 224.04,
     "speaker_label": "Marco Bellini",
-    "start": 228.0,
-    "text": "\u00c8 l\u00ec che la conversazione si fa interessante, perch\u00e9 i compromessi attorno alla gestione del territorio attraversano tutto quello che abbiamo coperto."
+    "text": "We've seen this in teams that use the Cascadia Alliance.",
+    "char_start": 632,
+    "char_end": 688,
+    "unit_id": "t0003.u01",
+    "sent_id": "t0003.s02"
   },
   {
-    "end": 240.0,
-    "id": 39,
-    "speaker_label": "Giulia Ferrara",
-    "start": 234.0,
-    "text": "Voglio approfondire. Qual \u00e8 l'angolo contrario a cui la maggior parte degli ascoltatori non ha accesso?"
-  },
-  {
-    "end": 246.0,
-    "id": 40,
+    "start": 224.1,
+    "end": 227.46,
     "speaker_label": "Marco Bellini",
-    "start": 240.0,
-    "text": "Si riduce a questo: il drenaggio \u00e8 la decisione progettuale con pi\u00f9 impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano RockShox. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "char_start": 689,
+    "char_end": 751,
+    "unit_id": "t0003.u01",
+    "sent_id": "t0003.s03"
   },
   {
-    "end": 252.0,
-    "id": 41,
+    "start": 227.46,
+    "end": 229.8,
     "speaker_label": "Giulia Ferrara",
-    "start": 246.0,
-    "text": "Com'\u00e8 fatto il modo di guasto? Qual \u00e8 l'aspetto pi\u00f9 sottovalutato della costruzione di sentieri?"
+    "text": "Tell me how you came to that decision.",
+    "char_start": 768,
+    "char_end": 806,
+    "unit_id": "t0004.u01",
+    "sent_id": "t0004.s01"
   },
   {
-    "end": 258.0,
-    "id": 42,
+    "start": 229.86,
+    "end": 232.92,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Which version of the question is truly important?",
+    "char_start": 807,
+    "char_end": 856,
+    "unit_id": "t0004.u01",
+    "sent_id": "t0004.s02"
+  },
+  {
+    "start": 232.92,
+    "end": 239.28,
     "speaker_label": "Marco Bellini",
-    "start": 252.0,
-    "text": "Sinceramente, l'errore pi\u00f9 comune dei costruttori alle prime armi \u00e8 scavare con una pendenza troppo ripida. Il quadro conta perch\u00e9 ti dice quali compromessi stai facendo."
+    "text": "Yes, see – the most common mistake that beginner builders make is digging with a slope that is too steep.",
+    "char_start": 872,
+    "char_end": 977,
+    "unit_id": "t0005.u01",
+    "sent_id": "t0005.s01"
   },
   {
-    "end": 264.0,
-    "id": 43,
-    "speaker_label": "Giulia Ferrara",
-    "start": 258.0,
-    "text": "Prima di chiudere, qual \u00e8 una cosa che gli ascoltatori possono provare questa settimana?"
-  },
-  {
-    "end": 270.0,
-    "id": 44,
+    "start": 239.34,
+    "end": 243.96,
     "speaker_label": "Marco Bellini",
-    "start": 264.0,
-    "text": "Scegli una delle idee che abbiamo coperto e applicala per due settimane. Il resto \u00e8 iterazione."
+    "text": "Once you understand that, the rest of the decisions become easier.",
+    "char_start": 978,
+    "char_end": 1044,
+    "unit_id": "t0005.u01",
+    "sent_id": "t0005.s02"
   },
   {
-    "end": 276.0,
-    "id": 45,
+    "start": 243.96,
+    "end": 245.16,
     "speaker_label": "Giulia Ferrara",
-    "start": 270.0,
-    "text": "E per finire, un grande ringraziamento ai nostri partner di Linear. Linear \u00e8 il gestore di ticket fatto per la velocit\u00e0 \u2014 pensato per la tastiera. Dai un'occhiata su linear.com."
+    "text": "I want to delve deeper into this.",
+    "char_start": 1061,
+    "char_end": 1094,
+    "unit_id": "t0006.u01",
+    "sent_id": "t0006.s01"
   },
   {
-    "end": 282.0,
-    "id": 46,
+    "start": 245.22,
+    "end": 249.36,
     "speaker_label": "Giulia Ferrara",
-    "start": 276.0,
-    "text": "Marco Bellini, grazie per la conversazione."
+    "text": "Where do soil erosion and trail construction intersect?",
+    "char_start": 1095,
+    "char_end": 1150,
+    "unit_id": "t0006.u01",
+    "sent_id": "t0006.s02"
   },
   {
-    "end": 288.0,
-    "id": 47,
+    "start": 249.36,
+    "end": 249.72,
     "speaker_label": "Marco Bellini",
-    "start": 282.0,
-    "text": "Grazie, Giulia."
+    "text": "Certainly.",
+    "char_start": 1166,
+    "char_end": 1176,
+    "unit_id": "t0007.u01",
+    "sent_id": "t0007.s01"
   },
   {
-    "end": 294.0,
-    "id": 48,
+    "start": 249.78,
+    "end": 254.88,
+    "speaker_label": "Marco Bellini",
+    "text": "Discussions about land management should take place before any excavation begins.",
+    "char_start": 1177,
+    "char_end": 1258,
+    "unit_id": "t0007.u01",
+    "sent_id": "t0007.s02"
+  },
+  {
+    "start": 254.94,
+    "end": 257.7,
+    "speaker_label": "Marco Bellini",
+    "text": "We've seen it on teams that use RockShox.",
+    "char_start": 1259,
+    "char_end": 1300,
+    "unit_id": "t0007.u01",
+    "sent_id": "t0007.s03"
+  },
+  {
+    "start": 257.76,
+    "end": 261.48,
+    "speaker_label": "Marco Bellini",
+    "text": "The frame is important because it tells you what compromises you're making.",
+    "char_start": 1301,
+    "char_end": 1376,
+    "unit_id": "t0007.u01",
+    "sent_id": "t0007.s04"
+  },
+  {
+    "start": 261.48,
+    "end": 262.98,
     "speaker_label": "Giulia Ferrara",
-    "start": 288.0,
-    "text": "\u00c8 tutto per l'episodio di oggi di Sentieri d'Autore. Ci vediamo la prossima volta."
+    "text": "Tell me more.",
+    "char_start": 1393,
+    "char_end": 1406,
+    "unit_id": "t0008.u01",
+    "sent_id": "t0008.s01"
+  },
+  {
+    "start": 262.98,
+    "end": 272.52,
+    "speaker_label": "Marco Bellini",
+    "text": "And when teams adopt Spoke & Wrench within their workflow, the benefits become apparent – if you ignore them, you end up having to rebuild everything from scratch a year later.",
+    "char_start": 1422,
+    "char_end": 1598,
+    "unit_id": "t0009.u01",
+    "sent_id": "t0009.s01"
+  },
+  {
+    "start": 272.52,
+    "end": 274.86,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Tell me how you made the decision.",
+    "char_start": 1615,
+    "char_end": 1649,
+    "unit_id": "t0010.u01",
+    "sent_id": "t0010.s01"
+  },
+  {
+    "start": 274.92,
+    "end": 279.06,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Where do soil erosion and trail construction intersect?",
+    "char_start": 1650,
+    "char_end": 1705,
+    "unit_id": "t0010.u01",
+    "sent_id": "t0010.s02"
+  },
+  {
+    "start": 279.06,
+    "end": 279.42,
+    "speaker_label": "Marco Bellini",
+    "text": "Certainly.",
+    "char_start": 1721,
+    "char_end": 1731,
+    "unit_id": "t0011.u01",
+    "sent_id": "t0011.s01"
+  },
+  {
+    "start": 279.48,
+    "end": 282.72,
+    "speaker_label": "Marco Bellini",
+    "text": "Cutting switchbacks into slopes is not optional.",
+    "char_start": 1732,
+    "char_end": 1780,
+    "unit_id": "t0011.u01",
+    "sent_id": "t0011.s02"
+  },
+  {
+    "start": 282.78,
+    "end": 286.26,
+    "speaker_label": "Marco Bellini",
+    "text": "The shortcut of the first day becomes the landslide of the third year.",
+    "char_start": 1781,
+    "char_end": 1851,
+    "unit_id": "t0011.u01",
+    "sent_id": "t0011.s03"
+  },
+  {
+    "start": 286.32,
+    "end": 290.4,
+    "speaker_label": "Marco Bellini",
+    "text": "And the second-order effect is the part that almost everyone overlooks.",
+    "char_start": 1852,
+    "char_end": 1923,
+    "unit_id": "t0011.u01",
+    "sent_id": "t0011.s04"
+  },
+  {
+    "start": 290.4,
+    "end": 291.48,
+    "speaker_label": "Giulia Ferrara",
+    "text": "It's a helpful framework.",
+    "char_start": 1940,
+    "char_end": 1965,
+    "unit_id": "t0012.u01",
+    "sent_id": "t0012.s01"
+  },
+  {
+    "start": 291.54,
+    "end": 294.6,
+    "speaker_label": "Giulia Ferrara",
+    "text": "What is the most important aspect of this question?",
+    "char_start": 1966,
+    "char_end": 2017,
+    "unit_id": "t0012.u01",
+    "sent_id": "t0012.s02"
+  },
+  {
+    "start": 294.6,
+    "end": 298.86,
+    "speaker_label": "Marco Bellini",
+    "text": "Yes, look – the structure of the soil matters more than people realize.",
+    "char_start": 2033,
+    "char_end": 2104,
+    "unit_id": "t0013.u01",
+    "sent_id": "t0013.s01"
+  },
+  {
+    "start": 298.92,
+    "end": 302.04,
+    "speaker_label": "Marco Bellini",
+    "text": "We've seen this in teams that use Spoke & Wrench.",
+    "char_start": 2105,
+    "char_end": 2154,
+    "unit_id": "t0013.u01",
+    "sent_id": "t0013.s02"
+  },
+  {
+    "start": 302.1,
+    "end": 305.46,
+    "speaker_label": "Marco Bellini",
+    "text": "I've observed this pattern repeating in three different teams.",
+    "char_start": 2155,
+    "char_end": 2217,
+    "unit_id": "t0013.u01",
+    "sent_id": "t0013.s03"
+  },
+  {
+    "start": 305.46,
+    "end": 307.26,
+    "speaker_label": "Giulia Ferrara",
+    "text": "What is the nature of the malfunction?",
+    "char_start": 2234,
+    "char_end": 2272,
+    "unit_id": "t0014.u01",
+    "sent_id": "t0014.s01"
+  },
+  {
+    "start": 307.32,
+    "end": 312.36,
+    "speaker_label": "Giulia Ferrara",
+    "text": "What is the underlying structural aspect that most listeners are not aware of?",
+    "char_start": 2273,
+    "char_end": 2351,
+    "unit_id": "t0014.u01",
+    "sent_id": "t0014.s02"
+  },
+  {
+    "start": 312.36,
+    "end": 315.42,
+    "speaker_label": "Marco Bellini",
+    "text": "Let me give you my honest opinion.",
+    "char_start": 2367,
+    "char_end": 2401,
+    "unit_id": "t0015.u01",
+    "sent_id": "t0015.s01"
+  },
+  {
+    "start": 315.48,
+    "end": 320.16,
+    "speaker_label": "Marco Bellini",
+    "text": "I've changed my mind about machine-made trails versus hand-crafted trails.",
+    "char_start": 2402,
+    "char_end": 2476,
+    "unit_id": "t0015.u01",
+    "sent_id": "t0015.s02"
+  },
+  {
+    "start": 320.22,
+    "end": 323.58,
+    "speaker_label": "Marco Bellini",
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "char_start": 2477,
+    "char_end": 2539,
+    "unit_id": "t0015.u01",
+    "sent_id": "t0015.s03"
+  },
+  {
+    "start": 323.58,
+    "end": 325.08,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Tell me more.",
+    "char_start": 2556,
+    "char_end": 2569,
+    "unit_id": "t0016.u01",
+    "sent_id": "t0016.s01"
+  },
+  {
+    "start": 325.08,
+    "end": 334.92,
+    "speaker_label": "Marco Bellini",
+    "text": "And when teams adopt the Cascadia Alliance in that process, the trade-off becomes apparent – if you ignore it, you end up having to rebuild everything from scratch a year later.",
+    "char_start": 2585,
+    "char_end": 2762,
+    "unit_id": "t0017.u01",
+    "sent_id": "t0017.s01"
+  },
+  {
+    "start": 334.92,
+    "end": 338.04,
+    "speaker_label": "Giulia Ferrara",
+    "text": "We'll be right back after a short commercial break.",
+    "char_start": 2779,
+    "char_end": 2830,
+    "unit_id": "t0018.u01",
+    "sent_id": "t0018.s01"
+  },
+  {
+    "start": 720.0,
+    "end": 722.7,
+    "speaker_label": "SPEAKER_02",
+    "text": "Today's episode is sponsored by Stripe.",
+    "char_start": 2843,
+    "char_end": 2882,
+    "unit_id": "t0019.u01",
+    "sent_id": "t0019.s01"
+  },
+  {
+    "start": 722.76,
+    "end": 728.22,
+    "speaker_label": "SPEAKER_02",
+    "text": "Stripe makes payments easy, whether you're running a marketplace or a subscription business.",
+    "char_start": 2883,
+    "char_end": 2975,
+    "unit_id": "t0019.u01",
+    "sent_id": "t0019.s02"
+  },
+  {
+    "start": 728.28,
+    "end": 731.22,
+    "speaker_label": "SPEAKER_02",
+    "text": "Visit stripe.com/podcast for a free trial.",
+    "char_start": 2976,
+    "char_end": 3018,
+    "unit_id": "t0019.u01",
+    "sent_id": "t0019.s03"
+  },
+  {
+    "start": 840.0,
+    "end": 841.74,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Welcome back to the show.",
+    "char_start": 3035,
+    "char_end": 3060,
+    "unit_id": "t0020.u01",
+    "sent_id": "t0020.s01"
+  },
+  {
+    "start": 841.8,
+    "end": 843.6,
+    "speaker_label": "Giulia Ferrara",
+    "text": "How does the fault mechanism work?",
+    "char_start": 3061,
+    "char_end": 3095,
+    "unit_id": "t0020.u01",
+    "sent_id": "t0020.s02"
+  },
+  {
+    "start": 843.66,
+    "end": 847.8,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Where do soil erosion and trail construction intersect?",
+    "char_start": 3096,
+    "char_end": 3151,
+    "unit_id": "t0020.u01",
+    "sent_id": "t0020.s03"
+  },
+  {
+    "start": 847.8,
+    "end": 848.76,
+    "speaker_label": "Marco Bellini",
+    "text": "That's how I see it.",
+    "char_start": 3167,
+    "char_end": 3187,
+    "unit_id": "t0021.u01",
+    "sent_id": "t0021.s01"
+  },
+  {
+    "start": 848.82,
+    "end": 853.5,
+    "speaker_label": "Marco Bellini",
+    "text": "Drainage is the design decision that has the biggest impact on any trail.",
+    "char_start": 3188,
+    "char_end": 3261,
+    "unit_id": "t0021.u01",
+    "sent_id": "t0021.s02"
+  },
+  {
+    "start": 853.56,
+    "end": 856.26,
+    "speaker_label": "Marco Bellini",
+    "text": "We've seen it in teams that use Shimano components.",
+    "char_start": 3262,
+    "char_end": 3313,
+    "unit_id": "t0021.u01",
+    "sent_id": "t0021.s03"
+  },
+  {
+    "start": 856.32,
+    "end": 860.22,
+    "speaker_label": "Marco Bellini",
+    "text": "If you ignore it, you'll end up having to rebuild everything from scratch a year later.",
+    "char_start": 3314,
+    "char_end": 3401,
+    "unit_id": "t0021.u01",
+    "sent_id": "t0021.s04"
+  },
+  {
+    "start": 860.22,
+    "end": 862.56,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Tell me how you came to that decision.",
+    "char_start": 3418,
+    "char_end": 3456,
+    "unit_id": "t0022.u01",
+    "sent_id": "t0022.s01"
+  },
+  {
+    "start": 862.62,
+    "end": 865.26,
+    "speaker_label": "Giulia Ferrara",
+    "text": "How does RockShox fit into this picture?",
+    "char_start": 3457,
+    "char_end": 3497,
+    "unit_id": "t0022.u01",
+    "sent_id": "t0022.s02"
+  },
+  {
+    "start": 865.26,
+    "end": 871.62,
+    "speaker_label": "Marco Bellini",
+    "text": "Yes, see – the most common mistake that novice builders make is digging with a slope that is too steep.",
+    "char_start": 3513,
+    "char_end": 3616,
+    "unit_id": "t0023.u01",
+    "sent_id": "t0023.s01"
+  },
+  {
+    "start": 871.68,
+    "end": 876.3,
+    "speaker_label": "Marco Bellini",
+    "text": "Once you understand that, the rest of the decisions become easier.",
+    "char_start": 3617,
+    "char_end": 3683,
+    "unit_id": "t0023.u01",
+    "sent_id": "t0023.s02"
+  },
+  {
+    "start": 876.3,
+    "end": 879.54,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Challenge my conventional wisdom.",
+    "char_start": 3700,
+    "char_end": 3733,
+    "unit_id": "t0024.u01",
+    "sent_id": "t0024.s01"
+  },
+  {
+    "start": 879.6,
+    "end": 882.36,
+    "speaker_label": "Giulia Ferrara",
+    "text": "What were your previous beliefs on this topic, and how have they changed?",
+    "char_start": 3734,
+    "char_end": 3807,
+    "unit_id": "t0024.u01",
+    "sent_id": "t0024.s02"
+  },
+  {
+    "start": 882.36,
+    "end": 885.42,
+    "speaker_label": "Marco Bellini",
+    "text": "Let me give you my honest opinion.",
+    "char_start": 3823,
+    "char_end": 3857,
+    "unit_id": "t0025.u01",
+    "sent_id": "t0025.s01"
+  },
+  {
+    "start": 885.48,
+    "end": 890.58,
+    "speaker_label": "Marco Bellini",
+    "text": "Discussions about land management should take place before any excavation begins.",
+    "char_start": 3858,
+    "char_end": 3939,
+    "unit_id": "t0025.u01",
+    "sent_id": "t0025.s02"
+  },
+  {
+    "start": 890.64,
+    "end": 893.76,
+    "speaker_label": "Marco Bellini",
+    "text": "We've seen teams using Spoke & Wrench.",
+    "char_start": 3940,
+    "char_end": 3978,
+    "unit_id": "t0025.u01",
+    "sent_id": "t0025.s03"
+  },
+  {
+    "start": 893.82,
+    "end": 897.18,
+    "speaker_label": "Marco Bellini",
+    "text": "I've observed this pattern repeating in three different teams.",
+    "char_start": 3979,
+    "char_end": 4041,
+    "unit_id": "t0025.u01",
+    "sent_id": "t0025.s04"
+  },
+  {
+    "start": 897.18,
+    "end": 898.68,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Quadra.",
+    "char_start": 4058,
+    "char_end": 4065,
+    "unit_id": "t0026.u01",
+    "sent_id": "t0026.s01"
+  },
+  {
+    "start": 898.68,
+    "end": 905.1,
+    "speaker_label": "Marco Bellini",
+    "text": "Outside of the tools provided by the Cascadia Alliance framework, identifying the root cause of the problem can be more challenging.",
+    "char_start": 4081,
+    "char_end": 4213,
+    "unit_id": "t0027.u01",
+    "sent_id": "t0027.s01"
+  },
+  {
+    "start": 905.16,
+    "end": 909.24,
+    "speaker_label": "Marco Bellini",
+    "text": "And the second-order effects are the part that almost everyone overlooks.",
+    "char_start": 4214,
+    "char_end": 4287,
+    "unit_id": "t0027.u01",
+    "sent_id": "t0027.s02"
+  },
+  {
+    "start": 909.24,
+    "end": 911.52,
+    "speaker_label": "Giulia Ferrara",
+    "text": "What is the heuristic that you always find yourself using?",
+    "char_start": 4304,
+    "char_end": 4362,
+    "unit_id": "t0028.u01",
+    "sent_id": "t0028.s01"
+  },
+  {
+    "start": 911.58,
+    "end": 914.64,
+    "speaker_label": "Giulia Ferrara",
+    "text": "What is the most important aspect of this question?",
+    "char_start": 4363,
+    "char_end": 4414,
+    "unit_id": "t0028.u01",
+    "sent_id": "t0028.s02"
+  },
+  {
+    "start": 914.64,
+    "end": 919.08,
+    "speaker_label": "Marco Bellini",
+    "text": "It boils down to this: cutting corners on slopes is not optional.",
+    "char_start": 4430,
+    "char_end": 4495,
+    "unit_id": "t0029.u01",
+    "sent_id": "t0029.s01"
+  },
+  {
+    "start": 919.14,
+    "end": 922.62,
+    "speaker_label": "Marco Bellini",
+    "text": "The shortcut on the first day leads to the landslide on the third year.",
+    "char_start": 4496,
+    "char_end": 4567,
+    "unit_id": "t0029.u01",
+    "sent_id": "t0029.s02"
+  },
+  {
+    "start": 922.68,
+    "end": 926.04,
+    "speaker_label": "Marco Bellini",
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "char_start": 4568,
+    "char_end": 4630,
+    "unit_id": "t0029.u01",
+    "sent_id": "t0029.s03"
+  },
+  {
+    "start": 1320.0,
+    "end": 1321.8,
+    "speaker_label": "Giulia Ferrara",
+    "text": "What is the typical process for dealing with a malfunction?",
+    "char_start": 4647,
+    "char_end": 4706,
+    "unit_id": "t0030.u01",
+    "sent_id": "t0030.s01"
+  },
+  {
+    "start": 1321.86,
+    "end": 1325.76,
+    "speaker_label": "Giulia Ferrara",
+    "text": "What is the most often overlooked aspect of trail construction?",
+    "char_start": 4707,
+    "char_end": 4770,
+    "unit_id": "t0030.u01",
+    "sent_id": "t0030.s02"
+  },
+  {
+    "start": 1325.76,
+    "end": 1328.82,
+    "speaker_label": "Marco Bellini",
+    "text": "Let me give you my honest opinion.",
+    "char_start": 4786,
+    "char_end": 4820,
+    "unit_id": "t0031.u01",
+    "sent_id": "t0031.s01"
+  },
+  {
+    "start": 1328.88,
+    "end": 1332.36,
+    "speaker_label": "Marco Bellini",
+    "text": "Soil structure is more important than people realize.",
+    "char_start": 4821,
+    "char_end": 4874,
+    "unit_id": "t0031.u01",
+    "sent_id": "t0031.s02"
+  },
+  {
+    "start": 1332.42,
+    "end": 1335.84,
+    "speaker_label": "Marco Bellini",
+    "text": "We've seen this in teams that use the Cascadia Alliance.",
+    "char_start": 4875,
+    "char_end": 4931,
+    "unit_id": "t0031.u01",
+    "sent_id": "t0031.s03"
+  },
+  {
+    "start": 1335.9,
+    "end": 1339.26,
+    "speaker_label": "Marco Bellini",
+    "text": "I've observed this pattern repeating in three different teams.",
+    "char_start": 4932,
+    "char_end": 4994,
+    "unit_id": "t0031.u01",
+    "sent_id": "t0031.s04"
+  },
+  {
+    "start": 1339.26,
+    "end": 1340.46,
+    "speaker_label": "Giulia Ferrara",
+    "text": "I want to delve deeper into this.",
+    "char_start": 5011,
+    "char_end": 5044,
+    "unit_id": "t0032.u01",
+    "sent_id": "t0032.s01"
+  },
+  {
+    "start": 1340.52,
+    "end": 1343.1,
+    "speaker_label": "Giulia Ferrara",
+    "text": "How does Shimano fit into this picture?",
+    "char_start": 5045,
+    "char_end": 5084,
+    "unit_id": "t0032.u01",
+    "sent_id": "t0032.s02"
+  },
+  {
+    "start": 1343.1,
+    "end": 1348.56,
+    "speaker_label": "Marco Bellini",
+    "text": "Yes, look – I've changed my mind about machine-made trails versus hand-made trails.",
+    "char_start": 5100,
+    "char_end": 5183,
+    "unit_id": "t0033.u01",
+    "sent_id": "t0033.s01"
+  },
+  {
+    "start": 1348.62,
+    "end": 1353.24,
+    "speaker_label": "Marco Bellini",
+    "text": "Once you understand that, the rest of the decisions become easier.",
+    "char_start": 5184,
+    "char_end": 5250,
+    "unit_id": "t0033.u01",
+    "sent_id": "t0033.s02"
+  },
+  {
+    "start": 1353.24,
+    "end": 1354.8,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Where does it stop working?",
+    "char_start": 5267,
+    "char_end": 5294,
+    "unit_id": "t0034.u01",
+    "sent_id": "t0034.s01"
+  },
+  {
+    "start": 1354.8,
+    "end": 1360.56,
+    "speaker_label": "Marco Bellini",
+    "text": "Outside of the diagnostic tools provided by RockShox, it can be more difficult to identify the cause of the problem.",
+    "char_start": 5310,
+    "char_end": 5426,
+    "unit_id": "t0035.u01",
+    "sent_id": "t0035.s01"
+  },
+  {
+    "start": 1360.62,
+    "end": 1365.24,
+    "speaker_label": "Marco Bellini",
+    "text": "Once you understand that, the rest of the troubleshooting process becomes easier.",
+    "char_start": 5427,
+    "char_end": 5508,
+    "unit_id": "t0035.u01",
+    "sent_id": "t0035.s02"
+  },
+  {
+    "start": 1365.24,
+    "end": 1370.16,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Let's change the subject – I want to dedicate the final part to the management of the territory.",
+    "char_start": 5525,
+    "char_end": 5621,
+    "unit_id": "t0036.u01",
+    "sent_id": "t0036.s01"
+  },
+  {
+    "start": 1370.16,
+    "end": 1379.16,
+    "speaker_label": "Marco Bellini",
+    "text": "That's where the conversation becomes truly interesting, because the compromises involved in managing the territory touch upon everything we've discussed.",
+    "char_start": 5637,
+    "char_end": 5791,
+    "unit_id": "t0037.u01",
+    "sent_id": "t0037.s01"
+  },
+  {
+    "start": 1379.16,
+    "end": 1380.36,
+    "speaker_label": "Giulia Ferrara",
+    "text": "I want to delve deeper.",
+    "char_start": 5808,
+    "char_end": 5831,
+    "unit_id": "t0038.u01",
+    "sent_id": "t0038.s01"
+  },
+  {
+    "start": 1380.42,
+    "end": 1385.34,
+    "speaker_label": "Giulia Ferrara",
+    "text": "What is the opposing viewpoint that most listeners don't have access to?",
+    "char_start": 5832,
+    "char_end": 5904,
+    "unit_id": "t0038.u01",
+    "sent_id": "t0038.s02"
+  },
+  {
+    "start": 1385.34,
+    "end": 1391.22,
+    "speaker_label": "Marco Bellini",
+    "text": "It boils down to this: drainage is the design decision that has the biggest impact on any trail.",
+    "char_start": 5920,
+    "char_end": 6016,
+    "unit_id": "t0039.u01",
+    "sent_id": "t0039.s01"
+  },
+  {
+    "start": 1391.28,
+    "end": 1394.04,
+    "speaker_label": "Marco Bellini",
+    "text": "We've seen it happen with teams using RockShox products.",
+    "char_start": 6017,
+    "char_end": 6073,
+    "unit_id": "t0039.u01",
+    "sent_id": "t0039.s02"
+  },
+  {
+    "start": 1394.1,
+    "end": 1398.0,
+    "speaker_label": "Marco Bellini",
+    "text": "If you ignore it, you'll end up having to rebuild everything from scratch a year later.",
+    "char_start": 6074,
+    "char_end": 6161,
+    "unit_id": "t0039.u01",
+    "sent_id": "t0039.s03"
+  },
+  {
+    "start": 1398.0,
+    "end": 1399.8,
+    "speaker_label": "Giulia Ferrara",
+    "text": "What is the typical process for dealing with a malfunction?",
+    "char_start": 6178,
+    "char_end": 6237,
+    "unit_id": "t0040.u01",
+    "sent_id": "t0040.s01"
+  },
+  {
+    "start": 1399.86,
+    "end": 1403.76,
+    "speaker_label": "Giulia Ferrara",
+    "text": "What is the most often overlooked aspect of trail construction?",
+    "char_start": 6238,
+    "char_end": 6301,
+    "unit_id": "t0040.u01",
+    "sent_id": "t0040.s02"
+  },
+  {
+    "start": 1403.76,
+    "end": 1410.18,
+    "speaker_label": "Marco Bellini",
+    "text": "Honestly, the most common mistake that novice builders make is digging with a slope that is too steep.",
+    "char_start": 6317,
+    "char_end": 6419,
+    "unit_id": "t0041.u01",
+    "sent_id": "t0041.s01"
+  },
+  {
+    "start": 1410.24,
+    "end": 1413.96,
+    "speaker_label": "Marco Bellini",
+    "text": "The overall picture is important because it tells you what compromises you are making.",
+    "char_start": 6420,
+    "char_end": 6506,
+    "unit_id": "t0041.u01",
+    "sent_id": "t0041.s02"
+  },
+  {
+    "start": 1680.0,
+    "end": 1685.28,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Before we wrap up, what's one thing listeners can try out this week?",
+    "char_start": 6523,
+    "char_end": 6591,
+    "unit_id": "t0042.u01",
+    "sent_id": "t0042.s01"
+  },
+  {
+    "start": 1685.28,
+    "end": 1689.6,
+    "speaker_label": "Marco Bellini",
+    "text": "Choose one of the ideas we discussed and implement it for two weeks.",
+    "char_start": 6607,
+    "char_end": 6675,
+    "unit_id": "t0043.u01",
+    "sent_id": "t0043.s01"
+  },
+  {
+    "start": 1689.66,
+    "end": 1690.98,
+    "speaker_label": "Marco Bellini",
+    "text": "Everything else is iteration.",
+    "char_start": 6676,
+    "char_end": 6705,
+    "unit_id": "t0043.u01",
+    "sent_id": "t0043.s02"
+  },
+  {
+    "start": 1690.98,
+    "end": 1695.0,
+    "speaker_label": "Giulia Ferrara",
+    "text": "And finally, a big thank you to our partners at Linear.",
+    "char_start": 6722,
+    "char_end": 6777,
+    "unit_id": "t0044.u01",
+    "sent_id": "t0044.s01"
+  },
+  {
+    "start": 1695.06,
+    "end": 1699.74,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Linear is the ticketing system designed for speed – built for the keyboard.",
+    "char_start": 6778,
+    "char_end": 6853,
+    "unit_id": "t0044.u01",
+    "sent_id": "t0044.s02"
+  },
+  {
+    "start": 1699.8,
+    "end": 1701.6,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Check it out at linear.com.",
+    "char_start": 6854,
+    "char_end": 6881,
+    "unit_id": "t0044.u01",
+    "sent_id": "t0044.s03"
+  },
+  {
+    "start": 1701.6,
+    "end": 1704.18,
+    "speaker_label": "Giulia Ferrara",
+    "text": "Marco Bellini, thank you for the conversation.",
+    "char_start": 6882,
+    "char_end": 6928,
+    "unit_id": "t0044.u01",
+    "sent_id": "t0044.s04"
+  },
+  {
+    "start": 1704.18,
+    "end": 1705.68,
+    "speaker_label": "Marco Bellini",
+    "text": "Thank you, Giulia.",
+    "char_start": 6944,
+    "char_end": 6962,
+    "unit_id": "t0045.u01",
+    "sent_id": "t0045.s01"
+  },
+  {
+    "start": 1705.68,
+    "end": 1708.8,
+    "speaker_label": "Giulia Ferrara",
+    "text": "That's all for today's episode of \"Author's Trails.\"",
+    "char_start": 6979,
+    "char_end": 7031,
+    "unit_id": "t0046.u01",
+    "sent_id": "t0046.s01"
+  },
+  {
+    "start": 1708.86,
+    "end": 1710.6,
+    "speaker_label": "Giulia Ferrara",
+    "text": "See you next time.",
+    "char_start": 7032,
+    "char_end": 7050,
+    "unit_id": "t0046.u01",
+    "sent_id": "t0046.s02"
   }
 ]

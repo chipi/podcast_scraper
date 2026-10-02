@@ -503,6 +503,9 @@ def episode_segments(
     _user: User = Depends(get_current_user),
 ) -> SegmentsResponse:
     """Serve the transcript ``segments.json`` contract for one episode (by slug)."""
+    from ...languages import TARGET_LANGUAGE
+    from ...translation.artifacts import translation_swap_happened
+
     root, row = _resolve(request, slug)
     transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
     if transcript_rel is None:
@@ -519,7 +522,16 @@ def episode_segments(
     if want_source:
         # The explicit alternative: drop every English candidate so the source is served even
         # though D-38 puts English first.
-        candidates = [c for c in candidates if ".en." not in c]
+        # D-44: the source body lives at `<base>.<lang>.segments.json`, so asking for the original
+        # means naming that file — not filtering an English candidate out of a list. There is no
+        # `.en.` candidate any more: the canonical sidecar IS the analysis-language one.
+        from ...translation.artifacts import source_segments_relpath
+
+        src_lang = _normalized(lang) or ""
+        try:
+            candidates = [source_segments_relpath(transcript_corpus_rel, src_lang)]
+        except ValueError:
+            candidates = []
 
     for candidate in candidates:
         safe = safe_relpath_under_corpus_root(root, candidate)
@@ -532,14 +544,29 @@ def episode_segments(
             except (OSError, ValueError) as exc:
                 logger.warning("Unreadable segments file %s: %s", seg_path, exc)
                 raise HTTPException(status_code=500, detail="Segments file unreadable.") from exc
-            served_english = ".en." in candidate
+            # WHICH FILE DID WE ACTUALLY OPEN (D-44). A language-tagged candidate is the source;
+            # the canonical one is the analysis language — English after a swap, and English
+            # anyway on an English episode. Decided from the path we resolved, not from the
+            # request, so "asked for English, none exists" still reports the truth.
+            served_source = bool(want_source) and candidate in candidates
+            # AND THE SWAP HAS TO HAVE HAPPENED. The canonical body holds the analysis language
+            # only once translation swapped it there; on a pending or failed translation it is
+            # still the SOURCE, and reporting `en` for it would tell the client the text is
+            # English when it is not — the same assumption the indexer made and had to drop.
+            swapped = translation_swap_happened(
+                transcript_corpus_rel, str(root), source_language or ""
+            )
+            served_english = not served_source and swapped
             return SegmentsResponse(
                 episode_slug=slug,
                 segments=to_contract_segments(raw),
-                # The language ACTUALLY SERVED, not the one requested: if English was asked for
-                # and does not exist, this reports the source rather than claiming `en`.
-                language="en" if served_english else source_language,
-                machine_translated=served_english and bool(translation.get("model")),
+                language=TARGET_LANGUAGE if served_english else source_language,
+                machine_translated=(
+                    served_english
+                    and bool(source_language)
+                    and source_language != TARGET_LANGUAGE
+                    and bool(translation.get("model"))
+                ),
                 translation_model=translation.get("model") if served_english else None,
                 source_language=source_language,
             )

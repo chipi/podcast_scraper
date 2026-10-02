@@ -23,11 +23,32 @@ STEM = "0001-hello"
 
 
 def _make_translated(root: Path, *, status: str = "translated", complete: bool = True) -> None:
-    """Add the English artifact set and the ledger, as the translation stage would."""
+    """Swap the episode over and write the ledger, as the translation stage would (D-44).
+
+    A COMPLETE translation means the canonical body holds English and the SOURCE is kept at its
+    language-tagged name — that tagged file is what the completeness gate reads, because only the
+    atomic swap creates it. An incomplete one never swapped: the canonical body is still the source
+    and there is no tagged sibling, which is why `complete=False` writes neither.
+    """
     tr = root / "transcripts"
     if complete:
-        (tr / f"{STEM}.en.txt").write_text("Alice: Hello world.\nBob: Second.\n", encoding="utf-8")
-        (tr / f"{STEM}.en.segments.json").write_text(
+        # The source moves aside. Written UNCONDITIONALLY: this is simulating a COMPLETED swap, so
+        # the tagged source must exist whatever the fixture laid down before — and `_write_corpus`
+        # writes only the segments sidecar, not the transcript body, so a copy-if-present guard
+        # silently produced an episode the completeness gate read as never-translated.
+        canon = tr / f"{STEM}.txt"
+        (tr / f"{STEM}.es.txt").write_text(
+            canon.read_text(encoding="utf-8") if canon.is_file() else "Alice: Hola mundo.\n",
+            encoding="utf-8",
+        )
+        seg = tr / f"{STEM}.segments.json"
+        if seg.is_file():
+            (tr / f"{STEM}.es.segments.json").write_text(
+                seg.read_text(encoding="utf-8"), encoding="utf-8"
+            )
+        # ...and the translation takes the canonical names
+        (tr / f"{STEM}.txt").write_text("Alice: Hello world.\nBob: Second.\n", encoding="utf-8")
+        (tr / f"{STEM}.segments.json").write_text(
             json.dumps(
                 [
                     {
@@ -126,7 +147,7 @@ class TestHonestyAboutWhatWasServed:
         assert body["machine_translated"] is False
 
     def test_a_withheld_translation_still_serves_the_source(self, tmp_path: Path) -> None:
-        """RFC-124 §5.3 withholds `.en.*` when units failed. The episode must still play."""
+        """RFC-124 §5.3 withholds the swap when units failed. The episode must still play."""
         _write_corpus(tmp_path)
         _make_translated(tmp_path, status="failed", complete=False)
         slug = _only_slug(tmp_path)

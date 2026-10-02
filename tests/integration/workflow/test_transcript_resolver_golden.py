@@ -407,14 +407,12 @@ def test_precedence_when_both_segment_sidecars_exist(tmp_path: Path) -> None:
 
     # TIMELINE reader takes the raw variant: the player streams unbridged audio, so the
     # ad-free sidecar (one segment short here, minutes short in reality) would drift it.
-    # S2.1b puts the English sidecar ahead of both — a LANGUAGE choice, not a timing one, since
-    # the English render carries the source segments' times. The contract this test exists for
-    # is RAW-before-AD-FREE, so that is asserted on the source-language candidates directly
-    # rather than being read off position 0 where an added head can quietly displace it.
+    # D-44 removed the English sidecar head: the canonical sidecar IS the analysis-language one, so
+    # position 0 carries the contract directly again. The contract is RAW-before-AD-FREE, because
+    # the player streams unbridged audio and the ad-free times would drift against it.
     order = segments_relpaths_for_transcript(rel)
-    assert order[0] == "transcripts/e01.en.segments.json"
-    source_order = [c for c in order if ".en." not in c]
-    assert source_order[0] == "transcripts/e01.segments.json"
+    assert order[0] == "transcripts/e01.segments.json"
+    source_order = order
     assert source_order.index("transcripts/e01.segments.json") < source_order.index(
         "transcripts/e01.adfree.segments.json"
     )
@@ -525,11 +523,15 @@ def _app_corpus_episode_count() -> int:
 
 
 def _translated_app_episodes_with_an_adfree_body() -> int:
-    """App-corpus episodes whose ad-free body is the ENGLISH one (`.en.adfree.txt`).
+    """App-corpus episodes that HAVE an ad-free analysis base at all.
 
-    These are the episodes RFC-124 gave an analysis base to. They are the difference between "every
-    app episode falls back to the raw body" (true before translation landed in the corpus) and
-    "every app episode that has no ad-free body does" (true now).
+    D-44 made that base `<base>.adfree.txt` for every episode, translated or not — the English
+    ad-free body and the native-English one now share a name, which is the whole point of the
+    scheme. So this counts a plain `.adfree.txt`, and the distinction it used to draw (English
+    ad-free vs source ad-free) no longer exists in the layout.
+
+    They are the difference between "every app episode falls back to the raw body" (true before
+    translation landed in the corpus) and "every app episode that has no ad-free body does".
     """
     total = 0
     app_root = _REPO / "tests/fixtures/app-validation-corpus/v3"
@@ -540,7 +542,7 @@ def _translated_app_episodes_with_an_adfree_body() -> int:
         if not src.name.endswith(".txt"):
             continue
         stem = src.name[: -len(".txt")]
-        if src.with_name(stem + ".en.adfree.txt").is_file():
+        if src.with_name(stem + ".adfree.txt").is_file():
             total += 1
     return total
 
@@ -548,7 +550,7 @@ def _translated_app_episodes_with_an_adfree_body() -> int:
 def _episodes_with_an_adfree_body() -> int:
     """Episodes where the ad-free and raw bodies are DIFFERENT files, so purpose is observable.
 
-    Counts an English ad-free body (`.en.adfree.txt`) as well as a source one: once p10-p14's
+    Counts the one ad-free name there now is (`.adfree.txt`): once p10-p14's
     renders landed, the translated app episodes gained an ad-free body too, and a reader switching
     purpose moves on them for exactly the same reason it moves on the viewer corpus.
 
@@ -562,10 +564,7 @@ def _episodes_with_an_adfree_body() -> int:
         if not src.name.endswith(".txt"):
             continue
         stem = src.name[: -len(".txt")]
-        if (
-            src.with_name(stem + ".adfree.txt").is_file()
-            or src.with_name(stem + ".en.adfree.txt").is_file()
-        ):
+        if src.with_name(stem + ".adfree.txt").is_file():
             total += 1
     return total
 
@@ -586,19 +585,31 @@ def _moved_episodes(actual: Dict[str, Any], expected: Dict[str, Any]) -> Dict[st
     return moved
 
 
-def _translated_episode_keys() -> List[str]:
-    """Episode keys whose corpus artifacts include an `.en.txt` — derived, never listed.
+def _looks_language_tagged(stem: str, name: str) -> bool:
+    """Is `name` `<stem>.<2-letter-lang>.txt`? The marker a swapped episode leaves behind."""
+    if not name.startswith(stem + ".") or not name.endswith(".txt"):
+        return False
+    middle = name[len(stem) + 1 : -len(".txt")]
+    return len(middle) == 2 and middle.isalpha()
 
-    Derived from disk so that translating a sixth fixture episode is a fixture change rather than
-    a test edit, and so this cannot silently disagree with what the corpus actually holds.
+
+def _translated_episode_keys() -> List[str]:
+    """Episode keys carrying a language-TAGGED source body — derived, never listed.
+
+    D-44 inverted the marker. It used to look for `<base>.en.txt`, the translation beside a
+    canonical source. English is now the canonical file, so what proves a translation happened is
+    the SOURCE at `<base>.<lang>.txt`, which only the atomic swap creates.
+
+    Derived from disk so translating a sixth fixture episode is a fixture change rather than a test
+    edit, and so this cannot silently disagree with what the corpus holds.
     """
     keys = []
     for ep in _episodes():
         src = ep["run_root"] / ep["transcript_rel"]
-        if (
-            src.name.endswith(".txt")
-            and src.with_name(src.name[: -len(".txt")] + ".en.txt").is_file()
-        ):
+        if not src.name.endswith(".txt"):
+            continue
+        stem = src.name[: -len(".txt")]
+        if any(_looks_language_tagged(stem, sib.name) for sib in src.parent.glob(f"{stem}.*.txt")):
             keys.append(ep["key"])
     return sorted(keys)
 
@@ -675,69 +686,41 @@ def test_golden_catches_the_adfree_fallback_being_deleted(
     )
 
 
-def test_removing_the_english_head_moves_EXACTLY_the_translated_episodes(
+def test_FILTERING_a_language_suffix_from_the_candidates_changes_NOTHING(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The two-language golden this replaced a tripwire to become.
+    """D-44's guarantee, stated as a test: the resolver offers no language-tagged candidate.
 
-    WHAT THIS USED TO BE. `test_the_english_branch_is_inert_on_this_corpus` asserted that removing
-    the English head moved NOTHING, because no fixture episode had a `.en.*` artifact. Its own
-    docstring called itself a tripwire and said that the moment one gained them, the fix was to
-    convert it into a real two-language golden rather than to relax it. That moment arrived when
-    p10-p14's renders were captured into the corpus, so this is that conversion.
+    THIS USED TO BE the inverse. S2.1b put an English HEAD on both candidate lists, and this test
+    removed it and asserted that EXACTLY the translated episodes moved — proving the branch fired
+    where it should and nowhere else.
 
-    WHY THE OLD SHAPE WAS WORTH REPLACING RATHER THAN DELETING. An inert branch and a broken one
-    are indistinguishable on an all-English corpus, so the old test could never have caught the
-    English branch resolving wrongly — only that it was not firing. This asserts the branch fires
-    on exactly the episodes that have a render and on no others, which is the claim that actually
-    protects D-38.
-
-    THE PARTITION IS THE POINT. `moved` must equal the translated set exactly:
-
-    * a translated episode that does NOT move means the English branch is not resolving its
-      render — the corpus would claim `translation_status: translated` while every reader still
-      served the source body, which is the `.en.adfree.txt` fall-through trap in
-      `translation_stage.py` and is strictly worse than having no render at all;
-    * an UNTRANSLATED episode that DOES move means the branch reaches episodes with no render,
-      which is S2.1b's pure-addition claim broken.
+    English is now the canonical unsuffixed file, so there is no head. Stripping every
+    language-looking candidate must therefore be a no-op across both corpora — a stronger statement
+    than the old one, because it says a language cannot leak into the resolver at all rather than
+    that it leaks in the right places.
     """
     from podcast_scraper.workflow import transcript_resolution as tr
 
     real = tr.text_relpath_candidates
 
-    def source_candidates_only(relpath, *, purpose, include_cleaned=False):  # type: ignore[no-untyped-def]
-        got = real(relpath, purpose=purpose, include_cleaned=include_cleaned)
-        return [c for c in got if ".en." not in c]
+    def without_tagged(relpath, *, purpose, include_cleaned=False):  # type: ignore[no-untyped-def]
+        kept = []
+        for cand in real(relpath, purpose=purpose, include_cleaned=include_cleaned):
+            stem = cand[: -len(".txt")] if cand.endswith(".txt") else cand
+            parts = stem.split(".")[1:]
+            if any(len(part) == 2 and part.isalpha() for part in parts):
+                continue
+            kept.append(cand)
+        return kept
 
-    monkeypatch.setattr(tr, "text_relpath_candidates", source_candidates_only)
-    built = _build()
-    committed = _committed()
-
-    translated = _translated_episode_keys()
-    assert translated, (
-        "no fixture episode has an `.en.txt`, so this golden is vacuous — if the corpus lost its "
-        "renders, fix the corpus rather than this test"
+    monkeypatch.setattr(tr, "text_relpath_candidates", without_tagged)
+    moved = _moved_episodes(_build(), _committed())
+    assert moved == {}, (
+        "a language-tagged candidate reached the resolver, so dropping it changed what readers "
+        f"resolve: {moved}"
     )
-
-    moved = _moved_episodes(built, committed)
-    # `B1_player_segments_order` is the candidate ORDER, not a resolved path: it legitimately
-    # shrinks on every episode when the head is removed. Judge only the rows that name a file.
-    resolved_moves = {
-        k: [f for f in fields if f != "B1_player_segments_order"] for k, fields in moved.items()
-    }
-    resolved_moves = {k: v for k, v in resolved_moves.items() if v}
-
-    assert sorted(resolved_moves) == translated, (
-        "the English branch fired on a different set of episodes than the ones carrying a "
-        f"render.\n  moved:      {sorted(resolved_moves)}\n  translated: {translated}"
-    )
-
-    # And the direction: with the head removed each one falls back to its SOURCE body.
-    for key in translated:
-        before = committed["per_episode"][key]["A1A2_gi_kg"]["ref"]
-        after = built["per_episode"][key]["A1A2_gi_kg"]["ref"]
-        assert ".en." in before, f"{key}: the committed golden does not resolve English: {before}"
-        assert ".en." not in after, f"{key}: head removed but still resolving English: {after}"
+    assert _translated_episode_keys(), "the corpus lost its translated episodes"
 
 
 def test_the_corpus_CANNOT_catch_the_a10_regression_and_here_is_why() -> None:
