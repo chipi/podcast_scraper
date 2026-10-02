@@ -39,7 +39,10 @@ class TestSetReproducibilitySeeds(unittest.TestCase):
         """When cfg has seed and torch is available, manual_seed is called with seed."""
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
-        with patch.dict("sys.modules", {"torch": mock_torch}):
+        # transformers is stubbed too: a real first import of it inspects torch.__spec__ and fails
+        # on the fake, so the test passed or failed depending on whether an EARLIER test in the
+        # same worker had already imported transformers.
+        with patch.dict("sys.modules", {"torch": mock_torch, "transformers": MagicMock()}):
             set_reproducibility_seeds(Mock(seed=42))
             mock_torch.manual_seed.assert_any_call(42)
 
