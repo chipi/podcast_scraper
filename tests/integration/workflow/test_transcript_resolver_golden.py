@@ -507,6 +507,31 @@ def _translated_app_episodes_with_an_adfree_body() -> int:
     return total
 
 
+def _episodes_with_a_PLAIN_adfree_body() -> int:
+    """Episodes carrying `<base>.adfree.txt` — not `.en.adfree.txt`.
+
+    This is the exact population `gi/load.py` moves on when its #2253 fix is reverted, and the
+    distinction is load-bearing. That fix is now a two-line `.adfree.txt` check (an English-path
+    bug must not depend on the translation module), so it does not see `.en.adfree.txt` at all:
+    a translated episode resolves to its SOURCE body either way, and reverting moves nothing for
+    it. Measured here: the app corpus has ZERO plain ad-free bodies and five `.en.` ones; the
+    viewer corpus has forty plain ones.
+
+    The assertion this replaces used "every app-corpus episode" (45) and passed only because the
+    old resolver-based fix also resolved `.en.adfree.txt` — 40 viewer + 5 app. A coincidence of
+    two populations summing, not a statement about the reader.
+    """
+    total = 0
+    for ep in _episodes():
+        src = ep["run_root"] / ep["transcript_rel"]
+        if not src.name.endswith(".txt"):
+            continue
+        stem = src.name[: -len(".txt")]
+        if src.with_name(stem + ".adfree.txt").is_file():
+            total += 1
+    return total
+
+
 def _episodes_with_an_adfree_body() -> int:
     """Episodes where the ad-free and raw bodies are DIFFERENT files, so purpose is observable.
 
@@ -709,17 +734,32 @@ def test_golden_catches_the_gi_load_fix_being_reverted(
 
     This row is the one with real evidence behind it: the fix moved exactly this field on
     exactly these episodes when it landed. Injecting the revert closes the loop.
+
+    INJECTED AS THE OLD BEHAVIOUR, not by disabling a resolver. The fix used to call
+    `workflow.transcript_resolution` — a module written for translation — so the revert could be
+    injected by stubbing that import out. #2253 reimplemented it as a two-line `.adfree.txt`
+    check inside `gi/load.py`, because an English-path bug fix must not depend on a language
+    feature, and there is no longer an import to stub. So the revert is injected by restoring the
+    pre-fix function itself: return the canonical `.txt` unconditionally.
     """
     from podcast_scraper.gi import load as gi_load
 
-    monkeypatch.setattr(gi_load, "resolve_text_path", lambda *a, **k: None)
+    def pre_fix(artifact_path: Path) -> Path:
+        stem = artifact_path.stem
+        base = stem[:-3] if stem.endswith(".gi") else stem
+        return artifact_path.parent.parent / "transcripts" / f"{base}.txt"
+
+    monkeypatch.setattr(gi_load, "_transcript_path_from_artifact_path", pre_fix)
     moved = _moved_fields(_build(), _committed())
     assert set(moved) == {"A10_gi_load_evidence"}, f"expected only A10 to move, got {moved}"
-    # Every app-corpus episode, counted rather than hardcoded — `40` went stale when p10 landed.
-    expected_a10 = _app_corpus_episode_count()
-    assert (
-        moved["A10_gi_load_evidence"] == expected_a10
-    ), f"{moved['A10_gi_load_evidence']} episodes moved but the app corpus has {expected_a10}"
+    # The episodes with a PLAIN `.adfree.txt` — the only ones this reader resolves away from the
+    # canonical body, so the only ones a revert can move. See the helper for why it is not "every
+    # app-corpus episode": that count passed on a coincidence.
+    expected_a10 = _episodes_with_a_PLAIN_adfree_body()
+    assert moved["A10_gi_load_evidence"] == expected_a10, (
+        f"{moved['A10_gi_load_evidence']} episodes moved but {expected_a10} carry a plain "
+        "`.adfree.txt`"
+    )
 
 
 def test_the_sidecar_mismatch_regression_is_covered_by_assertion_not_injection() -> None:

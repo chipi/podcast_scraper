@@ -1398,7 +1398,7 @@
       "C_summary_faithfulness": "transcripts/p09_e04.txt"
     },
     "app-validation-corpus/v3::feeds/p10/run_20260101-000000/metadata/p10_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p10_e01.en.adfree.txt",
+      "A10_gi_load_evidence": "transcripts/p10_e01.txt",
       "A1A2_gi_kg": {
         "has_segments": true,
         "has_text": true,
@@ -1427,7 +1427,7 @@
       "C_summary_faithfulness": "transcripts/p10_e01.txt"
     },
     "app-validation-corpus/v3::feeds/p11/run_20260101-000000/metadata/p11_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p11_e01.en.adfree.txt",
+      "A10_gi_load_evidence": "transcripts/p11_e01.txt",
       "A1A2_gi_kg": {
         "has_segments": true,
         "has_text": true,
@@ -1456,7 +1456,7 @@
       "C_summary_faithfulness": "transcripts/p11_e01.txt"
     },
     "app-validation-corpus/v3::feeds/p12/run_20260101-000000/metadata/p12_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p12_e01.en.adfree.txt",
+      "A10_gi_load_evidence": "transcripts/p12_e01.txt",
       "A1A2_gi_kg": {
         "has_segments": true,
         "has_text": true,
@@ -1485,7 +1485,7 @@
       "C_summary_faithfulness": "transcripts/p12_e01.txt"
     },
     "app-validation-corpus/v3::feeds/p13/run_20260101-000000/metadata/p13_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p13_e01.en.adfree.txt",
+      "A10_gi_load_evidence": "transcripts/p13_e01.txt",
       "A1A2_gi_kg": {
         "has_segments": true,
         "has_text": true,
@@ -1514,7 +1514,7 @@
       "C_summary_faithfulness": "transcripts/p13_e01.txt"
     },
     "app-validation-corpus/v3::feeds/p14/run_20260101-000000/metadata/p14_e01.metadata.json": {
-      "A10_gi_load_evidence": "transcripts/p14_e01.en.adfree.txt",
+      "A10_gi_load_evidence": "transcripts/p14_e01.txt",
       "A1A2_gi_kg": {
         "has_segments": true,
         "has_text": true,

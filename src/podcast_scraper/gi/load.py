@@ -10,7 +10,6 @@ import logging
 from pathlib import Path
 from typing import Any, cast, Dict, List, Optional, Tuple
 
-from ..workflow.transcript_resolution import resolve_text_path, TranscriptPurpose
 from .contracts import EvidenceSpan, InsightSummary, InspectOutput, SupportingQuote
 from .io import read_artifact
 
@@ -23,22 +22,29 @@ def _transcript_path_from_artifact_path(artifact_path: Path) -> Path:
     Artifact: ``output_dir/metadata/<base>.gi.json``
     Transcript: ``output_dir/transcripts/<base>.adfree.txt``, else ``<base>.txt``
 
-    BUG FIXED HERE (#2170): this returned the raw ``.txt`` unconditionally, while
+    BUG FIXED HERE (#2253): this returned the raw ``.txt`` unconditionally, while
     :func:`get_evidence_span` slices it with ``char_start`` / ``char_end`` that GI computed
     against ``.adfree.txt``. On any episode whose ads were excised, every evidence span came
-    back displaced by the length of the ads before it — the right number of characters from
-    the wrong place, so it read as plausible text rather than as an error.
+    back displaced by the total length of the ads before it — the right NUMBER of characters
+    from the wrong place, so it printed as plausible text rather than raising. Measured: an
+    excerpt that should read "Welcome back to the show." printed "r: buy things at example "
+    instead, mid-word inside the sponsor line.
+
+    DELIBERATELY NOT ROUTED THROUGH A SHARED RESOLVER. The first version of this fix imported
+    ``workflow.transcript_resolution``, a module written for translation, which made this
+    English-path bug fix depend on a language feature. The question here is only "which body do
+    these offsets index", the answer is only ever these two files, and checking for one of them
+    is two lines — so it is two lines, and ``gi`` stays independent of the translation code.
 
     Bounded to ``gi inspect`` and ``gi show-insight``; nothing is written from this path.
     """
     stem = artifact_path.stem  # e.g. "1 - episode_title.gi"
     base = stem[:-3] if stem.endswith(".gi") else stem
-    output_dir = artifact_path.parent.parent  # metadata -> output_dir
-    rel = f"transcripts/{base}.txt"
-    resolved = resolve_text_path(output_dir, rel, purpose=TranscriptPurpose.ANALYSIS)
-    # Fall back to the canonical path when neither variant exists, so the caller still gets
-    # a path to report as missing rather than None.
-    return resolved if resolved is not None else output_dir / rel
+    transcripts = artifact_path.parent.parent / "transcripts"  # metadata -> output_dir
+    adfree = transcripts / f"{base}.adfree.txt"
+    # Canonical path when the ad-free body is absent: the two are then the same text, and the
+    # caller still gets a path it can report as missing rather than ``None``.
+    return adfree if adfree.is_file() else transcripts / f"{base}.txt"
 
 
 def load_transcript_for_evidence(transcript_path: Path) -> Optional[str]:
