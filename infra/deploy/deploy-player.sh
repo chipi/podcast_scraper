@@ -387,10 +387,18 @@ except Exception: print(0)
   if echo "$ometa" | grep -q "\"$owant_res\"" && echo "$ometa" | grep -q "\"$owant_iss\""; then
     oconsistent=yes
   fi
-  if [ "$odisc" = "200" ] && [ "$ogate" = "401" ] && [ "$oconsistent" = "yes" ]; then
-    echo "[$(date -u +%FT%TZ)] obs MCP up: discovery 200, admin gate 401, metadata consistent — https://${owant_res#https://}"
+  # The authorization server must ACCEPT the obs resource. Discovery and the 401 gate were green on
+  # 2026-10-02 while every claude.ai login for obs failed at authorize with 400 invalid_target: the
+  # api container never received APP_MCP_RESOURCE_URLS, so its allowlist held the content MCP only.
+  # A token-less public probe cannot see this (authorize answers 403 before it checks the resource),
+  # so ask the api's own allowlist.
+  oallowed=$("${COMPOSE[@]}" exec -T api python -c \
+    "from podcast_scraper.server.app_oauth_server import resolve_resource as r; print(r('${owant_res}') or '')" 2>/dev/null || echo "")
+  oauthz=$([ "$oallowed" = "$owant_res" ] && echo yes || echo no)
+  if [ "$odisc" = "200" ] && [ "$ogate" = "401" ] && [ "$oconsistent" = "yes" ] && [ "$oauthz" = "yes" ]; then
+    echo "[$(date -u +%FT%TZ)] obs MCP up: discovery 200, admin gate 401, metadata consistent, authorize accepts the resource — https://${owant_res#https://}"
   else
-    echo "WARN: obs MCP surface not fully verified (discovery=$odisc, token-less gate=$ogate, metadata-consistent=$oconsistent; want 200/401/yes). Check the obs container + OBS_MCP_RESOURCE_URL=${owant_res}, and that observability.yaml mounted (H1)." >&2
+    echo "WARN: obs MCP surface not fully verified (discovery=$odisc, token-less gate=$ogate, metadata-consistent=$oconsistent, authorize-accepts-resource=$oauthz; want 200/401/yes/yes). Check the obs container + OBS_MCP_RESOURCE_URL=${owant_res}, that observability.yaml mounted (H1), and that the api receives APP_MCP_RESOURCE_URLS including ${owant_res}." >&2
   fi
 fi
 
