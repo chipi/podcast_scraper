@@ -42,3 +42,14 @@ def test_the_full_name_in_the_third_person_still_refutes() -> None:
 def test_a_possessive_after_this_is_is_still_not_a_self_introduction() -> None:
     text = "This is Maria Lindqvist's fourth book, and it is her best."
     assert refuted_by_third_person(text, "Maria Lindqvist")
+
+
+def test_the_full_first_name_spoken_for_a_stated_short_form_is_a_self_introduction() -> None:
+    # Stated "Tob Wren", heard "I am Tobias Wren": the prefix holds in the other direction too.
+    text = "And I am Tobias Wren, coming to you from the studio. Wren's take is that rates fall."
+    assert not refuted_by_third_person(text, "Tob Wren")
+
+
+def test_an_honorific_between_the_cue_and_the_name_is_a_self_introduction() -> None:
+    text = "Hello, I'm Dr. Tobias Wren and this is the show. Wren here, back after the break."
+    assert not refuted_by_third_person(text, "Tobias Wren")

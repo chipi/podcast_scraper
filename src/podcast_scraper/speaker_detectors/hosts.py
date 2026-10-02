@@ -1344,7 +1344,8 @@ def strip_role_prefix(name: str) -> str:
     out = (name or "").strip()
     for pattern in (_POSSESSIVE_PREFIX, _ROLE_PREFIX):
         stripped = pattern.sub("", out, count=1).strip()
-        if stripped and stripped != out:
+        # A person survives the strip as at least two words; "Kay's Anatomy" -> "Anatomy" does not.
+        if stripped and stripped != out and len(stripped.split()) >= 2:
             out = stripped
     return out
 
@@ -1371,7 +1372,9 @@ def is_publishable_speaker_name(name: Optional[str]) -> bool:
         return False
     toks = nm.split()
     lowered = [t.lower().strip(".,'’") for t in toks]
-    if any(t in _ROLE_OR_FILLER_TOKENS for t in lowered):
+    # Role and filler words disqualify a ONE-word name, or a name made of nothing else. Inside a
+    # longer name they are real surnames and given names: Christopher Guest, Ok Taecyeon.
+    if lowered and all(t in _ROLE_OR_FILLER_TOKENS for t in lowered):
         return False
     if len(toks) >= 2:
         if lowered[-1] in _ORG_TAIL_TOKENS or any(t.endswith(("'s", "’s")) for t in toks):

@@ -69,3 +69,19 @@ def test_real_names_survive(name: str) -> None:
 def test_stripping_leaves_a_plain_name_alone() -> None:
     assert strip_role_prefix("Hostetler Brown") == "Hostetler Brown"
     assert strip_role_prefix("Maria Lindqvist") == "Maria Lindqvist"
+
+
+@pytest.mark.parametrize("name", ["Christopher Guest", "Ok Taecyeon", "Hi Nguyen"])
+def test_a_role_or_filler_word_inside_a_longer_name_is_a_real_name(name: str) -> None:
+    # Advisor review 2026-10-02: checking every token refused real surnames and given names.
+    assert is_publishable_speaker_name(name)
+
+
+def test_a_name_made_only_of_filler_words_is_not_a_person() -> None:
+    assert not is_publishable_speaker_name("Okay Thanks")
+
+
+def test_a_possessive_strip_that_would_leave_one_word_does_not_strip() -> None:
+    # "Kay's Anatomy" -> "Anatomy" would publish a common noun as a mononym.
+    assert strip_role_prefix("Kay's Anatomy") == "Kay's Anatomy"
+    assert not is_publishable_speaker_name("Kay's Anatomy")

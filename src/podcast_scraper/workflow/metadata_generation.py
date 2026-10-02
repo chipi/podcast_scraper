@@ -50,7 +50,11 @@ from .. import config, config_constants, models
 from ..graph_id_utils import is_bare_speaker_label
 from ..identity.roster_provenance import roster_source, RosterSource
 from ..identity.slugify import canonical_person_name
-from ..speaker_detectors.hosts import is_publishable_speaker_name, looks_like_publisher
+from ..speaker_detectors.hosts import (
+    is_publishable_speaker_name,
+    looks_like_publisher,
+    strip_role_prefix,
+)
 
 if TYPE_CHECKING:
     from ..models import Episode, RssFeed
@@ -1068,6 +1072,8 @@ def _unplaced_speakers(
     kept: List[SpeakerInfo] = []
     for raw_name, role, source in candidates:
         name = _clean_record_name(raw_name)
+        # The same repair a placed name gets before the gate ("Planet Money's Kenny Malone").
+        name = strip_role_prefix(name) if name else name
         # Two placeholder predicates, because they cover different shapes: `is_bare_speaker_label`
         # knows `SPEAKER_01` and the role words, `is_default_speaker_name` knows the providers'
         # failure tuple (`unknown_guest_1`). Either alone lets the other through.

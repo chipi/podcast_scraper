@@ -35,3 +35,8 @@ def test_a_role_word_stated_as_a_guest_is_not_published() -> None:
 def test_a_real_stated_host_is_still_published_unplaced() -> None:
     out = _unplaced(["Tobias Wren"])
     assert [(s.name, s.role, s.placed) for s in out] == [("Tobias Wren", "host", False)]
+
+
+def test_a_stated_name_with_the_show_in_front_is_published_as_the_person() -> None:
+    out = _unplaced(["River Trade Weekly's Tobias Wren"])
+    assert [s.name for s in out] == ["Tobias Wren"]

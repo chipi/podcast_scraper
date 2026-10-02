@@ -394,7 +394,11 @@ def _introduces_itself_as(text: str, name: str) -> bool:
     not_possessive = r"(?!(?:\s+[A-Z][\w'’\-]*){0,2}['’]s\b)\b"
     # "I am your host, David Beckworth" is the commonest host introduction there is, and the bare
     # "I am <name>" form never saw it (measured: Macro Musings, The Long Run).
-    intro = r"\b(?:I'?m|I am|my name is|this is)\s+(?:your\s+(?:co-?)?host,?\s+)?"
+    intro = (
+        r"\b(?:I'?m|I am|my name is|this is)\s+(?:your\s+(?:co-?)?host,?\s+)?"
+        # "I'm Dr. Rob Armstrong": an honorific between the cue and the name.
+        r"(?:(?:dr|doctor|prof|professor|mr|mrs|ms|sir|dame)\.?\s+)?"
+    )
     if re.search(
         intro + rf"(?:{re.escape(name)}|{re.escape(first)})" + not_possessive,
         text or "",
@@ -402,14 +406,19 @@ def _introduces_itself_as(text: str, name: str) -> bool:
     ):
         return True
     # "And I am Rob Armstrong": a short form of the first name, followed by the surname. Only a
-    # PREFIX of the first name counts — "I'm Jackie Stallone" is somebody else, not Sylvester.
+    # PREFIX counts, in either direction — stated "Robert", heard "Rob", or stated "Rob", heard
+    # "Robert" — and "I'm Jackie Stallone" is still somebody else, not Sylvester.
     if len(tokens) < 2:
         return False
+    stated = first.lower()
     for m in re.finditer(
-        intro + rf"([A-Z][\w'’\-]+)\s+{re.escape(tokens[-1])}" + not_possessive, text or ""
+        intro + rf"([A-Z][\w'’\-]+)\s+{re.escape(tokens[-1])}" + not_possessive,
+        text or "",
+        re.IGNORECASE,
     ):
         given = m.group(1).lower()
-        if len(given) >= 3 and first.lower().startswith(given):
+        short, long_ = sorted((given, stated), key=len)
+        if len(short) >= 3 and long_.startswith(short):
             return True
     return False
 
