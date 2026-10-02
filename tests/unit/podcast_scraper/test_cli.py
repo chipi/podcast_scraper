@@ -701,6 +701,35 @@ class TestMainMultiFeed440(unittest.TestCase):
 
     @patch.object(cli, "_validate_ffmpeg")
     @patch.object(cli, "_validate_python_version")
+    def test_main_multi_feed_success_logs_a_run_summary(
+        self, _mock_py: object, _mock_ff: object
+    ) -> None:
+        """A successful batch ends with one summary line too, not only a failed one."""
+
+        def fake_run(cfg: config.Config) -> tuple[int, str]:
+            return (1, "ok")
+
+        with self.assertLogs(level="INFO") as logctx:
+            with tempfile.TemporaryDirectory() as corpus:
+                code = cli.main(
+                    [
+                        "https://a.example/feed.xml",
+                        "--rss",
+                        "https://b.example/feed.xml",
+                        "--output-dir",
+                        corpus,
+                        "--max-episodes",
+                        "1",
+                    ],
+                    run_pipeline_fn=fake_run,
+                )
+        self.assertEqual(code, 0)
+        summary = [ln for ln in logctx.output if "Multi-feed run summary" in ln]
+        self.assertEqual(len(summary), 1)
+        self.assertIn("feeds=2 ok=2 failed=0 not_started=0 episodes_processed=2", summary[0])
+
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
     def test_main_multi_feed_default_exit_zero_when_only_soft_failures(
         self, _mock_py: object, _mock_ff: object
     ) -> None:

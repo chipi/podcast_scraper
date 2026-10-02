@@ -3173,9 +3173,26 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 cfg, _transcript_word_count(job.transcript_path)
             )
             metadata_timeout = None if _metadata_deadline is None else int(_metadata_deadline)
-            with timeout_context(
-                metadata_timeout,
-                f"metadata generation (summary+GI+KG) for episode {job.episode.idx}",
+            from ...utils import correlation, otel_init
+            from ..helpers import get_episode_id_from_episode
+
+            try:
+                _span_episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+            except Exception:  # noqa: BLE001 — correlation is best-effort
+                _span_episode_id = None
+            # The span sits INSIDE the deadline observer: an overrun is raised after the block
+            # has completed, so it must not mark the work failed; an exception from the work does.
+            with (
+                timeout_context(
+                    metadata_timeout,
+                    f"metadata generation (summary+GI+KG) for episode {job.episode.idx}",
+                ),
+                otel_init.episode_span(
+                    run_id=correlation.get_run_id(),
+                    episode_id=_span_episode_id,
+                    feed_id=getattr(cfg, "rss_url", None),
+                    name="episode.metadata",
+                ),
             ):
                 metadata_stage.call_generate_metadata(
                     episode=job.episode,
