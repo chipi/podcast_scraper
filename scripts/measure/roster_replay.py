@@ -26,6 +26,7 @@ Rule of use: read every changed voice. A replay that only reports counts proves 
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import sys
 import types
@@ -53,7 +54,36 @@ def load_episode(meta: Path) -> Dict[str, Any]:
     segs = segs if isinstance(segs, list) else segs.get("segments", [])
     diag_path = run / rel.replace(".txt", ".speakers.diagnostics.json")
     diag = json.loads(diag_path.read_text(encoding="utf-8")) if diag_path.is_file() else {}
-    return {"meta": doc, "segs": segs, "diag": diag, "feed_dir": run.parent}
+    return {"meta": doc, "segs": segs, "diag": diag, "feed_dir": run.parent, "meta_path": str(meta)}
+
+
+#: Per feed dir: (metadata path, speaker diagnostics) of every newest-run episode. Filled by
+#: :func:`index_siblings`; a variant that reads the feed's history (``host_copresence``) gets the
+#: OTHER episodes of the same feed, never the one being replayed.
+_SIBLINGS: Dict[str, List[Any]] = {}
+
+
+def index_siblings(corpus: Path) -> None:
+    """Index every newest-run episode's diagnostics by feed dir (for feed-history variants)."""
+    from podcast_scraper.search.corpus_scope import (
+        dedupe_metadata_paths_newest_run_per_episode,
+        discover_metadata_files,
+    )
+
+    _SIBLINGS.clear()
+    for meta in dedupe_metadata_paths_newest_run_per_episode(
+        corpus, discover_metadata_files(corpus)
+    ):
+        meta = Path(meta)
+        try:
+            doc = json.loads(meta.read_text(encoding="utf-8"))
+            rel = str((doc.get("content") or {}).get("transcript_file_path") or "")
+            run = meta.parent.parent
+            diag_path = run / rel.replace(".txt", ".speakers.diagnostics.json")
+            diag = json.loads(diag_path.read_text(encoding="utf-8")) if diag_path.is_file() else {}
+        except (OSError, ValueError, KeyError):
+            continue
+        _SIBLINGS.setdefault(str(run.parent), []).append((str(meta), diag))
 
 
 def roster_inputs(ep: Dict[str, Any], roster: Any, ad_signatures: Any = None) -> Dict[str, Any]:
@@ -111,7 +141,25 @@ def roster_inputs(ep: Dict[str, Any], roster: Any, ad_signatures: Any = None) ->
         diarization_provider="tailnet_dgx",
         episode_text=" ".join(x for x in (episode.get("title"), episode.get("description")) if x)
         or None,
+        **_optional_inputs(roster, ep, tried),
     )
+
+
+def _optional_inputs(roster: Any, ep: Dict[str, Any], tried: Dict[str, Any]) -> Dict[str, Any]:
+    """Inputs only some roster variants accept — passed only when the variant's signature has them,
+    so an OLD variant replays exactly as before."""
+    params = inspect.signature(roster.resolve_speaker_roster).parameters
+    out: Dict[str, Any] = {}
+    if "feed_title" in params:
+        out["feed_title"] = (ep["meta"].get("feed") or {}).get("title")
+    if "host_copresence" in params and hasattr(roster, "host_copresence_from_diagnostics"):
+        siblings = [
+            d for m, d in _SIBLINGS.get(str(ep["feed_dir"]), []) if m != ep.get("meta_path")
+        ]
+        out["host_copresence"] = roster.host_copresence_from_diagnostics(
+            siblings, tried.get("known_hosts") or []
+        )
+    return out
 
 
 def replay(roster: Any, ep: Dict[str, Any], ad_signatures: Any = None) -> Any:
@@ -257,6 +305,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "ad_signatures module) and pass them to classify_voices",
     )
     args = ap.parse_args(argv)
+    index_siblings(args.corpus)
     old = load_variant(_variant_arg(args.old))
     new = load_variant(_variant_arg(args.new))
     sig_old = sig_new = None

@@ -12,7 +12,7 @@ All fixtures are synthetic (never-commit-real-episodes).
 
 from __future__ import annotations
 
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 import pytest
 
@@ -25,7 +25,11 @@ HOST_A = "Tobias Wren"
 HOST_B = "Greta Holm"
 
 
-def _roster(turns: List[Tuple[str, str, float]], known_hosts: Sequence[str] = (HOST_A, HOST_B)):
+def _roster(
+    turns: List[Tuple[str, str, float]],
+    known_hosts: Sequence[str] = (HOST_A, HOST_B),
+    host_copresence: Optional[Mapping[int, float]] = None,
+):
     segs: List[DiarizationSegment] = []
     chunks: Dict[str, List[str]] = {}
     ordered: List[Tuple[str, str]] = []
@@ -42,6 +46,7 @@ def _roster(turns: List[Tuple[str, str, float]], known_hosts: Sequence[str] = (H
         known_hosts=list(known_hosts),
         voice_texts=voice_texts,
         ordered_turns=ordered,
+        host_copresence=host_copresence,
     )
 
 
@@ -80,6 +85,32 @@ def test_with_only_two_voices_the_second_is_seated_even_when_it_dominates() -> N
     ]
     roster = _roster(turns)
     assert roster.by_voice["SPEAKER_01"].name == HOST_B
+
+
+@pytest.mark.parametrize(
+    "copresence, seated",
+    [
+        ({1: 0.9, 2: 0.02}, False),
+        ({1: 0.9, 2: 0.55}, True),
+    ],
+)
+def test_two_voice_second_seat_follows_the_feeds_copresence_history(
+    copresence: Dict[int, float], seated: bool
+) -> None:
+    """Even with two voices, a feed whose hosts rarely co-present (2 hosts in 2% of episodes)
+    leaves the second seat empty; one whose hosts usually do (55%) seats it."""
+    turns = [
+        ("SPEAKER_00", f"Welcome to the show, I'm {HOST_A}.", 15.0),
+        ("SPEAKER_01", "The river silted, so the ports moved north within a decade.", 60.0),
+        ("SPEAKER_00", "And the merchants?", 200.0),
+        ("SPEAKER_01", "They followed the trade, most of them within a generation.", 900.0),
+    ]
+    roster = _roster(turns, host_copresence=copresence)
+    r = roster.by_voice["SPEAKER_01"]
+    if seated:
+        assert (r.name, r.role) == (HOST_B, "host")
+    else:
+        assert r.name != HOST_B and r.role != "host"
 
 
 def test_two_hosts_without_a_guest_are_both_seated_though_one_talks_more_than_half() -> None:

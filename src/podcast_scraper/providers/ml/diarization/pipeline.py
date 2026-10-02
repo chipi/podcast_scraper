@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import logging
 import os
 import re
@@ -26,6 +27,7 @@ from .labeling_profile import DEFAULT_LABELING_PROFILE, get_profile
 from .roster import (
     build_speaker_diagnostics,
     classify_voices,
+    host_copresence_from_diagnostics,
     resolve_speaker_roster,
     SpeakerRoster,
 )
@@ -292,6 +294,48 @@ def _feed_recurring_text(cfg: config.Config) -> set:
             shingles = set()
         _recurring_cache[out_dir] = (count, shingles)
         return shingles
+
+
+_copresence_cache: Dict[str, tuple[int, list]] = {}
+_copresence_lock = threading.Lock()
+
+
+def _feed_sibling_diagnostics(cfg: config.Config) -> list:
+    """Speaker diagnostics of this feed's OTHER episodes, newest run per episode.
+
+    Read from the feed workspace on disk, like :func:`_feed_recurring_text`: the episode being
+    resolved has not written its own sidecar yet, so every sidecar found is a sibling. Cached per
+    feed and rebuilt only when more sidecars have landed.
+    """
+    out_dir = str(getattr(cfg, "output_dir", "") or "")
+    if not out_dir:
+        return []
+    root = Path(out_dir)
+    metas = sorted(root.glob("run_*/metadata/*.metadata.json"))
+    cached = _copresence_cache.get(out_dir)
+    if cached is not None and len(metas) <= cached[0]:
+        return cached[1]
+    with _copresence_lock:
+        cached = _copresence_cache.get(out_dir)
+        if cached is not None and len(metas) <= cached[0]:
+            return cached[1]
+        diags: list = []
+        try:
+            from ....search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+
+            corpus_root = root.parent.parent if root.parent.name == "feeds" else root
+            for meta in dedupe_metadata_paths_newest_run_per_episode(corpus_root, metas):
+                meta = Path(meta)
+                doc = json.loads(meta.read_text(encoding="utf-8"))
+                rel = str((doc.get("content") or {}).get("transcript_file_path") or "")
+                diag = meta.parent.parent / rel.replace(".txt", ".speakers.diagnostics.json")
+                if rel and diag.is_file():
+                    diags.append(json.loads(diag.read_text(encoding="utf-8")))
+        except Exception as exc:  # noqa: BLE001 — feed history is a hint; absence is cold start
+            logger.debug("feed host history unavailable (%s); seat prior abstains", exc)
+            diags = []
+        _copresence_cache[out_dir] = (len(metas), diags)
+        return diags
 
 
 def _resolution_attribution(baseline: Any, final: Any) -> Dict[str, Any]:
@@ -662,6 +706,11 @@ def apply_diarization_to_result(
             recurring_text=recurring_text,
             diarization_provider=dz_provider,
             profile=_labeling_profile,
+            # Seat logic v4: how often this feed's other episodes show two (three…) hosts named by
+            # evidence. A one-presenter feed stating two hosts must not get a phantom second seat.
+            host_copresence=host_copresence_from_diagnostics(
+                _feed_sibling_diagnostics(cfg), known_hosts
+            ),
             episode_text=" ".join(
                 x for x in (episode_title or "", episode_description or "") if x
             ).strip()
