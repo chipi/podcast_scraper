@@ -2552,7 +2552,13 @@ test-android:
 	@cd $(APP_DIR) && CAP_ANDROID_TEST_ORIGIN=1 \
 		VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
 		npm run build >/dev/null && CAP_ANDROID_TEST_ORIGIN=1 npx cap sync android >/dev/null
-	@cd $(ANDROID_DIR) && ./gradlew --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest >/dev/null
+	@# ANDROID_HOME + JAVA_HOME, like `android-build` at the bottom of this file. Without them
+	# gradle runs under whatever `java` is on PATH — JDK 8 on a machine that has never needed a
+	# newer one for anything else — and dies with `UnsupportedClassVersionError:
+	# org/gradle/launcher/bootstrap/ProcessBootstrap : Unsupported major.minor version 52.0`,
+	# which names a Gradle class and reads like a Gradle bug rather than a missing env var.
+	@cd $(ANDROID_DIR) && ANDROID_HOME=$(ANDROID_SDK_DIR) JAVA_HOME=$(ANDROID_JAVA_HOME) \
+		./gradlew --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest >/dev/null
 	@$(ADB) install -r -t $(ANDROID_DIR)/app/build/outputs/apk/debug/app-debug.apk >/dev/null
 	@$(ADB) install -r -t $(ANDROID_DIR)/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
 	@# A CLEAN DEVICE, every time. Forced-offline is device-local and survives both a relaunch and
