@@ -18,8 +18,6 @@ must never cost the episode its translation.
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any, Dict, List
 
 import pytest
@@ -126,140 +124,12 @@ class TestTheTitleIsRecordedInTheLedger:
         )
 
 
-class TestTheNamingStageReadsIt:
-    def test_it_prefers_the_translated_title(self, tmp_path: Path) -> None:
-        """The whole reason the field exists. Asserted by behaviour: the naming stage is given a
-        Spanish title and a ledger holding the English one, and the ENGLISH one must reach the
-        roster."""
-        from podcast_scraper.workflow import naming_stage
-
-        d = tmp_path / "transcripts"
-        d.mkdir(parents=True)
-        rel = "transcripts/01 - ep.txt"
-        src_rows = [
-            {
-                "id": 0,
-                "start": 0.0,
-                "end": 30.0,
-                "speaker": "SPEAKER_00",
-                "speaker_label": "SPEAKER_00",
-                "text": "Soy Dana Reyes.",
-            }
-        ]
-        en_rows = [
-            {
-                "id": 0,
-                "start": 0.0,
-                "end": 30.0,
-                "speaker_label": "SPEAKER_00",
-                "text": "I'm Dana Reyes.",
-            }
-        ]
-        (tmp_path / rel).write_text("SPEAKER_00: Soy Dana Reyes.\n", encoding="utf-8")
-        (tmp_path / "transcripts/01 - ep.en.txt").write_text(
-            "SPEAKER_00: I'm Dana Reyes.\n", encoding="utf-8"
-        )
-        (d / "01 - ep.segments.json").write_text(json.dumps(src_rows), encoding="utf-8")
-        (d / "01 - ep.en.segments.json").write_text(json.dumps(en_rows), encoding="utf-8")
-        (d / "01 - ep.translation.json").write_text(
-            json.dumps({"version": "1", "title_en": "Trail Sessions with Dana Reyes"}),
-            encoding="utf-8",
-        )
-
-        seen: Dict[str, Any] = {}
-        real = naming_stage.__dict__["run_naming_stage"]
-
-        import podcast_scraper.providers.ml.diarization.pipeline as dp
-
-        original = dp.resolve_names_on_result
-
-        def spy(*args: Any, **kwargs: Any) -> Any:
-            seen["episode_title"] = kwargs.get("episode_title")
-            return original(*args, **kwargs)
-
-        dp.resolve_names_on_result = spy  # type: ignore[assignment]
-        try:
-            real(
-                config.Config(
-                    rss="https://e.com/f.xml",
-                    output_dir=str(tmp_path),
-                    language="es",
-                    speaker_resolution_llm=False,
-                    translate_api_base="http://translator.invalid:8005/v1",
-                    translate_model="google/translategemma-12b-it",
-                ),
-                transcript_relpath=rel,
-                effective_output_dir=str(tmp_path),
-                episode_title="Sesiones de Sendero con Dana Reyes",
-            )
-        finally:
-            dp.resolve_names_on_result = original  # type: ignore[assignment]
-
-        assert seen["episode_title"] == "Trail Sessions with Dana Reyes", (
-            "the roster was given the SOURCE title while every per-voice sample was English — "
-            "the same silent mismatch `naming_text` exists to prevent"
-        )
-
-    def test_it_falls_back_to_the_source_title(self, tmp_path: Path) -> None:
-        """No ledger, or no `title_en`. A missing title costs the roster its role context
-        entirely, which is worse than a title in the wrong language."""
-        from podcast_scraper.workflow import naming_stage
-
-        d = tmp_path / "transcripts"
-        d.mkdir(parents=True)
-        rel = "transcripts/01 - ep.txt"
-        rows = [
-            {
-                "id": 0,
-                "start": 0.0,
-                "end": 30.0,
-                "speaker": "SPEAKER_00",
-                "speaker_label": "SPEAKER_00",
-                "text": "Soy Dana Reyes.",
-            }
-        ]
-        en = [
-            {
-                "id": 0,
-                "start": 0.0,
-                "end": 30.0,
-                "speaker_label": "SPEAKER_00",
-                "text": "I'm Dana Reyes.",
-            }
-        ]
-        (tmp_path / rel).write_text("x\n", encoding="utf-8")
-        (tmp_path / "transcripts/01 - ep.en.txt").write_text("y\n", encoding="utf-8")
-        (d / "01 - ep.segments.json").write_text(json.dumps(rows), encoding="utf-8")
-        (d / "01 - ep.en.segments.json").write_text(json.dumps(en), encoding="utf-8")
-
-        import podcast_scraper.providers.ml.diarization.pipeline as dp
-
-        seen: Dict[str, Any] = {}
-        original = dp.resolve_names_on_result
-
-        def spy(*args: Any, **kwargs: Any) -> Any:
-            seen["episode_title"] = kwargs.get("episode_title")
-            return original(*args, **kwargs)
-
-        dp.resolve_names_on_result = spy  # type: ignore[assignment]
-        try:
-            naming_stage.run_naming_stage(
-                config.Config(
-                    rss="https://e.com/f.xml",
-                    output_dir=str(tmp_path),
-                    language="es",
-                    speaker_resolution_llm=False,
-                    translate_api_base="http://translator.invalid:8005/v1",
-                    translate_model="google/translategemma-12b-it",
-                ),
-                transcript_relpath=rel,
-                effective_output_dir=str(tmp_path),
-                episode_title="Sesiones de Sendero",
-            )
-        finally:
-            dp.resolve_names_on_result = original  # type: ignore[assignment]
-
-        assert seen["episode_title"] == "Sesiones de Sendero"
+# `TestTheNamingStageReadsIt` lived here and is gone (2026-10-02). It asserted that the naming
+# STAGE reads `title_en` from the ledger — and that stage was a reordering of the generic pipeline
+# made for this feature, reverted on the operator's instruction. D-42 itself is untouched: the
+# EPISODE title is still translated and still recorded as `title_en`, which the classes above and
+# below this comment are what prove. Whether any consumer reads it is now an open question, not an
+# assertion.
 
 
 class TestTheShowNameIsNotTranslated:

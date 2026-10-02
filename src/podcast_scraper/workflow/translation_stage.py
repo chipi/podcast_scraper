@@ -53,7 +53,6 @@ from typing import Any, Dict, Optional
 
 from ..languages import resolve_config_language
 from ..translation.factory import is_translation_configured
-from ..utils.timeout import deadline_credit
 
 logger = logging.getLogger(__name__)
 
@@ -254,8 +253,6 @@ def run_translation_stage(
             outcome.reason = f"stage_error:{type(exc).__name__}"
 
     outcome.duration_s = time.monotonic() - started
-    if outcome.duration_s > 0:
-        deadline_credit(outcome.duration_s, reason="translation stage")
 
     if effective_output_dir and transcript_relpath:
         _record(

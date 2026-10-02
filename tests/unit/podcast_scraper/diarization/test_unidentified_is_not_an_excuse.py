@@ -258,13 +258,10 @@ def test_the_diarization_pipeline_actually_FORWARDS_the_stated_names() -> None:
 
     from podcast_scraper.providers.ml.diarization import pipeline as diar_pipeline
 
-    src = _naming_source()
-    # BOTH halves of the D-34 split must still accept it: the composed entry point every caller
-    # uses, and the naming half the translated path calls directly.
+    src = inspect.getsource(diar_pipeline.apply_diarization_to_result)
     assert (
         "metadata_named" in inspect.signature(diar_pipeline.apply_diarization_to_result).parameters
     )
-    assert "metadata_named" in inspect.signature(diar_pipeline.resolve_names_on_result).parameters
     # BOTH destinations must receive the stated names: the roster resolver and the diagnostics
     # builder — otherwise the defect accounting silently reverts to laundering our failures. ADR-137
     # hoisted the roster's copy into a local (``_md_named = list(metadata_named or ())``), so the
@@ -274,22 +271,4 @@ def test_the_diarization_pipeline_actually_FORWARDS_the_stated_names() -> None:
     assert src.count("metadata_named=") >= 2, (
         "apply_diarization_to_result must forward the stated names to BOTH the roster and the "
         "diagnostics — otherwise the defect accounting silently reverts to laundering our failures"
-    )
-
-
-def _naming_source() -> str:
-    """The source of the function that actually does the naming, plus its composed caller.
-
-    D-34 split `apply_diarization_to_result` into `diarize_and_align` (audio: who spoke when) and
-    `resolve_names_on_result` (words: who they are), so a naming assertion has to read the second
-    half. Both are returned concatenated, so a test can equally assert the composition — that
-    `apply_diarization_to_result` still reaches the naming half at all, which is the thing that
-    would make every assertion below vacuous if it were broken.
-    """
-    import inspect
-
-    from podcast_scraper.providers.ml.diarization import pipeline as diar_pipeline
-
-    return inspect.getsource(diar_pipeline.resolve_names_on_result) + inspect.getsource(
-        diar_pipeline.apply_diarization_to_result
     )

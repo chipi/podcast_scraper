@@ -155,7 +155,7 @@ def _cfg(root: Path) -> config.Config:
 def episode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
     """Run the chain once; every test below reads the result."""
     from podcast_scraper.translation import factory as tfactory
-    from podcast_scraper.workflow import naming_stage, translation_stage
+    from podcast_scraper.workflow import translation_stage
 
     _lay_down_episode(tmp_path)
     stub = _StubTranslator()
@@ -175,32 +175,11 @@ def episode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
         run_id="rehearsal",
         episode_title="Construyendo Senderos Que Duran",
     )
-    # Snapshot the English labels BEFORE naming re-renders them. This is the state D-34 depends
-    # on — anonymous voice ids carried verbatim onto the English line (D-24) — and it exists only
-    # BETWEEN the two stages, so a test reading the file afterwards sees names instead.
-    en_before = json.loads(
-        (tmp_path / "transcripts" / "01 - p10_e01.en.segments.json").read_text(encoding="utf-8")
-    )
-
-    naming = naming_stage.run_naming_stage(
-        cfg,
-        transcript_relpath=REL,
-        effective_output_dir=str(tmp_path),
-        # THE HOST COMES FROM THE FEED, not the transcript. The English text never says "I'm
-        # Maya" — she is named by `<itunes:author>Maya Koster</itunes:author>`, which
-        # `detect_hosts_from_feed` extracts and the seam passes as `feed_hosts`. Omitting it left
-        # the host voice unnamed and made the rehearsal look like a naming defect; the real
-        # pipeline supplies this channel, so the rehearsal must too.
-        feed_hosts=["Maya Koster"],
-        episode_title="Construyendo Senderos Que Duran",
-    )
     return {
         "root": tmp_path,
         "cfg": cfg,
         "stub": stub,
         "translation": translation,
-        "naming": naming,
-        "en_before_naming": en_before,
     }
 
 
@@ -269,81 +248,24 @@ class TestTheLabelsNeverReachedTheTranslator:
         """Carried onto the line, not through the model — and at the moment translation
         finishes they are still the ANONYMOUS ids, which is the whole hinge of D-34.
 
-        Read from the snapshot taken between the two stages: naming re-renders this file, so by
-        the end of the chain it holds names and the property is no longer observable.
+        Read straight off the file. This used to need a snapshot taken BETWEEN translation and
+        naming, because the naming stage re-rendered it — that stage was a reordering of the generic
+        pipeline made for this feature and was reverted 2026-10-02, so nothing rewrites the English
+        render and the property is observable at the end of the chain.
         """
-        labels = {str(r.get("speaker_label")) for r in episode["en_before_naming"]}
+        en = json.loads(
+            (episode["root"] / "transcripts" / "01 - p10_e01.en.segments.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        labels = {str(r.get("speaker_label")) for r in en}
         assert labels and all(lab.startswith("SPEAKER_") for lab in labels), sorted(labels)
 
 
-class TestNamingRanOnTheEnglishRender:
-    def test_it_named_voices(self, episode: Dict[str, Any]) -> None:
-        got = episode["naming"]
-        assert got.status == "named", f"{got.status}: {got.reason}"
-        assert got.renamed, "no voice was named"
-
-    def test_it_found_BOTH_real_people(self, episode: Dict[str, Any]) -> None:
-        """The D-34 payoff, and it takes both channels.
-
-        The GUEST comes from the ENGLISH text — "I'm joined by Liam Verbeek" — which the
-        Spanish "me acompaña Liam Verbeek" cannot give an English cue regex. The HOST comes from
-        the feed's author tag. Asserting only one of them would have hidden that the rehearsal
-        was not supplying the host channel at all, which is exactly what happened first.
-        """
-        names = set(episode["naming"].renamed.values())
-        assert any("Liam" in n for n in names), f"guest not named: {sorted(names)}"
-        assert any("Maya" in n for n in names), f"host not named: {sorted(names)}"
-
-    def test_both_bodies_were_re_rendered_named(self, episode: Dict[str, Any]) -> None:
-        """Both the source and the English body carry the resolved names for every PERSON."""
-        root: Path = episode["root"]
-        named = set(episode["naming"].renamed.values())
-        for rel, which in (
-            (REL, "source"),
-            ("transcripts/01 - p10_e01.en.txt", "english"),
-        ):
-            body = (root / rel).read_text(encoding="utf-8")
-            for name in named:
-                assert f"{name}:" in body, f"{which} is missing the label {name!r}"
-
-    def test_the_AD_voice_stays_anonymous(self, episode: Dict[str, Any]) -> None:
-        """And that is correct, not a gap.
-
-        This episode has three diarized voices: two people and a sponsor read. The roster types
-        the third as `commercial` and never gives it a name, because it is not a person — naming
-        it would mint a phantom into the roster and then the KG. So one `SPEAKER_NN` legitimately
-        survives the re-render, and an assertion that NO anonymous label remains is wrong. This
-        test exists because that is exactly the assertion I wrote first.
-        """
-        import re as _re
-
-        root: Path = episode["root"]
-        src = (root / REL).read_text(encoding="utf-8")
-        remaining = sorted(set(_re.findall(r"^(SPEAKER_\d+):", src, _re.MULTILINE)))
-        assert len(remaining) == 1, f"expected only the ad voice to remain, got {remaining}"
-        # It is the ad voice: its turn is the sponsor read.
-        ad_line = next(line for line in src.splitlines() if line.startswith(f"{remaining[0]}:"))
-        assert "Stripe" in ad_line or "patrocinio" in ad_line, ad_line[:100]
-
-    def test_the_source_kept_its_SPANISH_text(self, episode: Dict[str, Any]) -> None:
-        """Only the label column moves. If the Spanish text changed, this is not the same
-        episode any more."""
-        src = (episode["root"] / REL).read_text(encoding="utf-8")
-        assert "Bienvenidos de nuevo" in src
-        assert "construcción de senderos" in src
-
-    def test_the_offsets_still_describe_their_bodies(self, episode: Dict[str, Any]) -> None:
-        """The re-render rewrites both bodies and both sidecars. If they disagree, every GI
-        quote in the episode points at the wrong characters."""
-        root: Path = episode["root"]
-        for body_rel, seg_rel in (
-            (REL, "transcripts/01 - p10_e01.segments.json"),
-            ("transcripts/01 - p10_e01.en.txt", "transcripts/01 - p10_e01.en.segments.json"),
-        ):
-            text = (root / body_rel).read_text(encoding="utf-8")
-            for row in json.loads((root / seg_rel).read_text(encoding="utf-8")):
-                cs, ce = int(row["char_start"]), int(row["char_end"])
-                assert text[cs:ce] == row["text"], f"{seg_rel} disagrees with {body_rel}"
+# `TestNamingRanOnTheEnglishRender` lived here and is gone (2026-10-02): the naming stage it
+# exercised was a reordering of the generic pipeline made for this feature, reverted on the
+# operator's instruction. A translated episode therefore keeps anonymous voice ids, which the
+# class above now asserts directly.
 
 
 class TestAdsAreFoundOnTheEnglishRender:

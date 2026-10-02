@@ -52,7 +52,6 @@ from ..identity.roster_provenance import roster_source, RosterSource
 from ..identity.slugify import canonical_person_name
 from ..languages import resolve_episode_language
 from ..speaker_detectors.hosts import looks_like_publisher
-from .naming_stage import run_naming_stage
 from .translation_stage import analysis_blocked_reason, run_translation_stage
 
 if TYPE_CHECKING:
@@ -4865,43 +4864,6 @@ def generate_episode_metadata(  # noqa: C901
         # identity on every surface, in search, and in every listener's saved library.
         episode_title=getattr(episode, "title", None),
     )
-
-    # D-34 / S2.6: naming, now that the English render exists. A no-op for every episode whose
-    # naming was NOT deferred, which is every English one — so the cost on the corpus that works
-    # today is one language comparison.
-    #
-    # IT HAS TO BE HERE, between translation and the gate below. Before translation there is no
-    # English text to read; after the gate, the summary/GI/KG stages would already have run
-    # against anonymous labels, so every SPOKEN_BY edge would be missing and `position_arc`
-    # would match nothing — which is the exact failure D-34 exists to prevent.
-    _naming = run_naming_stage(
-        cfg,
-        transcript_relpath=transcript_file_path or "",
-        effective_output_dir=output_dir,
-        # THE SAME tag translation got, four lines up. The two stages must resolve the language
-        # from the same input: passing it to one and not the other is how the first real
-        # translation run ended with a complete English set and naming reporting
-        # `not_deferred` — a translated episode with anonymous labels, silently.
-        feed_language=getattr(feed, "language", None),
-        # The same two channels `apply_diarization_to_result` receives: the guests detection
-        # found, and the hosts the feed's own blurb states. They are CANDIDATES — the roster may
-        # only match a name from this closed list onto a voice, never author one (#876).
-        detected_speaker_names=list(detected_guests or []) or None,
-        feed_hosts=list(detected_hosts or []) or None,
-        # The title and description give the roster its host/guest context. `getattr` because
-        # `Episode` is a TYPE_CHECKING alias here and a large number of tests pass a MagicMock.
-        episode_title=getattr(episode, "title", None),
-        episode_description=episode_description,
-        episode_id=episode_id,
-        feed_id=feed_id,
-        run_id=_resolved_run_id(cfg),
-    )
-    if _naming.ran and _naming.renamed:
-        logger.info(
-            "[%s] naming resolved %d voice(s) from the English render",
-            getattr(episode, "idx", "?"),
-            len(_naming.renamed),
-        )
 
     # RFC-124 §5.3: the consumer half of the completeness gate. The producer withholds `.en.*`
     # when a translation is incomplete; this is what stops the English stages reading the SOURCE

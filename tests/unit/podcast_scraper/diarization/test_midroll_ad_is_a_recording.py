@@ -144,7 +144,11 @@ def test_the_roster_types_the_midroll_ad_as_COMMERCIAL() -> None:
 
 def test_the_diarization_pipeline_actually_BUILDS_the_index() -> None:
     """A rule with no cross-episode evidence is a rule that cannot fire."""
-    src = _naming_source()
+    import inspect
+
+    from podcast_scraper.providers.ml.diarization import pipeline as diar_pipeline
+
+    src = inspect.getsource(diar_pipeline.apply_diarization_to_result)
     # The feed's repeated script must reach the roster (and, since ADR-137, the shared cleaning
     # classifier) — otherwise the cross-episode mid-roll ad rule is inert. It is read once from
     # `_feed_recurring_text(cfg)` and threaded by name to both.
@@ -152,21 +156,3 @@ def test_the_diarization_pipeline_actually_BUILDS_the_index() -> None:
     assert (
         "recurring_text=recurring_text" in src
     ), "the roster is never given the feed's repeated script, so the mid-roll ad rule is inert"
-
-
-def _naming_source() -> str:
-    """The source of the function that actually does the naming, plus its composed caller.
-
-    D-34 split `apply_diarization_to_result` into `diarize_and_align` (audio: who spoke when) and
-    `resolve_names_on_result` (words: who they are), so a naming assertion has to read the second
-    half. Both are returned concatenated, so a test can equally assert the composition — that
-    `apply_diarization_to_result` still reaches the naming half at all, which is the thing that
-    would make every assertion below vacuous if it were broken.
-    """
-    import inspect
-
-    from podcast_scraper.providers.ml.diarization import pipeline as diar_pipeline
-
-    return inspect.getsource(diar_pipeline.resolve_names_on_result) + inspect.getsource(
-        diar_pipeline.apply_diarization_to_result
-    )

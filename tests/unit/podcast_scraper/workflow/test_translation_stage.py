@@ -10,14 +10,12 @@ episodes would need translating", which is the question the flag's rollout is si
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from podcast_scraper import config
-from podcast_scraper.utils.timeout import deadline_credit, timeout_context, TimeoutError as TE
 from podcast_scraper.workflow import processing_manifest as pm
 from podcast_scraper.workflow.translation_stage import (
     decide_translation,
@@ -259,44 +257,19 @@ class TestTheLedgerEntry:
         )
 
 
-class TestTheDeadlineCredit:
-    def test_translation_time_is_credited_back_to_the_enclosing_deadline(self) -> None:
-        """The alert this protects already misfired once for a different stage.
-
-        `processing.py`'s deadline wraps summary + GI + KG under a config key named
-        `summarization_timeout`; every one of the 22 overruns measured on 2026-08-31 was GI
-        reported under the summariser's name, sending whoever read it to debug the innocent
-        stage. Translation runs inside the same block, at a cost nobody has bounded yet (S2.10
-        measures it), so its wall time is credited back instead of an allowance being guessed.
-        """
-        with timeout_context(1, "metadata generation"):
-            time.sleep(0.3)
-            assert deadline_credit(3.0, reason="translation stage") is True
-            time.sleep(0.9)  # total elapsed > 1s, but 3s of it is credited
-        # No TimeoutError: reaching here IS the assertion.
-
-    def test_without_the_credit_the_same_elapsed_time_still_overruns(self) -> None:
-        """The other direction. A credit that cannot be withheld is not a credit."""
-        with pytest.raises(TE):
-            with timeout_context(1, "metadata generation"):
-                time.sleep(1.3)
-
-    def test_crediting_outside_a_deadline_is_a_no_op_not_an_error(self) -> None:
-        """Most callers are not inside an observed block — relabel paths, every unit test — so
-        the stage must never have to ask whether it is."""
-        assert deadline_credit(5.0, reason="translation stage") is False
-        with timeout_context(None, "disabled"):
-            assert deadline_credit(5.0, reason="translation stage") is False
-
-    def test_the_stage_credits_its_own_duration(self, tmp_path: Path) -> None:
+class TestTheStageRecordsItsDuration:
+    def test_the_stage_records_its_own_duration(self, tmp_path: Path) -> None:
+        """Kept from the former `TestTheDeadlineCredit`, which was removed with the
+        deadline-crediting machinery (a change to the generic `utils/timeout.py` made for this
+        stage, reverted 2026-10-02). That the stage records its own duration in the manifest is a
+        translation fact and survives on its own."""
         # A non-English episode, because an English one writes no block to read the duration from.
         (tmp_path / "transcripts").mkdir()
-        with timeout_context(300, "metadata generation"):
-            outcome = run_translation_stage(
-                _cfg(language="es"),
-                transcript_relpath=REL,
-                effective_output_dir=str(tmp_path),
-            )
+        outcome = run_translation_stage(
+            _cfg(language="es"),
+            transcript_relpath=REL,
+            effective_output_dir=str(tmp_path),
+        )
         assert outcome.duration_s >= 0.0
         block = json.loads((tmp_path / "transcripts" / "01 - ep.manifest.json").read_text())[
             "stages"

@@ -6,10 +6,8 @@ operations to prevent hangs and ensure graceful degradation (Issue #379).
 
 from __future__ import annotations
 
-import contextvars
 import logging
 import threading
-import time
 from contextlib import contextmanager
 from typing import Any, Callable, Optional, TypeVar
 
@@ -68,13 +66,8 @@ def timeout_context(seconds: Optional[int], operation_name: str = "operation"):
         ...     result = transcribe_audio(audio_file, timeout=30)  # this enforces
     """
     if seconds is None or seconds <= 0:
-        # No timeout. Still publish a no-op deadline so a nested `deadline_credit` call does not
-        # have to ask whether observation is enabled — it never should have to.
-        token = _ACTIVE_DEADLINE.set(None)
-        try:
-            yield
-        finally:
-            _ACTIVE_DEADLINE.reset(token)
+        # No timeout
+        yield
         return
 
     # Use threading.Timer for cross-platform timeout (signal.alarm is Unix-only)
@@ -96,127 +89,16 @@ def timeout_context(seconds: Optional[int], operation_name: str = "operation"):
             seconds,
         )
 
-    state = _DeadlineState(
-        operation_name=operation_name,
-        budget_s=float(seconds),
-        occurred=timeout_occurred,
-        handler=timeout_handler,
-    )
-    state.start()
-    token = _ACTIVE_DEADLINE.set(state)
+    timer = threading.Timer(seconds, timeout_handler)
+    timer.daemon = True  # never keep the interpreter alive waiting to log a deadline
+    timer.start()
 
     try:
         yield
         if timeout_occurred.is_set():
-            raise TimeoutError(
-                f"{operation_name} exceeded timeout of {seconds} seconds"
-                + (f" (excluding {state.credited_s:.1f}s credited)" if state.credited_s else "")
-            )
+            raise TimeoutError(f"{operation_name} exceeded timeout of {seconds} seconds")
     finally:
-        _ACTIVE_DEADLINE.reset(token)
-        state.cancel()
-
-
-class _DeadlineState:
-    """The live timer behind one ``timeout_context``, extendable by work it should not measure.
-
-    Kept internal: callers reach it through :func:`deadline_credit`, which finds it on a
-    contextvar. Threading a handle through the thirty-odd parameters between the deadline and the
-    stage that needs to credit it was the alternative, and a parameter that must be passed
-    correctly at five call sites is a parameter that will not be.
-    """
-
-    def __init__(
-        self,
-        *,
-        operation_name: str,
-        budget_s: float,
-        occurred: threading.Event,
-        handler: Callable[[], None],
-    ) -> None:
-        self._operation_name = operation_name
-        self._occurred = occurred
-        self._handler = handler
-        self._lock = threading.Lock()
-        self._timer: Optional[threading.Timer] = None
-        self._expires_at = time.monotonic() + budget_s
-        self.credited_s = 0.0
-
-    def start(self) -> None:
-        self._arm(self._expires_at - time.monotonic())
-
-    def _arm(self, delay_s: float) -> None:
-        timer = threading.Timer(max(delay_s, 0.0), self._handler)
-        timer.daemon = True  # never keep the interpreter alive waiting to log a deadline
-        self._timer = timer
-        timer.start()
-
-    def cancel(self) -> None:
-        with self._lock:
-            if self._timer is not None:
-                self._timer.cancel()
-                self._timer = None
-
-    def credit(self, seconds: float, *, reason: str) -> None:
-        """Push the deadline out by *seconds* of work it was never meant to measure.
-
-        A CREDIT, NOT A LARGER BUDGET. The budget stays what it was configured to be; this says
-        "that much of the elapsed time belongs to something else". The distinction matters because
-        the alternative — adding a translation allowance to the configured deadline — requires
-        guessing a number nobody has measured yet (S2.10 is the slice that measures it), and a
-        wrong guess either raises false alarms or hides real ones.
-
-        WHY THIS EXISTS. ``processing.py``'s deadline wraps summary + GI + KG under the config key
-        named ``summarization_timeout``, and every one of the 22 overruns measured on
-        2026-08-31 was GI reported under the summariser's name — sending whoever read the alert
-        to debug the innocent stage. Translation runs inside the same block and would do exactly
-        that again, at a cost nobody has bounded yet.
-
-        If the deadline has ALREADY fired, the credit clears the flag, so no ``TimeoutError`` is
-        raised and no overrun is counted. The ERROR line that was already logged stands and
-        cannot be unlogged — which is the honest outcome: an operation slow enough to burn the
-        whole metadata budget inside translation has earned a log line.
-        """
-        if seconds <= 0:
-            return
-        with self._lock:
-            self.credited_s += float(seconds)
-            self._expires_at += float(seconds)
-            if self._timer is not None:
-                self._timer.cancel()
-                self._timer = None
-            was_set = self._occurred.is_set()
-            if was_set:
-                self._occurred.clear()
-            self._arm(self._expires_at - time.monotonic())
-        logger.debug(
-            "deadline credit: %s +%.1fs (%s); total credited %.1fs%s",
-            self._operation_name,
-            seconds,
-            reason,
-            self.credited_s,
-            " — a fired deadline was cleared" if was_set else "",
-        )
-
-
-#: The deadline currently being observed, if any. Set by ``timeout_context``.
-_ACTIVE_DEADLINE: contextvars.ContextVar[Optional[_DeadlineState]] = contextvars.ContextVar(
-    "podcast_scraper_active_deadline", default=None
-)
-
-
-def deadline_credit(seconds: float, *, reason: str) -> bool:
-    """Exclude *seconds* from the enclosing ``timeout_context``. Returns whether it applied.
-
-    A NO-OP WHEN THERE IS NO DEADLINE, which is the common case: the relabel and rediarize
-    paths, every unit test, and any run with the deadline disabled. So a caller never has to
-    ask whether it is inside an observed block, and there is no branch to get wrong.
-    """
-    state = _ACTIVE_DEADLINE.get()
-    if state is None or seconds <= 0:
-        return False
-    state.credit(seconds, reason=reason)
-    return True
+        timer.cancel()
 
 
 def with_timeout(
