@@ -13,7 +13,7 @@ lands in one place and applies to all providers, not six.
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 EXTRACT_QUOTES_BUNDLED_SYSTEM = (
     "For EACH insight below, extract 3-5 short verbatim quotes from the "
@@ -130,6 +130,40 @@ def extract_quotes_bundled_max_tokens(num_insights: int) -> int:
     return max(
         1024, min(_QUOTE_MAX_OUTPUT_TOKENS, _QUOTE_TOKENS_PER_INSIGHT * max(1, num_insights))
     )
+
+
+#: Quotes per insight the schema allows — the prompt's "3-5".
+_QUOTE_SCHEMA_MAX_ITEMS = 5
+#: Conservative chars-per-token for sizing the per-quote cap (measured 4.18-4.19 on the 2026-10-02
+#: captures). Lower than measured so the bound holds with margin.
+_QUOTE_SCHEMA_CHARS_PER_TOKEN = 4
+
+
+def extract_quotes_bundled_json_schema(num_insights: int, max_out: int) -> Dict[str, Any]:
+    """A JSON schema that makes the bundled-quote reply CLOSE within ``max_out`` tokens.
+
+    WHY: on transcripts full of speech filler the model loops inside one quote ("like, you know,
+    like, you know, ...") until the budget runs out, and the JSON never closes (13 of 13 captured
+    failures on 2026-10-02). presence_penalty=1.5 was already on and did not stop it. Fixed insight
+    keys, at most 5 quotes each, and a per-quote length that fits the budget bound the whole
+    document, so a loop is cut at the quote's cap and the reply still parses. A cut quote is a
+    verbatim prefix and still resolves against the transcript.
+    """
+    n = max(1, num_insights)
+    max_len = max(
+        200, (max_out * _QUOTE_SCHEMA_CHARS_PER_TOKEN) // (n * _QUOTE_SCHEMA_MAX_ITEMS) - 16
+    )
+    quotes = {
+        "type": "array",
+        "items": {"type": "string", "maxLength": max_len},
+        "maxItems": _QUOTE_SCHEMA_MAX_ITEMS,
+    }
+    return {
+        "type": "object",
+        "properties": {str(i): quotes for i in range(n)},
+        "required": [str(i) for i in range(n)],
+        "additionalProperties": False,
+    }
 
 
 def score_entailment_bundled_max_tokens(chunk_size: int) -> int:
