@@ -28,7 +28,6 @@ from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ...utils.optional_deps import caused_by_missing_import
 from .. import metrics
 from ..episode_processor import process_episode_download as factory_process_episode_download
-from ..transcript_resolution import resolve_text_path, TranscriptPurpose
 
 
 # Use wrapper function if available (for testability)
@@ -1118,16 +1117,15 @@ def _newest_run_transcripts(root: Path) -> List[Path]:
     for meta in metas:
         stem = meta.name[: -len(".metadata.json")]
         transcripts = meta.parent.parent / filesystem.TRANSCRIPTS_SUBDIR
-        # ANALYSIS with the cleaned body allowed as a middle candidate: this scan wants any
-        # rendering with the pre-roll gone, and does not care about offsets (#2170).
-        candidate = resolve_text_path(
-            transcripts.parent,
-            f"{filesystem.TRANSCRIPTS_SUBDIR}/{stem}.txt",
-            purpose=TranscriptPurpose.ANALYSIS,
-            include_cleaned=True,
-        )
-        if candidate is not None:
-            out.append(candidate)
+        # First rendering with the pre-roll gone; this scan does not care about offsets. Inline
+        # and local on purpose: it briefly routed through `workflow.transcript_resolution`, a
+        # module written for translation, which made a generic scan depend on a language feature
+        # for five lines of precedence it can state itself (reverted 2026-10-02).
+        for suffix in (".adfree.txt", ".cleaned.txt", ".txt"):
+            candidate = transcripts / f"{stem}{suffix}"
+            if candidate.is_file():
+                out.append(candidate)
+                break
     return out
 
 

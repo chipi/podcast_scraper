@@ -12,47 +12,23 @@ from podcast_scraper.server.segments_view import (
 
 
 class TestSegmentsRelpaths:
-    def test_prefers_english_then_raw_canonical_then_adfree(self) -> None:
-        """Player streams the ORIGINAL audio → raw canonical segments before ad-free ones, which
-        match the original timeline; ad-free is only a last-resort fallback.
-
-        S2.1b adds the English sidecar at the front. The times are unaffected — the English
-        render carries the source segments' times — so for a translated episode this serves
-        English text against the source audio, i.e. subtitles.
-
-        **The player's default is DECIDED: English (D-38, 2026-09-29.)** It was settled here
-        rather than deferred to S2.8, which now only adds `?lang=` to select the source language
-        as an explicit alternative. The reasoning: a translated episode has full standing on
-        every surface (D-37), so defaulting the player to the source language would be a
-        per-surface split in everything but name.
-
-        The consequence is worth keeping in view rather than burying: with no "translated from X"
-        marker in v1 (D-36), the default view of a Spanish episode is English text a listener
-        cannot tell is translated. The source is never destroyed — `.segments.json` stays
-        canonical — so reversing this is a one-line change to the precedence, not a reprocess.
-        """
+    def test_prefers_raw_canonical_then_adfree(self) -> None:
+        # Player streams the ORIGINAL audio → raw canonical segments first (matching the
+        # original timeline); ad-free is only a last-resort fallback.
         assert segments_relpaths_for_transcript("transcripts/ep1.txt") == [
-            "transcripts/ep1.en.segments.json",
             "transcripts/ep1.segments.json",
             "transcripts/ep1.adfree.segments.json",
         ]
 
-    def test_strips_derived_stems(self) -> None:
-        """Every derived spelling canonicalizes to the same list — the suffixes stack."""
-        for given in (
-            "transcripts/ep1.adfree.txt",
-            "transcripts/ep1.en.txt",
-            "transcripts/ep1.en.adfree.txt",
-        ):
-            assert segments_relpaths_for_transcript(given) == [
-                "transcripts/ep1.en.segments.json",
-                "transcripts/ep1.segments.json",
-                "transcripts/ep1.adfree.segments.json",
-            ], given
+    def test_strips_adfree_stem(self) -> None:
+        assert segments_relpaths_for_transcript("transcripts/ep1.adfree.txt") == [
+            "transcripts/ep1.segments.json",
+            "transcripts/ep1.adfree.segments.json",
+        ]
 
     def test_backslashes_normalised(self) -> None:
         assert segments_relpaths_for_transcript("transcripts\\ep1.txt")[0] == (
-            "transcripts/ep1.en.segments.json"
+            "transcripts/ep1.segments.json"
         )
 
     def test_empty_returns_empty(self) -> None:
