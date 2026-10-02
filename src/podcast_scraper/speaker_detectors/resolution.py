@@ -386,19 +386,32 @@ def _introduces_itself_as(text: str, name: str) -> bool:
     resolver's PROMPT; this is the same defect in the code that is supposed to check the prompt's
     output, where it actually matters (#876: a prompt is not an enforcement mechanism).
     """
-    first = re.split(r"\s+", name.strip())[0]
-    return bool(
-        re.search(
-            # The possessive lookahead spans the REST of the name phrase, not just the matched
-            # token: anchored to "Matthew" alone, "this is Matthew Cobb's seventh book" still
-            # matched, because the engine simply backtracked to the first-name alternative.
-            rf"\b(?:I'?m|I am|my name is|this is)\s+"
-            rf"(?:{re.escape(name)}|{re.escape(first)})"
-            rf"(?!(?:\s+[A-Z][\w'’\-]*){{0,2}}['’]s\b)\b",
-            text or "",
-            re.IGNORECASE,
-        )
-    )
+    tokens = re.split(r"\s+", name.strip())
+    first = tokens[0]
+    # The possessive lookahead spans the REST of the name phrase, not just the matched token:
+    # anchored to "Matthew" alone, "this is Matthew Cobb's seventh book" still matched, because
+    # the engine simply backtracked to the first-name alternative.
+    not_possessive = r"(?!(?:\s+[A-Z][\w'’\-]*){0,2}['’]s\b)\b"
+    # "I am your host, David Beckworth" is the commonest host introduction there is, and the bare
+    # "I am <name>" form never saw it (measured: Macro Musings, The Long Run).
+    intro = r"\b(?:I'?m|I am|my name is|this is)\s+(?:your\s+(?:co-?)?host,?\s+)?"
+    if re.search(
+        intro + rf"(?:{re.escape(name)}|{re.escape(first)})" + not_possessive,
+        text or "",
+        re.IGNORECASE,
+    ):
+        return True
+    # "And I am Rob Armstrong": a short form of the first name, followed by the surname. Only a
+    # PREFIX of the first name counts — "I'm Jackie Stallone" is somebody else, not Sylvester.
+    if len(tokens) < 2:
+        return False
+    for m in re.finditer(
+        intro + rf"([A-Z][\w'’\-]+)\s+{re.escape(tokens[-1])}" + not_possessive, text or ""
+    ):
+        given = m.group(1).lower()
+        if len(given) >= 3 and first.lower().startswith(given):
+            return True
+    return False
 
 
 def _talks_about(text: str, name: str) -> bool:
