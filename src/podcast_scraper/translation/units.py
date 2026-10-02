@@ -9,7 +9,7 @@ TWO GRANULARITIES, AND COLLAPSING THEM BREAKS BOTH JOBS.
 RFC-124 §5.1 is explicit about why one ~120-word block cannot serve both. The ad-free builder
 drops any segment overlapping an excised range (`adfree_transcript.py`), so with one
 pseudo-segment per unit every ad boundary would discard up to ~45 seconds of real speech instead
-of one 5-15 s Whisper fragment. And `.en.segments.json` is served as subtitle cues — a 120-word
+of one 5-15 s Whisper fragment. And `<base>.segments.json` is served as subtitle cues — a 120-word
 cue is a paragraph, not a subtitle. **This is the one v1 decision that cannot be cheaply
 reversed**: changing alignment granularity later re-translates every episode and invalidates
 every provenance block.

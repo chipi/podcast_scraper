@@ -4689,6 +4689,56 @@ def _record_analysis_skipped(
         except Exception:  # noqa: BLE001 — the manifest never fails the episode
             logger.debug("could not record %s as skipped", stage, exc_info=True)
 
+    _mark_episode_unusable(output_dir, transcript_relpath, reason)
+
+
+def _mark_episode_unusable(output_dir: str, transcript_relpath: Optional[str], reason: str) -> None:
+    """Flag this episode as unservable, so no surface shows it (D-44 point 2).
+
+    WHY A MARKER AND NOT AN INFERENCE. The operator's rule is that an episode the pipeline could not
+    complete "does not show up anywhere". Every surface re-deriving that from the files on disk is
+    how two readers end up with different answers — the class of bug this whole arc kept meeting. So
+    the stage that DISCOVERED the problem records it, and `languages.episode_is_unusable` is the one
+    place that reads it. `build_catalog_rows` honours it, and that function feeds the app, the
+    digest and the topic clusters.
+
+    Written beside the skip records rather than in its own pass, because the two statements have to
+    agree: an episode whose analysis was skipped for an incomplete translation IS the unservable
+    one, and splitting them would let a future edit move one without the other.
+
+    Best-effort, like the manifest updates above. Failing to write the marker must not fail the
+    episode — the artifact is still on disk and the manifest still says the analysis was skipped, so
+    the worst case is an episode that shows up empty, which is today's behaviour and not a
+    regression.
+    """
+    if not transcript_relpath:
+        return
+    import json as _json
+    import os as _os
+
+    from ..languages import UNUSABLE_FIELD, UNUSABLE_REASON_FIELD
+
+    base, _ext = _os.path.splitext(_os.path.basename(transcript_relpath))
+    meta_path = _os.path.join(output_dir, "metadata", f"{base}.metadata.json")
+    try:
+        with open(meta_path, "r", encoding="utf-8") as fh:
+            doc = _json.load(fh)
+        if not isinstance(doc, dict):
+            return
+        episode_block = doc.setdefault("episode", {})
+        if not isinstance(episode_block, dict):
+            return
+        episode_block[UNUSABLE_FIELD] = True
+        episode_block[UNUSABLE_REASON_FIELD] = reason
+        tmp = f"{meta_path}.unusable.tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            _json.dump(doc, fh, indent=2, sort_keys=True, ensure_ascii=False)
+            fh.write("\n")
+        _os.replace(tmp, meta_path)
+        logger.warning("    marked episode UNUSABLE (%s): %s", reason, meta_path)
+    except (OSError, ValueError):
+        logger.debug("could not mark %s unusable", meta_path, exc_info=True)
+
 
 def generate_episode_metadata(  # noqa: C901
     feed: RssFeed,  # type: ignore[valid-type]
@@ -4865,7 +4915,8 @@ def generate_episode_metadata(  # noqa: C901
         episode_title=getattr(episode, "title", None),
     )
 
-    # RFC-124 §5.3: the consumer half of the completeness gate. The producer withholds `.en.*`
+    # RFC-124 §5.3: the consumer half of the completeness gate. The producer withholds the
+    # translation
     # when a translation is incomplete; this is what stops the English stages reading the SOURCE
     # anyway. Without it a pending translation falls through the resolver's precedence to
     # `.adfree.txt`/`.txt` and runs English prompts over Spanish — which §5.2 measured as
@@ -5262,7 +5313,7 @@ def generate_episode_metadata(  # noqa: C901
     kg_cost: Optional[float] = None  # per-episode KG cost for the processing manifest (RFC-109)
     # `not _blocked` — RFC-124 §5.3. KG is NOT inside the GI block, which an earlier comment
     # here claimed it was; a review found this ungated. On a blocked Spanish episode the KG
-    # block resolves ANALYSIS, which falls through the absent `.en.adfree.txt` and the
+    # block resolves ANALYSIS, which falls through the absent `<base>.adfree.txt` and the
     # deliberately-absent source `.adfree.txt` (S2.7) to the Spanish `.txt`, and writes a
     # `kg.json` extracted from Spanish by English prompts — while the manifest simultaneously
     # recorded `kg: ran=false, skipped_reason=translation_incomplete`. Two artifacts

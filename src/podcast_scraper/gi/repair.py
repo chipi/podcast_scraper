@@ -263,7 +263,8 @@ def repair_episode(
     # gate passed cfg alone, which made it useless AND harmful: the repair CLI runs with
     # `cfg=None` or a profile whose `language` defaults to `"en"`, so a Spanish episode was
     # never blocked (the gate was inert) — and under a profile set to `es`, EVERY English
-    # episode was refused for having no `.en.*`, which is by design. The pipeline avoids both by
+    # episode was refused for having no the translation, which is by design. The pipeline
+    # avoids both by
     # passing the feed's declared language; repair has the persisted per-episode language in
     # hand and must use it.
     #

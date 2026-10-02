@@ -9,7 +9,7 @@ not recoverable after the fact.
 
 THE HASH IS OVER THE LABEL-FREE UNITS, NOT THE RENDERED ENGLISH (D-40). Speaker labels are
 re-applied by the renderer and a rename changes every `Label:` prefix and therefore the whole
-`.en.txt`. Hashing the render would invalidate the provenance on every claim whenever naming is
+`<base>.txt`. Hashing the render would invalidate the provenance on every claim whenever naming is
 re-run, for a reason that has nothing to do with the translation. The unit texts are already
 label-free by construction (D-24), so the stable thing to hash already exists.
 
@@ -38,7 +38,7 @@ PROVENANCE_KEY = "translation"
 def target_units_sha256(doc: TranslationDocument) -> str:
     """Hash of the LABEL-FREE English unit texts, in unit order (D-40).
 
-    Deliberately excludes the rendered `.en.txt`, speaker labels and every char offset: all
+    Deliberately excludes the rendered `<base>.txt`, speaker labels and every char offset: all
     three move when a voice is renamed, and none of them is the translation. Two episodes whose
     translations are identical hash identically even if their speakers were named differently.
     """
@@ -112,7 +112,7 @@ def attach_translation_provenance(
     """
     if not doc.complete:
         # Provenance describes a translation that was actually published. An incomplete one has
-        # no `.en.*` on disk (RFC-124 §5.3), so no claim should exist to decorate.
+        # no the translation on disk (RFC-124 §5.3), so no claim should exist to decorate.
         logger.debug("translation provenance: skipped, the translation is incomplete")
         return 0
 
@@ -174,7 +174,10 @@ def load_for_provenance(rel_transcript_path: str, effective_output_dir: str) -> 
     if doc is None or not doc.complete:
         return None
     base, _ = os.path.splitext(rel_transcript_path)
-    for rel in (f"{base}.en.adfree.segments.json", f"{base}.en.segments.json"):
+    # D-44: the translation sits at the CANONICAL sidecar names. Ad-free first, because that is
+    # the ANALYSIS coordinate space a claim's offsets were computed in; the full-timeline
+    # sidecar is the fallback for an episode with no ad-free base.
+    for rel in (f"{base}.adfree.segments.json", f"{base}.segments.json"):
         path = os.path.join(effective_output_dir, rel)
         try:
             with open(path, "r", encoding="utf-8") as fh:

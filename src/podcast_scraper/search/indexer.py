@@ -263,7 +263,7 @@ def _indexed_text_language(
     """The language of the transcript text this episode will be INDEXED from (S2.9).
 
     Not simply the episode's language: what matters is the language of the body the chunker
-    read. A translated episode's transcript resolves to `.en.*` (D-38), so its chunks are
+    read. A translated episode's transcript resolves to the translation (D-38), so its chunks are
     English and belong in the vector-bearing tier — routing them by the episode's SOURCE
     language would exile a perfectly good English translation from semantic search, which is
     the opposite of what the arc is for.
@@ -276,7 +276,7 @@ def _indexed_text_language(
     This used to RESOLVE the transcript and inspect the resulting filename for an ``.en`` suffix, to
     work out whether it had read a translation. That inference is what went wrong twice: first by
     building ``english_transcript_relpath(resolved)`` on an already-resolved path and testing a name
-    that can never exist (``ep1.en.adfree.en.txt``), then by reading the suffix stack. Measured
+    that can never exist (``ep1.en.adfree<base>.txt``), then by reading the suffix stack. Measured
     2026-09-30: a successfully translated Spanish episode's chunks came from the English render and
     were labelled ``es``, so ``_split_segments_by_language`` dropped their embeddings into the
     vector-less tier and the episode was findable by neither semantic search nor its own language —
@@ -409,7 +409,8 @@ def _collect_docs_for_episode(  # noqa: C901
     feed_norm = normalize_feed_id(raw_feed_id)
     published = ep.get("published_date")
     # S2.9: the language of the TEXT being indexed. A translated episode's transcript rows are
-    # the ENGLISH render (the resolver serves `.en.*` first by D-38), so they index as English
+    # the ENGLISH render (the resolver serves the translation first by D-38), so they index as
+    # English
     # and keep their vector; only an episode whose served text is still its source language
     # routes to the vector-less tier. Falls back to the feed's declared language for artifacts
     # written before per-episode language existed, which is the same fallback the API uses.

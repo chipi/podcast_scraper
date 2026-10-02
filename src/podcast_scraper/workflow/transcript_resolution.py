@@ -44,8 +44,8 @@ ADFREE_SUFFIX = ".adfree"
 CLEANED_SUFFIX = ".cleaned"
 
 #: The English-derived variant (RFC-124 / S2.1b). Inserted BEFORE ``.adfree``, so the four bodies
-#: an episode can have are ``<base>.txt``, ``<base>.adfree.txt``, ``<base>.en.txt`` and
-#: ``<base>.en.adfree.txt`` -- source-language canonical, source-language ad-free, English
+#: an episode can have are ``<base>.txt``, ``<base>.adfree.txt``, ``<base><base>.txt`` and
+#: ``<base><base>.adfree.txt`` -- source-language canonical, source-language ad-free, English
 #: canonical, English ad-free.
 
 #: The pre-naming render: the screenplay as it stood when only the diarizer had spoken, with
@@ -160,13 +160,14 @@ def text_relpath_candidates(
     one line, and the tests that pin it will say so.
 
     THE ENGLISH HEAD IS A PURE PREPEND (S2.1b). Each list gains one English candidate at the
-    front and its existing tail is untouched, so for an episode with no ``.en.*`` on disk the
+    front and its existing tail is untouched, so for an episode with no `the translation` on
+    disk the
     resolved path is exactly what it was before this branch existed. That is why the resolver
     needs no feature check at all: whether the English files are ever PRODUCED is decided by the
     per-language ``enabled`` gate and the translator's availability, and a candidate that does
     not exist costs one ``is_file()``.
 
-    ANALYSIS DOES NOT FALL BACK FROM ``.en.adfree.txt`` TO ``.en.txt``. Doing so would put an
+    ANALYSIS DOES NOT FALL BACK FROM ``<base>.adfree.txt`` TO ``<base>.txt``. Doing so would put an
     ad-laden English body into the space GI's offsets index.
 
     This docstring used to add "the English artifact set is written atomically, so the

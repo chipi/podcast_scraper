@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
-from podcast_scraper.languages import normalize_language_tag
+from podcast_scraper.languages import episode_is_unusable, normalize_language_tag
 from podcast_scraper.search.corpus_scope import (
     discover_all_metadata_files,
     discover_metadata_files,
@@ -362,6 +362,12 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
             continue
         doc = _load_metadata_doc(str(meta_path))
         if doc is None:
+            continue
+        # D-44 point 2: an episode the pipeline could not complete appears NOWHERE. One check, in
+        # the one function that feeds the app, the digest and the topic clusters — so there is no
+        # surface left where a half-processed episode can show up empty instead of not at all,
+        # which is the shape of #2198.
+        if episode_is_unusable(doc):
             continue
         fid_norm, eid = _feed_and_episode_ids(doc)
         feed_id = fid_norm or ""

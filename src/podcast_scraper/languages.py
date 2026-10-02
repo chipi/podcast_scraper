@@ -53,6 +53,45 @@ def normalize_language_tag(raw: Optional[str]) -> Optional[str]:
 TARGET_LANGUAGE = "en"
 
 
+#: Marker field: this episode cannot be served, and the reason why.
+#:
+#: Written on ``episode`` so it travels with the artifact rather than living in a side table that a
+#: restore or a re-run could lose. Read by :func:`episode_is_unusable`, which is the ONE place that
+#: decides — the catalog honours it, and the catalog is what feeds the app, the digest and the topic
+#: clusters.
+UNUSABLE_FIELD = "unusable"
+UNUSABLE_REASON_FIELD = "unusable_reason"
+
+
+def episode_is_unusable(doc: Any) -> Optional[str]:
+    """The reason this episode cannot be served, or ``None`` when it can.
+
+    THE CASE THIS EXISTS FOR (D-44). A non-English episode whose translation never completed has a
+    SOURCE-language body at the canonical path — the path every generic reader opens believing it
+    holds the analysis language. There is no third state: the atomic swap either happened or it did
+    not. An episode in the second state cannot be summarised, have insights extracted, or be
+    indexed without producing confident nonsense, so it is not served at all.
+
+    Marko's instruction, 2026-10-02: "if there is no english file after translation that means
+    pipeline cannot work, therefore we stop and somehow flag this episode is not good and it does
+    not show up anywhere."
+
+    EXPLICIT, NOT INFERRED. The marker is written by the stage that discovered the problem, and
+    read here. The alternative — every surface re-deriving "is this episode okay" from the files on
+    disk — is how a reader ends up with a different answer from its neighbour, which is the whole
+    class of bug this arc kept meeting.
+    """
+    if not isinstance(doc, dict):
+        return None
+    episode = doc.get("episode")
+    if not isinstance(episode, dict):
+        return None
+    if not episode.get(UNUSABLE_FIELD):
+        return None
+    reason = episode.get(UNUSABLE_REASON_FIELD)
+    return str(reason).strip() if isinstance(reason, str) and reason.strip() else "unspecified"
+
+
 #: How a resolved language was arrived at. Recorded on the artifact because an audit that
 #: cannot say WHERE a language came from cannot distinguish a measured corpus from one that
 #: silently defaulted every episode — and a uniform 100% ``en`` is exactly what a check

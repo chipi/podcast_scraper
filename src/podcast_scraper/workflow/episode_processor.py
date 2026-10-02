@@ -1208,7 +1208,7 @@ def _produce_transcript_sidecars(
     # English regexes, so on a Spanish transcript they match nothing and the result is an
     # IDENTITY artifact — a file asserting ads were removed when the patterns could not see
     # them. Measured on the V.6a fixture: zero pattern hits on the Spanish source against two
-    # on its English render. The ad-free base for a translated episode is `.en.adfree.*`,
+    # on its English render. The ad-free base is `<base>.adfree.*` for every episode (D-44),
     # built by the translation stage after the render exists (S2.5).
     language = transcription_language(cfg)
     adfree_artifacts = None
@@ -1247,7 +1247,7 @@ def _produce_transcript_sidecars(
     # INVALIDATION IS NOT CONDITIONAL ON THE AD-FREE FLAG, and a review found it was. The
     # trigger is "the SOURCE of a non-English episode was just rewritten", which has nothing to
     # do with whether the source gets an ad-free derivative. With the flag off, a rewrite left
-    # stale `.en.*` behind: the gate passes on presence, TIMELINE serves the old English with
+    # a stale translation at the CANONICAL path: readers serve the old English with
     # old cue times, and provenance resolves new spans against old segments — while the ledger
     # says the translation failed.
     if language is not None and language != "en":
@@ -3802,7 +3802,7 @@ def _retranslate_existing_transcript(
     RFC-124 §5.2 names this as the retry for a `translation_pending` episode and for a partial
     failure. It is deliberately thin, because the work it needs already exists in order:
 
-    1. delete the `.en.*` set here, so the translation stage sees an untranslated episode;
+    1. swap the SOURCE back here, so the translation stage sees an untranslated episode;
     2. hand off to `_relabel_existing_transcript`, which loads the on-disk transcript and its
        frozen `SPEAKER_NN` diarization and re-runs naming — and for a non-English episode that
        naming is DEFERRED (D-34), so the re-rendered source carries anonymous labels again,

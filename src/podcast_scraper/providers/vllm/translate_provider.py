@@ -20,7 +20,7 @@ TWO THINGS DIVERGE FROM EVERY OTHER PROVIDER IN THIS TREE, both forced by the mo
    once cost a full measurement run: the omitted sentence was "Produce only the English
    translation, without any additional explanations or commentary", and without it the model
    returned commentary ("Here's a translation that aims for accuracy and nuance: ...") that
-   would have landed in ``.en.txt`` as though somebody had spoken it.
+   would have landed in ``<base>.txt`` as though somebody had spoken it.
 """
 
 from __future__ import annotations
@@ -540,7 +540,7 @@ _NUMBERED = re.compile(r"^\s*(\d+)[.)]\s*(.*)$")
 #: is what stopped most of it. But measured after that: **1 of 47 real units (2.1%)** still came
 #: back as `Here are a few options for translating the Spanish text, depending on the specific
 #: context and desired emphasis: Option 1...` — 366 tokens, identical across three passes. That
-#: text would land in `.en.txt` as though somebody had spoken it, and every stage downstream
+#: text would land in `<base>.txt` as though somebody had spoken it, and every stage downstream
 #: would treat it as speech: the summariser, GI's claims, KG's entities, the subtitle cues a
 #: listener reads.
 #:

@@ -2,7 +2,8 @@
 
 DEFENCE IN DEPTH, AND THE FAILURE IT CATCHES IS SILENT. If translation ran correctly nothing
 non-English reaches an English NLP stage: the completeness gate (RFC-124 §5.3) withholds
-`.en.*` and stops summary/GI/KG, and D-34 puts naming after translation. But a stage run out of
+the translation and stops summary/GI/KG, and D-34 puts naming after translation. But a stage
+run out of
 order, a reprocess with the wrong flag, or a future caller that resolves its own transcript
 would feed source-language text to an English model — and §5.2 measured what that produces.
 
