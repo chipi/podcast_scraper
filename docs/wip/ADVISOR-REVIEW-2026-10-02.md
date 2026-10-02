@@ -57,6 +57,13 @@ Local, not pushed:
 4. **Seat guard known regressions** (`c53565843`): a correct guest name reached through
    elimination is lost when the dominant voice is no longer seated, and an archive clip can take
    the vacant seat. Acceptable trade for the gains, or is there a cleaner formulation?
+   **New evidence (item 6, German ads now classified as ads):** the guard's "a guest is present"
+   test counts substantial voices, and in three episodes the German ad was the voice that made the
+   count exceed the stated hosts. Removed as an ad, the episode reads as 2 voices for 2 stated
+   hosts, and the dominant guest is seated: William Dalrymple on Alex von Tunzelmann (Empire), Ryan
+   Knutson on a Journal reporter, David Runciman on a short German ad below the 15-word floor.
+   The guard was partly right for the wrong reason. Should "guest present" use a signal other than
+   a voice count (the LLM's guest role, metadata guests, the self-introduced host count)?
 
 5. **Feed-description host parser** (held patch): finds 18 correct hosts in 10 feeds, but fed to
    the roster before the seat guard it put names on guests and ads. Re-test now that the seat
