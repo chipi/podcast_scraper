@@ -196,7 +196,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Before we get into it \u2014 Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Before we get into it \u2014 Priya Nayar was on episode 1 making the case that good on-call rotations are designed so waking up is rare.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -207,7 +210,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "I want to flag something \u2014 Priya Nayar mentioned this same dynamic a couple episodes back."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "I want to flag something \u2014 Priya Nayar mentioned this same dynamic a couple episodes back.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -218,7 +224,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "That's a useful framing. What's the version of the question that actually matters?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "That's a useful framing. What's the version of the question that actually matters?",
+        "tier": 2
       },
       "type": "Insight"
     },

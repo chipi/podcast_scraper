@@ -206,7 +206,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Thanks, A. correspondent. Excited for this one \u2014 public-radio reporting is something I've been thinking about a lot."
+        "routing_tag": "drop",
+        "salience": 0.3,
+        "text": "Thanks, A. correspondent. Excited for this one \u2014 public-radio reporting is something I've been thinking about a lot.",
+        "tier": 0
       },
       "type": "Insight"
     },
@@ -217,7 +220,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "I want to dig into that. What's something you used to believe about this that you've revised?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "I want to dig into that. What's something you used to believe about this that you've revised?",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -228,7 +234,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "Yeah, so \u2014 Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. I've watched this pattern hold across three different teams."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Yeah, so \u2014 Public radio voice is a deliberate style, not an accident. We've seen this play out at teams using BBC. I've watched this pattern hold across three different teams.",
+        "tier": 2
       },
       "type": "Insight"
     },

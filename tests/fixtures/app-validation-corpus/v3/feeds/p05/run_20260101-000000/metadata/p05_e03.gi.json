@@ -196,7 +196,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Before we get into it \u2014 Rich Clarida was on last week \u2014 the same point about credibility applies here.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -207,7 +210,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "I want to flag something \u2014 Rich Clarida mentioned this same dynamic a couple episodes back.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -218,7 +224,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "I want to flag something \u2014 Marco Biancchi mentioned this same dynamic a couple episodes back."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "I want to flag something \u2014 Marco Biancchi mentioned this same dynamic a couple episodes back.",
+        "tier": 2
       },
       "type": "Insight"
     },

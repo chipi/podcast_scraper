@@ -227,7 +227,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "You resist the word 'sustainability'. Why?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "You resist the word 'sustainability'. Why?",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -238,7 +241,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "Because it hides the hard part. Sustainability is a systems problem \u2014 you cannot optimize one part without moving another. Fix emissions in isolation and you push the cost into water, or land, or t\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Because it hides the hard part. Sustainability is a systems problem \u2014 you cannot optimize one part without moving another. Fix emissions in isolation and you push the cost into water, or land, or t\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -249,7 +255,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "So it is systems thinking, first and last: manage the couplings, not the components. When we modeled a decade of interventions, the ones that failed failed because someone treated a system as a lis\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "So it is systems thinking, first and last: manage the couplings, not the components. When we modeled a decade of interventions, the ones that failed failed because someone treated a system as a lis\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -358,7 +367,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "Sustainability is a systems problem \u2014 you cannot optimize one part without moving another."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Sustainability is a systems problem \u2014 you cannot optimize one part without moving another.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -383,7 +395,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "The dangerous risks are the slow ones you can name but discount."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "The dangerous risks are the slow ones you can name but discount.",
+        "tier": 2
       },
       "type": "Insight"
     },

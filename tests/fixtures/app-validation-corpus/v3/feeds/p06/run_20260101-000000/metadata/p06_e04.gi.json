@@ -194,7 +194,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Take me through the decision. Where do dialogue and cultural drift intersect?"
+        "routing_tag": "drop",
+        "salience": 0.3,
+        "text": "Take me through the decision. Where do dialogue and cultural drift intersect?",
+        "tier": 0
       },
       "type": "Insight"
     },
@@ -205,7 +208,10 @@
         "grounded": false,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "Honestly, Culture is a system that never sits still. We've seen this play out at teams using Substack. The framing matters because it tells you which trade-offs you're making."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honestly, Culture is a system that never sits still. We've seen this play out at teams using Substack. The framing matters because it tells you which trade-offs you're making.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -216,7 +222,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Walk me through a concrete example. What's the structural angle most listeners don't have access to?",
+        "tier": 2
       },
       "type": "Insight"
     },

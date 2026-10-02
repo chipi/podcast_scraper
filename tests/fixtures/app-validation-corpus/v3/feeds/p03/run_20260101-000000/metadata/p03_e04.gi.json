@@ -234,7 +234,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "New divers think planning is paperwork. You call it survival."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "New divers think planning is paperwork. You call it survival.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -245,7 +248,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all f\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Dive planning is risk management, plain and simple. It's the gas you don't use and the ascent you don't rush. The incident that hurts you is the one nobody named on the boat \u2014 so we name them all f\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -256,7 +262,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "And you plan the whole dive as one system \u2014 depth, gas, team, current \u2014 because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, th\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "And you plan the whole dive as one system \u2014 depth, gas, team, current \u2014 because the accidents live in how those interact, not in any single number. When we reviewed a decade of incident reports, th\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -365,7 +374,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "Dive planning is risk management \u2014 the gas you don't use, the ascent you don't rush."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Dive planning is risk management \u2014 the gas you don't use, the ascent you don't rush.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -390,7 +402,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "You plan the whole dive as one system; accidents live in the interactions."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "You plan the whole dive as one system; accidents live in the interactions.",
+        "tier": 2
       },
       "type": "Insight"
     },

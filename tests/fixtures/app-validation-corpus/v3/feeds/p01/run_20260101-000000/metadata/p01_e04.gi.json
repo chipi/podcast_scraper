@@ -229,7 +229,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Thanks, Maya. Always happy to talk shop."
+        "routing_tag": "drop",
+        "salience": 0.3,
+        "text": "Thanks, Maya. Always happy to talk shop.",
+        "tier": 0
       },
       "type": "Insight"
     },
@@ -240,7 +243,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "People think racing is about nerve. You say it's about risk."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "People think racing is about nerve. You say it's about risk.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -251,7 +257,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "It's risk management, honestly. The crash that ends your season is almost never the scary-looking one \u2014 it's the boring risk you didn't name. Name the risk before it names you, and half the danger\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -360,7 +369,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "The crash that ends your season is the boring risk you didn't name."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "The crash that ends your season is the boring risk you didn't name.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -385,7 +397,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "You ride the whole run as a system; the mistakes come from how sections interact."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "You ride the whole run as a system; the mistakes come from how sections interact.",
+        "tier": 2
       },
       "type": "Insight"
     },

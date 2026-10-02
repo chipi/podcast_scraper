@@ -549,6 +549,7 @@ def build_gi(
                     "grounded": True,
                     "insight_type": _INSIGHT_TYPES[ii % len(_INSIGHT_TYPES)],
                     "position_hint": round(0.2 + 0.15 * (ii % 5), 3),
+                    **_route_and_tag(txt),
                 },
             }
         )
@@ -624,6 +625,52 @@ def build_gi(
         "nodes": nodes,
         "edges": edges,
     }
+
+
+# Conversational scaffolding the transcript needs but which is not an insight: greetings, handoffs,
+# "great to be back". The real pipeline's value gate scores these TIER_FILLER; this fixture authored
+# them as `insight_type: "claim"` with no tier at all, so they were indistinguishable from a real
+# claim and ranked purely on position — i.e. first, because a greeting opens the episode.
+_FILLER_MARKERS = (
+    "thanks for being here",
+    "excited for this one",
+    "great to be back",
+    "thanks, ",
+    "welcome back to",
+    "happy to be the boring one",
+    "and i'll be the reckless one",
+    "always happy to talk shop",
+    "take me through the decision",
+)
+
+
+def _route_and_tag(text: str) -> dict:
+    """``tier`` / ``routing_tag`` / ``salience`` for a synthetic insight.
+
+    Mirrors ``_apply_route_and_tag`` in ``podcast_scraper/gi/pipeline.py`` — same tiers, same
+    salience formula ``(tier/3)*0.7 + 0.2 grounded + 0.1 surfaceable`` — so a fixture insight
+    carries the fields a REAL one does and consumers behave here the way they behave on a real
+    corpus.
+
+    Why this exists (2026-10-02): the three fields were simply absent. Consumers sort by
+    ``salience`` desc and exclude ``routing_tag == "drop"`` (ADR-135/#1191), so with none of them
+    present every insight tied at 0.0, the sort fell through to ``position_hint`` ascending, and the
+    earliest line in the episode won. The earliest line is the host saying hello — which is how
+    "Thanks, Maya. Excited for this one" became the lead quote on a storyline page while the real
+    pipeline would have dropped it as filler.
+
+    Not an import from the pipeline, deliberately: this generator runs with no ML extras and
+    ``gi.pipeline`` pulls the full stack. The formula is duplicated and named here so the drift is
+    visible if the pipeline's ever changes.
+    """
+    low = text.lower()
+    filler = any(m in low for m in _FILLER_MARKERS)
+    tier = 0 if filler else 2
+    if tier <= 0:
+        return {"tier": tier, "routing_tag": "drop", "salience": 0.3}
+    # grounded + surfaceable, as every non-filler synthetic insight is authored to be.
+    salience = round(min(1.0, (tier / 3.0) * 0.7 + 0.2 + 0.1), 4)
+    return {"tier": tier, "routing_tag": "surface", "salience": salience}
 
 
 def build_kg(

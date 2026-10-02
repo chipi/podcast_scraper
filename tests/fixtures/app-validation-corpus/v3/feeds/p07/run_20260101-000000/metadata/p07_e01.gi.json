@@ -214,7 +214,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Thanks, Alex Morgan. Excited for this one \u2014 sustainability and systems thinking is something I've been thinking about a lot."
+        "routing_tag": "drop",
+        "salience": 0.3,
+        "text": "Thanks, Alex Morgan. Excited for this one \u2014 sustainability and systems thinking is something I've been thinking about a lot.",
+        "tier": 0
       },
       "type": "Insight"
     },
@@ -225,7 +228,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "That's a useful framing. Where do systems thinking and sustainability intersect?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "That's a useful framing. Where do systems thinking and sustainability intersect?",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -236,7 +242,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "Let me give you the version I actually believe. Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using Carbon Trust. And the seco\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Let me give you the version I actually believe. Sustainability is a systems-thinking problem before it's an environmental problem. We've seen this play out at teams using Carbon Trust. And the seco\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },
