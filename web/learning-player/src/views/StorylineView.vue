@@ -12,24 +12,27 @@ import { computed, ref, watch, defineAsyncComponent } from "vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
-import { getTopicCard } from "../services/api"
+import { getStorylineCard } from "../services/api"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import EntityEpisodeList from "../components/EntityEpisodeList.vue"
+import MemberTrendBadge from "../components/MemberTrendBadge.vue"
 import NoteComposer from "../components/NoteComposer.vue"
+import TopicPerspectives from "../components/TopicPerspectives.vue"
 import TopVoices from "../components/TopVoices.vue"
 // ASYNC: EntityCard → EntityCardBody → TopicCardContent → StorylineCard → this file is a cycle, so
 // the resolve is deferred to first open. Same reason TopicCardContent defers EntityCard.
 const EntityCard = defineAsyncComponent(() => import("../components/EntityCard.vue"))
+import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
 import FollowButton from "../components/FollowButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
-import type { Entity, EpisodeSummary } from "../services/types"
+import type { ClusterMember, ClusterPair, Entity, EpisodeSummary } from "../services/types"
 
-type Member = { id: string; label: string }
+type Member = { id: string; label: string; episodeCount: number; anchor: boolean; firstSeen: string | null; lastSeen: string | null; trend: ClusterMember['trend'] }
 
 // `embedded` — rendered INSIDE the storyline overlay sheet (StorylineCard) rather than as a
 // standalone route. Drops the back button + page padding/width; the sheet supplies its own chrome.
@@ -55,6 +58,22 @@ function openEntity(kind: "topic" | "person", id: string, e?: MouseEvent): void 
   e?.preventDefault()
   entityOpen.value = { kind, id }
 }
+/**
+ * Perspectives emit a payload rather than wrapping a RouterLink, so this view has to route them
+ * itself — and it must honour `embedded`, where every other open in this file resolves into the
+ * overlay instead of navigating. `openEntity` alone would not do: it no-ops on the standalone page
+ * because there a RouterLink normally handles it, and a perspective has no RouterLink to fall back
+ * on. Getting this wrong makes the speaker names inert in the sheet, the same affordance lie the
+ * dimmed theme pills were.
+ */
+function openPerspective(p: { kind: "person" | "topic"; id: string }): void {
+  if (props.embedded) {
+    entityOpen.value = { kind: p.kind, id: p.id }
+    return
+  }
+  void router.push({ name: p.kind, params: { id: p.id } })
+}
+
 // When embedded in the overlay sheet the ✕ lives in THIS header's action row (unified with the
 // topic/person card), so the close intent has to reach StorylineCard. Standalone ignores it.
 const emit = defineEmits<{ (e: "close"): void }>()
@@ -77,21 +96,36 @@ const topics = ref<Member[]>([])
 const people = ref<Entity[]>([])
 const episodes = ref<EpisodeSummary[]>([])
 const storylineId = ref<string | null>(null)
+/** The most co-occurring pair — the storyline's evidence, in one line. */
+const pair = ref<ClusterPair | null>(null)
 
 async function load(anchorTopicId: string): Promise<void> {
   loading.value = true
   failed.value = false
   try {
-    const card = await getTopicCard(anchorTopicId)
-    label.value = card.storyline_label ?? card.label
-    storylineId.value = card.storyline_id ?? null
-    // Anchor + its theme siblings = the storyline's topics; de-dupe (the API may include the anchor).
-    const members: Member[] = [
-      { id: card.id, label: card.label },
-      ...(card.storyline_sibling_topics ?? []).map((tp) => ({ id: tp.id, label: tp.label })),
-    ]
-    const seen = new Set<string>()
-    topics.value = members.filter((tp) => tp.id && !seen.has(tp.id) && seen.add(tp.id))
+    // The STORYLINE endpoint, not the anchor's topic card.
+    //
+    // This page used to derive everything from `getTopicCard(anchor)`: its members from
+    // `storyline_sibling_topics`, and its episodes from `card.episodes` — which are the ANCHOR's
+    // episodes, not the storyline's. So it said "Discussed in 30 episodes" for a storyline that
+    // spans 40, showing one member's corpus under the storyline's name. `/storylines/:id` returns
+    // the de-duplicated UNION across every member, which is what the heading always claimed.
+    //
+    // The route still passes an anchor TOPIC id (there was no endpoint when it was built); the
+    // endpoint accepts either that or the `thc:` id.
+    const card = await getStorylineCard(anchorTopicId)
+    label.value = card.label
+    storylineId.value = card.id
+    topics.value = card.member_topics.map((tp) => ({
+      id: tp.id,
+      label: tp.label,
+      episodeCount: tp.episode_count,
+      anchor: tp.anchor,
+      firstSeen: tp.first_seen ?? null,
+      lastSeen: tp.last_seen ?? null,
+      trend: tp.trend,
+    }))
+    pair.value = card.strongest_pair ?? null
     people.value = card.related_people ?? []
     episodes.value = card.episodes ?? []
   } catch {
@@ -161,7 +195,7 @@ function goBack(): void {
          their OWN row after the title (operator: the kicker+actions row was too cramped). -->
     <div :class="embedded ? '' : 'mt-3'">
       <div class="flex items-start justify-between gap-3">
-        <span class="lp-kicker min-w-0 text-accent">{{ t("home.storylines") }}</span>
+        <span class="lp-kicker min-w-0 text-storyline">{{ t("home.storylines") }}</span>
         <!-- Close ✕ — embedded only; standalone uses the Back row above. -->
         <button
           v-if="embedded"
@@ -186,6 +220,7 @@ function goBack(): void {
              other kind (F2.2). Distinct from Follow, which subscribes to the theme cluster. -->
         <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
         <!-- Share (card / link / text) — #2036. -->
+        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" variant="pill" />
         <ShareMenu :model="shareModel" />
         <FollowButton
           v-if="auth.isAuthenticated && storylineId"
@@ -215,8 +250,29 @@ function goBack(): void {
 
     <template v-else>
       <!-- Member topics, an ordered list (SL.1). -->
+      <!-- ORDER (operator 2026-10-01): members -> what they SAID -> episodes -> voices.
+           The quotes used to sit at the foot, under the episode list, where nobody reaching the
+           page ever saw them — the episode list is long, so the one section that explains what the
+           grouping is about sat below ~4,000px of it. They now answer "what is this?" before the
+           page offers "here is everything in it".
+
+           The quotes go DIRECTLY between the member list and the episode list, with nothing in
+           between: "between topics, list of topics, and the list of episodes ... on all three
+           surfaces". Top voices moves below the episodes rather than staying beside the quotes —
+           pairing the faces with what they argued was my addition, not the request. -->
       <section class="mt-6">
-        <h2 class="lp-section mb-2">{{ t("home.storylineTopicsHeading") }}</h2>
+        <h2 class="lp-section mb-1">{{ t("home.storylineTopicsHeading") }}</h2>
+        <!-- WHY these topics are one storyline, stated as a fact rather than asserted by the
+             heading. One line, under the heading, so it reads as the section's subtitle. -->
+        <p v-if="pair" class="mb-2 text-xs text-muted" data-testid="storyline-pair">
+          {{
+            t("home.storylinePair", {
+              a: pair.a_label,
+              b: pair.b_label,
+              n: pair.shared_episode_count,
+            })
+          }}
+        </p>
         <ol class="flex flex-col">
           <li v-for="(tp, i) in topics" :key="tp.id">
             <RouterLink
@@ -230,16 +286,53 @@ function goBack(): void {
               <span class="min-w-0 flex-1 truncate text-sm font-semibold text-topic">{{
                 tp.label
               }}</span>
+              <!-- The ANCHOR as a mark, not a sentence: the row is already carrying a rank, a
+                   label and a count, and "Anchors this storyline" spelled out would wrap the row
+                   on a phone. The word lives in the accessible name instead. -->
+              <svg
+                v-if="tp.anchor"
+                data-testid="storyline-anchor"
+                class="h-3.5 w-3.5 shrink-0 text-accent"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                role="img"
+                :aria-label="t('home.storylineAnchor')"
+              >
+                <circle cx="8" cy="3" r="1.6" />
+                <path d="M8 4.6V14" />
+                <path d="M4.5 7.5h7" />
+                <path d="M2.5 10.5a5.5 5.5 0 0 0 11 0" />
+              </svg>
+              <MemberTrendBadge
+                :trend="tp.trend"
+                :first-seen="tp.firstSeen"
+                :last-seen="tp.lastSeen"
+              />
+              <span class="shrink-0 text-xs tabular-nums text-muted" data-testid="member-episodes">{{
+                t("home.memberEpisodes", tp.episodeCount, { named: { n: tp.episodeCount } })
+              }}</span>
               <span class="shrink-0 text-muted" aria-hidden="true">›</span>
             </RouterLink>
           </li>
         </ol>
       </section>
 
-      <!-- In the OVERLAY the episodes + people below just re-present the topic card sitting beneath
-           it, so the sheet stays a compact preview (members + momentum + follow) and links out to
-           the full storyline page for the rest. The standalone page has nothing beneath it, so it
-           shows everything. This link doubles as the overlay's "open in page" escape hatch. -->
+      <!-- What is SAID across the storyline — its members' insights, grouped by speaker, each with
+           a jump-to-moment link. Until this, nothing on the page was a sentence anybody actually
+           uttered: it listed member topics and episodes and left the reader to infer what the
+           storyline sounded like. Scoped to the UNION of the member topics, which is what the
+           storyline IS — a single member's perspectives would be the anchor topic's page again.
+           Renders nothing when no member has a speaker-attributable insight. -->
+      <TopicPerspectives
+        class="mt-6"
+        :id="id"
+        kind="storyline"
+        @open="openPerspective"
+      />
 
       <!-- Top episodes for the storyline (SL.2). Standalone page only — see the note above. -->
       <section v-if="episodes.length" class="mt-6">
@@ -264,6 +357,10 @@ function goBack(): void {
         @open="(id, e) => openEntity('person', id, e)"
       />
 
+      <!-- In the OVERLAY the episodes + people below just re-present the topic card sitting beneath
+           it, so the sheet stays a compact preview (members + momentum + follow) and links out to
+           the full storyline page for the rest. The standalone page has nothing beneath it, so it
+           shows everything. This link doubles as the overlay's "open in page" escape hatch. -->
       <!-- Notes on this storyline (SL.3). Shown in the sheet too (operator 2026-09-16): the sheet is
            no longer a preview of the page, it IS the page's content, so withholding notes here was
            the last thing making the two differ. -->

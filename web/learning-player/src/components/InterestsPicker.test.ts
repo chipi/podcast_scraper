@@ -48,7 +48,7 @@ describe('InterestsPicker', () => {
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
     const w = mountPicker()
     await flushPromises()
-    expect(w.text()).toContain('No topics to choose yet.')
+    expect(w.text()).toContain('Nothing to choose yet.')
   })
 
   it('closes on the dimmed backdrop', async () => {

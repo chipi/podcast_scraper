@@ -520,3 +520,35 @@ class TestWhichBoardsAlreadyHoldThisItem:
         monkeypatch.setattr(store, "_read", counting_read)
         client.get("/api/app/collections/containing", params={"kind": "episode", "ref": "ep1"})
         assert reads["n"] == 1, f"{reads['n']} reads for 8 boards — the per-row loop is back"
+
+
+def test_both_groupings_can_be_collected_and_open(tmp_path: Path) -> None:
+    """A theme and a storyline are as collectable as the topic they group.
+
+    Neither kind was admitted by `CollectionItemBody` at all, so the topic on a page could be
+    collected while the grouping above it could not — the action row differed by page for no reason
+    a reader could see. Each also needs a `deep_link`, or it lands as a row that cannot be opened,
+    which is the shape the Library › Saved storyline bug took.
+    """
+    client, _data_dir, _uid = _authed(tmp_path)
+    cid = client.post("/api/app/collections", json={"name": "Risk & rates"}).json()["id"]
+
+    refs = {
+        "topic": "topic:systems-thinking",
+        "theme": "tc:safety-practices",
+        "storyline": "topic:risk-management",  # /storyline/:id routes by ANCHOR topic
+    }
+    for kind, ref in refs.items():
+        r = client.post(f"/api/app/collections/{cid}/items", json={"kind": kind, "ref": ref})
+        assert r.status_code == 200, f"{kind} rejected: {r.status_code} {r.text[:200]}"
+
+    items = client.get(f"/api/app/collections/{cid}").json()["items"]
+    by_kind = {it["kind"]: it for it in items}
+    assert set(by_kind) == set(refs), f"a kind was dropped on the way out: {sorted(by_kind)}"
+
+    # The link is the half that makes it a collection rather than a list of words.
+    assert by_kind["topic"]["deep_link"] == "/topic/topic:systems-thinking"
+    assert by_kind["theme"]["deep_link"] == "/theme/tc:safety-practices"
+    assert by_kind["storyline"]["deep_link"] == "/storyline/topic:risk-management"
+    for kind in refs:
+        assert by_kind[kind]["title"], f"{kind} has no title, so the row renders its raw ref"

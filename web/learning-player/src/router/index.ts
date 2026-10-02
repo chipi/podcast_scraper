@@ -114,6 +114,16 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    // Theme page. `:id` is the THEME's own id (`tc:…`), not an anchor topic — a theme has a real
+    // id and a real endpoint, so a theme link stays valid when its biggest member changes. It is
+    // NOT served by /topic/:id: a theme is a grouping, never a node on an episode, so the topic
+    // card matched nothing and the page rendered empty.
+    path: '/theme/:id',
+    name: 'theme',
+    component: () => import('../views/ThemeView.vue'),
+    props: true,
+  },
+  {
     // Storyline page (F4.5). `:id` is the storyline's ANCHOR TOPIC id — the theme cluster is
     // derived from that topic's card (there is no dedicated storyline endpoint).
     path: '/storyline/:id',

@@ -189,7 +189,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Thanks, Sam. Excited for this one \u2014 systems thinking is something I've been thinking about a lot."
+        "routing_tag": "drop",
+        "salience": 0.3,
+        "text": "Thanks, Sam. Excited for this one \u2014 systems thinking is something I've been thinking about a lot.",
+        "tier": 0
       },
       "type": "Insight"
     },
@@ -200,7 +203,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "In our 2024 conversation I was more optimistic about top-down interventions. I've revised that \u2014 the work happens at the seams.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -211,7 +217,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "I want to dig into that. How does Bloomberg fit into this picture?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "I want to dig into that. How does Bloomberg fit into this picture?",
+        "tier": 2
       },
       "type": "Insight"
     },

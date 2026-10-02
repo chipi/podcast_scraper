@@ -15,16 +15,18 @@ import urllib.parse
 from collections import Counter
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Literal, Mapping, Sequence
 
 from podcast_scraper.search.storylines import (
     storyline_map_by_topic,
+    storyline_member_lift,
     storyline_siblings_by_topic,
     top_storylines_by_member_count,
 )
 from podcast_scraper.search.topic_clusters import (
     theme_map_by_topic,
     theme_siblings_by_topic,
+    top_themes_by_member_count,
 )
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
@@ -34,11 +36,14 @@ from podcast_scraper.server.app_kg_index import (
     iter_kg_entities,
     normalize_label,
 )
-from podcast_scraper.server.cil_queries import topic_perspectives
+from podcast_scraper.server.cil_queries import topic_perspectives, topics_perspectives
 from podcast_scraper.server.corpus_catalog import (
     CatalogEpisodeRow,
 )
 from podcast_scraper.server.schemas import (
+    AppClusterCard,
+    AppClusterMember,
+    AppClusterPair,
     AppEntity,
     AppEntityRef,
     AppEpisodeSummary,
@@ -240,6 +245,7 @@ def resolve_entity(
             or index.topic_ref_by_norm.get(norm)
             or index.org_ref_by_norm.get(norm)  # #2031 — orgs now have cards, so search finds them
             or _storyline_ref_by_norm(root).get(norm)
+            or _theme_ref_by_norm(root).get(norm)
         )
     persons_idx: dict[str, AppEntityRef] = {}
     topics_idx: dict[str, AppEntityRef] = {}
@@ -262,10 +268,42 @@ def resolve_entity(
         persons_idx.get(norm)
         or topics_idx.get(norm)
         or orgs_idx.get(norm)
-        # Storylines are corpus-level, not per-episode, so the `rows` subset does not bound them —
-        # the same map serves both paths.
+        # Storylines and themes are corpus-level, not per-episode, so the `rows` subset does not
+        # bound them — the same maps serve both paths.
         or _storyline_ref_by_norm(root).get(norm)
+        or _theme_ref_by_norm(root).get(norm)
     )
+
+
+@lru_cache(maxsize=8)
+def _theme_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
+    """Normalised theme label → ref, from the topic-cluster artifact.
+
+    Themes are resolved here for the same reason storylines are (operator 2026-09-17): a label match
+    in the client cannot rank, cannot see past the endpoint's item cap, and leaves every OTHER
+    consumer of this resolver blind. Until now that is exactly what themes were — a theme label
+    typed verbatim returned nothing.
+
+    LAST in the precedence chain, deliberately. A label can name both a topic and a theme
+    (`Lifelong Learning` is `topic:lifelong-learning` AND `tc:lifelong-learning` in the v3 fixture),
+    and putting themes ahead of topics would silently change where every such query lands today.
+    Going last makes this purely additive: a theme resolves only when nothing narrower claims the
+    label. The cost is that an ambiguous label still opens the topic — the narrower thing wins —
+    which is a ranking decision worth revisiting with real queries rather than guessing now.
+
+    Unlike the storyline map this carries the cluster's OWN `tc:` id, because `/theme/:id` routes by
+    it. The storyline equivalent passes an anchor topic id because `/storyline/:id` routes that way.
+    """
+    out: dict[str, AppEntityRef] = {}
+    for th in top_themes_by_member_count(root, _STORYLINE_INDEX_CAP):
+        label = str(th.get("label") or "").strip()
+        tid = str(th.get("id") or "").strip()
+        if not label or not tid:
+            continue
+        norm = normalize_label(label)
+        if norm:
+            out.setdefault(norm, AppEntityRef(id=tid, kind="theme", label=label))
+    return out
 
 
 @lru_cache(maxsize=8)
@@ -281,10 +319,11 @@ def _storyline_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
     out: dict[str, AppEntityRef] = {}
     for s in top_storylines_by_member_count(root, _STORYLINE_INDEX_CAP, min_members=1):
         label = str(s.get("label") or "").strip()
-        # The ANCHOR TOPIC id, not the `thc:` id. There is no storyline endpoint — the anchor
-        # topic's card IS the storyline — so `thc:…` is not openable and a client that routed with
-        # it got a 404 (review, 2026-09-17). Every other producer of a storyline destination passes
-        # the anchor: FollowedInterests, PodcastSignalsBand, TopicBrowseView.
+        # The ANCHOR TOPIC id, not the `thc:` id, because `/storyline/:id` ROUTES by anchor topic.
+        # The original reason — "there is no storyline endpoint" — stopped being true when
+        # `/api/app/storylines/{id}` was added; the route still takes an anchor, so this still does.
+        # Every other producer of a storyline destination passes the anchor too: FollowedInterests,
+        # PodcastSignalsBand, TopicBrowseView.
         anchor = str(s.get("anchor_topic_id") or "").strip()
         if not label or not anchor:
             continue
@@ -433,6 +472,258 @@ def build_person_card(
     )
 
 
+def _build_cluster_card(
+    root: Path,
+    cluster_id: str,
+    *,
+    group_map: ClusterMap,
+    id_key: str,
+    label_key: str,
+    lift: Mapping[str, float] | None = None,
+    rows: Sequence[CatalogEpisodeRow] | None = None,
+    top_k: int = _DEFAULT_TOP_K,
+) -> (
+    tuple[
+        str,
+        list[AppClusterMember],
+        list[CatalogEpisodeRow],
+        list[AppEntity],
+        AppClusterPair | None,
+    ]
+    | None
+):
+    """Members, merged episodes and people for a GROUPING of topics — themes and storylines alike.
+
+    Both are groupings rather than entities: neither is ever a node on an episode, so neither can be
+    built the way a topic card is (``build_topic_card`` matches a topic node by id, and a `tc:` or
+    `thc:` id matches nothing). The only difference between them is which map they come from and
+    what the keys are called — `tc:` groups topics that MEAN the same thing, `thc:` groups topics
+    that keep coming up TOGETHER — so the projection is shared and the callers supply the map.
+
+    The episode list is the UNION across every member, de-duplicated. That merge is the point:
+    a grouping exists because looking at one member misses the others, so a list showing a single
+    member's episodes would not answer the question the grouping poses. ``related_people`` is
+    counted across the whole union too, so a grouping's top voices are the people who recur across
+    it rather than inside one member.
+    """
+    # The maps are topic -> cluster; invert rather than re-reading the artifact, so one parser owns
+    # membership and the two views cannot disagree about it.
+    label = ""
+    member_ids: list[str] = []
+    for tid, info in group_map.items():
+        if info.get(id_key) != cluster_id:
+            continue
+        member_ids.append(tid)
+        if not label:
+            raw = info.get(label_key)
+            if isinstance(raw, str) and raw.strip():
+                label = raw.strip()
+    if not member_ids:
+        return None
+
+    # De-duplicate by episode id: a member topic's episodes overlap heavily with its siblings' —
+    # that overlap is WHY they cluster — so without this the list repeats the same episode once per
+    # member it mentions.
+    seen_eps: set[str] = set()
+    # Per-member episode keys, so the strongest co-occurring PAIR falls out of the same walk. The
+    # grouping's evidence — "these two keep turning up together" — is otherwise asserted and
+    # never shown.
+    eps_by_member: dict[str, set[str]] = {}
+    # Publish dates per member, so "what changed" comes out of the same walk. A grouping is a thing
+    # that MOVES — members join it, carry it for a while, drop out — and a flat list of names cannot
+    # say any of that.
+    dates_by_member: dict[str, list[str]] = {}
+    about: list[CatalogEpisodeRow] = []
+    people_by_id: dict[str, AppEntity] = {}
+    person_counts: Counter[str] = Counter()
+    episodes_per_member: Counter[str] = Counter()
+    labels: dict[str, str] = {}
+
+    for tid in member_ids:
+        for row, persons, topics in _topic_episodes(root, tid, rows):
+            match = next((t for t in topics if t.id == tid), None)
+            if match is None:
+                continue
+            episodes_per_member[tid] += 1
+            labels.setdefault(tid, match.label)
+            # `metadata_relative_path` — the row's non-optional natural key. `episode_id` is
+            # `Optional[str]` on CatalogEpisodeRow, so keying on it needs a fallback, and an
+            # `id(row)` fallback would silently de-duplicate nothing (every row object is distinct).
+            # This avoids the question entirely. NOT a bug that was observed: the fixture's rows all
+            # carry an episode_id, so both keys de-duplicate correctly here.
+            key = row.metadata_relative_path
+            eps_by_member.setdefault(tid, set()).add(key)
+            if row.publish_date:
+                dates_by_member.setdefault(tid, []).append(str(row.publish_date)[:10])
+            if key in seen_eps:
+                continue
+            seen_eps.add(key)
+            about.append(row)
+            for p in persons:
+                people_by_id[p.id] = p
+                person_counts[p.id] += 1
+
+    if not about:
+        return None
+
+    related_people = with_photos(
+        [people_by_id[i] for i, _ in person_counts.most_common(top_k)], hosted_photo_urls(root)
+    )
+    # Members ordered by how much of the corpus each carries — the first row is the member a reader
+    # is most likely to recognise, which is what makes the grouping legible at a glance.
+    # LIFT first when the caller has it. Episode count answers "which member is biggest"; lift
+    # answers "which member makes this a grouping" — only the second explains why the set exists.
+    # It also breaks ties size cannot: two members on 4 episodes each can carry different lift.
+    if lift:
+        ordered = sorted(member_ids, key=lambda t: (-lift.get(t, 0.0), -episodes_per_member[t], t))
+    else:
+        ordered = sorted(member_ids, key=lambda t: (-episodes_per_member[t], t))
+    # The split is the grouping's OWN median episode date, not a fixed window: a six-month corpus
+    # and a six-year one should both read sensibly, and "last 12 months" would brand every member of
+    # a young corpus `new`.
+    all_dates = sorted(d for ds in dates_by_member.values() for d in ds)
+    midpoint = all_dates[len(all_dates) // 2] if all_dates else ""
+
+    def _trend(tid: str) -> tuple[str | None, str | None, str]:
+        ds = sorted(dates_by_member.get(tid, []))
+        if not ds or not midpoint:
+            return None, None, "steady"
+        early = sum(1 for d in ds if d < midpoint)
+        late = len(ds) - early
+        if early == 0:
+            state = "new"  # was not here in the first half at all
+        elif late == 0:
+            state = "gone"  # has not appeared since
+        elif late >= early * 2:
+            state = "growing"
+        elif early >= late * 2:
+            state = "fading"
+        else:
+            state = "steady"
+        return ds[0], ds[-1], state
+
+    members = []
+    for i, tid in enumerate(ordered):
+        first, last, state = _trend(tid)
+        members.append(
+            AppClusterMember(
+                id=tid,
+                label=labels.get(tid) or tid.split(":", 1)[-1],
+                episode_count=episodes_per_member[tid],
+                # Only a lift-ordered grouping has an anchor. A theme is symmetric — "means the same
+                # thing" has no centre — so flagging one of its members would invent a hierarchy.
+                anchor=bool(lift) and i == 0,
+                first_seen=first,
+                last_seen=last,
+                trend=state,  # type: ignore[arg-type]  # _trend returns the Literal's values
+            )
+        )
+
+    pair: AppClusterPair | None = None
+    if lift and len(ordered) > 1:
+        best = max(
+            (
+                (len(eps_by_member.get(a, set()) & eps_by_member.get(b, set())), a, b)
+                for i_a, a in enumerate(ordered)
+                for b in ordered[i_a + 1 :]
+            ),
+            default=(0, "", ""),
+        )
+        if best[0] > 0:
+            pair = AppClusterPair(
+                a_label=labels.get(best[1]) or best[1],
+                b_label=labels.get(best[2]) or best[2],
+                shared_episode_count=best[0],
+            )
+
+    resolved = label or cluster_id.split(":", 1)[-1].replace("-", " ")
+    return resolved, members, about, related_people, pair
+
+
+def build_theme_card(
+    root: Path,
+    theme_id: str,
+    *,
+    rows: Sequence[CatalogEpisodeRow] | None = None,
+    top_k: int = _DEFAULT_TOP_K,
+) -> AppClusterCard | None:
+    """A THEME (`tc:`) — topics that MEAN the same thing. See :func:`_build_cluster_card`."""
+    built = _build_cluster_card(
+        root,
+        theme_id,
+        group_map=theme_map_by_topic(root),
+        id_key="cluster_id",
+        label_key="cluster_label",
+        # No lift, deliberately: a theme groups topics that MEAN the same thing, which is symmetric.
+        # There is no "most central" member to anchor on and no co-occurrence claim to evidence.
+        rows=rows,
+        top_k=top_k,
+    )
+    if built is None:
+        return None
+    label, members, about, people, pair = built
+    return AppClusterCard(
+        id=theme_id,
+        label=label,
+        member_topics=members,
+        episode_count=len(about),
+        episodes=_sorted_episode_cards(root, about),
+        related_people=people,
+        strongest_pair=pair,
+    )
+
+
+def build_storyline_card(
+    root: Path,
+    storyline_id: str,
+    *,
+    rows: Sequence[CatalogEpisodeRow] | None = None,
+    top_k: int = _DEFAULT_TOP_K,
+) -> AppClusterCard | None:
+    """A STORYLINE (`thc:`) — topics that keep coming up TOGETHER.
+
+    Accepts EITHER the storyline's own `thc:` id or one of its member topics' ids. The second form
+    exists because ``/storyline/:id`` routes by ANCHOR TOPIC — there was no storyline endpoint when
+    that page was built, so it derives everything from the anchor's card — and that route must keep
+    working while now getting merged episodes.
+
+    Same shape as a theme card: both are groupings, and a reader should not meet two different
+    objects for what is, to them, the same kind of thing.
+    """
+    smap: ClusterMap = storyline_map_by_topic(root)
+    resolved_id = storyline_id
+    if not any(info.get("storyline_id") == storyline_id for info in smap.values()):
+        # Not a cluster id — try it as a member/anchor topic id.
+        info = smap.get(storyline_id) or {}
+        candidate = info.get("storyline_id")
+        if not isinstance(candidate, str) or not candidate:
+            return None
+        resolved_id = candidate
+
+    built = _build_cluster_card(
+        root,
+        resolved_id,
+        group_map=smap,
+        id_key="storyline_id",
+        label_key="storyline_label",
+        lift=storyline_member_lift(root).get(resolved_id),
+        rows=rows,
+        top_k=top_k,
+    )
+    if built is None:
+        return None
+    label, members, about, people, pair = built
+    return AppClusterCard(
+        id=resolved_id,
+        label=label,
+        member_topics=members,
+        episode_count=len(about),
+        episodes=_sorted_episode_cards(root, about),
+        related_people=people,
+        strongest_pair=pair,
+    )
+
+
 def build_topic_card(
     root: Path,
     topic_id: str,
@@ -496,6 +787,107 @@ def build_topic_card(
         episode_count=len(about),
         episodes=_sorted_episode_cards(root, about),
         related_people=related_people,
+    )
+
+
+def _cluster_member_topic_ids(
+    root: Path, cluster_id: str, kind: Literal["theme", "storyline"]
+) -> tuple[str, list[str]]:
+    """``(label, member topic ids)`` for a grouping. ``("", [])`` when unknown.
+
+    ``kind`` is REQUIRED, not sniffed from the id prefix, because the ids are not sufficient to
+    disambiguate: ``/storyline/:id`` routes by ANCHOR TOPIC, so the storyline route legitimately
+    passes a bare ``topic:`` id — and that same topic is usually a member of a theme as well.
+    Trying the theme map first resolved ``topic:risk-management`` to the THEME "Show Themes" and
+    served a storyline page the wrong grouping's speakers.
+
+    The member-topic second form is kept for storylines for the same reason
+    :func:`build_storyline_card` keeps it: that route has no other id to offer.
+    """
+    group_map, id_key, label_key = (
+        (theme_map_by_topic(root), "cluster_id", "cluster_label")
+        if kind == "theme"
+        else (storyline_map_by_topic(root), "storyline_id", "storyline_label")
+    )
+    resolved = cluster_id
+    if not any(info.get(id_key) == cluster_id for info in group_map.values()):
+        candidate = (group_map.get(cluster_id) or {}).get(id_key)
+        if not isinstance(candidate, str) or not candidate:
+            return "", []
+        resolved = candidate
+    label = ""
+    members: list[str] = []
+    for tid, info in group_map.items():
+        if info.get(id_key) != resolved:
+            continue
+        members.append(tid)
+        if not label:
+            raw = info.get(label_key)
+            if isinstance(raw, str) and raw.strip():
+                label = raw.strip()
+    return label, sorted(members)
+
+
+def build_cluster_perspectives(
+    root: Path,
+    cluster_id: str,
+    kind: Literal["theme", "storyline"],
+    *,
+    mine_slugs: set[str] | None = None,
+) -> AppTopicPerspectivesResponse | None:
+    """What is SAID across a grouping — its members' insights, grouped by speaker.
+
+    The grouping analogue of :func:`build_topic_perspectives`, and the answer to the question the
+    pages could not previously answer: a theme and a storyline listed their member topics and their
+    episodes, but nothing on either page was a sentence anybody actually said.
+
+    Scoped to the UNION of the grouping's member topics, which is what the grouping IS. A speaker
+    is counted once across the whole grouping, so someone who argues the same line under three
+    members is one perspective holding three takes — not three perspectives.
+
+    Returns ``None`` when the grouping has no speaker-attributable insight, which the route turns
+    into a 404 and the client renders as absence. That is the honest outcome for a grouping whose
+    members are abstract labels nobody says aloud, and it is common enough to be the normal case
+    rather than an error.
+    """
+    label, members = _cluster_member_topic_ids(root, cluster_id, kind)
+    if not members:
+        return None
+    keep: set[str] | None = None
+    if mine_slugs is not None:
+        keep = {
+            r.episode_id
+            for r in cached_catalog(root)
+            if r.episode_id and row_to_summary(root, r).slug in mine_slugs
+        }
+    groups = topics_perspectives(str(root), str(root), members, keep_episode_ids=keep)
+    if not groups:
+        return None
+    photos = hosted_photo_urls(root)
+    slug_by_episode = {
+        r.episode_id: row_to_summary(root, r).slug for r in cached_catalog(root) if r.episode_id
+    }
+    perspectives = [
+        AppTopicPerspective(
+            person_id=str(g["person_id"]),
+            person_name=str(g["person_name"]),
+            image_url=photos.get(str(g["person_id"])),
+            insight_count=int(g["insight_count"]),
+            episode_count=int(g["episode_count"]),
+            insights=_rank_for_display(
+                [_node_to_app_insight(n, slug_by_episode) for n in g["insights"]]
+            ),
+        )
+        for g in groups
+    ]
+    # `topic_id` / `topic_label` carry the CLUSTER here. The response shape is shared with the topic
+    # page on purpose — the client renders one component for all three surfaces, and inventing a
+    # parallel schema would buy a second set of types for the same payload.
+    return AppTopicPerspectivesResponse(
+        topic_id=cluster_id,
+        topic_label=label or cluster_id.split(":", 1)[-1],
+        perspective_count=len(perspectives),
+        perspectives=perspectives,
     )
 
 

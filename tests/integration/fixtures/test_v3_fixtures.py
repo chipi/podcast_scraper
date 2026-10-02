@@ -233,20 +233,58 @@ def test_ground_truth_surface_forms_appear_in_transcript(episode_id):
         )
 
 
-def test_sponsor_block_kinds_recorded_per_episode():
-    """Every persisted ground-truth file lists at least one sponsor block.
+# The two hand-SCRIPTED episodes, which are exempt from the templated sponsor contract below.
+#
+# `_render_scripted_episode` bypasses the `_render_pass` templating machinery entirely — its
+# docstring is explicit that "the author owns the dialogue, incl. sponsor turns" — and both of
+# these were authored as edge cases that say so in their own ground truth:
+#
+#   p06_e05  "Single speaker throughout ... No sponsor read and no guest introduction."
+#   p06_e06  "Two speakers, one switching language mid-conversation ... deliberately brief."
+#
+# They exist precisely to break templated assumptions, so asserting a templated invariant on them
+# was asserting against their purpose.
+SCRIPTED_EPISODES = {"p06_e05", "p06_e06"}
 
-    The shape we expect: opening + closing template ads on every episode,
-    plus optional native_ad / enthusiastic_recommendation / template_midroll.
+
+def test_sponsor_block_kinds_recorded_per_episode():
+    """Every TEMPLATED ground-truth file lists at least one sponsor block.
+
+    The shape we expect: opening + closing template ads on every templated episode, plus optional
+    native_ad / enthusiastic_recommendation / template_midroll.
+
+    Hand-scripted episodes are exempt (see SCRIPTED_EPISODES). This test asserted "every episode"
+    and had been red since f767368cb (2026-09-23) made it non-vacuous — p06 grew from 4 episodes to
+    6, and the two additions are scripted. The assertion was describing the templating path and
+    being run against author-owned transcripts.
+
+    Both halves of the exemption are checked, so neither can rot:
+
+    * a TEMPLATED episode that loses its sponsor blocks still fails, which is the regression this
+      test exists for;
+    * a NEW episode with no sponsor blocks fails too, rather than being silently absorbed — the
+      exempt set is asserted to be exactly the scripted two, so growing it is a deliberate edit.
     """
     truth_dir = PROJECT_ROOT / "tests" / "fixtures" / "ground-truth" / "v3" / "ground_truth"
     if not truth_dir.exists():
         pytest.skip("ground truth not on disk; run the generator first")
+
+    without: set[str] = set()
     for json_path in truth_dir.glob("*.json"):
         truth = json.loads(json_path.read_text(encoding="utf-8"))
-        assert truth["sponsor_blocks"], f"{json_path.name}: no sponsor blocks recorded"
+        stem = json_path.stem
+        if not truth["sponsor_blocks"]:
+            without.add(stem)
+            continue
         kinds = {b["kind"] for b in truth["sponsor_blocks"]}
-        assert "template_opening" in kinds, f"{json_path.name}: missing template_opening"
+        if stem not in SCRIPTED_EPISODES:
+            assert "template_opening" in kinds, f"{json_path.name}: missing template_opening"
+
+    assert without == SCRIPTED_EPISODES, (
+        "episodes without sponsor blocks are not the known scripted ones: "
+        f"unexpected={sorted(without - SCRIPTED_EPISODES)} "
+        f"newly-templated={sorted(SCRIPTED_EPISODES - without)}"
+    )
 
 
 def test_enthusiastic_recommendation_marked_as_real_content():

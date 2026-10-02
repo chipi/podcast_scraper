@@ -276,7 +276,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Thanks, Nora. Happy to be the boring one today."
+        "routing_tag": "drop",
+        "salience": 0.3,
+        "text": "Thanks, Nora. Happy to be the boring one today.",
+        "tier": 0
       },
       "type": "Insight"
     },
@@ -287,7 +290,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "And I'll be the reckless one, apparently."
+        "routing_tag": "drop",
+        "salience": 0.3,
+        "text": "And I'll be the reckless one, apparently.",
+        "tier": 0
       },
       "type": "Insight"
     },
@@ -298,7 +304,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "Here's the proposition: for an ordinary investor, is diversification the answer \u2014 or a way to hide from decisions you should be making? Daniel, you first."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Here's the proposition: for an ordinary investor, is diversification the answer \u2014 or a way to hide from decisions you should be making? Daniel, you first.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -414,7 +423,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "For an individual investor, diversification is the closest thing to a free lunch that exists.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -439,7 +451,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "A portfolio is a system of correlated bets; a handful you understand deeply is more robust than a hundred you don't.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -464,7 +479,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Diversification is the only real risk control \u2014 concentration is how retail investors blow themselves up.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -489,7 +507,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "Concentration with deep understanding beats diversification \u2014 spreading thin is itself the risk, because you end up owning things you can't actually judge."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Concentration with deep understanding beats diversification \u2014 spreading thin is itself the risk, because you end up owning things you can't actually judge.",
+        "tier": 2
       },
       "type": "Insight"
     },

@@ -45,18 +45,14 @@ async function mountView() {
 
 describe('StorylineView', () => {
   it('renders the storyline title, member topics and top episodes from the anchor card', async () => {
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue({
-      id: 'topic:energy',
-      label: 'Energy',
-      cluster_id: null,
-      cluster_label: null,
-      cluster_size: 0,
-      sibling_topics: [],
-      storyline_id: 'thc:energy',
-      storyline_label: 'Energy transition',
-      storyline_size: 2,
-      storyline_sibling_topics: [
-        { id: 'topic:grid', label: 'Grid', cluster_id: null, cluster_label: null, cluster_size: 0 },
+    vi.spyOn(api, 'getStorylineCard').mockResolvedValue({
+      id: 'thc:energy',
+      label: 'Energy transition',
+      // The MEMBERS now arrive already resolved and ranked, rather than being reassembled in the
+      // view from the anchor plus `storyline_sibling_topics`.
+      member_topics: [
+        { id: 'topic:energy', label: 'Energy', episode_count: 1, anchor: false },
+        { id: 'topic:grid', label: 'Grid', episode_count: 1, anchor: false },
       ],
       episode_count: 1,
       episodes: [
@@ -101,10 +97,16 @@ describe('StorylineView', () => {
       kind: 'person' as const,
       image_url: i === 0 ? 'https://img.example/p0.jpg' : null,
     }))
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue({
-      id: 'topic:energy', label: 'Energy', cluster_id: null, cluster_label: null, cluster_size: 0,
-      sibling_topics: [], storyline_id: 'thc:energy', storyline_label: 'Energy transition',
-      storyline_size: 1, storyline_sibling_topics: [], episode_count: 0, episodes: [],
+    vi.spyOn(api, 'getStorylineCard').mockResolvedValue({
+      id: 'thc:energy',
+      label: 'Energy transition',
+      // A member is required: the view renders its body only once the grouping HAS topics —
+      // an empty grouping is the "couldn't load" state, so top voices would never show.
+      member_topics: [
+        { id: 'topic:energy', label: 'Energy', episode_count: 1, anchor: false },
+      ],
+      episode_count: 0,
+      episodes: [],
       related_people: people,
     })
     const w = await mountView()
@@ -125,7 +127,7 @@ describe('StorylineView', () => {
   })
 
   it('shows the empty message when the anchor card fails', async () => {
-    vi.spyOn(api, 'getTopicCard').mockRejectedValue(new Error('nope'))
+    vi.spyOn(api, 'getStorylineCard').mockRejectedValue(new Error('nope'))
     const w = await mountView()
     expect(w.get('[data-testid="storyline-view"]').text()).toContain(
       en.home.storylineSheetEmpty,
@@ -137,17 +139,19 @@ describe('StorylineView', () => {
   // (storyline.spec.ts, 2026-09-25) — this comment used to say the e2e always skips, which stopped
   // being true then; this unit test guards the toggle wiring without a server.
   function mockCard(storylineId: string | null) {
-    vi.spyOn(api, 'getTopicCard').mockResolvedValue({
-      id: 'topic:energy',
-      label: 'Energy',
-      cluster_id: null,
-      cluster_label: null,
-      cluster_size: 0,
-      sibling_topics: [],
-      storyline_id: storylineId,
-      storyline_label: 'Energy transition',
-      storyline_size: 2,
-      storyline_sibling_topics: [],
+    // `null` = this id resolves to no storyline, so the endpoint 404s and the view shows its empty
+    // state with no Follow — the case the old mock expressed as a null `storyline_id`.
+    if (storylineId === null) {
+      vi.spyOn(api, 'getStorylineCard').mockRejectedValue(new Error('404'))
+      return
+    }
+    vi.spyOn(api, 'getStorylineCard').mockResolvedValue({
+      // The card's id IS the follow token now — the view no longer learns it from a topic card.
+      id: storylineId,
+      label: 'Energy transition',
+      member_topics: [
+        { id: 'topic:energy', label: 'Energy', episode_count: 1, anchor: false },
+      ],
       episode_count: 0,
       episodes: [],
       related_people: [],

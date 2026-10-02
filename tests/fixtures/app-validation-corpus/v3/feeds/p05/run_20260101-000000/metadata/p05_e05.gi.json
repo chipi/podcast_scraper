@@ -172,7 +172,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Today's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring. Visit betterment.com/podcast."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Today's episode is supported by Betterment \u2014 automated investing that keeps your fees low and your plan boring. Visit betterment.com/podcast.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -183,7 +186,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "I want to start with a warning that's aged well. Here's economist Nadia Sereni, from a talk back in 2016."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "I want to start with a warning that's aged well. Here's economist Nadia Sereni, from a talk back in 2016.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -194,7 +200,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "Leverage feels free until the day it isn't."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Leverage feels free until the day it isn't.",
+        "tier": 2
       },
       "type": "Insight"
     },

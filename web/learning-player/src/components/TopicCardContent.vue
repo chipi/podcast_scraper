@@ -24,6 +24,7 @@ import EntityEpisodeList from "./EntityEpisodeList.vue"
 import StorylineCard from "./StorylineCard.vue"
 import TrendMomentum from "./TrendMomentum.vue"
 import Sparkline from "./Sparkline.vue"
+import ThemeCard from "./ThemeCard.vue"
 import TopicPerspectives from "./TopicPerspectives.vue"
 import TopicConversationArc from "./TopicConversationArc.vue"
 
@@ -63,12 +64,33 @@ const label = computed(() => props.topic.label ?? "")
 const episodes = computed<EpisodeSummary[]>(() => props.topic.episodes ?? [])
 const episodeCount = computed(() => props.topic.episode_count ?? 0)
 const siblings = computed(() => props.topic.sibling_topics ?? [])
+// Topic cluster ("means the same thing") — the THEME this topic belongs to. The payload has carried
+// `cluster_id` / `cluster_label` / `cluster_size` since the topic card existed, and nothing ever
+// rendered them: the theme appeared only as loose "similar topics" chips, which show its MEMBERS
+// without ever naming the thing they are members OF. The storyline has had a named link all along,
+// so a topic announced one of its two groupings and stayed silent about the other.
+const themeId = computed(() => props.topic.cluster_id ?? null)
+const themeLabel = computed(() => props.topic.cluster_label ?? null)
+// Member count INCLUDING this topic, which is what "N topics" in the link means. `sibling_topics`
+// deliberately excludes the topic you are on, so it is one short of the cluster.
+const themeSize = computed(() => props.topic.cluster_size ?? 0)
 // Theme cluster (co-occurrence "discussed together") — the STORYLINE this topic is part of.
 const storylineLabel = computed(() => props.topic.storyline_label ?? null)
 const storylineSize = computed(() => props.topic.storyline_size ?? 0)
 // The people who drive this topic — related_people is server-ranked by co-occurrence, so the top
 // few ARE the key voices. Prominent avatar chips.
 const topVoices = computed<Entity[]>(() => (props.topic.related_people ?? []).slice(0, 8))
+// Theme overlay (ThemeCard), keyed by the theme's OWN `tc:` id — a theme has a real endpoint and
+// does not need reconstructing from a member the way a storyline does from its anchor.
+//
+// A sheet, not a route, for the reason spelled out under `openStoryline` below: inside the
+// Knowledge Panel a `router.push` changes the page underneath the top-layer dialog and the tap
+// reads as dead. Both groupings now open the same way.
+const themeOpen = ref(false)
+function openTheme(): void {
+  themeOpen.value = true
+}
+
 // Storyline overlay ("open on top" — StorylineCard), keyed by this topic's id.
 const storylineOpen = ref(false)
 function openStoryline(): void {
@@ -227,6 +249,28 @@ function searchLibrary(): void {
     </div>
   </section>
 
+  <!-- Part of a theme: the grouping this topic MEANS the same thing as. Sits directly above the
+       storyline link so a reader meets the two groupings as a pair and can see they are different
+       claims — "means the same thing" against "keeps coming up together" — rather than meeting one
+       of them and inferring the other from a chip list. -->
+  <section v-if="themeLabel && themeId" class="mb-4" data-testid="ec-theme">
+    <h3 class="lp-section mb-2">{{ t("ec.themeHeading") }}</h3>
+    <button
+      type="button"
+      data-testid="ec-theme-link"
+      class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
+      @click="openTheme"
+    >
+      <span class="min-w-0 flex-1">
+        <span class="block text-sm font-bold text-theme">{{ themeLabel }}</span>
+        <span v-if="themeSize" class="lp-kicker">{{
+          t("ec.clusterSize", themeSize, { named: { count: themeSize } })
+        }}</span>
+      </span>
+      <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+    </button>
+  </section>
+
   <!-- Part of a storyline: ONE link that opens the whole storyline ON TOP (StorylineCard overlay).
        A topic with no cluster says so, quietly. -->
   <section v-if="storylineLabel" class="mb-4" data-testid="ec-storyline">
@@ -249,6 +293,14 @@ function searchLibrary(): void {
   <p v-else class="mb-4 text-xs text-muted" data-testid="ec-single-topic">
     {{ t("ec.singleTopic") }}
   </p>
+
+  <!-- The theme, opened ON TOP (teleported sheet) rather than navigating away. -->
+  <ThemeCard
+    v-if="themeOpen && themeId"
+    :id="themeId"
+    :depth="depth + 1"
+    @close="themeOpen = false"
+  />
 
   <!-- The storyline, opened ON TOP (teleported sheet) rather than navigating away. -->
   <StorylineCard
@@ -304,14 +356,6 @@ function searchLibrary(): void {
   <!-- Top voices (wave-G): the people who drive THIS topic. Shared with the storyline page. -->
   <TopVoices class="mb-4" :people="topVoices" @open="(id) => openPerson(id)" />
 
-  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none.
-       Directly under Top voices (operator 2026-09-19) — it names the same people and says what they
-       actually argued, so it belongs beside the faces rather than at the foot of the page. -->
-  <TopicPerspectives
-    :id="topic.id"
-    @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"
-  />
-
   <!-- Search transcripts — between the strongest shows and the episode list (operator review). -->
   <button
     type="button"
@@ -321,6 +365,21 @@ function searchLibrary(): void {
   >
     {{ t("ec.searchLibrary", { term: label }) }}
   </button>
+
+  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none.
+       Directly ABOVE the episode list (operator 2026-10-01), the same place it sits on the theme
+       and storyline pages — a reader meets what people SAID about the subject before being handed
+       everything that mentions it. It used to sit under Top voices (operator 2026-09-19, because
+       it names those same people); the across-all-three consistency won.
+       The order asked for, in the operator's words: "between topics, list of topics, and the list
+       of episodes ... on all three surfaces". -->
+  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none.
+       Directly under Top voices (operator 2026-09-19) — it names the same people and says what they
+       actually argued, so it belongs beside the faces rather than at the foot of the page. -->
+  <TopicPerspectives
+    :id="topic.id"
+    @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"
+  />
 
   <!-- Episodes (newest-first, STATED not offered as a control — #2004 item 11). -->
   <section v-if="episodes.length" class="mb-4">

@@ -35,6 +35,10 @@ _KIND_ACCENT = {
     "topic": "#8ad2e5",
     "person": "#e0b354",
     "storyline": "#9d8cff",
+    # Periwinkle, BETWEEN the topic cyan and the storyline violet. A theme had no entry here and
+    # fell back to the topic cyan, while the TS engine deliberately handed it the storyline violet
+    # — so the same theme rendered a different colour depending on which renderer drew the card.
+    "theme": "#8aacf3",
     "organization": "#5fd0a8",
 }
 

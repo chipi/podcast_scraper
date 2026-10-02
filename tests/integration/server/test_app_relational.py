@@ -312,3 +312,66 @@ def test_topic_card_and_arc_route_share_one_scan(
     client.get("/api/app/topics/topic:ai")
     client.get("/api/app/topics/topic:ai/conversation-arc")
     assert calls == ["topic:ai"]
+
+
+def _fixture_client(tmp_path: Path) -> TestClient:
+    """A client over the COMMITTED app-validation corpus, writing its app-data to ``tmp_path``.
+
+    NOT ``_client(fixture_root)``: that derives ``data_dir`` as ``<root>/_appdata``, so pointing it
+    at the tracked corpus creates ``tests/fixtures/app-validation-corpus/v3/_appdata/`` and leaves
+    the fixture dirty after every run. `.gitignore` force-includes that tree, so it shows up as an
+    untracked directory in every later `git status` — which is how a committed fixture quietly grows
+    a users/ directory nobody meant to add.
+    """
+    fixture = Path("tests/fixtures/app-validation-corpus/v3")
+    if not fixture.is_dir():
+        pytest.skip(f"fixture corpus missing: {fixture}")
+    data_dir = tmp_path / "_appdata"
+    app = create_app(fixture, static_dir=False)
+    app.state.session_secret = "test-secret"
+    app.state.app_data_dir = data_dir
+    app.state.access_policy = AccessPolicy("open", frozenset(), frozenset())
+    user = get_or_create_user(data_dir, provider="stub", subject="s", email="u@x.com", name="U")
+    client = TestClient(app)
+    token = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, "test-secret")
+    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    return client
+
+
+def test_grouping_perspectives_routes_serve_the_union(tmp_path: Path) -> None:
+    """GET /themes/{id}/perspectives and /storylines/{id}/perspectives (2026-10-01).
+
+    Both were added with the "What's said across this theme/storyline" section and had no route
+    test — the builder was covered, the HTTP surface was not, so a wiring mistake (wrong kind, wrong
+    404, auth missing) would have shipped green.
+
+    Uses the committed app-validation corpus rather than a synthetic one: these routes resolve a
+    cluster id through the real cluster maps, which a hand-built two-topic fixture cannot exercise.
+    """
+    client = _fixture_client(tmp_path)
+
+    theme = client.get("/api/app/themes/tc:safety-practices/perspectives")
+    assert theme.status_code == 200, theme.text
+    body = theme.json()
+    assert body["perspective_count"] == len(body["perspectives"]) > 0
+    assert all(p["person_name"].strip() and p["insights"] for p in body["perspectives"])
+
+    # The storyline route takes its ANCHOR TOPIC id, the same second form the card route accepts.
+    story = client.get("/api/app/storylines/topic:risk-management/perspectives")
+    assert story.status_code == 200, story.text
+    assert story.json()["topic_label"] == "Managing risk across domains"
+
+
+def test_grouping_perspectives_404_on_an_absence_not_a_fault(tmp_path: Path) -> None:
+    """A grouping nobody speaks to is a 404, which the client renders as nothing at all.
+
+    `tc:lifelong-learning`'s members are abstract labels ("lifelong learning", "expert interviews")
+    that nobody utters aloud, so no member has a speaker-attributable insight. That is an ABSENCE,
+    and the section renders nothing rather than an error.
+    """
+    client = _fixture_client(tmp_path)
+
+    assert client.get("/api/app/themes/tc:lifelong-learning/perspectives").status_code == 404
+    assert client.get("/api/app/themes/tc:nope/perspectives").status_code == 404
+    # A THEME id is not a storyline — the kind is explicit, never sniffed from the prefix.
+    assert client.get("/api/app/storylines/tc:safety-practices/perspectives").status_code == 404

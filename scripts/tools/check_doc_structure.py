@@ -85,6 +85,18 @@ SKIP_DIRS = {
     # point at files the provider repo has but this download does not — same
     # only-fails-on-files-we-cannot-edit class as site-packages below.
     ".terraform",
+    # Playwright run output (gitignored, machine-local, rewritten on every run). A FAILING spec
+    # writes `error-context.md` containing whatever the page or the spec's own prose mentioned —
+    # here `E2E_SURFACE_MAP.md`, resolved relative to the artifact directory, where it does not
+    # exist. Nothing is broken: the doc is where it always was, and the "link" is a filename
+    # quoted inside a crash dump.
+    #
+    # Same class as site-packages and vendored gems below. These appear on any machine that has
+    # RUN the viewer e2e suite and seen a failure, and vanish on the next clean run — so the gate
+    # was red for whoever had most recently debugged a test, and green in CI, which is the worst
+    # possible distribution for a signal.
+    "test-results",
+    "playwright-report",
 }
 
 

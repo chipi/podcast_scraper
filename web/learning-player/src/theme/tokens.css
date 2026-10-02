@@ -74,12 +74,31 @@
   --lp-insight-question: var(--lp-person);
   --lp-topic: #a8b0c6;
   --lp-person: #ccc7bb;
-  /* Theme cluster (co-occurrence "discussed together") — distinct from --lp-topic
-     (semantic "Similar") so the two cluster types read apart across pills, wide rows and graph
-     nodes. Under the current palette the knowledge hues are deliberately quiet and close together:
-     they separate by temperature and value rather than by hue, because loud category colours were
-     what made the old accent meaningless. */
-  --lp-theme: #98a0ae;
+  /* The two GROUPINGS over topics, each with its own hue.
+
+     STORYLINE — topics that keep coming up TOGETHER (co-occurrence). This token was called
+     `--lp-theme` until 2026-10-01, which was simply wrong: all three things it paints are
+     storylines (`lp-storyline-chip` in KnowledgePanel, PodcastSignalsBand, InterestsPicker), and
+     its own comment described co-occurrence. The name was the last `tc:`/`thc:` inversion still
+     leaking out of the pipeline and into the design layer. Value unchanged by the rename.
+
+     THEME — topics that MEAN the same thing (similarity). New, because a theme had no colour: it
+     borrowed `--lp-theme` in ProfileView, so the one surface that rendered a real theme painted it
+     in the storyline's hue, and both grouping PAGES fell back to the app accent, which is why a
+     theme and a storyline were the same orange (operator 2026-10-01).
+
+     Why this hue. It sits between the two it separates: 27 deg from the topic blue-grey, 33 deg
+     from the storyline, leaning toward the violet that `entityShareCard` already gives a storyline
+     — so it reads as "a set of topics" rather than as a topic. Saturation stays at the topic's
+     0.21-0.23 and contrast is 8.3:1 on canvas, because the knowledge hues are deliberately quiet:
+     they separate by temperature and value as much as by hue, since loud category colours were
+     what made the old accent meaningless.
+
+     Colour is the SECOND channel here, never the only one. These three sit close in value by
+     design and carry nothing for a colour-blind reader, which is why every pill that renders them
+     also names its kind in a mono kicker (ProfileView) or a heading (InterestsPicker). */
+  --lp-storyline: #98a0ae;
+  --lp-theme: #a9a3c6;
 
   /* Typography */
   --lp-font-display: system-ui, -apple-system, 'Segoe UI Variable', 'Segoe UI', sans-serif;

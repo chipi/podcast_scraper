@@ -222,7 +222,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "You describe macro as risk management. Unpack that."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "You describe macro as risk management. Unpack that.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -233,7 +236,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "Macro is risk management at scale. The job is mostly not being on the wrong side of a regime change \u2014 and the regime change you can name in advance is the one you can position for. The rest is just\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Macro is risk management at scale. The job is mostly not being on the wrong side of a regime change \u2014 and the regime change you can name in advance is the one you can position for. The rest is just\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -244,7 +250,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "And the economy is a system, not a set of levers. Pull one and three others move. When we back-tested the calls, the misses were always someone treating a correlated system as if the parts were ind\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "And the economy is a system, not a set of levers. Pull one and three others move. When we back-tested the calls, the misses were always someone treating a correlated system as if the parts were ind\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -353,7 +362,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "Macro is risk management at scale \u2014 not being on the wrong side of a regime change."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Macro is risk management at scale \u2014 not being on the wrong side of a regime change.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -378,7 +390,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "The economy is a system, not a set of levers."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "The economy is a system, not a set of levers.",
+        "tier": 2
       },
       "type": "Insight"
     },

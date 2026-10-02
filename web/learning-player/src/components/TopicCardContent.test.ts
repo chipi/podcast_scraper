@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils"
+import { flushPromises, mount } from "@vue/test-utils"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createPinia, setActivePinia } from "pinia"
 import { createI18n } from "vue-i18n"
@@ -27,6 +27,7 @@ const router = createRouter({
 const childStubs = {
   EpisodeRow: true,
   StorylineCard: true,
+  ThemeCard: true,
   NoteComposer: true,
   TopicPerspectives: true,
   TopicConversationArc: true,
@@ -148,5 +149,57 @@ describe("TopicCardContent — layering policy", () => {
     const opened = w.emitted("open")
     expect(opened).toBeTruthy()
     expect(opened![0][0]).toMatchObject({ kind: "person" })
+  })
+})
+
+/**
+ * The topic card announced one of its two groupings and stayed silent about the other.
+ *
+ * `cluster_id` / `cluster_label` / `cluster_size` have been on the payload since the card existed
+ * and nothing rendered them: the theme appeared only as "similar topics" chips, which show its
+ * MEMBERS without naming the thing they are members of — while the storyline had a named link all
+ * along. These assert the pair is now symmetric.
+ */
+describe("the theme a topic belongs to", () => {
+  it("names the theme and links to it", async () => {
+    const w = mountIt(
+      topic({
+        cluster_id: "tc:diving",
+        cluster_label: "Diving",
+        cluster_size: 5,
+        sibling_topics: [{ id: "topic:wreck-diving", label: "wreck diving" }],
+      } as Partial<TopicCard>)
+    )
+    await flushPromises()
+    const section = w.find('[data-testid="ec-theme"]')
+    expect(section.exists()).toBe(true)
+    expect(section.text()).toContain("Part of a theme")
+    expect(section.text()).toContain("Diving")
+    // The count is the whole cluster, not the siblings (which exclude the topic you are on).
+    expect(section.text()).toContain("5")
+  })
+
+  it("says nothing when the topic is in no theme", async () => {
+    const w = mountIt(topic({ cluster_id: null, cluster_label: null }))
+    await flushPromises()
+    expect(w.find('[data-testid="ec-theme"]').exists()).toBe(false)
+  })
+
+  /**
+   * A SHEET, not a route. Inside the Knowledge Panel (a top-layer `showModal()` dialog) a
+   * `router.push` changes the page underneath and the tap reads as dead — the defect that made the
+   * storyline link route-free. A theme link added as a RouterLink would have reintroduced it.
+   */
+  it("opens the theme on top rather than navigating away", async () => {
+    const w = mountIt(
+      topic({ cluster_id: "tc:diving", cluster_label: "Diving", cluster_size: 5 })
+    )
+    await flushPromises()
+    expect(w.findComponent({ name: "ThemeCard" }).exists()).toBe(false)
+    const before = router.currentRoute.value.fullPath
+    await w.find('[data-testid="ec-theme-link"]').trigger("click")
+    await flushPromises()
+    expect(w.findComponent({ name: "ThemeCard" }).exists()).toBe(true)
+    expect(router.currentRoute.value.fullPath).toBe(before)
   })
 })

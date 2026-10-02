@@ -239,7 +239,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "You keep saying reliability isn't a feature. What do you mean?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "You keep saying reliability isn't a feature. What do you mean?",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -250,7 +253,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "Reliability is a property of the whole system, not of any one component. You can have perfect services that still produce an outage, because the failure lives in how they interact. If you think in\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Reliability is a property of the whole system, not of any one component. You can have perfect services that still produce an outage, because the failure lives in how they interact. If you think in\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -261,7 +267,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own \u2014 the data was prett\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "So the discipline is systems thinking: you manage the interactions, not the boxes. When we tagged two years of incidents, almost none were a single component failing on its own \u2014 the data was prett\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -370,7 +379,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "Reliability is a property of the whole system, not of any one component."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Reliability is a property of the whole system, not of any one component.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -395,7 +407,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "Risk management in production is naming the risk before it names you."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Risk management in production is naming the risk before it names you.",
+        "tier": 2
       },
       "type": "Insight"
     },

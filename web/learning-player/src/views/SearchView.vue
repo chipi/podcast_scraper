@@ -444,6 +444,13 @@ function openEntity(): void {
   // Person / topic / org only. A storyline has no EntityCard — it renders in the Storylines list as
   // a RouterLink straight to its page, and the button this drives is not rendered for one.
   if (!e || e.kind === "storyline") return
+  // A theme has no EntityCard either — it is a grouping, never a node on an episode, so the card
+  // would be empty. It has a PAGE, so go there. Without this the kind falls through to
+  // `cardTarget` and opens a card that cannot load.
+  if (e.kind === "theme") {
+    void router.push({ name: "theme", params: { id: e.id } })
+    return
+  }
   cardTarget.value = { kind: e.kind, id: e.id }
 }
 
@@ -513,7 +520,7 @@ watch(
  * now, not one lumped list (operator 2026-09-17). `organization` never reaches here; it is filtered
  * when the resolver answers.
  */
-const entityKey = computed<"people" | "topics" | "storylines" | null>(() => {
+const entityKey = computed<"people" | "topics" | "storylines" | "themes" | null>(() => {
   switch (entity.value?.kind) {
     case "person":
       return "people"
@@ -521,7 +528,14 @@ const entityKey = computed<"people" | "topics" | "storylines" | null>(() => {
       return "topics"
     case "storyline":
       return "storylines"
+    // Its OWN section, not folded into storylines. A theme and a storyline are different objects —
+    // one groups by meaning, the other by co-occurrence — and showing a theme under a "Storylines"
+    // heading is the same conflation that has to be undone everywhere else it was done.
+    case "theme":
+      return "themes"
     default:
+      // An unknown kind renders NOTHING (every entity block is `v-if="entity && entityKey"`), which
+      // is how a resolved theme was invisible here before this case existed.
       return null
   }
 })
@@ -709,7 +723,9 @@ const showEmpty = computed(
             ? t("ec.person")
             : entity.kind === "storyline"
               ? t("home.storylines")
-              : t("ec.topic")
+              : entity.kind === "theme"
+                ? t("home.themes")
+                : t("ec.topic")
         }}</span>
         <span class="block font-display text-lg font-bold text-canvas-foreground">{{
           entity.label

@@ -18,6 +18,7 @@ import { computed } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, type RouteLocationRaw } from "vue-router"
 import type { Entity } from "../services/types"
+import { personName } from "../utils/personName"
 import ProfileAvatar from "./ProfileAvatar.vue"
 
 const props = withDefaults(
@@ -33,7 +34,12 @@ const props = withDefaults(
 const emit = defineEmits<{ (e: "open", id: string, event: MouseEvent): void }>()
 const { t } = useI18n()
 
-const shown = computed(() => props.people.slice(0, props.limit))
+// Names are cased HERE, once, so the aria-label, the avatar's initials and the visible text
+// cannot disagree — three bindings read `p.name` below and the pipeline sends many of them
+// lowercase (operator 2026-10-01).
+const shown = computed(() =>
+  props.people.slice(0, props.limit).map((p) => ({ ...p, name: personName(p.name) })),
+)
 </script>
 
 <template>

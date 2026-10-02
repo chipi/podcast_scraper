@@ -184,7 +184,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week revisiting her 2024 position."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Before we get into it \u2014 Dr. Elena Fisher was on last week revisiting her 2024 position.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -195,7 +198,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "I want to flag something \u2014 Dr. Elena Fisher mentioned this same dynamic a couple episodes back.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -206,7 +212,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "Real talk: Bloomberg is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for market data."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Real talk: Bloomberg is the tool I'd pay double for. Not an ad \u2014 they're not paying us. I just think it's the best in class for market data.",
+        "tier": 2
       },
       "type": "Insight"
     },

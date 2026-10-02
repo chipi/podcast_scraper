@@ -1,14 +1,27 @@
-"""``topic_theme_clusters`` — corpus-wide THEME clusters (deterministic).
+"""``topic_theme_clusters`` — what the product calls a **STORYLINE**. Deterministic.
 
-Groups Topics that are *discussed together* (co-occurrence), as opposed to
-``topic_clusters.json`` which groups Topics that *mean the same thing*
-(embedding cosine similarity). A **theme** is a set of topics an editor keeps
-returning to in the same conversations — e.g. ``{shadow fleet, oil prices,
-sanctions}`` — even when they are not semantically alike. Semantic clusters
-answer "what is like this topic"; theme clusters answer "what storyline does
-this topic belong to". They are complementary, shipped side by side, and
-themed apart in the UI (this enricher uses the ``thc:`` graph compound-node
-prefix vs the semantic ``tc:``).
+READ THIS FIRST, because the module name says the opposite of what it serves.
+
+    this module      `thc:` "theme cluster"  -> a reader is shown: **STORYLINE**
+    its sibling      `tc:`  "topic cluster"  -> a reader is shown: **THEME**
+    (sibling = ``search/topic_clusters.py``)
+
+The names are inverted against the product vocabulary and they are STAYING that way (operator
+decision 2026-10-01): the prefixes are written into persisted artifacts — `topic_clusters.json`,
+`digest.json`, per-episode `*.metadata.json`, and `graph_events.jsonl` — so renaming them is a
+corpus migration across an append-only event log, not a refactor. It was costed and declined. The
+boundary that maps a wire id to the word a reader sees is ``interestKind()`` in
+``web/learning-player/src/utils/interests.ts``; nothing else should be deciding this.
+
+This docstring used to call the output a "theme" in one sentence and a "storyline" in the next,
+which is how the confusion kept propagating (#1603, reopened repeatedly).
+
+What it actually computes: Topics that are *discussed together* (co-occurrence) — a set an editor
+keeps returning to in the same conversations, e.g. ``{shadow fleet, oil prices, sanctions}``, even
+when they are not semantically alike. Its sibling ``search/topic_clusters.py`` groups topics that
+*mean the same thing* (embedding cosine similarity) and is what a reader calls a THEME. Semantic
+similarity answers "what is like this topic"; this module answers "what storyline is this topic
+part of". Complementary, shipped side by side.
 
 Method (deterministic, no models):
   1. Per episode, read the KG Topic nodes → topic sets + per-topic episode ids.

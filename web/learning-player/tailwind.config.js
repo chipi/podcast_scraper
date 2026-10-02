@@ -109,6 +109,7 @@ export default {
         topic: alphaToken('topic'),
         person: alphaToken('person'),
         theme: alphaToken('theme'),
+        storyline: alphaToken('storyline'),
       },
       fontFamily: {
         display: 'var(--lp-font-display)',

@@ -169,7 +169,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "This is an edge-case fixture used for parser and processor robustness tests."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "This is an edge-case fixture used for parser and processor robustness tests.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -180,7 +183,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "A bit of code-switching to test transcription robustness."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "A bit of code-switching to test transcription robustness.",
+        "tier": 2
       },
       "type": "Insight"
     },
