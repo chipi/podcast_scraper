@@ -16,6 +16,18 @@ an independent audit agreed with 89–99% of the labels it checked. The pipeline
 correct name on **602**. Most of the gap is recoverable from text the pipeline already holds; the
 question this scoreboard answers is how much of it RULES can recover.
 
+## Plan — one step at a time, each result recorded here (operator, 2026-10-03)
+
+1. Measure the LLM step's marginal value on the gold sets (same code with vs without its answers).
+2. Problem 2, last loop (host evidence outranks a lone guest phrase; self-introduced hosts).
+3. Problem 3: host pools — give the right names to voices the person check emptied.
+4. LLM guards (veto/check the LLM's answers; replayable).
+5. Feed-level analysis with the Fable advisor: per-show patterns; local beats global.
+6. Mini autoresearch loop on the gate: propose → score on dev → keep only if better with zero host
+   regressions → validate once on the 500; rules and per-show profiles first, the LLM step after
+   (DGX budget agreed first).
+7. Honest conclusion: how far this can be pushed.
+
 ## Cumulative table (validation, 500)
 
 | Step | correct name | wrong name | missing name | promo/ad/clip published | host/guest swapped | hosts correct |
