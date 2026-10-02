@@ -206,12 +206,23 @@ def _probe(ep: Dict[str, Any]) -> Dict[str, Any]:
     opening = _transcript_opening(corpus_root, _rel(ep["meta_path"], corpus_root) or "")
     row["A9_capability_audit_opening_variant"] = _sidecar_variant_of(opening, run_root, rel)
 
-    # A10 — GI evidence loading. Always raw, while the offsets it slices with are ad-free:
-    # the live coordinate-space bug this slice fixes.
+    # A10 — GI evidence loading. The body whose offsets the artifact's spans index, which #2253
+    # made the artifact DECLARE (`transcript_ref` on every offset-bearing node) instead of being
+    # derived from the filename. The artifact is loaded and passed exactly as
+    # `load_artifact_and_transcript` does, so this row records production behaviour rather than
+    # the no-artifact fallback.
     gi_artifact = ep["meta_path"].with_name(
         ep["meta_path"].name.replace(".metadata.json", ".gi.json")
     )
-    row["A10_gi_load_evidence"] = _rel(_transcript_path_from_artifact_path(gi_artifact), run_root)
+    gi_doc = None
+    if gi_artifact.is_file():
+        try:
+            gi_doc = json.loads(gi_artifact.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            gi_doc = None
+    row["A10_gi_load_evidence"] = _rel(
+        _transcript_path_from_artifact_path(gi_artifact, gi_doc), run_root
+    )
 
     # B1 — player segments contract. Pure; raw-first is deliberate (unbridged audio).
     # Record the order AND what a caller would really open, since the order alone hides
@@ -339,6 +350,30 @@ def _write_episode_with_every_variant(root: Path) -> str:
         json.dumps({"content": {"transcript_file_path": "transcripts/e01.txt"}}),
         encoding="utf-8",
     )
+    # A REAL GI artifact, declaring the body its offsets were measured against (#2253). The ad-free
+    # body is what GI analyses, so that is what a quote's `transcript_ref` says — and the reader
+    # obeys the declaration rather than deriving a path from the filename. Before #2253 this file
+    # did not exist in the fixture at all: the reader only used its NAME, which is precisely how it
+    # came to slice the wrong body.
+    (md / "e01.gi.json").write_text(
+        json.dumps(
+            {
+                "episode_id": "ep-e01",
+                "nodes": [
+                    {
+                        "type": "Quote",
+                        "properties": {
+                            "char_start": adfree_text.index("Welcome"),
+                            "char_end": adfree_text.index("Welcome")
+                            + len("Welcome back to the show."),
+                            "transcript_ref": "transcripts/e01.adfree.txt",
+                        },
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
     return "transcripts/e01.txt"
 
 
@@ -406,9 +441,12 @@ def test_gi_evidence_reads_the_text_its_offsets_index(tmp_path: Path) -> None:
 
     run_root = tmp_path / "feeds" / "pX"
     _write_episode_with_every_variant(run_root)
-    artifact = run_root / "metadata" / "e01.gi.json"
+    artifact_path = run_root / "metadata" / "e01.gi.json"
+    # Passed as production passes it: `load_artifact_and_transcript` reads the artifact first and
+    # hands it over, so the reader uses the DECLARED ref instead of deriving one from the filename.
+    artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
 
-    resolved = _transcript_path_from_artifact_path(artifact)
+    resolved = _transcript_path_from_artifact_path(artifact_path, artifact)
     assert resolved.name == "e01.adfree.txt"
 
     text = load_transcript_for_evidence(resolved)
@@ -503,31 +541,6 @@ def _translated_app_episodes_with_an_adfree_body() -> int:
             continue
         stem = src.name[: -len(".txt")]
         if src.with_name(stem + ".en.adfree.txt").is_file():
-            total += 1
-    return total
-
-
-def _episodes_with_a_PLAIN_adfree_body() -> int:
-    """Episodes carrying `<base>.adfree.txt` — not `.en.adfree.txt`.
-
-    This is the exact population `gi/load.py` moves on when its #2253 fix is reverted, and the
-    distinction is load-bearing. That fix is now a two-line `.adfree.txt` check (an English-path
-    bug must not depend on the translation module), so it does not see `.en.adfree.txt` at all:
-    a translated episode resolves to its SOURCE body either way, and reverting moves nothing for
-    it. Measured here: the app corpus has ZERO plain ad-free bodies and five `.en.` ones; the
-    viewer corpus has forty plain ones.
-
-    The assertion this replaces used "every app-corpus episode" (45) and passed only because the
-    old resolver-based fix also resolved `.en.adfree.txt` — 40 viewer + 5 app. A coincidence of
-    two populations summing, not a statement about the reader.
-    """
-    total = 0
-    for ep in _episodes():
-        src = ep["run_root"] / ep["transcript_rel"]
-        if not src.name.endswith(".txt"):
-            continue
-        stem = src.name[: -len(".txt")]
-        if src.with_name(stem + ".adfree.txt").is_file():
             total += 1
     return total
 
@@ -727,38 +740,46 @@ def test_removing_the_english_head_moves_EXACTLY_the_translated_episodes(
         assert ".en." not in after, f"{key}: head removed but still resolving English: {after}"
 
 
-def test_golden_catches_the_gi_load_fix_being_reverted(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Reverting A10 must move A10 and nothing else.
+def test_the_corpus_CANNOT_catch_the_a10_regression_and_here_is_why() -> None:
+    """A10's row is inert on these corpora, and saying so is the point.
 
-    This row is the one with real evidence behind it: the fix moved exactly this field on
-    exactly these episodes when it landed. Injecting the revert closes the loop.
+    This test used to inject the pre-#2253 implementation and assert the A10 row moved on every
+    episode carrying an ad-free body. It cannot any more, and the reason is a fact about the
+    fixtures rather than about the fix: **every offset-bearing node in both corpora declares
+    `transcript_ref: transcripts/<base>.txt`** — measured, 520 of 520. The declared body and the
+    derived body are therefore the same file, so reverting the fix moves nothing. There is no
+    ad-excised GI artifact in either corpus for the bug to show up in.
 
-    INJECTED AS THE OLD BEHAVIOUR, not by disabling a resolver. The fix used to call
-    `workflow.transcript_resolution` — a module written for translation — so the revert could be
-    injected by stubbing that import out. #2253 reimplemented it as a two-line `.adfree.txt`
-    check inside `gi/load.py`, because an English-path bug fix must not depend on a language
-    feature, and there is no longer an import to stub. So the revert is injected by restoring the
-    pre-fix function itself: return the canonical `.txt` unconditionally.
+    An inert golden row that LOOKS like coverage is worse than none, so this asserts the premise
+    instead. What actually covers #2253:
+
+    * `test_gi_evidence_reads_the_text_its_offsets_index` — a synthetic episode with a real
+      `.adfree.txt`, asserting both the correct excerpt and the displaced one.
+    * `tests/unit/podcast_scraper/gi/test_load.py::TestItReadsTheBodyTheArtifactDECLARES` — the
+      declaration being obeyed, plus the fallbacks and the two refusal cases.
+
+    When a corpus episode does gain an ad-free GI artifact, this test fails — which is the signal
+    to restore the injection, because the row becomes load-bearing at that moment.
     """
-    from podcast_scraper.gi import load as gi_load
+    refs = set()
+    for ep in _episodes():
+        gi = ep["meta_path"].with_name(ep["meta_path"].name.replace(".metadata.json", ".gi.json"))
+        if not gi.is_file():
+            continue
+        try:
+            doc = json.loads(gi.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for node in doc.get("nodes", []):
+            props = (node or {}).get("properties") or {}
+            if "char_start" in props and props.get("transcript_ref"):
+                refs.add(str(props["transcript_ref"]))
 
-    def pre_fix(artifact_path: Path) -> Path:
-        stem = artifact_path.stem
-        base = stem[:-3] if stem.endswith(".gi") else stem
-        return artifact_path.parent.parent / "transcripts" / f"{base}.txt"
-
-    monkeypatch.setattr(gi_load, "_transcript_path_from_artifact_path", pre_fix)
-    moved = _moved_fields(_build(), _committed())
-    assert set(moved) == {"A10_gi_load_evidence"}, f"expected only A10 to move, got {moved}"
-    # The episodes with a PLAIN `.adfree.txt` — the only ones this reader resolves away from the
-    # canonical body, so the only ones a revert can move. See the helper for why it is not "every
-    # app-corpus episode": that count passed on a coincidence.
-    expected_a10 = _episodes_with_a_PLAIN_adfree_body()
-    assert moved["A10_gi_load_evidence"] == expected_a10, (
-        f"{moved['A10_gi_load_evidence']} episodes moved but {expected_a10} carry a plain "
-        "`.adfree.txt`"
+    assert refs, "no GI artifact in either corpus declares a transcript_ref"
+    adfree = sorted(r for r in refs if ".adfree." in r)
+    assert not adfree, (
+        "a corpus GI artifact now declares an ad-free body, so the A10 row CAN catch the #2253 "
+        f"regression — restore the injection this test replaced: {adfree[:5]}"
     )
 
 

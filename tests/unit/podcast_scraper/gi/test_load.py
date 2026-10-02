@@ -175,3 +175,110 @@ class TestGILLoad:
         one = find_artifact_by_episode_id(corpus, "dup", feed_id="feed_a")
         assert one is not None
         assert "rss_a" in str(one)
+
+
+@pytest.mark.unit
+class TestItReadsTheBodyTheArtifactDECLARES:
+    """#2253: which transcript an evidence span is sliced from is DECLARED, not guessed.
+
+    GI records `transcript_ref` on every offset-bearing node — the body those `char_start` /
+    `char_end` were measured against. Slicing any other body returns the right NUMBER of
+    characters from the wrong place, which prints as plausible text and raises nothing. That was
+    the bug: the reader derived `<base>.txt` while GI had measured against `<base>.adfree.txt`,
+    minutes shorter, so every span on an ad-excised episode was displaced by the length of the ads
+    before it.
+
+    Two guessing fixes were tried first and both were wrong the same way — one routed through the
+    translation module, one checked `.adfree.txt` inline and left a translated episode reading its
+    source body at English offsets. These tests pin the declaration being obeyed instead.
+    """
+
+    @staticmethod
+    def _artifact(ref: object, *, offsets: bool = True) -> dict:
+        props: dict = {"char_start": 0, "char_end": 5} if offsets else {}
+        if ref is not None:
+            props["transcript_ref"] = ref
+        return {"episode_id": "ep1", "nodes": [{"type": "Quote", "properties": props}]}
+
+    def _artifact_path(self, tmp_path: Path) -> Path:
+        meta = tmp_path / "metadata"
+        meta.mkdir(parents=True, exist_ok=True)
+        (tmp_path / "transcripts").mkdir(parents=True, exist_ok=True)
+        return meta / "01 - ep.gi.json"
+
+    def test_it_returns_the_declared_body_even_when_it_is_the_adfree_one(
+        self, tmp_path: Path
+    ) -> None:
+        """The bug, in one assertion: the declared body wins over the derived `.txt`."""
+        ap = self._artifact_path(tmp_path)
+        got = _transcript_path_from_artifact_path(
+            ap, self._artifact("transcripts/01 - ep.adfree.txt")
+        )
+        assert got == (tmp_path / "transcripts" / "01 - ep.adfree.txt").resolve()
+
+    def test_it_returns_the_declared_body_for_a_TRANSLATED_episode(self, tmp_path: Path) -> None:
+        """The case the second attempt got wrong. An English render is just another declared ref —
+        no `.en.` knowledge is needed here, which is why `gi` stays free of the language code."""
+        ap = self._artifact_path(tmp_path)
+        got = _transcript_path_from_artifact_path(
+            ap, self._artifact("transcripts/01 - ep.en.adfree.txt")
+        )
+        assert got == (tmp_path / "transcripts" / "01 - ep.en.adfree.txt").resolve()
+
+    def test_an_artifact_that_declares_nothing_falls_back_to_the_derived_path(
+        self, tmp_path: Path
+    ) -> None:
+        """Artifacts written before the field existed. One predictable answer, not a guess."""
+        ap = self._artifact_path(tmp_path)
+        got = _transcript_path_from_artifact_path(ap, self._artifact(None))
+        assert got == tmp_path / "transcripts" / "01 - ep.txt"
+
+    def test_no_artifact_in_hand_falls_back_too(self, tmp_path: Path) -> None:
+        ap = self._artifact_path(tmp_path)
+        assert _transcript_path_from_artifact_path(ap) == (tmp_path / "transcripts" / "01 - ep.txt")
+
+    def test_DISAGREEING_declarations_fall_back_rather_than_pick_one(self, tmp_path: Path) -> None:
+        """One artifact comes from one body, so this should be impossible — and if it happens,
+        picking either would show the wrong evidence for half the insights. One predictable
+        wrongness beats per-node wrongness."""
+        ap = self._artifact_path(tmp_path)
+        artifact = {
+            "episode_id": "ep1",
+            "nodes": [
+                {
+                    "type": "Quote",
+                    "properties": {
+                        "char_start": 0,
+                        "char_end": 5,
+                        "transcript_ref": "transcripts/a.txt",
+                    },
+                },
+                {
+                    "type": "Quote",
+                    "properties": {
+                        "char_start": 6,
+                        "char_end": 9,
+                        "transcript_ref": "transcripts/b.txt",
+                    },
+                },
+            ],
+        }
+        assert _transcript_path_from_artifact_path(ap, artifact) == (
+            tmp_path / "transcripts" / "01 - ep.txt"
+        )
+
+    def test_a_ref_that_escapes_the_run_directory_is_refused(self, tmp_path: Path) -> None:
+        """`transcript_ref` is produced by this pipeline, but it is still a path read out of a
+        file, so it is confined under the run dir before being opened."""
+        ap = self._artifact_path(tmp_path)
+        got = _transcript_path_from_artifact_path(ap, self._artifact("../../../../etc/passwd"))
+        assert got == tmp_path / "transcripts" / "01 - ep.txt"
+
+    def test_a_node_with_NO_offsets_declares_nothing(self, tmp_path: Path) -> None:
+        """Only offset-bearing nodes answer the question — a node with a ref but no `char_start`
+        is describing something else and must not decide which body gets sliced."""
+        ap = self._artifact_path(tmp_path)
+        got = _transcript_path_from_artifact_path(
+            ap, self._artifact("transcripts/01 - ep.adfree.txt", offsets=False)
+        )
+        assert got == tmp_path / "transcripts" / "01 - ep.txt"
