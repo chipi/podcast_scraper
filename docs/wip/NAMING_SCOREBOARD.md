@@ -46,6 +46,23 @@ question this scoreboard answers is how much of it RULES can recover.
 | 2 | host/guest judged across the whole voice | 1 | a guest phrase counts only in the first 60% of a voice | 3 / 0 | 0 / 3 | rejected (guests whose only "thanks for having me" is a farewell) |
 | 3 | junk names passing the person check | 1 | show/brand and region tails, count words, captured role words, job titles in long names, product mononyms, stray `?` | 4 / 0 | 20 / 0 | accepted (census: 15 distinct names newly refused, all junk) |
 
+## Step 1 result — the LLM step's marginal value (2026-10-03)
+
+Same committed code (seats + person check), replayed without vs with the LLM's stored per-voice
+answers (stored FINAL answers, not raw verdicts — an approximation of the live step):
+
+| Set | correct name | hosts correct | missing | wrong | host/guest swapped | better / worse voices |
+| --- | --- | --- | --- | --- | --- | --- |
+| val 500, no LLM | 502 | 316 | 572 | 78 | 20 | — |
+| val 500, with LLM | 604 (+102) | 342 (+26) | 418 (-154) | 119 (+41) | 31 (+11) | 138 / 87 |
+| dev 101, no LLM | 81 | 49 | 114 | 26 | 13 | — |
+| dev 101, with LLM | 104 (+23) | 55 (+6) | 76 (-38) | 36 (+10) | 18 (+5) | 32 / 25 |
+
+Reading: the LLM is the only component adding correct names in volume (102 of 604), and it also
+causes about a third of the wrong names (41 of 119) and of the swaps (11 of 31): roughly one damaged
+voice for every two improved. Steps 4 (guards on its answers) and 6 (the LLM loop) target exactly
+that.
+
 ## Running conclusion (updated after every problem)
 
 After 2 accepted slices and 1 rejected loop: rules move single- to low-double-digit voices per
