@@ -112,6 +112,12 @@ def letters_or_digits_at_the_edges(name: str) -> str:
     return cleaned
 
 
+#: Titles that precede a name and are not part of it.
+HONORIFIC_PREFIXES = frozenset(
+    {"dr", "doctor", "prof", "professor", "mr", "mrs", "ms", "miss", "sir", "dame", "lord", "lady"}
+)
+
+
 def canonical_person_name(name: str) -> str:
     """The ONE spelling of a person's name that every surface must write.
 
@@ -129,6 +135,22 @@ def canonical_person_name(name: str) -> str:
     return cleaned
 
 
+def person_identity_name(name: str) -> str:
+    """The name a person's ID is minted from: the canonical name without a leading title.
+
+    The same person with and without a title was two people: "Professor Hannah Fry" and
+    "Hannah Fry" minted person:professor-hannah-fry beside person:hannah-fry (Google DeepMind,
+    2026-10-02; 7 such splits on prod, 52 titled names waiting to split). The title stays in the
+    DISPLAY name (``canonical_person_name``) — "Dr. Adam Rodman" is published as stated — and is
+    dropped only for identity, and only when at least two words remain ("Lord Kinnock" keeps its
+    only identifier).
+    """
+    tokens = (canonical_person_name(name) or "").split()
+    while len(tokens) >= 3 and tokens[0].lower().rstrip(".") in HONORIFIC_PREFIXES:
+        tokens = tokens[1:]
+    return " ".join(tokens)
+
+
 def person_id(name: str) -> str:
     """Return canonical ``person:{slug}`` (Phase 2+); slugifier is shared from Phase 1.
 
@@ -136,7 +158,7 @@ def person_id(name: str) -> str:
     `graph_id_utils.entity_node_id` is the other one; normalising in only one of them is what
     `TestEveryLayerMintsTheSameId` exists to catch, and did.
     """
-    return f"person:{slugify(canonical_person_name(name) or name)}"
+    return f"person:{slugify(person_identity_name(name) or name)}"
 
 
 def org_id(name: str) -> str:

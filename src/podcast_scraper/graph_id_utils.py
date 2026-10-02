@@ -23,6 +23,7 @@ from podcast_scraper.identity.slugify import (  # noqa: F401
     CREDENTIAL_SUFFIXES,
     GENERATIONAL_SUFFIXES,
     letters_or_digits_at_the_edges,
+    person_identity_name,
     slugify as canonical_slugify,
 )
 
@@ -253,7 +254,7 @@ def entity_node_id(entity_kind: str, name: str, episode_id: Optional[str] = None
     base = (name or "").strip()
     if ek == "person":
         # Normalise HERE so every writer agrees on the id, whatever decoration it was handed.
-        base = canonical_person_name(base) or base
+        base = person_identity_name(base) or base
     if episode_id and ek == "person" and is_bare_speaker_label(base):
         return _scoped_speaker_person_id(base, episode_id)
     slug = slugify_label(base) if base else "unknown"

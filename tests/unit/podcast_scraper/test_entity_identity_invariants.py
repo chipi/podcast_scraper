@@ -280,3 +280,47 @@ class TestACanonicalNameIsNeverWorseThanTheInput:
         from podcast_scraper.identity.slugify import canonical_person_name
 
         assert len(canonical_person_name(name)) <= len(name)
+
+
+class TestATitleIsNotPartOfTheIdentity:
+    """ "Professor Hannah Fry" and "Hannah Fry" were two people (Google DeepMind, 2026-10-02):
+    seven such splits on prod, every one a title in front of an otherwise identical name."""
+
+    @pytest.mark.parametrize(
+        "titled",
+        [
+            "Professor Maria Lindqvist",
+            "Prof. Maria Lindqvist",
+            "Dr. Maria Lindqvist",
+            "Sir Maria Lindqvist",
+        ],
+    )
+    def test_a_titled_name_mints_the_bare_name_id(self, titled: str) -> None:
+        from podcast_scraper.identity.slugify import person_id
+
+        assert person_id(titled) == person_id("Maria Lindqvist")
+        assert entity_node_id("person", titled) == entity_node_id("person", "Maria Lindqvist")
+
+    def test_gi_and_kg_agree_on_a_titled_name(self) -> None:
+        from podcast_scraper.gi.speakers import _person_node_id
+
+        assert _person_node_id("Professor Maria Lindqvist", _EP) == _person_node_id(
+            "Maria Lindqvist", _EP
+        )
+
+    def test_a_title_that_is_the_only_qualifier_is_kept(self) -> None:
+        # "Lord Kinnock" — strip the title and one word would stand for the whole person.
+        from podcast_scraper.identity.slugify import person_identity_name
+
+        assert person_identity_name("Lord Wren") == "Lord Wren"
+
+    def test_a_credential_and_a_title_both_leave_the_identity(self) -> None:
+        from podcast_scraper.identity.slugify import person_identity_name
+
+        assert person_identity_name("Dr. Maria Lindqvist, MD") == "Maria Lindqvist"
+
+    def test_the_published_name_keeps_its_title(self) -> None:
+        # Identity merges; display does not change ("Dr. Adam Rodman" is published as stated).
+        from podcast_scraper.identity.slugify import canonical_person_name
+
+        assert canonical_person_name("Dr. Maria Lindqvist") == "Dr. Maria Lindqvist"
