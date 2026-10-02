@@ -1280,6 +1280,75 @@ def drop_non_person_names(
     return out
 
 
+# Words that are never a person's name on their own, and never part of one. Measured on the
+# published corpus 2026-10-02: "Host" on 20 voices of The Flip (the episode description says
+# "Host: ..." and the label was read as a name), "OK" x3, "Thank", "Right" from self-introductions.
+_ROLE_OR_FILLER_TOKENS = frozenset(
+    {
+        "host",
+        "hosts",
+        "cohost",
+        "co-host",
+        "guest",
+        "guests",
+        "speaker",
+        "narrator",
+        "announcer",
+        "moderator",
+        "interviewer",
+        "ok",
+        "okay",
+        "thank",
+        "thanks",
+        "right",
+        "yeah",
+        "yep",
+        "sure",
+        "hello",
+        "hi",
+        "sorry",
+    }
+)
+# A multi-word "name" ending in one of these is an organisation or a job: "House Select
+# Committee", "Treasury Foreign Exchange", "Meter Redwood Research", "Roblox CEO".
+_ORG_TAIL_TOKENS = frozenset(
+    {
+        "committee",
+        "research",
+        "project",
+        "exchange",
+        "context",
+        "ceo",
+        "institute",
+        "council",
+        "society",
+        "foundation",
+        "initiative",
+        "association",
+        "commission",
+    }
+)
+_ROLE_PREFIX = re.compile(
+    r"^(?:your\s+)?(?:(?:co-?)?host|(?:(?:deputy|senior|executive|managing|contributing)\s+)?"
+    r"editor|producer|correspondent|reporter)\s*,?\s+",
+    re.IGNORECASE,
+)
+_POSSESSIVE_PREFIX = re.compile(r"^(?:[A-Z][\w&.\-]*\s+){0,3}[A-Z][\w&.\-]*['’]s\s+")
+
+
+def strip_role_prefix(name: str) -> str:
+    """``"Your Host Luisa Leni"`` -> ``"Luisa Leni"``; ``"Planet Money's Kenny Malone"`` ->
+    ``"Kenny Malone"``. A self-introduction often carries the job or the show in front of the
+    person ("I'm deputy editor Eilish Hart"), and the reader keeps it. Returns *name* unchanged when
+    nothing would remain."""
+    out = (name or "").strip()
+    for pattern in (_POSSESSIVE_PREFIX, _ROLE_PREFIX):
+        stripped = pattern.sub("", out, count=1).strip()
+        if stripped and stripped != out:
+            out = stripped
+    return out
+
+
 def is_publishable_speaker_name(name: Optional[str]) -> bool:
     """Final reject filter for a name about to be painted on a diarized voice (ADR-134 shared core).
 
@@ -1301,10 +1370,20 @@ def is_publishable_speaker_name(name: Optional[str]) -> bool:
     if looks_like_publisher(nm):
         return False
     toks = nm.split()
+    lowered = [t.lower().strip(".,'’") for t in toks]
+    if any(t in _ROLE_OR_FILLER_TOKENS for t in lowered):
+        return False
     if len(toks) >= 2:
+        if lowered[-1] in _ORG_TAIL_TOKENS or any(t.endswith(("'s", "’s")) for t in toks):
+            return False
         return looks_like_a_person_name(nm)
     if len(toks) == 1:
-        tl = toks[0].lower().strip(".,'’")
+        tl = lowered[0]
+        # "GE", "AI", "IDF": an abbreviation standing in for a name, not a name (the same rule the
+        # roster applies to publisher voice labels, `_looks_like_initials`).
+        letters = toks[0].replace(".", "")
+        if letters.isalpha() and letters.isupper() and len(letters) <= 3:
+            return False
         return (
             tl not in _NOT_A_NAME_TOKEN and tl not in _NOT_A_MONONYM and tl not in HONORIFIC_TITLES
         )

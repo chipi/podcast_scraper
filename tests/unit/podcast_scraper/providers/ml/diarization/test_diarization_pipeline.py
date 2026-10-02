@@ -102,11 +102,11 @@ def test_apply_diarization_enriches_segments(mock_create_provider) -> None:
     }
 
     # detected_speaker_names is guest-only; the guest name must land on the guest, not the host.
-    enriched = apply_diarization_to_result(result, "/tmp/audio.wav", cfg, ["Guest"])
+    enriched = apply_diarization_to_result(result, "/tmp/audio.wav", cfg, ["Maria Lindqvist"])
 
     assert enriched["segments"][0]["speaker"] == "SPEAKER_00"
     assert enriched["segments"][0]["speaker_label"] == "SPEAKER_00", "host kept raw"
-    assert enriched["segments"][1]["speaker_label"] == "Guest", "guest named"
+    assert enriched["segments"][1]["speaker_label"] == "Maria Lindqvist", "guest named"
     # enrichment sidecar + role: the diagnostics dict is attached, an unnamed host segment carries
     # speaker_role="host" (renders as "Host"), and a NAMED voice now persists its roster role too so
     # the durable segments sidecar carries host-vs-guest truth (guest-as-host fix).

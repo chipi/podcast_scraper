@@ -56,6 +56,7 @@ from ....speaker_detectors.hosts import (
     NAME_FIRST_REPORT_TAIL,
     NAME_FIRST_TAIL,
     roles_from_conversation,
+    strip_role_prefix,
 )
 from ....speaker_detectors.resolution import _addressed_at_open, refuted_by_third_person
 from ....text_normalization import (
@@ -3402,7 +3403,14 @@ def resolve_speaker_roster(
     # Placed before the leftover/nameable accounting and `_classify_voice_types` so a demoted voice
     # is counted as an unnamed defect and re-typed correctly.
     for _v, _role in list(by_voice.items()):
-        if _role.named and not is_publishable_speaker_name(_role.name):
+        if not _role.named:
+            continue
+        # Keep the person, drop the job or the show in front of them ("Your Host Luisa Leni").
+        _bare = strip_role_prefix(_role.name)
+        if _bare != _role.name and is_publishable_speaker_name(_bare):
+            _role = replace(_role, name=_bare)
+            by_voice[_v] = _role
+        if not is_publishable_speaker_name(_role.name):
             by_voice[_v] = replace(_role, name=_v, named=False, source="raw")
 
     # One person, one name, one role — across every voice diarization split them over.
