@@ -338,6 +338,13 @@ def _feed_sibling_diagnostics(cfg: config.Config) -> list:
         return diags
 
 
+def _current_feed_title() -> Optional[str]:
+    """The feed title host detection recorded for this run (see ``correlation.set_feed_title``)."""
+    from ....utils import correlation
+
+    return correlation.get_feed_title()
+
+
 def _resolution_attribution(baseline: Any, final: Any) -> Dict[str, Any]:
     """How much of the final naming/role came from the deterministic cues vs the LLM (ADR-137).
 
@@ -711,6 +718,7 @@ def apply_diarization_to_result(
             host_copresence=host_copresence_from_diagnostics(
                 _feed_sibling_diagnostics(cfg), known_hosts
             ),
+            feed_title=_current_feed_title(),
             episode_text=" ".join(
                 x for x in (episode_title or "", episode_description or "") if x
             ).strip()

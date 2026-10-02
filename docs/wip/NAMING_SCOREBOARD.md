@@ -35,6 +35,7 @@ question this scoreboard answers is how much of it RULES can recover.
 | today (baseline) | 602 | 155 | 384 | 49 | 31 | 342 |
 | + seats (v4, accepted) | 604 | 138 | 399 | 47 | 31 | 342 |
 | + person check (accepted) | 604 | 119 | 418 | 47 | 31 | 342 |
+| + presenter evidence (accepted) | 615 | 118 | 417 | 47 | 22 | 352 |
 
 ## Attempts
 
@@ -44,6 +45,7 @@ question this scoreboard answers is how much of it RULES can recover.
 | 1 | host seats | 2 | + late-guest absorption, dominant-voice guest name, Tracy/Tracey snap | 0 / 0 | 2 / 1 (host) | loop again |
 | 1 | host seats | 3 | + snap guard (no claim on a host another voice already is) | 0 / 0 | 2 / 0 | accepted with one known host regression (operator) |
 | 2 | host/guest judged across the whole voice | 1 | a guest phrase counts only in the first 60% of a voice | 3 / 0 | 0 / 3 | rejected (guests whose only "thanks for having me" is a farewell) |
+| 2 | host/guest judged across the whole voice | 2 | presenter evidence (advisor p7): a voice naming the show in a presenting formula, introducing the stated guest, or one half of an "I'm A / And I'm B" pair is a host even outside the pool, and outranks a lone guest phrase; episode-stated guest host joins the pool; show-name pool entries never named | 22 / 0 | 13 / 2 | accepted (last loop; 2 worse: Hard Fork Kevin's voice named Casey, an unnamed Business of Africa host voice named) |
 | 3 | junk names passing the person check | 1 | show/brand and region tails, count words, captured role words, job titles in long names, product mononyms, stray `?` | 4 / 0 | 20 / 0 | accepted (census: 15 distinct names newly refused, all junk) |
 
 ## Step 1 result — the LLM step's marginal value (2026-10-03)
@@ -65,7 +67,8 @@ that.
 
 ## Running conclusion (updated after every problem)
 
-After 2 accepted slices and 1 rejected loop: rules move single- to low-double-digit voices per
+After 3 accepted slices and 1 rejected loop (presenter evidence is the first slice that ADDS
+correct names: +11 on validation, +10 hosts correct, swaps 31 -> 22): rules move single- to low-double-digit voices per
 slice on 2,010 scored validation voices. Both accepted slices mostly turn WRONG names into NO name
 (wrong 155 -> 119, missing 384 -> 418); correct names barely move (602 -> 604). Removing bad
 answers is what rules do well here; producing right answers is where they have not moved yet. The rejected loop is the held-out set working as intended

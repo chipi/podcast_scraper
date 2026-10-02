@@ -800,6 +800,76 @@ _GUEST_SPEECH_ACTS = [
         r"\b(?:glad|happy|great|good) to be (?:here|on|back)\b",
     )
 ]
+#: A presenting formula that names THE SHOW: "This is Roundtable", "You're listening to Why This
+#: Universe", "today on Unbelievable", "welcome to the Africa Tech Summit podcast", "Hello, Turkey
+#: Book Talk episode 276". A guest never presents the show by name, and a promo for ANOTHER show
+#: names that show -- so the cue is only evidence together with THIS show's name
+#: (:func:`show_name_pattern`). "welcome to" without the show's name stays the ordinary host act
+#: above. NOT "this episode of <show>": that is the credits ("This episode of Planet Money was
+#: produced by...") and the guest's plug ("you should listen to this episode of MLST") -- measured
+#: on the corpus replay, 2026-10-02.
+_SHOW_INTRO_CUE = (
+    r"(?:this is|you'?re listening to|you are listening to"
+    r"|welcome(?: back)? to(?: (?:another|this|today'?s) (?:episode|edition) of)?"
+    r"|(?:today|tonight|this week|this time|this season|this month|next (?:few )?\w+) on"
+    r"|here on|(?:hello|hi)(?:,?\s+(?:everyone|everybody|there|folks|all))?,?)"
+)
+#: A subtitle after the show's name ("No Priors: Artificial Intelligence | Technology").
+_SHOW_TITLE_SEPARATOR = re.compile(r"\s+[:|\u2013\u2014-]\s+|:\s+")
+#: A parenthesised tag after the name ("Machine Learning Street Talk (MLST)") is not said aloud.
+_SHOW_TITLE_PAREN = re.compile(r"\s*\([^)]*\)\s*$")
+_SHOW_TAIL_WORDS = frozenset({"podcast", "show"})
+#: A one-word title must be at least this long: "Today" or "Daily" after "this is" is ordinary
+#: speech; "Unbelievable", "Unhedged", "Decoder" are not.
+_SHOW_MIN_MONONYM_LEN = 6
+#: A two-token PREFIX of a longer title ("this is Roundtable" for "Round Table China") counts only
+#: when it carries this many letters AND ends the clause -- "this is machine learning in the wild"
+#: must not stand for "Machine Learning Street Talk".
+_SHOW_PREFIX_MIN_LETTERS = 9
+
+
+def show_name_pattern(feed_title: Optional[str]) -> Optional[str]:
+    """A regex for the SHOW's name as a voice says it, or ``None`` when the title cannot be used.
+
+    From the feed title: the subtitle dropped, the "with <Host>" suffix and a leading article
+    dropped as :func:`names_the_show` does, a trailing "podcast"/"show" dropped (the caller makes it
+    optional). Tokens are joined by ``\\W*`` because the ASR writes "Roundtable" for "Round Table"
+    and "NNG" for "NN/G". The whole name, or its first two tokens when they end the clause.
+    """
+    if not feed_title:
+        return None
+    main = _SHOW_TITLE_PAREN.sub("", _SHOW_TITLE_SEPARATOR.split(str(feed_title), maxsplit=1)[0])
+    folded = _fold_title(_TITLE_WITH_SUFFIX.sub("", main)) or _fold_title(main)
+    toks = [t for t in folded.split() if t]
+    while len(toks) > 1 and toks[-1] in _SHOW_TAIL_WORDS:
+        toks.pop()
+    if not toks:
+        return None
+    if len(toks) == 1:
+        if len(toks[0]) < _SHOW_MIN_MONONYM_LEN or toks[0] in _NOT_A_NAME_TOKEN:
+            return None
+        return re.escape(toks[0])
+    full = r"\W*".join(re.escape(t) for t in toks)
+    if len(toks) > 2 and len(toks[0]) + len(toks[1]) >= _SHOW_PREFIX_MIN_LETTERS:
+        prefix = re.escape(toks[0]) + r"\W*" + re.escape(toks[1])
+        return rf"{full}|{prefix}(?=\W*(?:podcast|show)?\W*(?:[.,!?;:]|$))"
+    return full
+
+
+def performs_show_intro(text: Optional[str], feed_title: Optional[str]) -> bool:
+    """True when the voice presents THIS show by name ("you're listening to Why This Universe")."""
+    show = show_name_pattern(feed_title)
+    if not text or not show:
+        return False
+    return bool(
+        re.search(
+            rf"\b{_SHOW_INTRO_CUE}\s+(?:the\s+|our\s+)?(?:{show})(?:\s*(?:podcast|show))?(?!\w)",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+
 # The host hands the floor to someone, BY NAME. "My guest today is Brian Chesky" is only one of the
 # ways they do it, and knowing only that phrasing left 5.2% of the corpus's talk anonymous —
 # measured by `scripts/audit/attribution_ceiling.py`. Planet Money is full of it: a narrated desk

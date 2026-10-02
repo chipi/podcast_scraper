@@ -1201,6 +1201,9 @@ def detect_feed_hosts_and_patterns(
     """
     cached_hosts: set[str] = set()
     heuristics: Optional[Dict[str, Any]] = None
+    from ...utils import correlation
+
+    correlation.set_feed_title(_feed_title(feed))
 
     # If auto_speakers is disabled, skip speaker detection entirely
     if not cfg.auto_speakers:

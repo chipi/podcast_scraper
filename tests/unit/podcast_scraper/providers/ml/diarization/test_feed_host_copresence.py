@@ -145,3 +145,43 @@ def test_the_pipeline_passes_the_prior_to_the_roster(
         result, "", cfg, [], precomputed_diarization=diar, feed_hosts=HOSTS
     )
     assert seen["host_copresence"] is not None and seen["host_copresence"][2] == 1.0
+
+
+def test_the_pipeline_passes_the_feed_title_to_the_roster(
+    feed: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The title host detection recorded for this run reaches the roster (presenter evidence)."""
+    from podcast_scraper.config import Config
+    from podcast_scraper.providers.ml.diarization.base import DiarizationResult, DiarizationSegment
+    from podcast_scraper.utils import correlation
+
+    P._copresence_cache.clear()
+    seen: Dict[str, Any] = {}
+    real = P.resolve_speaker_roster
+
+    def spy(*a: Any, **k: Any) -> Any:
+        seen["feed_title"] = k.get("feed_title")
+        return real(*a, **k)
+
+    monkeypatch.setattr(P, "resolve_speaker_roster", spy)
+    correlation.set_feed_title("Why This Universe?")
+    try:
+        kw: Dict[str, Any] = {"output_dir": str(feed), "speaker_resolution_llm": False}
+        diar = DiarizationResult(
+            segments=[
+                DiarizationSegment(0, 30, "SPEAKER_00"),
+                DiarizationSegment(30, 60, "SPEAKER_01"),
+            ],
+            num_speakers=2,
+        )
+        result = {
+            "text": "Hi. Thanks.",
+            "segments": [
+                {"start": 0, "end": 30, "text": "You're listening to Why This Universe."},
+                {"start": 30, "end": 60, "text": "Thanks for having me."},
+            ],
+        }
+        P.apply_diarization_to_result(result, "", Config(**kw), [], precomputed_diarization=diar)
+    finally:
+        correlation.set_feed_title(None)
+    assert seen["feed_title"] == "Why This Universe?"
