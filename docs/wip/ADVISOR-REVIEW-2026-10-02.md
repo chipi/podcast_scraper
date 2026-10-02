@@ -30,6 +30,8 @@ Local, not pushed:
 | `6661b186a` | GI: a quote whose transcript was relabelled is re-anchored onto its text | 936 warnings/night = the same 36 Odd Lots episodes (relabelled 09-28) re-warned by every whole-corpus enrich pass; 1,997 of 2,021 quotes occur exactly once → recovered on the next run |
 | `57c3ec09d` | bundled quotes: bounded JSON schema on vLLM + a decoding loop is salvaged, not bisected | 13/13 captured failures were a filler loop ("like, you know, …") at 5120/5120 with presence_penalty 1.5 on. Replay of a looping batch ×3: json_object looped 1/3 (all 24 quotes lost), schema 0/3 (24/24 resolved). The 1200s "hangs" (#2040/#1983) all completed — they were this loop |
 | `e50b5879f` | third-person guard: "I am your host, X" and "I am Rob X" count as self-introductions | 28 discards hand-reviewed, ~17 removed a correct name |
+| `51ebf2f99` → reverted `523e256ae` | German-only ad rule | rejected by the operator: hard-coded the fetch location |
+| `40d8d9844` | cross-show ad signatures (recurrence ≥3 episodes / ≥2 feeds; learned ad languages) + opener 5% floor | replay 2,066 eps: 338 voices → ad, 90 names removed (house-ad readers, host names on ads), 17 gained (Runciman ×10), regressions all in seating (Q4) |
 | (item 4) | spans: the span helper no longer replaces the block's exception with `RuntimeError: generator didn't stop after throw()`; `episode.transcribe` + `episode.metadata` spans; a handled failure marks its span; one `Multi-feed run summary` line per run | reproduced the RuntimeError locally; 0 hits in 30 days of prod logs (latent). `episode.process` covers only the download (max 11s) |
 
 ## Questions for the advisor
@@ -57,13 +59,13 @@ Local, not pushed:
 4. **Seat guard known regressions** (`c53565843`): a correct guest name reached through
    elimination is lost when the dominant voice is no longer seated, and an archive clip can take
    the vacant seat. Acceptable trade for the gains, or is there a cleaner formulation?
-   **New evidence (item 6, German ads now classified as ads):** the guard's "a guest is present"
-   test counts substantial voices, and in three episodes the German ad was the voice that made the
-   count exceed the stated hosts. Removed as an ad, the episode reads as 2 voices for 2 stated
-   hosts, and the dominant guest is seated: William Dalrymple on Alex von Tunzelmann (Empire), Ryan
-   Knutson on a Journal reporter, David Runciman on a short German ad below the 15-word floor.
-   The guard was partly right for the wrong reason. Should "guest present" use a signal other than
-   a voice count (the LLM's guest role, metadata guests, the self-introduced host count)?
+   **New evidence (item 6, ads recognised by cross-show signatures, `40d8d9844`):** once ads
+   stop occupying seats, the seat logic's weaknesses show. The guard's "a guest is present" test
+   counts substantial voices, and an ad was often the voice that tipped the count. Replay
+   regressions: Dalrymple on Alex von Tunzelmann (Empire), Knutson on a Journal reporter, Kevin
+   Roose on a guest who says "Kevin, I have to ask you", Aaron Levie on a narrator talking about
+   him, Casey Newton lost on one voice, A.J. Jacobs lost. Should "guest present" / seat count use
+   a signal other than a voice count (the LLM's guest role, metadata guests, who self-introduces)?
 
 5. **Feed-description host parser** (held patch): finds 18 correct hosts in 10 feeds, but fed to
    the roster before the seat guard it put names on guests and ads. Re-test now that the seat
