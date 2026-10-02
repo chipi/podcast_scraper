@@ -32,6 +32,9 @@ Local, not pushed:
 | `e50b5879f` | third-person guard: "I am your host, X" and "I am Rob X" count as self-introductions | 28 discards hand-reviewed, ~17 removed a correct name |
 | `51ebf2f99` → reverted `523e256ae` | German-only ad rule | rejected by the operator: hard-coded the fetch location |
 | `40d8d9844` | cross-show ad signatures (recurrence ≥3 episodes / ≥2 feeds; learned ad languages) + opener 5% floor | replay 2,066 eps: 338 voices → ad, 90 names removed (house-ad readers, host names on ads), 17 gained (Runciman ×10), regressions all in seating (Q4) |
+| `c069bc827` | publish gate refuses role words, interjections, organisations, job titles, abbreviations; strips "Your Host"/job/possessive prefixes | published corpus: 45 suspect of 4,638 names. Replay: 27 junk removed, 2 repaired (Kenny Malone, Eilish Hart); 1 partial lost ("RJ") |
+| `0651c7b2e` | unplaced speakers pass the same gate | "The China-Global South Project" unplaced host on 10 episodes |
+| `cfaa8d441` | test: torch-seed test no longer depends on xdist import order | failed 3/3 alone; exposed by today's new test files |
 | (item 4) | spans: the span helper no longer replaces the block's exception with `RuntimeError: generator didn't stop after throw()`; `episode.transcribe` + `episode.metadata` spans; a handled failure marks its span; one `Multi-feed run summary` line per run | reproduced the RuntimeError locally; 0 hits in 30 days of prod logs (latent). `episode.process` covers only the download (max 11s) |
 
 ## Questions for the advisor
@@ -79,7 +82,13 @@ Local, not pushed:
    2026-10-02 overruns finished at ≤2.6×; the wedge was ~13×). Changes an alerting contract, so
    held.
 
-7. **Holistic:** where is naming thin overall — seats, missing names, misspellings (Bernard
+7. **One person, several spellings across episodes.** "Yushan"/"Yushun" (Round Table China),
+   "RJ Hanaki"/"RJ Honicky" (Latent Space), "Bernard Liang"/"Bernard Leong". ADR-130 snaps a
+   mangled name back only to a name the episode's metadata states; these feeds state none, so
+   each episode keeps its own ASR spelling. Is a corpus-level identity pass (cluster by feed +
+   phonetic/edit distance + co-occurrence) worth it, and where would it live?
+
+8. **Holistic:** where is naming thin overall — seats, missing names, misspellings (Bernard
    Liang/Leong, Kittrow-F), duplicates — and are the last ~10 commits sound (due diligence)?
 
 ## Observability item 5 (config / noise) — decided, not changed
