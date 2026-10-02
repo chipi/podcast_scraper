@@ -548,6 +548,29 @@ def _parse_topic_items(raw_topics: Any) -> List[Dict[str, str]]:
     return out
 
 
+_KG_DECODE_CONTEXT_CHARS = 120
+
+
+def _warn_kg_reply_not_json(text: str, err: json.JSONDecodeError) -> None:
+    """Log WHERE a KG reply stopped being valid JSON, with a bounded snippet around the break.
+
+    Callers return None either way, which downstream only reads as "no topics"; a model that emits
+    one bad character mid-reply is otherwise indistinguishable from an episode with nothing in it.
+    """
+    lo = max(0, err.pos - _KG_DECODE_CONTEXT_CHARS)
+    hi = err.pos + _KG_DECODE_CONTEXT_CHARS
+    logger.warning(
+        "kg: reply is not valid JSON: %s (line=%d col=%d pos=%d, reply %d chars); "
+        "around pos: %r",
+        err.msg,
+        err.lineno,
+        err.colno,
+        err.pos,
+        len(text),
+        text[lo:hi],
+    )
+
+
 def parse_kg_graph_response(
     raw: str,
     *,
@@ -564,18 +587,23 @@ def parse_kg_graph_response(
         return None
     try:
         obj = json.loads(content)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as first_err:
         m = re.search(r"\{[\s\S]*\}\s*$", content)
         if not m:
-            logger.debug("KG JSON parse failed: not valid JSON")
+            _warn_kg_reply_not_json(content, first_err)
             return None
         try:
             obj = json.loads(m.group(0))
-        except json.JSONDecodeError:
-            logger.debug("KG JSON parse failed after brace extract")
+        except json.JSONDecodeError as brace_err:
+            _warn_kg_reply_not_json(m.group(0), brace_err)
             return None
 
     if not isinstance(obj, dict):
+        logger.warning(
+            "kg: reply is not a JSON object (got %s, reply %d chars)",
+            type(obj).__name__,
+            len(content),
+        )
         return None
 
     raw_topics = obj.get("topics")
