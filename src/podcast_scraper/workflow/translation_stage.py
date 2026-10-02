@@ -314,32 +314,6 @@ def analysis_blocked_reason(
     )
 
 
-def _withdraw_english_render(transcript_relpath: str, effective_output_dir: str) -> None:
-    """Remove `.en.txt` + `.en.segments.json` when the analysis base could not be built.
-
-    The gate keys on the English set being present, and a set without its ANALYSIS body is not
-    complete — it would pass the gate and then serve the source language to GI and KG. So the
-    render is withdrawn and the episode records `failed`, which is recoverable; the alternative
-    is a corpus entry nobody can tell from a correct one.
-    """
-    from ..translation.artifacts import english_artifact_relpaths
-
-    # EVERY `.en.*` file, not just the two the gate reads. A partial ad-free save leaves
-    # `.en.adfree.txt` behind, and ANALYSIS readers outside the gate — the indexer, `gi/load`,
-    # the processing stage — resolve that file FIRST.
-    for rel in english_artifact_relpaths(transcript_relpath):
-        try:
-            os.remove(os.path.join(effective_output_dir, rel))
-        except OSError:
-            continue
-    logger.warning(
-        "translation: the English ad-free base could not be built for %s, so the English render "
-        "was withdrawn — a set without its ANALYSIS body would pass the gate and then serve the "
-        "source language to GI and KG",
-        transcript_relpath,
-    )
-
-
 def _load_source_transcript(
     effective_output_dir: str, transcript_relpath: str, language: Optional[str] = None
 ) -> tuple[str, list]:
@@ -687,9 +661,23 @@ def _translate_episode(
             extra_cue_patterns=getattr(cfg, "crosspromo_cue_patterns", None),
         )
         if adfree_rel is None:
-            # No analysis base means the English set is NOT complete, whatever the render says.
-            # Withdraw the render rather than let the gate pass on a partial set.
-            _withdraw_english_render(transcript_relpath, effective_output_dir)
+            # NOTHING IS DELETED HERE, and that is the D-44 change. This used to call
+            # `_withdraw_english_render` to remove the `.en.*` files so ANALYSIS readers would
+            # fall back to the source. Under the atomic swap there is no partial set to withdraw:
+            # the swap either happened (canonical body holds the translation, source kept at its
+            # tagged name) or it did not. Deleting the canonical body now would leave the episode
+            # with NO body at all, which is worse than the state it is in.
+            #
+            # So the record is what changes, and the gate is what refuses: `analysis_blocked_reason`
+            # checks for this exact file, blocks summary/GI/KG, and the skip path marks the episode
+            # unusable so it surfaces nowhere — which is the behaviour the withdrawal was reaching
+            # for by hand.
+            logger.warning(
+                "translation: %s translated and swapped, but the ANALYSIS base could not be "
+                "built — recording `failed` so the gate blocks summary/GI/KG rather than letting "
+                "them index a body with no ad-free coordinate space",
+                transcript_relpath,
+            )
             en_rel = None
             # And say so IN the ledger. `TranslationDocument.status` is derived from unit
             # outcomes, so with zero failed units it reads `translated` — and the API's

@@ -23,5 +23,29 @@
       <itunes:duration>00:06:30</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
     </item>
+
+    <item>
+      <title>Drenaggio, Pendenza e il Terzo Anno</title>
+      <guid isPermaLink="false">p11_e02</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Giulia Ferrara talks with Marco Bellini: Drenaggio, Pendenza e il Terzo Anno.</description>
+      <enclosure url="/audio/p11_e02.mp3" length="575154" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p11_e02.vtt" type="text/vtt"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:01:12</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Permessi e Pazienza</title>
+      <guid isPermaLink="false">p11_e03</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Giulia Ferrara talks with Marco Bellini: Permessi e Pazienza.</description>
+      <enclosure url="/audio/p11_e03.mp3" length="485711" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p11_e03.vtt" type="text/vtt"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:01:01</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
   </channel>
 </rss>

@@ -11,10 +11,10 @@ from podcast_scraper.providers.ml.diarization.formatting import (
     format_diarized_screenplay_with_offsets,
 )
 from podcast_scraper.workflow.adfree_transcript import (
-    adfree_transcript_relpath,
     build_adfree_artifacts,
     produce_adfree_transcript,
 )
+from podcast_scraper.workflow.transcript_resolution import adfree_transcript_relpath
 
 pytestmark = pytest.mark.unit
 

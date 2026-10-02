@@ -1,0 +1,31 @@
+# Sentieri d'Autore — Episodio
+## Drenaggio, Pendenza e il Terzo Anno
+Host: Giulia Ferrara
+Guest: Marco Bellini
+#fixture-v3: failure_modes=none
+#fixture-v3: voice=it-IT host_voice=it-IT
+
+[00:00]
+Giulia Ferrara: Bentornati a Sentieri d'Autore. Oggi con me c'è Marco Bellini, costruttore di sentieri.
+Marco Bellini: Grazie per l'invito. Felice di essere qui.
+Giulia Ferrara: Questo episodio è sponsorizzato da Ramp. Vai su ramp punto com barra offerta per iniziare. Usa il codice SENTIERO e risparmia 20 per cento, per un tempo limitato.
+
+[02:00]
+Giulia Ferrara: Partiamo dal drenaggio. Perché è la prima decisione?
+Marco Bellini: Perché l'acqua decide tutto il resto. Se l'acqua non esce dal sentiero, il sentiero diventa il canale.
+Giulia Ferrara: E quando il budget non basta per farlo bene?
+Marco Bellini: Allora si taglia sullo strato di base, ed è proprio lì che non si deve tagliare.
+Giulia Ferrara: Raccontami l'errore più comune che vedi nelle squadre nuove.
+Marco Bellini: Scavare con una pendenza troppo forte. Sembra più rapido il primo giorno e costa il triplo al terzo anno.
+
+[12:00]
+Giulia Ferrara: Parliamo anche del rapporto su Chiara Di Stefano, che oggi non è con noi.
+
+Giulia Ferrara: Come si presenta quel guasto dopo tre anni?
+Marco Bellini: Si presenta come un fosso. E ricostruire costa più che farlo bene dall'inizio.
+Giulia Ferrara: Prima di chiudere, cosa può provare qualcuno questa settimana?
+Marco Bellini: Camminare sul proprio sentiero dopo una pioggia forte. L'acqua mostra ogni errore.
+
+[26:00]
+Giulia Ferrara: Marco Bellini, grazie per la conversazione.
+Marco Bellini: Grazie a te, Giulia.

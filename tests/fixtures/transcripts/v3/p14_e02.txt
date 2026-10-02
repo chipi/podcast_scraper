@@ -1,0 +1,31 @@
+# Sessões de Trilha — Episodio
+## Drenagem, Inclinação e o Terceiro Ano
+Host: Beatriz Antunes
+Guest: Rafael Vasconcelos
+#fixture-v3: failure_modes=none
+#fixture-v3: voice=pt-BR host_voice=pt-BR
+
+[00:00]
+Beatriz Antunes: Bem-vindos de volta a Sessões de Trilha. Hoje comigo está Rafael Vasconcelos, construtor de trilhas.
+Rafael Vasconcelos: Obrigado por me receber. É um prazer estar aqui.
+Beatriz Antunes: Este episódio é patrocinado pela Ramp. Acesse ramp ponto com barra oferta para começar. Use o código TRILHA e economize 20 por cento, por tempo limitado.
+
+[02:00]
+Beatriz Antunes: Vamos começar pela drenagem. Por que é a primeira decisão?
+Rafael Vasconcelos: Porque a água decide todo o resto. Se a água não sai da trilha, a trilha se torna o canal.
+Beatriz Antunes: E quando o orçamento não dá para fazer bem feito?
+Rafael Vasconcelos: Então se corta na camada de base, e é exatamente ali que não se deve cortar.
+Beatriz Antunes: Conte-me o erro mais comum que você vê em equipes novas.
+Rafael Vasconcelos: Escavar com inclinação forte demais. Parece mais rápido no primeiro dia e custa o triplo no terceiro ano.
+
+[12:00]
+Beatriz Antunes: Falamos também sobre Tiago da Silva, que não pôde nos acompanhar hoje.
+
+Beatriz Antunes: Como essa falha aparece três anos depois?
+Rafael Vasconcelos: Aparece como uma vala. E reconstruir custa mais do que ter feito bem desde o começo.
+Beatriz Antunes: Antes de encerrar, o que alguém pode testar esta semana?
+Rafael Vasconcelos: Caminhar na própria trilha depois de uma chuva forte. A água mostra cada erro.
+
+[26:00]
+Beatriz Antunes: Rafael Vasconcelos, obrigada pela conversa.
+Rafael Vasconcelos: Obrigado a você, Beatriz.

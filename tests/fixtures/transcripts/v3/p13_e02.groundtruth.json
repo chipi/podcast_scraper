@@ -1,0 +1,28 @@
+{
+  "fixture": "p13_e02",
+  "podcast": "Pfadgespräche — Episodio",
+  "episode": "Drainage, Gefälle und das Dritte Jahr",
+  "type": "interview",
+  "speakers": [
+    "Katrin Vogel",
+    "Stefan Brandt"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Katrin Vogel": "Anna",
+    "Stefan Brandt": "Anna"
+  },
+  "voice_pitch_shift": {
+    "Stefan Brandt": 0.4
+  },
+  "cameo": null,
+  "transcript_sha256": "79f0c96be31bbcb9e7a245eb09ab7e885931fcb645a2cd961d483df94a45ec22",
+  "audio_sha256": "28618de7de0519020753082dc08bd38878ddb87947353a765fe0f1376db24c18",
+  "rttm_sha256": "eac3881c3c33ee005c69f24a9c74808e96aaabe43657bb65818fc893a6ea99cb"
+}

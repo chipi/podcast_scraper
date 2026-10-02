@@ -5081,7 +5081,7 @@ def generate_episode_metadata(  # noqa: C901
         # is the relpath actually read — quote/viewer references point at it.
         transcript_ref_for_gi = transcript_file_path or "transcript.txt"
         if transcript_file_path and output_dir:
-            from .adfree_transcript import load_processing_transcript
+            from .transcript_resolution import load_processing_transcript
 
             loaded = load_processing_transcript(output_dir, transcript_file_path)
             transcript_text = loaded.text
@@ -5326,7 +5326,7 @@ def generate_episode_metadata(  # noqa: C901
         transcript_text_kg = ""
         transcript_ref_for_kg = transcript_file_path or "transcript.txt"
         if transcript_file_path and output_dir:
-            from .adfree_transcript import load_processing_transcript
+            from .transcript_resolution import load_processing_transcript
 
             loaded_kg = load_processing_transcript(output_dir, transcript_file_path)
             transcript_text_kg = loaded_kg.text

@@ -1373,7 +1373,7 @@ def _write_turns_artifacts(
     Best-effort as a whole: turns have no consumers in v1, so nothing here may cost an episode.
     """
     from . import processing_manifest as pm
-    from .adfree_transcript import adfree_transcript_relpath
+    from .transcript_resolution import adfree_transcript_relpath
     from .turns_artifact import turns_manifest_metrics, write_turns_artifact
 
     language = transcription_language(cfg)

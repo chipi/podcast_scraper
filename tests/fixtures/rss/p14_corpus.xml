@@ -23,5 +23,29 @@
       <itunes:duration>00:07:23</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
     </item>
+
+    <item>
+      <title>Drenagem, Inclinação e o Terceiro Ano</title>
+      <guid isPermaLink="false">p14_e02</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Beatriz Antunes talks with Rafael Vasconcelos: Drenagem, Inclinação e o Terceiro Ano.</description>
+      <enclosure url="/audio/p14_e02.mp3" length="688003" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p14_e02.vtt" type="text/vtt"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:01:26</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Licenças e Paciência</title>
+      <guid isPermaLink="false">p14_e03</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Beatriz Antunes talks with Rafael Vasconcelos: Licenças e Paciência.</description>
+      <enclosure url="/audio/p14_e03.mp3" length="587902" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p14_e03.vtt" type="text/vtt"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:01:13</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
   </channel>
 </rss>

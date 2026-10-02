@@ -135,10 +135,15 @@ class TranslationDocument:
     prompt: Optional[Dict[str, Any]] = None
     source: Dict[str, Any] = field(default_factory=dict)
     units: List[UnitRecord] = field(default_factory=list)
-    #: True when the English render was WITHDRAWN after the fact — every unit translated, but
-    #: the ANALYSIS body could not be written, so the set is not consumable. Without it
-    #: ``status`` reads ``translated`` (it is derived from unit outcomes) while no `.en.*`
-    #: exists, and the API repeats that.
+    #: True when every unit translated but the set on disk is NOT CONSUMABLE — the ANALYSIS body
+    #: could not be written. Without it ``status`` reads ``translated`` (it is derived from unit
+    #: outcomes alone) and the API repeats that for an episode nothing can analyse.
+    #:
+    #: THE NAME IS A LEGACY SPELLING. It dates from before D-44, when the response was to delete
+    #: the `.en.*` files — to "withdraw" them. The atomic swap leaves no partial set to withdraw,
+    #: so nothing is deleted any more and the flag now means only "not consumable". It keeps its
+    #: name because it is a PERSISTED ledger key: every `translation.json` already on disk spells
+    #: it this way, and renaming it would split the field across two spellings for no gain.
     english_withdrawn: bool = False
     #: The EPISODE title in English, when it was translated (S2.4's title decision).
     #:

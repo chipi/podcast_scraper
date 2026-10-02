@@ -258,17 +258,21 @@ class TestANonEnglishCorpusEpisodeCarriesItsEnglishRender:
     """
 
     @staticmethod
-    def _english_render_for(meta_path: Path, doc: dict) -> Path:
-        """The `.en.txt` the pipeline would write beside this episode's source transcript.
+    def _tagged_source_for(meta_path: Path, doc: dict, language: str) -> Path:
+        """Where the SOURCE body lives once translation has swapped it (D-44).
 
-        The suffix STACK is only well-defined from a CANONICAL path, so this derives from
-        `content.transcript_file_path` rather than guessing at the episode id.
+        INVERTED FROM WHAT THIS USED TO BE. It derived `<base>.en.txt` — the translation beside a
+        canonical source. English is now the canonical file, so the artifact that proves a
+        translation happened is the source at `<base>.<lang>.txt`, which only the atomic swap
+        creates. Derived from `content.transcript_file_path` rather than guessing at the episode id,
+        because the suffix is only well-defined from a canonical path.
         """
         rel = (doc.get("content") or {}).get("transcript_file_path")
         assert rel, f"{meta_path.name} has no content.transcript_file_path"
         source = meta_path.parent.parent / str(rel)
         assert source.name.endswith(".txt"), f"unexpected transcript suffix: {source.name}"
-        return source.with_name(source.name[: -len(".txt")] + ".en.txt")
+        lang = language.strip().lower().split("-")[0]
+        return source.with_name(source.name[: -len(".txt")] + f".{lang}.txt")
 
     def _non_english_episodes(self) -> list[tuple[Path, dict]]:
         import json
@@ -290,16 +294,24 @@ class TestANonEnglishCorpusEpisodeCarriesItsEnglishRender:
         eps = self._non_english_episodes()
         assert len(eps) >= 5, f"expected the five non-English shows, found {len(eps)}"
 
-    def test_every_non_english_episode_has_an_english_render(self) -> None:
-        """The `.en.txt` beside the source transcript, resolved the way the pipeline names it."""
+    def test_every_non_english_episode_HAS_been_swapped(self) -> None:
+        """The tagged source beside the canonical body — the artifact only the swap creates.
+
+        Its absence means the canonical `<base>.txt` still holds the SOURCE language, which under
+        D-44 makes the episode unusable: every generic reader opens that path believing it holds the
+        analysis language.
+        """
         missing = []
         for meta_path, doc in self._non_english_episodes():
-            english = self._english_render_for(meta_path, doc)
-            if not english.exists():
-                missing.append(str(english.relative_to(REPO)))
+            language = (doc.get("episode") or {}).get("language") or (doc.get("feed") or {}).get(
+                "language"
+            )
+            tagged = self._tagged_source_for(meta_path, doc, str(language))
+            if not tagged.exists():
+                missing.append(str(tagged.relative_to(REPO)))
         assert not missing, (
-            "non-English corpus episodes with no English render — RFC-124 reads this as "
-            "'never translated', so the two-layer index path has no corpus coverage:\n  "
+            "non-English corpus episodes whose swap never happened, so their canonical body is "
+            "still the source language and the two-layer index path has no corpus coverage:\n  "
             + "\n  ".join(missing)
         )
 
@@ -308,7 +320,10 @@ class TestANonEnglishCorpusEpisodeCarriesItsEnglishRender:
         corpus wrong, which is the failure mode that made the original gap so quiet."""
         bad = []
         for meta_path, doc in self._non_english_episodes():
-            english = self._english_render_for(meta_path, doc)
+            # The CANONICAL body is the English one after the swap — which is the whole point: a
+            # generic reader opens this path without naming a language.
+            rel = (doc.get("content") or {}).get("transcript_file_path")
+            english = meta_path.parent.parent / str(rel)
             if not english.exists():
                 continue  # the test above owns that failure
             head = english.read_text(encoding="utf-8")[:400].lower()

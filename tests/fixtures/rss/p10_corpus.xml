@@ -23,5 +23,29 @@
       <itunes:duration>00:07:16</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
     </item>
+
+    <item>
+      <title>Drenaje, Pendiente y el Tercer Año</title>
+      <guid isPermaLink="false">p10_e02</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Lucía Herrera talks with Javier Benavides: Drenaje, Pendiente y el Tercer Año.</description>
+      <enclosure url="/audio/p10_e02.mp3" length="672121" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p10_e02.vtt" type="text/vtt"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:01:24</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Permisos y Paciencia</title>
+      <guid isPermaLink="false">p10_e03</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Lucía Herrera talks with Javier Benavides: Permisos y Paciencia.</description>
+      <enclosure url="/audio/p10_e03.mp3" length="587484" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p10_e03.vtt" type="text/vtt"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:01:13</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
   </channel>
 </rss>

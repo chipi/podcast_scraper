@@ -1,11 +1,17 @@
 """Refuse English-only NLP on non-English text (S2.14 / MULTILINGUAL_ARC §5.2).
 
 DEFENCE IN DEPTH, AND THE FAILURE IT CATCHES IS SILENT. If translation ran correctly nothing
-non-English reaches an English NLP stage: the completeness gate (RFC-124 §5.3) withholds
-the translation and stops summary/GI/KG, and D-34 puts naming after translation. But a stage
-run out of
-order, a reprocess with the wrong flag, or a future caller that resolves its own transcript
-would feed source-language text to an English model — and §5.2 measured what that produces.
+non-English reaches an English NLP stage: under D-44 the canonical ``<base>.txt`` holds the
+ANALYSIS language once the atomic swap completes, and the completeness gate (RFC-124 §5.3)
+withholds the translation and stops summary/GI/KG when it has not. But a stage run out of order,
+a reprocess with the wrong flag, or a future caller that resolves its own transcript would feed
+source-language text to an English model — and §5.2 measured what that produces.
+
+(This paragraph used to cite D-34, "naming comes after translation", as the second belt. D-34 was
+REVERTED on 2026-10-02 — it was never asked for — so the guarantee now comes from the swap plus
+the completeness gate, which is where it belonged anyway: an ordering rule inside one stage was
+always a weaker claim than "the canonical path holds the analysis language or the gate holds the
+episode".)
 
 WHAT IT PRODUCES IS NOT AN ABSENCE. Measured on the V.6a Spanish fixture against an English
 control:
@@ -18,6 +24,22 @@ control:
 
 A missing name is visible. A wrong one is not. That asymmetry is the whole argument for a guard
 that refuses rather than a stage that copes.
+
+WHICH OF THOSE THREE THE PER-LANGUAGE VOCABULARIES NOW ADDRESS — and which this guard is still the
+only answer for (2026-10-02):
+
+- Ad excision (0 of 6) is a PATTERN problem, and patterns are data.
+  :data:`podcast_scraper.gi.filters.AD_PATTERNS_BY_LANGUAGE` now carries a row per tier-1
+  language, so the vocabulary exists. It is UNMEASURED — the rows are translations, not
+  observations — so this guard still refuses rather than trusting them.
+- The sniff gate's over-count (98 vs 65) is likewise threshold-and-pattern shaped, and
+  ``sniff_gate`` consults :func:`is_target_language` for exactly that reason.
+- NER precision (67% -> 18%) is MODEL-bound and nothing here changes it. The entity model is
+  English; a Spanish one is a different model, not a different constant. This is the finding that
+  keeps the guard necessary, and it is why
+  :data:`podcast_scraper.speaker_detectors.constants.SPEAKER_CUE_LANGUAGES` being non-empty for a
+  language must not be read as "NER works for that language" — the cue vocabulary feeds the
+  pattern-based detectors that sit AROUND the model, not the model.
 
 THIS MODULE REFUSES; IT DOES NOT RAISE. A guard that raised would turn a stage-ordering mistake
 into a lost episode, and the episode is recoverable while a corpus of confidently wrong claims
@@ -32,6 +54,13 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 #: Recorded on the stage that declined, so an audit can GROUP BY it.
+#:
+#: The NAME carries no language, per the platform rule that a function or constant must not name
+#: one. The VALUE deliberately still reads ``input_not_english``: it is an audit key already
+#: written into manifests, and renaming it would split every existing GROUP BY across two
+#: spellings for no gain. The language it names is :data:`podcast_scraper.languages.TARGET_LANGUAGE`
+#: — if that ever stops being English, this value becomes a legacy spelling and the comment is
+#: what says so.
 REASON_INPUT_NOT_TARGET_LANGUAGE = "input_not_english"
 
 

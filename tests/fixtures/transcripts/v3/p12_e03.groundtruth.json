@@ -1,0 +1,26 @@
+{
+  "fixture": "p12_e03",
+  "podcast": "Sessions Sentier — Episodio",
+  "episode": "Permis et Patience",
+  "type": "interview",
+  "speakers": [
+    "Camille Dubois",
+    "Julien Mercier"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Camille Dubois": "Amelie",
+    "Julien Mercier": "Thomas"
+  },
+  "voice_pitch_shift": {},
+  "cameo": null,
+  "transcript_sha256": "5fedce6f39c398107a515fcab2e88fecffea01a44d0f40be8e595ec833648cab",
+  "audio_sha256": "d3ecdde79653dfdf300e2e074ef300b12817810d342c2dd1d61818451f911707",
+  "rttm_sha256": "80d49bb7ebcbbfe1e7b882fe4fabe65e5ac3ab60404bab01afe0bc32e7408da7"
+}

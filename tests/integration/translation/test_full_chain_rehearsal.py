@@ -400,3 +400,107 @@ class TestTheLedgerIsHonest:
         for u in units:
             assert u["model"] == "stub/rehearsal"
             assert u["prompt_sha256"] == "0" * 64
+
+
+class TestTheAnalysisBaseFailingDoesNotTakeTheEpisODEWithIt:
+    """The branch that had NO test, which is how a function that cannot run stayed green.
+
+    `_withdraw_english_render` imported `english_artifact_relpaths` — deleted by D-44 — so it
+    raised ImportError the instant it was called, which was whenever `write_analysis_base`
+    returned None for a translated episode. The tests that had covered it were deleted in the
+    same change (their note correctly says the atomic swap leaves no partial set to withdraw),
+    and nothing replaced them, so the gate was green over a crashing path for a day.
+
+    WHAT THIS ASSERTS IS THE CONTRACT, NOT THE OLD MECHANISM: the stage records the failure and
+    leaves the disk alone. Deleting the canonical body — which is what the withdrawal did before
+    the inversion, when the canonical body was the SOURCE — would now destroy the only copy of
+    the English text and leave the episode with no body at all.
+    """
+
+    @pytest.fixture
+    def failed_base(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
+        from podcast_scraper.translation import artifacts as tartifacts, factory as tfactory
+        from podcast_scraper.workflow import translation_stage
+
+        _lay_down_episode(tmp_path)
+        stub = _StubTranslator()
+        monkeypatch.setattr(tfactory, "create_translation_provider", lambda *a, **k: stub)
+        monkeypatch.setattr(
+            translation_stage, "create_translation_provider", lambda *a, **k: stub, raising=False
+        )
+        # `write_analysis_base` returns None for an unreadable or empty English body — not for
+        # "no ads found", which produces a valid identity base. Forced here rather than
+        # constructed, because the states that produce it naturally (an empty segments list after
+        # a successful swap) are themselves invariant violations.
+        #
+        # PATCHED ON THE DEFINING MODULE, not on `translation_stage`. The stage imports it inside
+        # the function body, so the name is looked up on `translation.artifacts` at call time and
+        # a module-attribute patch on the stage is simply ignored — which is how the first version
+        # of this fixture "passed" three assertions while never taking the branch at all.
+        assert hasattr(tartifacts, "write_analysis_base"), "the patch target moved"
+        monkeypatch.setattr(tartifacts, "write_analysis_base", lambda *a, **k: None)
+
+        translation = translation_stage.run_translation_stage(
+            _cfg(tmp_path),
+            feed_language="es-ES",
+            transcript_relpath=REL,
+            effective_output_dir=str(tmp_path),
+            episode_id="p10_e01",
+            feed_id="p10",
+            run_id="rehearsal-no-base",
+            episode_title="Construyendo Senderos Que Duran",
+        )
+        return {"root": tmp_path, "translation": translation}
+
+    def test_the_stage_does_not_raise(self, failed_base: Dict[str, Any]) -> None:
+        """The whole point. Reaching this assertion at all is the regression test — the fixture
+        raised ImportError before the dead withdrawal was removed."""
+        assert failed_base["translation"] is not None
+
+    def test_it_records_failed_rather_than_claiming_success(
+        self, failed_base: Dict[str, Any]
+    ) -> None:
+        """`TranslationDocument.status` is derived from unit outcomes, so with zero failed units
+        it reads `translated` — which is why the ledger needs the explicit flag. Without it the
+        API reports success for an episode nothing could analyse."""
+        assert failed_base["translation"].status == "failed"
+        assert failed_base["translation"].english_ready is False
+
+    def test_the_canonical_english_body_is_STILL_ON_DISK(self, failed_base: Dict[str, Any]) -> None:
+        """The inversion's teeth. Before D-44 the canonical path held the SOURCE, so deleting the
+        English files was recoverable. It now holds the TRANSLATION, and the source lives at its
+        tagged name — so a withdrawal would delete the English text and leave the episode with a
+        canonical path that does not exist."""
+        body = failed_base["root"] / REL
+        assert body.exists(), "the canonical body was deleted — that is the bug, inverted"
+        assert body.read_text(encoding="utf-8").strip(), "the canonical body is empty"
+
+    def test_the_tagged_source_is_still_on_disk_too(self, failed_base: Dict[str, Any]) -> None:
+        """Both halves of the swap survive, so the episode is repairable by re-running the stage
+        rather than by re-transcribing."""
+        base = (failed_base["root"] / REL).with_suffix("")
+        assert base.with_suffix(".es.txt").exists(), "the tagged Spanish source is gone"
+
+    def test_the_ledger_says_the_set_is_not_consumable(self, failed_base: Dict[str, Any]) -> None:
+        import json
+
+        ledger = json.loads(
+            (failed_base["root"] / "transcripts" / "p10_e01.translation.json").read_text(
+                encoding="utf-8"
+            )
+            if (failed_base["root"] / "transcripts" / "p10_e01.translation.json").exists()
+            else (
+                (failed_base["root"] / REL)
+                .with_suffix("")
+                .with_suffix(".translation.json")
+                .read_text(encoding="utf-8")
+            )
+        )
+        assert ledger["english_withdrawn"] is True, (
+            "the legacy-named flag is what drives `status` to failed; without it the ledger "
+            "contradicts the disk"
+        )
+        assert ledger["units_failed"] == 0, (
+            "no unit failed — this is not a model failure, and an operator re-running the "
+            "translator would be chasing the wrong thing"
+        )

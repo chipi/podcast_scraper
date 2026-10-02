@@ -20,21 +20,47 @@ for observability.
 from __future__ import annotations
 
 import re
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
+
+from ..languages import TARGET_LANGUAGE
 
 # ---------------------------------------------------------------------------
 # Ad filter (Finding 14-lite)
 # ---------------------------------------------------------------------------
 
-# Patterns are tuned for SPOKEN transcript text (Whisper output) where URLs
-# become phonetic — "bloomberg.com/odd_lots" → "Bloomberg dot com slash Odd
-# Lots". Pre-overnight-#652-stabilization the patterns assumed machine-URL
-# form (``\bvisit\s+[\w.]+/\w+\b``) and caught 0/1200 insights on a 100-ep
-# real corpus. Verified spoken-form patterns hit ad reads in 11/100 eps
-# at the ≥ 2-distinct-patterns threshold.
-_AD_PATTERNS: Tuple[re.Pattern[str], ...] = tuple(
-    re.compile(p, re.IGNORECASE)
-    for p in (
+#: Sponsor-ad cue vocabulary, KEYED BY THE LANGUAGE OF THE TEXT BEING SCANNED.
+#:
+#: WHY A MAP AND NOT A LIST. Every pattern below is a phrase in a specific language, so a flat list
+#: is a list in ONE language wearing no label. Scanned against Spanish, the English list matches
+#: nothing and the caller cannot tell "this episode has no ads" from "I do not speak this episode".
+#: Measured on the V.6a fixture: the Spanish source matched ZERO English patterns while its English
+#: translation matched the ad read correctly. The shape follows
+#: :data:`podcast_scraper.search.query_language._MARKERS`, which is language-keyed for the same
+#: reason.
+#:
+#: WHY THIS IS LATENT, NOT A LIVE BUG. Under D-44 the canonical transcript body is always the
+#: ANALYSIS language, so every caller here reads English by construction and
+#: :data:`_AD_PATTERNS` below resolves to exactly the list that shipped. The map is what makes a
+#: future non-English analysis language a DATA change rather than a rewrite.
+#:
+#: HONEST PROVENANCE OF THE NON-ENGLISH ROWS. The English row is MEASURED — verified spoken-form
+#: patterns hit ad reads in 11/100 episodes of a real corpus at the >= 2-distinct threshold. The
+#: other five rows are TRANSLATIONS, authored from the English categories and never run against
+#: real non-English podcast audio. They are a starting vocabulary, not a measurement; the first
+#: non-English ASR run (#2187) is what can tell whether they fire.
+#:
+#: Each row keeps the English row's three categories, because that is what the >= 2-distinct
+#: threshold assumes: a sponsor disclosure, a spoken/hybrid URL, and a promo/CTA.
+#: Accents are written ``(?:ó|o)`` throughout — ASR drops them routinely, and a pattern that
+#: requires the accent silently stops matching the moment it does.
+_AD_PATTERN_SOURCES: Dict[str, Tuple[str, ...]] = {
+    # Patterns are tuned for SPOKEN transcript text (Whisper output) where URLs
+    # become phonetic — "bloomberg.com/odd_lots" → "Bloomberg dot com slash Odd
+    # Lots". Pre-overnight-#652-stabilization the patterns assumed machine-URL
+    # form (``\bvisit\s+[\w.]+/\w+\b``) and caught 0/1200 insights on a 100-ep
+    # real corpus. Verified spoken-form patterns hit ad reads in 11/100 eps
+    # at the ≥ 2-distinct-patterns threshold.
+    "en": (
         # Sponsor disclosure phrases — high-precision standalone signals.
         r"\bbrought to you by\b",
         r"\bsponsored by\b",
@@ -68,8 +94,191 @@ _AD_PATTERNS: Tuple[re.Pattern[str], ...] = tuple(
         r"\bfree (?:trial|month|shipping|delivery)\b",
         r"\bfor a limited time\b",
         r"\bsign up\s+(?:today|now)\b",
-    )
-)
+    ),
+    "es": (
+        # Sponsor disclosure.
+        r"\bpatrocinado por\b",
+        r"\bcon el patrocinio de\b",
+        r"\beste episodio (?:est(?:á|a)|es) patrocinado\b",
+        r"\beste (?:programa|podcast) (?:est(?:á|a)|es) patrocinado\b",
+        r"\bnuestros? patrocinadores?\b",
+        r"\bel patrocinador de hoy\b",
+        r"\bgracias a (?:nuestros )?patrocinadores\b",
+        r"\bapoya (?:el|este) (?:programa|podcast)\b",
+        # Spoken URL — "punto com" is the Spanish "dot com".
+        r"\b\w+\s+punto\s+com\b",
+        r"\bpunto\s+com\s+barra\b",
+        r"\bbarra\s+(?:promo|c(?:ó|o)digo|oferta|gratis|prueba)\b",
+        r"\b(?:ve|vayan?|entra|entren)\s+a\s+\w+\s+punto\s+com\b",
+        r"\bvisita\w*\s+\w+\s+punto\s+com\b",
+        # Hybrid URL forms.
+        r"\b\w+\.(?:com|es|ai|io|co)\s+barra\b",
+        r"\bvisita\w*\s+\w+\.(?:com|es|ai|io|co)\b",
+        r"\b(?:ve|entra)\s+a\s+\w+\.(?:com|es|ai|io|co)\b",
+        r"\bm(?:á|a)s informaci(?:ó|o)n en\s+\w+\.(?:com|es|ai|io|co)\b",
+        # Promo / CTA.
+        r"\bc(?:ó|o)digo (?:promocional|de descuento)\b",
+        r"\busa\s+el\s+c(?:ó|o)digo\b",
+        r"\bahorra\s+(?:hasta\s+)?\d+\s*(?:por ciento|%)\b",
+        r"\b\d+\s*(?:por ciento|%)\s*de descuento\b",
+        r"\b(?:prueba|env(?:í|i)o|mes)\s+gratis\b",
+        r"\bpor tiempo limitado\b",
+        r"\breg(?:í|i)strate\s+(?:hoy|ahora|ya)\b",
+    ),
+    "it": (
+        # Sponsor disclosure.
+        r"\bsponsorizzato da(?:l|lla|llo|gli|lle|i)?\b",
+        r"\bin collaborazione con\b",
+        r"\bquesto episodio (?:è|e'|e) sponsorizzato\b",
+        r"\bquesto (?:programma|podcast) (?:è|e'|e) sponsorizzato\b",
+        r"\bi nostri sponsor\b",
+        r"\blo sponsor di oggi\b",
+        r"\bgrazie ai nostri sponsor\b",
+        r"\bsostieni (?:il|questo) (?:programma|podcast)\b",
+        # Spoken URL.
+        r"\b\w+\s+punto\s+com\b",
+        r"\bpunto\s+com\s+(?:slash|barra)\b",
+        r"\b(?:slash|barra)\s+(?:promo|codice|offerta|gratis|prova)\b",
+        r"\b(?:vai|andate)\s+su\s+\w+\s+punto\s+com\b",  # codespell:ignore vai
+        r"\bvisita\w*\s+\w+\s+punto\s+com\b",
+        # Hybrid URL forms.
+        r"\b\w+\.(?:com|it|ai|io|co)\s+(?:slash|barra)\b",
+        r"\bvisita\w*\s+\w+\.(?:com|it|ai|io|co)\b",
+        r"\b(?:vai|andate)\s+su\s+\w+\.(?:com|it|ai|io|co)\b",  # codespell:ignore vai
+        r"\bscopri di pi(?:ù|u)\s+su\s+\w+\.(?:com|it|ai|io|co)\b",
+        # Promo / CTA.
+        r"\bcodice (?:promozionale|sconto)\b",
+        r"\busa\s+il\s+codice\b",
+        r"\brisparmia\s+(?:fino a\s+)?\d+\s*(?:per cento|%)\b",
+        r"\b\d+\s*(?:per cento|%)\s*di sconto\b",
+        r"\b(?:prova|spedizione|mese)\s+gratuit\w+\b",
+        r"\bper un (?:periodo|tempo) limitato\b",
+        r"\biscriviti\s+(?:oggi|ora|subito)\b",
+    ),
+    "fr": (
+        # Sponsor disclosure.
+        r"\bsponsoris(?:é|e) par\b",
+        r"\bpr(?:é|e)sent(?:é|e) par\b",
+        r"\bcet (?:é|e)pisode est sponsoris(?:é|e)\b",
+        r"\bce (?:programme|podcast) est sponsoris(?:é|e)\b",
+        r"\bnos (?:sponsors|partenaires)\b",
+        r"\ble sponsor du jour\b",
+        r"\bmerci (?:à|a) nos sponsors\b",
+        r"\bsoutenez (?:le|ce) (?:programme|podcast)\b",
+        # Spoken URL — "point com".
+        r"\b\w+\s+point\s+com\b",
+        r"\bpoint\s+com\s+(?:slash|barre)\b",
+        r"\b(?:slash|barre)\s+(?:promo|code|offre|gratuit|essai)\b",
+        r"\b(?:allez|rendez-vous)\s+sur\s+\w+\s+point\s+com\b",
+        r"\bvisitez\s+\w+\s+point\s+com\b",
+        # Hybrid URL forms.
+        r"\b\w+\.(?:com|fr|ai|io|co)\s+(?:slash|barre)\b",
+        r"\bvisitez\s+\w+\.(?:com|fr|ai|io|co)\b",
+        r"\b(?:allez|rendez-vous)\s+sur\s+\w+\.(?:com|fr|ai|io|co)\b",
+        r"\ben savoir plus sur\s+\w+\.(?:com|fr|ai|io|co)\b",
+        # Promo / CTA.
+        r"\bcode (?:promo|promotionnel|de r(?:é|e)duction)\b",
+        r"\butilisez\s+le\s+code\b",
+        r"\b(?:é|e)conomisez\s+(?:jusqu'(?:à|a)\s+)?\d+\s*(?:pour cent|%)\b",
+        r"\b\d+\s*(?:pour cent|%)\s*de (?:r(?:é|e)duction|remise)\b",
+        r"\b(?:essai|livraison|mois)\s+gratuit\w*\b",
+        r"\bpour une dur(?:é|e)e limit(?:é|e)e\b",
+        r"\binscrivez-vous\s+(?:aujourd'hui|maintenant|d(?:è|e)s maintenant)\b",
+    ),
+    "de": (
+        # Sponsor disclosure. ``Werbung`` is here because German podcasts announce paid segments
+        # with the bare word — legally required, so it is a high-frequency marker. It is also the
+        # ordinary noun for "advertising", which is exactly what the >= 2-distinct threshold is
+        # for: on its own it never cuts anything.
+        r"\bpr(?:ä|a)sentiert von\b",
+        r"\bgesponsert vo(?:n|m)\b",
+        r"\bdiese (?:folge|episode) (?:wird|ist).{0,40}?gesponsert\b",
+        r"\bunsere? sponsoren?\b",
+        r"\bunser sponsor heute\b",
+        r"\bdanke an unsere sponsoren\b",
+        r"\bunterst(?:ü|u)tz(?:e|t) (?:den|diesen) podcast\b",
+        r"\bmit unterst(?:ü|u)tzung von\b",
+        r"\bwerbung\b",
+        # Spoken URL — "punkt de" as often as "punkt com".
+        r"\b\w+\s+punkt\s+(?:com|de)\b",
+        r"\bpunkt\s+(?:com|de)\s+(?:slash|schr(?:ä|a)gstrich)\b",
+        r"\b(?:slash|schr(?:ä|a)gstrich)\s+(?:promo|code|angebot|gratis|test)\b",
+        r"\b(?:geh|geht|gehen sie)\s+auf\s+\w+\s+punkt\s+(?:com|de)\b",  # codespell:ignore sie
+        r"\bbesuch(?:e|t|en sie)?\s+\w+\s+punkt\s+(?:com|de)\b",  # codespell:ignore sie
+        # Hybrid URL forms.
+        r"\b\w+\.(?:com|de|ai|io|co)\s+(?:slash|schr(?:ä|a)gstrich)\b",
+        r"\bbesuch(?:e|t|en sie)?\s+\w+\.(?:com|de|ai|io|co)\b",  # codespell:ignore sie
+        r"\bmehr (?:dazu|infos|informationen) (?:unter|auf)"  # codespell:ignore unter
+        r"\s+\w+\.(?:com|de|ai|io|co)\b",
+        # Promo / CTA.
+        r"\b(?:gutschein|rabatt|promo)code\b",
+        r"\bmit dem code\b",
+        r"\b\d+\s*(?:prozent|%)\s*(?:rabatt|sparen)\b",
+        r"\bspar(?:e|t|en sie)\s+(?:bis zu\s+)?\d+\s*(?:prozent|%)\b",  # codespell:ignore sie
+        r"\bkostenlos(?:e|er)?\s+(?:testphase|versand|monat)\b",
+        r"\bgratis\s+testen\b",
+        r"\bnur f(?:ü|u)r kurze zeit\b",
+        r"\bjetzt\s+(?:anmelden|registrieren)\b",
+    ),
+    "pt": (
+        # Sponsor disclosure.
+        r"\bpatrocinado p(?:or|el[oa])\b",
+        r"\boferecid[oa] p(?:or|el[oa])\b",
+        r"\beste epis(?:ó|o)dio (?:é|e) patrocinado\b",
+        r"\beste (?:programa|podcast) (?:é|e) patrocinado\b",
+        r"\bnossos? patrocinadores?\b",
+        r"\bo patrocinador de hoje\b",
+        r"\bobrigado aos nossos patrocinadores\b",
+        r"\bapoie (?:o|este) (?:programa|podcast)\b",
+        # Spoken URL — "ponto com".
+        r"\b\w+\s+ponto\s+com\b",
+        r"\bponto\s+com\s+barra\b",
+        r"\bbarra\s+(?:promo|c(?:ó|o)digo|oferta|gr(?:á|a)tis|teste)\b",
+        r"\b(?:v(?:á|a)|acesse|entre em)\s+\w+\s+ponto\s+com\b",
+        r"\bvisite\s+\w+\s+ponto\s+com\b",
+        # Hybrid URL forms.
+        r"\b\w+\.(?:com|br|ai|io|co)\s+barra\b",
+        r"\b(?:visite|acesse)\s+\w+\.(?:com|br|ai|io|co)\b",
+        r"\bsaiba mais em\s+\w+\.(?:com|br|ai|io|co)\b",
+        # Promo / CTA.
+        r"\bc(?:ó|o)digo (?:promocional|de desconto)\b",
+        r"\buse o c(?:ó|o)digo\b",
+        r"\beconomize\s+(?:at(?:é|e)\s+)?\d+\s*(?:por cento|%)\b",
+        r"\b\d+\s*(?:por cento|%)\s*de desconto\b",
+        r"\b(?:teste|frete|m(?:ê|e)s)\s+gr(?:á|a)tis\b",
+        r"\bpor tempo limitado\b",
+        r"\b(?:inscreva-se|cadastre-se)\s+(?:hoje|agora|j(?:á|a))\b",
+    ),
+}
+
+AD_PATTERNS_BY_LANGUAGE: Dict[str, Tuple[re.Pattern[str], ...]] = {
+    lang: tuple(re.compile(p, re.IGNORECASE) for p in patterns)
+    for lang, patterns in _AD_PATTERN_SOURCES.items()
+}
+
+
+def ad_patterns_for(language: Optional[str]) -> Tuple[re.Pattern[str], ...]:
+    """The ad-cue patterns for ``language`` — EMPTY when we have no vocabulary for it.
+
+    Empty rather than an English fallback, deliberately. Scanning Spanish with English regexes
+    returns zero hits, which reads downstream as "this episode is clean" — a confident wrong
+    answer. Empty is the same zero, but :data:`AD_PATTERNS_LANGUAGES` lets a caller that cares
+    tell the two apart instead of being lied to.
+    """
+    if not language:
+        return ()
+    return AD_PATTERNS_BY_LANGUAGE.get(language.strip().lower().split("-")[0], ())
+
+
+#: The languages whose ad vocabulary exists at all. A caller deciding whether ad excision is
+#: MEANINGFUL for an episode asks this, not ``ad_patterns_for(...) != ()``.
+AD_PATTERNS_LANGUAGES = frozenset(AD_PATTERNS_BY_LANGUAGE)
+
+#: The analysis-language row, resolved once. Under D-44 the canonical transcript body is always
+#: the analysis language, so this is what every caller in this package reads — and it is byte-for
+#: -byte the list that shipped before the map existed.
+_AD_PATTERNS: Tuple[re.Pattern[str], ...] = AD_PATTERNS_BY_LANGUAGE[TARGET_LANGUAGE]
+
 
 _AD_HITS_THRESHOLD = 2
 

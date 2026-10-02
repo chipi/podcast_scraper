@@ -140,10 +140,10 @@ def _probe(ep: Dict[str, Any]) -> Dict[str, Any]:
     )
     from podcast_scraper.server.segments_view import segments_relpaths_for_transcript
     from podcast_scraper.upgrade.migrations.m0009_backfill_speaker_roles import _segments_sidecar
-    from podcast_scraper.workflow.adfree_transcript import load_processing_transcript
     from podcast_scraper.workflow.metadata_generation import (
         _build_speakers_from_diarized_segments,
     )
+    from podcast_scraper.workflow.transcript_resolution import load_processing_transcript
 
     run_root: Path = ep["run_root"]
     corpus_root: Path = ep["corpus_root"]
@@ -386,7 +386,7 @@ def test_precedence_when_both_segment_sidecars_exist(tmp_path: Path) -> None:
     from podcast_scraper.gi.repair import _segments_for
     from podcast_scraper.server.segments_view import segments_relpaths_for_transcript
     from podcast_scraper.upgrade.migrations.m0009_backfill_speaker_roles import _segments_sidecar
-    from podcast_scraper.workflow.adfree_transcript import load_processing_transcript
+    from podcast_scraper.workflow.transcript_resolution import load_processing_transcript
 
     run_root = tmp_path / "feeds" / "pX"
     rel = _write_episode_with_every_variant(run_root)

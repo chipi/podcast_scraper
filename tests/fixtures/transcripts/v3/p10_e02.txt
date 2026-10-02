@@ -1,0 +1,31 @@
+# Sesiones de Sendero — Episodio
+## Drenaje, Pendiente y el Tercer Año
+Host: Lucía Herrera
+Guest: Javier Benavides
+#fixture-v3: failure_modes=none
+#fixture-v3: voice=es-ES host_voice=es-ES
+
+[00:00]
+Lucía Herrera: Bienvenidos de nuevo a Sesiones de Sendero. Hoy conmigo está Javier Benavides, constructor de senderos.
+Javier Benavides: Gracias por invitarme. Encantado de estar aquí.
+Lucía Herrera: Este episodio está patrocinado por Ramp. Entra a ramp punto com barra oferta para empezar. Usa el código SENDERO y ahorra 20 por ciento, por tiempo limitado.
+
+[02:00]
+Lucía Herrera: Empecemos por el drenaje. ¿Por qué es la primera decisión?
+Javier Benavides: Porque el agua decide todo lo demás. Si el agua no sale del sendero, el sendero se convierte en el cauce.
+Lucía Herrera: ¿Y qué pasa cuando el presupuesto no alcanza para hacerlo bien?
+Javier Benavides: Entonces se recorta en la capa de base, y eso es justo donde no se debe recortar.
+Lucía Herrera: Cuéntame del error más común que ves en equipos nuevos.
+Javier Benavides: Excavar con demasiada pendiente. Parece más rápido el primer día y cuesta el triple al tercer año.
+
+[12:00]
+Lucía Herrera: También hablamos sobre el informe de Elena de la Fuente, que no pudo acompañarnos hoy.
+
+Lucía Herrera: ¿Cómo se ve ese fallo tres años después?
+Javier Benavides: Se ve como una zanja. Y reconstruir cuesta más que haberlo hecho bien desde el principio.
+Lucía Herrera: Antes de cerrar, ¿qué puede probar alguien esta semana?
+Javier Benavides: Caminar su sendero después de una lluvia fuerte. El agua le va a mostrar cada error.
+
+[26:00]
+Lucía Herrera: Javier Benavides, gracias por la conversación.
+Javier Benavides: Gracias a ti, Lucía.

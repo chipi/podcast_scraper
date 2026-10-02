@@ -1,0 +1,29 @@
+# Sentieri d'Autore — Episodio
+## Permessi e Pazienza
+Host: Giulia Ferrara
+Guest: Marco Bellini
+#fixture-v3: failure_modes=none
+#fixture-v3: voice=it-IT host_voice=it-IT
+
+[00:00]
+Giulia Ferrara: Bentornati a Sentieri d'Autore. Oggi con me c'è Marco Bellini, costruttore di sentieri.
+Marco Bellini: Grazie per l'invito. Felice di essere qui.
+
+[01:30]
+Giulia Ferrara: Parliamo anche del rapporto su Chiara Di Stefano, che oggi non è con noi.
+
+[03:00]
+Giulia Ferrara: Prima di chiudere, cosa può provare qualcuno questa settimana?
+Marco Bellini: Camminare sul proprio sentiero dopo una pioggia forte. L'acqua mostra ogni errore.
+Giulia Ferrara: Come si presenta quel guasto dopo tre anni?
+Marco Bellini: Si presenta come un fosso. E ricostruire costa più che farlo bene dall'inizio.
+Giulia Ferrara: Raccontami l'errore più comune che vedi nelle squadre nuove.
+Marco Bellini: Scavare con una pendenza troppo forte. Sembra più rapido il primo giorno e costa il triplo al terzo anno.
+Giulia Ferrara: E quando il budget non basta per farlo bene?
+Marco Bellini: Allora si taglia sullo strato di base, ed è proprio lì che non si deve tagliare.
+Giulia Ferrara: Partiamo dal drenaggio. Perché è la prima decisione?
+Marco Bellini: Perché l'acqua decide tutto il resto. Se l'acqua non esce dal sentiero, il sentiero diventa il canale.
+
+[24:00]
+Giulia Ferrara: Marco Bellini, grazie per la conversazione.
+Marco Bellini: Grazie a te, Giulia.

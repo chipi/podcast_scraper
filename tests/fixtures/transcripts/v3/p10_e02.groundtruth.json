@@ -1,0 +1,28 @@
+{
+  "fixture": "p10_e02",
+  "podcast": "Sesiones de Sendero — Episodio",
+  "episode": "Drenaje, Pendiente y el Tercer Año",
+  "type": "interview",
+  "speakers": [
+    "Lucía Herrera",
+    "Javier Benavides"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Lucía Herrera": "Monica",
+    "Javier Benavides": "Paulina"
+  },
+  "voice_pitch_shift": {
+    "Javier Benavides": 0.45
+  },
+  "cameo": null,
+  "transcript_sha256": "cb6c0cf1ad3b21b797ad9e835f56b7fc092fd3a1c3f32684420749606c61af7d",
+  "audio_sha256": "a71d86be6c0ce52a8f42332568cfb1af03a02e2d576da252be2e15e629d2051e",
+  "rttm_sha256": "9c484bb83119885885690294c34f9be34b0c6c7ac51ca03edb79bfbaf1cfb367"
+}

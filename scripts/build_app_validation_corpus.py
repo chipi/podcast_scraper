@@ -404,6 +404,46 @@ def _capture_summaries(
     return written, skipped
 
 
+def _drop_untranslated_non_english(
+    transcripts: list[Path], feed_meta: dict[str, Any], feed_id: str, version: str
+) -> list[Path]:
+    """Remove non-English episodes that have no captured translation to replay.
+
+    Extracted rather than inlined for the reason :func:`_replay_english_stack` was — ``main`` sits
+    at the flake8 complexity ceiling and this block pushed it to 26.
+
+    SKIPPING IS THE ONLY CORRECT OPTION HERE, not the cautious one. D-44 makes the canonical
+    ``<base>.txt`` the ANALYSIS language: a reader that opens it without naming a language is
+    promised English. The translation is REPLAYED from a captured run and never synthesised,
+    because a hand-written "English" body would make the two-layer index path look covered while
+    testing nothing real. With no capture there is nothing to replay, so the episode would land
+    with its SOURCE body at the canonical path — every generic reader then gets Spanish while
+    believing it has English, and ``test_fixture_languages`` fails on the missing tagged source,
+    correctly.
+
+    So the episode waits for its capture. Produce one by running the translation stage over it and
+    re-running this builder with the capture in place.
+    """
+    language = str(feed_meta.get("language") or "").split("-")[0].lower()
+    if language in ("", "en"):
+        return transcripts
+    missing = [tr.stem for tr in transcripts if _captured_render_for(tr.stem, version) is None]
+    if not missing:
+        return transcripts
+    print(
+        f"  !! {feed_id}: SKIPPING {len(missing)} non-English episode(s) with no captured "
+        f"translation: {', '.join(missing)}",
+        file=sys.stderr,
+    )
+    print(
+        "     They exist as transcripts/VTT/audio and ARE served by the mock server; they are "
+        f"absent from THIS corpus until a translation run captures their English render into "
+        f"{CAPTURED_RENDER_DIR / version}/.",
+        file=sys.stderr,
+    )
+    return [tr for tr in transcripts if tr.stem not in missing]
+
+
 def _replay_english_stack(run_tr_dir: Path, ep_label: str, version: str) -> int:
     """Write this episode's captured `.en.*` stack beside its source transcript. Returns a count.
 
@@ -1811,6 +1851,7 @@ def main() -> int:
 
         transcripts = sorted(args.transcripts_dir.glob(f"{show_dir}_e[0-9]*.txt"))
         transcripts = [t for t in transcripts if "_multi_" not in t.stem and "_fast" not in t.stem]
+        transcripts = _drop_untranslated_non_english(transcripts, feed_meta, feed_id, version)
         if args.max_episodes_per_feed is not None:
             transcripts = transcripts[: args.max_episodes_per_feed]
 
@@ -1974,7 +2015,23 @@ def main() -> int:
             )
 
             # Transcript text + RAW canonical segments (player contract).
+            #
+            # BOTH ARE WRITTEN BEFORE THE REPLAY, and the order is load-bearing. The segments
+            # write used to sit AFTER `_replay_english_stack`, which silently undid the swap for
+            # every non-English episode: the replay moves `<ep>.segments.json` to the tagged name
+            # and puts the ENGLISH segments at the canonical one, and the later write then
+            # clobbered those English segments with the raw source ones. The move itself was also
+            # a no-op, because the file it looked for did not exist yet.
+            #
+            # Found 2026-10-02 by rebuilding the corpus and diffing: the committed
+            # `p10_e01.segments.json` carried the English segments with their `unit_id` /
+            # `char_start` mapping, and a rebuild replaced them with raw Spanish — so the
+            # committed artifacts were right and the builder could no longer reproduce them.
             (run_tr_dir / f"{ep_label}.txt").write_text(raw_text, encoding="utf-8")
+            (run_tr_dir / f"{ep_label}.segments.json").write_text(
+                json.dumps(_raw_canonical_segments(offset_segs), indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
             # RFC-124: a translated episode's ENGLISH RENDER travels with it. Replayed from the
             # captured run, never synthesised -- a hand-written "English" body would make the
             # two-layer index path look covered while testing nothing real. Absent for English
@@ -1982,10 +2039,6 @@ def main() -> int:
             # the source body directly), so this is keyed on a captured render existing, not on
             # the episode's language.
             _replay_english_stack(run_tr_dir, ep_label, version)
-            (run_tr_dir / f"{ep_label}.segments.json").write_text(
-                json.dumps(_raw_canonical_segments(offset_segs), indent=2, sort_keys=True) + "\n",
-                encoding="utf-8",
-            )
             # Diarization diagnostics next to the transcript — what the diarized-speaker read
             # surfaces (MCP episode_speaker_roster) read (talk-share, roster, host/guest).
             (run_tr_dir / f"{ep_label}.speakers.diagnostics.json").write_text(

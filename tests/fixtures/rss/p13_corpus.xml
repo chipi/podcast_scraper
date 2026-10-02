@@ -23,5 +23,29 @@
       <itunes:duration>00:07:00</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
     </item>
+
+    <item>
+      <title>Drainage, Gefälle und das Dritte Jahr</title>
+      <guid isPermaLink="false">p13_e02</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Katrin Vogel talks with Stefan Brandt: Drainage, Gefälle und das Dritte Jahr.</description>
+      <enclosure url="/audio/p13_e02.mp3" length="638057" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p13_e02.vtt" type="text/vtt"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:01:20</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Genehmigungen und Geduld</title>
+      <guid isPermaLink="false">p13_e03</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Katrin Vogel talks with Stefan Brandt: Genehmigungen und Geduld.</description>
+      <enclosure url="/audio/p13_e03.mp3" length="532940" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p13_e03.vtt" type="text/vtt"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:01:07</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
   </channel>
 </rss>

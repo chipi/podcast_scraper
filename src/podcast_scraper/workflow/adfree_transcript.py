@@ -16,9 +16,21 @@ Artifacts written next to the raw ``<base>.txt``:
 - ``<base>.adfree.admap.json``   — the ad-map: excised ranges in raw-screenplay space,
   to reconcile an ad-free offset back to the raw transcript for the future player
 
-This module PRODUCES those artifacts. Deciding which variant a reader should consume is a
-separate job and lives in :mod:`podcast_scraper.workflow.transcript_resolution` (#2170) —
-the resolver names are re-exported here so existing importers keep working.
+This module PRODUCES those artifacts. Two neighbouring jobs deliberately do not live here:
+
+* The SUFFIX VOCABULARY (``.adfree``, ``.cleaned``, ``.anon``) and the order a reader should try
+  them in belong to :mod:`podcast_scraper.workflow.transcript_resolution`. One module owning the
+  whole stack is what stops a producer and a reader disagreeing about a filename, so this module
+  imports :data:`~podcast_scraper.workflow.transcript_resolution.ADFREE_SUFFIX` rather than
+  declaring its own. The direction is deliberate: the resolver is light enough for any reader to
+  import, while this module pulls in the diarization/ad-excision stack, so the dependency can
+  only run this way.
+* LOADING a transcript (``load_transcript``, ``load_processing_transcript``,
+  ``TranscriptPurpose``) is a reader concern and lives in that same module. Those names were
+  re-exported here for a while so importers predating #2170 kept working; the re-export is gone
+  (2026-10-02) and importers name the defining module directly. A second import path for a name
+  this module does not itself use was a standing invitation to import the wrong one, and the
+  ``noqa: F401`` it needed also silenced the linter that would have pointed that out.
 """
 
 from __future__ import annotations
@@ -37,19 +49,9 @@ from ..gi.ad_regions import (
     merge_preroll_range,
 )
 from ..providers.ml.diarization.formatting import format_diarized_screenplay_with_offsets
-from .transcript_resolution import (  # noqa: F401 - re-exported for existing importers
-    ADFREE_SUFFIX as _ADFREE_SUFFIX,
-    adfree_transcript_relpath,
-    load_processing_transcript,
-    load_transcript,
-    ProcessingTranscript,
-    TranscriptPurpose,
-)
+from .transcript_resolution import ADFREE_SUFFIX
 
 logger = logging.getLogger(__name__)
-
-#: Re-exported for importers that predate ``transcript_resolution`` (#2170).
-ADFREE_SUFFIX = _ADFREE_SUFFIX
 
 
 @dataclass

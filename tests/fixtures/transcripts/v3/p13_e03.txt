@@ -1,0 +1,29 @@
+# Pfadgespräche — Episodio
+## Genehmigungen und Geduld
+Host: Katrin Vogel
+Guest: Stefan Brandt
+#fixture-v3: failure_modes=none
+#fixture-v3: voice=de-DE host_voice=de-DE
+
+[00:00]
+Katrin Vogel: Willkommen zurück bei Pfadgespräche. Heute bei mir ist Stefan Brandt, Wegebauer.
+Stefan Brandt: Danke für die Einladung. Freut mich, hier zu sein.
+
+[01:30]
+Katrin Vogel: Wir sprechen auch über Clara von Hofmann, die heute nicht dabei sein konnte.
+
+[03:00]
+Katrin Vogel: Bevor wir schließen, was kann man diese Woche ausprobieren?
+Stefan Brandt: Den eigenen Weg nach starkem Regen abgehen. Das Wasser zeigt jeden Fehler.
+Katrin Vogel: Wie sieht dieser Fehler nach drei Jahren aus?
+Stefan Brandt: Es sieht wie ein Graben aus. Und der Wiederaufbau kostet mehr, als es von Anfang an richtig zu machen.
+Katrin Vogel: Erzähl mir vom häufigsten Fehler bei neuen Teams.
+Stefan Brandt: Zu steil graben. Am ersten Tag sieht es schneller aus und im dritten Jahr kostet es das Dreifache.
+Katrin Vogel: Und wenn das Budget nicht reicht, um es richtig zu machen?
+Stefan Brandt: Dann wird an der Tragschicht gespart, und genau dort darf man nicht sparen.
+Katrin Vogel: Fangen wir mit der Drainage an. Warum ist das die erste Entscheidung?
+Stefan Brandt: Weil das Wasser alles andere entscheidet. Wenn das Wasser nicht vom Weg abläuft, wird der Weg zum Bach.
+
+[24:00]
+Katrin Vogel: Stefan Brandt, danke für das Gespräch.
+Stefan Brandt: Danke dir, Katrin.
