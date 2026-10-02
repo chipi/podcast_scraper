@@ -25,16 +25,16 @@ Local, not pushed:
 
 | Commit | What | Evidence |
 |---|---|---|
-| `c53565843` | roster: a vacant host seat is not filled by the guest who owns the talk (≥50% with a guest present) nor by a voice under 5% | replay 2,051 eps: +46 names (39 Tyler Cowen), −41 (ads, clips, org names, guests with a host's name), 7 renamed. Known regressions: 2 correct names lost, 1 wrong gain. "Stop at the dominant voice" variant measured and rejected (−5 real co-hosts) |
-| `df2369773` | compose: pass `APP_MCP_RESOURCE_URLS` to the player api | obs connector authorize returned 400 `invalid_target` (07:46/07:47Z); the env value was staged on 09-05 but never reached the container |
-| `6661b186a` | GI: a quote whose transcript was relabelled is re-anchored onto its text | 936 warnings/night = the same 36 Odd Lots episodes (relabelled 09-28) re-warned by every whole-corpus enrich pass; 1,997 of 2,021 quotes occur exactly once → recovered on the next run |
-| `57c3ec09d` | bundled quotes: bounded JSON schema on vLLM + a decoding loop is salvaged, not bisected | 13/13 captured failures were a filler loop ("like, you know, …") at 5120/5120 with presence_penalty 1.5 on. Replay of a looping batch ×3: json_object looped 1/3 (all 24 quotes lost), schema 0/3 (24/24 resolved). The 1200s "hangs" (#2040/#1983) all completed — they were this loop |
-| `e50b5879f` | third-person guard: "I am your host, X" and "I am Rob X" count as self-introductions | 28 discards hand-reviewed, ~17 removed a correct name |
-| `51ebf2f99` → reverted `523e256ae` | German-only ad rule | rejected by the operator: hard-coded the fetch location |
-| `40d8d9844` | cross-show ad signatures (recurrence ≥3 episodes / ≥2 feeds; learned ad languages) + opener 5% floor | replay 2,066 eps: 338 voices → ad, 90 names removed (house-ad readers, host names on ads), 17 gained (Runciman ×10), regressions all in seating (Q4) |
-| `c069bc827` | publish gate refuses role words, interjections, organisations, job titles, abbreviations; strips "Your Host"/job/possessive prefixes | published corpus: 45 suspect of 4,638 names. Replay: 27 junk removed, 2 repaired (Kenny Malone, Eilish Hart); 1 partial lost ("RJ") |
-| `0651c7b2e` | unplaced speakers pass the same gate | "The China-Global South Project" unplaced host on 10 episodes |
-| `cfaa8d441` | test: torch-seed test no longer depends on xdist import order | failed 3/3 alone; exposed by today's new test files |
+| `3bdcebb41` | roster: a vacant host seat is not filled by the guest who owns the talk (≥50% with a guest present) nor by a voice under 5% | replay 2,051 eps: +46 names (39 Tyler Cowen), −41 (ads, clips, org names, guests with a host's name), 7 renamed. Known regressions: 2 correct names lost, 1 wrong gain. "Stop at the dominant voice" variant measured and rejected (−5 real co-hosts) |
+| `28ae5f068` | compose: pass `APP_MCP_RESOURCE_URLS` to the player api | obs connector authorize returned 400 `invalid_target` (07:46/07:47Z); the env value was staged on 09-05 but never reached the container |
+| `df3cc9332` | GI: a quote whose transcript was relabelled is re-anchored onto its text | 936 warnings/night = the same 36 Odd Lots episodes (relabelled 09-28) re-warned by every whole-corpus enrich pass; 1,997 of 2,021 quotes occur exactly once → recovered on the next run |
+| `94d330395` | bundled quotes: bounded JSON schema on vLLM + a decoding loop is salvaged, not bisected | 13/13 captured failures were a filler loop ("like, you know, …") at 5120/5120 with presence_penalty 1.5 on. Replay of a looping batch ×3: json_object looped 1/3 (all 24 quotes lost), schema 0/3 (24/24 resolved). The 1200s "hangs" (#2040/#1983) all completed — they were this loop |
+| `d49f0605d` | third-person guard: "I am your host, X" and "I am Rob X" count as self-introductions | 28 discards hand-reviewed, ~17 removed a correct name |
+| `2ad4dc93f` → reverted `674dcc390` | German-only ad rule | rejected by the operator: hard-coded the fetch location |
+| `aa87b973e` | cross-show ad signatures (recurrence ≥3 episodes / ≥2 feeds; learned ad languages) + opener 5% floor | replay 2,066 eps: 338 voices → ad, 90 names removed (house-ad readers, host names on ads), 17 gained (Runciman ×10), regressions all in seating (Q4) |
+| `e1728af87` | publish gate refuses role words, interjections, organisations, job titles, abbreviations; strips "Your Host"/job/possessive prefixes | published corpus: 45 suspect of 4,638 names. Replay: 27 junk removed, 2 repaired (Kenny Malone, Eilish Hart); 1 partial lost ("RJ") |
+| `15b7e7313` | unplaced speakers pass the same gate | "The China-Global South Project" unplaced host on 10 episodes |
+| `37159add8` | test: torch-seed test no longer depends on xdist import order | failed 3/3 alone; exposed by today's new test files |
 | (item 4) | spans: the span helper no longer replaces the block's exception with `RuntimeError: generator didn't stop after throw()`; `episode.transcribe` + `episode.metadata` spans; a handled failure marks its span; one `Multi-feed run summary` line per run | reproduced the RuntimeError locally; 0 hits in 30 days of prod logs (latent). `episode.process` covers only the download (max 11s) |
 
 ## Questions for the advisor
@@ -59,10 +59,10 @@ Local, not pushed:
    reporter-guest at 61% is seated as host and goes unnamed (34 insights hidden on one episode).
    Should the seat count come from the episode (who self-introduces) rather than the feed?
 
-4. **Seat guard known regressions** (`c53565843`): a correct guest name reached through
+4. **Seat guard known regressions** (`3bdcebb41`): a correct guest name reached through
    elimination is lost when the dominant voice is no longer seated, and an archive clip can take
    the vacant seat. Acceptable trade for the gains, or is there a cleaner formulation?
-   **New evidence (item 6, ads recognised by cross-show signatures, `40d8d9844`):** once ads
+   **New evidence (item 6, ads recognised by cross-show signatures, `aa87b973e`):** once ads
    stop occupying seats, the seat logic's weaknesses show. The guard's "a guest is present" test
    counts substantial voices, and an ad was often the voice that tipped the count. Replay
    regressions: Dalrymple on Alex von Tunzelmann (Empire), Knutson on a Journal reporter, Kevin
@@ -109,12 +109,12 @@ Local, not pushed:
 - **insight_salvage over ceiling (84/night):** the model returns ~30 for a ceiling of 25 and the
   salvage keeps 25 spread across the episode. A schema `maxItems` would cut the tail of each
   transcript slice instead, which is worse. Left as is.
-- **topic-clusters skipped:** fixed (`848bee921`) — a multi-feed feed no longer looks for an index
+- **topic-clusters skipped:** fixed (`228834dc1`) — a multi-feed feed no longer looks for an index
   in its run directory.
 
 ## Corrections to earlier claims
 
-- `6661b186a`'s message says the 36 Odd Lots episodes heal "on the first pipeline run after
+- `df3cc9332`'s message says the 36 Odd Lots episodes heal "on the first pipeline run after
   deploy". Wrong for the nightly: a multi-feed feed finalizes only its own run directory
   (`enrich-edges: episodes=4`). The whole-corpus pass is the finalize of a SINGLE-feed Jobs-API
   run (`path=/app/output`) — that is what re-warned 36 episodes 26 times — so they heal on the
@@ -124,4 +124,4 @@ Local, not pushed:
 
 - Kennedy Center (34 insights) traced only to a hypothesis (question 3); Planet Money (4) not looked at.
 - The re-anchor and loop fixes are verified by tests and prod replays, not yet by a live run.
-- Observability item 4 is fixed in code (`47fc7a77f`) but not yet seen in VictoriaTraces.
+- Observability item 4 is fixed in code (`432564e08`) but not yet seen in VictoriaTraces.
