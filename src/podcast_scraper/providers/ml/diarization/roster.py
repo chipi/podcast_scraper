@@ -2894,9 +2894,23 @@ def _select_host_voices(
 
     # 4. Fill any host slot the feed COUNTED but we have not matched, from the SHOW's intro voices
     #    (ads excluded). NOT by talk time — that hands a slot to a long-answering guest (#1169).
+    #    ...and never to a voice that OWNS the conversation or barely speaks. Measured on The Rest
+    #    Is Politics: Leading once its two hosts were stated (2026-10-02): this step seated the
+    #    guest (Gavin Newsom 66% of the talk, Neil Kinnock 77%, James Cleverly 68%) or a 19-46s
+    #    foreign-language ad, and the forced one-name-one-seat rule then put Alastair Campbell's
+    #    name on it. Declining here leaves the seat empty — the honest state.
+    #    Dominance only counts when somebody BESIDES the stated hosts takes part: on a two-host
+    #    show with no guest each host owns about half the talk, and both must still be seated.
+    share = _talk_share(diarization, set(ad_voices))
+    substantial = [v for v, s in share.items() if s >= HOST_ELIMINATION_MIN_SHARE]
+    guest_present = len(substantial) > len(host_pool)
     for v in voices_by_intro:
         if len(host_voices) >= len(host_pool):
             break
+        if share.get(v, 0.0) < HOST_ELIMINATION_MIN_SHARE:
+            continue
+        if guest_present and share.get(v, 0.0) >= _DOMINANT_SHARE:
+            continue
         if v not in host_voices and v not in conv_guests and v not in positional_non_host:
             host_voices.append(v)
 
