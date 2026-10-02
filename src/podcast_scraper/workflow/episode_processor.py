@@ -23,7 +23,7 @@ else:
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from ..exceptions import ProviderError, ProviderRuntimeError
 from ..languages import transcription_language
-from ..languages_guard import is_english_text_language
+from ..languages_guard import is_target_language
 from ..preprocessing.audio.factory import preprocessing_fingerprint
 from ..rss import choose_transcript_url, downloader
 from ..rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
@@ -1215,7 +1215,7 @@ def _produce_transcript_sidecars(
     # The same predicate the sniff gate and the host-intro detector use (S2.14). Three copies of
     # `language is None or language == "en"` had drifted into three slightly different
     # conditions; this is the one that also treats a whitespace-only tag as unknown.
-    if cfg.save_adfree_transcript and is_english_text_language(language):
+    if cfg.save_adfree_transcript and is_target_language(language):
         from .adfree_transcript import produce_adfree_artifacts
 
         produced = produce_adfree_artifacts(
@@ -1251,7 +1251,7 @@ def _produce_transcript_sidecars(
     # old cue times, and provenance resolves new spans against old segments — while the ledger
     # says the translation failed.
     if language is not None and language != "en":
-        _invalidate_english_artifacts(rel_transcript_path, effective_output_dir)
+        _invalidate_translation(rel_transcript_path, effective_output_dir)
 
     _write_turns_artifacts(
         cfg,
@@ -1264,7 +1264,7 @@ def _produce_transcript_sidecars(
     )
 
 
-def _invalidate_english_artifacts(rel_transcript_path: str, effective_output_dir: str) -> None:
+def _invalidate_translation(rel_transcript_path: str, effective_output_dir: str) -> None:
     """Delete every `.en.*` derivative when the SOURCE transcript has just been rewritten (S2.7).
 
     WHY DELETE RATHER THAN LEAVE STALE. The resolver keys on file PRESENCE with no status check
@@ -3765,7 +3765,7 @@ def _retranslate_existing_transcript(
     # invalidation is rooted at the transcript's own parent, not at the run dir.
     root = str(txt_path.parent.parent)
     canonical = _canonical_relpath(os.path.relpath(str(txt_path), root))
-    _invalidate_english_artifacts(canonical, root)
+    _invalidate_translation(canonical, root)
 
     if bool(getattr(cfg, "translation_discard_memory", False)):
         from ..translation.artifacts import translation_json_path

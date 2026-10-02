@@ -542,9 +542,9 @@ def detect_hosts_from_transcript_intro(
     """
     if not transcript_text or not nlp:
         return set()
-    from ..languages_guard import refuse_non_english
+    from ..languages_guard import refuse_unsupported_language
 
-    if refuse_non_english("transcript-intro host detection", text_language):
+    if refuse_unsupported_language("transcript-intro host detection", text_language):
         return set()
 
     intro_word_count = int(intro_duration_seconds * words_per_second)

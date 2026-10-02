@@ -353,7 +353,7 @@ class TestWithdrawal:
         """
         _lay_down_spanish_episode(tmp_path)
         monkeypatch.setattr(
-            "podcast_scraper.translation.artifacts.write_english_adfree", lambda *a, **k: None
+            "podcast_scraper.translation.artifacts.write_analysis_base", lambda *a, **k: None
         )
         got = _run(monkeypatch, tmp_path, cfg, _StubProvider())
 
@@ -380,7 +380,7 @@ class TestWithdrawal:
             orphan.write_text("half-written", encoding="utf-8")
             return None
 
-        monkeypatch.setattr("podcast_scraper.translation.artifacts.write_english_adfree", _partial)
+        monkeypatch.setattr("podcast_scraper.translation.artifacts.write_analysis_base", _partial)
         _run(monkeypatch, tmp_path, cfg, _StubProvider())
         assert not orphan.exists(), "the orphan would be resolved first by ANALYSIS readers"
 

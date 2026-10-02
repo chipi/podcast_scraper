@@ -85,9 +85,9 @@ def detect_speaker_names(
     # roster. Refusing here returns the defaults rather than raising, per the module's
     # "refuse, do not raise" rule: a mis-ordered stage costs an episode's names, which a
     # relabel recovers, while invented people propagate into the KG.
-    from ..languages_guard import refuse_non_english
+    from ..languages_guard import refuse_unsupported_language
 
-    if refuse_non_english("speaker-name detection", text_language):
+    if refuse_unsupported_language("speaker-name detection", text_language):
         return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
     title_persons = _extract_person_entities(episode_title, nlp)

@@ -16,9 +16,9 @@ import pytest
 from podcast_scraper.translation.artifacts import TranslationDocument, UnitRecord
 from podcast_scraper.translation.provenance import (
     attach_translation_provenance,
-    english_units_sha256,
     provenance_coverage,
     PROVENANCE_KEY,
+    target_units_sha256,
 )
 
 pytestmark = pytest.mark.unit
@@ -158,7 +158,7 @@ class TestTheHashIsLabelFree:
                 ),
             ]
         )
-        assert english_units_sha256(a) == english_units_sha256(b)
+        assert target_units_sha256(a) == target_units_sha256(b)
 
     def test_it_changes_when_the_english_text_changes(self) -> None:
         a = _doc()
@@ -173,12 +173,12 @@ class TestTheHashIsLabelFree:
                 )
             ]
         )
-        assert english_units_sha256(a) != english_units_sha256(b)
+        assert target_units_sha256(a) != target_units_sha256(b)
 
     def test_it_changes_with_the_model(self) -> None:
         """Two runs of the same source through different models are different translations, and
         the corpus has to be able to tell — ADR-143/144's reasoning, at claim level."""
-        assert english_units_sha256(_doc()) != english_units_sha256(
+        assert target_units_sha256(_doc()) != target_units_sha256(
             _doc(model="google/translategemma-27b-it")
         )
 
@@ -190,7 +190,7 @@ class TestTheHashIsLabelFree:
             + [UnitRecord(unit_id="t0002.u01", turn_id="t0002", content_key="k2", status="failed")]
         )
         # Not complete, so the hash still describes only the units that produced text.
-        assert english_units_sha256(with_failure) == english_units_sha256(_doc())
+        assert target_units_sha256(with_failure) == target_units_sha256(_doc())
 
 
 class TestAnIncompleteTranslationIsNeverDecorated:

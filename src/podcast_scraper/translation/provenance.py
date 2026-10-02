@@ -35,7 +35,7 @@ SPAN_BEARING_TYPES = ("Quote", "Evidence")
 PROVENANCE_KEY = "translation"
 
 
-def english_units_sha256(doc: TranslationDocument) -> str:
+def target_units_sha256(doc: TranslationDocument) -> str:
     """Hash of the LABEL-FREE English unit texts, in unit order (D-40).
 
     Deliberately excludes the rendered `.en.txt`, speaker labels and every char offset: all
@@ -86,7 +86,7 @@ def build_provenance_block(
         "source_language": doc.source_language,
         "model": _spread([u.model for u in resolved], doc.model),
         "unit_ids": list(unit_ids),
-        "en_sha256": en_sha256 or english_units_sha256(doc),
+        "en_sha256": en_sha256 or target_units_sha256(doc),
         # The prompt's own hash, so a claim can be traced to the exact instruction that produced
         # its text — a changed prompt changes the translation without changing the model id.
         "prompt_sha256": _spread(
@@ -119,7 +119,7 @@ def attach_translation_provenance(
     nodes = payload.get("nodes")
     if not isinstance(nodes, list):
         return 0
-    en_sha = english_units_sha256(doc)
+    en_sha = target_units_sha256(doc)
     decorated = 0
     for node in nodes:
         if not isinstance(node, dict) or node.get("type") not in SPAN_BEARING_TYPES:
@@ -261,7 +261,7 @@ __all__ = [
     "SPAN_BEARING_TYPES",
     "attach_translation_provenance",
     "build_provenance_block",
-    "english_units_sha256",
+    "target_units_sha256",
     "load_for_provenance",
     "provenance_coverage",
 ]

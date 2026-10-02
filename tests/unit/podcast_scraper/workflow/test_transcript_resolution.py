@@ -13,13 +13,13 @@ import pytest
 
 from podcast_scraper.workflow.transcript_resolution import (
     adfree_transcript_relpath,
-    english_adfree_transcript_relpath,
-    english_transcript_relpath,
     load_processing_transcript,
     load_transcript,
     resolve_segments_path,
+    resolve_source_language_text_path,
     resolve_text_path,
     segments_relpath_candidates,
+    source_language_relpath_candidates,
     text_relpath_candidates,
     TranscriptPurpose,
 )
@@ -140,152 +140,62 @@ class TestCandidateOrder:
         ]
 
 
-class TestTheEnglishBranch:
-    """S2.1b. The branch that makes an English-normalized intelligence layer possible.
+class TestThereIsNoEnglishBranch:
+    """D-44 replaced `TestTheEnglishBranch` (9 tests) — the branch it exercised is gone.
 
-    Every test here writes real files, because the whole question is which of several bodies on
-    disk a reader ends up holding — and holding the wrong one is not a degradation, it is an
-    English NLP stage reading Spanish and being confidently wrong about it (§5.2).
+    S2.1b put an English HEAD on both candidate lists so a translated episode's English body won
+    precedence. That worked, and it put a language suffix in the one module every generic reader goes
+    through; from there it spread to the indexer, the API route, the metadata stage and the episode
+    processor — references to `.en.` in code with nothing to do with language, each trying a candidate
+    that can never match on an English episode.
+
+    English is now the UNSUFFIXED `<base>.txt`, so there is no branch and no head. What the deleted
+    tests were really protecting — that an English NLP stage must never read source-language text —
+    is now a property of the naming rather than of a precedence order, and is asserted where it
+    belongs: `TestCandidateOrder` (no candidate carries a language tag) and the translation stage's
+    own swap tests (the canonical body holds the analysis language, or the swap did not happen).
     """
 
-    def test_it_is_a_pure_addition_when_no_english_exists(self, tmp_path: Path) -> None:
-        """The claim S2.1b rests on, checked rather than assumed.
+    def test_a_translated_episode_resolves_the_canonical_body_for_both_purposes(
+        self, tmp_path: Path
+    ) -> None:
+        """The whole scheme in one assertion: after the swap, the canonical path IS the English body,
+        so a generic reader asking for either purpose gets English without naming a language."""
+        tr = tmp_path / "transcripts"
+        tr.mkdir()
+        (tr / "01 - ep.txt").write_text("English body", encoding="utf-8")
+        (tr / "01 - ep.es.txt").write_text("cuerpo en español", encoding="utf-8")
 
-        For an episode with no ``.en.*`` on disk — every episode in the corpus today — both
-        purposes must resolve to exactly the file they resolved to before this branch existed.
-        The candidate LIST is longer; the answer is identical.
-        """
-        _write(tmp_path, _REL, "raw")
-        _write(tmp_path, "transcripts/01 - ep.adfree.txt", "adfree")
-
-        assert (
-            resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.ANALYSIS)
-            == tmp_path / "transcripts/01 - ep.adfree.txt"
-        )
-        assert (
-            resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.TIMELINE) == tmp_path / _REL
-        )
-
-    def test_analysis_takes_the_english_adfree_body_when_it_exists(self, tmp_path: Path) -> None:
-        for rel in (_REL, "transcripts/01 - ep.adfree.txt", "transcripts/01 - ep.en.txt"):
-            _write(tmp_path, rel, rel)
-        _write(tmp_path, "transcripts/01 - ep.en.adfree.txt", "english adfree")
-
-        assert (
-            resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.ANALYSIS)
-            == tmp_path / "transcripts/01 - ep.en.adfree.txt"
-        )
-
-    def test_timeline_takes_the_english_raw_body_when_it_exists(self, tmp_path: Path) -> None:
-        """TIMELINE is about the unbridged audio timeline, and the English render carries the
-        source segments' times — so English-first here is a language choice, not a time one."""
-        for rel in (_REL, "transcripts/01 - ep.adfree.txt", "transcripts/01 - ep.en.adfree.txt"):
-            _write(tmp_path, rel, rel)
-        _write(tmp_path, "transcripts/01 - ep.en.txt", "english raw")
-
-        assert (
-            resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.TIMELINE)
-            == tmp_path / "transcripts/01 - ep.en.txt"
-        )
-
-    def test_analysis_does_not_degrade_to_an_ad_laden_english_body(self, tmp_path: Path) -> None:
-        """The deliberate gap in the precedence.
-
-        With ``.en.txt`` present but ``.en.adfree.txt`` missing, ANALYSIS takes the SOURCE
-        ad-free text rather than the English one with its ads still in. Falling back to
-        ``.en.txt`` would put ad text into the space GI's offsets index, which is the coordinate
-        space this purpose exists to protect. S2.5 writes the English set atomically so the state
-        does not occur; this pins what happens if it ever does.
-        """
-        _write(tmp_path, _REL, "raw")
-        _write(tmp_path, "transcripts/01 - ep.adfree.txt", "source adfree")
-        _write(tmp_path, "transcripts/01 - ep.en.txt", "english raw WITH ads")
-
-        assert (
-            resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.ANALYSIS)
-            == tmp_path / "transcripts/01 - ep.adfree.txt"
-        )
-
-    def test_the_sidecar_follows_the_english_body_that_was_loaded(self, tmp_path: Path) -> None:
-        """The displacement bug in its newest shape: English text with source-language segments.
-
-        ``load_transcript`` derives the sidecar from the body it actually resolved. If it instead
-        reached for a fixed name, an English body would come back paired with the source
-        language's segments, and every quote's speaker and timing would be read out of a
-        different text than the one the offsets index.
-        """
-        _write(tmp_path, _REL, "Maya: Hola.")
-        _write(tmp_path, "transcripts/01 - ep.segments.json", [{"text": "Hola.", "start": 0.0}])
-        _write(tmp_path, "transcripts/01 - ep.en.txt", "Maya: Hello.")
-        _write(
-            tmp_path,
-            "transcripts/01 - ep.en.segments.json",
-            [{"text": "Hello.", "start": 0.0}],
-        )
-
-        loaded = load_transcript(tmp_path, _REL, purpose=TranscriptPurpose.TIMELINE)
-        assert loaded.text == "Maya: Hello."
-        assert loaded.segments is not None
-        assert loaded.segments[0]["text"] == "Hello."
-
-    def test_english_is_the_default_for_BOTH_purposes(self, tmp_path: Path) -> None:
-        """D-38, pinned as one assertion so the decision has a single place to fail.
-
-        The individual purpose tests above each check their own precedence. This one exists
-        because the DECISION is about both at once: when a translation exists, every surface
-        shows English unless it asks otherwise — the analysis space because the intelligence
-        layer is single-path (D-1), the timeline space because a translated episode has full
-        standing on every surface (D-37) and a source-language player default would be a
-        per-surface split in everything but name.
-
-        Reversing it is a one-line change to the precedence. This test is what makes that line
-        announce itself instead of drifting.
-        """
-        for rel in (
-            _REL,
-            "transcripts/01 - ep.adfree.txt",
-            "transcripts/01 - ep.en.txt",
-            "transcripts/01 - ep.en.adfree.txt",
-        ):
-            _write(tmp_path, rel, rel)
-
-        analysis = resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.ANALYSIS)
-        timeline = resolve_text_path(tmp_path, _REL, purpose=TranscriptPurpose.TIMELINE)
-        assert analysis is not None and timeline is not None
-        assert ".en." in analysis.name, "analysis must read English when it exists"
-        assert ".en." in timeline.name, "the player must read English when it exists"
-
-    def test_the_source_language_is_never_destroyed(self, tmp_path: Path) -> None:
-        """What makes D-38 reversible and makes S2.8's `?lang=` possible without a reprocess.
-
-        The English default is a PRECEDENCE, not a replacement. Both source bodies stay on disk
-        and stay resolvable by name, so exposing the source language later is a read, not a
-        rebuild.
-        """
-        for rel in (
-            _REL,
-            "transcripts/01 - ep.adfree.txt",
-            "transcripts/01 - ep.en.txt",
-            "transcripts/01 - ep.en.adfree.txt",
-        ):
-            _write(tmp_path, rel, rel)
-
-        assert (tmp_path / _REL).is_file()
-        assert (tmp_path / "transcripts/01 - ep.adfree.txt").is_file()
-        # And they are still reachable through the candidate list, not merely present on disk.
         for purpose in (TranscriptPurpose.ANALYSIS, TranscriptPurpose.TIMELINE):
-            candidates = text_relpath_candidates(_REL, purpose=purpose)
-            assert _REL in candidates
-            assert "transcripts/01 - ep.adfree.txt" in candidates
+            got = resolve_text_path(tmp_path, _REL, purpose=purpose)
+            assert got is not None and got.name == "01 - ep.txt", purpose
+            assert got.read_text(encoding="utf-8") == "English body"
 
-    def test_english_relpath_helpers(self) -> None:
-        assert english_transcript_relpath(_REL) == "transcripts/01 - ep.en.txt"
-        assert english_adfree_transcript_relpath(_REL) == "transcripts/01 - ep.en.adfree.txt"
-        # `.en` goes BEFORE `.adfree`, so the ad-free helper composes on top of the English one
-        # and there is exactly one spelling of each of the four bodies.
-        assert adfree_transcript_relpath(english_transcript_relpath(_REL)) == (
-            english_adfree_transcript_relpath(_REL)
-        )
+    def test_the_source_body_is_reachable_only_by_asking_for_its_language(
+        self, tmp_path: Path
+    ) -> None:
+        """The toggle's path, and the only way to reach the source — no generic reader can stumble
+        onto it, because every candidate list it builds excludes a tagged name."""
+        tr = tmp_path / "transcripts"
+        tr.mkdir()
+        (tr / "01 - ep.txt").write_text("English body", encoding="utf-8")
+        (tr / "01 - ep.es.txt").write_text("cuerpo en español", encoding="utf-8")
+
+        got = resolve_source_language_text_path(tmp_path, _REL, "es")
+        assert got is not None and got.name == "01 - ep.es.txt"
+        assert got.read_text(encoding="utf-8") == "cuerpo en español"
+        # English has no separate source body to resolve.
+        assert resolve_source_language_text_path(tmp_path, _REL, "en") is None
+
+    def test_an_untranslated_episode_is_unchanged(self, tmp_path: Path) -> None:
+        """The 678-episode corpus: one body, found by both purposes, no tagged sibling anywhere."""
+        tr = tmp_path / "transcripts"
+        tr.mkdir()
+        (tr / "01 - ep.txt").write_text("only body", encoding="utf-8")
+        for purpose in (TranscriptPurpose.ANALYSIS, TranscriptPurpose.TIMELINE):
+            got = resolve_text_path(tmp_path, _REL, purpose=purpose)
+            assert got is not None and got.name == "01 - ep.txt"
+        assert resolve_source_language_text_path(tmp_path, _REL, "es") is None
 
 
 class TestResolutionAgainstDisk:

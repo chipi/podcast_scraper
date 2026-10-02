@@ -130,24 +130,42 @@ def _import_third_party_whisper() -> ModuleType:
         ) from exc
 
 
-def _guard_english_only(language: object) -> None:
-    """Refuse a non-English language rather than transcribing it badly (S0.7, #2178).
+#: Languages the LOCAL whisper tier can actually transcribe (S0.7, #2178).
+#:
+#: A capability of this provider, declared as data rather than hardcoded into a predicate's name.
+#: Its model default is `base.en`, and `normalize_whisper_model_name` strips the `.en` for anything
+#: else — so a non-English request silently degrades to the small multilingual `["base", "tiny"]`
+#: chain, whose output is confident and wrong. Widening this tuple is how the provider would
+#: announce it had become multilingual; nothing else needs to change.
+LOCAL_WHISPER_SUPPORTED_LANGUAGES: Tuple[str, ...] = ("en",)
+
+
+def _guard_supported_languages(
+    language: object, supported: Tuple[str, ...] = LOCAL_WHISPER_SUPPORTED_LANGUAGES
+) -> None:
+    """Refuse a language this provider cannot transcribe, rather than transcribing it badly.
+
+    ROUTES ON A PARAMETER, and the name says nothing about which language. The caller (or the
+    provider) states what is supported; this decides. The predicate used to be called
+    `_guard_english_only`, which baked one provider's current capability into a function name on a
+    platform meant to be multilingual — so widening support would have meant renaming the guard.
 
     ``None`` PROCEEDS: nobody resolved a language, the engine decides, and that is the honest
-    pre-#2172 state of most of the corpus. Only an explicit non-English request is refused.
+    pre-#2172 state of most of the corpus. Only an explicitly UNSUPPORTED request is refused.
     """
     from ...languages import normalize_language_tag
 
     if not isinstance(language, str):
         return
     normalized = normalize_language_tag(language)
-    if normalized is None or normalized == "en":
+    if normalized is None or normalized in supported:
         return
     raise ValueError(
-        f"the local whisper provider is English-only and was asked for {normalized!r}: its model "
-        "default is base.en, and a non-English request falls back to the small multilingual "
-        '["base", "tiny"] models, whose output is confident and wrong. Route this episode to a '
-        "multilingual transcriber (tailnet_dgx_whisper) or leave the language unset."
+        f"the local whisper provider supports {list(supported)} and was asked for "
+        f"{normalized!r}: its model default is base.en, and an unsupported request falls back to "
+        'the small multilingual ["base", "tiny"] models, whose output is confident and wrong. '
+        "Route this episode to a multilingual transcriber (tailnet_dgx_whisper) or leave the "
+        "language unset."
     )
 
 
@@ -860,7 +878,7 @@ class MLProvider:
         # The provider STAYS: it is the PRIMARY transcriber in eight local / dev / airgapped
         # profiles. What changed is that it refuses work it cannot do, so the hazard cannot come
         # back through a dev profile even though the DGX profiles now hold rather than fail over.
-        _guard_english_only(effective_language)
+        _guard_supported_languages(effective_language)
 
         logger.debug("Transcribing audio file: %s (language: %s)", audio_path, effective_language)
 
@@ -932,7 +950,7 @@ class MLProvider:
         # The provider STAYS: it is the PRIMARY transcriber in eight local / dev / airgapped
         # profiles. What changed is that it refuses work it cannot do, so the hazard cannot come
         # back through a dev profile even though the DGX profiles now hold rather than fail over.
-        _guard_english_only(effective_language)
+        _guard_supported_languages(effective_language)
 
         logger.debug(
             "Transcribing audio file with segments: %s (language: %s)",

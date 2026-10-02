@@ -70,7 +70,7 @@ STATUS_FAILED = "failed"
 REASON_TRANSLATOR_READY = "ready"
 
 #: Why a translation was skipped. A closed vocabulary so the corpus ledger can GROUP BY it.
-REASON_ALREADY_ENGLISH = "already_english"
+REASON_ALREADY_TARGET_LANGUAGE = "already_english"
 #: No translator endpoint is deployed, so there is nothing to call. A DEFECT when a non-English
 #: language is enabled, not a decision — which is why it is distinct from every other reason
 #: here. It replaced `flag_off`, and the difference matters: `flag_off` said "we chose not to
@@ -156,7 +156,7 @@ def decide_translation(
             status=STATUS_SKIPPED,
             source_language=language,
             language_source=language_source,
-            reason=REASON_ALREADY_ENGLISH,
+            reason=REASON_ALREADY_TARGET_LANGUAGE,
         )
 
     if not is_translation_configured(cfg):
@@ -471,8 +471,8 @@ def _translate_episode(
         UNIT_OK,
         UnitRecord,
         unresolved_units,
-        write_english_adfree,
-        write_english_artifacts,
+        write_analysis_base,
+        write_translated_artifacts,
         write_translation_json,
     )
     from ..translation.factory import create_translation_provider
@@ -643,7 +643,7 @@ def _translate_episode(
     doc.title_en = _translate_title(cfg, provider, episode_title, language, _title_context)
 
     write_translation_json(doc, transcript_relpath, effective_output_dir)
-    en_rel = write_english_artifacts(
+    en_rel = write_translated_artifacts(
         doc, turn_dicts, units, transcript_relpath, effective_output_dir
     )
     adfree_rel = None
@@ -657,7 +657,7 @@ def _translate_episode(
         # prompts over Spanish, with provenance resolved against English segments. The flag
         # governs whether the SOURCE gets an ad-free derivative; it has no business deciding
         # whether the analysis base for a translated episode exists at all.
-        adfree_rel = write_english_adfree(
+        adfree_rel = write_analysis_base(
             transcript_relpath,
             effective_output_dir,
             extra_cue_patterns=getattr(cfg, "crosspromo_cue_patterns", None),

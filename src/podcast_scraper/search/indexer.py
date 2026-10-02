@@ -268,39 +268,29 @@ def _indexed_text_language(
     language would exile a perfectly good English translation from semantic search, which is
     the opposite of what the arc is for.
 
-    So: English when the body the chunker RESOLVED TO is an English render, otherwise the
-    episode's own language.
+    UNDER D-44 THERE IS NOTHING TO INFER. The ANALYSIS body is the canonical ``<base>.txt`` (or
+    its ad-free derivative), and that file always holds the analysis language: ASR wrote English
+    there on an English episode, and translation's atomic swap put English there on a translated
+    one. So the chunks this function labels are English, full stop.
 
-    That phrasing is load-bearing. This asked a different question until 2026-09-30 — it built
-    `english_transcript_relpath(resolved)` and tested whether that existed — and the resolved
-    path for a translated episode is ALREADY `ep1.en.adfree.txt`, so the construction produced
-    `ep1.en.adfree.en.txt`, which never exists. Measured: a successfully translated Spanish
-    episode's chunks came from the English render and were labelled `es`, so
-    `_split_segments_by_language` dropped their embeddings and filed them in the vector-less
-    `segments_nonen` tier. The episode was findable by neither semantic search nor its own
-    language — the exact outcome the paragraph above says this function exists to prevent, and
-    invisible because both the chunking and the upsert "succeeded".
+    This used to RESOLVE the transcript and inspect the resulting filename for an ``.en`` suffix, to
+    work out whether it had read a translation. That inference is what went wrong twice: first by
+    building ``english_transcript_relpath(resolved)`` on an already-resolved path and testing a name
+    that can never exist (``ep1.en.adfree.en.txt``), then by reading the suffix stack. Measured
+    2026-09-30: a successfully translated Spanish episode's chunks came from the English render and
+    were labelled ``es``, so ``_split_segments_by_language`` dropped their embeddings into the
+    vector-less tier and the episode was findable by neither semantic search nor its own language —
+    invisible, because both the chunking and the upsert "succeeded".
+
+    The SOURCE-language layer is labelled separately, by the caller that deliberately resolved the
+    source body and therefore knows its language without asking a filename.
+
+    An episode whose swap never happened has a non-English ``<base>.txt`` — and is marked unusable
+    and excluded upstream, so it never reaches the indexer.
     """
-    from ..workflow.transcript_resolution import is_english_render_relpath
+    from ..languages import TARGET_LANGUAGE
 
-    ep = doc.get("episode") or {}
-    feed = doc.get("feed") or {}
-    language = ep.get("language") or feed.get("language")
-    normalized = str(language or "").strip().lower().split("-")[0] or None
-    if not normalized or normalized == "en":
-        return normalized
-
-    tpath = _transcript_path(episode_root, doc)
-    if tpath is not None:
-        try:
-            rel = str(tpath.relative_to(episode_root))
-        except ValueError:
-            # A resolved path outside the episode root should not happen; the basename still
-            # carries the suffix stack, which is all the predicate reads.
-            rel = tpath.name
-        if is_english_render_relpath(rel):
-            return "en"
-    return normalized
+    return TARGET_LANGUAGE
 
 
 #: Suffix that makes a source-layer chunk id distinct from its English sibling. LanceDB merges
@@ -367,7 +357,7 @@ def _source_layer_body(
 
     from ..workflow.transcript_resolution import resolve_source_language_text_path
 
-    path = resolve_source_language_text_path(episode_root, rel.strip())
+    path = resolve_source_language_text_path(episode_root, rel.strip(), source_language)
     if path is None:
         return None
     primary = _transcript_path(episode_root, doc)

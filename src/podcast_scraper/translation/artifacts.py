@@ -239,20 +239,53 @@ def translation_json_path(rel_transcript_path: str, effective_output_dir: str) -
 
 
 def english_text_relpath(rel_transcript_path: str) -> str:
-    """The `.en` render's relpath, keeping the source's extension.
+    """The English render's relpath — which is the CANONICAL path itself (D-44).
 
-    Takes the CANONICAL relpath: `.en` is the first suffix in the stack, so building it from a
-    path that already carries one produces `foo.en.en.txt`. That is the bug that cost translated
-    episodes their embeddings once, when a name was derived from an already-suffixed path.
+    ENGLISH IS THE FILE WITHOUT A LANGUAGE SUFFIX. That is the whole naming rule, and it is what
+    lets every generic reader stay ignorant of language: `<base>.txt` is English on an English
+    episode because ASR wrote it there, and English on a translated episode because translation
+    swapped it there. One name, one meaning, no variant for anyone to choose between.
+
+    This used to return `<base>.en.txt`, which forced ~23 references to the `.en.` suffix into
+    modules that have nothing to do with language — the resolver, the indexer, the API route, the
+    metadata stage — each of them trying a candidate that never matches on an English episode.
+    Inverting the rule deletes all of that rather than reverting it file by file.
     """
-    base, ext = os.path.splitext(rel_transcript_path)
-    return f"{base}.en{ext or '.txt'}"
+    return rel_transcript_path
 
 
-def english_segments_relpath(rel_transcript_path: str) -> str:
-    """Relpath of the English segments sidecar. Always `.json`, whatever the transcript was."""
+def canonical_segments_relpath(rel_transcript_path: str) -> str:
+    """Relpath of the English segments sidecar — the canonical sidecar name (D-44)."""
     base, _ = os.path.splitext(rel_transcript_path)
-    return f"{base}.en.segments.json"
+    return f"{base}.segments.json"
+
+
+def source_text_relpath(rel_transcript_path: str, language: str) -> str:
+    """``<base>.<lang>.<ext>`` — where the SOURCE body lives once translation has swapped it.
+
+    The record of what was actually said (D-2) keeps its own name rather than being overwritten.
+    `language` is the normalized primary subtag, so a feed declaring `es-ES` produces `.es.txt`
+    and not `.es-ES.txt`: the suffix has to be predictable for the toggle to ask for it.
+
+    Refuses ``en``. An English episode has no separate source body — the canonical file IS the
+    English one — and generating `<base>.en.txt` here would reintroduce exactly the suffix this
+    scheme exists to remove.
+    """
+    normalized = (language or "").strip().lower().split("-")[0]
+    if not normalized or normalized == "en":
+        raise ValueError(
+            f"source_text_relpath is for a NON-English source language, got {language!r}: "
+            "English is the unsuffixed canonical file (D-44), so it has no source variant"
+        )
+    base, ext = os.path.splitext(rel_transcript_path)
+    return f"{base}.{normalized}{ext or '.txt'}"
+
+
+def source_segments_relpath(rel_transcript_path: str, language: str) -> str:
+    """Relpath of the SOURCE-language segments sidecar (D-44)."""
+    text = source_text_relpath(rel_transcript_path, language)
+    base, _ = os.path.splitext(text)
+    return f"{base}.segments.json"
 
 
 # --- the ledger ----------------------------------------------------------------------------
@@ -288,7 +321,7 @@ def load_translation_json(
 
 
 # --- the English render --------------------------------------------------------------------
-def render_english(
+def render_target_text(
     turns: Sequence[Dict[str, Any]],
     units: Sequence[TranslationUnit],
     doc: TranslationDocument,
@@ -366,7 +399,7 @@ def render_english(
     return format_diarized_screenplay_with_offsets(pseudo)
 
 
-def write_english_artifacts(
+def write_translated_artifacts(
     doc: TranslationDocument,
     turns: Sequence[Dict[str, Any]],
     units: Sequence[TranslationUnit],
@@ -391,39 +424,129 @@ def write_english_artifacts(
         )
         return None
 
-    en_text, en_segments = render_english(turns, units, doc)
+    en_text, en_segments = render_target_text(turns, units, doc)
     if not en_text.strip() or not en_segments:
         logger.warning("translation: the English render is empty for %s", rel_transcript_path)
         return None
 
-    text_rel = english_text_relpath(rel_transcript_path)
-    seg_rel = english_segments_relpath(rel_transcript_path)
-    text_path = os.path.join(effective_output_dir, text_rel)
-    seg_path = os.path.join(effective_output_dir, seg_rel)
-    written: List[str] = []
-    try:
-        _atomic_write_text(text_path, en_text)
-        written.append(text_path)
-        _atomic_write_json(seg_path, en_segments, indent=0)
-        written.append(seg_path)
-    except OSError as exc:
-        logger.warning("translation: could not write the English artifacts: %s", exc)
-        for path in written:
-            try:
-                os.remove(path)
-            except OSError:
-                pass
-        return None
-    logger.info(
-        "    saved English transcript: %s (%d cues, %d units)",
-        text_rel,
-        len(en_segments),
-        len(doc.units),
+    return _swap_in_translation(
+        rel_transcript_path,
+        effective_output_dir,
+        doc.source_language,
+        target_text=en_text,
+        target_segments=en_segments,
+        unit_count=len(doc.units),
     )
-    return text_rel
 
 
-def write_english_adfree(
+def _swap_in_translation(
+    rel_transcript_path: str,
+    effective_output_dir: str,
+    source_language: Optional[str],
+    *,
+    target_text: str,
+    target_segments: Any,
+    unit_count: int,
+) -> Optional[str]:
+    """Move the SOURCE body aside and put the translation at the canonical path. Both, or neither.
+
+    D-44 makes ``<base>.txt`` the analysis-language body, so finishing a translation means two
+    renames: the source moves to ``<base>.<lang>.txt`` and the rendered translation takes its place.
+    The pair has to be indivisible. Every generic reader opens the canonical path without asking
+    what language it holds, so a half-applied swap is not a degraded episode — it is an episode that
+    LIES, and summary/GI/KG/search would run English prompts over source-language text and produce
+    confident nonsense (§5.2: precision 67% -> 18%, inventing people rather than finding none).
+
+    HOW ATOMICITY IS ACHIEVED without a transactional filesystem: everything that can fail is done
+    BEFORE anything is visible. The translation is staged to temp files beside their targets, the
+    source is renamed to its language-tagged name, and only then do the staged files take the
+    canonical names. ``os.replace`` is atomic within a filesystem, so each individual step either
+    happens or does not. If a later step fails, the earlier ones are rolled back in reverse — and
+    the rollback only has to move files that are already written, which is the cheap direction.
+
+    THE WINDOW THAT REMAINS, stated rather than hidden: between renaming the source away and
+    renaming the staged body in, the canonical path does not exist. A reader in that instant sees a
+    missing transcript, not a wrong one — which is the failure we can tolerate, because every reader
+    already handles an absent body and none of them can handle a mislabelled one. The window is two
+    rename syscalls wide.
+
+    Returns the canonical relpath on success, ``None`` on failure with the episode untouched.
+    """
+    normalized = (source_language or "").strip().lower().split("-")[0]
+    if not normalized or normalized == "en":
+        logger.warning(
+            "translation: refusing to swap for source_language=%r — English needs no swap, and a "
+            "`.en` suffix is exactly what D-44 removed",
+            source_language,
+        )
+        return None
+
+    canon_text = rel_transcript_path
+    canon_seg = canonical_segments_relpath(rel_transcript_path)
+    src_text = source_text_relpath(rel_transcript_path, normalized)
+    src_seg = source_segments_relpath(rel_transcript_path, normalized)
+
+    abs_canon_text = os.path.join(effective_output_dir, canon_text)
+    abs_canon_seg = os.path.join(effective_output_dir, canon_seg)
+    abs_src_text = os.path.join(effective_output_dir, src_text)
+    abs_src_seg = os.path.join(effective_output_dir, src_seg)
+
+    staged_text = f"{abs_canon_text}.swap.tmp"
+    staged_seg = f"{abs_canon_seg}.swap.tmp"
+
+    # Already swapped: the source body is at its tagged name. Re-running must not move the
+    # TRANSLATION aside as though it were the source, which would hide the English behind a
+    # language tag and leave the canonical path holding nothing.
+    if os.path.exists(abs_src_text):
+        logger.info("translation: the swap already happened for %s; nothing to do", canon_text)
+        return canon_text
+
+    done: List[tuple] = []  # (kind, args) for rollback, newest last
+    try:
+        _atomic_write_text(staged_text, target_text)
+        done.append(("unlink", staged_text))
+        _atomic_write_json(staged_seg, target_segments, indent=0)
+        done.append(("unlink", staged_seg))
+
+        os.replace(abs_canon_text, abs_src_text)
+        done.append(("move_back", abs_src_text, abs_canon_text))
+        if os.path.exists(abs_canon_seg):
+            os.replace(abs_canon_seg, abs_src_seg)
+            done.append(("move_back", abs_src_seg, abs_canon_seg))
+
+        os.replace(staged_text, abs_canon_text)
+        os.replace(staged_seg, abs_canon_seg)
+    except OSError as exc:
+        logger.warning(
+            "translation: the swap failed for %s (%s) — rolling back, the episode is unchanged "
+            "and its canonical body is still the source language",
+            canon_text,
+            exc,
+        )
+        for entry in reversed(done):
+            try:
+                if entry[0] == "unlink":
+                    if os.path.exists(entry[1]):
+                        os.remove(entry[1])
+                else:
+                    if os.path.exists(entry[1]):
+                        os.replace(entry[1], entry[2])
+            except OSError:
+                logger.warning("translation: rollback step %s failed", entry, exc_info=True)
+        return None
+
+    logger.info(
+        "    swapped in the translation: %s now holds the analysis language, source kept at %s "
+        "(%d cues, %d units)",
+        canon_text,
+        src_text,
+        len(target_segments) if hasattr(target_segments, "__len__") else -1,
+        unit_count,
+    )
+    return canon_text
+
+
+def write_analysis_base(
     rel_transcript_path: str,
     effective_output_dir: str,
     extra_cue_patterns: Optional[List[str]] = None,
@@ -444,7 +567,7 @@ def write_english_adfree(
 
     en_rel = english_text_relpath(rel_transcript_path)
     en_path = os.path.join(effective_output_dir, en_rel)
-    seg_path = os.path.join(effective_output_dir, english_segments_relpath(rel_transcript_path))
+    seg_path = os.path.join(effective_output_dir, canonical_segments_relpath(rel_transcript_path))
     try:
         with open(en_path, "r", encoding="utf-8") as fh:
             en_text = fh.read()
@@ -512,53 +635,40 @@ def verify_span_excerpt(text: str, char_start: int, char_end: int, excerpt: str)
     return text[char_start:char_end].strip() == (excerpt or "").strip()
 
 
-def english_analysis_relpath(rel_transcript_path: str) -> str:
-    """``<base>.en.adfree.txt`` — the English body in the ANALYSIS coordinate space."""
-    base, ext = os.path.splitext(rel_transcript_path)
-    return f"{base}.en.adfree{ext or '.txt'}"
+def analysis_text_relpath(rel_transcript_path: str) -> str:
+    """``<base>.adfree.txt`` — the English body in the ANALYSIS coordinate space (D-44).
 
-
-def english_artifact_relpaths(rel_transcript_path: str) -> List[str]:
-    """EVERY `.en.*` derivative, in one place.
-
-    Two callers needed this list and each had its own copy: `_withdraw_english_render` listed
-    two files and `_invalidate_english_artifacts` five. A withdrawal therefore left
-    `.en.adfree.txt` behind when the ad-free save failed part-way — and ANALYSIS readers
-    OUTSIDE the gate (the indexer, `gi/load`, the processing stage) resolve that file FIRST.
-    One list, both callers.
-
-    `translation.json` is deliberately absent: it is the content-keyed translation memory
-    (D-33), and deleting it turns the most common repair in this corpus into a full
-    re-translation.
+    The same name an English episode's ad-free body already has, which is the point: the ad-free
+    reader does not know whether it is reading a translated episode.
     """
     base, ext = os.path.splitext(rel_transcript_path)
-    suffix = ext or ".txt"
-    return [
-        f"{base}.en{suffix}",
-        f"{base}.en.segments.json",
-        f"{base}.en.adfree{suffix}",
-        f"{base}.en.adfree.segments.json",
-        f"{base}.en.adfree.admap.json",
-    ]
+    return f"{base}.adfree{ext or '.txt'}"
 
 
-def english_artifacts_present(rel_transcript_path: str, effective_output_dir: str) -> bool:
-    """Every English artifact a consumer will actually READ. The completeness signal.
+def translation_swap_happened(
+    rel_transcript_path: str, effective_output_dir: str, language: str
+) -> bool:
+    """Whether translation COMPLETED and swapped the bodies over (D-44).
 
-    THE AD-FREE BODY IS PART OF THE PREDICATE, and a review found why. GI and KG resolve
-    ``TranscriptPurpose.ANALYSIS``, whose first English candidate is ``.en.adfree.txt`` —
-    ``.en.txt`` is not in that list at all. A predicate checking only `.en.txt` +
-    `.en.segments.json` therefore passed while ANALYSIS fell through to the SPANISH source, so
-    the gate reported a complete translation and the English stages read Spanish.
-    A completeness predicate has to name the files the consumers open, not a set that merely
-    sounds like the whole thing.
+    The signal is the presence of ``<base>.<lang>.txt`` — the source body at its own name. Only the
+    atomic swap creates that file, and the swap only runs once a complete English render exists, so
+    its presence proves the canonical ``<base>.txt`` now holds English. Absent means the swap never
+    happened and ``<base>.txt`` is still the source language.
+
+    ABSENCE IS STILL THE GATE, which is what the previous scheme got right and worth keeping. There
+    it was the absence of `.en.txt`; here it is the absence of the suffixed SOURCE. Either way no
+    flag has to be remembered and no partial state exists to misread — under an atomic swap there
+    is no "half translated" on disk to interpret.
+
+    This replaced a predicate that listed three English files and checked all of them, which was
+    needed because a partial write could leave some present and some not. The swap removes that
+    class of bug rather than checking for it.
     """
-    names = (
-        english_text_relpath(rel_transcript_path),
-        english_segments_relpath(rel_transcript_path),
-        english_analysis_relpath(rel_transcript_path),
-    )
-    return all(os.path.isfile(os.path.join(effective_output_dir, n)) for n in names)
+    if not language or language.strip().lower().split("-")[0] == "en":
+        # An English episode needs no swap; its canonical body is already English.
+        return True
+    rel = source_text_relpath(rel_transcript_path, language)
+    return os.path.isfile(os.path.join(effective_output_dir, rel))
 
 
 def translation_metrics(

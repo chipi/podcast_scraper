@@ -47,7 +47,6 @@ CLEANED_SUFFIX = ".cleaned"
 #: an episode can have are ``<base>.txt``, ``<base>.adfree.txt``, ``<base>.en.txt`` and
 #: ``<base>.en.adfree.txt`` -- source-language canonical, source-language ad-free, English
 #: canonical, English ad-free.
-EN_SUFFIX = ".en"
 
 #: The pre-naming render: the screenplay as it stood when only the diarizer had spoken, with
 #: anonymous ``SPEAKER_NN`` labels (D-40).
@@ -93,49 +92,6 @@ def anon_transcript_relpath(transcript_relpath: str) -> str:
     return f"{base}{ANON_SUFFIX}{ext or '.txt'}"
 
 
-def english_transcript_relpath(transcript_relpath: str) -> str:
-    """``transcripts/01 - ep.txt`` -> ``transcripts/01 - ep.en.txt``."""
-    base, ext = os.path.splitext(transcript_relpath)
-    return f"{base}{EN_SUFFIX}{ext or '.txt'}"
-
-
-def english_adfree_transcript_relpath(transcript_relpath: str) -> str:
-    """``transcripts/01 - ep.txt`` -> ``transcripts/01 - ep.en.adfree.txt``."""
-    return adfree_transcript_relpath(english_transcript_relpath(transcript_relpath))
-
-
-def is_english_render_relpath(transcript_relpath: str) -> Optional[bool]:
-    """Is this relpath one of the derived ENGLISH bodies? ``None`` when there is nothing to read.
-
-    Answers a question about the path in hand, which is the opposite of what the callers that
-    needed it were doing: building ``english_transcript_relpath(rel)`` and testing whether THAT
-    exists. The suffixes stack, so that construction is only correct when ``rel`` is canonical —
-    and the one caller that mattered passed a path that had already been resolved to
-    ``ep1.en.adfree.txt``, producing ``ep1.en.adfree.en.txt``, which never exists.
-
-    Measured 2026-09-30, before this existed: for a successfully translated Spanish episode the
-    indexer chunked ``transcripts/ep1.en.adfree.txt`` — English text — and labelled the chunks
-    ``es``, so the router dropped their embeddings and filed them in the vector-less
-    ``segments_nonen`` tier. The episode was findable by neither semantic search nor its own
-    language, which is the exact outcome `_indexed_text_language` was written to prevent.
-
-    Matches on the suffix STACK, not on the outermost suffix, because ``.en`` may sit under
-    ``.adfree`` (``ep1.en.adfree.txt``) or be outermost (``ep1.en.txt``).
-    """
-    rel = (transcript_relpath or "").strip().replace("\\", "/")
-    if not rel:
-        return None
-    base = os.path.splitext(rel)[0].lower()
-    while True:
-        for suffix in (ADFREE_SUFFIX, CLEANED_SUFFIX):
-            if base.endswith(suffix):
-                base = base[: -len(suffix)]
-                break
-        else:
-            break
-    return base.endswith(EN_SUFFIX)
-
-
 def _cleaned_transcript_relpath(transcript_relpath: str) -> str:
     """``transcripts/01 - ep.txt`` -> ``transcripts/01 - ep.cleaned.txt``."""
     base, ext = os.path.splitext(transcript_relpath)
@@ -158,14 +114,21 @@ def _canonical_relpath(transcript_relpath: str) -> str:
     if not rel:
         return ""
     base, ext = os.path.splitext(rel)
-    # Strip REPEATEDLY, because the suffixes stack: ``ep1.en.adfree.txt`` has to canonicalize all
-    # the way to ``ep1.txt``. Stripping only the outermost one (what this did before the English
-    # branch existed) would leave ``ep1.en``, whose candidate list is built off the wrong base and
-    # resolves nothing -- the quiet kind of failure, since every candidate simply fails to exist.
+    # Strip REPEATEDLY, because the suffixes stack: ``ep1.cleaned.adfree.txt`` has to canonicalize
+    # all the way to ``ep1.txt``. Stripping only the outermost would leave ``ep1.cleaned``, whose
+    # candidate list is built off the wrong base and resolves nothing -- the quiet kind of failure,
+    # since every candidate simply fails to exist.
+    #
+    # NO LANGUAGE SUFFIX IS STRIPPED, deliberately (D-44). The only language-tagged body is the
+    # SOURCE one at ``<base>.<lang>.txt``, and no generic reader is ever handed that path: generic
+    # readers open the canonical file, which is always the analysis language. The paths that do
+    # carry a tag are built and consumed by translation, which knows the language because it is a
+    # parameter there. So this does not need a registry of codes, and must not guess at one --
+    # stripping "any short suffix" would eat a legitimate filename part.
     changed = True
     while changed:
         changed = False
-        for suffix in (ADFREE_SUFFIX, CLEANED_SUFFIX, EN_SUFFIX, ANON_SUFFIX):
+        for suffix in (ADFREE_SUFFIX, CLEANED_SUFFIX, ANON_SUFFIX):
             if base.lower().endswith(suffix):
                 base = base[: -len(suffix)]
                 changed = True
@@ -219,39 +182,52 @@ def text_relpath_candidates(
         return []
     adfree = adfree_transcript_relpath(rel)
     cleaned = [_cleaned_transcript_relpath(rel)] if include_cleaned else []
+    # NO ENGLISH HEAD (D-44). English is the canonical `<base>.txt` — written there by ASR on an
+    # English episode, swapped there by translation on a translated one — so `rel` and `adfree`
+    # ARE the English bodies and there is nothing to put in front of them. These two lists are
+    # therefore byte-identical to the pre-translation ones, which is the point: no generic reader
+    # chooses between languages, because no generic reader can tell there was a choice.
     if purpose is TranscriptPurpose.ANALYSIS:
-        return [english_adfree_transcript_relpath(rel), adfree, *cleaned, rel]
-    return [english_transcript_relpath(rel), rel, *cleaned, adfree]
+        return [adfree, *cleaned, rel]
+    return [rel, *cleaned, adfree]
 
 
-def source_language_relpath_candidates(transcript_relpath: str) -> List[str]:
+def source_language_relpath_candidates(transcript_relpath: str, language: str) -> List[str]:
     """The bodies to try for the SOURCE-language layer, in order. Pure — no disk access.
 
-    The complement of :func:`text_relpath_candidates`: every English candidate removed, so this
-    resolves the text the episode was actually spoken in even when a translation exists. Needed
-    by RFC-124 §6.2's "both layers are indexed" — the search index carries the source-language
-    chunks so a query in that language reaches the episode, which the English-first precedence
-    cannot provide by construction.
+    THE LANGUAGE IS A PARAMETER, because under D-44 the suffix carries it: the source body lives at
+    ``<base>.<lang>.txt``, written by translation's swap. This used to take no language and return
+    the canonical paths, which worked only while English was the suffixed variant and the source
+    was canonical — the exact inversion D-44 undid.
 
-    Ad-free first, matching ANALYSIS, because a source-language ad-free body is the better
-    retrieval target when one exists. It usually does NOT: ad excision runs on the English text
-    (D-19), so for a translated episode this normally lands on the canonical ``.txt``. Both are
-    in the same coordinate space as each other and NEITHER is in the analysis space once a
-    translation exists — which is why chunks built from this must be labelled with the source
-    language, never indexed as analysis text, and excluded from the quote-offset verifier and
-    the transcript lift.
+    Needed by RFC-124 §6.2's "both layers are indexed": the search index carries the
+    source-language chunks so a query in that language reaches the episode, which an
+    English-canonical corpus cannot provide by construction.
+
+    Ad-free first for symmetry with ANALYSIS, though it will rarely exist: ad excision runs on the
+    English text (D-19), so a translated episode normally has only the plain source body. Both are
+    in the same coordinate space as each other and NEITHER is in the analysis space — which is why
+    chunks built from this must be labelled with the source language, never indexed as analysis
+    text, and excluded from the quote-offset verifier and the transcript lift.
+
+    Empty for English: there is no separate source body to find.
     """
     rel = _canonical_relpath(transcript_relpath)
-    if not rel:
+    normalized = (language or "").strip().lower().split("-")[0]
+    if not rel or not normalized or normalized == "en":
         return []
-    return [adfree_transcript_relpath(rel), rel]
+    base, ext = os.path.splitext(rel)
+    source = f"{base}.{normalized}{ext or '.txt'}"
+    return [adfree_transcript_relpath(source), source]
 
 
 def resolve_source_language_text_path(
-    output_dir: PathLike, transcript_relpath: str
+    output_dir: PathLike, transcript_relpath: str, language: str
 ) -> Optional[Path]:
     """The first existing source-language body, or ``None``."""
-    return _first_existing(output_dir, source_language_relpath_candidates(transcript_relpath))
+    return _first_existing(
+        output_dir, source_language_relpath_candidates(transcript_relpath, language)
+    )
 
 
 def segments_relpath_candidates(

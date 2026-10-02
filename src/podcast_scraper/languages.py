@@ -42,6 +42,17 @@ def normalize_language_tag(raw: Optional[str]) -> Optional[str]:
     return primary
 
 
+#: The language every ANALYSIS stage reads, and therefore the language the canonical
+#: ``<base>.txt`` always holds (D-44).
+#:
+#: One named constant rather than `"en"` scattered through the pipeline, because the two meanings
+#: are different facts that happen to share a value today: "English" the language of a particular
+#: episode, and "the language our prompts, NER models and ad patterns are written in". Only the
+#: second one is this. If analysis ever moves to another language, this is what changes — and the
+#: places that legitimately mean the episode's own language keep saying `"en"`.
+TARGET_LANGUAGE = "en"
+
+
 #: How a resolved language was arrived at. Recorded on the artifact because an audit that
 #: cannot say WHERE a language came from cannot distinguish a measured corpus from one that
 #: silently defaulted every episode — and a uniform 100% ``en`` is exactly what a check

@@ -34,7 +34,7 @@ from typing import Any, Optional
 
 from .. import config as _config_mod
 from ..languages import transcription_language  # noqa: E402
-from ..languages_guard import is_english_text_language  # noqa: E402
+from ..languages_guard import is_target_language  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -136,11 +136,11 @@ def transcribe_with_sniff_gate(
     # the sniff pass entirely rather than paying for a transcription whose only purpose is to
     # feed a broken count.
     gate_language = transcription_language(cfg)
-    # `is_english_text_language` rather than `!= "en"`: one predicate for all three §5.2 sites,
+    # `is_target_language` rather than `!= "en"`: one predicate for all three §5.2 sites,
     # so "is this text English enough for an English-only model" has ONE answer and one place to
     # change. It also treats a whitespace-only tag as unknown (proceed) rather than as
     # non-English, which a bare comparison gets wrong.
-    if not is_english_text_language(gate_language):
+    if not is_target_language(gate_language):
         logger.info(
             "[#2169] sniff gate SKIPPED for a %s episode: its entity count uses an English NER "
             "model, which over-counts on non-English text (measured 98 vs 65). Going deep-only.",

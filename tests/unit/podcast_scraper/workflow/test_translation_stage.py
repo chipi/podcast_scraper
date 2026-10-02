@@ -19,7 +19,7 @@ from podcast_scraper import config
 from podcast_scraper.workflow import processing_manifest as pm
 from podcast_scraper.workflow.translation_stage import (
     decide_translation,
-    REASON_ALREADY_ENGLISH,
+    REASON_ALREADY_TARGET_LANGUAGE,
     REASON_NO_TRANSCRIPT,
     REASON_NO_TRANSLATOR,
     REASON_TRANSLATOR_READY,
@@ -55,7 +55,7 @@ class TestTheDecision:
     def test_an_english_episode_is_skipped_with_a_reason(self) -> None:
         got = decide_translation(_cfg(language="en"), transcript_relpath=REL)
         assert got.status == STATUS_SKIPPED
-        assert got.reason == REASON_ALREADY_ENGLISH
+        assert got.reason == REASON_ALREADY_TARGET_LANGUAGE
         assert got.source_language == "en"
         assert got.ran is False
 
@@ -143,14 +143,14 @@ class TestTheLedgerEntry:
             episode_id="ep1",
         )
         assert outcome.status == STATUS_SKIPPED
-        assert outcome.reason == REASON_ALREADY_ENGLISH
+        assert outcome.reason == REASON_ALREADY_TARGET_LANGUAGE
         assert outcome.ran is False
 
         block = json.loads((tmp_path / "transcripts" / "01 - ep.manifest.json").read_text())[
             "stages"
         ]["translation"]
         assert block["ran"] is False
-        assert block["metrics"]["reason"] == REASON_ALREADY_ENGLISH
+        assert block["metrics"]["reason"] == REASON_ALREADY_TARGET_LANGUAGE
         assert block["metrics"]["source_language"] == "en"
 
     def test_a_non_english_episode_records_it_the_same_way(self, tmp_path: Path) -> None:

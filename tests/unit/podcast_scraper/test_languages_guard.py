@@ -15,9 +15,9 @@ from __future__ import annotations
 import pytest
 
 from podcast_scraper.languages_guard import (
-    is_english_text_language,
-    REASON_INPUT_NOT_ENGLISH,
-    refuse_non_english,
+    is_target_language,
+    REASON_INPUT_NOT_TARGET_LANGUAGE,
+    refuse_unsupported_language,
 )
 
 pytestmark = pytest.mark.unit
@@ -26,28 +26,28 @@ pytestmark = pytest.mark.unit
 class TestWhatPasses:
     @pytest.mark.parametrize("language", ["en", "EN", "en-US", "en-gb", " en "])
     def test_english_and_its_regional_subtags_pass(self, language: str) -> None:
-        assert is_english_text_language(language) is True
-        assert refuse_non_english("naming", language) is None
+        assert is_target_language(language) is True
+        assert refuse_unsupported_language("naming", language) is None
 
     @pytest.mark.parametrize("language", [None, "", "   "])
     def test_an_unknown_language_PASSES(self, language: object) -> None:
         """Most of the corpus predates language resolution. Refusing those would stop the
         English pipeline that works today in order to protect a Spanish one that does not exist
         yet — the same reasoning the transcription guard records."""
-        assert is_english_text_language(language) is True  # type: ignore[arg-type]
-        assert refuse_non_english("naming", language) is None  # type: ignore[arg-type]
+        assert is_target_language(language) is True  # type: ignore[arg-type]
+        assert refuse_unsupported_language("naming", language) is None  # type: ignore[arg-type]
 
 
 class TestWhatIsRefused:
     @pytest.mark.parametrize("language", ["es", "es-ES", "de", "sr", "pt-BR"])
     def test_every_non_english_tag_is_refused(self, language: str) -> None:
-        assert is_english_text_language(language) is False
-        assert refuse_non_english("naming", language) is not None
+        assert is_target_language(language) is False
+        assert refuse_unsupported_language("naming", language) is not None
 
     def test_the_reason_names_the_stage_and_the_language(self) -> None:
         """The log line, the manifest entry and the metric carry the same sentence, so an
         operator reading any one of them learns which model was pointed at which language."""
-        reason = refuse_non_english("transcript-intro host detection", "es")
+        reason = refuse_unsupported_language("transcript-intro host detection", "es")
         assert reason is not None
         assert "transcript-intro host detection" in reason
         assert "'es'" in reason
@@ -55,7 +55,7 @@ class TestWhatIsRefused:
     def test_the_reason_cites_the_measurement_rather_than_asserting(self) -> None:
         """A guard whose justification is "it seemed wrong" gets removed by the next person who
         finds it inconvenient. The numbers are in the sentence."""
-        reason = refuse_non_english("naming", "es") or ""
+        reason = refuse_unsupported_language("naming", "es") or ""
         assert "0 of 6" in reason
         assert "98 vs 65" in reason
         assert "67% to 18%" in reason
@@ -63,10 +63,10 @@ class TestWhatIsRefused:
     def test_it_declines_rather_than_raising(self) -> None:
         """A guard that raised would turn a stage-ordering mistake into a lost episode. The
         episode is recoverable; a corpus of confidently wrong claims is not."""
-        assert isinstance(refuse_non_english("naming", "es"), str)
+        assert isinstance(refuse_unsupported_language("naming", "es"), str)
 
     def test_the_vocabulary_is_closed(self) -> None:
-        assert REASON_INPUT_NOT_ENGLISH == "input_not_english"
+        assert REASON_INPUT_NOT_TARGET_LANGUAGE == "input_not_english"
 
 
 class TestTheNerEntryPointHonoursIt:
@@ -164,7 +164,7 @@ class TestTheGuardIsActuallyREACHABLE:
     A whole-branch review on 2026-09-30 found S2.14 unreachable, and verifying it turned up
     something larger. Two separate failures were stacked:
 
-    1. `refuse_non_english` had exactly ONE caller —
+    1. `refuse_unsupported_language` had exactly ONE caller —
        `detect_hosts_from_transcript_intro` — whose own caller, `detect_speaker_names`, had no
        `text_language` parameter to pass. So the guard could not fire from anywhere in `src/`.
     2. The three §5.2 hazards each carried their OWN inline check against
@@ -230,9 +230,9 @@ class TestTheGuardIsActuallyREACHABLE:
     def test_no_language_still_proceeds(self) -> None:
         """Most of the corpus predates language resolution. Refusing those would stop naming
         for the corpus that works today."""
-        from podcast_scraper.languages_guard import refuse_non_english
+        from podcast_scraper.languages_guard import refuse_unsupported_language
 
-        assert refuse_non_english("speaker-name detection", None) is None
+        assert refuse_unsupported_language("speaker-name detection", None) is None
 
     def test_the_ml_provider_PASSES_the_episode_language(self) -> None:
         """Not `"en"`, and the difference is load-bearing: the inputs are the feed's title and
@@ -255,4 +255,4 @@ class TestTheGuardIsActuallyREACHABLE:
         root = Path(__file__).resolve().parents[3] / "src" / "podcast_scraper"
         for rel in ("workflow/sniff_gate.py", "workflow/episode_processor.py"):
             text = (root / rel).read_text(encoding="utf-8")
-            assert "is_english_text_language" in text, f"{rel} rolls its own check"
+            assert "is_target_language" in text, f"{rel} rolls its own check"

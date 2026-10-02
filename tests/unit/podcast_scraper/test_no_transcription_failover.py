@@ -82,39 +82,39 @@ class TestTheDgxProfilesHold:
 
 class TestTheLocalProviderRefusesNonEnglish:
     def test_a_non_english_request_raises(self) -> None:
-        from podcast_scraper.providers.ml.ml_provider import _guard_english_only
+        from podcast_scraper.providers.ml.ml_provider import _guard_supported_languages
 
         with pytest.raises(ValueError) as exc:
-            _guard_english_only("es")
+            _guard_supported_languages("es")
         assert "English-only" in str(exc.value)
         assert "base.en" in str(exc.value), "the message must name the mechanism, not just refuse"
 
     @pytest.mark.parametrize("code", ["es", "de", "ja", "pt-BR", "es-ES"])
     def test_every_non_english_form_is_refused(self, code: str) -> None:
-        from podcast_scraper.providers.ml.ml_provider import _guard_english_only
+        from podcast_scraper.providers.ml.ml_provider import _guard_supported_languages
 
         with pytest.raises(ValueError):
-            _guard_english_only(code)
+            _guard_supported_languages(code)
 
     @pytest.mark.parametrize("code", ["en", "en-US", "EN", "en_GB"])
     def test_english_in_any_regional_form_proceeds(self, code: str) -> None:
-        from podcast_scraper.providers.ml.ml_provider import _guard_english_only
+        from podcast_scraper.providers.ml.ml_provider import _guard_supported_languages
 
-        _guard_english_only(code)  # must not raise
+        _guard_supported_languages(code)  # must not raise
 
     def test_an_unset_language_proceeds(self) -> None:
         """``None`` is "nobody resolved a language" — the honest pre-#2172 state of most of the
         corpus. Refusing it would stop the local profiles transcribing anything at all."""
-        from podcast_scraper.providers.ml.ml_provider import _guard_english_only
+        from podcast_scraper.providers.ml.ml_provider import _guard_supported_languages
 
-        _guard_english_only(None)
-        _guard_english_only("")
+        _guard_supported_languages(None)
+        _guard_supported_languages("")
 
     def test_the_guard_is_wired_at_both_transcribe_entries(self) -> None:
         """Two entry points (``transcribe`` and ``transcribe_with_segments``); a guard on one is a
         guard on neither, since the pipeline uses the segments variant."""
         src = (REPO / "src/podcast_scraper/providers/ml/ml_provider.py").read_text(encoding="utf-8")
-        assert src.count("_guard_english_only(effective_language)") == 2
+        assert src.count("_guard_supported_languages(effective_language)") == 2
 
 
 class TestTheProviderIsStillPrimarySomewhere:

@@ -31,10 +31,10 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 #: Recorded on the stage that declined, so an audit can GROUP BY it.
-REASON_INPUT_NOT_ENGLISH = "input_not_english"
+REASON_INPUT_NOT_TARGET_LANGUAGE = "input_not_english"
 
 
-def is_english_text_language(language: Optional[str]) -> bool:
+def is_target_language(language: Optional[str]) -> bool:
     """Whether English-only NLP may run on text in *language*.
 
     ``None`` PASSES. Most of the corpus predates language resolution and resolves to nothing;
@@ -50,14 +50,14 @@ def is_english_text_language(language: Optional[str]) -> bool:
     return normalized.split("-")[0] == "en"
 
 
-def refuse_non_english(stage: str, language: Optional[str]) -> Optional[str]:
+def refuse_unsupported_language(stage: str, language: Optional[str]) -> Optional[str]:
     """``None`` to proceed, or the reason this stage must not run on this text.
 
     The reason names the STAGE and the LANGUAGE, so the log line, the manifest entry and the
     metric all carry the same sentence and an operator reading any one of them learns which
     model was pointed at which language.
     """
-    if is_english_text_language(language):
+    if is_target_language(language):
         return None
     reason = (
         f"{stage} uses English-only models, and this text resolved to {language!r}. Declining: "
