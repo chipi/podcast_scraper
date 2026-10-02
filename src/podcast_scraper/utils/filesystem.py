@@ -22,6 +22,12 @@ TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
 URL_HASH_LENGTH = 8
 WHISPER_TITLE_MAX_CHARS = 32
 EPISODE_NUMBER_FORMAT_WIDTH = 4
+#: ext4/APFS/overlayfs cap one path component at 255 BYTES (not characters).
+MAX_FILENAME_BYTES = 255
+#: Room kept for whatever is appended to a transcript stem: the longest sidecar suffix in use is
+#: ``.speakers.diagnostics.json`` (26 bytes); 32 leaves slack.
+ARTIFACT_SUFFIX_RESERVE_BYTES = 32
+_MIN_TITLE_BYTES = 16
 TRANSCRIPTS_SUBDIR = "transcripts"
 METADATA_SUBDIR = "metadata"
 _PLATFORMDIR_APP_NAMES = ("podcast_scraper", "podcast-scraper", "Podcast Scraper")
@@ -477,6 +483,30 @@ def truncate_whisper_title(
     return title[:max_len]
 
 
+def build_transcript_base_name(idx: int, title_safe: str, run_suffix: Optional[str]) -> str:
+    """Stem shared by a downloaded transcript and every sidecar derived from it.
+
+    ``NNNN - <title><_run>``. The title is cut on a UTF-8 byte budget so that the stem plus the
+    longest sidecar suffix stays under :data:`MAX_FILENAME_BYTES`; a title that already fits is
+    returned byte-for-byte unchanged. The prefix and run tag are never cut: they keep names unique
+    and let other code find the files.
+    """
+    run_tag = f"_{run_suffix}" if run_suffix else ""
+    prefix = f"{idx:0{EPISODE_NUMBER_FORMAT_WIDTH}d} - "
+    budget = max(
+        MAX_FILENAME_BYTES
+        - ARTIFACT_SUFFIX_RESERVE_BYTES
+        - len(prefix.encode("utf-8"))
+        - len(run_tag.encode("utf-8")),
+        _MIN_TITLE_BYTES,
+    )
+    encoded = title_safe.encode("utf-8")
+    if len(encoded) > budget:
+        # errors="ignore" drops the partial multi-byte character the cut may leave at the end.
+        title_safe = encoded[:budget].decode("utf-8", errors="ignore").rstrip(" .")
+    return f"{prefix}{title_safe}{run_tag}"
+
+
 def build_whisper_output_name(idx: int, ep_title_safe: str, run_suffix: Optional[str]) -> str:
     """Construct the filename for a Whisper transcript, including run suffix if present."""
     run_tag = f"_{run_suffix}" if run_suffix else ""
@@ -511,6 +541,7 @@ __all__ = [
     "feed_workspace_dirname",
     "setup_output_directory",
     "truncate_whisper_title",
+    "build_transcript_base_name",
     "build_whisper_output_name",
     "build_whisper_output_path",
 ]
