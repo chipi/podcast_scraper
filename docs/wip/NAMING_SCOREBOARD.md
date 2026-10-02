@@ -42,6 +42,11 @@ slice on 2,010 scored validation voices. Both accepted slices mostly turn WRONG 
 answers is what rules do well here; producing right answers is where they have not moved yet. The rejected loop is the held-out set working as intended
 (the development set alone would have accepted it). Not yet enough slices to call a wall.
 
+Next after the planned slices (operator, 2026-10-03): a FEED-LEVEL analysis with the Fable advisor —
+patterns per show (who hosts it, who recurs across its episodes, how its transcripts/voices look),
+using the show sidecar (`feeds/<feed>/show.json`) and the gold sets, to find rules that work at the
+show level rather than per episode.
+
 Candidate beyond rules (not yet tried): make the production LLM resolver read each voice the way
 the labellers did (the labelling guide as the prompt, the case view as input, the rules as guards),
 measured on the same gate with real DGX calls on the development set first.
