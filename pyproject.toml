@@ -502,6 +502,10 @@ ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Import THIS checkout's code. The shared venv's editable install points at the main checkout, so
+# a git worktree's pytest otherwise tests the main checkout's src while reporting green for the
+# worktree (observed 2026-10-02: a whole roster suite run against the wrong tree).
+pythonpath = ["src"]
 # Default: run only unit tests (fast feedback)
 # Note: -m marker filter removed from addopts to avoid conflicts with explicit -m flags
 # Use explicit -m flags in Makefile/CI commands instead
