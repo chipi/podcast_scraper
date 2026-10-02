@@ -1884,6 +1884,11 @@ def _finalize_pipeline(
     index_written, failure_summary = _finalize_run_index(
         cfg, pipeline_metrics, episodes, effective_output_dir, run_suffix
     )
+    from .show_metadata import feed_dir_for_run, write_show_metadata
+
+    _feed_dir = feed_dir_for_run(Path(effective_output_dir))
+    if _feed_dir is not None:
+        write_show_metadata(_feed_dir)
     # Skip the import entirely when vector indexing is disabled. The
     # ``search.indexer`` module pulls in numpy + the ML stack at load time, which
     # cloud-thin builds (``[llm]`` extras, ``vector_search: false``)
