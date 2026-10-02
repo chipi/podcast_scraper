@@ -352,28 +352,27 @@ class TestTheQueryPath:
 
 
 class TestWhatFEEDSTheRouter:
-    """`_indexed_text_language` decides which tier every chunk lands in — and nothing tested it.
+    """What language the ANALYSIS chunks are labelled with — which D-44 makes a constant, not a
+    measurement.
 
-    Everything above proves the router splits correctly given a language. None of it could see
-    that the language handed to the router was WRONG, because the router is faithful: given
-    `es`, it dutifully strips the embedding, and given English text labelled `es` it strips the
-    embedding just as dutifully.
+    THIS CLASS USED TO INFER IT. `_indexed_text_language` resolved the transcript and inspected the
+    resulting filename for an `.en` suffix, to work out whether it had read a translation. The
+    inference went wrong twice: first by building `english_transcript_relpath(resolved)` on an
+    already-resolved path and testing a name that can never exist (`ep1.en.adfree.en.txt`), then by
+    reading the suffix stack. Measured 2026-09-30: a successfully translated Spanish episode's
+    chunks
+    came from the English render and were labelled `es`, so the router dropped their embeddings into
+    the vector-less tier and the episode was findable by neither semantic search nor its own
+    language — invisible, because the chunking and the upsert both "succeeded".
 
-    Measured 2026-09-30, before the fix: a successfully translated Spanish episode's chunks came
-    from `transcripts/ep1.en.adfree.txt` — English text, correctly resolved — and were labelled
-    `es`, so they were filed in the vector-less tier. The episode was findable by NEITHER
-    semantic search (no vector) NOR its own language (the source layer is not indexed at all,
-    RFC-124 §6.2's other half). Both the chunking and the upsert reported success.
-
-    The cause was a question asked backwards: the code built
-    `english_transcript_relpath(resolved)` and tested whether THAT existed, but `resolved` is
-    already `ep1.en.adfree.txt` for a translated episode, so it looked for
-    `ep1.en.adfree.en.txt`. The suffixes stack, so constructing a derived name is only valid
-    from a CANONICAL path.
+    Under D-44 the ANALYSIS body is the canonical `<base>.txt` or its ad-free derivative, and both
+    hold the analysis language whatever the episode was spoken in. So there is nothing to infer, and
+    the half-translated states these tests enumerated cannot exist: the swap is indivisible.
     """
 
     @staticmethod
     def _episode(tmp_path: Any, files: List[str], language: Optional[str]) -> Any:
+        """One episode on disk, with exactly the bodies named. Kept from the class this replaced."""
         from pathlib import Path
 
         root = Path(str(tmp_path)).resolve()
@@ -387,89 +386,64 @@ class TestWhatFEEDSTheRouter:
         }
         return root, doc
 
-    def _language(self, tmp_path: Any, files: List[str], language: Optional[str]) -> Optional[str]:
+    def test_a_SWAPPED_episode_indexes_as_the_target_language(self, tmp_path: Any) -> None:
+        """The canonical body holds the translation, proven by the tagged source existing."""
+        from podcast_scraper.languages import TARGET_LANGUAGE
         from podcast_scraper.search.indexer import _indexed_text_language
 
-        root, doc = self._episode(tmp_path, files, language)
-        return _indexed_text_language(root, root / "m.json", doc)
+        for language in ("es", "it", "de"):
+            root, doc = self._episode(
+                tmp_path / language, ["ep1.txt", f"ep1.{language}.txt"], language
+            )
+            meta = root / "metadata" / "ep1.metadata.json"
+            assert _indexed_text_language(root, meta, doc) == TARGET_LANGUAGE, language
 
-    _TRANSLATED = ["ep1.txt", "ep1.adfree.txt", "ep1.en.txt", "ep1.en.adfree.txt"]
+    def test_an_UNSWAPPED_episode_indexes_as_its_OWN_language(self, tmp_path: Any) -> None:
+        """The correction that matters. A pending or failed translation leaves the canonical body in
+        the SOURCE language, so labelling it English would file Spanish text in the English vector
+        tier — the exact bug this function exists to prevent, from the other direction.
 
-    def test_a_TRANSLATED_episode_indexes_as_english(self, tmp_path: Any) -> None:
-        """The regression. It returned `es` and cost the episode its embeddings."""
-        assert self._language(tmp_path, self._TRANSLATED, "es") == "en"
-
-    def test_the_body_it_resolved_to_really_is_the_english_one(self, tmp_path: Any) -> None:
-        """Asserted separately so a future change that returns `en` for the WRONG reason — by
-        reading the episode's language rather than the resolved body — still fails."""
-        from podcast_scraper.search.indexer import _transcript_path
-
-        root, doc = self._episode(tmp_path, self._TRANSLATED, "es")
-        resolved = _transcript_path(root, doc)
-        assert resolved is not None
-        assert str(resolved.relative_to(root)) == "transcripts/ep1.en.adfree.txt"
-
-    def test_a_PENDING_translation_still_indexes_as_its_own_language(self, tmp_path: Any) -> None:
-        """The other direction, which the broken version got right by accident: with no English
-        render the chunks really are Spanish and belong in the keyword-only tier."""
-        assert self._language(tmp_path, ["ep1.txt", "ep1.adfree.txt"], "es") == "es"
-
-    def test_a_HALF_translated_episode_is_not_treated_as_english(self, tmp_path: Any) -> None:
-        """`.en.txt` present but no `.en.adfree.txt`: ANALYSIS prefers ad-free, so the chunker
-        reads the SPANISH ad-free body. Labelling that `en` because some English file exists
-        would put Spanish text in the vector tier. Consistent with the §5.3 completeness gate,
-        which requires the whole `.en.adfree` set before an episode counts as translated.
+        My first version asserted the target language unconditionally, on the strength of a
+        docstring claiming unusable episodes never reach the indexer. That marker does not exist
+        yet, and the indexer can establish the fact itself with one `isfile`, so it does.
         """
-        assert self._language(tmp_path, ["ep1.txt", "ep1.adfree.txt", "ep1.en.txt"], "es") == "es"
+        from podcast_scraper.search.indexer import _indexed_text_language
 
-    @pytest.mark.parametrize("language", ["en", "en-US", "EN"])
-    def test_an_english_episode_short_circuits(self, tmp_path: Any, language: str) -> None:
-        assert self._language(tmp_path, ["ep1.txt", "ep1.adfree.txt"], language) == "en"
+        root, doc = self._episode(tmp_path, ["ep1.txt", "ep1.adfree.txt"], "es")
+        meta = root / "metadata" / "ep1.metadata.json"
+        assert _indexed_text_language(root, meta, doc) == "es"
 
-    def test_no_recorded_language_stays_None(self, tmp_path: Any) -> None:
-        """Most of the corpus predates language resolution. `None` routes English in the
-        router, deliberately — sending it to a keyword-only tier would silently remove the
-        working corpus from semantic search."""
-        assert self._language(tmp_path, ["ep1.txt", "ep1.adfree.txt"], None) is None
+    def test_an_english_episode_needs_no_swap(self, tmp_path: Any) -> None:
+        from podcast_scraper.languages import TARGET_LANGUAGE
+        from podcast_scraper.search.indexer import _indexed_text_language
+
+        root, doc = self._episode(tmp_path, ["ep1.txt"], "en")
+        meta = root / "metadata" / "ep1.metadata.json"
+        assert _indexed_text_language(root, meta, doc) == TARGET_LANGUAGE
+
+    def test_the_SOURCE_layer_is_labelled_by_the_caller_that_resolved_it(
+        self, tmp_path: Any
+    ) -> None:
+        """The other half, and where the episode's own language legitimately appears: the caller
+        deliberately resolves the tagged source body, so it knows the language without asking a
+        filename."""
+        from podcast_scraper.search.indexer import _source_layer_body
+
+        root, doc = self._episode(tmp_path, ["ep1.txt", "ep1.es.txt"], "es")
+        got = _source_layer_body(root, doc, "en")
+        assert got is not None
+        path, language = got
+        assert path.name == "ep1.es.txt"
+        assert language == "es"
 
 
-class TestTheEnglishRenderPredicate:
-    """`is_english_render_relpath` — the suffix STACK, not the outermost suffix."""
-
-    @pytest.mark.parametrize(
-        "rel,expected",
-        [
-            ("transcripts/ep1.txt", False),
-            ("transcripts/ep1.adfree.txt", False),
-            ("transcripts/ep1.cleaned.txt", False),
-            ("transcripts/ep1.en.txt", True),
-            # `.en` sits UNDER `.adfree`, which is why an outermost-suffix test fails here.
-            ("transcripts/ep1.en.adfree.txt", True),
-            ("transcripts/ep1.en.cleaned.txt", True),
-            ("transcripts/ep1.EN.ADFREE.TXT", True),
-        ],
-    )
-    def test_it_reads_the_whole_stack(self, rel: str, expected: bool) -> None:
-        from podcast_scraper.workflow.transcript_resolution import is_english_render_relpath
-
-        assert is_english_render_relpath(rel) is expected
-
-    @pytest.mark.parametrize("rel", ["", "   ", None])
-    def test_nothing_to_read_is_None_not_False(self, rel: Optional[str]) -> None:
-        """`None` distinguishes "no path" from "a path that is not English". `False` would say
-        the caller had a body and it was not English, which is a different fact."""
-        from podcast_scraper.workflow.transcript_resolution import is_english_render_relpath
-
-        assert is_english_render_relpath(rel) is None  # type: ignore[arg-type]
-
-    def test_a_derived_name_must_be_built_from_a_CANONICAL_path(self) -> None:
-        """The trap this predicate exists to replace, pinned so nobody reintroduces it."""
-        from podcast_scraper.workflow.transcript_resolution import english_transcript_relpath
-
-        assert (
-            english_transcript_relpath("transcripts/ep1.en.adfree.txt")
-            == "transcripts/ep1.en.adfree.en.txt"
-        ), "stacking is real; this name never exists on disk"
+# `TestTheEnglishRenderPredicate` lived here and is gone (D-44, #2254). It tested
+# `is_english_render_relpath`, which inspected a path's suffix STACK to decide whether it
+# was a translation — `.en` could sit under `.adfree` or be outermost — so the predicate had
+# to strip repeatedly. English is now the UNSUFFIXED canonical file, so no path needs
+# classifying and the predicate has no question to answer. What it was protecting — the
+# router labelling English chunks `es` and dropping their embeddings — is now impossible by
+# construction, and asserted as such in `TestWhatFEEDSTheRouter` above.
 
 
 class TestAReindexDoesNotDELETETheNonEnglishTier:

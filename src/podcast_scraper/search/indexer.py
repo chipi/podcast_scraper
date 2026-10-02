@@ -285,12 +285,36 @@ def _indexed_text_language(
     The SOURCE-language layer is labelled separately, by the caller that deliberately resolved the
     source body and therefore knows its language without asking a filename.
 
-    An episode whose swap never happened has a non-English ``<base>.txt`` — and is marked unusable
-    and excluded upstream, so it never reaches the indexer.
+    IT VERIFIES THE SWAP RATHER THAN ASSUMING IT. An episode whose swap never happened still has a
+    SOURCE-language ``<base>.txt`` — a pending or failed translation — and labelling that English
+    would file Spanish text in the English vector tier, which is the very bug this function exists
+    to prevent, reached from the other direction. So the episode's own language is returned unless
+    the tagged source body proves the swap completed.
+
+    That check is one `os.path.isfile`, and it is deliberately NOT delegated to an upstream
+    "unusable episode" marker: the indexer can establish the fact cheaply and locally, and a reader
+    that trusts a guarantee it could have verified is how the first version of this went wrong.
     """
     from ..languages import TARGET_LANGUAGE
+    from ..translation.artifacts import translation_swap_happened
 
-    return TARGET_LANGUAGE
+    ep = doc.get("episode") or {}
+    feed = doc.get("feed") or {}
+    language = ep.get("language") or feed.get("language")
+    normalized = str(language or "").strip().lower().split("-")[0] or None
+    # `None` STAYS `None`: most of the corpus predates language resolution, and claiming the target
+    # language for an episode nobody resolved asserts something unmeasured — the distinction
+    # `language_source` exists to keep. The router already treats an unlabelled row as English, so
+    # the routing is identical; only the honesty of the recorded value differs.
+    if not normalized or normalized == TARGET_LANGUAGE:
+        return normalized
+
+    content = doc.get("content") or {}
+    rel = content.get("transcript_file_path")
+    if isinstance(rel, str) and rel.strip():
+        if translation_swap_happened(rel.strip(), str(episode_root), normalized):
+            return TARGET_LANGUAGE
+    return normalized
 
 
 #: Suffix that makes a source-layer chunk id distinct from its English sibling. LanceDB merges

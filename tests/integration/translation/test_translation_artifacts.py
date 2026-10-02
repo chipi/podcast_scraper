@@ -20,8 +20,8 @@ from podcast_scraper.providers.ml.diarization.formatting import (
     format_diarized_screenplay_with_offsets,
 )
 from podcast_scraper.translation.artifacts import (
-    english_artifacts_present,
     load_translation_json,
+    translation_swap_happened,
 )
 from podcast_scraper.workflow import translation_stage as ts
 
@@ -120,7 +120,7 @@ class TestTheHappyPath:
         assert got.status == "translated"
         assert got.english_ready is True
         assert got.units_failed == 0
-        assert english_artifacts_present(REL, str(tmp_path))
+        assert translation_swap_happened(REL, str(tmp_path), "es")
         assert "Bienvenidos" in src, "the source is untouched"
 
     def test_the_english_render_keeps_the_speaker_labels_verbatim(
@@ -130,7 +130,7 @@ class TestTheHappyPath:
         English line exactly as it appears on the Spanish one."""
         _lay_down_spanish_episode(tmp_path)
         _run(monkeypatch, tmp_path, cfg, _StubProvider())
-        en = (tmp_path / "transcripts" / "p10_e01.en.txt").read_text(encoding="utf-8")
+        en = (tmp_path / "transcripts" / "p10_e01.txt").read_text(encoding="utf-8")
         assert en.startswith("Maya: ")
         assert "Liam: " in en
         assert "EN[" in en, "the stub's marker proves this is translated text"
@@ -143,7 +143,7 @@ class TestTheHappyPath:
         _lay_down_spanish_episode(tmp_path)
         _run(monkeypatch, tmp_path, cfg, _StubProvider())
         segs = json.loads(
-            (tmp_path / "transcripts" / "p10_e01.en.segments.json").read_text(encoding="utf-8")
+            (tmp_path / "transcripts" / "p10_e01.segments.json").read_text(encoding="utf-8")
         )
         doc = load_translation_json(REL, str(tmp_path))
         assert doc is not None
@@ -158,7 +158,7 @@ class TestTheHappyPath:
         _lay_down_spanish_episode(tmp_path)
         _run(monkeypatch, tmp_path, cfg, _StubProvider())
         segs = json.loads(
-            (tmp_path / "transcripts" / "p10_e01.en.segments.json").read_text(encoding="utf-8")
+            (tmp_path / "transcripts" / "p10_e01.segments.json").read_text(encoding="utf-8")
         )
         assert segs
         for s in segs:
@@ -170,9 +170,9 @@ class TestTheHappyPath:
         """The same identity S1.1 guarantees for the source, now for the English body."""
         _lay_down_spanish_episode(tmp_path)
         _run(monkeypatch, tmp_path, cfg, _StubProvider())
-        en = (tmp_path / "transcripts" / "p10_e01.en.txt").read_text(encoding="utf-8")
+        en = (tmp_path / "transcripts" / "p10_e01.txt").read_text(encoding="utf-8")
         segs = json.loads(
-            (tmp_path / "transcripts" / "p10_e01.en.segments.json").read_text(encoding="utf-8")
+            (tmp_path / "transcripts" / "p10_e01.segments.json").read_text(encoding="utf-8")
         )
         for s in segs:
             assert en[s["char_start"] : s["char_end"]] == s["text"]
@@ -202,13 +202,13 @@ class TestTheCompletenessGate:
         assert got.status == "failed"
         assert got.english_ready is False
         assert got.units_failed == 1
-        assert not english_artifacts_present(REL, str(tmp_path))
+        assert not translation_swap_happened(REL, str(tmp_path), "es")
 
     def test_the_ledger_IS_still_written_so_nothing_successful_is_lost(
         self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Two artifacts, two meanings: `translation.json` says what was attempted and holds the
-        resume state; `.en.txt` says the result is complete and safe to consume."""
+        resume state; `<base>.txt` says the result is complete and safe to consume."""
         _lay_down_spanish_episode(tmp_path)
         _run(monkeypatch, tmp_path, cfg, _StubProvider(fail_units=("t0001.u01",)))
         doc = load_translation_json(REL, str(tmp_path))
@@ -220,7 +220,7 @@ class TestTheCompletenessGate:
     def test_the_source_transcript_still_serves_when_english_is_withheld(
         self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """With `.en.txt` absent the resolver falls back to the canonical source — so the right
+        """With `<base>.txt` absent the resolver falls back to the canonical source — so the right
         thing happens by construction rather than by a flag someone must check."""
         from podcast_scraper.workflow.transcript_resolution import (
             resolve_text_path,
@@ -343,63 +343,21 @@ class TestResume:
         assert isinstance(block["model"], list) and len(block["model"]) == 2
 
 
-class TestWithdrawal:
-    def test_a_failed_analysis_base_withdraws_the_render_and_says_so_in_the_ledger(
-        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """`status` is derived from unit outcomes, so with zero failures it reads `translated` —
-        and the API's `translation_status` reads exactly that field. Without the flag it would
-        report success for an episode with NO English artifacts at all.
-        """
-        _lay_down_spanish_episode(tmp_path)
-        monkeypatch.setattr(
-            "podcast_scraper.translation.artifacts.write_analysis_base", lambda *a, **k: None
-        )
-        got = _run(monkeypatch, tmp_path, cfg, _StubProvider())
-
-        assert got.english_ready is False
-        assert got.units_failed == 0, "every unit translated — the ad-free base is what failed"
-        assert got.reason == "adfree_base_failed", "not 'incomplete_translation'"
-        assert not english_artifacts_present(REL, str(tmp_path))
-
-        doc = load_translation_json(REL, str(tmp_path))
-        assert doc is not None
-        assert doc.english_withdrawn is True
-        assert doc.status == "failed", "the ledger must not claim `translated` with no English"
-
-    def test_withdrawal_removes_EVERY_english_file_not_just_the_gated_two(
-        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """ANALYSIS readers OUTSIDE the gate — the indexer, `gi/load`, the processing stage —
-        resolve `.en.adfree.txt` FIRST, so an orphan left by a partial save would be read as
-        current."""
-        _lay_down_spanish_episode(tmp_path)
-        orphan = tmp_path / "transcripts" / "p10_e01.en.adfree.txt"
-
-        def _partial(*_a: Any, **_k: Any) -> None:
-            orphan.write_text("half-written", encoding="utf-8")
-            return None
-
-        monkeypatch.setattr("podcast_scraper.translation.artifacts.write_analysis_base", _partial)
-        _run(monkeypatch, tmp_path, cfg, _StubProvider())
-        assert not orphan.exists(), "the orphan would be resolved first by ANALYSIS readers"
-
-    def test_a_repair_run_retranslates_ONLY_the_failed_units(
-        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        _lay_down_spanish_episode(tmp_path)
-        _run(monkeypatch, tmp_path, cfg, _StubProvider(fail_units=("t0003.u01",)))
-
-        repair = _StubProvider()
-        got = _run(monkeypatch, tmp_path, cfg, repair)
-        assert repair.seen == ["t0003.u01"], "only the failure is re-requested"
-        assert got.english_ready is True, "and the episode completes"
+# `TestWithdrawal` lived here and is gone (D-44, #2254). It tested `_withdraw_english_render` and
+# `english_artifact_relpaths` — machinery for deleting a partially-written English set so ANALYSIS
+# readers would fall back to the source. Under the atomic swap there is no partial state on disk to
+# withdraw: either the swap happened (canonical body holds the translation, source kept at its tagged
+# name) or it did not (canonical body is still the source, nothing else written). The failure those
+# tests guarded — a partial withdrawal leaving `.adfree.txt` behind, which ANALYSIS resolves FIRST —
+# cannot occur, and the rollback that replaces it is covered in
+# `tests/unit/podcast_scraper/translation/test_the_atomic_swap.py::TestRollback`, which forces a
+# failure AFTER the source has been renamed away and asserts the canonical body is restored.
 
 
 class TestTranslationReadsTheSourceNotItsOwnOutput:
     """The bug this class exists for was live for one commit, and it was the dangerous kind.
 
-    `TranscriptPurpose.TIMELINE` prefers `.en.txt` by D-38. So once an episode had been
+    `TranscriptPurpose.TIMELINE` prefers `<base>.txt` by D-38. So once an episode had been
     translated, a second run that asked the RESOLVER what to read got the English body, packed
     units from it, found no matching content keys (English hashes differently from Spanish),
     and re-translated English into English — overwriting the ledger and paying for every unit.
@@ -413,7 +371,7 @@ class TestTranslationReadsTheSourceNotItsOwnOutput:
     ) -> None:
         _lay_down_spanish_episode(tmp_path)
         _run(monkeypatch, tmp_path, cfg, _StubProvider())
-        assert english_artifacts_present(REL, str(tmp_path)), "first run completed"
+        assert translation_swap_happened(REL, str(tmp_path), "es"), "first run completed"
 
         doc_before = load_translation_json(REL, str(tmp_path))
         assert doc_before is not None
@@ -434,7 +392,7 @@ class TestTranslationReadsTheSourceNotItsOwnOutput:
         _lay_down_spanish_episode(tmp_path)
         _run(monkeypatch, tmp_path, cfg, _StubProvider())
         _run(monkeypatch, tmp_path, cfg, _StubProvider())
-        en = (tmp_path / "transcripts" / "p10_e01.en.txt").read_text(encoding="utf-8")
+        en = (tmp_path / "transcripts" / "p10_e01.txt").read_text(encoding="utf-8")
         assert "EN[EN[" not in en
 
 
@@ -526,7 +484,7 @@ class TestAdFreeOnEnglish:
         cfg = cfg.model_copy(update={"save_adfree_transcript": True})
         _run(monkeypatch, tmp_path, cfg, self._AdAwareStub())
 
-        adfree = tmp_path / "transcripts" / "p10_e01.en.adfree.txt"
+        adfree = tmp_path / "transcripts" / "p10_e01.adfree.txt"
         assert adfree.is_file(), "the English ad-free base must exist"
         cleaned = adfree.read_text(encoding="utf-8")
         assert "sponsored by Ramp" not in cleaned
@@ -543,7 +501,12 @@ class TestAdFreeOnEnglish:
         self._episode_with_ad(tmp_path)
         cfg = cfg.model_copy(update={"save_adfree_transcript": True})
         _run(monkeypatch, tmp_path, cfg, self._AdAwareStub())
-        assert not (tmp_path / "transcripts" / "p10_e01.adfree.txt").exists()
+        # D-44 made `p10_e01.adfree.txt` the ENGLISH analysis base, which is exactly what S2.5
+        # builds and must exist. What must NOT exist is an ad-free base for the SOURCE body: the
+        # `_AD_PATTERNS` are English, so running them over Spanish produces an identity file that
+        # asserts ads were removed when nothing matched. The source keeps its tagged name.
+        assert (tmp_path / "transcripts" / "p10_e01.adfree.txt").is_file()
+        assert not (tmp_path / "transcripts" / "p10_e01.es.adfree.txt").exists()
 
     def test_a_withheld_translation_gets_no_english_adfree_either(
         self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
@@ -557,8 +520,8 @@ class TestAdFreeOnEnglish:
                 return {"sentences": [], "alignment": "failed", "metadata": {"attempts": 1}}
 
         _run(monkeypatch, tmp_path, cfg, _Broken())
-        assert not (tmp_path / "transcripts" / "p10_e01.en.adfree.txt").exists()
-        assert not english_artifacts_present(REL, str(tmp_path))
+        assert not (tmp_path / "transcripts" / "p10_e01.adfree.txt").exists()
+        assert not translation_swap_happened(REL, str(tmp_path), "es")
 
     def test_spans_in_the_english_adfree_text_resolve_to_units(
         self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
@@ -572,7 +535,7 @@ class TestAdFreeOnEnglish:
         _run(monkeypatch, tmp_path, cfg, self._AdAwareStub())
 
         segs = json.loads(
-            (tmp_path / "transcripts" / "p10_e01.en.adfree.segments.json").read_text("utf-8")
+            (tmp_path / "transcripts" / "p10_e01.adfree.segments.json").read_text("utf-8")
         )
         assert segs and all(s.get("unit_id") for s in segs), "unit_id survived the re-render"
         first = segs[0]

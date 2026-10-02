@@ -114,42 +114,49 @@ class TestTheSourceAdFreeBaseIsEnglishOnly:
 
 class TestStaleEnglishIsInvalidated:
     @staticmethod
-    def _plant_english(root: Path) -> List[Path]:
-        planted = []
-        for name in (
-            "ep.en.txt",
-            "ep.en.segments.json",
-            "ep.en.adfree.txt",
-            "ep.en.adfree.segments.json",
-            "ep.en.adfree.admap.json",
-        ):
-            path = root / "transcripts" / name
-            path.write_text("stale", encoding="utf-8")
-            planted.append(path)
-        return planted
+    def _plant_swapped_episode(root: Path) -> None:
+        """A previously-translated episode as D-44 leaves it: the stale TRANSLATION at the canonical
+        path, the source kept at its language-tagged name."""
+        tr = root / "transcripts"
+        (tr / "ep.txt").write_text("stale English translation", encoding="utf-8")
+        (tr / "ep.segments.json").write_text('[{"id": 0, "text": "stale"}]', encoding="utf-8")
+        (tr / "ep.es.txt").write_text("el cuerpo original", encoding="utf-8")
+        (tr / "ep.es.segments.json").write_text('[{"id": 0, "text": "original"}]', encoding="utf-8")
 
-    def test_rewriting_the_source_deletes_every_english_derivative(self, tmp_path: Path) -> None:
-        """A stale English body outlives the source it was translated from and is served as
-        current, with offsets that now index different text — the displacement bug with a time
-        axis."""
-        text, segs = _lay_down(tmp_path)
-        planted = self._plant_english(tmp_path)
-        _produce_transcript_sidecars(_cfg(language="es"), text, segs, REL, str(tmp_path))
-        assert not any(p.exists() for p in planted)
+    def test_rewriting_the_source_swaps_the_SOURCE_back(self, tmp_path: Path) -> None:
+        """A stale translation outlives the source it was made from and, under D-44, sits at the
+        path every generic reader opens — served as current, with offsets that index different text.
+        The displacement bug with a time axis.
 
-    def test_invalidation_happens_even_with_the_adfree_flag_OFF(self, tmp_path: Path) -> None:
-        """The trigger is "a non-English source was rewritten", not "the ad-free branch ran".
-
-        A review found invalidation living inside the `elif save_adfree_transcript` branch, so
-        with the flag off a rewrite left stale `.en.*`: the gate passes on presence, TIMELINE
-        serves the old English with old cue times, and provenance resolves new spans against old
-        segments — while the ledger says the translation failed.
+        It is not DELETED, because the canonical body is the episode's only transcript: the source
+        trades places back with it instead.
         """
         text, segs = _lay_down(tmp_path)
-        planted = self._plant_english(tmp_path)
+        self._plant_swapped_episode(tmp_path)
+        _produce_transcript_sidecars(_cfg(language="es"), text, segs, REL, str(tmp_path))
+
+        tr = tmp_path / "transcripts"
+        assert (tr / "ep.txt").is_file(), "the episode lost its canonical transcript"
+        assert "original" in (tr / "ep.txt").read_text(encoding="utf-8")
+        assert not (tr / "ep.es.txt").exists(), "the tagged source should have moved back"
+        assert not [q for q in tr.iterdir() if ".tmp" in q.name]
+
+    def test_the_swap_back_happens_even_with_the_adfree_flag_OFF(self, tmp_path: Path) -> None:
+        """The trigger is "a non-English source was rewritten", not "the ad-free branch ran".
+
+        A review found invalidation living inside the `elif save_adfree_transcript` branch, so with
+        the flag off a rewrite left the stale translation in place: the gate passed on presence,
+        readers served the old English with old cue times, and provenance resolved new spans against
+        old segments — while the ledger said the translation failed.
+        """
+        text, segs = _lay_down(tmp_path)
+        self._plant_swapped_episode(tmp_path)
         cfg = _cfg(language="es", save_adfree_transcript=False)
         _produce_transcript_sidecars(cfg, text, segs, REL, str(tmp_path))
-        assert not any(p.exists() for p in planted)
+
+        tr = tmp_path / "transcripts"
+        assert "original" in (tr / "ep.txt").read_text(encoding="utf-8")
+        assert not (tr / "ep.es.txt").exists()
 
     def test_translation_json_is_KEPT(self, tmp_path: Path) -> None:
         """It is the content-keyed translation memory (D-33). A relabel changes every offset but
@@ -162,13 +169,22 @@ class TestStaleEnglishIsInvalidated:
         _produce_transcript_sidecars(_cfg(language="es"), text, segs, REL, str(tmp_path))
         assert ledger.is_file(), "the translation memory must survive a source rewrite"
 
-    def test_an_english_episode_invalidates_nothing(self, tmp_path: Path) -> None:
-        """An English episode has no `.en.*` to invalidate, and must not touch files that
-        happen to share the prefix."""
+    def test_an_english_episode_swaps_nothing_back(self, tmp_path: Path) -> None:
+        """An English episode has no tagged source, so there is nothing to restore — and a
+        language-tagged file that happens to sit beside it must be left exactly where it is."""
         text, segs = _lay_down(tmp_path)
-        planted = self._plant_english(tmp_path)
+        self._plant_swapped_episode(tmp_path)
+        tr = tmp_path / "transcripts"
+        before = {q.name: q.read_text(encoding="utf-8") for q in tr.iterdir() if q.is_file()}
+
         _produce_transcript_sidecars(_cfg(language="en"), text, segs, REL, str(tmp_path))
-        assert all(p.exists() for p in planted)
+
+        # `ep.txt` is rewritten by the sidecar producer itself, which is its job; what must not
+        # happen is the tagged source moving.
+        assert (tr / "ep.es.txt").read_text(encoding="utf-8") == before["ep.es.txt"]
+        assert (tr / "ep.es.segments.json").read_text(encoding="utf-8") == (
+            before["ep.es.segments.json"]
+        )
 
     def test_missing_english_files_are_not_an_error(self, tmp_path: Path) -> None:
         text, segs = _lay_down(tmp_path)

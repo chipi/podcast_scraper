@@ -49,19 +49,28 @@ pytestmark = pytest.mark.unit
 _ES = "Hola y bienvenidos al programa de hoy. Hablamos de la inflación. "
 _EN = "Hello and welcome to today's show. We talk about inflation. "
 
-_TRANSLATED = ["ep1.txt", "ep1.adfree.txt", "ep1.en.txt", "ep1.en.adfree.txt"]
+# D-44: a TRANSLATED episode is a SWAPPED one. The canonical body holds English (ASR wrote the
+# source there, the atomic swap replaced it) and the source is kept at its language-tagged name.
+# A PENDING one never swapped, so its canonical body is still the source and there is no tagged
+# sibling — which is exactly the signal the completeness gate reads.
+_TRANSLATED = ["ep1.txt", "ep1.adfree.txt", "ep1.es.txt"]
 _PENDING = ["ep1.txt", "ep1.adfree.txt"]
 
 
 def _episode(tmp_path: Path, files: List[str], language: Optional[str]) -> Tuple[Path, Dict, Path]:
     root = Path(str(tmp_path)).resolve()
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
+    # The canonical names hold ENGLISH for a swapped episode. `_PENDING` asks for the same two
+    # names and must get the SOURCE text, so the caller's list decides which body is which: a
+    # pending episode is built from `_PENDING_BODIES`.
     bodies = {
-        "ep1.txt": _ES * 30,
-        "ep1.adfree.txt": _ES * 30,
-        "ep1.en.txt": _EN * 30,
-        "ep1.en.adfree.txt": _EN * 30,
+        "ep1.txt": _EN * 30,
+        "ep1.adfree.txt": _EN * 30,
+        "ep1.es.txt": _ES * 30,
+        "ep1.es.adfree.txt": _ES * 30,
     }
+    if files is _PENDING:
+        bodies = {"ep1.txt": _ES * 30, "ep1.adfree.txt": _ES * 30}
     for name in files:
         (root / "transcripts" / name).write_text(bodies[name], encoding="utf-8")
     doc = {
@@ -172,7 +181,10 @@ class TestWhenTHERE_IS_NoSecondLayer:
         assert result is not None
         path, language = result
         assert language == "es"
-        assert str(path.relative_to(root)) == "transcripts/ep1.adfree.txt"
+        # D-44: the source body carries the language tag. `ep1.adfree.txt` is now the ENGLISH
+        # analysis base — the body the primary pass reads — so naming it here would index the same
+        # text twice under two ids instead of adding a layer.
+        assert str(path.relative_to(root)) == "transcripts/ep1.es.txt"
         assert path != _transcript_path(root, doc), "must not be the body the primary pass read"
 
 
@@ -318,28 +330,41 @@ class TestInsightLinkingSkipsTheSourceLayer:
         assert link_insights_to_segments([seg], [("ins1", 5.0, 10.0)]) == {"ins1": "ep1_chunk_0"}
 
 
-class TestTheSourceResolverNeverReturnsEnglish:
-    @pytest.mark.parametrize(
-        "rel", ["transcripts/ep1.txt", "transcripts/ep1.en.adfree.txt", "transcripts/ep1.en.txt"]
-    )
-    def test_no_candidate_is_an_english_render(self, rel: str) -> None:
+class TestTheSourceResolverOnlyReturnsTaggedPaths:
+    """D-44: the source body carries the language tag, so the resolver cannot return English.
+
+    This class used to assert "no candidate is an English render", checked with
+    `is_english_render_relpath` — a predicate that inspected the suffix stack to work out whether a
+    path was a translation. Both are gone: English is the UNSUFFIXED canonical file, so a candidate
+    for the SOURCE layer is tagged by construction and there is nothing to detect.
+    """
+
+    def test_every_candidate_carries_the_language_tag(self) -> None:
         from podcast_scraper.workflow.transcript_resolution import (
-            is_english_render_relpath,
             source_language_relpath_candidates,
         )
 
-        candidates = source_language_relpath_candidates(rel)
+        candidates = source_language_relpath_candidates("transcripts/ep1.txt", "es")
         assert candidates
-        assert not any(is_english_render_relpath(c) for c in candidates)
+        for cand in candidates:
+            assert ".es." in cand, cand
+
+    def test_english_has_no_source_layer_at_all(self) -> None:
+        """The canonical body already holds English, so there is no second body to index."""
+        from podcast_scraper.workflow.transcript_resolution import (
+            source_language_relpath_candidates,
+        )
+
+        assert source_language_relpath_candidates("transcripts/ep1.txt", "en") == []
 
     def test_ad_free_comes_first(self) -> None:
         """Matching ANALYSIS. For a translated episode it usually will not exist — ad excision
-        runs on the English text (D-19) — so this normally lands on the canonical body."""
+        runs on the English text (D-19) — so this normally lands on the tagged source body."""
         from podcast_scraper.workflow.transcript_resolution import (
             source_language_relpath_candidates,
         )
 
-        assert source_language_relpath_candidates("transcripts/ep1.txt") == [
-            "transcripts/ep1.adfree.txt",
-            "transcripts/ep1.txt",
+        assert source_language_relpath_candidates("transcripts/ep1.txt", "es") == [
+            "transcripts/ep1.es.adfree.txt",
+            "transcripts/ep1.es.txt",
         ]

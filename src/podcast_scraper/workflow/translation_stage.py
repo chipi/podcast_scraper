@@ -289,14 +289,14 @@ def analysis_blocked_reason(
     Returns a human-readable sentence, so the log line, the manifest and the metric all carry
     the same words — the same rule ``_unsupported_language_skip_reason`` follows.
     """
-    from ..translation.artifacts import english_artifacts_present, load_translation_json
+    from ..translation.artifacts import load_translation_json, translation_swap_happened
 
     _raw, language, _source = resolve_config_language(cfg, feed_language=feed_language)
     if not language or language == "en":
         return None
     if not transcript_relpath or not effective_output_dir:
         return None
-    if english_artifacts_present(transcript_relpath, effective_output_dir):
+    if translation_swap_happened(transcript_relpath, effective_output_dir, language):
         return None
 
     doc = load_translation_json(transcript_relpath, effective_output_dir)
@@ -305,7 +305,7 @@ def analysis_blocked_reason(
     elif doc.failed_units:
         detail = f"{len(doc.failed_units)} of {len(doc.units)} units failed to translate"
     else:
-        detail = "the English artifacts are missing"
+        detail = "the swap did not happen, so the canonical body is still the source language"
     return (
         f"episode language is {language!r} and there is no complete English artifact set "
         f"({detail}), so summary, GI and KG were SKIPPED rather than run over "
@@ -340,15 +340,37 @@ def _withdraw_english_render(transcript_relpath: str, effective_output_dir: str)
     )
 
 
-def _load_source_transcript(effective_output_dir: str, transcript_relpath: str) -> tuple[str, list]:
+def _load_source_transcript(
+    effective_output_dir: str, transcript_relpath: str, language: Optional[str] = None
+) -> tuple[str, list]:
     """The SOURCE body and its own sidecar, by exact path. No precedence, by design.
 
     Paired deliberately: the sidecar is derived from the body's own base rather than resolved
     separately, which is the same rule :func:`transcript_resolution.load_transcript` follows —
     mixing a body with another variant's segments is the displacement bug this arc keeps meeting.
+
+    IT FOLLOWS THE SWAP (D-44). Once translation has completed, the canonical ``<base>.txt`` holds
+    the TRANSLATION and the source lives at ``<base>.<lang>.txt`` — so reading the canonical path on
+    a second run would feed the model its own output. The integration test named
+    ``TestTranslationReadsTheSourceNotItsOwnOutput`` caught exactly that: every unit missed the
+    ledger's content-keyed cache (the text had changed from Spanish to English), so a resume
+    re-translated all four units and the ledger's provenance would have recorded English as the
+    source of its own translation.
+
+    So: prefer the tagged source when it exists, else the canonical path. Both are exact lookups —
+    this never searches a precedence list, because "which body was I spoken in" has one answer.
     """
     base, _ = os.path.splitext(transcript_relpath)
-    text_path = os.path.join(effective_output_dir, transcript_relpath)
+    rel = transcript_relpath
+    normalized = (language or "").strip().lower().split("-")[0]
+    if normalized and normalized != "en":
+        from ..translation.artifacts import source_text_relpath
+
+        tagged = source_text_relpath(transcript_relpath, normalized)
+        if os.path.isfile(os.path.join(effective_output_dir, tagged)):
+            rel = tagged
+            base, _ = os.path.splitext(tagged)
+    text_path = os.path.join(effective_output_dir, rel)
     seg_path = os.path.join(effective_output_dir, base + ".segments.json")
     try:
         with open(text_path, "r", encoding="utf-8") as fh:
@@ -497,7 +519,9 @@ def _translate_episode(
     # from Spanish), and re-translated English into English — overwriting the ledger with
     # garbage and calling the model for every unit. The resolver is for CONSUMERS choosing which
     # rendering to read; the producer of a rendering must never ask it what to read.
-    source_text, source_segments = _load_source_transcript(effective_output_dir, transcript_relpath)
+    source_text, source_segments = _load_source_transcript(
+        effective_output_dir, transcript_relpath, language
+    )
     if not source_text or not source_segments:
         outcome.status = STATUS_SKIPPED
         outcome.reason = REASON_NO_TRANSCRIPT

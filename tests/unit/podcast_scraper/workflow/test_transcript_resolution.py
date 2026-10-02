@@ -19,7 +19,6 @@ from podcast_scraper.workflow.transcript_resolution import (
     resolve_source_language_text_path,
     resolve_text_path,
     segments_relpath_candidates,
-    source_language_relpath_candidates,
     text_relpath_candidates,
     TranscriptPurpose,
 )
@@ -41,21 +40,22 @@ def _write(root: Path, rel: str, payload: object) -> None:
 class TestCandidateOrder:
     """Pure ordering — the part that must NOT consult the disk, so it can be reasoned about."""
 
-    def test_analysis_prefers_english_adfree_then_source_adfree(self) -> None:
+    def test_analysis_prefers_the_adfree_body(self) -> None:
+        """D-44: no English head. The ad-free body IS the analysis-language one."""
         assert text_relpath_candidates(_REL, purpose=TranscriptPurpose.ANALYSIS) == [
-            "transcripts/01 - ep.en.adfree.txt",
             "transcripts/01 - ep.adfree.txt",
             "transcripts/01 - ep.txt",
         ]
 
-    def test_timeline_prefers_english_raw_then_source_raw(self) -> None:
+    def test_timeline_prefers_the_full_timeline_body(self) -> None:
+        """D-44: no English head. The canonical body IS the analysis-language one, and the
+        player needs the full timeline against unbridged audio."""
         assert text_relpath_candidates(_REL, purpose=TranscriptPurpose.TIMELINE) == [
-            "transcripts/01 - ep.en.txt",
             "transcripts/01 - ep.txt",
             "transcripts/01 - ep.adfree.txt",
         ]
 
-    def test_the_two_purposes_are_exact_opposites_within_one_language(self) -> None:
+    def test_the_two_purposes_are_exact_opposites(self) -> None:
         """If these ever agree, the reason the resolver takes a purpose has evaporated.
 
         The literal `analysis == reversed(timeline)` no longer holds once the English branch
@@ -68,8 +68,7 @@ class TestCandidateOrder:
         timeline = text_relpath_candidates(_REL, purpose=TranscriptPurpose.TIMELINE)
         assert analysis[0] != timeline[0]
 
-        source_only = [c for c in analysis if ".en." not in c]
-        assert source_only == list(reversed([c for c in timeline if ".en." not in c]))
+        assert analysis == list(reversed(timeline))
 
     def test_cleaned_is_a_middle_candidate_never_a_first_choice(self) -> None:
         """The recurrent-host scan wants it; nobody wants it ahead of a real body."""
@@ -77,7 +76,6 @@ class TestCandidateOrder:
             _REL, purpose=TranscriptPurpose.ANALYSIS, include_cleaned=True
         )
         assert got == [
-            "transcripts/01 - ep.en.adfree.txt",
             "transcripts/01 - ep.adfree.txt",
             "transcripts/01 - ep.cleaned.txt",
             "transcripts/01 - ep.txt",
@@ -85,12 +83,10 @@ class TestCandidateOrder:
 
     def test_segments_candidates_follow_the_body_order(self) -> None:
         assert segments_relpath_candidates(_REL, purpose=TranscriptPurpose.ANALYSIS) == [
-            "transcripts/01 - ep.en.adfree.segments.json",
             "transcripts/01 - ep.adfree.segments.json",
             "transcripts/01 - ep.segments.json",
         ]
         assert segments_relpath_candidates(_REL, purpose=TranscriptPurpose.TIMELINE) == [
-            "transcripts/01 - ep.en.segments.json",
             "transcripts/01 - ep.segments.json",
             "transcripts/01 - ep.adfree.segments.json",
         ]
@@ -120,12 +116,9 @@ class TestCandidateOrder:
             "transcripts/01 - ep.cleaned.txt",
             # The suffixes STACK, so canonicalizing has to strip all of them. Stripping only the
             # outermost would leave `01 - ep.en`, whose candidates resolve to nothing at all.
-            "transcripts/01 - ep.en.txt",
-            "transcripts/01 - ep.en.adfree.txt",
         )
         for given in given_paths:
             assert text_relpath_candidates(given, purpose=TranscriptPurpose.ANALYSIS) == [
-                "transcripts/01 - ep.en.adfree.txt",
                 "transcripts/01 - ep.adfree.txt",
                 "transcripts/01 - ep.txt",
             ], given
@@ -134,7 +127,6 @@ class TestCandidateOrder:
         assert text_relpath_candidates(
             "transcripts\\01 - ep.txt", purpose=TranscriptPurpose.TIMELINE
         ) == [
-            "transcripts/01 - ep.en.txt",
             "transcripts/01 - ep.txt",
             "transcripts/01 - ep.adfree.txt",
         ]
@@ -143,11 +135,11 @@ class TestCandidateOrder:
 class TestThereIsNoEnglishBranch:
     """D-44 replaced `TestTheEnglishBranch` (9 tests) — the branch it exercised is gone.
 
-    S2.1b put an English HEAD on both candidate lists so a translated episode's English body won
-    precedence. That worked, and it put a language suffix in the one module every generic reader goes
-    through; from there it spread to the indexer, the API route, the metadata stage and the episode
-    processor — references to `.en.` in code with nothing to do with language, each trying a candidate
-    that can never match on an English episode.
+    S2.1b put an English HEAD on both candidate lists so a translated episode's English body
+    won precedence. That worked, and it put a language suffix in the one module every generic
+    reader goes through; from there it spread to the indexer, the API route, the metadata stage
+    and the episode processor — references to `.en.` in code with nothing to do with language,
+    each trying a candidate that can never match on an English episode.
 
     English is now the UNSUFFIXED `<base>.txt`, so there is no branch and no head. What the deleted
     tests were really protecting — that an English NLP stage must never read source-language text —
@@ -159,8 +151,8 @@ class TestThereIsNoEnglishBranch:
     def test_a_translated_episode_resolves_the_canonical_body_for_both_purposes(
         self, tmp_path: Path
     ) -> None:
-        """The whole scheme in one assertion: after the swap, the canonical path IS the English body,
-        so a generic reader asking for either purpose gets English without naming a language."""
+        """The whole scheme in one assertion: after the swap the canonical path IS the English
+        body, so a reader asking for either purpose gets English without naming a language."""
         tr = tmp_path / "transcripts"
         tr.mkdir()
         (tr / "01 - ep.txt").write_text("English body", encoding="utf-8")
@@ -174,8 +166,8 @@ class TestThereIsNoEnglishBranch:
     def test_the_source_body_is_reachable_only_by_asking_for_its_language(
         self, tmp_path: Path
     ) -> None:
-        """The toggle's path, and the only way to reach the source — no generic reader can stumble
-        onto it, because every candidate list it builds excludes a tagged name."""
+        """The toggle's path, and the only way to reach the source — no generic reader can
+        stumble onto it, because every candidate list excludes a tagged name."""
         tr = tmp_path / "transcripts"
         tr.mkdir()
         (tr / "01 - ep.txt").write_text("English body", encoding="utf-8")
@@ -188,7 +180,7 @@ class TestThereIsNoEnglishBranch:
         assert resolve_source_language_text_path(tmp_path, _REL, "en") is None
 
     def test_an_untranslated_episode_is_unchanged(self, tmp_path: Path) -> None:
-        """The 678-episode corpus: one body, found by both purposes, no tagged sibling anywhere."""
+        """The 678-episode corpus: one body, both purposes, no tagged sibling anywhere."""
         tr = tmp_path / "transcripts"
         tr.mkdir()
         (tr / "01 - ep.txt").write_text("only body", encoding="utf-8")

@@ -112,14 +112,28 @@ class TestTheMemoryFlag:
         )
         assert cfg.translation_discard_memory is True
 
-    def test_the_memory_is_NOT_in_the_invalidation_list(self) -> None:
-        """Which is why the flag has to exist at all: `english_artifact_relpaths` deliberately
-        omits `translation.json`, so the default invalidation cannot remove it."""
-        from podcast_scraper.translation.artifacts import english_artifact_relpaths
+    def test_the_memory_is_NOT_touched_by_the_swap_back(self, tmp_path: Path) -> None:
+        """Which is why the flag has to exist at all: the swap-back moves BODIES, so nothing in it
+        can remove the ledger.
 
-        rels = english_artifact_relpaths("transcripts/01 - ep.txt")
-        assert rels
-        assert not any("translation.json" in r for r in rels)
+        This used to assert that `english_artifact_relpaths` omitted `translation.json`. That list
+        is gone with the withdrawal machinery (D-44) — there is no set of English files to delete,
+        because the English body IS the canonical one and the source trades places back with it. So
+        the property is now asserted against the real operation.
+        """
+        from podcast_scraper.workflow.episode_processor import _invalidate_translation
+
+        tr = tmp_path / "transcripts"
+        tr.mkdir(parents=True)
+        (tr / "01 - ep.txt").write_text("stale translation", encoding="utf-8")
+        (tr / "01 - ep.es.txt").write_text("el original", encoding="utf-8")
+        ledger = tr / "01 - ep.translation.json"
+        ledger.write_text('{"version": "1.0", "units": []}', encoding="utf-8")
+
+        _invalidate_translation("transcripts/01 - ep.txt", str(tmp_path), "es")
+
+        assert ledger.is_file(), "the translation memory was destroyed by the swap-back"
+        assert "original" in (tr / "01 - ep.txt").read_text(encoding="utf-8")
 
 
 class TestWhatItActuallyDOES:
@@ -161,12 +175,16 @@ class TestWhatItActuallyDOES:
             cast(Any, _Job()), cfg, None, str(tmp_path), None, None
         )
 
-    def test_it_deletes_the_english_render(self, tmp_path: Path, monkeypatch: Any) -> None:
+    def test_it_swaps_the_SOURCE_back_to_the_canonical_path(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """D-44: there is no English set to delete. The stale translation is discarded by the source
+        trading places back with it, so the episode keeps a canonical transcript throughout."""
         tx = tmp_path / "run_20260101-000000" / "transcripts"
         self._run(tmp_path, monkeypatch, discard=False)
-        assert not (tx / "01 - ep.en.txt").exists()
-        assert not (tx / "01 - ep.en.segments.json").exists()
-        assert not (tx / "01 - ep.en.adfree.txt").exists()
+        assert (tx / "01 - ep.txt").is_file(), "the episode lost its canonical transcript"
+        assert not (tx / "01 - ep.es.txt").exists(), "the tagged source should have moved back"
+        assert not [q for q in tx.iterdir() if ".tmp" in q.name]
 
     def test_it_KEEPS_the_source_transcript(self, tmp_path: Path, monkeypatch: Any) -> None:
         """The source is the INPUT to the re-translation. Deleting it would make the mode

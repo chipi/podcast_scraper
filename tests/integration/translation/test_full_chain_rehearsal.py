@@ -197,9 +197,9 @@ class TestTranslationProducedTheEnglishSet:
         """The §5.3 completeness gate keys on PRESENCE, so the set is the gate."""
         root: Path = episode["root"]
         for rel in (
-            "transcripts/01 - p10_e01.en.txt",
-            "transcripts/01 - p10_e01.en.segments.json",
-            "transcripts/01 - p10_e01.en.adfree.txt",
+            "transcripts/01 - p10_e01.txt",
+            "transcripts/01 - p10_e01.segments.json",
+            "transcripts/01 - p10_e01.adfree.txt",
             "transcripts/01 - p10_e01.translation.json",
         ):
             assert (root / rel).is_file(), f"missing {rel}"
@@ -254,7 +254,7 @@ class TestTheLabelsNeverReachedTheTranslator:
         render and the property is observable at the end of the chain.
         """
         en = json.loads(
-            (episode["root"] / "transcripts" / "01 - p10_e01.en.segments.json").read_text(
+            (episode["root"] / "transcripts" / "01 - p10_e01.segments.json").read_text(
                 encoding="utf-8"
             )
         )
@@ -281,18 +281,28 @@ class TestAdsAreFoundOnTheEnglishRender:
 
     def test_the_english_render_is_ad_detectable(self, episode: Dict[str, Any]) -> None:
         root: Path = episode["root"]
-        en = (root / "transcripts" / "01 - p10_e01.en.txt").read_text(encoding="utf-8")
+        en = (root / "transcripts" / "01 - p10_e01.txt").read_text(encoding="utf-8")
         assert self._hits(en) > 0, "no ad pattern matched the English render"
 
     def test_the_spanish_source_is_NOT(self, episode: Dict[str, Any]) -> None:
-        """The control. Without it, "ads were found" proves nothing about the ordering."""
-        src = (episode["root"] / REL).read_text(encoding="utf-8")
+        """The control. Without it, "ads were found" proves nothing about the ordering.
+
+        Reads the TAGGED source (D-44). `REL` is the canonical path, which after the swap holds the
+        English render — reading it here would compare English against English and the control would
+        pass for the wrong reason, which is worse than failing.
+        """
+        src = (episode["root"] / "transcripts" / "01 - p10_e01.es.txt").read_text(encoding="utf-8")
         assert self._hits(src) == 0, "an English ad pattern matched Spanish text"
 
     def test_the_source_has_no_adfree_base(self, episode: Dict[str, Any]) -> None:
-        """S2.7: building one would assert ads were removed when the patterns could not see
-        them. The analysis base for a translated episode is `.en.adfree.txt`."""
-        assert not (episode["root"] / "transcripts" / "01 - p10_e01.adfree.txt").exists()
+        """S2.7: building one would assert ads were removed when the patterns could not see them.
+
+        Under D-44 `<base>.adfree.txt` IS the English analysis base and must exist — this test is
+        about the SOURCE, whose ad-free base would be `<base>.es.adfree.txt` and must not.
+        """
+        tr = episode["root"] / "transcripts"
+        assert (tr / "01 - p10_e01.adfree.txt").is_file(), "the English analysis base is missing"
+        assert not (tr / "01 - p10_e01.es.adfree.txt").exists()
 
 
 class TestBothLayersReachTheIndex:

@@ -55,11 +55,15 @@ def _spanish_episode(root: Path, *, translated: bool) -> Dict[str, Any]:
 
     if translated:
         for name, payload in (
-            (f"{STEM}.en.txt", "Maya: Welcome back.\nLiam: Drainage is key.\n"),
-            (f"{STEM}.en.adfree.txt", "Maya: Welcome back.\nLiam: Drainage is key.\n"),
+            # D-44: a COMPLETED translation looks like a swapped episode — the canonical body
+            # holds English, and the source is kept at its language-tagged name. The presence of
+            # that tagged file is what the gate reads, because only the atomic swap creates it.
+            (f"{STEM}.txt", "Maya: Welcome back.\nLiam: Drainage is key.\n"),
+            (f"{STEM}.adfree.txt", "Maya: Welcome back.\nLiam: Drainage is key.\n"),
+            (f"{STEM}.es.txt", "Maya: Hola de nuevo.\nLiam: El drenaje es clave.\n"),
         ):
             (root / "transcripts" / name).write_text(payload, encoding="utf-8")
-        with (root / "transcripts" / f"{STEM}.en.segments.json").open("w", encoding="utf-8") as fh:
+        with (root / "transcripts" / f"{STEM}.segments.json").open("w", encoding="utf-8") as fh:
             json.dump([], fh)
 
     doc = {
@@ -140,7 +144,7 @@ class TestAGatedEpisodeWritesNeitherArtifact:
             is None
         )
         resolved = resolve_text_path(tmp_path, REL, purpose=TranscriptPurpose.ANALYSIS)
-        assert resolved == tmp_path / "transcripts" / f"{STEM}.en.adfree.txt"
+        assert resolved == tmp_path / "transcripts" / f"{STEM}.adfree.txt"
 
 
 class TestRepairHonoursTheGate:
@@ -168,7 +172,7 @@ class TestRepairHonoursTheGate:
     def test_an_english_episode_is_not_refused_under_a_spanish_profile(
         self, tmp_path: Path
     ) -> None:
-        """The inversion. English episodes have no `.en.*` by design, so a gate that took its
+        """The inversion. English episodes have no language-tagged source by design, so a gate that took its
         language from the profile refused all of them."""
         from podcast_scraper.workflow.translation_stage import analysis_blocked_reason
 

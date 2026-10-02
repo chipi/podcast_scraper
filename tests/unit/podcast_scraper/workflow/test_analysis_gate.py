@@ -30,21 +30,26 @@ def _cfg(**kw: Any) -> config.Config:
 
 
 def _english_set(root: Path, *, present: bool = True, analysis_body: bool = True) -> None:
-    """Lay down the English set. `analysis_body` controls `.en.adfree.txt` specifically.
+    """Lay down a SWAPPED episode, or an un-swapped one (D-44).
 
-    That file is part of the completeness predicate because it is the English body ANALYSIS
-    actually resolves — `.en.txt` is not even in that candidate list. An earlier version of this
-    helper omitted it, which is why the gate test passed while the gate had a hole.
+    `present` is now "did the atomic swap happen": the canonical body holds the translation and the
+    source is kept at its language-tagged name. The gate reads the presence of that tagged file,
+    because only the swap creates it — so this helper's job is to create or omit it.
+
+    `analysis_body` controls `<base>.adfree.txt`, the body ANALYSIS actually resolves. An earlier
+    version of this helper omitted it, which is why the gate test passed while the gate had a hole.
     """
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
-    (root / REL).write_text("Maya: Hola.\n", encoding="utf-8")
     if present:
-        (root / "transcripts" / "ep.en.txt").write_text("Maya: Hello.\n", encoding="utf-8")
-        (root / "transcripts" / "ep.en.segments.json").write_text("[]", encoding="utf-8")
+        # swapped: canonical holds English, the source keeps its tag
+        (root / REL).write_text("Maya: Hello.\n", encoding="utf-8")
+        (root / "transcripts" / "ep.es.txt").write_text("Maya: Hola.\n", encoding="utf-8")
+        (root / "transcripts" / "ep.segments.json").write_text("[]", encoding="utf-8")
         if analysis_body:
-            (root / "transcripts" / "ep.en.adfree.txt").write_text(
-                "Maya: Hello.\n", encoding="utf-8"
-            )
+            (root / "transcripts" / "ep.adfree.txt").write_text("Maya: Hello.\n", encoding="utf-8")
+    else:
+        # un-swapped: the canonical body is still the source language, no tagged sibling
+        (root / REL).write_text("Maya: Hola.\n", encoding="utf-8")
 
 
 def _ledger(root: Path, *, failed: int, total: int) -> None:
@@ -130,14 +135,28 @@ class TestNonEnglishIsBlockedUnlessComplete:
         )
         assert reason and "2 of 7 units failed" in reason
 
-    def test_a_set_WITHOUT_the_analysis_body_still_blocks(self, tmp_path: Path) -> None:
-        """The hole a review found, now a test.
+    def test_a_MISSING_analysis_base_no_longer_blocks_and_that_is_correct(
+        self, tmp_path: Path
+    ) -> None:
+        """The hole these two tests plugged cannot exist under D-44, so they assert the new
+        property.
 
-        `.en.txt` and `.en.segments.json` existed, so the old predicate passed and
-        `translation_status` said `translated` — while ANALYSIS, whose first English candidate
-        is `.en.adfree.txt`, fell through it and the deliberately-absent source `.adfree.txt`
-        (S2.7) to the SPANISH `.txt`. English prompts over Spanish, behind a gate reporting
-        success. A completeness predicate has to name the files the consumers open.
+        THEY USED TO BE: `.en.txt` plus `.en.segments.json` existed, so the old predicate
+        passed and
+        `translation_status` said `translated` — while ANALYSIS, whose first English candidate was
+        `.en.adfree.txt`, fell through it and the deliberately-absent source `.adfree.txt` to the
+        SPANISH `.txt`. English prompts over Spanish, behind a gate reporting success. The predicate
+        therefore had to name all three files.
+
+        WHY IT IS GONE. The ANALYSIS candidates are now `[<base>.adfree.txt, <base>.txt]` and, after
+        the swap, BOTH are English. A missing ad-free base falls back to the canonical body,
+        which is
+        the analysis language — so nothing reads the wrong language and there is nothing to gate.
+        A translation is complete or it is not; the swap is indivisible, so there is no half-written
+        English set to detect.
+
+        What a missing ad-free base now costs is ads left in the analysis text, which is a quality
+        matter for S2.5 and not a correctness one.
         """
         from podcast_scraper.workflow.transcript_resolution import (
             resolve_text_path,
@@ -148,17 +167,17 @@ class TestNonEnglishIsBlockedUnlessComplete:
         reason = analysis_blocked_reason(
             _cfg(language="es"), transcript_relpath=REL, effective_output_dir=str(tmp_path)
         )
-        assert reason is not None, "an English set without its ANALYSIS body is not complete"
-        # And this is what analysis WOULD have read if the gate had let it through.
-        assert resolve_text_path(tmp_path, REL, purpose=TranscriptPurpose.ANALYSIS) == (
-            tmp_path / REL
-        ), "the Spanish source — which is exactly the failure"
+        assert reason is None, "the swap happened, so analysis may run"
+        # And what analysis reads is English, which is the whole point.
+        resolved = resolve_text_path(tmp_path, REL, purpose=TranscriptPurpose.ANALYSIS)
+        assert resolved == tmp_path / REL
+        assert "Hello" in resolved.read_text(encoding="utf-8")
 
-    def test_half_an_english_set_still_blocks(self, tmp_path: Path) -> None:
-        """`.en.txt` without its sidecar would resolve English text against source-language
-        segments — the displacement bug in its newest shape. Both halves or neither."""
-        _english_set(tmp_path, present=True)
-        (tmp_path / "transcripts" / "ep.en.segments.json").unlink()
+    def test_an_UNSWAPPED_episode_blocks(self, tmp_path: Path) -> None:
+        """The condition that replaces all of the partial-set checks: the tagged source is absent,
+        so the swap never happened and the canonical body is still the source language."""
+        _english_set(tmp_path, present=False)
+        assert not (tmp_path / "transcripts" / "ep.es.txt").exists()
         reason = analysis_blocked_reason(
             _cfg(language="es"), transcript_relpath=REL, effective_output_dir=str(tmp_path)
         )

@@ -1251,7 +1251,7 @@ def _produce_transcript_sidecars(
     # old cue times, and provenance resolves new spans against old segments — while the ledger
     # says the translation failed.
     if language is not None and language != "en":
-        _invalidate_translation(rel_transcript_path, effective_output_dir)
+        _invalidate_translation(rel_transcript_path, effective_output_dir, language)
 
     _write_turns_artifacts(
         cfg,
@@ -1264,32 +1264,98 @@ def _produce_transcript_sidecars(
     )
 
 
-def _invalidate_translation(rel_transcript_path: str, effective_output_dir: str) -> None:
-    """Delete every `.en.*` derivative when the SOURCE transcript has just been rewritten (S2.7).
+def _invalidate_translation(
+    rel_transcript_path: str, effective_output_dir: str, language: Optional[str] = None
+) -> None:
+    """SWAP BACK: restore the source to the canonical path, discarding the stale translation (S2.7).
 
-    WHY DELETE RATHER THAN LEAVE STALE. The resolver keys on file PRESENCE with no status check
-    and D-38 makes `.en.txt` the default everything reads, so a stale English body outlives the
-    source it was translated from and is served as current — with char offsets that now index
-    different text. That is the displacement bug with a time axis.
+    WHY ANYTHING HAPPENS AT ALL. When the source transcript is rewritten — a re-transcribe, a
+    relabel — the translation made from the old text becomes stale, and under D-44 the stale text is
+    sitting at ``<base>.txt``, which every generic reader opens without asking. Leaving it there
+    serves a translation of words nobody said any more, with char offsets that index different text.
+    That is the displacement bug with a time axis.
 
-    `translation.json` is deliberately KEPT. It is the content-keyed translation memory (D-33):
-    a relabel changes every offset but no unit's text, so the ledger still answers for most
-    units and the re-render costs no GPU. Deleting it would turn the most common repair in this
-    corpus into a full re-translation.
+    WHY THIS IS THE RISKIEST OPERATION IN THE SCHEME, and why it is written this way. Deleting the
+    canonical body is not an option: it is the episode's only transcript. So the two files trade
+    places back, and if that is interrupted the episode could be left with NO canonical transcript.
+    It therefore uses the same both-or-neither shape as the forward swap: the stale translation is
+    moved ASIDE to a temp name first (not deleted), then the source is moved back to the canonical
+    path, and only once that has succeeded is the temp removed. A failure at any point rolls back,
+    and the worst reachable state is a leftover temp file beside an intact episode.
+
+    `translation.json` is deliberately KEPT. It is the content-keyed translation memory (D-33): a
+    relabel changes every offset but no unit's text, so the ledger still answers for most units and
+    the re-render costs no GPU. Deleting it would turn the most common repair in this corpus into a
+    full re-translation.
+
+    A no-op for English, and for a non-English episode whose swap never happened — in both cases
+    the canonical body already holds the source.
     """
     import os as _os
 
-    from ..translation.artifacts import english_artifact_relpaths
+    from ..translation.artifacts import (
+        canonical_segments_relpath,
+        source_segments_relpath,
+        source_text_relpath,
+    )
 
-    for rel in english_artifact_relpaths(rel_transcript_path):
-        path = _os.path.join(effective_output_dir, rel)
+    normalized = (language or "").strip().lower().split("-")[0]
+    if not normalized or normalized == "en":
+        return
+
+    pairs = [
+        (source_text_relpath(rel_transcript_path, normalized), rel_transcript_path),
+        (
+            source_segments_relpath(rel_transcript_path, normalized),
+            canonical_segments_relpath(rel_transcript_path),
+        ),
+    ]
+    if not _os.path.isfile(_os.path.join(effective_output_dir, pairs[0][0])):
+        # No tagged source: the swap never happened, so the canonical body IS the source.
+        return
+
+    stashed: list = []
+    moved: list = []
+    try:
+        for src_rel, canon_rel in pairs:
+            src_abs = _os.path.join(effective_output_dir, src_rel)
+            canon_abs = _os.path.join(effective_output_dir, canon_rel)
+            if not _os.path.isfile(src_abs):
+                continue
+            if _os.path.isfile(canon_abs):
+                stale = f"{canon_abs}.stale.tmp"
+                _os.replace(canon_abs, stale)
+                stashed.append(stale)
+            _os.replace(src_abs, canon_abs)
+            moved.append((canon_abs, src_abs))
+    except OSError as exc:
+        logger.warning(
+            "    could not swap the source back for %s (%s) — rolling back; the episode keeps "
+            "whichever body it had",
+            rel_transcript_path,
+            exc,
+        )
+        for canon_abs, src_abs in reversed(moved):
+            try:
+                _os.replace(canon_abs, src_abs)
+            except OSError:
+                logger.warning("    rollback failed for %s", canon_abs, exc_info=True)
+        for stale in reversed(stashed):
+            try:
+                _os.replace(stale, stale[: -len(".stale.tmp")])
+            except OSError:
+                logger.warning("    could not restore %s", stale, exc_info=True)
+        return
+
+    for stale in stashed:
         try:
-            _os.remove(path)
-            logger.info("    invalidated stale English artifact: %s", rel)
-        except FileNotFoundError:
-            continue
-        except OSError as exc:
-            logger.warning("    could not invalidate %s: %s", rel, exc)
+            _os.remove(stale)
+        except OSError:
+            logger.warning("    stale translation left behind at %s", stale)
+    logger.info(
+        "    swapped the source back to %s; the stale translation was discarded",
+        rel_transcript_path,
+    )
 
 
 def _write_turns_artifacts(
@@ -3765,7 +3831,13 @@ def _retranslate_existing_transcript(
     # invalidation is rooted at the transcript's own parent, not at the run dir.
     root = str(txt_path.parent.parent)
     canonical = _canonical_relpath(os.path.relpath(str(txt_path), root))
-    _invalidate_translation(canonical, root)
+    # The SAME resolver the translation stage uses, because the swap-back has to know which tagged
+    # source to look for — and a language resolved differently here than there is how the two halves
+    # of this scheme would drift apart.
+    from ..languages import resolve_config_language
+
+    _raw, _language, _src = resolve_config_language(cfg)
+    _invalidate_translation(canonical, root, _language)
 
     if bool(getattr(cfg, "translation_discard_memory", False)):
         from ..translation.artifacts import translation_json_path
