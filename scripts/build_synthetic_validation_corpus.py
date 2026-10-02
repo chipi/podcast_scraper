@@ -421,6 +421,17 @@ _FILLER_MARKERS = (
     "that's a great question",
     "let's dive in",
     "more on that after the break",
+    # The guest's side of the opening handshake and the host's sign-off (added 2026-10-02). These
+    # are authored by `_render_episode` as ordinary turns, so they became Insights typed `claim`
+    # and — once consumers started ranking by salience — the LEAD quote on a grouping page, because
+    # a greeting opens the episode and the position tiebreak puts the earliest line first.
+    "excited for this one",
+    "great to be back",
+    "thanks for being here",
+    "happy to be the boring one",
+    "and i'll be the reckless one",
+    "always happy to talk shop",
+    "take me through the decision",
 )
 
 
@@ -627,23 +638,6 @@ def build_gi(
     }
 
 
-# Conversational scaffolding the transcript needs but which is not an insight: greetings, handoffs,
-# "great to be back". The real pipeline's value gate scores these TIER_FILLER; this fixture authored
-# them as `insight_type: "claim"` with no tier at all, so they were indistinguishable from a real
-# claim and ranked purely on position — i.e. first, because a greeting opens the episode.
-_FILLER_MARKERS = (
-    "thanks for being here",
-    "excited for this one",
-    "great to be back",
-    "thanks, ",
-    "welcome back to",
-    "happy to be the boring one",
-    "and i'll be the reckless one",
-    "always happy to talk shop",
-    "take me through the decision",
-)
-
-
 def _route_and_tag(text: str) -> dict:
     """``tier`` / ``routing_tag`` / ``salience`` for a synthetic insight.
 
@@ -659,13 +653,19 @@ def _route_and_tag(text: str) -> dict:
     "Thanks, Maya. Excited for this one" became the lead quote on a storyline page while the real
     pipeline would have dropped it as filler.
 
+    Filler is classified by :func:`is_greeting_or_filler`, the recogniser this module already owns.
+    My first cut declared a second ``_FILLER_MARKERS`` list here and SHADOWED that one — Python
+    keeps the later binding, so the real list (which carries "yeah, exactly…", "that's a great
+    question", "let's dive in") was silently replaced by my shorter one and
+    ``test_openings_and_filler_are_recognised`` went red. One rule, one place: that function's own
+    docstring says it exists so "the rule the builder applies and the rule the tests assert are the
+    SAME rule".
+
     Not an import from the pipeline, deliberately: this generator runs with no ML extras and
     ``gi.pipeline`` pulls the full stack. The formula is duplicated and named here so the drift is
     visible if the pipeline's ever changes.
     """
-    low = text.lower()
-    filler = any(m in low for m in _FILLER_MARKERS)
-    tier = 0 if filler else 2
+    tier = 0 if is_greeting_or_filler(text) else 2
     if tier <= 0:
         return {"tier": tier, "routing_tag": "drop", "salience": 0.3}
     # grounded + surfaceable, as every non-filler synthetic insight is authored to be.
