@@ -70,9 +70,15 @@ Local, not pushed:
    him, Casey Newton lost on one voice, A.J. Jacobs lost. Should "guest present" / seat count use
    a signal other than a voice count (the LLM's guest role, metadata guests, who self-introduces)?
 
-5. **Feed-description host parser** (held patch): finds 18 correct hosts in 10 feeds, but fed to
-   the roster before the seat guard it put names on guests and ads. Re-test now that the seat
-   guard exists, or keep hosts-from-description out of placement entirely?
+5. **Feed-description host parser** (held patch, re-tested 2026-10-02 on the full current code —
+   seat guard, opener floor, name gate, ad signatures). It finds real hosts (Patrick McKenzie 40
+   episodes, Eric Olander 10, Campbell/Stewart 41), but fed into SEAT PLACEMENT it is still net
+   harmful over 98 affected episodes: ~9 correct names lost (Campbell's own "…with me, Alistair
+   Campbell" voice on 4 episodes — the description spells "Alastair"; Michael Stevens on his own
+   "I'm Michael Stevens"), ~9 wrong gains (Campbell on the recurring "Thanks for listening to The
+   Rest is Politics. Sign up…" promo voice ×7, "White House" on an ad fragment), ~3 right. Not
+   applied. Options: (a) use description hosts ONLY as unplaced published hosts (no seat claimed);
+   (b) wait for the seat-logic answer (Q4) and per-show recurring-promo detection, then re-test.
 
 6. **The in-flight deadline alarm.** `timeout_context` logs ERROR "DEADLINE EXCEEDED … STILL
    RUNNING" when the deadline passes, while the work continues. All three on 2026-10-02 then
