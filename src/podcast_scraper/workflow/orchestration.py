@@ -1930,12 +1930,19 @@ def _finalize_pipeline(
                 else None
             ),
         )
-        _maybe_build_topic_clusters_after_index(
-            _corpus_finalize_dir,
-            pipeline_metrics,
-            threshold=getattr(cfg, "topic_cluster_threshold", None),
-            delta=_corpus_delta,
-        )
+        # A multi-feed batch defers BOTH the index and the clusters to finalize_multi_feed_batch,
+        # which builds them at the corpus parent. maybe_index_corpus already honours that flag;
+        # without the same guard here every feed of a nightly warned that a run directory has no
+        # index (2026-10-02: once per feed), for a step that cannot apply there.
+        if getattr(cfg, "skip_auto_vector_index", False) is True:
+            logger.info("topic-clusters: deferred to the multi-feed batch finalize")
+        else:
+            _maybe_build_topic_clusters_after_index(
+                _corpus_finalize_dir,
+                pipeline_metrics,
+                threshold=getattr(cfg, "topic_cluster_threshold", None),
+                delta=_corpus_delta,
+            )
         if _corpus_delta is not None:
             from podcast_scraper.corpus_delta import write_fingerprint_manifest
 

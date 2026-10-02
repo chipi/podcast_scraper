@@ -1337,6 +1337,46 @@ class TestFinalizePipeline(unittest.TestCase):
             delta=ANY,
         )
 
+    @patch("podcast_scraper.workflow.orchestration._maybe_build_topic_clusters_after_index")
+    @patch("podcast_scraper.search.indexer.maybe_index_corpus")
+    @patch("podcast_scraper.workflow.orchestration.wf_helpers.generate_pipeline_summary")
+    @patch("podcast_scraper.workflow.orchestration.wf_helpers.cleanup_pipeline")
+    @patch("podcast_scraper.workflow.orchestration._log_episode_results")
+    def test_finalize_pipeline_leaves_topic_clusters_to_the_multi_feed_batch(
+        self,
+        _mock_log_results,
+        _mock_cleanup,
+        mock_generate_summary,
+        _mock_maybe_index_corpus,
+        mock_topic_clusters,
+    ):
+        """One feed of a multi-feed batch: the batch finalize builds index AND clusters at the
+        corpus parent, so the per-feed run must not look for an index in its run directory."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            dry_run=False,
+            run_id="test-run",
+            vector_search=True,
+            skip_auto_vector_index=True,
+        )
+        mock_generate_summary.return_value = (5, "Summary")
+
+        orchestration._finalize_pipeline(
+            cfg,
+            5,
+            self.transcription_resources,
+            self.output_dir,
+            self.run_suffix,
+            self.pipeline_metrics,
+            self.episodes,
+            None,
+            None,
+            None,
+            None,
+        )
+
+        mock_topic_clusters.assert_not_called()
+
     @patch("podcast_scraper.workflow.orchestration._finalize_enrich_edges")
     @patch("podcast_scraper.workflow.orchestration._maybe_build_topic_clusters_after_index")
     @patch("podcast_scraper.search.indexer.maybe_index_corpus")
