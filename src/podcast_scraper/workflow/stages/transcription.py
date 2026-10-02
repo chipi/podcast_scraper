@@ -54,6 +54,9 @@ def transcribe_media_to_text(*args, **kwargs):
         result = factory_transcribe_media_to_text(*args, **kwargs)
         if isinstance(result, tuple) and result and result[0] is False:
             otel_init.mark_span_failed(span, "transcription returned success=False")
+            from ..show_events import record_show_event
+
+            record_show_event("stage_failed", stage="transcribe", reason="success=False")
         return result
 
 

@@ -4753,6 +4753,14 @@ def process_episode_download(
                 episode.idx,
                 refused_transcript_bytes,
             )
+            from .show_events import record_show_event
+
+            record_show_event(
+                "transcript_refused",
+                episode_title=getattr(episode, "title", None),
+                reason="no_speaker_turns",
+                offered_types=sorted({str(t) for _u, t in (episode.transcript_urls or [])}),
+            )
         else:
             if success and cfg.delay_ms:
                 time.sleep(cfg.delay_ms / MS_TO_SECONDS)

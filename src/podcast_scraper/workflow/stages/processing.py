@@ -1077,6 +1077,21 @@ def _infer_host_source(
     return "feed metadata (NER)"
 
 
+def _record_hosts_detected(
+    hosts: set[str], source: str, feed_level: set[str], dropped: set[str]
+) -> None:
+    """Show sidecar: the host set this run uses for the show, and the branch that produced it."""
+    from ..show_events import record_show_event
+
+    record_show_event(
+        "hosts_detected",
+        hosts=sorted(hosts),
+        source=source,
+        feed_level_hosts=sorted(feed_level),
+        dropped_non_person=sorted(dropped),
+    )
+
+
 def _feed_title(feed: Any) -> Optional[str]:
     """The feed's title, or None. Carried on `HostDetectionResult` so per-episode host parsing can
     refuse a "host" that is really the show — the guard is inert without it, by design."""
@@ -1227,6 +1242,7 @@ def detect_feed_hosts_and_patterns(
                 ", ".join(sorted(cached_hosts)),
             )
             # Skip validation since known_hosts are trusted
+            _record_hosts_detected(cached_hosts, "config known_hosts + feed", feed_hosts, set())
             return HostDetectionResult(
                 cached_hosts, heuristics, speaker_detector, _feed_title(feed)
             )
@@ -1304,6 +1320,7 @@ def detect_feed_hosts_and_patterns(
 
     kind_votes = votes_for_cfg(cfg)
     _people = set(drop_non_person_names(sorted(cached_hosts), _feed_title(feed), kind_votes))
+    _dropped = set(cached_hosts) - _people
     if _people != cached_hosts:
         logger.info(
             "  → dropped non-person host candidate(s): %s",
@@ -1313,6 +1330,15 @@ def detect_feed_hosts_and_patterns(
 
     # Log detected hosts with their source
     _log_detected_hosts(cached_hosts, feed, episode_authors, cfg, source=host_source)
+    _record_hosts_detected(
+        cached_hosts,
+        host_source
+        or (
+            _infer_host_source(cached_hosts, feed, episode_authors, cfg) if cached_hosts else "none"
+        ),
+        feed_hosts,
+        _dropped,
+    )
 
     # Analyze patterns from first few episodes to extract heuristics
     if cfg.auto_speakers and episodes:

@@ -3080,6 +3080,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     effective_output_dir, run_suffix, full_config_string, pipeline_metrics = (
         _setup_pipeline_environment(cfg)
     )
+    # Show sidecar: from here on, this run's show events (and every ERROR it logs) are appended
+    # to feeds/<feed>/show_events/<run>.jsonl, folded into show.json at finalize.
+    from .show_events import bind_show
+
+    bind_show(effective_output_dir)
 
     # GitHub #557: structured incident log (episode/feed scope); default beside run artifacts.
     if not (cfg.incident_log_path or "").strip():
@@ -3233,6 +3238,9 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         maybe_update_pipeline_status(cfg, effective_output_dir, stage="done")
         return result
     finally:
+        from .show_events import unbind_show
+
+        unbind_show()
         # GitHub #562: allow coercion INFO + screenplay warnings on the next Config / run.
         try:
             config.reset_screenplay_issue_562_gates()

@@ -473,6 +473,9 @@ def build_artifact(
             "have no Topic nodes — check the extraction provider.",
             episode_id or "?",
         )
+        from ..workflow.show_events import record_show_event
+
+        record_show_event("kg_extraction_failed", episode_id=episode_id, model=resolved_model)
         if resolved_model is None:
             resolved_model = "provider:extraction_failed"
     elif source != "metadata_only":
