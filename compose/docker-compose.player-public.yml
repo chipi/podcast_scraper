@@ -105,6 +105,10 @@ services:
       INTERNAL_MCP_TOKEN: ${INTERNAL_MCP_TOKEN:-}
       APP_MCP_ISSUER_URL: ${APP_MCP_ISSUER_URL:-}
       APP_MCP_RESOURCE_URL: ${APP_MCP_RESOURCE_URL:-}
+      # Every MCP resource this AS may mint tokens for (content + obs, #1979). The deploy stages it
+      # in the env file; without this line it never reaches the container, the allowlist falls back
+      # to the content URL alone, and the obs connector's authorize step answers 400 invalid_target.
+      APP_MCP_RESOURCE_URLS: ${APP_MCP_RESOURCE_URLS:-}
       # OTEL distributed tracing (ADR-119) — mirror the operator (vps-prod.yml). The api
       # image already wraps the process in `opentelemetry-instrument` (auto FastAPI + HTTP
       # spans); flipping the exporter to otlp + pointing at the homelab VictoriaTraces OTLP

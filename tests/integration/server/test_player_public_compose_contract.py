@@ -110,6 +110,21 @@ def test_backend_trusts_forwarded_headers(resolved: Dict[str, Any]) -> None:
     assert str(env.get("APP_OAUTH_PROVIDER")) == "google"
 
 
+def test_backend_receives_every_mcp_resource_it_authorizes() -> None:
+    # The authorization server serves two MCP resources (content + obs). The staged allowlist must
+    # reach the api container, or authorize rejects the obs resource with invalid_target (#1979).
+    staged = "https://mcp.example.com,https://obs.example.com"
+    env = {**os.environ, "PODCAST_CORPUS_VOLUME": "compose_corpus_data"}
+    env["APP_MCP_RESOURCE_URLS"] = staged
+    cmd = ["docker", "compose", "-f", str(PLAYER_YML), "config", "--format", "yaml"]
+    proc = subprocess.run(  # noqa: S603 - hardcoded cmd
+        cmd, env=env, capture_output=True, text=True, check=False
+    )
+    assert proc.returncode == 0, proc.stderr
+    api_env = _svc(yaml.safe_load(proc.stdout), "api").get("environment") or {}
+    assert api_env.get("APP_MCP_RESOURCE_URLS") == staged
+
+
 def test_backend_is_hardened(resolved: Dict[str, Any]) -> None:
     api = _svc(resolved, "api")
     assert "no-new-privileges:true" in " ".join(api.get("security_opt") or [])
