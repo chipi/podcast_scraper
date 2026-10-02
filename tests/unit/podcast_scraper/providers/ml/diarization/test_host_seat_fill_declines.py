@@ -126,3 +126,18 @@ def test_the_second_host_behind_a_dominant_guest_is_still_seated() -> None:
     assert roster.by_voice["SPEAKER_00"].name == HOST_A
     assert roster.by_voice["SPEAKER_01"].name == HOST_B
     _not_host_b(roster, "SPEAKER_02")
+
+
+def test_a_voice_under_five_percent_does_not_take_the_seat_as_the_opener() -> None:
+    # Step 3 seats whoever speaks first. Once a pre-roll ad is recognised as an ad, the first voice
+    # can be a 3-second fragment; the floor that guards step 4 guards the opener too.
+    turns = [
+        ("SPEAKER_02", "Okay, that sounds lovely.", 3.0),
+        ("SPEAKER_00", "So the ports moved north because the river silted up.", 400.0),
+        ("SPEAKER_01", "And the merchants went with them?", 300.0),
+        ("SPEAKER_00", "Most of them, within a generation.", 100.0),
+        ("SPEAKER_02", "Okay, that sounds lovely.", 3.0),
+        ("SPEAKER_01", "That is a remarkable story about the trade.", 300.0),
+    ]
+    roster = _roster(turns, known_hosts=(HOST_A,))
+    assert roster.by_voice["SPEAKER_02"].name != HOST_A

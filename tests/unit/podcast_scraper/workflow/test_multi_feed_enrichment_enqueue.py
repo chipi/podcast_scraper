@@ -122,3 +122,21 @@ def test_empty_batch_enqueues_nothing(tmp_path: Path) -> None:
     jobs = read_jobs(corpus)
     enr = [j for j in jobs if j.get("command_type") == COMMAND_ENRICHMENT]
     assert enr == [], "an empty batch (no feed results) must not enqueue enrichment"
+
+
+@pytest.mark.unit
+def test_the_batch_builds_ad_signatures_at_the_corpus_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cross-show ad signatures are built where every feed can see them, with or without the
+    vector index (they read segments, not LanceDB)."""
+    from podcast_scraper.providers.ml.diarization import ad_signatures
+
+    built: list = []
+    monkeypatch.setattr(ad_signatures, "write_for_corpus", lambda root, **_: built.append(root))
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    corpus_operations.finalize_multi_feed_batch(
+        str(corpus), _cfg(enrichment_enabled=False), [_feed_result()]
+    )
+    assert built == [corpus]

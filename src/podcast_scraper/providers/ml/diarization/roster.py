@@ -589,6 +589,7 @@ def classify_voices(
     recurring_text: Optional[set] = None,
     diarization_provider: Optional[str] = None,
     cameo_max_talk_s: float = CAMEO_MAX_TALK_S,
+    ad_signatures: Optional[Any] = None,
 ) -> VoiceCleaning:
     """Classify every diarized voice as ad / cameo / commercial / real (see :class:`VoiceCleaning`).
 
@@ -600,6 +601,13 @@ def classify_voices(
     ad = _ad_voices_for(
         diarization, ordered_turns, voice_texts, recurring_text, diarization_provider
     )
+    if ad_signatures is not None and voice_texts:
+        # Cross-show evidence (ad_signatures.py): script other shows also carry, or a voice in a
+        # language the corpus has learned arrives only as ads. None = no corpus index = no opinion.
+        from .ad_signatures import episode_language
+
+        ep_lang = episode_language(voice_texts)
+        ad |= {v for v, t in voice_texts.items() if ad_signatures.is_ad_voice(t, ep_lang)}
     talk = _talk_time(diarization)
     ad_by_voice = _ad_overlap_by_voice(diarization, ad_intervals) if ad_intervals else {}
     cameo: Set[str] = set()
@@ -2872,8 +2880,14 @@ def _select_host_voices(
         if v not in host_voices and v not in stated_non_host_voices:
             host_voices.append(v)
 
+    share = _talk_share(diarization, set(ad_voices))
+
     # 3. The opener does the intro (the pre-roll ad is excluded). Skipped when the conversation
     #    already named a host, and never a voice the conversation heard say "thanks for having me".
+    #    ...nor a voice that barely speaks: once a geo-targeted pre-roll is recognised as an ad, the
+    #    next "opener" can be a 2-second ad fragment ("Okay, das klingt traumhaft"), and it took
+    #    the host's seat on 5 Past Present Future episodes in the 2026-10-02 replay. Same floor as
+    #    step 4.
     opener = _opening_voice(
         diarization,
         window_end=content_start + intro_window_s,
@@ -2888,6 +2902,7 @@ def _select_host_voices(
         and opener not in host_voices
         and opener not in conv_guests
         and opener not in positional_non_host
+        and share.get(opener, 0.0) >= HOST_ELIMINATION_MIN_SHARE
         and len(host_voices) < max(1, len(host_pool))
     ):
         host_voices.append(opener)
@@ -2901,7 +2916,6 @@ def _select_host_voices(
     #    name on it. Declining here leaves the seat empty — the honest state.
     #    Dominance only counts when somebody BESIDES the stated hosts takes part: on a two-host
     #    show with no guest each host owns about half the talk, and both must still be seated.
-    share = _talk_share(diarization, set(ad_voices))
     substantial = [v for v, s in share.items() if s >= HOST_ELIMINATION_MIN_SHARE]
     guest_present = len(substantial) > len(host_pool)
     for v in voices_by_intro:

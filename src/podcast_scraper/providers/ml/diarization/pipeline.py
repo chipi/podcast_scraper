@@ -12,6 +12,7 @@ from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Tu
 
 from .... import config
 from ....speaker_detectors.normalization import filter_default_speaker_names
+from .ad_signatures import load_near as load_ad_signatures_near
 from .alignment import align_segments_to_speakers
 from .base import DiarizationResult
 from .cache import (
@@ -602,6 +603,7 @@ def apply_diarization_to_result(
         recurring_text=recurring_text,
         diarization_provider=dz_provider,
         cameo_max_talk_s=_labeling_profile.cameo_max_talk_s,
+        ad_signatures=load_ad_signatures_near(str(getattr(cfg, "output_dir", "") or "")),
     )
     # The intro (title + description + the cleaned, labeled first minutes) is where a show states
     # who hosts and who is visiting; it lets the same call decide host/guest, not just name. The LLM

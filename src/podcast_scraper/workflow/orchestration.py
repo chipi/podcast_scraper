@@ -1935,7 +1935,7 @@ def _finalize_pipeline(
         # without the same guard here every feed of a nightly warned that a run directory has no
         # index (2026-10-02: once per feed), for a step that cannot apply there.
         if getattr(cfg, "skip_auto_vector_index", False) is True:
-            logger.info("topic-clusters: deferred to the multi-feed batch finalize")
+            logger.info("topic-clusters + ad signatures: deferred to the multi-feed batch finalize")
         else:
             _maybe_build_topic_clusters_after_index(
                 _corpus_finalize_dir,
@@ -1943,6 +1943,9 @@ def _finalize_pipeline(
                 threshold=getattr(cfg, "topic_cluster_threshold", None),
                 delta=_corpus_delta,
             )
+            from podcast_scraper.providers.ml.diarization.ad_signatures import write_for_corpus
+
+            write_for_corpus(Path(_corpus_finalize_dir))
         if _corpus_delta is not None:
             from podcast_scraper.corpus_delta import write_fingerprint_manifest
 
