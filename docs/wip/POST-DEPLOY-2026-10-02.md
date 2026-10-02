@@ -13,6 +13,7 @@ Companion: `ADVISOR-REVIEW-2026-10-02.md` (what was fixed, evidence, open questi
 | A1 | Push the local commits to main (operator approval) | ~25 commits, none pushed |
 | A2 | Deploy ALL prod surfaces at one sha (operator approval) | the player `api` needs `df2369773` (compose passes `APP_MCP_RESOURCE_URLS`) — a config change, so the player surface must be redeployed, not only images |
 | A3 | Read the deploy log for the obs MCP line | `4b1232b84`: it must say "authorize accepts the resource". A WARN with `authorize-accepts-resource=no` means the env did not reach the api |
+| A4 | Force-build the ad signatures once, right after deploy: `write_for_corpus(Path("/app/output"), force=True)` in the pipeline container (operator approval — writes only `search/ad_signatures.json`, deterministic, no LLM) | otherwise the file first appears at the END of the next multi-feed batch, so that nightly runs with no ad opinion, B2/B3 slip a day, and C3 has no source (advisor review) |
 
 ## B. Live verification (read-only)
 
@@ -29,7 +30,9 @@ Companion: `ADVISOR-REVIEW-2026-10-02.md` (what was fixed, evidence, open questi
 | B9 | Topic clusters | nightly log | `topic-clusters + ad signatures: deferred to the multi-feed batch finalize` instead of a WARN per feed | `848bee921` |
 | B10 | Filename length | re-run the Design Meets Business smoke episode that failed with `[Errno 36] File name too long` | the episode is written | `dd8835954` |
 | B11 | Naming warnings | VictoriaLogs counts of "TALKS ABOUT" discards and "a name WAS available" | the self-intro forms ("I am your host, X", "I am Rob X") no longer discarded | `e50b5879f` |
-| B12 | Name gate | new episodes: no "Host", "OK", committee / job-title names in `content.speakers` | none | `c069bc827`, `0651c7b2e` |
+| B12 | Name gate | new episodes: no "Host", "OK", committee / job-title names in `content.speakers`; real names with role-word parts still published (Christopher Guest class) | none refused wrongly | `c069bc827`, `0651c7b2e`, `5b4ebc091` |
+| B13 | Named-voice rate | per nightly: named voices / substantive voices, vs the prior 7 nights | no drop — an over-rejecting gate shows here first (advisor) | `c069bc827`, `5b4ebc091` |
+| B14 | Commercial voices per episode | before vs after deploy, per feed | a rise on the German-ad / house-ad shows only; a rise elsewhere = signature over-reach (cross-posts, syndicated clips) | `40d8d9844` |
 
 ## C. Text-only cleanups of what is already on prod
 
@@ -43,8 +46,10 @@ set. Order: dry-run → operator approval → apply → verify.
 | # | Cleanup | Evidence (prod, 2026-10-02) | Surfaces (all five, or none — as m0012) |
 |---|---|---|---|
 | C1 | **Junk published names** — a new migration (`m0015`) that removes every published speaker name `is_publishable_speaker_name` now refuses: "Host" ×20, "OK" ×3, "Thank", "Right", "GE", committees and job titles ("House Select Committee", "PC Alexander Committee", "Alexander Committee", "Treasury Foreign Exchange", "Meter Redwood Research", "Commodity Context", "Roblox CEO"), unplaced org hosts ("The China-Global South Project" ×10) | 45 of 4,638 published names | metadata `content.speakers` + `detected_*`; segments + adfree segments `speaker_label` (voice stays, `voice_type: unknown`); kg Person node + edges; gi Person node, `SPOKEN_BY`, quote `speaker_id`, insight `speaker` (+ route/tag recompute); bridge identity row |
-| C2 | **Prefix repairs** — 3 names keep the person, lose the job / show: "Your Host Luisa Leni" → Luisa Leni, "Deputy Editor Eilish Hart" → Eilish Hart, "Planet Money's Kenny Malone" → Kenny Malone | 3 | a RENAME across the same surfaces, using the m0010 canonical-name path (ids derive from names, so node ids and edges move together) |
-| C3 | **Ad readers named as people** — names on voices the corpus ad signatures classify as ads: Daniel Atkinson (Wirecutter) on dozens of episodes, Jonathan Knight (NYT Games), Shannon Maldonado (Shopify), "Gemini"/"Claude" (AI promo), Vox's promo voice, host names on German ads | replay: 90 names removed; the frozen set must be re-derived from the BUILT `ad_signatures.json` (B2), never from a replay | same five surfaces as C1; `voice_type: commercial` instead of `unknown` |
+| C2 | **Prefix repairs** (person_web drops the old id's bio on its next run and fetches the 3 new ids under budget — no separate enrichment step needed) — 3 names keep the person, lose the job / show: "Your Host Luisa Leni" → Luisa Leni, "Deputy Editor Eilish Hart" → Eilish Hart, "Planet Money's Kenny Malone" → Kenny Malone | 3 | a RENAME across the same surfaces, using the m0010 canonical-name path (ids derive from names, so node ids and edges move together) |
+| C3 | **Ad readers named as people** — the frozen set records the signature file's `built_at` + SHA-256 in the m0015 receipt (the file is rebuilt every 6h; a later rebuild must not change what was applied); voices hit by the LANGUAGE rule alone (not recurrence) are hand-checked before applying — they are the ones that can be content — names on voices the corpus ad signatures classify as ads: Daniel Atkinson (Wirecutter) on dozens of episodes, Jonathan Knight (NYT Games), Shannon Maldonado (Shopify), "Gemini"/"Claude" (AI promo), Vox's promo voice, host names on German ads | replay: 90 names removed; the frozen set must be re-derived from the BUILT `ad_signatures.json` (B2), never from a replay | same five surfaces as C1; `voice_type: commercial` instead of `unknown` |
+| — | **C1 voice type** | the pipeline types an unnamed voice `cameo` (<20s), `unidentified` (nobody could name it) or `unknown` (we failed to); m0012 wrote `unknown` for all. C1 computes the type the pipeline would, or records the divergence in the receipt (advisor) | — |
+| — | **C1 runs only on the gate as of `5b4ebc091`** | the earlier gate refused real names whose parts are role words (Christopher Guest); deriving C1's set from it would remove real people from prod | — |
 | C4 | **Odd Lots quote offsets** | 36 episodes, 2,021 quotes | self-heals on the first single-feed job's whole-corpus `enrich-edges` (B4). If none runs soon: an `enrich-edges` over the corpus is a deterministic, non-LLM step (ladder step 4) — operator approval |
 
 NOT in C (would need a roster re-run, i.e. a relabel — out of bounds unless the operator raises it):
