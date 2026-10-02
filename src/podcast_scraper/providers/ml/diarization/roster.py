@@ -580,44 +580,6 @@ def _ad_voices_for(
     return ad
 
 
-#: Ads arrive in the language of wherever the AUDIO was fetched, because publishers geo-target
-#: dynamic ad insertion by IP. Production fetches from a German host, so English shows carry German
-#: ads. Measured 2026-10-02: 146 German-language voices across the corpus, every one an ad on
-#: hand review (IONOS, Altra, Indeed, Vistaprint, Amazon, REWE, ...) and no German content voice;
-#: 77 of them were classified as real speakers and 19 carried a host's or guest's name. Spanish
-#: and Portuguese voices are NOT treated this way: on Latin America in Focus they are the content.
-_AD_GEO_WORDS = frozenset(
-    "der die das und ist nicht für mit sie ihre ihr auf dem den ein eine zu von wir es sich "
-    "auch noch jetzt mehr bei oder wie".split()
-)
-_SHOW_WORDS = frozenset("the and is to of that it you in we this for with".split())
-_AD_GEO_MIN_WORDS = 15
-_AD_GEO_MIN_SHARE = 0.08
-#: The episode itself must not be in the ad language (a German show's voices are its content).
-_AD_GEO_EPISODE_MAX_SHARE = 0.02
-
-
-def _ad_geo_language_voices(voice_texts: Optional[Dict[str, str]]) -> Set[str]:
-    """Voices speaking the ad-geography language in an episode that is not in that language."""
-    if not voice_texts:
-        return set()
-    words = {v: re.findall(r"[^\W\d_]+", (t or "").lower()) for v, t in voice_texts.items()}
-    every = [w for ws in words.values() for w in ws]
-    if (
-        not every
-        or sum(w in _AD_GEO_WORDS for w in every) / len(every) >= _AD_GEO_EPISODE_MAX_SHARE
-    ):
-        return set()
-    out: Set[str] = set()
-    for v, ws in words.items():
-        if len(ws) < _AD_GEO_MIN_WORDS:
-            continue
-        geo = sum(w in _AD_GEO_WORDS for w in ws)
-        if geo / len(ws) >= _AD_GEO_MIN_SHARE and geo > sum(w in _SHOW_WORDS for w in ws):
-            out.add(v)
-    return out
-
-
 def classify_voices(
     diarization: DiarizationResult,
     ad_intervals: Optional[Sequence[Tuple[float, float]]] = None,
@@ -638,7 +600,6 @@ def classify_voices(
     ad = _ad_voices_for(
         diarization, ordered_turns, voice_texts, recurring_text, diarization_provider
     )
-    ad |= _ad_geo_language_voices(voice_texts)
     talk = _talk_time(diarization)
     ad_by_voice = _ad_overlap_by_voice(diarization, ad_intervals) if ad_intervals else {}
     cameo: Set[str] = set()
