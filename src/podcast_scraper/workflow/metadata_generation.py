@@ -50,7 +50,7 @@ from .. import config, config_constants, models
 from ..graph_id_utils import is_bare_speaker_label
 from ..identity.roster_provenance import roster_source, RosterSource
 from ..identity.slugify import canonical_person_name
-from ..speaker_detectors.hosts import looks_like_publisher
+from ..speaker_detectors.hosts import is_publishable_speaker_name, looks_like_publisher
 
 if TYPE_CHECKING:
     from ..models import Episode, RssFeed
@@ -1076,6 +1076,10 @@ def _unplaced_speakers(
             or is_bare_speaker_label(name)
             or is_default_speaker_name(name)
             or looks_like_publisher(name)
+            # The same last gate a PLACED name passes. Unplaced entries were published without it:
+            # "The China-Global South Project" on 10 episodes as an unplaced host, read from the
+            # feed description (2026-10-02).
+            or not is_publishable_speaker_name(name)
         ):
             continue
         if feed_title and names_the_show(name, feed_title):
