@@ -178,3 +178,46 @@ def test_a_variant_that_drops_the_labelled_host_is_a_regression(tmp_path: Path) 
     assert [(r["voice"], r["old"]["score"], r["new"]["score"]) for r in report["regressions"]] == [
         ("SPEAKER_00", "correct_name", "missing_name")
     ]
+
+
+def _nameless_roster(tmp_path: Path) -> Path:
+    path = tmp_path / "roster_nameless.py"
+    path.write_text(
+        ROSTER_SRC.read_text(encoding="utf-8") + "\n_orig = resolve_speaker_roster\n"
+        "def resolve_speaker_roster(*a, **k):\n"
+        "    r = _orig(*a, **k)\n"
+        "    for v, role in list(r.by_voice.items()):\n"
+        "        r.by_voice[v] = replace(role, name=v, named=False)\n"
+        "    return r\n"
+    )
+    return path
+
+
+def test_a_wrong_name_that_becomes_no_name_is_better(tmp_path: Path) -> None:
+    corpus, cases, labels = _labelled(tmp_path)
+    lab = json.loads((labels / "c001.json").read_text())
+    lab["voices"][0]["name"] = "Someone Else"  # the code publishes Tobias Wren: a WRONG name
+    (labels / "c001.json").write_text(json.dumps(lab))
+    report = gate.run(
+        corpus,
+        gate.load_labelled(cases, labels),
+        gate.R.load_variant({}),
+        gate.R.load_variant({"roster": _nameless_roster(tmp_path)}),
+    )
+    assert [(r["old"]["score"], r["new"]["score"]) for r in report["better"]] == [
+        ("wrong_name", "missing_name")
+    ]
+    assert report["worse"] == [] and report["regressions"] == [] and report["fixes"] == []
+
+
+def test_a_validation_set_with_v_prefixed_files_is_read(tmp_path: Path) -> None:
+    _corpus, cases, labels = _labelled(tmp_path)
+    for d in (cases, labels):
+        (d / "c001.json").rename(d / "v001.json")
+    assert [c["case_id"] for c, _l in gate.load_labelled(cases, labels)] == ["c001"]
+
+
+def test_severity_orders_wrong_above_missing_above_correct() -> None:
+    s = gate.SEVERITY
+    assert s["wrong_name"] > s["missing_name"] > s["correct_name"] == s["correct_unnamed"]
+    assert s["non_participant"] == s["spurious_name"] == s["wrong_name"]

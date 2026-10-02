@@ -48,6 +48,17 @@ import roster_replay as R  # noqa: E402
 PARTICIPANT = frozenset({"host", "guest"})
 NON_PARTICIPANT = frozenset({"ad", "promo", "clip"})
 CORRECT = frozenset({"correct_name", "correct_unnamed"})
+#: How bad an outcome is. A wrong name is worse than no name; a missing name worse than correct.
+#: A change is BETTER or WORSE by this rank: "wrong name became unnamed" is an improvement.
+SEVERITY = {
+    "correct_name": 0,
+    "correct_unnamed": 0,
+    "missing_name": 1,
+    "role_error": 2,
+    "spurious_name": 3,
+    "wrong_name": 3,
+    "non_participant": 3,
+}
 
 
 def _same(a: str, b: str) -> bool:
@@ -84,7 +95,7 @@ def _published(result: Any, voice: str) -> Tuple[Optional[str], Optional[str]]:
 
 def load_labelled(cases_dir: Path, labels_dir: Path) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
     out = []
-    for lab_path in sorted(labels_dir.glob("c*.json")):
+    for lab_path in sorted(labels_dir.glob("*.json")):
         case_path = cases_dir / lab_path.name
         if not case_path.is_file():
             continue
@@ -109,6 +120,8 @@ def run(
     host_tallies: Dict[str, Counter] = {"old": Counter(), "new": Counter()}
     regressions: List[Dict[str, Any]] = []
     fixes: List[Dict[str, Any]] = []
+    better: List[Dict[str, Any]] = []
+    worse: List[Dict[str, Any]] = []
     skipped = Counter()
     for case, labels in labelled:
         try:
@@ -144,6 +157,10 @@ def run(
                 regressions.append(row)
             elif sn in CORRECT and so not in CORRECT:
                 fixes.append(row)
+            if SEVERITY[sn] < SEVERITY[so]:
+                better.append(row)
+            elif SEVERITY[sn] > SEVERITY[so]:
+                worse.append(row)
     return {
         "episodes": len(labelled),
         "old": dict(tallies["old"]),
@@ -152,6 +169,8 @@ def run(
         "hosts_new": dict(host_tallies["new"]),
         "regressions": regressions,
         "fixes": fixes,
+        "better": better,
+        "worse": worse,
         "skipped": dict(skipped),
     }
 
@@ -186,6 +205,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--json", type=Path, help="also write the full report here")
     args = ap.parse_args(argv)
     labelled = load_labelled(args.cases, args.labels)
+    R.index_siblings(args.corpus)
     old = R.load_variant(R._variant_arg(args.old))
     new = R.load_variant(R._variant_arg(args.new))
     sig_old = sig_new = None
@@ -201,6 +221,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"\nFIXES (new correct, old not): {len(report['fixes'])}")
     for r in report["fixes"]:
         print("  ", json.dumps(r, ensure_ascii=False))
+    print(
+        f"\nBY SEVERITY: better {len(report['better'])}, worse {len(report['worse'])} "
+        "(wrong > role swap > missing > correct)"
+    )
+    for tag, rows in (("better", report["better"]), ("worse", report["worse"])):
+        for r in rows:
+            print(f"   {tag}", json.dumps(r, ensure_ascii=False))
     if args.json:
         args.json.write_text(json.dumps(report, ensure_ascii=False, indent=1))
     return 0
