@@ -221,3 +221,21 @@ def test_severity_orders_wrong_above_missing_above_correct() -> None:
     s = gate.SEVERITY
     assert s["wrong_name"] > s["missing_name"] > s["correct_name"] == s["correct_unnamed"]
     assert s["non_participant"] == s["spurious_name"] == s["wrong_name"]
+
+
+def test_the_ladder_scores_every_step_and_what_each_step_changed(tmp_path: Path) -> None:
+    corpus, cases, labels = _labelled(tmp_path)
+    today = gate.R.load_variant({})
+    nameless = gate.R.load_variant({"roster": _nameless_roster(tmp_path)})
+    report = gate.ladder(
+        corpus,
+        gate.load_labelled(cases, labels),
+        [("today", today, None), ("+drop_names", nameless, None), ("+same_again", nameless, None)],
+    )
+    assert report["steps"] == ["today", "+drop_names", "+same_again"]
+    assert report["hosts"]["today"] == {"correct_name": 1}
+    assert report["hosts"]["+drop_names"] == {"missing_name": 1}
+    assert [r["voice"] for r in report["changes"]["+drop_names"]["worse"]] == ["SPEAKER_00"]
+    assert report["changes"]["+same_again"] == {"better": [], "worse": []}
+    table = gate.ladder_table(report)
+    assert "today" in table and "+drop_names" in table and "worse vs prev" in table

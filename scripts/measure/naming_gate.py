@@ -175,6 +175,99 @@ def run(
     }
 
 
+def ladder(
+    corpus: Path,
+    labelled: List[Tuple[Dict[str, Any], Dict[str, Any]]],
+    steps: List[Tuple[str, Dict[str, Any], Any]],
+) -> Dict[str, Any]:
+    """Score each cumulative step (baseline, +slice 1, +slices 1-2, ...) and what each step changed.
+
+    ``steps`` is ``[(name, variant, signatures), ...]`` in order; the first is the baseline. Every
+    step is a complete code variant, so a column shows the whole stack up to that slice.
+    """
+    names = [s[0] for s in steps]
+    tallies = {n: Counter() for n in names}
+    hosts = {n: Counter() for n in names}
+    changes: Dict[str, Dict[str, List[Dict[str, Any]]]] = {
+        n: {"better": [], "worse": []} for n in names[1:]
+    }
+    skipped = Counter()
+    for case, labels in labelled:
+        try:
+            ep = R.load_episode(corpus / case["meta_relpath"])
+            results = [R.replay(v["roster"], ep, sig) for _n, v, sig in steps]
+        except Exception as exc:  # noqa: BLE001 — one bad episode must not stop the gate
+            skipped[f"replay_error:{type(exc).__name__}"] += 1
+            continue
+        for lab in labels.get("voices") or []:
+            voice = str(lab.get("voice"))
+            published = [_published(r, voice) for r in results]
+            scores = [score_voice(lab, n, ro) for n, ro in published]
+            if scores[0] is None:
+                skipped["unscored_label"] += 1
+                continue
+            for name, score in zip(names, scores):
+                tallies[name][score] += 1
+                if lab.get("role") == "host":
+                    hosts[name][score] += 1
+            for i in range(1, len(steps)):
+                prev, cur = scores[i - 1], scores[i]
+                if SEVERITY[cur] == SEVERITY[prev]:
+                    continue
+                row = {
+                    "case": case["case_id"],
+                    "feed": (case.get("feed") or {}).get("title"),
+                    "voice": voice,
+                    "label": {k: lab.get(k) for k in ("role", "name", "confidence")},
+                    "before": {"name": published[i - 1][0], "score": prev},
+                    "after": {"name": published[i][0], "score": cur},
+                }
+                kind = "better" if SEVERITY[cur] < SEVERITY[prev] else "worse"
+                changes[names[i]][kind].append(row)
+    return {
+        "episodes": len(labelled),
+        "steps": names,
+        "tallies": {n: dict(t) for n, t in tallies.items()},
+        "hosts": {n: dict(t) for n, t in hosts.items()},
+        "changes": changes,
+        "skipped": dict(skipped),
+    }
+
+
+_OUTCOMES = [
+    "correct_name",
+    "correct_unnamed",
+    "wrong_name",
+    "missing_name",
+    "spurious_name",
+    "non_participant",
+    "role_error",
+]
+
+
+def ladder_table(report: Dict[str, Any]) -> str:
+    names = report["steps"]
+    width = max(12, *(len(n) for n in names))
+    lines = [f"{'outcome':18s} " + " ".join(f"{n:>{width}s}" for n in names)]
+    for k in _OUTCOMES:
+        lines.append(
+            f"{k:18s} " + " ".join(f"{report['tallies'][n].get(k, 0):>{width}d}" for n in names)
+        )
+    lines.append(
+        f"{'hosts correct':18s} "
+        + " ".join(f"{report['hosts'][n].get('correct_name', 0):>{width}d}" for n in names)
+    )
+    lines.append(
+        f"{'better vs prev':18s} {'':>{width}s} "
+        + " ".join(f"{len(report['changes'][n]['better']):>{width}d}" for n in names[1:])
+    )
+    lines.append(
+        f"{'worse vs prev':18s} {'':>{width}s} "
+        + " ".join(f"{len(report['changes'][n]['worse']):>{width}d}" for n in names[1:])
+    )
+    return "\n".join(lines)
+
+
 def _table(report: Dict[str, Any]) -> str:
     keys = [
         "correct_name",
@@ -203,9 +296,37 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--new", nargs="*", default=[], metavar="MODULE=PATH")
     ap.add_argument("--signatures", action="store_true")
     ap.add_argument("--json", type=Path, help="also write the full report here")
+    ap.add_argument(
+        "--step",
+        nargs="+",
+        action="append",
+        metavar="NAME [MODULE=PATH ...]",
+        help="ladder mode: one cumulative step per flag, in order; the first is the baseline "
+        "(e.g. --step today --step +seat_v4 roster=/tmp/v4.py). Replaces --old/--new.",
+    )
     args = ap.parse_args(argv)
     labelled = load_labelled(args.cases, args.labels)
     R.index_siblings(args.corpus)
+    if args.step:
+        steps = []
+        for name, *mods in args.step:
+            variant = R.load_variant(R._variant_arg(mods))
+            sig = (
+                R._signatures(variant.get("ad_signatures"), args.corpus)
+                if args.signatures
+                else None
+            )
+            steps.append((name, variant, sig))
+        lad = ladder(args.corpus, labelled, steps)
+        print(f"labelled episodes: {lad['episodes']}  skipped: {lad['skipped']}")
+        print(ladder_table(lad))
+        for name in lad["steps"][1:]:
+            for kind in ("worse", "better"):
+                for r in lad["changes"][name][kind]:
+                    print(f"   {name} {kind}", json.dumps(r, ensure_ascii=False))
+        if args.json:
+            args.json.write_text(json.dumps(lad, ensure_ascii=False, indent=1))
+        return 0
     old = R.load_variant(R._variant_arg(args.old))
     new = R.load_variant(R._variant_arg(args.new))
     sig_old = sig_new = None
