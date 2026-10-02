@@ -73,8 +73,31 @@ Local, not pushed:
 7. **Holistic:** where is naming thin overall — seats, missing names, misspellings (Bernard
    Liang/Leong, Kittrow-F), duplicates — and are the last ~10 commits sound (due diligence)?
 
+## Observability item 5 (config / noise) — decided, not changed
+
+- **HF_TOKEN unset:** one Hub metadata ping per model load against a cached model. `pipeline-llm`
+  is built with `PRELOAD_ML_MODELS=false`; MiniLM + nli-deberta live in the `hf_cache` volume,
+  downloaded on first use. Both load offline in the real image (verified), but `HF_HUB_OFFLINE=1`
+  would break a fresh volume. Options for the operator: an `HF_TOKEN` secret, or bake the models
+  into the image (+640 MB) and then go offline.
+- **SELF-GRADING:** the value gate's rater is the generator because the DGX serves one model.
+  Added to `DGX-DEFERRED.md` (#1895).
+- **insight_salvage over ceiling (84/night):** the model returns ~30 for a ceiling of 25 and the
+  salvage keeps 25 spread across the episode. A schema `maxItems` would cut the tail of each
+  transcript slice instead, which is worse. Left as is.
+- **topic-clusters skipped:** fixed (`848bee921`) — a multi-feed feed no longer looks for an index
+  in its run directory.
+
+## Corrections to earlier claims
+
+- `6661b186a`'s message says the 36 Odd Lots episodes heal "on the first pipeline run after
+  deploy". Wrong for the nightly: a multi-feed feed finalizes only its own run directory
+  (`enrich-edges: episodes=4`). The whole-corpus pass is the finalize of a SINGLE-feed Jobs-API
+  run (`path=/app/output`) — that is what re-warned 36 episodes 26 times — so they heal on the
+  first single-feed job after deploy (e.g. the DEEPEN jobs).
+
 ## Not done / not verified
 
 - Kennedy Center (34 insights) traced only to a hypothesis (question 3); Planet Money (4) not looked at.
 - The re-anchor and loop fixes are verified by tests and prod replays, not yet by a live run.
-- Observability gaps (errors not on spans, `episode.process` covers download only, no run summary): in progress.
+- Observability item 4 is fixed in code (`47fc7a77f`) but not yet seen in VictoriaTraces.
