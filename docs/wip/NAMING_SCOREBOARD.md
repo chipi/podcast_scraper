@@ -45,7 +45,12 @@ answers is what rules do well here; producing right answers is where they have n
 Next after the planned slices (operator, 2026-10-03): a FEED-LEVEL analysis with the Fable advisor —
 patterns per show (who hosts it, who recurs across its episodes, how its transcripts/voices look),
 using the show sidecar (`feeds/<feed>/show.json`) and the gold sets, to find rules that work at the
-show level rather than per episode.
+show level rather than per episode. Framing (operator): at some point LOCAL (per-show) optimisation beats
+GLOBAL rules — a learned per-show profile, kept honest by the same gate (validation spans 53 shows).
+
+Then (operator, 2026-10-03): LLM-step optimisation as its own loop — prompt, candidate list and the
+per-voice case view, with real DGX calls on dev, validated once on the 500, 2 loops max. The
+"LLM reads like a labeller" experiment below belongs to this loop.
 
 Candidate beyond rules (not yet tried): make the production LLM resolver read each voice the way
 the labellers did (the labelling guide as the prompt, the case view as input, the rules as guards),
