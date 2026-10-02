@@ -159,7 +159,9 @@ def load_variant(files: Dict[str, Path]) -> Dict[str, types.ModuleType]:
             if key in files:
                 built[key] = _exec_module(MODULES[key], files[key])
             elif key == "roster":
-                built[key] = _exec_module(MODULES[key], Path(sys.modules[MODULES[key]].__file__))
+                built[key] = _exec_module(
+                    MODULES[key], Path(str(sys.modules[MODULES[key]].__file__))
+                )
             elif key == "ad_signatures" and _importable(MODULES[key]):
                 built[key] = sys.modules.get(MODULES[key]) or __import__(
                     MODULES[key], fromlist=["*"]
