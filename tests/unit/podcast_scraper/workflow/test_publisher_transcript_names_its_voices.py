@@ -505,6 +505,75 @@ def test_a_plain_text_transcript_is_refused_too(tmp_path, monkeypatch) -> None:
     assert source == epx.TRANSCRIPT_LACKS_SPEAKERS
 
 
+_LABELLED_PLAIN = (
+    b"Ana: Welcome to Shape and Signal, where we look at how software changes design. "
+    b"I'm Ana Ortiz.\n\n"
+    b"Ben: And I'm Ben Carter. This week we talk about decision models.\n\n"
+    b"Ana: Our guest has studied flattery in chatbots for years.\n"
+)
+#: The shape The Every Podcast publishes: many short timed cues, no voice span, no `Speaker N:`.
+_SHORT_CUES_NO_SPEAKERS = """WEBVTT
+
+1
+00:00:00.031 --> 00:00:01.834
+Do you do all your prompting on the fast model?
+
+2
+00:00:02.274 --> 00:00:02.655
+I do.
+
+3
+00:00:03.256 --> 00:00:03.856
+That's great.
+
+4
+00:00:04.137 --> 00:00:04.557
+Yeah.
+"""
+
+
+def test_a_plain_text_transcript_with_name_labels_is_refused_too(tmp_path, monkeypatch) -> None:
+    """The AI and Design shape (prod 2026-10-02): `Name:` labels on every paragraph. The labels say
+    who speaks, but plain text has no timings, so no quote could be placed on the audio and the
+    episode would still be stored as one voice. Transcribing it gives both speakers AND timings."""
+    monkeypatch.setattr(
+        epx, "_fetch_transcript_content", lambda url, cfg: (_LABELLED_PLAIN, "text/plain")
+    )
+    cfg = config_module.Config(
+        output_dir=str(tmp_path), require_transcript_speakers=True, transcribe_missing=True
+    )
+    ok, rel_path, source, _ = epx.process_transcript_download(
+        _episode(), "http://feed.example/t.txt", "text/plain", cfg, str(tmp_path), None
+    )
+    assert not ok and rel_path is None
+    assert source == epx.TRANSCRIPT_LACKS_SPEAKERS
+
+
+def test_short_timed_cues_with_no_speaker_are_refused(tmp_path, monkeypatch) -> None:
+    """The Every Podcast shape (prod 2026-10-02): a real caption file, every cue timed, and not one
+    of them says who is talking — a two-person conversation arrives as one voice."""
+    ok, rel_path, source, _ = _download(
+        tmp_path, monkeypatch, _SHORT_CUES_NO_SPEAKERS, require_transcript_speakers=True
+    )
+    assert not ok and rel_path is None
+    assert source == epx.TRANSCRIPT_LACKS_SPEAKERS
+
+
+@pytest.mark.parametrize("profile", ["prod_dgx_full", "dev_dgx_full"])
+def test_the_production_profile_refuses_transcripts_that_do_not_say_who_speaks(
+    profile: str,
+) -> None:
+    """Operator decision 2026-10-02: a publisher transcript is used only when it says who speaks;
+    otherwise we transcribe. Off by default, so the profile must turn it on — and it is only safe
+    with transcription available to fall back to."""
+    import yaml
+
+    root = Path(__file__).resolve().parents[4]
+    data = yaml.safe_load((root / "config" / "profiles" / f"{profile}.yaml").read_text())
+    assert data.get("require_transcript_speakers") is True
+    assert data.get("transcribe_missing", True) is True
+
+
 def test_refusing_without_transcription_is_a_config_error() -> None:
     """Refusing only helps if something else can produce a transcript. With `transcribe_missing`
     off there is no instead, and the episode ends with nothing — strictly worse than the

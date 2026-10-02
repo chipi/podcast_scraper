@@ -63,6 +63,7 @@ accepted:
   openai_speaker_model: "pre-ratchet divergence, seeded 2026-08-30 — review when next touched (see #1878)"
   openai_summary_model: "pre-ratchet divergence, seeded 2026-08-30 — review when next touched (see #1878)"
   prefer_types: "set only on fixture_validation, to ['text/vtt', '.vtt']: the corpus feeds advertise a .vtt twin next to each episode, and pairing this with transcribe_missing=false makes the run take the transcript-download path instead of re-deriving authored transcripts with Whisper"
+  require_transcript_speakers: "true ONLY on prod_dgx_full and its dev twin (operator, 2026-10-02): a publisher transcript that does not say who speaks (cue file with no turns, or plain text) is refused per episode and the audio is transcribed + diarized on the DGX instead, so hosts and guests can be placed. Off elsewhere: cloud/bakeoff profiles would pay ASR for it, and fixture_validation deliberately takes the transcript-download path"
   quote_extraction_provider: "pre-ratchet divergence, seeded 2026-08-30 — review when next touched (see #1878)"
   qwen_api_base: "pre-ratchet divergence, seeded 2026-08-30 — review when next touched (see #1878)"
   qwen_api_key_env: "pre-ratchet divergence, seeded 2026-08-30 — review when next touched (see #1878)"

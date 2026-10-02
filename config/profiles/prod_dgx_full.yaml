@@ -8,6 +8,11 @@ dgx_whisper_port: 8000
 
 screenplay: true
 diarize: true
+# A publisher transcript is used only when it says who speaks: a cue file with no speaker turns
+# (The Every Podcast, Explaining Brazil, The Flip) or any plain-text file (no timings; AI and
+# Design) is refused per episode and the audio is transcribed + diarized instead. Without this
+# those episodes arrive as one voice and show no host or guest (operator, 2026-10-02).
+require_transcript_speakers: true
 diarization_provider: tailnet_dgx
 dgx_diarize_port: 8001
 dgx_diarize_model: pyannote/speaker-diarization-community-1
