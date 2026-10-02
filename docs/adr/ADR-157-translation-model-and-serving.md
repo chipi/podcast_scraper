@@ -1,7 +1,7 @@
 # ADR-157: TranslateGemma-12B, served co-resident, called through the completions route
 
-- **Status**: Accepted
-- **Date**: 2026-09-29
+- **Status**: Accepted — but the MODEL CHOICE is PROVISIONAL, see the amendment below
+- **Date**: 2026-09-29 (amended 2026-10-02)
 - **Authors**: Marko Dragoljevic
 - **Issues**: [#2169](https://github.com/chipi/podcast_scraper/issues/2169) (epic),
   [#2186](https://github.com/chipi/podcast_scraper/issues/2186) (V.6a)
@@ -28,6 +28,19 @@ which model, served how, and called through which API.
 This ADR records what was **deployed and measured**, not what was shortlisted. The shortlist work
 is §6.1 of the arc notes; three of its assumptions turned out to be wrong in ways only a running
 model revealed.
+
+> **AMENDMENT 2026-10-02 (operator): the model choice here is a PRELIMINARY BEST BET, not a settled
+> decision.** One model was picked so the arc could be built at all, and it works — but **no
+> alternative has ever been run.** "Alternatives considered" below reasons from published scores,
+> licences and serving shape; none of those candidates was benchmarked against this one on real
+> episodes. The throughput figure that would have informed the comparison (4.3 tok/s) was taken on a
+> ~96% loaded DGX, so it measures contention rather than capacity and cannot settle anything either.
+>
+> So read §1 as "this is what is deployed and it is good enough to build on", not "this is the
+> model". The cross-model quality-and-throughput benchmark on an idle box is **V.3b** in the arc,
+> and it may replace this pick. Everything else in this ADR — the co-resident serving decision, the
+> `/v1/completions` contract, the memory sizing, the Gemma licence position — stands on its own
+> measurements and is unaffected.
 
 ## Decision
 
