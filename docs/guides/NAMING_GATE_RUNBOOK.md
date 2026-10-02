@@ -122,8 +122,35 @@ snapshot of the needed artifacts (metadata, segments, speaker diagnostics — no
 3. Unit tests for the rule itself, one behaviour per test, with synthetic fixtures shaped like the
    real cases (never real episode text).
 
+## Loop discipline (operator, 2026-10-02)
+
+One problem at a time, no rush. For each problem (slice):
+
+1. **Goal**, set before starting, on the development set. Default: fix at least half of the
+   slice's failing voices, with zero regressions on labelled hosts.
+2. **Loop** on development: design, replay, read every change, adjust.
+3. **Validate** once on the 500. Same direction as development, or it is not accepted.
+4. If validation disagrees, loop again. **At most 3 loops per problem.** After 3, stop: record
+   where it landed and why in the table, and move to the next problem.
+5. After all problems, review the cumulative table and decide what comes next.
+
+The cumulative table (`naming_gate.py --step ...`) is the scoreboard: one column per accepted slice,
+each on top of all previous ones.
+
+| Problem | Method fit |
+| --- | --- |
+| Host seats (v4) | first slice, measured |
+| Host/guest judged across the whole voice (bled lines) | fully replayable |
+| Polluted host pools | fully replayable (stored pools) |
+| Junk names passing the name check | fully replayable + name census |
+| The LLM's own naming | guards replayable; prompt changes need DGX test calls on dev |
+| Diarizer splits | mostly upstream (audio); text-level merges replayable |
+
 ## Today's baseline (dev_v1, labels_v0, 2026-10-02)
 
 Of 393 scored voices with the current code: 102 correct names, 148 correct unnamed, 41 wrong names,
 68 missing names, 1 spurious, 15 non-participants published, 18 host/guest swaps. Seat v4 alone:
 wrong 41 → 36, missing 68 → 72, one regression (a trailer clip named as a host).
+
+On the audited labels (`labels_v1`): today 103 correct / 43 wrong / 70 missing; +seat_v4 104 / 38 /
+74; better 6, worse 1.
