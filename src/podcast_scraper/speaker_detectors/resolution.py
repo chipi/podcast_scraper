@@ -423,14 +423,66 @@ def _introduces_itself_as(text: str, name: str) -> bool:
     return False
 
 
-def _talks_about(text: str, name: str) -> bool:
-    """Does this voice utter the name at all (in any context)?"""
-    tokens = [t for t in re.split(r"\s+", name.strip()) if t]
-    if not tokens:
+#: Words before a bare surname that keep it a reference to a PERSON ("Dr. Wang", "Senator Warren").
+_TITLE_BEFORE_SURNAME = frozenset(
+    "dr dr. mr mr. mrs mrs. ms ms. prof prof. professor sir dame lord lady senator president "
+    "governor minister secretary judge justice general chairman chair ceo".split()
+)
+
+
+def _surname_names_someone_else(text: str, start: int, end: int, given: Sequence[str]) -> bool:
+    """A bare-surname hit that is part of ANOTHER name or a thing named after them, not a mention.
+
+    Gold development set, 2026-10-03: the surname branch refuted 6 of 8 guests the forced match was
+    about to bind correctly -- "last year" (Simon Last), "North America" (Anna North), "the Michael
+    Lewis book" (Helen Lewis), "the Munger test" (said by Mike Munger himself). Only called on
+    mixed-case text, where capitals carry the distinction.
+    """
+    before = text[:start].rstrip()
+    prev = before.split()[-1] if before.split() else ""
+    prev_bare = prev.strip("\"'“”‘’(").lower()
+    if prev_bare in {"the", "a", "an"}:
+        return True  # an eponym: "the Munger test", "a Powell speech" names a thing
+    if prev_bare in _TITLE_BEFORE_SURNAME:
         return False
+    sentence_start = not before or before[-1] in ".!?"
+    if (
+        not sentence_start
+        and prev[:1].isupper()
+        and prev_bare not in {g.lower() for g in given}
+        and prev_bare not in {"i", "i'm", "i’m"}
+    ):
+        return True  # another given name: "Michael Lewis" is not Helen Lewis
+    after = text[end:].lstrip()
+    nxt = after.split()[0] if after.split() else ""
+    # Part of a longer proper name: "North America" (no punctuation between the two words).
     return bool(
-        re.search(rf"\b(?:{re.escape(name)}|{re.escape(tokens[-1])})\b", text or "", re.IGNORECASE)
+        nxt[:1].isupper()
+        and text[end : end + 1] not in tuple(".!?,;:")
+        and nxt.strip("\"'“”‘’").lower() not in {"i", "i'm", "i’m"}
     )
+
+
+def _talks_about(text: str, name: str) -> bool:
+    """Does this voice utter the name at all (in any context)?
+
+    The full name anywhere, or the SURNAME as a reference to that person. On mixed-case text a
+    surname must be capitalised and must not be part of another name or an eponym
+    (:func:`_surname_names_someone_else`); all-lowercase ASR has no capitals to tell, so there any
+    occurrence still counts.
+    """
+    tokens = [t for t in re.split(r"\s+", name.strip()) if t]
+    if not tokens or not text:
+        return False
+    if re.search(rf"\b{re.escape(name)}\b", text, re.IGNORECASE):
+        return True
+    surname = tokens[-1]
+    if not any(c.isupper() for c in text):
+        return bool(re.search(rf"\b{re.escape(surname)}\b", text, re.IGNORECASE))
+    for m in re.finditer(rf"\b{re.escape(surname)}\b", text):
+        if not _surname_names_someone_else(text, m.start(), m.end(), tokens[:-1]):
+            return True
+    return False
 
 
 # "Hey, Jordan." — a voice GREETED by name at the very start of its own text is being addressed,

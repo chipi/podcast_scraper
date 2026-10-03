@@ -2153,7 +2153,8 @@ _HOST_INTRODUCES_BEFORE = re.compile(
     r"|welcome|my\s+guest(?:\s+today)?(?:\s+is)?|today'?s\s+guest\s+is"
     r"|(?:talking|chatting|speaking|sitting(?:\s+here)?)\s+(?:with|to)|i'?m\s+back\s+with"
     r"|here\s+with|(?:delighted|thrilled|happy|privileged|pleased|excited)\s+(?:today\s+)?to\s+"
-    r"(?:have|welcome)|i'?ve\s+got\s+with\s+me|have\s+with\s+me)"
+    r"(?:have|welcome)|i'?ve\s+got\s+with\s+me|have\s+with\s+me"
+    r"|(?:pleasure|honou?r|privilege)\s+to\s+(?:have|welcome))"
     r"\W+(?:[\w'’.,-]+\W+){0,12}?$",
     re.IGNORECASE,
 )
@@ -2189,34 +2190,62 @@ def _guest_the_host_introduces_in_a_two_voice_interview(
     the general host-introduction harvest swapped names between voices and put a guest's name on a
     host (measured and reverted the same day).
     """
+    hosts = [
+        v
+        for v in talk
+        if v not in ad_voices and (r := by_voice.get(v)) and r.named and r.role == "host"
+    ]
     voices = [v for v in talk if v not in ad_voices and talk[v] >= TWO_VOICE_MIN_TALK_S]
-    if len(voices) != 2:
-        return None
-    # ...and nobody else the forced match could land on. On Unhedged the second substantial voice
-    # was a host seat holding bled turns, and the name fell through to a 47s live-show promo.
-    if len([v for v in talk if v not in ad_voices and talk[v] >= cameo_s]) != 2:
-        return None
-    hosts = [v for v in voices if (r := by_voice.get(v)) and r.named and r.role == "host"]
-    if len(hosts) != 1:
-        return None
-    if next(v for v in voices if v != hosts[0]) in by_voice:  # already seated: not the guest
-        return None
+    two_voice = (
+        len(voices) == 2
+        # ...and nobody else the forced match could land on. On Unhedged the second substantial
+        # voice was a host seat holding bled turns, and the name fell through to a 47s promo.
+        and len([v for v in talk if v not in ad_voices and talk[v] >= cameo_s]) == 2
+        and len([v for v in voices if v in hosts]) == 1
+    )
+    if two_voice:
+        hosts = [v for v in voices if v in hosts]
+        if next(v for v in voices if v != hosts[0]) in by_voice:  # already seated: not the guest
+            return None
+    else:
+        # Real interviews rarely diarize into exactly two voices: a cold-open clip, a sponsor read
+        # and an over-split add clusters. What makes the interview shape is ONE unseated voice
+        # holding most of the talk -- the same dominance the forced match binds the one spare name
+        # to (gold development set, 2026-10-03: 18 of 26 stated-but-unnamed voices).
+        heard = sum(t for v, t in talk.items() if v not in ad_voices) or 1.0
+        dominant = [
+            v
+            for v in talk
+            if v not in ad_voices and v not in by_voice and talk[v] / heard >= _DOMINANT_SHARE
+        ]
+        if not hosts or len(dominant) != 1:
+            return None
     stated = [
         n for n in metadata_named if len(str(n).split()) >= 2 and str(n).lower() not in taken_lower
     ]
     if len(stated) != 1:
         return None
     name = stated[0]
-    text = " ".join((voice_texts.get(hosts[0]) or "")[:3000].split())
-    at = text.lower().find(name.lower())
-    if at < 0:
-        return None
-    # The cue must be in the SAME sentence as the name: "Welcome to the show, I'm Tobias. I've been
-    # reading Maria Lindqvist's book" is a greeting followed by a mention, not an introduction.
-    clause = _SENTENCE_END.split(text[max(0, at - 120) : at])[-1]
-    if not _HOST_INTRODUCES_BEFORE.search(clause):
-        return None
-    return name
+    for host in hosts:
+        text = " ".join((voice_texts.get(host) or "")[:3000].split())
+        for at in _spoken_name_positions(text, name):
+            # The cue must be in the SAME sentence as the name: "Welcome to the show, I'm Tobias.
+            # I've been reading Maria Lindqvist's book" is a greeting followed by a mention.
+            clause = _SENTENCE_END.split(text[max(0, at - 120) : at])[-1]
+            if _HOST_INTRODUCES_BEFORE.search(clause):
+                return name
+    return None
+
+
+def _spoken_name_positions(text: str, name: str) -> List[int]:
+    """Where ``name`` is said in ``text``: verbatim, or as the ASR's spoken variant of it ("Joel
+    Mokir" for the stated Joel Mokyr; :func:`_snap_spoken_variant`)."""
+    low = text.lower()
+    found = [m.start() for m in re.finditer(rf"\b{re.escape(name.lower())}\b", low)]
+    for m in re.finditer(r"\b(?=([A-Za-z][\w'’-]+\s+[A-Za-z][\w'’-]+)\b)", text):
+        if m.start() not in found and _snap_spoken_variant(m.group(1), [name]) == name:
+            found.append(m.start())
+    return sorted(found)
 
 
 def _name_a_talkative_host_once_the_guests_are_placed(

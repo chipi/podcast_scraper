@@ -1545,6 +1545,11 @@ _ORG_TAIL_TOKENS = frozenset(
         "podcast",
         "show",
         "network",
+        # Organisations and products the forced one-name-one-voice match painted onto a voice
+        # (gold development set, 2026-10-03): "World Bank" (The Flip), "Claude Code" (Complex
+        # Systems).
+        "bank",
+        "code",
     }
 )
 #: A name whose LAST token is a country or region is a desk or an organisation ("Carnegie India",
@@ -1576,6 +1581,26 @@ _LEADING_ROLE_WORDS = frozenset(
         "moderator",
     }
 )
+#: Military and naval ranks: like a role word, a rank before ONE word is the rank captured with a
+#: given name or a surname, not a full name ("Lieutenant General John", gold validation set
+#: 2026-10-03). Before a full name it passes ("General Mark Milley"). "Major" is left out (Major
+#: Garrett is a real given name), and so are abbreviations: "Gen Kha" is the ASR's Jen Kha.
+_RANK_WORDS = frozenset(
+    {
+        "lieutenant",
+        "general",
+        "colonel",
+        "captain",
+        "admiral",
+        "commander",
+        "sergeant",
+        "corporal",
+        "brigadier",
+    }
+)
+#: A greeting is never the first word of a name: "Hey Josh" is the host saying hello to the guest.
+#: ("Hi" is left out: a Vietnamese given name, Hi Nguyen.)
+_GREETING_WORDS = frozenset({"hey", "hello", "hiya", "howdy", "welcome", "thanks", "thank"})
 #: Job and seniority words: a "name" of three or more words containing one is a title plus a
 #: name the prefix stripper did not cut ("Senior User Experience Specialist Therese Fessenden").
 _JOB_TITLE_TOKENS = frozenset(
@@ -1685,6 +1710,8 @@ def is_publishable_speaker_name(name: Optional[str], *, require_person_shape: bo
             return False
         # "Host Mike", "Guest Host Tim": every word before the last is a role word.
         if all(t in _LEADING_ROLE_WORDS for t in lowered[:-1]):
+            return False
+        if all(t in _RANK_WORDS for t in lowered[:-1]) or lowered[0] in _GREETING_WORDS:
             return False
         if len(toks) >= 3 and any(t in _JOB_TITLE_TOKENS for t in lowered):
             return False
