@@ -3793,6 +3793,15 @@ ios-testflight-release:
 	@# The two lanes have the same destination, so they must have the same env.
 	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight \
 		APP_CHANNEL=$(or $(APP_CHANNEL),testflight)
+	@# Unlock the signing keychain, exactly as `ios-testflight` does (2026-10-03). This lane had no
+	@# unlock, so on the headless build account codesign hit the locked keychain and the archive
+	@# failed as `Capacitor.framework: errSecInternalComponent` — two minutes into the build, after
+	@# every artifact assertion had passed. Same destination, same preconditions.
+	@if [ -r "$(HOME)/.appstoreconnect/keychain-password" ]; then \
+		security unlock-keychain -p "$$(cat $(HOME)/.appstoreconnect/keychain-password)" \
+			"$(HOME)/Library/Keychains/ios-signing.keychain-db" 2>/dev/null \
+			&& echo "OK: signing keychain unlocked" || true; \
+	fi
 	@cd $(IOS_DIR) && bundle exec fastlane beta
 
 # Consumer Learning Player container (RFC-099 §10): its own nginx-served static image.
