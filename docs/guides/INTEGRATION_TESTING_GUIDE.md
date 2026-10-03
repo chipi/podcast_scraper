@@ -160,6 +160,58 @@ test-unit-dev-venv`, which creates `.venv-dev` with `.[dev]` only — the same e
 `tests/integration/conftest.py`: a module-level guard "would have silenced about a hundred working
 integration tests to quiet a dozen failures."
 
+### The backend contract: one suite, both implementations {#search-backend-contract}
+
+A fake backend is the right tool at unit level — what is under test there is *our* logic consuming
+results, and a small real implementation of the port preserves that assertion where a `MagicMock`
+would not. The gap is that **nothing checked the fake behaved like LanceDB.** Seven unit files
+hand-roll their own (`_FakeBackend`, `_FakeHybridBackend`, `_B`, …), each covering whatever subset
+that file needs; a fake could drift indefinitely and the unit suite would keep passing, because it
+would be agreeing with itself.
+
+So the port has three parts now:
+
+| File | Role |
+| ---- | ---- |
+| `src/podcast_scraper/search/backend.py` | the `SearchBackend` **Protocol**, plus `SEGMENT_FIELDS` / `SEGMENT_NONEN_FIELDS` — stdlib-only, so unit tests read it freely |
+| `tests/_fake_search_backend.py` | one shared in-memory implementation. **Prefer it over a new hand-rolled fake** |
+| `tests/search_backend_contract.py` | the behaviour contract, run against **both** implementations |
+
+`tests/unit/search/test_fake_backend_contract.py` runs it against the fake (no `[search]` extra);
+`tests/integration/search/test_lancedb_backend_contract.py` runs the identical suite against the
+real backend. The only difference between those two files is which implementation is constructed,
+which is what makes a disagreement visible rather than theoretical.
+
+**What belongs in the contract:** a behaviour our code depends on where a fake could plausibly get
+it wrong — upsert-not-append, which signal can reach which tier, what survives a delete, what
+`health` accounts for. **What does not:** anything about the storage *format*. Field names and
+column types are the adapter's business, covered by the declaration in `backend.py` plus one
+conformance test.
+
+**The fake must model guarantees structurally, not by filtering.** A source-language row is
+unreachable by a dense signal because it *has no vector*, not because the fake filters on
+language. A fake that filtered would pass every assertion while modelling the opposite of the
+design.
+
+**`prepare_for_search()` is contract, not fixup.** LanceDB answers no full-text query until an
+INVERTED index exists (`create_indices()`, which the production indexer runs at the end of a
+build); the in-memory fake has no index concept. Omitting that step is how the first draft of this
+suite came to encode the fake rather than the contract — it passed against the fake and failed ten
+times against the real backend with "Cannot perform full text search unless an INVERTED index has
+been created". The hook makes the precondition explicit and per-implementation.
+
+**It found two real bugs on the day it was written (2026-10-03),** both the same blind spot and
+neither reachable by a hand-written fake:
+
+- `delete(tier="all")` resolved to `DENSE_TIERS` — `segment`, `insight`, `aux` — omitting
+  `segment_nonen`, so a source-language row survived a delete-all while the method's own docstring
+  promised "removes from every table". Withdrawal, reindex and episode removal all inherited it.
+- `health()` reported those same three tiers by name, so a corpus whose only indexed content was
+  non-English looked empty — in the one place an operator goes to check.
+
+Both now derive from the tier list rather than naming tiers, so the next tier is handled when it
+is added rather than when somebody notices.
+
 ## Test Patterns
 
 ### Component Workflow Test

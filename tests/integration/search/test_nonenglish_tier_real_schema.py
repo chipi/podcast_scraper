@@ -31,7 +31,11 @@ pytestmark = pytest.mark.integration
 pytest.importorskip("pyarrow")
 pytest.importorskip("lancedb")
 
-from podcast_scraper.search.backend import SegmentDocument  # noqa: E402
+from podcast_scraper.search.backend import (  # noqa: E402
+    SEGMENT_FIELDS,
+    SEGMENT_NONEN_FIELDS,
+    SegmentDocument,
+)
 from podcast_scraper.search.backends.lancedb_backend import (  # noqa: E402
     _segment_nonen_schema,
     _segment_schema,
@@ -40,53 +44,40 @@ from podcast_scraper.search.backends.lancedb_backend import (  # noqa: E402
 )
 
 
-class TestTheGuaranteeIsStructural:
-    """The design in assertions about the real schema, not about the splitter's intent."""
+class TestTheAdapterRendersTheDeclarationFaithfully:
+    """ONE test where four used to be, and this is the only thing here that needs pyarrow.
 
-    def test_the_non_english_schema_has_NO_embedding_column(self) -> None:
-        """The whole design in one assertion: there is nowhere to put a vector, so no code path
-        — present or future — can include these rows in a dense search."""
-        names = set(_segment_nonen_schema().names)
-        assert "embedding" not in names
-        assert "text" in names, "but BM25 still needs the text"
-        assert "language" in names
+    The field lists are declared in `search/backend.py` (stdlib-only, so unit tests read them
+    freely) and `lancedb_backend` derives both schemas from them. What a real library is still
+    required for is exactly this: proving the derivation is faithful — same fields, same order, and
+    a vector column that exists in one tier and not the other.
 
-    def test_it_otherwise_mirrors_the_english_segment_schema(self) -> None:
-        """A reader of one should not have to learn a second shape. Everything but the vector
-        and the added language tag is identical, so joins and filters behave the same."""
-        en = set(_segment_schema(8).names) - {"embedding"}
-        non_en = set(_segment_nonen_schema().names) - {"language"}
-        assert en == non_en
+    Re-reading the field list four times through pyarrow, which is what this file did before
+    2026-10-03, proved nothing the declaration could not state by itself.
+    """
 
+    def test_the_english_schema_is_the_declared_field_list_in_order(self) -> None:
+        assert list(_segment_schema(8).names) == list(SEGMENT_FIELDS)
 
-class TestItDoesNotForceARebuild:
-    def test_the_three_existing_schemas_are_unchanged(self) -> None:
-        """The other half of the same claim: if a field had been added to `segments` instead,
-        every corpus would need rebuilding."""
-        assert set(_segment_schema(8).names) == {
-            "id",
-            "text",
-            "embedding",
-            "show_id",
-            "episode_id",
-            "speaker_id",
-            "start_time",
-            "end_time",
-            "linked_insight_ids",
-            "source_tier",
-            "publish_date",
-        }
+    def test_the_non_english_schema_is_the_declared_field_list_in_order(self) -> None:
+        assert list(_segment_nonen_schema().names) == list(SEGMENT_NONEN_FIELDS)
 
+    def test_the_vector_column_is_real_in_one_tier_and_absent_in_the_other(self) -> None:
+        """The guarantee as the STORAGE sees it. The declaration says `embedding` is absent; this
+        confirms pyarrow agrees, and that the English one is a fixed-size vector of the right
+        width rather than, say, a string that happens to be named `embedding`."""
+        en = _segment_schema(8)
+        assert en.field("embedding").type.list_size == 8
+        assert "embedding" not in set(_segment_nonen_schema().names)
 
-class TestTheRouter:
-    def test_the_schema_resolver_handles_both_kinds_of_tier(self) -> None:
+    def test_the_resolver_hands_back_the_right_schema_per_tier(self) -> None:
         class _B(LanceDBBackend):
             def __init__(self) -> None:
                 self.embed_dim = 8
 
         b = _B()
-        assert "embedding" in set(b._schema_for("segment").names)
-        assert "embedding" not in set(b._schema_for("segment_nonen").names)
+        assert list(b._schema_for("segment").names) == list(SEGMENT_FIELDS)
+        assert list(b._schema_for("segment_nonen").names) == list(SEGMENT_NONEN_FIELDS)
 
 
 class TestAReindexDoesNotDELETETheNonEnglishTier:

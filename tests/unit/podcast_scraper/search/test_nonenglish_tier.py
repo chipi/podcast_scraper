@@ -18,7 +18,11 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-from podcast_scraper.search.backend import SegmentDocument
+from podcast_scraper.search.backend import (
+    SEGMENT_FIELDS,
+    SEGMENT_NONEN_FIELDS,
+    SegmentDocument,
+)
 from podcast_scraper.search.backends.lancedb_backend import (
     _segment_nonen_schema,
     LANCE_SCHEMA_VERSION,
@@ -46,6 +50,58 @@ pytestmark = pytest.mark.unit
 
 
 class TestTheGuaranteeIsStructural:
+    """The tier's guarantee, asserted against OUR declaration — no storage library involved.
+
+    THESE FOUR CAME BACK FROM INTEGRATION on 2026-10-03. They had been moved there because the
+    only way to ask "does this tier have an embedding column" was to build a real pyarrow schema
+    and read `.names`, which needs the `[search]` extra that unit tests do not have. That was a
+    MISSING SEAM, not a layer problem: the field list existed only as arguments to `pa.schema(...)`
+    inside the adapter, so a statement about our own data model could not be made without the
+    adapter. `backend.SEGMENT_FIELDS` / `SEGMENT_NONEN_FIELDS` now declare it, and the adapter
+    derives both schemas from them — so these assertions are about our code again, and the one
+    thing that still needs the real library (does the adapter render the declaration faithfully?)
+    is a single conformance test in
+    tests/integration/search/test_nonenglish_tier_real_schema.py.
+    """
+
+    def test_the_non_english_tier_declares_NO_embedding_field(self) -> None:
+        """The whole design in one assertion: there is nowhere to put a vector, so no code path
+        — present or future — can include these rows in a dense search."""
+        assert "embedding" not in SEGMENT_NONEN_FIELDS
+        assert "text" in SEGMENT_NONEN_FIELDS, "but BM25 still needs the text"
+        assert "language" in SEGMENT_NONEN_FIELDS
+
+    def test_it_otherwise_mirrors_the_english_segment_fields(self) -> None:
+        """A reader of one should not have to learn a second shape. Everything but the vector and
+        the added language tag is identical, so joins and filters behave the same."""
+        assert set(SEGMENT_FIELDS) - {"embedding"} == set(SEGMENT_NONEN_FIELDS) - {"language"}
+
+    def test_the_language_tag_took_the_vector_SLOT(self) -> None:
+        """Not merely "one in, one out" — `language` sits where `embedding` sat.
+
+        Worth pinning because the derivation is what makes the two lists impossible to drift: a
+        second hand-written literal would be independently plausible and silently diverge.
+        """
+        assert SEGMENT_NONEN_FIELDS.index("language") == SEGMENT_FIELDS.index("embedding")
+        assert len(SEGMENT_NONEN_FIELDS) == len(SEGMENT_FIELDS)
+
+    def test_the_english_field_list_is_unchanged(self) -> None:
+        """The other half of "it does not force a rebuild": if a field had been added to
+        `segments` instead of creating a second tier, every corpus would need reindexing."""
+        assert SEGMENT_FIELDS == (
+            "id",
+            "text",
+            "embedding",
+            "show_id",
+            "episode_id",
+            "speaker_id",
+            "start_time",
+            "end_time",
+            "linked_insight_ids",
+            "source_tier",
+            "publish_date",
+        )
+
     def test_the_schema_builder_takes_no_dimension(self) -> None:
         """A signature that cannot accept `dim` cannot be handed one by mistake."""
         import inspect

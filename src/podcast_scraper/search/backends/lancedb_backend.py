@@ -27,6 +27,8 @@ from ..backend import (
     InsightDocument,
     ScoredResult,
     SearchQuery,
+    SEGMENT_FIELDS,
+    SEGMENT_NONEN_FIELDS,
     SegmentDocument,
     Tier,
 )
@@ -72,24 +74,30 @@ _SEGMENT_NONEN_TABLE = "segments_nonen"
 _COMPACT_RETENTION = timedelta(minutes=10)
 
 
-def _segment_schema(dim: int) -> "pa.Schema":
+def _segment_field_type(name: str, dim: int) -> "pa.DataType":
+    """The storage type for one declared segment field.
+
+    The NAMES are ours (``backend.SEGMENT_FIELDS``); the TYPES are pyarrow's. Keeping the mapping
+    here and the list there is the whole point of the split: a unit test can assert which fields
+    exist without importing pyarrow, and exactly one integration test has to confirm this adapter
+    renders the declaration faithfully.
+    """
     import pyarrow as pa
 
-    return pa.schema(
-        [
-            ("id", pa.string()),
-            ("text", pa.string()),
-            ("embedding", pa.list_(pa.float32(), dim)),
-            ("show_id", pa.string()),
-            ("episode_id", pa.string()),
-            ("speaker_id", pa.string()),
-            ("start_time", pa.float64()),
-            ("end_time", pa.float64()),
-            ("linked_insight_ids", pa.list_(pa.string())),
-            ("source_tier", pa.string()),
-            ("publish_date", pa.string()),
-        ]
-    )
+    if name == "embedding":
+        return pa.list_(pa.float32(), dim)
+    if name in ("start_time", "end_time"):
+        return pa.float64()
+    if name == "linked_insight_ids":
+        return pa.list_(pa.string())
+    return pa.string()
+
+
+def _segment_schema(dim: int) -> "pa.Schema":
+    """The English ``segments`` schema, DERIVED from ``backend.SEGMENT_FIELDS``."""
+    import pyarrow as pa
+
+    return pa.schema([(name, _segment_field_type(name, dim)) for name in SEGMENT_FIELDS])
 
 
 def _segment_nonen_schema() -> "pa.Schema":
@@ -103,21 +111,14 @@ def _segment_nonen_schema() -> "pa.Schema":
     """
     import pyarrow as pa
 
-    return pa.schema(
-        [
-            ("id", pa.string()),
-            ("text", pa.string()),
-            ("language", pa.string()),
-            ("show_id", pa.string()),
-            ("episode_id", pa.string()),
-            ("speaker_id", pa.string()),
-            ("start_time", pa.float64()),
-            ("end_time", pa.float64()),
-            ("linked_insight_ids", pa.list_(pa.string())),
-            ("source_tier", pa.string()),
-            ("publish_date", pa.string()),
-        ]
+    assert "embedding" not in SEGMENT_NONEN_FIELDS, (
+        "SEGMENT_NONEN_FIELDS gained an embedding field — the tier's entire guarantee is that "
+        "there is nowhere to put a vector"
     )
+    # `dim` is unreachable here: the declaration contains no `embedding`, so the only branch of
+    # `_segment_field_type` that needs it is never taken. Passing 0 states that rather than
+    # inventing a dimension.
+    return pa.schema([(name, _segment_field_type(name, 0)) for name in SEGMENT_NONEN_FIELDS])
 
 
 def _insight_schema(dim: int) -> "pa.Schema":
@@ -761,25 +762,56 @@ class LanceDBBackend:
             return 0
 
     def delete(self, doc_id: str, tier: Tier) -> None:
-        """Delete a document by id; ``tier="all"`` removes from every table."""
-        tiers = self.DENSE_TIERS if tier == "all" else (tier,)
+        """Delete a document by id; ``tier="all"`` removes from every table.
+
+        ``"all"`` INCLUDES THE KEYWORD-ONLY TIER, and it did not until 2026-10-03: it resolved to
+        `DENSE_TIERS` — `("segment", "insight", "aux")` — so a source-language row in
+        `segments_nonen` survived a delete-all while this docstring already promised otherwise.
+        Everything built on "delete-all clears this id" inherited that: a withdrawal, a reindex, an
+        episode removal each left non-English rows searchable with no trace.
+
+        Found by `tests/search_backend_contract.py` run against both implementations — the
+        in-memory fake deleted from every tier it had, the real backend did not, and a contract
+        that both must satisfy is what turned the disagreement into a failing test. No hand-written
+        fake had ever reproduced it, because each fake was written to match the code rather than
+        the promise.
+        """
+        tiers = (*self.DENSE_TIERS, *self.KEYWORD_ONLY_TIERS) if tier == "all" else (tier,)
         for t in tiers:
             table = self._open_if_exists(t)
             if table is not None:
                 table.delete(f"id = '{self._sql_str(doc_id)}'")
 
+    #: Report key per physical tier. Named rather than derived from the tier string because
+    #: `segments`/`insights` are READ BY `m0002`'s verify step and must not be renamed.
+    _HEALTH_KEYS = {
+        "segment": "segments",
+        "insight": "insights",
+        "aux": "aux",
+        "segment_nonen": "segments_nonen",
+    }
+
     def health(self) -> Dict:
-        """Return backend status + per-table row counts."""
+        """Return backend status + per-table row counts, for EVERY tier this backend has.
+
+        DERIVED FROM THE TIER LIST, not three hardcoded lookups, and that is the fix. It reported
+        `segment` / `insight` / `aux` by name and never `segment_nonen`, so a corpus whose only
+        indexed content was non-English looked like a corpus with nothing indexed — in the one
+        place an operator goes to check. Same blind spot as `delete(tier="all")` had, found the
+        same way: `tests/search_backend_contract.py` run against both the in-memory fake and this
+        backend, where the two disagreed about whether a populated tier is reported.
+
+        Deriving it means the next tier is counted on the day it is added rather than the day
+        somebody notices.
+        """
         try:
-            seg = self._open_if_exists("segment")
-            ins = self._open_if_exists("insight")
-            aux = self._open_if_exists("aux")
-            return {
-                "status": "ok",
-                "segments": seg.count_rows() if seg is not None else 0,
-                "insights": ins.count_rows() if ins is not None else 0,
-                "aux": aux.count_rows() if aux is not None else 0,
-            }
+            counts: Dict[str, int] = {}
+            for tier in (*self.DENSE_TIERS, *self.KEYWORD_ONLY_TIERS):
+                table = self._open_if_exists(tier)
+                counts[self._HEALTH_KEYS.get(tier, tier)] = (
+                    int(table.count_rows()) if table is not None else 0
+                )
+            return {"status": "ok", **counts}
         except Exception as exc:  # noqa: BLE001
             return {"status": "error", "error": str(exc)}
 

@@ -59,6 +59,14 @@ without ML deps, not that the *tests* do.
 anything expressible without the store. Across 20 unit files that touch search, **none**
 instantiates a backend, mocked or otherwise.
 
+**Use the shared fake, not a new hand-rolled one.** `tests/_fake_search_backend.py` is an
+in-memory `SearchBackend` held to the same behaviour contract as the real one
+(`tests/search_backend_contract.py`, run against both). Seven unit files predate it and still carry
+their own `_FakeBackend`; new tests should not add an eighth. A fake nothing holds to a contract is
+a fake the suite agrees with rather than checks — see
+[Integration Testing Guide — The backend contract](INTEGRATION_TESTING_GUIDE.md#search-backend-contract),
+which records the two real bugs that gap was hiding.
+
 **If the assertion needs the store to mean anything, it is not a unit test.** A schema's field
 list, a table's row count after a write, reindex behaviour — those belong in
 `tests/integration/search/`. Mocking does not rescue them: against a `MagicMock` an assertion
