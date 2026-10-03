@@ -306,7 +306,18 @@ public class AccessibleNameAuditTests extends UITestCase {
         // `v-show` hid those 15, and they went stale. Measured 2026-09-29 with a diagnostic pre-pass,
         // on Stats, which failed the same way. So arrival is verified: the tab's own heading is on
         // screen and the Account panel's "Sign out" is not.
-        audit("Profile ▸ Topics", openProfileTab("Topics", "Interest topics"), findings);
+        // "Interests", not "Interest topics" (2026-10-02, measured). The string this asked for does
+        // not exist in the app — `grep -rIn "Interest topics" web/learning-player/src` returns
+        // NOTHING, and the only occurrence in the repo was this line. So `openProfileTab`'s arrival
+        // check could never pass, the surface was never audited once, and the suite failed on its
+        // own "NOT AUDITED — the surface would not open" finding every time it ran. The tab's title
+        // is `profile.interests` = "Interests" (i18n/locales/en.json:692) — the same relationship
+        // Stats has to `stats.title` = "Your activity" (en.json:895), which is why that one works.
+        //
+        // The finding this produced was indistinguishable in shape from a real a11y defect, and it
+        // sat on top of the ACTUAL defect this suite was parked for: with the surface finally
+        // audited, Settings reports zero findings, so the two nameless switches of P1 are fixed.
+        audit("Profile ▸ Topics", openProfileTab("Topics", "Interests"), findings);
         audit("Profile ▸ Stats", openProfileTab("Stats", "Your activity"), findings);
 
         // Settings verifies by ARRIVING (Journey.openSettings), not by the tap returning true.

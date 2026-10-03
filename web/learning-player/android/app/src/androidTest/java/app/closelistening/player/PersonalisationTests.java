@@ -30,11 +30,27 @@ import java.util.Set;
  * PERFORM the action first (play episodes / choose interests) and then assert the panel changed.
  *
  * CHIP DISCOVERY — iOS scanned `app.switches + app.checkBoxes + app.buttons` by element type, then
- * filtered on label. On Android, `aria-pressed` chips surface as checkable nodes in the tree and
- * do not distinguish by class in a way we can rely on. Instead, this port discovers chips by their
- * accessible NAME from the full node tree, filtering out the known chrome controls (Close, Cancel,
- * Save, etc.). This is the same intent — "tap whatever the picker actually offers" — expressed
- * through the only handle the Android tree gives us: accessible name.
+ * filtered on label. Android distinguishes chips by CLASS, and this file used to say it could not.
+ *
+ * Measured 2026-10-02, on the picker, every node it offers:
+ *
+ *     macroeconomics … reliability (12 topics)   class=android.widget.ToggleButton
+ *     Managing risk across domains (storyline)   class=android.widget.ToggleButton
+ *     masthead, Queue, personalisationtests,     class=android.view.View
+ *       Settings, Account, Stats
+ *     Notifications, Change photo, Edit          class=android.widget.Button
+ *
+ * `aria-pressed` on the picker's `<button>` chips (InterestsPicker.vue:145-180) is what Chromium
+ * maps to ToggleButton, and nothing else on the screen carries it. So class is the discriminator,
+ * and the accessible-NAME approach this comment used to describe could not work: the Profile screen
+ * stays in the node tree behind the sheet, its controls are clickable, and no hand-kept chrome list
+ * anticipates them — the masthead, Queue and Notifications were returned as chips, ahead of the
+ * real ones, and silently "chosen" without a tap.
+ *
+ * What the measurement CONFIRMED rather than overturned: state is unreadable. All 13 chips report
+ * `checkable=false checked=false selected=false` whatever their real selection, so no `isChecked()`
+ * read can tell a chosen chip from an unchosen one. That is why selection is decided from the
+ * card's empty state instead, and why tapping is asserted separately from picking.
  */
 @RunWith(AndroidJUnit4.class)
 public class PersonalisationTests extends UITestCase {
@@ -120,24 +136,39 @@ public class PersonalisationTests extends UITestCase {
                 Journey.tap("Topics", false, 12_000));
         Journey.sleep(3_000);
 
-        // RECORD WHAT IS ALREADY CHOSEN, from the card, BEFORE opening the picker.
+        // IS ANYTHING ALREADY CHOSEN? Read the CARD'S OWN EMPTY STATE, not a snapshot of the screen.
         //
-        // The picker's own chips cannot tell us. Chromium maps their `aria-pressed` to a
-        // ToggleButton CLASS but exposes no state with it — measured 2026-09-26 on three chips that
-        // were all currently chosen:
-        //     'Show Themes' checked=false selected=false checkable=false class=ToggleButton
-        // So the `isChecked()` guard that used to stand here could never fire, and every run that
-        // began with interests already set toggled them OFF, saved an empty set, and then failed
-        // its own empty-state assertion. That is why this test alternated pass/fail across runs:
-        // `pm clear` resets the DEVICE, but interests live server-side on the account.
+        // Why this replaced a whole-screen capture (2026-10-02, measured). The chips cannot report
+        // their own state: all 13 in the picker come back `checkable=false checked=false
+        // selected=false`, confirming the 2026-09-26 note. So the previous version read "what is
+        // already chosen" by collecting every named node under `By.pkg` — the WHOLE SCREEN — and
+        // then treating a chip as already-selected when any captured name contained its label.
+        // Both halves were read off the same screen, so the match always succeeded, and the
+        // selection loop skipped every tap:
+        //     =====INTERESTS_PRECHOSEN 19 [Account, Close Listening, Topics, Change photo, …]
+        //     =====INTERESTS_PICKED 3 [Close Listening LISTEN. UNDERSTAND. REMEMBER. …, Queue,
+        //                              Notifications]
+        // Three "interests chosen", none of them a chip, none of them tapped. The empty set was
+        // saved — `interests.json` on the account read exactly `[]` — and the test then failed its
+        // own empty-state assertion and reported it as the app not persisting interests.
         //
-        // The Profile card DOES render them, so read them there. Names arrive with the kind prefix
-        // flattened in ("THEMEShow Themes"), hence `contains` rather than equality below.
+        // The ambiguity only exists when the card is NON-empty. When it shows its empty state
+        // nothing is selected, so every chip is safe to tap and no guess is needed. That is the
+        // condition this reads, and `i18n: profile.noInterests = "No interests chosen yet."`.
+        boolean startedEmpty = Journey.find("No interests chosen yet", true, 5_000) != null;
+
+        // Only consulted when the card is NON-empty, where it is the card — not the chrome — that
+        // renders the chosen labels. Names arrive with the kind prefix flattened in
+        // ("THEMEShow Themes"), hence `contains` rather than equality at the use site.
         Set<String> alreadyChosen = new HashSet<>();
-        for (UiObject2 node : Journey.device().findObjects(By.pkg(Journey.PKG))) {
-            String n = Journey.nameOf(node);
-            if (!n.isEmpty()) alreadyChosen.add(n);
+        if (!startedEmpty) {
+            for (UiObject2 node : Journey.device().findObjects(By.pkg(Journey.PKG))) {
+                String n = Journey.nameOf(node);
+                if (!n.isEmpty()) alreadyChosen.add(n);
+            }
         }
+        Journey.mark("=====INTERESTS_PRECHOSEN startedEmpty=" + startedEmpty
+                + " " + alreadyChosen.size() + " " + alreadyChosen + "=====");
 
         // i18n: profile.editInterests = "Edit"
         assertTrue(
@@ -163,7 +194,7 @@ public class PersonalisationTests extends UITestCase {
         // not in the chrome set is a chip candidate. Prefering clickable nodes matches what
         // Journey.find does internally.
         List<String> chipLabels = discoverChips();
-        System.out.println("=====INTERESTS_CHIPS " + chipLabels.subList(0, Math.min(8, chipLabels.size())) + "=====");
+        Journey.mark("=====INTERESTS_CHIPS " + chipLabels.subList(0, Math.min(8, chipLabels.size())) + "=====");
         assertTrue(
                 "the interests picker offered nothing tappable. On screen: "
                         + Journey.labelledInventory(80),
@@ -174,40 +205,57 @@ public class PersonalisationTests extends UITestCase {
         // all off left the account with zero interests, and Home rightly went on prompting. The
         // test then blamed the app for its own side effect (2026-09-16 on iOS).
         //
-        // SELECTED detection on Android: Chromium surfaces `aria-pressed=true` as the node being
-        // checked (`isChecked()=true`) for elements that the DOM marks as checkable. This is
-        // opposite to the Offline-mode checkbox (which is `checkable=false` and always reports
-        // false) — the difference is that chips have `role=checkbox` in the DOM and the offline
-        // input does not. So for chips only, `isChecked()` is the right read; for the settings
-        // switch it is not. Use `isChecked()` here and `forcedOfflineBannerShowing()` in
-        // setOfflineMode — they address different element types.
+        // SELECTED detection on Android: there ISN'T any, and this is the measurement that matters
+        // (2026-10-02). Every chip in the picker reports `checkable=false checked=false
+        // selected=false` regardless of its real state, so `isChecked()` is not a read that can
+        // work here — the comment that used to stand here claimed the opposite, that chips carry
+        // `role=checkbox` and so report `isChecked()` truthfully. They do not.
+        //
+        // With no readable state, the only safe source is whether the CARD was empty before the
+        // picker opened: empty card ⇒ nothing selected ⇒ every tap adds. When it was non-empty we
+        // fall back to the card's rendered labels, which is sound now that `chipLabels` holds only
+        // real chips — a chrome label can no longer collide with a chip label.
         List<String> chosen = new ArrayList<>();
         int picked = 0;
+        int tapped = 0;
         for (String label : chipLabels) {
             if (picked >= 3) break;
             UiObject2 chip = Journey.find(label, false, 3_000);
             if (chip == null) continue;
             // A chip that is already chosen is still counted as "chosen" — we want it in the result
             // set for the final assertion — but we must NOT tap it, because tapping toggles it OFF.
-            //
-            // Decided from the PROFILE CARD captured before the picker opened, not from the node.
-            // See the note at that capture: `aria-pressed` reaches Android as a ToggleButton class
-            // with NO state attached (checked/selected/checkable all false on a chosen chip), so
-            // the `isChecked()` read that used to live here was always false and this loop switched
-            // off exactly the interests it was supposed to keep.
             boolean alreadySelected = false;
-            for (String rendered : alreadyChosen) {
-                if (rendered.contains(label)) { alreadySelected = true; break; }
+            if (!startedEmpty) {
+                for (String rendered : alreadyChosen) {
+                    if (rendered.contains(label)) { alreadySelected = true; break; }
+                }
             }
             chosen.add(label);
             if (!alreadySelected) {
-                Journey.tap(label, false, 5_000);
+                if (Journey.tap(label, false, 5_000)) tapped++;
                 Journey.sleep(1_000);
             }
             picked++;
         }
 
-        System.out.println("=====INTERESTS_PICKED " + picked + " " + chosen + "=====");
+        Journey.mark("=====INTERESTS_PICKED picked=" + picked + " tapped=" + tapped
+                + " startedEmpty=" + startedEmpty + " " + chosen + "=====");
+
+        // A SELECTION THAT WAS NEVER MADE MUST FAIL HERE, NOT AT THE CARD.
+        //
+        // This is the assertion whose absence let the defect above masquerade as an app bug for a
+        // fortnight. `picked` counts candidates considered, including ones deliberately not tapped,
+        // so `picked > 0` was true while `tapped` was 0 — the test saved an empty set and then
+        // blamed the card for showing its empty state. When the card started empty, nothing is
+        // selected yet, so at least one tap is REQUIRED for the rest of this test to mean anything.
+        if (startedEmpty) {
+            assertTrue(
+                    "the card was empty and no chip was actually TAPPED, so an empty set is about "
+                            + "to be saved and every assertion after this would be about the test's "
+                            + "own side effect. picked=" + picked + " tapped=0 candidates="
+                            + chipLabels.size() + " " + chipLabels,
+                    tapped > 0);
+        }
         assertTrue("no chip was picked (discoverChips found " + chipLabels.size() + " candidates "
                 + "but none could be selected). On screen: " + Journey.labelledInventory(80),
                 picked > 0);
@@ -273,21 +321,51 @@ public class PersonalisationTests extends UITestCase {
         List<String> result = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         try {
-            for (UiObject2 o : Journey.device().findObjects(By.pkg(Journey.PKG).clickable(true))) {
+            // BY CLASS, because the picker's chips are the only ToggleButtons on the screen
+            // (2026-10-02, measured — see CHIP_DISCOVERY on the class doc). The predicate used to
+            // be `clickable(true)` minus a hand-kept CHROME set, which cannot work: the Profile
+            // screen sits behind the sheet with its nodes still in the tree, and the masthead,
+            // Queue, Notifications, Change photo, Settings, Account and Stats are all clickable and
+            // none of them are in any chrome list anyone would think to write. They were returned
+            // as chip candidates, ahead of the real chips, in tree order.
+            for (UiObject2 o : Journey.device().findObjects(
+                    By.pkg(Journey.PKG).clazz("android.widget.ToggleButton"))) {
                 if (result.size() >= 40) break;
                 String name = Journey.nameOf(o);
                 if (name.isEmpty()) continue;
+                // CHROME is still consulted. Scoping by class already excludes every control the
+                // set names, so this is belt-and-braces against a future chrome control that
+                // happens to carry `aria-pressed` — a segmented filter, say.
                 if (CHROME.contains(name)) continue;
                 if (seen.contains(name)) continue;
-                // Filter out controls that are obviously navigation, not content chips —
-                // anything whose name matches the bottom tab bar labels.
-                if (Arrays.asList("Home", "Discover", "Library", "Profile").contains(name)) continue;
                 seen.add(name);
                 result.add(name);
+                // MEASUREMENT, not a filter (2026-10-02). This class's two statements about chip
+                // identity contradict each other — the header says class cannot be relied on, the
+                // note at the selection loop records `class=ToggleButton` measured on three chips.
+                // The fix for this test depends on which is true, so record the fields rather than
+                // choose. Through `Journey.mark`, because `System.out` from instrumentation does
+                // not reach `am instrument -w` and the two markers below were invisible for it.
+                recordCandidate(o, name);
             }
         } catch (Throwable ignored) {
             // A partial list is better than a throw; the isEmpty() check handles the empty case.
         }
         return result;
+    }
+
+    /** One line per chip candidate: the fields that could tell a chip from the screen behind it. */
+    private void recordCandidate(UiObject2 o, String name) {
+        try {
+            Journey.mark("=====CHIP_PROBE '" + name + "'"
+                    + " class=" + o.getClassName()
+                    + " checkable=" + o.isCheckable()
+                    + " checked=" + o.isChecked()
+                    + " selected=" + o.isSelected()
+                    + " bounds=" + o.getVisibleBounds().toShortString()
+                    + "=====");
+        } catch (Throwable ignored) {
+            // A probe that throws must never decide the test.
+        }
     }
 }

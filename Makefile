@@ -2559,8 +2559,24 @@ test-android:
 	# which names a Gradle class and reads like a Gradle bug rather than a missing env var.
 	@cd $(ANDROID_DIR) && ANDROID_HOME=$(ANDROID_SDK_DIR) JAVA_HOME=$(ANDROID_JAVA_HOME) \
 		./gradlew --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest >/dev/null
-	@$(ADB) install -r -t $(ANDROID_DIR)/app/build/outputs/apk/debug/app-debug.apk >/dev/null
-	@$(ADB) install -r -t $(ANDROID_DIR)/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
+	@# `-d` ALLOWS A VERSION DOWNGRADE, and the tier cannot run without it (2026-10-02, measured).
+	@#
+	@# `versionCode` is `git rev-list --count HEAD` (app/build.gradle:37-52) — monotonic along one
+	@# branch, NOT across a squash merge. A feature branch carries main's commits plus its own, so
+	@# it builds a HIGHER code than the single squashed commit that lands on main: #2225 ran the
+	@# tier from `beta-next` at 1501, squash-merged, and main then built 1496. `adb install -r`
+	@# refuses to go backwards:
+	@#     INSTALL_FAILED_VERSION_DOWNGRADE: Update version code 1496 is older than current 1501
+	@# and `test-android` died there, BEFORE phase 1, having already spent ~25 min on the api image
+	@# and both APKs. Every squash merge re-creates it, so this is not a one-off to clear by hand.
+	@#
+	@# A downgrade is exactly what we want here: the APK built from the code under test must win,
+	@# whatever happens to be on the device. `-d` is debug-build only, which both of these are.
+	@# Fixing it at the installer rather than at the version code, because the version code has a
+	@# second consumer — Play, which requires strictly increasing values and must NOT be made to
+	@# repeat (the comment at build.gradle:30 and `make android-bundle`).
+	@$(ADB) install -r -t -d $(ANDROID_DIR)/app/build/outputs/apk/debug/app-debug.apk >/dev/null
+	@$(ADB) install -r -t -d $(ANDROID_DIR)/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
 	@# A CLEAN DEVICE, every time. Forced-offline is device-local and survives both a relaunch and
 	@# an account change, and a run that leaves it on cannot sign in on the NEXT run either — the
 	@# switch is in Settings, Settings is behind the masthead avatar, and the avatar needs a

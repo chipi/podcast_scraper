@@ -14,6 +14,7 @@ import androidx.test.uiautomator.Until;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -185,42 +186,51 @@ public class NativeCapabilityTests extends UITestCase {
         // a long annotated episode list, so notes sit far below the fold — the iOS comment noted
         // sixteen swipes still landed mid-list (2026-09-16). The person card is short enough that
         // notes are reachable, making this a test of dictation, not of scrolling.
-        assertTrue("Home tab did not open", Journey.openTab("Home"));
+        // THE EPISODE NOTES PANEL, NOT A HOME RAIL (2026-10-02). What this replaced, and why.
+        //
+        // The old route was: Home → find a "person row" on the trending rail → click it → scroll the
+        // entity card to its note composer, with a topic row as fallback. Three things were wrong
+        // with it, all measured:
+        //
+        //  1. `findPersonRow` could never return anything. Its selector was
+        //     `By.pkg(PKG).descContains("momentum")`, and `Journey.java:187-209` records that
+        //     `By.desc`/`descContains` never matches WebView content on this bridge. Measured again
+        //     here: `=====PERSONROW candidates=0 []=====`. The person path was dead from the day it
+        //     was written, so every run of this test has gone through the topic fallback — the path
+        //     the comment said it was avoiding.
+        //  2. The topic card opens but does not scroll under a synthetic swipe. The failure
+        //     inventory showed the card at its TOP (`TOPIC | Close | systems thinking | Follow — …
+        //     | DISCUSSED OVER TIME | Part of a storyline | Strongest shows on this topic`) with
+        //     Home still behind it, and `scrollTo`'s stall detector (`Journey.java:487-494`) gives
+        //     up after two unchanged signatures — about three swipes, never its 40. Whether a real
+        //     finger scrolls that sheet is NOT established here; what is established is that this
+        //     harness's swipe does not.
+        //  3. The test's stated intent is dictation, and routing it through Home made it depend on
+        //     trending state and on Home's ranking. It failed for reasons that had nothing to do
+        //     with the mic.
+        //
+        // This route is PROVEN on this device and build: `AccessibleNameAuditTests.java:352` reaches
+        // "Your notes" by it, and that suite passes with zero findings — which it could not do if
+        // the scroll failed, because a false there is recorded as a NOT AUDITED finding. The opener
+        // pattern is `AppJourneyTests.java:88-104`, which also passes.
+        AppSession.openEpisode(EPISODE_SLUG);
+        Journey.sleep(6_000);
+
+        // "✦ Episode notes" (kp.title) is one string on Android and two text nodes on iOS, so
+        // contains is the safe match — the note at AppJourneyTests.java:95-97.
+        if (!Journey.tap("Episode notes", true, 15_000)) {
+            Journey.scrollTo("Episode notes", true);
+            Journey.tap("Episode notes", true, 10_000);
+        }
         Journey.sleep(4_000);
-
-        // People rail on Home — any person row that carries momentum but no episode count. On
-        // Android there is no `.buttons.allElementsBoundByIndex`, so scan for buttons whose
-        // contentDescription contains "momentum" and does NOT contain "(".
-        UiObject2 personRow = findPersonRow();
-        if (personRow != null) {
-            try { personRow.click(); } catch (Throwable t) {
-                // Click failed — fall back to a topic row instead.
-                personRow = null;
-            }
-            Journey.sleep(5_000);
-        }
-
-        if (personRow == null) {
-            // People rail depends on trending state. Any entity card carries a note composer, so
-            // fall back to a topic.
-            Journey.tap("Topics", false, 10_000);
-            Journey.sleep(2_000);
-            boolean topicTapped = Journey.tap(
-                    Arrays.asList("systems thinking", "risk management"), true, 12_000);
-            if (!topicTapped) {
-                fail("neither a person nor a topic was reachable for the note composer. "
-                        + "On screen: " + Journey.labelledInventory(80));
-            }
-            Journey.sleep(5_000);
-        }
 
         // "Your notes" — the textarea's aria-label (notes.title). Matching the placeholder
         // 'Add a note…' found nothing because aria-label wins over placeholder (same on iOS).
-        // Notes are the LAST section of a long card, so allow many swipes.
+        // The composer is the last item of the panel, which has its own scroll container.
         UiObject2 composer = Journey.scrollTo("Your notes", false);
         if (composer == null) {
-            fail("no note composer ('Your notes' aria-label). On screen: "
-                    + Journey.labelledInventory(80));
+            fail("no note composer ('Your notes' aria-label) in the Episode notes panel. "
+                    + "On screen: " + Journey.labelledInventory(80));
         }
         // DO NOT CLICK THE TEXTAREA (2026-09-26). Clicking focuses it, which opens the soft
         // keyboard, and the keyboard covers the row of buttons DIRECTLY BENEATH the field — the
@@ -251,11 +261,20 @@ public class NativeCapabilityTests extends UITestCase {
      * twice in a row on the strength of the node's own state.
      */
     private void clickVoiceInputToggleOnce() {
-        // CLOSE THE CARD FIRST. This is only ever called after `openComposerAndFindMic` has opened a
-        // person/topic card, and those cards render over everything — so the masthead tap that
-        // `openSettings` makes first landed on the card, reported success, and left the app on Home
-        // (`SETTINGS_NAV attempt 1 profileTap=true reachedProfile=false`, ~2.5 min per miss). The
-        // iOS twin never hit it: it goes to Settings BEFORE opening the card.
+        // CLOSE WHATEVER `openComposerAndFindMic` LEFT OPEN, FIRST. It renders over everything,
+        // including the masthead, so `openSettings`'s first tap lands on it, reports success, and
+        // leaves the app where it was (`SETTINGS_NAV attempt 1 profileTap=true
+        // reachedProfile=false`, ~2.5 min per miss). The iOS twin never hit it: it goes to Settings
+        // BEFORE opening the composer.
+        //
+        // TWO different things can be open, and `dismissCards` only handles one (2026-10-02). It
+        // dismisses entity/topic/storyline cards. Since the composer is now reached through the
+        // EPISODE NOTES PANEL rather than a topic card, what is open is the panel — which is not a
+        // card and has its own affordance, `Close panel` (kp.close). Measured when the reroute
+        // landed: `could not reach Settings. On screen: Episode notes | Close panel | CROSS-SHOW
+        // | …`. Both are closed here, in panel-then-card order, and both are no-ops when absent.
+        Journey.tap("Close panel", false, 3_000);
+        Journey.sleep(1_000);
         Journey.dismissCards();
         boolean settingsOpen = Journey.openSettings(profileLabels());
         if (!settingsOpen) {
@@ -672,20 +691,6 @@ public class NativeCapabilityTests extends UITestCase {
      * clickable controls matching "momentum" and exclude those that also contain "(" which are
      * storyline rows.
      */
-    private UiObject2 findPersonRow() {
-        java.util.List<UiObject2> candidates;
-        try {
-            candidates = Journey.device().findObjects(
-                    By.pkg(Journey.PKG).descContains("momentum").clickable(true));
-        } catch (Throwable t) {
-            return null;
-        }
-        for (UiObject2 o : candidates) {
-            String name = Journey.nameOf(o);
-            if (name.contains("momentum") && !name.contains("(")) return o;
-        }
-        return null;
-    }
 
     /**
      * The checkable node adjacent to a labelled row.
