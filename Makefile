@@ -3328,6 +3328,16 @@ mobile-build-release:
 		exit 1; \
 	fi; \
 	echo "OK: no private tailnet hostname in the release bundle"
+	@# And the LOOPBACK dev API base (2026-10-03). Unreachable in a release build — getTier() is
+	@# always 'prod' there — but it shipped anyway, kept unused only by a call the bundler did not
+	@# fold. tier.ts now gates it on __MOBILE_INTERNAL__; this keeps it gone.
+	@cd $(APP_DIR) && if grep -rqF "127.0.0.1" dist/assets/ 2>/dev/null; then \
+		echo ""; \
+		echo "FAIL: a loopback (127.0.0.1) address is present in the RELEASE bundle:"; \
+		grep -rhoE ".{40}127\.0\.0\.1.{40}" dist/assets/ | head -3; \
+		exit 1; \
+	fi; \
+	echo "OK: no loopback dev address in the release bundle"
 
 # --- TestFlight (iOS) -------------------------------------------------------------------
 # Requires App Store Connect credentials in web/learning-player/ios/fastlane/.env — copy

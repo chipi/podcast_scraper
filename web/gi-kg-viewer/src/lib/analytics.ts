@@ -24,22 +24,30 @@
  * the viewer emitted under PostHog — re-homed onto Umami, dashboards keep working.
  */
 
-/** The `operator-dev` Umami site, reached over the tailnet in `vite dev`.
- *  `VITE_UMAMI_SRC` is the FULL tracking-script URL (same convention as the
- *  player) — injected verbatim, never suffixed. */
-const DEV_UMAMI_SRC = 'http://homelab:3001/script.js'
-const DEV_UMAMI_WEBSITE_ID = '3bc8920d-d2bb-4a7f-a16b-057b1ed944c4'
-
-/** Dev default is live in `vite dev` unless a test runner explicitly opted out. */
-const devDefaultEnabled = import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== '1'
+/** NO LITERAL TARGET (operator, 2026-10-03) — the same fix the player's analytics and every
+ *  Sentry DSN got. This used to fall back, in `vite dev`, to a hardcoded `operator-dev` site at the
+ *  tailnet host `homelab:3001`: a personal hostname baked into the source, which does not resolve
+ *  from every machine and is refused on the homelab box itself (services there answer on loopback).
+ *
+ *  Both rungs now come from the environment only:
+ *    `VITE_UMAMI_SRC` / `VITE_UMAMI_WEBSITE_ID`         — prod, docker build-args
+ *    `VITE_UMAMI_SRC_DEV` / `VITE_UMAMI_WEBSITE_ID_DEV` — the dev rung, from a local .env
+ *  `VITE_UMAMI_SRC*` is the FULL tracking-script URL (same convention as the player), injected
+ *  verbatim. With none set, analytics is a true no-op. */
+const devRungEnabled = import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== '1'
 
 function umamiSrc(): string {
-  return (import.meta.env.VITE_UMAMI_SRC as string) || (devDefaultEnabled ? DEV_UMAMI_SRC : '')
+  return (
+    (import.meta.env.VITE_UMAMI_SRC as string) ||
+    (devRungEnabled ? (import.meta.env.VITE_UMAMI_SRC_DEV as string) : '') ||
+    ''
+  )
 }
 function umamiWebsiteId(): string {
   return (
     (import.meta.env.VITE_UMAMI_WEBSITE_ID as string) ||
-    (devDefaultEnabled ? DEV_UMAMI_WEBSITE_ID : '')
+    (devRungEnabled ? (import.meta.env.VITE_UMAMI_WEBSITE_ID_DEV as string) : '') ||
+    ''
   )
 }
 

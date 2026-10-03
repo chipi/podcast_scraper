@@ -104,7 +104,9 @@ which adds a constraint: a `http://homelab:3001` Umami script is
   retry and warn on each event. Each rung now comes from the environment: the server from
   `PODCAST_SENTRY_DSN_*` (`.env.obs.dev` in dev), the player from `VITE_SENTRY_DSN_PLAYER(_DEV)`,
   and the viewer from `VITE_SENTRY_DSN_VIEWER(_DEV)`. Unset means no reporting. The viewer's Umami
-  script default (`lib/analytics.ts`) is still hardcoded and is not covered by this amendment.
+  default (`lib/analytics.ts`, `homelab:3001` plus a site id) was removed the same day: the viewer
+  reads `VITE_UMAMI_SRC` / `VITE_UMAMI_WEBSITE_ID`, and in dev `VITE_UMAMI_SRC_DEV` /
+  `VITE_UMAMI_WEBSITE_ID_DEV`.
 - **Prod build args:** `docker/viewer/Dockerfile` + `.github/workflows/stack-test.yml`
   take `VITE_UMAMI_SRC` / `VITE_UMAMI_WEBSITE_ID` (GH vars `OPERATOR_UMAMI_*`);
   empty ⇒ silent image.
