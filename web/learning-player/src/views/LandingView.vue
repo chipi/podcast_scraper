@@ -10,6 +10,7 @@
  * through login → OAuth so a shared deep link survives signup.
  */
 import { computed, onMounted, ref } from 'vue'
+import { track } from '../services/analytics'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import { getDiscover, getTrendingTopics } from '../services/api'
@@ -42,6 +43,12 @@ function artwork(ep: EpisodeSummary): string | null {
 }
 
 onMounted(async () => {
+  // The onboarding funnel's first step (#2267): landing_view -> landing_cta_click ->
+  // auth_completed -> interests_saved/dismissed -> episode_open -> entity_open. Fired before the
+  // teaser fetch, so a listener whose network drops still registers as having SEEN the landing —
+  // otherwise the funnel would under-count exactly the people who had the worst first experience.
+  track('landing_view')
+
   // Degrade gracefully — the hero + CTA stand alone if the teaser can't load.
   try {
     // /discover is recency-ordered; dedupe by show and keep the 4 shows with the newest
@@ -84,6 +91,7 @@ onMounted(async () => {
           :to="signupTo()"
           class="rounded-full bg-accent px-7 py-3 font-bold text-accent-foreground no-underline"
           data-testid="landing-cta-primary"
+          @click="track('landing_cta_click', { cta: 'create_account', position: 'hero' })"
         >
           {{ t('landing.ctaCreate') }}
         </RouterLink>
@@ -91,6 +99,7 @@ onMounted(async () => {
           :to="signInTo"
           class="rounded-full border border-border px-6 py-3 font-bold no-underline hover:bg-surface"
           data-testid="landing-cta-signin"
+          @click="track('landing_cta_click', { cta: 'sign_in', position: 'hero' })"
         >
           {{ t('auth.signIn') }}
         </RouterLink>
@@ -121,6 +130,7 @@ onMounted(async () => {
           v-for="ep in featured"
           :key="ep.slug"
           :to="signupTo(`/episode/${ep.slug}`)"
+          @click="track('landing_teaser_click', { kind: 'show' })"
           class="group block rounded-2xl border border-border bg-surface p-3 no-underline"
           data-testid="landing-card"
         >
@@ -149,6 +159,7 @@ onMounted(async () => {
           v-for="tp in topics"
           :key="tp.topic_id"
           :to="signupTo(`/topic/${tp.topic_id}`)"
+          @click="track('landing_teaser_click', { kind: 'topic' })"
           class="rounded-full border border-topic/40 px-3 py-1.5 text-sm font-semibold text-topic no-underline transition hover:bg-overlay"
           data-testid="landing-chip"
         >{{ tp.topic_label || tp.topic_id }}</RouterLink>
@@ -178,6 +189,7 @@ onMounted(async () => {
         :to="signupTo()"
         class="inline-block rounded-full bg-accent px-7 py-3 font-bold text-accent-foreground no-underline"
         data-testid="landing-cta-foot"
+        @click="track('landing_cta_click', { cta: 'create_account', position: 'closing' })"
       >
         {{ t('landing.ctaCreate') }}
       </RouterLink>

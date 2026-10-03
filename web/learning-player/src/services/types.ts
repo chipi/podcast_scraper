@@ -14,6 +14,8 @@ export interface Me {
   image?: string | null
   /** RFC-112: holds the MCP entitlement — gates the "Connected agents" UI. */
   mcp_access?: boolean
+  /** Which OAuth provider this identity came from (#2267) — for the auth_completed event. */
+  provider?: string
   /**
    * Pseudonymous analytics identity (#2265) — a server-minted random UUIDv4, not derived from the
    * user id or the email. Passed to Umami's `identify` and shown in Settings › About so the

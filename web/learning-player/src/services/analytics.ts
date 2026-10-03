@@ -210,7 +210,21 @@ export type EventProps = {
   landing_cta_click: { cta: 'create_account' | 'sign_in'; position: 'hero' | 'closing' }
   landing_teaser_click: { kind: 'show' | 'topic' }
   auth_started: { provider: string }
-  auth_completed: { provider: string; is_new_account: boolean }
+  /**
+   * No `is_new_account`, and that is a correction to the spec rather than an omission.
+   *
+   * The client cannot compute it honestly. The only client-side signal available is "did this
+   * device already hold an auth snapshot", which answers a different question: a tester
+   * reinstalling, or signing in on a second phone, would be reported as a signup. That error runs
+   * in the worst direction for the beta, inflating exactly the activation numbers it exists to
+   * measure.
+   *
+   * The spec already provides the right source for this: the SERVER emits `account_created`
+   * (#2266), explicitly as "server-side truth for signups, independent of the Umami script
+   * loading". Duplicating it here with a worse signal would add noise to a number that is already
+   * correct elsewhere.
+   */
+  auth_completed: { provider: string }
   auth_failed: { provider: string; reason: 'cancelled' | 'error' }
   interests_picker_shown: { trigger: 'first_run' | 'profile' | 'home_prompt' }
   interests_saved: { count: CountBucket }

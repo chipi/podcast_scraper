@@ -7,6 +7,7 @@
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { i18n } from '../i18n'
+import { track } from '../services/analytics'
 import { useAuthStore } from '../stores/auth'
 // `getAuthToken` / `isNative` are no longer imported here: the native-token check moved into the
 // shared `auth.hasSession` getter, which the masthead reads too, so the guard and the header cannot
@@ -248,4 +249,23 @@ router.afterEach((to) => {
   const key = typeof to.name === 'string' ? `pageTitles.${to.name}` : ''
   const page = key && i18n.global.te(key) ? i18n.global.t(key) : ''
   document.title = page ? `${page} · ${brand}` : brand
+})
+
+/**
+ * `screen_view` for every route change (#2267).
+ *
+ * Umami already auto-tracks SPA page views, and those are kept — this is additive and exists for a
+ * different reason. Route PATHS carry slugs and ids (`/episode/:slug`, `/person/:id`), so the
+ * automatic page views are thousands of distinct URLs: useful for "what was visited", useless for
+ * "what KIND of screen". Reporting the route NAME lets a report group by `player` / `topic` /
+ * `person`, which is what makes the spec's "Journeys starting at Home" readable at all.
+ *
+ * `afterEach` for the same reason the title is set there: a view is a consequence of having
+ * navigated, and `beforeEach` would report a screen the guard then redirects away from.
+ *
+ * The route name only — never the path, which would put the search term back into analytics that
+ * `data-exclude-search` exists to keep out.
+ */
+router.afterEach((to) => {
+  if (typeof to.name === 'string') track('screen_view', { screen: to.name })
 })

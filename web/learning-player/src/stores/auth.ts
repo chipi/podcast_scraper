@@ -10,7 +10,7 @@ import { getDeviceJson, removeDeviceKey, setDeviceJson } from '../services/devic
 import { isNative, startNativeLogin, storeAuthToken } from '../services/native'
 import { offlineReason } from '../composables/useOnline'
 import { clearAuthEpoch, noteAuthEpoch } from '../services/authEpoch'
-import { identify, resetIdentity, resolveSession } from '../services/analytics'
+import { identify, resetIdentity, resolveSession, track } from '../services/analytics'
 import type { Me } from '../services/types'
 
 /**
@@ -42,6 +42,26 @@ function syncAnalyticsIdentity(me: Me | null): void {
     return
   }
   if (me.analytics_id) identify(me.analytics_id, resolveSession())
+}
+
+/**
+ * Whether a signed-in state has already been reported, so `auth_completed` fires once per
+ * transition rather than on every revalidation.
+ *
+ * `refresh()` runs at boot and on every background revalidation. Without this latch the funnel's
+ * `auth_completed` step would count one listener dozens of times and the step would read as having
+ * a higher conversion than the one before it.
+ */
+let reportedSignedIn = false
+
+/** Report the transition into or out of a signed-in session, once per transition (#2267). */
+function trackAuthTransition(me: Me | null): void {
+  if (me && !reportedSignedIn) {
+    reportedSignedIn = true
+    track('auth_completed', { provider: me.provider || 'unknown' })
+    return
+  }
+  if (!me) reportedSignedIn = false
 }
 
 interface AuthState {
@@ -96,6 +116,7 @@ export const useAuthStore = defineStore('auth', {
       // file their first actions — the ones right after launch, which the day-3 "did they open it
       // at all" check reads — as anonymous. Offline, `refresh()` may never answer at all.
       syncAnalyticsIdentity(cached)
+      trackAuthTransition(cached)
     },
 
     /**
@@ -108,6 +129,7 @@ export const useAuthStore = defineStore('auth', {
         this.user = me
         this.stale = false
         syncAnalyticsIdentity(me)
+        trackAuthTransition(me)
         // `getMe` maps 401 -> null, so a null answer means the credential is genuinely dead and
         // the snapshot must go with it. Anything else that resolves is a real identity.
         if (me) {
@@ -199,6 +221,12 @@ export const useAuthStore = defineStore('auth', {
       await this.refresh()
     },
     login(as?: string, returnTo?: string): void {
+      // The funnel's third step (#2267). Fired HERE because this is the only entry point both
+      // platforms share — the native shell opens an external browser and the web does a full-page
+      // redirect, and after either one this code is gone, so there is no later moment to report
+      // "they set off". The provider is whatever the server has configured; the client only knows
+      // whether the dev picker is in play, so `as` distinguishes that case and nothing else.
+      track('auth_started', { provider: as ? 'mock' : 'oauth' })
       if (isNative()) {
         // Native (#1310): iOS uses ASWebAuthenticationSession (prompt-free), Android the system
         // browser + intent-filter callback; both return the signed token → refresh() via
@@ -229,6 +257,7 @@ export const useAuthStore = defineStore('auth', {
         this.user = null
         this.stale = false
         syncAnalyticsIdentity(null)
+        trackAuthTransition(null)
       }
     },
     /**
@@ -242,6 +271,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.stale = false
       syncAnalyticsIdentity(null)
+      trackAuthTransition(null)
     },
   },
 })
