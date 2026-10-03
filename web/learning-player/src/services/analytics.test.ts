@@ -428,3 +428,18 @@ describe('every registered event is actually wired', () => {
     ).toEqual([])
   })
 })
+
+describe('the VITE_ANALYTICS_OFF kill switch', () => {
+  it('wins over a fully configured environment', () => {
+    // Removing the hardcoded dev defaults also removed the only reference to this variable, so for
+    // one commit the switch did nothing — and a developer's `.env.local` made the unit suite send
+    // real events to a real Umami site. It is checked ahead of every env value for that reason.
+    for (const [k, v] of Object.entries(UMAMI_ENV)) vi.stubEnv(k, v)
+    vi.stubEnv('VITE_ANALYTICS_OFF', '1')
+    expect(analyticsEnabled()).toBe(false)
+
+    const appended = captureAppends()
+    installUmami()
+    expect(appended, 'no tag may be injected when analytics is switched off').toHaveLength(0)
+  })
+})

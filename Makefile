@@ -3621,7 +3621,18 @@ ios-testflight:
 # Prod-locked build (tier toggle tree-shaken out, GlitchTip DSN required) -> TestFlight. Use for
 # builds that go to anyone other than you.
 ios-testflight-release:
-	@$(MAKE) mobile-build-release APP_CHANNEL=$(or $(APP_CHANNEL),testflight)
+	@# `.env.mobile.testflight`, NOT the default `.env.mobile` (2026-10-03). This lane ends in
+	@# `fastlane beta` — the same TestFlight upload as `ios-testflight` — but it was passing no
+	@# LP_ENV, so it built from the OWN-PHONE env file. Two consequences, both shipped to testers:
+	@#
+	@#   1. the DEV Umami website id, so beta analytics would land in the dev site (or nowhere),
+	@#      which is the opposite of what the beta exists to measure;
+	@#   2. `VITE_PREVIEW_BASIC_AUTH` — the operator's personal gate credential. Avoiding exactly
+	@#      that is why `.env.mobile.testflight` exists; see the comment on `ios-testflight`.
+	@#
+	@# The two lanes have the same destination, so they must have the same env.
+	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight \
+		APP_CHANNEL=$(or $(APP_CHANNEL),testflight)
 	@cd $(IOS_DIR) && bundle exec fastlane beta
 
 # Consumer Learning Player container (RFC-099 §10): its own nginx-served static image.

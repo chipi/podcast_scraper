@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import landingSrc from '../views/LandingView.vue?raw'
 import routerSrc from '../router/index.ts?raw'
+import analyticsSrc from '../services/analytics.ts?raw'
+import mainSrc from '../main.ts?raw'
 
 /**
  * Static guards on WHERE analytics calls are attached (#2267).
@@ -79,5 +81,70 @@ describe('screen_view wiring (#2267)', () => {
     const hookAt = routerSrc.lastIndexOf('router.afterEach')
     const callAt = routerSrc.indexOf("track('screen_view'")
     expect(callAt).toBeGreaterThan(hookAt)
+  })
+})
+
+
+describe('no telemetry target is hardcoded (operator rule, 2026-10-03)', () => {
+  /**
+   * Both the Umami website id and the GlitchTip DSN used to be literals in the source, and both
+   * were WRONG in a way nothing could notice.
+   *
+   * The Umami one referenced `30384fd4-b22b-406c-b5f6-054a0e0d16d1`, a website that does not exist
+   * in the instance — measured by posting it to `/api/send`, which answered
+   * `{"error":{"message":"Website not found.","code":"bad-request","status":400}}`. So every event
+   * sent from `vite dev` was rejected, silently, because `track()` is fire-and-forget. The DSN was
+   * the same shape of mistake: a tailnet hostname that does not resolve from every account and a
+   * project id nothing verifies, with a transport that also swallows its own errors.
+   *
+   * A wrong target is invisible in exactly the way a missing one is not: the dashboard is empty,
+   * and empty reads as "nobody used it".
+   */
+  /**
+   * Comments are stripped before scanning, deliberately.
+   *
+   * `analytics.ts` names the dead id in prose, because "this exact id was wrong and here is the
+   * response that proved it" is the most useful thing a future reader can be told. What must not
+   * come back is an id the CODE reads. Scanning the raw file would force the history out to keep
+   * the guard green, which trades a real record for a mechanical one.
+   */
+  function withoutComments(src: string): string {
+    return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+  }
+
+  it('no UUID website id appears in analytics.ts code', () => {
+    const uuids = withoutComments(analyticsSrc).match(
+      /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
+    )
+    expect(
+      uuids,
+      'a website id belongs in the environment (VITE_UMAMI_WEBSITE_ID), never in the source',
+    ).toBeNull()
+  })
+
+  it('still records WHICH id was dead, so the lesson survives the guard', () => {
+    // If someone "fixes" the test above by deleting the prose, this one goes red instead.
+    expect(analyticsSrc).toContain('30384fd4-b22b-406c-b5f6-054a0e0d16d1')
+    expect(analyticsSrc).toMatch(/Website not found/i)
+  })
+
+  it('main.ts contains no Sentry DSN literal', () => {
+    expect(
+      withoutComments(mainSrc),
+      'a DSN belongs in VITE_SENTRY_DSN_PLAYER / _DEV, never in the source',
+    ).not.toMatch(/https?:\/\/[0-9a-f]{16,}@/i)
+  })
+
+  it('neither file hardcodes the tailnet host as a telemetry target', () => {
+    // `homelab` does not resolve from every account on this machine — it did not resolve from the
+    // one that found these bugs, which is half of why the dev defaults could never have worked.
+    for (const [name, src] of [
+      ['analytics.ts', withoutComments(analyticsSrc)],
+      ['main.ts', withoutComments(mainSrc)],
+    ] as const) {
+      expect(src, `${name} must not hardcode a homelab URL`).not.toMatch(
+        /['"]https?:\/\/homelab[:/]/,
+      )
+    }
   })
 })

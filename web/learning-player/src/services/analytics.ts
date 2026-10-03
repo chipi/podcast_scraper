@@ -337,27 +337,57 @@ export type EventProps = {
 
 // ── Enablement ───────────────────────────────────────────────────────────────
 
-const DEV_UMAMI_SRC = 'http://homelab:3001/script.js'
-const DEV_UMAMI_WEBSITE_ID = '30384fd4-b22b-406c-b5f6-054a0e0d16d1'
-
-/** Dev default is live in `vite dev` unless a runner explicitly opted out. */
-function devDefaultEnabled(): boolean {
-  return import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== '1'
+/**
+ * NOTHING IS HARDCODED HERE, and that is the point (operator, 2026-10-03).
+ *
+ * This block used to carry a dev script URL and a dev website id as literals. Both were WRONG, and
+ * the way they were wrong is the argument against ever hardcoding them: the id
+ * `30384fd4-b22b-406c-b5f6-054a0e0d16d1` does not exist in the Umami instance. Measured by posting
+ * it to `/api/send`:
+ *
+ *     {"error":{"message":"Website not found.","code":"bad-request","status":400}}
+ *
+ * So every event sent from `vite dev` was rejected — silently, because `track()` is fire-and-forget
+ * and the tracker swallows its own errors. Dev analytics looked wired and went nowhere, which is
+ * indistinguishable from "nobody used the app". (The same literal in the operator viewer's
+ * `lib/analytics.ts` is equally dead; it is not this arc's file to change.)
+ *
+ * Both values now come from the environment, identically in every tier:
+ *
+ *   - `VITE_UMAMI_SRC`        — the full tracking-script URL, injected verbatim, never suffixed
+ *   - `VITE_UMAMI_WEBSITE_ID` — the site to report to
+ *
+ * Prod bakes them as docker build-args; local dev puts them in `web/learning-player/.env.local`
+ * (gitignored). `VITE_UMAMI_SRC_DEV` stays supported for the on-device dev tier, where `.env.mobile`
+ * supplies an https URL because a native WebView blocks the plain-http one as mixed content.
+ *
+ * With neither set, analytics is a true no-op — the fork-silent default. A build that forgets them
+ * sends nothing, which is the correct failure: better silent than reporting into the wrong site.
+ */
+/**
+ * The hard kill switch, honoured ahead of every env value (#2264 §2.6).
+ *
+ * This nearly went missing. Removing the hardcoded dev defaults also removed `devDefaultEnabled()`,
+ * which held the ONLY reference to `VITE_ANALYTICS_OFF` — so for one commit the switch did nothing
+ * and a `.env.local` would have made the unit suite send real events. Checked here, in front of
+ * everything, so no combination of env values can get past it.
+ */
+function analyticsOff(): boolean {
+  return import.meta.env.VITE_ANALYTICS_OFF === '1'
 }
 
 function umamiSrc(): string {
+  if (analyticsOff()) return ''
   return (
     (import.meta.env.VITE_UMAMI_SRC as string) ||
     (import.meta.env.VITE_UMAMI_SRC_DEV as string) ||
-    (devDefaultEnabled() ? DEV_UMAMI_SRC : '')
+    ''
   )
 }
 
 function umamiWebsiteId(): string {
-  return (
-    (import.meta.env.VITE_UMAMI_WEBSITE_ID as string) ||
-    (devDefaultEnabled() ? DEV_UMAMI_WEBSITE_ID : '')
-  )
+  if (analyticsOff()) return ''
+  return (import.meta.env.VITE_UMAMI_WEBSITE_ID as string) || ''
 }
 
 /**

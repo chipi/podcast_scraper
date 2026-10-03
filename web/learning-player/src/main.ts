@@ -58,8 +58,23 @@ const app = createApp(App)
 // runbook) and inject that https DSN via VITE_SENTRY_DSN_PLAYER_DEV in
 // .env.mobile — the exact host/port/path depends on your serve topology (the ACL
 // caps homelab ports and 443 already serves Umami), so it is NOT hardcoded here.
-const DEV_SENTRY_DSN_PLAYER =
-  import.meta.env.VITE_SENTRY_DSN_PLAYER_DEV || 'http://66dba2f7683848c8b4ef0968ff073e82@homelab:8090/8'
+// NO LITERAL DSN (operator, 2026-10-03). This line used to end in
+// `|| 'http://<key>@homelab:8090/8'`, which is the same mistake the Umami block carried: a dev
+// target baked into the source, pointing at a tailnet hostname that does not resolve from every
+// account, with a project id nothing verifies. The Umami twin turned out to reference a website
+// that does not exist at all — every dev event came back "Website not found." — and a hardcoded
+// DSN fails the same way, silently, because Sentry's transport swallows its own errors too.
+//
+// Both tiers now come from the environment and nothing else:
+//
+//   VITE_SENTRY_DSN_PLAYER      — prod, baked as a docker build-arg
+//   VITE_SENTRY_DSN_PLAYER_DEV  — the dev rung; `.env.mobile` supplies an https URL for on-device
+//                                 use, because a native WebView blocks a plain-http DSN as mixed
+//                                 content
+//
+// With neither set, error reporting is a true no-op. That is the right failure: a build that
+// forgets its DSN reports nothing, rather than posting into someone else's project.
+const DEV_SENTRY_DSN_PLAYER = (import.meta.env.VITE_SENTRY_DSN_PLAYER_DEV as string) || ''
 const devDefault = import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== '1'
 // Native dev↔prod switch (#1310): when the shell's tier is 'dev', errors go to the tailnet
 // player-dev GlitchTip + environment='dev' — same channel split as the web dev rung. prod (+ web +
