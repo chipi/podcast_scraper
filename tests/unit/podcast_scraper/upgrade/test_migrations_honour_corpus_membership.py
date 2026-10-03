@@ -191,3 +191,16 @@ def test_the_vouch_check_never_raises(tmp_path: Path):
     meta = tmp_path / "weird-name-with-no-suffix"
     assert transcript_pairing_is_vouched(meta, {"transcript_file_path": 12345}) in (True, False)
     assert transcript_pairing_is_vouched(meta, None) is True  # type: ignore[arg-type]
+
+
+def test_a_backup_copy_is_never_served(tmp_path: Path) -> None:
+    """An upgrade backup of a GI/KG file without its metadata sibling used to count as an orphan,
+    so as SERVED: `upgrade verify` read 4,219 old ids from m0017's backups (prod, 2026-10-03)."""
+    live = _episode(tmp_path, "run_2", "ep")
+    backup = tmp_path / ".podcast_scraper" / "upgrade-backups" / "0017" / live.relative_to(tmp_path)
+    _write(backup, {"nodes": [{"id": "person:dr-x"}]})
+    trash = tmp_path / ".trash" / "20261003" / live.relative_to(tmp_path)
+    _write(trash, {"nodes": []})
+    served, superseded = select_served_artifacts(tmp_path, ".kg.json")
+    assert served == [live]
+    assert superseded == []
