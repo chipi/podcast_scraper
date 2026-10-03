@@ -125,6 +125,10 @@ export default defineConfig({
         // Keep per-user writes (queue/profile/interests) OUT of the committed corpus tree.
         // Relative to the webServer cwd (web/learning-player/); the server resolve()s it against cwd.
         APP_DATA_DIR: 'e2e/.app-state',
+        // Opens /internal/outbox/* so magic-link-welcome.spec can read the emailed link the way the
+        // delivery worker does. A fixed, e2e-only value; must match E2E_OUTBOX_TOKEN in that spec
+        // and the Makefile's app-e2e container.
+        INTERNAL_OUTBOX_TOKEN: 'e2e-outbox-token',
       },
     },
     {

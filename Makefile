@@ -1949,6 +1949,7 @@ app-e2e-api-up:
 		-e APP_OAUTH_PROVIDER=mock -e APP_SESSION_SECRET=e2e-secret -e APP_SIGNUP_MODE=open \
 		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
 		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
+		-e INTERNAL_OUTBOX_TOKEN=e2e-outbox-token \
 		$(APP_E2E_IMAGE) >/dev/null
 	@# The wait is its own script because it is not a simple sleep-until-200: docker
 	@# intermittently publishes this container's port without the mapping actually working, and
@@ -2186,6 +2187,7 @@ _app-e2e-api-restart:
 		-e APP_OAUTH_PROVIDER=mock -e APP_SESSION_SECRET=$(SECRET) -e APP_SIGNUP_MODE=open \
 		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
 		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
+		-e INTERNAL_OUTBOX_TOKEN=e2e-outbox-token \
 		$(APP_E2E_IMAGE) >/dev/null
 	@i=0; while [ $$i -lt 40 ]; do \
 		curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" 2>/dev/null && break; \
