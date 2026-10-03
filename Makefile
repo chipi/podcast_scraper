@@ -1736,7 +1736,15 @@ build-viewer:
 # Consumer Learning Player — Vitest unit + coverage gate (mirrors ``test-ui``).
 test-app:
 	@echo "Vitest unit tests + coverage gate (Learning Player)..."
-	@cd $(APP_DIR) && npm install && npm run test:coverage
+	@# `npm ci`, NOT `npm install` — a gate must not rewrite a checked-in file (2026-10-03).
+	@# Measured: `npm install` alone, on a clean tree, in this directory, produced
+	@# `0 insertions, 19 deletions` in package-lock.json, every one of them a `"peer": true` line.
+	@# npm 11.16.0 (node 24) normalises a lockfile an older npm wrote, so every `make ci-fast` left
+	@# the tree dirty and the churn was one `git add -A` away from being committed by accident.
+	@# CI never had the problem because it already runs `npm ci` (python-app.yml:262,613,659,720),
+	@# which refuses to write the lockfile at all — so this also removes a local/CI divergence in a
+	@# target whose whole purpose is to mirror CI. Costs a clean install; `npm run dev` is unaffected.
+	@cd $(APP_DIR) && npm ci && npm run test:coverage
 	@# Type-check the TESTS. `tsconfig.app.json` excludes `src/**/*.test.ts` and nothing else
 	@# covered them, so no fixture was ever checked against the types it claims — three
 	@# `EpisodeSummary` factories had drifted from the API contract and were exercising a shape the
@@ -2756,8 +2764,28 @@ android-emulator-up:
 
 # Scoped to THIS avd by name so a sibling worktree's emulator is never touched (AGENTS.md).
 android-emulator-down:
+	@# VERIFY THE KILL; DO NOT JUST SIGNAL IT (2026-10-03, measured). `adb emu kill` is
+	@# asynchronous, and `|| true` swallows a real failure, so this printed its ✓ while the emulator
+	@# was still up: the tick appeared, and `adb devices` still listed `emulator-5554` with
+	@# `qemu-system-x86_64-headless -avd Pixel_8` alive. It died seconds later, so the claim was
+	@# premature rather than false — but a teardown that reports success it has not checked is the
+	@# reason the next person goes looking somewhere else for a port that is still held.
+	@#
+	@# Waits for the device to actually detach, and FAILS loudly if it does not, naming the manual
+	@# escape. Exits 0 immediately when no emulator was attached in the first place.
 	@$(ADB) emu kill >/dev/null 2>&1 || true
-	@echo "✓ '$(ANDROID_AVD)' emulator reaped"
+	@n=0; \
+	while [ $$n -lt 30 ]; do \
+		$(ADB) devices 2>/dev/null | grep -q '^emulator-' || break; \
+		sleep 1; n=$$((n + 1)); \
+	done; \
+	if $(ADB) devices 2>/dev/null | grep -q '^emulator-'; then \
+		echo "FAIL: an emulator is STILL attached after 30s:"; \
+		$(ADB) devices 2>/dev/null | grep '^emulator-' | sed 's/^/      /'; \
+		echo "      Kill it by hand: $(ADB) emu kill   (or: pkill -f 'qemu-system.*$(ANDROID_AVD)')"; \
+		exit 1; \
+	fi; \
+	echo "✓ '$(ANDROID_AVD)' emulator reaped (device list empty)"
 
 # `test-app-ios-native-full` was DELETED 2026-09-25: download -> origin -> sign-in -> native is
 # what `test-ios` phases 1-5 do, and nothing called it. It is worth recording WHY it existed,
@@ -3101,7 +3129,9 @@ test-app-e2e-docker:
 # vitest/playwright skip). Run locally before push for app PRs (mirrors ``build-viewer``).
 build-app:
 	@echo "Production Learning Player bundle (vue-tsc -b && vite build)..."
-	@cd $(APP_DIR) && npm install && npm run build
+	@# `npm ci` for the reason recorded on `test-app`: `npm install` here rewrites package-lock.json
+	@# under npm 11, and CI uses `npm ci` for this same build.
+	@cd $(APP_DIR) && npm ci && npm run build
 
 # Mobile shell builds (Capacitor iOS + Android). Both source the gitignored
 # $(APP_DIR)/.env.mobile (copy from .env.mobile.example) so real internal DSN/Umami/
