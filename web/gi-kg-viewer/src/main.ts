@@ -48,20 +48,19 @@ const app = createApp(App)
 // viewer all stream into separate Sentry projects with
 // ``component=`` tags on each event.
 //
-// Dev rung of the env ladder (dev → prod; the operator has no staging). In
-// ``vite dev``, with no build-injected DSN, errors go to the dedicated
-// ``operator-dev`` GlitchTip project via the Tailscale host ``homelab`` — NO
-// fixed IP, so only a device on the tailnet resolves it; a stranger who runs
-// the repo reports nothing (the transport silently fails). The key is a public
-// browser id (ships in the bundle) — safe to commit. ``VITE_ANALYTICS_OFF=1``
-// (set by the vitest + playwright configs) suppresses the dev default in tests.
-const DEV_SENTRY_DSN_VIEWER = 'http://53a88592c99e48bc8d505d258597ab78@homelab:8090/9'
-const devSentryDefault =
+// NO LITERAL DSN (operator, 2026-10-03) — the same fix the player's main.ts and the server's
+// sentry_init.py got. This used to fall back, in ``vite dev``, to a hardcoded ``operator-dev`` DSN
+// at the tailnet host ``homelab``, which does not resolve from every machine and is refused on the
+// homelab box itself. The DSN now comes from the environment only: ``VITE_SENTRY_DSN_VIEWER`` for
+// prod (docker build-arg) and ``VITE_SENTRY_DSN_VIEWER_DEV`` for the dev rung (a local .env).
+// With neither set, error reporting is a true no-op. ``VITE_ANALYTICS_OFF=1`` (vitest +
+// playwright) still keeps the dev rung off in tests.
+const devSentryDsn =
   import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== '1'
-    ? DEV_SENTRY_DSN_VIEWER
+    ? (import.meta.env.VITE_SENTRY_DSN_VIEWER_DEV as string | undefined) || undefined
     : undefined
 const SENTRY_DSN_VIEWER =
-  (import.meta.env.VITE_SENTRY_DSN_VIEWER as string | undefined) || devSentryDefault
+  (import.meta.env.VITE_SENTRY_DSN_VIEWER as string | undefined) || devSentryDsn
 if (SENTRY_DSN_VIEWER) {
   const w = window as Window & {
     __PODCAST_ENV__?: string

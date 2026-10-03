@@ -37,23 +37,16 @@ _DSN_ENV = {
     "mcp": "PODCAST_SENTRY_DSN_MCP",
 }
 
-# Dev rung of the env ladder (dev → prod; the backend has no staging). On the
-# operator's laptop (``make serve`` with no DSN set), api + pipeline errors go to
-# the dedicated ``operator-dev`` GlitchTip project via the Tailscale host
-# ``homelab`` — NO fixed IP, so only a device on the tailnet reaches it; on any
-# other machine the send silently fails. NEVER fires under pytest or CI (keeps the
-# unset-DSN no-op contract green + airgapped CI silent), nor in prod
-# (``PODCAST_ENV=production``). The Python SDK accepts the dashless key.
-_DEV_DSN = "http://53a88592c99e48bc8d505d258597ab78@homelab:8090/9"
-_DEV_ENVS = {"dev", "development", "local"}
-
-
-def _use_dev_default() -> bool:
-    """True only in genuine local dev — not under pytest, not in CI, not in prod."""
-    if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("CI"):
-        return False
-    env = (os.environ.get("PODCAST_ENV", "dev").strip() or "dev").lower()
-    return env in _DEV_ENVS
+# NO LITERAL DSN (operator, 2026-10-03). Local dev used to fall back to a hardcoded
+# ``operator-dev`` DSN at ``homelab:8090``, a tailnet hostname. On the homelab box itself that
+# address is REFUSED (GlitchTip answers on 127.0.0.1 there), so every locally run server — the
+# Playwright e2e API included — retried three times per event and printed "Connection refused"
+# warnings. The comment promised the send "silently fails" elsewhere; it did not fail silently.
+# The player's DSN had the same baked-in default and was made env-only earlier on this branch.
+#
+# Every rung now comes from the environment and nothing else: prod from its deploy env, dev from
+# ``.env.obs.dev`` (which ``make serve-api`` loads; see ``.env.obs.dev.example``). With no DSN set,
+# reporting is a true no-op — a machine that has not opted in reports nothing.
 
 
 # Per-component traces sample rates. The api is long-lived and serves few
@@ -137,14 +130,6 @@ def init_sentry(component: Component) -> bool:
     """
     dsn_var = _DSN_ENV[component]
     dsn = os.environ.get(dsn_var, "").strip()
-    if not dsn and _use_dev_default():
-        dsn = _DEV_DSN
-        _LOGGER.info(
-            "sentry init using dev-rung default for component=%s → operator-dev "
-            "(homelab, tailnet-gated) — %s unset in local dev",
-            component,
-            dsn_var,
-        )
     if not dsn:
         _LOGGER.debug(
             "sentry init skipped for component=%s (env %s unset)",
