@@ -84,6 +84,32 @@ becomes a candidate the roster may bind (the over-broad surname match was doing 
 5. Also from the Gray Area review (2026-10-03): promo voices named as guests (Kara Swisher, Sky
    Galloway, Anne Applebaum) and "John Gwynn-Hill" published for Jonquilyn Hill.
 
+## Also on this branch — the two open plan steps (from 2026-10-02/03)
+
+### Feed-level analysis and per-show profiles — #2261 (scoreboard plan step 5)
+
+The rule tail per episode is thin (host pools' last loop moved the 500 by 4 voices) and the remaining
+errors cluster by show (MLST, The Flip, Latin America in Focus; today also Freakonomics' narrated
+"that is <name>" attributions and Gray Area's rotating Vox hosts). Analyse per-show patterns with
+the Fable advisor from the show sidecars (`show.json`), the gold sets and the corpus replay; output a
+per-show profile the roster reads (host count, presenter style, recurring voices). Dev only while
+designing, every changed corpus voice read, validate once on the 500, 2 loops max. Acceptance: better
+than 644 correct / 112 wrong / 378 hosts correct on validation, every regression read.
+
+### Mini autoresearch loop on the gate — #2262 (scoreboard plan step 6)
+
+Propose -> score on dev -> keep only if better with zero host regressions -> validate once on the 500.
+
+- **Phase A — rules and per-show profiles.** Offline replay only, no LLM calls; builds on #2261.
+- **Phase B — the LLM step (the LLM idea).** The resolution call reads each voice the way the
+  labellers did: the labelling guide as the prompt, the rules as guards, a per-voice case view.
+  Real DGX calls on dev, so the call budget is agreed with the operator first and gpu-mode is
+  checked before any call; never in CI. Context: the LLM step is +102 correct and +41 wrong on
+  validation (better 138 / worse 87), so it is where most of both the gains and the damage are.
+
+Relation to problem 6's option 1: the `kind`-per-name field in the detection call is the first,
+smallest LLM change and the cheapest to measure; Phase B is the larger one on the resolution call.
+
 ## Step 1 result — the LLM step's marginal value (2026-10-03)
 
 Same committed code (seats + person check), replayed without vs with the LLM's stored per-voice
