@@ -346,3 +346,32 @@ def test_verify_without_a_data_dir_is_reported_as_unavailable(
     events = [e for e, _ in _magic_events(caplog)]
     assert [e["outcome"] for e in events] == ["unavailable"]
     assert len(events[0]["email_fp"]) == 16
+
+
+def test_uvicorn_access_log_never_carries_the_link_token(tmp_path: Path) -> None:
+    """uvicorn logs the full request target, and prod ships those lines off the box. A verify URL
+    must reach the log with its token redacted: the token's payload is the address, base64."""
+    import logging
+
+    _client(tmp_path)  # creating the app installs the filter
+    token, _ = app_magic_link.issue(_ALLOWED, _SECRET)
+    record = logging.LogRecord(
+        "uvicorn.access",
+        logging.INFO,
+        __file__,
+        1,
+        '%s - "%s %s HTTP/%s" %d',
+        (
+            "127.0.0.1:5",
+            "GET",
+            f"/api/app/auth/email/verify?token={token}&platform=native",
+            "1.1",
+            307,
+        ),
+        None,
+    )
+    for f in logging.getLogger("uvicorn.access").filters:
+        f.filter(record)
+    line = record.getMessage()
+    assert token not in line and token.split(".")[0] not in line, line
+    assert "token=<redacted>&platform=native" in line

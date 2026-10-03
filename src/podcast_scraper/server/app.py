@@ -7,6 +7,7 @@ import contextlib
 import logging
 import math
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -343,9 +344,43 @@ class _AccessLogMiddleware:
         )
 
 
+#: Query parameters whose VALUE must never reach a log line. `token` is the magic-link credential
+#: (#2272): single-use, but its payload is base64 for the recipient's address, and a token refused
+#: at verify (allowlist) is NOT consumed, so a logged one stays live.
+_SECRET_QUERY = re.compile(r"(?i)\b(token)=([^&\s]+)")
+
+
+class _RedactSecretQuery(logging.Filter):
+    """Redact credential values from uvicorn's access log (`"GET /path?token=… HTTP/1.1" 307`).
+
+    Our own `_AccessLogMiddleware` logs the path WITHOUT the query, but uvicorn's access logger logs
+    the full request target, and prod ships those lines off the box (5,850 from player-api-1 in one
+    day, measured 2026-10-03). Without this every magic-link verify would put a usable sign-in
+    token — and, base64-encoded inside it, the address the flow is built never to log — into
+    VictoriaLogs.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple):
+            record.args = tuple(
+                _SECRET_QUERY.sub(r"\1=<redacted>", a) if isinstance(a, str) else a for a in args
+            )
+        elif isinstance(record.msg, str):
+            record.msg = _SECRET_QUERY.sub(r"\1=<redacted>", record.msg)
+        return True
+
+
+_REDACT_FILTER = _RedactSecretQuery()
+
+
 def _install_access_logging(app: FastAPI) -> None:
     """Attach the trace-correlated request access log (ADR-119, G1). See _AccessLogMiddleware."""
     app.add_middleware(_AccessLogMiddleware)
+    # Idempotent: several apps can be created in one process (tests, reload).
+    uv_access = logging.getLogger("uvicorn.access")
+    if _REDACT_FILTER not in uv_access.filters:
+        uv_access.addFilter(_REDACT_FILTER)
 
 
 def _start_dev_metrics_pusher() -> None:
