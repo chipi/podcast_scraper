@@ -11,6 +11,7 @@ import queue
 import sys
 import threading
 import unittest
+import xml.etree.ElementTree as ET  # nosec B405 - parses a literal test fixture
 from unittest.mock import Mock, patch
 
 import pytest
@@ -471,7 +472,7 @@ class TestCallGenerateMetadata(unittest.TestCase):
             idx=1,
             title="Test Episode",
             title_safe="test-episode",
-            item={"title": "Test Episode"},
+            item=ET.fromstring("<item><title>Test Episode</title></item>"),
             transcript_urls=[],
         )
         feed = models.RssFeed(
