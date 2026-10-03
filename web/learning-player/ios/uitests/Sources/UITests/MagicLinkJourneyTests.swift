@@ -11,7 +11,8 @@ import XCTest
  *
  *   M1  signed-out app → "Email me a sign-in link" → address → "Check your email"
  *   M2  open link 1 → NEW account lands on Profile → sign out → request link 2
- *   M3  open link 2 → RETURNING account is signed in and NOT on Profile
+ *   M3  with the app CLOSED, open link 2 → it launches the app → RETURNING account is signed in,
+ *       NOT on Profile and NOT on the landing
  *
  * The address comes from `TEST_RUNNER_LP_MAGIC_EMAIL` and must be on the API's allowlist; the API
  * throttles one link per address per 60 s, so M2 must start at least a minute after M1.
@@ -126,7 +127,12 @@ final class MagicLinkJourneyTests: UITestCase {
   func testM3ReturningAccountSignsInAndStaysOffProfile() throws {
     guard let link else { throw XCTSkip("set TEST_RUNNER_LP_MAGIC_LINK") }
     let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
-    app.launch()
+    // COLD: the link must be what LAUNCHES the app — the ordinary case of tapping "Sign in" in
+    // Mail with the app closed. This phase first called `app.launch()` before opening the link,
+    // which only ever tested a running app and hid that a launch-by-link dropped the token
+    // (`initNativeAuth` did not read `getLaunchUrl`; fixed 2026-10-03).
+    app.terminate()
+    XCTAssertEqual(app.state, .notRunning, "the app must not be running before the link opens")
     openLink(app, link)
     XCTAssertTrue(AppSession.isSignedIn(app), "the returning account is not signed in")
     // Short timeout on purpose: this asserts ABSENCE, and the page has settled once signed in.

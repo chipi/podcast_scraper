@@ -217,14 +217,32 @@ export async function initNativeAuth(onAuthed: (info: AuthedInfo) => void): Prom
   await rehydrateNativeToken()
   // Every link-delivered token, on BOTH platforms: the Android OAuth callback, and the email magic
   // link opened from Mail on either (iOS OAuth alone returns via the AuthSession promise instead).
-  await App.addListener('appUrlOpen', ({ url }) => {
+  //
+  // BOTH arrivals, exactly as `initDeepLinks` already does for navigation links:
+  //  - the app is running → `appUrlOpen`;
+  //  - the link LAUNCHED the app → `getLaunchUrl`, for which `appUrlOpen` does not fire.
+  // The second is the ordinary magic-link case: the person taps "Sign in" in Mail with the app
+  // closed. Listening to `appUrlOpen` alone dropped that token in silence — the app opened signed
+  // out, with nothing on screen to say why (found 2026-10-03 while porting the device journey).
+  //
+  // A URL can reach us through both paths on one launch, so each callback URL is handled once.
+  let handledUrl: string | null = null
+  const handle = (url: string): void => {
+    if (url === handledUrl) return
     const token = tokenFromCallback(url)
-    if (token) {
-      storeAuthToken(token)
-      void Browser.close().catch(() => {})
-      onAuthed(authedInfoFromCallback(url))
-    }
-  })
+    if (!token) return
+    handledUrl = url
+    storeAuthToken(token)
+    void Browser.close().catch(() => {})
+    onAuthed(authedInfoFromCallback(url))
+  }
+  await App.addListener('appUrlOpen', ({ url }) => handle(url))
+  try {
+    const launch = await App.getLaunchUrl()
+    if (launch?.url) handle(launch.url)
+  } catch {
+    /* no launch url — the ordinary case */
+  }
 }
 
 /**
