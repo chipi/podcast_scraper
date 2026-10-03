@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { attachSink, DEV_UMAMI_WEBSITE_ID } from './sink'
+import './settle'
 
 /**
  * The funnel's middle: setting off to sign in, arriving signed in, and the pseudonymous identity

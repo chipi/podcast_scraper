@@ -274,6 +274,10 @@ async function addHighlightTo(highlightId: string, collectionId: string): Promis
  */
 const printing = ref(false)
 async function openPrintable(): Promise<void> {
+  // #2267. Reported here rather than on the button so BOTH branches below count: web opens the
+  // printable in a new tab, native fetches the HTML and hands it to the share sheet. A PDF export
+  // was previously not counted at all on either platform.
+  track('highlights_export', { format: 'pdf' })
   const opts = { mutedOnly: props.mutedOnly, q: props.search }
   if (!isNative()) {
     await openExternal(highlightsPrintUrl(props.filterColor, opts))
@@ -388,6 +392,7 @@ onMounted(async () => {
           v-else
           :href="highlightsExportUrl(filterColor, { mutedOnly, q: search })"
           download="my-highlights.md"
+          @click="track('highlights_export', { format: 'markdown' })"
           :aria-label="t('highlights.export')"
           class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent no-underline transition hover:bg-overlay"
         >{{ t('highlights.exportMarkdownShort') }}</a>

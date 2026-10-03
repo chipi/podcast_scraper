@@ -31,6 +31,16 @@ export interface UmamiBeacon {
 
 /** One Sentry/GlitchTip envelope, split into its newline-delimited items. */
 export interface SentryEnvelope {
+  /**
+   * The ingest URL the envelope was POSTed to, e.g.
+   * `http://127.0.0.1:8090/api/20/envelope/?sentry_key=…`.
+   *
+   * Recorded because the DSN is NOT in the envelope header: modern SDKs put it in the request URL and
+   * omit the header field, so asserting on `header.dsn` checks an empty string and passes for the
+   * wrong reason. The project id in this path is the only honest proof of WHICH project an error
+   * reached.
+   */
+  url: string
   header: Record<string, unknown>
   items: Record<string, unknown>[]
   rawText: string
@@ -41,6 +51,39 @@ export class TelemetrySink {
   readonly sentry: SentryEnvelope[] = []
   /** Requests that looked like telemetry but could not be parsed — never silently dropped. */
   readonly unparsed: { url: string; body: string | null; error: string }[] = []
+
+  /**
+   * Telemetry requests started but not yet finished.
+   *
+   * Needed because a recorded request is NOT a delivered one. Umami sends with
+   * `fetch(url, { keepalive: true })`, which survives a page unload but not Playwright closing the
+   * browser context — that tears down the network stack and cancels whatever is in flight. The effect
+   * was intermittent and would have been easy to misread as an app bug: `capture_created` was stored
+   * by two runs and absent from a third, with the spec passing every time, because the recorder sees a
+   * request the moment it STARTS.
+   *
+   * A fixed sleep is the wrong instrument for this — it is either too short sometimes or wasted
+   * always. Waiting for the responses is exact.
+   */
+  inflight = 0
+
+  /**
+   * Umami's ANSWER to each beacon, which is the half nobody was reading.
+   *
+   * `/api/send` returns 200 for several outcomes that store nothing: `{"beep":"boop"}` when it drops
+   * the request as a bot, and `{"error":{"message":"Website not found."}}` for a website id that does
+   * not exist — the exact response the old hardcoded dev id produced for weeks. A test that checks
+   * only the request, and a dashboard that shows only what was stored, can therefore BOTH look fine
+   * while every event is being thrown away. Recording the response makes a rejection loud.
+   */
+  readonly umamiResponses: { status: number; body: string }[] = []
+
+  /** Beacons Umami answered with something other than a plain acceptance. */
+  rejectedBeacons(): { status: number; body: string }[] {
+    return this.umamiResponses.filter(
+      (r) => r.status !== 200 || /beep|error|not found/i.test(r.body),
+    )
+  }
 
   /** Every custom event name seen, in order, duplicates included. */
   names(): string[] {
@@ -118,6 +161,51 @@ export class TelemetrySink {
     }
   }
 
+  /**
+   * Only the envelopes that actually carry an error.
+   *
+   * The SDK also POSTs session envelopes (a header plus a `session` item and nothing else), and one of
+   * those normally arrives FIRST. Reading `sentry[0]` therefore inspects a payload with no
+   * `environment`, no tags and no exception, and the assertions fail against an envelope that was
+   * never the subject.
+   */
+  errorEnvelopes(): SentryEnvelope[] {
+    return this.sentry.filter((env) =>
+      env.items.some((item) => 'exception' in item || 'message' in item),
+    )
+  }
+
+  /**
+   * Wait until every telemetry request this sink has seen has actually COMPLETED.
+   *
+   * Call before the browser context closes, or the last events of a walk are cancelled mid-flight and
+   * the surface read-back under-reports for a reason that has nothing to do with the app.
+   */
+  async settle(timeoutMs = 10_000): Promise<void> {
+    const deadline = Date.now() + timeoutMs
+    while (this.inflight > 0 && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100))
+    }
+    // One short grace period after the last response, for a beacon fired by an unload handler.
+    await new Promise((r) => setTimeout(r, 300))
+  }
+
+  /** Poll until at least `n` error envelopes have arrived (sessions do not count). */
+  async waitForError(n = 1, timeoutMs = 30_000): Promise<SentryEnvelope> {
+    const deadline = Date.now() + timeoutMs
+    for (;;) {
+      const errs = this.errorEnvelopes()
+      if (errs.length >= n) return errs[n - 1]
+      if (Date.now() > deadline) {
+        throw new Error(
+          `timed out waiting for ${n} GlitchTip ERROR envelope(s); got ${errs.length} of ` +
+            `${this.sentry.length} total. Titles: [${this.sentryTitles().join(' | ')}]`,
+        )
+      }
+      await new Promise((r) => setTimeout(r, 200))
+    }
+  }
+
   /** Poll until at least `n` envelopes have arrived. */
   async waitForSentry(n = 1, timeoutMs = 20_000): Promise<void> {
     const deadline = Date.now() + timeoutMs
@@ -175,26 +263,55 @@ function recordSentry(sink: TelemetrySink, req: Request): void {
       /* attachment or gzipped item — not a URL carrier, so not interesting here */
     }
   })
-  sink.sentry.push({ header, items: decoded, rawText: body })
+  sink.sentry.push({ url: req.url(), header, items: decoded, rawText: body })
 }
 
 /**
  * Start observing. Call before the first `page.goto`, since `landing_view` and the first
  * `screen_view` fire during bootstrap and would otherwise be missed.
  */
+/**
+ * Every sink attached to a page, so the shared `afterEach` in `./settle` can wait on it without each
+ * spec having to pass its sink around.
+ */
+const SINKS = new WeakMap<Page, TelemetrySink>()
+
+/** The sink attached to this page, if any. */
+export function sinkFor(page: Page): TelemetrySink | undefined {
+  return SINKS.get(page)
+}
+
 export function attachSink(page: Page): TelemetrySink {
   const sink = new TelemetrySink()
+  SINKS.set(page, sink)
+  const isTelemetry = (u: string): boolean =>
+    u.includes('/api/send') || u.includes('/envelope') || /\/api\/\d+\/store/.test(u)
+  page.on('requestfinished', (req) => {
+    if (isTelemetry(req.url())) sink.inflight = Math.max(0, sink.inflight - 1)
+  })
+  page.on('response', (res) => {
+    if (!res.url().includes('/api/send')) return
+    void res
+      .text()
+      .then((body) => sink.umamiResponses.push({ status: res.status(), body: body.slice(0, 300) }))
+      .catch(() => sink.umamiResponses.push({ status: res.status(), body: '<unreadable>' }))
+  })
+  page.on('requestfailed', (req) => {
+    if (isTelemetry(req.url())) sink.inflight = Math.max(0, sink.inflight - 1)
+  })
   page.on('request', (req) => {
     if (req.method() !== 'POST') return
     const url = req.url()
     // Umami's collector. Matched on the path so a change of host (loopback vs tailnet) does not
     // quietly stop the recorder while the test keeps passing on an empty list.
     if (url.includes('/api/send')) {
+      sink.inflight += 1
       recordUmami(sink, req)
       return
     }
     // GlitchTip/Sentry ingest: modern SDKs use /envelope/, older paths use /store/.
     if (url.includes('/envelope') || /\/api\/\d+\/store/.test(url)) {
+      sink.inflight += 1
       recordSentry(sink, req)
     }
   })

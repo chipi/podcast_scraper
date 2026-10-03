@@ -323,7 +323,16 @@ export type EventProps = {
    * the app can honestly observe. Do not synthesise a destination.
    */
   route_output: undefined
-  highlights_export: { format: string }
+  /**
+   * `format` is a UNION, not a bare `string`.
+   *
+   * It was `string`, which quietly opted this one event out of the guarantee the rest of the
+   * registry makes — that an out-of-vocabulary value is a compile error rather than a silently-wrong
+   * dashboard. There are exactly three destinations, and they are the question: Markdown through the
+   * share sheet, a printable PDF, and an Obsidian vault are three different intentions about where a
+   * listener's notes end up.
+   */
+  highlights_export: { format: 'markdown' | 'pdf' | 'obsidian' }
   speed_change: { speed: '1' | '1.25' | '1.5' | '1.75' | '2+' }
 
   error_shown: { surface: string; kind: 'network' | 'server' | 'not_found' | 'auth' }

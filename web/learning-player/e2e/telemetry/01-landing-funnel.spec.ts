@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { attachSink, DEV_UMAMI_WEBSITE_ID } from './sink'
+import './settle'
 
 /**
  * The onboarding funnel's first step, end to end (#2267).

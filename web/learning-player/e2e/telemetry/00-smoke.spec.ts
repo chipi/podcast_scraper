@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { attachSink, DEV_UMAMI_WEBSITE_ID } from './sink'
+import './settle'
 
 /**
  * The harness check. If this fails, every richer assertion below it is measuring nothing.

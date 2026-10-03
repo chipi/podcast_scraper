@@ -3,6 +3,7 @@ import landingSrc from '../views/LandingView.vue?raw'
 import routerSrc from '../router/index.ts?raw'
 import analyticsSrc from '../services/analytics.ts?raw'
 import mainSrc from '../main.ts?raw'
+import searchSrc from '../views/SearchView.vue?raw'
 
 /**
  * Static guards on WHERE analytics calls are attached (#2267).
@@ -146,5 +147,39 @@ describe('no telemetry target is hardcoded (operator rule, 2026-10-03)', () => {
         /['"]https?:\/\/homelab[:/]/,
       )
     }
+  })
+})
+
+
+describe('search_result_click wiring (#2267)', () => {
+  /**
+   * Covered HERE because the browser tier cannot reach it on this machine.
+   *
+   * The episode variant is fired by `openEpisode`, whose only callers are the per-hit "Play from
+   * {time}" jump controls. Those render on `hitStartSeconds(hit) != null && g.slug`, and this host has
+   * no `lancedb` wheel (no x86_64 build), so the API answers `no_index`, the search page renders its
+   * error state, and no grouped episode row with a jump control ever appears. The topic variant needs
+   * related-topic chips, which are derived from topics attached to the returned hits — and the
+   * committed fixture attached none for every query tried.
+   *
+   * Neither absence is a wiring problem, so skipping in the e2e tier and asserting nothing would have
+   * left the event with no coverage at all. This is the part that can be checked anywhere.
+   */
+  it('separates the topic chip from an episode result, and pairs each with its rank rule', () => {
+    const topicCall = searchSrc.slice(searchSrc.indexOf('function openTopicChip'))
+    const topicBody = topicCall.slice(0, topicCall.indexOf('\n}'))
+    expect(topicBody).toContain("track(\"search_result_click\", { result_kind: \"topic\", rank: \"1\" })")
+    // The chip row is a short unranked set. A literal '1' is correct precisely because inventing an
+    // ordinal would make the same bucket mean two different things across events.
+    expect(topicBody, 'a chip must not be given a computed rank').not.toContain('toRankBucket')
+    // And it must still emit the pivot event — the two answer different questions.
+    expect(topicBody).toContain('track("entity_open"')
+
+    const epCall = searchSrc.slice(searchSrc.indexOf('function openEpisode'))
+    const epBody = epCall.slice(0, epCall.indexOf('\n}'))
+    expect(epBody).toContain('result_kind: "episode"')
+    // An episode result DOES have a position, and it must be bucketed rather than raw: a raw ordinal
+    // over a small beta turns the event into a per-query fingerprint.
+    expect(epBody, 'an episode rank must go through toRankBucket').toContain('toRankBucket')
   })
 })

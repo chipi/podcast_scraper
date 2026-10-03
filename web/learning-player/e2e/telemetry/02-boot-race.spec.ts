@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { attachSink } from './sink'
+import './settle'
 
 /**
  * THE BOOT RACE (#2267). Found by this tier, not by review.
