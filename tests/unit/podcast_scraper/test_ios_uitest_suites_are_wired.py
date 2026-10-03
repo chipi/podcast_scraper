@@ -44,9 +44,9 @@ _UNWIRED_BY_DESIGN: dict[str, str] = {}
 #: Every entry is about the preconditions being incompatible with the gate, not about the suite.
 _OUTSIDE_THE_TIER: dict[str, str] = {
     "MagicLinkJourneyTests": (
-        "Needs a REAL MAILBOX between its phases: M1 requests a link, the delivery worker emails it, "
-        "and M2/M3 take that link as input. The tier has no mailbox and no worker, so folding it in "
-        "would make every run fail for want of a link. "
+        "Needs a REAL MAILBOX between its phases: M1 requests a link, the delivery worker emails "
+        "it, and M2/M3 take that link as input. The tier has no mailbox and no worker, so folding "
+        "it in would make every run fail for want of a link. "
         "`make test-app-ios-magic-link PHASE=M1|M2|M3`, run deliberately (#2272)."
     ),
     "ProdTourTests": (
