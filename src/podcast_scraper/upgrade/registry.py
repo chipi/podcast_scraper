@@ -30,6 +30,9 @@ from .migrations.m0015_unpublishable_speaker_names_removed import (
 from .migrations.m0016_ad_reader_names_removed import AdReaderNamesRemovedMigration
 from .migrations.m0017_speaker_names_canonicalised import SpeakerNamesCanonicalisedMigration
 from .migrations.m0018_org_speakers_removed_residue import OrgSpeakersRemovedResidueMigration
+from .migrations.m0019_descriptor_speaker_names_removed import (
+    DescriptorSpeakerNamesRemovedMigration,
+)
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -61,6 +64,7 @@ _MIGRATIONS: List[Migration] = [
     AdReaderNamesRemovedMigration(),
     SpeakerNamesCanonicalisedMigration(),
     OrgSpeakersRemovedResidueMigration(),
+    DescriptorSpeakerNamesRemovedMigration(),
 ]
 
 
