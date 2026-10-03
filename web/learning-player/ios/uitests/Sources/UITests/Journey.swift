@@ -470,12 +470,49 @@ enum Journey {
   /// episode"); `searchFields` is the fallback because the input is `type="search"`.
   static func searchFromDiscover(_ app: XCUIApplication, _ query: String) -> Bool {
     guard openTab(app, "Discover") else { return false }
-    let field = find(app, labels: ["Ask across every episode"], contains: true, timeout: 12)
-      ?? app.searchFields.firstMatch
-    guard field.waitForExistence(timeout: 8) else { return false }
+
+    // FIND THE INPUT BY TYPE, NOT BY LABEL (2026-10-03, measured).
+    //
+    // The label-first version matched the sr-only `<label>` — a StaticText — rather than the field
+    // it names. Tapping a StaticText gives nothing keyboard focus, and `typeText` on an unfocused
+    // element raises an XCTest failure that CANNOT be caught in Swift:
+    //
+    //     Failed to synthesize event: Neither element nor any descendant has keyboard focus.
+    //     Event dispatch snapshot: StaticText, label: 'Ask across every episode'
+    //
+    // So this did not merely fail to search — it aborted the whole run. The screenshot tour is
+    // explicitly best-effort per frame so one dead surface cannot cost the other twenty, and an
+    // uncatchable throw in a helper defeats that: the sheet came back with 2 of 30 screens.
+    //
+    // `searchFields` first (the input is `type="search"`), then `textFields` for a build that
+    // renders it plainly. The label match is gone entirely rather than kept as a fallback, because
+    // it is precisely the thing that matched the wrong element.
+    let search = app.searchFields.firstMatch
+    let text = app.textFields.firstMatch
+    let field = search.waitForExistence(timeout: 10) ? search
+      : (text.waitForExistence(timeout: 4) ? text : nil)
+    guard let field else { return false }
+
     field.tap()
+    // Confirm focus BEFORE typing. Returning false leaves the caller to skip its frame and carry
+    // on, which is the whole contract of a best-effort step.
+    guard waitForKeyboardFocus(field, timeout: 5) else { return false }
     field.typeText(query + "\n")
     return true
+  }
+
+  /// Poll until the element actually holds keyboard focus.
+  ///
+  /// `tap()` returning is not the same as the field being focused — the WebView may still be
+  /// settling, and typing into an unfocused element is an uncatchable XCTest failure rather than a
+  /// recoverable one. So this is a guard, not a convenience.
+  static func waitForKeyboardFocus(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+      if element.value(forKey: "hasKeyboardFocus") as? Bool == true { return true }
+      usleep(200_000)
+    }
+    return false
   }
 
   /// Dismiss any teleported sheet/popover that is still open.
