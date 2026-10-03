@@ -583,6 +583,18 @@ def test_refusing_without_transcription_is_a_config_error() -> None:
     assert "transcribe_missing" in str(exc.value)
 
 
+def test_rederive_only_runs_on_a_profile_that_refuses_speakerless_transcripts() -> None:
+    """`rederive_only` reuses the transcript ON DISK and never fetches or judges a publisher one,
+    so there is nothing to refuse — yet it forces `transcribe_missing` off, and the check above
+    made the stage unrunnable on `prod_dgx_full` (local trial, 2026-10-03: exit 1 before any work,
+    while repairing the six episodes whose KG extraction failed)."""
+    cfg = config_module.Config(
+        require_transcript_speakers=True, transcribe_missing=True, pipeline_stage="rederive_only"
+    )
+    assert cfg.pipeline_stage == "rederive_only"
+    assert cfg.transcribe_missing is False
+
+
 def test_a_refused_transcript_tries_the_feeds_other_candidates_first(tmp_path, monkeypatch) -> None:
     """Odd Lots publishes `application/srt`, `text/plain` AND `text/vtt` for the same episode.
 

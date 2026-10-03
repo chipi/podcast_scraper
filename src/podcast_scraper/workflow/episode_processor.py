@@ -4795,6 +4795,15 @@ def process_episode_download(
         logger.info(
             "[%s] rederive_only: re-deriving from existing transcript %s", episode.idx, reused
         )
+        # RELATIVE to this run's output dir, like every transcript path the pipeline hands on.
+        # The resolver returns an absolute path, and it was written verbatim into
+        # `content.transcript_file_path` and every GI/KG `transcript_ref` (local trial on a prod
+        # copy, 2026-10-03), where readers resolve it against the episode's run dir. Relative to
+        # the new run dir it reads "../run_<old>/transcripts/x.txt": joined here it finds the
+        # segments and diagnostics beside the transcript, and from the episode's own run dir it
+        # resolves to the same file.
+        if os.path.isabs(reused):
+            reused = os.path.relpath(reused, effective_output_dir)
         return True, reused, reused_source, 0
 
     if cfg.transcribe_missing and temp_dir:

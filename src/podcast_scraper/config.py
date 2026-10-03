@@ -6943,7 +6943,16 @@ class Config(BaseModel):
         # the episode ends with no transcript at all, which is strictly worse than the
         # single-voice transcript that was refused. Caught here rather than per-episode at
         # runtime, where it would show up as a feed that silently produces nothing.
-        if self.require_transcript_speakers and not self.transcribe_missing:
+        #
+        # ...unless the stage reuses what is on disk. `rederive_only` never fetches or judges a
+        # publisher transcript (it works from the one already stored), so nothing can be refused,
+        # while it forces `transcribe_missing` off by design: without this exemption the stage
+        # could not run on any profile that sets the flag (prod_dgx_full, 2026-10-03).
+        if (
+            self.require_transcript_speakers
+            and not self.transcribe_missing
+            and self.pipeline_stage not in STAGES_REUSING_ON_DISK_ARTIFACTS
+        ):
             raise ValueError(
                 "require_transcript_speakers refuses a transcript that separates no speaker "
                 "turns so the audio can be transcribed and diarized instead — but "

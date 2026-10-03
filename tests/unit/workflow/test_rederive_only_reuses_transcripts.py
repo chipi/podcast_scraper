@@ -166,12 +166,43 @@ class TestProcessEpisodeDownloadQueuesTheCascade:
             None,
         )
         assert ok is True
-        assert path == str(corpus.transcript)
+        assert path == f"transcripts/{corpus.transcript.name}"
         assert source is not None, (
             "transcript_source must be non-None or the caller queues NO ProcessingJob and the "
             "run exits 0 having re-derived nothing — the original bug"
         )
         assert nbytes == 0, "rederive_only must not download anything"
+
+    def test_the_transcript_path_is_relative_and_resolves_from_both_run_dirs(
+        self, corpus, monkeypatch
+    ):
+        """Under corpus layout the rederive run gets a NEW run dir beside the episode's own.
+
+        The absolute path the resolver returns was written verbatim into
+        ``content.transcript_file_path`` and every GI/KG ``transcript_ref`` (local trial on a prod
+        copy, 2026-10-03). Relative to the new run dir it must still name the same file, and it
+        must do so from the episode's own run dir too, where readers resolve it.
+        """
+        new_run = corpus.feed / "run_trial_20261003-210123"
+        new_run.mkdir()
+        monkeypatch.setattr(
+            ep,
+            "_resolve_existing_transcript_for_rederive",
+            lambda *a, **k: (str(corpus.transcript), "whisper_transcription"),
+        )
+        ok, path, _source, _n = ep.process_episode_download(
+            _episode(),
+            _cfg(corpus),
+            None,
+            str(new_run),
+            "20261003-210123",
+            queue.Queue(),
+            None,
+        )
+        assert ok is True
+        assert not Path(path).is_absolute()
+        assert (new_run / path).resolve() == corpus.transcript.resolve()
+        assert (corpus.run / path).resolve() == corpus.transcript.resolve()
 
     def test_no_transcript_is_a_loud_failure_not_a_quiet_success(self, corpus, monkeypatch, caplog):
         monkeypatch.setattr(

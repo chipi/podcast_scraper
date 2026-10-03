@@ -746,7 +746,10 @@ def test_rederive_only_reuses_the_on_disk_transcript(tmp_path: Path, monkeypatch
     )
 
     assert ok is True  # the stage now reports the episode as processed
-    assert path == str(stored)  # ...from the transcript already on disk
+    # ...from the transcript already on disk, named RELATIVE to the run's output dir like every
+    # transcript path the pipeline hands on (an absolute one was written into metadata and GI/KG).
+    assert path is not None and not Path(path).is_absolute()
+    assert (out_dir / path).resolve() == stored.resolve()
     # Provenance is READ from the episode's own metadata, never assumed, so a direct-download feed
     # is not relabelled `whisper_transcription`. This fixture stores no metadata, and the
     # documented fallback for unreadable metadata is exactly one value — accepting either would
