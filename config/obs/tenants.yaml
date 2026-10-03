@@ -22,9 +22,12 @@ tenants:
     grafana: { account: common, folder: "orrery" }
     sentry: { account: common }
 
-  # Consumer app (Goal 2) — its own account. Placeholder until the player o11y lands.
+  # Consumer app (Goal 2) — its own account. ENABLED 2026-10-03: the player o11y has landed
+  # (epic #2263), so this is no longer a placeholder. `config/grafana/dashboards/podcast-player/`
+  # now carries the beta-usage dashboard, and `make obs-sync` is the only way it reaches Grafana —
+  # a dashboard edited in the UI is lost on the next sync, which is the point of ADR-117.
   podcast-player:
-    enabled: false
+    enabled: true
     grafana: { account: podcast-player, folder: "podcast-player" }
     sentry: { account: podcast-player }
 

@@ -4966,7 +4966,7 @@ docker-clean:
 	@echo "Cleaned up Docker test images"
 
 # --- Observability control plane (podcast_obs, #803) ---
-.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-sync
+.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-sync obs-verify-dashboard
 
 obs-test: ## Unit tests for the observability control plane (podcast_obs). Fast, no network.
 	$(PYTHON) -m pytest tests/unit/podcast_obs/ -q --no-cov --disable-socket --allow-hosts=127.0.0.1,localhost
@@ -4989,6 +4989,18 @@ health-drill: ## #1819: deterministic o11y probe battery (datasources, metrics, 
 obs-sync: ## GitOps (ADR-117): sync Grafana dashboards+alerts + Sentry rules per tenant. Dry run by default; APPLY=1 to upload.
 	$(PYTHON) scripts/obs/grafana_sync.py $(if $(APPLY),--apply,)
 	$(PYTHON) scripts/obs/sentry_sync.py $(if $(APPLY),--apply,)
+
+obs-verify-dashboard: ## Prove a PUBLISHED dashboard renders data, panel by panel. UID=<uid> [VAR=instance=prod-podcast] [EXPECT_EMPTY=1]
+	@# `obs-sync` proves a dashboard was UPLOADED. It cannot prove any panel on it will show
+	@# anything, and those are very different claims. Three player log streams read empty for weeks
+	@# because an Alloy glob named the wrong directory AND the wrong filename: nothing errored, the
+	@# dashboards were present and correct and blank, and a blank analytics panel looks exactly like
+	@# a product nobody used. This runs every panel's own query through Grafana and fails on empty.
+	@test -n "$(UID)" || { echo "ERROR: pass UID=<dashboard-uid>"; exit 1; }
+	@test -n "$$GRAFANA_URL" || { echo "ERROR: GRAFANA_URL must be set"; exit 1; }
+	@test -n "$$GRAFANA_TOKEN" || { echo "ERROR: GRAFANA_TOKEN must be set"; exit 1; }
+	$(PYTHON) scripts/obs/verify_dashboard.py --uid $(UID) \
+	  $(if $(VAR),--var $(VAR),) $(if $(EXPECT_EMPTY),--expect-empty,)
 
 install-hooks:
 	@if [ ! -d .git ]; then echo "Error: Not a git repository"; exit 1; fi
