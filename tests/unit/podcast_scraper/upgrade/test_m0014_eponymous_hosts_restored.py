@@ -166,5 +166,6 @@ def test_verify_and_undo(tmp_path: Path) -> None:
     assert not m.verify(ctx)[0]
 
 
-def test_registered_last() -> None:
-    assert [m.id for m in get_migrations()][-1] == "0014_eponymous_hosts_restored"
+def test_registered_after_0013() -> None:
+    ids = [m.id for m in get_migrations()]
+    assert ids.index("0014_eponymous_hosts_restored") == ids.index("0013_artwork_thumbnails") + 1

@@ -1637,7 +1637,7 @@ def strip_role_prefix(name: str) -> str:
     return out
 
 
-def is_publishable_speaker_name(name: Optional[str]) -> bool:
+def is_publishable_speaker_name(name: Optional[str], *, require_person_shape: bool = True) -> bool:
     """Final reject filter for a name about to be painted on a diarized voice (ADR-134 shared core).
 
     Every extraction path (self-intro, host-pool, greeting reader, strategy snap, LLM, metadata)
@@ -1649,6 +1649,11 @@ def is_publishable_speaker_name(name: Optional[str]) -> bool:
     token that is a *known* non-name word, and does NOT require a capitalised first letter — else a
     real lowercase handle already vouched by a trusted source ("swyx") would be thrown away. The
     contract is "drop the garbage", not "re-validate every accepted name".
+
+    ``require_person_shape=False`` skips only the last, ordinary-English-word check on a multi-word
+    name (:func:`looks_like_a_person_name`), keeping every explicit junk rule. A corpus cleanup uses
+    it: that check also refuses real names whose parts are common words ("Ethan He", "Michael I.
+    Jordan"), and removing published names on it would delete real people.
     """
     nm = name or ""
     # A PUBLISHER IS NOT A SPEAKER, whatever path produced it. This gate is the last thing between
@@ -1678,7 +1683,7 @@ def is_publishable_speaker_name(name: Optional[str]) -> bool:
             return False
         if len(toks) >= 6:
             return False
-        return looks_like_a_person_name(nm)
+        return looks_like_a_person_name(nm) if require_person_shape else True
     if len(toks) == 1:
         tl = lowered[0]
         # "GE", "AI", "IDF": an abbreviation standing in for a name, not a name (the same rule the
