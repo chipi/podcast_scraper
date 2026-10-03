@@ -148,7 +148,8 @@ def test_analytics_id_is_minted_at_creation_and_is_a_uuid4(tmp_path: Path) -> No
     parsed = uuid.UUID(user.analytics_id)
     assert parsed.version == 4
     # Survives a reload — it is persisted, not computed per call.
-    assert get_user(tmp_path, user.user_id).analytics_id == user.analytics_id  # type: ignore[union-attr]
+    reloaded = get_user(tmp_path, user.user_id)
+    assert reloaded is not None and reloaded.analytics_id == user.analytics_id
 
 
 def test_analytics_id_is_not_derived_from_the_identity(tmp_path: Path) -> None:
@@ -207,7 +208,8 @@ def test_analytics_id_is_backfilled_for_a_profile_written_before_the_field(
     # ...and signing in closes it, persistently.
     back = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
     assert back.analytics_id
-    assert get_user(tmp_path, user.user_id).analytics_id == back.analytics_id  # type: ignore[union-attr]
+    reloaded = get_user(tmp_path, user.user_id)
+    assert reloaded is not None and reloaded.analytics_id == back.analytics_id
 
     # And the backfilled id is then itself stable.
     again = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")

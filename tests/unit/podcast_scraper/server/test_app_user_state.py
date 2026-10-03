@@ -375,7 +375,9 @@ def test_resubscribing_keeps_its_place_and_its_original_added_at(tmp_path: Path)
 
 
 def _read_jsonl(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
 
 
 def test_playback_progress_writes_a_canonical_event(tmp_path: Path) -> None:

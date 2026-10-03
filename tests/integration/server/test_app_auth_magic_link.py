@@ -47,7 +47,7 @@ def _link_token(data_dir: Path, email: str) -> str:
         if e["recipient"]["email"] == email
     ]
     assert pending, f"no envelope was enqueued for {email}"
-    link = pending[0]["payload"]["link"]
+    link = str(pending[0]["payload"]["link"])
     return link.split("token=", 1)[1].split("&", 1)[0]
 
 
@@ -311,7 +311,7 @@ def test_the_fingerprint_correlates_one_address_across_request_and_verify(
     client.post("/api/app/auth/email/request", json={"email": _STRANGER})
     client.get(f"/api/app/auth/email/verify?token={_link_token(data_dir, _ALLOWED)}")
 
-    by_outcome = {}
+    by_outcome: dict[tuple[str, str], list[str]] = {}
     for e, _ in _magic_events(caplog):
         by_outcome.setdefault((e["event_type"], e["outcome"]), []).append(e["email_fp"])
     requested = by_outcome[("magic_link_requested", "enqueued")]
@@ -371,7 +371,8 @@ def test_uvicorn_access_log_never_carries_the_link_token(tmp_path: Path) -> None
         None,
     )
     for f in logging.getLogger("uvicorn.access").filters:
-        f.filter(record)
+        if isinstance(f, logging.Filter):
+            f.filter(record)
     line = record.getMessage()
     assert token not in line and token.split(".")[0] not in line, line
     assert "token=<redacted>&platform=native" in line

@@ -97,9 +97,9 @@ def enqueue(data_dir: Path, envelope: dict[str, Any]) -> bool:
 #: and meaningless to gate on consent.
 #:
 #: There is exactly one, and it is auth. A magic-link email cannot be consent-gated because the
-#: recipient HAS NO ACCOUNT YET — that is the entire point of it — so there is no ``user_id`` to look
-#: a consent record up by, and no consent that could have been given. Requiring consent before being
-#: allowed to let someone in is circular.
+#: recipient HAS NO ACCOUNT YET — that is the entire point of it — so there is no ``user_id`` to
+#: look a consent record up by, and no consent that could have been given. Requiring consent before
+#: being allowed to let someone in is circular.
 #:
 #: This is a deliberate hole in a privacy gate, so it is a CLOSED SET rather than a flag on the
 #: envelope. An envelope cannot opt itself out of consent by setting a field; it has to be one of

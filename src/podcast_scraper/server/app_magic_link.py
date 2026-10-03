@@ -140,7 +140,9 @@ def consume(data_dir: Path, token_id: str, *, now: int | None = None) -> bool:
         logger.warning("magic link: lock timeout claiming a token; refusing the sign-in")
         return False
     except OSError:
-        logger.warning("magic link: could not record token use; refusing the sign-in", exc_info=True)
+        logger.warning(
+            "magic link: could not record token use; refusing the sign-in", exc_info=True
+        )
         return False
     _prune(data_dir, now=stamp)
     return True
