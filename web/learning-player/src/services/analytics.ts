@@ -240,7 +240,17 @@ export type EventProps = {
       | 'storylines'
     rank: RankBucket
   }
-  browse_tab_view: { tab: 'shows' | 'topics' | 'people' }
+  /**
+   * Widened beyond the spec's `shows | topics | people`, because that set can express neither half
+   * of the real Browse surface (2026-10-03).
+   *
+   * The Browse hub's own tabs are **Episodes** and **Shows**; the trends section inside it switches
+   * between **topics**, **storylines** and **people**. So `episodes` and `storylines` had no value
+   * to report, and an event that cannot name the surface a listener chose answers nothing. The
+   * question it exists for — "which browse surface do people actually use" — is the same for both
+   * rows of controls, so both report through here.
+   */
+  browse_tab_view: { tab: 'episodes' | 'shows' | 'topics' | 'people' | 'storylines' }
   entity_open: { kind: EntityKind; presentation: 'card' | 'page'; source: Source }
   episode_open: { source: Source; from_followed_show: boolean }
   follow: { kind: 'show' | 'person' | 'topic'; source: Source }
@@ -254,13 +264,30 @@ export type EventProps = {
   share_link_opened: { target_kind: string }
 
   play_start: { surface: 'player' | 'mini_player' | 'queue'; resumed: boolean }
-  knowledge_panel_open: { trigger: 'button' | 'density_tick' }
+  /**
+   * `density_tick` removed (2026-10-03): there is no such opener.
+   *
+   * The spec offers `button | density_tick`, but the panel has exactly one opener — the pill in
+   * PlayerView — and `EpisodeDensity` emits `seek`, not a panel open. An enum value that can never
+   * be emitted is the same failure as a diagnostic that looks like it is recording something: it
+   * makes a dashboard look like it is answering "how do people get in" when only one answer was
+   * ever possible. Add it back together with the affordance, if one is built.
+   */
+  knowledge_panel_open: { trigger: 'button' }
   insight_tap: { insight_type: string }
   transcript_seek: undefined
   /** NEVER the text of the highlight or note. */
   capture_created: {
     kind: 'highlight' | 'note'
-    target_kind: 'episode' | 'topic' | 'person' | 'insight'
+    /**
+     * Widened beyond the spec's four with `show` and `storyline` (2026-10-03).
+     *
+     * `NoteTarget` in services/types.ts genuinely includes both, and folding a note written
+     * against a SHOW into `episode` would be a wrong value rather than a coarse one — the two are
+     * different acts, and "they annotate shows" is a finding the beta would want. `highlight`
+     * folds into `episode` because a note on a highlight IS a note on a moment of that episode.
+     */
+    target_kind: 'episode' | 'topic' | 'person' | 'insight' | 'show' | 'storyline'
   }
   recap_view: { trigger: 'panel' | 'home_prompt' }
   revisit_open: { item_kind: string }

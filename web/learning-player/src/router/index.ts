@@ -8,6 +8,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { i18n } from '../i18n'
 import { track } from '../services/analytics'
+import { noteNavigation } from '../services/provenance'
 import { useAuthStore } from '../stores/auth'
 // `getAuthToken` / `isNative` are no longer imported here: the native-token check moved into the
 // shared `auth.hasSession` getter, which the masthead reads too, so the guard and the header cannot
@@ -266,6 +267,10 @@ router.afterEach((to) => {
  * The route name only — never the path, which would put the search term back into analytics that
  * `data-exclude-search` exists to keep out.
  */
-router.afterEach((to) => {
+router.afterEach((to, from) => {
   if (typeof to.name === 'string') track('screen_view', { screen: to.name })
+  // Remember where this navigation came FROM, for events that cannot be emitted until later —
+  // `episode_open` needs the episode's feed to know whether the show is followed, and by then the
+  // previous route is gone. See services/provenance.ts.
+  noteNavigation(from)
 })

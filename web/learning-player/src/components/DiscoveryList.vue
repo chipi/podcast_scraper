@@ -66,7 +66,7 @@ const props = withDefaults(
   { scope: "corpus", limit: 20, collapsed: 5, hideMore: false, expanded: false }
 )
 const emit = defineEmits<{
-  (e: "open", payload: { kind: Kind; id: string }): void
+  (e: "open", payload: { kind: Kind; id: string; rank: number }): void
   // How many rows this kind actually has. The header's expand control needs it: a control that
   // toggles when there is nothing hidden is the bug this whole change is fixing.
   (e: "count", total: number): void
@@ -205,7 +205,7 @@ function rowLabel(r: Row): string {
     </p>
     <ul v-if="hasAny" class="flex flex-col">
       <li
-        v-for="r in visible"
+        v-for="(r, i) in visible"
         :key="r.id"
         class="flex items-center gap-1 rounded-lg transition"
         :class="r.openId ? 'hover:bg-overlay' : ''"
@@ -232,7 +232,7 @@ function rowLabel(r: Row): string {
           :class="r.openId ? '' : 'cursor-default opacity-60'"
           :aria-disabled="r.openId ? undefined : true"
           :aria-label="r.openId ? rowLabel(r) : t('home.rowNotOpenable', { label: rowLabel(r) })"
-          @click="r.openId && emit('open', { kind, id: r.openId })"
+          @click="r.openId && emit('open', { kind, id: r.openId, rank: i + 1 })"
         >
           <!-- People carry their photo (falls back to initials); topics/storylines don't — which is
                why the row above pins `min-h-10`.

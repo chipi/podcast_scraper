@@ -11,8 +11,24 @@ import { PLAYBACK_RATES } from '../player/transcriptSync'
  * near the end", and 50 gives the drop-off shape between them.
  */
 export const PLAYBACK_MILESTONES = [25, 50, 75, 95] as const
+
+/**
+ * Playback rate → the analytics enum (#2267).
+ *
+ * The spec's values are strings, and everything at or above 2x collapses into `2+`: the question is
+ * "do people speed up", and splitting 2x from 2.5x would spread a already-small bucket thinner for
+ * no gain. An unlisted rate maps to the nearest listed one below it rather than being dropped.
+ */
+function speedLabel(rate: number): '1' | '1.25' | '1.5' | '1.75' | '2+' {
+  if (rate >= 2) return '2+'
+  if (rate >= 1.75) return '1.75'
+  if (rate >= 1.5) return '1.5'
+  if (rate >= 1.25) return '1.25'
+  return '1'
+}
 import { startBackgroundAudio, stopBackgroundAudio } from '../services/native'
 import { logPlaybackProgress } from '../services/api'
+import { track } from '../services/analytics'
 import { queueProgress } from '../services/listenLog'
 
 /**
@@ -440,6 +456,10 @@ export const usePlayerStore = defineStore('player', () => {
    * broken episode, and flagging it would tell the user their audio is unavailable when it is fine.
    */
   function play(): void {
+    // `resumed` distinguishes picking up where they left off from starting fresh, which is the
+    // difference between a habit and a first listen. `surface` is the player here; the mini-player
+    // and queue call their own transport, and if they ever route through this they must pass it.
+    track('play_start', { surface: 'player', resumed: currentTime.value > 1 })
     el.value?.play().catch((err: unknown) => {
       if (err instanceof DOMException && err.name === 'NotAllowedError') return
       audioError.value = true
@@ -617,6 +637,12 @@ export const usePlayerStore = defineStore('player', () => {
     seek(currentTime.value + delta)
   }
   function setRate(r: number): void {
+    // Only the NEW value, per the spec, and only on an actual change: `setRate` is also called
+    // while syncing state, and reporting those would turn one deliberate tap into a stream of
+    // identical events.
+    if (r !== rate.value) {
+      track('speed_change', { speed: speedLabel(r) })
+    }
     rate.value = r
     if (el.value) el.value.playbackRate = r
     syncPositionState()

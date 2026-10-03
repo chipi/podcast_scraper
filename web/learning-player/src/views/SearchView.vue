@@ -7,6 +7,7 @@
  * passage carries a real timestamp — otherwise we open the episode rather than fake a 0:00.
  */
 import { computed, onMounted, ref, watch } from "vue"
+import { toCountBucket, toRankBucket, track } from "../services/analytics"
 import { useI18n } from "vue-i18n"
 import { noteRoute as resolveNoteRoute, noteTargetLabel } from "../composables/noteTarget"
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
@@ -205,6 +206,15 @@ function hitKind(h: SearchHit): Kind {
 const relatedTopicChips = computed(() => aggregateRelatedTopics(results.value, 8))
 
 function openTopicChip(topicId: string): void {
+  // Two events, because they answer different questions (#2267). `search_result_click` says WHICH
+  // KIND of result search surfaced usefully — the related-topic chips exist precisely to turn a
+  // text search into a pivot, and whether anyone takes them is the thing to find out.
+  // `entity_open` is the pivot itself and feeds Pivot rate.
+  //
+  // `rank: '1'` rather than a position: the chip row is a short unranked set, not a results list,
+  // and inventing an ordinal would make a bucket mean two different things across events.
+  track("search_result_click", { result_kind: "topic", rank: "1" })
+  track("entity_open", { kind: "topic", presentation: "card", source: "search" })
   cardTarget.value = { kind: "topic", id: topicId }
 }
 
@@ -412,6 +422,17 @@ async function run(q: string): Promise<void> {
     if (!current()) return
     results.value = resp.results
     error.value = Boolean(resp.error)
+    // #2267 — NO QUERY TEXT, ever. Only the scope and a BUCKETED hit count: "did search answer
+    // them" is the question, and `results: '0'` is what makes an empty search visible to the
+    // beta's week-one check without recording what they were looking for.
+    //
+    // Reported after the response, not at submit, because the count is the point. A submit-time
+    // event could not carry it, and `search_submitted` with no result count cannot distinguish a
+    // search that worked from one that found nothing.
+    track("search_submitted", {
+      scope: recall ? "recall" : "corpus",
+      results: toCountBucket(resp.results.length),
+    })
   } catch {
     if (current()) error.value = true
   } finally {
@@ -472,8 +493,13 @@ function runExample(ex: string): void {
   submit()
 }
 
-function openEpisode(slug: string | null, hit?: SearchHit): void {
+function openEpisode(slug: string | null, hit?: SearchHit, rank?: number): void {
   if (!slug) return
+  // WHICH result they took, and how far down (#2267). `episode_open` fires separately from the
+  // router with `source: 'search'`, so this is not a duplicate: that one measures discovery, this
+  // one measures whether search RANKS well — if every taken result is rank 1, ranking is doing the
+  // work; if taps are spread down the list, people are hunting.
+  track("search_result_click", { result_kind: "episode", rank: toRankBucket(rank ?? 1) })
   const s = hit ? hitStartSeconds(hit) : null
   void router.push({
     name: "player",
@@ -883,7 +909,7 @@ const showEmpty = computed(
                and summary. The passage list stays a sibling BELOW the card, since it is per-match
                rather than part of the episode. -->
           <EpisodeGroupCard
-            v-for="g in section.groups"
+            v-for="(g, gi) in section.groups"
             :key="g.slug ?? g.title"
             :episode="groupAsEpisode(g)"
             :noun="t('search.groupNoun')"
@@ -954,7 +980,7 @@ const showEmpty = computed(
                               episode: g.title,
                             })
                           "
-                          @click="openEpisode(g.slug, m)"
+                          @click="openEpisode(g.slug, m, gi + 1)"
                         >
                           ▶
                           {{ t("search.playHere", { time: formatTime(hitStartSeconds(m) ?? 0) }) }}
@@ -990,7 +1016,7 @@ const showEmpty = computed(
                           episode: g.title,
                         })
                       "
-                      @click="openEpisode(g.slug, row)"
+                      @click="openEpisode(g.slug, row, gi + 1)"
                     >
                       ▶ {{ t("search.playHere", { time: formatTime(hitStartSeconds(row) ?? 0) }) }}
                     </button>

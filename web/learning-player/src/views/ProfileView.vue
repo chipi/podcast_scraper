@@ -811,7 +811,7 @@ onActivated(() => {
       </button>
     </div>
 
-    <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onSaved" />
+    <InterestsPicker v-if="pickerOpen" trigger="profile" @close="pickerOpen = false" @saved="onSaved" />
 
     <!-- A tapped interest opens the same overlay its kind opens everywhere else, rather than
          navigating away from the profile you were reading. Async so this view does not pull the

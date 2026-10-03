@@ -24,6 +24,7 @@ import { formatTime } from "../player/transcriptSync"
 import { formatDuration } from "../utils/format"
 import { formatPublishDate } from '../utils/format'
 import { episodeArtwork } from "../utils/episode"
+import { toRankBucket, track } from "../services/analytics"
 import { useAuthStore } from "../stores/auth"
 import { useLibraryStore } from "../stores/library"
 import { allPositions } from "../services/playbackPositions"
@@ -126,7 +127,40 @@ const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
 // A tapped discovery row opens the entity: topics/people → the entity card overlay; storylines → the
 // storyline overlay (its id is the anchor topic, resolved inside DiscoveryList). The tabs + sort +
 // scope controls live in the shared DiscoveryExplorer now (operator 2026-09-14).
-function onDiscoveryOpen(p: { kind: "topic" | "storyline" | "person"; id: string }): void {
+/**
+ * Which Home rail a discovery tap came from (#2267).
+ *
+ * The spec's first six `source` values exist to answer "which rail actually produces discovery",
+ * so a generic `home` would erase the only thing they are for. DiscoveryList's three kinds map
+ * one-to-one onto three of them.
+ */
+const DISCOVERY_SOURCE = {
+  topic: "home_trending_topics",
+  person: "home_key_voices",
+  storyline: "home_storylines",
+} as const
+
+/** The rail name `home_rail_click` reports, for the same three kinds. */
+const DISCOVERY_RAIL = {
+  topic: "trending_topics",
+  person: "key_voices",
+  storyline: "storylines",
+} as const
+
+function onDiscoveryOpen(p: {
+  kind: "topic" | "storyline" | "person"
+  id: string
+  rank: number
+}): void {
+  // Two events, deliberately, because they answer different questions. `home_rail_click` with its
+  // rank says whether people browse the rail or only ever tap the first row; `entity_open` is THE
+  // pivot event and feeds Pivot rate and the funnel's last step. Collapsing them would lose one.
+  track("home_rail_click", { rail: DISCOVERY_RAIL[p.kind], rank: toRankBucket(p.rank) })
+  track("entity_open", {
+    kind: p.kind,
+    presentation: "card",
+    source: DISCOVERY_SOURCE[p.kind],
+  })
   if (p.kind === "storyline") storylineTarget.value = p.id
   else cardTarget.value = { kind: p.kind, id: p.id }
 }
@@ -934,7 +968,7 @@ async function loadContinue(): Promise<void> {
       </button>
     </section>
 
-    <InterestsPicker v-if="pickerOpen" @close="pickerOpen = false" @saved="onInterestsSaved" />
+    <InterestsPicker v-if="pickerOpen" trigger="home_prompt" @close="pickerOpen = false" @saved="onInterestsSaved" />
 
     <EntityCard
       v-if="cardTarget"

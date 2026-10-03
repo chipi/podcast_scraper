@@ -34,7 +34,11 @@ const props = withDefaults(
   }>(),
   { collapsed: 5, seeAll: false, title: "", kind: undefined }
 )
-const emit = defineEmits<{ (e: "open", payload: { kind: Kind; id: string }): void }>()
+// `rank` rides through to the opener (#2267): only the list knows which position was tapped,
+// and only the view knows which rail it is, so the payload has to carry it across.
+const emit = defineEmits<{
+  (e: "open", payload: { kind: Kind; id: string; rank: number }): void
+}>()
 
 const { t } = useI18n()
 const auth = useAuthStore()

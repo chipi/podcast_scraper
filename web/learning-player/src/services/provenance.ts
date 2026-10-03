@@ -75,3 +75,33 @@ export function currentSource(route: RouteLocationNormalizedLoaded): Source {
   if (route.query?.utm_source === 'share' || route.query?.shared !== undefined) return 'deep_link'
   return sourceForRoute(route.name)
 }
+
+/**
+ * Where the CURRENT navigation came from, remembered across it.
+ *
+ * `episode_open` has to carry the surface the listener came FROM, and it cannot be emitted at the
+ * navigation itself: the event also needs `from_followed_show`, which depends on the episode's feed,
+ * and the feed is not known until the episode detail has loaded. By then the previous route is gone.
+ *
+ * So the router records it here on every navigation and the player view reads it once it has what
+ * it needs. One module-level value rather than six call sites: there are six-plus components that
+ * link to an episode, and wiring each would mean six chances to pass the wrong surface — the exact
+ * mistake already made once in this slice, on the landing CTAs.
+ */
+let navigationSource: Source = 'other'
+
+/** Called by the router on every navigation, with the route being LEFT. */
+export function noteNavigation(from: RouteLocationNormalizedLoaded): void {
+  navigationSource = currentSource(from)
+}
+
+/**
+ * The surface the current navigation came from.
+ *
+ * `other` on a cold start, which is correct and deliberately not `deep_link`: opening the app
+ * straight onto an episode is a genuine deep link, but so is a first paint after an update, and
+ * guessing would put app launches into the discovery numbers.
+ */
+export function sourceOfCurrentNavigation(): Source {
+  return navigationSource
+}

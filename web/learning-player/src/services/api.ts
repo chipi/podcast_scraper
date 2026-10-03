@@ -64,6 +64,7 @@ import type {
 } from "./types"
 import { ref } from "vue"
 import { resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
+import { track } from "./analytics"
 import { isForcedOffline, isOffline, reportServerReachable } from "../composables/useOnline"
 
 // API base, resolved once at load (#1305/#1310):
@@ -1085,6 +1086,32 @@ export async function uploadAvatar(file: Blob): Promise<{ image: string }> {
 
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
 
+/**
+ * A note's target → the `capture_created` enum (#2267).
+ *
+ * The app's note targets and the spec's four do not line up exactly, and anything unmapped folds
+ * into `episode` rather than becoming a silent new category in the dashboards. If that fold ever
+ * hides something worth separating, widen the enum deliberately — do not let an unmapped value
+ * leak through.
+ */
+function noteTargetKind(
+  target: string,
+): "episode" | "topic" | "person" | "insight" | "show" | "storyline" {
+  if (
+    target === "topic" ||
+    target === "person" ||
+    target === "insight" ||
+    target === "show" ||
+    target === "storyline"
+  ) {
+    return target
+  }
+  // `highlight` and `episode` both mean "a note against this episode's content" — a note on a
+  // highlight is a note on a moment of the episode, so folding them is honest. Anything genuinely
+  // new would land here too, which is why the union above is explicit rather than a cast.
+  return "episode"
+}
+
 /** The user's highlights, optionally scoped to one episode. A 401 THROWS (#2004 #3): the store
  *  falls back to cache rather than telling a user with highlights they have none. Sole caller:
  *  stores/capture. */
@@ -1094,6 +1121,10 @@ export async function getHighlights(episode?: string): Promise<Highlight[]> {
 
 /** Capture a highlight (auth-gated); returns the created record. */
 export async function createHighlight(body: HighlightCreate): Promise<Highlight> {
+  // #2267 — one of the spec's four Umami goals, and part of "learning actions per active day".
+  // NEVER the highlighted text, only that a capture happened and against what kind of thing. A
+  // highlight is always episode-scoped; notes are the ones that can hang off a topic or person.
+  track("capture_created", { kind: "highlight", target_kind: "episode" })
   const resp = await apiFetch(`${BASE}/highlights`, {
     method: "POST",
     credentials: "include",
@@ -1134,6 +1165,8 @@ export async function getNotes(target?: string, targetId?: string): Promise<Note
 
 /** Attach a free-text note to a highlight / insight / episode (auth-gated). */
 export async function createNote(body: NoteCreate): Promise<Note> {
+  // Same rule as createHighlight: the TARGET KIND, never the note's text.
+  track("capture_created", { kind: "note", target_kind: noteTargetKind(body.target) })
   const resp = await apiFetch(`${BASE}/notes`, {
     method: "POST",
     credentials: "include",
