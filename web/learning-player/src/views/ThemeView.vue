@@ -216,7 +216,7 @@ function goBack(): void {
       <div class="mt-3 flex flex-wrap items-center gap-2">
         <FavoriteButton :item="{ kind: 'theme', ref: id, label: label || id }" />
         <AddToCollectionButton :item="{ kind: 'theme', ref: id }" variant="pill" />
-        <ShareMenu :model="shareModel" />
+        <ShareMenu :model="shareModel" target-kind="topic" />
         <FollowButton
           v-if="auth.isAuthenticated"
           variant="theme"

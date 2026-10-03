@@ -9,6 +9,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { track } from '../services/analytics'
 
 import { useNotificationsStore } from '../stores/notifications'
 import type { NotificationItem } from '../services/types'
@@ -49,6 +50,11 @@ onBeforeUnmount(() => {
 })
 
 async function openItem(n: NotificationItem): Promise<void> {
+  // #2267. `channel: 'bell'` — this is the in-app inbox. A tap on a real PUSH notification arrives
+  // through the native shell, not here, and would report `channel: 'push'`; that path is not wired
+  // because native push is not functional on either platform yet (#2157), so there is no tap to
+  // observe. Wiring it blind would add a branch nothing can reach and nothing can test.
+  track('notification_open', { type: n.type, channel: 'bell' })
   await store.markRead(n.id)
   close()
   if (n.deep_link) void router.push(n.deep_link)

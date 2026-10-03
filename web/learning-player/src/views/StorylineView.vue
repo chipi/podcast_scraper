@@ -221,7 +221,7 @@ function goBack(): void {
         <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
         <!-- Share (card / link / text) — #2036. -->
         <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" variant="pill" />
-        <ShareMenu :model="shareModel" />
+        <ShareMenu :model="shareModel" target-kind="storyline" />
         <FollowButton
           v-if="auth.isAuthenticated && storylineId"
           variant="storyline"

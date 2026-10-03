@@ -390,3 +390,41 @@ describe('resolveSession', () => {
     expect(Object.keys(resolveSession()).sort()).toEqual(['app_version', 'channel', 'platform'])
   })
 })
+
+// ── 5. Completeness (#2267) ──────────────────────────────────────────────────
+
+describe('every registered event is actually wired', () => {
+  it('has a call site in src/ for all 39 names', () => {
+    // The registry test at the top proves no call site invents a name. This proves the converse,
+    // which is the failure that hides: an event sitting in the registry with nothing emitting it
+    // looks exactly like a feature nobody used. A dashboard built on it reports zero, honestly and
+    // misleadingly, and there is no error anywhere to notice.
+    const sources = import.meta.glob('../**/*.{ts,vue}', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    }) as Record<string, string>
+
+    const wired = new Set<string>()
+    for (const [path, src] of Object.entries(sources)) {
+      if (path.endsWith('services/analytics.ts') || path.includes('.test.')) continue
+      if (path.includes('__checks__')) continue
+      // `track('x'` / `track("x"` and the ternary form `track(cond ? 'a' : 'b'`.
+      for (const m of src.matchAll(/track\(\s*(?:[^,()]*\?\s*)?['"]([a-z_]+)['"]/g)) {
+        wired.add(m[1] as string)
+      }
+      for (const m of src.matchAll(/\?\s*['"]([a-z_]+)['"]\s*:\s*['"]([a-z_]+)['"]/g)) {
+        wired.add(m[1] as string)
+        wired.add(m[2] as string)
+      }
+    }
+
+    const unwired = EVENT_NAMES.filter((n) => !wired.has(n))
+    expect(
+      unwired,
+      'these events are in the registry but nothing emits them — wire them, or remove them from ' +
+        'the registry with the reason. An event that cannot fire makes a report say "zero" when ' +
+        'the honest answer is "never measured".',
+    ).toEqual([])
+  })
+})

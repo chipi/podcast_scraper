@@ -1354,7 +1354,7 @@ onBeforeUnmount(() => {
             -->
             <AddToCollectionButton :item="{ kind: 'episode', ref: props.slug }" />
             <!-- Share this episode as a card / link / text (#2036). -->
-            <ShareMenu :model="shareModel" />
+            <ShareMenu :model="shareModel" target-kind="episode" />
             <!-- Secondary actions overflow (UXS-014). Mark-as-played lives here — it's a rare,
                  deliberate action, not a primary transport control (PL.6). -->
             <OverflowMenu :label="t('player.moreActions')">

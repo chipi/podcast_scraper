@@ -433,6 +433,16 @@ async function run(q: string): Promise<void> {
       scope: recall ? "recall" : "corpus",
       results: toCountBucket(resp.results.length),
     })
+    // #2267 friction. The beta's day-7 check reads these by name — "any errors or empty states,
+    // especially not in corpus" — and an empty search is the single most common way a listener
+    // discovers the corpus does not have what they wanted. `not_in_corpus` rather than
+    // `no_results` when the search succeeded and simply found nothing: the distinction is whether
+    // the SEARCH failed or the CONTENT is missing, and only the second is a corpus priority.
+    if (resp.error) {
+      track("error_shown", { surface: "search", kind: "server" })
+    } else if (resp.results.length === 0) {
+      track("empty_state_shown", { surface: "search", reason: "not_in_corpus" })
+    }
   } catch {
     if (current()) error.value = true
   } finally {

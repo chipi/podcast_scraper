@@ -29,8 +29,8 @@
  * swallowed. A failed metric must never surface to a listener.
  */
 
+import { Capacitor } from '@capacitor/core'
 import { resolveChannel, type Channel } from './channel'
-import { platform } from './native'
 
 // ── Session properties ───────────────────────────────────────────────────────
 
@@ -48,9 +48,17 @@ export type SessionProps = {
   channel: Channel
 }
 
-/** Build the session properties for this build and device. */
+/**
+ * Build the session properties for this build and device.
+ *
+ * Reads `Capacitor.getPlatform()` directly rather than `services/native`'s `platform()` wrapper,
+ * and that matters more than it looks: `native.ts` calls `registerPlugin()` at module load, so
+ * importing it here dragged the whole native plugin layer into EVERY module that tracks an event.
+ * `useOnline` then blew up two unrelated test files whose `@capacitor/core` mock had no
+ * `registerPlugin` — a telemetry helper should not be able to do that.
+ */
 export function resolveSession(): SessionProps {
-  const p = platform()
+  const p = Capacitor.getPlatform()
   return {
     platform: p === 'ios' || p === 'android' ? p : 'web',
     app_version: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '',
@@ -295,7 +303,13 @@ export type EventProps = {
   collection_add: undefined
   download_start: undefined
   share: {
-    target_kind: 'episode' | 'moment' | 'topic' | 'person' | 'storyline'
+    /**
+     * `organization` added beyond the spec's five (2026-10-03). `EntityCardBody` renders
+     * person / topic / ORGANIZATION, and its share menu is the same component — so without this,
+     * an org share had to be filed as a topic. A wrong kind is worse than a new one: it would make
+     * organizations invisible while inflating topics.
+     */
+    target_kind: 'episode' | 'moment' | 'topic' | 'person' | 'storyline' | 'organization'
     method: 'native_sheet' | 'copy_link'
   }
   /**

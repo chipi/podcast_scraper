@@ -1,4 +1,5 @@
-import { computed, ref, type Ref } from 'vue'
+import { computed, ref, type Ref, watch } from 'vue'
+import { track } from '../services/analytics'
 import { Capacitor } from '@capacitor/core'
 import { Network } from '@capacitor/network'
 
@@ -100,6 +101,11 @@ let initialised = false
 function ensureListeners(): void {
   if (initialised) return
   initialised = true
+  // #2267 — ONCE PER SESSION, as the spec specifies, and that word is doing work: a flaky train
+  // connection flips this listener dozens of times, and reporting each flip would make a handful of
+  // commutes look like most of the cohort's usage. The latch lives with the listener because this
+  // module is a process-lifetime singleton, so "session" and "module lifetime" are the same thing.
+  reportOfflineSessionOnce()
   if (isNativePlatform) {
     // The accurate OS-level signal. Seed from the current status, then track changes. The listener
     // handle is never removed on purpose — this is a process-lifetime singleton.
@@ -169,4 +175,23 @@ export function offlineReason(): OfflineReason {
  */
 export function isForcedOffline(): boolean {
   return forced.value
+}
+
+
+/**
+ * Report `offline_session` the first time this session is offline, and never again (#2267).
+ *
+ * Checked at listener setup AND watched afterwards, because both orders really happen: the app can
+ * boot already offline (airplane mode, no signal), or go offline later while in use.
+ */
+let reportedOfflineSession = false
+function reportOfflineSessionOnce(): void {
+  const fire = (): void => {
+    if (reportedOfflineSession) return
+    if (isOnlineRef.value) return
+    reportedOfflineSession = true
+    track('offline_session')
+  }
+  fire()
+  watch(isOnlineRef, fire)
 }

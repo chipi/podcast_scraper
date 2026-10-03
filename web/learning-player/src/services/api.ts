@@ -1667,6 +1667,9 @@ export async function reorderCollections(order: string[]): Promise<Collection[]>
 }
 
 export async function addToCollection(id: string, item: CollectionItemRef): Promise<Collection> {
+  // #2267. No props: the spec gives this event none, and the collection's name is user-typed, so
+  // there is nothing here that could be reported without breaking the no-free-text rule.
+  track("collection_add")
   const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}/items`, {
     method: "POST",
     credentials: "include",

@@ -20,6 +20,7 @@ import { PushNotifications } from '@capacitor/push-notifications'
 import { Preferences } from '@capacitor/preferences'
 import { getVapidKey, subscribePush, unsubscribePush } from '../services/api'
 import { isNative } from '../services/native'
+import { track } from '../services/analytics'
 
 // Where we remember THIS device's native push endpoint, so a later "disable" can deregister it
 // server-side (the token is not otherwise recoverable without re-registering).
@@ -106,6 +107,13 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
  */
 async function enablePushNative(): Promise<boolean> {
   const perm = await PushNotifications.requestPermissions()
+  // #2267. Reported from the ANSWER, not the ask: whether people allow notifications is the
+  // question, and the native prompt can also be dismissed without a decision — which is
+  // `deferred`, a different outcome from a refusal and one the beta would want to tell apart.
+  track('push_permission', {
+    result:
+      perm.receive === 'granted' ? 'granted' : perm.receive === 'denied' ? 'denied' : 'deferred',
+  })
   if (perm.receive !== 'granted') return false
 
   return await new Promise<boolean>((resolve) => {
@@ -157,6 +165,12 @@ export async function enablePush(): Promise<boolean> {
   if (isNative()) return pushSupported() ? enablePushNative() : false
   if (!pushSupported()) return false
   const permission = await Notification.requestPermission()
+  // The browser's three states map straight onto the spec's: `default` means they closed the
+  // prompt without choosing, which is `deferred`.
+  track('push_permission', {
+    result:
+      permission === 'granted' ? 'granted' : permission === 'denied' ? 'denied' : 'deferred',
+  })
   if (permission !== 'granted') return false
   let key: string
   try {

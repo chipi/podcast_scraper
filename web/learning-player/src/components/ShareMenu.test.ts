@@ -23,7 +23,7 @@ function mountMenu(model: EntityCardModel) {
   // The menu teleports to <body> via the shared popover shell; stub teleport so it renders inline
   // for `find`, and attach to the document so the outside-pointer/Escape dismissal is real.
   return mount(ShareMenu, {
-    props: { model },
+    props: { model, targetKind: 'topic' as const },
     attachTo: document.body,
     global: { plugins: [i18n], stubs: { teleport: true } },
   })

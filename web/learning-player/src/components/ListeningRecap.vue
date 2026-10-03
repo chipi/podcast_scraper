@@ -15,6 +15,7 @@
  * Renders nothing at all when there is no recording yet — an empty recap is worse than no recap.
  */
 import { computed, onMounted, ref, watch } from 'vue'
+import { track } from '../services/analytics'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getRecap } from '../services/api'
@@ -54,6 +55,24 @@ async function load(): Promise<void> {
 }
 onMounted(load)
 watch(window_, load)
+
+/**
+ * `recap_view` (#2267) — reported when a recap actually RENDERS, not when this mounts.
+ *
+ * The component mounts and then fetches, and a listener with nothing to recap gets an empty state.
+ * Reporting on mount would count those as recap views and make the learning-actions figure larger
+ * than the behaviour behind it. Watching the loaded value counts only the real ones, once each.
+ */
+const reportedRecap = ref(false)
+watch(
+  recap,
+  (r) => {
+    if (!r || reportedRecap.value) return
+    reportedRecap.value = true
+    track('recap_view', { trigger: 'panel' })
+  },
+  { immediate: true },
+)
 
 /** Days are the listener's own, so the bars line up with the days they remember. */
 const bars = computed(() => Object.entries(recap.value?.by_day ?? {}))

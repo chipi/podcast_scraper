@@ -15,6 +15,7 @@ import { Preferences } from '@capacitor/preferences'
 import { Share } from '@capacitor/share'
 import { setAuthToken } from './api'
 import { routeForDeepLink, type DeepLinkTarget } from './deepLinks'
+import { track } from './analytics'
 import { resolveApiBase, resolveGateCookie } from './tier'
 
 // Local Android plugin (#1310): a foreground media service keep-alive so the OS doesn't suspend the
@@ -132,9 +133,18 @@ export async function startNativeLogin(loginUrl: string): Promise<void> {
       if (token) {
         storeAuthToken(token)
         onAuthedCb?.()
+      } else {
+        // The session returned, but with no token in the callback — that is a failed exchange, not
+        // a cancellation, and the funnel needs them apart: one says the sign-in is broken, the
+        // other says people change their minds.
+        track('auth_failed', { provider: 'oauth', reason: 'error' })
       }
     } catch {
       /* user cancelled or the session failed — stay signed out */
+      // ASWebAuthenticationSession throws on BOTH a user cancel and an internal failure, and does
+      // not distinguish them. Reported as `cancelled` because that is overwhelmingly the common
+      // case; a wrong lean here is better than inventing a third value the spec does not have.
+      track('auth_failed', { provider: 'oauth', reason: 'cancelled' })
     }
     return
   }
@@ -220,6 +230,10 @@ export async function initDeepLinks(
   if (!isNative()) return
   const route = (url: string): void => {
     const target = routeForDeepLink(url)
+    // #2267. An inbound shared/deep link, which is how the spec separates traffic the app
+    // generated from traffic someone else's share brought in. `target_kind` is the deep-link
+    // target, a developer-authored vocabulary rather than anything a user typed.
+    if (target) track('share_link_opened', { target_kind: target.name })
     if (target) navigate(target)
   }
   await App.addListener('appUrlOpen', ({ url }) => route(url))

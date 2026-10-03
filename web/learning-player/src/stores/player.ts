@@ -263,6 +263,10 @@ export const usePlayerStore = defineStore('player', () => {
   function showRoutePicker(): void {
     const audio = el.value as WebKitRoutableMedia | null
     if (!audio) return
+    // #2267, and NO `destination` — see the registry note. The choice happens inside the platform's
+    // own sheet and no API exposes what was picked, so this records only that the listener reached
+    // for output routing, which is all the app can honestly observe.
+    track('route_output')
     try {
       if (typeof audio.webkitShowPlaybackTargetPicker === 'function') {
         audio.webkitShowPlaybackTargetPicker()
@@ -364,6 +368,11 @@ export const usePlayerStore = defineStore('player', () => {
     syncPositionState()
   }
   function onError(): void {
+    // #2267. What the LISTENER saw: audio that would not play. Sentry/GlitchTip records the
+    // exception; this records the user-visible failure, which is the one the beta's friction rate
+    // counts. `network` because that is what a media element error overwhelmingly is — a missing
+    // or unreachable file — and the element does not tell us more than that.
+    track('error_shown', { surface: 'player', kind: 'network' })
     audioError.value = true
     void stopBackgroundAudio()
   }
