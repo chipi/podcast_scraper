@@ -34,6 +34,27 @@ Still open:
   No Priors: on the next nightly.
 - The three 13 GB whole-corpus upgrade snapshots were deleted after verify (operator-approved).
 
+## Next deploy (after the operator's PR) — order agreed 2026-10-03
+
+1. Pause the deepen queue: cancel the QUEUED deepen jobs (the operator decides about one still
+   running). Deepen order and ids: the 13 jobs queued 2026-10-03 15:10.
+2. `deploy-all-prod` at the PR's merge sha (operator approval link).
+3. Migrations, one at a time, each dry-run → read the frozen set → apply → verify:
+   m0018 (m0012's org residue, "Africa Tech Summit"), then m0019 (names the gate refuses since
+   m0015 — expected: "Pulitzer Prize-winning", one Freakonomics episode). `upgrade verify` should
+   then clear 0010 (false: read backups, fixed by f8330a635) and 0012.
+4. Checks: obs `prod_recent_runs` returns data (read key), operator live smoke passes first time
+   (digest in threadpool), the 5 allowlist emails added 2026-10-03 can sign in.
+5. Repair the 6 KG-failed episodes — `pipeline_stage=rederive_only`, one Jobs-API job per feed with
+   `reprocess_episode_ids=<id>` (re-derives every LLM stage from the transcript on disk; no
+   download, transcription or diarization). An operator-approved exception to the text-only rule
+   (2026-10-03). Episodes: Freakonomics `f311df56-…`, BizNews `https://iono.fm/e/1724192`, StarTalk
+   `88fee8b7-…`, Dwarkesh `substack:post:218345956`, Ottoman History
+   `tag:blogger.com,1999:blog-…-1564919621168009314` (contains a comma: confirm the job lists one
+   episode before it runs), Huberman Lab `6e6186c8-…`. Then `scripts/audit/show_review.py` on each
+   feed: the KG issue must be gone.
+6. Re-queue the deepen shows that did not run, each reviewed with `show_review.py` as it finishes.
+
 ## A. Before / during deploy
 
 | # | Step | Why |
