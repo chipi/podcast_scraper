@@ -4966,7 +4966,7 @@ docker-clean:
 	@echo "Cleaned up Docker test images"
 
 # --- Observability control plane (podcast_obs, #803) ---
-.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-sync obs-verify-dashboard
+.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-sync obs-verify-dashboard obs-umami-views obs-umami-views-check
 
 obs-test: ## Unit tests for the observability control plane (podcast_obs). Fast, no network.
 	$(PYTHON) -m pytest tests/unit/podcast_obs/ -q --no-cov --disable-socket --allow-hosts=127.0.0.1,localhost
@@ -5001,6 +5001,17 @@ obs-verify-dashboard: ## Prove a PUBLISHED dashboard renders data, panel by pane
 	@test -n "$$GRAFANA_TOKEN" || { echo "ERROR: GRAFANA_TOKEN must be set"; exit 1; }
 	$(PYTHON) scripts/obs/verify_dashboard.py --uid $(UID) \
 	  $(if $(VAR),--var $(VAR),) $(if $(EXPECT_EMPTY),--expect-empty,)
+
+obs-umami-views: ## Umami beta views as code (ADR-126). WEBSITE_ID=<uuid> [APPLY=1] [VERIFY=1]
+	@# Dry run by default, like obs-sync. VERIFY=1 EXECUTES each view and fails if any returns
+	@# nothing — creating a view proves it was stored, not that it will ever show a number, and an
+	@# empty analytics surface looks exactly like a product nobody used.
+	@test -n "$(WEBSITE_ID)" || { echo "ERROR: pass WEBSITE_ID=<umami-website-uuid>"; exit 1; }
+	$(PYTHON) scripts/obs/umami_views.py --website-id $(WEBSITE_ID) \
+	  $(if $(APPLY),--apply,) $(if $(VERIFY),--verify,)
+
+obs-umami-views-check: ## No-network guard: every view step must be a real EVENT_NAMES member.
+	$(PYTHON) scripts/obs/umami_views.py --check-registry
 
 install-hooks:
 	@if [ ! -d .git ]; then echo "Error: Not a git repository"; exit 1; fi
