@@ -10,7 +10,7 @@
     "email_verified": false
   },
   "payload": {
-    "link": "https://closelistening.app/api/app/auth/email/verify?token=eyJhbGciOiJIUzI1NiJ9.signature",
+    "link": "https://closelistening.app/api/app/auth/email/verify?token=EXAMPLE-PLACEHOLDER",
     "expires_minutes": 15
   },
   "not_before": "2026-10-03T15:00:00Z",
