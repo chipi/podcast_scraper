@@ -194,8 +194,11 @@ def _topic_band_for_query(
     )
 
 
+# A plain ``def``: FastAPI runs it in its worker threadpool. As ``async def`` with no await, the
+# cold build (113.5 s on the first request after the 2026-10-03 deploy) ran ON the event loop and
+# froze every other request — the post-deploy smoke's /api/app/me timed out behind it.
 @router.get("/corpus/digest", response_model=CorpusDigestResponse)
-async def corpus_digest(
+def corpus_digest(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
     window: Literal["all", "24h", "7d", "1mo", "since"] = Query(
