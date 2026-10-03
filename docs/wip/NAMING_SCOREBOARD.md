@@ -83,6 +83,12 @@ becomes a candidate the roster may bind (the over-broad surname match was doing 
    cut at the source.
 5. Also from the Gray Area review (2026-10-03): promo voices named as guests (Kara Swisher, Sky
    Galloway, Anne Applebaum) and "John Gwynn-Hill" published for Jonquilyn Hill.
+6. From the StarTalk review (2026-10-03): the regular co-hosts (Chuck Nice, Gary O'Reilly, Paul
+   Mecurio) are published as guests because the feed states only Neil deGrasse Tyson (a per-show
+   profile case, #2261); on Cosmic Queries / TYTYK episodes the co-host voice stays unnamed (39 of
+   42 insights hidden on one voice); listener names read from Patreon questions ("Ernie
+   Carducci", "Lani Lum") are captured as self-introductions while the stated guest (Hakeem
+   Oluseyi) stays unplaced.
 
 ## Also on this branch — the two open plan steps (from 2026-10-02/03)
 
