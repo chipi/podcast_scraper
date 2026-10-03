@@ -618,6 +618,11 @@ def finalize_multi_feed_batch(
 
     _maybe_spawn_enrichment_after_pipeline(template_cfg, corpus_parent)
 
+    # Cross-show ad signatures (ad_signatures.py): read segments, not the LanceDB index, so built
+    # before the vector_search guard. Never raises; a missing or stale file makes the rule abstain.
+    from podcast_scraper.providers.ml.diarization.ad_signatures import write_for_corpus
+
+    write_for_corpus(Path(corpus_parent))
     if template_cfg.vector_search is not True:
         return summary_doc
 

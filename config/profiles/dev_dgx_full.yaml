@@ -30,6 +30,8 @@ dgx_whisper_port: 8000
 
 screenplay: true
 diarize: true
+# Mirrors prod_dgx_full (dev twin): refuse publisher transcripts that do not say who speaks.
+require_transcript_speakers: true
 diarization_provider: tailnet_dgx
 dgx_diarize_port: 8001
 dgx_diarize_model: pyannote/speaker-diarization-community-1

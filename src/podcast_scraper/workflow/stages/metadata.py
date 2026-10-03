@@ -66,7 +66,7 @@ def call_generate_metadata(
     # authors, never another episode's (see stages.processing.hosts_for_episode).
     from .processing import hosts_for_episode
 
-    episode_hosts = hosts_for_episode(host_detection_result, episode)
+    episode_hosts = hosts_for_episode(host_detection_result, episode, detected_names or ())
     detected_hosts = sorted(episode_hosts) if episode_hosts else None
     detected_guests = (
         [name for name in detected_names if not episode_hosts or name not in episode_hosts]

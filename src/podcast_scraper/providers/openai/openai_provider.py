@@ -134,6 +134,43 @@ def _repetition_signal(text: str, n: int = 12) -> Tuple[int, str]:
     return count, gram[:200]
 
 
+#: A 12-gram repeated this often is a decoding loop. Healthy replies repeat one once or twice; the
+#: 13 loops captured on 2026-10-02 ("like, you know, like, you know, ...") repeated 185-2,516 times.
+_DECODING_LOOP_MIN_REPEATS = 50
+
+_JSON_STRING_RE = re.compile(r'"((?:[^"\\]|\\.)*)"')
+_BUNDLE_KEY_RE = re.compile(r'"(\d+)"\s*:\s*\[')
+
+
+def _is_decoding_loop(text: str) -> bool:
+    """True when *text* repeats one 12-word run often enough to be a loop, not real content."""
+    return _repetition_signal(text)[0] >= _DECODING_LOOP_MIN_REPEATS
+
+
+def _salvage_closed_quotes(text: str, insight_count: int) -> Dict[int, List[str]]:
+    """The quote strings that CLOSED in a cut-off ``{"0": [...], "1": [...]}`` reply.
+
+    The string the loop was writing never closes, so it is never matched; everything before it
+    is a complete JSON string. Each kept quote still has to resolve verbatim against the
+    transcript downstream, so a closed string that is itself filler is dropped there.
+    """
+    keys = [(m.start(), m.end(), int(m.group(1))) for m in _BUNDLE_KEY_RE.finditer(text)]
+    out: Dict[int, List[str]] = {}
+    for i, (_start, body_start, idx) in enumerate(keys):
+        if not 0 <= idx < insight_count:
+            continue
+        body_end = keys[i + 1][0] if i + 1 < len(keys) else len(text)
+        quotes: List[str] = []
+        for m in _JSON_STRING_RE.finditer(text, body_start, body_end):
+            try:
+                quotes.append(json.loads(f'"{m.group(1)}"'))
+            except ValueError:
+                continue
+        if quotes:
+            out[idx] = quotes
+    return out
+
+
 #: Ceiling on the episode description handed to speaker detection (#2011).
 #:
 #: That call sends title + description + known hosts and asks for 300 output tokens — no
@@ -3075,6 +3112,11 @@ class OpenAICompatibleProvider:
             logger.debug("OpenAI score_entailment failed: %s", e, exc_info=True)
             return 0.0
 
+    def _bundled_quote_response_format(self, num_insights: int, max_out: int) -> Dict[str, Any]:
+        """``response_format`` for the bundled-quote call. JSON mode here; a server known to
+        enforce schema bounds overrides it with a bounded schema (see ``VLLMProvider``)."""
+        return {"type": "json_object"}
+
     def extract_quotes_bundled(
         self,
         transcript: str,
@@ -3160,7 +3202,9 @@ class OpenAICompatibleProvider:
                 **self._token_kwarg(max_out),
             }
             if not _uses_completion_tokens:
-                call_kwargs["response_format"] = {"type": "json_object"}
+                call_kwargs["response_format"] = self._bundled_quote_response_format(
+                    len(insight_texts), max_out
+                )
             return self._chat_create(**call_kwargs)
 
         try:
@@ -3210,10 +3254,14 @@ class OpenAICompatibleProvider:
                 max_out,
                 len(insight_texts),
                 (
-                    "finish_reason and the truncation diagnosis agree -> raise the output "
-                    "budget for this call"
-                    if exc.truncation_suspected
-                    else "not budget-shaped -> suspect the prompt or the model, not max_tokens"
+                    "the reply repeats itself -> a decoding loop, not a budget too small"
+                    if _is_decoding_loop(content)
+                    else (
+                        "finish_reason and the truncation diagnosis agree -> raise the output "
+                        "budget for this call"
+                        if exc.truncation_suspected
+                        else "not budget-shaped -> suspect the prompt or the model, not max_tokens"
+                    )
                 ),
             )
             # #1893: keep the REPLY, not just the fact that it failed. The log line above cannot
@@ -3248,14 +3296,29 @@ class OpenAICompatibleProvider:
                         pm.gi_quote_extraction_truncated_events += 1
                     except Exception:  # pragma: no cover - telemetry must not mask the failure
                         pass
-                raise BundleOutputBudgetExceeded(
-                    f"extract_quotes_bundled output budget exhausted: "
-                    f"{out_tok}/{max_out} tokens for {len(insight_texts)} insights",
-                    content_length=exc.content_length,
-                    error_position=exc.error_position,
-                    truncation_suspected=True,
-                ) from exc
-            raise
+                if not _is_decoding_loop(content):
+                    raise BundleOutputBudgetExceeded(
+                        f"extract_quotes_bundled output budget exhausted: "
+                        f"{out_tok}/{max_out} tokens for {len(insight_texts)} insights",
+                        content_length=exc.content_length,
+                        error_position=exc.error_position,
+                        truncation_suspected=True,
+                    ) from exc
+                # A decoding loop, not a budget too small: a smaller batch over the same
+                # transcript loops the same way (8 -> 4 -> 2 all failed on 2026-10-02), so
+                # bisecting only spends another full budget per half. Keep what closed before
+                # the loop and stop; insights left without a quote take the per-insight path.
+                parsed = _salvage_closed_quotes(content, len(insight_texts))
+                logger.warning(
+                    "extract_quotes_bundled: decoding loop (%s); kept %d closed quote(s) for "
+                    "%d of %d insight(s), not retrying smaller batches",
+                    _repetition_signal(content)[1][:60],
+                    sum(len(v) for v in parsed.values()),
+                    len(parsed),
+                    len(insight_texts),
+                )
+            else:
+                raise
 
         out: Dict[int, List[Any]] = {}
         for idx in range(len(insight_texts)):

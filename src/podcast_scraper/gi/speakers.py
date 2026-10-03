@@ -284,6 +284,27 @@ def _rewrite_quote_attribution(nodes: List[Dict], attribution: Dict[str, str]) -
         props["speaker_name"] = _person_display_name(nodes, person)
 
 
+def _reanchor_quote(props: Dict, text: str, transcript: str) -> Optional[int]:
+    """Move a quote's offsets onto the ONE place its text occurs in *transcript*, else ``None``.
+
+    A transcript rewritten after GI was built (a speaker relabel changes every label's length)
+    leaves the quote text intact but every offset behind it shifted. Measured on prod 2026-10-02:
+    36 Odd Lots episodes relabelled on 2026-09-28, 2,021 quotes skipped on every enrichment run,
+    1,997 of them occurring exactly once in the current transcript. A text that occurs twice could
+    be either occurrence, so it is not moved.
+    """
+    needle = text.strip()
+    first = transcript.find(needle)
+    if first < 0 or transcript.find(needle, first + 1) >= 0:
+        return None
+    delta = first - (text.find(needle) + int(props["char_start"]))
+    new_start = int(props["char_start"]) + delta
+    props["char_start"] = new_start
+    if isinstance(props.get("char_end"), int):
+        props["char_end"] = int(props["char_end"]) + delta
+    return new_start
+
+
 def add_spoken_by_edges(
     artifact: Dict,
     transcript: str,
@@ -323,6 +344,7 @@ def add_spoken_by_edges(
     episode_id = episode_id if isinstance(episode_id, str) and episode_id else None
     quote_char_starts: Dict[str, Optional[int]] = {}
     misaligned = 0
+    reanchored = 0
     for n in nodes:
         if n.get("type") != "Quote" or not isinstance(n.get("id"), str):
             continue
@@ -337,16 +359,24 @@ def add_spoken_by_edges(
             probe = text.strip()[:_OFFSET_PROBE_LEN]
             window = transcript[max(0, cs) : cs + len(probe) + _OFFSET_PROBE_SLACK]
             if probe and probe not in window:
-                misaligned += 1
-                continue
+                moved = _reanchor_quote(props, text, transcript)
+                if moved is None:
+                    misaligned += 1
+                    continue
+                cs = moved
+                reanchored += 1
         quote_char_starts[n["id"]] = cs
+    if reanchored:
+        logger.info(
+            "add_spoken_by_edges: re-anchored %d quote(s) whose text occurs exactly once in "
+            "the transcript but at a different offset.",
+            reanchored,
+        )
     if misaligned:
         logger.warning(
             "add_spoken_by_edges: %d quote(s) have char_start not aligned with the "
-            "transcript; skipping their speaker attribution. Likely a transcript/offset "
-            "mismatch -- e.g. enrich-edges run on a re-diarized transcript without "
-            "rebuilding GI (diarization shifts char offsets). Re-run GI so quote offsets "
-            "match the diarized transcript.",
+            "transcript and their text is absent or occurs more than once; skipping their "
+            "speaker attribution.",
             misaligned,
         )
     attribution = attribute_quote_speakers(

@@ -25,7 +25,7 @@ from __future__ import annotations
 import difflib
 import re
 from dataclasses import dataclass, replace
-from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import AbstractSet, Any, Callable, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 from ....graph_id_utils import (
     canonical_person_name,
@@ -55,7 +55,10 @@ from ....speaker_detectors.hosts import (
     looks_like_a_person_name,
     NAME_FIRST_REPORT_TAIL,
     NAME_FIRST_TAIL,
+    names_the_show,
+    performs_show_intro,
     roles_from_conversation,
+    strip_role_prefix,
 )
 from ....speaker_detectors.resolution import _addressed_at_open, refuted_by_third_person
 from ....text_normalization import (
@@ -396,6 +399,73 @@ _GUEST_REPLY_WIDE = [
 ]
 
 
+def _is_show_mononym(name: str, feed_title: Optional[str], known_hosts: Sequence[str]) -> bool:
+    """A one-word name that is the first word of the show ("I'm your host, Trivium co-founder
+    Andrew Polk" -> "Trivium" on The Trivium China Podcast) names the show, not a person — unless
+    a stated host goes by it ("Dwarkesh" on Dwarkesh Podcast, "Lenny" on Lenny's Podcast)."""
+    toks = (name or "").split()
+    if len(toks) != 1 or not feed_title:
+        return False
+    token = toks[0].lower().strip(".,'’")
+    title_tokens = re.sub(r"[^\w\s]", " ", feed_title.lower()).split()
+    if title_tokens and title_tokens[0] in {"the", "a", "an"}:
+        title_tokens = title_tokens[1:]
+    if len(title_tokens) < 2 or title_tokens[0] != token or len(token) < 5:
+        return False
+    return not any(
+        _core_name_tokens(h) and _core_name_tokens(h)[0].lower() == token for h in known_hosts
+    )
+
+
+def _better_presenter_elsewhere(
+    seat: str,
+    name: str,
+    *,
+    conv_host_voices: AbstractSet[str],
+    host_evidence_voices: AbstractSet[str],
+    introducer_voices: AbstractSet[str],
+    voice_texts: Mapping[str, str],
+    host_voices: AbstractSet[str] = frozenset(),
+) -> bool:
+    """Is a seat held by position alone outranked by another voice for this forced name?
+
+    The seat performs no host act and carries no presenter evidence, and either another voice
+    introduces the episode's stated people ("That's Babs Ogundeyi, the CEO of Kuda" — The Flip's
+    host, while the cold-open soundbite was seated by the opener rule) or another voice names
+    this host in the third person (The a16z Show's narrator: "Anish Acharya speaks with John
+    Maeda"; the host speaks after the intro, the cold open before it). Corpus replay and
+    validation, 2026-10-03.
+    """
+    if seat in conv_host_voices or seat in host_evidence_voices:
+        return False
+    # Only a voice that is NOT itself a host seat can outrank the seat: a co-host introducing the
+    # other host by name ("joined, as usual, by mister Rob Armstrong") is the co-host being
+    # introduced, and that seat must still take the name (`_cohost_named_present`).
+    others = [v for v in voice_texts if v != seat and v not in host_voices]
+    if any(v in introducer_voices for v in others):
+        return True
+    toks = _core_name_tokens(name)
+    if len(toks) < 2:
+        return False
+    pat = rf"\b{re.escape(toks[0])}\s+{re.escape(toks[-1])}\b"
+    return any(re.search(pat, voice_texts.get(v) or "", re.IGNORECASE) for v in others)
+
+
+def _owns_the_conversation(seat: str, talk_share: Mapping[str, float], seats: int) -> bool:
+    """The seat holds at least half the talk, more than anybody else, while MORE substantial voices
+    are in the room than the feed has host seats — the interviewee of a cold-open interview, not
+    the chattier half of a two-host desk show (Unhedged: Rob Armstrong at 58% of a two-voice
+    episode with no guest keeps his forced name)."""
+    share = talk_share.get(seat)
+    if share is None or share < _DOMINANT_SHARE:
+        return False
+    # STRICTLY more than anybody else: a 50/50 two-voice interview has no owner.
+    if any(s >= share for v, s in talk_share.items() if v != seat):
+        return False
+    substantial = [v for v, s in talk_share.items() if s >= HOST_ELIMINATION_MIN_SHARE]
+    return len(substantial) > max(1, seats)
+
+
 def _rescued_from_bleed(
     seat: str,
     text: str,
@@ -589,6 +659,7 @@ def classify_voices(
     recurring_text: Optional[set] = None,
     diarization_provider: Optional[str] = None,
     cameo_max_talk_s: float = CAMEO_MAX_TALK_S,
+    ad_signatures: Optional[Any] = None,
 ) -> VoiceCleaning:
     """Classify every diarized voice as ad / cameo / commercial / real (see :class:`VoiceCleaning`).
 
@@ -600,6 +671,13 @@ def classify_voices(
     ad = _ad_voices_for(
         diarization, ordered_turns, voice_texts, recurring_text, diarization_provider
     )
+    if ad_signatures is not None and voice_texts:
+        # Cross-show evidence (ad_signatures.py): script other shows also carry, or a voice in a
+        # language the corpus has learned arrives only as ads. None = no corpus index = no opinion.
+        from .ad_signatures import episode_language
+
+        ep_lang = episode_language(voice_texts)
+        ad |= {v for v, t in voice_texts.items() if ad_signatures.is_ad_voice(t, ep_lang)}
     talk = _talk_time(diarization)
     ad_by_voice = _ad_overlap_by_voice(diarization, ad_intervals) if ad_intervals else {}
     cameo: Set[str] = set()
@@ -966,6 +1044,7 @@ def _one_name_per_person(
     stated: Sequence[str],
     known_hosts: Sequence[str],
     episode_text: Optional[str] = None,
+    evidence_hosts: AbstractSet[str] = frozenset(),
 ) -> Dict[str, SpeakerRole]:
     """Give every voice of one person the SAME name and the SAME role (#2075).
 
@@ -986,8 +1065,11 @@ def _one_name_per_person(
     ROLE, when the voices disagree: "host" is a claim the FEED must make. The person is a host only
     if they are one of the feed's known hosts; otherwise a guest. "Host wins" and "the longer voice
     decides" were both measured and are worse: each made Olaf Storbeck a host of Unhedged and
-    Santiago Suárez a host of The a16z Show. Known miss: a feed that states no hosts (Planet Money)
-    resolves its host to guest — the conservative direction.
+    Santiago Suárez a host of The a16z Show. ...or the VOICE made the claim on its own evidence
+    (``evidence_hosts``: a seat taken by presenting the show by name, introducing the stated guest,
+    or the co-presenter formula -- never a positional seat). That is what the Planet Money miss
+    needed: the feed states no host, and Sarah Gonzalez's "And I'm Sarah Gonzalez" after her
+    co-host's "I'm Greg" is the voice claiming it (gold development set, 2026-10-02).
     """
     out = dict(by_voice)
     for v, r in by_voice.items():
@@ -1097,7 +1179,9 @@ def _one_name_per_person(
         roles = {out[v].role for v in g}
         if len(roles) == 1:
             role = out[keep].role
-        elif any(_same_person_on_one_episode(out[keep].name, h) for h in known_hosts):
+        elif any(_same_person_on_one_episode(out[keep].name, h) for h in known_hosts) or any(
+            v in evidence_hosts for v in g
+        ):
             role = "host"
         else:
             role = "guest"
@@ -1738,6 +1822,37 @@ def _self_intros_by_voice(
 _GUEST_HOST_EPISODE = re.compile(
     r"\bguest[- ]host(?:ed|ing|s)?\b|\bsitting\s+in\b|\bin\s+for\s+[A-Z]", re.IGNORECASE
 )
+#: "In Dan's first solo episode" — the co-host is not here, so the pool's other name must never be
+#: forced onto a second voice (Why This Universe, gold development set 2026-10-03: once both hosts
+#: were in the pool, the host's second diarized cluster took the absent co-host's name).
+_SOLO_EPISODE = re.compile(r"\bsolo\s+(?:episode|show)\b|\bflying\s+solo\b", re.IGNORECASE)
+#: ...and WHO is presenting instead, when the episode says so: "join the guest host Max Read and
+#: an array of Times reporters". The episode's own text is the publisher stating this episode's
+#: host, so the name joins ``known_hosts`` for this episode only (Hard Fork, gold development set:
+#: Max Read self-introduced and was published as a guest because the feed's pool names Casey and
+#: Kevin). A pool name is still never FORCED on a guest-hosted episode (``_GUEST_HOST_EPISODE``).
+_GUEST_HOST_NAMED = re.compile(
+    r"\bguest[- ]host(?:ed\s+by|s|ing)?,?\s+"
+    r"(?P<name>[A-Z][\w'\u2019\-]+(?:\s+[A-Z][\w'\u2019\-]+){1,2})"
+    r"|(?P<name2>[A-Z][\w'\u2019\-]+(?:\s+[A-Z][\w'\u2019\-]+){1,2})\s+(?:is\s+|as\s+)?"
+    r"(?:guest[- ]host(?:s|ing)?|sitting\s+in|sits\s+in|fill(?:s|ing)?\s+in)\b"
+)
+
+
+def _guest_hosts_named(episode_text: Optional[str]) -> List[str]:
+    """The people the episode's own title/description names as its guest host(s)."""
+    out: List[str] = []
+    for m in _GUEST_HOST_NAMED.finditer(episode_text or ""):
+        n = _clean_intro_name(m.group("name") or m.group("name2") or "")
+        if (
+            n
+            and looks_like_a_person_name(n)
+            and is_publishable_speaker_name(n)
+            and not is_network_or_org_author(n)
+            and n.lower() not in {x.lower() for x in out}
+        ):
+            out.append(n)
+    return out
 
 
 def _name_host_voices(
@@ -1752,6 +1867,12 @@ def _name_host_voices(
     voice_texts: Optional[Mapping[str, str]] = None,
     episode_text: Optional[str] = None,
     talk_share: Optional[Mapping[str, float]] = None,
+    host_copresence: Optional[Mapping[int, float]] = None,
+    cohost_present: bool = False,
+    absent_hosts: Optional[AbstractSet[str]] = None,
+    host_evidence_voices: AbstractSet[str] = frozenset(),
+    introducer_voices: AbstractSet[str] = frozenset(),
+    ignore_ownership: bool = False,
 ) -> Dict[str, SpeakerRole]:
     """Name host voices from EVIDENCE — a self-introduction, or a forced single answer.
 
@@ -1799,23 +1920,86 @@ def _name_host_voices(
     # those inside the loop below, so computing "unclaimed" against it alone counted a
     # self-introduced host as still going spare — which made a one-name-one-seat episode look like
     # two names for one seat, and the forced branch declined on arithmetic that was never true.
-    seat_intro_names = {n.lower() for v, n in voice_intro.items() if v in set(host_voices) and n}
+    host_names = [n for n, _ in host_pool]
+    # A seat that introduced itself as a RESPELLING of a pool name has claimed that name ("I'm
+    # Alistair Campbell" for the stated "Alastair Campbell"): it is not spare, and the seat is not
+    # unnamed.
+    seat_intro_names = {
+        _snap_near_identical_host(n, host_names).lower()
+        for v, n in voice_intro.items()
+        if v in set(host_voices) and n
+    }
+    # A NAME ANY VOICE ALREADY CARRIES IS NOT SPARE, seat or not: the LLM or a self-introduction
+    # put it on a voice, and forcing it onto a second voice makes one person two (Latin America in
+    # Focus, the host's second cluster; validation 2026-10-03). The carrying voice may yet be
+    # promoted by its own evidence; arithmetic never paints the name elsewhere.
+    carried_names = {
+        _snap_near_identical_host(n, host_names).lower() for n in voice_intro.values() if n
+    }
     unclaimed = [
         (n, src)
         for n, src in people
-        if n.lower() not in used_lower and n.lower() not in seat_intro_names
+        if n.lower() not in used_lower
+        and n.lower() not in seat_intro_names
+        and n.lower() not in carried_names
     ]
     unnamed_seats = [v for v in host_voices if not voice_intro.get(v)]
-    guest_hosted = bool(episode_text and _GUEST_HOST_EPISODE.search(episode_text))
+    guest_hosted = bool(
+        episode_text
+        and (_GUEST_HOST_EPISODE.search(episode_text) or _SOLO_EPISODE.search(episode_text))
+    )
 
     forced_name: Optional[Tuple[str, str]] = None
-    if len(unclaimed) == 1 and len(unnamed_seats) == 1 and not guest_hosted:
+    # The forced name is the k-th named seat on this feed. A seat that a speech act or the opener
+    # rule filled is still only a SEAT; naming it after the absent host needs the same feed history
+    # the arithmetic fill needs (The Journal: the presenter self-introduces, the reporter's cluster
+    # carries a bled "welcome to" and was seated by step 2, and Jessica Mendoza's name landed on
+    # it).
+    k = len(seat_intro_names) + 1
+    if not cohost_present and not _copresence_allows(host_copresence, k):
+        unclaimed = []
+    unclaimed = [(n, s) for n, s in unclaimed if n not in (absent_hosts or ())]
+    if (
+        len(unclaimed) == 1
+        and len(unnamed_seats) == 1
+        and not guest_hosted
+        # A seat that OWNS a small conversation is the interviewee or a merged cluster, not the
+        # presenter (the measure `_rescued_from_bleed` already applies: 11 of 14 such seats). With
+        # the pool now holding the hosts the feed states, this is what keeps "Tim Scarfe" off the
+        # cold-opening guest who talks 75% of an MLST episode (gold development set, 2026-10-03).
+        and (
+            ignore_ownership
+            or not _owns_the_conversation(unnamed_seats[0], talk_share or {}, len(host_pool))
+        )
+        # A seat held by POSITION alone takes no forced name while another voice looks more like
+        # the presenter (it introduces the stated people, or names this host in the third person
+        # -- the show's own intro: "Martin Casado sits down with Fei-Fei Li").
+        and not _better_presenter_elsewhere(
+            unnamed_seats[0],
+            unclaimed[0][0],
+            conv_host_voices=conv_host_voices or frozenset(),
+            host_evidence_voices=host_evidence_voices,
+            introducer_voices=introducer_voices,
+            voice_texts=voice_texts or {},
+            host_voices=set(host_voices),
+        )
+    ):
         seat = unnamed_seats[0]
         text = (voice_texts or {}).get(seat, "")
         # THE ONE VETO THAT IS EVIDENCE-BACKED: a voice that says "thanks for having me" is not the
         # host, whatever the arithmetic says. 117 pool-named voices in the snapshot perform a guest
         # speech act while wearing a host's name.
-        performs_guest = any(p.search(text) for p in _GUEST_SPEECH_ACTS) if text else False
+        # ...unless the seat PRESENTS on its own evidence (``host_evidence_voices``): the guest's
+        # "Thank you. It's great to be here" bled onto the end of the host's cluster on How I Write,
+        # whose host had opened with "Andy Weir is on the show today" (gold development set,
+        # 2026-10-02). A lone guest phrase does not outrank a performed introduction of the stated
+        # guest; position-gating the guest phrase instead was tried and failed validation (farewell
+        # thank-yous are real guest acts).
+        performs_guest = (
+            any(p.search(text) for p in _GUEST_SPEECH_ACTS)
+            if text and seat not in host_evidence_voices
+            else False
+        )
         # ...AND A VOICE THAT IS GREETED BY NAME IS NOT THE PERSON BEING GREETED. The same error
         # the LLM path makes is made here, deterministically and independently: on ChinaTalk the
         # voice opening "Hey, Jordan. Good morning." was handed `Jordan Schneider` by THIS path
@@ -2035,6 +2219,45 @@ def _guest_the_host_introduces_in_a_two_voice_interview(
     return name
 
 
+def _name_a_talkative_host_once_the_guests_are_placed(
+    by_voice: Dict[str, SpeakerRole],
+    host_voices: Sequence[str],
+    guest_names: Sequence[str],
+    used_lower: set,
+    name_without_ownership: Callable[[List[str], set], Dict[str, SpeakerRole]],
+) -> None:
+    """A host seat left unnamed because it OWNS the talk takes the forced host name once every
+    stated guest is placed on ANOTHER voice.
+
+    The ownership guard in :func:`_name_host_voices` keeps the host's name off a cold-opening
+    guest who talks most of the episode (MLST, Lenny's Podcast, Latent Space). It cannot tell that
+    guest from a single host who out-talks the guest (76% of a two-voice interview,
+    tests/e2e/test_diarization_e2e.py): share, the seat's own host acts and the other voice's guest
+    phrases all bleed across clusters. Where the guest's NAME landed does tell them apart: when the
+    stated guests are all on other voices, the talkative seat is not the guest. So the guard runs
+    first, guests are named, and only then is the seat reconsidered, with every other condition of
+    the forced name unchanged.
+    """
+    unnamed = [v for v in host_voices if v in by_voice and not by_voice[v].named]
+    if len(unnamed) != 1 or not guest_names:
+        return
+    seat = unnamed[0]
+    placed = {
+        r.name.lower(): v
+        for v, r in by_voice.items()
+        if r.named and r.name and v not in host_voices
+    }
+    if not all(g.lower() in placed for g in guest_names):
+        return
+    # The whole seat list, so the forced name's feed-history count (``k``) is the same as in the
+    # first pass; only this seat's answer is taken.
+    retry = name_without_ownership(list(host_voices), set(used_lower))
+    role = retry.get(seat)
+    if role is not None and role.named:
+        by_voice[seat] = role
+        used_lower.add(role.name.lower())
+
+
 def _name_guest_voices(
     voices_by_total: Sequence[str],
     assigned: Dict[str, SpeakerRole],
@@ -2093,10 +2316,16 @@ def _name_guest_voices(
     # abstains instead of fabricating a second Pape/Rodman (#876/#1330). But a distinct guest who
     # merely shares a surname ("Robert Pape" vs "Karen Pape") IS spare — different givens.
     roster_names = [*used_lower, *voice_intro.values()]
+    # ...nor is it spare when a voice carries the ASR's respelling of it ("Christopher Moore" for
+    # the stated "Cristopher Moore"): the respelt guest IS the stated guest, and the spare name
+    # then landed on the host's sponsor-read cluster (MLST, corpus replay 2026-10-03).
     spare = [
         g
         for g in guest_names
-        if g.lower() not in used_lower and not any(_same_person(g, r) for r in roster_names)
+        if g.lower() not in used_lower
+        and not any(
+            _same_person(g, r) or _snap_near_identical_host(r, [g]) != r for r in roster_names
+        )
     ]
     # One name, one voice: the assignment is forced, so it is not a guess.
     forced = spare[0] if (len(spare) == 1 and len(unassigned) == 1) else None
@@ -2110,6 +2339,17 @@ def _name_guest_voices(
         if len(remaining) == 1:
             forced = spare[0]
             unassigned = remaining
+    # One stated guest and ONE unassigned voice holding most of the talk: that voice is the guest,
+    # whatever short voices (a cold-open clip, a 40-second opening voice) are also unassigned. The
+    # seat logic already treats the dominant unnamed voice as the interviewee that absorbs the
+    # stated guest (``_DOMINANT_SHARE``); naming must agree, or the guest the metadata names goes
+    # unnamed (gold-gate loop 2, 2026-10-02).
+    if forced is None and len(spare) == 1 and talk:
+        total_talk = sum(talk.values()) or 1.0
+        dominant = [v for v in unassigned if talk.get(v, 0.0) / total_talk >= _DOMINANT_SHARE]
+        if len(dominant) == 1:
+            forced = spare[0]
+            unassigned = dominant
 
     # NOT DONE: a two-voice conv-host elimination drawing its candidate from `metadata_named`
     # rather than `guest_names`. Built (advisor binder B, measured by them at 98.2%) and REVERTED.
@@ -2152,7 +2392,16 @@ def _name_guest_voices(
         if v in assigned:
             continue
         iname = voice_intro.get(v)
-        if iname and iname.lower() not in used_lower and iname.lower() not in host_names_lower:
+        # A pool host's name on a NON-host voice is refused -- unless the voice SAID it itself (its
+        # own self-introduction, `self_intros`) and no host seat holds it: the host interviewed on
+        # her own show (Latin America in Focus, validation 2026-10-03). Neither the LLM's match
+        # nor the introduction reader is enough: the host greeting "David George, Aram Verdiyan"
+        # binds the next voice -- the guest -- to the co-host's name (The a16z Show).
+        if (
+            iname
+            and iname.lower() not in used_lower
+            and (iname.lower() not in host_names_lower or v in (self_intros or {}))
+        ):
             used_lower.add(iname.lower())
             if publisher_named and v in publisher_named:
                 src = "publisher_transcript"
@@ -2396,6 +2645,7 @@ def _voice_named_by_the_introduction(
     first_name_only: bool = True,
     corroborated_named: Sequence[str] = (),
     voice_texts: Optional[Mapping[str, str]] = None,
+    ad_voices: AbstractSet[str] = frozenset(),
 ) -> Dict[str, str]:
     """``{voice: name}`` for a voice the HOST introduced by name — "and now, Bobby Allen".
 
@@ -2487,6 +2737,14 @@ def _voice_named_by_the_introduction(
                 _assign(i, [name], host_name_requires_host_target=report_path)
 
     def _scan_turn(i: int, speaker: str, text: str) -> None:
+        # AN AD VOICE INTRODUCES NOBODY ON THIS SHOW. A promo for another podcast carries that
+        # show's own cue-first introduction ("On this week's episode, I'm joined by Andy
+        # Baraghani" -- Ina Garten's promo inside Unexplainable), and read "unconditionally" it
+        # named the NEXT non-host voice: this episode's real guest got the other show's guest's
+        # name (gold development set, 2026-10-02). Targets were already filtered; the introducer
+        # was not.
+        if speaker in ad_voices:
+            return
         # A COLD-OPEN SHOW'S REAL HOST IS NEVER IN `host_hint_voices` — that set is the
         # self-introduced known hosts plus the opener, and on those feeds the opener is the
         # guest's soundbite. The host who performs the role in conversation is an introducer
@@ -2569,6 +2827,58 @@ def _distinct_intros_map_to_multiple_stated(text: str, stated: Sequence[str]) ->
     return False
 
 
+#: A merged two-host cluster must hold at least this share of the talk before the vocative rule
+#: below may name it: the show's cold-open montage ("I'm Joe Weisenthal and I'm Tracy Alloway",
+#: 10-20% of an Odd Lots episode) is tape, not a presenter.
+_MERGED_HOST_OWNER_MIN_SHARE = 0.25
+
+
+def _merged_host_cluster_owner(
+    text: str, hosts: Sequence[str], *, vocatives: bool = True
+) -> Optional[str]:
+    """Which stated host OWNS a cluster carrying both hosts' self-introductions.
+
+    "Hello, and welcome to The Rest Is Science. I'm Michael Stevens. And I'm Hannah Fry. ... I have
+    brought you a gift, Hannah." — the co-host's line bled into the presenter's cluster, and the
+    merge rule above (built for bled GUEST intros, flightcast) unnamed the real host once both hosts
+    were in the pool (gold development set, 2026-10-03). The cluster ADDRESSES Hannah, so it is
+    Michael. Exactly one of the two must be addressed and the other never: a real merge of two hosts
+    bantering addresses both (Hard Fork), and names nobody here.
+    """
+    if len(hosts) != 2:
+        return None
+    # "Welcome to The Rest Is Politics: Leading with me, Alastair Campbell. And me, Rory Stewart."
+    # The welcome-with-me idiom names its SPEAKER; the second line is the co-host's, bled. The
+    # FIRST such idiom in the cluster, wherever it comes: on this feed the host reads the
+    # membership pitch and an advert before welcoming the listener (corpus replay, 2026-10-03).
+    m = re.search(r"\bwith me,?\s+(?P<first>[A-Za-z']{2,})", text or "", re.IGNORECASE)
+    if m:
+        named = [
+            h
+            for h in hosts
+            if _first_name_forms(h, text)
+            and re.fullmatch(_first_name_forms(h, text), m.group("first"), re.IGNORECASE)
+        ]
+        if len(named) == 1:
+            return named[0]
+    intros = distinct_self_introductions(text, intro_chars=5000)
+    said = {
+        h
+        for h in hosts
+        if _given_tokens(h)
+        and any(
+            _given_tokens(nm) and first_names_match(_given_tokens(h)[0], _given_tokens(nm)[0])
+            for nm in intros
+        )
+    }
+    if len(said) != 2 or not vocatives:
+        return None
+    addressed = [h for h in hosts if _vocative_count(text, h) > 0]
+    if len(addressed) != 1:
+        return None
+    return next(h for h in hosts if h != addressed[0])
+
+
 def _intro_people(names: Sequence[str]) -> int:
     """How many PEOPLE a voice's distinct self-introductions name.
 
@@ -2588,7 +2898,9 @@ def _intro_people(names: Sequence[str]) -> int:
     return len(people)
 
 
-def _snap_near_identical_host(name: str, known_hosts: Sequence[str]) -> str:
+def _snap_near_identical_host(
+    name: str, known_hosts: Sequence[str], taken: AbstractSet[str] = frozenset()
+) -> str:
     """A self-introduction ONE LETTER from a stated host is that host, whichever voice says it.
 
     Snapping is otherwise limited to host-candidate voices, because a guest with a host-like name
@@ -2597,17 +2909,33 @@ def _snap_near_identical_host(name: str, known_hosts: Sequence[str]) -> str:
     the resolver then discarded as a name nobody stated, and she was cast as a guest of her own
     show. An exact first name plus a surname one edit away is far narrower than the host-candidate
     rule (edit <= 3 or soundex) and leaves "Kevin Ross" alone.
+
+    The mirror case is just as narrow: an EXACT surname of at least 5 letters with a given name one
+    letter off ("I'm Tracey Alloway" for Tracy Alloway, gold-labelled validation set 2026-10-02:
+    without it, seat v4 left her voice named "Tracey Alloway" and cast as a guest of her own show).
+    Both given names must be at least 5 letters, so a short-name pair sharing a family name
+    ("Dana" / "Dina") is never merged. And it never fires for a host another voice already names
+    itself exactly (``taken``): a diarizer split of one host into two voices ("I'm Tracy Alloway" in
+    one, "I'm Traci Alloway" in the other) would otherwise make two voices claim the same person
+    early, and the duplicate is resolved by dropping one of them (validation set, 2026-10-02).
     """
     toks = _core_name_tokens(name)
     if len(toks) < 2:
         return name
+    first, last = toks[0].lower(), toks[-1].lower()
     for host in known_hosts:
         h = _core_name_tokens(host)
+        if len(h) < 2:
+            continue
+        h_first, h_last = h[0].lower(), h[-1].lower()
+        if h_first == first and len(last) >= 5 and _edit_distance(last, h_last) <= 1:
+            return host
         if (
-            len(h) >= 2
-            and h[0].lower() == toks[0].lower()
-            and len(toks[-1]) >= 5
-            and _edit_distance(toks[-1].lower(), h[-1].lower()) <= 1
+            last == h_last
+            and len(last) >= 5
+            and min(len(first), len(h_first)) >= 5
+            and _edit_distance(first, h_first) <= 1
+            and host not in taken
         ):
             return host
     return name
@@ -2673,11 +3001,24 @@ def _self_intro_voice_names(
         cameo_floor=cameo_max_talk_s,
     )
     out: Dict[str, str] = {}
+    total_talk = sum(talk.values()) or 1.0
     for v, n in intros.items():
-        if v in ad_voices or v in montage_suppressed:
+        if v in ad_voices:
+            continue
+        if v in montage_suppressed:
+            # A LARGE cluster carrying both stated hosts' intros that addresses exactly one of them
+            # belongs to the other (see `_merged_host_cluster_owner`).
+            owner = _merged_host_cluster_owner(
+                texts.get(v, ""),
+                list(known_hosts),
+                vocatives=talk.get(v, 0.0) / total_talk >= _MERGED_HOST_OWNER_MIN_SHARE,
+            )
+            if owner:
+                out[v] = owner
             continue
         if v not in host_candidate_voices:
-            out[v] = _snap_near_identical_host(n, known_hosts)
+            taken = {other for u, other in intros.items() if u != v}
+            out[v] = _snap_near_identical_host(n, known_hosts, taken)
             continue
         canon = _canonicalize_to_known_host(n, known_hosts)
         # Inside the host gate: if the surname canonicalization did not fire, the strategy may still
@@ -2774,6 +3115,7 @@ def _intro_reader_voice_names(
         first_name_only=first_name_only,
         corroborated_named=corroborated_persons if narrator_cue else (),
         voice_texts=voice_texts or {},
+        ad_voices=ad_voices,
     ).items():
         if v in ad_voices or v in voice_intro:
             continue
@@ -2800,6 +3142,552 @@ def _intro_reader_voice_names(
     return out
 
 
+#: The feed's host COUNT is a cap, not a quota. The k-th seat (k >= 2) is filled by arithmetic only
+#: when this FEED's own history says its stated hosts actually co-present: the fraction of sibling
+#: episodes in which at least k stated hosts were named by EVIDENCE (a self-introduction, the
+#: publisher's label, or the LLM's closed-list match -- never a forced pool name, so the prior
+#: cannot feed on its own output). Measured on prod (2026-10-02, 2,085 episodes): The Journal
+#: states two hosts and names two by evidence in 2 of 94 episodes (one presenter per episode; the
+#: second seat went to the reporter 61 times); The Daily 7 of 100 (three rotating presenters);
+#: Unhedged 43 of 79, Odd Lots 41 of 50, Capitalisn't 33 of 40, Empire 20 of 48, Hard Fork 28 of
+#: 71, No Priors 21 of 70 (real co-hosts). 0.25 sits between the two populations; nothing is
+#: near it.
+_HOST_COPRESENCE_MIN = 0.25
+#: Fewer sibling episodes than this and there is no history to read: the arithmetic rule runs
+#: unprimed (the deterministic vetoes below still apply).
+_HOST_COPRESENCE_MIN_EPISODES = 4
+#: Sources that count as EVIDENCE a stated host was in the room
+#: (see `host_copresence_from_diagnostics`).
+_HOST_EVIDENCE_SOURCES = frozenset({"self_intro", "publisher_transcript", "llm_resolution"})
+
+
+def host_copresence_from_diagnostics(
+    sibling_diagnostics: Sequence[Mapping[str, Any]], known_hosts: Sequence[str]
+) -> Optional[Dict[int, float]]:
+    """``{k: fraction of sibling episodes with >= k evidence-named stated hosts}``, or ``None``
+    when the feed has too little history to say anything. Text-only: reads the sidecars already on
+    disk for this feed (the same place `_feed_recurring_text` reads its transcripts)."""
+    hosts_lower = {h.lower() for h in known_hosts}
+    if not hosts_lower:
+        return None
+    counts: List[int] = []
+    for diag in sibling_diagnostics:
+        voices = diag.get("voices") if isinstance(diag, dict) else None
+        if not isinstance(voices, list):
+            continue
+        named = {
+            str(v.get("resolved_name", "")).lower()
+            for v in voices
+            if isinstance(v, dict)
+            and v.get("named")
+            and v.get("role") == "host"
+            and v.get("source") in _HOST_EVIDENCE_SOURCES
+        }
+        counts.append(len(named & hosts_lower))
+    if len(counts) < _HOST_COPRESENCE_MIN_EPISODES:
+        return None
+    return {
+        k: sum(1 for c in counts if c >= k) / len(counts) for k in range(1, len(hosts_lower) + 2)
+    }
+
+
+def _copresence_allows(host_copresence: Optional[Mapping[int, float]], k: int) -> bool:
+    """May the k-th host seat be filled by arithmetic (no name-bearing evidence) on this feed?"""
+    if k <= 1 or host_copresence is None:
+        return True
+    return host_copresence.get(k, 0.0) >= _HOST_COPRESENCE_MIN
+
+
+#: The co-host formula: "...with me, Anita Anand. And me, William de Rumpel." The surname is the
+#: ASR's and may be unrecognisable; the cue plus the stated host's FIRST name is the evidence.
+#: Not "between you and me, Bethany": that is a vocative, and it made the co-host formula read the
+#: speaker as Bethany (Capitalisn't, corpus replay 2026-10-03).
+_COHOST_SELF_INTRO = r"\b(?:(?<!\byou )and|with) me,?\s+{first}\b"
+#: A voice stating that a co-host is IN THE ROOM: "I'm joined, as usual, by the big man in New York
+#: City, mister Rob Armstrong", "with me, Katie Martin, and him, Rob Armstrong", "I'm joined by my
+#: cohost, RJ", "the other two co-hosts, Alexandra Carpi and Adam Reichert". The gap between the cue
+#: and the name is free text within the sentence: hosts decorate each other.
+#: One "word" of the free text between a cue and a name: anything but sentence punctuation, or the
+#: full stop of a title ("Mr. Robert Armstrong").
+_GAP = r"(?:[^.?!]|(?<=\bMr)\.|(?<=\bMrs)\.|(?<=\bMs)\.|(?<=\bDr)\.)"
+_COHOST_PRESENT = (
+    r"\b(?:joined\b"
+    + _GAP
+    + r"{{0,80}}?\bby|joining (?:me|us)\b"
+    + _GAP
+    + r"{{0,40}}?\bis|with me|alongside"
+    r"|my co-?host|our co-?host|co-?hosts|and (?:him|her))\b" + _GAP + r"{{0,70}}?\b{first}\b"
+)
+#: An INTRODUCTION of somebody -- the cue alone, whether or not a name was heard after it. "joining
+#: me in the studio is the head of the FT's Lex column" (the name bled into the guest's cluster),
+#: "joined at Unhedged world headquarters today by my fearless lieutenant Hak Kyung Kim". The cue
+#: says a person besides the stated hosts is in the room; who they are is a separate question.
+_INTRODUCTION_CUE = re.compile(
+    r"\b(?:joined\b[^.?!]{0,80}?\bby\b|joining (?:me|us)\b"
+    r"|(?:my|our) guests? (?:today )?(?:is|are)\b"
+    r"|here with (?:me|us) (?:is|are)\b"
+    r"|(?:i'?m|i am|we'?re|we are) (?:here )?"
+    r"(?:joined|sitting down|talking|speaking|chatting) (?:with|by|to)\b"
+    r"(?!\s+(?:you|me|us|him|her|them)\b)"
+    r"|(?:i'?m|we'?re|i am|we are) here with\b(?!\s+(?:you|me|us|him|her|them)\b)"
+    r"|welcome(?: back)? to the (?:show|podcast|pod),"
+    r"|(?:my|our) colleagues?\b"
+    # "Alex and I are discussing": the named person is in the room with the speaker.
+    r"|\b(?!(?:you|me|him|her|them|us|it|that|this|there|so|well|then|now|here|what|who"
+    r"|and|or|but)\b)[A-Za-z]{3,} and i (?:are|were|will|have|discuss|talk|sit|look|go|get)\b)",
+    re.IGNORECASE,
+)
+#: A stated host said to be ABSENT: "Anita's busy with another project today", "Just me today, I'm
+#: afraid. Anita has another project."
+_ABSENT_CUE = (
+    r"\b{first}(?:'s| is| has)?\b[^.?!]{{0,40}}?\b"
+    r"(?:busy|away|off (?:this week|today)|not (?:here|with us)"
+    r"|another project|on holiday|on vacation|couldn'?t (?:join|make it)|can'?t (?:join|make it))\b"
+)
+#: Only the first part of a voice's text is read for introductions and absences: the opening is
+#: where a show states who is in the room; the close is where it trails next week's guest
+#: ("delighted to say we're going to be joined by a great friend of the show, Ali Ansari").
+_INTRO_TEXT_FRACTION = 0.6
+
+
+#: A host seat filled by arithmetic must belong to a voice whose turns cover at least this much of
+#: the episode (first turn to last turn, over the episode's own length).
+_HOST_MIN_SPAN = 0.5
+
+
+def _voice_span(diarization: DiarizationResult, ad_voices: AbstractSet[str]) -> Dict[str, float]:
+    first: Dict[str, float] = {}
+    last: Dict[str, float] = {}
+    lo, hi = None, None
+    for seg in diarization.segments:
+        if seg.speaker in ad_voices:
+            continue
+        first[seg.speaker] = min(first.get(seg.speaker, seg.start), seg.start)
+        last[seg.speaker] = max(last.get(seg.speaker, seg.end), seg.end)
+        lo = seg.start if lo is None else min(lo, seg.start)
+        hi = seg.end if hi is None else max(hi, seg.end)
+    total = (hi - lo) if (lo is not None and hi is not None and hi > lo) else 1.0
+    return {v: (last[v] - first[v]) / total for v in first}
+
+
+def _present_voices(diarization: DiarizationResult, ad_voices: AbstractSet[str]) -> Set[str]:
+    """Voices that are IN the episode as participants: a real share of the talk, across the
+    episode. Only such a voice may take a host seat by arithmetic or claim one by the co-host
+    formula."""
+    share = _talk_share(diarization, set(ad_voices))
+    span = _voice_span(diarization, set(ad_voices))
+    return {
+        v
+        for v in share
+        if share[v] >= HOST_ELIMINATION_MIN_SHARE and span.get(v, 0.0) >= _HOST_MIN_SPAN
+    }
+
+
+def _first_name(name: str) -> str:
+    toks = _core_name_tokens(name)
+    return toks[0] if toks else ""
+
+
+#: Ordinary English words a CLIPPED given name collides with. Census of the stored corpus
+#: (2026-10-03, every stated person x every episode text): the clipped-prefix rule produced "case"
+#: for Casey on 72 episodes, "and" for Andrew/Andy/Andrea/Andrej on 29, "nor" for Norman on 13,
+#: "just" for Justin on 12, "the" for Theo on 6 -- each then read as a vocative, a self-introduction
+#: ("I'm just looking") or a co-host formula. A closed list, not a capitalisation test: every
+#: matching site is case-blind and reads sentence starts, where "And," and "Just," are capitalised
+#: like a name, and lowercase ASR has no capitals at all. Function words, plus every ordinary word
+#: the census produced. A real short name ("Kev", "Jess", "Rob", "Sam") is not on it.
+_NOT_A_CLIPPED_NAME = frozenset(
+    (
+        "and the nor but for yet not can may are was his her its our you all any now how who why "
+        "yes say see get got let did has had too off out own way day man men new old big just case "
+        "set step must most heat brand add pro far car win bar art pet ton run came call math mar "
+        "america turk conversation"
+    ).split()
+)
+
+
+def _first_name_forms(host: str, text: str) -> str:
+    """Regex alternation of the forms this host's given name takes IN THIS TEXT: the stated form,
+    a known nickname (`first_names_match`: Rob/Robert), or a clipped form at most three letters
+    short of it (Kev/Kevin, Jess/Jessica) that is not an ordinary word (`_NOT_A_CLIPPED_NAME`).
+    Empty when the given name is too short."""
+    first = _first_name(host)
+    if len(first) < 2:
+        return ""
+    forms = {first.lower()}
+    for tok in set(re.findall(r"[A-Za-z']{2,}", text or "")):
+        t = tok.lower()
+        if t in forms:
+            continue
+        if first_names_match(first, tok) or (
+            len(t) >= 3
+            and first.lower().startswith(t)
+            and len(first) - len(t) <= 3
+            and t not in _NOT_A_CLIPPED_NAME
+        ):
+            forms.add(t)
+        # The ASR's respelling of a stated given name ("Alistair" for Alastair, "Tracey" for
+        # Tracy): one letter off, both at least five letters, so Dana/Dina stay two people. Without
+        # it the co-host formula claimer could not see "with me, Alistair Campbell" as Alastair
+        # and handed his merged opening cluster to Rory (corpus replay, 2026-10-03).
+        elif (
+            min(len(t), len(first)) >= 5
+            and t[0] == first[0].lower()
+            and _edit_distance(t, first.lower()) == 1
+        ):
+            forms.add(t)
+    return "|".join(re.escape(f) for f in sorted(forms, key=len, reverse=True))
+
+
+def _opening_text(text: str) -> str:
+    return (text or "")[: int(len(text or "") * _INTRO_TEXT_FRACTION)]
+
+
+def _says_cohost_formula(text: str, host: str) -> bool:
+    forms = _first_name_forms(host, text)
+    return bool(forms) and bool(
+        re.search(_COHOST_SELF_INTRO.format(first=f"(?:{forms})"), text, re.IGNORECASE)
+    )
+
+
+def _cohost_self_intro_voices(
+    voice_texts: Mapping[str, str],
+    host: str,
+    skip: AbstractSet[str],
+    known_hosts: Sequence[str] = (),
+) -> List[str]:
+    """Voices that introduce themselves as ``host`` by the co-host formula. A cluster that carries
+    the formula for TWO stated hosts ("with me Anita Arnand and me William Drimple") is the opening
+    exchange merged by diarization and names nobody. On a two-host feed, "<other host> and I are
+    here with <guest>" is the same self-identification from the other side."""
+    out = []
+    others = [h for h in known_hosts if h != host]
+    for v, t in voice_texts.items():
+        if not t or v in skip:
+            continue
+        if any(_says_cohost_formula(t, o) for o in others):
+            continue
+        if _says_cohost_formula(t, host):
+            out.append(v)
+            continue
+        if len(known_hosts) == 2 and others:
+            head = t[:400]
+            oforms = _first_name_forms(others[0], head)
+            if oforms and re.search(rf"\b(?:{oforms}) and i\b", head, re.IGNORECASE):
+                out.append(v)
+    return out
+
+
+def _cohost_named_present(
+    voice_texts: Mapping[str, str], host: str, skip: AbstractSet[str]
+) -> bool:
+    for v, t in voice_texts.items():
+        forms = _first_name_forms(host, t) if (t and v not in skip) else ""
+        if forms and re.search(_COHOST_PRESENT.format(first=f"(?:{forms})"), t, re.IGNORECASE):
+            return True
+    return False
+
+
+def _hosts_said_absent(
+    voice_texts: Mapping[str, str], known_hosts: Sequence[str], voices: AbstractSet[str]
+) -> Set[str]:
+    """Stated hosts a SEATED host's opening says are not here today."""
+    out: Set[str] = set()
+    for v in voices:
+        t = _opening_text(voice_texts.get(v, ""))
+        if not t:
+            continue
+        for h in known_hosts:
+            forms = _first_name_forms(h, t)
+            if not forms:
+                continue
+            if re.search(_ABSENT_CUE.format(first=f"(?:{forms})"), t, re.IGNORECASE):
+                out.add(h)
+    return out
+
+
+def _introduces_itself_as_host(text: str, host: str) -> bool:
+    forms = _first_name_forms(host, text)
+    return bool(forms) and bool(
+        re.search(
+            rf"\b(?:i'?m|i am|this is|my name is|(?<!\byou )and me|with me),?\s+(?:{forms})\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _vocative_count(text: str, host: str) -> int:
+    """How often the voice ADDRESSES this host by first name ("You know, Jeremy, you've had...",
+    "Kevin. Oh, I see it's performance review season"). Punctuation-anchored: a vocative, not a
+    mention; an occurrence right after a self-intro cue is not counted."""
+    forms = _first_name_forms(host, text) if text else ""
+    if not forms:
+        return 0
+    n = 0
+    for m in re.finditer(rf"(?:^|[,.!?;:]\s*)(?:{forms})[,!?.]", text, re.IGNORECASE):
+        before = text[max(0, m.start() - 24) : m.start()].lower()
+        if re.search(r"\b(?:i'?m|i am|this is|my name is|and me|with me)\W*$", before):
+            continue
+        n += 1
+    return n
+
+
+def _addresses_rather_than_is(text: str, host: str, seated_hosts: Sequence[str]) -> bool:
+    """Is this voice addressing ``host`` (so it is NOT them)? Diarization bleed puts both co-hosts'
+    vocatives into one cluster (Hard Fork: a Kevin cluster carries "Casey, where are you?" AND
+    Casey's "here's the good news, Kev"), so on a multi-host show the count has to dominate the
+    count for the seated co-host; a voice that introduces itself as the host is never refused."""
+    if not text or _introduces_itself_as_host(text, host):
+        return False
+    n = _vocative_count(text, host)
+    if not seated_hosts:
+        return n >= 1
+    other = max((_vocative_count(text, g) for g in seated_hosts), default=0)
+    return n >= 2 and n > 2 * other
+
+
+def _loosely_same_person(a: str, b: str) -> bool:
+    """Same given name (or nickname / clipped form) and a surname within two edits -- the ASR's
+    rendering of a stated person ("Vlad Kyle" / "Vladimir Keil", "Alexandra Carpi" / "Karppi")."""
+    ta, tb = _core_name_tokens(a), _core_name_tokens(b)
+    if not ta or not tb:
+        return False
+    fa, fb = ta[0], tb[0]
+    first_ok = (
+        fa.lower() == fb.lower()
+        or first_names_match(fa, fb)
+        or (len(fa) >= 3 and fb.lower().startswith(fa.lower()) and len(fb) - len(fa) <= 4)
+        or (len(fb) >= 3 and fa.lower().startswith(fb.lower()) and len(fa) - len(fb) <= 4)
+    )
+    if not first_ok:
+        return False
+    if len(ta) < 2 or len(tb) < 2:
+        return True
+    sa, sb = ta[-1].lower(), tb[-1].lower()
+    return _edit_distance(sa, sb) <= 2 or _soundex(sa) == _soundex(sb)
+
+
+def _third_party_excess(
+    *,
+    voice_texts: Mapping[str, str],
+    voice_intro: Mapping[str, str],
+    known_hosts: Sequence[str],
+    stated_others: Sequence[str],
+    introducer_voices: AbstractSet[str],
+    unnamed_guest_voices: int,
+) -> int:
+    """How many people the episode says are in the room beyond the stated hosts, over and above the
+    unnamed voices already heard or judged as guests. Positive means an unnamed voice is at least as
+    likely one of THEM as the absent host, so no seat may be filled by arithmetic.
+
+    Three sources: a person the metadata states; a person a seated host introduces by name; an
+    introduction CUE in a seated host's opening whose name was not heard (bled into the guest's
+    cluster) and which names neither a stated host nor an already-named voice. Cues count at most
+    one -- a cue proves somebody else is here, not how many."""
+    bound = [n for n in voice_intro.values() if n]
+
+    def is_host(n: str) -> bool:
+        return any(_loosely_same_person(n, h) for h in known_hosts)
+
+    def is_bound(n: str) -> bool:
+        return any(
+            b.lower() == n.lower() or _same_person(n, b) or _loosely_same_person(n, b)
+            for b in bound
+        )
+
+    openings = {v: _opening_text(voice_texts.get(v, "")) for v in introducer_voices}
+    others: List[str] = []
+    for n in list(stated_others) + sorted(guests_introduced_by_the_host(openings)):
+        if is_host(n) or any(_loosely_same_person(n, o) for o in others):
+            continue
+        others.append(n)
+    unbound = [n for n in others if not is_bound(n)]
+    host_forms = [
+        f for f in (_first_name_forms(h, " ".join(openings.values())) for h in known_hosts) if f
+    ]
+    bound_forms = [
+        f for f in (_first_name_forms(b, " ".join(openings.values())) for b in bound) if f
+    ]
+    cue_hit = False
+    for t in openings.values():
+        for m in _INTRODUCTION_CUE.finditer(t):
+            after = t[m.end() : m.end() + 70]
+            window = m.group(0) + after
+            if any(
+                re.search(rf"\b(?:{f})\b", window, re.IGNORECASE) for f in host_forms + bound_forms
+            ):
+                continue
+            cue_hit = True
+            break
+        if cue_hit:
+            break
+    total = len(unbound) + (1 if cue_hit and not unbound else 0)
+    return max(0, total - unnamed_guest_voices)
+
+
+#: Introduction formulas only the PRESENTER uses, resolved against a person the EPISODE states.
+#: "I'm here with" / "joined by" / "my colleague" are deliberately absent: a guest says those of a
+#: fellow guest, and on a three-voice show that would seat a guest and paint the absent host's name
+#: on it. "My guest today is", "<Name>, welcome back", "<Name> is on the show today", "<Name>,
+#: thanks for coming on" are said by whoever runs the show.
+_PRESENTER_INTRO_BEFORE = (
+    r"(?:my|our) guests? (?:today |this week )?(?:is|are)"
+    r"|joining (?:me|us)(?: today| now| this week)? (?:is|are)"
+    r"|(?:please )?welcome(?: back)?(?: to the (?:show|podcast|pod))?,?"
+    r"|here with (?:me|us) (?:today )?(?:is|are)"
+)
+_PRESENTER_INTRO_AFTER = (
+    r"(?:is|are) (?:back )?on the (?:show|podcast|pod)|(?:is|are) (?:here )?with (?:me|us)"
+    r"|(?:is|are) (?:my|our) guests?|(?:is|are) joining (?:me|us)|joins? (?:me|us)"
+    r"|(?:is|are) here to\b|thanks?(?: so much)? for (?:coming|joining|being)"
+    r"|thank you(?: so much)? for (?:coming|joining|being)|welcome(?: back)?\b"
+)
+
+
+def _introduces_stated_person(text: str, stated: Sequence[str]) -> bool:
+    """Does this voice introduce or greet a person the episode states, as a presenter does?
+
+    Full name after a presenter cue ("my guest today is Andy Weir"), or full name / given name
+    before a presenter tail ("Andy Weir is on the show today", "Garrett, welcome back"). The given
+    name alone is enough only in the name-first form, where the tail is the evidence.
+    """
+    if not text:
+        return False
+    for s in stated:
+        toks = _core_name_tokens(s)
+        if not toks:
+            continue
+        full = r"\W+".join(re.escape(t) for t in toks)
+        if re.search(
+            rf"\b(?:{_PRESENTER_INTRO_BEFORE})\s+(?:the\s+|our\s+)?{full}\b", text, re.IGNORECASE
+        ):
+            return True
+        forms = _first_name_forms(s, text)
+        names = f"(?:{full}|{forms})" if forms else f"(?:{full})"
+        if re.search(rf"\b{names}\s*[,.]?\s+(?:{_PRESENTER_INTRO_AFTER})", text, re.IGNORECASE):
+            return True
+    return False
+
+
+def _copresenter_pair_voices(
+    ordered_turns: Sequence[Tuple[str, str]],
+    voice_intro: Mapping[str, str],
+    ad_voices: AbstractSet[str],
+) -> Dict[str, Set[str]]:
+    """Two voices that introduce THEMSELVES in consecutive turns -- "I'm Julie Beck, a staff writer
+    at The Atlantic." / "And I'm Natalie Brennan, a producer at The Atlantic." -- are
+    co-presenters: the two-host opening formula. A guest is introduced BY the host, never alongside
+    them. Both must already carry their own name (``voice_intro``), each turn must say ITS voice's
+    given name, and the second turn must open with the conjunction. ``{voice: its partners}``."""
+    out: Dict[str, Set[str]] = {}
+    turns = [(v, t) for v, t in ordered_turns if v not in ad_voices and (t or "").strip()]
+    for (a, ta), (b, tb) in zip(turns, turns[1:]):
+        if a == b:
+            continue
+        na, nb = voice_intro.get(a), voice_intro.get(b)
+        if not na or not nb:
+            continue
+        fa, fb = _first_name_forms(na, ta), _first_name_forms(nb, tb)
+        if not fa or not fb:
+            continue
+        if re.search(
+            rf"\b(?:i'?m|i am|my name is|my name'?s)\s+(?:{fa})\b", ta, re.IGNORECASE
+        ) and re.match(rf"\W*and\s+(?:i'?m|i am|my name is)\s+(?:{fb})\b", tb, re.IGNORECASE):
+            out.setdefault(a, set()).add(b)
+            out.setdefault(b, set()).add(a)
+    return out
+
+
+def _presenter_voices_by_evidence(
+    diarization: DiarizationResult,
+    voice_texts: Mapping[str, str],
+    ad_voices: AbstractSet[str],
+    feed_title: Optional[str],
+    stated_people: Sequence[str],
+    self_intros: Mapping[str, str],
+) -> Tuple[Set[str], Set[str]]:
+    """``(branded, introducers)``: voices that PRESENT this episode on their own words -- the
+    show's branded intro, or an introduction / greeting of a person the episode states.
+
+    A cluster carrying TWO people's self-introductions is a merged cold open ("I'm Kevin... I'm
+    Casey... and this is Hard Fork" inside the guest's cluster), not a presenter saying the show's
+    name. Both forms are refused for a DOMINANT voice (``_DOMINANT_SHARE`` of the talk): a
+    presenter does not own most of the conversation, and the host's "Jia Li, welcome to the show"
+    and the mid-roll sting ("You're listening to Latin America in Focus") bleed into the guest's
+    cluster often enough (Hard Fork, The Journal, Latin America in Focus on the corpus replay).
+    Position cannot tell the bled sting (char 355 of a guest's 17k) from a presenter's own
+    opening (char 308 of a host's 12k), so the dominant voice is left to the positional steps.
+    A voice is never the presenter for introducing ITSELF (the name it already carries is
+    excluded).
+    """
+    share = _talk_share(diarization, set(ad_voices))
+    branded: Set[str] = set()
+    introducers: Set[str] = set()
+    for v, t in voice_texts.items():
+        if v in ad_voices or not t or share.get(v, 0.0) >= _DOMINANT_SHARE:
+            continue
+        if _intro_people(distinct_self_introductions(t, intro_chars=5000)) >= 2:
+            continue
+        if performs_show_intro(t, feed_title):
+            branded.add(v)
+            continue
+        own = self_intros.get(v)
+        others = [s for s in stated_people if not (own and _loosely_same_person(own, s))]
+        if _introduces_stated_person(t, others):
+            introducers.add(v)
+    return branded, introducers
+
+
+def _guests_by_their_own_words(
+    *,
+    voice_intro: Mapping[str, str],
+    host_pool_lower: AbstractSet[str],
+    stated_others: Sequence[str],
+    voice_texts: Mapping[str, str],
+    share: Mapping[str, float],
+) -> Set[str]:
+    """Voices that SAY they are one of the episode's stated guests (respelt or not) AND sound like
+    one: a guest speech act, or they own the conversation."""
+    return {
+        v
+        for v, n in voice_intro.items()
+        if n
+        and n.lower() not in host_pool_lower
+        and any(_same_person(n, s) or _snap_near_identical_host(n, [s]) != n for s in stated_others)
+        and (
+            any(p.search(voice_texts.get(v, "")) for p in _GUEST_SPEECH_ACTS)
+            or share.get(v, 0.0) >= _DOMINANT_SHARE
+        )
+    }
+
+
+def _seat_unnamed_introducers(
+    host_voices: List[str],
+    *,
+    introducer_voices: AbstractSet[str],
+    cap: Optional[int],
+    share: Mapping[str, float],
+    blocked: AbstractSet[str],
+    voice_intro: Mapping[str, str],
+    present: AbstractSet[str],
+) -> None:
+    """Step 1c of :func:`_select_host_voices`: seat UNNAMED introducers, largest share first, up to
+    the cap; present across the episode, a real share, never a blocked voice."""
+    for v in sorted(introducer_voices, key=lambda v: -share.get(v, 0.0)):
+        if cap is not None and len(host_voices) >= cap:
+            break
+        if (
+            v in host_voices
+            or v in blocked
+            or voice_intro.get(v)
+            or v not in present
+            or share.get(v, 0.0) < HOST_ELIMINATION_MIN_SHARE
+        ):
+            continue
+        host_voices.append(v)
+
+
 def _select_host_voices(
     *,
     diarization: DiarizationResult,
@@ -2818,6 +3706,15 @@ def _select_host_voices(
     intro_window_s: float,
     ad_intervals: Optional[Sequence[Tuple[float, float]]],
     ad_voices: AbstractSet[str],
+    voice_texts: Optional[Mapping[str, str]] = None,
+    stated_others: Sequence[str] = (),
+    host_copresence: Optional[Mapping[int, float]] = None,
+    presenter_voices: AbstractSet[str] = frozenset(),
+    # `{voice: partners}` for the presenters seated by the co-presenter formula (see step 1b).
+    copresenter_voices: Mapping[str, AbstractSet[str]] = {},
+    # Voices that introduce or greet a person the episode states (the introducer half of
+    # `presenter_voices`); an UNNAMED one may take a seat the pool can name (step 1c).
+    introducer_voices: AbstractSet[str] = frozenset(),
 ) -> List[str]:
     """WHICH diarized voices are the hosts — the cross-reference of metadata (who / how many) and
     the conversation (which voice performs the role). Five ordered signals, strongest first."""
@@ -2826,12 +3723,17 @@ def _select_host_voices(
     # Unhedged → Joshua Franklin over absent Rob Armstrong). Only when the feed STATED hosts;
     # `llm_named` voices are excluded because their name was INFERRED, not said aloud.
     host_pool_lower = {n.lower() for n, _ in host_pool}
+    host_pool_names = [n for n, _ in host_pool]
+    # ...but a RESPELLING of a pool name is that host, not a stranger: "I'm Alistair Campbell" on
+    # a feed stating "Alastair Campbell" (one letter off, same surname) must not mark the real host
+    # not-a-host (advisor review 2026-10-02; `_snap_near_identical_host` is the bound).
     stated_non_host_voices = {
         v
         for v, n in voice_intro.items()
         if host_pool
         and n
         and n.lower() not in host_pool_lower
+        and _snap_near_identical_host(n, host_pool_names) == n
         and v not in llm_named
         and v not in publisher_named
     }
@@ -2842,7 +3744,34 @@ def _select_host_voices(
     llm_roles = llm_voice_roles or {}
     llm_guest_voices = {v for v, r in llm_roles.items() if r == "guest"}
     llm_host_voices = {v for v, r in llm_roles.items() if r == "host"}
-    positional_non_host = stated_non_host_voices | llm_guest_voices
+    # A voice the LLM matched to a person the EPISODE states as a guest (not in the pool) is that
+    # guest, whatever role the same answer attached: on The a16z Show the cold-opening guest was
+    # named "Amjad Masad" (the stated guest) and still seated as the opener (gold development set).
+    llm_as_stated_guest = {
+        v
+        for v in llm_named
+        if voice_intro.get(v)
+        and voice_intro[v].lower() not in host_pool_lower
+        and any(_same_person(voice_intro[v], s) for s in stated_others)
+    }
+    # A voice that SAYS it is one of the episode's stated guests (respelt or not) AND sounds like
+    # one (a guest speech act, or it owns the conversation) is that guest -- never a stand-in host
+    # (MLST: "I'm Christopher Moore", 86%, "thank you for having me"). Only when the feed states
+    # hosts: with an empty pool every stated person is "other", the stand-in included (BizNews).
+    intro_is_stated_other = (
+        _guests_by_their_own_words(
+            voice_intro=voice_intro,
+            host_pool_lower=host_pool_lower,
+            stated_others=stated_others,
+            voice_texts=voice_texts or {},
+            share=_talk_share(diarization, set(ad_voices)),
+        )
+        if host_pool
+        else set()
+    )
+    positional_non_host = (
+        stated_non_host_voices | llm_guest_voices | llm_as_stated_guest | intro_is_stated_other
+    )
 
     host_voices: List[str] = []
     known_lower = {h.lower() for h in known_hosts}
@@ -2862,10 +3791,85 @@ def _select_host_voices(
             host_voices.append(v)
             claimed_host_names.add(nl)
 
+    cap = len(host_pool) if host_pool else None
+    share = _talk_share(diarization, set(ad_voices))
+
+    # 1b. A voice that PRESENTS THIS EPISODE on its own evidence -- it names the show in a
+    #     presenting formula ("you're listening to Why This Universe"), introduces or greets the
+    #     person the episode states ("Andy Weir is on the show today", "Garrett, welcome back"), or
+    #     introduces itself alongside a co-presenter ("I'm Julie Beck." / "And I'm Natalie
+    #     Brennan.") -- hosts it whether or not the feed's pool lists it. On the gold development
+    #     set (2026-10-02) 13 real hosts were published as guests because the pool was empty, stale
+    #     (a co-host away, a guest host) or polluted (a job title, the show's own name): step 2
+    #     refused them for saying a name outside the pool, step 3 then seated the opener and the
+    #     one-name-one-seat rule painted the absent host's name on it. Capped like step 2 -- the
+    #     feed still says how MANY -- and only a NAMED voice (the anti-vox-pop rule of steps 5 and
+    #     6: an unnamed cluster carrying a bled "This is Planet Money" is tape) that is PRESENT
+    #     across the episode (a trailer clip performs the show's intro too). A co-presenter PAIR
+    #     needs either half of the presence test: its share (a trailer, where nobody spans the
+    #     piece: Curious Cases), or its span together with a SUBSTANTIAL partner (the diarizer split
+    #     a host into a sliver that pairs with the other host's real voice: Planet Money). A
+    #     two-host PROMO for another show inside this episode is two slivers pairing with each other
+    #     and takes neither path. Before step 2 so that, under the feed's cap, the voice that
+    #     presents outranks a voice that merely carries a bled "welcome to".
+    present_now = _present_voices(diarization, ad_voices)
+    span_now = _voice_span(diarization, ad_voices)
+    for v in [v for v in voices_by_intro if v in presenter_voices] + sorted(
+        (v for v in presenter_voices if v not in voices_by_intro),
+        key=lambda v: -share.get(v, 0.0),
+    ):
+        if cap is not None and len(host_voices) >= cap:
+            break
+        if v in host_voices or v in conv_guests or v in ad_voices or not voice_intro.get(v):
+            continue
+        if v not in present_now and not (
+            v in copresenter_voices
+            and (
+                share.get(v, 0.0) >= HOST_ELIMINATION_MIN_SHARE
+                or (
+                    span_now.get(v, 0.0) >= _HOST_MIN_SPAN
+                    and any(
+                        share.get(p, 0.0) >= HOST_ELIMINATION_MIN_SHARE
+                        for p in copresenter_voices.get(v, ())
+                    )
+                )
+            )
+        ):
+            continue
+        host_voices.append(v)
+
+    # 1c. An UNNAMED voice that introduces the people the episode states ("That's Babs Ogundeyi,
+    #     Laurin Hainy and Tosin Eniolorunda, the CEOs of...") presents the episode. When the pool
+    #     still holds a name no voice carries, it takes a seat now -- otherwise the opener rule
+    #     seats the cold-open soundbite and the forced pool name lands on the guest (The Flip,
+    #     corpus replay 2026-10-03). Present across the episode, a real share, never a heard guest.
+    carried_lower = {n.lower() for n in voice_intro.values() if n}
+    # ...but never over a NAMED voice that performs the host's role (a self-introduced stand-in
+    # presenter, step 6 below): a named presenter outranks an anonymous introducer (Latin America
+    # in Focus, the co-host narrating her own intro; corpus replay 2026-10-03).
+    named_stand_in = any(
+        v in voice_intro
+        and v not in conv_guests
+        and v not in ad_voices
+        and v not in llm_guest_voices
+        and v not in llm_as_stated_guest
+        and v not in intro_is_stated_other
+        for v in conv_hosts
+    )
+    if not named_stand_in and any(n not in carried_lower for n in host_pool_lower):
+        _seat_unnamed_introducers(
+            host_voices,
+            introducer_voices=introducer_voices,
+            cap=cap,
+            share=share,
+            blocked=set(conv_guests) | set(ad_voices) | positional_non_host,
+            voice_intro=voice_intro,
+            present=present_now,
+        )
+
     # 2. A voice that PERFORMS the host's role is a host — but the feed says how MANY, so a stated
     #    count is binding (a third voice cannot host a two-host show). Uncapped when the feed names
     #    no host. The deterministic-only guard here; the LLM never overrides a performed host.
-    cap = len(host_pool) if host_pool else None
     for v in conv_hosts:
         if cap is not None and len(host_voices) >= cap:
             break
@@ -2874,6 +3878,10 @@ def _select_host_voices(
 
     # 3. The opener does the intro (the pre-roll ad is excluded). Skipped when the conversation
     #    already named a host, and never a voice the conversation heard say "thanks for having me".
+    #    ...nor a voice that barely speaks: once a geo-targeted pre-roll is recognised as an ad, the
+    #    next "opener" can be a 2-second ad fragment ("Okay, das klingt traumhaft"), and it took
+    #    the host's seat on 5 Past Present Future episodes in the 2026-10-02 replay. Same floor as
+    #    step 4.
     opener = _opening_voice(
         diarization,
         window_end=content_start + intro_window_s,
@@ -2888,17 +3896,124 @@ def _select_host_voices(
         and opener not in host_voices
         and opener not in conv_guests
         and opener not in positional_non_host
+        and share.get(opener, 0.0) >= HOST_ELIMINATION_MIN_SHARE
         and len(host_voices) < max(1, len(host_pool))
     ):
         host_voices.append(opener)
 
     # 4. Fill any host slot the feed COUNTED but we have not matched, from the SHOW's intro voices
     #    (ads excluded). NOT by talk time — that hands a slot to a long-answering guest (#1169).
-    for v in voices_by_intro:
-        if len(host_voices) >= len(host_pool):
-            break
-        if v not in host_voices and v not in conv_guests and v not in positional_non_host:
-            host_voices.append(v)
+    #    ...and never to a voice that OWNS the conversation or barely speaks. Measured on The Rest
+    #    Is Politics: Leading once its two hosts were stated (2026-10-02): this step seated the
+    #    guest (Gavin Newsom 66% of the talk, Neil Kinnock 77%, James Cleverly 68%) or a 19-46s
+    #    foreign-language ad, and the forced one-name-one-seat rule then put Alastair Campbell's
+    #    name on it. Declining here leaves the seat empty — the honest state.
+    #    Dominance only counts when somebody BESIDES the stated hosts takes part: on a two-host
+    #    show with no guest each host owns about half the talk, and both must still be seated.
+    #
+    #    REWRITTEN (advisor 2026-10-02): the count is a CAP. This step used to seat any intro voice
+    #    that was merely not excluded, and the one-name-one-seat rule then painted the absent host's
+    #    name on it -- a reporter on The Journal 61 times, the guest on No Priors, a tape insert.
+    #    Now a seat is filled by ARITHMETIC only when the arithmetic is exact and nothing says a
+    #    third party is in the room:
+    #      - exactly as many candidate voices as empty seats (one spare voice is a guess, not a
+    #        count);
+    #      - no person the episode names or introduces is unplaced beyond the voices already heard
+    #        as guests (the unnamed voice is at least as likely to be THEM);
+    #      - a candidate does not address the absent host by first name (then it is not them);
+    #      - the feed's own history says its stated hosts co-present (`_copresence_allows`), unless
+    #        a voice states the co-host is in the room ("with me, Katie Martin, and him, Rob").
+    #    With more candidates than seats, the LLM's host verdict or a vocative to a seated host may
+    #    pick, and only if it picks exactly enough.
+    texts = voice_texts or {}
+    host_names = [n for n, _ in host_pool]
+    substantial = [v for v, s in share.items() if s >= HOST_ELIMINATION_MIN_SHARE]
+    empty = len(host_pool) - len(host_voices)
+    if empty > 0:
+        named_as_other = {
+            v
+            for v, n in voice_intro.items()
+            if n
+            and n.lower() not in host_pool_lower
+            and _snap_near_identical_host(n, host_pool_names) == n
+        }
+        heard_as_guest = [
+            v
+            for v in substantial
+            if v not in host_voices and (v in conv_guests or v in positional_non_host)
+        ]
+        unnamed_guests = sum(1 for v in heard_as_guest if not voice_intro.get(v))
+        # The SHOW's intro voices, as before -- and present across the episode: a host is there
+        # for the whole show, an interview guest for a middle segment (Hard Fork's guests span
+        # 27-36% of the episode; its hosts 97-100%).
+        present = _present_voices(diarization, ad_voices)
+        candidates = [
+            v
+            for v in voices_by_intro
+            if v in present
+            and v not in host_voices
+            and v not in heard_as_guest
+            and v not in named_as_other
+        ]
+        claimed = {n.lower() for v, n in voice_intro.items() if v in host_voices and n}
+        seated_names = [h for h in host_names if h.lower() in claimed]
+        absent = _hosts_said_absent(texts, known_hosts, set(host_voices))
+        unclaimed_hosts = [h for h in host_names if h.lower() not in claimed and h not in absent]
+        fillable = min(empty, len(unclaimed_hosts))
+        candidates = [
+            v
+            for v in candidates
+            if not any(
+                _addresses_rather_than_is(texts.get(v, ""), h, seated_names)
+                for h in unclaimed_hosts
+            )
+        ]
+        guest_present = (
+            len(substantial) > len(host_pool) or bool(heard_as_guest) or bool(named_as_other)
+        )
+        if guest_present:
+            # The voice that OWNS the talk while somebody besides the hosts is in the room is the
+            # interviewee; it also accounts for one of the people the episode names but nobody
+            # heard introduce themselves.
+            # The dominant interviewee absorbs an unplaced stated person whether or not it spoke in
+            # the opening window: a guest whose first turn comes after the intro window is still
+            # the guest the metadata names (a voice starting at 90s otherwise left the stated guest
+            # "unplaced" and refused the co-host's seat).
+            dominant = [
+                v
+                for v in substantial
+                if v not in host_voices
+                and v not in heard_as_guest
+                and share.get(v, 0.0) >= _DOMINANT_SHARE
+            ]
+            unnamed_guests += sum(1 for v in dominant if not voice_intro.get(v))
+            candidates = [v for v in candidates if v not in dominant]
+        introducers = set(host_voices) or {v for v in texts if v not in ad_voices}
+        excess = _third_party_excess(
+            voice_texts=texts,
+            voice_intro=voice_intro,
+            known_hosts=known_hosts,
+            stated_others=stated_others,
+            introducer_voices=introducers,
+            unnamed_guest_voices=unnamed_guests,
+        )
+        if len(candidates) > fillable > 0:
+            picked = [
+                v
+                for v in candidates
+                if v in llm_host_voices
+                or sum(_vocative_count(texts.get(v, ""), g) for g in seated_names) >= 2
+            ]
+            candidates = picked if len(picked) == fillable else []
+        cohost_present = any(
+            _cohost_named_present(texts, h, set(ad_voices)) for h in unclaimed_hosts
+        )
+        if candidates and fillable > 0 and len(candidates) == fillable and excess == 0:
+            for v in candidates:
+                k = len(host_voices) + 1
+                if not cohost_present and not _copresence_allows(host_copresence, k):
+                    break
+                host_voices.append(v)
 
     # 5. ANCHOR a show that STATES NO HOSTS (ADR-137). With an empty pool the cues have no anchor,
     #    so a rotating/narrator host (Planet Money) is labeled a guest. A voice the LLM judged host
@@ -2938,12 +4053,98 @@ def _select_host_voices(
                 v not in conv_guests
                 and v not in ad_voices
                 and v not in llm_guest_voices
+                # ...and not a voice that is one of the episode's stated GUESTS by its own words
+                # (MLST: the guest "I'm Christopher Moore" with a bled host act, 2026-10-03).
+                and v not in intro_is_stated_other
+                and v not in llm_as_stated_guest
                 and v in voice_intro
             ):
                 host_voices.append(v)
                 break
 
     return host_voices
+
+
+def _claim_cohost_formula_voices(
+    voice_intro: Dict[str, str],
+    diarization: DiarizationResult,
+    voice_texts: Optional[Dict[str, str]],
+    known_hosts: Sequence[str],
+    ad_voices: AbstractSet[str],
+    conv_guests: AbstractSet[str],
+) -> None:
+    """Name the one PRESENT voice that says the co-host formula for an unclaimed host (in place)."""
+    present = _present_voices(diarization, ad_voices)
+    claimed_lower = {n.lower() for n in voice_intro.values() if n}
+    for host in known_hosts:
+        if host.lower() in claimed_lower:
+            continue
+        said = [
+            v
+            for v in _cohost_self_intro_voices(
+                voice_texts or {}, host, set(ad_voices) | set(conv_guests), known_hosts
+            )
+            if v not in voice_intro and v in present
+        ]
+        if len(said) == 1:
+            voice_intro[said[0]] = host
+            claimed_lower.add(host.lower())
+
+
+def _an_unseated_host_is_said_present(
+    voice_texts: Optional[Dict[str, str]],
+    known_hosts: Sequence[str],
+    voice_intro: Mapping[str, str],
+    host_voices: Sequence[str],
+    ad_voices: AbstractSet[str],
+) -> bool:
+    """Does some voice say a stated host who holds no seat yet is in the room?"""
+    seated = {n.lower() for v, n in voice_intro.items() if v in host_voices and n}
+    return any(
+        _cohost_named_present(voice_texts or {}, h, set(ad_voices))
+        for h in known_hosts
+        if h.lower() not in seated
+    )
+
+
+def _pool_with_episode_guest_hosts(
+    known_hosts: Optional[Sequence[str]], episode_text: Optional[str]
+) -> List[str]:
+    """The feed's hosts plus a guest host THIS episode's description names (`_GUEST_HOST_NAMED`)."""
+    pool = list(known_hosts or ())
+    known_lower = {h.lower() for h in pool}
+    return pool + [n for n in _guest_hosts_named(episode_text) if n.lower() not in known_lower]
+
+
+def _stated_non_host_people(
+    detected_guests: Optional[Sequence[str]],
+    metadata_named: Optional[Sequence[str]],
+    known_hosts: Sequence[str],
+) -> List[str]:
+    """People the episode states who are not one of its hosts (whom a presenter may introduce)."""
+    return [
+        n
+        for n in list(detected_guests or ()) + list(metadata_named or ())
+        if not any(_loosely_same_person(n, h) for h in known_hosts)
+    ]
+
+
+def _snap_evidence_hosts_to_stated_spelling(
+    by_voice: Dict[str, SpeakerRole],
+    host_voices: Sequence[str],
+    host_names_lower: AbstractSet[str],
+    used_lower: Set[str],
+    stated: Sequence[str],
+) -> None:
+    """A host seated outside the pool takes the episode's stated spelling of its name (in place)."""
+    for v in host_voices:
+        role = by_voice.get(v)
+        if role is None or not role.named or role.name.lower() in host_names_lower:
+            continue
+        snapped = _canonicalize_to_known_host(role.name, stated)
+        if snapped != role.name:
+            used_lower.add(snapped.lower())
+            by_voice[v] = replace(role, name=snapped)
 
 
 def resolve_speaker_roster(
@@ -2968,6 +4169,11 @@ def resolve_speaker_roster(
     # Title + description, joined. Read ONLY to spot a `guest host` episode, where the feed's
     # own host is not presenting and a forced pool name would be wrong by construction.
     episode_text: Optional[str] = None,
+    # `host_copresence_from_diagnostics` over this feed's OTHER episodes; None = no history.
+    host_copresence: Optional[Mapping[int, float]] = None,
+    # The feed's title: lets a voice that presents THIS show by name take a host seat, and drops a
+    # pool entry that is the show's own name. None = no opinion.
+    feed_title: Optional[str] = None,
 ) -> SpeakerRoster:
     """Resolve every diarized voice to a ``SpeakerRole`` (see module docstring).
 
@@ -2989,6 +4195,10 @@ def resolve_speaker_roster(
     """
     if not diarization.segments:
         return SpeakerRoster(by_voice={}, num_speakers=diarization.num_speakers or 0)
+
+    # THE EPISODE MAY NAME ITS OWN HOST: a guest host the description states joins the pool for
+    # this episode (see `_GUEST_HOST_NAMED`).
+    known_hosts = _pool_with_episode_guest_hosts(known_hosts, episode_text)
 
     # One space between words, whoever built the text. Turns are joined with " " and ASR segments
     # start with a space, so every turn boundary carried two — and the speech-act and self-intro
@@ -3091,6 +4301,27 @@ def resolve_speaker_roster(
         stated_seed[_v] = _canonicalize_to_known_host(_n, known_hosts)
         publisher_named.add(_v)
 
+    # POSITIVE HOST EVIDENCE OUTRANKS A LONE GUEST PHRASE. A voice that presents the show by name
+    # or introduces the stated guest is the presenter even when the guest's "great to be here"
+    # bled onto its cluster (How I Write, ChinaTalk: gold development set, 2026-10-02). These
+    # voices may take a host seat outside the feed's pool (`_select_host_voices` step 1b). Read
+    # HERE, before the host hints, so the introduction reader trusts the presenter's greeting of
+    # the guest; re-read below once every name source has spoken, because a voice is never the
+    # presenter for "introducing" the person it is itself named as (the host's greeting bled into
+    # the guest's cluster, named by the LLM).
+    _stated_people = _stated_non_host_people(detected_guests, metadata_named, known_hosts)
+    _conv_guests_heard = set(conv_guests)
+    _branded_voices, _introducer_voices = _presenter_voices_by_evidence(
+        diarization,
+        voice_texts or {},
+        ad_voices,
+        feed_title,
+        _stated_people,
+        {**_names_self_intro, **stated_seed},
+    )
+    presenter_voices = _branded_voices | _introducer_voices
+    conv_guests = _conv_guests_heard - presenter_voices
+
     _strategy = labeling_strategy_for(diarization_provider)
     voice_intro = _self_intro_voice_names(
         diarization,
@@ -3104,6 +4335,12 @@ def resolve_speaker_roster(
         suppress_merged=profile.suppress_merged_speaker_clusters,
         cameo_max_talk_s=profile.cameo_max_talk_s,
     )
+    # "I'm your host, Trivium co-founder Andrew Polk" reads as the mononym "Trivium" — the show's
+    # name, which marked the real host a stated non-host and let the forced pool name land on the
+    # guest (corpus replay, 2026-10-03). Not a name; dropped before anything seats on it.
+    voice_intro = {
+        v: n for v, n in voice_intro.items() if not _is_show_mononym(n, feed_title, known_hosts)
+    }
     # The publisher's label WINS over a self-intro for the same voice. A self-intro is the ASR's
     # transcription of a spoken name ("I'm Kevin Russo"); the publisher's label is the name the
     # source wrote down. When they disagree about spelling the written one is the better record,
@@ -3167,12 +4404,37 @@ def resolve_speaker_roster(
     llm_named: set = set()
     for v, n in (llm_voice_names or {}).items():
         if v not in ad_voices and v not in voice_intro:
+            # The closed list carried the show's own name ("Machine Learning Street") and the model
+            # matched a voice to it: that voice is unnamed, and may take a forced pool name below.
+            if feed_title and names_the_show(n, feed_title):
+                continue
             voice_intro[v] = _canonicalize_to_known_host(n, known_hosts)
             # PROVENANCE. These must not be recorded as `self_intro`: an audit that cannot tell a
             # name the voice SAID from a name a model INFERRED cannot audit the model at all, and
             # the model is the part that needs watching.
             llm_named.add(v)
 
+    # THE CO-HOST FORMULA. "Hello and welcome to Empire with me, Anita Anand." -- "And me, William
+    # de Rumpel." The second voice says the cue and a stated host's first name; the surname is
+    # whatever the ASR heard. Name-bearing: this voice IS that host, so it gets that host's name
+    # here and the forced rule cannot paint the OTHER host on it. Only a host nobody has claimed,
+    # only one voice saying it, never an ad voice or a voice heard as a guest.
+    # It runs AFTER the LLM merge so it can never take a name the model already placed on another
+    # voice (on Capitalisn't the 1% tagline cluster carries "Luigi and I", and claiming Bethany
+    # there un-named the 42% voice the model had rightly named). And only a voice that is PRESENT
+    # may claim: a real share of the talk, across the episode, in real turns -- a bled fragment is
+    # not a host introducing themself.
+    _claim_cohost_formula_voices(
+        voice_intro, diarization, voice_texts, known_hosts, ad_voices, conv_guests
+    )
+    # The presenters, re-read with every name source heard (see above): an introducer that is
+    # itself named as the person it "introduces" drops out, and the co-presenter formula joins.
+    _branded_voices, _introducer_voices = _presenter_voices_by_evidence(
+        diarization, voice_texts or {}, ad_voices, feed_title, _stated_people, voice_intro
+    )
+    copresenter_voices = _copresenter_pair_voices(ordered_turns or [], voice_intro, ad_voices)
+    presenter_voices = _branded_voices | _introducer_voices | set(copresenter_voices)
+    conv_guests = _conv_guests_heard - presenter_voices
     ad_names_lower = {
         n.lower()
         for v, n in _self_intros_by_voice(voice_texts, intro_sources).items()
@@ -3195,6 +4457,14 @@ def resolve_speaker_roster(
         (n, s)
         for n, s in _host_name_pool(intro_source, known_hosts, host_candidates)
         if n.lower() not in ad_names_lower
+    ]
+    # THE SHOW IS NOT ITS OWN HOST. A feed-level pool still carries the show's name on some feeds
+    # ("Africa Tech Summit", "Machine Learning Street", "Trivium China"), and it was FORCED onto a
+    # seat and published as a person. The entry still COUNTS -- the feed said one host, and lifting
+    # the cap seated every voice with a bled "welcome to" on those feeds (corpus replay,
+    # 2026-10-02) -- it just never names anybody.
+    host_pool_named = [
+        (n, s) for n, s in host_pool if not (feed_title and names_the_show(n, feed_title))
     ]
 
     # WHICH voices are the hosts. Metadata and conversation are CROSS-REFERENCED here; neither
@@ -3227,14 +4497,24 @@ def resolve_speaker_roster(
         intro_window_s=intro_window_s,
         ad_intervals=ad_intervals,
         ad_voices=ad_voices,
+        voice_texts=voice_texts,
+        stated_others=list(metadata_named or ()) + list(detected_guests or ()),
+        host_copresence=host_copresence,
+        presenter_voices=presenter_voices,
+        copresenter_voices=copresenter_voices,
+        introducer_voices=_introducer_voices,
+    )
+    _cohost_present = _an_unseated_host_is_said_present(
+        voice_texts, known_hosts, voice_intro, host_voices, ad_voices
     )
 
-    host_names_lower = {n.lower() for n, _ in host_pool}
+    host_names_lower = {n.lower() for n, _ in host_pool_named}
     used_lower: set[str] = set()
 
+    _share_now = _talk_share(diarization, ad_voices)
     by_voice = _name_host_voices(
         host_voices,
-        host_pool,
+        host_pool_named,
         voice_intro,
         used_lower,
         llm_named,
@@ -3242,7 +4522,12 @@ def resolve_speaker_roster(
         conv_host_voices=conv_host_voices,
         voice_texts=voice_texts or {},
         episode_text=episode_text,
-        talk_share=_talk_share(diarization, ad_voices),
+        talk_share=_share_now,
+        host_copresence=host_copresence,
+        cohost_present=_cohost_present,
+        absent_hosts=_hosts_said_absent(voice_texts or {}, known_hosts, set(host_voices)),
+        host_evidence_voices=presenter_voices,
+        introducer_voices=_introducer_voices,
     )
 
     # The host also NAMES the guest out loud — "My guest today is Brian Chesky". That is a stated
@@ -3347,9 +4632,48 @@ def resolve_speaker_roster(
             refused_intro_voices=introduced_but_unspellable,
         )
     )
+    _name_a_talkative_host_once_the_guests_are_placed(
+        by_voice,
+        host_voices,
+        guest_names,
+        used_lower,
+        lambda seats, used: _name_host_voices(
+            seats,
+            host_pool_named,
+            voice_intro,
+            used,
+            llm_named,
+            publisher_named=publisher_named,
+            conv_host_voices=conv_host_voices,
+            voice_texts=voice_texts or {},
+            episode_text=episode_text,
+            talk_share=_share_now,
+            host_copresence=host_copresence,
+            cohost_present=_cohost_present,
+            absent_hosts=_hosts_said_absent(voice_texts or {}, known_hosts, set(host_voices)),
+            host_evidence_voices=presenter_voices,
+            introducer_voices=_introducer_voices,
+            ignore_ownership=True,
+        ),
+    )
     # They still belong in the roster — as "Advertisement", not as a missing id.
     for v in ad_voices:
         by_voice.setdefault(v, SpeakerRole(name=v, role="unknown", named=False, source="raw"))
+
+    # A HOST SEATED ON ITS OWN EVIDENCE CARRIES THE ASR'S SPELLING OF ITS NAME, and the feed's
+    # pool cannot correct it (the whole point is that the pool does not list this person). The
+    # episode's own metadata can: a reporter-presenter the description names ("Imani Moise")
+    # self-introduces as "Imani Moiz" (The Journal, corpus replay 2026-10-02). Same bounded
+    # canonicalisation the host path uses for the pool. AFTER the guests are named, so the same
+    # person's second cluster (self-introduced with the stated spelling) is not refused its name
+    # as already taken; `_one_name_per_person` then unifies the two under the host role.
+    _snap_evidence_hosts_to_stated_spelling(
+        by_voice,
+        host_voices,
+        host_names_lower,
+        used_lower,
+        [n for n in list(detected_guests or ()) + list(metadata_named or ()) if n],
+    )
 
     # ADR-130 — provider-agnostic name recovery: snap any published name that ASR-mangled a STATED
     # person (host OR guest) back to the metadata spelling. Runs for every provider (repairs
@@ -3374,12 +4698,26 @@ def resolve_speaker_roster(
     # Placed before the leftover/nameable accounting and `_classify_voice_types` so a demoted voice
     # is counted as an unnamed defect and re-typed correctly.
     for _v, _role in list(by_voice.items()):
-        if _role.named and not is_publishable_speaker_name(_role.name):
+        if not _role.named:
+            continue
+        # Keep the person, drop the job or the show in front of them ("Your Host Luisa Leni").
+        _bare = strip_role_prefix(_role.name)
+        if _bare != _role.name and is_publishable_speaker_name(_bare):
+            _role = replace(_role, name=_bare)
+            by_voice[_v] = _role
+        if not is_publishable_speaker_name(_role.name) or _is_show_mononym(
+            _role.name, feed_title, known_hosts
+        ):
             by_voice[_v] = replace(_role, name=_v, named=False, source="raw")
 
     # One person, one name, one role — across every voice diarization split them over.
     by_voice = _one_name_per_person(
-        by_voice, total, stated_refs, known_hosts, episode_text=episode_text
+        by_voice,
+        total,
+        stated_refs,
+        known_hosts,
+        episode_text=episode_text,
+        evidence_hosts={v for v in host_voices if v in presenter_voices},
     )
 
     # Which unnamed voices did we FAIL on, and which could nobody have named?

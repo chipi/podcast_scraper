@@ -5642,6 +5642,18 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     # a success with the rest logged: #1855.)
                     return 1
 
+                # One line per run, success or not. A successful batch used to end without a word —
+                # only failures got a summary — so the log stream could not say how many episodes
+                # a nightly produced (2026-10-02 observability review: "no run-summary log line").
+                log.info(
+                    "Multi-feed run summary: feeds=%d ok=%d failed=%d not_started=%d "
+                    "episodes_processed=%d",
+                    len(feed_targets),
+                    sum(1 for fr in batch_results if fr.ok),
+                    sum(1 for fr in batch_results if not fr.ok),
+                    len(feed_targets) - len(batch_results),
+                    sum(fr.episodes_processed for fr in batch_results),
+                )
                 has_feed_failure = any(not fr.ok for fr in batch_results)
                 strict = bool(getattr(base_cfg, "multi_feed_strict", False))
                 all_soft = bool(

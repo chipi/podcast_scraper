@@ -93,6 +93,23 @@ class VLLMProvider(OpenAICompatibleProvider):
             return from_env
         return _VLLM_DUMMY_BEARER
 
+    def _bundled_quote_response_format(self, num_insights: int, max_out: int) -> Dict[str, Any]:
+        """A bounded JSON schema, so a decoding loop cannot run the reply past its budget.
+
+        Verified against the served vLLM (0.20.1) on 2026-10-02: ``maxLength`` cut a looping
+        string at its cap and ``maxItems`` stopped the array, and the reply closed and parsed.
+        """
+        from ..common.bundled_prompts import extract_quotes_bundled_json_schema
+
+        return {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "bundled_quotes",
+                "schema": extract_quotes_bundled_json_schema(num_insights, max_out),
+                "strict": True,
+            },
+        }
+
     def _token_kwarg(self, n: int, model: Optional[str] = None) -> Dict[str, Any]:
         """vLLM-served open models use the classic ``max_tokens``; there is no o1/o3/gpt-5
         ``max_completion_tokens`` rename to honour."""

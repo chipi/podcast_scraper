@@ -1884,6 +1884,11 @@ def _finalize_pipeline(
     index_written, failure_summary = _finalize_run_index(
         cfg, pipeline_metrics, episodes, effective_output_dir, run_suffix
     )
+    from .show_metadata import feed_dir_for_run, write_show_metadata
+
+    _feed_dir = feed_dir_for_run(Path(effective_output_dir))
+    if _feed_dir is not None:
+        write_show_metadata(_feed_dir)
     # Skip the import entirely when vector indexing is disabled. The
     # ``search.indexer`` module pulls in numpy + the ML stack at load time, which
     # cloud-thin builds (``[llm]`` extras, ``vector_search: false``)
@@ -1930,12 +1935,22 @@ def _finalize_pipeline(
                 else None
             ),
         )
-        _maybe_build_topic_clusters_after_index(
-            _corpus_finalize_dir,
-            pipeline_metrics,
-            threshold=getattr(cfg, "topic_cluster_threshold", None),
-            delta=_corpus_delta,
-        )
+        # A multi-feed batch defers BOTH the index and the clusters to finalize_multi_feed_batch,
+        # which builds them at the corpus parent. maybe_index_corpus already honours that flag;
+        # without the same guard here every feed of a nightly warned that a run directory has no
+        # index (2026-10-02: once per feed), for a step that cannot apply there.
+        if getattr(cfg, "skip_auto_vector_index", False) is True:
+            logger.info("topic-clusters + ad signatures: deferred to the multi-feed batch finalize")
+        else:
+            _maybe_build_topic_clusters_after_index(
+                _corpus_finalize_dir,
+                pipeline_metrics,
+                threshold=getattr(cfg, "topic_cluster_threshold", None),
+                delta=_corpus_delta,
+            )
+            from podcast_scraper.providers.ml.diarization.ad_signatures import write_for_corpus
+
+            write_for_corpus(Path(_corpus_finalize_dir))
         if _corpus_delta is not None:
             from podcast_scraper.corpus_delta import write_fingerprint_manifest
 
@@ -3065,6 +3080,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     effective_output_dir, run_suffix, full_config_string, pipeline_metrics = (
         _setup_pipeline_environment(cfg)
     )
+    # Show sidecar: from here on, this run's show events (and every ERROR it logs) are appended
+    # to feeds/<feed>/show_events/<run>.jsonl, folded into show.json at finalize.
+    from .show_events import bind_show
+
+    bind_show(effective_output_dir)
 
     # GitHub #557: structured incident log (episode/feed scope); default beside run artifacts.
     if not (cfg.incident_log_path or "").strip():
@@ -3218,6 +3238,9 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         maybe_update_pipeline_status(cfg, effective_output_dir, stage="done")
         return result
     finally:
+        from .show_events import unbind_show
+
+        unbind_show()
         # GitHub #562: allow coercion INFO + screenplay warnings on the next Config / run.
         try:
             config.reset_screenplay_issue_562_gates()

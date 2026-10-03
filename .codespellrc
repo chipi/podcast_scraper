@@ -1,6 +1,9 @@
 [codespell]
 skip = *.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git
-ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot,Carin,Hart,Empress
+ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot,Carin,Hart,Empress,ist,sie,te,coo
+# ist / sie / te: German and Dutch function words in the ad-language detector's word lists
+# (providers/ml/diarization/ad_signatures.py); not typos
+# coo: the job title COO in the stated-name trailing job tokens (speaker_detectors/hosts.py)
 # canonicalizations: legitimate plural (a count of host-identity canonicalization steps, RFC-109); codespell false-positives -izations plurals
 # covert: real word ("a covert vLLM shim" — hidden/disguised, ADR-147); not a typo of "convert"
 # disjointness: real word ("vendor disjointness" — the state of being disjoint, ADR-149/JUDGING.md); not a typo

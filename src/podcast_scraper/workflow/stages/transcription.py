@@ -22,17 +22,22 @@ else:
     RssFeed = models.RssFeed  # type: ignore[assignment]
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from ...providers.capabilities import get_provider_capabilities, is_local_provider
-from ...utils import filesystem, progress
+from ...utils import correlation, filesystem, otel_init, progress
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from .. import metrics
 from ..episode_processor import transcribe_media_to_text as factory_transcribe_media_to_text
 
 
-def _hosts_for_episode(result: Any, episode: Any) -> Set[str]:
-    """Late import: ``processing`` imports this module's siblings at load time."""
+def _hosts_for_episode(result: Any, job: Any) -> Set[str]:
+    """Late import: ``processing`` imports this module's siblings at load time.
+
+    The episode's stated participants go in too, so a guest the description names next to a host
+    cue is never added to the pool (the replay measures exactly this input).
+    """
     from .processing import hosts_for_episode
 
-    return hosts_for_episode(result, episode)
+    people = list(job.metadata_named or ()) + list(job.detected_speaker_names or ())
+    return hosts_for_episode(result, job.episode, people)
 
 
 from ..helpers import update_metric_safely
@@ -50,7 +55,37 @@ def transcribe_media_to_text(*args, **kwargs):
 
         if isinstance(func, Mock):
             return func(*args, **kwargs)
-    return factory_transcribe_media_to_text(*args, **kwargs)
+    with _episode_stage_span("episode.transcribe", args, kwargs) as span:
+        result = factory_transcribe_media_to_text(*args, **kwargs)
+        if isinstance(result, tuple) and result and result[0] is False:
+            otel_init.mark_span_failed(span, "transcription returned success=False")
+            from ..show_events import record_show_event
+
+            record_show_event("stage_failed", stage="transcribe", reason="success=False")
+        return result
+
+
+def _episode_stage_span(name: str, args: tuple, kwargs: dict) -> Any:
+    """``episode.<stage>`` span with the episode's run/episode/feed ids, like ``episode.process``.
+
+    ``episode.process`` wraps only the DOWNLOAD, so its longest span on the 2026-10-02 nightly was
+    11s while an episode's transcription and metadata took up to 16 and 45 minutes, untraced.
+    """
+    job: Any = args[0] if args else kwargs.get("job")
+    cfg: Any = args[1] if len(args) > 1 else kwargs.get("cfg")
+    episode_id = None
+    try:
+        from ..helpers import get_episode_id_from_episode
+
+        episode_id, _ = get_episode_id_from_episode(job.episode, getattr(cfg, "rss_url", "") or "")
+    except Exception:  # noqa: BLE001 — correlation is best-effort
+        pass
+    return otel_init.episode_span(
+        run_id=correlation.get_run_id(),
+        episode_id=episode_id,
+        feed_id=getattr(cfg, "rss_url", None),
+        name=name,
+    )
 
 
 from ...transcription.factory import create_transcription_provider
@@ -225,7 +260,7 @@ def process_transcription_jobs(
                 # Anchor the diarization roster with the feed-stated hosts (canonicalizes
                 # ASR-garbled host surnames). cached_hosts already merges feed + config hosts.
                 # #2197: this episode's own authors, never another episode's (hosts_for_episode).
-                job.feed_hosts = sorted(_hosts_for_episode(host_detection_result, job.episode))
+                job.feed_hosts = sorted(_hosts_for_episode(host_detection_result, job))
                 # Stage 2: Use provider if available, otherwise fall back to direct model
                 # For backward compatibility, we pass both provider and model
                 # transcribe_media_to_text will use provider if available
@@ -558,7 +593,7 @@ def process_transcription_jobs_concurrent(  # noqa: C901
         try:
             # Anchor the roster with the feed-stated hosts (see the sequential path above).
             # #2197: this episode's own authors, never another episode's (hosts_for_episode).
-            job.feed_hosts = sorted(_hosts_for_episode(host_detection_result, job.episode))
+            job.feed_hosts = sorted(_hosts_for_episode(host_detection_result, job))
             success, transcript_path, bytes_downloaded = transcribe_media_to_text(
                 job,
                 cfg,

@@ -160,7 +160,11 @@ def test_two_hosts_and_two_voices_names_NEITHER_without_evidence() -> None:
 
     The GUEST is unaffected: one spare name, one unassigned voice, still forced.
     """
-    diar = _diar([("H1", 0, 50), ("H2", 50, 90), ("GUEST", 90, 400), ("H1", 400, 420)], 3)
+    # H2 also speaks late: a co-host is present across the episode (seat logic v4 seats only
+    # voices whose turns span most of it — see the next test).
+    diar = _diar(
+        [("H1", 0, 50), ("H2", 50, 90), ("GUEST", 90, 380), ("H2", 380, 400), ("H1", 400, 420)], 3
+    )
     r = resolve_speaker_roster(
         diar,
         "Welcome back everyone.",
@@ -172,6 +176,38 @@ def test_two_hosts_and_two_voices_names_NEITHER_without_evidence() -> None:
     assert not any(v.named for v in hosts), "a host name was assigned by position"
     assert {v.name for v in hosts} == {"H1", "H2"}
     assert r.by_voice["GUEST"].name == "Grace Green"
+
+
+def test_a_voice_heard_only_in_the_opening_minute_is_not_seated_as_a_host() -> None:
+    """Seat logic v4: a host seat needs a voice PRESENT across the episode. A voice heard only at
+    the start (here 50-90s of 420s) is not a second host, however many hosts the feed states."""
+    diar = _diar([("H1", 0, 50), ("H2", 50, 90), ("GUEST", 90, 400), ("H1", 400, 420)], 3)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back everyone.",
+        known_hosts=["Anna Adams", "Ben Baker"],
+        detected_guests=["Grace Green"],
+    )
+    assert r.by_voice["H1"].role == "host"
+    assert r.by_voice["H2"].role != "host"
+    assert r.by_voice["GUEST"].name == "Grace Green"
+
+
+def test_a_guest_who_first_speaks_after_the_opening_still_takes_the_stated_guest_name() -> None:
+    """Seat logic v5 (gold-gate loop 2): the dominant interviewee absorbs the stated guest even when
+    its first turn comes after the intro window. Without it the stated guest counted as an unplaced
+    third person, the co-host's seat was refused and the guest went unnamed."""
+    diar = _diar(
+        [("H1", 0, 50), ("H2", 50, 95), ("GUEST", 95, 380), ("H2", 380, 400), ("H1", 400, 420)], 3
+    )
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back everyone.",
+        known_hosts=["Anna Adams", "Ben Baker"],
+        detected_guests=["Grace Green"],
+    )
+    assert r.by_voice["GUEST"].name == "Grace Green"
+    assert {v for v, role in r.by_voice.items() if role.role == "host"} == {"H1", "H2"}
 
 
 def test_one_host_and_one_seat_is_still_forced() -> None:

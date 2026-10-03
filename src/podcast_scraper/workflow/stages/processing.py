@@ -12,7 +12,19 @@ import threading
 import time
 from concurrent.futures import as_completed, Future, ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Callable, cast, Dict, List, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
+from typing import (
+    Any,
+    Callable,
+    cast,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    TYPE_CHECKING,
+)
 
 from ... import config, models
 
@@ -469,6 +481,7 @@ from ...providers.resilience import ResilienceFuseOpenError
 from ...speaker_detectors.corroboration import corroborate_guests
 from ...speaker_detectors.factory import create_speaker_detector
 from ...speaker_detectors.hosts import (
+    compose_episode_hosts,
     detect_hosts_from_feed,
     distinct_self_introductions,
     drop_non_person_names,
@@ -950,35 +963,49 @@ def _validate_hosts_with_first_episode(
     return validated_hosts if validated_hosts else feed_hosts
 
 
-def hosts_for_episode(result: HostDetectionResult, episode: Any) -> set[str]:
-    """The hosts to anchor ONE episode on — the feed's hosts, with its OWN authors (#2197).
+def hosts_for_episode(
+    result: HostDetectionResult, episode: Any, episode_people: Iterable[str] = ()
+) -> set[str]:
+    """The hosts to anchor ONE episode on (#2197, then problem 3 of the naming scoreboard).
+
+    The feed-level set (statement, author tags, config ``known_hosts``, recurrence) is kept; the
+    episode-author fallback's contribution is replaced by THIS episode's own byline; and the hosts
+    this episode's own description names join the pool — through one composer,
+    :func:`~podcast_scraper.speaker_detectors.hosts.compose_episode_hosts`, which also decides that
+    a byline listing everybody in the room adds nobody once the description says who hosts (The a16z
+    Show: "Erik Torenberg sits down with Amjad Masad and Gagan Biyani" — the byline names all
+    three).
 
     When a feed names nobody, the episode-level ``<itunes:author>`` fallback unions the authors of
     the feed's first episodes into the FEED's host set, and every episode inherits it. On Latent
     Space one post's authors ("Brandon Anderson, RJ Honicky, and Latent.Space") were seated as the
     hosts of 9 episodes; the live feed carries that tag on ONE of its 229 items — 170 say only
     "Latent.Space". Another episode's author is not this episode's host.
-
-    So the fallback's contribution is replaced here by this episode's own authors, through the same
-    gates (``normalize_host_names``, the org and show filters). Everything else in the set — config
-    ``known_hosts``, hosts recurring across the feed — is untouched. Without the fallback (a feed
-    that states its hosts) this returns ``cached_hosts`` unchanged.
     """
     hosts = set(result.cached_hosts or ())
     fallback = set(getattr(result, "episode_author_hosts", frozenset()) or ())
-    if not fallback:
-        return hosts
     from ...rss import parser as rss_parser
 
     item = getattr(episode, "item", None)
-    own_raw = rss_parser.extract_episode_authors(item) if item is not None else []
-    own = {
-        a
-        for a in normalize_host_names(own_raw, feed_title=result.feed_title)
-        if not is_network_or_org_author(a)
-    }
-    own = set(drop_non_person_names(sorted(own), result.feed_title, result.kind_votes))
-    return (hosts - fallback) | own
+    own: set[str] = set()
+    if fallback and item is not None:
+        own_raw = rss_parser.extract_episode_authors(item)
+        own = {
+            a
+            for a in normalize_host_names(own_raw, feed_title=result.feed_title)
+            if not is_network_or_org_author(a)
+        }
+        own = set(drop_non_person_names(sorted(own), result.feed_title, result.kind_votes))
+    return set(
+        compose_episode_hosts(
+            sorted(hosts - fallback),
+            sorted(own),
+            episode_title=getattr(episode, "title", None),
+            episode_description=extract_episode_description(item) if item is not None else None,
+            feed_title=result.feed_title,
+            episode_people=list(episode_people or ()),
+        )
+    )
 
 
 def _fallback_to_episode_authors(
@@ -1075,6 +1102,21 @@ def _infer_host_source(
     if feed.authors:
         return "RSS author tags"
     return "feed metadata (NER)"
+
+
+def _record_hosts_detected(
+    hosts: set[str], source: str, feed_level: set[str], dropped: set[str]
+) -> None:
+    """Show sidecar: the host set this run uses for the show, and the branch that produced it."""
+    from ..show_events import record_show_event
+
+    record_show_event(
+        "hosts_detected",
+        hosts=sorted(hosts),
+        source=source,
+        feed_level_hosts=sorted(feed_level),
+        dropped_non_person=sorted(dropped),
+    )
 
 
 def _feed_title(feed: Any) -> Optional[str]:
@@ -1186,6 +1228,9 @@ def detect_feed_hosts_and_patterns(
     """
     cached_hosts: set[str] = set()
     heuristics: Optional[Dict[str, Any]] = None
+    from ...utils import correlation
+
+    correlation.set_feed_title(_feed_title(feed))
 
     # If auto_speakers is disabled, skip speaker detection entirely
     if not cfg.auto_speakers:
@@ -1227,6 +1272,7 @@ def detect_feed_hosts_and_patterns(
                 ", ".join(sorted(cached_hosts)),
             )
             # Skip validation since known_hosts are trusted
+            _record_hosts_detected(cached_hosts, "config known_hosts + feed", feed_hosts, set())
             return HostDetectionResult(
                 cached_hosts, heuristics, speaker_detector, _feed_title(feed)
             )
@@ -1304,6 +1350,7 @@ def detect_feed_hosts_and_patterns(
 
     kind_votes = votes_for_cfg(cfg)
     _people = set(drop_non_person_names(sorted(cached_hosts), _feed_title(feed), kind_votes))
+    _dropped = set(cached_hosts) - _people
     if _people != cached_hosts:
         logger.info(
             "  → dropped non-person host candidate(s): %s",
@@ -1313,6 +1360,15 @@ def detect_feed_hosts_and_patterns(
 
     # Log detected hosts with their source
     _log_detected_hosts(cached_hosts, feed, episode_authors, cfg, source=host_source)
+    _record_hosts_detected(
+        cached_hosts,
+        host_source
+        or (
+            _infer_host_source(cached_hosts, feed, episode_authors, cfg) if cached_hosts else "none"
+        ),
+        feed_hosts,
+        _dropped,
+    )
 
     # Analyze patterns from first few episodes to extract heuristics
     if cfg.auto_speakers and episodes:
@@ -3173,9 +3229,26 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 cfg, _transcript_word_count(job.transcript_path)
             )
             metadata_timeout = None if _metadata_deadline is None else int(_metadata_deadline)
-            with timeout_context(
-                metadata_timeout,
-                f"metadata generation (summary+GI+KG) for episode {job.episode.idx}",
+            from ...utils import correlation, otel_init
+            from ..helpers import get_episode_id_from_episode
+
+            try:
+                _span_episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+            except Exception:  # noqa: BLE001 — correlation is best-effort
+                _span_episode_id = None
+            # The span sits INSIDE the deadline observer: an overrun is raised after the block
+            # has completed, so it must not mark the work failed; an exception from the work does.
+            with (
+                timeout_context(
+                    metadata_timeout,
+                    f"metadata generation (summary+GI+KG) for episode {job.episode.idx}",
+                ),
+                otel_init.episode_span(
+                    run_id=correlation.get_run_id(),
+                    episode_id=_span_episode_id,
+                    feed_id=getattr(cfg, "rss_url", None),
+                    name="episode.metadata",
+                ),
             ):
                 metadata_stage.call_generate_metadata(
                     episode=job.episode,

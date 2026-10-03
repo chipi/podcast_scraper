@@ -21,6 +21,7 @@ import functools
 import importlib
 import logging
 import os
+import sys
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, Optional
 
@@ -113,6 +114,37 @@ def init_otel() -> bool:
 
 
 @contextmanager
+def _span(trace: Any, tracer_name: str, name: str, attributes: dict[str, Any]) -> Iterator[Any]:
+    """Open a span without ever replacing the caller's exception.
+
+    The span used to be opened INSIDE a ``try`` whose ``except`` also guarded the ``yield``. An
+    exception from the wrapped block was therefore caught there and the generator yielded a second
+    time, so ``contextmanager`` raised ``RuntimeError: generator didn't stop after throw()`` and
+    the episode's real error never reached its caller. Telemetry failures are still swallowed;
+    the block's own exceptions pass through untouched (the span records them on the way out).
+    """
+    try:
+        cm = trace.get_tracer(tracer_name).start_as_current_span(name, attributes=attributes)
+        span = cm.__enter__()
+    except Exception:  # noqa: BLE001 — telemetry must never break the work it observes
+        _LOGGER.debug("span %s failed to open", name, exc_info=True)
+        yield None
+        return
+    try:
+        yield span
+    except BaseException:
+        try:
+            cm.__exit__(*sys.exc_info())
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("span %s failed to close", name, exc_info=True)
+        raise
+    try:
+        cm.__exit__(None, None, None)
+    except Exception:  # noqa: BLE001
+        _LOGGER.debug("span %s failed to close", name, exc_info=True)
+
+
+@contextmanager
 def enrichment_span(
     *,
     run_id: Optional[str] = None,
@@ -160,13 +192,8 @@ def enrichment_span(
         )
         if v
     }
-    try:
-        tracer = trace.get_tracer("podcast_scraper.enrichment")
-        with tracer.start_as_current_span(name, attributes=attributes) as span:
-            yield span
-    except Exception:  # noqa: BLE001 — telemetry must never break enrichment
-        _LOGGER.debug("enrichment_span failed", exc_info=True)
-        yield None
+    with _span(trace, "podcast_scraper.enrichment", name, attributes) as span:
+        yield span
 
 
 @contextmanager
@@ -220,13 +247,25 @@ def episode_span(
         )
         if v
     }
+    with _span(trace, "podcast_scraper.pipeline", name, attributes) as span:
+        yield span
+
+
+def mark_span_failed(span: Any, reason: str) -> None:
+    """Mark *span* as an error for a failure the code handled without raising.
+
+    Most stage failures here are logged and returned (``success=False``), never raised, and an
+    exception is the only thing OTEL turns into an error span on its own. Measured on the
+    2026-10-02 nightly: ERROR lines in the logs, zero error spans in VictoriaTraces.
+    """
+    if span is None:
+        return
     try:
-        tracer = trace.get_tracer("podcast_scraper.pipeline")
-        with tracer.start_as_current_span(name, attributes=attributes) as span:
-            yield span
-    except Exception:  # noqa: BLE001 — telemetry must never break episode processing
-        _LOGGER.debug("episode_span failed", exc_info=True)
-        yield None
+        from opentelemetry.trace import Status, StatusCode
+
+        span.set_status(Status(StatusCode.ERROR, reason))
+    except Exception:  # noqa: BLE001 — telemetry must never break the work it observes
+        _LOGGER.debug("mark_span_failed failed", exc_info=True)
 
 
 def wrap_with_current_context(fn: Callable[..., Any]) -> Callable[..., Any]:

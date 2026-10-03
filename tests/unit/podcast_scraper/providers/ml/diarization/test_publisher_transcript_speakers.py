@@ -60,13 +60,33 @@ class TestSnapNearIdenticalHost:
     def test_one_letter_from_a_stated_host_is_that_host(self) -> None:
         assert _snap_near_identical_host("Tracy Allaway", self.HOSTS) == "Tracy Alloway"
 
+    def test_a_given_name_one_letter_off_with_the_exact_surname_is_that_host(self) -> None:
+        # Gold-labelled validation set, 2026-10-02: Odd Lots' "I'm Tracey Alloway" stayed
+        # "Tracey Alloway" and was cast as a guest of her own show.
+        assert _snap_near_identical_host("Tracey Alloway", self.HOSTS) == "Tracy Alloway"
+
+    def test_the_relaxed_given_name_does_not_claim_a_host_another_voice_already_is(self) -> None:
+        # Validation set v344: one host split by the diarizer into "I'm Tracy Alloway" (one voice)
+        # and "I'm Traci Alloway" (another). Snapping the second early made two voices claim her and
+        # the larger lost its name; the later stated-name pass resolves it correctly instead.
+        taken = {"Tracy Alloway"}
+        assert _snap_near_identical_host("Traci Alloway", self.HOSTS, taken) == "Traci Alloway"
+        # ...while the exact-given-name rule is unchanged.
+        assert _snap_near_identical_host("Tracy Allaway", self.HOSTS, taken) == "Tracy Alloway"
+
     @pytest.mark.parametrize(
         ("name", "hosts"),
         [
             ("Kevin Ross", ["Kevin Roose"]),  # two edits: a real, different surname
-            ("Tracey Alloway", ["Tracy Alloway"]),  # first name must be exact
             ("Ada Pope", ["Ada Pape"]),  # a surname under 5 letters is too short to trust one edit
             ("Tracy", ["Tracy Alloway"]),  # a mononym is not snapped here
+            ("Dina Shipley", ["Dana Shipley"]),  # short given names sharing a family name differ
+            ("Tracey Allaway", ["Tracy Alloway"]),  # one edit on EACH side is two edits: too far
+            (
+                "Tracey Alloway",
+                ["Tracy Allowan"],
+            ),  # surname must be exact when the given name is off
+            ("Joe Alloway", ["Tracy Alloway"]),  # a different given name, same family name
         ],
     )
     def test_anything_further_is_left_alone(self, name: str, hosts: list) -> None:

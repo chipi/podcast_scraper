@@ -214,9 +214,14 @@ def test_add_spoken_by_skips_misaligned_char_start(caplog):
         for e in art_ok["edges"]
     )
 
+    # The text is not in this transcript at all, so there is nowhere to re-anchor it.
     art_bad = {
         "nodes": [
-            {"id": "quote:1", "type": "Quote", "properties": {"char_start": 3, "text": quote_text}}
+            {
+                "id": "quote:1",
+                "type": "Quote",
+                "properties": {"char_start": 3, "text": "Latency is the real challenge here."},
+            }
         ],
         "edges": [],
     }
@@ -225,3 +230,26 @@ def test_add_spoken_by_skips_misaligned_char_start(caplog):
     assert added == 0
     assert not [e for e in art_bad["edges"] if e.get("type") == "SPOKEN_BY"]
     assert "not aligned" in caplog.text
+
+
+def test_add_spoken_by_reanchors_a_misaligned_quote_onto_its_real_speaker():
+    """A misaligned char_start (offset 3, inside Maya's turn) is the wrong-speaker risk #876/#925
+    guard against. When the quote's text occurs exactly once, it is moved there and credited to the
+    voice that says it — Priya, not Maya."""
+    from podcast_scraper.identity.slugify import person_id
+
+    transcript = (
+        "Maya: " + "Welcome to the show. " * 10 + "\n"
+        "Priya Sharma: Reliability is the real challenge here."
+    )
+    quote_text = "Reliability is the real challenge here."
+    art = {
+        "nodes": [
+            {"id": "quote:1", "type": "Quote", "properties": {"char_start": 3, "text": quote_text}}
+        ],
+        "edges": [],
+    }
+    assert add_spoken_by_edges(art, transcript, hosts=["Maya"], guests=["Priya Sharma"]) == 1
+    targets = {e.get("to") for e in art["edges"] if e.get("type") == "SPOKEN_BY"}
+    assert targets == {person_id("Priya Sharma")}
+    assert art["nodes"][0]["properties"]["char_start"] == transcript.index(quote_text)

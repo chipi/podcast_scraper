@@ -11,6 +11,7 @@ import queue
 import sys
 import threading
 import unittest
+import xml.etree.ElementTree as ET  # nosec B405
 from unittest.mock import Mock, patch
 
 import pytest
@@ -43,6 +44,12 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.unit
+def _rss_item(title: str) -> ET.Element:
+    item = ET.Element("item")
+    ET.SubElement(item, "title").text = title
+    return item
+
+
 class TestInitializeMLEnvironment(unittest.TestCase):
     """Tests for initialize_ml_environment function."""
 
@@ -471,7 +478,7 @@ class TestCallGenerateMetadata(unittest.TestCase):
             idx=1,
             title="Test Episode",
             title_safe="test-episode",
-            item={"title": "Test Episode"},
+            item=_rss_item("Test Episode"),
             transcript_urls=[],
         )
         feed = models.RssFeed(

@@ -1,0 +1,127 @@
+# Advisor review pack — naming + pipeline fixes (2026-10-01 → 2026-10-02)
+
+Running record of what was fixed, what was measured, and what is deliberately left open. The
+"Questions for the advisor" section is the point of the review: each one is a decision we held
+back because the evidence did not settle it.
+
+All measurements are on prod (`sha-0ee4580`, ~2,050 served episodes) unless stated. "Replay" means
+the faithful roster replay: production's roster code re-run over each stored episode, fed the LLM
+answers the pipeline stored in `.speakers.diagnostics.json` (no new LLM calls).
+
+## Commits in scope (local `wt-kg`, not yet pushed unless marked)
+
+Pushed to main earlier (`fcdae675d` and before), not deployed:
+
+| Commit | What |
+|---|---|
+| `3325f9ea7` | person_web prune |
+| `7b4222b70` | host seat: whitespace / hypothetical host statements |
+| `ddb41645c` | "my name's", "for today", reported speech in self-intro detection |
+| `9e63c53b4` | two-voice show: the host-introduced stated guest is named |
+| `dd8835954` | transcript filename bounded to 255 bytes + write-failure recorded |
+| `fcdae675d` | KG reply that is not JSON logs WHERE at WARNING |
+
+Local, not pushed:
+
+| Commit | What | Evidence |
+|---|---|---|
+| `3bdcebb41` | roster: a vacant host seat is not filled by the guest who owns the talk (≥50% with a guest present) nor by a voice under 5% | replay 2,051 eps: +46 names (39 Tyler Cowen), −41 (ads, clips, org names, guests with a host's name), 7 renamed. Known regressions: 2 correct names lost, 1 wrong gain. "Stop at the dominant voice" variant measured and rejected (−5 real co-hosts) |
+| `28ae5f068` | compose: pass `APP_MCP_RESOURCE_URLS` to the player api | obs connector authorize returned 400 `invalid_target` (07:46/07:47Z); the env value was staged on 09-05 but never reached the container |
+| `df3cc9332` | GI: a quote whose transcript was relabelled is re-anchored onto its text | 936 warnings/night = the same 36 Odd Lots episodes (relabelled 09-28) re-warned by every whole-corpus enrich pass; 1,997 of 2,021 quotes occur exactly once → recovered on the next run |
+| `94d330395` | bundled quotes: bounded JSON schema on vLLM + a decoding loop is salvaged, not bisected | 13/13 captured failures were a filler loop ("like, you know, …") at 5120/5120 with presence_penalty 1.5 on. Replay of a looping batch ×3: json_object looped 1/3 (all 24 quotes lost), schema 0/3 (24/24 resolved). The 1200s "hangs" (#2040/#1983) all completed — they were this loop |
+| `d49f0605d` | third-person guard: "I am your host, X" and "I am Rob X" count as self-introductions | 28 discards hand-reviewed, ~17 removed a correct name |
+| `2ad4dc93f` → reverted `674dcc390` | German-only ad rule | rejected by the operator: hard-coded the fetch location |
+| `aa87b973e` | cross-show ad signatures (recurrence ≥3 episodes / ≥2 feeds; learned ad languages) + opener 5% floor | replay 2,066 eps: 338 voices → ad, 90 names removed (house-ad readers, host names on ads), 17 gained (Runciman ×10), regressions all in seating (Q4) |
+| `e1728af87` | publish gate refuses role words, interjections, organisations, job titles, abbreviations; strips "Your Host"/job/possessive prefixes | published corpus: 45 suspect of 4,638 names. Replay: 27 junk removed, 2 repaired (Kenny Malone, Eilish Hart); 1 partial lost ("RJ") |
+| `15b7e7313` | unplaced speakers pass the same gate | "The China-Global South Project" unplaced host on 10 episodes |
+| `37159add8` | test: torch-seed test no longer depends on xdist import order | failed 3/3 alone; exposed by today's new test files |
+| (item 4) | spans: the span helper no longer replaces the block's exception with `RuntimeError: generator didn't stop after throw()`; `episode.transcribe` + `episode.metadata` spans; a handled failure marks its span; one `Multi-feed run summary` line per run | reproduced the RuntimeError locally; 0 hits in 30 days of prod logs (latent). `episode.process` covers only the download (max 11s) |
+
+## Questions for the advisor
+
+1. **Third-person guard vs a guest's own surname.** About 12 of the 17 wrong discards are the guest
+   on the dominant voice (54–84% of talk) uttering their own surname or a relative's (quoting a
+   headline about themselves, "my mother", "my first husband's name"), or the host's closing
+   "Name, thank you" merged into the guest's cluster. Last night two of them hid 61 and 56
+   insights. Candidate rule: a metadata-stated guest name on the voice with ≥50% of the words is
+   not refuted by mentions. Risk: the guard exists for the Unhedged case where a co-host (~50% on
+   a two-host show) was named after the person discussed (Jay Powell). Is dominance + "stated
+   guest" + "voice does not self-introduce as someone else" enough, or is there a better signal?
+
+2. **Junk "names" in the candidate list.** A case-sensitive surname match (to stop "a black
+   t-shirt" refuting Sue Black) was replayed: +2 correct names, +6 junk title fragments ("AI White
+   House", "Claude Code", "Commodity Context", "Russian Spring", "Treasury Foreign Exchange",
+   "How Football Shirts") placed on large voices. The case-blind match was rejecting them by
+   accident. Where should non-person candidates be stopped — at detection, or at placement?
+
+3. **Show hosts vs episode hosts (#2092).** The Daily states three hosts; on most episodes one is
+   present. The seat guard only fires when substantial voices outnumber stated hosts, so a
+   reporter-guest at 61% is seated as host and goes unnamed (34 insights hidden on one episode).
+   Should the seat count come from the episode (who self-introduces) rather than the feed?
+
+4. **Seat guard known regressions** (`3bdcebb41`): a correct guest name reached through
+   elimination is lost when the dominant voice is no longer seated, and an archive clip can take
+   the vacant seat. Acceptable trade for the gains, or is there a cleaner formulation?
+   **New evidence (item 6, ads recognised by cross-show signatures, `aa87b973e`):** once ads
+   stop occupying seats, the seat logic's weaknesses show. The guard's "a guest is present" test
+   counts substantial voices, and an ad was often the voice that tipped the count. Replay
+   regressions: Dalrymple on Alex von Tunzelmann (Empire), Knutson on a Journal reporter, Kevin
+   Roose on a guest who says "Kevin, I have to ask you", Aaron Levie on a narrator talking about
+   him, Casey Newton lost on one voice, A.J. Jacobs lost. Should "guest present" / seat count use
+   a signal other than a voice count (the LLM's guest role, metadata guests, who self-introduces)?
+
+5. **Feed-description host parser** (held patch, re-tested 2026-10-02 on the full current code —
+   seat guard, opener floor, name gate, ad signatures). It finds real hosts (Patrick McKenzie 40
+   episodes, Eric Olander 10, Campbell/Stewart 41), but fed into SEAT PLACEMENT it is still net
+   harmful over 98 affected episodes: ~9 correct names lost (Campbell's own "…with me, Alistair
+   Campbell" voice on 4 episodes — the description spells "Alastair"; Michael Stevens on his own
+   "I'm Michael Stevens"), ~9 wrong gains (Campbell on the recurring "Thanks for listening to The
+   Rest is Politics. Sign up…" promo voice ×7, "White House" on an ad fragment), ~3 right. Not
+   applied. Options: (a) use description hosts ONLY as unplaced published hosts (no seat claimed);
+   (b) wait for the seat-logic answer (Q4) and per-show recurring-promo detection, then re-test.
+
+6. **The in-flight deadline alarm.** `timeout_context` logs ERROR "DEADLINE EXCEEDED … STILL
+   RUNNING" when the deadline passes, while the work continues. All three on 2026-10-02 then
+   completed (the decoding loop), and the ERROR level is what files #2040/#1983 repeatedly. The
+   comment keeps it at ERROR deliberately: it was the only signal during a real 4h15m wedge, and
+   alerting keys on it. Candidate: WARNING at the deadline, ERROR only at a multiple of it (the
+   2026-10-02 overruns finished at ≤2.6×; the wedge was ~13×). Changes an alerting contract, so
+   held.
+
+7. **One person, several spellings across episodes.** "Yushan"/"Yushun" (Round Table China),
+   "RJ Hanaki"/"RJ Honicky" (Latent Space), "Bernard Liang"/"Bernard Leong". ADR-130 snaps a
+   mangled name back only to a name the episode's metadata states; these feeds state none, so
+   each episode keeps its own ASR spelling. Is a corpus-level identity pass (cluster by feed +
+   phonetic/edit distance + co-occurrence) worth it, and where would it live?
+
+8. **Holistic:** where is naming thin overall — seats, missing names, misspellings (Bernard
+   Liang/Leong, Kittrow-F), duplicates — and are the last ~10 commits sound (due diligence)?
+
+## Observability item 5 (config / noise) — decided, not changed
+
+- **HF_TOKEN unset:** one Hub metadata ping per model load against a cached model. `pipeline-llm`
+  is built with `PRELOAD_ML_MODELS=false`; MiniLM + nli-deberta live in the `hf_cache` volume,
+  downloaded on first use. Both load offline in the real image (verified), but `HF_HUB_OFFLINE=1`
+  would break a fresh volume. Options for the operator: an `HF_TOKEN` secret, or bake the models
+  into the image (+640 MB) and then go offline.
+- **SELF-GRADING:** the value gate's rater is the generator because the DGX serves one model.
+  Added to `DGX-DEFERRED.md` (#1895).
+- **insight_salvage over ceiling (84/night):** the model returns ~30 for a ceiling of 25 and the
+  salvage keeps 25 spread across the episode. A schema `maxItems` would cut the tail of each
+  transcript slice instead, which is worse. Left as is.
+- **topic-clusters skipped:** fixed (`228834dc1`) — a multi-feed feed no longer looks for an index
+  in its run directory.
+
+## Corrections to earlier claims
+
+- `df3cc9332`'s message says the 36 Odd Lots episodes heal "on the first pipeline run after
+  deploy". Wrong for the nightly: a multi-feed feed finalizes only its own run directory
+  (`enrich-edges: episodes=4`). The whole-corpus pass is the finalize of a SINGLE-feed Jobs-API
+  run (`path=/app/output`) — that is what re-warned 36 episodes 26 times — so they heal on the
+  first single-feed job after deploy (e.g. the DEEPEN jobs).
+
+## Not done / not verified
+
+- Kennedy Center (34 insights) traced only to a hypothesis (question 3); Planet Money (4) not looked at.
+- The re-anchor and loop fixes are verified by tests and prod replays, not yet by a live run.
+- Observability item 4 is fixed in code (`432564e08`) but not yet seen in VictoriaTraces.

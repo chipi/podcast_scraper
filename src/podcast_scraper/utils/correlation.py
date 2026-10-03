@@ -92,6 +92,24 @@ def get_feed_id() -> Optional[str]:
     return _FEED_ID.get() or _FEED_ID_FALLBACK
 
 
+_FEED_TITLE: Optional[str] = None
+
+
+def set_feed_title(title: Optional[str]) -> None:
+    """The title of the feed this process is working on (one feed in flight at a time, as above).
+
+    Read by speaker naming, where a voice that presents THIS show by name may take a host seat and
+    a host-pool entry that is the show's own name is never painted on a voice.
+    """
+    global _FEED_TITLE
+    _FEED_TITLE = (title or "").strip() or None
+
+
+def get_feed_title() -> Optional[str]:
+    """The current feed's title, or ``None``."""
+    return _FEED_TITLE
+
+
 def set_profile(profile: Optional[str]) -> None:
     """Set the resolved profile name for this run."""
     global _PROFILE
