@@ -70,6 +70,7 @@ import {
   queueListen,
 } from './services/listenLog'
 import { startDownloadScheduler } from './services/downloadScheduler'
+import { postLinkSignInRoute } from './utils/redirect'
 import {
   flushPendingPositions,
   hydratePositions,
@@ -465,9 +466,10 @@ onMounted(async () => {
     // A fresh sign-in changes who we are; adopt before loading anything per-account.
     await adoptIdentity()
     await hydrateUser()
-    // A just-created email account has no name and no picture: land it on the profile, as the web
-    // verify redirect does. Runs last so it supersedes LoginView's own "signed in → home" replace.
-    if (isNew) void router.replace({ name: 'profile', query: { welcome: '1' } })
+    // New account → its profile; returning → off the signed-out landing (see postLinkSignInRoute).
+    // Runs last so it supersedes LoginView's own "signed in → home" replace.
+    const dest = postLinkSignInRoute(isNew, router.currentRoute.value)
+    if (dest) void router.replace(dest)
   })
   // Paint the last known identity first so an offline launch is signed in immediately, then
   // revalidate. `refresh()` no longer throws, so a dead network cannot abort boot (#1906).
