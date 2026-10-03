@@ -11,6 +11,7 @@ import { applyDirection, resolveDirection } from './theme/direction'
 import { initGateCookie, platform, rehydrateNativeToken } from './services/native'
 import { getTier, tierSwitchEnabled } from './services/tier'
 import { setOnUnauthorized } from './services/api'
+import { scrubEventRequestUrl, scrubNavigationBreadcrumb } from './services/telemetryScrub'
 import { useAuthStore } from './stores/auth'
 
 applyTheme('dark')
@@ -79,6 +80,14 @@ if (SENTRY_DSN_PLAYER) {
       release: __BUILD_SHA__ || undefined,
       // Keep PII off by default.
       sendDefaultPii: false,
+      // THE SEARCH TERM REACHES GLITCHTIP THROUGH NAVIGATION BREADCRUMBS (#2264). Umami's
+      // `data-exclude-search` does nothing for this second sink, and `sendDefaultPii: false` does
+      // not cover it either — that option governs IP address, cookies and user data, not query
+      // strings. The measurement and the reasoning live in `services/telemetryScrub.ts`, where the
+      // behaviour is unit-tested; an inline hook here could only ever be checked by grepping this
+      // file for its own name.
+      beforeBreadcrumb: scrubNavigationBreadcrumb,
+      beforeSend: scrubEventRequestUrl,
       // Conservative tracing rate — parity with the viewer.
       tracesSampleRate: 0.1,
       // Tag every event so the player stream stays separable from api / pipeline
@@ -124,6 +133,20 @@ if (UMAMI_WEBSITE_ID && UMAMI_SRC) {
   umami.defer = true
   umami.src = UMAMI_SRC
   umami.setAttribute('data-website-id', UMAMI_WEBSITE_ID)
+  // RAW SEARCH TEXT WAS REACHING UMAMI (#2264). Umami auto-tracks the full URL, and the search
+  // term travels in the query string: five call sites put it there —
+  // `SearchView.vue:357,438,501`, `BrowseView.vue:45`, `HomeView.vue:317`, and
+  // `LibraryView.vue:636`, where a saved-search link replays a stored term back into the URL.
+  //
+  // Fixed at the URL rather than per call site, and that choice is load-bearing: a per-site sweep
+  // would have missed the Library links, which are a `<router-link :to>` and not a `router.push`.
+  // This also drops `?redirect=` and `?t=`.
+  //
+  // Verified supported on the running Umami 3.3.1 by reading the served `script.js`, not the docs:
+  // `j = w("exclude-search") === b`. `data-before-send` was the alternative and was NOT chosen —
+  // it is a JS hook on every event in a system whose rule is that telemetry never breaks the app,
+  // and the defense for event PROPS is the typed registry, which fails at build time instead.
+  umami.setAttribute('data-exclude-search', 'true')
   document.head.appendChild(umami)
 }
 

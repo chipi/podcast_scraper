@@ -169,6 +169,40 @@ describe('native-shell invariants (guardrail #1310)', () => {
     expect(mainSrc).toMatch(/nativeDevTier/)
   })
 
+  it('the Umami tag excludes the query string, so search terms never reach analytics (#2264)', () => {
+    // Umami auto-tracks the FULL URL, and the search term travels in the query string. Five call
+    // sites put it there — SearchView.vue (x3), BrowseView.vue, HomeView.vue, and LibraryView.vue,
+    // where a saved-search link replays a stored term back into the URL. So for a while every
+    // search a user ran was recorded, verbatim, as part of a page-view URL.
+    //
+    // Asserted on the injection site rather than on a rendered DOM because this is the only place
+    // the attribute can come from, and a static check cannot be made to pass by a mock.
+    expect(mainSrc).toMatch(/setAttribute\(\s*['"]data-exclude-search['"]/)
+
+    // The attribute is only meaningful on the tag that actually gets injected, so prove it sits in
+    // the same block as the website id rather than somewhere unreachable.
+    const injection = mainSrc.slice(mainSrc.indexOf('data-website-id'))
+    expect(
+      injection.slice(0, injection.indexOf('appendChild')),
+      'data-exclude-search must be set on the injected Umami script, before it is appended',
+    ).toContain('data-exclude-search')
+  })
+
+  it('Sentry scrubs the query string, so search terms never reach GlitchTip either (#2264)', () => {
+    // GlitchTip is a SECOND sink for the same text, and Umami's data-exclude-search does nothing
+    // for it. `sendDefaultPii: false` does not cover it: that governs IP/cookies/user data, not
+    // query strings. The leak path, traced through the installed SDK (@sentry/vue 10.60.0), is
+    // navigation breadcrumbs — `breadcrumbs.js` sets from/to to `parseUrl(...).relative`, which
+    // `@sentry/core/src/utils/url.ts` defines as `path + query + fragment`.
+    //
+    // This only checks the WIRING. The scrubbing behaviour is tested directly in
+    // `services/telemetryScrub.test.ts`, which is the half that can actually be wrong — a hook
+    // that exists and strips nothing would satisfy any source-text check.
+    expect(mainSrc).toMatch(/beforeBreadcrumb:\s*scrubNavigationBreadcrumb/)
+    expect(mainSrc).toMatch(/beforeSend:\s*scrubEventRequestUrl/)
+    expect(mainSrc).toMatch(/from '\.\/services\/telemetryScrub'/)
+  })
+
   it('the bottom nav clears the home indicator and does not trap page content (#1594)', () => {
     const nav = components['../components/BottomNav.vue'] ?? ''
     expect(nav, 'BottomNav.vue must exist').not.toBe('')
