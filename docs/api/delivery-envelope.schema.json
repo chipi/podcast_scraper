@@ -12,13 +12,14 @@
     "channel",
     "template",
     "recipient",
-    "consent_snapshot",
     "payload",
     "expires_at",
     "created_at"
   ],
   "properties": {
-    "schema_version": { "const": "1" },
+    "schema_version": {
+      "const": "1"
+    },
     "id": {
       "type": "string",
       "minLength": 1,
@@ -26,21 +27,44 @@
     },
     "user_id": {
       "type": "string",
-      "pattern": "^u_[0-9a-f]{24}$",
-      "description": "Platform user id (app_user_store)."
+      "description": "The recipient's user id. Strictly `^u_[0-9a-f]{24}$` for every notification type; exactly the empty string for `auth_link`, whose recipient may have no account yet. Enforced per-branch in the allOf below, not here."
     },
-    "channel": { "enum": ["email", "push"] },
+    "channel": {
+      "enum": [
+        "email",
+        "push"
+      ]
+    },
     "type": {
-      "enum": ["digest", "daily_recap", "new_episodes", "product"],
+      "enum": [
+        "digest",
+        "daily_recap",
+        "new_episodes",
+        "product",
+        "auth_link"
+      ],
       "default": "digest",
-      "description": "Notification TYPE (wave-I matrix). The app gates delivery on the user's per-type × per-channel consent and disables the exact (type, channel) on a bounce. 'daily_recap' is the RFC-122 #2039 end-of-day recap. The worker builds the one-click List-Unsubscribe from this type (…/comms/unsubscribe?ref=<unsubscribe_ref>&type=<type>) so unsubscribing hits the right email. Defaults to 'digest' when absent."
+      "description": "Notification type. `auth_link` is TRANSACTIONAL: sent because the recipient asked for it, in the moment, to an address that may have no account yet. It is the one type exempt from the consent gate and from consent_snapshot \u2014 see the allOf rule below."
     },
     "template": {
-      "enum": ["your-week-digest.v1", "resurface-nudge.v1", "recommendations-digest.v1", "daily-recap.v1"]
+      "enum": [
+        "your-week-digest.v1",
+        "resurface-nudge.v1",
+        "recommendations-digest.v1",
+        "daily-recap.v1",
+        "magic-link.v1",
+        "new-episodes.v1"
+      ]
     },
-    "recipient": { "$ref": "#/$defs/recipient" },
-    "consent_snapshot": { "$ref": "#/$defs/consentSnapshot" },
-    "payload": { "type": "object" },
+    "recipient": {
+      "$ref": "#/$defs/recipient"
+    },
+    "consent_snapshot": {
+      "$ref": "#/$defs/consentSnapshot"
+    },
+    "payload": {
+      "type": "object"
+    },
     "not_before": {
       "type": "string",
       "format": "date-time",
@@ -49,38 +73,119 @@
     "expires_at": {
       "type": "string",
       "format": "date-time",
-      "description": "TTL (required) — the delivery service MUST NOT deliver after this instant, so a homelab-down window does not flush stale digests on recovery. The assembler sets it to not_before + one cadence period. Seam v1.1 (2026-08-04)."
+      "description": "TTL (required) \u2014 the delivery service MUST NOT deliver after this instant, so a homelab-down window does not flush stale digests on recovery. The assembler sets it to not_before + one cadence period. Seam v1.1 (2026-08-04)."
     },
-    "created_at": { "type": "string", "format": "date-time" }
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
   },
   "allOf": [
     {
-      "if": { "properties": { "channel": { "const": "email" } } },
-      "then": {
+      "$comment": "consent_snapshot is required for every type EXCEPT auth_link. A sign-in email cannot carry a consent snapshot because the recipient may have no account, and it must not carry an unsubscribe_ref: you cannot unsubscribe from being able to log in. Making it conditionally required keeps that honest instead of filling the object with placeholder values that look like consent decisions nobody made.",
+      "if": {
         "properties": {
-          "recipient": { "required": ["email", "email_verified"] }
+          "type": {
+            "const": "auth_link"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "consent_snapshot"
+          ]
+        },
+        "properties": {
+          "user_id": {
+            "const": "",
+            "$comment": "Not merely 'may be empty' \u2014 MUST be empty. An auth envelope that carried a real user id would mean we had resolved the address to an account before sending, which is precisely what this flow must not do: it would turn the send step into an account-existence oracle."
+          }
+        }
+      },
+      "else": {
+        "required": [
+          "consent_snapshot"
+        ],
+        "properties": {
+          "user_id": {
+            "pattern": "^u_[0-9a-f]{24}$"
+          }
         }
       }
     },
     {
-      "if": { "properties": { "channel": { "const": "push" } } },
+      "$comment": "The consent snapshot records the switch for THIS envelope's type. new_episodes is event-driven: it has its own per-channel switch and no cadence, so it carries new_episodes_enabled. Every other consented type (digest, daily_recap, and an absent type, which defaults to digest) carries the digest shape. Before 2026-10-03 the snapshot was digest-only with additionalProperties:false, so every real new_episodes envelope failed this schema four ways and no test noticed, because no fixture existed for the template.",
+      "if": {
+        "properties": {
+          "type": {
+            "const": "new_episodes"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
       "then": {
         "properties": {
-          "recipient": { "required": ["push_subscription"] }
+          "consent_snapshot": {
+            "required": [
+              "new_episodes_enabled"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "digest_enabled"
+                  ]
+                },
+                {
+                  "required": [
+                    "cadence"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "consent_snapshot": {
+            "required": [
+              "digest_enabled",
+              "cadence"
+            ],
+            "not": {
+              "required": [
+                "new_episodes_enabled"
+              ]
+            }
+          }
         }
       }
     },
     {
-      "if": { "properties": { "template": { "const": "your-week-digest.v1" } } },
-      "then": { "properties": { "payload": { "$ref": "#/$defs/digestPayload" } } }
-    },
-    {
-      "if": { "properties": { "template": { "const": "resurface-nudge.v1" } } },
-      "then": { "properties": { "payload": { "$ref": "#/$defs/nudgePayload" } } }
-    },
-    {
-      "if": { "properties": { "template": { "const": "recommendations-digest.v1" } } },
-      "then": { "properties": { "payload": { "$ref": "#/$defs/digestPayload" } } }
+      "if": {
+        "properties": {
+          "template": {
+            "const": "new-episodes.v1"
+          }
+        },
+        "required": [
+          "template"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/newEpisodesPayload"
+          }
+        }
+      }
     }
   ],
   "$defs": {
@@ -88,8 +193,13 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "email": { "type": "string", "format": "email" },
-        "email_verified": { "type": "boolean" },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "email_verified": {
+          "type": "boolean"
+        },
         "push_subscription": {
           "type": "object",
           "description": "W3C PushSubscription JSON (endpoint + keys). Opaque to the app.",
@@ -100,10 +210,25 @@
     "consentSnapshot": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["digest_enabled", "cadence", "unsubscribe_ref"],
+      "$comment": "Which switch fields are required depends on the envelope's type; see the second allOf rule. unsubscribe_ref is required for every consented type: the worker builds the one-click unsubscribe from it.",
+      "required": [
+        "unsubscribe_ref"
+      ],
       "properties": {
-        "digest_enabled": { "type": "boolean" },
-        "cadence": { "enum": ["weekly", "daily", "monthly"] },
+        "digest_enabled": {
+          "type": "boolean"
+        },
+        "new_episodes_enabled": {
+          "type": "boolean",
+          "description": "The new_episodes switch for this envelope's channel, at enqueue time."
+        },
+        "cadence": {
+          "enum": [
+            "weekly",
+            "daily",
+            "monthly"
+          ]
+        },
         "unsubscribe_ref": {
           "type": "string",
           "minLength": 1,
@@ -115,46 +240,80 @@
       "type": "object",
       "additionalProperties": false,
       "description": "A canonical KG reference (mirrors the shipped AppEntityRef). This is how a surface 'carries the graph'.",
-      "required": ["id", "kind", "label"],
+      "required": [
+        "id",
+        "kind",
+        "label"
+      ],
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^(person|topic):[a-z0-9][a-z0-9-]*$",
           "description": "Canonical id, e.g. person:satya-nadella / topic:ai-safety."
         },
-        "kind": { "enum": ["person", "topic"] },
-        "label": { "type": "string", "minLength": 1 }
+        "kind": {
+          "enum": [
+            "person",
+            "topic"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "digestItem": {
       "type": "object",
       "additionalProperties": false,
       "description": "One resurfaced/highlighted moment. MUST carry graph_refs + a deep_link (moat rule).",
-      "$comment": "additionalProperties:false is load-bearing: it walls off the in-app-only fields the GET /api/app/your-week route adds for card rendering (image_url artwork backdrop, and a backfilled episode_title for topic-centric trending items). Those are route-local enrichments — the assembler MUST NOT write them into the envelope (they would fail validation here), and the delivery worker renders from graph_refs, not from artwork.",
-      "required": ["episode_slug", "deep_link", "graph_refs"],
+      "$comment": "additionalProperties:false is load-bearing: it walls off the in-app-only fields the GET /api/app/your-week route adds for card rendering (image_url artwork backdrop, and a backfilled episode_title for topic-centric trending items). Those are route-local enrichments \u2014 the assembler MUST NOT write them into the envelope (they would fail validation here), and the delivery worker renders from graph_refs, not from artwork.",
+      "required": [
+        "episode_slug",
+        "deep_link",
+        "graph_refs"
+      ],
       "properties": {
-        "quote": { "type": "string" },
-        "episode_slug": { "type": "string", "minLength": 1 },
-        "episode_title": { "type": "string" },
-        "t_ms": { "type": ["integer", "null"], "minimum": 0 },
+        "quote": {
+          "type": "string"
+        },
+        "episode_slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "episode_title": {
+          "type": "string"
+        },
+        "t_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
         "graph_refs": {
           "type": "array",
           "minItems": 1,
-          "description": "MUST be non-empty — an item carries the graph, never a flat clip (moat rule).",
-          "items": { "$ref": "#/$defs/graphRef" }
+          "description": "MUST be non-empty \u2014 an item carries the graph, never a flat clip (moat rule).",
+          "items": {
+            "$ref": "#/$defs/graphRef"
+          }
         },
         "highlight_id": {
           "type": "string",
           "minLength": 1,
-          "description": "The user's own capture behind this item; present only when source='user'. An auto-pick has no highlight and so no id — marking one would write resurfacing state against something that does not exist. Carried so an in-app renderer can advance the spaced ladder without parsing deep_link."
+          "description": "The user's own capture behind this item; present only when source='user'. An auto-pick has no highlight and so no id \u2014 marking one would write resurfacing state against something that does not exist. Carried so an in-app renderer can advance the spaced ladder without parsing deep_link."
         },
         "deep_link": {
           "type": "string",
           "minLength": 1,
-          "description": "Relative in-app link with jump-to-moment, e.g. /episode/{slug}?t={sec}. For source='user' items it also carries &revisit={highlight_id} (url-encoded): arriving at the player with that marker records the review, which is how an EMAIL reader advances the spaced ladder at all. Without it the digest was write-only — it selected due items every week and nothing it sent could mark one reviewed, so the same five items were re-sent indefinitely."
+          "description": "Relative in-app link with jump-to-moment, e.g. /episode/{slug}?t={sec}. For source='user' items it also carries &revisit={highlight_id} (url-encoded): arriving at the player with that marker records the review, which is how an EMAIL reader advances the spaced ladder at all. Without it the digest was write-only \u2014 it selected due items every week and nothing it sent could mark one reviewed, so the same five items were re-sent indefinitely."
         },
         "source": {
-          "enum": ["user", "auto"],
+          "enum": [
+            "user",
+            "auto"
+          ],
           "description": "'user' = the user captured it; 'auto' = GI editor's-pick (FR3). Renderers MUST distinguish them."
         }
       }
@@ -162,33 +321,142 @@
     "digestSection": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "items"],
+      "required": [
+        "kind",
+        "items"
+      ],
       "properties": {
         "kind": {
-          "enum": ["revisit", "new_in_follows", "new_in_interests", "trending_in_your_corpus"]
+          "enum": [
+            "revisit",
+            "new_in_follows",
+            "new_in_interests",
+            "trending_in_your_corpus"
+          ]
         },
-        "items": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/digestItem" } }
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/digestItem"
+          }
+        }
       }
     },
     "digestPayload": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sections"],
+      "required": [
+        "sections"
+      ],
       "properties": {
         "sections": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/digestSection" }
+          "items": {
+            "$ref": "#/$defs/digestSection"
+          }
         }
       }
     },
     "nudgePayload": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["highlight_count", "lead"],
+      "required": [
+        "highlight_count",
+        "lead"
+      ],
       "properties": {
-        "highlight_count": { "type": "integer", "minimum": 1 },
-        "lead": { "$ref": "#/$defs/digestItem" }
+        "highlight_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "lead": {
+          "$ref": "#/$defs/digestItem"
+        }
+      }
+    },
+    "authPayload": {
+      "type": "object",
+      "required": [
+        "link",
+        "expires_minutes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "link": {
+          "type": "string",
+          "description": "Absolute, single-use sign-in URL. The ONLY secret an auth envelope carries, which is why these envelopes are short-TTL and why the worker must not log the payload."
+        },
+        "expires_minutes": {
+          "type": "integer",
+          "description": "How long the link stays valid, for the copy in the email body."
+        }
+      }
+    },
+    "newEpisodesItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One unheard episode in a followed show: the shape app_digest_sections.new_in_follows_items emits. Carries the graph (moat rule).",
+      "required": [
+        "episode_slug",
+        "episode_title",
+        "deep_link",
+        "graph_refs"
+      ],
+      "properties": {
+        "episode_slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "episode_title": {
+          "type": "string"
+        },
+        "deep_link": {
+          "type": "string",
+          "minLength": 1
+        },
+        "graph_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/graphRef"
+          }
+        },
+        "podcast_title": {
+          "type": "string",
+          "description": "OPTIONAL. The app does not send it today; the template shows a show name above the episode only when present. Its absence once blocked every email for 33 h (2026-10-02/03) when a template treated it as required."
+        }
+      }
+    },
+    "newEpisodesPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count",
+        "episodes",
+        "slugs"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "episodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/newEpisodesItem"
+          }
+        },
+        "slugs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       }
     }
   }

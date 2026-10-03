@@ -35,6 +35,7 @@
  * to decide.
  */
 import { computed, onMounted, ref, watch } from 'vue'
+import { track } from '../services/analytics'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getEpisode, getMyStats } from '../services/api'
@@ -46,6 +47,7 @@ import { useIsDesktop } from '../composables/useMediaQuery'
 import { useResurfacingStore } from '../stores/resurfacing'
 import { formatTime } from '../player/transcriptSync'
 import { borderClass } from '../utils/highlightColors'
+import { resolveMediaUrl } from '../services/tier'
 
 const { t } = useI18n()
 const resurfacing = useResurfacingStore()
@@ -139,10 +141,15 @@ function mute(id: string): void {
 
 /** Answer one, in place. The store drops it and `railItems` pulls the next one in. */
 function review(id: string): void {
+  // #2267 — part of "learning actions per active day". Reviewing a resurfaced highlight IS the
+  // revisit loop working, which is the thing the spaced-resurfacing feature exists to produce.
+  track('revisit_open', { item_kind: 'highlight' })
   void resurfacing.review(id)
 }
 
-const artOf = (slug: string): string | null => details.value[slug]?.artwork_url ?? null
+// resolveMediaUrl: the stored artwork URL is relative, and this rail renders it into an <img>.
+const artOf = (slug: string): string | null =>
+  resolveMediaUrl(details.value[slug]?.artwork_url ?? null)
 const titleOf = (slug: string): string => details.value[slug]?.title ?? ''
 </script>
 

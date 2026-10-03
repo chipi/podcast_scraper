@@ -32,6 +32,7 @@ from podcast_scraper.server.schemas import (
     ListenEventBody,
     PlaybackListResponse,
     PlaybackPosition,
+    PlaybackProgressBody,
     PlaybackUpdate,
     QueueItemAdd,
     QueueResponse,
@@ -155,6 +156,37 @@ async def log_listen(
             )
         except Exception:  # noqa: BLE001 — same rule: a statistic must not break the listen.
             logger.debug("topic exposure failed for %s", slug, exc_info=True)
+
+
+@router.post("/playback-progress/{slug}", status_code=204)
+async def log_playback_progress(
+    request: Request,
+    slug: str,
+    body: PlaybackProgressBody,
+    user: User = Depends(get_current_user),
+) -> None:
+    """Record that the user reached 25 / 50 / 75 / 95 percent of an episode (#2266).
+
+    An OPEN is not a listen. `POST /listen/{slug}` says the episode was opened; this says it was
+    actually heard, which is what makes completion rate and the beta's active-day metrics real
+    rather than a count of taps.
+
+    Fires once per episode per milestone, through the same offline queue as listen events, so a
+    milestone crossed with no network is recorded when it HAPPENED. ``client_ts`` is advisory and
+    clamped by the same helper, so a wrong device clock cannot write into the far past or future.
+    """
+    feed_id: str | None = None
+    root = _corpus_root_opt(request)
+    try:
+        row = resolve_slug(root, slug) if root is not None else None
+        feed_id = row.feed_id if row is not None else None
+    except Exception:  # noqa: BLE001 — a metric must never break playback; log without feed_id.
+        logger.debug("playback-progress feed_id resolve failed for %s; logging without feed", slug)
+        feed_id = None
+    at = app_user_state.clamp_client_ts(body.client_ts, int(time.time()))
+    app_user_state.append_playback_progress(
+        _data_dir(request), user.user_id, slug, feed_id, body.milestone, at
+    )
 
 
 @router.get("/me/stats", response_model=UserStatsResponse)

@@ -6,6 +6,7 @@
  * "Highlights" tab. Auth-gated (the store no-ops + stays empty when signed out).
  */
 import { computed, onMounted, ref } from 'vue'
+import { track } from '../services/analytics'
 import BellOffIcon from "../components/BellOffIcon.vue"
 import BookmarkIcon from "../components/BookmarkIcon.vue"
 import CloseIcon from "../components/CloseIcon.vue"
@@ -229,6 +230,10 @@ async function save(): Promise<void> {
 const exporting = ref(false)
 async function exportHighlightsNative(): Promise<void> {
   if (exporting.value) return
+  // #2267. The FORMAT is the useful half: markdown through the OS share sheet and an Obsidian
+  // vault export are different intentions about where the notes end up, and the spec asks which
+  // people actually use.
+  track('highlights_export', { format: 'markdown' })
   exporting.value = true
   try {
     const md = await fetchHighlightsExport(props.filterColor, {
@@ -269,6 +274,10 @@ async function addHighlightTo(highlightId: string, collectionId: string): Promis
  */
 const printing = ref(false)
 async function openPrintable(): Promise<void> {
+  // #2267. Reported here rather than on the button so BOTH branches below count: web opens the
+  // printable in a new tab, native fetches the HTML and hands it to the share sheet. A PDF export
+  // was previously not counted at all on either platform.
+  track('highlights_export', { format: 'pdf' })
   const opts = { mutedOnly: props.mutedOnly, q: props.search }
   if (!isNative()) {
     await openExternal(highlightsPrintUrl(props.filterColor, opts))
@@ -302,6 +311,7 @@ const obsidianMsg = ref('')
 const obsidianDone = ref(false)
 
 async function doObsidianExport(): Promise<void> {
+  track('highlights_export', { format: 'obsidian' })
   exportingObsidian.value = true
   obsidianMsg.value = ''
   obsidianDone.value = false
@@ -382,6 +392,7 @@ onMounted(async () => {
           v-else
           :href="highlightsExportUrl(filterColor, { mutedOnly, q: search })"
           download="my-highlights.md"
+          @click="track('highlights_export', { format: 'markdown' })"
           :aria-label="t('highlights.export')"
           class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent no-underline transition hover:bg-overlay"
         >{{ t('highlights.exportMarkdownShort') }}</a>

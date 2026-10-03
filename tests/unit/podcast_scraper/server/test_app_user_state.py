@@ -369,3 +369,78 @@ def test_resubscribing_keeps_its_place_and_its_original_added_at(tmp_path: Path)
     assert [x["feed_id"] for x in library] == ["f1", "f2"]
     f1 = next(x for x in library if x["feed_id"] == "f1")
     assert f1["added_at"] == 100 and f1["title"] == "Renamed"
+
+
+# --- playback milestones + account_created (#2266) -------------------------------------------
+
+
+def _read_jsonl(path: Path) -> list[dict]:
+    return [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+
+
+def test_playback_progress_writes_a_canonical_event(tmp_path: Path) -> None:
+    st.append_playback_progress(tmp_path, UID, "ep1", "feedX", 25, 1000)
+    rows = _read_jsonl(tmp_path / "users" / UID / "playback_events.jsonl")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["event_type"] == "playback_progress"
+    assert row["slug"] == "ep1"
+    assert row["feed_id"] == "feedX"
+    assert row["milestone"] == 25
+    # ADR-119 envelope: ISO ts, not epoch.
+    assert row["ts"].startswith("1970-01-01T00:16:40")
+
+
+def test_playback_progress_goes_to_its_OWN_file_not_the_listen_log(tmp_path: Path) -> None:
+    """The separation is load-bearing, not tidiness.
+
+    The listen dedupe key is (slug, ts) and it scans a tail of `listen_events.jsonl`. A milestone
+    sharing a slug and a clamped timestamp with an open would look like a redelivered listen — so
+    one would silence the other. Keeping them apart means neither log can suppress the other.
+    """
+    st.append_listen_event(tmp_path, UID, "ep1", "feedX", 1000)
+    st.append_playback_progress(tmp_path, UID, "ep1", "feedX", 25, 1000)
+    udir = tmp_path / "users" / UID
+    listens = _read_jsonl(udir / "listen_events.jsonl")
+    progress = _read_jsonl(udir / "playback_events.jsonl")
+    assert [r["event_type"] for r in listens] == ["listen"]
+    assert [r["event_type"] for r in progress] == ["playback_progress"]
+
+
+def test_each_milestone_is_recorded_separately_at_the_same_timestamp(tmp_path: Path) -> None:
+    """The dedupe key must include the milestone.
+
+    Beyond CLIENT_TS_MAX_AGE_SECONDS every client stamp clamps to one floor, so without the
+    milestone in the key, crossing 50% during a long offline stretch would be discarded as a
+    redelivery of the 25% that clamped to the same second.
+    """
+    for milestone in (25, 50, 75, 95):
+        st.append_playback_progress(tmp_path, UID, "ep1", "feedX", milestone, 1000)
+    rows = _read_jsonl(tmp_path / "users" / UID / "playback_events.jsonl")
+    assert [r["milestone"] for r in rows] == [25, 50, 75, 95]
+
+
+def test_a_redelivered_milestone_is_dropped(tmp_path: Path) -> None:
+    # The offline queue replays an event that never got a RESPONSE, not one that never arrived.
+    now = int(__import__("time").time())
+    st.append_playback_progress(tmp_path, UID, "ep1", "feedX", 25, now)
+    st.append_playback_progress(tmp_path, UID, "ep1", "feedX", 25, now)
+    rows = _read_jsonl(tmp_path / "users" / UID / "playback_events.jsonl")
+    assert len(rows) == 1, "a replay of the same (slug, milestone, ts) must not inflate the count"
+
+
+def test_an_unknown_milestone_is_ignored(tmp_path: Path) -> None:
+    # The route validates the enum; this is the second guard, so a future caller cannot invent a
+    # value no metric knows how to read.
+    st.append_playback_progress(tmp_path, UID, "ep1", "feedX", 33, 1000)
+    assert not (tmp_path / "users" / UID / "playback_events.jsonl").exists()
+
+
+def test_account_created_records_the_provider(tmp_path: Path) -> None:
+    st.append_account_created(tmp_path, UID, "google")
+    rows = _read_jsonl(tmp_path / "users" / UID / "account_events.jsonl")
+    assert len(rows) == 1
+    assert rows[0]["event_type"] == "account_created"
+    assert rows[0]["provider"] == "google"

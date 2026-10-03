@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 defineOptions({ name: 'BrowseView' }) // stable name for <keep-alive :include> (App.vue)
 import Tabs from '../components/Tabs.vue'
+import { track } from '../services/analytics'
 import { panelAttrs, type TabSpec } from '../components/tabs'
 import CatalogView from './CatalogView.vue'
 import ShowBrowseView from './ShowBrowseView.vue'
@@ -75,8 +76,12 @@ type Tab = 'episodes' | 'shows'
 // "what/who"), then the CONTENT band below — just Episodes · Shows (operator 2026-09-14). Tapping a
 // row opens the entity as a full page here (Home opens overlays instead); the explorer's own
 // "See all →" on the explorer deep-links back into this same section per kind (`?trends=`).
-function onEntityOpen(p: { kind: Kind; id: string }): void {
+function onEntityOpen(p: { kind: Kind; id: string; rank: number }): void {
   const name = p.kind === 'topic' ? 'topic' : p.kind === 'person' ? 'person' : 'storyline'
+  // `presentation: 'page'` is the point of that property: Home opens the same entity as an
+  // overlay card, this opens it as a full page, and whether one converts better than the other is
+  // a question the spec asks.
+  track('entity_open', { kind: p.kind, presentation: 'page', source: 'browse' })
   void router.push({ name, params: { id: p.id } })
 }
 const TAB_KEYS: { key: Tab; labelKey: string }[] = [
@@ -120,6 +125,10 @@ watch(
 
 const initial = String(route.query.tab || '')
 const tab = ref<Tab>(TAB_KEYS.some((tb) => tb.key === initial) ? (initial as Tab) : 'episodes')
+// Which browse surface people actually use (#2267). Reported on CHANGE rather than on mount, so
+// arriving at the hub is not counted as choosing the default tab — otherwise `episodes` would
+// always lead simply because it is first.
+watch(tab, (next) => track('browse_tab_view', { tab: next }))
 
 // This view is kept-alive (App.vue), so setup runs once — without this watch a later in-app
 // navigation to ?tab=<other> (e.g. Home's "Browse people" chip after the hub was already opened on

@@ -10,6 +10,7 @@ import { getDeviceJson, removeDeviceKey, setDeviceJson } from '../services/devic
 import { isNative, startNativeLogin, storeAuthToken } from '../services/native'
 import { offlineReason } from '../composables/useOnline'
 import { clearAuthEpoch, noteAuthEpoch } from '../services/authEpoch'
+import { identify, resetIdentity, resolveSession, track } from '../services/analytics'
 import type { Me } from '../services/types'
 
 /**
@@ -22,6 +23,46 @@ import type { Me } from '../services/types'
  * **only a 401/403 may destroy cached auth state; a transport error never may.**
  */
 const SNAPSHOT_KEY = 'auth.me'
+
+/**
+ * Keep the analytics identity in step with the auth identity (#2265).
+ *
+ * Called from EVERY point that changes `user`, deliberately via one helper: the failure this
+ * prevents is a new sign-in path landing later and quietly inheriting the previous participant's
+ * id, which no test would notice because the events still flow.
+ *
+ * Signed in with an id → attach it (once per id; `identify` guards the repeat). Signed out →
+ * replace the tracker, so the signed-out landing traffic the spec wants ANONYMOUS stops carrying
+ * the person who just left. An account with no `analytics_id` yet (its backfill has not run) is
+ * left anonymous rather than identified with a blank.
+ */
+function syncAnalyticsIdentity(me: Me | null): void {
+  if (!me) {
+    resetIdentity()
+    return
+  }
+  if (me.analytics_id) identify(me.analytics_id, resolveSession())
+}
+
+/**
+ * Whether a signed-in state has already been reported, so `auth_completed` fires once per
+ * transition rather than on every revalidation.
+ *
+ * `refresh()` runs at boot and on every background revalidation. Without this latch the funnel's
+ * `auth_completed` step would count one listener dozens of times and the step would read as having
+ * a higher conversion than the one before it.
+ */
+let reportedSignedIn = false
+
+/** Report the transition into or out of a signed-in session, once per transition (#2267). */
+function trackAuthTransition(me: Me | null): void {
+  if (me && !reportedSignedIn) {
+    reportedSignedIn = true
+    track('auth_completed', { provider: me.provider || 'unknown' })
+    return
+  }
+  if (!me) reportedSignedIn = false
+}
 
 interface AuthState {
   user: Me | null
@@ -70,6 +111,12 @@ export const useAuthStore = defineStore('auth', {
       this.user = cached
       this.stale = true
       this.loaded = true
+      // Identify from the SNAPSHOT, not only after `refresh()` returns. A returning user is
+      // signed in from this moment and starts tapping immediately; waiting for the network would
+      // file their first actions — the ones right after launch, which the day-3 "did they open it
+      // at all" check reads — as anonymous. Offline, `refresh()` may never answer at all.
+      syncAnalyticsIdentity(cached)
+      trackAuthTransition(cached)
     },
 
     /**
@@ -78,9 +125,33 @@ export const useAuthStore = defineStore('auth', {
      */
     async refresh(): Promise<void> {
       try {
+        // Which credential this answer is ABOUT. A sign-in link can arrive mid-boot: the app is
+        // launched by `closelistening://auth#token=…`, the boot `/me` has already left WITHOUT the
+        // token, and the link's token is stored while it is in flight. That stale request comes
+        // back 401 — about the OLD (absent) credential — and the branch below then signed the
+        // person out and erased the token that had just arrived. Measured on the Android emulator
+        // 2026-10-03: token stored 26.095, `/me` 200 at 26.607, `remove lp_native_token` 27.376,
+        // every call 401 after. A 401 says nothing about a token it was not sent with.
+        //
+        // TWO windows, not one. The 401 branch below also awaits `getHealth()` before it decides,
+        // and the first version of this guard checked only after `/me`: the boot 401 came back
+        // BEFORE the link's token landed, the health check was still in flight when it did, and
+        // the wipe ran anyway (token stored 12.662, removed 14.244, every request 200 in between —
+        // the second emulator run). So the health answer is fetched FIRST, and the credential is
+        // re-checked after every await, before anything is set or destroyed.
+        const tokenAtStart = getAuthToken()
         const me = await getMe()
+        let health: Awaited<ReturnType<typeof getHealth>> | null = null
+        if (me === null) {
+          if (getAuthToken() !== tokenAtStart) return await this.refresh()
+          health = await getHealth().catch(() => null)
+          // The credential changed while we asked. Ask again, with the one we have now.
+          if (getAuthToken() !== tokenAtStart) return await this.refresh()
+        }
         this.user = me
         this.stale = false
+        syncAnalyticsIdentity(me)
+        trackAuthTransition(me)
         // `getMe` maps 401 -> null, so a null answer means the credential is genuinely dead and
         // the snapshot must go with it. Anything else that resolves is a real identity.
         if (me) {
@@ -116,7 +187,7 @@ export const useAuthStore = defineStore('auth', {
           // Three independent signals, any of which means "not the user's fault": the connectivity
           // layer already considers the server degraded, health says it cannot authenticate at all,
           // or the session-key fingerprint has CHANGED since we last saw it (a mass invalidation).
-          const health = await getHealth().catch(() => null)
+          // `health` was fetched above, BEFORE any state changed (see the two-window note).
           const keysRotated = noteAuthEpoch(health?.auth_epoch)
           const serverAtFault =
             offlineReason() === 'server' || health?.auth_ready === false || keysRotated
@@ -172,6 +243,12 @@ export const useAuthStore = defineStore('auth', {
       await this.refresh()
     },
     login(as?: string, returnTo?: string): void {
+      // The funnel's third step (#2267). Fired HERE because this is the only entry point both
+      // platforms share — the native shell opens an external browser and the web does a full-page
+      // redirect, and after either one this code is gone, so there is no later moment to report
+      // "they set off". The provider is whatever the server has configured; the client only knows
+      // whether the dev picker is in play, so `as` distinguishes that case and nothing else.
+      track('auth_started', { provider: as ? 'mock' : 'oauth' })
       if (isNative()) {
         // Native (#1310): iOS uses ASWebAuthenticationSession (prompt-free), Android the system
         // browser + intent-filter callback; both return the signed token → refresh() via
@@ -201,6 +278,8 @@ export const useAuthStore = defineStore('auth', {
         await removeDeviceKey(SNAPSHOT_KEY)
         this.user = null
         this.stale = false
+        syncAnalyticsIdentity(null)
+        trackAuthTransition(null)
       }
     },
     /**
@@ -213,6 +292,8 @@ export const useAuthStore = defineStore('auth', {
       void removeDeviceKey(SNAPSHOT_KEY)
       this.user = null
       this.stale = false
+      syncAnalyticsIdentity(null)
+      trackAuthTransition(null)
     },
   },
 })

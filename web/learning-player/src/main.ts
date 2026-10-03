@@ -11,6 +11,8 @@ import { applyDirection, resolveDirection } from './theme/direction'
 import { initGateCookie, platform, rehydrateNativeToken } from './services/native'
 import { getTier, tierSwitchEnabled } from './services/tier'
 import { setOnUnauthorized } from './services/api'
+import { installUmami } from './services/analytics'
+import { scrubEventRequestUrl, scrubNavigationBreadcrumb } from './services/telemetryScrub'
 import { useAuthStore } from './stores/auth'
 
 applyTheme('dark')
@@ -56,8 +58,23 @@ const app = createApp(App)
 // runbook) and inject that https DSN via VITE_SENTRY_DSN_PLAYER_DEV in
 // .env.mobile — the exact host/port/path depends on your serve topology (the ACL
 // caps homelab ports and 443 already serves Umami), so it is NOT hardcoded here.
-const DEV_SENTRY_DSN_PLAYER =
-  import.meta.env.VITE_SENTRY_DSN_PLAYER_DEV || 'http://66dba2f7683848c8b4ef0968ff073e82@homelab:8090/8'
+// NO LITERAL DSN (operator, 2026-10-03). This line used to end in
+// `|| 'http://<key>@homelab:8090/8'`, which is the same mistake the Umami block carried: a dev
+// target baked into the source, pointing at a tailnet hostname that does not resolve from every
+// account, with a project id nothing verifies. The Umami twin turned out to reference a website
+// that does not exist at all — every dev event came back "Website not found." — and a hardcoded
+// DSN fails the same way, silently, because Sentry's transport swallows its own errors too.
+//
+// Both tiers now come from the environment and nothing else:
+//
+//   VITE_SENTRY_DSN_PLAYER      — prod, baked as a docker build-arg
+//   VITE_SENTRY_DSN_PLAYER_DEV  — the dev rung; `.env.mobile` supplies an https URL for on-device
+//                                 use, because a native WebView blocks a plain-http DSN as mixed
+//                                 content
+//
+// With neither set, error reporting is a true no-op. That is the right failure: a build that
+// forgets its DSN reports nothing, rather than posting into someone else's project.
+const DEV_SENTRY_DSN_PLAYER = (import.meta.env.VITE_SENTRY_DSN_PLAYER_DEV as string) || ''
 const devDefault = import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_OFF !== '1'
 // Native dev↔prod switch (#1310): when the shell's tier is 'dev', errors go to the tailnet
 // player-dev GlitchTip + environment='dev' — same channel split as the web dev rung. prod (+ web +
@@ -79,6 +96,14 @@ if (SENTRY_DSN_PLAYER) {
       release: __BUILD_SHA__ || undefined,
       // Keep PII off by default.
       sendDefaultPii: false,
+      // THE SEARCH TERM REACHES GLITCHTIP THROUGH NAVIGATION BREADCRUMBS (#2264). Umami's
+      // `data-exclude-search` does nothing for this second sink, and `sendDefaultPii: false` does
+      // not cover it either — that option governs IP address, cookies and user data, not query
+      // strings. The measurement and the reasoning live in `services/telemetryScrub.ts`, where the
+      // behaviour is unit-tested; an inline hook here could only ever be checked by grepping this
+      // file for its own name.
+      beforeBreadcrumb: scrubNavigationBreadcrumb,
+      beforeSend: scrubEventRequestUrl,
       // Conservative tracing rate — parity with the viewer.
       tracesSampleRate: 0.1,
       // Tag every event so the player stream stays separable from api / pipeline
@@ -101,31 +126,16 @@ if (SENTRY_DSN_PLAYER) {
   )
 }
 
-// Umami analytics for the consumer player — cookieless, privacy-friendly page +
-// route tracking, mirroring orrery. Gated on both VITE_UMAMI_WEBSITE_ID and
-// VITE_UMAMI_SRC (the public tracking-script URL on the analytics ingest edge,
-// e.g. https://analytics.<domain>/script.js), baked at build time via docker
-// build-args. Both empty by default => true no-op for dev / CI / any build
-// without the args. Umami's script auto-tracks SPA route changes (it hooks the
-// History API), so injecting the tag is all that's needed.
-// Dev rung (see the Sentry block above): in `vite dev` analytics go to the
-// dedicated `player-dev` Umami site via `homelab` (tailnet, no fixed IP). Prod
-// overrides via the build-arg-baked VITE_UMAMI_* (public HTTPS analytics edge).
-// Same native-https caveat as the dev DSN above: on-device the http script is
-// mixed-content-blocked, so inject the tailscale-serve https URL via
-// VITE_UMAMI_SRC_DEV in .env.mobile for dev-tier on-device analytics.
-const DEV_UMAMI_SRC = import.meta.env.VITE_UMAMI_SRC_DEV || 'http://homelab:3001/script.js'
-const DEV_UMAMI_WEBSITE_ID = '30384fd4-b22b-406c-b5f6-054a0e0d16d1'
-const UMAMI_WEBSITE_ID =
-  import.meta.env.VITE_UMAMI_WEBSITE_ID || (devDefault ? DEV_UMAMI_WEBSITE_ID : '')
-const UMAMI_SRC = import.meta.env.VITE_UMAMI_SRC || (devDefault ? DEV_UMAMI_SRC : '')
-if (UMAMI_WEBSITE_ID && UMAMI_SRC) {
-  const umami = document.createElement('script')
-  umami.defer = true
-  umami.src = UMAMI_SRC
-  umami.setAttribute('data-website-id', UMAMI_WEBSITE_ID)
-  document.head.appendChild(umami)
-}
+// Umami analytics for the consumer player — cookieless page + route tracking, mirroring orrery.
+//
+// The injection itself (and the `data-exclude-search` attribute that keeps the search term out of
+// tracked URLs) lives in `services/analytics.ts`, which is the SINGLE injection path. It moved out
+// of this file when sign-out gained the need to replace the tracker (`resetIdentity`): two copies
+// of the injection logic would have drifted the moment one of them gained an attribute and the
+// other did not. Everything the old block explained — the dev rung over the tailnet, the
+// build-arg-baked prod values, the native-https caveat for on-device dev analytics, and the
+// fork-silent default when neither resolves — is documented there, next to the code that does it.
+installUmami()
 
 app.use(createPinia()).use(router).use(i18n)
 

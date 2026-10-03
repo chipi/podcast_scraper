@@ -29,6 +29,7 @@ import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { useDownloadsStore } from '../stores/downloads'
 import { episodeArtwork } from '../utils/episode'
 import { ApiError, getAudioSource, getEntities, getEpisode, getInsights, getSegments } from './api'
+import { track } from './analytics'
 import type { Entity, EpisodeDetail, Insight, SegmentsResponse, Topic } from './types'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
 import { isNative } from './native'
@@ -240,6 +241,10 @@ function classify(err: unknown): 'retryable' | 'permanent' {
  * the store (and this return value) rather than as a rejection.
  */
 export function downloadEpisode(slug: string): Promise<boolean> {
+  // #2267. Offline downloading is the native shell's reason to exist, and whether beta testers
+  // actually use it is a question the spec asks. Reported at the START, not on completion: a
+  // download that fails or is cancelled still says they wanted the episode offline.
+  track('download_start')
   const key = nsKey(slug)
   const existing = inflight.get(key)
   if (existing) return existing

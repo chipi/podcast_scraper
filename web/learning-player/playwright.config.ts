@@ -16,7 +16,11 @@ export default defineConfig({
   // playwright.live.config.ts against the deployed origin, NOT this local preview stack.
   //  has its OWN config (vite dev, seeded state, screenshot-shaped assertions). Running
   // those specs here fails them for the wrong reason — they were never written for this harness.
-  testIgnore: ['**/validation/**', '**/live/**', '**/design/**'],
+  // e2e/telemetry/** drives the 39 analytics events against REAL dev Umami + GlitchTip and waits for
+  // them to arrive. It has its OWN config (playwright.telemetry.config.ts, `make test-app-telemetry`)
+  // and needs those services reachable. Collected here it ran in CI's app-e2e with nothing to reach,
+  // and all 32 of its tests failed as "Seen: []" (PR #2274, 2026-10-03).
+  testIgnore: ['**/validation/**', '**/live/**', '**/design/**', '**/telemetry/**'],
   fullyParallel: true,
   // The heavy auth-gated specs (capture, consolidation) sign in as ISOLATED per-(spec,project) mock
   // identities (see e2e/helpers.ts) so they never share per-user files WITHIN a run. But those ids
@@ -125,6 +129,10 @@ export default defineConfig({
         // Keep per-user writes (queue/profile/interests) OUT of the committed corpus tree.
         // Relative to the webServer cwd (web/learning-player/); the server resolve()s it against cwd.
         APP_DATA_DIR: 'e2e/.app-state',
+        // Opens /internal/outbox/* so magic-link-welcome.spec can read the emailed link the way the
+        // delivery worker does. A fixed, e2e-only value; must match E2E_OUTBOX_TOKEN in that spec
+        // and the Makefile's app-e2e container.
+        INTERNAL_OUTBOX_TOKEN: 'e2e-outbox-token',
       },
     },
     {

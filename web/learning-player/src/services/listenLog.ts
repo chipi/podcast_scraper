@@ -20,6 +20,17 @@ export interface PendingListen {
   slug: string
   /** Unix SECONDS — the wire format the server clamps. */
   ts: number
+  /**
+   * Percent reached, for a playback MILESTONE rather than an open (#2266).
+   *
+   * Absent means an open (`POST /listen/{slug}`); present means a milestone
+   * (`POST /playback-progress/{slug}`). One queue rather than two, deliberately: everything hard
+   * about this file — the per-account namespace, the identity-epoch guards that stop a mid-flush
+   * account switch writing A's history into B's, the cap, the oldest-first ordering, the
+   * one-flush-at-a-time latch — would have to be duplicated and kept in step. A second queue is
+   * a second chance to get all of that subtly wrong.
+   */
+  milestone?: number
 }
 
 export function pendingKeyFor(namespace: string): string {
@@ -96,6 +107,17 @@ export function queueListen(slug: string, ts: number = Math.floor(Date.now() / 1
   persist()
 }
 
+/** Queue a playback milestone that did not reach the server (#2266). Same queue, same guards. */
+export function queueProgress(
+  slug: string,
+  milestone: number,
+  ts: number = Math.floor(Date.now() / 1000),
+): void {
+  pending.push({ slug, ts, milestone })
+  if (pending.length > MAX_PENDING) pending = pending.slice(-MAX_PENDING)
+  persist()
+}
+
 export function pendingListens(): readonly PendingListen[] {
   return pending
 }
@@ -105,7 +127,7 @@ export function pendingListens(): readonly PendingListen[] {
  * hammered. Delivered events are dropped; the rest stay for the next reconnect.
  */
 export async function flushListenLog(
-  push: (slug: string, ts: number) => Promise<boolean>,
+  push: (slug: string, ts: number, milestone?: number) => Promise<boolean>,
 ): Promise<number> {
   if (flushing) return 0
   flushing = true
@@ -121,7 +143,10 @@ export async function flushListenLog(
     if (identityChangedSince(generation) || namespace !== startedIn) break
     let ok = false
     try {
-      ok = await push(item.slug, item.ts)
+      // The milestone is passed through rather than branched on here: routing belongs to the
+      // caller, which owns the two endpoints, and keeping this loop endpoint-agnostic is what lets
+      // the identity and ordering guarantees above cover both kinds of event unchanged.
+      ok = await push(item.slug, item.ts, item.milestone)
     } catch {
       ok = false
     }

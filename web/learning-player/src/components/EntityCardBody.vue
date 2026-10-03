@@ -288,7 +288,7 @@ const isTopic = computed(() => current.value.kind === "topic")
           <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
         </template>
         <!-- Share (card / link / text) — #2036. -->
-        <ShareMenu :model="shareModel" />
+        <ShareMenu :model="shareModel" :target-kind="current.kind" />
       </div>
 
       <!-- REMOVED (operator 2026-09-16): the "Open in page ›" escape hatch (#1261-9).

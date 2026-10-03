@@ -7,6 +7,7 @@
  */
 import { ref } from "vue"
 import { useI18n } from "vue-i18n"
+import { track } from "../services/analytics"
 
 import {
   type EntityCardModel,
@@ -17,7 +18,18 @@ import {
 import { isNative, saveAndShareText } from "../services/native"
 import { useAnchoredMenu } from "../composables/useAnchoredMenu"
 
-const props = defineProps<{ model: EntityCardModel }>()
+/**
+ * `targetKind` is REQUIRED, not derived (#2267).
+ *
+ * `EntityCardModel.kicker` is display text ("TOPIC", "EPISODE · CROSS-SHOW"), so parsing it would
+ * make an analytics enum depend on copy — a wording change would silently retire a category. Each
+ * of the five call sites knows exactly what it is sharing, and a required prop makes forgetting it
+ * a compile error.
+ */
+const props = defineProps<{
+  model: EntityCardModel
+  targetKind: 'episode' | 'moment' | 'topic' | 'person' | 'storyline' | 'organization'
+}>()
 const { t } = useI18n()
 
 const note = ref("") // transient confirmation ("Link copied")
@@ -30,12 +42,21 @@ const { open, toggle, close, teleportTarget } = useAnchoredMenu(triggerEl, panel
 
 async function onCard(): Promise<void> {
   close()
+  // An image card always goes through the platform sheet — there is nothing to copy.
+  track('share', { target_kind: props.targetKind, method: 'native_sheet' })
   await shareEntityCard(props.model)
 }
 async function onLink(): Promise<void> {
   const r = await shareEntityLink(props.model)
   close()
-  if (r === "copied") flash(t("share.linkCopied"))
+  // Reported from the RESULT, not the intent: the same tap reaches the native sheet on a phone and
+  // falls back to the clipboard on a desktop, and the spec asks which actually happened. `none`
+  // means neither worked, so nothing is reported — a failed share is not a share.
+  if (r === "shared") track('share', { target_kind: props.targetKind, method: 'native_sheet' })
+  if (r === "copied") {
+    track('share', { target_kind: props.targetKind, method: 'copy_link' })
+    flash(t("share.linkCopied"))
+  }
 }
 async function onText(): Promise<void> {
   close()

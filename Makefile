@@ -82,7 +82,7 @@ PYTEST_WORKERS ?= 2
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-bundle android-device-install android-fastlane-install android-play-preflight android-play
 .PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
-.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-telemetry test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -1779,6 +1779,28 @@ test-app-e2e:
 	@docker rm -f $(APP_E2E_CT) >/dev/null 2>&1 || true
 	@cd $(APP_DIR) && npm install && npx playwright install chromium && npm run test:e2e
 
+# Tier-4: the analytics arc's end-to-end proof against the REAL Umami + GlitchTip (#2263).
+#
+# NOT part of `make ci` / `ci-fast`, on purpose. These specs are only evidence because they talk to
+# the live self-hosted Umami and GlitchTip on the homelab box and then read the surface back to show
+# it agrees with what left the browser. A CI runner has neither, and pointing them at a stub would
+# reproduce the exact failure this arc exists to fix: a telemetry path that looks wired and silently
+# goes nowhere. The machine-independent half of the contract (typed registry + static wiring guards)
+# DOES run in CI, as part of `make test-app`.
+#
+# Targets the DEV Umami site and the DEV GlitchTip project — never prod, which carries real traffic.
+# Needs `web/learning-player/.env.local` to supply VITE_UMAMI_SRC / VITE_UMAMI_WEBSITE_ID and
+# VITE_SENTRY_DSN_PLAYER_DEV; with those unset the specs fail loudly rather than passing on silence.
+test-app-telemetry:
+	@echo "Playwright telemetry tier (Learning Player -> real Umami + GlitchTip)..."
+	@test -f $(APP_DIR)/.env.local || { \
+	  echo "ERROR: $(APP_DIR)/.env.local is missing."; \
+	  echo "       It must set VITE_UMAMI_SRC, VITE_UMAMI_WEBSITE_ID and VITE_SENTRY_DSN_PLAYER_DEV"; \
+	  echo "       for the DEV targets. See .env.mobile.example for the dev/prod split."; \
+	  exit 1; }
+	@cd $(APP_DIR) && npm install && npx playwright install chromium && \
+	  npx playwright test -c playwright.telemetry.config.ts
+
 # ONE image per viewport of every player surface, for a visual sweep (operator 2026-09-17).
 #
 # The web counterpart of `ios-contact-sheet`, and the answer to "there should be a make target for
@@ -1927,6 +1949,7 @@ app-e2e-api-up:
 		-e APP_OAUTH_PROVIDER=mock -e APP_SESSION_SECRET=e2e-secret -e APP_SIGNUP_MODE=open \
 		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
 		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
+		-e INTERNAL_OUTBOX_TOKEN=e2e-outbox-token \
 		$(APP_E2E_IMAGE) >/dev/null
 	@# The wait is its own script because it is not a simple sleep-until-200: docker
 	@# intermittently publishes this container's port without the mapping actually working, and
@@ -2164,6 +2187,7 @@ _app-e2e-api-restart:
 		-e APP_OAUTH_PROVIDER=mock -e APP_SESSION_SECRET=$(SECRET) -e APP_SIGNUP_MODE=open \
 		-e APP_PERSONALIZED_RANKING=true -e APP_TRENDING_NOW=2026-07-20T00:00:00Z \
 		-e APP_MOMENTUM_MIN_TOTAL=1 -e APP_DATA_DIR=/app/state -e PYTHONUNBUFFERED=1 \
+		-e INTERNAL_OUTBOX_TOKEN=e2e-outbox-token \
 		$(APP_E2E_IMAGE) >/dev/null
 	@i=0; while [ $$i -lt 40 ]; do \
 		curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:$(APP_E2E_PORT)/api/health" 2>/dev/null && break; \
@@ -2507,32 +2531,67 @@ test-ios:
 # product bugs (downloads broken outright; four controls with no accessible name) that no DOM-based
 # test could have seen.
 ANDROID_AVD ?= Pixel_8
+#: Extra emulator flags. HEADLESS BY DEFAULT, and that is not a preference (2026-10-03, measured).
+#: A windowed emulator launched from a session with no GUI (this tier runs as a non-console user)
+#: dies instantly with `Segmentation fault: 11`, having logged only
+#:   "API level 36 requires GLES 3.1, forcing software rendering for GLES"
+#: and two `PasteBoard: Error creating pasteboard` lines. The crash left `hardware-qemu.ini.lock`
+#: and `multiinstance.lock` behind in the AVD, which blocks the NEXT launch too — so the second
+#: attempt fails differently from the first and the real cause gets buried.
+#:
+#: Worse, the failure was nearly invisible: `make` returned 1, but a backgrounded wrapper reported
+#: success, and the only honest signal was `adb devices` staying empty. Headless boots in ~55s here.
+#: Override to watch it: `make android-emulator-up ANDROID_EMU_FLAGS=`
+ANDROID_EMU_FLAGS ?= -no-window -gpu swiftshader_indirect -no-audio
 ANDROID_PKG ?= app.closelistening.player
 ANDROID_SDK_DIR ?= $(HOME)/Library/Android/sdk
 ADB ?= $(ANDROID_SDK_DIR)/platform-tools/adb
 ANDROID_DIR = $(APP_DIR)/android
 
-test-android:
-	@# ASYMMETRIC GUARD, same as test-ios: skip LOUDLY where the tier cannot run, FAIL where it
-	@# can run but the setup is broken. A skip that covers real breakage is how a tier stops
-	@# running without anyone noticing — which is precisely how `DownloadThroughUITests.swift` sat
-	@# uncompilable for weeks on the iOS side.
-	@if [ ! -d "$(ANDROID_SDK_DIR)" ]; then \
-		echo "SKIP: test-android — no Android SDK at $(ANDROID_SDK_DIR)."; \
-		echo "      Not a pass: NOTHING on the Android device tier was verified here."; \
-		exit 0; \
-	fi
-	@test -x $(ADB) || { \
-		echo "FAIL: test-android — an Android SDK exists but adb is missing at $(ADB)."; \
-		exit 1; \
-	}
-	@$(ANDROID_SDK_DIR)/emulator/emulator -list-avds 2>/dev/null | grep -qx "$(ANDROID_AVD)" || { \
-		echo "FAIL: test-android — no '$(ANDROID_AVD)' AVD. Create it in Android Studio, or set"; \
-		echo "      ANDROID_AVD=<name> to one from: $(ANDROID_SDK_DIR)/emulator/emulator -list-avds"; \
-		exit 1; \
-	}
-	@echo ""; echo "=== test-android START $$(date '+%Y-%m-%d %H:%M:%S') — avd '$(ANDROID_AVD)' ==="
-	@$(MAKE) android-emulator-up
+# Build the app against the single fixture origin and install it on the AVD — the Android twin of
+# `ios-app-install`, and shared by `test-android` and `android-contact-sheet`.
+#
+# EXTRACTED from `test-android` (2026-10-03) rather than copied into the contact-sheet target. The
+# iOS side already learned this one: `test-app-ios-sim-download` carried a byte-identical copy of
+# `ios-app-install` MINUS its two integrity probes, which is the half that matters — so phase 1 ran
+# without them for weeks. A second copy here would have drifted the same way, and the drift is
+# invisible until a tier fails for a reason the other tier already fixed.
+#: Where the Android tour's shots are pulled to, and the sheet written.
+ANDROID_SHOTS_DIR ?= /tmp/lp-android-shots
+#: The account the tour photographs. Passed to the SEEDING suites too, via `-e identity`, so both
+#: halves land on one account — the iOS sheet regressed for weeks because they did not.
+ANDROID_SEED_IDENTITY ?= simtest
+
+# ONE image per surface of the Android app, stitched into a single sheet — the twin of
+# `ios-contact-sheet`, and meant to be read beside it. A surface that renders differently on the two
+# platforms is the whole reason both exist.
+android-contact-sheet: android-app-install
+	@echo "--> seeding data so the tour photographs a populated app (as $(ANDROID_SEED_IDENTITY))"
+	@# SAME ACCOUNT as the tour, stated at the call site rather than left to two defaults agreeing.
+	@# `-e identity` is read by `UITestCase.accountIdentity()`. Without it the seeders populate
+	@# `appjourneytests` / `personalisationtests` while the tour reads `simtest`, and the sheet is a
+	@# wall of empty states — which is exactly how the iOS sheet regressed in silence (#2091).
+	@$(MAKE) android-suite SUITE=AppJourneyTests ANDROID_EXTRA_ARGS="-e identity $(ANDROID_SEED_IDENTITY)" || true
+	@$(MAKE) android-suite SUITE=PersonalisationTests ANDROID_EXTRA_ARGS="-e identity $(ANDROID_SEED_IDENTITY)" || true
+	@echo "--> touring every surface"
+	@$(MAKE) android-suite SUITE=ScreenshotTourTests ANDROID_EXTRA_ARGS="-e identity $(ANDROID_SEED_IDENTITY)"
+	@echo "--> pulling shots"
+	@rm -rf $(ANDROID_SHOTS_DIR) && mkdir -p $(ANDROID_SHOTS_DIR)
+	@# The app's EXTERNAL files dir, not /sdcard directly — scoped storage refuses the latter, which
+	@# is why `Journey.shot` writes here in the first place.
+	@$(ADB) pull /sdcard/Android/data/$(ANDROID_PKG)/files/lp-shots $(ANDROID_SHOTS_DIR) >/dev/null 2>&1 \
+		|| { echo "FAIL: no shots pulled — the tour wrote none. Check the SHOT markers:"; \
+		     $(ADB) logcat -d -s LPHARNESS:I 2>/dev/null | grep "=====SHOT" | tail -20; exit 1; }
+	@n=$$(ls $(ANDROID_SHOTS_DIR)/lp-shots/*.png 2>/dev/null | wc -l | tr -d ' '); \
+		[ "$$n" -gt 0 ] || { echo "FAIL: pulled 0 screenshots."; exit 1; }; \
+		echo "OK: $$n screenshot(s)"
+	@$(PYTHON) scripts/tools/contact_sheet.py \
+		--in $(ANDROID_SHOTS_DIR)/lp-shots \
+		--out $(ANDROID_SHOTS_DIR)/contact-sheet.png \
+		--cols $(IOS_SHEET_COLS)
+	@echo "--> $(ANDROID_SHOTS_DIR)/contact-sheet.png"
+
+android-app-install:
 	@# DISABLE THE CACHED-APP FREEZER (2026-09-26). Sign-in opens the OAuth consent page in a
 	@# Capacitor `BrowserControllerActivity` — a Chrome Custom Tab, hosted by com.android.chrome.
 	@# Android's freezer suspends that process mid-flow, so the consent page never finishes, no
@@ -2585,6 +2644,29 @@ test-android:
 	@# repeat (the comment at build.gradle:30 and `make android-bundle`).
 	@$(ADB) install -r -t -d $(ANDROID_DIR)/app/build/outputs/apk/debug/app-debug.apk >/dev/null
 	@$(ADB) install -r -t -d $(ANDROID_DIR)/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
+
+test-android:
+	@# ASYMMETRIC GUARD, same as test-ios: skip LOUDLY where the tier cannot run, FAIL where it
+	@# can run but the setup is broken. A skip that covers real breakage is how a tier stops
+	@# running without anyone noticing — which is precisely how `DownloadThroughUITests.swift` sat
+	@# uncompilable for weeks on the iOS side.
+	@if [ ! -d "$(ANDROID_SDK_DIR)" ]; then \
+		echo "SKIP: test-android — no Android SDK at $(ANDROID_SDK_DIR)."; \
+		echo "      Not a pass: NOTHING on the Android device tier was verified here."; \
+		exit 0; \
+	fi
+	@test -x $(ADB) || { \
+		echo "FAIL: test-android — an Android SDK exists but adb is missing at $(ADB)."; \
+		exit 1; \
+	}
+	@$(ANDROID_SDK_DIR)/emulator/emulator -list-avds 2>/dev/null | grep -qx "$(ANDROID_AVD)" || { \
+		echo "FAIL: test-android — no '$(ANDROID_AVD)' AVD. Create it in Android Studio, or set"; \
+		echo "      ANDROID_AVD=<name> to one from: $(ANDROID_SDK_DIR)/emulator/emulator -list-avds"; \
+		exit 1; \
+	}
+	@echo ""; echo "=== test-android START $$(date '+%Y-%m-%d %H:%M:%S') — avd '$(ANDROID_AVD)' ==="
+	@$(MAKE) android-emulator-up
+	@$(MAKE) android-app-install
 	@# A CLEAN DEVICE, every time. Forced-offline is device-local and survives both a relaunch and
 	@# an account change, and a run that leaves it on cannot sign in on the NEXT run either — the
 	@# switch is in Settings, Settings is behind the masthead avatar, and the avatar needs a
@@ -2631,6 +2713,10 @@ test-android:
 
 # One suite. `am instrument` rather than gradle's `connectedAndroidTest`, because gradle UNINSTALLS
 # both apks when it finishes — which would delete the downloads the offline suites exist to read.
+#: Extra `am instrument` arguments, e.g. `-e identity simtest`. Used by `android-contact-sheet` to
+#: put the seeding suites and the photographing suite on ONE account.
+ANDROID_EXTRA_ARGS ?=
+
 android-suite:
 	@test -n "$(SUITE)" || { echo "FAIL: android-suite needs SUITE=<ClassName>"; exit 1; }
 	@# Optional `TEST=<method>` runs ONE test, via `am instrument`'s `Class#method` form. The
@@ -2668,6 +2754,7 @@ android-suite:
 	if [ -n "$(TEST)" ]; then target="$$target\#$(TEST)"; fi; \
 	$(ADB) logcat -c >/dev/null 2>&1 || true; \
 	out=$$($(ADB) shell am instrument -w -e class "$$target" -e originPort $(IOS_ORIGIN_PORT) \
+		$(ANDROID_EXTRA_ARGS) \
 		$(ANDROID_PKG).test/androidx.test.runner.AndroidJUnitRunner 2>&1); \
 	echo "$$out"; \
 	echo "$$out" | grep -q "^OK (" || { \
@@ -2750,7 +2837,13 @@ test-android-server-degraded:
 android-emulator-up:
 	@if $(ADB) shell true >/dev/null 2>&1; then echo "✓ a device is already attached"; else \
 		echo "--> booting '$(ANDROID_AVD)'"; \
+		: "Clear locks a PREVIOUS crash left behind. A segfaulted emulator keeps"; \
+		: "hardware-qemu.ini.lock and multiinstance.lock, and the next launch then fails for a"; \
+		: "DIFFERENT reason than the first one did — which is how the real cause gets buried."; \
+		rm -rf "$$HOME/.android/avd/$(ANDROID_AVD).avd/hardware-qemu.ini.lock" \
+		       "$$HOME/.android/avd/$(ANDROID_AVD).avd/multiinstance.lock" 2>/dev/null || true; \
 		nohup $(ANDROID_SDK_DIR)/emulator/emulator -avd $(ANDROID_AVD) -no-snapshot-load -no-boot-anim \
+			$(ANDROID_EMU_FLAGS) \
 			> /tmp/lp-android-emu.log 2>&1 < /dev/null & \
 		$(ADB) wait-for-device; \
 	fi
@@ -2805,6 +2898,50 @@ test-app-ios-prod-tour:
 			-only-testing:OfflineSpikeUITests/ProdTourTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
 		rc=$${PIPESTATUS[0]}; echo "IOS_PROD_TOUR_EXIT=$$rc"; exit $$rc
+
+# Email magic-link sign-in on the simulator, against a REAL mailbox (#2272). One phase per run,
+# because the link travels through email in between: run the delivery worker after M1 and M2 and
+# pass the link the email carries to the next phase.
+#
+#   make test-app-ios-magic-link PHASE=M1 MAGIC_EMAIL=you@example.com
+#   make test-app-ios-magic-link PHASE=M2 MAGIC_EMAIL=you@example.com MAGIC_LINK='<link 1>'
+#   make test-app-ios-magic-link PHASE=M3 MAGIC_LINK='<link 2>'
+#
+# The app must be built against an api whose allowlist has the address and whose outbox the worker
+# drains. Outside `test-ios` on purpose (it needs a mailbox); see _OUTSIDE_THE_TIER.
+MAGIC_PHASES_IOS := M1:testM1RequestALinkForANewAccount M2:testM2NewAccountLandsOnProfileThenSignsOut \
+	M3:testM3ReturningAccountSignsInAndStaysOffProfile
+test-app-ios-magic-link:
+	@test -n "$(PHASE)" || { echo "FAIL: PHASE=M1|M2|M3 is required"; exit 1; }
+	@t=$$(for p in $(MAGIC_PHASES_IOS); do [ "$${p%%:*}" = "$(PHASE)" ] && echo "$${p#*:}"; done); \
+	test -n "$$t" || { echo "FAIL: unknown PHASE=$(PHASE) (M1|M2|M3)"; exit 1; }; \
+	cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		TEST_RUNNER_LP_MAGIC_EMAIL="$(MAGIC_EMAIL)" TEST_RUNNER_LP_MAGIC_LINK="$(MAGIC_LINK)" \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/MagicLinkJourneyTests/$$t \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
+			2>&1 | grep -E "=====|Test Case|error:|XCTAssert|TEST (SUCCEEDED|FAILED)"; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_MAGIC_LINK_$(PHASE)_EXIT=$$rc"; exit $$rc
+
+# The Android twin. M1 and M2 run as instrumentation; the CLOSED-app case (M3) cannot — the test
+# would run inside the app's own process — so it is the shell script, driven here as PHASE=M3.
+#   make test-app-android-magic-link PHASE=M1 MAGIC_EMAIL=you@example.com
+#   make test-app-android-magic-link PHASE=M2 MAGIC_EMAIL=you@example.com MAGIC_LINK='<link 1>'
+#   make test-app-android-magic-link PHASE=M3 MAGIC_LINK='<link 2>'
+test-app-android-magic-link:
+	@test -n "$(PHASE)" || { echo "FAIL: PHASE=M1|M2|M3 is required"; exit 1; }
+	@if [ "$(PHASE)" = "M3" ]; then \
+		test -n "$(MAGIC_LINK)" || { echo "FAIL: PHASE=M3 needs MAGIC_LINK"; exit 1; }; \
+		ADB=$(ADB) $(APP_DIR)/android/scripts/magic-link-cold-launch.sh '$(MAGIC_LINK)'; \
+	else \
+		case "$(PHASE)" in M1) t=testM1RequestALinkForANewAccount;; \
+			M2) t=testM2NewAccountLandsOnProfileThenSignsOut;; \
+			*) echo "FAIL: unknown PHASE=$(PHASE) (M1|M2|M3)"; exit 1;; esac; \
+		b64=$$(printf '%s' '$(MAGIC_LINK)' | base64 | tr -d '\n'); \
+		$(MAKE) android-suite SUITE=MagicLinkJourneyTests TEST=$$t \
+			ANDROID_EXTRA_ARGS="-e lp.magic.email $(MAGIC_EMAIL) $${b64:+-e lp.magic.link_b64 $$b64}"; \
+	fi
 
 # Mint a real session through the mock provider's NATIVE flow and seed it into the app's durable
 # store, so the journey suite starts signed in. Write through the preferences DAEMON (the app reads
@@ -3021,12 +3158,20 @@ ios-contact-sheet: ios-app-install
 			TEST_RUNNER_LP_FORCE_IDENTITY=$(IOS_SEED_IDENTITY) \
 			2>&1 | grep -E '=====|Test Case.*(passed|failed)|error:|XCTAssert|TEST (SUCCEEDED|FAILED)' || true
 	@echo "--> touring every surface"
+	@# PIPESTATUS, not the pipeline's status (2026-10-03, measured). Piping xcodebuild into grep
+	@# makes `make` see GREP's exit code, so a tour that printed "** TEST FAILED **" and captured 2
+	@# of 30 screens still reported success — and the only way anyone would notice is by counting
+	@# tiles on the sheet. The sibling iOS targets in this file already use PIPESTATUS for exactly
+	@# this; the contact sheet did not.
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/ScreenshotTourTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
-			2>&1 | grep -E '=====|Test Case|error:|TEST (SUCCEEDED|FAILED)'
+			2>&1 | grep -E '=====|Test Case|error:|TEST (SUCCEEDED|FAILED)'; \
+		rc=$${PIPESTATUS[0]}; \
+		[ $$rc -eq 0 ] || echo "WARNING: the tour FAILED — the sheet below is partial. rc=$$rc"; \
+		exit $$rc
 	@$(MAKE) ios-journey-shots
 	@# tile-width 0 = NATIVE device pixels, so the sheet can be inspected at 1:1 and shows exactly
 	@# what the device rendered. Resampling — even a good downscale — softens hairline borders and
@@ -3142,12 +3287,32 @@ build-app:
 # TestFlight lane sources .env.mobile.testflight, which ships no personal gate cred).
 LP_ENV ?= $(APP_DIR)/.env.mobile
 
+# DISTRIBUTION CHANNEL for analytics `identify` (#2265). Stamped into the bundle because it cannot
+# be derived at runtime: a TestFlight build and an App Store build are the SAME code on the SAME
+# platform, and only the lane that produced them knows which is which. It is what makes the saved
+# Umami beta view (`channel in (testflight, play_internal)`) possible, and therefore what separates
+# the beta cohort from the operator's own usage and from web traffic.
+#
+# Set by the STORE-BOUND lanes only, and deliberately NOT by `ios-device-install` / `android-build`:
+# those put a build on the operator's own phone, and labelling that `testflight` would fold the
+# operator into the cohort it is meant to measure. Left unset, a native build resolves to `unknown`
+# (see web/learning-player/src/services/channel.ts) — visible in the data as a question rather than
+# a confident wrong answer.
+#
+# Overridable per invocation, e.g. `make android-bundle APP_CHANNEL=play_store` for a production
+# track upload.
+APP_CHANNEL ?=
+
 # Internal / dev-switchable build (TestFlight / Play internal track). The dev↔prod
 # tier toggle stays available (MOBILE_RELEASE unset => __MOBILE_INTERNAL__ true).
 mobile-build-internal:
 	@test -f $(LP_ENV) || { echo "FAIL: missing $(LP_ENV) — copy $(APP_DIR)/.env.mobile.example → .env.mobile and fill it"; exit 1; }
 	@echo "Learning Player mobile build (internal, tier switch enabled) from $(LP_ENV)..."
-	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && npm install && npm run build && npx cap sync
+	@# `APP_CHANNEL` is exported only when non-empty, so an unset make var cannot clobber a value
+	@# a caller put in the env file.
+	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
+		{ [ -z "$(APP_CHANNEL)" ] || export APP_CHANNEL="$(APP_CHANNEL)"; } && \
+		npm install && npm run build && npx cap sync
 
 # Prod-locked release build. Tier toggle is tree-shaken out (MOBILE_RELEASE=1), and
 # the build FAILS if VITE_SENTRY_DSN_PLAYER is empty so a shipped app can never lose
@@ -3164,6 +3329,7 @@ mobile-build-release:
 	@# below were written to catch exactly this, and did.
 	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
 		: "$${VITE_SENTRY_DSN_PLAYER:?release build requires a prod GlitchTip DSN in .env.mobile}" && \
+		{ [ -z "$(APP_CHANNEL)" ] || export APP_CHANNEL="$(APP_CHANNEL)"; } && \
 		export MOBILE_RELEASE=1 && npm install && npm run build && npx cap sync
 	@# The gate credential must not reach a SHIPPED app. `.env.mobile.example` states this as a
 	@# fact ("never baked into a shipped app"), but it is not one: `VITE_PREVIEW_BASIC_AUTH` is a
@@ -3206,6 +3372,16 @@ mobile-build-release:
 		exit 1; \
 	fi; \
 	echo "OK: no private tailnet hostname in the release bundle"
+	@# And the LOOPBACK dev API base (2026-10-03). Unreachable in a release build — getTier() is
+	@# always 'prod' there — but it shipped anyway, kept unused only by a call the bundler did not
+	@# fold. tier.ts now gates it on __MOBILE_INTERNAL__; this keeps it gone.
+	@cd $(APP_DIR) && if grep -rqF "127.0.0.1" dist/assets/ 2>/dev/null; then \
+		echo ""; \
+		echo "FAIL: a loopback (127.0.0.1) address is present in the RELEASE bundle:"; \
+		grep -rhoE ".{40}127\.0\.0\.1.{40}" dist/assets/ | head -3; \
+		exit 1; \
+	fi; \
+	echo "OK: no loopback dev address in the release bundle"
 
 # --- TestFlight (iOS) -------------------------------------------------------------------
 # Requires App Store Connect credentials in web/learning-player/ios/fastlane/.env — copy
@@ -3233,7 +3409,8 @@ ios-testflight-preflight:
 # assertions, same archive + signed app-store export — and it stops there. Nothing leaves the
 # machine, no build number is consumed.
 ios-testflight-validate:
-	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight
+	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight \
+		APP_CHANNEL=$(or $(APP_CHANNEL),testflight)
 	@if [ -r "$(HOME)/.appstoreconnect/keychain-password" ]; then \
 		security unlock-keychain -p "$$(cat $(HOME)/.appstoreconnect/keychain-password)" \
 			"$(HOME)/Library/Keychains/ios-signing.keychain-db" 2>/dev/null \
@@ -3321,8 +3498,13 @@ ios-device-install:
 	ASC_AUTH=""; \
 	if [ -n "$$ASC_KEY_ID" ] && [ -n "$$ASC_ISSUER_ID" ] && [ -r "$$ASC_KEY_PATH" ]; then \
 		ASC_AUTH="-authenticationKeyID $$ASC_KEY_ID -authenticationKeyIssuerID $$ASC_ISSUER_ID -authenticationKeyPath $$ASC_KEY_PATH"; \
-	elif [ -f "$(IOS_DIR)/fastlane/.env" ]; then \
-		set -a; . "$(IOS_DIR)/fastlane/.env"; set +a; \
+	elif [ -f "$(abspath $(IOS_DIR))/fastlane/.env" ]; then \
+		: "ABSOLUTE, because this whole recipe runs after `cd $(APP_DIR)/ios/App`. The relative"; \
+		: "form resolved to ios/App/web/learning-player/ios/fastlane/.env, which cannot exist, so"; \
+		: "the key was never found, ASC_AUTH stayed empty, and the build died with the exact error"; \
+		: "the comment above predicts: 'No Accounts' + 'No profiles for app.closelistening.player.dev'."; \
+		: "The credentials were present and correct the whole time (2026-10-03)."; \
+		set -a; . "$(abspath $(IOS_DIR))/fastlane/.env"; set +a; \
 		if [ -n "$$ASC_KEY_ID" ] && [ -r "$$ASC_KEY_PATH" ]; then \
 			ASC_AUTH="-authenticationKeyID $$ASC_KEY_ID -authenticationKeyIssuerID $$ASC_ISSUER_ID -authenticationKeyPath $$ASC_KEY_PATH"; \
 			echo "    (using the App Store Connect key from ios/fastlane/.env)"; \
@@ -3455,7 +3637,10 @@ android-bundle:
 	@# RELEASE, not internal — same reason as ios-testflight, and verified the same way. An
 	@# internal build leaves the tier switch and the build host's tailnet hostname in the bundle,
 	@# and this artifact is bound for Google Play.
-	@$(MAKE) mobile-build-release LP_ENV=$(ANDROID_LP_ENV)
+	@# `play_internal` by default — #2192's internal testing track is where the beta lives. Pass
+	@# `APP_CHANNEL=play_store` for a production-track upload.
+	@$(MAKE) mobile-build-release LP_ENV=$(ANDROID_LP_ENV) \
+		APP_CHANNEL=$(or $(APP_CHANNEL),play_internal)
 	@[ -d "$(ANDROID_SDK_DIR)" ] || { echo "FAIL: no Android SDK at $(ANDROID_SDK_DIR)."; exit 1; }
 	@[ -x "$(ANDROID_JAVA_HOME)/bin/java" ] || { echo "FAIL: no JDK at $(ANDROID_JAVA_HOME)."; \
 		echo "      Gradle needs JDK 21 (a Capacitor plugin pins toolchain 21; 17 is NOT enough)."; exit 1; }
@@ -3578,7 +3763,8 @@ ios-testflight:
 	@# a real artifact: `tier-switch` and `https://homelab.<tailnet>.ts.net` were both present.
 	@# TestFlight is a shipped app in every sense that matters here — it goes to other people's
 	@# phones — so it gets the prod-locked build and its artifact assertions.
-	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight
+	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight \
+		APP_CHANNEL=$(or $(APP_CHANNEL),testflight)
 	@# Unlock the signing keychain first (#2189). The build account has no login keychain, so
 	@# signing uses a dedicated one created by scripts/tools/setup_signing_keychain.sh. A locked
 	@# keychain fails codesign with "User interaction is not allowed" — which on a headless account
@@ -3595,7 +3781,18 @@ ios-testflight:
 # Prod-locked build (tier toggle tree-shaken out, GlitchTip DSN required) -> TestFlight. Use for
 # builds that go to anyone other than you.
 ios-testflight-release:
-	@$(MAKE) mobile-build-release
+	@# `.env.mobile.testflight`, NOT the default `.env.mobile` (2026-10-03). This lane ends in
+	@# `fastlane beta` — the same TestFlight upload as `ios-testflight` — but it was passing no
+	@# LP_ENV, so it built from the OWN-PHONE env file. Two consequences, both shipped to testers:
+	@#
+	@#   1. the DEV Umami website id, so beta analytics would land in the dev site (or nowhere),
+	@#      which is the opposite of what the beta exists to measure;
+	@#   2. `VITE_PREVIEW_BASIC_AUTH` — the operator's personal gate credential. Avoiding exactly
+	@#      that is why `.env.mobile.testflight` exists; see the comment on `ios-testflight`.
+	@#
+	@# The two lanes have the same destination, so they must have the same env.
+	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight \
+		APP_CHANNEL=$(or $(APP_CHANNEL),testflight)
 	@cd $(IOS_DIR) && bundle exec fastlane beta
 
 # Consumer Learning Player container (RFC-099 §10): its own nginx-served static image.
@@ -4907,7 +5104,10 @@ docker-clean:
 	@echo "Cleaned up Docker test images"
 
 # --- Observability control plane (podcast_obs, #803) ---
-.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-sync
+# android tiers
+.PHONY: android-app-install android-contact-sheet
+
+.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-sync obs-verify-dashboard obs-umami-views obs-umami-views-check
 
 obs-test: ## Unit tests for the observability control plane (podcast_obs). Fast, no network.
 	$(PYTHON) -m pytest tests/unit/podcast_obs/ -q --no-cov --disable-socket --allow-hosts=127.0.0.1,localhost
@@ -4930,6 +5130,29 @@ health-drill: ## #1819: deterministic o11y probe battery (datasources, metrics, 
 obs-sync: ## GitOps (ADR-117): sync Grafana dashboards+alerts + Sentry rules per tenant. Dry run by default; APPLY=1 to upload.
 	$(PYTHON) scripts/obs/grafana_sync.py $(if $(APPLY),--apply,)
 	$(PYTHON) scripts/obs/sentry_sync.py $(if $(APPLY),--apply,)
+
+obs-verify-dashboard: ## Prove a PUBLISHED dashboard renders data, panel by panel. UID=<uid> [VAR=instance=prod-podcast] [EXPECT_EMPTY=1]
+	@# `obs-sync` proves a dashboard was UPLOADED. It cannot prove any panel on it will show
+	@# anything, and those are very different claims. Three player log streams read empty for weeks
+	@# because an Alloy glob named the wrong directory AND the wrong filename: nothing errored, the
+	@# dashboards were present and correct and blank, and a blank analytics panel looks exactly like
+	@# a product nobody used. This runs every panel's own query through Grafana and fails on empty.
+	@test -n "$(UID)" || { echo "ERROR: pass UID=<dashboard-uid>"; exit 1; }
+	@test -n "$$GRAFANA_URL" || { echo "ERROR: GRAFANA_URL must be set"; exit 1; }
+	@test -n "$$GRAFANA_TOKEN" || { echo "ERROR: GRAFANA_TOKEN must be set"; exit 1; }
+	$(PYTHON) scripts/obs/verify_dashboard.py --uid $(UID) \
+	  $(if $(VAR),--var $(VAR),) $(if $(EXPECT_EMPTY),--expect-empty,)
+
+obs-umami-views: ## Umami beta views as code (ADR-126). WEBSITE_ID=<uuid> [APPLY=1] [VERIFY=1]
+	@# Dry run by default, like obs-sync. VERIFY=1 EXECUTES each view and fails if any returns
+	@# nothing — creating a view proves it was stored, not that it will ever show a number, and an
+	@# empty analytics surface looks exactly like a product nobody used.
+	@test -n "$(WEBSITE_ID)" || { echo "ERROR: pass WEBSITE_ID=<umami-website-uuid>"; exit 1; }
+	$(PYTHON) scripts/obs/umami_views.py --website-id $(WEBSITE_ID) \
+	  $(if $(APPLY),--apply,) $(if $(VERIFY),--verify,)
+
+obs-umami-views-check: ## No-network guard: every view step must be a real EVENT_NAMES member.
+	$(PYTHON) scripts/obs/umami_views.py --check-registry
 
 install-hooks:
 	@if [ ! -d .git ]; then echo "Error: Not a git repository"; exit 1; fi

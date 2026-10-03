@@ -9,9 +9,22 @@
  */
 import { useI18n } from 'vue-i18n'
 import { usePwaUpdate } from '../composables/usePwaUpdate'
+import { track } from '../services/analytics'
 
 const { t } = useI18n()
 const { needRefresh, applyUpdate, dismissUpdate } = usePwaUpdate()
+
+// #2267. `kind: 'pwa_toast'` — the native banner is a separate surface and reports its own. Whether
+// people take updates matters for the beta specifically: a tester on a stale build reports bugs
+// that are already fixed, and the guide asks the operator to log which build each person saw.
+function onAccept(): void {
+  track('update_prompt', { kind: 'pwa_toast', action: 'accepted' })
+  applyUpdate()
+}
+function onDismiss(): void {
+  track('update_prompt', { kind: 'pwa_toast', action: 'dismissed' })
+  dismissUpdate()
+}
 </script>
 
 <template>
@@ -34,7 +47,7 @@ const { needRefresh, applyUpdate, dismissUpdate } = usePwaUpdate()
       type="button"
       class="rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground"
       data-testid="pwa-update-reload"
-      @click="applyUpdate"
+      @click="onAccept"
     >
       {{ t('pwa.updateAvailable.reload') }}
     </button>
@@ -42,7 +55,7 @@ const { needRefresh, applyUpdate, dismissUpdate } = usePwaUpdate()
       type="button"
       class="text-xs text-muted underline"
       data-testid="pwa-update-dismiss"
-      @click="dismissUpdate"
+      @click="onDismiss"
     >
       {{ t('pwa.updateAvailable.dismiss') }}
     </button>

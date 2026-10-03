@@ -103,3 +103,52 @@ describe('SettingsView (#8)', () => {
     expect(w.find('[data-testid="settings-terms"]').attributes('href')).toBe('/about/terms')
   })
 })
+
+describe('Settings › Privacy (#2265)', () => {
+  beforeEach(() => {
+    try {
+      localStorage.clear()
+    } catch {
+      /* storage may be unavailable */
+    }
+  })
+
+  it('offers the usage-analytics toggle, ON by default', async () => {
+    // The beta's closing-interview script tells every participant "analytics continues unless you
+    // turn it off in Settings". Without this control that sentence is false, which is the whole
+    // reason the toggle is in scope rather than deferred.
+    const w = await mountView()
+    const box = w.get('[data-testid="settings-share-analytics"]')
+    expect((box.element as HTMLInputElement).checked).toBe(true)
+    // Named on the input itself — the Android bridge reported such nodes with every name field
+    // empty, so TalkBack announced a bare checkbox (#2156).
+    expect(box.attributes('aria-label')).toBe(en.settings.shareAnalytics)
+  })
+
+  it('turning it off records the opt-out where Umami itself reads it', async () => {
+    const w = await mountView()
+    const box = w.get('[data-testid="settings-share-analytics"]')
+    ;(box.element as HTMLInputElement).checked = false
+    await box.trigger('change')
+    // Umami's OWN flag, not a key of ours: its bundle checks `localStorage['umami.disabled']`, so
+    // the tracker goes quiet even for a `track()` call that forgot our gate.
+    expect(localStorage.getItem('umami.disabled')).toBe('1')
+  })
+
+  it('turning it back on clears the flag', async () => {
+    localStorage.setItem('umami.disabled', '1')
+    const w = await mountView()
+    const box = w.get('[data-testid="settings-share-analytics"]')
+    expect((box.element as HTMLInputElement).checked).toBe(false)
+    ;(box.element as HTMLInputElement).checked = true
+    await box.trigger('change')
+    expect(localStorage.getItem('umami.disabled')).toBeNull()
+  })
+
+  it('hides the analytics id block when the account has none', async () => {
+    // An account whose backfill has not run has no id; showing an empty code block would read as
+    // a bug to the participant it is meant to help.
+    const w = await mountView()
+    expect(w.find('[data-testid="settings-analytics-id"]').exists()).toBe(false)
+  })
+})

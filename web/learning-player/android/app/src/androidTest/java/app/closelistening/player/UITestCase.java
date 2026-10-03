@@ -46,6 +46,20 @@ public abstract class UITestCase {
      * state — and say why, because it re-enters the shared world this class exists to leave.
      */
     protected String accountIdentity() {
+        // An EXPLICIT override wins, passed as `am instrument -e identity <name>`. This is the
+        // Android half of iOS's `TEST_RUNNER_LP_FORCE_IDENTITY`, and it exists for exactly one
+        // caller: a contact-sheet run, where the seeding suites and the photographing suite MUST
+        // share an account.
+        //
+        // Without it the seeders populate `appjourneytests` / `personalisationtests` while
+        // `ScreenshotTourTests` reads `simtest`, so the tour photographs an account nobody filled
+        // and the sheet is a wall of empty states — which is the half of a sheet a visual review
+        // cannot judge. That is not hypothetical: it is precisely what happened on iOS when
+        // per-suite identities landed (#2091), and it regressed in silence for weeks because
+        // nothing asserts on a contact sheet.
+        String forced = forcedIdentity();
+        if (forced != null && !forced.isEmpty()) return forced;
+
         // `DownloadThroughUITests` -> `downloadthroughuitests`. Lowercased and stripped to the
         // charset the mock provider accepts, matching how the browser tier derives its own ids.
         StringBuilder sb = new StringBuilder();
@@ -53,6 +67,18 @@ public abstract class UITestCase {
             if (Character.isLetterOrDigit(c)) sb.append(Character.toLowerCase(c));
         }
         return sb.toString();
+    }
+
+    /** The `-e identity <name>` instrumentation argument, or null when it was not passed. */
+    protected static String forcedIdentity() {
+        try {
+            android.os.Bundle args = androidx.test.platform.app.InstrumentationRegistry.getArguments();
+            return args == null ? null : args.getString("identity");
+        } catch (Throwable t) {
+            // Arguments are unavailable in some harness contexts; per-suite identities are the
+            // correct default, so fall through to them rather than failing the run.
+            return null;
+        }
     }
 
     /**

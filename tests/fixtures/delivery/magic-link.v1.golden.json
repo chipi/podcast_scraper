@@ -1,0 +1,19 @@
+{
+  "schema_version": "1",
+  "id": "auth_Kj8sQm2ZpR4vN7xW",
+  "user_id": "",
+  "type": "auth_link",
+  "channel": "email",
+  "template": "magic-link.v1",
+  "recipient": {
+    "email": "someone@example.com",
+    "email_verified": false
+  },
+  "payload": {
+    "link": "https://closelistening.app/api/app/auth/email/verify?token=EXAMPLE-PLACEHOLDER",
+    "expires_minutes": 15
+  },
+  "not_before": "2026-10-03T15:00:00Z",
+  "expires_at": "2026-10-03T15:15:00Z",
+  "created_at": "2026-10-03T15:00:00Z"
+}

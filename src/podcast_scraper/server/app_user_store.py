@@ -12,6 +12,8 @@ import hashlib
 import json
 import re
 import shutil
+import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -60,6 +62,17 @@ class User:
     #: RFC-112 (#1471): may connect an external agent to the MCP server. Orthogonal to ``role`` (a
     #: listener may have it, an admin may not) — admin-granted, not a rank. Default off.
     mcp_access: bool = False
+    #: Pseudonymous analytics identity (#2265). A random UUIDv4 minted once, at account creation,
+    #: and never rotated.
+    #:
+    #: Deliberately NOT ``user_id`` and NOT derived from the email. ``user_id`` is
+    #: ``sha256(provider || subject)``, so anyone holding the analytics data and a candidate
+    #: identity could confirm the match by recomputing it. This id is random, so the only route
+    #: back to a person is the operator's own private sheet.
+    #:
+    #: Empty on profiles written before this field existed; ``get_or_create_user`` backfills one at
+    #: the next sign-in rather than leaving an existing account permanently unmeasurable.
+    analytics_id: str = ""
 
 
 #: The only shape ``user_id_for`` ever produces: ``u_`` + 24 lowercase hex chars.
@@ -70,6 +83,43 @@ def user_id_for(provider: str, subject: str) -> str:
     """Stable, opaque user id from the OAuth identity ``(provider, subject)``."""
     digest = hashlib.sha256(f"{provider}\x00{subject}".encode("utf-8")).hexdigest()
     return f"u_{digest[:24]}"
+
+
+def _backfill_analytics_id(data_dir: Path, user: User) -> User:
+    """Give an existing account an ``analytics_id`` if it has none (#2265).
+
+    Read-modify-write under the per-user profile lock, re-reading inside it: a concurrent sign-in
+    (a double-fired OAuth callback, two devices at once) must not mint two ids and have the second
+    overwrite the first, because the id is promised never to rotate — a rotated id silently splits
+    one participant into two in every report.
+
+    **Never raises.** A failure here returns the user unchanged, so a disk problem in the analytics
+    backfill cannot stop someone signing in. The cost of failing is one account measured from its
+    next sign-in instead of this one; the cost of raising would be a locked-out listener.
+    """
+    try:
+        with _profile_lock(data_dir, user.user_id):
+            current = get_user(data_dir, user.user_id)
+            if current is None:
+                return user
+            if current.analytics_id:
+                return current
+            updated = replace(current, analytics_id=new_analytics_id())
+            _write_profile(data_dir, updated)
+            return updated
+    except Exception:
+        return user
+
+
+def new_analytics_id() -> str:
+    """Mint a fresh pseudonymous analytics id (#2265).
+
+    Random, not derived. The contrast with :func:`user_id_for` directly above is the point: that
+    one is a digest of the OAuth identity, which is exactly what an analytics id must not be. A
+    derived id would let anyone holding the analytics export test a guessed identity against it;
+    a random one cannot be reversed, so the mapping lives only in the operator's private sheet.
+    """
+    return str(uuid.uuid4())
 
 
 def _is_safe_user_id(user_id: str) -> bool:
@@ -109,6 +159,7 @@ def _write_profile(data_dir: Path, user: User) -> None:
                 "disabled": user.disabled,
                 "role": user.role,
                 "mcp_access": user.mcp_access,
+                "analytics_id": user.analytics_id,
             },
             ensure_ascii=False,
             indent=2,
@@ -141,6 +192,9 @@ def get_user(data_dir: Path, user_id: str) -> User | None:
         disabled=bool(doc.get("disabled", False)),
         # Profiles written before #1128 have no ``role`` → default to listener.
         role=app_roles.normalize_role(doc.get("role")),
+        # Profiles written before #2265 have no ``analytics_id``; ``get_or_create_user``
+        # backfills one at the next sign-in.
+        analytics_id=str(doc.get("analytics_id", "")),
         # Profiles written before #1471 have no ``mcp_access`` → default off.
         mcp_access=bool(doc.get("mcp_access", False)),
     )
@@ -184,16 +238,33 @@ def get_or_create_user(
     name: str,
     image: str | None = None,
     role: str | None = None,
+    on_created: Callable[[User], None] | None = None,
 ) -> User:
     """Return the existing user for ``(provider, subject)`` or create it (idempotent).
 
     ``role`` only sets the role **on first creation**; an existing user's role is left untouched
     here (use :func:`set_role` to change it). When omitted, new users default to ``listener``.
+
+    Also backfills a missing ``analytics_id`` on an existing account (#2265). Minting only at
+    creation would leave every account that predates the field permanently unmeasurable — which is
+    every account that exists today, including the operator's own and the e2e identities. This is
+    the right place for it because it runs on each sign-in and already holds the lock pattern, and
+    it is a one-time write per account: once set, the branch never fires again, and the id never
+    rotates.
+
+    ``on_created`` is called EXACTLY ONCE per real creation, inside the lock, with the new user —
+    the hook the `account_created` analytics event needs (#2266). It is here rather than in the
+    caller because the caller cannot tell a creation from a return without a second read, and that
+    read races: two concurrent first-logins for the same identity would both see "absent" and both
+    report a signup, for one account. Inside the lock, after the re-check, there is exactly one.
+    A raising callback must not fail the sign-in, so it is guarded.
     """
     uid = user_id_for(provider, subject)
     existing = get_user(data_dir, uid)
     if existing is not None:
-        return existing
+        if existing.analytics_id:
+            return existing
+        return _backfill_analytics_id(data_dir, existing)
     # Serialize the mint under the store-global handle lock so two racing first-logins can't derive
     # the same handle from `taken` (uniqueness is cross-user; advisor H1). Re-check existence inside
     # the lock to also collapse a double-fired OAuth callback for the same (provider, subject).
@@ -211,8 +282,14 @@ def get_or_create_user(
             provider=provider,
             subject=subject,
             role=app_roles.normalize_role(role),
+            analytics_id=new_analytics_id(),
         )
         _write_profile(data_dir, user)
+        if on_created is not None:
+            try:
+                on_created(user)
+            except Exception:  # noqa: BLE001 — a metric must never fail a signup.
+                pass
     return user
 
 
@@ -233,6 +310,7 @@ def create_user(
             provider=provider,
             subject=subject,
             role=app_roles.normalize_role(role),
+            analytics_id=new_analytics_id(),
         )
         _write_profile(data_dir, user)
     return user
@@ -261,6 +339,45 @@ def set_image(data_dir: Path, user_id: str, image: str | None) -> bool:
         if user is None:
             return False
         _write_profile(data_dir, replace(user, image=image))
+    return True
+
+
+#: Longest display name accepted. Generous for real names; short enough that a masthead, a share
+#: card and an email greeting never have to truncate mid-word.
+NAME_MAX_CHARS = 60
+
+
+def normalize_display_name(raw: str) -> str | None:
+    """A display name as stored: whitespace collapsed and trimmed, control characters refused.
+
+    Returns None when nothing usable is left or it is too long. Deliberately permissive otherwise —
+    names are not validated against an alphabet, because any such rule rejects someone's real name.
+    """
+    if not isinstance(raw, str):
+        return None
+    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in raw):
+        return None
+    name = " ".join(raw.split())
+    if not name or len(name) > NAME_MAX_CHARS:
+        return None
+    return name
+
+
+def set_name(data_dir: Path, user_id: str, name: str) -> bool:
+    """Set a user's display name. Returns False for unknown users or an unusable name.
+
+    The person's own choice, for every provider. It is never overwritten by a later sign-in:
+    `get_or_create_user` returns an existing account untouched, so Google re-sending its name does
+    not undo a rename. The handle (`username`) is NOT derived from this and does not change.
+    """
+    clean = normalize_display_name(name)
+    if clean is None or not _is_safe_user_id(user_id):
+        return False
+    with _profile_lock(data_dir, user_id):
+        user = get_user(data_dir, user_id)
+        if user is None:
+            return False
+        _write_profile(data_dir, replace(user, name=clean))
     return True
 
 

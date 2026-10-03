@@ -96,10 +96,17 @@ which adds a constraint: a `http://homelab:3001` Umami script is
 
 - **Viewer analytics:** `web/gi-kg-viewer/src/lib/analytics.ts` (`track()` +
   `EVENT_NAMES`); call sites in `App.vue` + `stores/{search,explore,graphHandoff,shell}.ts`.
-- **Dev defaults (tailnet, `homelab`):** GlitchTip `player-dev`(project 8) /
-  `operator-dev`(9); Umami `player-dev` / `operator-dev`. Wired in the frontends'
-  `main.ts` and `src/podcast_scraper/utils/sentry_init.py` (guarded off under
-  pytest/CI/prod).
+- **Dev targets:** GlitchTip `player-dev`(project 8) / `operator-dev`(9); Umami `player-dev` /
+  `operator-dev`. **Amended 2026-10-03: no target is baked into the source any more.** The
+  hardcoded `homelab` DSNs in the frontends' `main.ts` and in
+  `src/podcast_scraper/utils/sentry_init.py` were removed. A tailnet hostname does not resolve from
+  every machine, and on the homelab box itself it is refused, which made every locally run server
+  retry and warn on each event. Each rung now comes from the environment: the server from
+  `PODCAST_SENTRY_DSN_*` (`.env.obs.dev` in dev), the player from `VITE_SENTRY_DSN_PLAYER(_DEV)`,
+  and the viewer from `VITE_SENTRY_DSN_VIEWER(_DEV)`. Unset means no reporting. The viewer's Umami
+  default (`lib/analytics.ts`, `homelab:3001` plus a site id) was removed the same day: the viewer
+  reads `VITE_UMAMI_SRC` / `VITE_UMAMI_WEBSITE_ID`, and in dev `VITE_UMAMI_SRC_DEV` /
+  `VITE_UMAMI_WEBSITE_ID_DEV`.
 - **Prod build args:** `docker/viewer/Dockerfile` + `.github/workflows/stack-test.yml`
   take `VITE_UMAMI_SRC` / `VITE_UMAMI_WEBSITE_ID` (GH vars `OPERATOR_UMAMI_*`);
   empty ⇒ silent image.

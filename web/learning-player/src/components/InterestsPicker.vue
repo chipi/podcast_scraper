@@ -6,6 +6,7 @@
  * trap, restore focus on close.
  */
 import { computed, onMounted, ref } from "vue"
+import { toCountBucket, track } from "../services/analytics"
 import CloseIcon from "./CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import { getStorylines, getTopClusters, getUserInterests, putUserInterests } from "../services/api"
@@ -14,6 +15,15 @@ import { useModalSheet } from "../composables/useModalSheet"
 import { dedupeByLabel, interestKind, interestLabel } from "../utils/interests"
 import { useInterestsStore } from "../stores/interests"
 
+/**
+ * Where this picker was opened from (#2267).
+ *
+ * Required rather than defaulted: the three values answer different questions — `first_run` and
+ * `home_prompt` measure whether the onboarding ask works, `profile` measures deliberate curation
+ * later on. A default would silently file one as another, and the funnel step between
+ * `auth_completed` and `interests_saved` is exactly where the spec expects to see drop-off.
+ */
+const props = defineProps<{ trigger: "first_run" | "profile" | "home_prompt" }>()
 const emit = defineEmits<{ (e: "close"): void; (e: "saved", ids: string[]): void }>()
 const { t } = useI18n()
 // The picker OWNS the write, so it owns telling the store. Leaving that to each parent is what
@@ -27,6 +37,14 @@ const storylines = ref<Storyline[]>([])
 // doesn't offer (topic:/person: from entity cards, or clusters not shown) survive the PUT replace.
 const initialInterests = ref<string[]>([])
 const selected = ref<Set<string>>(new Set())
+/**
+ * Whether a save completed, so closing afterwards is not ALSO reported as a dismissal (#2267).
+ *
+ * `save()` emits "saved" and then "close", so a close handler alone would record every successful
+ * save as a dismissal too — and `interests_dismissed` is the funnel's drop-off signal, so it would
+ * read as though everyone who chose interests had also abandoned the step.
+ */
+let didSave = false
 const loading = ref(true)
 const saving = ref(false)
 
@@ -79,6 +97,10 @@ async function save(): Promise<void> {
     const stored = await putUserInterests([...preserved, ...chosen])
     // BEFORE the emit: every surface reading the store must be correct by the time a parent's
     // `saved` handler runs (HomeView's re-pulls discovery).
+    // Bucketed, never the exact count and never the chosen ids: the spec's no-free-text rule, and
+    // "how many" is all any metric reads.
+    track("interests_saved", { count: toCountBucket(stored.length) })
+    didSave = true
     interests.replaceAll(stored)
     emit("saved", stored)
     emit("close")
@@ -89,9 +111,19 @@ async function save(): Promise<void> {
 
 // Modal a11y — the shared sheet plumbing (focus trap + ESC / backdrop dismiss). No history entry.
 const dialogEl = ref<HTMLElement | null>(null)
-useModalSheet(dialogEl, () => emit("close"))
+useModalSheet(dialogEl, closeSheet)
+
+/** Close, reporting a dismissal unless a save already happened. */
+function closeSheet(): void {
+  if (!didSave) track("interests_dismissed")
+  emit("close")
+}
 
 onMounted(async () => {
+  // Before the fetch, like landing_view: a listener whose clusters never load still opened the
+  // picker, and the funnel must not under-count the people whose network failed them.
+  track("interests_picker_shown", { trigger: props.trigger })
+
   const [tops, tales, current] = await Promise.all([
     getTopClusters(12).catch(() => [] as InterestCluster[]),
     getStorylines(12).catch(() => [] as Storyline[]),
@@ -112,7 +144,7 @@ onMounted(async () => {
       role="dialog"
       aria-modal="true"
       :aria-label="t('interests.title')"
-      @click.self="emit('close')"
+      @click.self="closeSheet()"
     >
       <div
         ref="dialogEl"
@@ -127,8 +159,9 @@ onMounted(async () => {
           <button
             type="button"
             class="lp-nav shrink-0"
+            data-testid="interests-close"
             :aria-label="t('interests.close')"
-            @click="emit('close')"
+            @click="closeSheet()"
           >
             <CloseIcon />
           </button>
@@ -211,7 +244,8 @@ onMounted(async () => {
           <button
             type="button"
             class="rounded-full px-4 py-2 text-sm font-bold text-muted"
-            @click="emit('close')"
+            data-testid="interests-cancel"
+            @click="closeSheet()"
           >
             {{ t("interests.cancel") }}
           </button>
@@ -219,6 +253,7 @@ onMounted(async () => {
             type="button"
             :disabled="saving || loading"
             class="rounded-full bg-accent px-5 py-2 text-sm font-bold text-accent-foreground disabled:opacity-50"
+            data-testid="interests-save"
             @click="save"
           >
             {{ saving ? t("interests.saving") : t("interests.save") }}

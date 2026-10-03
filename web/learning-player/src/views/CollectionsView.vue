@@ -31,6 +31,7 @@ import type { Collection, CollectionDetail, CollectionItem } from "../services/t
 import { useQueueStore } from "../stores/queue"
 import { useSignInGate } from "../composables/useSignInGate"
 import { formatPublishDate } from "../utils/format"
+import { episodeArtwork, showArtwork } from '../utils/episode'
 
 // Hoisted (was created inside `load`): the reorder handlers below need the same instance, and a
 // second `useCollectionsStore()` call would hand them a different local ref to keep in sync.
@@ -296,7 +297,7 @@ async function hydrate(detail: CollectionDetail): Promise<void> {
             subtitle: t("collections.episodeCount", p.episode_count, {
               named: { count: p.episode_count },
             }),
-            artwork: p.artwork_url ?? p.image_url ?? undefined,
+            artwork: showArtwork(p) ?? undefined,
           }
         }
         return
@@ -307,7 +308,7 @@ async function hydrate(detail: CollectionDetail): Promise<void> {
         shown.value[itemKey(it)] = {
           title: ep.title,
           subtitle: ep.podcast_title ?? undefined,
-          artwork: ep.artwork_url ?? ep.episode_image_url ?? ep.feed_image_url ?? undefined,
+          artwork: episodeArtwork(ep) ?? undefined,
         }
       } catch {
         /* leave the row on its fallback — see the docstring */

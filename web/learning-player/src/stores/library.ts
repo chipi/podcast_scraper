@@ -8,6 +8,9 @@
  * and reverts if the call fails.
  */
 import { defineStore } from 'pinia'
+import { track } from '../services/analytics'
+import { sourceForRoute } from '../services/provenance'
+import { router } from '../router'
 import { followShow, getLibrary, unfollowShow } from '../services/api'
 import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
@@ -77,6 +80,15 @@ export const useLibraryStore = defineStore('library', {
     async toggle(feedId: string, meta: { title?: string | null } = {}): Promise<void> {
       const before = this.items
       const wasFollowing = this.has(feedId)
+      // #2267. Reported on INTENT, next to the optimistic state change, not after the request:
+      // `follow` is one of the spec's four Umami goals, and tying it to the response would drop
+      // every follow made offline — which this store deliberately keeps, optimistically, precisely
+      // because they are real. The surface comes from the route, since a follow can be tapped from
+      // Home, an entity card, an entity page or the library and the spec asks which.
+      track(wasFollowing ? 'unfollow' : 'follow', {
+        kind: 'show',
+        source: sourceForRoute(router.currentRoute.value.name),
+      })
       this.items = wasFollowing
         ? before.filter((i) => i.feed_id !== feedId)
         : [...before, { feed_id: feedId, feed_url: null, title: meta.title ?? null, added_at: null }]

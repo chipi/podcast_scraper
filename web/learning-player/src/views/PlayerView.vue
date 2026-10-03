@@ -10,6 +10,9 @@
  * adaptive accent + insight-surfacing are wired progressively (Knowledge Panel = C5/#1084).
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { track } from '../services/analytics'
+import { sourceOfCurrentNavigation } from '../services/provenance'
+import { useLibraryStore } from '../stores/library'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
@@ -144,7 +147,37 @@ function writeRemoteOffset(slug: string, value: number | null): void {
 }
 
 
+const library = useLibraryStore()
 const episode = ref<EpisodeDetail | null>(null)
+
+/**
+ * `episode_open` (#2267) — THE event behind Discovery share.
+ *
+ * Reported here, once per episode, rather than at the six-plus components that link to a player
+ * route, for two reasons. It needs `from_followed_show`, which depends on the episode's feed and so
+ * is not knowable until the detail has loaded; and one site cannot pass the wrong surface the way
+ * six could — the mistake already made once in this slice, on the landing CTAs.
+ *
+ * `source` comes from the route the navigation LEFT (services/provenance.ts), which the router
+ * records because it is gone by the time this fires.
+ *
+ * Discovery share counts opens whose source is an entity / storyline / search / knowledge surface
+ * AND whose show is not already followed — "they found something new", as opposed to playing the
+ * next episode of a show they already listen to. Both halves have to be right for that number to
+ * mean anything.
+ */
+const reportedOpenFor = ref<string | null>(null)
+watch(
+  () => episode.value,
+  (ep) => {
+    if (!ep || reportedOpenFor.value === ep.slug) return
+    reportedOpenFor.value = ep.slug
+    track('episode_open', {
+      source: sourceOfCurrentNavigation(),
+      from_followed_show: ep.feed_id ? library.has(ep.feed_id) : false,
+    })
+  },
+)
 
 // #2036 — shareable card model for this episode: title + show, a signature insight as the quote,
 // duration byline, canonical link. The insights are salience-sorted, so the first is the strongest.
@@ -216,6 +249,21 @@ function syncPanelDialog(): void {
 }
 
 watch([panelOpen, isDesktop], () => void nextTick(syncPanelDialog))
+
+/**
+ * `knowledge_panel_open` (#2267) — part of "learning actions per active day".
+ *
+ * Watches the STATE, not the button. There is one opener today, but the state is the thing that
+ * actually means "the panel is open", so an opener added later is counted without anyone
+ * remembering to wire it — the failure mode a per-button handler has.
+ *
+ * `trigger` is always `button`: the spec's other value, `density_tick`, has no affordance in this
+ * app (the density strip seeks, it does not open the panel), so it was removed from the registry
+ * rather than left as a value that could never fire.
+ */
+watch(panelOpen, (open) => {
+  if (open) track('knowledge_panel_open', { trigger: 'button' })
+})
 
 /**
  * Close came from anywhere — the ✕, Escape, or a backdrop tap. Restore focus to the control that
@@ -1306,7 +1354,7 @@ onBeforeUnmount(() => {
             -->
             <AddToCollectionButton :item="{ kind: 'episode', ref: props.slug }" />
             <!-- Share this episode as a card / link / text (#2036). -->
-            <ShareMenu :model="shareModel" />
+            <ShareMenu :model="shareModel" target-kind="episode" />
             <!-- Secondary actions overflow (UXS-014). Mark-as-played lives here — it's a rare,
                  deliberate action, not a primary transport control (PL.6). -->
             <OverflowMenu :label="t('player.moreActions')">

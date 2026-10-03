@@ -10,6 +10,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import HighlightToggle from './HighlightToggle.vue'
 import { useI18n } from 'vue-i18n'
+import { track } from '../services/analytics'
 import { scrollBehavior } from '../utils/motion'
 import type { Segment } from '../services/types'
 import type { GroundedSpan } from '../player/insights'
@@ -55,9 +56,17 @@ const { t } = useI18n()
 
 
 function onSegmentClick(i: number, seg: Segment): void {
+  // Both count toward "learning actions per active day" (#2267), and they are not the same act: a
+  // plain line tap is navigating the audio by reading, while a GROUNDED line is following an
+  // insight back to the moment that produced it — the behaviour the learning layer exists to
+  // create. Reported separately so the second is not hidden inside the first.
+  track('transcript_seek')
   emit('seek', seg.start)
   const g = props.grounded[i]
-  if (g) emit('insight', g.insightId)
+  if (g) {
+    track('insight_tap', { insight_type: 'grounded_transcript' })
+    emit('insight', g.insightId)
+  }
 }
 
 // Char-level highlight split per grounded segment (3.6); null → whole-segment underline fallback.

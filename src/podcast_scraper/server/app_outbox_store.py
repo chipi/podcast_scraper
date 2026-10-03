@@ -93,14 +93,35 @@ def enqueue(data_dir: Path, envelope: dict[str, Any]) -> bool:
     return True
 
 
+#: Message types that are TRANSACTIONAL: sent because the recipient asked for them, in the moment,
+#: and meaningless to gate on consent.
+#:
+#: There is exactly one, and it is auth. A magic-link email cannot be consent-gated because the
+#: recipient HAS NO ACCOUNT YET — that is the entire point of it — so there is no ``user_id`` to
+#: look a consent record up by, and no consent that could have been given. Requiring consent before
+#: being allowed to let someone in is circular.
+#:
+#: This is a deliberate hole in a privacy gate, so it is a CLOSED SET rather than a flag on the
+#: envelope. An envelope cannot opt itself out of consent by setting a field; it has to be one of
+#: these named types. Adding to this set means deciding that a message may reach someone who never
+#: agreed to hear from us — which is correct for "here is the link you just requested" and wrong for
+#: essentially everything else, including anything resembling a notification, a digest or a nudge.
+TRANSACTIONAL_TYPES = frozenset({"auth_link"})
+
+
 def _consent_allows(data_dir: Path, envelope: dict[str, Any]) -> bool:
     """Whether the user's *current* consent still permits delivering this envelope (amend. 2).
 
     Gated on the per-type × per-channel matrix (wave-I). The digest email additionally honours the
-    schedule ``paused`` flag (pause applies to the digest only)."""
+    schedule ``paused`` flag (pause applies to the digest only).
+
+    Transactional types bypass the matrix entirely — see :data:`TRANSACTIONAL_TYPES`."""
     user_id = str(envelope.get("user_id") or "")
     channel = envelope.get("channel")
     ntype = str(envelope.get("type") or "digest")
+    if ntype in TRANSACTIONAL_TYPES:
+        # Still channel-checked: a transactional type must not become a way to push.
+        return channel == "email"
     comms = app_comms_store.get_comms(data_dir, user_id)
     if channel == "email":
         if not app_comms_store.channel_enabled(comms, ntype, "email"):

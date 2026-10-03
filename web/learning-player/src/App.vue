@@ -28,6 +28,7 @@ import {
   followShow,
   getPlayback,
   logListen,
+  logPlaybackProgress,
   putPlayback,
   removeFavorite,
   setFavoriteColor,
@@ -69,6 +70,7 @@ import {
   queueListen,
 } from './services/listenLog'
 import { startDownloadScheduler } from './services/downloadScheduler'
+import { postLinkSignInRoute } from './utils/redirect'
 import {
   flushPendingPositions,
   hydratePositions,
@@ -334,7 +336,14 @@ async function pushPendingWrites({ revalidate = true }: { revalidate?: boolean }
 }
 
 function pushPendingListens(): void {
-  void flushListenLog((slug, ts) => logListen(slug, ts))
+  // One queue, two endpoints (#2266). The queue stays endpoint-agnostic so its identity-epoch and
+  // ordering guarantees cover opens and milestones unchanged; the routing decision is here, where
+  // both API calls live.
+  void flushListenLog((slug, ts, milestone) =>
+    milestone === undefined
+      ? logListen(slug, ts)
+      : logPlaybackProgress(slug, milestone, ts),
+  )
 }
 
 function pushPendingPositions(): void {
@@ -452,11 +461,15 @@ onMounted(async () => {
   void initDeepLinks((target) => {
     void router.push({ name: target.name, params: target.params, query: target.query ?? {} })
   })
-  await initNativeAuth(async () => {
+  await initNativeAuth(async ({ isNew }) => {
     await auth.refresh()
     // A fresh sign-in changes who we are; adopt before loading anything per-account.
     await adoptIdentity()
     await hydrateUser()
+    // New account → its profile; returning → off the signed-out landing (see postLinkSignInRoute).
+    // Runs last so it supersedes LoginView's own "signed in → home" replace.
+    const dest = postLinkSignInRoute(isNew, router.currentRoute.value)
+    if (dest) void router.replace(dest)
   })
   // Paint the last known identity first so an offline launch is signed in immediately, then
   // revalidate. `refresh()` no longer throws, so a dead network cannot abort boot (#1906).

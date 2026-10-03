@@ -68,4 +68,11 @@ regexes = [
 
     # Shell variable references — ${VAR} or $VAR — never a raw secret
     '''\$\{?[A-Z_][A-Z0-9_]+\}?''',
+
+    # The magic-link golden fixture's ORIGINAL placeholder link (#2272): base64 of {"alg":"HS256"}
+    # followed by the literal word "signature" — a header with no payload, not this app's token
+    # format, and not usable as anything. It now reads `token=EXAMPLE-PLACEHOLDER`; this entry exists
+    # only because CI scans every commit in a PR and the commit that added the fixture still holds
+    # the old shape. Exact text, so it cannot excuse a real token (a real one has a payload segment).
+    '''eyJhbGciOiJIUzI1NiJ9\.signature''',
 ]

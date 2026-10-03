@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
+import * as analytics from '../services/analytics'
 import * as api from '../services/api'
 import en from '../i18n/locales/en.json'
 import { useInterestsStore } from '../stores/interests'
@@ -9,7 +10,11 @@ import InterestsPicker from './InterestsPicker.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 // Stub <Teleport> so the modal renders inline in the wrapper (it teleports to <body> in the app).
-const mountPicker = () => mount(InterestsPicker, { global: { plugins: [i18n], stubs: { teleport: true } } })
+const mountPicker = () =>
+  mount(InterestsPicker, {
+    props: { trigger: 'home_prompt' as const },
+    global: { plugins: [i18n], stubs: { teleport: true } },
+  })
 
 // Pinia: the picker now writes the saved set into the interests store itself (iOS-F1). Before that
 // it PUT the list and told nobody, leaving each parent to update its own copy — which is how Home
@@ -114,5 +119,30 @@ describe('InterestsPicker', () => {
     // The SERVER's response is authoritative, not the local selection.
     expect(store.ids).toEqual(['tc:ai'])
     expect(store.loaded).toBe(true)
+  })
+})
+
+describe('analytics (#2267)', () => {
+  it('reports it was shown, with the trigger the opener passed', async () => {
+    const spy = vi.spyOn(analytics, 'track')
+    mountPicker()
+    await flushPromises()
+    expect(spy).toHaveBeenCalledWith('interests_picker_shown', { trigger: 'home_prompt' })
+  })
+
+  it('a dismissal is reported once, and a SAVE is not also a dismissal', async () => {
+    // `save()` emits "saved" then "close", so a close handler alone would record every successful
+    // save as a dismissal too — and since interests_dismissed is the funnel's drop-off signal, the
+    // step would read as though everyone who chose interests had also abandoned it.
+    const spy = vi.spyOn(analytics, 'track')
+    const w = mountPicker()
+    await flushPromises()
+    spy.mockClear()
+
+    // Cancel, with nothing saved.
+    await w.get('[data-testid="interests-cancel"]').trigger('click')
+    const names = spy.mock.calls.map((c) => c[0])
+    expect(names).toContain('interests_dismissed')
+    expect(names).not.toContain('interests_saved')
   })
 })

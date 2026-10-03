@@ -343,7 +343,7 @@ watch(() => props.feedId, reset)
             <!-- Pin this show into a collection (RFC-119). -->
             <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" />
             <!-- Share (card / link / text) — #2036. -->
-            <ShareMenu :model="shareModel" />
+            <ShareMenu :model="shareModel" target-kind="episode" />
           </div>
         </div>
       </div>

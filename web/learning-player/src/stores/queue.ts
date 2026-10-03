@@ -5,6 +5,9 @@
  */
 
 import { defineStore } from 'pinia'
+import { track } from '../services/analytics'
+import { sourceForRoute } from '../services/provenance'
+import { router } from '../router'
 import { addQueueItem, getQueue, putQueue, removeQueueItem } from '../services/api'
 import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
@@ -162,6 +165,11 @@ export const useQueueStore = defineStore('queue', {
     },
     /** Append to the end if not already queued. */
     async add(slug: string): Promise<boolean> {
+      // #2267. Reported on intent, beside the optimistic change, for the same reason as `follow`:
+      // this store keeps queue adds made offline, and binding the event to the response would drop
+      // exactly those. `source` comes from the route, since queueing happens from the player, a
+      // list, an entity card or the queue itself.
+      track('queue_add', { source: sourceForRoute(router.currentRoute.value.name) })
       // Mutations operate on the LOADED queue: without this, an add() that runs before the
       // initial load() finishes gets overwritten when that load resolves (dropped add).
       await this.ensureLoaded()

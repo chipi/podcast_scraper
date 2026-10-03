@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as analytics from '../services/analytics'
 import * as api from '../services/api'
 import * as deviceStore from '../services/deviceStore'
 import * as native from '../services/native'
@@ -222,6 +223,62 @@ describe('a dead credential takes the TOKEN with it (2026-09-24)', () => {
     expect(store).toHaveBeenCalledWith(null)
   })
 
+  it('a 401 about a token that has since been REPLACED neither signs out nor wipes (#2272)', async () => {
+    // A sign-in link that LAUNCHES the app delivers its token mid-boot. The boot `/me` already left
+    // without it and comes back 401 — about the old (absent) credential. That stale answer used to
+    // sign the person out and erase the token that had just arrived (Android emulator 2026-10-03).
+    const store = nativeWithToken()
+    let token: string | null = null
+    vi.spyOn(api, 'getAuthToken').mockImplementation(() => token)
+    vi.spyOn(api, 'getHealth').mockResolvedValue({ auth_ready: true } as never)
+    const getMe = vi
+      .spyOn(api, 'getMe')
+      .mockImplementationOnce(async () => {
+        token = 'fresh-from-the-link' // arrives while this request is in flight
+        return null
+      })
+      .mockResolvedValueOnce(ME)
+
+    const auth = useAuthStore()
+    await auth.refresh()
+
+    expect(getMe, 're-asks with the current credential').toHaveBeenCalledTimes(2)
+    expect(store, 'the fresh token survives').not.toHaveBeenCalledWith(null)
+    expect(auth.user).toEqual(ME)
+  })
+
+  it('a token that lands while the health check is in flight is not wiped either (#2272)', async () => {
+    // The second window: `/me` came back 401 BEFORE the link's token landed, and the token arrived
+    // during the health check that decides whose fault the 401 is. The second emulator run.
+    const store = nativeWithToken()
+    let token: string | null = null
+    vi.spyOn(api, 'getAuthToken').mockImplementation(() => token)
+    vi.spyOn(api, 'getHealth').mockImplementation(async () => {
+      token = 'fresh-from-the-link' // arrives during the health check
+      return { auth_ready: true } as never
+    })
+    const getMe = vi.spyOn(api, 'getMe').mockResolvedValueOnce(null).mockResolvedValueOnce(ME)
+
+    const auth = useAuthStore()
+    await auth.refresh()
+
+    expect(getMe, 're-asks with the current credential').toHaveBeenCalledTimes(2)
+    expect(store, 'the fresh token survives').not.toHaveBeenCalledWith(null)
+    expect(auth.user).toEqual(ME)
+  })
+
+  it('a 401 about the token we STILL hold is still a dead credential', async () => {
+    const store = nativeWithToken()
+    vi.spyOn(api, 'getAuthToken').mockReturnValue('the-same-token')
+    vi.spyOn(api, 'getHealth').mockResolvedValue({ auth_ready: true } as never)
+    const getMe = vi.spyOn(api, 'getMe').mockResolvedValue(null)
+
+    await useAuthStore().refresh()
+
+    expect(getMe).toHaveBeenCalledTimes(1)
+    expect(store).toHaveBeenCalledWith(null)
+  })
+
   it('KEEPS the token when the server is the one at fault', async () => {
     // Signing everyone out over an outage is the 2026-09-16 incident in a different shape. The
     // token follows the same `serverAtFault` guard the cached content already had.
@@ -296,3 +353,82 @@ describe('a server-fault 401 keeps the IDENTITY, not just the token (2026-09-24)
   })
 })
 
+
+describe('analytics identity follows the auth identity (#2265)', () => {
+  /**
+   * The requirement these cover, verbatim from the issue: "Signing out and signing in as a
+   * different account does NOT attach the second account's events to the first `analytics_id`".
+   *
+   * Worth testing rather than reasoning about, because the failure is invisible — events keep
+   * flowing either way, just filed under the wrong participant, and the beta's whole per-person
+   * reporting rests on them being filed correctly.
+   */
+  it('identifies with the id the server returned', async () => {
+    const identify = vi.spyOn(analytics, 'identify')
+    vi.spyOn(api, 'getMe').mockResolvedValue({ ...ME, analytics_id: 'aid-one' })
+    await useAuthStore().refresh()
+    expect(identify).toHaveBeenCalledWith('aid-one', expect.objectContaining({ platform: 'web' }))
+  })
+
+  it('switches the id when a DIFFERENT account signs in', async () => {
+    const identify = vi.spyOn(analytics, 'identify')
+    const reset = vi.spyOn(analytics, 'resetIdentity')
+    const auth = useAuthStore()
+
+    vi.spyOn(api, 'getMe').mockResolvedValue({ ...ME, analytics_id: 'aid-one' })
+    await auth.refresh()
+
+    vi.spyOn(api, 'logout').mockResolvedValue(undefined as never)
+    await auth.logout()
+    expect(reset, 'sign-out must replace the tracker').toHaveBeenCalled()
+
+    vi.spyOn(api, 'getMe').mockResolvedValue({
+      user_id: 'u_2',
+      email: 'other@localhost',
+      name: 'Other',
+      analytics_id: 'aid-two',
+    })
+    await auth.refresh()
+
+    const ids = identify.mock.calls.map((c) => c[0])
+    expect(ids).toEqual(['aid-one', 'aid-two'])
+    // The second account must never have been identified as the first.
+    expect(ids.lastIndexOf('aid-one')).toBeLessThan(ids.indexOf('aid-two'))
+  })
+
+  it('resets on sign-out so signed-out browsing is anonymous', async () => {
+    const reset = vi.spyOn(analytics, 'resetIdentity')
+    const auth = useAuthStore()
+    vi.spyOn(api, 'getMe').mockResolvedValue({ ...ME, analytics_id: 'aid-one' })
+    await auth.refresh()
+    reset.mockClear()
+    vi.spyOn(api, 'logout').mockResolvedValue(undefined as never)
+    await auth.logout()
+    expect(reset).toHaveBeenCalledTimes(1)
+  })
+
+  it('resets when an expired session is discarded locally', async () => {
+    // markSignedOut() is the 401 path. It drops the identity without an API call, and the
+    // analytics identity has to go with it or the next person on the device inherits it.
+    const reset = vi.spyOn(analytics, 'resetIdentity')
+    useAuthStore().markSignedOut()
+    expect(reset).toHaveBeenCalled()
+  })
+
+  it('does not identify an account whose analytics_id has not been backfilled yet', async () => {
+    const identify = vi.spyOn(analytics, 'identify')
+    vi.spyOn(api, 'getMe').mockResolvedValue({ ...ME })
+    await useAuthStore().refresh()
+    expect(identify).not.toHaveBeenCalled()
+  })
+
+  it('identifies from the device snapshot, before the network answers', async () => {
+    // A returning user is signed in from the moment the snapshot paints and starts tapping at
+    // once; offline, refresh() may never answer at all.
+    const identify = vi.spyOn(analytics, 'identify')
+    disk['auth.me'] = { ...ME, analytics_id: 'aid-snapshot' }
+    const auth = useAuthStore()
+    await auth.hydrateFromDevice()
+    expect(identify).toHaveBeenCalledWith('aid-snapshot', expect.anything())
+  })
+})

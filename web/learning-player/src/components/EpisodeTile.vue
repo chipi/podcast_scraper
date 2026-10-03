@@ -39,12 +39,12 @@ import { RouterLink } from 'vue-router'
 import EpisodeActions from './EpisodeActions.vue'
 import PlayedBadge from './PlayedBadge.vue'
 import type { EpisodeSummary } from '../services/types'
+import { episodeArtwork } from '../utils/episode'
 
 const props = defineProps<{ episode: EpisodeSummary }>()
 
-const artwork = computed(
-  () => props.episode.artwork_url ?? props.episode.episode_image_url ?? props.episode.feed_image_url,
-)
+// Absolutised via the shared helper — a raw relative URL 404s against `capacitor://localhost`.
+const artwork = computed(() => episodeArtwork(props.episode))
 </script>
 
 <template>

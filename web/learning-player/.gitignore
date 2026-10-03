@@ -24,5 +24,12 @@ coverage/
 # ephemeral, so it stays out of the committed tree and out of git.
 e2e/.app-state/
 
+# Tier-4 telemetry run artifacts (#2263). Same class of leak as `e2e/.app-state/` above: per-user
+# state the API writes under APP_DATA_DIR, plus the Playwright JSON report the config emits. A
+# `.handles.lock` from this tier was committed once before these rules existed.
+e2e/.telemetry-state/
+e2e/telemetry/.report.json
+e2e/telemetry/.diag/
+
 # ML model caches (whisper/transformers) pulled by any local pipeline run — never commit
 .cache/

@@ -1,7 +1,35 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { PLAYBACK_RATES } from '../player/transcriptSync'
+
+/**
+ * Percent thresholds reported to the server (#2266), ASCENDING — `reportMilestones` relies on
+ * the order to stop at the first threshold not yet reached.
+ *
+ * Mirrors `PLAYBACK_MILESTONES` in `server/app_user_state.py`, which rejects anything else: 25
+ * proves a real start, 75 is the completion numerator, 95 separates "finished" from "stopped
+ * near the end", and 50 gives the drop-off shape between them.
+ */
+export const PLAYBACK_MILESTONES = [25, 50, 75, 95] as const
+
+/**
+ * Playback rate → the analytics enum (#2267).
+ *
+ * The spec's values are strings, and everything at or above 2x collapses into `2+`: the question is
+ * "do people speed up", and splitting 2x from 2.5x would spread a already-small bucket thinner for
+ * no gain. An unlisted rate maps to the nearest listed one below it rather than being dropped.
+ */
+function speedLabel(rate: number): '1' | '1.25' | '1.5' | '1.75' | '2+' {
+  if (rate >= 2) return '2+'
+  if (rate >= 1.75) return '1.75'
+  if (rate >= 1.5) return '1.5'
+  if (rate >= 1.25) return '1.25'
+  return '1'
+}
 import { startBackgroundAudio, stopBackgroundAudio } from '../services/native'
+import { logPlaybackProgress } from '../services/api'
+import { track } from '../services/analytics'
+import { queueProgress } from '../services/listenLog'
 
 /**
  * What it takes to start playing something: the identity, the source, and enough to say what it is.
@@ -79,6 +107,13 @@ export const usePlayerStore = defineStore('player', () => {
   const currentArtwork = ref<string | null>(null)
   const playing = ref(false)
   const currentTime = ref(0)
+  /**
+   * Percent thresholds reported for the CURRENT episode, cleared by `resetForLoad` (#2266).
+   *
+   * Module-free local state rather than a ref: nothing renders it, and a ref would make every
+   * `timeupdate` a reactive write for a value no template reads.
+   */
+  const reportedMilestones = new Set<number>()
   /** What the <audio> element reports — 0 whenever it has not (or cannot) work it out. */
   const elementDuration = ref(0)
   /** The episode's length from metadata; used only while the element has nothing. See NextUp. */
@@ -228,6 +263,10 @@ export const usePlayerStore = defineStore('player', () => {
   function showRoutePicker(): void {
     const audio = el.value as WebKitRoutableMedia | null
     if (!audio) return
+    // #2267, and NO `destination` — see the registry note. The choice happens inside the platform's
+    // own sheet and no API exposes what was picked, so this records only that the listener reached
+    // for output routing, which is all the app can honestly observe.
+    track('route_output')
     try {
       if (typeof audio.webkitShowPlaybackTargetPicker === 'function') {
         audio.webkitShowPlaybackTargetPicker()
@@ -322,12 +361,18 @@ export const usePlayerStore = defineStore('player', () => {
     currentTime.value = el.value?.currentTime ?? 0
     syncPositionState()
     maybeSavePosition()
+    reportMilestones()
   }
   function onDurationChange(): void {
     elementDuration.value = el.value?.duration || 0
     syncPositionState()
   }
   function onError(): void {
+    // #2267. What the LISTENER saw: audio that would not play. Sentry/GlitchTip records the
+    // exception; this records the user-visible failure, which is the one the beta's friction rate
+    // counts. `network` because that is what a media element error overwhelmingly is — a missing
+    // or unreachable file — and the element does not tell us more than that.
+    track('error_shown', { surface: 'player', kind: 'network' })
     audioError.value = true
     void stopBackgroundAudio()
   }
@@ -420,6 +465,10 @@ export const usePlayerStore = defineStore('player', () => {
    * broken episode, and flagging it would tell the user their audio is unavailable when it is fine.
    */
   function play(): void {
+    // `resumed` distinguishes picking up where they left off from starting fresh, which is the
+    // difference between a habit and a first listen. `surface` is the player here; the mini-player
+    // and queue call their own transport, and if they ever route through this they must pass it.
+    track('play_start', { surface: 'player', resumed: currentTime.value > 1 })
     el.value?.play().catch((err: unknown) => {
       if (err instanceof DOMException && err.name === 'NotAllowedError') return
       audioError.value = true
@@ -523,6 +572,47 @@ export const usePlayerStore = defineStore('player', () => {
     persisters.save(slug, at, isFinished)
   }
 
+  /**
+   * Playback milestones for the beta's server-side metrics (#2266).
+   *
+   * "An open is not a listen." `logListen` records that an episode was opened; these record that it
+   * was actually heard, and they are what make Completion rate (75% / 25%), Active day, Listening
+   * days per week and Activated computable at all.
+   *
+   * Driven off `timeupdate` — the same firehose the position save uses — because that is the only
+   * event that reflects real listening. A timer would keep counting while paused, and `ended` alone
+   * misses the common case of skipping the outro.
+   *
+   * ONCE PER MILESTONE PER EPISODE, held in a Set that `resetForLoad` clears. Re-reporting matters
+   * more than it looks: scrubbing backwards and forwards across 50% would otherwise emit it
+   * repeatedly, and completion rate is a ratio of counts — a listener who fidgets would look like
+   * several listeners who finished.
+   *
+   * Only ever counts FORWARD progress. Seeking ahead to 90% without hearing the middle still marks
+   * the earlier milestones, which is deliberate: the alternative is tracking watched ranges, and
+   * the question these answer is "did they get this far", not "did they hear every second".
+   */
+  function reportMilestones(): void {
+    const total = duration.value
+    // Guard the shapes a media element genuinely produces: 0 before metadata, NaN mid-seek, and
+    // Infinity for a live stream. A percentage of any of those is meaningless.
+    if (!Number.isFinite(total) || total <= 0) return
+    const slug = currentSlug.value
+    if (!slug) return
+    const percent = (currentTime.value / total) * 100
+    for (const milestone of PLAYBACK_MILESTONES) {
+      if (percent < milestone) break // ordered, so the first miss ends it
+      if (reportedMilestones.has(milestone)) continue
+      reportedMilestones.add(milestone)
+      const ts = Math.floor(Date.now() / 1000)
+      // Queue on failure, exactly like a listen: a milestone crossed on a plane is the one most
+      // worth keeping, and it rides the same offline queue so it lands on the day it happened.
+      void logPlaybackProgress(slug, milestone, ts).then((delivered) => {
+        if (!delivered) queueProgress(slug, milestone, ts)
+      })
+    }
+  }
+
   /** Throttled save for the `timeupdate` firehose (~4/s). */
   function maybeSavePosition(): void {
     if (Date.now() - lastSavedAt > SAVE_INTERVAL_MS) savePosition()
@@ -534,6 +624,9 @@ export const usePlayerStore = defineStore('player', () => {
     elementDuration.value = 0
     durationHint.value = 0
     audioError.value = false
+    // A new episode gets its own milestones. Without this, episode two would inherit episode one's
+    // "already reported" set and emit nothing at all.
+    reportedMilestones.clear()
     void stopBackgroundAudio()
   }
 
@@ -553,6 +646,12 @@ export const usePlayerStore = defineStore('player', () => {
     seek(currentTime.value + delta)
   }
   function setRate(r: number): void {
+    // Only the NEW value, per the spec, and only on an actual change: `setRate` is also called
+    // while syncing state, and reporting those would turn one deliberate tap into a stream of
+    // identical events.
+    if (r !== rate.value) {
+      track('speed_change', { speed: speedLabel(r) })
+    }
     rate.value = r
     if (el.value) el.value.playbackRate = r
     syncPositionState()

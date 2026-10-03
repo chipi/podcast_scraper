@@ -10,12 +10,14 @@
  * through login → OAuth so a shared deep link survives signup.
  */
 import { computed, onMounted, ref } from 'vue'
+import { track } from '../services/analytics'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import { getDiscover, getTrendingTopics } from '../services/api'
 import type { EpisodeSummary } from '../services/types'
 import { safeInternalPath } from '../utils/redirect'
 import { useOnline } from '../composables/useOnline'
+import { episodeArtwork } from '../utils/episode'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -37,11 +39,22 @@ const signInTo = computed(() => ({
   query: redirect.value ? { redirect: redirect.value } : {},
 }))
 
-function artwork(ep: EpisodeSummary): string | null {
-  return ep.artwork_url || ep.episode_image_url || ep.feed_image_url
-}
+// `episodeArtwork`, not the raw fields. It applies the same fallback order AND absolutises the
+// URL, which is the half this used to drop: the API returns these RELATIVE, correct on the web where
+// the app and API share an origin, and broken inside the Capacitor WebView where the document origin
+// is `capacitor://localhost` — the string resolves against the app bundle, 404s, and the card paints
+// a broken-image placeholder. Seen on a device, never in any browser test, because on the web the
+// bug does not exist. Same class as the person-photo defect in
+// `__checks__/person-photo-absolutised.test.ts`, which had already shipped six times.
+const artwork = episodeArtwork
 
 onMounted(async () => {
+  // The onboarding funnel's first step (#2267): landing_view -> landing_cta_click ->
+  // auth_completed -> interests_saved/dismissed -> episode_open -> entity_open. Fired before the
+  // teaser fetch, so a listener whose network drops still registers as having SEEN the landing —
+  // otherwise the funnel would under-count exactly the people who had the worst first experience.
+  track('landing_view')
+
   // Degrade gracefully — the hero + CTA stand alone if the teaser can't load.
   try {
     // /discover is recency-ordered; dedupe by show and keep the 4 shows with the newest
@@ -84,6 +97,7 @@ onMounted(async () => {
           :to="signupTo()"
           class="rounded-full bg-accent px-7 py-3 font-bold text-accent-foreground no-underline"
           data-testid="landing-cta-primary"
+          @click="track('landing_cta_click', { cta: 'create_account', position: 'hero' })"
         >
           {{ t('landing.ctaCreate') }}
         </RouterLink>
@@ -91,6 +105,7 @@ onMounted(async () => {
           :to="signInTo"
           class="rounded-full border border-border px-6 py-3 font-bold no-underline hover:bg-surface"
           data-testid="landing-cta-signin"
+          @click="track('landing_cta_click', { cta: 'sign_in', position: 'hero' })"
         >
           {{ t('auth.signIn') }}
         </RouterLink>
@@ -121,6 +136,7 @@ onMounted(async () => {
           v-for="ep in featured"
           :key="ep.slug"
           :to="signupTo(`/episode/${ep.slug}`)"
+          @click="track('landing_teaser_click', { kind: 'show' })"
           class="group block rounded-2xl border border-border bg-surface p-3 no-underline"
           data-testid="landing-card"
         >
@@ -149,6 +165,7 @@ onMounted(async () => {
           v-for="tp in topics"
           :key="tp.topic_id"
           :to="signupTo(`/topic/${tp.topic_id}`)"
+          @click="track('landing_teaser_click', { kind: 'topic' })"
           class="rounded-full border border-topic/40 px-3 py-1.5 text-sm font-semibold text-topic no-underline transition hover:bg-overlay"
           data-testid="landing-chip"
         >{{ tp.topic_label || tp.topic_id }}</RouterLink>
@@ -178,6 +195,7 @@ onMounted(async () => {
         :to="signupTo()"
         class="inline-block rounded-full bg-accent px-7 py-3 font-bold text-accent-foreground no-underline"
         data-testid="landing-cta-foot"
+        @click="track('landing_cta_click', { cta: 'create_account', position: 'closing' })"
       >
         {{ t('landing.ctaCreate') }}
       </RouterLink>

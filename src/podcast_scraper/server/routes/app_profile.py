@@ -18,6 +18,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from filelock import FileLock
+from pydantic import BaseModel
 
 from podcast_scraper.server import app_user_store
 from podcast_scraper.server.app_user_store import is_safe_user_id, User
@@ -49,6 +50,32 @@ def _sniff_matches(ext: str, data: bytes) -> bool:
     if ext == "webp":
         return len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP"
     return False
+
+
+class _NameBody(BaseModel):
+    name: str
+
+
+@router.post("/profile/name")
+def set_display_name(
+    body: _NameBody, request: Request, user: User = Depends(get_current_user)
+) -> dict[str, str]:
+    """Set the signed-in user's display name. 400 when nothing usable remains after trimming, when
+    it carries control characters, or when it exceeds ``NAME_MAX_CHARS``.
+
+    Every account needs this: an email (magic-link) account starts with the local part of its
+    address as a placeholder, and before this route existed nothing — no route, no UI — could
+    change it (2026-10-03), despite the verify code saying the person could.
+    """
+    clean = app_user_store.normalize_display_name(body.name)
+    if clean is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Enter a name of 1–{app_user_store.NAME_MAX_CHARS} characters.",
+        )
+    if not app_user_store.set_name(_data_dir(request), user.user_id, clean):
+        raise HTTPException(status_code=404, detail="Account not found.")
+    return {"name": clean}
 
 
 @router.post("/profile/avatar")

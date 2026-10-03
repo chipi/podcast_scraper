@@ -133,3 +133,39 @@ def test_serve_rejects_an_unknown_user(tmp_path: Path) -> None:
     client, _, _ = _authed(tmp_path)
     anon = TestClient(client.app)
     assert anon.get("/api/app/profile/u_0000000000000000000000/avatar").status_code == 404
+
+
+# --- display name (#2272 welcome) -----------------------------------------------------------
+
+
+def test_set_name_then_me_carries_it(tmp_path: Path) -> None:
+    """The route the welcome card and the inline editor save through. Whitespace is collapsed."""
+    client, _, _ = _authed(tmp_path)
+    resp = client.post("/api/app/profile/name", json={"name": "  Ada   Lovelace "})
+    assert resp.status_code == 200
+    assert resp.json() == {"name": "Ada Lovelace"}
+    assert client.get("/api/app/me").json()["name"] == "Ada Lovelace"
+
+
+@pytest.mark.parametrize("bad", ["", "   ", "x" * 61, "line\nbreak", "tab\there"])
+def test_set_name_refuses_unusable_names(tmp_path: Path, bad: str) -> None:
+    client, _, _ = _authed(tmp_path)
+    before = client.get("/api/app/me").json()["name"]
+    assert client.post("/api/app/profile/name", json={"name": bad}).status_code == 400
+    assert client.get("/api/app/me").json()["name"] == before, "a refused name must change nothing"
+
+
+def test_set_name_requires_a_session(tmp_path: Path) -> None:
+    client, _, _ = _authed(tmp_path)
+    client.cookies.clear()
+    assert client.post("/api/app/profile/name", json={"name": "Ada"}).status_code == 401
+
+
+def test_a_later_sign_in_does_not_undo_a_rename(tmp_path: Path) -> None:
+    """Google re-sends its name on every sign-in; the person's own choice must survive it."""
+    client, data_dir, _ = _authed(tmp_path)
+    client.post("/api/app/profile/name", json={"name": "Chosen Name"})
+    again = get_or_create_user(
+        data_dir, provider="stub", subject="s1", email="j@x.com", name="Provider Name"
+    )
+    assert again.name == "Chosen Name"

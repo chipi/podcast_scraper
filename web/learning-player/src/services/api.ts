@@ -63,7 +63,8 @@ import type {
   YourWeekResponse,
 } from "./types"
 import { ref } from "vue"
-import { resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
+import { isNativeShell, resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
+import { track } from "./analytics"
 import { isForcedOffline, isOffline, reportServerReachable } from "../composables/useOnline"
 
 // API base, resolved once at load (#1305/#1310):
@@ -976,6 +977,37 @@ export async function logListen(slug: string, clientTs?: number): Promise<boolea
   }
 }
 
+/**
+ * Record that the user reached 25 / 50 / 75 / 95 percent of an episode (#2266). Best-effort.
+ *
+ * An OPEN is not a listen: `logListen` says the episode was opened, this says it was actually
+ * heard, which is what makes completion rate and the beta's active-day metrics mean anything.
+ *
+ * The retry classification is IDENTICAL to `logListen`'s, and deliberately so — the two travel in
+ * the same offline queue, so a milestone that "fails" differently from an open would make the
+ * queue's stop-at-first-failure behaviour depend on which kind of event happened to be next.
+ */
+export async function logPlaybackProgress(
+  slug: string,
+  milestone: number,
+  clientTs?: number,
+): Promise<boolean> {
+  try {
+    const resp = await apiFetch(`${BASE}/playback-progress/${encodeURIComponent(slug)}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(clientTs ? { milestone, client_ts: clientTs } : { milestone }),
+    })
+    if (resp.ok) return true
+    if (resp.status === 401 || resp.status === 403) return false
+    if (resp.status === 408 || resp.status === 429 || resp.status >= 500) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** The signed-in user's own listening analytics; `null` when signed out (401). Auth-gated. */
 export async function getMyStats(): Promise<UserStats | null> {
   try {
@@ -1028,6 +1060,36 @@ export async function getDevUsers(): Promise<{ enabled: boolean; users: DevUser[
   }
 }
 
+/**
+ * Ask for an email sign-in link (#2272).
+ *
+ * Resolves the SAME WAY whatever the address is — known, unknown, or not on the allowlist. That is
+ * the server's contract and the UI must not undo it: showing "no account with that address" here
+ * would rebuild the account-existence oracle the uniform response exists to prevent.
+ *
+ * Never throws. A network failure resolves `false` so the caller can say "something went wrong"
+ * without claiming anything about the address.
+ */
+export async function requestMagicLink(email: string, returnTo?: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${BASE}/auth/email/request`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        // The native shell cannot receive a cookie set in an external browser, so it takes the
+        // session by deep link instead — the same split the OAuth login route makes.
+        platform: isNativeShell() ? "native" : undefined,
+        return_to: returnTo,
+      }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 /** Clear the session server-side (deletes the cookie). Best-effort; resolves on 204. */
 export async function logout(): Promise<void> {
   await apiFetch(`${BASE}/auth/logout`, { method: "POST", credentials: "include" })
@@ -1052,7 +1114,46 @@ export async function uploadAvatar(file: Blob): Promise<{ image: string }> {
   return { ...body, image: resolveMediaUrl(body.image) ?? body.image }
 }
 
+/** Set the signed-in user's display name. Resolves to the name as stored (whitespace collapsed);
+ *  throws ApiError 400 for a name the server refuses (empty, too long, control characters). */
+export async function setProfileName(name: string): Promise<{ name: string }> {
+  const resp = await apiFetch(`${BASE}/profile/name`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /profile/name → ${resp.status}`)
+  return (await resp.json()) as { name: string }
+}
+
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
+
+/**
+ * A note's target → the `capture_created` enum (#2267).
+ *
+ * The app's note targets and the spec's four do not line up exactly, and anything unmapped folds
+ * into `episode` rather than becoming a silent new category in the dashboards. If that fold ever
+ * hides something worth separating, widen the enum deliberately — do not let an unmapped value
+ * leak through.
+ */
+function noteTargetKind(
+  target: string,
+): "episode" | "topic" | "person" | "insight" | "show" | "storyline" {
+  if (
+    target === "topic" ||
+    target === "person" ||
+    target === "insight" ||
+    target === "show" ||
+    target === "storyline"
+  ) {
+    return target
+  }
+  // `highlight` and `episode` both mean "a note against this episode's content" — a note on a
+  // highlight is a note on a moment of the episode, so folding them is honest. Anything genuinely
+  // new would land here too, which is why the union above is explicit rather than a cast.
+  return "episode"
+}
 
 /** The user's highlights, optionally scoped to one episode. A 401 THROWS (#2004 #3): the store
  *  falls back to cache rather than telling a user with highlights they have none. Sole caller:
@@ -1063,6 +1164,10 @@ export async function getHighlights(episode?: string): Promise<Highlight[]> {
 
 /** Capture a highlight (auth-gated); returns the created record. */
 export async function createHighlight(body: HighlightCreate): Promise<Highlight> {
+  // #2267 — one of the spec's four Umami goals, and part of "learning actions per active day".
+  // NEVER the highlighted text, only that a capture happened and against what kind of thing. A
+  // highlight is always episode-scoped; notes are the ones that can hang off a topic or person.
+  track("capture_created", { kind: "highlight", target_kind: "episode" })
   const resp = await apiFetch(`${BASE}/highlights`, {
     method: "POST",
     credentials: "include",
@@ -1103,6 +1208,8 @@ export async function getNotes(target?: string, targetId?: string): Promise<Note
 
 /** Attach a free-text note to a highlight / insight / episode (auth-gated). */
 export async function createNote(body: NoteCreate): Promise<Note> {
+  // Same rule as createHighlight: the TARGET KIND, never the note's text.
+  track("capture_created", { kind: "note", target_kind: noteTargetKind(body.target) })
   const resp = await apiFetch(`${BASE}/notes`, {
     method: "POST",
     credentials: "include",
@@ -1603,6 +1710,9 @@ export async function reorderCollections(order: string[]): Promise<Collection[]>
 }
 
 export async function addToCollection(id: string, item: CollectionItemRef): Promise<Collection> {
+  // #2267. No props: the spec gives this event none, and the collection's name is user-typed, so
+  // there is nothing here that could be reported without breaking the no-free-text rule.
+  track("collection_add")
   const resp = await apiFetch(`${BASE}/collections/${encodeURIComponent(id)}/items`, {
     method: "POST",
     credentials: "include",

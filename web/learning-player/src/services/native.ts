@@ -15,6 +15,7 @@ import { Preferences } from '@capacitor/preferences'
 import { Share } from '@capacitor/share'
 import { setAuthToken } from './api'
 import { routeForDeepLink, type DeepLinkTarget } from './deepLinks'
+import { track } from './analytics'
 import { resolveApiBase, resolveGateCookie } from './tier'
 
 // Local Android plugin (#1310): a foreground media service keep-alive so the OS doesn't suspend the
@@ -88,13 +89,31 @@ interface AuthSessionPlugin {
 }
 const AuthSession = registerPlugin<AuthSessionPlugin>('AuthSession')
 
+/** What a sign-in callback carried besides the token. */
+export interface AuthedInfo {
+  /** The server CREATED this account on this sign-in (`&new=1`, email magic link #2272). */
+  isNew: boolean
+}
+
 // After a token arrives (either platform), refresh the auth store. Set by initNativeAuth().
-let onAuthedCb: (() => void) | null = null
+let onAuthedCb: ((info: AuthedInfo) => void) | null = null
+
+function callbackFragment(url: string): URLSearchParams {
+  return new URLSearchParams(url.includes('#') ? url.slice(url.indexOf('#') + 1) : '')
+}
 
 /** Pull the signed token out of a `closelistening://auth#token=<signed>` callback URL. */
-function tokenFromCallback(url: string): string | null {
-  const frag = url.includes('#') ? url.slice(url.indexOf('#') + 1) : ''
-  return new URLSearchParams(frag).get('token')
+export function tokenFromCallback(url: string): string | null {
+  return callbackFragment(url).get('token')
+}
+
+/**
+ * Did this callback create the account? The magic-link verify redirect says so with `&new=1`, the
+ * same signal the web path turns into `/profile?welcome=1`: an email identity arrives with no name
+ * and no picture, so a new one belongs on the profile, not home. OAuth callbacks never carry it.
+ */
+export function authedInfoFromCallback(url: string): AuthedInfo {
+  return { isNew: callbackFragment(url).get('new') === '1' }
 }
 
 /** Persist (or clear) the native bearer token + apply it to the API client. */
@@ -131,10 +150,19 @@ export async function startNativeLogin(loginUrl: string): Promise<void> {
       const token = tokenFromCallback(url)
       if (token) {
         storeAuthToken(token)
-        onAuthedCb?.()
+        onAuthedCb?.(authedInfoFromCallback(url))
+      } else {
+        // The session returned, but with no token in the callback — that is a failed exchange, not
+        // a cancellation, and the funnel needs them apart: one says the sign-in is broken, the
+        // other says people change their minds.
+        track('auth_failed', { provider: 'oauth', reason: 'error' })
       }
     } catch {
       /* user cancelled or the session failed — stay signed out */
+      // ASWebAuthenticationSession throws on BOTH a user cancel and an internal failure, and does
+      // not distinguish them. Reported as `cancelled` because that is overwhelmingly the common
+      // case; a wrong lean here is better than inventing a third value the spec does not have.
+      track('auth_failed', { provider: 'oauth', reason: 'cancelled' })
     }
     return
   }
@@ -182,20 +210,39 @@ export async function rehydrateNativeToken(): Promise<void> {
   }
 }
 
-export async function initNativeAuth(onAuthed: () => void): Promise<void> {
+export async function initNativeAuth(onAuthed: (info: AuthedInfo) => void): Promise<void> {
   if (!isNative()) return
   onAuthedCb = onAuthed
   // Token is normally already rehydrated pre-mount (main.ts); re-run for the migration/idempotence.
   await rehydrateNativeToken()
-  // Android callback path (iOS returns via the AuthSession promise instead).
-  await App.addListener('appUrlOpen', ({ url }) => {
+  // Every link-delivered token, on BOTH platforms: the Android OAuth callback, and the email magic
+  // link opened from Mail on either (iOS OAuth alone returns via the AuthSession promise instead).
+  //
+  // BOTH arrivals, exactly as `initDeepLinks` already does for navigation links:
+  //  - the app is running → `appUrlOpen`;
+  //  - the link LAUNCHED the app → `getLaunchUrl`, for which `appUrlOpen` does not fire.
+  // The second is the ordinary magic-link case: the person taps "Sign in" in Mail with the app
+  // closed. Listening to `appUrlOpen` alone dropped that token in silence — the app opened signed
+  // out, with nothing on screen to say why (found 2026-10-03 while porting the device journey).
+  //
+  // A URL can reach us through both paths on one launch, so each callback URL is handled once.
+  let handledUrl: string | null = null
+  const handle = (url: string): void => {
+    if (url === handledUrl) return
     const token = tokenFromCallback(url)
-    if (token) {
-      storeAuthToken(token)
-      void Browser.close().catch(() => {})
-      onAuthed()
-    }
-  })
+    if (!token) return
+    handledUrl = url
+    storeAuthToken(token)
+    void Browser.close().catch(() => {})
+    onAuthed(authedInfoFromCallback(url))
+  }
+  await App.addListener('appUrlOpen', ({ url }) => handle(url))
+  try {
+    const launch = await App.getLaunchUrl()
+    if (launch?.url) handle(launch.url)
+  } catch {
+    /* no launch url — the ordinary case */
+  }
 }
 
 /**
@@ -220,6 +267,10 @@ export async function initDeepLinks(
   if (!isNative()) return
   const route = (url: string): void => {
     const target = routeForDeepLink(url)
+    // #2267. An inbound shared/deep link, which is how the spec separates traffic the app
+    // generated from traffic someone else's share brought in. `target_kind` is the deep-link
+    // target, a developer-authored vocabulary rather than anything a user typed.
+    if (target) track('share_link_opened', { target_kind: target.name })
     if (target) navigate(target)
   }
   await App.addListener('appUrlOpen', ({ url }) => route(url))

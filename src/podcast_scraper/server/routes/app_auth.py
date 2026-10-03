@@ -13,11 +13,20 @@ import secrets
 import time
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, Field
 
-from podcast_scraper.server import app_access_store, app_roles, app_sessions
+from podcast_scraper.server import (
+    app_access_store,
+    app_magic_link,
+    app_outbox_store,
+    app_roles,
+    app_sessions,
+    app_user_state,
+)
 from podcast_scraper.server.app_oauth import OAuthError, OAuthProvider
 from podcast_scraper.server.app_user_store import get_or_create_user, get_user, set_role, User
 
@@ -291,6 +300,14 @@ async def app_auth_callback(
         email=identity.email,
         name=identity.name,
         image=identity.image,
+        # #2266: server-side truth for signups, independent of whether the Umami script ever
+        # loaded, and the anchor for the 24-hour "Activated" window. Fires from inside the store's
+        # creation branch so it is exactly once per account even when an OAuth callback double-fires
+        # — the alternative, checking existence here first, races and would report two signups for
+        # one account.
+        on_created=lambda created: app_user_state.append_account_created(
+            data_dir, created.user_id, identity.provider
+        ),
     )
     # Apply the role policy: admin allowlist > creator grant > existing role (never downgraded).
     admin_emails: frozenset[str] = getattr(request.app.state, "admin_emails", frozenset())
@@ -344,6 +361,15 @@ def _user_dict(user: User) -> dict[str, object]:
         "role": user.role,
         "disabled": user.disabled,
         "mcp_access": user.mcp_access,  # RFC-112: gates the MCP connection UI
+        # #2267: which OAuth provider this identity came from, for the `auth_completed` analytics
+        # event. The client cannot know it otherwise — the provider is server-configured, and the
+        # login UI only knows whether the MOCK one is active.
+        "provider": user.provider,
+        # #2265: the pseudonymous analytics identity the client passes to Umami's `identify`, and
+        # which Settings › About shows so the operator can note it per beta participant. Empty
+        # only for an account whose backfill has not run yet (see `_backfill_analytics_id`); the
+        # client treats empty as "do not identify" rather than identifying with a blank id.
+        "analytics_id": user.analytics_id,
     }
 
 
@@ -393,3 +419,306 @@ def app_auth_status(request: Request) -> dict[str, object]:
     enabled = bool(_secret(request) and _provider(request) is not None and _data_dir(request))
     user = get_optional_user(request) if enabled else None
     return {"enabled": enabled, "user": _user_dict(user) if user is not None else None}
+
+
+# ---------------------------------------------------------------------------------------------
+# Email magic-link sign-in (#2272)
+#
+# A second front door, for people who will not create a Google account. No password is stored and
+# no credential exists: the proof of identity is demonstrated control of a mailbox, which is what a
+# password reset already relies on.
+#
+# Registration and login are the SAME mechanism — the link either creates the account or signs the
+# person in — and differ only in where they land afterwards. The UI offers two entry points over
+# this one flow.
+# ---------------------------------------------------------------------------------------------
+
+#: Where a brand-new account lands: the profile, to fill in the things we could not learn from an
+#: OAuth payload. An email identity arrives with nothing but an address — no name, no picture — so
+#: dropping them on Home would leave a half-built profile they never see.
+_NEW_ACCOUNT_DEST = "/profile?welcome=1"
+
+#: Where a returning account lands.
+_RETURNING_DEST = "/"
+
+#: Per-address send throttle. Low, because the cost of being wrong is someone else's inbox.
+_REQUEST_MIN_INTERVAL_S = 60
+
+#: DeliveryEnvelope schema version (RFC-110) — matches `app_digest_personal.SCHEMA_VERSION`.
+_ENVELOPE_SCHEMA_VERSION = "1"
+
+
+def _email_fingerprint(email: str) -> str:
+    """A stable, short hash of an address — for logs, never the address itself.
+
+    The whole flow is built so that nobody can learn whether an address has an account here: the
+    request endpoint answers identically for every address, and the throttle keys on a hash for the
+    same reason. A log line carrying the plain address would hand that back, in the one place that
+    is retained, searchable and shipped off the box.
+
+    A fingerprint still answers every operational question — "did THIS person's link get sent, and
+    was it the same person who then verified?" — by correlating two events, without naming anyone.
+    """
+    import hashlib
+
+    return hashlib.sha256(app_magic_link.normalise_email(email).encode("utf-8")).hexdigest()[:16]
+
+
+def _magic_event(event_type: str, **fields: Any) -> None:
+    """Emit one ADR-119 event for the magic-link flow. Best-effort; never raises.
+
+    `sink="log"` (stdout), not a per-user file: these events happen BEFORE an account exists, which
+    is the entire point of the flow, so there is no per-user path to write to. `emit_event` attaches
+    the current trace context, so a log line and the request's span correlate without extra work.
+    """
+    from podcast_scraper.obs.events import emit_event
+
+    emit_event(event_type, sink="log", logger=logger, **fields)
+
+
+class MagicLinkRequest(BaseModel):
+    """A request for a sign-in link. ``platform`` mirrors the OAuth login route's native switch."""
+
+    email: str = Field(min_length=3, max_length=254)
+    platform: str | None = None
+    return_to: str | None = Field(default=None, max_length=_MAX_RETURN_TO_CHARS)
+
+
+def _magic_link_url(request: Request, token: str) -> str:
+    """Absolute URL of the verify route carrying ``token``."""
+    return f"{request.url_for('app_auth_magic_verify')}?token={token}"
+
+
+def _recent_request_marker(data_dir: Path, email: str) -> Path:
+    import hashlib
+
+    digest = hashlib.sha256(email.encode("utf-8")).hexdigest()[:32]
+    return data_dir / "magic_link_recent" / f"{digest}.txt"
+
+
+def _throttled(data_dir: Path | None, email: str, *, now: int) -> bool:
+    """True when a link was already sent to this address within the throttle window.
+
+    Keyed by a HASH of the address, not the address: this directory would otherwise become a list of
+    everyone who has ever asked for a link, including people who never had an account.
+    """
+    if data_dir is None:
+        return False
+    marker = _recent_request_marker(data_dir, email)
+    try:
+        if marker.is_file() and (now - int(marker.stat().st_mtime)) < _REQUEST_MIN_INTERVAL_S:
+            return True
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(str(now), encoding="utf-8")
+    except OSError:
+        # Throttle state is best-effort; failing to record it must not block a legitimate sign-in.
+        return False
+    return False
+
+
+@router.post("/auth/email/request", status_code=202)
+async def app_auth_magic_request(
+    body: MagicLinkRequest, request: Request, response: Response
+) -> dict[str, bool]:
+    """Send a sign-in link to ``email``. ALWAYS answers 202, whatever the address is.
+
+    The uniform answer is the point. Any variation — 404 for unknown, 403 for not-allowed, a slower
+    path for one of them — turns this into an oracle that reports whether an address has an account
+    and whether it is on the operator's allowlist. Both are things a stranger should not be able to
+    ask, and the allowlist in particular is a small, guessable set of real people.
+
+    So the access-policy check does NOT happen here. It happens at verify, where it already has to
+    happen anyway (the gate runs on every sign-in), and where refusing reveals nothing to anyone who
+    did not already control the mailbox.
+    """
+    secret = _secret(request)
+    data_dir = _data_dir(request)
+    email = app_magic_link.normalise_email(body.email)
+    now = int(time.time())
+
+    # Shape check only — deliverability is the mail system's business, and a stricter local rule
+    # would reject real addresses.
+    if not secret or "@" not in email or email.startswith("@") or email.endswith("@"):
+        # Still reported, because "nothing was sent" is the single hardest state to diagnose from
+        # the outside: the person sees the same "check your inbox" either way.
+        _magic_event(
+            "magic_link_requested", outcome="rejected_shape", email_fp=_email_fingerprint(email)
+        )
+        return {"ok": True}
+    if _throttled(data_dir, email, now=now):
+        _magic_event(
+            "magic_link_requested", outcome="throttled", email_fp=_email_fingerprint(email)
+        )
+        return {"ok": True}
+
+    token, token_id = app_magic_link.issue(email, secret, now=now)
+    link = _magic_link_url(request, token)
+    if body.platform == "native":
+        link = f"{link}&platform=native"
+    safe_return = _safe_return_to(body.return_to)
+    if safe_return:
+        from urllib.parse import quote
+
+        link = f"{link}&return_to={quote(safe_return, safe='')}"
+
+    if data_dir is not None:
+        envelope = {
+            # The shared DeliveryEnvelope schema version (RFC-110), same value
+            # `app_digest_personal.SCHEMA_VERSION` stamps. Written literally rather than imported:
+            # auth has no business depending on the digest module, and the envelope contract belongs
+            # to the outbox, not to either producer.
+            "schema_version": _ENVELOPE_SCHEMA_VERSION,
+            # Unique per token, so the outbox's id-dedupe cannot collapse two genuine requests.
+            "id": f"auth_{token_id}",
+            # No account exists yet — that is the whole point of this message. The transactional
+            # class in `app_outbox_store` is what lets an envelope with no user_id through the
+            # consent gate.
+            "user_id": "",
+            "type": "auth_link",
+            "channel": "email",
+            "template": "magic-link.v1",
+            "recipient": {"email": email, "email_verified": False},
+            "payload": {
+                "link": link,
+                "expires_minutes": app_magic_link.TOKEN_TTL_SECONDS // 60,
+            },
+            "not_before": _iso_now(now),
+            # Pointless to deliver a link that has already expired: the outbox drops expired
+            # envelopes rather than flushing stale ones after an outage.
+            "expires_at": _iso_now(now + app_magic_link.TOKEN_TTL_SECONDS),
+            "created_at": _iso_now(now),
+        }
+        enqueued = app_outbox_store.enqueue(data_dir, envelope)
+        _magic_event(
+            "magic_link_requested",
+            outcome="enqueued" if enqueued else "duplicate",
+            email_fp=_email_fingerprint(email),
+            envelope_id=envelope["id"],
+            expires_minutes=app_magic_link.TOKEN_TTL_SECONDS // 60,
+            platform=body.platform or "web",
+        )
+    response.headers["Cache-Control"] = "no-store"
+    return {"ok": True}
+
+
+def _iso_now(epoch: int) -> str:
+    import datetime as _dt
+
+    return _dt.datetime.fromtimestamp(epoch, _dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+@router.get("/auth/email/verify", name="app_auth_magic_verify")
+async def app_auth_magic_verify(
+    request: Request,
+    token: str = Query(...),
+    platform: str | None = Query(default=None),
+    return_to: str | None = Query(default=None),
+) -> Response:
+    """Consume a sign-in link: create or sign in the account, then redirect.
+
+    Mirrors the OAuth callback deliberately — same access-policy check, same ``get_or_create_user``,
+    same role resolution, same session token, same native deep-link branch — because any divergence
+    between the two doors is a difference in who can get in and with what rights.
+
+    WHERE IT LANDS is the one real difference, and it is driven by whether the account was CREATED:
+    a new account goes to the profile to fill in what an email identity cannot supply (no name, no
+    picture), a returning one goes home.
+    """
+    secret = _secret(request)
+    data_dir = _data_dir(request)
+    payload = app_magic_link.parse(token, secret)
+    if payload is None:
+        # No fingerprint: the token did not parse, so there is no address to attribute this to.
+        # A burst of these is the signal that links are arriving after their TTL.
+        _magic_event("magic_link_verified", outcome="invalid_or_expired")
+        raise HTTPException(status_code=400, detail="This sign-in link is invalid or has expired.")
+    email = str(payload["email"])
+
+    # The gate runs on EVERY sign-in, exactly as it does for OAuth. Checked BEFORE the token is
+    # consumed: a person refused by the allowlist has done nothing wrong, and burning their link
+    # would also deny them the retry that an operator adding them would make work.
+    policy = app_access_store.effective_policy(
+        data_dir, getattr(request.app.state, "access_policy", None)
+    )
+    if policy is not None and not policy.is_allowed(email):
+        # The operationally important one: a tester who was never added to the allowlist looks, from
+        # their side, exactly like a broken link.
+        _magic_event(
+            "magic_link_verified", outcome="refused_policy", email_fp=_email_fingerprint(email)
+        )
+        raise HTTPException(status_code=403, detail="This account is not allowed to sign in.")
+
+    if data_dir is None:
+        _magic_event(
+            "magic_link_verified", outcome="unavailable", email_fp=_email_fingerprint(email)
+        )
+        raise HTTPException(status_code=503, detail="Sign-in is not available.")
+    if not app_magic_link.consume(data_dir, str(payload["jti"])):
+        # Usually benign — a prefetching mail client or a double tap — but a sustained rate means
+        # something is fetching links before people do, which changes what the TTL is protecting.
+        _magic_event("magic_link_verified", outcome="replayed", email_fp=_email_fingerprint(email))
+        # Single-use. The ordinary cause is a mail client prefetching the link or the person
+        # clicking twice — so the message says what to do rather than implying wrongdoing.
+        raise HTTPException(
+            status_code=400,
+            detail="This sign-in link has already been used. Request a new one.",
+        )
+
+    # `on_created` fires from INSIDE the store's creation branch, so it is exactly once per account
+    # even if a link is somehow verified twice — and it is also how we learn whether to land the
+    # person on the profile or on home. Checking existence beforehand would race and could send a
+    # returning user to the new-account screen.
+    was_created = False
+
+    def _on_created(fresh: User) -> None:
+        nonlocal was_created
+        was_created = True
+        app_user_state.append_account_created(data_dir, fresh.user_id, "email")
+
+    user = get_or_create_user(
+        data_dir,
+        provider="email",
+        subject=email,
+        email=email,
+        # An email identity supplies no display name. The local part is a placeholder, better
+        # than an empty masthead; a new account lands on the profile, whose welcome card asks
+        # for a real name and saves it through POST /profile/name.
+        name=email.partition("@")[0],
+        image=None,
+        on_created=_on_created,
+    )
+    admin_emails: frozenset[str] = getattr(request.app.state, "admin_emails", frozenset())
+    effective = app_roles.resolve_login_role(
+        user.role, email=user.email, grant=None, admin_emails=admin_emails
+    )
+    if effective != user.role:
+        set_role(data_dir, user.user_id, effective)
+        user = replace(user, role=effective)
+
+    is_new = was_created
+    _magic_event(
+        "magic_link_verified",
+        outcome="created" if is_new else "returning",
+        email_fp=_email_fingerprint(email),
+        platform=platform or "web",
+    )
+    session = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, secret)
+
+    if platform == "native":
+        # Same contract as the OAuth callback: the token rides the fragment (never logged or cached
+        # the way a query string is). `new` tells the shell which screen to open.
+        deep_link = f"{_native_scheme(request)}://auth#token={session}&new={'1' if is_new else '0'}"
+        return RedirectResponse(deep_link, status_code=307)
+
+    dest = _safe_return_to(return_to) or (_NEW_ACCOUNT_DEST if is_new else _RETURNING_DEST)
+    resp = RedirectResponse(dest, status_code=307)
+    resp.set_cookie(
+        app_sessions.SESSION_COOKIE,
+        session,
+        max_age=app_sessions.DEFAULT_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        path="/",
+    )
+    return resp

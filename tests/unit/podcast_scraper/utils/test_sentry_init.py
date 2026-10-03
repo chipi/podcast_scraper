@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from podcast_scraper.utils.sentry_init import _DEV_DSN, init_sentry, set_run_tag
+from podcast_scraper.utils.sentry_init import init_sentry, set_run_tag
 
 
 @pytest.mark.unit
@@ -157,11 +157,12 @@ class TestInitSentryInitPath(unittest.TestCase):
 
 @pytest.mark.unit
 class TestInitSentryDevDefault(unittest.TestCase):
-    """Dev rung of the env ladder: with no DSN set, GENUINE local dev falls back
-    to the ``operator-dev`` homelab DSN — but NEVER under pytest, CI, or prod.
-    The suppression markers (``PYTEST_CURRENT_TEST`` / ``CI``) are popped here to
-    simulate a laptop; every other test keeps them set, so the unset-DSN no-op
-    contract (TestInitSentryNoOp) is unaffected."""
+    """There is NO built-in dev DSN (2026-10-03). Genuine local dev with no DSN set used to
+    fall back to a hardcoded ``operator-dev`` DSN at the tailnet host ``homelab`` — refused on
+    the homelab box itself, so every local server retried and warned on each event. Now every
+    environment, dev included, reports only when its DSN env var is set. The suppression
+    markers (``PYTEST_CURRENT_TEST`` / ``CI``) are popped here to simulate a laptop, which is
+    exactly the case the old fallback fired in."""
 
     def setUp(self) -> None:
         self._prior_env = {
@@ -191,12 +192,26 @@ class TestInitSentryDevDefault(unittest.TestCase):
             else:
                 os.environ[k] = v
 
-    def test_local_dev_no_dsn_uses_operator_dev_default(self) -> None:
+    def test_local_dev_without_a_dsn_reports_nothing(self) -> None:
         os.environ["PODCAST_ENV"] = "dev"
+        self.assertFalse(init_sentry("api"))
+        self._mock_sentry_sdk.init.assert_not_called()
+
+    def test_local_dev_with_its_dsn_set_reports_to_it(self) -> None:
+        os.environ["PODCAST_ENV"] = "dev"
+        os.environ["PODCAST_SENTRY_DSN_API"] = "http://k@127.0.0.1:8090/9"
         self.assertTrue(init_sentry("api"))
         kwargs = self._mock_sentry_sdk.init.call_args.kwargs
-        self.assertEqual(kwargs["dsn"], _DEV_DSN)
+        self.assertEqual(kwargs["dsn"], "http://k@127.0.0.1:8090/9")
         self.assertEqual(kwargs["environment"], "dev")
+
+    def test_no_hardcoded_homelab_dsn_remains_in_the_module(self) -> None:
+        """Guard against the fallback coming back under another name."""
+        import inspect
+
+        from podcast_scraper.utils import sentry_init
+
+        self.assertNotIn("@homelab", inspect.getsource(sentry_init))
 
     def test_ci_marker_suppresses_dev_default(self) -> None:
         os.environ["PODCAST_ENV"] = "dev"

@@ -24,6 +24,18 @@ const TIER_KEY = 'lp_tier'
 // Build flag: true for internal / simulator / TestFlight builds (the switch is available); false in
 // release (prod-locked, toggle tree-shaken). Defaults to DEV when the define is absent.
 declare const __MOBILE_INTERNAL__: boolean | undefined
+/**
+ * Running inside the Capacitor shell?
+ *
+ * Lives here, not in `services/native.ts`, on purpose: that module calls `registerPlugin` at import
+ * time, so pulling it into a widely-imported module (api.ts) drags plugin registration into every
+ * test that touches the API client. This file already imports `Capacitor` for `resolveApiBase`, and
+ * `isNativePlatform()` needs no plugin.
+ */
+export function isNativeShell(): boolean {
+  return Capacitor.isNativePlatform()
+}
+
 export function isInternalBuild(): boolean {
   return typeof __MOBILE_INTERNAL__ !== 'undefined' ? !!__MOBILE_INTERNAL__ : import.meta.env.DEV
 }
@@ -73,10 +85,19 @@ export function setTier(tier: Tier): void {
 // and there are two dev machines the checkout moves between, so naming one of them by hand is
 // both a setup step and wrong half the time. Deriving from the machine doing the build is right
 // by construction: that is the host `tailscale serve` fronts.
+//
+// RELEASE BUILDS CARRY NONE OF THIS (2026-10-03). The value is gated on `__MOBILE_INTERNAL__`, which
+// vite replaces with the literal `false` in a release build, so the minifier drops every rung,
+// loopback included. Before, a release bundle still contained `http://127.0.0.1:8080/api/app`:
+// unreachable (getTier() is always 'prod' there), but a dev target shipped to every user, and the
+// only thing keeping it unused was a call the bundler did not fold. `mobile-build-release` asserts
+// its absence on the artifact.
 const DEV_API_BASE =
-  import.meta.env.VITE_DEV_API_BASE ||
-  (typeof __DEV_API_BASE__ === 'string' ? __DEV_API_BASE__ : '') ||
-  'http://127.0.0.1:8080/api/app'
+  typeof __MOBILE_INTERNAL__ !== 'undefined' && __MOBILE_INTERNAL__ === false
+    ? ''
+    : import.meta.env.VITE_DEV_API_BASE ||
+      (typeof __DEV_API_BASE__ === 'string' ? __DEV_API_BASE__ : '') ||
+      'http://127.0.0.1:8080/api/app'
 // Live player API (public consumer plane, same-origin on web). Overridable via VITE_API_BASE_URL.
 const PROD_API_BASE = 'https://closelistening.app/api/app'
 
@@ -103,7 +124,7 @@ export function isTargetingProd(): boolean {
 export function resolveApiBase(): string {
   const baked = import.meta.env.VITE_API_BASE_URL
   if (!Capacitor.isNativePlatform()) return baked || '/api/app'
-  if (getTier() === 'dev') return DEV_API_BASE
+  if (getTier() === 'dev' && DEV_API_BASE) return DEV_API_BASE
   return baked || PROD_API_BASE
 }
 

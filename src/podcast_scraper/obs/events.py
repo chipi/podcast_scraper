@@ -63,6 +63,11 @@ _fallback_logger = logging.getLogger(__name__)
 _FILE_FOR: dict[str, str] = {
     "search_query": "search/query_log.jsonl",
     "listen": "listen.jsonl",  # usually combined with a per-user subdir via path=
+    # #2266: both are written with an explicit per-user `path=`, like `listen`. The entries exist so
+    # the mapping stays a complete inventory of file-sink event types rather than only the ones that
+    # happen to rely on the default.
+    "playback_progress": "playback_events.jsonl",
+    "account_created": "account_events.jsonl",
 }
 
 
