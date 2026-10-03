@@ -460,11 +460,14 @@ onMounted(async () => {
   void initDeepLinks((target) => {
     void router.push({ name: target.name, params: target.params, query: target.query ?? {} })
   })
-  await initNativeAuth(async () => {
+  await initNativeAuth(async ({ isNew }) => {
     await auth.refresh()
     // A fresh sign-in changes who we are; adopt before loading anything per-account.
     await adoptIdentity()
     await hydrateUser()
+    // A just-created email account has no name and no picture: land it on the profile, as the web
+    // verify redirect does. Runs last so it supersedes LoginView's own "signed in → home" replace.
+    if (isNew) void router.replace({ name: 'profile', query: { welcome: '1' } })
   })
   // Paint the last known identity first so an offline launch is signed in immediately, then
   // revalidate. `refresh()` no longer throws, so a dead network cannot abort boot (#1906).

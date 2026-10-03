@@ -89,13 +89,31 @@ interface AuthSessionPlugin {
 }
 const AuthSession = registerPlugin<AuthSessionPlugin>('AuthSession')
 
+/** What a sign-in callback carried besides the token. */
+export interface AuthedInfo {
+  /** The server CREATED this account on this sign-in (`&new=1`, email magic link #2272). */
+  isNew: boolean
+}
+
 // After a token arrives (either platform), refresh the auth store. Set by initNativeAuth().
-let onAuthedCb: (() => void) | null = null
+let onAuthedCb: ((info: AuthedInfo) => void) | null = null
+
+function callbackFragment(url: string): URLSearchParams {
+  return new URLSearchParams(url.includes('#') ? url.slice(url.indexOf('#') + 1) : '')
+}
 
 /** Pull the signed token out of a `closelistening://auth#token=<signed>` callback URL. */
-function tokenFromCallback(url: string): string | null {
-  const frag = url.includes('#') ? url.slice(url.indexOf('#') + 1) : ''
-  return new URLSearchParams(frag).get('token')
+export function tokenFromCallback(url: string): string | null {
+  return callbackFragment(url).get('token')
+}
+
+/**
+ * Did this callback create the account? The magic-link verify redirect says so with `&new=1`, the
+ * same signal the web path turns into `/profile?welcome=1`: an email identity arrives with no name
+ * and no picture, so a new one belongs on the profile, not home. OAuth callbacks never carry it.
+ */
+export function authedInfoFromCallback(url: string): AuthedInfo {
+  return { isNew: callbackFragment(url).get('new') === '1' }
 }
 
 /** Persist (or clear) the native bearer token + apply it to the API client. */
@@ -132,7 +150,7 @@ export async function startNativeLogin(loginUrl: string): Promise<void> {
       const token = tokenFromCallback(url)
       if (token) {
         storeAuthToken(token)
-        onAuthedCb?.()
+        onAuthedCb?.(authedInfoFromCallback(url))
       } else {
         // The session returned, but with no token in the callback — that is a failed exchange, not
         // a cancellation, and the funnel needs them apart: one says the sign-in is broken, the
@@ -192,18 +210,19 @@ export async function rehydrateNativeToken(): Promise<void> {
   }
 }
 
-export async function initNativeAuth(onAuthed: () => void): Promise<void> {
+export async function initNativeAuth(onAuthed: (info: AuthedInfo) => void): Promise<void> {
   if (!isNative()) return
   onAuthedCb = onAuthed
   // Token is normally already rehydrated pre-mount (main.ts); re-run for the migration/idempotence.
   await rehydrateNativeToken()
-  // Android callback path (iOS returns via the AuthSession promise instead).
+  // Every link-delivered token, on BOTH platforms: the Android OAuth callback, and the email magic
+  // link opened from Mail on either (iOS OAuth alone returns via the AuthSession promise instead).
   await App.addListener('appUrlOpen', ({ url }) => {
     const token = tokenFromCallback(url)
     if (token) {
       storeAuthToken(token)
       void Browser.close().catch(() => {})
-      onAuthed()
+      onAuthed(authedInfoFromCallback(url))
     }
   })
 }
