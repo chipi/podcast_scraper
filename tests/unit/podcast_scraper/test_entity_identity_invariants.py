@@ -164,6 +164,17 @@ class TestEveryLayerMintsTheSameId:
 
         assert _person_node_id(name, _EP) == entity_node_id("person", name, episode_id=_EP)
 
+    @pytest.mark.parametrize(
+        "name", REAL_NAMES + ["Professor Hannah Fry", "Dr. Moriba Jah", "Sir Francis Walsingham"]
+    )
+    def test_the_gi_speaker_path_agrees_including_titles(self, name: str) -> None:
+        """`person_node_id` (the GI speaker attribution path) minted titled ids raw:
+        person:professor-hannah-fry beside the KG's person:hannah-fry (prod, 2026-10-03)."""
+        from podcast_scraper.graph_id_utils import person_node_id
+
+        assert person_node_id(name) == entity_node_id("person", name)
+        assert person_node_id(name, _EP) == entity_node_id("person", name, episode_id=_EP)
+
     @pytest.mark.parametrize("name", REAL_NAMES)
     def test_the_legacy_slugify_path_still_agrees_for_real_names(self, name: str) -> None:
         # The swap in gi/speakers.py is only safe because these are byte-identical.

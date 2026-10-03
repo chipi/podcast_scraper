@@ -278,6 +278,11 @@ def person_node_id(display_name: str, episode_id: Optional[str] = None) -> str:
         return "person:unknown"
     if episode_id and is_bare_speaker_label(base):
         return _scoped_speaker_person_id(base, episode_id)
+    # The id drops a leading title, exactly as `person_id` / `entity_node_id` do: this was the one
+    # minting path that slugified the display name raw, so the GI speaker path wrote
+    # person:professor-hannah-fry beside the KG's person:hannah-fry for the same person (prod
+    # verify 0010/0017 after the 2026-10-03 deepen runs, Google DeepMind and StarTalk).
+    base = person_identity_name(base) or base
     try:
         slug = canonical_slugify(base)
     except ValueError:
