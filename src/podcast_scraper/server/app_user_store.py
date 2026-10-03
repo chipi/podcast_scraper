@@ -342,6 +342,45 @@ def set_image(data_dir: Path, user_id: str, image: str | None) -> bool:
     return True
 
 
+#: Longest display name accepted. Generous for real names; short enough that a masthead, a share
+#: card and an email greeting never have to truncate mid-word.
+NAME_MAX_CHARS = 60
+
+
+def normalize_display_name(raw: str) -> str | None:
+    """A display name as stored: whitespace collapsed and trimmed, control characters refused.
+
+    Returns None when nothing usable is left or it is too long. Deliberately permissive otherwise —
+    names are not validated against an alphabet, because any such rule rejects someone's real name.
+    """
+    if not isinstance(raw, str):
+        return None
+    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in raw):
+        return None
+    name = " ".join(raw.split())
+    if not name or len(name) > NAME_MAX_CHARS:
+        return None
+    return name
+
+
+def set_name(data_dir: Path, user_id: str, name: str) -> bool:
+    """Set a user's display name. Returns False for unknown users or an unusable name.
+
+    The person's own choice, for every provider. It is never overwritten by a later sign-in:
+    `get_or_create_user` returns an existing account untouched, so Google re-sending its name does
+    not undo a rename. The handle (`username`) is NOT derived from this and does not change.
+    """
+    clean = normalize_display_name(name)
+    if clean is None or not _is_safe_user_id(user_id):
+        return False
+    with _profile_lock(data_dir, user_id):
+        user = get_user(data_dir, user_id)
+        if user is None:
+            return False
+        _write_profile(data_dir, replace(user, name=clean))
+    return True
+
+
 def set_disabled(data_dir: Path, user_id: str, disabled: bool) -> bool:
     """Enable/disable a user (disabled users fail auth). Returns False for unknown users."""
     if not _is_safe_user_id(user_id):

@@ -1114,6 +1114,19 @@ export async function uploadAvatar(file: Blob): Promise<{ image: string }> {
   return { ...body, image: resolveMediaUrl(body.image) ?? body.image }
 }
 
+/** Set the signed-in user's display name. Resolves to the name as stored (whitespace collapsed);
+ *  throws ApiError 400 for a name the server refuses (empty, too long, control characters). */
+export async function setProfileName(name: string): Promise<{ name: string }> {
+  const resp = await apiFetch(`${BASE}/profile/name`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `POST /profile/name → ${resp.status}`)
+  return (await resp.json()) as { name: string }
+}
+
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
 
 /**

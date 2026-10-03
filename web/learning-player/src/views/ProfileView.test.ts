@@ -724,3 +724,69 @@ describe("ProfileView — a failed load is not an empty account", () => {
     expect(w.text()).toContain("No interests chosen yet")
   })
 })
+
+describe("ProfileView — display name and the new-account welcome (#2272)", () => {
+  // A magic-link account arrives with `?welcome=1` and its address's local part as a placeholder
+  // name. Before this, nothing in the app — no route, no control — could change a name at all.
+  async function mountAt(path: string) {
+    await router.push(path)
+    await router.isReady()
+    const w = mountProfile()
+    await flushPromises()
+    return w
+  }
+
+  it("asks a new account for its name, pre-filled, and saves it", async () => {
+    const save = vi.spyOn(api, "setProfileName").mockResolvedValue({ name: "Ada" })
+    const w = await mountAt("/profile?welcome=1")
+    const refresh = vi.spyOn(useAuthStore(), "refresh").mockResolvedValue()
+    const card = w.get('[data-testid="profile-welcome"]')
+    const input = card.get('[data-testid="profile-welcome-input"]')
+    expect((input.element as HTMLInputElement).value, "pre-filled with the placeholder").toBe("Dev")
+
+    await input.setValue("  Ada ")
+    await card.trigger("submit")
+    await flushPromises()
+
+    expect(save).toHaveBeenCalledWith("Ada")
+    expect(refresh).toHaveBeenCalled()
+    expect(router.currentRoute.value.query.welcome, "welcome is dropped once answered").toBeUndefined()
+    expect(w.find('[data-testid="profile-welcome"]').exists()).toBe(false)
+  })
+
+  it("lets the person skip without saving anything", async () => {
+    const save = vi.spyOn(api, "setProfileName")
+    const w = await mountAt("/profile?welcome=1")
+    await w.get('[data-testid="profile-welcome-skip"]').trigger("click")
+    await flushPromises()
+    expect(save).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.query.welcome).toBeUndefined()
+    expect(w.find('[data-testid="profile-welcome"]').exists()).toBe(false)
+  })
+
+  it("keeps the card and says so when the server refuses the name", async () => {
+    vi.spyOn(api, "setProfileName").mockRejectedValue(new api.ApiError(400, "bad"))
+    const w = await mountAt("/profile?welcome=1")
+    await w.get('[data-testid="profile-welcome-input"]').setValue("x")
+    await w.get('[data-testid="profile-welcome"]').trigger("submit")
+    await flushPromises()
+    expect(w.find('[data-testid="profile-name-error"]').exists()).toBe(true)
+    expect(w.find('[data-testid="profile-welcome"]').exists(), "card stays to retry").toBe(true)
+    expect(router.currentRoute.value.query.welcome).toBe("1")
+  })
+
+  it("lets ANY account rename itself from the header, with no welcome card", async () => {
+    const save = vi.spyOn(api, "setProfileName").mockResolvedValue({ name: "Grace" })
+    const w = await mountAt("/profile")
+    vi.spyOn(useAuthStore(), "refresh").mockResolvedValue()
+    expect(w.find('[data-testid="profile-welcome"]').exists()).toBe(false)
+
+    await w.get('[data-testid="profile-name-edit"]').trigger("click")
+    await w.get('[data-testid="profile-name-input"]').setValue("Grace")
+    await w.get('[data-testid="profile-name-form"]').trigger("submit")
+    await flushPromises()
+
+    expect(save).toHaveBeenCalledWith("Grace")
+    expect(w.find('[data-testid="profile-name-form"]').exists(), "editor closes").toBe(false)
+  })
+})

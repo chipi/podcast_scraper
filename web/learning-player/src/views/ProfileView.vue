@@ -14,6 +14,7 @@ import {
   getTopClusters,
   getUserInterests,
   putComms,
+  setProfileName,
   uploadAvatar,
 } from "../services/api"
 import type {
@@ -82,6 +83,59 @@ type ProfileTab = "account" | "topics" | "stats"
 // 2026-09-14). Only whitelisted keys, so a bad query can't blank the panel.
 const PROFILE_TABS: ProfileTab[] = ["account", "topics", "stats"]
 const route = useRoute()
+
+// --- Display name (#2272) ------------------------------------------------------------------------
+//
+// Two doors to one save. A NEW email account lands here with `?welcome=1` and a placeholder name
+// taken from its address, so the page opens with a welcome card asking for a real one. Every
+// account can also rename itself from the header at any time. Both go through `saveName`.
+const welcome = computed(() => route.query.welcome === "1")
+const editingName = ref(false)
+const nameDraft = ref("")
+const nameBusy = ref(false)
+const nameError = ref(false)
+
+function startNameEdit(): void {
+  nameDraft.value = auth.user?.name ?? ""
+  nameError.value = false
+  editingName.value = true
+}
+
+/** Leave the welcome state: drop `?welcome=1` so a reload or back-navigation does not re-ask. */
+function dismissWelcome(): void {
+  const { welcome: _drop, ...rest } = route.query
+  void router.replace({ query: rest })
+}
+
+async function saveName(): Promise<void> {
+  const draft = nameDraft.value.trim()
+  if (!draft || nameBusy.value) return
+  nameBusy.value = true
+  nameError.value = false
+  try {
+    await setProfileName(draft)
+    await auth.refresh() // /me now carries the new name; the masthead and avatar initials follow
+    editingName.value = false
+    if (welcome.value) dismissWelcome()
+  } catch {
+    nameError.value = true
+  } finally {
+    nameBusy.value = false
+  }
+}
+
+// Pre-fill the welcome card with the placeholder so "Save" on an unchanged field is still a choice.
+watch(
+  welcome,
+  (on) => {
+    if (on) {
+      nameDraft.value = auth.user?.name ?? ""
+      nameError.value = false
+    }
+  },
+  { immediate: true }
+)
+
 const initialTab = String(route.query.tab || "")
 const tab = ref<ProfileTab>(
   (PROFILE_TABS as string[]).includes(initialTab) ? (initialTab as ProfileTab) : "account"
@@ -414,10 +468,67 @@ onActivated(() => {
           data-testid="avatar-file-input"
           @change="onAvatarPicked"
         />
-        <div class="min-w-0">
-          <h1 class="truncate font-display text-2xl font-extrabold tracking-tight">
-            {{ auth.user?.name || t("profile.title") }}
-          </h1>
+        <div class="min-w-0 flex-1">
+          <form
+            v-if="editingName && !welcome"
+            class="flex items-center gap-2"
+            data-testid="profile-name-form"
+            @submit.prevent="saveName"
+          >
+            <input
+              v-model="nameDraft"
+              type="text"
+              maxlength="60"
+              autocomplete="name"
+              :aria-label="t('profile.nameLabel')"
+              class="min-w-0 flex-1 rounded-full border border-border bg-canvas px-3 py-1.5 text-base"
+              data-testid="profile-name-input"
+            />
+            <button
+              type="submit"
+              :disabled="!nameDraft.trim() || nameBusy"
+              class="rounded-full bg-accent px-3 py-1.5 text-sm font-bold text-accent-foreground disabled:opacity-50"
+              data-testid="profile-name-save"
+            >
+              {{ nameBusy ? t("profile.nameSaving") : t("profile.nameSave") }}
+            </button>
+            <button
+              type="button"
+              class="text-sm text-muted"
+              data-testid="profile-name-cancel"
+              @click="editingName = false"
+            >
+              {{ t("profile.nameCancel") }}
+            </button>
+          </form>
+          <div v-else class="flex min-w-0 items-center gap-2">
+            <h1 class="truncate font-display text-2xl font-extrabold tracking-tight">
+              {{ auth.user?.name || t("profile.title") }}
+            </h1>
+            <button
+              v-if="!welcome"
+              type="button"
+              class="shrink-0 rounded-full p-1 text-muted hover:text-canvas-foreground"
+              :aria-label="t('profile.nameEdit')"
+              :title="t('profile.nameEdit')"
+              data-testid="profile-name-edit"
+              @click="startNameEdit"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="h-4 w-4"
+                aria-hidden="true"
+              >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </button>
+          </div>
           <p
             v-if="auth.user?.username"
             class="truncate text-sm text-muted"
@@ -459,6 +570,55 @@ onActivated(() => {
       data-testid="avatar-error"
     >
       {{ avatarError }}
+    </p>
+
+    <!-- Welcome (#2272): a NEW email account arrives with `?welcome=1` and a placeholder name taken
+         from its address. One question, pre-filled, skippable — the rest of Profile stays usable. -->
+    <form
+      v-if="welcome"
+      class="mb-5 rounded-2xl border border-border bg-elevated p-4"
+      data-testid="profile-welcome"
+      @submit.prevent="saveName"
+    >
+      <h2 class="font-display text-lg font-extrabold tracking-tight">
+        {{ t("profile.welcomeTitle") }}
+      </h2>
+      <p class="mb-3 mt-1 text-sm text-muted">{{ t("profile.welcomeBody") }}</p>
+      <div class="flex flex-wrap items-center gap-2">
+        <input
+          v-model="nameDraft"
+          type="text"
+          maxlength="60"
+          autocomplete="name"
+          :aria-label="t('profile.nameLabel')"
+          class="min-w-0 flex-1 rounded-full border border-border bg-canvas px-4 py-2 text-base"
+          data-testid="profile-welcome-input"
+        />
+        <button
+          type="submit"
+          :disabled="!nameDraft.trim() || nameBusy"
+          class="rounded-full bg-accent px-5 py-2 font-bold text-accent-foreground disabled:opacity-50"
+          data-testid="profile-welcome-save"
+        >
+          {{ nameBusy ? t("profile.nameSaving") : t("profile.nameSave") }}
+        </button>
+        <button
+          type="button"
+          class="px-2 py-2 text-sm text-muted"
+          data-testid="profile-welcome-skip"
+          @click="dismissWelcome"
+        >
+          {{ t("profile.nameNotNow") }}
+        </button>
+      </div>
+    </form>
+    <p
+      v-if="nameError"
+      class="mb-4 text-sm font-semibold text-danger"
+      role="alert"
+      data-testid="profile-name-error"
+    >
+      {{ t("profile.nameError") }}
     </p>
 
     <AvatarCropModal

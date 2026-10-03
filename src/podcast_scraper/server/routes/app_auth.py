@@ -13,8 +13,9 @@ import secrets
 import time
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
@@ -463,7 +464,7 @@ def _email_fingerprint(email: str) -> str:
     return hashlib.sha256(app_magic_link.normalise_email(email).encode("utf-8")).hexdigest()[:16]
 
 
-def _magic_event(event_type: str, **fields: object) -> None:
+def _magic_event(event_type: str, **fields: Any) -> None:
     """Emit one ADR-119 event for the magic-link flow. Best-effort; never raises.
 
     `sink="log"` (stdout), not a per-user file: these events happen BEFORE an account exists, which
@@ -540,10 +541,14 @@ async def app_auth_magic_request(
     if not secret or "@" not in email or email.startswith("@") or email.endswith("@"):
         # Still reported, because "nothing was sent" is the single hardest state to diagnose from
         # the outside: the person sees the same "check your inbox" either way.
-        _magic_event("magic_link_requested", outcome="rejected_shape", email_fp=_email_fingerprint(email))
+        _magic_event(
+            "magic_link_requested", outcome="rejected_shape", email_fp=_email_fingerprint(email)
+        )
         return {"ok": True}
     if _throttled(data_dir, email, now=now):
-        _magic_event("magic_link_requested", outcome="throttled", email_fp=_email_fingerprint(email))
+        _magic_event(
+            "magic_link_requested", outcome="throttled", email_fp=_email_fingerprint(email)
+        )
         return {"ok": True}
 
     token, token_id = app_magic_link.issue(email, secret, now=now)
@@ -638,11 +643,15 @@ async def app_auth_magic_verify(
     if policy is not None and not policy.is_allowed(email):
         # The operationally important one: a tester who was never added to the allowlist looks, from
         # their side, exactly like a broken link.
-        _magic_event("magic_link_verified", outcome="refused_policy", email_fp=_email_fingerprint(email))
+        _magic_event(
+            "magic_link_verified", outcome="refused_policy", email_fp=_email_fingerprint(email)
+        )
         raise HTTPException(status_code=403, detail="This account is not allowed to sign in.")
 
     if data_dir is None:
-        _magic_event("magic_link_verified", outcome="unavailable", email_fp=_email_fingerprint(email))
+        _magic_event(
+            "magic_link_verified", outcome="unavailable", email_fp=_email_fingerprint(email)
+        )
         raise HTTPException(status_code=503, detail="Sign-in is not available.")
     if not app_magic_link.consume(data_dir, str(payload["jti"])):
         # Usually benign — a prefetching mail client or a double tap — but a sustained rate means
@@ -671,8 +680,9 @@ async def app_auth_magic_verify(
         provider="email",
         subject=email,
         email=email,
-        # An email identity supplies no display name. The local part is a placeholder the person can
-        # change on the profile page they are about to land on — better than an empty masthead.
+        # An email identity supplies no display name. The local part is a placeholder, better
+        # than an empty masthead; a new account lands on the profile, whose welcome card asks
+        # for a real name and saves it through POST /profile/name.
         name=email.partition("@")[0],
         image=None,
         on_created=_on_created,
