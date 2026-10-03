@@ -376,10 +376,7 @@ on **roles / accessible names / RouterLinks**; reusable widgets carry `data-test
 | Home topic chips | `home-topic-chips` (container), `home-topic-chip` (each) |
 | Discovery section | `data-testid="home-discovery"` |
 | Interests card CTA | button `interests.cardCta` → opens `InterestsPicker` |
-| Search box | `data-testid="home-search-input"` + `data-testid="home-search-submit"` — Home's own search entry.
-Phones have no search tab and no masthead magnifier, so this pair (and Discover's
-`browse-search-input`/`browse-search-submit`) is how a phone reaches `/search` at all, which makes it
-the route every search-related spec takes |
+| Search box | `data-testid="home-search-input"` + `data-testid="home-search-submit"` — Home's own search entry. Phones have no search tab and no masthead magnifier, so this pair (and Discover's `browse-search-input`/`browse-search-submit`) is how a phone reaches `/search` at all, which makes it the route every search-related spec takes |
 
 ### Discovery ([DiscoveryList](../src/components/DiscoveryList.vue))
 
@@ -424,12 +421,8 @@ Storylines surface in `DiscoveryList` when `kind="storyline"` — each row is `d
 | Topics section | `data-testid="interests-topics"` (semantic `tc:` chips) |
 | Storylines section | `data-testid="interests-storylines"` (`thc:` chips) |
 | Chip pressed state | `aria-pressed` per chip |
-| Save | `data-testid="interests-save"` — the ONLY control that saves. Added 2026-10-03: it was the one
-action in the sheet without a testid, and a telemetry spec reaching for the sheet's primary button
-instead clicked `interests-close`, which routes through `closeSheet()` and reports a *dismissal*. The
-spec asserted a save while performing the opposite action |
-| Cancel | `data-testid="interests-cancel"` — routes through `closeSheet()`, so it reports
-`interests_dismissed`, same as **✕** and the backdrop |
+| Save | `data-testid="interests-save"` — the ONLY control that saves. Added 2026-10-03: it was the one action in the sheet without a testid, and a telemetry spec reaching for the sheet's primary button instead clicked `interests-close`, which routes through `closeSheet()` and reports a *dismissal*. The spec asserted a save while performing the opposite action |
+| Cancel | `data-testid="interests-cancel"` — routes through `closeSheet()`, so it reports `interests_dismissed`, same as **✕** and the backdrop |
 | Modal | `role="dialog"` `aria-modal="true"`; backdrop click / **Esc** / **✕** dismiss (focus trap) |
 
 ### Player ([PlayerView](../src/views/PlayerView.vue) + [EpisodeDensity](../src/components/EpisodeDensity.vue))
