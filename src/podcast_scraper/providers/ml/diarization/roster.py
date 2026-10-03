@@ -3157,7 +3157,9 @@ def _copresence_allows(host_copresence: Optional[Mapping[int, float]], k: int) -
 
 #: The co-host formula: "...with me, Anita Anand. And me, William de Rumpel." The surname is the
 #: ASR's and may be unrecognisable; the cue plus the stated host's FIRST name is the evidence.
-_COHOST_SELF_INTRO = r"\b(?:and|with) me,?\s+{first}\b"
+#: Not "between you and me, Bethany": that is a vocative, and it made the co-host formula read the
+#: speaker as Bethany (Capitalisn't, corpus replay 2026-10-03).
+_COHOST_SELF_INTRO = r"\b(?:(?<!\byou )and|with) me,?\s+{first}\b"
 #: A voice stating that a co-host is IN THE ROOM: "I'm joined, as usual, by the big man in New York
 #: City, mister Rob Armstrong", "with me, Katie Martin, and him, Rob Armstrong", "I'm joined by my
 #: cohost, RJ", "the other two co-hosts, Alexandra Carpi and Adam Reichert". The gap between the cue
@@ -3243,10 +3245,29 @@ def _first_name(name: str) -> str:
     return toks[0] if toks else ""
 
 
+#: Ordinary English words a CLIPPED given name collides with. Census of the stored corpus
+#: (2026-10-03, every stated person x every episode text): the clipped-prefix rule produced "case"
+#: for Casey on 72 episodes, "and" for Andrew/Andy/Andrea/Andrej on 29, "nor" for Norman on 13,
+#: "just" for Justin on 12, "the" for Theo on 6 -- each then read as a vocative, a self-introduction
+#: ("I'm just looking") or a co-host formula. A closed list, not a capitalisation test: every
+#: matching site is case-blind and reads sentence starts, where "And," and "Just," are capitalised
+#: like a name, and lowercase ASR has no capitals at all. Function words, plus every ordinary word
+#: the census produced. A real short name ("Kev", "Jess", "Rob", "Sam") is not on it.
+_NOT_A_CLIPPED_NAME = frozenset(
+    (
+        "and the nor but for yet not can may are was his her its our you all any now how who why "
+        "yes say see get got let did has had too off out own way day man men new old big just case "
+        "set step must most heat brand add pro far car win bar art pet ton run came call math mar "
+        "america turk conversation"
+    ).split()
+)
+
+
 def _first_name_forms(host: str, text: str) -> str:
     """Regex alternation of the forms this host's given name takes IN THIS TEXT: the stated form,
     a known nickname (`first_names_match`: Rob/Robert), or a clipped form at most three letters
-    short of it (Kev/Kevin, Will/William, Jess/Jessica). Empty when the given name is too short."""
+    short of it (Kev/Kevin, Jess/Jessica) that is not an ordinary word (`_NOT_A_CLIPPED_NAME`).
+    Empty when the given name is too short."""
     first = _first_name(host)
     if len(first) < 2:
         return ""
@@ -3256,7 +3277,10 @@ def _first_name_forms(host: str, text: str) -> str:
         if t in forms:
             continue
         if first_names_match(first, tok) or (
-            len(t) >= 3 and first.lower().startswith(t) and len(first) - len(t) <= 3
+            len(t) >= 3
+            and first.lower().startswith(t)
+            and len(first) - len(t) <= 3
+            and t not in _NOT_A_CLIPPED_NAME
         ):
             forms.add(t)
         # The ASR's respelling of a stated given name ("Alistair" for Alastair, "Tracey" for
@@ -3343,7 +3367,7 @@ def _introduces_itself_as_host(text: str, host: str) -> bool:
     forms = _first_name_forms(host, text)
     return bool(forms) and bool(
         re.search(
-            rf"\b(?:i'?m|i am|this is|my name is|and me|with me),?\s+(?:{forms})\b",
+            rf"\b(?:i'?m|i am|this is|my name is|(?<!\byou )and me|with me),?\s+(?:{forms})\b",
             text,
             re.IGNORECASE,
         )

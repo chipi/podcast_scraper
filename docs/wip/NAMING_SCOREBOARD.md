@@ -38,6 +38,7 @@ question this scoreboard answers is how much of it RULES can recover.
 | + presenter evidence (accepted) | 615 | 118 | 417 | 47 | 22 | 352 |
 | (pools rebuilt from metadata with the committed detector — stale stored pools, not a change) | 623 | 118 | 408 | 47 | 23 | 360 |
 | + host pools (accepted) | 644 | 112 | 395 | 46 | 21 | 378 |
+| + clipped first-name fix (accepted; LLM guards rejected) | 644 | 112 | 395 | 46 | 21 | 378 |
 
 From the host-pool row on, every column is measured with `naming_gate.py --repool` (each variant
 rebuilds the episode's pool from stored metadata with its own hosts module); the rows above it
@@ -55,6 +56,9 @@ replay the stored pools. The unlabelled row between them is the repool itself.
 | 3 | junk names passing the person check | 1 | show/brand and region tails, count words, captured role words, job titles in long names, product mononyms, stray `?` | 4 / 0 | 20 / 0 | accepted (census: 15 distinct names newly refused, all junk) |
 | 4 | host pools | 1 | statement ∪ author tags with a per-name person check, wider stated-name grammar, episode-described hosts (byline silenced when the description names one), respelt/merged host not a stranger, solo/ownership/show-mononym guards (measured with `--repool` on both sides; repooling alone with the committed detector = +8 correct on val, stale stored pools) | 11 / 1 | 28 / 6 (3 guests given the host's name or role, 2 co-hosts given the pooled host's name, 1 pooled host unnamed) | loop again |
 | 4 | host pools | 2 | + unnamed introducer seat (1c), a forced pool name declines when another voice presents, a self-introduced stated guest who sounds like one is never a stand-in host, a respelt guest name is not spare, a guest the description names after the cue is not a described host, a carried pool name is never forced onto a second voice, a pool host's own self-introduced name stays on a non-host voice (production wiring: the roster pool also gets the episode's stated people) | 2 / 0 vs loop 1 (13 / 1 vs before) | 4 / 0 vs loop 1 (31 / 5 vs before) | accepted (last loop; 5 worse remain: an MLST guest named Tim Scarfe, a Flip guest named Justin Norman, two Latin America in Focus co-host voices named Carin Zissis, one Carin Zissis voice unnamed) |
+| 5 | LLM guards | 1 | drop an LLM name the voice's own words refute anywhere in its text (names another pool host as itself, "X and I", introduces X, addresses a stated guest X), plus a joint drop of all LLM host names when one is refuted | 15 / 0 (wrong 29 -> 16, correct 133 -> 141) | not run | rejected on the full-corpus read: of 107 changed voices, 37 better, 23 worse (8 real hosts lost: Hard Fork, Empire, Capitalisn't, a16z), 47 uncertain; the refuting text was mostly another speaker's words bled into the voice, and the joint drop spread one false refutation to both hosts |
+| 5 | LLM guards | 2 | refutation read only in a non-dominant voice's OPENING (its first uninterrupted turns), no joint drop, forced names never re-place a refuted name; plus the clipped-name fix below | 6 / 0 (wrong 29 -> 25) | 4 / 3 (correct 644 -> 644, wrong 112 -> 110, missing 395 -> 398; worse: an Unhedged guest named Robert Armstrong, a promo named Olaf Storbeck, a Latent Space guest unnamed) | rejected (last loop): a wash on validation, and one of the three is a guest given the host's name; corpus read 22 better / 10 worse (guests), 8 of the 10 from the vocative rule -- the host's greeting is diarized into the start of the guest's voice |
+| 5 | clipped first names (a defect from seat v4, 7e8d25b9b) | - | a clipped given name is never an ordinary word ("case"/Casey on 72 episodes, "and"/Andrew-Andy on 29, "nor"/Norman, "just"/Justin, "the"/Theo); "between you and me, X" is not a co-host formula | 0 / 0 | 0 / 0 | accepted (removes the defect; corpus: 1 voice changed, an improvement -- Trivium "I'm your host... Andrew Polk") |
 
 ## Step 1 result — the LLM step's marginal value (2026-10-03)
 
@@ -87,6 +91,15 @@ voices), the gap was 766 voices; four slices closed 42 of them (5%). The rejecte
 held-out set working as intended (the development set alone would have accepted it). Not yet
 enough slices to call a wall; whether per-show profiles (step 5) and the LLM step (steps 4 and 6)
 move more than this is the open question those steps measure.
+
+LLM guards (step 4) were rejected after two loops. On dev they looked like the biggest single win
+(wrong 29 -> 16), but the full corpus read and the 500 showed why: the text the pipeline holds for a
+voice is too often SOMEONE ELSE's words (a host's greeting or question diarized into the guest's
+cluster, a joke, a mid-roll), so "the voice's own words refute the LLM's name" misfires about as
+often as it is right. Anchoring to the opening did not fix it, because the bleed sits exactly at
+the start of the guest's voice. Lesson for step 6 (#2262): improve the LLM step itself (prompt,
+candidates, a per-voice case view) rather than vetoing its answers after the fact from the same
+noisy text. Steps 5 and 6 are tracked as #2261 and #2262.
 
 Next after the planned slices (operator, 2026-10-03): a FEED-LEVEL analysis with the Fable advisor —
 patterns per show (who hosts it, who recurs across its episodes, how its transcripts/voices look),
