@@ -33,6 +33,7 @@ from .migrations.m0018_org_speakers_removed_residue import OrgSpeakersRemovedRes
 from .migrations.m0019_descriptor_speaker_names_removed import (
     DescriptorSpeakerNamesRemovedMigration,
 )
+from .migrations.m0020_titled_person_ids_remerged import TitledPersonIdsRemergedMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -65,6 +66,7 @@ _MIGRATIONS: List[Migration] = [
     SpeakerNamesCanonicalisedMigration(),
     OrgSpeakersRemovedResidueMigration(),
     DescriptorSpeakerNamesRemovedMigration(),
+    TitledPersonIdsRemergedMigration(),
 ]
 
 
