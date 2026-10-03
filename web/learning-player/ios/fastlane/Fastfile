@@ -268,6 +268,13 @@ platform :ios do
       api_key: api_key,
       # No Beta App Review: internal testers get the build as soon as Apple finishes processing.
       distribute_external: false,
+      # AND say so explicitly. `distribute_external: false` alone is not enough: fastlane's
+      # `submit_beta_review` defaults to TRUE, so it still POSTed a beta-app-review submission for
+      # an internal-only build. App Store Connect refused it ("Beta App Description is missing" —
+      # the app has none, because it has never had external testers), and the lane died BEFORE
+      # adding the build to the group. Build 2 (2026-10-04) was processed, valid and reached
+      # nobody until it was attached to "Internal Testers" by hand through the API.
+      submit_beta_review: false,
       # Hand the build to the internal group, so it is installable rather than merely uploaded.
       groups: [INTERNAL_GROUP],
       changelog: "Build #{build_number} from #{git_branch} (#{last_git_commit[:abbreviated_commit_hash]}).",
