@@ -6,6 +6,34 @@ per-instance operator approval; every cleanup is dry-run first, then applied, th
 
 Companion: `ADVISOR-REVIEW-2026-10-02.md` (what was fixed, evidence, open questions).
 
+## Deploy of 2026-10-03 — what ran (times UTC)
+
+Deployed `sha-b974542` (PR #2269 + m0015-m0017 + an integration-test fix) to every surface with
+`deploy-all-prod` run 37124234156. Stack test was dispatched by hand on `b974542fc` (12:31-12:52)
+because the `096d4c5e8` Python build had failed on one integration test (fixed in `b974542fc`).
+The operator live smoke failed once on a UI wait (sign-in button) with no auth/viewer change since
+the last green deploy, and passed on its single rerun.
+
+| Step | Result |
+| --- | --- |
+| m0015 junk names (C1) | 13:03-13:05; 113 episodes, 31 names (KEEP RJ; 6 hand-removed junk); verify OK |
+| Freakonomics 689 test (single-feed job 526085e2) | 13:09-13:33; Stephen J. Dubner named host (39% voice), 15 of 39 insights surfaceable (was 2 of 44); finalize: corpus delta 211 changed, 53 re-embedded, clusters rebuilt, ad signatures 2,840 passages / `de` |
+| m0016 ad readers (C3) | 13:36-13:38; 47 episodes, 50 voice hits; verify OK |
+| m0017 renames + titled ids (C2, C5) | 13:45-13:50; 62 episodes, 6 names, 64 ids; verify OK |
+| corpus enrichment f5951475 | 13:33-13:41, succeeded |
+| show sidecar backfill | 13:57; show.json for 80 of 81 feeds (the 81st has no episodes) |
+| live checks B4-B7, B11, B12 | quote re-anchor working, 0 bundled-quote loops, 0 deadline overruns, episode spans in VictoriaTraces, no junk published names |
+| Freakonomics deepen (job 6bee5233) | started 13:59, 8 new episodes |
+
+Still open:
+
+- `upgrade verify` FAILs 0010 (false: it read upgrade backups as served; live corpus has 0 old
+  ids) and 0012 (real: "Africa Tech Summit" GI Person on 2 episodes). Both fixed on main
+  (`f8330a635`, m0018 `fdcd6dcd4`); apply m0018 after the next deploy.
+- Nightly-only checks (B8, B9, B13, B14) and the live host-pool check on a16z / The Flip /
+  No Priors: on the next nightly.
+- The three 13 GB whole-corpus upgrade snapshots were deleted after verify (operator-approved).
+
 ## A. Before / during deploy
 
 | # | Step | Why |
