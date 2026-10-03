@@ -74,6 +74,7 @@ FUNCTION_WORDS: Dict[str, FrozenSet[str]] = {
 
 
 def words(text: str) -> List[str]:
+    """Lowercased word tokens of ``text``."""
     return _WORD.findall((text or "").lower())
 
 
@@ -103,14 +104,18 @@ def _judged(ws: List[str]) -> bool:
 
 @dataclass(frozen=True)
 class AdSignatures:
+    """Cross-show ad evidence: text runs many shows repeat, and languages ads arrive in."""
+
     recurring: FrozenSet[int]
     ad_languages: FrozenSet[str]
 
     def recurring_fraction(self, ws: List[str]) -> float:
+        """Share of the voice's shingles that other shows carry too."""
         sh = shingles(ws)
         return sum(h in self.recurring for h in sh) / len(sh) if sh else 0.0
 
     def is_ad_voice(self, text: str, episode_language: Optional[str]) -> bool:
+        """An ad: mostly cross-show recurring text, or a known ad language unlike the episode's."""
         ws = words(text)
         if not _judged(ws):
             return False
@@ -123,6 +128,7 @@ class AdSignatures:
 
 
 def episode_language(voice_texts: Dict[str, str]) -> Optional[str]:
+    """The episode's language, judged over all its voices together."""
     return detect_language([w for t in voice_texts.values() for w in words(t)])
 
 
