@@ -223,6 +223,62 @@ describe('a dead credential takes the TOKEN with it (2026-09-24)', () => {
     expect(store).toHaveBeenCalledWith(null)
   })
 
+  it('a 401 about a token that has since been REPLACED neither signs out nor wipes (#2272)', async () => {
+    // A sign-in link that LAUNCHES the app delivers its token mid-boot. The boot `/me` already left
+    // without it and comes back 401 — about the old (absent) credential. That stale answer used to
+    // sign the person out and erase the token that had just arrived (Android emulator 2026-10-03).
+    const store = nativeWithToken()
+    let token: string | null = null
+    vi.spyOn(api, 'getAuthToken').mockImplementation(() => token)
+    vi.spyOn(api, 'getHealth').mockResolvedValue({ auth_ready: true } as never)
+    const getMe = vi
+      .spyOn(api, 'getMe')
+      .mockImplementationOnce(async () => {
+        token = 'fresh-from-the-link' // arrives while this request is in flight
+        return null
+      })
+      .mockResolvedValueOnce(ME)
+
+    const auth = useAuthStore()
+    await auth.refresh()
+
+    expect(getMe, 're-asks with the current credential').toHaveBeenCalledTimes(2)
+    expect(store, 'the fresh token survives').not.toHaveBeenCalledWith(null)
+    expect(auth.user).toEqual(ME)
+  })
+
+  it('a token that lands while the health check is in flight is not wiped either (#2272)', async () => {
+    // The second window: `/me` came back 401 BEFORE the link's token landed, and the token arrived
+    // during the health check that decides whose fault the 401 is. The second emulator run.
+    const store = nativeWithToken()
+    let token: string | null = null
+    vi.spyOn(api, 'getAuthToken').mockImplementation(() => token)
+    vi.spyOn(api, 'getHealth').mockImplementation(async () => {
+      token = 'fresh-from-the-link' // arrives during the health check
+      return { auth_ready: true } as never
+    })
+    const getMe = vi.spyOn(api, 'getMe').mockResolvedValueOnce(null).mockResolvedValueOnce(ME)
+
+    const auth = useAuthStore()
+    await auth.refresh()
+
+    expect(getMe, 're-asks with the current credential').toHaveBeenCalledTimes(2)
+    expect(store, 'the fresh token survives').not.toHaveBeenCalledWith(null)
+    expect(auth.user).toEqual(ME)
+  })
+
+  it('a 401 about the token we STILL hold is still a dead credential', async () => {
+    const store = nativeWithToken()
+    vi.spyOn(api, 'getAuthToken').mockReturnValue('the-same-token')
+    vi.spyOn(api, 'getHealth').mockResolvedValue({ auth_ready: true } as never)
+    const getMe = vi.spyOn(api, 'getMe').mockResolvedValue(null)
+
+    await useAuthStore().refresh()
+
+    expect(getMe).toHaveBeenCalledTimes(1)
+    expect(store).toHaveBeenCalledWith(null)
+  })
+
   it('KEEPS the token when the server is the one at fault', async () => {
     // Signing everyone out over an outage is the 2026-09-16 incident in a different shape. The
     // token follows the same `serverAtFault` guard the cached content already had.

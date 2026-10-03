@@ -125,7 +125,29 @@ export const useAuthStore = defineStore('auth', {
      */
     async refresh(): Promise<void> {
       try {
+        // Which credential this answer is ABOUT. A sign-in link can arrive mid-boot: the app is
+        // launched by `closelistening://auth#token=…`, the boot `/me` has already left WITHOUT the
+        // token, and the link's token is stored while it is in flight. That stale request comes
+        // back 401 — about the OLD (absent) credential — and the branch below then signed the
+        // person out and erased the token that had just arrived. Measured on the Android emulator
+        // 2026-10-03: token stored 26.095, `/me` 200 at 26.607, `remove lp_native_token` 27.376,
+        // every call 401 after. A 401 says nothing about a token it was not sent with.
+        //
+        // TWO windows, not one. The 401 branch below also awaits `getHealth()` before it decides,
+        // and the first version of this guard checked only after `/me`: the boot 401 came back
+        // BEFORE the link's token landed, the health check was still in flight when it did, and
+        // the wipe ran anyway (token stored 12.662, removed 14.244, every request 200 in between —
+        // the second emulator run). So the health answer is fetched FIRST, and the credential is
+        // re-checked after every await, before anything is set or destroyed.
+        const tokenAtStart = getAuthToken()
         const me = await getMe()
+        let health: Awaited<ReturnType<typeof getHealth>> | null = null
+        if (me === null) {
+          if (getAuthToken() !== tokenAtStart) return await this.refresh()
+          health = await getHealth().catch(() => null)
+          // The credential changed while we asked. Ask again, with the one we have now.
+          if (getAuthToken() !== tokenAtStart) return await this.refresh()
+        }
         this.user = me
         this.stale = false
         syncAnalyticsIdentity(me)
@@ -165,7 +187,7 @@ export const useAuthStore = defineStore('auth', {
           // Three independent signals, any of which means "not the user's fault": the connectivity
           // layer already considers the server degraded, health says it cannot authenticate at all,
           // or the session-key fingerprint has CHANGED since we last saw it (a mass invalidation).
-          const health = await getHealth().catch(() => null)
+          // `health` was fetched above, BEFORE any state changed (see the two-window note).
           const keysRotated = noteAuthEpoch(health?.auth_epoch)
           const serverAtFault =
             offlineReason() === 'server' || health?.auth_ready === false || keysRotated

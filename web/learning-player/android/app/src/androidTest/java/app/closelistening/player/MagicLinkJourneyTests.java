@@ -14,7 +14,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.UiObject2;
-import androidx.test.uiautomator.Until;
 
 import org.junit.Assume;
 import org.junit.Test;
@@ -35,12 +34,12 @@ import java.util.List;
  * would split):
  *
  *   -e lp.magic.email test@closelistening.app   (M1, M2)
- *   -e lp.magic.link_b64 <base64 of the link>   (M2, M3)
+ *   -e lp.magic.link_b64 <base64 of the link>   (M2)
  *
  *   M1  signed-out app → "Email me a sign-in link" → address → "Check your email"
  *   M2  open link 1 → NEW account lands on Profile → sign out → request link 2
- *   M3  with the app STOPPED, open link 2 → it launches the app → RETURNING account is signed in,
- *       NOT on Profile and NOT on the landing
+ *   M3  is NOT here — see the note at the end of the class and android/scripts/magic-link-cold-launch.sh:
+ *       with the app STOPPED, link 2 launches it → RETURNING account signed in, on Home
  *
  * The link is opened the way Mail opens it: an ACTION_VIEW on the https/http URL, so the BROWSER
  * follows the verify redirect to `closelistening://auth#token=…` and Android hands that to the app
@@ -173,22 +172,8 @@ public class MagicLinkJourneyTests extends UITestCase {
         requestLink(email(), "M2");
     }
 
-    @Test
-    public void testM3ReturningAccountSignsInFromAStoppedApp() throws Exception {
-        Assume.assumeNotNull("pass -e lp.magic.link_b64", link());
-        // COLD: the link must be what LAUNCHES the app, the ordinary case of tapping "Sign in" in
-        // Mail with the app closed. `initNativeAuth` listened to `appUrlOpen` only, which does not
-        // fire for a launch-by-link, so this case dropped the token until 2026-10-03.
-        Journey.device().executeShellCommand("am force-stop " + Journey.PKG);
-        Journey.device().wait(Until.gone(By.pkg(Journey.PKG).depth(0)), 5_000);
-        openLink(link());
-        assertTrue("the returning account is not signed in :: " + Journey.labelledInventory(16),
-                AppSession.isSignedIn());
-        boolean onProfileNow = onProfile(3_000);
-        boolean stillOnLanding =
-                Journey.find(Arrays.asList("Create your free account"), false, 3_000) != null;
-        Journey.shot("M3-landed");
-        assertTrue("a RETURNING account must not be sent to Profile", !onProfileNow);
-        assertTrue("signed in, but still on the signed-out landing page", !stillOnLanding);
-    }
+    // NO M3 HERE, deliberately. M3 is "the link LAUNCHES the app", and instrumentation cannot reach
+    // it: the test runs inside the app's own process, so force-stopping the app killed the test
+    // itself (2026-10-03: `am instrument` printed nothing at all), and `am instrument` starts the
+    // app anyway. It is driven from the shell instead: `android/scripts/magic-link-cold-launch.sh`.
 }
