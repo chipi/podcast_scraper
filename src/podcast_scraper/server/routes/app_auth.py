@@ -180,7 +180,7 @@ def _safe_return_to(value: str | None) -> str | None:
 
 
 @router.get("/auth/login")
-async def app_auth_login(
+def app_auth_login(
     request: Request,
     as_: str | None = Query(default=None, alias="as", description="Mock identity hint (dev/e2e)."),
     grant: str | None = Query(
@@ -238,7 +238,7 @@ async def app_auth_login(
 
 
 @router.get("/auth/callback", name="app_auth_callback")
-async def app_auth_callback(
+def app_auth_callback(
     request: Request,
     code: str = Query(..., description="OAuth authorization code."),
     state: str = Query(..., description="CSRF state echoed by the provider."),
@@ -517,7 +517,7 @@ def _throttled(data_dir: Path | None, email: str, *, now: int) -> bool:
 
 
 @router.post("/auth/email/request", status_code=202)
-async def app_auth_magic_request(
+def app_auth_magic_request(
     body: MagicLinkRequest, request: Request, response: Response
 ) -> dict[str, bool]:
     """Send a sign-in link to ``email``. ALWAYS answers 202, whatever the address is.
@@ -608,7 +608,7 @@ def _iso_now(epoch: int) -> str:
 
 
 @router.get("/auth/email/verify", name="app_auth_magic_verify")
-async def app_auth_magic_verify(
+def app_auth_magic_verify(
     request: Request,
     token: str = Query(...),
     platform: str | None = Query(default=None),

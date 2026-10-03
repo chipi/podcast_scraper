@@ -31,7 +31,7 @@ def _safe_artwork_target_str(base: Path, relpath: str) -> str:
 
 
 @router.get("/corpus/binary")
-async def corpus_binary(
+def corpus_binary(
     request: Request,
     path: str | None = Query(
         default=None,

@@ -57,7 +57,7 @@ async def list_notifications(
 
 
 @router.post("/notifications/{notif_id}/read", response_model=MarkReadResponse)
-async def mark_read(
+def mark_read(
     notif_id: str, request: Request, user: User = Depends(get_current_user)
 ) -> MarkReadResponse:
     """Mark one notification read (idempotent). Returns the fresh unread count."""
@@ -67,9 +67,7 @@ async def mark_read(
 
 
 @router.post("/notifications/read-all", response_model=MarkReadResponse)
-async def mark_all_read(
-    request: Request, user: User = Depends(get_current_user)
-) -> MarkReadResponse:
+def mark_all_read(request: Request, user: User = Depends(get_current_user)) -> MarkReadResponse:
     """Mark every notification read. Returns the fresh unread count (0)."""
     data_dir = _data_dir(request)
     app_notifications_store.mark_all_read(data_dir, user.user_id)

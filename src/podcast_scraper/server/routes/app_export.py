@@ -62,7 +62,7 @@ def _write_entry(zf: zipfile.ZipFile, path: str, content: str) -> None:
         400: {"description": "Unsupported `format` (only `obsidian` is supported)."},
     },
 )
-async def export_vault(
+def export_vault(
     request: Request,
     format: str = Query(default="obsidian"),
     since: int = Query(default=0, ge=0, description="Last revision the client applied (0 = full)."),

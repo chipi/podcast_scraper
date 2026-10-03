@@ -37,9 +37,7 @@ def _data_dir(request: Request) -> Path:
 
 
 @router.get("/resurfacing", response_model=ResurfacingResponse)
-async def resurfacing(
-    request: Request, user: User = Depends(get_current_user)
-) -> ResurfacingResponse:
+def resurfacing(request: Request, user: User = Depends(get_current_user)) -> ResurfacingResponse:
     """Highlights due to resurface + a reflection prompt; honours pacing.
 
     Ordered by episode, most recently listened-or-captured first — NOT most-overdue-first,
@@ -97,7 +95,7 @@ async def resurfacing(
 
 
 @router.post("/resurfacing/{highlight_id}/surfaced", status_code=204)
-async def mark_surfaced(
+def mark_surfaced(
     request: Request, highlight_id: str, user: User = Depends(get_current_user)
 ) -> None:
     """Record that the user has just seen a resurfaced highlight (advances its ladder step).
@@ -136,7 +134,7 @@ def _owned_or_404(request: Request, user: User, highlight_id: str) -> Path:
 
 
 @router.post("/resurfacing/{highlight_id}/retire", status_code=204)
-async def retire_highlight(
+def retire_highlight(
     highlight_id: str, request: Request, user: User = Depends(get_current_user)
 ) -> None:
     """Stop resurfacing this highlight. It stays in Saved — this is NOT a delete.
@@ -155,7 +153,7 @@ async def retire_highlight(
 
 
 @router.delete("/resurfacing/{highlight_id}/retire", status_code=204)
-async def unretire_highlight(
+def unretire_highlight(
     highlight_id: str, request: Request, user: User = Depends(get_current_user)
 ) -> None:
     """Resume resurfacing a retired highlight — the undo for the route above.
@@ -174,9 +172,7 @@ async def unretire_highlight(
 
 
 @router.get("/resurfacing/settings", response_model=ResurfacingSettings)
-async def get_settings(
-    request: Request, user: User = Depends(get_current_user)
-) -> ResurfacingSettings:
+def get_settings(request: Request, user: User = Depends(get_current_user)) -> ResurfacingSettings:
     """Return the user's resurfacing pacing settings."""
     return ResurfacingSettings(
         **app_user_state.get_resurfacing_settings(_data_dir(request), user.user_id)
@@ -184,7 +180,7 @@ async def get_settings(
 
 
 @router.put("/resurfacing/settings", response_model=ResurfacingSettings)
-async def put_settings(
+def put_settings(
     request: Request, body: ResurfacingSettings, user: User = Depends(get_current_user)
 ) -> ResurfacingSettings:
     """Update pacing (pause/resume)."""
@@ -195,7 +191,7 @@ async def put_settings(
 
 
 @router.get("/interests/derived", response_model=DerivedInterestsResponse)
-async def derived_interests(
+def derived_interests(
     request: Request, user: User = Depends(get_current_user)
 ) -> DerivedInterestsResponse:
     """Implicit interests ranked by occurrence across the user's heard∪captured episodes."""

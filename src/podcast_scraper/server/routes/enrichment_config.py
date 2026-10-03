@@ -160,7 +160,7 @@ def _read_profile_block(profile: str | None) -> dict[str, Any]:
 
 
 @router.get("/enrichment/config", response_model=EnrichmentConfigGetResponse)
-async def get_enrichment_config(
+def get_enrichment_config(
     request: Request,
     path: str = Query(
         ..., description="Corpus root (authorizes request; must resolve under anchor)."
@@ -186,7 +186,7 @@ async def get_enrichment_config(
 
 
 @router.put("/enrichment/config", response_model=EnrichmentConfigGetResponse)
-async def put_enrichment_config(
+def put_enrichment_config(
     request: Request,
     body: EnrichmentConfigPutBody,
     path: str = Query(
@@ -218,7 +218,7 @@ async def put_enrichment_config(
     serialised = yaml.safe_dump(operator_yaml, sort_keys=False, default_flow_style=False)
     atomic_write_text(_viewer_operator_yaml_path(corpus_root), serialised)
     # Return the fresh resolved view (consistent with GET).
-    return await get_enrichment_config(request=request, path=path)
+    return get_enrichment_config(request=request, path=path)
 
 
 def _build_composed_schema() -> dict[str, Any]:
@@ -284,7 +284,7 @@ def _validate_against_composed_schema(block: dict[str, Any]) -> None:
 
 
 @router.get("/enrichment/config/schema")
-async def get_enrichment_config_schema() -> dict[str, Any]:
+def get_enrichment_config_schema() -> dict[str, Any]:
     """Full JSON Schema for the ``enrichment:`` block (data-driven UI).
 
     Composed from:
@@ -318,7 +318,7 @@ class EnrichmentAdmissionResponse(BaseModel):
 
 
 @router.get("/enrichment/config/admission", response_model=EnrichmentAdmissionResponse)
-async def get_enrichment_admission() -> EnrichmentAdmissionResponse:
+def get_enrichment_admission() -> EnrichmentAdmissionResponse:
     """Per-enricher accuracy-gate admission status (the UI leg of the cascade).
 
     Surfaces the ``data/eval`` → gate decision (promote/reject + reason) for
@@ -430,7 +430,7 @@ def _per_enricher_schema(manifest: Any) -> dict[str, Any]:
 
 
 @router.get("/enrichment/provider-types", response_model=ProviderTypesResponse)
-async def get_provider_types() -> ProviderTypesResponse:
+def get_provider_types() -> ProviderTypesResponse:
     """Catalogue of registered provider types grouped by protocol."""
     reg = get_global_registry()
     by_protocol: dict[str, list[ProviderTypeInfo]] = {}

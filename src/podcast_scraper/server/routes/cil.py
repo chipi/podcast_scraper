@@ -75,7 +75,7 @@ def _require_root_and_anchor(request: Request, path: str | None) -> tuple[str, s
 
 
 @router.get("/persons/{person_id}/positions", response_model=CilPositionArcResponse)
-async def person_positions(
+def person_positions(
     request: Request,
     person_id: str,
     topic: str = Query(..., description="Canonical topic id (e.g. topic:climate)."),
@@ -110,7 +110,7 @@ async def person_positions(
 
 
 @router.get("/persons/{person_id}/brief", response_model=CilPersonProfileResponse)
-async def person_profile(
+def person_profile(
     request: Request,
     person_id: str,
     path: str | None = Query(
@@ -147,7 +147,7 @@ async def person_profile(
 
 
 @router.post("/topics/timeline", response_model=CilTopicTimelineMergedResponse)
-async def topic_timeline_merge(
+def topic_timeline_merge(
     request: Request,
     body: CilTopicTimelineMergeRequest,
 ) -> CilTopicTimelineMergedResponse:
@@ -190,7 +190,7 @@ async def topic_timeline_merge(
 
 
 @router.get("/topics/{topic_id}/timeline", response_model=CilTopicTimelineResponse)
-async def topic_timeline(
+def topic_timeline(
     request: Request,
     topic_id: str,
     path: str | None = Query(
@@ -236,7 +236,7 @@ async def topic_timeline(
     "/topics/{topic_id}/conversation-arc",
     response_model=CilTopicConversationArcResponse,
 )
-async def topic_conversation_arc(
+def topic_conversation_arc(
     request: Request,
     topic_id: str,
     path: str | None = Query(
@@ -261,7 +261,7 @@ async def topic_conversation_arc(
 
 
 @router.get("/topics/perspective-leaders", response_model=CilTopicPerspectiveLeadersResponse)
-async def topic_perspective_leaders(
+def topic_perspective_leaders(
     request: Request,
     path: str | None = Query(
         default=None,
@@ -285,7 +285,7 @@ async def topic_perspective_leaders(
 
 
 @router.get("/topics/{topic_id}/perspectives", response_model=CilTopicPerspectivesResponse)
-async def topic_perspectives(
+def topic_perspectives(
     request: Request,
     topic_id: str,
     path: str | None = Query(
@@ -316,7 +316,7 @@ async def topic_perspectives(
 
 
 @router.get("/topics/{topic_id}/persons", response_model=CilIdListResponse)
-async def topic_persons(
+def topic_persons(
     request: Request,
     topic_id: str,
     path: str | None = Query(
@@ -336,7 +336,7 @@ async def topic_persons(
 
 
 @router.get("/persons/{person_id}/topics", response_model=CilIdListResponse)
-async def person_topics(
+def person_topics(
     request: Request,
     person_id: str,
     path: str | None = Query(

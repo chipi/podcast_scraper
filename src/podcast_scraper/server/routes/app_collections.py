@@ -204,7 +204,7 @@ def _resolve_item(item: dict, highlights_by_id: dict[str, dict]) -> CollectionIt
 
 
 @router.get("/collections", response_model=CollectionsResponse)
-async def list_collections(
+def list_collections(
     request: Request, user: User = Depends(get_current_user)
 ) -> CollectionsResponse:
     """The user's collections, newest-first, each with its item count.
@@ -228,7 +228,7 @@ async def list_collections(
 
 
 @router.get("/collections/containing", response_model=CollectionsContainingResponse)
-async def collections_containing(
+def collections_containing(
     request: Request,
     kind: str = Query(max_length=64, description="Item kind (episode | highlight | link | …)."),
     ref: str = Query(
@@ -264,7 +264,7 @@ async def collections_containing(
 
 
 @router.post("/collections", response_model=Collection, status_code=201)
-async def create_collection(
+def create_collection(
     request: Request,
     body: CollectionCreate,
     response: Response,
@@ -287,7 +287,7 @@ async def create_collection(
 
 
 @router.delete("/collections/{collection_id}", response_model=CollectionsResponse)
-async def delete_collection(
+def delete_collection(
     request: Request, collection_id: str, user: User = Depends(get_current_user)
 ) -> CollectionsResponse:
     """Delete a collection (its membership goes; the referenced things stay)."""
@@ -297,7 +297,7 @@ async def delete_collection(
 
 
 @router.patch("/collections/order", response_model=CollectionsResponse)
-async def reorder_collections(
+def reorder_collections(
     request: Request, body: CollectionReorder, user: User = Depends(get_current_user)
 ) -> CollectionsResponse:
     """Set the manual board order (CO.7).
@@ -315,7 +315,7 @@ async def reorder_collections(
 
 
 @router.get("/collections/{collection_id}", response_model=CollectionDetail)
-async def collection_detail(
+def collection_detail(
     request: Request, collection_id: str, user: User = Depends(get_current_user)
 ) -> CollectionDetail:
     """A collection + its resolved typed items (dangling highlights dropped)."""
@@ -331,7 +331,7 @@ async def collection_detail(
 
 
 @router.post("/collections/{collection_id}/items", response_model=Collection)
-async def add_item(
+def add_item(
     request: Request,
     collection_id: str,
     body: CollectionItemBody,
@@ -367,7 +367,7 @@ async def add_item(
 
 
 @router.delete("/collections/{collection_id}/items", response_model=Collection)
-async def remove_item(
+def remove_item(
     request: Request,
     collection_id: str,
     kind: str,

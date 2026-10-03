@@ -88,7 +88,7 @@ def _spawn_rebuild_thread(
     status_code=202,
     responses={409: {"description": "Rebuild already running for this corpus"}},
 )
-async def trigger_index_rebuild(
+def trigger_index_rebuild(
     request: Request,
     path: str | None = Query(
         default=None,
@@ -184,7 +184,7 @@ def _spawn_topic_clusters_thread(
         503: {"description": "LanceDB unavailable"},
     },
 )
-async def rebuild_topic_clusters(
+def rebuild_topic_clusters(
     request: Request,
     path: str | None = Query(
         default=None, description="Corpus output dir. Omit for server default."

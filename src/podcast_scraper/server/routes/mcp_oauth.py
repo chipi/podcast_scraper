@@ -209,7 +209,7 @@ def _consent_page(client: dict, redirect_uri: str, scope: str, hidden: str) -> s
 
 
 @router.get("/mcp/oauth/authorize", response_class=HTMLResponse)
-async def authorize_page(
+def authorize_page(
     request: Request,
     client_id: str,
     redirect_uri: str,
@@ -277,7 +277,7 @@ async def authorize_page(
 
 
 @router.post("/mcp/oauth/authorize")
-async def authorize_approve(
+def authorize_approve(
     request: Request,
     client_id: str = Form(...),
     redirect_uri: str = Form(...),
@@ -310,7 +310,7 @@ async def authorize_approve(
 
 
 @router.post("/mcp/oauth/token")
-async def token(
+def token(
     request: Request,
     grant_type: str = Form(...),
     client_id: str = Form(...),

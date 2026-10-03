@@ -123,7 +123,7 @@ async def org_card(
 
 
 @router.get("/organizations/{org_id}/logo")
-async def org_logo(request: Request, org_id: str) -> FileResponse:
+def org_logo(request: Request, org_id: str) -> FileResponse:
     """Serve the org's self-hosted logo (org_web enricher, #2035).
 
     Deliberately UNAUTHENTICATED, same reason as ``person_photo`` above and ``serve_avatar``
@@ -149,7 +149,7 @@ async def org_logo(request: Request, org_id: str) -> FileResponse:
 
 
 @router.get("/persons/{person_id}/photo")
-async def person_photo(request: Request, person_id: str) -> FileResponse:
+def person_photo(request: Request, person_id: str) -> FileResponse:
     """Serve the person's self-hosted photo (wave-G, person_web enricher).
 
     Deliberately UNAUTHENTICATED, for exactly the reason ``serve_avatar`` is (#2109, operator

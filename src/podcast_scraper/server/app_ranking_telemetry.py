@@ -15,8 +15,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 from pathlib import Path
 from typing import Any, Sequence
+
+#: The route handlers run in FastAPI's threadpool, so two requests can append at once: one lock per
+#: process keeps a batch's lines together (a multi-event batch is several writes).
+_APPEND_LOCK = threading.Lock()
 
 
 def _events_path(data_dir: Path, user_id: str) -> Path:
@@ -39,7 +44,7 @@ def assign_variant(user_id: str, variants: Sequence[str]) -> str:
 def _append(data_dir: Path, user_id: str, record: dict[str, Any]) -> None:
     path = _events_path(data_dir, user_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as fh:
+    with _APPEND_LOCK, path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 

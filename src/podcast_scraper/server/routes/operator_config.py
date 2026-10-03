@@ -120,7 +120,7 @@ def _operator_file(request: Request, corpus_root: Path) -> Path:
 
 
 @router.get("/operator-config", response_model=OperatorConfigGetResponse)
-async def get_operator_config(
+def get_operator_config(
     request: Request,
     path: str = Query(
         ..., description="Corpus root (authorizes request; must resolve under anchor)."
@@ -186,7 +186,7 @@ async def get_operator_config(
 
 
 @router.get("/operator-config/profiles", response_model=OperatorProfilesResponse)
-async def get_operator_profiles() -> OperatorProfilesResponse:
+def get_operator_profiles() -> OperatorProfilesResponse:
     """Packaged pipeline profiles + their YAML bodies (so the viewer's Profile
     tab can show *what each profile brings*). Profiles are packaged assets, not
     corpus-specific, so no ``path`` is required; the same allowlist as
@@ -198,7 +198,7 @@ async def get_operator_profiles() -> OperatorProfilesResponse:
 
 
 @router.put("/operator-config", response_model=OperatorConfigGetResponse)
-async def put_operator_config(
+def put_operator_config(
     request: Request,
     body: OperatorConfigPutBody,
     path: str = Query(

@@ -75,7 +75,7 @@ def _group(groups: dict[str, list[rq.RelatedNode]]) -> dict[str, list[RelatedNod
 
 
 @router.get("/relational/positions", response_model=RelationalListResponse)
-async def positions(
+def positions(
     request: Request,
     person: str = Query(min_length=1, description="Canonical person id, e.g. person:jane-doe."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -90,7 +90,7 @@ async def positions(
 
 
 @router.get("/relational/insights-about", response_model=RelationalListResponse)
-async def insights_about(
+def insights_about(
     request: Request,
     entity: str = Query(min_length=1, description="Canonical person/org id the insights mention."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -105,7 +105,7 @@ async def insights_about(
 
 
 @router.get("/relational/topic-entities", response_model=RelationalListResponse)
-async def topic_entities(
+def topic_entities(
     request: Request,
     topic: str = Query(min_length=1, description="Canonical topic id, e.g. topic:inflation."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -120,7 +120,7 @@ async def topic_entities(
 
 
 @router.get("/relational/entities-in", response_model=RelationalListResponse)
-async def entities_in(
+def entities_in(
     request: Request,
     insight: str = Query(min_length=1, description="Canonical insight id."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -134,7 +134,7 @@ async def entities_in(
 
 
 @router.get("/relational/episodes", response_model=RelationalListResponse)
-async def episodes(
+def episodes(
     request: Request,
     podcast: str = Query(min_length=1, description="Canonical podcast id, e.g. podcast:my-show."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -149,7 +149,7 @@ async def episodes(
 
 
 @router.get("/relational/related-insights", response_model=RelationalListResponse)
-async def related_insights(
+def related_insights(
     request: Request,
     insight: str = Query(min_length=1, description="Canonical insight id (the seed)."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -164,7 +164,7 @@ async def related_insights(
 
 
 @router.get("/relational/insight-detail", response_model=InsightDetailResponse)
-async def insight_detail(
+def insight_detail(
     request: Request,
     insight: str = Query(min_length=1, description="Canonical insight id."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -194,7 +194,7 @@ async def insight_detail(
 
 
 @router.get("/relational/episode-insights", response_model=RelationalListResponse)
-async def episode_insights(
+def episode_insights(
     request: Request,
     episode: str = Query(min_length=1, description="Episode id (bare or episode: node id)."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -209,7 +209,7 @@ async def episode_insights(
 
 
 @router.get("/relational/who-said", response_model=RelationalGroupedResponse)
-async def who_said(
+def who_said(
     request: Request,
     topic: str = Query(min_length=1, description="Canonical topic id, e.g. topic:inflation."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -223,7 +223,7 @@ async def who_said(
 
 
 @router.get("/relational/cross-show", response_model=RelationalGroupedResponse)
-async def cross_show(
+def cross_show(
     request: Request,
     topic: str = Query(min_length=1, description="Canonical topic id, e.g. topic:inflation."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -238,7 +238,7 @@ async def cross_show(
 
 
 @router.get("/relational/topics", response_model=RelationalListResponse)
-async def topics(
+def topics(
     request: Request,
     person: str = Query(min_length=1, description="Canonical person id, e.g. person:jane-doe."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -259,7 +259,7 @@ async def topics(
 
 
 @router.get("/relational/co-speakers", response_model=RelationalListResponse)
-async def co_speakers(
+def co_speakers(
     request: Request,
     person: str = Query(min_length=1, description="Canonical person id."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
@@ -275,7 +275,7 @@ async def co_speakers(
 
 
 @router.get("/relational/related-topics", response_model=RelationalListResponse)
-async def related_topics(
+def related_topics(
     request: Request,
     topic: str = Query(min_length=1, description="Canonical topic id, e.g. topic:inflation."),
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),

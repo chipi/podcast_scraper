@@ -72,7 +72,7 @@ def _filter_by_min_members(payload: dict, min_members: int) -> dict:
 
 
 @router.get("/corpus/storylines")
-async def corpus_storylines(
+def corpus_storylines(
     request: Request,
     path: str | None = Query(
         default=None,

@@ -290,7 +290,7 @@ def corpus_feeds(
 
 
 @router.get("/corpus/feed-signals", response_model=CorpusFeedSignalsResponse)
-async def corpus_feed_signals(
+def corpus_feed_signals(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
     feed_id: str = Query(min_length=1, description="Feed id to aggregate signals for."),

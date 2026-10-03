@@ -21,13 +21,13 @@ router = APIRouter(tags=["resilience"])
 
 
 @router.get("/resilience")
-async def resilience_status() -> dict:
+def resilience_status() -> dict:
     """What resilience is doing right now: open breakers, cooldowns, fuse budgets."""
     return resilience_snapshot()
 
 
 @router.post("/ops/resilience/reset")
-async def resilience_reset(
+def resilience_reset(
     scope: Optional[str] = Query(
         default="all",
         description="Which breakers to force-close: 'llm', 'rss', or 'all' (default).",

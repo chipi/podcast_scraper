@@ -65,9 +65,7 @@ def _library_items(rows: list[dict]) -> list[LibraryItem]:
 
 
 @router.get("/playback", response_model=PlaybackListResponse)
-async def list_playback(
-    request: Request, user: User = Depends(get_current_user)
-) -> PlaybackListResponse:
+def list_playback(request: Request, user: User = Depends(get_current_user)) -> PlaybackListResponse:
     """All saved playback positions, newest-updated first (Home 'Continue listening')."""
     rows = app_user_state.list_playback(_data_dir(request), user.user_id)
     return PlaybackListResponse(
@@ -84,7 +82,7 @@ async def list_playback(
 
 
 @router.get("/playback/{slug}", response_model=PlaybackPosition)
-async def get_playback(
+def get_playback(
     request: Request, slug: str, user: User = Depends(get_current_user)
 ) -> PlaybackPosition:
     """Return the saved playback position for an episode (0 when none)."""
@@ -98,7 +96,7 @@ async def get_playback(
 
 
 @router.put("/playback/{slug}", response_model=PlaybackPosition)
-async def put_playback(
+def put_playback(
     request: Request, slug: str, body: PlaybackUpdate, user: User = Depends(get_current_user)
 ) -> PlaybackPosition:
     """Save the playback position for an episode."""
@@ -120,7 +118,7 @@ async def put_playback(
 
 
 @router.post("/listen/{slug}", status_code=204)
-async def log_listen(
+def log_listen(
     request: Request,
     slug: str,
     body: ListenEventBody | None = None,
@@ -159,7 +157,7 @@ async def log_listen(
 
 
 @router.post("/playback-progress/{slug}", status_code=204)
-async def log_playback_progress(
+def log_playback_progress(
     request: Request,
     slug: str,
     body: PlaybackProgressBody,
@@ -190,7 +188,7 @@ async def log_playback_progress(
 
 
 @router.get("/me/stats", response_model=UserStatsResponse)
-async def my_stats(request: Request, user: User = Depends(get_current_user)) -> UserStatsResponse:
+def my_stats(request: Request, user: User = Depends(get_current_user)) -> UserStatsResponse:
     """The signed-in user's own listening analytics (Profile panel)."""
     return UserStatsResponse(**app_stats.compute_user_stats(_data_dir(request), user.user_id))
 
@@ -204,7 +202,7 @@ def _corpus_root_opt(request: Request) -> Path | None:
 
 
 @router.get("/me/recap", response_model=RecapResponse)
-async def my_recap(
+def my_recap(
     request: Request,
     window: Literal["week", "month", "year", "ytd"] = "week",
     tz_offset_minutes: int = 0,
@@ -236,13 +234,13 @@ async def my_recap(
 
 
 @router.get("/queue", response_model=QueueResponse)
-async def get_queue(request: Request, user: User = Depends(get_current_user)) -> QueueResponse:
+def get_queue(request: Request, user: User = Depends(get_current_user)) -> QueueResponse:
     """Return the user's play queue."""
     return QueueResponse(items=app_user_state.get_queue(_data_dir(request), user.user_id))
 
 
 @router.put("/queue", response_model=QueueResponse)
-async def put_queue(
+def put_queue(
     request: Request, body: QueueUpdate, user: User = Depends(get_current_user)
 ) -> QueueResponse:
     """Replace the user's play queue (ordered slugs)."""
@@ -252,7 +250,7 @@ async def put_queue(
 
 
 @router.post("/queue/items", response_model=QueueResponse)
-async def add_queue_item(
+def add_queue_item(
     request: Request, body: QueueItemAdd, user: User = Depends(get_current_user)
 ) -> QueueResponse:
     """Queue one episode (optionally right after another) — the replay-safe half of the queue API.
@@ -268,7 +266,7 @@ async def add_queue_item(
 
 
 @router.delete("/queue/items/{slug}", response_model=QueueResponse)
-async def remove_queue_item(
+def remove_queue_item(
     request: Request, slug: str, user: User = Depends(get_current_user)
 ) -> QueueResponse:
     """Remove one episode from the queue. Idempotent: removing what is not there is a no-op."""
@@ -278,15 +276,13 @@ async def remove_queue_item(
 
 
 @router.get("/completed", response_model=CompletedResponse)
-async def get_completed(
-    request: Request, user: User = Depends(get_current_user)
-) -> CompletedResponse:
+def get_completed(request: Request, user: User = Depends(get_current_user)) -> CompletedResponse:
     """Return the slugs the user has marked played."""
     return CompletedResponse(slugs=app_user_state.get_completed(_data_dir(request), user.user_id))
 
 
 @router.put("/completed/{slug}", response_model=CompletedResponse)
-async def mark_completed(
+def mark_completed(
     request: Request, slug: str, user: User = Depends(get_current_user)
 ) -> CompletedResponse:
     """Mark one episode played. Idempotent (a set); offline-replay-safe."""
@@ -296,7 +292,7 @@ async def mark_completed(
 
 
 @router.delete("/completed/{slug}", response_model=CompletedResponse)
-async def unmark_completed(
+def unmark_completed(
     request: Request, slug: str, user: User = Depends(get_current_user)
 ) -> CompletedResponse:
     """Clear the played mark for one episode. Idempotent: clearing what is not set is a no-op."""
@@ -306,15 +302,13 @@ async def unmark_completed(
 
 
 @router.get("/interests", response_model=InterestsResponse)
-async def get_interests(
-    request: Request, user: User = Depends(get_current_user)
-) -> InterestsResponse:
+def get_interests(request: Request, user: User = Depends(get_current_user)) -> InterestsResponse:
     """Return the user's saved interest cluster ids (personalized discovery)."""
     return InterestsResponse(items=app_user_state.get_interests(_data_dir(request), user.user_id))
 
 
 @router.put("/interests", response_model=InterestsResponse)
-async def put_interests(
+def put_interests(
     request: Request, body: InterestsUpdate, user: User = Depends(get_current_user)
 ) -> InterestsResponse:
     """Replace the user's interest cluster ids."""
@@ -324,7 +318,7 @@ async def put_interests(
 
 
 @router.post("/interests/{token}", response_model=InterestsResponse)
-async def add_interest(
+def add_interest(
     request: Request, token: str, user: User = Depends(get_current_user)
 ) -> InterestsResponse:
     """Follow one interest token — a cluster (``tc:``), topic (``topic:``), storyline (``thc:``) or
@@ -340,7 +334,7 @@ async def add_interest(
 
 
 @router.delete("/interests/{token}", response_model=InterestsResponse)
-async def delete_interest(
+def delete_interest(
     request: Request, token: str, user: User = Depends(get_current_user)
 ) -> InterestsResponse:
     """Unfollow one interest token (no-op if absent)."""
@@ -355,15 +349,13 @@ def _favorites(request: Request, user: User) -> AppFavoritesResponse:
 
 
 @router.get("/favorites", response_model=AppFavoritesResponse)
-async def get_favorites(
-    request: Request, user: User = Depends(get_current_user)
-) -> AppFavoritesResponse:
+def get_favorites(request: Request, user: User = Depends(get_current_user)) -> AppFavoritesResponse:
     """The user's saved items, grouped by kind (episodes hydrated, insights from snapshot)."""
     return _favorites(request, user)
 
 
 @router.put("/favorites", response_model=AppFavoritesResponse)
-async def put_favorite(
+def put_favorite(
     request: Request, body: FavoriteAdd, user: User = Depends(get_current_user)
 ) -> AppFavoritesResponse:
     """Save an item (idempotent on kind+ref); returns the updated favorites."""
@@ -378,7 +370,7 @@ async def put_favorite(
 
 
 @router.delete("/favorites/{kind}/{ref}", response_model=AppFavoritesResponse)
-async def delete_favorite(
+def delete_favorite(
     request: Request, kind: str, ref: str, user: User = Depends(get_current_user)
 ) -> AppFavoritesResponse:
     """Remove a saved item by kind+ref (ref is URL-encoded by the client)."""
@@ -387,7 +379,7 @@ async def delete_favorite(
 
 
 @router.patch("/favorites/{kind}/{ref}", response_model=AppFavoritesResponse)
-async def patch_favorite_color(
+def patch_favorite_color(
     request: Request,
     kind: str,
     ref: str,
@@ -408,7 +400,7 @@ async def patch_favorite_color(
 
 
 @router.get("/library", response_model=LibraryResponse)
-async def get_library(request: Request, user: User = Depends(get_current_user)) -> LibraryResponse:
+def get_library(request: Request, user: User = Depends(get_current_user)) -> LibraryResponse:
     """Return the user's subscribed podcasts."""
     return LibraryResponse(
         items=_library_items(app_user_state.get_library(_data_dir(request), user.user_id))
@@ -416,7 +408,7 @@ async def get_library(request: Request, user: User = Depends(get_current_user)) 
 
 
 @router.post("/library", response_model=LibraryResponse)
-async def add_library(
+def add_library(
     request: Request, body: LibraryAdd, user: User = Depends(get_current_user)
 ) -> LibraryResponse:
     """Subscribe to a podcast (idempotent on feed_id)."""
@@ -431,7 +423,7 @@ async def add_library(
 
 
 @router.delete("/library/{feed_id}", response_model=LibraryResponse)
-async def remove_library(
+def remove_library(
     request: Request, feed_id: str, user: User = Depends(get_current_user)
 ) -> LibraryResponse:
     """Unsubscribe from a podcast (no-op if absent)."""

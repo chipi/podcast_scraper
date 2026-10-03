@@ -70,7 +70,7 @@ def _document_feeds_to_api_list(doc: FeedsSpecDocument) -> List[Union[str, dict[
 
 
 @router.get("/feeds", response_model=FeedsListResponse)
-async def get_feeds(
+def get_feeds(
     request: Request,
     path: str = Query(..., description="Corpus root directory (resolved under server anchor)."),
 ) -> FeedsListResponse:
@@ -102,7 +102,7 @@ async def get_feeds(
 
 
 @router.put("/feeds", response_model=FeedsListResponse)
-async def put_feeds(
+def put_feeds(
     request: Request,
     body: FeedsPutBody,
     path: str = Query(..., description="Corpus root directory (resolved under server anchor)."),

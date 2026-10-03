@@ -252,7 +252,7 @@ def get_ranking_config(request: Request, _admin: User = Depends(get_admin_user))
 
 
 @router.put("/ranking-config")
-async def put_ranking_config(
+def put_ranking_config(
     request: Request,
     body: dict[str, Any] = Body(...),
     _admin: User = Depends(get_admin_user),
@@ -268,7 +268,7 @@ async def put_ranking_config(
 
 
 @router.post("/discover/click", status_code=204)
-async def discover_click(
+def discover_click(
     request: Request,
     body: AppDiscoverClickBody,
     user: User = Depends(get_current_user),

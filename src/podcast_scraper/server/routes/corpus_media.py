@@ -70,7 +70,7 @@ def _safe_media_target_str(base: Path, relpath: str) -> str:
 
 
 @router.get("/corpus/media")
-async def corpus_media(
+def corpus_media(
     request: Request,
     path: str | None = Query(
         default=None,

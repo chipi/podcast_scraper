@@ -267,7 +267,7 @@ def _rollback(
 
 
 @router.delete("/corpus/runs/{run_id}", responses={404: {}, 409: {}, 400: {}})
-async def delete_corpus_run(
+def delete_corpus_run(
     request: Request,
     run_id: str,
     path: str | None = Query(default=None, description="Corpus root. Omit for server default."),
@@ -293,7 +293,7 @@ async def delete_corpus_run(
 
 
 @router.delete("/corpus/episodes/{episode_id}", responses={404: {}, 409: {}, 400: {}})
-async def delete_corpus_episode(
+def delete_corpus_episode(
     request: Request,
     episode_id: str,
     path: str | None = Query(default=None, description="Corpus root. Omit for server default."),

@@ -137,7 +137,7 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
 
 
 @router.get("/corpus/text-file")
-async def corpus_text_file(
+def corpus_text_file(
     request: Request,
     path: str | None = Query(
         default=None,

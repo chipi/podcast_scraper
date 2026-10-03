@@ -28,7 +28,7 @@ def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None
 
 
 @router.get("/corpus/topic-clusters")
-async def corpus_topic_clusters(
+def corpus_topic_clusters(
     request: Request,
     path: str | None = Query(
         default=None,

@@ -30,7 +30,7 @@ def _corpus_root(request: Request) -> Path:
 
 
 @router.get("/artwork")
-async def app_artwork(
+def app_artwork(
     request: Request,
     ref: str = Query(..., description="Corpus-relative artwork path (under the corpus-art store)."),
     size: str = Query(

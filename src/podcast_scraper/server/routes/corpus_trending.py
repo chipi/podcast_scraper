@@ -22,7 +22,7 @@ _KINDS = ("topic", "cluster", "storyline", "person", "episode", "show", "insight
 
 
 @router.get("/corpus/trending", response_model=AppCorpusTrendingResponse)
-async def corpus_trending(
+def corpus_trending(
     request: Request,
     limit_per_kind: int = Query(default=8, ge=1, le=50, description="Top entities per kind."),
 ) -> AppCorpusTrendingResponse:

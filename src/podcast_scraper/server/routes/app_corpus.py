@@ -50,7 +50,7 @@ def _top_entities(root: Path, data_dir: Path, user_id: str) -> list[DerivedInter
 
 
 @router.get("/corpus", response_model=CorpusSummary)
-async def corpus_summary(request: Request, user: User = Depends(get_current_user)) -> CorpusSummary:
+def corpus_summary(request: Request, user: User = Depends(get_current_user)) -> CorpusSummary:
     """Faceted membership counts + current revision + top entities."""
     root = corpus_root_or_503(request)
     data_dir = _data_dir(request)
@@ -66,7 +66,7 @@ async def corpus_summary(request: Request, user: User = Depends(get_current_user
 
 
 @router.get("/corpus/episodes", response_model=CorpusFacetEpisodesResponse)
-async def corpus_episodes(
+def corpus_episodes(
     request: Request,
     facet: str = Query(default="experienced", pattern="^(experienced|saved)$"),
     user: User = Depends(get_current_user),
@@ -83,7 +83,7 @@ async def corpus_episodes(
 
 
 @router.get("/corpus/changes", response_model=CorpusChangesResponse)
-async def corpus_changes(
+def corpus_changes(
     request: Request,
     since: int = Query(default=0, ge=0),
     user: User = Depends(get_current_user),
@@ -95,7 +95,7 @@ async def corpus_changes(
 
 
 @router.get("/corpus/ranked", response_model=CorpusRankedResponse)
-async def corpus_ranked(
+def corpus_ranked(
     request: Request,
     limit: int = Query(default=50, ge=1, le=500),
     user: User = Depends(get_current_user),

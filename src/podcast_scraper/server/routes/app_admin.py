@@ -92,15 +92,13 @@ def _out(user: User) -> UserOut:
 
 
 @router.get("/admin/users", response_model=list[UserOut])
-async def admin_list_users(
-    request: Request, admin: User = Depends(get_admin_user)
-) -> list[UserOut]:
+def admin_list_users(request: Request, admin: User = Depends(get_admin_user)) -> list[UserOut]:
     """List every platform user (admin-only)."""
     return [_out(u) for u in list_users(_data_dir(request))]
 
 
 @router.post("/admin/users", response_model=UserOut, status_code=201)
-async def admin_create_user(
+def admin_create_user(
     body: CreateUserBody, request: Request, admin: User = Depends(get_admin_user)
 ) -> UserOut:
     """Pre-provision a user with a role. 409 if that identity already exists, 422 on a bad role."""
@@ -124,7 +122,7 @@ async def admin_create_user(
 
 
 @router.patch("/admin/users/{user_id}", response_model=UserOut)
-async def admin_patch_user(
+def admin_patch_user(
     user_id: str,
     body: PatchUserBody,
     request: Request,
@@ -181,7 +179,7 @@ async def admin_patch_user(
 
 
 @router.delete("/admin/users/{user_id}", status_code=204)
-async def admin_delete_user(
+def admin_delete_user(
     user_id: str, request: Request, admin: User = Depends(get_admin_user)
 ) -> None:
     """Hard-delete a user (admin-only). An admin cannot delete their own account."""
@@ -229,7 +227,7 @@ def _policy_out(policy: AccessPolicy | None, *, persisted: bool) -> AccessPolicy
 
 
 @router.get("/admin/access-policy", response_model=AccessPolicyOut)
-async def admin_get_access_policy(
+def admin_get_access_policy(
     request: Request, admin: User = Depends(get_admin_user)
 ) -> AccessPolicyOut:
     """Who may sign in — the persisted policy when there is one, else the startup env policy."""
@@ -241,7 +239,7 @@ async def admin_get_access_policy(
 
 
 @router.put("/admin/access-policy", response_model=AccessPolicyOut)
-async def admin_put_access_policy(
+def admin_put_access_policy(
     body: AccessPolicyBody, request: Request, admin: User = Depends(get_admin_user)
 ) -> AccessPolicyOut:
     """Replace the sign-in access policy. Takes effect on the NEXT sign-in — no redeploy.

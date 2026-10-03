@@ -183,7 +183,7 @@ def corpus_stats(
 
 
 @router.get("/corpus/documents/manifest")
-async def corpus_manifest_document(
+def corpus_manifest_document(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
 ) -> JSONResponse:
@@ -214,7 +214,7 @@ async def corpus_manifest_document(
 
 
 @router.get("/corpus/documents/run-summary")
-async def corpus_run_summary_document(
+def corpus_run_summary_document(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
 ) -> JSONResponse:

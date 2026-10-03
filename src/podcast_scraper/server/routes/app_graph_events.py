@@ -25,7 +25,7 @@ _MAX_BATCH = 500
 
 
 @router.post("/graph-events", status_code=204)
-async def graph_events(
+def graph_events(
     request: Request,
     body: AppGraphEventsBody,
     user: User = Depends(get_current_user),
@@ -43,7 +43,7 @@ async def graph_events(
 
 
 @router.get("/graph-events/summary")
-async def graph_events_summary(
+def graph_events_summary(
     request: Request, _admin: User = Depends(get_admin_user)
 ) -> dict[str, Any]:
     """Aggregate graph analytics across all users (admin only) — usage / size / breakage."""
@@ -67,7 +67,7 @@ def _all_events(request: Request) -> list[dict[str, Any]]:
 
 
 @router.get("/graph-events/sessions")
-async def graph_events_sessions(
+def graph_events_sessions(
     request: Request, _admin: User = Depends(get_admin_user)
 ) -> dict[str, Any]:
     """List analytics sessions (admin only), most-recent first — one row per session to inspect."""
@@ -75,7 +75,7 @@ async def graph_events_sessions(
 
 
 @router.get("/graph-events/session/{session_id}")
-async def graph_events_session(
+def graph_events_session(
     request: Request, session_id: str, _admin: User = Depends(get_admin_user)
 ) -> dict[str, Any]:
     """One session's ordered event timeline (admin only) — the step-by-step view + replay source."""

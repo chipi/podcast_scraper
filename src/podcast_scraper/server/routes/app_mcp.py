@@ -46,7 +46,7 @@ def require_mcp_access(user: User = Depends(get_current_user)) -> User:
 
 
 @router.get("/mcp/config", response_model=McpConnectionConfig)
-async def connection_config(user: User = Depends(require_mcp_access)) -> McpConnectionConfig:
+def connection_config(user: User = Depends(require_mcp_access)) -> McpConnectionConfig:
     """The connector wiring the 'Connected agents' UI shows — connector URL + OAuth status.
 
     Values come from deploy-time env: ``APP_MCP_RESOURCE_URL`` (the public MCP server ORIGIN) and
@@ -65,16 +65,14 @@ async def connection_config(user: User = Depends(require_mcp_access)) -> McpConn
 
 
 @router.get("/mcp/tokens", response_model=McpTokensResponse)
-async def list_tokens(
-    request: Request, user: User = Depends(require_mcp_access)
-) -> McpTokensResponse:
+def list_tokens(request: Request, user: User = Depends(require_mcp_access)) -> McpTokensResponse:
     """The user's MCP tokens (metadata only — the secret is never returned after creation)."""
     rows = app_mcp_tokens.list_tokens(_data_dir(request), user.user_id)
     return McpTokensResponse(items=[McpTokenMeta(**r) for r in rows])
 
 
 @router.post("/mcp/tokens", response_model=McpTokenCreated, status_code=201)
-async def create_token(
+def create_token(
     request: Request, body: McpTokenCreate, user: User = Depends(require_mcp_access)
 ) -> McpTokenCreated:
     """Mint a token; the plaintext is returned ONCE here and never again."""
@@ -86,7 +84,7 @@ async def create_token(
 
 
 @router.delete("/mcp/tokens/{token_id}", response_model=McpTokensResponse)
-async def revoke_token(
+def revoke_token(
     request: Request, token_id: str, user: User = Depends(require_mcp_access)
 ) -> McpTokensResponse:
     """Revoke a token by id; returns the remaining tokens."""
@@ -97,7 +95,7 @@ async def revoke_token(
 
 
 @router.get("/mcp/connections", response_model=McpConnectionsResponse)
-async def list_connections(
+def list_connections(
     request: Request, user: User = Depends(require_mcp_access)
 ) -> McpConnectionsResponse:
     """The OAuth agents (claude.ai etc.) the user has connected — for the 'Connected agents' UI."""
@@ -106,7 +104,7 @@ async def list_connections(
 
 
 @router.delete("/mcp/connections/{client_id}", response_model=McpConnectionsResponse)
-async def revoke_connection(
+def revoke_connection(
     request: Request, client_id: str, user: User = Depends(require_mcp_access)
 ) -> McpConnectionsResponse:
     """Disconnect an OAuth agent: forget the consent AND drop its live access/refresh tokens.

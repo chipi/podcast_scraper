@@ -26,7 +26,7 @@ def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None
 
 
 @router.get("/corpus/query-activity", response_model=QueryActivityResponse)
-async def query_activity(
+def query_activity(
     request: Request,
     path: str | None = Query(default=None, description="Corpus output dir; omit for default."),
     days: int = Query(default=30, ge=1, le=365),

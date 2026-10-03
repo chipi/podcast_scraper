@@ -45,7 +45,7 @@ def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None
 
 
 @router.get("/index/stats", response_model=IndexStatsEnvelope)
-async def index_stats(
+def index_stats(
     request: Request,
     path: str | None = Query(
         default=None,
@@ -138,7 +138,7 @@ async def index_stats(
 
 
 @router.get("/index/timeseries", response_model=IndexTimeseriesResponse)
-async def index_timeseries(
+def index_timeseries(
     request: Request,
     path: str | None = Query(
         default=None,

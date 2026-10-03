@@ -38,7 +38,7 @@ def get_user_preferences(
 
 
 @router.put("/preferences", response_model=UserPreferencesResponse)
-async def replace_user_preferences(
+def replace_user_preferences(
     request: Request, body: UserPreferencesPatch, user: User = Depends(get_current_user)
 ) -> UserPreferencesResponse:
     """Replace the ENTIRE preferences payload with the request body.
@@ -57,7 +57,7 @@ async def replace_user_preferences(
 
 
 @router.patch("/preferences", response_model=UserPreferencesResponse)
-async def patch_user_preferences(
+def patch_user_preferences(
     request: Request, body: UserPreferencesPatch, user: User = Depends(get_current_user)
 ) -> UserPreferencesResponse:
     """Shallow-merge the request body into the stored payload.

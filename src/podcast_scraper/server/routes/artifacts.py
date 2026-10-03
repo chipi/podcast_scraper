@@ -58,7 +58,7 @@ def _kind_for_suffix(name: str) -> Literal["gi", "kg", "bridge"] | None:
 
 
 @router.get("/artifacts", response_model=ArtifactListResponse)
-async def list_artifacts(
+def list_artifacts(
     request: Request,
     path: str = Query(..., description="Corpus output directory to scan."),
 ) -> ArtifactListResponse:
@@ -104,7 +104,7 @@ async def list_artifacts(
 
 
 @router.get("/artifacts/{artifact_path:path}")
-async def get_artifact(
+def get_artifact(
     request: Request,
     artifact_path: str,
     path: str = Query(..., description="Corpus output directory (root for relative path)."),

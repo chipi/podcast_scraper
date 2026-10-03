@@ -97,9 +97,7 @@ def _enrich_items(catalog: list[CatalogEpisodeRow], sections: list[dict[str, Any
 
 
 @router.get("/your-week", response_model=YourWeekResponse)
-async def get_your_week(
-    request: Request, user: User = Depends(get_current_user)
-) -> YourWeekResponse:
+def get_your_week(request: Request, user: User = Depends(get_current_user)) -> YourWeekResponse:
     """The signed-in user's current Your Week rollup (empty ``sections`` when nothing is due yet).
 
     Consent-decoupled: always visible in-app regardless of the email digest toggle.

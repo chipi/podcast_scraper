@@ -53,14 +53,14 @@ def _to_settings(stored: dict, *, email_verified: bool) -> CommsSettings:
 
 
 @router.get("/comms", response_model=CommsSettings)
-async def get_comms(request: Request, user: User = Depends(get_current_user)) -> CommsSettings:
+def get_comms(request: Request, user: User = Depends(get_current_user)) -> CommsSettings:
     """The user's delivery consent + cadence (defaults, off, when never set)."""
     stored = app_comms_store.get_comms(_data_dir(request), user.user_id)
     return _to_settings(stored, email_verified=_email_verified(user))
 
 
 @router.put("/comms", response_model=CommsSettings)
-async def put_comms(
+def put_comms(
     request: Request, body: CommsUpdate, user: User = Depends(get_current_user)
 ) -> CommsSettings:
     """Update the matrix and/or schedule the client sends; mints the unsubscribe ref on first save.
@@ -88,7 +88,7 @@ _UNSUB_LABELS = {
 
 
 @router.get("/comms/unsubscribe", response_class=HTMLResponse)
-async def unsubscribe_page(
+def unsubscribe_page(
     ref: str = Query(..., min_length=1),
     ntype: str = Query("digest", alias="type"),
 ) -> HTMLResponse:
@@ -121,7 +121,7 @@ async def unsubscribe_page(
 
 
 @router.post("/comms/unsubscribe")
-async def unsubscribe(
+def unsubscribe(
     request: Request,
     ref: str = Query(..., min_length=1),
     ntype: str = Query("digest", alias="type"),
@@ -150,7 +150,7 @@ async def vapid_key(request: Request, user: User = Depends(get_current_user)) ->
 
 
 @router.post("/push/subscribe", response_model=PushSubscriptionsResponse)
-async def subscribe_push(
+def subscribe_push(
     request: Request, body: PushSubscription, user: User = Depends(get_current_user)
 ) -> PushSubscriptionsResponse:
     """Register a browser push subscription (the endpoint the worker delivers to).
@@ -167,7 +167,7 @@ async def subscribe_push(
 
 
 @router.delete("/push/subscribe", response_model=PushSubscriptionsResponse)
-async def unsubscribe_push(
+def unsubscribe_push(
     request: Request, body: PushUnsubscribeBody, user: User = Depends(get_current_user)
 ) -> PushSubscriptionsResponse:
     """Remove a subscription; when the last is gone, disable push everywhere (unreachable)."""

@@ -139,7 +139,7 @@ def _reanchored(root: Path, rows: list[dict]) -> list[dict]:
 
 
 @router.get("/highlights", response_model=HighlightsResponse)
-async def list_highlights(
+def list_highlights(
     request: Request, episode: str | None = None, user: User = Depends(get_current_user)
 ) -> HighlightsResponse:
     """The user's highlights, optionally scoped to one episode (``?episode=<slug>``).
@@ -166,7 +166,7 @@ async def list_highlights(
 
 
 @router.post("/highlights", response_model=Highlight, status_code=201)
-async def create_highlight(
+def create_highlight(
     request: Request,
     body: HighlightCreate,
     response: Response,
@@ -200,7 +200,7 @@ async def create_highlight(
 
 
 @router.patch("/highlights/{highlight_id}", response_model=Highlight)
-async def patch_highlight(
+def patch_highlight(
     request: Request,
     highlight_id: str,
     body: HighlightUpdate,
@@ -221,7 +221,7 @@ async def patch_highlight(
 
 
 @router.delete("/highlights/{highlight_id}", response_model=HighlightsResponse)
-async def delete_highlight(
+def delete_highlight(
     request: Request, highlight_id: str, user: User = Depends(get_current_user)
 ) -> HighlightsResponse:
     """Remove a highlight by id (no-op if absent), WITH its notes; returns the remaining list.
@@ -249,7 +249,7 @@ async def delete_highlight(
 
 
 @router.get("/notes", response_model=NotesResponse)
-async def list_notes(
+def list_notes(
     request: Request,
     target: str | None = None,
     target_id: str | None = None,
@@ -261,7 +261,7 @@ async def list_notes(
 
 
 @router.post("/notes", response_model=Note, status_code=201)
-async def create_note(
+def create_note(
     request: Request,
     body: NoteCreate,
     response: Response,
@@ -281,7 +281,7 @@ async def create_note(
 
 
 @router.patch("/notes/{note_id}", response_model=Note)
-async def patch_note(
+def patch_note(
     request: Request, note_id: str, body: NoteUpdate, user: User = Depends(get_current_user)
 ) -> Note:
     """Edit a note's text (404 if it does not exist)."""
@@ -294,7 +294,7 @@ async def patch_note(
 
 
 @router.delete("/notes/{note_id}", response_model=NotesResponse)
-async def delete_note(
+def delete_note(
     request: Request, note_id: str, user: User = Depends(get_current_user)
 ) -> NotesResponse:
     """Remove a note by id (no-op if absent); returns the remaining list."""
@@ -354,7 +354,7 @@ class MarkdownResponse(PlainTextResponse):
         200: {"description": "All of the user's highlights, grouped by episode, as Markdown."}
     },
 )
-async def export_highlights_markdown(
+def export_highlights_markdown(
     request: Request,
     user: User = Depends(get_current_user),
     color: str | None = Query(
@@ -555,7 +555,7 @@ class HtmlResponse(HTMLResponse):
     response_class=HtmlResponse,
     responses={200: {"description": "The same export, styled for printing to PDF."}},
 )
-async def export_highlights_html(
+def export_highlights_html(
     request: Request,
     user: User = Depends(get_current_user),
     color: str | None = Query(default=None, description="Same colour filter as export.md."),

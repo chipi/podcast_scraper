@@ -14,8 +14,13 @@ them fire-and-forget; aggregation reads the whole log offline. Each event carrie
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 from typing import Any, Sequence
+
+#: The route handlers run in FastAPI's threadpool, so two requests can append at once: one lock per
+#: process keeps a batch's lines together (a multi-event batch is several writes).
+_APPEND_LOCK = threading.Lock()
 
 
 def _events_path(data_dir: Path, user_id: str) -> Path:
@@ -33,7 +38,7 @@ def record_events(data_dir: Path, user_id: str, events: Sequence[Any]) -> int:
         return 0
     path = _events_path(data_dir, user_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as fh:
+    with _APPEND_LOCK, path.open("a", encoding="utf-8") as fh:
         for ev in valid:
             fh.write(json.dumps(ev, ensure_ascii=False) + "\n")
     return len(valid)

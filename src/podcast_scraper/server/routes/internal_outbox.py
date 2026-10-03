@@ -48,7 +48,7 @@ def require_internal_token(
     response_model=OutboxPendingResponse,
     dependencies=[Depends(require_internal_token)],
 )
-async def pending(
+def pending(
     request: Request,
     channel: str = Query(..., pattern="^(email|push)$"),
     limit: int = Query(default=50, ge=1, le=500),
@@ -63,7 +63,7 @@ async def pending(
     response_model=OutboxStatusResponse,
     dependencies=[Depends(require_internal_token)],
 )
-async def report_status(
+def report_status(
     request: Request, envelope_id: str, body: OutboxStatusBody
 ) -> OutboxStatusResponse:
     """Record a terminal status (idempotent per id); suppresses the channel on bounce/complaint."""

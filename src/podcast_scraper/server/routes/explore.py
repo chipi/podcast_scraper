@@ -32,7 +32,7 @@ def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None
 
 
 @router.get("/explore", response_model=ExploreApiResponse)
-async def explore_corpus(
+def explore_corpus(
     request: Request,
     path: str | None = Query(
         default=None,
