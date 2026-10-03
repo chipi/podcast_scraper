@@ -3112,12 +3112,20 @@ ios-contact-sheet: ios-app-install
 			TEST_RUNNER_LP_FORCE_IDENTITY=$(IOS_SEED_IDENTITY) \
 			2>&1 | grep -E '=====|Test Case.*(passed|failed)|error:|XCTAssert|TEST (SUCCEEDED|FAILED)' || true
 	@echo "--> touring every surface"
+	@# PIPESTATUS, not the pipeline's status (2026-10-03, measured). Piping xcodebuild into grep
+	@# makes `make` see GREP's exit code, so a tour that printed "** TEST FAILED **" and captured 2
+	@# of 30 screens still reported success — and the only way anyone would notice is by counting
+	@# tiles on the sheet. The sibling iOS targets in this file already use PIPESTATUS for exactly
+	@# this; the contact sheet did not.
 	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/ScreenshotTourTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
-			2>&1 | grep -E '=====|Test Case|error:|TEST (SUCCEEDED|FAILED)'
+			2>&1 | grep -E '=====|Test Case|error:|TEST (SUCCEEDED|FAILED)'; \
+		rc=$${PIPESTATUS[0]}; \
+		[ $$rc -eq 0 ] || echo "WARNING: the tour FAILED — the sheet below is partial. rc=$$rc"; \
+		exit $$rc
 	@$(MAKE) ios-journey-shots
 	@# tile-width 0 = NATIVE device pixels, so the sheet can be inspected at 1:1 and shows exactly
 	@# what the device rendered. Resampling — even a good downscale — softens hairline borders and
