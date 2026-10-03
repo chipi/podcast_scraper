@@ -62,6 +62,28 @@ replay the stored pools. The unlabelled row between them is the repool itself.
 | 6 | stated guest unnamed in a one-guest interview (Freakonomics review, 2026-10-03) | 1 | the two-voice host-introduction rule also accepts ONE dominant unseated voice (>= 0.5 of talk) with any named host; the stated name matched as an ASR spoken variant; cue "pleasure/honour/privilege to have" | 1 / 0 | not run | loop again (6 of 8 bound-but-unnamed guests were blocked downstream by the third-person guard) |
 | 6 | same | 2 | + the third-person guard's SURNAME branch narrowed on mixed-case text (not inside another name -- "the Michael Lewis book", "North America" -- not an eponym -- "the Munger test" -- not a lowercase word -- "last year"); "bank"/"code" org tails; rank-only and greeting-first names refused ("Lieutenant General John", "Hey Josh"); a vocative veto tried and dropped (it cost John Platt his name) | 7 / 1 | 10 / 1 after the rank/greeting fix (correct 644 -> 654, wrong 112 -> 113; worse: Capitalisn't host named Matt Iglesias) | PARKED on branch `feat/naming-stated-guest-binding`: the full-corpus read (54 voices) was ~31 better / ~15 worse / ~6 unclear -- 8 of the worse are junk names in the stated-guest pool ("China Belt", "How Football Shirts", "Meter Redwood", "AI White House", "Russian Spring", "CEO Joseph Nelson") that the over-broad surname match used to refuse by accident, several replacing a correct name; plus Hard Fork's Casey Newton voice renamed to a guest. Next: fix junk at the pool's source as its own problem, then re-measure this; or ship only loop 1 after measuring it alone |
 
+## Problem 6 — next steps (agreed with the operator, 2026-10-03)
+
+Goal: extra help on what is junk and what is a name, and cut what is not a person EARLY — before it
+becomes a candidate the roster may bind (the over-broad surname match was doing this by accident).
+
+1. **Trace the junk sources (read-only, on the box).** For each junk name the corpus read surfaced
+   ("China Belt", "How Football Shirts", "Meter Redwood", "AI White House", "Russian Spring",
+   "CEO Joseph Nelson", "Lieutenant General John", "Hey Josh") find which step put it in the stated
+   list: the speaker-detection call's stored output vs another path into `metadata_named`.
+2. **Option 1 — a `kind` per name in the speaker-detection call** (`detect_speakers`, prompt
+   `openai/ner/guest_host_v1.j2`, prod `vllm` Qwen3-30B). Output one entry per name with
+   `kind: person|organisation|place|product|phrase`; only `person` enters the stated list, next to
+   the existing placeholder/organisation filters (`workflow/stages/processing.py`, the
+   `filter_default_speaker_names` / `drop_non_person_names` block). Veto only: it can remove a
+   candidate, never add one.
+3. **Measure:** re-run the detection call on DGX for the dev 101 and validation 500 episodes (small
+   structured call), then the gate replays the roster with the new name lists; plus a full-corpus read.
+4. **Then re-measure the parked surname fix on top of it** — the junk it let through should now be
+   cut at the source.
+5. Also from the Gray Area review (2026-10-03): promo voices named as guests (Kara Swisher, Sky
+   Galloway, Anne Applebaum) and "John Gwynn-Hill" published for Jonquilyn Hill.
+
 ## Step 1 result — the LLM step's marginal value (2026-10-03)
 
 Same committed code (seats + person check), replayed without vs with the LLM's stored per-voice
