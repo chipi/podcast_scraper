@@ -87,3 +87,30 @@ def test_run_serve_missing_output_dir_returns_2(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setitem(sys.modules, "uvicorn", MagicMock())
     ns = Namespace(output_dir="/no/such/dir/podcast-serve-test-xyz")
     assert cli_handlers.run_serve(ns, _log) == 2
+
+
+def test_ensure_app_logging_surfaces_app_info_when_nothing_configured_logging(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Plain `make serve-api`: no root handler, root at WARNING, so app INFO lines (including the
+    ADR-119 `sink="log"` events) vanished. After the call, an INFO from an app logger is handled."""
+    root = logging.getLogger()
+    monkeypatch.setattr(root, "handlers", [])
+    monkeypatch.setattr(root, "level", logging.WARNING)
+    cli_handlers._ensure_app_logging()
+    assert root.handlers, "a console handler must be attached"
+    assert logging.getLogger("podcast_scraper.server.routes.app_auth").isEnabledFor(logging.INFO)
+
+
+def test_ensure_app_logging_leaves_an_already_configured_root_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prod: `opentelemetry-instrument` has attached a root handler before `serve` runs. Nothing
+    may change there — no second handler (duplicate lines), no level change."""
+    root = logging.getLogger()
+    existing = logging.NullHandler()
+    monkeypatch.setattr(root, "handlers", [existing])
+    monkeypatch.setattr(root, "level", logging.ERROR)
+    cli_handlers._ensure_app_logging()
+    assert root.handlers == [existing]
+    assert root.level == logging.ERROR

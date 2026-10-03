@@ -19,6 +19,24 @@ def _merged_bool_flag(cli: bool, env_name: str) -> bool:
     return bool(cli) or _env_truthy(env_name)
 
 
+def _ensure_app_logging() -> None:
+    """Give application INFO logs a console handler when nothing else has configured logging.
+
+    ``serve`` returns from the CLI before ``apply_log_level`` runs, and uvicorn configures only its
+    own loggers — so under a plain ``make serve-api`` the root logger has no handler and sits at
+    WARNING, and every app INFO line is dropped. That includes the ADR-119 ``sink="log"`` events
+    (magic-link sign-in), which were then visible locally only through the optional VictoriaLogs dev
+    push (measured 2026-10-03).
+
+    Prod is untouched: ``opentelemetry-instrument`` has already attached a root handler by the time
+    this runs, and ``basicConfig`` is a no-op whenever one exists.
+    """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    )
+
+
 def _sync_reload_environ(args: Namespace, output_dir: Path) -> None:
     """Persist ``podcast serve`` flags for uvicorn --reload and reload-time app kwargs."""
     os.environ["PODCAST_SERVE_OUTPUT_DIR"] = str(output_dir)
@@ -134,6 +152,7 @@ def run_serve(args: Namespace, log: logging.Logger) -> int:
         log.error("Output directory does not exist or is not a directory: %s", out)
         return 2
 
+    _ensure_app_logging()
     _sync_reload_environ(args, out)
     static_kw: bool | None = False if getattr(args, "no_static", False) else None
 

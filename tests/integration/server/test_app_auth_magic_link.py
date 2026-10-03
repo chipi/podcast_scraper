@@ -319,3 +319,30 @@ def test_the_fingerprint_correlates_one_address_across_request_and_verify(
     assert len(requested) == 2 and len(set(requested)) == 2, "different addresses, different fps"
     assert verified[0] in requested
     assert all(len(fp) == 16 for fp in requested + verified)
+
+
+def test_a_refused_enqueue_is_reported_as_duplicate(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`enqueue` answers False when the outbox already holds that envelope id. Ids are unique per
+    token, so this should never happen — which is exactly why it must be visible if it does: the
+    person was told 202 and no new email is coming."""
+    caplog.set_level("INFO", logger=_EVENT_LOGGER)
+    monkeypatch.setattr(app_outbox_store, "enqueue", lambda *_a, **_k: False)
+    client, _ = _client(tmp_path)
+    assert client.post("/api/app/auth/email/request", json={"email": _ALLOWED}).status_code == 202
+    outcomes = [e["outcome"] for e, _ in _magic_events(caplog)]
+    assert outcomes == ["duplicate"]
+
+
+def test_verify_without_a_data_dir_is_reported_as_unavailable(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level("INFO", logger=_EVENT_LOGGER)
+    client, _ = _client(tmp_path)
+    client.app.state.app_data_dir = None
+    token, _ = app_magic_link.issue(_ALLOWED, _SECRET)
+    assert client.get(f"/api/app/auth/email/verify?token={token}").status_code == 503
+    events = [e for e, _ in _magic_events(caplog)]
+    assert [e["outcome"] for e in events] == ["unavailable"]
+    assert len(events[0]["email_fp"]) == 16
