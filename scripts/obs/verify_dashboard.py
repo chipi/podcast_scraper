@@ -20,7 +20,8 @@ It is deliberately usable as a GATE: exit 1 when any panel comes back empty.
 Usage
 ─────
     GRAFANA_URL=http://127.0.0.1:3000 GRAFANA_TOKEN=glsa_… \\
-      python scripts/obs/verify_dashboard.py --uid podcast-player-beta-usage --var instance=dev-local
+      python scripts/obs/verify_dashboard.py --uid podcast-player-beta-usage --var
+      instance=dev-local
 
     # Expect-empty is a legitimate assertion too: run it against prod to DEMONSTRATE a broken
     # shipper rather than describe one.
@@ -50,7 +51,8 @@ def _api(
         method=method,
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.loads(resp.read().decode())
+        parsed: dict[str, Any] = json.loads(resp.read().decode())
+        return parsed
 
 
 def _frame_rows(result: dict[str, Any]) -> tuple[int, list[Any]]:
@@ -68,7 +70,9 @@ def _frame_rows(result: dict[str, Any]) -> tuple[int, list[Any]]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--uid", required=True, help="dashboard uid")
     ap.add_argument(
         "--var",

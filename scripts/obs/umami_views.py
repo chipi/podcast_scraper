@@ -88,7 +88,7 @@ VIEWS: list[dict[str, Any]] = [
     ),
     _funnel(
         "Discovery — pivot to a real listen",
-        "The question the beta exists to answer: do people MOVE across the corpus and then actually "
+        "The question the beta exists to answer: do people MOVE across the corpus and then actually"
         "listen to what they found? `entity_open` is the pivot, `episode_open` is the commitment, "
         "`play_start` is the listen. A wide gap between the first two means the cards look "
         "interesting and read badly.",
@@ -96,7 +96,7 @@ VIEWS: list[dict[str, Any]] = [
     ),
     _goal(
         "First play",
-        "Pressing play at all. The single most important binary in the beta: everything upstream is "
+        "Pressing play at all. The single most important binary in the beta: everything upstream is"
         "only interesting if it ends here.",
         "play_start",
     ),
@@ -214,9 +214,12 @@ class Umami:
     def run_report(self, website_id: str, view: dict[str, Any]) -> Any:
         """Execute a view and return its rows.
 
-        The report endpoints take `{type, websiteId, filters, parameters}` — `parameters` NESTED, not
-        spread at the top level, and `filters` required even when empty. Getting either wrong answers
-        400 with a schema complaint rather than an empty result, which is the one helpful thing about
+        The report endpoints take `{type, websiteId, filters, parameters}` — `parameters` NESTED,
+        not
+        spread at the top level, and `filters` required even when empty. Getting either wrong
+        answers
+        400 with a schema complaint rather than an empty result, which is the one helpful thing
+        about
         this API: a malformed view cannot masquerade as a view with no data.
         """
         return self._call(
@@ -286,7 +289,7 @@ def main() -> int:
             # A funnel answers with one row per step; a goal with a single row. "Has data" means a
             # non-zero count somewhere, not merely a well-formed response.
             rows = rows if isinstance(rows, list) else [rows]
-            total = 0
+            total: float = 0
             for r in rows:
                 if isinstance(r, dict):
                     for key in ("visitors", "value", "count", "total"):
