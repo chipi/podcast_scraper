@@ -286,21 +286,37 @@ def main() -> int:
                 print(f"  [FAIL ] {view['name']}: HTTP {exc.code} {exc.read().decode()[:160]}")
                 empty.append(view["name"])
                 continue
-            # A funnel answers with one row per step; a goal with a single row. "Has data" means a
-            # non-zero count somewhere, not merely a well-formed response.
+            # TYPE-AWARE, and this cost a wrong answer to learn.
+            #
+            # A goal answers `{"num": <achievements>, "total": <denominator>}`. `total` is the
+            # SESSION COUNT in the window, not the goal count, and it is IDENTICAL for every goal on
+            # a site. Summing it reported four goals that had never fired once on prod as healthy,
+            # with the plausible number 32 — measured by asking for a goal named
+            # `zzz_definitely_not_an_event`, which answered the same `{"num":0,"total":32}`.
+            #
+            # That is precisely the failure this whole arc exists to prevent, produced by the tool
+            # written to catch it. `num` is the only field that says whether the goal happened.
+            #
+            # A funnel answers one row per step; entering it at all is the first step's `visitors`.
             rows = rows if isinstance(rows, list) else [rows]
-            total: float = 0
-            for r in rows:
-                if isinstance(r, dict):
-                    for key in ("visitors", "value", "count", "total"):
-                        v = r.get(key)
-                        if isinstance(v, (int, float)):
-                            total += v
-            tag = "OK   " if total else "EMPTY"
-            if not total:
+            hits = 0.0
+            denom: float | None = None
+            if view["type"] == "goal":
+                first = rows[0] if rows and isinstance(rows[0], dict) else {}
+                hits = float(first.get("num") or 0)
+                denom = float(first.get("total") or 0)
+            else:
+                first = rows[0] if rows and isinstance(rows[0], dict) else {}
+                hits = float(first.get("visitors") or 0)
+
+            tag = "OK   " if hits else "EMPTY"
+            if not hits:
                 empty.append(view["name"])
             print(f"  [{tag}] [{view['type']:6s}] {view['name']}")
-            print(f"           rows={len(rows)} total={total}")
+            detail = f"rows={len(rows)} hits={hits:g}"
+            if denom is not None:
+                detail += f" of {denom:g} sessions"
+            print(f"           {detail}")
         print()
         if empty:
             print(f"{len(empty)} of {len(VIEWS)} view(s) returned nothing: {', '.join(empty)}")
