@@ -1614,6 +1614,9 @@ _BRAND_MONONYMS = frozenset(
     }
 )
 #: Stray brackets are an artefact the canonicaliser strips ("Aaron Levie)"), so they do not reject.
+_DESCRIPTOR_SUFFIX = re.compile(
+    r"\w-(?:winning|nominated|based|born|selling|renowned|acclaimed)\b", re.IGNORECASE
+)
 _NOT_IN_A_NAME = re.compile(r"[?{}<>!/@#|]")
 _ROLE_PREFIX = re.compile(
     r"^(?:your\s+)?(?:(?:co-?)?host|(?:(?:deputy|senior|executive|managing|contributing)\s+)?"
@@ -1664,6 +1667,10 @@ def is_publishable_speaker_name(name: Optional[str], *, require_person_shape: bo
         return False
     # Punctuation a person's name never carries: "Premier Unbelievable?".
     if _NOT_IN_A_NAME.search(nm):
+        return False
+    # A hyphenated descriptor is a phrase about a person, not their name: "Pulitzer Prize-winning"
+    # (Freakonomics, 2026-10-03 — the only such published name across the prod corpus).
+    if _DESCRIPTOR_SUFFIX.search(nm):
         return False
     toks = nm.split()
     lowered = [t.lower().strip(".,'’") for t in toks]

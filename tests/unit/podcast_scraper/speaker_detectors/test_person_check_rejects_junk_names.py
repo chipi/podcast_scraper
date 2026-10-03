@@ -79,3 +79,14 @@ def test_a_product_or_company_introducing_itself_is_not_a_person(name: str) -> N
 )
 def test_real_names_that_resemble_the_junk_are_accepted(name: str) -> None:
     assert ok(name)
+
+
+@pytest.mark.parametrize("name", ["Pulitzer Prize-winning", "Award-winning", "London-based"])
+def test_a_hyphenated_descriptor_is_not_a_name(name: str) -> None:
+    """Freakonomics, 2026-10-03: "Pulitzer Prize-winning" was published as a guest."""
+    assert not ok(name)
+
+
+@pytest.mark.parametrize("name", ["Jean-Paul Sartre", "Mary-Kate Olsen", "Hannah Fry"])
+def test_hyphenated_real_names_still_pass(name: str) -> None:
+    assert ok(name)

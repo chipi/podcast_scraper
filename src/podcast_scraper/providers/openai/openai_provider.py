@@ -2852,39 +2852,55 @@ class OpenAICompatibleProvider:
                     **self._token_kwarg(2048),
                 )
 
-            response = retry_with_metrics(
-                _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
-                retryable_exceptions=_safe_openai_retryable(),
-            )
-            in_tok, out_tok = _openai_chat_usage_tokens(response)
-            pm = pipeline_metrics
-            if (
-                pm is not None
-                and in_tok is not None
-                and out_tok is not None
-                and hasattr(pm, "record_llm_kg_call")
-            ):
-                from ...workflow.helpers import calculate_provider_cost
-
-                kg_cost = _openai_response_cost_usd(response) or calculate_provider_cost(
-                    cfg=self.cfg,
-                    provider_type=self._TELEMETRY_PROVIDER,
-                    capability="summarization",
-                    model=model,
-                    prompt_tokens=int(in_tok),
-                    completion_tokens=int(out_tok),
+            def _attempt() -> tuple[str, Any, Optional[Dict[str, Any]]]:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=_safe_openai_retryable(),
                 )
-                pm.record_llm_kg_call(in_tok, out_tok, cost_usd=kg_cost)
-            # 2026-08-24 cost audit: KG extraction fed the metrics aggregate above but
-            # emitted no llm_cost event — invisible in per-call cost telemetry.
-            self._emit_stage_cost(stage="kg", capability="kg", model=model, response=response)
-            choice = response.choices[0]
-            raw = (choice.message.content or "").strip()
-            finish_reason = getattr(choice, "finish_reason", None)
-            parsed = parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
+                in_tok, out_tok = _openai_chat_usage_tokens(response)
+                pm = pipeline_metrics
+                if (
+                    pm is not None
+                    and in_tok is not None
+                    and out_tok is not None
+                    and hasattr(pm, "record_llm_kg_call")
+                ):
+                    from ...workflow.helpers import calculate_provider_cost
+
+                    kg_cost = _openai_response_cost_usd(response) or calculate_provider_cost(
+                        cfg=self.cfg,
+                        provider_type=self._TELEMETRY_PROVIDER,
+                        capability="summarization",
+                        model=model,
+                        prompt_tokens=int(in_tok),
+                        completion_tokens=int(out_tok),
+                    )
+                    pm.record_llm_kg_call(in_tok, out_tok, cost_usd=kg_cost)
+                # 2026-08-24 cost audit: KG extraction fed the metrics aggregate above but
+                # emitted no llm_cost event — invisible in per-call cost telemetry.
+                self._emit_stage_cost(stage="kg", capability="kg", model=model, response=response)
+                choice = response.choices[0]
+                reply = (choice.message.content or "").strip()
+                return (
+                    reply,
+                    getattr(choice, "finish_reason", None),
+                    parse_kg_graph_response(
+                        reply, max_topics=max_topics, max_entities=max_entities
+                    ),
+                )
+
+            raw, finish_reason, parsed = _attempt()
+            # A reply that is not valid JSON gets ONE fresh attempt: a single dropped "},{" in a
+            # complete 6 KB reply cost "How to Run an Institution in an Anti-Institution Era" its
+            # whole KG (2026-10-03), and such replies have extracted cleanly when re-asked.
+            if parsed is None and raw:
+                logger.warning(
+                    "kg: %s reply was not usable JSON; retrying the extraction once", model
+                )
+                raw, finish_reason, parsed = _attempt()
             if not parsed or not (parsed.get("topics") or parsed.get("entities")):
                 # A reply arrived and yielded nothing. Downstream this only reads as "no topics",
                 # so say here what the model actually returned.
