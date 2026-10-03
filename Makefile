@@ -2529,6 +2529,18 @@ test-ios:
 # product bugs (downloads broken outright; four controls with no accessible name) that no DOM-based
 # test could have seen.
 ANDROID_AVD ?= Pixel_8
+#: Extra emulator flags. HEADLESS BY DEFAULT, and that is not a preference (2026-10-03, measured).
+#: A windowed emulator launched from a session with no GUI (this tier runs as a non-console user)
+#: dies instantly with `Segmentation fault: 11`, having logged only
+#:   "API level 36 requires GLES 3.1, forcing software rendering for GLES"
+#: and two `PasteBoard: Error creating pasteboard` lines. The crash left `hardware-qemu.ini.lock`
+#: and `multiinstance.lock` behind in the AVD, which blocks the NEXT launch too — so the second
+#: attempt fails differently from the first and the real cause gets buried.
+#:
+#: Worse, the failure was nearly invisible: `make` returned 1, but a backgrounded wrapper reported
+#: success, and the only honest signal was `adb devices` staying empty. Headless boots in ~55s here.
+#: Override to watch it: `make android-emulator-up ANDROID_EMU_FLAGS=`
+ANDROID_EMU_FLAGS ?= -no-window -gpu swiftshader_indirect -no-audio
 ANDROID_PKG ?= app.closelistening.player
 ANDROID_SDK_DIR ?= $(HOME)/Library/Android/sdk
 ADB ?= $(ANDROID_SDK_DIR)/platform-tools/adb
@@ -2772,7 +2784,13 @@ test-android-server-degraded:
 android-emulator-up:
 	@if $(ADB) shell true >/dev/null 2>&1; then echo "✓ a device is already attached"; else \
 		echo "--> booting '$(ANDROID_AVD)'"; \
+		: "Clear locks a PREVIOUS crash left behind. A segfaulted emulator keeps"; \
+		: "hardware-qemu.ini.lock and multiinstance.lock, and the next launch then fails for a"; \
+		: "DIFFERENT reason than the first one did — which is how the real cause gets buried."; \
+		rm -rf "$$HOME/.android/avd/$(ANDROID_AVD).avd/hardware-qemu.ini.lock" \
+		       "$$HOME/.android/avd/$(ANDROID_AVD).avd/multiinstance.lock" 2>/dev/null || true; \
 		nohup $(ANDROID_SDK_DIR)/emulator/emulator -avd $(ANDROID_AVD) -no-snapshot-load -no-boot-anim \
+			$(ANDROID_EMU_FLAGS) \
 			> /tmp/lp-android-emu.log 2>&1 < /dev/null & \
 		$(ADB) wait-for-device; \
 	fi
