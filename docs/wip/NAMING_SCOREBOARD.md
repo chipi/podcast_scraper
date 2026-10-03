@@ -90,6 +90,17 @@ becomes a candidate the roster may bind (the over-broad surname match was doing 
    Carducci", "Lani Lum") are captured as self-introductions while the stated guest (Hakeem
    Oluseyi) stays unplaced.
 
+## Show-sidecar census, all 80 shows (2026-10-03 night)
+
+- Host on a voice: 767 of 920 recorded episodes. Not on a voice: 86 `no_host_name_found`, 63
+  `host_known_not_on_a_voice`, 4 single-voice transcripts.
+- 8 shows with NO host detected: People I (Mostly) Admire (Steve Levitt — should be findable),
+  Planet Money and Unexplainable (rotating hosts), BizNews Radio, The Living Philosophy,
+  Philosophy For Our Times, The Open Africa Podcast, How to Touch Grass. Per-show profile (#2261).
+- Low-visibility episodes from one unnamed voice: Google DeepMind "When millions of AI agents
+  meet" (3/49 insights visible), "From deepfakes to DNA" (26/46); see also the Freakonomics,
+  Gray Area and StarTalk reviews above.
+
 ## Also on this branch — the two open plan steps (from 2026-10-02/03)
 
 ### Feed-level analysis and per-show profiles — #2261 (scoreboard plan step 5)
