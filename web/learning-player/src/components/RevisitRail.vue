@@ -47,6 +47,7 @@ import { useIsDesktop } from '../composables/useMediaQuery'
 import { useResurfacingStore } from '../stores/resurfacing'
 import { formatTime } from '../player/transcriptSync'
 import { borderClass } from '../utils/highlightColors'
+import { resolveMediaUrl } from '../services/tier'
 
 const { t } = useI18n()
 const resurfacing = useResurfacingStore()
@@ -146,7 +147,9 @@ function review(id: string): void {
   void resurfacing.review(id)
 }
 
-const artOf = (slug: string): string | null => details.value[slug]?.artwork_url ?? null
+// resolveMediaUrl: the stored artwork URL is relative, and this rail renders it into an <img>.
+const artOf = (slug: string): string | null =>
+  resolveMediaUrl(details.value[slug]?.artwork_url ?? null)
 const titleOf = (slug: string): string => details.value[slug]?.title ?? ''
 </script>
 

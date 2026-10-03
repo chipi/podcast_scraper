@@ -17,6 +17,7 @@ import { getDiscover, getTrendingTopics } from '../services/api'
 import type { EpisodeSummary } from '../services/types'
 import { safeInternalPath } from '../utils/redirect'
 import { useOnline } from '../composables/useOnline'
+import { episodeArtwork } from '../utils/episode'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -38,9 +39,14 @@ const signInTo = computed(() => ({
   query: redirect.value ? { redirect: redirect.value } : {},
 }))
 
-function artwork(ep: EpisodeSummary): string | null {
-  return ep.artwork_url || ep.episode_image_url || ep.feed_image_url
-}
+// `episodeArtwork`, not the raw fields. It applies the same fallback order AND absolutises the
+// URL, which is the half this used to drop: the API returns these RELATIVE, correct on the web where
+// the app and API share an origin, and broken inside the Capacitor WebView where the document origin
+// is `capacitor://localhost` — the string resolves against the app bundle, 404s, and the card paints
+// a broken-image placeholder. Seen on a device, never in any browser test, because on the web the
+// bug does not exist. Same class as the person-photo defect in
+// `__checks__/person-photo-absolutised.test.ts`, which had already shipped six times.
+const artwork = episodeArtwork
 
 onMounted(async () => {
   // The onboarding funnel's first step (#2267): landing_view -> landing_cta_click ->
