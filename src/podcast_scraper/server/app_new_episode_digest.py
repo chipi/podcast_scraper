@@ -254,11 +254,21 @@ def build_email_envelope(
 
 
 def build_push_envelope(
-    user: User, subscription: dict[str, Any], payload: dict[str, Any], now: int
+    user: User,
+    comms: dict[str, Any],
+    subscription: dict[str, Any],
+    payload: dict[str, Any],
+    now: int,
 ) -> dict[str, Any]:
     """One envelope per subscription — a user may have both an iPhone and a browser registered.
 
     The id includes the endpoint, or the second device is silently deduped away.
+
+    The subscription rides in ``recipient.push_subscription``, where the worker reads it
+    (``transports.py``: ``env.recipient.push_subscription``) and where every other push envelope
+    puts it. This builder used a top-level ``subscription`` key instead, which the schema forbids,
+    so every new-episodes push failed permanently as "push channel with no subscription" (measured
+    on prod 2026-10-03, delivery-push) — no new-episodes push alert had ever been deliverable.
     """
     import hashlib
 
@@ -272,7 +282,11 @@ def build_push_envelope(
         "type": "new_episodes",
         "channel": "push",
         "template": PUSH_TEMPLATE,
-        "subscription": subscription,
+        "recipient": {"push_subscription": subscription},
+        "consent_snapshot": {
+            "new_episodes_enabled": app_comms_store.channel_enabled(comms, "new_episodes", "push"),
+            "unsubscribe_ref": comms.get("unsubscribe_ref") or "",
+        },
         "payload": payload,
         "not_before": _iso(now),
         "expires_at": _iso(now + _TTL_S),
@@ -337,7 +351,7 @@ def enqueue_for_user(root: Path, data_dir: Path, user_id: str, now: int | None =
 
     if push_on:
         for sub in app_push_store.list_subscriptions(data_dir, user_id):
-            env = build_push_envelope(user, sub, payload, now)
+            env = build_push_envelope(user, comms, sub, payload, now)
             app_outbox_store.enqueue(data_dir, env)
             enqueued.append(str(env["id"]))
 

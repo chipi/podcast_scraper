@@ -1,0 +1,52 @@
+{
+  "channel": "email",
+  "consent_snapshot": {
+    "new_episodes_enabled": true,
+    "unsubscribe_ref": "unsub_golden_ref"
+  },
+  "created_at": "2026-09-15T10:00:00Z",
+  "expires_at": "2026-09-15T22:00:00Z",
+  "id": "newep_6ade7b4db304_u_be1ed64e64bbfca3beee67f4",
+  "not_before": "2026-09-15T10:00:00Z",
+  "payload": {
+    "count": 2,
+    "episodes": [
+      {
+        "deep_link": "/episode/fa-02d98a79c7",
+        "episode_slug": "fa-02d98a79c7",
+        "episode_title": "Episode e2",
+        "graph_refs": [
+          {
+            "id": "topic:memory",
+            "kind": "topic",
+            "label": "Memory"
+          }
+        ]
+      },
+      {
+        "deep_link": "/episode/fa-90893549e1",
+        "episode_slug": "fa-90893549e1",
+        "episode_title": "Episode e1",
+        "graph_refs": [
+          {
+            "id": "topic:ai-safety",
+            "kind": "topic",
+            "label": "AI safety"
+          }
+        ]
+      }
+    ],
+    "slugs": [
+      "fa-02d98a79c7",
+      "fa-90893549e1"
+    ]
+  },
+  "recipient": {
+    "email": "listener@example.com",
+    "email_verified": true
+  },
+  "schema_version": "1",
+  "template": "new-episodes.v1",
+  "type": "new_episodes",
+  "user_id": "u_be1ed64e64bbfca3beee67f4"
+}

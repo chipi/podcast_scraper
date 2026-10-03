@@ -52,7 +52,8 @@
         "resurface-nudge.v1",
         "recommendations-digest.v1",
         "daily-recap.v1",
-        "magic-link.v1"
+        "magic-link.v1",
+        "new-episodes.v1"
       ]
     },
     "recipient": {
@@ -115,6 +116,76 @@
           }
         }
       }
+    },
+    {
+      "$comment": "The consent snapshot records the switch for THIS envelope's type. new_episodes is event-driven: it has its own per-channel switch and no cadence, so it carries new_episodes_enabled. Every other consented type (digest, daily_recap, and an absent type, which defaults to digest) carries the digest shape. Before 2026-10-03 the snapshot was digest-only with additionalProperties:false, so every real new_episodes envelope failed this schema four ways and no test noticed, because no fixture existed for the template.",
+      "if": {
+        "properties": {
+          "type": {
+            "const": "new_episodes"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "consent_snapshot": {
+            "required": [
+              "new_episodes_enabled"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "digest_enabled"
+                  ]
+                },
+                {
+                  "required": [
+                    "cadence"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "consent_snapshot": {
+            "required": [
+              "digest_enabled",
+              "cadence"
+            ],
+            "not": {
+              "required": [
+                "new_episodes_enabled"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "template": {
+            "const": "new-episodes.v1"
+          }
+        },
+        "required": [
+          "template"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/newEpisodesPayload"
+          }
+        }
+      }
     }
   ],
   "$defs": {
@@ -139,14 +210,17 @@
     "consentSnapshot": {
       "type": "object",
       "additionalProperties": false,
+      "$comment": "Which switch fields are required depends on the envelope's type; see the second allOf rule. unsubscribe_ref is required for every consented type: the worker builds the one-click unsubscribe from it.",
       "required": [
-        "digest_enabled",
-        "cadence",
         "unsubscribe_ref"
       ],
       "properties": {
         "digest_enabled": {
           "type": "boolean"
+        },
+        "new_episodes_enabled": {
+          "type": "boolean",
+          "description": "The new_episodes switch for this envelope's channel, at enqueue time."
         },
         "cadence": {
           "enum": [
@@ -317,6 +391,71 @@
         "expires_minutes": {
           "type": "integer",
           "description": "How long the link stays valid, for the copy in the email body."
+        }
+      }
+    },
+    "newEpisodesItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One unheard episode in a followed show: the shape app_digest_sections.new_in_follows_items emits. Carries the graph (moat rule).",
+      "required": [
+        "episode_slug",
+        "episode_title",
+        "deep_link",
+        "graph_refs"
+      ],
+      "properties": {
+        "episode_slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "episode_title": {
+          "type": "string"
+        },
+        "deep_link": {
+          "type": "string",
+          "minLength": 1
+        },
+        "graph_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/graphRef"
+          }
+        },
+        "podcast_title": {
+          "type": "string",
+          "description": "OPTIONAL. The app does not send it today; the template shows a show name above the episode only when present. Its absence once blocked every email for 33 h (2026-10-02/03) when a template treated it as required."
+        }
+      }
+    },
+    "newEpisodesPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count",
+        "episodes",
+        "slugs"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "episodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/newEpisodesItem"
+          }
+        },
+        "slugs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     }
