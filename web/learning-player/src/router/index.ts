@@ -268,7 +268,11 @@ router.afterEach((to) => {
  * `data-exclude-search` exists to keep out.
  */
 router.afterEach((to, from) => {
-  if (typeof to.name === 'string') track('screen_view', { screen: to.name })
+  // A query- or hash-only change is not a new screen. On prod 2026-10-04 one open episode logged
+  // seven `screen_view`s without its path ever changing. Umami's own page views already ignore the
+  // query (`data-exclude-search`), so this keeps the two counts comparable.
+  const sameScreen = from.matched.length > 0 && to.path === from.path
+  if (typeof to.name === 'string' && !sameScreen) track('screen_view', { screen: to.name })
   // Remember where this navigation came FROM, for events that cannot be emitted until later —
   // `episode_open` needs the episode's feed to know whether the show is followed, and by then the
   // previous route is gone. See services/provenance.ts.

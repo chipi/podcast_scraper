@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   analyticsEnabled,
@@ -310,13 +311,18 @@ describe('identify', () => {
 })
 
 describe('resetIdentity', () => {
+  function signIn() {
+    ;(window as unknown as { umami?: unknown }).umami = { track: () => {}, identify: () => {} }
+    identify('departing-id', { platform: 'web', app_version: '1.0.0', channel: 'web' })
+  }
+
   it('removes the umami global so the previous id cannot survive sign-out', () => {
     // The tracker cannot be asked to forget: its `identify` assigns only when the derived id is
     // defined (`void 0 !== a && (V = a)`), so `identify({})` leaves the previous distinct id in
     // place. Replacing the global is the only reset, and sign-out in this app does not reload.
     enableAnalytics()
     captureAppends()
-    ;(window as unknown as { umami?: unknown }).umami = { track: () => {}, identify: () => {} }
+    signIn()
     resetIdentity()
     expect((window as unknown as { umami?: unknown }).umami).toBeUndefined()
   })
@@ -324,6 +330,7 @@ describe('resetIdentity', () => {
   it('removes the old tag and installs a fresh one, so anonymous traffic is still tracked', () => {
     // The spec wants logged-out landing views recorded as an ANONYMOUS session, not dropped.
     enableAnalytics()
+    signIn()
     const stale = document.createElement('script')
     stale.setAttribute('data-umami-installed', '1')
     document.head.appendChild(stale)
@@ -336,9 +343,98 @@ describe('resetIdentity', () => {
     expect(appended[0]?.getAttribute('data-exclude-search')).toBe('true')
   })
 
+  it('does nothing while anonymous — each reinstall sent another page view (prod 2026-10-04)', () => {
+    // The auth store calls this on every signed-out refresh. Replacing an anonymous tracker forgets
+    // nothing and costs a duplicate initial page view plus one more history wrapper.
+    enableAnalytics()
+    const umami = { track: () => {}, identify: () => {} }
+    ;(window as unknown as { umami?: unknown }).umami = umami
+    const appended = captureAppends()
+    resetIdentity()
+    resetIdentity()
+    expect(appended).toHaveLength(0)
+    expect((window as unknown as { umami?: unknown }).umami).toBe(umami)
+  })
+
+  it('unwraps history so the old tracker stops sending page views after sign-out', () => {
+    // Each Umami script wraps pushState/replaceState and never unwraps. Without restoring them,
+    // every navigation after a sign-out was sent once per tracker ever installed.
+    enableAnalytics()
+    const appended = captureAppends()
+    const push = history.pushState
+    const replace = history.replaceState
+    installUmami()
+    expect(appended).toHaveLength(1)
+    history.pushState = () => {}
+    history.replaceState = () => {}
+    signIn()
+    resetIdentity()
+    expect(history.pushState).toBe(push)
+    expect(history.replaceState).toBe(replace)
+  })
+
   it('never throws when there is nothing to reset', () => {
     captureAppends()
     expect(() => resetIdentity()).not.toThrow()
+  })
+})
+
+describe('native transport', () => {
+  type BeforeSend = (type: string, payload: Record<string, unknown>) => Promise<unknown>
+  const beforeSend = () =>
+    (window as unknown as { __clUmamiBeforeSend?: BeforeSend }).__clUmamiBeforeSend!
+
+  afterEach(() => {
+    delete (window as unknown as { CapacitorWebFetch?: unknown }).CapacitorWebFetch
+    delete (window as unknown as { __clUmamiBeforeSend?: unknown }).__clUmamiBeforeSend
+  })
+
+  it('sends through the WebView fetch with the platform hostname, and stops the tracker sending', async () => {
+    // CapacitorHttp patches window.fetch, so the tracker's own send left with a CFNetwork user agent
+    // that Umami files as a "laptop" with no OS. CapacitorWebFetch keeps the WebView's user agent.
+    enableAnalytics()
+    vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('ios')
+    const calls: Array<[string, RequestInit]> = []
+    ;(window as unknown as { CapacitorWebFetch?: unknown }).CapacitorWebFetch = async (
+      url: string,
+      init: RequestInit,
+    ) => {
+      calls.push([url, init])
+      return { json: async () => ({ cache: 'tok' }) }
+    }
+    const appended = captureAppends()
+    installUmami()
+    expect(appended[0]?.getAttribute('data-before-send')).toBe('__clUmamiBeforeSend')
+
+    const result = await beforeSend()('event', { hostname: 'localhost', name: 'screen_view' })
+    expect(result, 'the tracker must not send it a second time').toBe(false)
+    expect(calls).toHaveLength(1)
+    expect(calls[0]![0]).toBe('https://analytics.example.test/api/send')
+    expect(JSON.parse(calls[0]![1].body as string)).toEqual({
+      type: 'event',
+      payload: { hostname: 'ios-app', name: 'screen_view' },
+    })
+
+    await beforeSend()('event', { hostname: 'localhost' })
+    const headers = calls[1]![1].headers as Record<string, string>
+    expect(headers['x-umami-cache'], 'the session cache token is carried forward').toBe('tok')
+  })
+
+  it('still labels the hostname when the WebView fetch is unavailable', async () => {
+    enableAnalytics()
+    vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('android')
+    captureAppends()
+    installUmami()
+    expect(await beforeSend()('event', { hostname: 'localhost' })).toEqual({
+      hostname: 'android-app',
+    })
+  })
+
+  it('leaves the web build on the tracker\'s own transport', () => {
+    enableAnalytics()
+    const appended = captureAppends()
+    installUmami()
+    expect(appended[0]?.hasAttribute('data-before-send')).toBe(false)
   })
 })
 

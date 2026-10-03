@@ -451,6 +451,78 @@ type UmamiGlobal = {
 /** Marks our tag so injection is idempotent and `resetIdentity` can find it again. */
 const TAG_MARKER = 'data-umami-installed'
 
+/** The window global the tag's `data-before-send` names. Umami looks it up on every send. */
+const BEFORE_SEND_GLOBAL = '__clUmamiBeforeSend'
+
+/**
+ * `history.pushState` / `replaceState` as they were before ANY tracker wrapped them.
+ *
+ * Each Umami script wraps both methods on init to auto-track SPA page views, and never unwraps
+ * them. `resetIdentity` replaces the tracker, so without restoring these every sign-out stacked one
+ * more wrapper: each navigation then sent one page view per tracker ever installed, the stale ones
+ * still carrying the signed-out participant's id. Measured on prod 2026-10-04 — 3 page views per
+ * navigation from a single visitor.
+ */
+let pristineHistory: Pick<History, 'pushState' | 'replaceState'> | null = null
+
+/**
+ * Umami's session cache token for native sends, which bypass the script's own transport (see
+ * `nativeBeforeSend`) and so must carry it themselves. Cleared on `resetIdentity`: the token is
+ * bound to the identified session.
+ */
+let nativeCache: string | undefined
+
+function nativePlatform(): 'ios' | 'android' | null {
+  const p = Capacitor.getPlatform()
+  return p === 'ios' || p === 'android' ? p : null
+}
+
+/**
+ * Send a native event through the WebView's OWN fetch, labelled with the platform.
+ *
+ * Two prod defects, both measured 2026-10-04 on a TestFlight session:
+ *
+ *   - Every iOS app session was filed as device `laptop` with no OS or browser. `CapacitorHttp`
+ *     (capacitor.config.ts) patches `window.fetch`, so Umami's send left through URLSession with a
+ *     `CFNetwork … Darwin` user agent that Umami cannot parse. The same payload sent with the
+ *     WKWebView's user agent is classified `mobile / iOS / ios-webview`. Capacitor keeps the
+ *     unpatched fetch as `CapacitorWebFetch`; the analytics host answers CORS with `*`, so it needs
+ *     no native detour.
+ *   - The hostname was `localhost` (the WebView origin), indistinguishable from local dev traffic
+ *     on the prod site. It is rewritten to `ios-app` / `android-app`.
+ *
+ * Returning `false` tells the tracker not to send it again itself.
+ */
+async function nativeBeforeSend(
+  type: string,
+  payload: Record<string, unknown>,
+): Promise<Record<string, unknown> | false> {
+  const platform = nativePlatform()
+  if (!platform) return payload
+  const hostname = `${platform}-app`
+  const labelled = { ...payload, hostname }
+  const webFetch = (window as unknown as { CapacitorWebFetch?: typeof fetch }).CapacitorWebFetch
+  if (!webFetch) return labelled
+  try {
+    const res = await webFetch(`${umamiSrc().split('/').slice(0, -1).join('/')}/api/send`, {
+      method: 'POST',
+      keepalive: true,
+      body: JSON.stringify({ type, payload: labelled }),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-umami-website-id': umamiWebsiteId(),
+        'x-umami-hostname': hostname,
+        ...(nativeCache ? { 'x-umami-cache': nativeCache } : {}),
+      },
+    })
+    const body = (await res.json()) as { cache?: string } | null
+    if (body?.cache) nativeCache = body.cache
+  } catch {
+    // Fire-and-forget, as everywhere else here.
+  }
+  return false
+}
+
 /**
  * The id currently attached to this tracker, or `null` when anonymous.
  *
@@ -561,6 +633,13 @@ export function installUmami(): void {
     tag.setAttribute('data-website-id', websiteId)
     tag.setAttribute('data-exclude-search', 'true')
     tag.setAttribute(TAG_MARKER, '1')
+    if (nativePlatform()) {
+      ;(window as unknown as Record<string, unknown>)[BEFORE_SEND_GLOBAL] = nativeBeforeSend
+      tag.setAttribute('data-before-send', BEFORE_SEND_GLOBAL)
+    }
+    if (!pristineHistory && typeof history !== 'undefined') {
+      pristineHistory = { pushState: history.pushState, replaceState: history.replaceState }
+    }
     // Handlers BEFORE appendChild: a cached script can execute as soon as it is in the document,
     // and attaching afterwards would race the very load this is here to catch.
     tag.addEventListener('load', flushPending)
@@ -626,6 +705,19 @@ export function identify(analyticsId: string, session: SessionProps): void {
  */
 export function resetIdentity(): void {
   try {
+    // Nothing to forget. The auth store calls this on EVERY signed-out `refresh()` — each anonymous
+    // boot and revalidation — and replacing the tracker there sent a fresh initial page view each
+    // time: the second source of the duplicate page views measured on prod 2026-10-04.
+    if (identifiedAs === null) return
+    // A queued identify would otherwise replay the departing id into the fresh tracker.
+    for (let i = pending.length - 1; i >= 0; i--) {
+      if (pending[i]!.kind === 'identify') pending.splice(i, 1)
+    }
+    nativeCache = undefined
+    if (pristineHistory) {
+      history.pushState = pristineHistory.pushState
+      history.replaceState = pristineHistory.replaceState
+    }
     if (typeof window !== 'undefined') {
       delete (window as unknown as { umami?: UmamiGlobal }).umami
     }
