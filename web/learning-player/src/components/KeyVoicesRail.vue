@@ -14,6 +14,7 @@ import { RouterLink } from "vue-router"
 
 import { getKeyVoices } from "../services/api"
 import type { KeyVoice } from "../services/types"
+import { personName } from "../utils/personName"
 import ProfileAvatar from "./ProfileAvatar.vue"
 
 const { t } = useI18n()
@@ -21,7 +22,9 @@ const voices = ref<KeyVoice[]>([])
 
 onMounted(async () => {
   try {
-    voices.value = (await getKeyVoices()).voices
+    // Cased on arrival rather than in the template: `v.label` is read three times below
+    // (aria-label, avatar initials, visible text) and they must not disagree.
+    voices.value = (await getKeyVoices()).voices.map((v) => ({ ...v, label: personName(v.label) }))
   } catch {
     voices.value = [] // passive surface — a failure hides the rail, never blocks the page
   }

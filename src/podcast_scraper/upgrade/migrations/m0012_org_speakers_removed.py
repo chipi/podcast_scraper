@@ -309,6 +309,9 @@ class OrgSpeakersRemovedMigration(Migration):
         One pass per episode across all of them — roster, segment labels, KG host/guest
         nodes, GI Person / SPOKEN_BY / quote / insight attribution and bridge identities —
         because a name left on any ONE of those re-mints the speaker on the next rederive.
+
+        Backs up every file before writing and emits a receipt per episode, so the pass is
+        reversible and auditable rather than merely idempotent.
         """
         root = ctx.corpus_root
         orgs = org_names(root)

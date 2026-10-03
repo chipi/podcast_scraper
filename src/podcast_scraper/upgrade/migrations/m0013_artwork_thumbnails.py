@@ -79,6 +79,9 @@ class ArtworkThumbnailsMigration(Migration):
         The serving API mounts the corpus READ-ONLY, so it cannot derive these on demand
         and was serving full-size images in their place. Backfilling here is what makes
         the read-only mount correct rather than merely safe.
+
+        An undecodable image is RECORDED rather than raised: one unreadable cover must not
+        stop the backfill for every other episode.
         """
         root = ctx.corpus_root
         missing = self._missing(root)

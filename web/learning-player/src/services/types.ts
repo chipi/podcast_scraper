@@ -373,7 +373,7 @@ export interface EntitiesResponse {
  * Saveable favorite kinds. `insight` is NOT one — an insight is a capture, saved via the
  * highlights path, never a favorite (RFC-121 / #1593).
  */
-export type FavoriteKind = "episode" | "person" | "topic" | "show" | "storyline"
+export type FavoriteKind = "episode" | "person" | "topic" | "show" | "storyline" | "theme"
 
 /** Body for PUT /api/app/favorites — denormalized so the Library renders without re-fetching. */
 export interface FavoriteAdd {
@@ -386,7 +386,7 @@ export interface FavoriteAdd {
 
 /** A saved non-episode favorite (show / topic / person / storyline). */
 export interface FavoriteEntity {
-  kind: "person" | "topic" | "show" | "storyline"
+  kind: "person" | "topic" | "show" | "storyline" | "theme"
   ref: string
   label: string
   sublabel?: string | null
@@ -469,6 +469,7 @@ export type NoteTarget =
   | "topic"
   | "person"
   | "storyline"
+  | "theme"
 
 /** A free-text note (GET/POST/PATCH/DELETE /api/app/notes — the Note schema). */
 export interface Note {
@@ -538,6 +539,9 @@ export type CollectionItemKind =
   | "topic"
   | "person"
   | "link"
+  // Groupings — as collectable as the topics they group.
+  | "storyline"
+  | "theme"
 
 /** A typed reference to add to a collection. */
 export interface CollectionItemRef {
@@ -747,7 +751,7 @@ export interface TrendingEntity {
 export interface EntityRef {
   id: string
   /** `storyline` ids are `thc:{slug}` — the resolver indexes theme clusters too (#2004 follow-up). */
-  kind: "person" | "topic" | "organization" | "storyline"
+  kind: "person" | "topic" | "organization" | "storyline" | "theme"
   label: string
 }
 
@@ -824,6 +828,52 @@ export interface OrgCard {
   related_orgs: Entity[]
   related_topics: Topic[]
   web?: OrgWeb | null
+}
+
+/**
+ * A GROUPING of topics — a theme or a storyline (AppClusterCard).
+ *
+ * One shape for both, because a reader meets one kind of object: a set of topics with members,
+ * episodes and voices. They differ only in how membership is decided — a THEME groups topics that
+ * MEAN the same thing, a STORYLINE groups topics that keep coming up TOGETHER — and that
+ * difference is a sentence on the page, not a different type.
+ *
+ * Neither is an entity: neither is ever a node on an episode, which is why each has its own
+ * endpoint rather than riding on the topic card. `episodes` is the UNION across every member,
+ * de-duplicated — that merge is the reason these pages exist, since looking at one member misses
+ * the others.
+ */
+/** One member of a grouping, with what makes it belong there. */
+export interface ClusterMember {
+  id: string
+  label: string
+  /** Episodes of THIS member inside the grouping. */
+  episode_count: number
+  /** Holds the grouping together (highest co-occurrence lift). Storylines only — a theme is symmetric. */
+  anchor: boolean
+  /** Publish date of this member's earliest / most recent episode (YYYY-MM-DD). */
+  first_seen?: string | null
+  last_seen?: string | null
+  /** How its presence changed across the grouping's own timeline, split at the median episode. */
+  trend?: 'new' | 'growing' | 'steady' | 'fading' | 'gone'
+}
+
+/** The two members that co-occur most — a storyline's evidence in one line. */
+export interface ClusterPair {
+  a_label: string
+  b_label: string
+  shared_episode_count: number
+}
+
+export interface ClusterCard {
+  id: string
+  label: string
+  member_topics: ClusterMember[]
+  episode_count: number
+  episodes: EpisodeSummary[]
+  related_people: Entity[]
+  /** Null for a theme: "means the same thing" makes no co-occurrence claim to evidence. */
+  strongest_pair?: ClusterPair | null
 }
 
 /** Topic card (GET /api/app/topics/{id} — AppTopicCard). Episodes-about + cluster siblings. */

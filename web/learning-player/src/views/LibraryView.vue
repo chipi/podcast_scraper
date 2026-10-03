@@ -5,6 +5,7 @@
  * tabbed; the Saved tab grows a new section as new favourite kinds arrive. Auth-gated.
  */
 import { computed, onActivated, onMounted, ref, watch } from 'vue'
+import { interestKind } from '../utils/interests'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'LibraryView' }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute } from 'vue-router'
@@ -43,11 +44,20 @@ import { matchesQuery } from '../utils/textFilter'
 const { t } = useI18n()
 const favorites = useFavoritesStore()
 
-/** Route to a saved entity's page, or null (storyline has no standalone page). */
+/** Route to a saved entity's page, or null when the kind has none. */
 function entityRoute(e: FavoriteEntity): { name: string; params: Record<string, string> } | null {
   if (e.kind === 'topic') return { name: 'topic', params: { id: e.ref } }
   if (e.kind === 'person') return { name: 'person', params: { id: e.ref } }
   if (e.kind === 'show') return { name: 'podcast', params: { feedId: e.ref } }
+  // Both groupings have pages. This used to `return null` for a storyline, under a comment saying
+  // "storyline has no standalone page" — untrue since F4.5 gave it `/storyline/:id`, so a SAVED
+  // storyline rendered as a dead row: you could save it and then not open it.
+  //
+  // The `ref` is whatever the save recorded, and each page saves its own route param — the
+  // storyline's anchor topic id, the theme's `tc:` id — so each goes straight back where it came
+  // from.
+  if (e.kind === 'storyline') return { name: 'storyline', params: { id: e.ref } }
+  if (e.kind === 'theme') return { name: 'theme', params: { id: e.ref } }
   return null
 }
 const capture = useCaptureStore()
@@ -161,6 +171,7 @@ const availableTypes = computed<{ key: string; label: string }[]>(() => {
   if (kinds.has('show')) out.push({ key: 'shows', label: t('library.savedTypeShows') })
   if (kinds.has('topic')) out.push({ key: 'topics', label: t('library.savedTypeTopics') })
   if (kinds.has('person')) out.push({ key: 'people', label: t('library.savedTypePeople') })
+  if (kinds.has('theme')) out.push({ key: 'themes', label: t('library.savedTypeThemes') })
   if (kinds.has('storyline'))
     out.push({ key: 'storylines', label: t('library.savedTypeStorylines') })
   return out
@@ -175,6 +186,9 @@ const ENTITY_TYPE_KEY: Record<string, string> = {
   topic: 'topics',
   person: 'people',
   storyline: 'storylines',
+  // Without this a saved theme falls to the `?? 'entities'` default, so its own chip would never
+  // filter it — the chip would appear and do nothing.
+  theme: 'themes',
 }
 
 const filteredEpisodes = computed(() => {
@@ -221,6 +235,7 @@ const savedByKind = (kind: string) => computed(() => filteredEntities.value.filt
 const savedShowEntities = savedByKind('show')
 const savedTopicEntities = savedByKind('topic')
 const savedStorylineEntities = savedByKind('storyline')
+const savedThemeEntities = savedByKind('theme')
 const savedPersonEntities = savedByKind('person')
 
 /**
@@ -230,11 +245,17 @@ const savedPersonEntities = savedByKind('person')
  * `useFollowedShows` makes.
  */
 /**
- * The non-show kinds, in the order they render: topics, then storylines, then PEOPLE LAST
+ * The non-show kinds, in the order they render: topics, then the two groupings, then PEOPLE LAST
  * (operator 2026-09-17). Shows are not here — they render above Episodes with artwork.
+ *
+ * This list is the ONLY thing that puts a saved kind on the page, and it was hardcoded to three.
+ * A saved theme was accepted by the API, stored, counted by its filter chip — and rendered
+ * nowhere, because no group named it. The chip would have appeared above a section that did not
+ * exist.
  */
 const savedEntityGroups = computed(() => [
   { kind: 'topic', labelKey: 'library.savedTypeTopics', items: savedTopicEntities.value },
+  { kind: 'theme', labelKey: 'library.savedTypeThemes', items: savedThemeEntities.value },
   { kind: 'storyline', labelKey: 'library.savedTypeStorylines', items: savedStorylineEntities.value },
   { kind: 'person', labelKey: 'library.savedTypePeople', items: savedPersonEntities.value },
 ])
@@ -373,11 +394,17 @@ const followingAvailableTypes = computed<{ key: string; label: string }[]>(() =>
   const out: { key: string; label: string }[] = []
   if (followedShows.value.length) out.push({ key: 'shows', label: t('library.savedTypeShows') })
   const ids = followingInterests.ids
-  if (ids.some((i) => i.startsWith('topic:')))
+  // By KIND, not by prefix — `interestKind` is the boundary where the wire names stop mattering,
+  // and these chips must keep matching the groups `FollowedInterests` renders.
+  if (ids.some((i) => interestKind(i) === 'topic'))
     out.push({ key: 'topics', label: t('library.savedTypeTopics') })
-  if (ids.some((i) => i.startsWith('person:')))
+  if (ids.some((i) => interestKind(i) === 'person'))
     out.push({ key: 'people', label: t('library.savedTypePeople') })
-  if (ids.some((i) => i.startsWith('thc:') || i.startsWith('tc:')))
+  // Separate chips, matching the separate groups `FollowedInterests` renders. One shared
+  // "Storylines" chip filtered themes in and out under a name that is not theirs.
+  if (ids.some((i) => interestKind(i) === 'theme'))
+    out.push({ key: 'themes', label: t('library.savedTypeThemes') })
+  if (ids.some((i) => interestKind(i) === 'storyline'))
     out.push({ key: 'storylines', label: t('library.savedTypeStorylines') })
   return out
 })

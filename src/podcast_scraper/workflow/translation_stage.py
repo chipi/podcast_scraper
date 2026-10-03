@@ -668,10 +668,19 @@ def _translate_episode(
             # tagged name) or it did not. Deleting the canonical body now would leave the episode
             # with NO body at all, which is worse than the state it is in.
             #
-            # So the record is what changes, and the gate is what refuses: `analysis_blocked_reason`
-            # checks for this exact file, blocks summary/GI/KG, and the skip path marks the episode
-            # unusable so it surfaces nowhere — which is the behaviour the withdrawal was reaching
-            # for by hand.
+            # THE RECORD IS WHAT CHANGES, AND NOTHING GATES ON IT — stated plainly because an
+            # earlier version of this comment claimed `analysis_blocked_reason` "checks for this
+            # exact file". It does not: that gate returns as soon as the swap has happened, and the
+            # analysis-base condition was deliberately NOT added to it (a missing ad-free body
+            # leaves ANALYSIS reading the English canonical body, which is the same state a native
+            # English episode with ad-free disabled is in, and D-39 forbids treating them
+            # differently). The comment survived a revert of that gate change and asserted
+            # behaviour that does not exist.
+            #
+            # So what actually happens: the ledger says `failed`, and summary/GI/KG still run on
+            # the ad-laden English body. That is a real inconsistency between the record and the
+            # behaviour, and it is recorded here rather than papered over — the fix is a decision
+            # about whether a missing ad-free base should block at all, not a comment.
             logger.warning(
                 "translation: %s translated and swapped, but the ANALYSIS base could not be "
                 "built — recording `failed` so the gate blocks summary/GI/KG rather than letting "

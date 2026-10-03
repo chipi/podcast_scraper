@@ -16,15 +16,33 @@ fragment- to sentence-matching. Where a fixture defect USED to supply the mutati
 an absence of spanning ids — the test now constructs it, because "clean" and "broken instrument"
 report the same number.
 
-* 41 episodes across 10 feeds, 1-6 episodes each;
-* exactly 2 topic clusters, BOTH covering all 41 episodes;
-* the picker's offered options therefore produce **1** distinct feed — decorative;
-* a discriminating band (2 <= n <= 60% coverage) holds **45** tokens whose top 12 produce **11**
-  distinct feed sets. NOTE: this was quoted as 8 until 2026-08-19. That figure was measured while
-  tie ordering was hash-dependent, so it was never stable — with ties broken by token it is 10,
-  and 11 since p10. The conclusion it supports (1 distinct feed from the picker's own options) is
-  unchanged and in fact a wider gap;
-* the discover pool window (4 * 12 = 48) still EXCEEDS the corpus at 41, so the pool is
+**2026-10-01: the clusters are real now, and the central finding INVERTED.**
+``search/topic_clusters.json`` was hand-authored by ``build_app_validation_corpus.py`` — 2 clusters
+at a declared threshold of 0.75, one of them ("Show Themes") being each show's lead topic bundled
+together, which is not a similarity grouping at all. It also contradicted the ``topic_similarity``
+artifact beside it: of its 28 member pairs only 3 appeared there, all BELOW the stated threshold,
+while 54 other pairs sat above it. The index it should have come from was stale too — 36 of 40
+episodes and only the 10 umbrella topics.
+
+Rebuilt from the corpus (40 episodes, aux 883) and clustered from real ``all-MiniLM-L6-v2``
+embeddings at threshold 0.35, v3 now has **14 clusters over 50 topics**, and they cohere:
+`macroeconomics` {labor markets, macro policy, monetary policy, personal finance}, `dive planning`
+{dive planning, wreck diving}, `reef conservation` {marine biology, reef conservation}.
+
+That turns this file from a record of a degenerate fixture into a record of a representative one,
+and it matters most where the audit is actually aimed: **production measured 278 clusters at median
+size 2**, and v3 now reproduces that shape (median 2, range 2-5, 6 cross-feed against 8 single-feed)
+rather than the 2-universal-clusters shape that could only ever say "undecidable here, go measure
+prod".
+
+* 40 episodes across 9 feeds, 4-6 episodes each;
+* **14** topic clusters, of which **2** cover all 40 episodes (`tc:dialogue`, `tc:lifelong-learning`);
+* the picker offers 12 of them and they produce **10** distinct feeds — no longer decorative;
+* a discriminating band (2 <= n <= 60% coverage) holds **53** tokens whose top 12 produce **10**
+  distinct feeds, and the band is now LED by clusters (`tc:reliability` at 18 episodes) rather than
+  by first-name-only people. NOTE: band_distinct_feeds was quoted as 8 until 2026-08-19, measured
+  while tie ordering was hash-dependent; with ties broken by token it is 10;
+* the discover pool window (4 * 12 = 48) still EXCEEDS the corpus at 40, so the pool is
   everything and the relevance leg never runs — the blind spot that motivated the epic.
 
 **2026-09-30 — the corpus gained a language.** `p10` is p01's Spanish counterpart: the same
@@ -126,51 +144,61 @@ class TestPoolReachability:
 
 
 class TestPickerDiscrimination:
-    def test_the_offered_options_are_decorative_here(self, report) -> None:
-        """2 options, both corpus-wide, one feed — the measured claim behind #1669."""
+    def test_the_offered_options_now_discriminate(self, report) -> None:
+        """Was "2 options, both corpus-wide, one feed — decorative", the measured claim behind #1669.
+
+        That claim was true of the HAND-AUTHORED clusters and is false of the real ones. With 12
+        clusters offered across 10 distinct feeds the picker now separates the corpus, so
+        ``decorative`` is False — and the audit's ability to say so is the thing under test. A
+        detector that only ever returned True would have passed the old assertion forever.
+
+        The 2 that still cover every episode (`tc:dialogue`, `tc:lifelong-learning`) are the shared
+        umbrellas the corpus generator injects into every show, so they SHOULD be universal.
+        """
         picker = report.sections["picker_discrimination"]
-        assert len(picker["offered"]) == 2
+        assert len(picker["offered"]) == 12
         assert picker["offered_covering_every_episode"] == 2
-        assert picker["offered_distinct_feeds"] == 1
-        assert picker["decorative"] is True
+        assert picker["offered_distinct_feeds"] == 10
+        assert picker["decorative"] is False
 
     def test_a_discriminating_band_exists_and_separates_the_corpus(self, report) -> None:
         """The contrast that makes the verdict actionable rather than just negative."""
         picker = report.sections["picker_discrimination"]
-        # 42, not 27: episodes carry their own topics since the per-feed cap was removed and
-        # `_episode_topics_for` started reading the authored primary/secondary. More tokens land
-        # in the band because more tokens are episode-specific — which is the point of the band.
+        # 53, not 42: the real clusters put 12 `tc:` tokens into the candidate pool where the two
+        # synthetic ones were both universal and therefore above the band's coverage ceiling. (42,
+        # not 27, came earlier from episodes carrying their own authored topics once the per-feed
+        # cap was removed.) More tokens land in the band because more tokens are episode-specific,
+        # which is the point of the band.
+        assert picker["band_candidates"] == 86
+        # THE TWO CAUSES COMPOUND, which is why this number is measured rather than inherited.
+        # The branch asserted 75 (the corpus took REAL extracted topics from a pipeline run
+        # alongside its authored ones) and main asserted 53 (the real clusters added 12 `tc:`
+        # tokens). Both are true after the merge, so neither figure survives it.
         #
-        # 45 since p10: the Spanish show pushed three topics (`soil-erosion`, `endurance-sport`,
-        # `land-stewardship`) from one episode past the band's 2-episode floor. Kept a literal
-        # unlike the size counts above, because this one is a claim about the corpus's
-        # DISCRIMINATING POWER — the thing the band exists to measure — not about how many files
-        # are on disk. A drop here is a real regression and must not be absorbed by a formula.
+        # Kept a literal: this is a claim about the corpus's DISCRIMINATING POWER — the thing the
+        # band exists to measure — not about how many files are on disk. A drop here is a real
+        # regression and must not be absorbed by a formula.
         #
-        # 46 with it/fr/de/pt: `trail-building` joined the band. The four counterparts
-        # carry the same three authored topics as p10, which pushed `soil-erosion` and
-        # `land-stewardship` well clear of the floor and lifted trail-building over it.
-        #
-        # 75 since the corpus took REAL extracted topics from a pipeline run alongside its
-        # authored ones (2026-10-01). The band is "tokens that discriminate", and model
-        # extraction produces far more of those than feed-wide umbrellas do — so this jump
-        # is the corpus getting better at the thing the band measures.
-        #
-        # It also made a real defect visible at the TOP of the audit's own report: ranks 2
-        # and 12 of `band_top` are `topic:second-order-effects` (18 eps) and
-        # `topic:second-order-effect` (6 eps) — one concept, two tokens, split by a
-        # trailing `s`. Extraction has no canonicalisation step. Keeping this a literal is
+        # It also makes a real defect visible at the TOP of the audit's own report:
+        # `topic:second-order-effects` and `topic:second-order-effect` are one concept split by a
+        # trailing `s`, because extraction has no canonicalisation step. Keeping this a literal is
         # what makes that measurable rather than absorbed.
-        assert picker["band_candidates"] == 75
         # 10, not the 8 quoted before 2026-08-19 — see the module docstring. The old figure came
-        # from a hash-dependent top-12, so it was never reproducible. 11 since p10: this
-        # counts DISTINCT FEED SETS, not feeds, so a show whose topics overlap p01's while
-        # its episode does not can add a set without adding a feed.
-        # DOWN to 10 at 14 shows, which is the interesting direction: the band's top 12
-        # now contains more tokens that several shows share (the five trail-building
-        # counterparts), so its members discriminate BETWEEN FEEDS slightly less even as
-        # the band itself grows. Worth watching rather than smoothing over.
-        assert picker["band_distinct_feeds"] == 11
+        # from a hash-dependent top-12, so it was never reproducible.
+        #
+        # MEASURED 10 ON THE MERGED TREE, and the two inputs pull in opposite directions:
+        #
+        #   * the five trail-building counterparts ADD distinct feed SETS (this counts sets, not
+        #     feeds, so a show whose topics overlap p01's while its episode does not adds a set
+        #     without adding a feed) — which took it to 11 on its own;
+        #   * the rebuilt clusters put `tc:` tokens into the band's top 12, and those are shared
+        #     across shows by construction, so the top 12 discriminates BETWEEN FEEDS slightly
+        #     less even as the band itself grows to 86 candidates.
+        #
+        # The second effect wins by one. That is the interesting direction and worth watching
+        # rather than smoothing over: a band that grows while discriminating less is exactly the
+        # failure mode the picker-discrimination section exists to surface.
+        assert picker["band_distinct_feeds"] == 10
 
     def test_no_band_token_covers_more_than_the_ceiling(self, report) -> None:
         """The band is only meaningful if its own bound holds."""
@@ -237,10 +265,16 @@ class TestUniversalTokensAreNotOnlyClusters:
 class TestTheBandIsNotAutomaticallyOfferable:
     """Discriminating power is necessary but NOT sufficient — the other half of the #1669 fix.
 
-    The band separates the corpus beautifully and contains `person:a-correspondent`, whose KG name
-    is literally "A. correspondent", plus first-name-only entities. Offering those would be worse
-    than offering a decorative cluster. The report must show WHAT is in the band, not just how many
-    distinct feeds it produces, or the number reads as a recommendation.
+    The band separates the corpus beautifully and still contains first-name-only entities
+    (`person:maya`, `person:ethan`, `person:nora`) and `person:a-correspondent`, whose KG name is
+    literally "A. correspondent". Offering those would be worse than offering a decorative cluster.
+    The report must show WHAT is in the band, not just how many distinct feeds it produces, or the
+    number reads as a recommendation.
+
+    Real clusters change the band's ORDER but not this conclusion: `tc:reliability` and
+    `tc:macroeconomics` now lead it, pushing `person:a-correspondent` to tenth and out of the
+    rendered top of the report. So this asserts on a junk entity that is still VISIBLE — the point
+    was never that one specific id appears, it is that the reader sees the band is not all offerable.
     """
 
     def test_the_band_contents_reach_the_report(self, report) -> None:
@@ -284,11 +318,19 @@ class TestTheBandIsNotAutomaticallyOfferable:
 
 
 class TestClusterStructure:
-    def test_both_clusters_are_universal(self, report) -> None:
-        """What makes the picker verdict undecidable on v3 — and why prod is needed to settle it."""
+    def test_most_clusters_are_no_longer_universal(self, report) -> None:
+        """Was "both clusters are universal", which made the picker verdict undecidable on v3.
+
+        Real embeddings give 14 clusters of which only the 2 injected umbrellas span everything, so
+        v3 can now settle a question it previously had to defer to prod. The size distribution is
+        the part worth pinning: median 2, range 2-5 — the same shape production reported (278
+        clusters at median size 2), which is what makes measurements here transferable at all.
+        """
         clusters = report.sections["cluster_structure"]
-        assert clusters["clusters_total"] == 2
+        assert clusters["clusters_total"] == 14
         assert clusters["clusters_covering_every_episode"] == 2
+        assert clusters["cluster_size_median"] == 2.0
+        assert (clusters["cluster_size_min"], clusters["cluster_size_max"]) == (2, 5)
 
 
 class TestCorpusShape:
@@ -365,11 +407,22 @@ class TestClusterReach:
     is doing its job.
     """
 
-    def test_the_fixture_clusters_do_span_feeds(self, report) -> None:
+    def test_the_fixture_clusters_split_between_spanning_and_single_show(self, report) -> None:
+        """Was "all 2 clusters span feeds", which is what a 2-universal-cluster fixture must say.
+
+        A roughly even cross-feed / single-feed split is the realistic mix, and it is the mix this
+        measurement exists to characterise: a single-feed cluster is exactly the "two names for one
+        idea inside one podcast" case that size alone cannot distinguish from a genuine small theme.
+
+        7/7 ON THE MERGED TREE, measured, where the cluster rebuild alone gave 6/8. The five
+        non-English shows are deliberate counterparts of `p01` and carry the SAME authored topics,
+        so a cluster that sat inside one show now spans six — one crossed over. That is the fixture
+        getting more representative, not a cluster changing meaning.
+        """
         reach = report.sections["cluster_reach"]
-        assert reach["clusters"] == 2
-        assert reach["cross_feed"] == 2
-        assert reach["single_feed"] == 0
+        assert reach["clusters"] == 14
+        assert reach["cross_feed"] == 7
+        assert reach["single_feed"] == 7
 
     def test_member_topics_are_actually_read(self, report) -> None:
         """The bug this catches: `top_themes_by_member_count` DROPS `members`.
@@ -385,13 +438,73 @@ class TestClusterReach:
         assert widest["topics"] > 0, "cluster members were not read — see the docstring"
         assert widest["feeds"] > 0
 
-    def test_the_warning_only_fires_when_most_clusters_are_single_show(self, report) -> None:
-        """On this fixture every cluster spans feeds, so the warning must be ABSENT.
+    def test_the_warning_fires_once_most_clusters_are_single_show(self, report, tmp_path) -> None:
+        """Both directions, because the fixture now sits EXACTLY on the threshold.
 
-        A warning that always prints is not a warning.
+        The history is worth keeping, because each step moved this test's ground:
+
+        * originally it asserted ABSENCE — every synthetic cluster spanned feeds, `cross_feed_share`
+          was 1.0 and "synonym merge" never printed. That proved the warning did not fire
+          spuriously and could never prove it fires AT ALL: a detector wired to a constant False
+          would have passed;
+        * the 2026-10-01 cluster rebuild made 8 of 14 single-feed, share 3/7, and the warning
+          printed — so the loud case became free;
+        * merging the five non-English counterparts took it to 7/14 = **exactly 0.50**. The
+          threshold is `cross_feed_share < 0.5`, strictly, so the warning went silent again. The
+          counterparts carry `p01`'s authored topics, which is what pushed a cluster across feeds.
+
+        Sitting on the boundary means neither case can be read off the fixture alone, so the loud
+        case is CONSTRUCTED — the method this module's docstring already states for exactly this
+        situation ("where a fixture defect USED to supply the mutation, the test now constructs
+        it, because 'clean' and 'broken instrument' report the same number").
+
+        The feeds to drop are DERIVED from each feed's language, not named as literals. The
+        sibling spanning test records why: a hardcoded list was correct until `p10` landed and
+        silently wrong afterwards, and its failure message then accused the measurement of the
+        staleness that was in the test.
         """
-        assert report.sections["cluster_reach"]["cross_feed_share"] == 1.0
-        assert "synonym merge" not in format_report(report)
+        import json
+        import shutil
+
+        reach = report.sections["cluster_reach"]
+        # The boundary, asserted as the fraction rather than 0.5 so a cluster moving either way
+        # reads as a count change and not a float surprise.
+        assert reach["cross_feed_share"] == pytest.approx(7 / 14)
+        assert "synonym merge" not in format_report(report), (
+            "the fixture is at the threshold (7/14) and the warning fires strictly BELOW it, so "
+            "it must be silent here; if it printed, the comparison has flipped"
+        )
+
+        corpus = tmp_path / "v3"
+        shutil.copytree(CORPUS, corpus)
+        counterparts = sorted(
+            {
+                meta.parent.parent.parent.name
+                for meta in corpus.glob("feeds/*/**/metadata/*.metadata.json")
+                if str(
+                    (json.loads(meta.read_text(encoding="utf-8")).get("feed") or {}).get("language")
+                    or ""
+                ).split("-")[0]
+                not in ("", "en")
+            }
+        )
+        assert counterparts, "no non-English feed to drop — the construction below proves nothing"
+        for feed in counterparts:
+            shutil.rmtree(corpus / "feeds" / feed)
+
+        loud = measure(corpus)
+        assert (
+            loud.feeds > 1
+        ), "the constructed corpus must keep several feeds, or spanning is vacuous"
+        loud_reach = loud.sections["cluster_reach"]
+        assert loud_reach["cross_feed_share"] < 0.5, (
+            f"dropping {counterparts} left the share at {loud_reach['cross_feed_share']} — the "
+            "construction no longer produces the condition the warning detects"
+        )
+        assert "synonym merge" in format_report(loud), (
+            "most clusters are inside one show and the warning did not print — the detector is "
+            "not wired to the measurement"
+        )
 
 
 class TestTheReportedWindowIsTheRealOne:

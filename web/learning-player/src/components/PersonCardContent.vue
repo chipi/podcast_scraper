@@ -12,6 +12,7 @@ import { useClampedProse } from "../composables/useClampedProse"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 import type { Entity, EpisodeSummary, PersonCard, PersonShow, Topic } from "../services/types"
+import { personName } from "../utils/personName"
 import EntitySignals from "./EntitySignals.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import NoteComposer from "./NoteComposer.vue"
@@ -25,7 +26,9 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const router = useRouter()
 
-const label = computed(() => props.person.label ?? "")
+// The person page's own title. Cased here so the heading, the share card and the document title
+// all read the same thing.
+const label = computed(() => personName(props.person.label ?? ""))
 // External bio (wave-G, person_web enricher). Extractive + attributed.
 const personWeb = computed(() => props.person.web ?? null)
 // Wikimedia's image "Artist" field can carry HTML — render the visible TEXT only.
@@ -231,7 +234,7 @@ function searchLibrary(): void {
         class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
         @click="emit('open', { kind: 'person', id: p.id })"
       >
-        {{ p.name
+        {{ personName(p.name)
         }}<span
           v-if="roleLabel(p.role)"
           data-testid="ec-related-person-role"

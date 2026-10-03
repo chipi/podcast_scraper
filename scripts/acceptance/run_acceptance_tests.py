@@ -1473,7 +1473,13 @@ def collect_outputs(output_dir: Path) -> Dict[str, Any]:
     for search_dir in search_dirs:
         if not search_dir.exists():
             continue
-        txt_files = [p for p in search_dir.rglob("*.txt") if not p.name.endswith(".cleaned.txt")]
+        # `.anon.txt` is a derived copy, like `.cleaned.txt` — counting it would double this
+        # harness's transcript tally for every diarized episode.
+        txt_files = [
+            p
+            for p in search_dir.rglob("*.txt")
+            if not p.name.endswith(".cleaned.txt") and not p.name.endswith(".anon.txt")
+        ]
         srt_files = list(search_dir.rglob("*.srt"))
 
         for txt_file in txt_files:

@@ -201,7 +201,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Thanks, A. correspondent. Great to be back."
+        "routing_tag": "drop",
+        "salience": 0.3,
+        "text": "Thanks, A. correspondent. Great to be back.",
+        "tier": 0
       },
       "type": "Insight"
     },
@@ -212,7 +215,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Push back on the conventional wisdom for me. What's the version of the question that actually matters?",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -223,7 +229,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Honestly, A correction is a reliability signal, not a failure. We've seen this play out at teams using BBC. If you ignore that, you end up rebuilding it from scratch a year later.",
+        "tier": 2
       },
       "type": "Insight"
     },

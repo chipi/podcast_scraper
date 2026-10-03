@@ -184,7 +184,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "We opened the phones this week. Here's a question that came in from a listener out in the field."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "We opened the phones this week. Here's a question that came in from a listener out in the field.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -195,7 +198,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "Hi Ethan \u2014 how do you tell alert fatigue from a real incident?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Hi Ethan \u2014 how do you tell alert fatigue from a real incident?",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -206,7 +212,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "Great question. Alert fatigue is a signal-to-noise problem, not a discipline problem. If the team ignores pages, the pages are wrong, not the people."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Great question. Alert fatigue is a signal-to-noise problem, not a discipline problem. If the team ignores pages, the pages are wrong, not the people.",
+        "tier": 2
       },
       "type": "Insight"
     },

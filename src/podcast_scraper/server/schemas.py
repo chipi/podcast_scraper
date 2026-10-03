@@ -471,7 +471,7 @@ class AppEntityRef(BaseModel):
             "(storyline)."
         )
     )
-    kind: Literal["person", "topic", "organization", "storyline"] = Field(
+    kind: Literal["person", "topic", "organization", "storyline", "theme"] = Field(
         description="Which card to open."
     )
     label: str = Field(description="Display name / topic label / storyline label.")
@@ -652,6 +652,104 @@ class AppOrgCard(BaseModel):
         default=None,
         description="Optional external description + logo + attribution (org_web enricher, #2035). "
         "Null when the enricher hasn't run or found nothing for this org.",
+    )
+
+
+class AppClusterMember(BaseModel):
+    """One topic inside a grouping, with what makes it belong there.
+
+    Not :class:`AppTopic`: that is the shape of a topic ON AN EPISODE and is embedded all over the
+    API, so hanging grouping-only fields off it would carry `episode_count` and `anchor` into every
+    topic list that has no use for either.
+    """
+
+    id: str = Field(description="Canonical topic id (topic:{slug}).")
+    label: str = Field(description="Topic display label.")
+    episode_count: int = Field(
+        default=0, ge=0, description="Episodes of THIS member within the grouping's corpus."
+    )
+    anchor: bool = Field(
+        default=False,
+        description=(
+            "The member holding the grouping together — highest co-occurrence lift. STORYLINES "
+            "only: a theme groups topics that mean the same thing, which is a symmetric relation "
+            "with no centre, so every theme member has anchor=False."
+        ),
+    )
+    first_seen: str | None = Field(
+        default=None, description="Publish date (YYYY-MM-DD) of this member's earliest episode."
+    )
+    last_seen: str | None = Field(
+        default=None, description="Publish date of this member's most recent episode."
+    )
+    trend: Literal["new", "growing", "steady", "fading", "gone"] = Field(
+        default="steady",
+        description=(
+            "How this member's presence changed across the grouping's own timeline, split at its "
+            "MEDIAN episode date. `new` = absent from the earlier half; `gone` = absent from the "
+            "later half; `growing`/`fading` = a meaningful shift either way; `steady` otherwise. "
+            "Self-relative on purpose, so it reads the same on a six-month corpus and a six-year "
+            "one — a fixed window would call every member of a young corpus 'new'."
+        ),
+    )
+
+
+class AppClusterPair(BaseModel):
+    """The two members that co-occur most, and how often — a grouping's evidence in one line."""
+
+    a_label: str = Field(description="First member's label.")
+    b_label: str = Field(description="Second member's label.")
+    shared_episode_count: int = Field(ge=1, description="Episodes discussing BOTH.")
+
+
+class AppClusterCard(BaseModel):
+    """A GROUPING of topics — a theme or a storyline.
+
+    One shape for both, because a reader meets one kind of object: a set of topics with
+    members, episodes and voices. They differ only in how membership is decided —
+    `tc:` groups topics that MEAN the same thing, `thc:` groups topics that keep coming up
+    TOGETHER — and that difference is a sentence on the page, not a different schema.
+
+    Served by GET /api/app/themes/{id} and GET /api/app/storylines/{id}.
+
+    A **theme** is a set of topics that MEAN the same thing — cosine similarity over topic
+    embeddings, from ``topic_clusters.json``. It is a GROUPING, not an entity: it never appears as
+    a node on an episode, which is why it cannot be served by the topic card. Asking
+    ``/api/app/topics/tc:something`` returned an empty page for exactly that reason.
+
+    ``episodes`` is the UNION across every member topic, de-duplicated — that merge is the whole
+    reason a theme has a page. Searching one member misses the others, which is the problem a
+    similarity grouping exists to solve; a list showing only one member's episodes would not solve
+    it. (The storyline page still shows its ANCHOR topic's episodes rather than a union; it has the
+    same gap and is not fixed here.)
+    """
+
+    id: str = Field(description="The cluster's graph_compound_parent_id (tc:… or thc:…).")
+    label: str = Field(description="Canonical label for the grouping.")
+    member_topics: list[AppClusterMember] = Field(
+        default_factory=list,
+        description=(
+            "Member topics. STORYLINES are ordered by co-occurrence lift — what holds the "
+            "grouping together — rather than by size; THEMES have no such measure (meaning the "
+            "same thing is symmetric) and fall back to episode count."
+        ),
+    )
+    episode_count: int = Field(
+        default=0, ge=0, description="Distinct episodes across ALL member topics."
+    )
+    episodes: list[AppEpisodeSummary] = Field(
+        default_factory=list, description="Episodes discussing ANY member topic, newest first."
+    )
+    related_people: list[AppEntity] = Field(
+        default_factory=list,
+        description="People co-occurring most often across the grouping's episodes (descending).",
+    )
+    strongest_pair: AppClusterPair | None = Field(
+        default=None,
+        description=(
+            "The most co-occurring pair of members. Storylines only: it states WHY the grouping "
+            "exists ('these two keep turning up together'), which is not what a theme claims."
+        ),
     )
 
 
@@ -865,7 +963,7 @@ class FavoriteAdd(BaseModel):
     path, so a ``kind=insight`` PUT fails validation with a 422 (RFC-121 / #1593).
     """
 
-    kind: Literal["episode", "person", "topic", "show", "storyline"] = Field(
+    kind: Literal["episode", "person", "topic", "show", "storyline", "theme"] = Field(
         description="Saveable kind."
     )
     ref: str = Field(description="Stable id within the kind (episode→slug; entity→id).")
@@ -885,7 +983,9 @@ class FavoriteAdd(BaseModel):
 class AppFavoriteEntity(BaseModel):
     """A saved non-episode favorite (show / topic / person / storyline) — snapshot from the save."""
 
-    kind: Literal["person", "topic", "show", "storyline"] = Field(description="Entity kind.")
+    kind: Literal["person", "topic", "show", "storyline", "theme"] = Field(
+        description="Entity kind."
+    )
     ref: str = Field(description="Stable entity id.")
     label: str = Field(description="Display name.")
     sublabel: str | None = Field(default=None, description="Secondary label (role / count).")
@@ -1045,9 +1145,9 @@ class HighlightsResponse(BaseModel):
 class NoteCreate(BaseModel):
     """Body for POST /api/app/notes — attach free text to a highlight, insight, or episode."""
 
-    target: Literal["highlight", "insight", "episode", "show", "topic", "person", "storyline"] = (
-        Field(description="What the note is on.")
-    )
+    target: Literal[
+        "highlight", "insight", "episode", "show", "topic", "person", "storyline", "theme"
+    ] = Field(description="What the note is on.")
     target_id: str = Field(description="Id/slug of the target.")
     text: str = Field(min_length=1, max_length=_MAX_NOTE_CHARS, description="Note body.")
     client_id: str | None = Field(
@@ -1069,9 +1169,9 @@ class Note(BaseModel):
     """A saved note (response item)."""
 
     id: str = Field(description="Opaque note id.")
-    target: Literal["highlight", "insight", "episode", "show", "topic", "person", "storyline"] = (
-        Field(description="What the note is on.")
-    )
+    target: Literal[
+        "highlight", "insight", "episode", "show", "topic", "person", "storyline", "theme"
+    ] = Field(description="What the note is on.")
     target_id: str = Field(description="Id/slug of the target.")
     text: str = Field(description="Note body.")
     created_at: int = Field(description="Unix time created.")
@@ -1618,9 +1718,21 @@ class CollectionsResponse(BaseModel):
 class CollectionItemBody(BaseModel):
     """POST /api/app/collections/{id}/items body — a typed reference (RFC-119)."""
 
-    kind: Literal["highlight", "episode", "show", "search", "topic", "person", "link"] = Field(
-        description="What is being pinned."
-    )
+    kind: Literal[
+        "highlight",
+        "episode",
+        "show",
+        "search",
+        "topic",
+        "person",
+        "link",
+        # Groupings. A collection is "things I want to come back to", and a theme or a
+        # storyline is as collectable as the topic it groups — the topic was collectable and
+        # neither grouping was, which made the action set differ by page for no reason a
+        # reader could see.
+        "storyline",
+        "theme",
+    ] = Field(description="What is being pinned.")
     ref: str = Field(
         min_length=1,
         description="highlight id / episode slug / feed_id / topic:/person: id / query / url.",

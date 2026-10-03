@@ -258,6 +258,8 @@ class EponymousHostsRestoredMigration(Migration):
         Reads the STORED self-introduction rather than re-deriving: the evidence that this
         person is the host is already in the corpus, and re-running detection would make
         the repair depend on whatever the detector does today.
+
+        Restores them on ALL surfaces, backing up and receipting each write.
         """
         root = ctx.corpus_root
         eps = self._episodes(root)

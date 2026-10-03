@@ -149,7 +149,7 @@ const hasAny = computed(
           :key="th.storyline_id"
           type="button"
           data-testid="ps-theme"
-          class="lp-theme-chip rounded-full px-2.5 py-1 text-xs font-semibold text-surface-foreground transition disabled:opacity-60"
+          class="lp-storyline-chip rounded-full px-2.5 py-1 text-xs font-semibold text-surface-foreground transition disabled:opacity-60"
           :disabled="!th.anchor_topic_id"
           @click="th.anchor_topic_id && emit('open', { kind: 'storyline', id: th.anchor_topic_id })"
         >

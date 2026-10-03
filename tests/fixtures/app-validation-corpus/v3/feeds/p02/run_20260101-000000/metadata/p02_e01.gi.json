@@ -201,7 +201,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Thanks, Ethan. Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot."
+        "routing_tag": "drop",
+        "salience": 0.3,
+        "text": "Thanks, Ethan. Excited for this one \u2014 incident response and on-call design is something I've been thinking about a lot.",
+        "tier": 0
       },
       "type": "Insight"
     },
@@ -212,7 +215,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "I'm a believer in centralizing the security function. One team, one source of truth, one neck to wring.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -223,7 +229,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "What does the failure mode look like? What's the version of the question that actually matters?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "What does the failure mode look like? What's the version of the question that actually matters?",
+        "tier": 2
       },
       "type": "Insight"
     },

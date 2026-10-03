@@ -44,7 +44,24 @@ _COLLECTION_ID_RE = re.compile(r"^col_[a-z0-9]{1,32}$")
 
 #: Item kinds a collection can hold (RFC-119). ``search`` carries a ``scope``; ``link`` an optional
 #: ``title``; the rest are a bare ``ref`` (highlight id / episode slug / feed_id / topic|person id).
-VALID_ITEM_KINDS = frozenset({"highlight", "episode", "show", "search", "topic", "person", "link"})
+# Keep in step with `CollectionItemBody.kind` in schemas.py — this is the gate that actually
+# rejects, and the pydantic Literal is only the first of two. Extending the Literal alone let a
+# theme POST through validation and then fail here as a 422 "invalid collection item", which reads
+# like a malformed body rather than an unsupported kind.
+VALID_ITEM_KINDS = frozenset(
+    {
+        "highlight",
+        "episode",
+        "show",
+        "search",
+        "topic",
+        "person",
+        "link",
+        # Groupings — as collectable as the topics they group.
+        "storyline",
+        "theme",
+    }
+)
 #: Optional per-kind extras carried through untouched.
 _ITEM_EXTRAS = ("scope", "title")
 

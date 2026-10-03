@@ -201,7 +201,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Thanks, Nora. Excited for this one \u2014 index investing is something I've been thinking about a lot."
+        "routing_tag": "drop",
+        "salience": 0.3,
+        "text": "Thanks, Nora. Excited for this one \u2014 index investing is something I've been thinking about a lot.",
+        "tier": 0
       },
       "type": "Insight"
     },
@@ -212,7 +215,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "What does the failure mode look like? How does Vanguard fit into this picture?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "What does the failure mode look like? How does Vanguard fit into this picture?",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -223,7 +229,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the par\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Let me give you the version I actually believe. Index funds are not a strategy \u2014 they're the absence of one. We've seen this play out at teams using Vanguard. And the second-order effect is the par\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },

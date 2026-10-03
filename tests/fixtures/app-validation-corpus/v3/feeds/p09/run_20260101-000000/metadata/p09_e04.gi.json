@@ -217,7 +217,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.2,
-        "text": "Walk me through a concrete example. What's the version of the question that actually matters?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Walk me through a concrete example. What's the version of the question that actually matters?",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -228,7 +231,10 @@
         "grounded": true,
         "insight_type": "observation",
         "position_hint": 0.35,
-        "text": "Here's how I think about it. Risk lives in the couplings, not the components \u2014 same as reliability. We've seen this play out at teams using BloombergNEF. The framing matters because it tells you wh\u2026"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Here's how I think about it. Risk lives in the couplings, not the components \u2014 same as reliability. We've seen this play out at teams using BloombergNEF. The framing matters because it tells you wh\u2026",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -239,7 +245,10 @@
         "grounded": true,
         "insight_type": "recommendation",
         "position_hint": 0.5,
-        "text": "I want to dig into that. How does BloombergNEF fit into this picture?"
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "I want to dig into that. How does BloombergNEF fit into this picture?",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -348,7 +357,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "Risk is a systems property: it lives in the interactions, not the parts."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Risk is a systems property: it lives in the interactions, not the parts.",
+        "tier": 2
       },
       "type": "Insight"
     },
@@ -373,7 +385,10 @@
         "grounded": true,
         "insight_type": "claim",
         "position_hint": 0.5,
-        "text": "Systems thinking and risk management are one discipline in two vocabularies."
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Systems thinking and risk management are one discipline in two vocabularies.",
+        "tier": 2
       },
       "type": "Insight"
     },

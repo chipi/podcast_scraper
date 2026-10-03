@@ -54,7 +54,9 @@ import httpx
 from podcast_scraper.archive.backfill import HostRateLimiter
 from podcast_scraper.enrichment.enrichers._loaders import (
     is_unresolved_speaker_placeholder,
+    load_bridge,
     load_gi,
+    load_kg,
     nodes_of_type,
 )
 from podcast_scraper.enrichment.protocol import (
@@ -848,6 +850,41 @@ def _distinct_persons(all_bundles: list[EpisodeArtifactBundle]) -> list[tuple[st
     return sorted(seen.items())
 
 
+def _corpus_entity_ids(all_bundles: list[EpisodeArtifactBundle]) -> set[str]:
+    """Every node / identity id any served GI, KG or bridge still carries.
+
+    Wider than ``_distinct_persons`` (GI only) on purpose: a person who is now only MENTIONED in a
+    KG still has a card, and that card still shows the bio.
+    """
+    ids: set[str] = set()
+    for b in all_bundles:
+        for doc in (load_gi(b), load_kg(b), load_bridge(b)):
+            ids.update(str(n.get("id")) for n in doc.get("nodes") or [] if isinstance(n, dict))
+            ids.update(str(i.get("id")) for i in doc.get("identities") or [] if isinstance(i, dict))
+    ids.discard("None")
+    return ids
+
+
+def _drop_departed(
+    known: dict[str, dict[str, Any]], all_bundles: list[EpisodeArtifactBundle]
+) -> dict[str, dict[str, Any]]:
+    """Carried-forward rows, minus those whose person no served file carries any more.
+
+    Without this a row outlived every reprocess / rename / removal that took its person away: prod
+    held 103 bios (Achilles, Athena, Andreessen Horowitz, ...) for ids no served file carried,
+    2026-10-01. No bundles means we cannot tell — keep everything rather than wipe the file.
+    """
+    if not all_bundles:
+        return known
+    present = _corpus_entity_ids(all_bundles)
+    gone = [pid for pid in known if pid not in present]
+    if gone:
+        _logger.info(
+            "person_web: dropping %d row(s) for persons no longer in the corpus", len(gone)
+        )
+    return {pid: row for pid, row in known.items() if pid in present}
+
+
 def _safe_name(person_id: str) -> str:
     """A filesystem-safe raw-cache stem for a person id (slug, or a hash if it sanitizes away)."""
     slug = re.sub(r"[^a-z0-9._-]", "_", person_id.split(":", 1)[-1].lower())
@@ -1508,6 +1545,7 @@ class PersonWebEnricher:
         # ceiling, where person N+1 was unreachable no matter how many runs happened.
         now_for_budget = int(time.time())
         all_persons = _distinct_persons(all_bundles or [])
+        known = _drop_departed(known, all_bundles or [])
         # Exclude BOTH already-derived people and recent misses BEFORE applying the budget.
         # Filtering misses only inside the loop would let them eat the budget: with
         # max_persons=3 and three permanently-unknown names, no new person would ever be

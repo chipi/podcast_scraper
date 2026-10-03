@@ -20,11 +20,38 @@ PREVALENCE, and prevalence is inversely related to usefulness as a filter: a tok
 episode gives every episode the same affinity, so the feed collapses to a single significance
 ordering — identical no matter which option is chosen. The engine discriminates; its input does not.
 
+**2026-10-01 re-measurement: the defect is REAL but was overstated by the fixture.**
+
+`search/topic_clusters.json` was hand-authored — 2 clusters, both spanning the whole corpus, one of
+them ("Show Themes") a bundle of each show's lead topic. With only two options and both universal,
+"every option covers 100%" was as much a property of the fixture as of the picker. Rebuilt from the
+corpus index and clustered from real `all-MiniLM-L6-v2` embeddings, v3 has 14 clusters and the
+picker offers 12:
+
+    tc:dive-planning           2/40 (5%)
+    tc:lighting-design         3/40
+    tc:macroeconomics          9/40
+    tc:reliability            18/40
+    tc:safety-practices       30/40
+    tc:dialogue               40/40 (100%)   <- still decorative
+    tc:lifelong-learning      40/40 (100%)   <- still decorative
+
+So the options now produce DIFFERENT feeds, and `test_picker_options_produce_different_feeds`
+passes. What survives is narrower and still worth fixing: ranking by prevalence still puts the two
+corpus-wide umbrellas in front of a user, where they can only ever return the recency ordering. The
+xfail therefore moved from the whole class onto the one assertion that still holds — a strict xfail
+on a passing test is itself a failure, which is how this surfaced.
+
+#1669 is CLOSED, so the surviving half is tracked by **#2247**. A strict xfail whose reason points
+at a closed issue tells the next reader the defect is already fixed, which is the opposite of what
+the marker means.
+
 The two layers here:
   * `TestRankerDiscriminates` — the ranker's power, on the REAL corpus. Passes; locks in that a
     niche follow surfaces its show, so a refactor cannot quietly flatten it.
-  * `TestPickerOffersARealChoice` — xfail(strict) against #1669. These record the live defect and
-    will fail loudly the day the picker is fixed, prompting removal of the marker.
+  * `TestPickerOffersARealChoice` — records what a user can actually pick. One of its two
+    assertions is still xfail(strict) against #1669 (see the re-measurement below); the other
+    passes now that the fixture's clusters are real.
 
 WHAT THIS DOES NOT COVER — measured, not assumed. Three regressions were simulated against the
 committed corpus to check these assertions actually bite:
@@ -186,17 +213,21 @@ class TestRankerDiscriminates:
         ), "a followed interest left the feed identical to recency"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "#1669 — every option the picker offers covers 100% of the corpus, so all of them yield "
-        "one identical feed. The ranker is fine; the picker selects options by prevalence, which "
-        "is the opposite of discriminating power. Remove this marker when the picker is fixed."
-    ),
-)
 class TestPickerOffersARealChoice:
-    """What a USER can actually pick. Currently decorative — recorded, not hidden."""
+    """What a USER can actually pick. Partly decorative — recorded, not hidden."""
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason=(
+            "#2247 (successor to the closed #1669) — the picker ranks options by PREVALENCE, "
+            "so the two corpus-wide umbrellas "
+            "(tc:dialogue, tc:lifelong-learning) are still offered, and following either can only "
+            "return the recency ordering. Narrower than when this marker covered the whole class: "
+            "it then read 'EVERY option covers 100%', which was true of the two hand-authored "
+            "clusters and is false of the 14 real ones. Remove when the picker stops ranking by "
+            "prevalence."
+        ),
+    )
     def test_picker_options_are_not_all_corpus_wide(self, rows) -> None:
         counts = coverage(rows)
         total = len(rows)
@@ -209,6 +240,12 @@ class TestPickerOffersARealChoice:
         )
 
     def test_picker_options_produce_different_feeds(self, rows) -> None:
+        """Passes since 2026-10-01 — it was xfail only because the fixture had 2 universal clusters.
+
+        This is the half of #1669 that the fixture was manufacturing. With real clusters the
+        offered options span 2/40 to 40/40 episodes, so following one is not the same as following
+        another. The surviving defect is the sibling assertion above.
+        """
         offered = [c["id"] for c in top_themes_by_member_count(CORPUS, 12)]
         if len(offered) < 2:
             pytest.fail(f"the picker offers {len(offered)} option(s) — no choice to make")

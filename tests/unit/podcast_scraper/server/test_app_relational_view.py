@@ -699,3 +699,441 @@ class TestRankingProjection:
         ]
         out = _rank_for_display([_node_to_app_insight(n) for n in nodes])
         assert [i.id for i in out] == ["x", "y"]
+
+
+# --- theme cards (#2193 follow-up) ---------------------------------------------------------------
+#
+# A theme is a GROUPING of topics that mean the same thing, not an entity — it is never a node on an
+# episode. `build_topic_card` matches a topic node by id, so a `tc:` id matched nothing and the
+# theme page rendered empty. These cover the behaviour that justifies a separate builder.
+
+
+class TestThemeCardMergesAcrossItsMembers:
+    """The union is the point: a similarity grouping exists because one member misses the others."""
+
+    FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
+    THEME = "tc:safety-practices"
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_fixture(self) -> None:
+        if not self.FIXTURE.is_dir():
+            pytest.skip(f"fixture corpus missing: {self.FIXTURE}")
+
+    def test_episode_list_exceeds_every_single_member(self) -> None:
+        """The whole justification for the page, asserted as a number.
+
+        Measured on `tc:macroeconomics`: the de-duplicated union is 9 episodes where the largest
+        single member (personal finance) carries 5. A reader on that member's topic page sees 5;
+        the theme shows 9. If this ever equals the largest member, the merge has regressed to "show
+        one member's episodes" and the page has no reason to exist.
+
+        NOT `self.THEME` (`tc:safety-practices`), deliberately: risk management carries 30 of its
+        30 union episodes, so that theme's union EQUALS its biggest member and could never fail
+        this assertion for the right reason. A test that cannot fail is not evidence — and the old
+        hand-authored `tc:show-themes` hid this by bundling eight unrelated topics, which made the
+        merge look dramatic (84 -> 40) for a grouping that should never have existed.
+        """
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, "tc:macroeconomics")
+        assert card is not None
+        assert len(card.member_topics) > 1, "a single-member theme cannot demonstrate a merge"
+
+        per_member = []
+        for m in card.member_topics:
+            tc = build_topic_card(self.FIXTURE, m.id)
+            per_member.append(tc.episode_count if tc else 0)
+
+        assert card.episode_count > max(per_member), (
+            f"union {card.episode_count} is not larger than the biggest member {max(per_member)} — "
+            "the episodes are not being merged across the theme"
+        )
+        assert card.episode_count < sum(per_member), (
+            f"union {card.episode_count} equals the sum {sum(per_member)} — duplicates are not "
+            "being removed, so an episode mentioning two members is listed twice"
+        )
+
+    def test_episode_count_matches_the_list_it_describes(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, self.THEME)
+        assert card is not None
+        assert card.episode_count == len(card.episodes)
+
+    def test_episodes_are_distinct(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, self.THEME)
+        assert card is not None
+        # `slug`, not `episode_id` — AppEpisodeSummary has no `episode_id`, and asserting on a
+        # missing attribute fails with AttributeError, which reads exactly like a real duplicate.
+        slugs = [e.slug for e in card.episodes]
+        assert len(slugs) == len(set(slugs)), "the same episode appears twice in a theme's list"
+
+    def test_members_are_ordered_by_corpus_weight(self) -> None:
+        """First row is the member a reader is most likely to recognise."""
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, self.THEME)
+        assert card is not None
+        counts = []
+        for m in card.member_topics:
+            tc = build_topic_card(self.FIXTURE, m.id)
+            counts.append(tc.episode_count if tc else 0)
+        assert counts == sorted(counts, reverse=True), f"members out of order: {counts}"
+
+    def test_carries_the_canonical_label_not_the_slug(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, self.THEME)
+        assert card is not None
+        assert card.label and card.label != card.id
+
+    def test_unknown_theme_is_none_so_the_route_404s(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        assert build_theme_card(self.FIXTURE, "tc:no-such-theme") is None
+
+    def test_a_topic_id_is_not_a_theme(self) -> None:
+        """Passing a `topic:` id must not accidentally build a one-member theme."""
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        assert build_theme_card(self.FIXTURE, "topic:risk-management") is None
+
+
+class TestStorylineCardMergesToo:
+    """The storyline page claimed a union it never had.
+
+    Its episodes came from the ANCHOR topic's card (`build_topic_card` → `card.episodes`), so
+    "Discussed in N episodes" counted one member's corpus and labelled it the storyline's. Measured
+    on this fixture: the anchor carries 30, the storyline spans 40.
+    """
+
+    FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
+    STORYLINE = "thc:managing-risk"
+    ANCHOR = "topic:risk-management"
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_fixture(self) -> None:
+        if not self.FIXTURE.is_dir():
+            pytest.skip(f"fixture corpus missing: {self.FIXTURE}")
+
+    def test_union_beats_the_anchor_the_page_used_to_show(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        anchor = build_topic_card(self.FIXTURE, self.ANCHOR)
+        assert card is not None and anchor is not None
+        assert card.episode_count > anchor.episode_count, (
+            f"storyline union {card.episode_count} is not larger than the anchor's "
+            f"{anchor.episode_count} — the page is still showing one member's episodes"
+        )
+
+    def test_resolves_from_an_anchor_topic_id_too(self) -> None:
+        """`/storyline/:id` routes by anchor topic, so the endpoint must accept one."""
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        by_cluster = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        by_anchor = build_storyline_card(self.FIXTURE, self.ANCHOR)
+        assert by_cluster is not None and by_anchor is not None
+        assert by_anchor.id == by_cluster.id == self.STORYLINE
+        assert by_anchor.episode_count == by_cluster.episode_count
+        assert [m.id for m in by_anchor.member_topics] == [m.id for m in by_cluster.member_topics]
+
+    def test_episodes_are_distinct(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        assert card is not None
+        slugs = [e.slug for e in card.episodes]
+        assert len(slugs) == len(set(slugs))
+
+    def test_unknown_ids_are_none(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        assert build_storyline_card(self.FIXTURE, "thc:no-such-storyline") is None
+        assert build_storyline_card(self.FIXTURE, "topic:not-in-any-storyline") is None
+
+    def test_a_theme_and_a_storyline_do_not_collide(self) -> None:
+        """Both builders read maps keyed by topic; a `tc:` id must not resolve as a storyline."""
+        from podcast_scraper.server.app_relational_view import (
+            build_storyline_card,
+            build_theme_card,
+        )
+
+        assert build_storyline_card(self.FIXTURE, "tc:safety-practices") is None
+        assert build_theme_card(self.FIXTURE, self.STORYLINE) is None
+
+
+class TestWhatHoldsAStorylineTogether:
+    """`lift_to_cluster` and per-member episode sets were computed and never surfaced.
+
+    Episode count says which member is BIGGEST; lift says which one makes the set a storyline.
+    Those are different questions, and the page answered neither — it listed four words.
+    """
+
+    FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
+    STORYLINE = "thc:managing-risk"
+    THEME = "tc:safety-practices"
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_fixture(self) -> None:
+        if not self.FIXTURE.is_dir():
+            pytest.skip(f"fixture corpus missing: {self.FIXTURE}")
+
+    def test_members_carry_their_own_episode_count(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        assert card is not None
+        assert all(m.episode_count > 0 for m in card.member_topics)
+        # The shape is the point: two heavyweights then a cliff, invisible without the numbers.
+        assert max(m.episode_count for m in card.member_topics) > 2 * min(
+            m.episode_count for m in card.member_topics
+        )
+
+    def test_exactly_one_anchor_and_it_leads(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        assert card is not None
+        anchors = [m for m in card.member_topics if m.anchor]
+        assert len(anchors) == 1, f"expected one anchor, got {[m.label for m in anchors]}"
+        assert card.member_topics[0].anchor, "the anchor must be the first row it labels"
+
+    def test_ordered_by_lift_not_by_size(self) -> None:
+        """Asserts the ORDER comes from lift. On this fixture the two agree on the sequence, so the
+        check is that the anchor is the highest-lift member rather than the biggest — they happen
+        to coincide here, and the tie-break below is where the two genuinely differ."""
+        from podcast_scraper.search.storylines import storyline_member_lift
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        lift = storyline_member_lift(self.FIXTURE)[self.STORYLINE]
+        assert card is not None
+        got = [lift[m.id] for m in card.member_topics]
+        assert got == sorted(got, reverse=True), f"members not in lift order: {got}"
+
+    def test_lift_outranks_episode_count(self) -> None:
+        """Storyline members are ordered by LIFT, and a bigger member does not jump the queue.
+
+        THE PREVIOUS VERSION ASSERTED A WEAKER AND SLIGHTLY WRONG THING. It looked for two members
+        tied on `episode_count` and checked lift broke the tie, describing lift as a tiebreaker.
+        The sort key is `(-lift, -episodes, id)` — lift is PRIMARY — so "tie on size, ordered by
+        lift" only ever described a fixture where the two happened to co-vary. When the five
+        non-English counterpart shows merged in they took `endurance sport` from 4 episodes to 9
+        (each carries it as an authored topic), the tie vanished, and the test failed with its own
+        message: "fixture no longer has a tie; this test needs a new example".
+
+        The merged fixture offers something stronger than a tie: `safety practices` has 4 episodes
+        and `endurance sport` has 9, yet safety practices ranks HIGHER because its lift is 1.7
+        against 1.5. Ordering by size alone would invert them, so this is the real claim —
+        asserted over the whole list rather than one hand-picked pair, which is also why it cannot
+        go stale the way the tie did.
+        """
+        from podcast_scraper.search.storylines import storyline_member_lift
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        lift = storyline_member_lift(self.FIXTURE)[self.STORYLINE]
+        assert card is not None
+        members = card.member_topics
+        assert len(members) >= 2, "a single member cannot demonstrate an ordering"
+
+        lifts = [lift.get(m.id, 0.0) for m in members]
+        assert lifts == sorted(lifts, reverse=True), (
+            "storyline members are not ordered by lift descending: "
+            f"{[(m.label, lift.get(m.id)) for m in members]}"
+        )
+        # The case that makes the ordering load-bearing: at least one member outranks a LARGER one.
+        # Without this the assertion above would also pass on a fixture where lift and size agree,
+        # which is exactly how the old tie-based version became untrue without failing.
+        inversions = [
+            (a.label, a.episode_count, b.label, b.episode_count)
+            for a, b in zip(members, members[1:])
+            if a.episode_count < b.episode_count
+        ]
+        assert inversions, (
+            "every member is also ordered by episode count, so this fixture cannot show that lift "
+            "is the key — pick a storyline where a smaller member has the higher lift"
+        )
+
+    def test_strongest_pair_is_the_storylines_evidence(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, self.STORYLINE)
+        assert card is not None and card.strongest_pair is not None
+        p = card.strongest_pair
+        assert p.shared_episode_count > 0
+        assert p.a_label != p.b_label
+        # It must be the STRONGEST pair, not merely a pair: the top two carry 17 shared episodes
+        # while every other combination is 4 or fewer.
+        assert p.shared_episode_count >= 17
+
+    def test_a_theme_gets_neither_anchor_nor_pair(self) -> None:
+        """The divergence, asserted. "Means the same thing" is symmetric: no centre, no pair
+        claim. Flagging one member or printing a pair would both say something a theme does not."""
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, self.THEME)
+        assert card is not None
+        assert card.strongest_pair is None
+        assert not any(m.anchor for m in card.member_topics)
+        # Counts still earn their place — they show how much of the theme each member carries.
+        assert all(m.episode_count > 0 for m in card.member_topics)
+
+
+class TestAGroupingMovesOverTime:
+    """A grouping is not a static set — topics join it, carry it, and drop out.
+
+    The member list said none of that: the same four words in the same order whether a topic had
+    been there since the first episode or arrived last month. These assert the movement is real and
+    that the rules are self-relative, not tied to a fixed window.
+    """
+
+    FIXTURE = Path("tests/fixtures/app-validation-corpus/v3")
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_fixture(self) -> None:
+        if not self.FIXTURE.is_dir():
+            pytest.skip(f"fixture corpus missing: {self.FIXTURE}")
+
+    def test_a_member_that_stopped_appearing_is_gone(self) -> None:
+        """`tc:macroeconomics`, which still has members that stopped appearing.
+
+        MOVED FROM THE STORYLINE, for the same reason the sibling `new` test moved: the example
+        stopped existing. It used `endurance sport` in `thc:managing-risk`, and the five
+        non-English counterpart shows each carry `endurance sport` as an authored topic — taking it
+        from 4 episodes to 9 and from `gone` to `steady`. The corpus has exactly ONE storyline, so
+        there is no other storyline to move the example to.
+
+        A theme card tests the same code: `build_theme_card` and `build_storyline_card` are both
+        thin wrappers over `_build_cluster_card`, and `_trend` lives inside it. The only difference
+        between the two is the member ORDERING (storylines have lift, themes do not), which this
+        test does not touch.
+        """
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, "tc:macroeconomics")
+        assert card is not None
+        gone = [m for m in card.member_topics if m.trend == "gone"]
+        assert gone, (
+            "no member of tc:macroeconomics is `gone`, so the state is unexercised — find a "
+            f"cluster that has one: {[(m.label, m.trend) for m in card.member_topics]}"
+        )
+        # `gone` must be justified by the dates it reports, not asserted on its own.
+        newest = max(m.last_seen for m in card.member_topics if m.last_seen)
+        for m in gone:
+            assert m.last_seen is not None
+            assert m.last_seen < newest, f"{m.label} is called gone but is the most recent member"
+
+    def test_a_member_absent_from_the_first_half_is_new(self) -> None:
+        """`tc:macroeconomics`, which has members on both sides of its own median.
+
+        Was `public radio` inside the hand-authored `tc:show-themes`. That theme is gone — it
+        bundled one lead topic per show, so it had members from every corner of the corpus and
+        trivially contained a late arrival. A real cluster has to earn one.
+        """
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, "tc:macroeconomics")
+        assert card is not None
+        by_label = {m.label: m for m in card.member_topics}
+        arrival = by_label["labor markets"]
+        established = by_label["personal finance"]
+        assert arrival.trend == "new"
+        # And it must have started LATER than a member that was there from the beginning. Both
+        # dates are asserted present first: `first_seen` is `str | None`, and comparing an absent
+        # one would be a TypeError dressed up as a failing assertion.
+        assert arrival.first_seen is not None and established.first_seen is not None
+        assert arrival.first_seen > established.first_seen
+
+    def test_every_member_reports_the_dates_behind_its_trend(self) -> None:
+        from podcast_scraper.server.app_relational_view import build_storyline_card
+
+        card = build_storyline_card(self.FIXTURE, "thc:managing-risk")
+        assert card is not None
+        for m in card.member_topics:
+            assert m.first_seen and m.last_seen, f"{m.label} has a trend but no dates to justify it"
+            assert m.first_seen <= m.last_seen
+
+    def test_steady_is_the_default_so_badges_stay_rare(self) -> None:
+        """A badge on every row is a badge that says nothing."""
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, "tc:safety-practices")
+        assert card is not None
+        moved = [m for m in card.member_topics if m.trend != "steady"]
+        assert 0 < len(moved) < len(card.member_topics), (
+            "either nothing moved (no story) or everything did (no signal): "
+            f"{[(m.label, m.trend) for m in card.member_topics]}"
+        )
+
+    def test_the_split_is_the_groupings_own_median_not_a_fixed_window(self) -> None:
+        """A six-month corpus and a six-year one must both read sensibly.
+
+        A fixed "last 12 months" window would brand every member of a young corpus `new`. Asserted
+        by checking that the earliest-starting member is NOT called new — under a fixed recent
+        window on this corpus (which runs to 2026) several members would be.
+        """
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, "tc:safety-practices")
+        assert card is not None
+        earliest = min(card.member_topics, key=lambda m: m.first_seen or "9999")
+        assert earliest.trend != "new"
+
+    def test_a_grouping_reports_what_is_said_across_its_members(self) -> None:
+        """The union, not one member — that is what makes it the GROUPING's perspectives."""
+        from podcast_scraper.server.app_relational_view import build_cluster_perspectives
+
+        theme = build_cluster_perspectives(self.FIXTURE, "tc:safety-practices", "theme")
+        assert theme is not None
+        assert theme.perspective_count == len(theme.perspectives) > 0
+        # Every take must be attributable and jumpable — a perspective needs an owner, and the
+        # point of showing a sentence is being able to go hear it.
+        for p in theme.perspectives:
+            assert p.person_name.strip()
+            assert p.insights, f"{p.person_name} is a perspective with no take"
+            assert all(i.text.strip() for i in p.insights)
+
+    def test_the_union_is_wider_than_any_single_member(self) -> None:
+        """A grouping's speakers are the ones across it, not the biggest member's."""
+        from podcast_scraper.server.app_relational_view import (
+            build_cluster_perspectives,
+            build_topic_perspectives,
+        )
+
+        grouping = build_cluster_perspectives(self.FIXTURE, "thc:managing-risk", "storyline")
+        anchor = build_topic_perspectives(self.FIXTURE, "topic:risk-management")
+        assert grouping is not None and anchor is not None
+        speakers = {p.person_id for p in grouping.perspectives}
+        assert speakers >= {
+            p.person_id for p in anchor.perspectives
+        }, "the storyline lost a speaker its anchor topic has — the union is not a union"
+        assert len(speakers) > len(
+            anchor.perspectives
+        ), "the storyline found nobody beyond its anchor; it is showing one member's page"
+
+    def test_kind_decides_which_grouping_an_anchor_topic_resolves_to(self) -> None:
+        """`/storyline/:id` routes by ANCHOR TOPIC, and that topic is usually in a theme too.
+
+        Resolving against the theme map first served a storyline page the THEME's speakers — the
+        grouping was wrong while the page looked entirely healthy.
+        """
+        from podcast_scraper.server.app_relational_view import build_cluster_perspectives
+
+        as_storyline = build_cluster_perspectives(
+            self.FIXTURE, "topic:risk-management", "storyline"
+        )
+        assert as_storyline is not None
+        assert as_storyline.topic_label == "Managing risk across domains"
+        # A theme id is not a storyline, and must not be quietly accepted as one.
+        assert build_cluster_perspectives(self.FIXTURE, "tc:safety-practices", "storyline") is None
+
+    def test_a_grouping_nobody_speaks_to_is_absent_not_empty(self) -> None:
+        """Its members are abstract labels nobody says aloud; the page shows nothing."""
+        from podcast_scraper.server.app_relational_view import build_cluster_perspectives
+
+        assert build_cluster_perspectives(self.FIXTURE, "tc:lifelong-learning", "theme") is None
+        assert build_cluster_perspectives(self.FIXTURE, "tc:nope", "theme") is None

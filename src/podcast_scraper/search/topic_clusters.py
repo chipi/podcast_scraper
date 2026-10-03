@@ -1,4 +1,21 @@
-"""Corpus-wide KG topic clustering from indexed ``kg_topic`` embeddings."""
+"""Corpus-wide KG topic clustering — what the product calls a **THEME**.
+
+READ THIS FIRST, because the module name says less than it should.
+
+    this module      `tc:`  "topic cluster"  -> a reader is shown: **THEME**
+    its sibling      `thc:` "theme cluster"  -> a reader is shown: **STORYLINE**
+    (sibling = ``enrichment/enrichers/topic_theme_clusters.py``)
+
+Groups topics that *mean the same thing*, by cosine similarity over indexed ``kg_topic``
+embeddings — "agentic engineering" and "agentic workflows" are one theme. Its sibling groups topics
+that *keep coming up together* (co-occurrence) and is what a reader calls a STORYLINE.
+
+The names are inverted against the product vocabulary and are STAYING that way (operator decision
+2026-10-01): the prefixes live in persisted artifacts including an append-only event log, so a
+rename is a corpus migration rather than a refactor. The function names here already use the
+product word — ``theme_map_by_topic`` returns themes — so trust those over the module name. The
+single boundary is ``interestKind()`` in ``web/learning-player/src/utils/interests.ts``.
+"""
 
 from __future__ import annotations
 

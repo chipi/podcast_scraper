@@ -233,50 +233,64 @@ def test_ground_truth_surface_forms_appear_in_transcript(episode_id):
         )
 
 
-#: The two episodes that carry NO sponsor blocks, by design. Both are hand-written robustness
-#: fixtures rather than generator output (FIXTURES_SPEC.md: "40 - p06_e05 - p06_e06, which are
-#: hand-written") — 141 and 212 characters against ~4,000 for a real episode. `p06_e05` is the
-#: corpus's only single-speaker episode and its only carrier of stage directions; `p06_e06` is
-#: its only code-switching episode. Neither is shaped like a podcast, so neither has ads.
-_GROUND_TRUTH_WITHOUT_SPONSOR_BLOCKS = frozenset({"p06_e05", "p06_e06"})
+# The two hand-SCRIPTED episodes, which are exempt from the templated sponsor contract below.
+#
+# `_render_scripted_episode` bypasses the `_render_pass` templating machinery entirely — its
+# docstring is explicit that "the author owns the dialogue, incl. sponsor turns" — and both of
+# these were authored as edge cases that say so in their own ground truth:
+#
+#   p06_e05  "Single speaker throughout ... No sponsor read and no guest introduction."
+#   p06_e06  "Two speakers, one switching language mid-conversation ... deliberately brief."
+#
+# They exist precisely to break templated assumptions, so asserting a templated invariant on them
+# was asserting against their purpose.
+SCRIPTED_EPISODES = {"p06_e05", "p06_e06"}
 
 
 def test_sponsor_block_kinds_recorded_per_episode():
-    """Every GENERATED ground-truth file lists at least one sponsor block.
+    """Every TEMPLATED ground-truth file lists at least one sponsor block.
 
-    The shape we expect: opening + closing template ads on every episode,
-    plus optional native_ad / enthusiastic_recommendation / template_midroll.
+    The shape we expect: opening + closing template ads on every templated episode, plus optional
+    native_ad / enthusiastic_recommendation / template_midroll.
 
-    The two hand-written edge-case fixtures are exempt — but the exemption is asserted to be
-    EXACTLY those two, so a newly empty episode still fails, and an edge case that gains
-    sponsor blocks flags the exemption as stale. Muting the invariant is not the same as
-    scoping it.
+    Hand-scripted episodes are exempt (see SCRIPTED_EPISODES). This test asserted "every episode"
+    and had been red since f767368cb (2026-09-23) made it non-vacuous — p06 grew from 4 episodes to
+    6, and the two additions are scripted. The assertion was describing the templating path and
+    being run against author-owned transcripts.
 
-    Previously this asserted inside an UNSORTED `glob`, so it reported the first violation it
-    happened to reach and stayed silent about the other — two episodes were empty and one was
-    named. Violations are collected and sorted now.
+    Both halves of the exemption are checked, so neither can rot:
+
+    * a TEMPLATED episode that loses its sponsor blocks still fails, which is the regression this
+      test exists for;
+    * a NEW episode with no sponsor blocks fails too, rather than being silently absorbed — the
+      exempt set is asserted to be exactly the scripted two, so growing it is a deliberate edit.
+
+    Violations are COLLECTED and sorted rather than asserted inside the loop. Asserting in the
+    loop reports the first one the glob happens to reach and says nothing about the others — two
+    episodes were empty once and only one was ever named.
     """
     truth_dir = PROJECT_ROOT / "tests" / "fixtures" / "ground-truth" / "v3" / "ground_truth"
     if not truth_dir.exists():
         pytest.skip("ground truth not on disk; run the generator first")
 
-    empty: list[str] = []
+    without: set[str] = set()
     missing_opening: list[str] = []
     for json_path in sorted(truth_dir.glob("*.json")):
-        episode = json_path.stem
         truth = json.loads(json_path.read_text(encoding="utf-8"))
-        blocks = truth["sponsor_blocks"]
-        if not blocks:
-            empty.append(episode)
+        stem = json_path.stem
+        if not truth["sponsor_blocks"]:
+            without.add(stem)
             continue
-        if "template_opening" not in {b["kind"] for b in blocks}:
-            missing_opening.append(episode)
+        kinds = {b["kind"] for b in truth["sponsor_blocks"]}
+        if stem not in SCRIPTED_EPISODES and "template_opening" not in kinds:
+            missing_opening.append(stem)
 
-    assert set(empty) == set(_GROUND_TRUTH_WITHOUT_SPONSOR_BLOCKS), (
-        f"episodes with no sponsor blocks: {sorted(empty)}; "
-        f"expected exactly {sorted(_GROUND_TRUTH_WITHOUT_SPONSOR_BLOCKS)}"
+    assert without == SCRIPTED_EPISODES, (
+        "episodes without sponsor blocks are not the known scripted ones: "
+        f"unexpected={sorted(without - SCRIPTED_EPISODES)} "
+        f"newly-templated={sorted(SCRIPTED_EPISODES - without)}"
     )
-    assert not missing_opening, f"missing template_opening: {missing_opening}"
+    assert not missing_opening, f"missing template_opening: {sorted(missing_opening)}"
 
 
 def test_enthusiastic_recommendation_marked_as_real_content():

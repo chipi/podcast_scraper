@@ -1729,6 +1729,63 @@ def _apply_cover_art(corpus: Path) -> str:
         return f"FAILED ({exc})"
 
 
+def _write_topic_clusters_scaffold(clusters_path: Path, clusters: list[dict[str, Any]]) -> None:
+    """Write the synthetic topic_clusters.json — but NEVER over an embedding-derived one.
+
+    The synthetic clusters are a SCAFFOLD: they exist so the interests picker has multi-member
+    clusters to surface on a clean clone with no ML extras. They are not similarity groupings and
+    must not be mistaken for them — `tc:show-themes` bundled one lead topic PER SHOW, so its members
+    (risk management, endurance sport, public radio, visual craft...) have nothing in common, and
+    the file declared ``threshold: 0.75`` while only 3 of its 28 member pairs appeared in the
+    ``topic_similarity`` artifact beside it, all BELOW that threshold.
+
+    The corpus now ships the real thing (2026-10-01) — 14 clusters over 50 topics from
+    all-MiniLM-L6-v2 at threshold 0.35 (``make build-app-validation-index`` then ``cli
+    topic-clusters``), which cohere: macroeconomics {labor markets, macro policy, monetary policy,
+    personal finance}, reef conservation {marine biology, reef conservation}. Six capability-audit
+    assertions and two relational-view ones encode that shape, so re-running this builder and
+    silently overwriting it would revert them with no diff anybody reads — this file is one line of
+    a 40-episode regeneration.
+
+    ``model`` is the discriminator because it records WHAT produced the file, and the real
+    clusterer stamps the embedding model it used.
+    """
+    existing_model = ""
+    if clusters_path.is_file():
+        try:
+            existing = json.loads(clusters_path.read_text(encoding="utf-8"))
+            if isinstance(existing, dict):
+                existing_model = str(existing.get("model") or "")
+        except (OSError, json.JSONDecodeError):
+            existing_model = ""
+
+    if existing_model and existing_model != "synthetic-app-validation-corpus":
+        print(
+            f"  search/topic_clusters.json: KEPT (model={existing_model!r}) — refusing to "
+            "overwrite embedding-derived clusters with the synthetic scaffold. Delete the file "
+            "first if you really want the scaffold back."
+        )
+        return
+
+    clusters_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "2",
+                "model": "synthetic-app-validation-corpus",
+                "threshold": 0.75,
+                "clusters": clusters,
+                "singletons": 0,
+                "topic_count": sum(len(c["members"]) for c in clusters),
+                "cluster_count": len(clusters),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rss-dir", type=Path, default=Path("tests/fixtures/rss"))
@@ -2205,23 +2262,7 @@ def main() -> int:
 
     search_dir = out / "search"
     search_dir.mkdir(parents=True, exist_ok=True)
-    (search_dir / "topic_clusters.json").write_text(
-        json.dumps(
-            {
-                "schema_version": "2",
-                "model": "synthetic-app-validation-corpus",
-                "threshold": 0.75,
-                "clusters": clusters,
-                "singletons": 0,
-                "topic_count": sum(len(c["members"]) for c in clusters),
-                "cluster_count": len(clusters),
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    _write_topic_clusters_scaffold(search_dir / "topic_clusters.json", clusters)
 
     # --- corpus-scope enrichment envelopes (RFC-088) ------------------------
     corpus_enrich_dir = out / "enrichments"

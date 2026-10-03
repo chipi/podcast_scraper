@@ -19,8 +19,11 @@ from fastapi.responses import FileResponse
 
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_relational_view import (
+    build_cluster_perspectives,
     build_org_card,
     build_person_card,
+    build_storyline_card,
+    build_theme_card,
     build_topic_card,
     build_topic_perspectives,
     resolve_entity,
@@ -29,6 +32,7 @@ from podcast_scraper.server.app_user_corpus import user_episode_set
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
+    AppClusterCard,
     AppEntitySearchResponse,
     AppOrgCard,
     AppPersonCard,
@@ -260,6 +264,101 @@ def _conversation_arc(root: str, topic_id: str) -> list[dict]:
     weeks = cil_queries.topic_conversation_arc(root, root, topic_id)
     _conversation_arc_cache[key] = (now, weeks)
     return weeks
+
+
+@router.get("/storylines/{storyline_id}", response_model=AppClusterCard)
+async def storyline_card(
+    request: Request,
+    storyline_id: str,
+    user: User = Depends(get_current_user),
+) -> AppClusterCard:
+    """Storyline card: the member topics, their MERGED episodes, and the people across them.
+
+    Accepts EITHER the storyline's own `thc:` id or one of its member topics' ids. The second form
+    keeps ``/storyline/:id`` working — that page routes by ANCHOR TOPIC, because it was built before
+    any storyline endpoint existed and derived everything from the anchor's topic card.
+
+    That derivation is what this replaces. The topic card's ``episodes`` are the ANCHOR's episodes,
+    so the storyline page said "Discussed in 30 episodes" when the storyline actually spans 40 —
+    it was showing one member's corpus and calling it the storyline's.
+
+    404 when the id names neither a storyline nor a topic inside one.
+    """
+    root = corpus_root_or_503(request)
+    card = await asyncio.to_thread(build_storyline_card, root, storyline_id.strip())
+    if card is None:
+        raise HTTPException(status_code=404, detail="Unknown storyline id.")
+    return card
+
+
+@router.get("/themes/{theme_id}", response_model=AppClusterCard)
+async def theme_card(
+    request: Request,
+    theme_id: str,
+    user: User = Depends(get_current_user),
+) -> AppClusterCard:
+    """Theme card: the member topics, their MERGED episodes, and the people across them.
+
+    A theme is a grouping of topics that mean the same thing, not an entity — it is never a node on
+    an episode. It therefore needs its own endpoint: ``/topics/{id}`` builds a card by matching a
+    topic node by id, so a `tc:` id matched nothing and the page rendered empty.
+
+    No ``scope`` parameter, deliberately. The topic card's ``scope=mine`` narrows to the user's
+    heard set; a theme page answers "what is this grouping, across the corpus", and a
+    personally-filtered union would quietly answer a different question. Add it when a surface
+    actually asks.
+
+    404 when the theme id is unknown or none of its members appear in any episode's KG.
+    """
+    root = corpus_root_or_503(request)
+    card = await asyncio.to_thread(build_theme_card, root, theme_id.strip())
+    if card is None:
+        raise HTTPException(status_code=404, detail="Unknown theme id.")
+    return card
+
+
+@router.get("/storylines/{storyline_id}/perspectives", response_model=AppTopicPerspectivesResponse)
+async def storyline_perspectives_route(
+    request: Request,
+    storyline_id: str,
+    user: User = Depends(get_current_user),
+) -> AppTopicPerspectivesResponse:
+    """What is SAID across a storyline — its members' insights, grouped by speaker.
+
+    Scoped to the UNION of the storyline's member topics, which is what the storyline is. Accepts
+    the `thc:` id or an anchor topic id, like the card route above and for the same reason.
+
+    404 when no member has a speaker-attributable insight. That is an ABSENCE, not a fault, and it
+    is the normal outcome for a grouping whose members are abstract labels nobody says aloud — the
+    client renders nothing rather than an error.
+    """
+    root = corpus_root_or_503(request)
+    resp = await asyncio.to_thread(
+        build_cluster_perspectives, root, storyline_id.strip(), "storyline"
+    )
+    if resp is None:
+        raise HTTPException(status_code=404, detail="No perspectives for this storyline.")
+    return resp
+
+
+@router.get("/themes/{theme_id}/perspectives", response_model=AppTopicPerspectivesResponse)
+async def theme_perspectives_route(
+    request: Request,
+    theme_id: str,
+    user: User = Depends(get_current_user),
+) -> AppTopicPerspectivesResponse:
+    """What is SAID across a theme — its members' insights, grouped by speaker.
+
+    No ``scope`` parameter, for the same reason the theme card has none: the page asks what the
+    grouping is across the corpus, and a personally-filtered union answers a different question.
+
+    404 when no member has a speaker-attributable insight — an absence, not a fault.
+    """
+    root = corpus_root_or_503(request)
+    resp = await asyncio.to_thread(build_cluster_perspectives, root, theme_id.strip(), "theme")
+    if resp is None:
+        raise HTTPException(status_code=404, detail="No perspectives for this theme.")
+    return resp
 
 
 @router.get("/topics/{topic_id}", response_model=AppTopicCard)

@@ -1,66 +1,551 @@
 {
-  "cluster_count": 2,
+  "cluster_count": 14,
   "clusters": [
     {
-      "canonical_label": "Lifelong Learning",
-      "cil_alias_target_topic_id": "topic:lifelong-learning",
-      "graph_compound_parent_id": "tc:lifelong-learning",
+      "canonical_label": "broadcast format",
+      "cil_alias_target_topic_id": "topic:broadcast-format",
+      "graph_compound_parent_id": "tc:broadcast-format",
       "member_count": 2,
       "members": [
         {
-          "label": "lifelong learning",
-          "topic_id": "topic:lifelong-learning"
+          "episode_ids": [
+            "ep-efc13989b676df9d"
+          ],
+          "label": "broadcast format",
+          "similarity_to_centroid": 0.871831,
+          "topic_id": "topic:broadcast-format"
         },
         {
+          "episode_ids": [
+            "ep-64ef09a7ee543045",
+            "ep-b3570c1ceb5eca41",
+            "ep-d428e906f5affc60",
+            "ep-efc13989b676df9d"
+          ],
+          "label": "public radio",
+          "similarity_to_centroid": 0.871831,
+          "topic_id": "topic:public-radio"
+        }
+      ]
+    },
+    {
+      "canonical_label": "incident response",
+      "cil_alias_target_topic_id": "topic:incident-response",
+      "graph_compound_parent_id": "tc:incident-response",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-d428e906f5affc60"
+          ],
+          "label": "corrections policy",
+          "similarity_to_centroid": 0.738988,
+          "topic_id": "topic:corrections-policy"
+        },
+        {
+          "episode_ids": [
+            "ep-35f04bce441bf827"
+          ],
+          "label": "incident postmortems",
+          "similarity_to_centroid": 0.795853,
+          "topic_id": "topic:incident-postmortems"
+        },
+        {
+          "episode_ids": [
+            "ep-18ede6ffbd63f18f",
+            "ep-4a1a673a7005a6b5"
+          ],
+          "label": "incident response",
+          "similarity_to_centroid": 0.804989,
+          "topic_id": "topic:incident-response"
+        }
+      ]
+    },
+    {
+      "canonical_label": "dialogue",
+      "cil_alias_target_topic_id": "topic:dialogue",
+      "graph_compound_parent_id": "tc:dialogue",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df",
+            "ep-3158b8ff3e943b1e",
+            "ep-a89e6a42509c9af0",
+            "ep-f4b940a095192621"
+          ],
+          "label": "dialogue",
+          "similarity_to_centroid": 0.833048,
+          "topic_id": "topic:dialogue"
+        },
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df",
+            "ep-0c46a67a56b05689",
+            "ep-0d9100843ee555f8",
+            "ep-16ff698c1bd21087",
+            "ep-18ede6ffbd63f18f",
+            "ep-1979e93514355ea6",
+            "ep-1abf911df5bea2c3",
+            "ep-1e526e495918fb27",
+            "ep-26eaa57651247221",
+            "ep-2a703b6f57d9020f",
+            "ep-2cd5c6d11325a312",
+            "ep-3158b8ff3e943b1e",
+            "ep-35f04bce441bf827",
+            "ep-362f5d463b877d2c",
+            "ep-4a1a673a7005a6b5",
+            "ep-4d94c63887afbd1a",
+            "ep-60d667843dc40fca",
+            "ep-6351d18dc6f1ff70",
+            "ep-64ef09a7ee543045",
+            "ep-8aa4d883afa10fa4",
+            "ep-916dab1698f88aec",
+            "ep-919c77e84ad37664",
+            "ep-9b36e2e3b959298d",
+            "ep-9f97daef33906cf6",
+            "ep-a05e37624721d37c",
+            "ep-a0a7f86b34a4de26",
+            "ep-a1342cd495b1165b",
+            "ep-a86da8f148d3bf29",
+            "ep-a884b153355070f0",
+            "ep-a89e6a42509c9af0",
+            "ep-b3570c1ceb5eca41",
+            "ep-bccfce5798a83a6e",
+            "ep-d428e906f5affc60",
+            "ep-d8cc458a5f0049a8",
+            "ep-db8f44d2e07a22bd",
+            "ep-de59d003651d9e5d",
+            "ep-efc13989b676df9d",
+            "ep-f4b940a095192621",
+            "ep-fb2bb5f0f4044f1d",
+            "ep-febd9a8f53bf3a3a"
+          ],
           "label": "expert interviews",
+          "similarity_to_centroid": 0.833048,
           "topic_id": "topic:expert-interviews"
         }
       ]
     },
     {
-      "canonical_label": "Show Themes",
-      "cil_alias_target_topic_id": "topic:personal-finance",
-      "graph_compound_parent_id": "tc:show-themes",
-      "member_count": 8,
+      "canonical_label": "dive planning",
+      "cil_alias_target_topic_id": "topic:dive-planning",
+      "graph_compound_parent_id": "tc:dive-planning",
+      "member_count": 2,
       "members": [
         {
-          "label": "personal finance",
-          "topic_id": "topic:personal-finance"
+          "episode_ids": [
+            "ep-2a703b6f57d9020f",
+            "ep-916dab1698f88aec"
+          ],
+          "label": "dive planning",
+          "similarity_to_centroid": 0.915224,
+          "topic_id": "topic:dive-planning"
         },
         {
-          "label": "risk management",
-          "topic_id": "topic:risk-management"
+          "episode_ids": [
+            "ep-2a703b6f57d9020f"
+          ],
+          "label": "wreck diving",
+          "similarity_to_centroid": 0.915224,
+          "topic_id": "topic:wreck-diving"
+        }
+      ]
+    },
+    {
+      "canonical_label": "documentary photography",
+      "cil_alias_target_topic_id": "topic:documentary-photography",
+      "graph_compound_parent_id": "tc:documentary-photography",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-fb2bb5f0f4044f1d"
+          ],
+          "label": "documentary photography",
+          "similarity_to_centroid": 0.833034,
+          "topic_id": "topic:documentary-photography"
         },
         {
-          "label": "systems thinking",
-          "topic_id": "topic:systems-thinking"
+          "episode_ids": [
+            "ep-9b36e2e3b959298d"
+          ],
+          "label": "roundtable photography",
+          "similarity_to_centroid": 0.775073,
+          "topic_id": "topic:roundtable-photography"
         },
         {
-          "label": "safety practices",
-          "topic_id": "topic:safety-practices"
-        },
+          "episode_ids": [
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "underwater photography",
+          "similarity_to_centroid": 0.800284,
+          "topic_id": "topic:underwater-photography"
+        }
+      ]
+    },
+    {
+      "canonical_label": "endurance sport",
+      "cil_alias_target_topic_id": "topic:endurance-sport",
+      "graph_compound_parent_id": "tc:endurance-sport",
+      "member_count": 2,
+      "members": [
         {
-          "label": "visual craft",
-          "topic_id": "topic:visual-craft"
-        },
-        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8",
+            "ep-60d667843dc40fca",
+            "ep-db8f44d2e07a22bd",
+            "ep-de59d003651d9e5d"
+          ],
           "label": "endurance sport",
+          "similarity_to_centroid": 0.876773,
           "topic_id": "topic:endurance-sport"
         },
         {
-          "label": "long-form",
-          "topic_id": "topic:long-form"
+          "episode_ids": [
+            "ep-60d667843dc40fca",
+            "ep-de59d003651d9e5d"
+          ],
+          "label": "enduro racing",
+          "similarity_to_centroid": 0.876773,
+          "topic_id": "topic:enduro-racing"
+        }
+      ]
+    },
+    {
+      "canonical_label": "journalism",
+      "cil_alias_target_topic_id": "topic:journalism",
+      "graph_compound_parent_id": "tc:journalism",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-64ef09a7ee543045",
+            "ep-b3570c1ceb5eca41",
+            "ep-d428e906f5affc60",
+            "ep-efc13989b676df9d"
+          ],
+          "label": "journalism",
+          "similarity_to_centroid": 0.860577,
+          "topic_id": "topic:journalism"
         },
         {
-          "label": "public radio",
-          "topic_id": "topic:public-radio"
+          "episode_ids": [
+            "ep-b3570c1ceb5eca41"
+          ],
+          "label": "newsroom operations",
+          "similarity_to_centroid": 0.860577,
+          "topic_id": "topic:newsroom-operations"
+        }
+      ]
+    },
+    {
+      "canonical_label": "macroeconomics",
+      "cil_alias_target_topic_id": "topic:macroeconomics",
+      "graph_compound_parent_id": "tc:macroeconomics",
+      "member_count": 5,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-919c77e84ad37664"
+          ],
+          "label": "labor markets",
+          "similarity_to_centroid": 0.693925,
+          "topic_id": "topic:labor-markets"
+        },
+        {
+          "episode_ids": [
+            "ep-8aa4d883afa10fa4"
+          ],
+          "label": "macro policy",
+          "similarity_to_centroid": 0.707112,
+          "topic_id": "topic:macro-policy"
+        },
+        {
+          "episode_ids": [
+            "ep-2cd5c6d11325a312",
+            "ep-362f5d463b877d2c",
+            "ep-a1342cd495b1165b"
+          ],
+          "label": "macroeconomics",
+          "similarity_to_centroid": 0.857385,
+          "topic_id": "topic:macroeconomics"
+        },
+        {
+          "episode_ids": [
+            "ep-1e526e495918fb27"
+          ],
+          "label": "monetary policy",
+          "similarity_to_centroid": 0.803439,
+          "topic_id": "topic:monetary-policy"
+        },
+        {
+          "episode_ids": [
+            "ep-16ff698c1bd21087",
+            "ep-1e526e495918fb27",
+            "ep-6351d18dc6f1ff70",
+            "ep-8aa4d883afa10fa4",
+            "ep-bccfce5798a83a6e"
+          ],
+          "label": "personal finance",
+          "similarity_to_centroid": 0.701789,
+          "topic_id": "topic:personal-finance"
+        }
+      ]
+    },
+    {
+      "canonical_label": "lifelong learning",
+      "cil_alias_target_topic_id": "topic:lifelong-learning",
+      "graph_compound_parent_id": "tc:lifelong-learning",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df",
+            "ep-0c46a67a56b05689",
+            "ep-0d9100843ee555f8",
+            "ep-16ff698c1bd21087",
+            "ep-18ede6ffbd63f18f",
+            "ep-1979e93514355ea6",
+            "ep-1abf911df5bea2c3",
+            "ep-1e526e495918fb27",
+            "ep-26eaa57651247221",
+            "ep-2a703b6f57d9020f",
+            "ep-2cd5c6d11325a312",
+            "ep-3158b8ff3e943b1e",
+            "ep-35f04bce441bf827",
+            "ep-362f5d463b877d2c",
+            "ep-4a1a673a7005a6b5",
+            "ep-4d94c63887afbd1a",
+            "ep-60d667843dc40fca",
+            "ep-6351d18dc6f1ff70",
+            "ep-64ef09a7ee543045",
+            "ep-8aa4d883afa10fa4",
+            "ep-916dab1698f88aec",
+            "ep-919c77e84ad37664",
+            "ep-9b36e2e3b959298d",
+            "ep-9f97daef33906cf6",
+            "ep-a05e37624721d37c",
+            "ep-a0a7f86b34a4de26",
+            "ep-a1342cd495b1165b",
+            "ep-a86da8f148d3bf29",
+            "ep-a884b153355070f0",
+            "ep-a89e6a42509c9af0",
+            "ep-b3570c1ceb5eca41",
+            "ep-bccfce5798a83a6e",
+            "ep-d428e906f5affc60",
+            "ep-d8cc458a5f0049a8",
+            "ep-db8f44d2e07a22bd",
+            "ep-de59d003651d9e5d",
+            "ep-efc13989b676df9d",
+            "ep-f4b940a095192621",
+            "ep-fb2bb5f0f4044f1d",
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "lifelong learning",
+          "similarity_to_centroid": 0.827615,
+          "topic_id": "topic:lifelong-learning"
+        },
+        {
+          "episode_ids": [
+            "ep-034d8bc4204034df",
+            "ep-0c46a67a56b05689",
+            "ep-26eaa57651247221",
+            "ep-3158b8ff3e943b1e",
+            "ep-a89e6a42509c9af0",
+            "ep-f4b940a095192621"
+          ],
+          "label": "long-form",
+          "similarity_to_centroid": 0.827615,
+          "topic_id": "topic:long-form"
+        }
+      ]
+    },
+    {
+      "canonical_label": "lighting design",
+      "cil_alias_target_topic_id": "topic:lighting-design",
+      "graph_compound_parent_id": "tc:lighting-design",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-9f97daef33906cf6"
+          ],
+          "label": "lighting design",
+          "similarity_to_centroid": 0.892449,
+          "topic_id": "topic:lighting-design"
+        },
+        {
+          "episode_ids": [
+            "ep-9b36e2e3b959298d",
+            "ep-9f97daef33906cf6",
+            "ep-febd9a8f53bf3a3a"
+          ],
+          "label": "strobe lighting",
+          "similarity_to_centroid": 0.892449,
+          "topic_id": "topic:strobe-lighting"
+        }
+      ]
+    },
+    {
+      "canonical_label": "reliability",
+      "cil_alias_target_topic_id": "topic:reliability",
+      "graph_compound_parent_id": "tc:reliability",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8"
+          ],
+          "label": "maintenance",
+          "similarity_to_centroid": 0.84896,
+          "topic_id": "topic:maintenance"
+        },
+        {
+          "episode_ids": [
+            "ep-16ff698c1bd21087",
+            "ep-18ede6ffbd63f18f",
+            "ep-1979e93514355ea6",
+            "ep-1abf911df5bea2c3",
+            "ep-1e526e495918fb27",
+            "ep-35f04bce441bf827",
+            "ep-4a1a673a7005a6b5",
+            "ep-4d94c63887afbd1a",
+            "ep-64ef09a7ee543045",
+            "ep-8aa4d883afa10fa4",
+            "ep-a05e37624721d37c",
+            "ep-a1342cd495b1165b",
+            "ep-b3570c1ceb5eca41",
+            "ep-bccfce5798a83a6e",
+            "ep-d428e906f5affc60",
+            "ep-d8cc458a5f0049a8",
+            "ep-efc13989b676df9d"
+          ],
+          "label": "reliability",
+          "similarity_to_centroid": 0.84896,
+          "topic_id": "topic:reliability"
+        }
+      ]
+    },
+    {
+      "canonical_label": "reef conservation",
+      "cil_alias_target_topic_id": "topic:reef-conservation",
+      "graph_compound_parent_id": "tc:reef-conservation",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-a0a7f86b34a4de26",
+            "ep-a884b153355070f0"
+          ],
+          "label": "marine biology",
+          "similarity_to_centroid": 0.854612,
+          "topic_id": "topic:marine-biology"
+        },
+        {
+          "episode_ids": [
+            "ep-a0a7f86b34a4de26",
+            "ep-a884b153355070f0"
+          ],
+          "label": "reef conservation",
+          "similarity_to_centroid": 0.854612,
+          "topic_id": "topic:reef-conservation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "on call rotation",
+      "cil_alias_target_topic_id": "topic:on-call-rotation",
+      "graph_compound_parent_id": "tc:on-call-rotation",
+      "member_count": 2,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-a05e37624721d37c"
+          ],
+          "label": "on call",
+          "similarity_to_centroid": 0.890152,
+          "topic_id": "topic:on-call"
+        },
+        {
+          "episode_ids": [
+            "ep-4a1a673a7005a6b5"
+          ],
+          "label": "on call rotation",
+          "similarity_to_centroid": 0.890152,
+          "topic_id": "topic:on-call-rotation"
+        }
+      ]
+    },
+    {
+      "canonical_label": "safety practices",
+      "cil_alias_target_topic_id": "topic:safety-practices",
+      "graph_compound_parent_id": "tc:safety-practices",
+      "member_count": 3,
+      "members": [
+        {
+          "episode_ids": [
+            "ep-0d9100843ee555f8",
+            "ep-16ff698c1bd21087",
+            "ep-18ede6ffbd63f18f",
+            "ep-1979e93514355ea6",
+            "ep-1abf911df5bea2c3",
+            "ep-1e526e495918fb27",
+            "ep-2a703b6f57d9020f",
+            "ep-2cd5c6d11325a312",
+            "ep-35f04bce441bf827",
+            "ep-362f5d463b877d2c",
+            "ep-4a1a673a7005a6b5",
+            "ep-4d94c63887afbd1a",
+            "ep-60d667843dc40fca",
+            "ep-6351d18dc6f1ff70",
+            "ep-64ef09a7ee543045",
+            "ep-8aa4d883afa10fa4",
+            "ep-916dab1698f88aec",
+            "ep-919c77e84ad37664",
+            "ep-a05e37624721d37c",
+            "ep-a0a7f86b34a4de26",
+            "ep-a1342cd495b1165b",
+            "ep-a86da8f148d3bf29",
+            "ep-a884b153355070f0",
+            "ep-b3570c1ceb5eca41",
+            "ep-bccfce5798a83a6e",
+            "ep-d428e906f5affc60",
+            "ep-d8cc458a5f0049a8",
+            "ep-db8f44d2e07a22bd",
+            "ep-de59d003651d9e5d",
+            "ep-efc13989b676df9d"
+          ],
+          "label": "risk management",
+          "similarity_to_centroid": 0.790322,
+          "topic_id": "topic:risk-management"
+        },
+        {
+          "episode_ids": [
+            "ep-2a703b6f57d9020f",
+            "ep-916dab1698f88aec",
+            "ep-a0a7f86b34a4de26",
+            "ep-a884b153355070f0"
+          ],
+          "label": "safety practices",
+          "similarity_to_centroid": 0.796536,
+          "topic_id": "topic:safety-practices"
+        },
+        {
+          "episode_ids": [
+            "ep-d8cc458a5f0049a8"
+          ],
+          "label": "security design",
+          "similarity_to_centroid": 0.73958,
+          "topic_id": "topic:security-design"
         }
       ]
     }
   ],
-  "model": "synthetic-app-validation-corpus",
+  "fingerprint": "18ec170170cd6f24d95b1e0a6ae62e0cafadc3fa6b91d41930a943436d46554f",
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
   "schema_version": "2",
-  "singletons": 0,
-  "threshold": 0.75,
-  "topic_count": 10
+  "singletons": 16,
+  "threshold": 0.35,
+  "topic_count": 50
 }

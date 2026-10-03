@@ -21,7 +21,7 @@ from .role_ledger import file_sha
 
 
 def dump_json(payload: Any) -> str:
-    """Serialise a corpus artifact the way the pipeline writes it.
+    """Serialise a corpus artifact the way the pipeline writes it — indented, newline-ended.
 
     `ensure_ascii=False` and the trailing newline are not cosmetic: a migration rewrites
     files the pipeline also writes, and a different encoding or a missing final newline
@@ -31,7 +31,7 @@ def dump_json(payload: Any) -> str:
 
 
 def backup_dir(root: Path, tag: str) -> Path:
-    """Where one migration's backups live, keyed by its tag.
+    """Where a migration tagged *tag* keeps the pre-write copies of the files it replaced.
 
     Inside the corpus rather than beside it, so a restored or copied corpus carries its
     own undo history with it; per-tag, so two migrations cannot overwrite each other's

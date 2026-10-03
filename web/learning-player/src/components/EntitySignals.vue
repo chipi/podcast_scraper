@@ -17,6 +17,7 @@
  */
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
+import { personName, personNameFromId } from "../utils/personName"
 import { getEntitySignals } from "../services/api"
 import type { CorpusEnrichmentSignals } from "../services/types"
 
@@ -55,12 +56,16 @@ function shortId(id: string): string {
       .trim() || id
   )
 }
-function titleCase(s: string): string {
-  return s.replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (_m, sep, ch) => sep + ch.toUpperCase())
-}
-/** Real name from the envelope, else a prettified slug. */
+/**
+ * Real name from the envelope, else a prettified slug — cased either way.
+ *
+ * The local `titleCase` this replaced ran ONLY on the slug fallback, so a real name arrived from
+ * the envelope exactly as the pipeline normalised it: "simon wilson" sat next to a de-slugged
+ * "Simon Wilson" in the same list (operator 2026-10-01). One shared formatter now covers both
+ * paths, and it only ever ADDS capitalisation — see `utils/personName`.
+ */
 function nameOf(name: string | undefined, id: string): string {
-  return name?.trim() ? name.trim() : titleCase(shortId(id))
+  return name?.trim() ? personName(name) : personNameFromId(shortId(id))
 }
 
 // ── Person signals ───────────────────────────────────────────────────────────

@@ -4416,10 +4416,7 @@ def _determine_output_path(
     Returns:
         Full path to output file
     """
-    run_tag = f"_{run_suffix}" if run_suffix else ""
-    base_name = (
-        f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
-    )
+    base_name = filesystem.build_transcript_base_name(episode.idx, episode.title_safe, run_suffix)
     out_name = f"{base_name}{planned_ext}"
     transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
     return os.path.join(transcripts_dir, out_name)
@@ -4657,13 +4654,10 @@ def _check_existing_transcript(
         # Batch child / shape-detected run: fall through to the run-local check (fresh run dir →
         # finds nothing, harmless; preserves behaviour for a legacy feeds/-shaped output_dir).
 
-    run_tag = f"_{run_suffix}" if run_suffix else ""
     # Key on the STABLE guid, not the run-local idx (which shifts when the feed grows → silent
     # reprocess + duplicates). New episodes fall back to their run-local idx.
     skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
-    base_name = (
-        f"{skip_idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - {episode.title_safe}{run_tag}"
-    )
+    base_name = filesystem.build_transcript_base_name(skip_idx, episode.title_safe, run_suffix)
     transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
     existing_matches = list(Path(transcripts_dir).glob(f"{base_name}*"))
     for candidate in existing_matches:
@@ -4702,12 +4696,43 @@ def _fetch_transcript_content(
     return (data, ctype)
 
 
+def _record_transcript_write_failure(
+    pipeline_metrics: Any,
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    exc: BaseException,
+) -> None:
+    """Mark the episode FAILED in the run ledger after its transcript could not be written.
+
+    Without this the episode kept its pre-created ``ok``/``queued`` row, so the run reported
+    ``ok=1 failed=0`` and ``succeeded`` with nothing on disk. Never raises: it runs on a failure
+    path.
+    """
+    if pipeline_metrics is None:
+        return
+    try:
+        from .helpers import get_episode_id_from_episode, update_metric_safely
+
+        episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+        pipeline_metrics.update_episode_status(
+            episode_id=episode_id,
+            status="failed",
+            stage="transcript_write",
+            error_type=type(exc).__name__,
+            error_message=format_exception_for_log(exc)[:500],
+        )
+        update_metric_safely(pipeline_metrics, "errors_total", 1)
+    except Exception:  # noqa: BLE001 — accounting must never break the run
+        logger.debug("could not record the transcript-write failure", exc_info=True)
+
+
 def _write_transcript_file(
     data: bytes,
     out_path: str,
     cfg: config.Config,
     episode: Episode,  # type: ignore[valid-type]
     effective_output_dir: str,
+    pipeline_metrics: Any = None,
 ) -> Optional[str]:
     """Write transcript data to file.
 
@@ -4717,6 +4742,7 @@ def _write_transcript_file(
         cfg: Configuration object
         episode: Episode object
         effective_output_dir: Output directory path
+        pipeline_metrics: Optional metrics collector; a failed write is recorded on it
 
     Returns:
         Relative path to saved file, or None if writing fails
@@ -4735,6 +4761,7 @@ def _write_transcript_file(
         return rel_path
     except (IOError, OSError) as exc:
         logger.error("    failed to write file: %s", format_exception_for_log(exc))
+        _record_transcript_write_failure(pipeline_metrics, episode, cfg, exc)
         return None
 
 
@@ -4755,6 +4782,7 @@ def process_transcript_download(
     metadata_named: Optional[List[str]] = None,
     feed_hosts: Optional[List[str]] = None,
     speaker_detection_ran: Optional[bool] = None,
+    pipeline_metrics: Any = None,
 ) -> tuple[bool, Optional[str], Optional[str], int]:
     """Download and save a transcript file.
 
@@ -4767,6 +4795,8 @@ def process_transcript_download(
         run_suffix: Optional suffix for output filename
         speaker_detection_ran: Whether the speaker-detection stage ran for this episode, read
             from the stage ledger by the caller. ``None`` means unknown.
+        pipeline_metrics: Optional metrics collector; a failed transcript write marks the
+            episode failed on it.
 
     Returns:
         Tuple of (success: bool, transcript_file_path: Optional[str],
@@ -4819,11 +4849,9 @@ def process_transcript_download(
             # Resolve the on-disk idx by STABLE guid — episode.idx shifts when the feed grows, so
             # rebuilding the glob from it would miss the transcript and silently skip summarization
             # for an already-present episode (the same P0.1 drift, one branch missed; Fable-5 #2).
-            run_tag = f"_{run_suffix}" if run_suffix else ""
             skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
-            base_name = (
-                f"{skip_idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} "
-                f"- {episode.title_safe}{run_tag}"
+            base_name = filesystem.build_transcript_base_name(
+                skip_idx, episode.title_safe, run_suffix
             )
             transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
             existing_matches = list(Path(transcripts_dir).glob(f"{base_name}*"))
@@ -5008,7 +5036,12 @@ def process_transcript_download(
 
             txt_path = os.path.splitext(out_path)[0] + ".txt"
             rel_path_result = _write_transcript_file(
-                text_to_store.encode("utf-8"), txt_path, cfg, episode, effective_output_dir
+                text_to_store.encode("utf-8"),
+                txt_path,
+                cfg,
+                episode,
+                effective_output_dir,
+                pipeline_metrics,
             )
             if rel_path_result is None:
                 return False, None, None, bytes_downloaded
@@ -5078,7 +5111,9 @@ def process_transcript_download(
         )
         return False, None, TRANSCRIPT_LACKS_SPEAKERS, bytes_downloaded
 
-    rel_path_result = _write_transcript_file(data, out_path, cfg, episode, effective_output_dir)
+    rel_path_result = _write_transcript_file(
+        data, out_path, cfg, episode, effective_output_dir, pipeline_metrics
+    )
     if rel_path_result is None:
         return False, None, None, bytes_downloaded
 
@@ -5173,6 +5208,7 @@ def process_episode_download(
             metadata_named=metadata_named,
             feed_hosts=feed_hosts,
             speaker_detection_ran=detection_ran,
+            pipeline_metrics=pipeline_metrics,
         )
         # A FEED MAY PUBLISH SEVERAL TRANSCRIPTS AND ONLY ONE OF THEM MAY CARRY TURNS.
         # `choose_transcript_url` returns a single best candidate; when that one is refused for
@@ -5205,6 +5241,7 @@ def process_episode_download(
                     metadata_named=metadata_named,
                     feed_hosts=feed_hosts,
                     speaker_detection_ran=detection_ran,
+                    pipeline_metrics=pipeline_metrics,
                 )
                 bytes_downloaded += alt_bytes
                 if alt_source != TRANSCRIPT_LACKS_SPEAKERS and alt_ok:

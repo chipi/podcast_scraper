@@ -1959,6 +1959,82 @@ def _guest_voice_by_host_elimination(
     return voice
 
 
+#: A voice must talk at least this long to count as one of the two parties of an interview.
+TWO_VOICE_MIN_TALK_S = 60.0
+
+#: The host hands over to the guest: an introduction cue, then up to twelve words (a title, an
+#: appositive — "Today's guest is the creator of this popular skill, Matt Pocock"), then the name.
+_HOST_INTRODUCES_BEFORE = re.compile(
+    r"(?:with\s+me(?:\s+today)?(?:\s+is)?|joined\s+by|joining\s+(?:me|us)(?:\s+today)?(?:\s+is)?"
+    r"|welcome|my\s+guest(?:\s+today)?(?:\s+is)?|today'?s\s+guest\s+is"
+    r"|(?:talking|chatting|speaking|sitting(?:\s+here)?)\s+(?:with|to)|i'?m\s+back\s+with"
+    r"|here\s+with|(?:delighted|thrilled|happy|privileged|pleased|excited)\s+(?:today\s+)?to\s+"
+    r"(?:have|welcome)|i'?ve\s+got\s+with\s+me|have\s+with\s+me)"
+    r"\W+(?:[\w'’.,-]+\W+){0,12}?$",
+    re.IGNORECASE,
+)
+
+
+#: A sentence boundary — but not the dot of a title ("Dr. Jonathan Kipnis").
+_SENTENCE_END = re.compile(r"(?<!\bDr)(?<!\bProf)(?<!\bMr)(?<!\bMs)(?<!\bMrs)[.!?]\s+")
+
+
+def _guest_the_host_introduces_in_a_two_voice_interview(
+    by_voice: Mapping[str, SpeakerRole],
+    talk: Mapping[str, float],
+    ad_voices: AbstractSet[str],
+    voice_texts: Mapping[str, str],
+    metadata_named: Sequence[str],
+    taken_lower: AbstractSet[str],
+    cameo_s: float = CAMEO_MAX_TALK_S,
+) -> Optional[str]:
+    """The ONE stated guest whose full name the named host says while introducing them.
+
+    The corroboration gate drops a metadata-stated guest when nothing shows them SPEAKING, and that
+    is right in general: a description names people an episode merely discusses (#876, and the
+    anchor rule that admitted a man who died in 1956). This is the one case where the text does
+    show it, without widening anything else: an interview of exactly two substantial voices, one of
+    them the NAMED host, the metadata states exactly one other person, and the host's own voice
+    hands over to that person by full name ("With me today is Steve Clayton", "I am really
+    delighted today to welcome Dr. Jonathan Kipnis"). The name then joins the guest pool and the
+    existing forced one-name-one-voice path binds it, with every guard it already applies.
+
+    Measured on prod (2026-10-01) over two-voice episodes whose guest introduced THEMSELVES — truth
+    independent of this rule: 94 agree, 2 disagree (one is a junk existing label). Where the guest
+    is unnamed today it fires on 57 episodes. Kept this narrow on purpose: the same phrases fed to
+    the general host-introduction harvest swapped names between voices and put a guest's name on a
+    host (measured and reverted the same day).
+    """
+    voices = [v for v in talk if v not in ad_voices and talk[v] >= TWO_VOICE_MIN_TALK_S]
+    if len(voices) != 2:
+        return None
+    # ...and nobody else the forced match could land on. On Unhedged the second substantial voice
+    # was a host seat holding bled turns, and the name fell through to a 47s live-show promo.
+    if len([v for v in talk if v not in ad_voices and talk[v] >= cameo_s]) != 2:
+        return None
+    hosts = [v for v in voices if (r := by_voice.get(v)) and r.named and r.role == "host"]
+    if len(hosts) != 1:
+        return None
+    if next(v for v in voices if v != hosts[0]) in by_voice:  # already seated: not the guest
+        return None
+    stated = [
+        n for n in metadata_named if len(str(n).split()) >= 2 and str(n).lower() not in taken_lower
+    ]
+    if len(stated) != 1:
+        return None
+    name = stated[0]
+    text = " ".join((voice_texts.get(hosts[0]) or "")[:3000].split())
+    at = text.lower().find(name.lower())
+    if at < 0:
+        return None
+    # The cue must be in the SAME sentence as the name: "Welcome to the show, I'm Tobias. I've been
+    # reading Maria Lindqvist's book" is a greeting followed by a mention, not an introduction.
+    clause = _SENTENCE_END.split(text[max(0, at - 120) : at])[-1]
+    if not _HOST_INTRODUCES_BEFORE.search(clause):
+        return None
+    return name
+
+
 def _name_guest_voices(
     voices_by_total: Sequence[str],
     assigned: Dict[str, SpeakerRole],
@@ -2914,6 +2990,14 @@ def resolve_speaker_roster(
     if not diarization.segments:
         return SpeakerRoster(by_voice={}, num_speakers=diarization.num_speakers or 0)
 
+    # One space between words, whoever built the text. Turns are joined with " " and ASR segments
+    # start with a space, so every turn boundary carried two — and the speech-act and self-intro
+    # patterns are written for one. "welcome back to  Conversations with Tyler" matched no host
+    # act, the host's own thank-you-for-having-me echo made him a guest, and the host seat went to
+    # the guest's voice (#2224).
+    if voice_texts:
+        voice_texts = {v: " ".join((t or "").split()) for v, t in voice_texts.items()}
+
     # Ad voices are established BEFORE anything can be named from them: the pre-roll opens the
     # episode and reads its own name, so it wins both the "opening voice = host" rule and the
     # most-trusted self-introduction rule unless it is removed from contention up front.
@@ -3195,6 +3279,20 @@ def resolve_speaker_roster(
                 continue
         if snapped.lower() not in {d.lower() for d in declared}:
             declared.append(snapped)
+
+    # A two-voice interview whose named host hands over to the one stated guest by full name.
+    if not declared:
+        introduced = _guest_the_host_introduces_in_a_two_voice_interview(
+            by_voice,
+            total,
+            ad_voices,
+            voice_texts or {},
+            metadata_named or (),
+            host_names_lower | intro_names_lower,
+            cameo_s=profile.cameo_max_talk_s,
+        )
+        if introduced:
+            declared.append(introduced)
 
     # DELIBERATELY NOT DONE HERE: an "anchor" rule, letting one confirmed guest vouch for the other
     # people the description names ("Qasar Younis and Peter Ludwig have spent the last decade...";

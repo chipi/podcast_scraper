@@ -15,15 +15,18 @@ from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.schemas import AppFavoriteEntity, AppFavoritesResponse
 
-_ENTITY_KINDS = {"person", "topic", "show", "storyline"}
+# A saved THEME hydrates like any other grouping. Absent from this set a theme favourite would be
+# accepted by the API, stored, and then silently dropped on the way back out — present in the file,
+# invisible in Library › Saved.
+_ENTITY_KINDS = {"person", "topic", "show", "storyline", "theme"}
 
 
 def hydrate_favorites(root: Path, raw: Sequence[dict[str, Any]]) -> AppFavoritesResponse:
     """Group + hydrate stored favorites (newest-first) into the API response shape.
 
     ``episode`` favorites re-hydrate FRESH from the catalog (titles/artwork stay current); entity
-    favorites (show/topic/person/storyline) render from the label snapshot taken at save time, since
-    they have no per-row catalog hydration here.
+    favorites (show/topic/person/storyline/theme) render from the label snapshot taken at save
+    time, since they have no per-row catalog hydration here.
     """
     episodes = []
     entities = []

@@ -2584,7 +2584,13 @@ test-android:
 	@cd $(APP_DIR) && CAP_ANDROID_TEST_ORIGIN=1 \
 		VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
 		npm run build >/dev/null && CAP_ANDROID_TEST_ORIGIN=1 npx cap sync android >/dev/null
-	@cd $(ANDROID_DIR) && ./gradlew --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest >/dev/null
+	@# ANDROID_HOME + JAVA_HOME, like `android-build` at the bottom of this file. Without them
+	# gradle runs under whatever `java` is on PATH — JDK 8 on a machine that has never needed a
+	# newer one for anything else — and dies with `UnsupportedClassVersionError:
+	# org/gradle/launcher/bootstrap/ProcessBootstrap : Unsupported major.minor version 52.0`,
+	# which names a Gradle class and reads like a Gradle bug rather than a missing env var.
+	@cd $(ANDROID_DIR) && ANDROID_HOME=$(ANDROID_SDK_DIR) JAVA_HOME=$(ANDROID_JAVA_HOME) \
+		./gradlew --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest >/dev/null
 	@$(ADB) install -r -t $(ANDROID_DIR)/app/build/outputs/apk/debug/app-debug.apk >/dev/null
 	@$(ADB) install -r -t $(ANDROID_DIR)/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
 	@# A CLEAN DEVICE, every time. Forced-offline is device-local and survives both a relaunch and
@@ -4719,12 +4725,20 @@ build-app-validation-index:
 	# build-validation-index because it also clears the incremental ledger first and then COUNTS
 	# what landed; build-validation-index does neither.
 	#
-	# The app corpus's search/topic_clusters.json is TRACKED and authored deterministically by
-	# build_app_validation_corpus.py with no ML (synthetic, threshold 0.75, 2 clusters).
-	# `cli topic-clusters --threshold 0.35` replaces it with embedding-derived output (14
-	# clusters, 16 singletons, keyed to all-MiniLM-L6-v2), which is a different artifact with a
-	# different meaning — and six tests in test_capability_audit.py assert the deterministic one.
-	# Measured: regenerating it turns 80 passed into 6 failed.
+	# The app corpus's search/topic_clusters.json is TRACKED and is now the EMBEDDING-DERIVED
+	# artifact: 14 clusters / 16 singletons from all-MiniLM-L6-v2 at threshold 0.35, produced by
+	# `cli topic-clusters` against the index this target builds (2026-10-01).
+	#
+	# It used to be the synthetic one build_app_validation_corpus.py authors (threshold 0.75, 2
+	# clusters), and this comment used to warn that regenerating turned 80 passed into 6 failed.
+	# Those 6 assertions have been rewritten against the real clusters — they encoded a finding
+	# ("both clusters are universal, so the picker verdict is undecidable on v3") that was an
+	# artifact of the hand-authored file: one of its two clusters bundled each show's LEAD topic,
+	# so its members had nothing in common, and only 3 of its 28 member pairs even appeared in the
+	# topic_similarity artifact beside it, all BELOW its own declared threshold.
+	#
+	# The builder no longer overwrites it: _write_topic_clusters_scaffold keeps any file whose
+	# `model` is not "synthetic-app-validation-corpus".
 	#
 	# Clearing search/episode_fingerprints.json first is the load-bearing step. That ledger
 	# records which episodes are already indexed, so with it in place the indexer treats a GROWN
