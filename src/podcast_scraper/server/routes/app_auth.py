@@ -447,6 +447,34 @@ _REQUEST_MIN_INTERVAL_S = 60
 _ENVELOPE_SCHEMA_VERSION = "1"
 
 
+def _email_fingerprint(email: str) -> str:
+    """A stable, short hash of an address — for logs, never the address itself.
+
+    The whole flow is built so that nobody can learn whether an address has an account here: the
+    request endpoint answers identically for every address, and the throttle keys on a hash for the
+    same reason. A log line carrying the plain address would hand that back, in the one place that
+    is retained, searchable and shipped off the box.
+
+    A fingerprint still answers every operational question — "did THIS person's link get sent, and
+    was it the same person who then verified?" — by correlating two events, without naming anyone.
+    """
+    import hashlib
+
+    return hashlib.sha256(app_magic_link.normalise_email(email).encode("utf-8")).hexdigest()[:16]
+
+
+def _magic_event(event_type: str, **fields: object) -> None:
+    """Emit one ADR-119 event for the magic-link flow. Best-effort; never raises.
+
+    `sink="log"` (stdout), not a per-user file: these events happen BEFORE an account exists, which
+    is the entire point of the flow, so there is no per-user path to write to. `emit_event` attaches
+    the current trace context, so a log line and the request's span correlate without extra work.
+    """
+    from podcast_scraper.obs.events import emit_event
+
+    emit_event(event_type, sink="log", logger=logger, **fields)
+
+
 class MagicLinkRequest(BaseModel):
     """A request for a sign-in link. ``platform`` mirrors the OAuth login route's native switch."""
 
@@ -510,9 +538,12 @@ async def app_auth_magic_request(
     # Shape check only — deliverability is the mail system's business, and a stricter local rule
     # would reject real addresses.
     if not secret or "@" not in email or email.startswith("@") or email.endswith("@"):
+        # Still reported, because "nothing was sent" is the single hardest state to diagnose from
+        # the outside: the person sees the same "check your inbox" either way.
+        _magic_event("magic_link_requested", outcome="rejected_shape", email_fp=_email_fingerprint(email))
         return {"ok": True}
     if _throttled(data_dir, email, now=now):
-        logger.info("magic link: throttled a repeat request")
+        _magic_event("magic_link_requested", outcome="throttled", email_fp=_email_fingerprint(email))
         return {"ok": True}
 
     token, token_id = app_magic_link.issue(email, secret, now=now)
@@ -552,7 +583,15 @@ async def app_auth_magic_request(
             "expires_at": _iso_now(now + app_magic_link.TOKEN_TTL_SECONDS),
             "created_at": _iso_now(now),
         }
-        app_outbox_store.enqueue(data_dir, envelope)
+        enqueued = app_outbox_store.enqueue(data_dir, envelope)
+        _magic_event(
+            "magic_link_requested",
+            outcome="enqueued" if enqueued else "duplicate",
+            email_fp=_email_fingerprint(email),
+            envelope_id=envelope["id"],
+            expires_minutes=app_magic_link.TOKEN_TTL_SECONDS // 60,
+            platform=body.platform or "web",
+        )
     response.headers["Cache-Control"] = "no-store"
     return {"ok": True}
 
@@ -584,6 +623,9 @@ async def app_auth_magic_verify(
     data_dir = _data_dir(request)
     payload = app_magic_link.parse(token, secret)
     if payload is None:
+        # No fingerprint: the token did not parse, so there is no address to attribute this to.
+        # A burst of these is the signal that links are arriving after their TTL.
+        _magic_event("magic_link_verified", outcome="invalid_or_expired")
         raise HTTPException(status_code=400, detail="This sign-in link is invalid or has expired.")
     email = str(payload["email"])
 
@@ -594,11 +636,18 @@ async def app_auth_magic_verify(
         data_dir, getattr(request.app.state, "access_policy", None)
     )
     if policy is not None and not policy.is_allowed(email):
+        # The operationally important one: a tester who was never added to the allowlist looks, from
+        # their side, exactly like a broken link.
+        _magic_event("magic_link_verified", outcome="refused_policy", email_fp=_email_fingerprint(email))
         raise HTTPException(status_code=403, detail="This account is not allowed to sign in.")
 
     if data_dir is None:
+        _magic_event("magic_link_verified", outcome="unavailable", email_fp=_email_fingerprint(email))
         raise HTTPException(status_code=503, detail="Sign-in is not available.")
     if not app_magic_link.consume(data_dir, str(payload["jti"])):
+        # Usually benign — a prefetching mail client or a double tap — but a sustained rate means
+        # something is fetching links before people do, which changes what the TTL is protecting.
+        _magic_event("magic_link_verified", outcome="replayed", email_fp=_email_fingerprint(email))
         # Single-use. The ordinary cause is a mail client prefetching the link or the person
         # clicking twice — so the message says what to do rather than implying wrongdoing.
         raise HTTPException(
@@ -637,6 +686,12 @@ async def app_auth_magic_verify(
         user = replace(user, role=effective)
 
     is_new = was_created
+    _magic_event(
+        "magic_link_verified",
+        outcome="created" if is_new else "returning",
+        email_fp=_email_fingerprint(email),
+        platform=platform or "web",
+    )
     session = app_sessions.sign({"user_id": user.user_id, "iat": int(time.time())}, secret)
 
     if platform == "native":

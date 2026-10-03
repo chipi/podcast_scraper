@@ -230,3 +230,92 @@ def test_open_mode_admits_any_address(tmp_path: Path) -> None:
     client, _ = _client(tmp_path, mode="open")
     token, _ = app_magic_link.issue(_STRANGER, _SECRET)
     assert client.get(f"/api/app/auth/email/verify?token={token}").status_code == 307
+
+
+# --- observability (ADR-119 events) ------------------------------------------------------------
+
+_EVENT_LOGGER = "podcast_scraper.server.routes.app_auth"
+
+
+def _magic_events(caplog: pytest.LogCaptureFixture) -> list[tuple[dict, str]]:
+    """Every magic-link event captured, as (parsed record, the raw line that would ship)."""
+    out = []
+    for rec in caplog.records:
+        if rec.name != _EVENT_LOGGER:
+            continue
+        line = rec.getMessage()
+        try:
+            parsed = json.loads(line)
+        except ValueError:
+            continue
+        if str(parsed.get("event_type", "")).startswith("magic_link_"):
+            out.append((parsed, line))
+    return out
+
+
+def test_every_outcome_emits_an_event_that_names_nobody(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The events exist so "the tester never got the email" has an answer — and they must give that
+    answer without becoming a list of who tried to sign in.
+
+    The request endpoint answers identically for every address precisely so nobody can learn who has
+    an account. A log line carrying the address would hand that back in the one place that is
+    retained and shipped off the box, so: fingerprints only, and never any part of a token.
+    """
+    caplog.set_level("INFO", logger=_EVENT_LOGGER)
+    client, data_dir = _client(tmp_path)
+
+    client.post("/api/app/auth/email/request", json={"email": "no-at-sign"})
+    client.post("/api/app/auth/email/request", json={"email": _ALLOWED})
+    client.post("/api/app/auth/email/request", json={"email": _ALLOWED})  # throttled
+    link_token = _link_token(data_dir, _ALLOWED)
+    client.get(f"/api/app/auth/email/verify?token={link_token}")  # created
+    client.get(f"/api/app/auth/email/verify?token={link_token}")  # replayed
+    again, _ = app_magic_link.issue(_ALLOWED, _SECRET)
+    client.get(f"/api/app/auth/email/verify?token={again}")  # returning
+    stranger, _ = app_magic_link.issue(_STRANGER, _SECRET)
+    client.get(f"/api/app/auth/email/verify?token={stranger}")  # refused_policy
+    client.get("/api/app/auth/email/verify?token=garbage.token")  # invalid_or_expired
+
+    events = _magic_events(caplog)
+    seen = {(e["event_type"], e["outcome"]) for e, _ in events}
+    assert seen >= {
+        ("magic_link_requested", "rejected_shape"),
+        ("magic_link_requested", "enqueued"),
+        ("magic_link_requested", "throttled"),
+        ("magic_link_verified", "created"),
+        ("magic_link_verified", "replayed"),
+        ("magic_link_verified", "returning"),
+        ("magic_link_verified", "refused_policy"),
+        ("magic_link_verified", "invalid_or_expired"),
+    }, seen
+
+    token_parts = {p for t in (link_token, again, stranger) for p in t.split(".") if p}
+    for _, line in events:
+        for address in (_ALLOWED, _STRANGER, "no-at-sign"):
+            assert address not in line.lower(), f"plaintext address leaked: {line}"
+            assert address.split("@")[0] not in line.lower(), f"local part leaked: {line}"
+        for part in token_parts:
+            assert part not in line, f"token material leaked: {line}"
+
+
+def test_the_fingerprint_correlates_one_address_across_request_and_verify(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The operational question is "was the link I sent the one that got used?" — answerable only if
+    the same address yields the same fingerprint on both halves, and a different one elsewhere."""
+    caplog.set_level("INFO", logger=_EVENT_LOGGER)
+    client, data_dir = _client(tmp_path, mode="open")
+    client.post("/api/app/auth/email/request", json={"email": _ALLOWED})
+    client.post("/api/app/auth/email/request", json={"email": _STRANGER})
+    client.get(f"/api/app/auth/email/verify?token={_link_token(data_dir, _ALLOWED)}")
+
+    by_outcome = {}
+    for e, _ in _magic_events(caplog):
+        by_outcome.setdefault((e["event_type"], e["outcome"]), []).append(e["email_fp"])
+    requested = by_outcome[("magic_link_requested", "enqueued")]
+    verified = by_outcome[("magic_link_verified", "created")]
+    assert len(requested) == 2 and len(set(requested)) == 2, "different addresses, different fps"
+    assert verified[0] in requested
+    assert all(len(fp) == 16 for fp in requested + verified)
