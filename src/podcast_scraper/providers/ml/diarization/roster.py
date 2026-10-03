@@ -25,7 +25,7 @@ from __future__ import annotations
 import difflib
 import re
 from dataclasses import dataclass, replace
-from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import AbstractSet, Any, Callable, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 from ....graph_id_utils import (
     canonical_person_name,
@@ -1872,6 +1872,7 @@ def _name_host_voices(
     absent_hosts: Optional[AbstractSet[str]] = None,
     host_evidence_voices: AbstractSet[str] = frozenset(),
     introducer_voices: AbstractSet[str] = frozenset(),
+    ignore_ownership: bool = False,
 ) -> Dict[str, SpeakerRole]:
     """Name host voices from EVIDENCE — a self-introduction, or a forced single answer.
 
@@ -1966,7 +1967,10 @@ def _name_host_voices(
         # presenter (the measure `_rescued_from_bleed` already applies: 11 of 14 such seats). With
         # the pool now holding the hosts the feed states, this is what keeps "Tim Scarfe" off the
         # cold-opening guest who talks 75% of an MLST episode (gold development set, 2026-10-03).
-        and not _owns_the_conversation(unnamed_seats[0], talk_share or {}, len(host_pool))
+        and (
+            ignore_ownership
+            or not _owns_the_conversation(unnamed_seats[0], talk_share or {}, len(host_pool))
+        )
         # A seat held by POSITION alone takes no forced name while another voice looks more like
         # the presenter (it introduces the stated people, or names this host in the third person
         # -- the show's own intro: "Martin Casado sits down with Fei-Fei Li").
@@ -2213,6 +2217,45 @@ def _guest_the_host_introduces_in_a_two_voice_interview(
     if not _HOST_INTRODUCES_BEFORE.search(clause):
         return None
     return name
+
+
+def _name_a_talkative_host_once_the_guests_are_placed(
+    by_voice: Dict[str, SpeakerRole],
+    host_voices: Sequence[str],
+    guest_names: Sequence[str],
+    used_lower: set,
+    name_without_ownership: Callable[[List[str], set], Dict[str, SpeakerRole]],
+) -> None:
+    """A host seat left unnamed because it OWNS the talk takes the forced host name once every
+    stated guest is placed on ANOTHER voice.
+
+    The ownership guard in :func:`_name_host_voices` keeps the host's name off a cold-opening
+    guest who talks most of the episode (MLST, Lenny's Podcast, Latent Space). It cannot tell that
+    guest from a single host who out-talks the guest (76% of a two-voice interview,
+    tests/e2e/test_diarization_e2e.py): share, the seat's own host acts and the other voice's guest
+    phrases all bleed across clusters. Where the guest's NAME landed does tell them apart: when the
+    stated guests are all on other voices, the talkative seat is not the guest. So the guard runs
+    first, guests are named, and only then is the seat reconsidered, with every other condition of
+    the forced name unchanged.
+    """
+    unnamed = [v for v in host_voices if v in by_voice and not by_voice[v].named]
+    if len(unnamed) != 1 or not guest_names:
+        return
+    seat = unnamed[0]
+    placed = {
+        r.name.lower(): v
+        for v, r in by_voice.items()
+        if r.named and r.name and v not in host_voices
+    }
+    if not all(g.lower() in placed for g in guest_names):
+        return
+    # The whole seat list, so the forced name's feed-history count (``k``) is the same as in the
+    # first pass; only this seat's answer is taken.
+    retry = name_without_ownership(list(host_voices), set(used_lower))
+    role = retry.get(seat)
+    if role is not None and role.named:
+        by_voice[seat] = role
+        used_lower.add(role.name.lower())
 
 
 def _name_guest_voices(
@@ -4468,6 +4511,7 @@ def resolve_speaker_roster(
     host_names_lower = {n.lower() for n, _ in host_pool_named}
     used_lower: set[str] = set()
 
+    _share_now = _talk_share(diarization, ad_voices)
     by_voice = _name_host_voices(
         host_voices,
         host_pool_named,
@@ -4478,7 +4522,7 @@ def resolve_speaker_roster(
         conv_host_voices=conv_host_voices,
         voice_texts=voice_texts or {},
         episode_text=episode_text,
-        talk_share=_talk_share(diarization, ad_voices),
+        talk_share=_share_now,
         host_copresence=host_copresence,
         cohost_present=_cohost_present,
         absent_hosts=_hosts_said_absent(voice_texts or {}, known_hosts, set(host_voices)),
@@ -4587,6 +4631,30 @@ def resolve_speaker_roster(
             known_hosts=known_hosts,
             refused_intro_voices=introduced_but_unspellable,
         )
+    )
+    _name_a_talkative_host_once_the_guests_are_placed(
+        by_voice,
+        host_voices,
+        guest_names,
+        used_lower,
+        lambda seats, used: _name_host_voices(
+            seats,
+            host_pool_named,
+            voice_intro,
+            used,
+            llm_named,
+            publisher_named=publisher_named,
+            conv_host_voices=conv_host_voices,
+            voice_texts=voice_texts or {},
+            episode_text=episode_text,
+            talk_share=_share_now,
+            host_copresence=host_copresence,
+            cohost_present=_cohost_present,
+            absent_hosts=_hosts_said_absent(voice_texts or {}, known_hosts, set(host_voices)),
+            host_evidence_voices=presenter_voices,
+            introducer_voices=_introducer_voices,
+            ignore_ownership=True,
+        ),
     )
     # They still belong in the roster — as "Advertisement", not as a missing id.
     for v in ad_voices:

@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from typing import Dict, List
+
 from podcast_scraper.providers.ml.diarization.roster import (
     _better_presenter_elsewhere,
     _is_show_mononym,
     _merged_host_cluster_owner,
+    _name_a_talkative_host_once_the_guests_are_placed,
     _owns_the_conversation,
     _snap_near_identical_host,
     _SOLO_EPISODE,
+    SpeakerRole,
 )
 
 HOSTS = ["Michael Stevens", "Hannah Fry"]
@@ -46,6 +50,34 @@ def test_the_interviewee_owns_a_cold_open_interview() -> None:
 
 def test_the_chattier_co_host_does_not_own_a_two_host_show() -> None:
     assert not _owns_the_conversation("R", {"R": 0.58, "K": 0.42}, seats=2)
+
+
+def _talkative_host(guest_placed: bool) -> SpeakerRole:
+    by_voice = {
+        "H": SpeakerRole(name="H", role="host", named=False, source="raw"),
+        "G": (
+            SpeakerRole(name="Liam", role="guest", named=True, source="metadata")
+            if guest_placed
+            else SpeakerRole(name="G", role="guest", named=False, source="raw")
+        ),
+    }
+
+    def without_ownership(seats: List[str], used: set) -> Dict[str, SpeakerRole]:
+        return {"H": SpeakerRole(name="Maya", role="host", named=True, source="known_hosts")}
+
+    _name_a_talkative_host_once_the_guests_are_placed(
+        by_voice, ["H"], ["Liam"], set(), without_ownership
+    )
+    return by_voice["H"]
+
+
+def test_a_talkative_host_is_named_once_the_stated_guest_is_on_another_voice() -> None:
+    assert _talkative_host(guest_placed=True).name == "Maya"
+
+
+def test_a_talkative_seat_stays_unnamed_while_the_stated_guest_is_unplaced() -> None:
+    # The seat may BE the guest (MLST, Lenny's Podcast, Latent Space cold opens).
+    assert not _talkative_host(guest_placed=False).named
 
 
 def test_a_solo_episode_is_recognised() -> None:
