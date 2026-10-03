@@ -63,7 +63,7 @@ import type {
   YourWeekResponse,
 } from "./types"
 import { ref } from "vue"
-import { resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
+import { isNativeShell, resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
 import { track } from "./analytics"
 import { isForcedOffline, isOffline, reportServerReachable } from "../composables/useOnline"
 
@@ -1057,6 +1057,36 @@ export async function getDevUsers(): Promise<{ enabled: boolean; users: DevUser[
     return { enabled: body.enabled === true, users: Array.isArray(body.users) ? body.users : [] }
   } catch {
     return { enabled: false, users: [] }
+  }
+}
+
+/**
+ * Ask for an email sign-in link (#2272).
+ *
+ * Resolves the SAME WAY whatever the address is — known, unknown, or not on the allowlist. That is
+ * the server's contract and the UI must not undo it: showing "no account with that address" here
+ * would rebuild the account-existence oracle the uniform response exists to prevent.
+ *
+ * Never throws. A network failure resolves `false` so the caller can say "something went wrong"
+ * without claiming anything about the address.
+ */
+export async function requestMagicLink(email: string, returnTo?: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${BASE}/auth/email/request`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        // The native shell cannot receive a cookie set in an external browser, so it takes the
+        // session by deep link instead — the same split the OAuth login route makes.
+        platform: isNativeShell() ? "native" : undefined,
+        return_to: returnTo,
+      }),
+    })
+    return res.ok
+  } catch {
+    return false
   }
 }
 

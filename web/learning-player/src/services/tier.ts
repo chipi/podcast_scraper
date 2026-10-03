@@ -24,6 +24,18 @@ const TIER_KEY = 'lp_tier'
 // Build flag: true for internal / simulator / TestFlight builds (the switch is available); false in
 // release (prod-locked, toggle tree-shaken). Defaults to DEV when the define is absent.
 declare const __MOBILE_INTERNAL__: boolean | undefined
+/**
+ * Running inside the Capacitor shell?
+ *
+ * Lives here, not in `services/native.ts`, on purpose: that module calls `registerPlugin` at import
+ * time, so pulling it into a widely-imported module (api.ts) drags plugin registration into every
+ * test that touches the API client. This file already imports `Capacitor` for `resolveApiBase`, and
+ * `isNativePlatform()` needs no plugin.
+ */
+export function isNativeShell(): boolean {
+  return Capacitor.isNativePlatform()
+}
+
 export function isInternalBuild(): boolean {
   return typeof __MOBILE_INTERNAL__ !== 'undefined' ? !!__MOBILE_INTERNAL__ : import.meta.env.DEV
 }

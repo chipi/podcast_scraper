@@ -9,7 +9,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { getDevUsers, type DevUser } from '../services/api'
+import { getDevUsers, requestMagicLink, type DevUser } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { safeInternalPath } from '../utils/redirect'
 
@@ -45,6 +45,46 @@ onMounted(async () => {
   devEnabled.value = enabled
   devUsers.value = users
 })
+
+// --- Email magic link (#2272) -----------------------------------------------------------------
+//
+// A second way in, for people who will not create a Google account. Same mechanism for both
+// framings on this screen: the link creates the account on first use and signs in afterwards, so
+// "create account" and "sign in" differ only in the copy and in where the server lands you.
+const emailMode = ref(false)
+const email = ref('')
+const sending = ref(false)
+//: Set once a request has been accepted. Deliberately NOT cleared by a failure path that would
+//: reveal anything about the address — see `emailSent` in the template.
+const emailSent = ref(false)
+const emailError = ref(false)
+
+const emailLooksValid = computed(() => {
+  const value = email.value.trim()
+  // Shape only. Anything stricter rejects real addresses, and the server is the one that decides
+  // whether an address is deliverable.
+  return value.length >= 3 && value.includes('@') && !value.startsWith('@') && !value.endsWith('@')
+})
+
+async function sendMagicLink(): Promise<void> {
+  if (!emailLooksValid.value || sending.value) return
+  sending.value = true
+  emailError.value = false
+  const ok = await requestMagicLink(email.value.trim(), redirectTarget.value)
+  sending.value = false
+  // `ok` is true for ANY accepted request — the server answers identically for an address it has
+  // never seen and one on the allowlist. The UI must not add a distinction the API refuses to make:
+  // "check your inbox" is the honest message even when nothing was sent, because telling the person
+  // otherwise would tell a stranger whether an address has an account here.
+  if (ok) emailSent.value = true
+  else emailError.value = true
+}
+
+function resetEmail(): void {
+  emailSent.value = false
+  emailError.value = false
+  email.value = ''
+}
 
 function signInCustom(): void {
   const name = custom.value.trim()
@@ -109,6 +149,61 @@ function signInCustom(): void {
     >
       {{ isSignup ? t('auth.signUp') : t('auth.signIn') }}
     </button>
+
+    <!-- Email magic link: the second front door (#2272). Offered on BOTH framings, because it
+         creates an account just as readily as it signs one in. -->
+    <div class="mt-6 border-t border-border pt-5">
+      <template v-if="emailSent">
+        <p class="font-bold" data-testid="magic-link-sent">{{ t('auth.magicLinkSentTitle') }}</p>
+        <p class="mt-1 text-sm text-muted">
+          {{ t('auth.magicLinkSentBody', { email: email.trim() }) }}
+        </p>
+        <button
+          type="button"
+          class="mt-3 text-sm font-bold text-accent underline"
+          data-testid="magic-link-reset"
+          @click="resetEmail"
+        >
+          {{ t('auth.magicLinkUseAnother') }}
+        </button>
+      </template>
+
+      <template v-else-if="emailMode">
+        <form class="flex gap-2" @submit.prevent="sendMagicLink">
+          <input
+            v-model="email"
+            type="email"
+            autocomplete="email"
+            inputmode="email"
+            :placeholder="t('auth.magicLinkPlaceholder')"
+            class="min-w-0 flex-1 rounded-full border border-border bg-canvas px-4 py-2 text-sm"
+            data-testid="magic-link-input"
+          />
+          <button
+            type="submit"
+            :disabled="!emailLooksValid || sending"
+            class="rounded-full bg-accent px-5 py-2 font-bold text-accent-foreground disabled:opacity-50"
+            data-testid="magic-link-submit"
+          >
+            {{ sending ? t('auth.magicLinkSending') : t('auth.magicLinkSend') }}
+          </button>
+        </form>
+        <p v-if="emailError" class="mt-2 text-sm text-muted" data-testid="magic-link-error">
+          {{ t('auth.magicLinkError') }}
+        </p>
+        <p class="mt-2 text-xs text-muted">{{ t('auth.magicLinkHint') }}</p>
+      </template>
+
+      <button
+        v-else
+        type="button"
+        class="w-full rounded-full border border-border px-6 py-3 font-bold"
+        data-testid="magic-link-button"
+        @click="emailMode = true"
+      >
+        {{ t('auth.magicLinkCta') }}
+      </button>
+    </div>
 
     <p class="mt-5 text-sm text-muted">
       <template v-if="isSignup">
