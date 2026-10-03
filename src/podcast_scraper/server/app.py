@@ -145,6 +145,8 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
         {"trend": {"min_total": int(_mom_min)}} if _mom_min.isdigit() else None
     )
     app.state.operator_api_key = os.environ.get("APP_OPERATOR_API_KEY", "")
+    # GET-only operator credential (obs read probes); never accepted for a write.
+    app.state.operator_read_key = os.environ.get("APP_OPERATOR_READ_KEY", "")
     # Shared token for the internal outbox seam (#1415, RFC-110 §2) — the infra delivery worker
     # authenticates with it over the tailnet. Empty → the /internal/outbox endpoints 503 (disabled).
     app.state.internal_outbox_token = os.environ.get("INTERNAL_OUTBOX_TOKEN", "")

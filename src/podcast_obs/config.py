@@ -296,13 +296,26 @@ def _as_float(value: Optional[str], default: float) -> float:
 
 
 def _secret(spec: dict, key: str) -> Optional[str]:
-    """Resolve ``key`` from a literal value or ``<key>_env`` env-var indirection."""
+    """Resolve ``key`` from a literal, ``<key>_env`` env-var or ``<key>_file`` file indirection.
+
+    ``<key>_file`` reads a tmpfs-mounted secret (``/run/secrets/...``): the obs image has no
+    secrets shim to turn mounted files into env vars, and keeping the value in RAM means it never
+    lands on the box's disk. A missing or empty file resolves to nothing, like an unset env var.
+    """
     if not isinstance(spec, dict):
         return None
     if spec.get(key):
         return str(spec[key])
     env_name = spec.get(f"{key}_env")
-    return os.environ.get(env_name) if env_name else None
+    if env_name and os.environ.get(env_name):
+        return os.environ[env_name]
+    file_name = spec.get(f"{key}_file")
+    if file_name:
+        try:
+            return Path(str(file_name)).read_text(encoding="utf-8").strip() or None
+        except OSError:
+            return None
+    return None
 
 
 def _platform_read_urls() -> dict[str, Optional[str]]:

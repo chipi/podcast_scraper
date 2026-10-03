@@ -41,7 +41,10 @@ targets:
     # it into a read-only service widens that service's blast radius. That is an operator
     # decision, deliberately not taken here: with the var unset this key resolves to nothing and
     # the gated sources keep degrading to "failed" exactly as they do today.
-    operator_key_env: APP_OPERATOR_API_KEY
+    # Since 2026-10-03 obs gets a GET-only key instead: derived from the operator key by the
+    # deploy-player workflow, staged in RAM (/dev/shm/player-secrets) and mounted as a secret into
+    # player-api (which accepts it for reads only, app_operator_guard) and into obs here.
+    operator_key_file: /run/secrets/app_operator_read_key
 
     # Deploy history (recent deploy-prod runs). Needs an Actions:read PAT — deliberately not
     # provisioned; this source reports "not configured".

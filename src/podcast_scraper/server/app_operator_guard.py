@@ -111,13 +111,14 @@ class OperatorWriteGuard(BaseHTTPMiddleware):
 
         state = request.app.state
         key = getattr(state, "operator_api_key", "") or ""
+        read_key = getattr(state, "operator_read_key", "") or ""
         secret = getattr(state, "session_secret", "") or ""
         data_dir = getattr(state, "app_data_dir", None)
         audit_path = getattr(state, "audit_path", None)
         base = {"method": request.method, "path": path, "actor": "operator"}
 
         # Enforce only when a credential could exist: platform auth configured, or a key set.
-        enforce = bool(secret and data_dir is not None) or bool(key)
+        enforce = bool(secret and data_dir is not None) or bool(key) or bool(read_key)
         # A brand-new DESTRUCTIVE corpus write (rollback DELETE) must FAIL CLOSED even on a bare
         # deploy with no credential configured — unlike the legacy read/operator plane which keeps
         # its network-only posture. Refusing here means a misconfigured box can't be corpus-wiped by
@@ -128,8 +129,11 @@ class OperatorWriteGuard(BaseHTTPMiddleware):
                 status_code=403,
                 content={"detail": "Operator credential required for corpus mutation."},
             )
+        # The read key (APP_OPERATOR_READ_KEY) opens operator READS only: a monitor can list jobs
+        # but can never start, cancel or delete anything with it.
+        read_ok = not is_write and _valid_key(request, read_key)
         if enforce and not (
-            _valid_key(request, key) or _is_admin_session(request, secret, data_dir)
+            _valid_key(request, key) or read_ok or _is_admin_session(request, secret, data_dir)
         ):
             if is_write:
                 append_audit(audit_path, {**base, "outcome": "denied"})

@@ -478,3 +478,28 @@ def test_obs_reads_logs_and_metrics_from_the_nodes_alloy_writes_to() -> None:
     # grafana / glitchtip have no write side; the obs deploy declares them itself
     for key in ("GRAFANA_NODE=", "GLITCHTIP_NODE="):
         assert key in workflow, key
+
+
+def test_operator_key_from_a_mounted_secret_file(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prod obs reads its GET-only operator key from a tmpfs secret file (the obs image has no
+    secrets shim), so the key never sits in an env file on the box's disk (2026-10-03)."""
+    monkeypatch.delenv("APP_OPERATOR_API_KEY", raising=False)
+    secret = tmp_path / "app_operator_read_key"
+    secret.write_text("read-key-value\n", encoding="utf-8")
+    config_path = tmp_path / "obs.yaml"
+    config_path.write_text(
+        textwrap.dedent(f"""
+            default_target: prod
+            targets:
+              prod:
+                api_base: http://api:8000
+                operator_key_file: {secret}
+              missing:
+                api_base: http://api:8000
+                operator_key_file: {tmp_path / "absent"}
+            """),
+        encoding="utf-8",
+    )
+    cfg = ObservabilityConfig.from_yaml(config_path)
+    assert cfg.target("prod").operator_key == "read-key-value"
+    assert cfg.target("missing").operator_key is None

@@ -446,6 +446,7 @@ jobs:
           APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
           PROD_SENTRY_DSN_PLAYER_API: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
           INTERNAL_OUTBOX_TOKEN: ${{ secrets.PLAYER_INTERNAL_OUTBOX_TOKEN }}
+          PROD_APP_OPERATOR_API_KEY: ${{ secrets.PROD_APP_OPERATOR_API_KEY }}
         run: |
           set -euo pipefail
           STAGE=$(mktemp -d -p /dev/shm plsecstage.XXXXXX)
@@ -456,6 +457,13 @@ jobs:
           # Delivery seam shared token → /run/secrets/internal_outbox_token; the shim
           # exports it as INTERNAL_OUTBOX_TOKEN (filename = lowercase of the env var).
           printf '%s' "$INTERNAL_OUTBOX_TOKEN"       > "$STAGE/internal_outbox_token"
+          # GET-only operator key for the obs read probes: an HMAC of the operator key (label
+          # operator-read-v1), so it cannot be turned back into the write key. player-api accepts
+          # it for operator READS only (app_operator_guard). Mode 444 on the host (below): obs runs as
+          # uid 10001 and must read the bind-mounted file; the 700 directory still keeps every other
+          # host user out.
+          python3 -c 'import hashlib, hmac, os; print(hmac.new(os.environ["PROD_APP_OPERATOR_API_KEY"].encode(), b"operator-read-v1", hashlib.sha256).hexdigest(), end="")' \
+            > "$STAGE/app_operator_read_key"
           chmod 400 "$STAGE"/*
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
@@ -466,6 +474,7 @@ jobs:
           ssh -i "$SSH_PROD_IDENTITY" -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$SSH_TARGET" \
             "set -euo pipefail; chmod 400 /dev/shm/player-secrets.staged/*; \
+             chmod 444 /dev/shm/player-secrets.staged/app_operator_read_key; \
              rm -rf /dev/shm/player-secrets; \
              mv /dev/shm/player-secrets.staged /dev/shm/player-secrets"
 
