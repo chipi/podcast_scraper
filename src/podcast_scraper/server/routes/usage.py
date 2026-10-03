@@ -31,8 +31,12 @@ def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path:
     )
 
 
+# A plain ``def``: FastAPI runs it in its worker threadpool. As ``async def`` the synchronous
+# rollup (a scan of every run's llm_cost files) ran ON the event loop and stalled every other
+# request for its duration — /api/health took 1.08 s instead of 0.008 s behind it (prod,
+# 2026-10-03), and it grows with the corpus.
 @router.get("/usage")
-async def usage(
+def usage(
     request: Request,
     path: str | None = Query(
         default=None, description="Corpus root (defaults to server output_dir)."
