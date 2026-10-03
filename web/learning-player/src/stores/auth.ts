@@ -10,6 +10,7 @@ import { getDeviceJson, removeDeviceKey, setDeviceJson } from '../services/devic
 import { isNative, startNativeLogin, storeAuthToken } from '../services/native'
 import { offlineReason } from '../composables/useOnline'
 import { clearAuthEpoch, noteAuthEpoch } from '../services/authEpoch'
+import { identify, resetIdentity, resolveSession } from '../services/analytics'
 import type { Me } from '../services/types'
 
 /**
@@ -22,6 +23,26 @@ import type { Me } from '../services/types'
  * **only a 401/403 may destroy cached auth state; a transport error never may.**
  */
 const SNAPSHOT_KEY = 'auth.me'
+
+/**
+ * Keep the analytics identity in step with the auth identity (#2265).
+ *
+ * Called from EVERY point that changes `user`, deliberately via one helper: the failure this
+ * prevents is a new sign-in path landing later and quietly inheriting the previous participant's
+ * id, which no test would notice because the events still flow.
+ *
+ * Signed in with an id → attach it (once per id; `identify` guards the repeat). Signed out →
+ * replace the tracker, so the signed-out landing traffic the spec wants ANONYMOUS stops carrying
+ * the person who just left. An account with no `analytics_id` yet (its backfill has not run) is
+ * left anonymous rather than identified with a blank.
+ */
+function syncAnalyticsIdentity(me: Me | null): void {
+  if (!me) {
+    resetIdentity()
+    return
+  }
+  if (me.analytics_id) identify(me.analytics_id, resolveSession())
+}
 
 interface AuthState {
   user: Me | null
@@ -70,6 +91,11 @@ export const useAuthStore = defineStore('auth', {
       this.user = cached
       this.stale = true
       this.loaded = true
+      // Identify from the SNAPSHOT, not only after `refresh()` returns. A returning user is
+      // signed in from this moment and starts tapping immediately; waiting for the network would
+      // file their first actions — the ones right after launch, which the day-3 "did they open it
+      // at all" check reads — as anonymous. Offline, `refresh()` may never answer at all.
+      syncAnalyticsIdentity(cached)
     },
 
     /**
@@ -81,6 +107,7 @@ export const useAuthStore = defineStore('auth', {
         const me = await getMe()
         this.user = me
         this.stale = false
+        syncAnalyticsIdentity(me)
         // `getMe` maps 401 -> null, so a null answer means the credential is genuinely dead and
         // the snapshot must go with it. Anything else that resolves is a real identity.
         if (me) {
@@ -201,6 +228,7 @@ export const useAuthStore = defineStore('auth', {
         await removeDeviceKey(SNAPSHOT_KEY)
         this.user = null
         this.stale = false
+        syncAnalyticsIdentity(null)
       }
     },
     /**
@@ -213,6 +241,7 @@ export const useAuthStore = defineStore('auth', {
       void removeDeviceKey(SNAPSHOT_KEY)
       this.user = null
       this.stale = false
+      syncAnalyticsIdentity(null)
     },
   },
 })

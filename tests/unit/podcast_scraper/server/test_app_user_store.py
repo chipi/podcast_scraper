@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import uuid
 from pathlib import Path
 
 from podcast_scraper.server.app_user_store import (
@@ -10,6 +12,7 @@ from podcast_scraper.server.app_user_store import (
     get_or_create_user,
     get_user,
     list_users,
+    new_analytics_id,
     set_disabled,
     set_role,
     user_id_for,
@@ -133,3 +136,113 @@ def test_valid_shape_but_absent_user_id_is_not_found(tmp_path: Path) -> None:
     assert delete_user(tmp_path, "u_" + "1" * 24) is False
     assert set_disabled(tmp_path, "u_" + "2" * 24, True) is False
     assert set_role(tmp_path, "u_" + "3" * 24, "admin") is False
+
+
+# --- analytics_id (#2265) -------------------------------------------------------------------
+
+
+def test_analytics_id_is_minted_at_creation_and_is_a_uuid4(tmp_path: Path) -> None:
+    user = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    assert user.analytics_id
+    # A real UUID, not a truncated hash or a slug.
+    parsed = uuid.UUID(user.analytics_id)
+    assert parsed.version == 4
+    # Survives a reload — it is persisted, not computed per call.
+    assert get_user(tmp_path, user.user_id).analytics_id == user.analytics_id  # type: ignore[union-attr]
+
+
+def test_analytics_id_is_not_derived_from_the_identity(tmp_path: Path) -> None:
+    """The whole point of the field: it must not be re-derivable from who the person is.
+
+    If it were ``user_id``, the email, or any digest of them, anyone holding an analytics export
+    plus a guessed identity could confirm the match. Two accounts with the same name and adjacent
+    subjects must get unrelated ids.
+    """
+    # A realistic, multi-character identity on purpose. An earlier version of this test used
+    # ``a@x.com``, and "a" appears in nearly every UUID's hex — the assertion passed or failed on
+    # luck rather than on whether the id was derived.
+    a = get_or_create_user(
+        tmp_path, provider="google", subject="s1", email="jordan.lee@x.com", name="Jordan Lee"
+    )
+    b = get_or_create_user(
+        tmp_path, provider="google", subject="s2", email="jordan.lee@x.com", name="Jordan Lee"
+    )
+    assert a.analytics_id != b.analytics_id
+    for user in (a, b):
+        assert user.analytics_id != user.user_id
+        assert user.user_id.removeprefix("u_") not in user.analytics_id
+        assert "jordan" not in user.analytics_id.lower()
+        assert "lee" not in user.analytics_id.lower()
+        assert user.username not in user.analytics_id
+
+
+def test_analytics_id_is_stable_across_sign_ins(tmp_path: Path) -> None:
+    """It is promised never to rotate: a rotated id splits one participant across two reports."""
+    first = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    for _ in range(3):
+        again = get_or_create_user(
+            tmp_path, provider="google", subject="s1", email="a@x.com", name="A"
+        )
+        assert again.analytics_id == first.analytics_id
+
+
+def test_analytics_id_is_backfilled_for_a_profile_written_before_the_field(
+    tmp_path: Path,
+) -> None:
+    """Every account that exists today predates the field, including the operator's own.
+
+    Minting only at creation would leave them permanently unmeasurable, so the next sign-in fills
+    one in. Simulated by stripping the key from the profile on disk, which is exactly the shape of
+    an older profile.
+    """
+    user = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    path = tmp_path / "users" / user.user_id / "profile.json"
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    del doc["analytics_id"]
+    path.write_text(json.dumps(doc), encoding="utf-8")
+
+    # Reading it back shows the gap...
+    assert get_user(tmp_path, user.user_id).analytics_id == ""  # type: ignore[union-attr]
+
+    # ...and signing in closes it, persistently.
+    back = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    assert back.analytics_id
+    assert get_user(tmp_path, user.user_id).analytics_id == back.analytics_id  # type: ignore[union-attr]
+
+    # And the backfilled id is then itself stable.
+    again = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    assert again.analytics_id == back.analytics_id
+
+
+def test_backfill_does_not_block_sign_in_when_the_write_fails(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    """Analytics must never be the reason someone cannot sign in."""
+    user = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    path = tmp_path / "users" / user.user_id / "profile.json"
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    del doc["analytics_id"]
+    path.write_text(json.dumps(doc), encoding="utf-8")
+
+    import podcast_scraper.server.app_user_store as store
+
+    def boom(*_a: object, **_k: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(store, "_write_profile", boom)  # type: ignore[attr-defined]
+    back = get_or_create_user(tmp_path, provider="google", subject="s1", email="a@x.com", name="A")
+    # Sign-in still succeeds; the id is simply still missing, to be filled next time.
+    assert back.user_id == user.user_id
+    assert back.analytics_id == ""
+
+
+def test_created_users_also_get_one(tmp_path: Path) -> None:
+    """``create_user`` is the admin / seed path, and those accounts are measured too."""
+    user = create_user(
+        tmp_path, provider="google", subject="s9", email="c@x.com", name="C", role="listener"
+    )
+    assert uuid.UUID(user.analytics_id).version == 4
+
+
+def test_new_analytics_id_does_not_repeat() -> None:
+    assert len({new_analytics_id() for _ in range(50)}) == 50

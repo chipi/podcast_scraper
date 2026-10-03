@@ -4,6 +4,7 @@ import playerStoreSrc from '../stores/player.ts?raw'
 import playerViewSrc from '../views/PlayerView.vue?raw'
 import highlightsViewSrc from '../views/HighlightsView.vue?raw'
 import mainSrc from '../main.ts?raw'
+import analyticsSrc from '../services/analytics.ts?raw'
 import authStoreSrc from '../stores/auth.ts?raw'
 import nativeSrc from '../services/native.ts?raw'
 import tierSrc from '../services/tier.ts?raw'
@@ -176,16 +177,26 @@ describe('native-shell invariants (guardrail #1310)', () => {
     // search a user ran was recorded, verbatim, as part of a page-view URL.
     //
     // Asserted on the injection site rather than on a rendered DOM because this is the only place
-    // the attribute can come from, and a static check cannot be made to pass by a mock.
-    expect(mainSrc).toMatch(/setAttribute\(\s*['"]data-exclude-search['"]/)
+    // the attribute can come from, and a static check cannot be made to pass by a mock. The site is
+    // `services/analytics.ts` (`installUmami`) — it was an inline block in main.ts until sign-out
+    // needed to replace the tracker, and main.ts now only calls it.
+    expect(analyticsSrc).toMatch(/setAttribute\(\s*['"]data-exclude-search['"]/)
+    expect(mainSrc).toMatch(/installUmami\(\)/)
 
-    // The attribute is only meaningful on the tag that actually gets injected, so prove it sits in
-    // the same block as the website id rather than somewhere unreachable.
-    const injection = mainSrc.slice(mainSrc.indexOf('data-website-id'))
+    // The attribute is only meaningful on the tag that actually gets injected, so prove it sits
+    // between the website id and the append rather than somewhere unreachable.
+    const injection = analyticsSrc.slice(analyticsSrc.indexOf('data-website-id'))
     expect(
       injection.slice(0, injection.indexOf('appendChild')),
       'data-exclude-search must be set on the injected Umami script, before it is appended',
     ).toContain('data-exclude-search')
+
+    // ONE injection path. Two tags double-count every page view, and the reason the logic moved out
+    // of main.ts was precisely that a second copy would drift.
+    expect(
+      mainSrc.includes("createElement('script')") && mainSrc.includes('data-website-id'),
+      'main.ts must not inject its own Umami tag — call installUmami()',
+    ).toBe(false)
   })
 
   it('Sentry scrubs the query string, so search terms never reach GlitchTip either (#2264)', () => {

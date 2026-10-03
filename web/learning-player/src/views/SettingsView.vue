@@ -28,11 +28,44 @@ import { getTier, isInternalBuild } from '../services/tier'
 import { CACHE_KEYS, clearCached } from '../services/contentCache'
 import { clearAllDownloads } from '../services/downloads'
 import { formatPublishDate } from '../utils/format'
+import { identify, resolveSession, setUserOptedOut, userOptedOut } from '../services/analytics'
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
 const { enabled: voiceEnabled, setEnabled: setVoiceEnabled } = useVoiceInput()
 const { forcedOffline, setForcedOffline } = useOnline()
+
+// Usage analytics (#2265). The toggle is ON by default; OFF writes Umami's own `umami.disabled`
+// flag, which silences the tracker both through our gate and inside its own bundle.
+//
+// This exists because the beta's closing-interview script tells every participant "analytics
+// continues unless you turn it off in Settings" — without the control that sentence is false.
+//
+// Server-side listen events are deliberately NOT affected: they power the listening stats the user
+// can see in their own profile, so silencing them would remove a feature rather than telemetry.
+const shareAnalytics = ref(!userOptedOut())
+function onShareAnalyticsChange(next: boolean): void {
+  shareAnalytics.value = next
+  setUserOptedOut(!next)
+  // Turning it back ON must re-attach the identity now. Nothing else would until the next
+  // `auth.refresh()`, so the sessions in between would be recorded anonymously and drop out of the
+  // per-person view the beta check-ins read.
+  const aid = auth.user?.analytics_id
+  if (next && aid) identify(aid, resolveSession())
+}
+
+const analyticsId = computed(() => auth.user?.analytics_id ?? '')
+const analyticsIdCopied = ref(false)
+async function copyAnalyticsId(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(analyticsId.value)
+    analyticsIdCopied.value = true
+    setTimeout(() => (analyticsIdCopied.value = false), 1500)
+  } catch {
+    // Clipboard denied (it needs a secure context and a user gesture). The id is on screen and
+    // selectable, so the copy button is a convenience, not the only route to it.
+  }
+}
 
 // Playback volume (low/med/high) — a persisted in-app multiplier over the OS volume (player store).
 const player = usePlayerStore()
@@ -195,6 +228,56 @@ async function openHelp(): Promise<void> {
           pattern="radio"
           @update:model-value="player.setVolumeLevel"
         />
+      </div>
+    </section>
+
+    <!-- Privacy (#2265): the usage-analytics opt-out, and the pseudonymous id behind it.
+         Both are promises the beta makes out loud — the closing interview tells each participant
+         the toggle exists, and the first session has the operator note the id down. -->
+    <section class="mt-6 rounded-2xl border border-border p-5">
+      <h2 class="lp-section mb-4">{{ t('settings.privacyHeading') }}</h2>
+
+      <label class="flex items-center justify-between gap-3">
+        <span class="min-w-0">
+          <span class="block text-sm font-semibold text-canvas-foreground">{{
+            t('settings.shareAnalytics')
+          }}</span>
+          <span class="mt-0.5 block text-xs text-muted">{{ t('settings.shareAnalyticsHint') }}</span>
+        </span>
+        <!-- Named on the INPUT, not only by the wrapping label: the Android accessibility bridge
+             reported such a node with every name field empty, so TalkBack announced a bare
+             checkbox with no idea what it toggles (#2156). -->
+        <input
+          type="checkbox"
+          class="lp-check"
+          data-testid="settings-share-analytics"
+          :aria-label="t('settings.shareAnalytics')"
+          :checked="shareAnalytics"
+          @change="onShareAnalyticsChange(($event.target as HTMLInputElement).checked)"
+        />
+      </label>
+
+      <div v-if="analyticsId" class="mt-4 border-t border-border pt-4">
+        <span class="block text-sm font-semibold text-canvas-foreground">{{
+          t('settings.analyticsId')
+        }}</span>
+        <span class="mt-0.5 block text-xs text-muted">{{ t('settings.analyticsIdHint') }}</span>
+        <div class="mt-2 flex items-center justify-between gap-3">
+          <!-- Selectable, so it is recoverable even where the clipboard API is denied. -->
+          <code
+            class="min-w-0 flex-1 truncate font-mono text-xs text-muted select-all"
+            data-testid="settings-analytics-id"
+            >{{ analyticsId }}</code
+          >
+          <button
+            type="button"
+            class="shrink-0 text-xs font-semibold text-accent"
+            data-testid="settings-copy-analytics-id"
+            @click="copyAnalyticsId"
+          >
+            {{ analyticsIdCopied ? t('settings.analyticsIdCopied') : t('settings.analyticsIdCopy') }}
+          </button>
+        </div>
       </div>
     </section>
 

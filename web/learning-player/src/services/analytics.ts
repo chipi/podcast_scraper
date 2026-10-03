@@ -8,11 +8,12 @@
  * cannot be held by review, so it is held by the compiler: an unlisted event name, a misspelled
  * enum value or a raw string where a bucket belongs is a type error.
  *
- * ── Script injection is NOT here ─────────────────────────────────────────────
- * The `<script>` tag is injected in `main.ts`, which also sets `data-exclude-search` to keep the
- * search term out of tracked URLs. Do not add a second injection path here: two tags would
- * double-count every page view, and the viewer's `initAnalytics()` exists only because the viewer
- * has no equivalent block in its own `main.ts`.
+ * ── Script injection lives here, and only here ───────────────────────────────
+ * `installUmami()` is the single injection path; `main.ts` calls it. It used to be an inline block
+ * in `main.ts`, and it moved because sign-out needs to REPLACE the tracker (see `resetIdentity`) —
+ * two copies of the injection logic would have drifted the moment one of them gained the
+ * `data-exclude-search` attribute and the other did not. It is idempotent: a second call with a
+ * tag already present does nothing, because two tags double-count every page view.
  *
  * ── Enablement ───────────────────────────────────────────────────────────────
  * Gated on the same pair `main.ts` gates the script on, so `track()` cannot be live while the
@@ -27,6 +28,35 @@
  * Telemetry is fire-and-forget: every call is wrapped, and a throw inside the tracker is
  * swallowed. A failed metric must never surface to a listener.
  */
+
+import { resolveChannel, type Channel } from './channel'
+import { platform } from './native'
+
+// ── Session properties ───────────────────────────────────────────────────────
+
+/**
+ * Set once, through `identify`, and attached to every event in the session.
+ *
+ * Deliberately short. The spec is explicit that locale, device model and anything Umami already
+ * derives must NOT be sent, and that the beta cohort must NOT be stamped on events — cohorts are
+ * computed at read time from the operator's `analytics_id` list, so that re-running a report with
+ * a corrected list does not require re-collecting the data.
+ */
+export type SessionProps = {
+  platform: 'ios' | 'android' | 'web'
+  app_version: string
+  channel: Channel
+}
+
+/** Build the session properties for this build and device. */
+export function resolveSession(): SessionProps {
+  const p = platform()
+  return {
+    platform: p === 'ios' || p === 'android' ? p : 'web',
+    app_version: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '',
+    channel: resolveChannel(),
+  }
+}
 
 // ── Shared vocabularies ──────────────────────────────────────────────────────
 
@@ -275,6 +305,28 @@ function umamiWebsiteId(): string {
   )
 }
 
+/**
+ * Record the user's choice from Settings › Privacy (#2265).
+ *
+ * Writes Umami's own `umami.disabled` flag rather than a key of our own, so the tracker honours it
+ * internally too — belt and braces: even a `track()` call added later that forgot the gate stays
+ * silent. Verified in the served `script.js`: its enablement check reads
+ * `g?.getItem("umami.disabled")`.
+ *
+ * Note the asymmetry the spec requires: this silences UMAMI only. Server-side listen events keep
+ * flowing, because they power the user's own listening stats in the app — switching those off would
+ * take away a feature the person can see, not just telemetry they cannot.
+ */
+export function setUserOptedOut(optedOut: boolean): void {
+  try {
+    if (optedOut) localStorage.setItem('umami.disabled', '1')
+    else localStorage.removeItem('umami.disabled')
+  } catch {
+    // Blocked storage: the preference cannot be persisted, so leave it as it was rather than
+    // throwing inside a settings toggle.
+  }
+}
+
 /** True when the user has turned analytics off in Settings (#2265). */
 export function userOptedOut(): boolean {
   try {
@@ -299,6 +351,108 @@ export function analyticsEnabled(): boolean {
 
 type UmamiGlobal = {
   track?: (name: string, props?: Record<string, unknown>) => void
+  identify?: (id: string | Record<string, unknown>, props?: Record<string, unknown>) => void
+}
+
+/** Marks our tag so injection is idempotent and `resetIdentity` can find it again. */
+const TAG_MARKER = 'data-umami-installed'
+
+/**
+ * The id currently attached to this tracker, or `null` when anonymous.
+ *
+ * Exists so `identify` is once-per-id (see there) and so `resetIdentity` can make a later
+ * re-identify with the SAME id go through again — after a tracker replacement the new tracker knows
+ * nothing, so suppressing that call would leave the session permanently anonymous.
+ */
+let identifiedAs: string | null = null
+
+/**
+ * Inject the Umami `<script>` exactly once. Idempotent and safe to call before the app mounts.
+ *
+ * `data-exclude-search` is set here, and it is the whole reason the search term stays out of
+ * analytics: Umami auto-tracks the full URL, and five call sites put the term in the query string
+ * (`SearchView.vue:357,438,501`, `BrowseView.vue:45`, `HomeView.vue:317`, `LibraryView.vue:636`).
+ * Verified supported on the running Umami 3.3.1 by reading the served `script.js`
+ * (`j = w("exclude-search") === b`), not the docs.
+ */
+export function installUmami(): void {
+  try {
+    if (typeof document === 'undefined') return
+    const src = umamiSrc()
+    const websiteId = umamiWebsiteId()
+    // No script url or no website id → nothing was ever going to work; stay silent by construction
+    // (a fork that checks out the repo and builds sends nothing).
+    if (!src || !websiteId) return
+    if (document.querySelector(`script[${TAG_MARKER}]`)) return
+    const tag = document.createElement('script')
+    tag.defer = true
+    tag.src = src
+    tag.setAttribute('data-website-id', websiteId)
+    tag.setAttribute('data-exclude-search', 'true')
+    tag.setAttribute(TAG_MARKER, '1')
+    document.head.appendChild(tag)
+  } catch {
+    // APPENDING A SCRIPT CAN THROW, and this runs during app bootstrap in `main.ts` — before the
+    // Pinia/router wiring — so an uncaught throw here takes the whole app down over a metric.
+    //
+    // Not hypothetical: happy-dom raises `DOMException [NotSupportedError]: JavaScript file loading
+    // is disabled` from `appendChild`, which is how this was found. A restrictive CSP or a
+    // locked-down WebView can do the same in production. The inline block this replaced had the
+    // identical exposure and no guard.
+  }
+}
+
+/**
+ * Attach every subsequent event to this account's pseudonymous id (#2265).
+ *
+ * An empty id is ignored rather than sent: an account whose backfill has not run yet has none, and
+ * identifying with a blank string would create one shared bucket that looks like a single very
+ * busy participant.
+ */
+export function identify(analyticsId: string, session: SessionProps): void {
+  try {
+    if (!analyticsId) return
+    if (!analyticsEnabled()) return
+    if (typeof window === 'undefined') return
+    // ONCE PER ID. The auth store calls this from `refresh()`, which runs on every boot and every
+    // background revalidation, and each `identify` is a network payload. Re-sending the same id
+    // would put a request on the wire every time the app regained focus for no new information.
+    if (identifiedAs === analyticsId) return
+    const umami = (window as unknown as { umami?: UmamiGlobal }).umami
+    umami?.identify?.(analyticsId, { ...session })
+    identifiedAs = analyticsId
+  } catch {
+    // Fire-and-forget, as everywhere else here.
+  }
+}
+
+/**
+ * Stop attributing events to the account that just signed out.
+ *
+ * REPLACES the tracker, because it cannot be asked to forget. Measured in the served `script.js`:
+ * `identify` derives the id as `typeof t === "string" ? t : t.id` and then assigns only
+ * `void 0 !== a && (V = a)` — so `identify({})` leaves the previous distinct id in place. The
+ * script also guards its own global with `t.umami || (t.umami = {...})`, so merely re-injecting the
+ * tag is a no-op. The global has to go first, then the tag, then a fresh install.
+ *
+ * Why it matters: sign-out here is client-side only (`stores/auth.ts` sets `user = null`, no
+ * reload), so without this the signed-out landing traffic the spec wants to be an ANONYMOUS
+ * session would keep carrying the previous participant's id — and in a beta where the operator and
+ * a tester may share a device, that is one person's browsing filed under another's name.
+ */
+export function resetIdentity(): void {
+  try {
+    if (typeof window !== 'undefined') {
+      delete (window as unknown as { umami?: UmamiGlobal }).umami
+    }
+    if (typeof document !== 'undefined') {
+      document.querySelectorAll(`script[${TAG_MARKER}]`).forEach((el) => el.remove())
+    }
+    identifiedAs = null
+    installUmami()
+  } catch {
+    // A failed reset must not break sign-out. The cost is attribution, not access.
+  }
 }
 
 /**

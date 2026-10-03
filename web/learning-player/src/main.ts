@@ -11,6 +11,7 @@ import { applyDirection, resolveDirection } from './theme/direction'
 import { initGateCookie, platform, rehydrateNativeToken } from './services/native'
 import { getTier, tierSwitchEnabled } from './services/tier'
 import { setOnUnauthorized } from './services/api'
+import { installUmami } from './services/analytics'
 import { scrubEventRequestUrl, scrubNavigationBreadcrumb } from './services/telemetryScrub'
 import { useAuthStore } from './stores/auth'
 
@@ -110,45 +111,16 @@ if (SENTRY_DSN_PLAYER) {
   )
 }
 
-// Umami analytics for the consumer player — cookieless, privacy-friendly page +
-// route tracking, mirroring orrery. Gated on both VITE_UMAMI_WEBSITE_ID and
-// VITE_UMAMI_SRC (the public tracking-script URL on the analytics ingest edge,
-// e.g. https://analytics.<domain>/script.js), baked at build time via docker
-// build-args. Both empty by default => true no-op for dev / CI / any build
-// without the args. Umami's script auto-tracks SPA route changes (it hooks the
-// History API), so injecting the tag is all that's needed.
-// Dev rung (see the Sentry block above): in `vite dev` analytics go to the
-// dedicated `player-dev` Umami site via `homelab` (tailnet, no fixed IP). Prod
-// overrides via the build-arg-baked VITE_UMAMI_* (public HTTPS analytics edge).
-// Same native-https caveat as the dev DSN above: on-device the http script is
-// mixed-content-blocked, so inject the tailscale-serve https URL via
-// VITE_UMAMI_SRC_DEV in .env.mobile for dev-tier on-device analytics.
-const DEV_UMAMI_SRC = import.meta.env.VITE_UMAMI_SRC_DEV || 'http://homelab:3001/script.js'
-const DEV_UMAMI_WEBSITE_ID = '30384fd4-b22b-406c-b5f6-054a0e0d16d1'
-const UMAMI_WEBSITE_ID =
-  import.meta.env.VITE_UMAMI_WEBSITE_ID || (devDefault ? DEV_UMAMI_WEBSITE_ID : '')
-const UMAMI_SRC = import.meta.env.VITE_UMAMI_SRC || (devDefault ? DEV_UMAMI_SRC : '')
-if (UMAMI_WEBSITE_ID && UMAMI_SRC) {
-  const umami = document.createElement('script')
-  umami.defer = true
-  umami.src = UMAMI_SRC
-  umami.setAttribute('data-website-id', UMAMI_WEBSITE_ID)
-  // RAW SEARCH TEXT WAS REACHING UMAMI (#2264). Umami auto-tracks the full URL, and the search
-  // term travels in the query string: five call sites put it there —
-  // `SearchView.vue:357,438,501`, `BrowseView.vue:45`, `HomeView.vue:317`, and
-  // `LibraryView.vue:636`, where a saved-search link replays a stored term back into the URL.
-  //
-  // Fixed at the URL rather than per call site, and that choice is load-bearing: a per-site sweep
-  // would have missed the Library links, which are a `<router-link :to>` and not a `router.push`.
-  // This also drops `?redirect=` and `?t=`.
-  //
-  // Verified supported on the running Umami 3.3.1 by reading the served `script.js`, not the docs:
-  // `j = w("exclude-search") === b`. `data-before-send` was the alternative and was NOT chosen —
-  // it is a JS hook on every event in a system whose rule is that telemetry never breaks the app,
-  // and the defense for event PROPS is the typed registry, which fails at build time instead.
-  umami.setAttribute('data-exclude-search', 'true')
-  document.head.appendChild(umami)
-}
+// Umami analytics for the consumer player — cookieless page + route tracking, mirroring orrery.
+//
+// The injection itself (and the `data-exclude-search` attribute that keeps the search term out of
+// tracked URLs) lives in `services/analytics.ts`, which is the SINGLE injection path. It moved out
+// of this file when sign-out gained the need to replace the tracker (`resetIdentity`): two copies
+// of the injection logic would have drifted the moment one of them gained an attribute and the
+// other did not. Everything the old block explained — the dev rung over the tailnet, the
+// build-arg-baked prod values, the native-https caveat for on-device dev analytics, and the
+// fork-silent default when neither resolves — is documented there, next to the code that does it.
+installUmami()
 
 app.use(createPinia()).use(router).use(i18n)
 

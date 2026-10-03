@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   analyticsEnabled,
   EVENT_NAMES,
+  identify,
+  installUmami,
+  resetIdentity,
+  resolveSession,
   SOURCES,
   toCountBucket,
   toDurationBucket,
@@ -33,6 +37,25 @@ function enableAnalytics() {
   for (const [k, v] of Object.entries(UMAMI_ENV)) vi.stubEnv(k, v)
 }
 
+
+/**
+ * Intercept `document.head.appendChild` and return what would have been appended.
+ *
+ * The tests must NOT actually append a `<script src=…>`: happy-dom then tries to fetch it and
+ * raises an UNHANDLED async `DOMException [NotSupportedError]: JavaScript file loading is
+ * disabled`, which fails every test in the file rather than the one that caused it. Intercepting
+ * also makes the assertion sharper — the element we construct is what is under test, not the
+ * browser's willingness to load it.
+ */
+function captureAppends(): HTMLElement[] {
+  const appended: HTMLElement[] = []
+  vi.spyOn(document.head, 'appendChild').mockImplementation(<T extends Node>(node: T): T => {
+    appended.push(node as unknown as HTMLElement)
+    return node
+  })
+  return appended
+}
+
 afterEach(() => {
   vi.unstubAllEnvs()
   vi.restoreAllMocks()
@@ -42,6 +65,10 @@ afterEach(() => {
     /* storage may be unavailable; nothing to clear */
   }
   delete (window as unknown as { umami?: unknown }).umami
+  // Injected tags are global state. Leaving one behind makes `installUmami` correctly decline to
+  // add another, and the NEXT test then asserts against the previous test's tag — which is exactly
+  // how this suite first went red.
+  document.querySelectorAll('script[data-umami-installed]').forEach((el) => el.remove())
 })
 
 // ── 1. The guard the issue asks for ──────────────────────────────────────────
@@ -227,5 +254,139 @@ describe('buckets', () => {
     expect(toCountBucket(-5)).toBe('0')
     expect(toRankBucket(NaN)).toBe('1')
     expect(toDurationBucket(NaN)).toBe('<1m')
+  })
+})
+
+// ── 4. Identity (#2265) ──────────────────────────────────────────────────────
+
+describe('identify', () => {
+  let identified: Array<[string | Record<string, unknown>, unknown]>
+
+  beforeEach(() => {
+    identified = []
+    ;(window as unknown as { umami?: unknown }).umami = {
+      track: () => {},
+      identify: (id: string | Record<string, unknown>, props?: unknown) =>
+        identified.push([id, props]),
+    }
+  })
+
+  it('attaches the id and the session properties', () => {
+    enableAnalytics()
+    identify('a1b2c3', { platform: 'ios', app_version: '1.2.3', channel: 'testflight' })
+    expect(identified).toEqual([
+      ['a1b2c3', { platform: 'ios', app_version: '1.2.3', channel: 'testflight' }],
+    ])
+  })
+
+  it('ignores an empty id rather than identifying with a blank', () => {
+    // An account whose backfill has not run yet has no analytics_id. Sending '' would file every
+    // such account into one bucket that looks like a single very busy participant.
+    enableAnalytics()
+    identify('', { platform: 'web', app_version: '1.0.0', channel: 'web' })
+    expect(identified).toEqual([])
+  })
+
+  it('does nothing when the user opted out', () => {
+    enableAnalytics()
+    localStorage.setItem('umami.disabled', '1')
+    identify('a1', { platform: 'web', app_version: '1.0.0', channel: 'web' })
+    expect(identified).toEqual([])
+  })
+
+  it('never throws, even if the tracker explodes', () => {
+    enableAnalytics()
+    ;(window as unknown as { umami?: unknown }).umami = {
+      identify: () => {
+        throw new Error('boom')
+      },
+    }
+    expect(() =>
+      identify('a1', { platform: 'web', app_version: '1.0.0', channel: 'web' }),
+    ).not.toThrow()
+  })
+})
+
+describe('resetIdentity', () => {
+  it('removes the umami global so the previous id cannot survive sign-out', () => {
+    // The tracker cannot be asked to forget: its `identify` assigns only when the derived id is
+    // defined (`void 0 !== a && (V = a)`), so `identify({})` leaves the previous distinct id in
+    // place. Replacing the global is the only reset, and sign-out in this app does not reload.
+    enableAnalytics()
+    captureAppends()
+    ;(window as unknown as { umami?: unknown }).umami = { track: () => {}, identify: () => {} }
+    resetIdentity()
+    expect((window as unknown as { umami?: unknown }).umami).toBeUndefined()
+  })
+
+  it('removes the old tag and installs a fresh one, so anonymous traffic is still tracked', () => {
+    // The spec wants logged-out landing views recorded as an ANONYMOUS session, not dropped.
+    enableAnalytics()
+    const stale = document.createElement('script')
+    stale.setAttribute('data-umami-installed', '1')
+    document.head.appendChild(stale)
+
+    const appended = captureAppends()
+    resetIdentity()
+
+    expect(stale.parentNode, 'the stale tag must be removed').toBeNull()
+    expect(appended, 'exactly one fresh tag').toHaveLength(1)
+    expect(appended[0]?.getAttribute('data-exclude-search')).toBe('true')
+  })
+
+  it('never throws when there is nothing to reset', () => {
+    captureAppends()
+    expect(() => resetIdentity()).not.toThrow()
+  })
+})
+
+describe('installUmami', () => {
+  it('builds one tag with the query string excluded and the right website id', () => {
+    enableAnalytics()
+    const appended = captureAppends()
+    installUmami()
+    expect(appended).toHaveLength(1)
+    const tag = appended[0]!
+    expect(tag.getAttribute('data-exclude-search')).toBe('true')
+    expect(tag.getAttribute('data-website-id')).toBe('test-website-id')
+    expect(tag.getAttribute('src')).toBe(UMAMI_ENV.VITE_UMAMI_SRC)
+    expect((tag as HTMLScriptElement).defer).toBe(true)
+  })
+
+  it('is idempotent — a second call does not double-count page views', () => {
+    enableAnalytics()
+    const present = document.createElement('script')
+    present.setAttribute('data-umami-installed', '1')
+    document.head.appendChild(present)
+
+    const appended = captureAppends()
+    installUmami()
+    installUmami()
+    expect(appended, 'a tag is already installed; none should be added').toHaveLength(0)
+  })
+
+  it('injects nothing when no website id resolves', () => {
+    vi.stubEnv('VITE_UMAMI_SRC', '')
+    vi.stubEnv('VITE_UMAMI_SRC_DEV', '')
+    vi.stubEnv('VITE_UMAMI_WEBSITE_ID', '')
+    vi.stubEnv('VITE_ANALYTICS_OFF', '1')
+    const appended = captureAppends()
+    installUmami()
+    expect(appended).toHaveLength(0)
+  })
+})
+
+describe('resolveSession', () => {
+  it('reports a known platform and a real app version', () => {
+    const s = resolveSession()
+    expect(['ios', 'android', 'web']).toContain(s.platform)
+    expect(typeof s.app_version).toBe('string')
+    expect(typeof s.channel).toBe('string')
+  })
+
+  it('does not carry a cohort, locale or device model', () => {
+    // The spec is explicit: cohorts are computed at read time from the operator's analytics_id
+    // list, and anything Umami already derives must not be duplicated onto the session.
+    expect(Object.keys(resolveSession()).sort()).toEqual(['app_version', 'channel', 'platform'])
   })
 })

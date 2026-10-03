@@ -344,6 +344,11 @@ def _user_dict(user: User) -> dict[str, object]:
         "role": user.role,
         "disabled": user.disabled,
         "mcp_access": user.mcp_access,  # RFC-112: gates the MCP connection UI
+        # #2265: the pseudonymous analytics identity the client passes to Umami's `identify`, and
+        # which Settings › About shows so the operator can note it per beta participant. Empty
+        # only for an account whose backfill has not run yet (see `_backfill_analytics_id`); the
+        # client treats empty as "do not identify" rather than identifying with a blank id.
+        "analytics_id": user.analytics_id,
     }
 
 

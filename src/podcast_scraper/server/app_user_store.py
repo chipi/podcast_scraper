@@ -12,6 +12,7 @@ import hashlib
 import json
 import re
 import shutil
+import uuid
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -60,6 +61,17 @@ class User:
     #: RFC-112 (#1471): may connect an external agent to the MCP server. Orthogonal to ``role`` (a
     #: listener may have it, an admin may not) — admin-granted, not a rank. Default off.
     mcp_access: bool = False
+    #: Pseudonymous analytics identity (#2265). A random UUIDv4 minted once, at account creation,
+    #: and never rotated.
+    #:
+    #: Deliberately NOT ``user_id`` and NOT derived from the email. ``user_id`` is
+    #: ``sha256(provider || subject)``, so anyone holding the analytics data and a candidate
+    #: identity could confirm the match by recomputing it. This id is random, so the only route
+    #: back to a person is the operator's own private sheet.
+    #:
+    #: Empty on profiles written before this field existed; ``get_or_create_user`` backfills one at
+    #: the next sign-in rather than leaving an existing account permanently unmeasurable.
+    analytics_id: str = ""
 
 
 #: The only shape ``user_id_for`` ever produces: ``u_`` + 24 lowercase hex chars.
@@ -70,6 +82,43 @@ def user_id_for(provider: str, subject: str) -> str:
     """Stable, opaque user id from the OAuth identity ``(provider, subject)``."""
     digest = hashlib.sha256(f"{provider}\x00{subject}".encode("utf-8")).hexdigest()
     return f"u_{digest[:24]}"
+
+
+def _backfill_analytics_id(data_dir: Path, user: User) -> User:
+    """Give an existing account an ``analytics_id`` if it has none (#2265).
+
+    Read-modify-write under the per-user profile lock, re-reading inside it: a concurrent sign-in
+    (a double-fired OAuth callback, two devices at once) must not mint two ids and have the second
+    overwrite the first, because the id is promised never to rotate — a rotated id silently splits
+    one participant into two in every report.
+
+    **Never raises.** A failure here returns the user unchanged, so a disk problem in the analytics
+    backfill cannot stop someone signing in. The cost of failing is one account measured from its
+    next sign-in instead of this one; the cost of raising would be a locked-out listener.
+    """
+    try:
+        with _profile_lock(data_dir, user.user_id):
+            current = get_user(data_dir, user.user_id)
+            if current is None:
+                return user
+            if current.analytics_id:
+                return current
+            updated = replace(current, analytics_id=new_analytics_id())
+            _write_profile(data_dir, updated)
+            return updated
+    except Exception:
+        return user
+
+
+def new_analytics_id() -> str:
+    """Mint a fresh pseudonymous analytics id (#2265).
+
+    Random, not derived. The contrast with :func:`user_id_for` directly above is the point: that
+    one is a digest of the OAuth identity, which is exactly what an analytics id must not be. A
+    derived id would let anyone holding the analytics export test a guessed identity against it;
+    a random one cannot be reversed, so the mapping lives only in the operator's private sheet.
+    """
+    return str(uuid.uuid4())
 
 
 def _is_safe_user_id(user_id: str) -> bool:
@@ -109,6 +158,7 @@ def _write_profile(data_dir: Path, user: User) -> None:
                 "disabled": user.disabled,
                 "role": user.role,
                 "mcp_access": user.mcp_access,
+                "analytics_id": user.analytics_id,
             },
             ensure_ascii=False,
             indent=2,
@@ -141,6 +191,9 @@ def get_user(data_dir: Path, user_id: str) -> User | None:
         disabled=bool(doc.get("disabled", False)),
         # Profiles written before #1128 have no ``role`` → default to listener.
         role=app_roles.normalize_role(doc.get("role")),
+        # Profiles written before #2265 have no ``analytics_id``; ``get_or_create_user``
+        # backfills one at the next sign-in.
+        analytics_id=str(doc.get("analytics_id", "")),
         # Profiles written before #1471 have no ``mcp_access`` → default off.
         mcp_access=bool(doc.get("mcp_access", False)),
     )
@@ -189,11 +242,20 @@ def get_or_create_user(
 
     ``role`` only sets the role **on first creation**; an existing user's role is left untouched
     here (use :func:`set_role` to change it). When omitted, new users default to ``listener``.
+
+    Also backfills a missing ``analytics_id`` on an existing account (#2265). Minting only at
+    creation would leave every account that predates the field permanently unmeasurable — which is
+    every account that exists today, including the operator's own and the e2e identities. This is
+    the right place for it because it runs on each sign-in and already holds the lock pattern, and
+    it is a one-time write per account: once set, the branch never fires again, and the id never
+    rotates.
     """
     uid = user_id_for(provider, subject)
     existing = get_user(data_dir, uid)
     if existing is not None:
-        return existing
+        if existing.analytics_id:
+            return existing
+        return _backfill_analytics_id(data_dir, existing)
     # Serialize the mint under the store-global handle lock so two racing first-logins can't derive
     # the same handle from `taken` (uniqueness is cross-user; advisor H1). Re-check existence inside
     # the lock to also collapse a double-fired OAuth callback for the same (provider, subject).
@@ -211,6 +273,7 @@ def get_or_create_user(
             provider=provider,
             subject=subject,
             role=app_roles.normalize_role(role),
+            analytics_id=new_analytics_id(),
         )
         _write_profile(data_dir, user)
     return user
@@ -233,6 +296,7 @@ def create_user(
             provider=provider,
             subject=subject,
             role=app_roles.normalize_role(role),
+            analytics_id=new_analytics_id(),
         )
         _write_profile(data_dir, user)
     return user

@@ -54,6 +54,10 @@ declare const __MOBILE_INTERNAL__: boolean
 declare const __BUILD_SHA__: string
 declare const __BUILD_TIME__: string
 declare const __APP_VERSION__: string
+// Distribution channel, stamped by the release lane that produced the build (#2265). Empty
+// when nobody set APP_CHANNEL; `services/channel.ts` resolves that to `web`/`dev` on the web
+// and to `unknown` on a native build, rather than guessing.
+declare const __APP_CHANNEL__: string
 
 // Shape of window.__buildInfo — a stable minimal identity surface that
 // operators / support can inspect via DevTools console when triaging

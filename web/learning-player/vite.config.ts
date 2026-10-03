@@ -94,6 +94,21 @@ export default defineConfig({
     __MOBILE_INTERNAL__: JSON.stringify(process.env.MOBILE_RELEASE !== '1'),
     // Dev-tier API base, derived from this build host's tailnet name (see resolveDevApiBase).
     __DEV_API_BASE__: JSON.stringify(DEV_API_BASE),
+    // DISTRIBUTION CHANNEL for analytics `identify` (#2265). Baked, because it cannot be derived
+    // at runtime: a TestFlight build and an App Store build are the SAME code and the same
+    // platform, and only the pipeline that produced them knows which is which.
+    //
+    // This is what makes the beta filter possible — the saved Umami view is
+    // `channel in (testflight, play_internal)`, and without it beta sessions are indistinguishable
+    // from the operator's own and from web traffic.
+    //
+    // The release lanes must set APP_CHANNEL: #2189 sets `testflight` (and `app_store` for the
+    // release lane), #2191/#2192 set `play_internal` (and `play_store`). Until they do, a NATIVE
+    // build resolves to `unknown` rather than being guessed at — see services/channel.ts. Guessing
+    // `web` there would be a false value that makes the beta filter return nothing while looking
+    // like it works, and guessing a beta value would pollute the cohort. Both are worse than a
+    // build that plainly says it does not know.
+    __APP_CHANNEL__: JSON.stringify(process.env.APP_CHANNEL || ''),
   },
   plugins: [
     vue(),
@@ -268,6 +283,15 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'happy-dom',
+    // UNIT RUNS MUST NOT EMIT ANALYTICS (#2265). The viewer's config has always set this; the
+    // player's never did, so every unit run resolved the `vite dev` default (DEV is true,
+    // VITE_ANALYTICS_OFF unset) and considered analytics ENABLED — pointing at the real dev Umami
+    // site id. Nothing was sent only because happy-dom refuses to load an external script, which it
+    // reports as a `DOMException [NotSupportedError]` from every test that installs or resets the
+    // tracker. A test suite should be silent by configuration, not by its DOM's refusal.
+    //
+    // Tests that need analytics on stub the env themselves (`services/analytics.test.ts`).
+    env: { VITE_ANALYTICS_OFF: '1' },
     // Network isolation: short-circuit unmocked `/api/...` fetches (which happy-dom
     // resolves against http://localhost:3000) so unit tests never open a real socket.
     // See src/test/setup.ts.

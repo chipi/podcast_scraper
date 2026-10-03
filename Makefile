@@ -3142,12 +3142,32 @@ build-app:
 # TestFlight lane sources .env.mobile.testflight, which ships no personal gate cred).
 LP_ENV ?= $(APP_DIR)/.env.mobile
 
+# DISTRIBUTION CHANNEL for analytics `identify` (#2265). Stamped into the bundle because it cannot
+# be derived at runtime: a TestFlight build and an App Store build are the SAME code on the SAME
+# platform, and only the lane that produced them knows which is which. It is what makes the saved
+# Umami beta view (`channel in (testflight, play_internal)`) possible, and therefore what separates
+# the beta cohort from the operator's own usage and from web traffic.
+#
+# Set by the STORE-BOUND lanes only, and deliberately NOT by `ios-device-install` / `android-build`:
+# those put a build on the operator's own phone, and labelling that `testflight` would fold the
+# operator into the cohort it is meant to measure. Left unset, a native build resolves to `unknown`
+# (see web/learning-player/src/services/channel.ts) — visible in the data as a question rather than
+# a confident wrong answer.
+#
+# Overridable per invocation, e.g. `make android-bundle APP_CHANNEL=play_store` for a production
+# track upload.
+APP_CHANNEL ?=
+
 # Internal / dev-switchable build (TestFlight / Play internal track). The dev↔prod
 # tier toggle stays available (MOBILE_RELEASE unset => __MOBILE_INTERNAL__ true).
 mobile-build-internal:
 	@test -f $(LP_ENV) || { echo "FAIL: missing $(LP_ENV) — copy $(APP_DIR)/.env.mobile.example → .env.mobile and fill it"; exit 1; }
 	@echo "Learning Player mobile build (internal, tier switch enabled) from $(LP_ENV)..."
-	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && npm install && npm run build && npx cap sync
+	@# `APP_CHANNEL` is exported only when non-empty, so an unset make var cannot clobber a value
+	@# a caller put in the env file.
+	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
+		{ [ -z "$(APP_CHANNEL)" ] || export APP_CHANNEL="$(APP_CHANNEL)"; } && \
+		npm install && npm run build && npx cap sync
 
 # Prod-locked release build. Tier toggle is tree-shaken out (MOBILE_RELEASE=1), and
 # the build FAILS if VITE_SENTRY_DSN_PLAYER is empty so a shipped app can never lose
@@ -3164,6 +3184,7 @@ mobile-build-release:
 	@# below were written to catch exactly this, and did.
 	@cd $(APP_DIR) && set -a && . $(abspath $(LP_ENV)) && set +a && \
 		: "$${VITE_SENTRY_DSN_PLAYER:?release build requires a prod GlitchTip DSN in .env.mobile}" && \
+		{ [ -z "$(APP_CHANNEL)" ] || export APP_CHANNEL="$(APP_CHANNEL)"; } && \
 		export MOBILE_RELEASE=1 && npm install && npm run build && npx cap sync
 	@# The gate credential must not reach a SHIPPED app. `.env.mobile.example` states this as a
 	@# fact ("never baked into a shipped app"), but it is not one: `VITE_PREVIEW_BASIC_AUTH` is a
@@ -3233,7 +3254,8 @@ ios-testflight-preflight:
 # assertions, same archive + signed app-store export — and it stops there. Nothing leaves the
 # machine, no build number is consumed.
 ios-testflight-validate:
-	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight
+	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight \
+		APP_CHANNEL=$(or $(APP_CHANNEL),testflight)
 	@if [ -r "$(HOME)/.appstoreconnect/keychain-password" ]; then \
 		security unlock-keychain -p "$$(cat $(HOME)/.appstoreconnect/keychain-password)" \
 			"$(HOME)/Library/Keychains/ios-signing.keychain-db" 2>/dev/null \
@@ -3455,7 +3477,10 @@ android-bundle:
 	@# RELEASE, not internal — same reason as ios-testflight, and verified the same way. An
 	@# internal build leaves the tier switch and the build host's tailnet hostname in the bundle,
 	@# and this artifact is bound for Google Play.
-	@$(MAKE) mobile-build-release LP_ENV=$(ANDROID_LP_ENV)
+	@# `play_internal` by default — #2192's internal testing track is where the beta lives. Pass
+	@# `APP_CHANNEL=play_store` for a production-track upload.
+	@$(MAKE) mobile-build-release LP_ENV=$(ANDROID_LP_ENV) \
+		APP_CHANNEL=$(or $(APP_CHANNEL),play_internal)
 	@[ -d "$(ANDROID_SDK_DIR)" ] || { echo "FAIL: no Android SDK at $(ANDROID_SDK_DIR)."; exit 1; }
 	@[ -x "$(ANDROID_JAVA_HOME)/bin/java" ] || { echo "FAIL: no JDK at $(ANDROID_JAVA_HOME)."; \
 		echo "      Gradle needs JDK 21 (a Capacitor plugin pins toolchain 21; 17 is NOT enough)."; exit 1; }
@@ -3578,7 +3603,8 @@ ios-testflight:
 	@# a real artifact: `tier-switch` and `https://homelab.<tailnet>.ts.net` were both present.
 	@# TestFlight is a shipped app in every sense that matters here — it goes to other people's
 	@# phones — so it gets the prod-locked build and its artifact assertions.
-	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight
+	@$(MAKE) mobile-build-release LP_ENV=$(APP_DIR)/.env.mobile.testflight \
+		APP_CHANNEL=$(or $(APP_CHANNEL),testflight)
 	@# Unlock the signing keychain first (#2189). The build account has no login keychain, so
 	@# signing uses a dedicated one created by scripts/tools/setup_signing_keychain.sh. A locked
 	@# keychain fails codesign with "User interaction is not allowed" — which on a headless account
@@ -3595,7 +3621,7 @@ ios-testflight:
 # Prod-locked build (tier toggle tree-shaken out, GlitchTip DSN required) -> TestFlight. Use for
 # builds that go to anyone other than you.
 ios-testflight-release:
-	@$(MAKE) mobile-build-release
+	@$(MAKE) mobile-build-release APP_CHANNEL=$(or $(APP_CHANNEL),testflight)
 	@cd $(IOS_DIR) && bundle exec fastlane beta
 
 # Consumer Learning Player container (RFC-099 §10): its own nginx-served static image.
