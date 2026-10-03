@@ -73,7 +73,14 @@ function aliasTokens(): Set<string> {
   )
 }
 
-const MAY_INHERIT = new Set([...NON_COLOUR, ...aliasTokens()])
+/**
+ * Third-party brand values (the "Sign in with Google" button) are FIXED by the brand owner's
+ * guidelines, so a direction must never repaint them — the opposite of every other colour token.
+ * They live in tokens.css only so the one-token-layer rule holds; the test below holds them fixed.
+ */
+const BRAND_FIXED = new Set([...TOKENS.matchAll(/(--lp-gsi-[a-z-]+)\s*:/g)].map((m) => m[1]))
+
+const MAY_INHERIT = new Set([...NON_COLOUR, ...aliasTokens(), ...BRAND_FIXED])
 
 /** Posture tokens are opt-in: a direction that only repaints is a valid direction. */
 const POSTURE = new Set(['--lp-radius', '--lp-density', '--lp-motion'])
@@ -284,5 +291,15 @@ describe('visual directions are legible', () => {
       }
     }
     expect(failures, `illegible on this direction's own ground: ${failures.join('; ')}`).toEqual([])
+  })
+})
+
+describe('third-party brand tokens', () => {
+  it('exist, and no direction overrides them', () => {
+    expect([...BRAND_FIXED].sort()).toEqual(['--lp-gsi-fill', '--lp-gsi-stroke', '--lp-gsi-text'])
+    for (const [name, block] of directionBlocks()) {
+      const overridden = [...tokensIn(block)].filter((t) => BRAND_FIXED.has(t))
+      expect(overridden, `direction "${name}" repaints a brand-fixed token`).toEqual([])
+    }
   })
 })

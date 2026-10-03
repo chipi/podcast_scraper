@@ -6,6 +6,7 @@
  *
  * Dev (mock provider): a picker lets you sign in as a seeded user or a custom name (#1128).
  */
+import { Capacitor } from '@capacitor/core'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
@@ -19,6 +20,7 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const isSignup = computed(() => route.query.mode === 'signup')
+const isIos = Capacitor.getPlatform() === 'ios'
 // Same-origin post-login target (login-first #2009); null when absent/unsafe.
 const redirectTarget = computed(() => safeInternalPath(route.query.redirect) ?? undefined)
 
@@ -139,15 +141,29 @@ function signInCustom(): void {
       <p class="mt-3 text-xs text-muted">Dev sign-in (mock OAuth) — picked users keep their role.</p>
     </div>
 
-    <!-- Real provider: the normal sign-in button. -->
+    <!-- Real provider: Google. Built to Google's "Sign in with Google" branding guidelines, dark
+         theme — Google's fixed fill, 1px inside stroke and text colours, 14/20 medium, pill shape,
+         the official gradient G at 20px (cropped unmodified from Google's signin-assets.zip), and the
+         platform padding (Android/Web 12·10·12, iOS 16·12·16). The text is one of the three strings
+         Google allows; "Sign in" alone sat above "Email me a sign-in link" and did not say which
+         door it was. -->
     <button
       v-else
       type="button"
-      class="rounded-full bg-accent px-6 py-3 font-bold text-accent-foreground"
+      class="lp-gsi inline-flex h-10 items-center rounded-full"
+      :class="isIos ? 'pl-4 pr-4' : 'pl-3 pr-3'"
       data-testid="signin-button"
       @click="auth.login(undefined, redirectTarget)"
     >
-      {{ isSignup ? t('auth.signUp') : t('auth.signIn') }}
+      <img
+        src="/brand/google-g-dark.png"
+        alt=""
+        width="20"
+        height="20"
+        class="size-5 shrink-0"
+        :class="isIos ? 'mr-3' : 'mr-2.5'"
+      />
+      {{ isSignup ? t('auth.signUpWithGoogle') : t('auth.signInWithGoogle') }}
     </button>
 
     <!-- Email magic link: the second front door (#2272). Offered on BOTH framings, because it
@@ -221,3 +237,16 @@ function signInCustom(): void {
     </p>
   </section>
 </template>
+
+<style scoped>
+/* Google's dark-theme values (tokens.css `--lp-gsi-*`), fixed by the branding guidelines. */
+.lp-gsi {
+  background: var(--lp-gsi-fill);
+  box-shadow: inset 0 0 0 1px var(--lp-gsi-stroke);
+  color: var(--lp-gsi-text);
+  font-family: 'Google Sans', Roboto, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+</style>

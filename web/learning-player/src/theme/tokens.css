@@ -123,4 +123,11 @@
   --lp-radius: 0.0625rem;
   --lp-density: 0.95;
   --lp-motion: 0.6;
+
+  /* "Sign in with Google", dark theme. Third-party brand values fixed by Google's branding
+     guidelines (developers.google.com/identity/branding-guidelines), so no direction may steer
+     them — they are tokens only so the one-token-layer rule holds. */
+  --lp-gsi-fill: #131314;
+  --lp-gsi-stroke: #8e918f;
+  --lp-gsi-text: #e3e3e3;
 }

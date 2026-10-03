@@ -297,6 +297,8 @@
   "auth": {
     "signIn": "Sign in",
     "signUp": "Sign up",
+    "signInWithGoogle": "Sign in with Google",
+    "signUpWithGoogle": "Sign up with Google",
     "signOut": "Sign out",
     "loginTitle": "Sign in to your library",
     "loginTagline": "Save your place, build a queue, and grow your personal library.",

@@ -96,7 +96,7 @@ test.describe('preview surface', () => {
     })
     // dispatchEvent fires the native click (Vue's @click -> auth.login() -> location.assign)
     // WITHOUT Playwright waiting for the ensuing cross-origin Google navigation to settle.
-    await page.getByRole('button', { name: 'Sign in' }).dispatchEvent('click')
+    await page.getByRole('button', { name: 'Sign in with Google' }).dispatchEvent('click')
     const resp = await respPromise
     expect(resp.status()).toBe(307)
     const location = (await resp.headerValue('location')) ?? ''
