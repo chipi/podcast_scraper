@@ -2899,6 +2899,50 @@ test-app-ios-prod-tour:
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
 		rc=$${PIPESTATUS[0]}; echo "IOS_PROD_TOUR_EXIT=$$rc"; exit $$rc
 
+# Email magic-link sign-in on the simulator, against a REAL mailbox (#2272). One phase per run,
+# because the link travels through email in between: run the delivery worker after M1 and M2 and
+# pass the link the email carries to the next phase.
+#
+#   make test-app-ios-magic-link PHASE=M1 MAGIC_EMAIL=you@example.com
+#   make test-app-ios-magic-link PHASE=M2 MAGIC_EMAIL=you@example.com MAGIC_LINK='<link 1>'
+#   make test-app-ios-magic-link PHASE=M3 MAGIC_LINK='<link 2>'
+#
+# The app must be built against an api whose allowlist has the address and whose outbox the worker
+# drains. Outside `test-ios` on purpose (it needs a mailbox); see _OUTSIDE_THE_TIER.
+MAGIC_PHASES_IOS := M1:testM1RequestALinkForANewAccount M2:testM2NewAccountLandsOnProfileThenSignsOut \
+	M3:testM3ReturningAccountSignsInAndStaysOffProfile
+test-app-ios-magic-link:
+	@test -n "$(PHASE)" || { echo "FAIL: PHASE=M1|M2|M3 is required"; exit 1; }
+	@t=$$(for p in $(MAGIC_PHASES_IOS); do [ "$${p%%:*}" = "$(PHASE)" ] && echo "$${p#*:}"; done); \
+	test -n "$$t" || { echo "FAIL: unknown PHASE=$(PHASE) (M1|M2|M3)"; exit 1; }; \
+	cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		TEST_RUNNER_LP_MAGIC_EMAIL="$(MAGIC_EMAIL)" TEST_RUNNER_LP_MAGIC_LINK="$(MAGIC_LINK)" \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/MagicLinkJourneyTests/$$t \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
+			2>&1 | grep -E "=====|Test Case|error:|XCTAssert|TEST (SUCCEEDED|FAILED)"; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_MAGIC_LINK_$(PHASE)_EXIT=$$rc"; exit $$rc
+
+# The Android twin. M1 and M2 run as instrumentation; the CLOSED-app case (M3) cannot — the test
+# would run inside the app's own process — so it is the shell script, driven here as PHASE=M3.
+#   make test-app-android-magic-link PHASE=M1 MAGIC_EMAIL=you@example.com
+#   make test-app-android-magic-link PHASE=M2 MAGIC_EMAIL=you@example.com MAGIC_LINK='<link 1>'
+#   make test-app-android-magic-link PHASE=M3 MAGIC_LINK='<link 2>'
+test-app-android-magic-link:
+	@test -n "$(PHASE)" || { echo "FAIL: PHASE=M1|M2|M3 is required"; exit 1; }
+	@if [ "$(PHASE)" = "M3" ]; then \
+		test -n "$(MAGIC_LINK)" || { echo "FAIL: PHASE=M3 needs MAGIC_LINK"; exit 1; }; \
+		ADB=$(ADB) $(APP_DIR)/android/scripts/magic-link-cold-launch.sh '$(MAGIC_LINK)'; \
+	else \
+		case "$(PHASE)" in M1) t=testM1RequestALinkForANewAccount;; \
+			M2) t=testM2NewAccountLandsOnProfileThenSignsOut;; \
+			*) echo "FAIL: unknown PHASE=$(PHASE) (M1|M2|M3)"; exit 1;; esac; \
+		b64=$$(printf '%s' '$(MAGIC_LINK)' | base64 | tr -d '\n'); \
+		$(MAKE) android-suite SUITE=MagicLinkJourneyTests TEST=$$t \
+			ANDROID_EXTRA_ARGS="-e lp.magic.email $(MAGIC_EMAIL) $${b64:+-e lp.magic.link_b64 $$b64}"; \
+	fi
+
 # Mint a real session through the mock provider's NATIVE flow and seed it into the app's durable
 # store, so the journey suite starts signed in. Write through the preferences DAEMON (the app reads
 # that); the container plist lags behind and must not be written directly — see the note below.

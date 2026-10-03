@@ -17,8 +17,8 @@ import XCTest
  * The address comes from `TEST_RUNNER_LP_MAGIC_EMAIL` and must be on the API's allowlist; the API
  * throttles one link per address per 60 s, so M2 must start at least a minute after M1.
  *
- * Not part of the default suite run: every phase skips without its env, so `make test-ios` is
- * unaffected.
+ * Not part of the default suite run (`test-ios` cannot supply a mailbox): run it through
+ * `make test-app-ios-magic-link`. A phase without its inputs FAILS rather than skipping.
  */
 final class MagicLinkJourneyTests: UITestCase {
 
@@ -98,7 +98,7 @@ final class MagicLinkJourneyTests: UITestCase {
   }
 
   func testM1RequestALinkForANewAccount() throws {
-    guard let email else { throw XCTSkip("set TEST_RUNNER_LP_MAGIC_EMAIL") }
+    guard let email else { return XCTFail("missing TEST_RUNNER_LP_MAGIC_EMAIL — run via make test-app-ios-magic-link") }
     let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     app.launch()
     XCTAssertTrue(AppSession.signOut(app), "could not reach a signed-out state")
@@ -107,7 +107,7 @@ final class MagicLinkJourneyTests: UITestCase {
 
   func testM2NewAccountLandsOnProfileThenSignsOut() throws {
     guard let email, let link else {
-      throw XCTSkip("set TEST_RUNNER_LP_MAGIC_EMAIL and TEST_RUNNER_LP_MAGIC_LINK")
+      return XCTFail("missing TEST_RUNNER_LP_MAGIC_EMAIL / _LINK — run via make test-app-ios-magic-link")
     }
     let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     app.launch()
@@ -125,7 +125,7 @@ final class MagicLinkJourneyTests: UITestCase {
   }
 
   func testM3ReturningAccountSignsInAndStaysOffProfile() throws {
-    guard let link else { throw XCTSkip("set TEST_RUNNER_LP_MAGIC_LINK") }
+    guard let link else { return XCTFail("missing TEST_RUNNER_LP_MAGIC_LINK — run via make test-app-ios-magic-link") }
     let app = XCUIApplication(bundleIdentifier: AppUnderTest.bundleId)
     // COLD: the link must be what LAUNCHES the app — the ordinary case of tapping "Sign in" in
     // Mail with the app closed. This phase first called `app.launch()` before opening the link,

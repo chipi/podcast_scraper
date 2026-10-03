@@ -41,8 +41,14 @@ _UNWIRED_BY_DESIGN: dict[str, str] = {}
 #: Suites reachable from a target but deliberately OUTSIDE the `test-ios` entry point.
 #:
 #: A much narrower door than `_UNWIRED_BY_DESIGN`: these still run, just never as part of the tier.
-#: Both entries are about the preconditions being incompatible with the gate, not about the suite.
+#: Every entry is about the preconditions being incompatible with the gate, not about the suite.
 _OUTSIDE_THE_TIER: dict[str, str] = {
+    "MagicLinkJourneyTests": (
+        "Needs a REAL MAILBOX between its phases: M1 requests a link, the delivery worker emails it, "
+        "and M2/M3 take that link as input. The tier has no mailbox and no worker, so folding it in "
+        "would make every run fail for want of a link. "
+        "`make test-app-ios-magic-link PHASE=M1|M2|M3`, run deliberately (#2272)."
+    ),
     "ProdTourTests": (
         "Points at the REAL production backend and wants NO session, where every step of the tier "
         "wants the fixture api and a seeded one. Folding it in would mean a prod outage reads as a "

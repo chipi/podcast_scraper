@@ -15,7 +15,6 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.UiObject2;
 
-import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -45,7 +44,7 @@ import java.util.List;
  * follows the verify redirect to `closelistening://auth#token=…` and Android hands that to the app
  * through the manifest's intent filter. That browser hop is the part iOS cannot prove for Android.
  *
- * Every phase skips without its arguments, so the default suites are unaffected.
+ * Run through `make test-app-android-magic-link`; a phase without its arguments FAILS.
  */
 @RunWith(AndroidJUnit4.class)
 public class MagicLinkJourneyTests extends UITestCase {
@@ -151,7 +150,7 @@ public class MagicLinkJourneyTests extends UITestCase {
 
     @Test
     public void testM1RequestALinkForANewAccount() {
-        Assume.assumeNotNull("pass -e lp.magic.email", email());
+        assertNotNull("missing -e lp.magic.email — run via make test-app-android-magic-link", email());
         AppSession.relaunch();
         assertTrue("could not reach a signed-out state", AppSession.signOut());
         requestLink(email(), "M1");
@@ -159,7 +158,8 @@ public class MagicLinkJourneyTests extends UITestCase {
 
     @Test
     public void testM2NewAccountLandsOnProfileThenSignsOut() {
-        Assume.assumeNotNull("pass -e lp.magic.email and -e lp.magic.link_b64", email(), link());
+        assertNotNull("missing -e lp.magic.email — run via make test-app-android-magic-link", email());
+        assertNotNull("missing -e lp.magic.link_b64 — run via make test-app-android-magic-link", link());
         AppSession.relaunch();
         openLink(link());
         boolean landed = onProfile(20_000);
