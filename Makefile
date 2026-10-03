@@ -3365,8 +3365,13 @@ ios-device-install:
 	ASC_AUTH=""; \
 	if [ -n "$$ASC_KEY_ID" ] && [ -n "$$ASC_ISSUER_ID" ] && [ -r "$$ASC_KEY_PATH" ]; then \
 		ASC_AUTH="-authenticationKeyID $$ASC_KEY_ID -authenticationKeyIssuerID $$ASC_ISSUER_ID -authenticationKeyPath $$ASC_KEY_PATH"; \
-	elif [ -f "$(IOS_DIR)/fastlane/.env" ]; then \
-		set -a; . "$(IOS_DIR)/fastlane/.env"; set +a; \
+	elif [ -f "$(abspath $(IOS_DIR))/fastlane/.env" ]; then \
+		: "ABSOLUTE, because this whole recipe runs after `cd $(APP_DIR)/ios/App`. The relative"; \
+		: "form resolved to ios/App/web/learning-player/ios/fastlane/.env, which cannot exist, so"; \
+		: "the key was never found, ASC_AUTH stayed empty, and the build died with the exact error"; \
+		: "the comment above predicts: 'No Accounts' + 'No profiles for app.closelistening.player.dev'."; \
+		: "The credentials were present and correct the whole time (2026-10-03)."; \
+		set -a; . "$(abspath $(IOS_DIR))/fastlane/.env"; set +a; \
 		if [ -n "$$ASC_KEY_ID" ] && [ -r "$$ASC_KEY_PATH" ]; then \
 			ASC_AUTH="-authenticationKeyID $$ASC_KEY_ID -authenticationKeyIssuerID $$ASC_ISSUER_ID -authenticationKeyPath $$ASC_KEY_PATH"; \
 			echo "    (using the App Store Connect key from ios/fastlane/.env)"; \
