@@ -246,3 +246,37 @@ def test_created_users_also_get_one(tmp_path: Path) -> None:
 
 def test_new_analytics_id_does_not_repeat() -> None:
     assert len({new_analytics_id() for _ in range(50)}) == 50
+
+
+def test_on_created_fires_exactly_once_per_account(tmp_path: Path) -> None:
+    """The hook the `account_created` analytics event hangs on (#2266).
+
+    It is inside the store rather than at the call site because the caller cannot tell a creation
+    from a return without a second read — and that read races: two concurrent first-logins for the
+    same identity would both see "absent" and both report a signup, for one account.
+    """
+    seen: list[str] = []
+    for _ in range(3):
+        get_or_create_user(
+            tmp_path,
+            provider="google",
+            subject="s1",
+            email="a@x.com",
+            name="A",
+            on_created=lambda u: seen.append(u.user_id),
+        )
+    assert len(seen) == 1, "a repeat sign-in is not a signup"
+
+
+def test_a_raising_on_created_does_not_fail_the_sign_in(tmp_path: Path) -> None:
+    """A metric must never be the reason someone cannot sign in."""
+
+    def boom(_user: object) -> None:
+        raise RuntimeError("telemetry is down")
+
+    user = get_or_create_user(
+        tmp_path, provider="google", subject="s1", email="a@x.com", name="A", on_created=boom
+    )
+    assert user.user_id == user_id_for("google", "s1")
+    # The account still exists and is complete.
+    assert get_user(tmp_path, user.user_id) is not None

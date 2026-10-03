@@ -17,7 +17,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 
-from podcast_scraper.server import app_access_store, app_roles, app_sessions
+from podcast_scraper.server import app_access_store, app_roles, app_sessions, app_user_state
 from podcast_scraper.server.app_oauth import OAuthError, OAuthProvider
 from podcast_scraper.server.app_user_store import get_or_create_user, get_user, set_role, User
 
@@ -291,6 +291,14 @@ async def app_auth_callback(
         email=identity.email,
         name=identity.name,
         image=identity.image,
+        # #2266: server-side truth for signups, independent of whether the Umami script ever
+        # loaded, and the anchor for the 24-hour "Activated" window. Fires from inside the store's
+        # creation branch so it is exactly once per account even when an OAuth callback double-fires
+        # — the alternative, checking existence here first, races and would report two signups for
+        # one account.
+        on_created=lambda created: app_user_state.append_account_created(
+            data_dir, created.user_id, identity.provider
+        ),
     )
     # Apply the role policy: admin allowlist > creator grant > existing role (never downgraded).
     admin_emails: frozenset[str] = getattr(request.app.state, "admin_emails", frozenset())

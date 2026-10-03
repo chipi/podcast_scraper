@@ -489,6 +489,124 @@ def append_listen_event(
     )
 
 
+# --- playback milestones (#2266, beta analytics epic #2263) ---
+#
+# "An open is not a listen." `listen` records that an episode was OPENED; these record that it was
+# actually HEARD, at 25 / 50 / 75 / 95 percent. Together they are what makes the beta's server-side
+# metrics computable: Active day, Listening days per week, Habit user (>= 3 active days in a week),
+# Week-N retention, Completion rate (75% / 25%), and Activated (a milestone-25 plus an entity open
+# within 24h of signup).
+#
+# A SEPARATE FILE from `listen_events.jsonl`, deliberately. The listen dedupe key is (slug, ts) and
+# it scans a tail of that file; a milestone sharing a slug and a clamped timestamp with an open
+# would then look like a redelivered listen and be dropped — or worse, suppress the open. Keeping
+# them apart means neither log can silence the other, and the dedupe here can use the key it
+# actually needs: (slug, milestone, ts).
+
+
+#: The only milestones accepted. Four is a deliberate choice, not a sampling rate: 25 proves a real
+#: start, 75 is the completion numerator, 95 distinguishes "finished" from "stopped near the end",
+#: and 50 gives the drop-off shape between them.
+PLAYBACK_MILESTONES = (25, 50, 75, 95)
+
+
+def _playback_events_path(data_dir: Path, user_id: str) -> Path:
+    return data_dir / "users" / user_id / "playback_events.jsonl"
+
+
+def _is_duplicate_progress(path: Path, slug: str, milestone: int, iso_ts: str) -> bool:
+    """Has this exact (slug, milestone, timestamp) already been appended recently?
+
+    Same reasoning as ``_is_duplicate_listen``: the offline queue replays an event that never got a
+    RESPONSE, not one that never arrived, and both attempts carry the same ``client_ts``. The
+    difference is that the key must include the milestone — without it, crossing 50% would be
+    discarded as a redelivery of the 25% that was clamped to the same floor timestamp during a long
+    offline stretch.
+    """
+    if not path.is_file():
+        return False
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            tail = deque(fh, maxlen=LISTEN_DEDUPE_TAIL_LINES)
+    except OSError:
+        return False
+    for line in tail:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if (
+            isinstance(rec, dict)
+            and rec.get("slug") == slug
+            and rec.get("milestone") == milestone
+            and rec.get("ts") == iso_ts
+        ):
+            return True
+    return False
+
+
+def append_playback_progress(
+    data_dir: Path, user_id: str, slug: str, feed_id: str | None, milestone: int, ts: int
+) -> None:
+    """Append one playback milestone to the user's playback log (#2266).
+
+    Canonical ADR-119 envelope with an ISO ``ts``, exactly like ``append_listen_event``. Unknown
+    milestones are ignored rather than stored: the route validates the enum, and a second guard here
+    keeps a future caller from inventing a value that no metric knows how to read.
+    """
+    from ..obs.events import emit_event
+
+    if int(milestone) not in PLAYBACK_MILESTONES:
+        return
+    iso_ts = datetime.fromtimestamp(int(ts), timezone.utc).isoformat()
+    # Same clamped-floor caveat as the listen dedupe: beyond CLIENT_TS_MAX_AGE_SECONDS every stamp
+    # collapses to one floor, so (slug, milestone, ts) stops distinguishing. With the milestone in
+    # the key the collision window is far narrower than it was for opens alone, and the tie still
+    # breaks toward keeping data.
+    floor = int(time.time()) - CLIENT_TS_MAX_AGE_SECONDS
+    path = _playback_events_path(data_dir, user_id)
+    if int(ts) > floor and _is_duplicate_progress(path, str(slug), int(milestone), iso_ts):
+        return
+    emit_event(
+        "playback_progress",
+        sink="file",
+        path=path,
+        ts=iso_ts,
+        slug=str(slug),
+        feed_id=feed_id,
+        milestone=int(milestone),
+    )
+
+
+# --- account creation (#2266) ---
+#
+# Server-side truth for signups, independent of whether the Umami script ever loaded. It is also
+# what anchors the 24-hour window for "Activated", so a signup the browser-side analytics missed
+# still has a start time to measure from.
+
+
+def _account_events_path(data_dir: Path, user_id: str) -> Path:
+    return data_dir / "users" / user_id / "account_events.jsonl"
+
+
+def append_account_created(data_dir: Path, user_id: str, provider: str) -> None:
+    """Record that this account was created. Best-effort; never raises."""
+    from ..obs.events import emit_event
+
+    try:
+        emit_event(
+            "account_created",
+            sink="file",
+            path=_account_events_path(data_dir, user_id),
+            provider=str(provider),
+        )
+    except Exception:  # noqa: BLE001 — a metric must never fail a signup.
+        logger.debug("account_created emit failed for %s", user_id, exc_info=True)
+
+
 # --- topic exposure (#1923) ---
 #
 # What the listener was EXPOSED to, recorded when it happened. Topic interest is otherwise derived

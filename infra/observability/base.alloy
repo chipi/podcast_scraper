@@ -104,13 +104,28 @@ prometheus.scrape "api" {
 }
 
 // ---------- APP EVENTS: pipeline-runner container stdout (canonical JSONL) -> VL ----------
-// ---------- APP EVENTS: persistent corpus JSONL event files -> VL ----------
-// Search / listen / job events are append-only JSONL. file_match watches the
+// ---------- APP EVENTS: persistent JSONL event files -> VL ----------
+// Search / listen / playback / account / job events are append-only JSONL. file_match watches the
 // globs even before the files exist (created on first search / listen / run).
+//
+// THE PER-USER GLOB WAS WRONG ON BOTH HALVES until 2026-10-03 (#2266). It read
+// `corpus/users/*/listen.jsonl`, but the server writes `users/<id>/listen_events.jsonl` under
+// APP_DATA_DIR — which is a SEPARATE host path from the corpus (`PLAYER_APPDATA_HOST_PATH`,
+// default /srv/podcast-scraper/player-appdata), deliberately so, because appdata is backed up on
+// its own schedule and the corpus is mounted read-only. So both the directory and the filename
+// missed, and no listen event ever reached the log store: every server-side metric that reads them
+// — active days, listening days per week, retention, completion rate — had nothing to read.
+//
+// A glob that matches nothing looks exactly like a user who has not listened yet, which is why
+// this survived: the dashboards were empty and empty was plausible.
 local.file_match "app_events" {
   path_targets = [
     { __path__ = "/rootfs/srv/podcast-scraper/corpus/search/query_log.jsonl", job = "podcast-search" },
-    { __path__ = "/rootfs/srv/podcast-scraper/corpus/users/*/listen.jsonl", job = "podcast-listen" },
+    { __path__ = "/rootfs/srv/podcast-scraper/player-appdata/users/*/listen_events.jsonl", job = "podcast-listen" },
+    // #2266: "an open is not a listen" — the milestones that make completion rate and active-day
+    // metrics real, and the server-side signup truth that anchors the Activated window.
+    { __path__ = "/rootfs/srv/podcast-scraper/player-appdata/users/*/playback_events.jsonl", job = "podcast-playback" },
+    { __path__ = "/rootfs/srv/podcast-scraper/player-appdata/users/*/account_events.jsonl", job = "podcast-accounts" },
     { __path__ = "/rootfs/srv/podcast-scraper/corpus/.viewer/jobs.jsonl", job = "podcast-jobs" },
   ]
 }

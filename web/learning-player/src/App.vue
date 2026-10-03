@@ -28,6 +28,7 @@ import {
   followShow,
   getPlayback,
   logListen,
+  logPlaybackProgress,
   putPlayback,
   removeFavorite,
   setFavoriteColor,
@@ -334,7 +335,14 @@ async function pushPendingWrites({ revalidate = true }: { revalidate?: boolean }
 }
 
 function pushPendingListens(): void {
-  void flushListenLog((slug, ts) => logListen(slug, ts))
+  // One queue, two endpoints (#2266). The queue stays endpoint-agnostic so its identity-epoch and
+  // ordering guarantees cover opens and milestones unchanged; the routing decision is here, where
+  // both API calls live.
+  void flushListenLog((slug, ts, milestone) =>
+    milestone === undefined
+      ? logListen(slug, ts)
+      : logPlaybackProgress(slug, milestone, ts),
+  )
 }
 
 function pushPendingPositions(): void {

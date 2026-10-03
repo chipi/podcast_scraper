@@ -1,7 +1,19 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { PLAYBACK_RATES } from '../player/transcriptSync'
+
+/**
+ * Percent thresholds reported to the server (#2266), ASCENDING — `reportMilestones` relies on
+ * the order to stop at the first threshold not yet reached.
+ *
+ * Mirrors `PLAYBACK_MILESTONES` in `server/app_user_state.py`, which rejects anything else: 25
+ * proves a real start, 75 is the completion numerator, 95 separates "finished" from "stopped
+ * near the end", and 50 gives the drop-off shape between them.
+ */
+export const PLAYBACK_MILESTONES = [25, 50, 75, 95] as const
 import { startBackgroundAudio, stopBackgroundAudio } from '../services/native'
+import { logPlaybackProgress } from '../services/api'
+import { queueProgress } from '../services/listenLog'
 
 /**
  * What it takes to start playing something: the identity, the source, and enough to say what it is.
@@ -79,6 +91,13 @@ export const usePlayerStore = defineStore('player', () => {
   const currentArtwork = ref<string | null>(null)
   const playing = ref(false)
   const currentTime = ref(0)
+  /**
+   * Percent thresholds reported for the CURRENT episode, cleared by `resetForLoad` (#2266).
+   *
+   * Module-free local state rather than a ref: nothing renders it, and a ref would make every
+   * `timeupdate` a reactive write for a value no template reads.
+   */
+  const reportedMilestones = new Set<number>()
   /** What the <audio> element reports — 0 whenever it has not (or cannot) work it out. */
   const elementDuration = ref(0)
   /** The episode's length from metadata; used only while the element has nothing. See NextUp. */
@@ -322,6 +341,7 @@ export const usePlayerStore = defineStore('player', () => {
     currentTime.value = el.value?.currentTime ?? 0
     syncPositionState()
     maybeSavePosition()
+    reportMilestones()
   }
   function onDurationChange(): void {
     elementDuration.value = el.value?.duration || 0
@@ -523,6 +543,47 @@ export const usePlayerStore = defineStore('player', () => {
     persisters.save(slug, at, isFinished)
   }
 
+  /**
+   * Playback milestones for the beta's server-side metrics (#2266).
+   *
+   * "An open is not a listen." `logListen` records that an episode was opened; these record that it
+   * was actually heard, and they are what make Completion rate (75% / 25%), Active day, Listening
+   * days per week and Activated computable at all.
+   *
+   * Driven off `timeupdate` — the same firehose the position save uses — because that is the only
+   * event that reflects real listening. A timer would keep counting while paused, and `ended` alone
+   * misses the common case of skipping the outro.
+   *
+   * ONCE PER MILESTONE PER EPISODE, held in a Set that `resetForLoad` clears. Re-reporting matters
+   * more than it looks: scrubbing backwards and forwards across 50% would otherwise emit it
+   * repeatedly, and completion rate is a ratio of counts — a listener who fidgets would look like
+   * several listeners who finished.
+   *
+   * Only ever counts FORWARD progress. Seeking ahead to 90% without hearing the middle still marks
+   * the earlier milestones, which is deliberate: the alternative is tracking watched ranges, and
+   * the question these answer is "did they get this far", not "did they hear every second".
+   */
+  function reportMilestones(): void {
+    const total = duration.value
+    // Guard the shapes a media element genuinely produces: 0 before metadata, NaN mid-seek, and
+    // Infinity for a live stream. A percentage of any of those is meaningless.
+    if (!Number.isFinite(total) || total <= 0) return
+    const slug = currentSlug.value
+    if (!slug) return
+    const percent = (currentTime.value / total) * 100
+    for (const milestone of PLAYBACK_MILESTONES) {
+      if (percent < milestone) break // ordered, so the first miss ends it
+      if (reportedMilestones.has(milestone)) continue
+      reportedMilestones.add(milestone)
+      const ts = Math.floor(Date.now() / 1000)
+      // Queue on failure, exactly like a listen: a milestone crossed on a plane is the one most
+      // worth keeping, and it rides the same offline queue so it lands on the day it happened.
+      void logPlaybackProgress(slug, milestone, ts).then((delivered) => {
+        if (!delivered) queueProgress(slug, milestone, ts)
+      })
+    }
+  }
+
   /** Throttled save for the `timeupdate` firehose (~4/s). */
   function maybeSavePosition(): void {
     if (Date.now() - lastSavedAt > SAVE_INTERVAL_MS) savePosition()
@@ -534,6 +595,9 @@ export const usePlayerStore = defineStore('player', () => {
     elementDuration.value = 0
     durationHint.value = 0
     audioError.value = false
+    // A new episode gets its own milestones. Without this, episode two would inherit episode one's
+    // "already reported" set and emit nothing at all.
+    reportedMilestones.clear()
     void stopBackgroundAudio()
   }
 

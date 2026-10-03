@@ -75,11 +75,19 @@ the caller. `logger=` preserves a caller's logger name; `ts=` backdates.
 | `llm_cost` | log | `workflow/cost_monitoring.py` | provider, model, tokens, estimated_cost_usd, run_id, stage |
 | `pipeline_progress` | log | `workflow/stages/processing.py` | episodes_done, run_id (per-run progress; chart `last_value` by run_id) |
 | `search_query` | file | `search/query_log.py` | query_type (no raw text) |
-| `listen` | file | `server/app_user_state.py` | slug, feed_id, ts (epoch — *not yet on `emit_event`*, see ADR-119) |
+| `listen` | file | `server/app_user_state.py` | slug, feed_id, ts (ISO; episode OPENED) |
+| `playback_progress` | file | `server/app_user_state.py` | slug, feed_id, milestone (25/50/75/95), ts — "an open is not a listen" (#2266) |
+| `account_created` | file | `server/app_user_state.py` | provider — server-side signup truth, independent of the browser analytics script (#2266) |
 | `job` | file | `.viewer/jobs.jsonl` | job lifecycle |
 
+`listen` used to be annotated here as "epoch — *not yet on `emit_event`*". It has been on
+`emit_event` with an ISO `ts` for some time; the note was stale and the beta analytics spec
+inherited the error from this table.
+
 Adding an event: call `emit_event("<name>", ...)` at the emission site and add a
-row here. That's it — no shipping/backend change.
+row here. **And check the collector glob below actually matches where you write it** — that is
+not automatic, and a glob that matches nothing is indistinguishable from a user who has not done
+the thing yet. See the correction under Collection.
 
 ## Collection (the reference sink — infra)
 
@@ -89,8 +97,17 @@ The prod-podcast **Alloy** collector (homelab repo
 - **Metrics:** scrapes host node-exporter + cAdvisor + `api:8000/metrics` (60s).
 - **Logs/events:** `loki.source.docker` scoped to the ephemeral `pipeline`/
   `pipeline-llm` runner containers (captures `emit_event` stdout) + `local.file_match`
-  → `loki.source.file` for the corpus JSONL (`search/query_log.jsonl`,
-  `users/*/listen.jsonl`, `.viewer/jobs.jsonl`). → VictoriaLogs.
+  → `loki.source.file` for the JSONL event files: `corpus/search/query_log.jsonl`,
+  `corpus/.viewer/jobs.jsonl`, and — under the SEPARATE appdata path, not the corpus —
+  `player-appdata/users/*/{listen_events,playback_events,account_events}.jsonl`. → VictoriaLogs.
+
+  **Corrected 2026-10-03 (#2266).** This read `users/*/listen.jsonl` under the corpus, and was
+  wrong on both halves: the server writes `listen_events.jsonl`, and it writes it under
+  `APP_DATA_DIR` whose host path is `PLAYER_APPDATA_HOST_PATH`
+  (default `/srv/podcast-scraper/player-appdata`) — deliberately separate from the corpus, which
+  is mounted read-only and backed up on its own schedule. So the glob matched nothing and no
+  listen event reached VictoriaLogs, which means every server-side listening metric had nothing to
+  read. It survived because an empty dashboard and a glob that matches nothing look identical.
 - **Security logs:** sshd/fail2ban journal + Caddy access → VictoriaLogs.
 - **Traces:** *not* via Alloy by default — the app exports OTLP directly (env-var
   driven). See the homelab o11y handover docs (`agentic-ai-homelab`).

@@ -976,6 +976,37 @@ export async function logListen(slug: string, clientTs?: number): Promise<boolea
   }
 }
 
+/**
+ * Record that the user reached 25 / 50 / 75 / 95 percent of an episode (#2266). Best-effort.
+ *
+ * An OPEN is not a listen: `logListen` says the episode was opened, this says it was actually
+ * heard, which is what makes completion rate and the beta's active-day metrics mean anything.
+ *
+ * The retry classification is IDENTICAL to `logListen`'s, and deliberately so — the two travel in
+ * the same offline queue, so a milestone that "fails" differently from an open would make the
+ * queue's stop-at-first-failure behaviour depend on which kind of event happened to be next.
+ */
+export async function logPlaybackProgress(
+  slug: string,
+  milestone: number,
+  clientTs?: number,
+): Promise<boolean> {
+  try {
+    const resp = await apiFetch(`${BASE}/playback-progress/${encodeURIComponent(slug)}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(clientTs ? { milestone, client_ts: clientTs } : { milestone }),
+    })
+    if (resp.ok) return true
+    if (resp.status === 401 || resp.status === 403) return false
+    if (resp.status === 408 || resp.status === 429 || resp.status >= 500) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** The signed-in user's own listening analytics; `null` when signed out (401). Auth-gated. */
 export async function getMyStats(): Promise<UserStats | null> {
   try {

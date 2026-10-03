@@ -13,6 +13,7 @@ import json
 import re
 import shutil
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -237,6 +238,7 @@ def get_or_create_user(
     name: str,
     image: str | None = None,
     role: str | None = None,
+    on_created: Callable[[User], None] | None = None,
 ) -> User:
     """Return the existing user for ``(provider, subject)`` or create it (idempotent).
 
@@ -249,6 +251,13 @@ def get_or_create_user(
     the right place for it because it runs on each sign-in and already holds the lock pattern, and
     it is a one-time write per account: once set, the branch never fires again, and the id never
     rotates.
+
+    ``on_created`` is called EXACTLY ONCE per real creation, inside the lock, with the new user —
+    the hook the `account_created` analytics event needs (#2266). It is here rather than in the
+    caller because the caller cannot tell a creation from a return without a second read, and that
+    read races: two concurrent first-logins for the same identity would both see "absent" and both
+    report a signup, for one account. Inside the lock, after the re-check, there is exactly one.
+    A raising callback must not fail the sign-in, so it is guarded.
     """
     uid = user_id_for(provider, subject)
     existing = get_user(data_dir, uid)
@@ -276,6 +285,11 @@ def get_or_create_user(
             analytics_id=new_analytics_id(),
         )
         _write_profile(data_dir, user)
+        if on_created is not None:
+            try:
+                on_created(user)
+            except Exception:  # noqa: BLE001 — a metric must never fail a signup.
+                pass
     return user
 
 

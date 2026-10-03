@@ -1759,6 +1759,26 @@ class ListenEventBody(BaseModel):
     )
 
 
+class PlaybackProgressBody(BaseModel):
+    """Body for POST /api/app/playback-progress/{slug} (#2266).
+
+    One milestone per request. The client fires each of 25 / 50 / 75 / 95 once per episode, through
+    the same offline queue as listen events, so a milestone crossed on a plane is recorded when it
+    HAPPENED rather than when the device reconnected.
+    """
+
+    #: Constrained to the four the metrics know how to read. A free integer would let a caller
+    #: invent 33, which no completion rate or drop-off chart would ever count.
+    milestone: Literal[25, 50, 75, 95] = Field(
+        description="Percent of the episode reached: 25, 50, 75 or 95."
+    )
+    #: Advisory and clamped by the route, exactly like ListenEventBody's — see the note there.
+    client_ts: int | None = Field(
+        default=None,
+        description="Unix seconds the milestone was crossed, for events queued offline.",
+    )
+
+
 class PlaybackUpdate(BaseModel):
     """Body for PUT /api/app/playback/{slug}."""
 
