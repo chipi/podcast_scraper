@@ -6,6 +6,10 @@ The seams: a corpus on disk -> ``votes_for_cfg`` resolving its root from a per-f
 (built the way the corpus loops build it) -> ``HostDetectionResult.kind_votes`` -> the
 per-episode host filter. Measured shape: "The Brazilian Report" seated as a host on 40 episodes
 while extraction calls it an Organization 23 times and a Person never.
+
+The fixture is a PERSON-SHAPED organisation ("Morgan Stanley"): the static person check now
+refuses "The Brazilian Report" by its "Report" tail on its own, so with it neither test could
+show what the corpus votes do (#2269 person check).
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ pytestmark = [pytest.mark.integration]
 
 FEED_URL = "https://feed-brazil.example/rss"
 ITUNES = "http://www.itunes.com/dtds/podcast-1.0.dtd"
+ORG = "Morgan Stanley"
 
 
 def _corpus_with_votes(root: Path, name: str, org_votes: int) -> None:
@@ -61,21 +66,21 @@ def _episode_with_author(author: str) -> object:
 
 def test_an_organisation_by_vote_is_not_seated_as_this_episodes_host(tmp_path: Path) -> None:
     corpus_kind_votes.cache_clear()
-    _corpus_with_votes(tmp_path, "The Brazilian Report", 23)
+    _corpus_with_votes(tmp_path, ORG, 23)
     cfg = config.Config(
         rss_url=FEED_URL, output_dir=filesystem.corpus_feed_output_dir(str(tmp_path), FEED_URL)
     )
     votes = votes_for_cfg(cfg)
-    assert votes is not None and votes.calls_organisation("The Brazilian Report")
+    assert votes is not None and votes.calls_organisation(ORG)
 
     result = HostDetectionResult(
-        cached_hosts={"The Brazilian Report"},
+        cached_hosts={ORG},
         heuristics=None,
         feed_title="Explaining Brazil",
-        episode_author_hosts=frozenset({"The Brazilian Report"}),
+        episode_author_hosts=frozenset({ORG}),
         kind_votes=votes,
     )
-    assert hosts_for_episode(result, _episode_with_author("The Brazilian Report")) == set()
+    assert hosts_for_episode(result, _episode_with_author(ORG)) == set()
 
 
 def test_without_a_corpus_the_same_author_is_kept_as_before(tmp_path: Path) -> None:
@@ -84,12 +89,10 @@ def test_without_a_corpus_the_same_author_is_kept_as_before(tmp_path: Path) -> N
     cfg = config.Config(rss_url=FEED_URL, output_dir=str(tmp_path / "plain"))
     assert votes_for_cfg(cfg) is None
     result = HostDetectionResult(
-        cached_hosts={"The Brazilian Report"},
+        cached_hosts={ORG},
         heuristics=None,
         feed_title="Explaining Brazil",
-        episode_author_hosts=frozenset({"The Brazilian Report"}),
+        episode_author_hosts=frozenset({ORG}),
         kind_votes=None,
     )
-    assert hosts_for_episode(result, _episode_with_author("The Brazilian Report")) == {
-        "The Brazilian Report"
-    }
+    assert hosts_for_episode(result, _episode_with_author(ORG)) == {ORG}
