@@ -1,0 +1,29 @@
+{
+  "fixture": "p10_e01",
+  "podcast": "Sesiones de Sendero — Episodio",
+  "episode": "Construyendo Senderos Que Duran",
+  "type": "interview",
+  "speakers": [
+    "Lucía Herrera",
+    "Javier Benavides"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Lucía Herrera": "Monica",
+    "Javier Benavides": "Paulina",
+    "Ad": "Zarvox"
+  },
+  "voice_pitch_shift": {
+    "Javier Benavides": 0.45
+  },
+  "cameo": null,
+  "transcript_sha256": "854da3b97de6baf5eb77465104069356dfcd6110740cec6b3958e7f41cd00144",
+  "audio_sha256": "39b2436386718fa6a66b6282132cd336c0d8b75434a30b954578843fc1df7b01",
+  "rttm_sha256": "3cc581f0c3a6799c68f60d7ed6c72627e41d29f9d9eac321b0214ba3ca32abbe"
+}

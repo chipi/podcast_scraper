@@ -1,0 +1,26 @@
+{
+  "fixture": "p12_e02",
+  "podcast": "Sessions Sentier — Episodio",
+  "episode": "Drainage, Pente et la Troisième Année",
+  "type": "interview",
+  "speakers": [
+    "Camille Dubois",
+    "Julien Mercier"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Camille Dubois": "Amelie",
+    "Julien Mercier": "Thomas"
+  },
+  "voice_pitch_shift": {},
+  "cameo": null,
+  "transcript_sha256": "9dc556476f5b0c2257daf347fe75f31ae9df399e161b1532680177a1dcbdcd99",
+  "audio_sha256": "ab138fff819280213a7662a821668255d2915346d66582f86df7e1df7f36adc1",
+  "rttm_sha256": "16a4fec58eb3db85e4f8b4b8e9b8e1a6c8ff4340b701e31d8d04fb135fec29bd"
+}

@@ -27,6 +27,8 @@ from ..backend import (
     InsightDocument,
     ScoredResult,
     SearchQuery,
+    SEGMENT_FIELDS,
+    SEGMENT_NONEN_FIELDS,
     SegmentDocument,
     Tier,
 )
@@ -51,6 +53,16 @@ _SEGMENT_TABLE = "segments"
 _INSIGHT_TABLE = "insights"
 _AUX_TABLE = "aux"
 
+#: Non-English transcript chunks (D-14 option B / S2.9). A SEPARATE TABLE WITH NO EMBEDDING
+#: COLUMN, which is the whole point: a row with no vector CANNOT appear in a semantic result,
+#: whereas a language tag plus a filter is a guarantee only for as long as every query path
+#: remembers the filter. There are several query paths and they are not all in one file.
+#:
+#: It also leaves the three existing schemas untouched, so `LANCE_SCHEMA_VERSION` does NOT move
+#: and no corpus is forced to rebuild — the claim D-14 asked to be confirmed in this slice, and
+#: the reason the table is added rather than a column.
+_SEGMENT_NONEN_TABLE = "segments_nonen"
+
 # How long compaction keeps superseded versions before reclaiming their files. This is a READER
 # grace window: a concurrent process (the api) may be mid-read on a version the moment compaction
 # supersedes it, and deleting that version's fragments out from under the in-flight read strands it
@@ -62,24 +74,51 @@ _AUX_TABLE = "aux"
 _COMPACT_RETENTION = timedelta(minutes=10)
 
 
-def _segment_schema(dim: int) -> "pa.Schema":
+def _segment_field_type(name: str, dim: int) -> "pa.DataType":
+    """The storage type for one declared segment field.
+
+    The NAMES are ours (``backend.SEGMENT_FIELDS``); the TYPES are pyarrow's. Keeping the mapping
+    here and the list there is the whole point of the split: a unit test can assert which fields
+    exist without importing pyarrow, and exactly one integration test has to confirm this adapter
+    renders the declaration faithfully.
+    """
     import pyarrow as pa
 
-    return pa.schema(
-        [
-            ("id", pa.string()),
-            ("text", pa.string()),
-            ("embedding", pa.list_(pa.float32(), dim)),
-            ("show_id", pa.string()),
-            ("episode_id", pa.string()),
-            ("speaker_id", pa.string()),
-            ("start_time", pa.float64()),
-            ("end_time", pa.float64()),
-            ("linked_insight_ids", pa.list_(pa.string())),
-            ("source_tier", pa.string()),
-            ("publish_date", pa.string()),
-        ]
+    if name == "embedding":
+        return pa.list_(pa.float32(), dim)
+    if name in ("start_time", "end_time"):
+        return pa.float64()
+    if name == "linked_insight_ids":
+        return pa.list_(pa.string())
+    return pa.string()
+
+
+def _segment_schema(dim: int) -> "pa.Schema":
+    """The English ``segments`` schema, DERIVED from ``backend.SEGMENT_FIELDS``."""
+    import pyarrow as pa
+
+    return pa.schema([(name, _segment_field_type(name, dim)) for name in SEGMENT_FIELDS])
+
+
+def _segment_nonen_schema() -> "pa.Schema":
+    """The non-English segment tier: the English segment schema MINUS ``embedding``, PLUS
+    ``language``.
+
+    Takes no ``dim`` argument, and that absence is the design. There is nowhere to put a vector,
+    so no code path — present or future — can accidentally include these rows in a dense
+    search. A zero vector would have been worse than useless: it would have out-ranked most
+    real results.
+    """
+    import pyarrow as pa
+
+    assert "embedding" not in SEGMENT_NONEN_FIELDS, (
+        "SEGMENT_NONEN_FIELDS gained an embedding field — the tier's entire guarantee is that "
+        "there is nowhere to put a vector"
     )
+    # `dim` is unreachable here: the declaration contains no `embedding`, so the only branch of
+    # `_segment_field_type` that needs it is never taken. Passing 0 states that rather than
+    # inventing a dimension.
+    return pa.schema([(name, _segment_field_type(name, 0)) for name in SEGMENT_NONEN_FIELDS])
 
 
 def _insight_schema(dim: int) -> "pa.Schema":
@@ -126,7 +165,19 @@ def _aux_schema(dim: int) -> "pa.Schema":
 class LanceDBBackend:
     """Embedded LanceDB backend (segments + insights + aux), BM25 + vector per tier."""
 
-    TABLES = {"segment": _SEGMENT_TABLE, "insight": _INSIGHT_TABLE, "aux": _AUX_TABLE}
+    TABLES = {
+        "segment": _SEGMENT_TABLE,
+        "insight": _INSIGHT_TABLE,
+        "aux": _AUX_TABLE,
+        "segment_nonen": _SEGMENT_NONEN_TABLE,
+    }
+
+    #: Tiers that carry vectors. `segment_nonen` is deliberately absent, so every dense path
+    #: derives its tier list from here rather than from ``TABLES``.
+    DENSE_TIERS = ("segment", "insight", "aux")
+
+    #: Tiers consulted for the KEYWORD leg only.
+    KEYWORD_ONLY_TIERS = ("segment_nonen",)
 
     # Minimum rows before building the IVF vector ANN index. Below this the native
     # index build can SIGSEGV (too few rows to train IVF centroids) and LanceDB
@@ -235,12 +286,43 @@ class LanceDBBackend:
 
     _SCHEMAS = {"segment": _segment_schema, "insight": _insight_schema, "aux": _aux_schema}
 
+    #: Schemas that take no embedding dimension, because they carry no vector (S2.9).
+    _VECTORLESS_SCHEMAS = {"segment_nonen": _segment_nonen_schema}
+
     def _ensure_table(self, tier: str):
         table = self._open_if_exists(tier)
         if table is not None:
             return table
+        if tier in self._VECTORLESS_SCHEMAS:
+            return self.db.create_table(self.TABLES[tier], schema=self._VECTORLESS_SCHEMAS[tier]())
         schema = self._SCHEMAS[tier](self.embed_dim)
         return self.db.create_table(self.TABLES[tier], schema=schema)
+
+    #: Logical tier -> every PHYSICAL table a single write to it replaces.
+    #:
+    #: `replace_segments`/`upsert_segments` take one batch and split it across `segments` and
+    #: `segments_nonen`, so a caller that records "I overwrote `segment`" has in fact overwritten
+    #: both. Keeping that fact here, beside the splitter, is what stops the two from drifting:
+    #: a reindex's stale-tier sweep subtracted the logical name only, so `segment_nonen` read as
+    #: never-written and was emptied immediately after its rows were written.
+    _TIERS_WRITTEN_TOGETHER: Dict[str, tuple] = {
+        "segment": ("segment", "segment_nonen"),
+    }
+
+    @classmethod
+    def physical_tiers_written_with(cls, tier: str) -> tuple:
+        """Every physical tier a single write to the logical *tier* replaces (itself included)."""
+        return cls._TIERS_WRITTEN_TOGETHER.get(tier, (tier,))
+
+    def has_tier(self, tier: str) -> bool:
+        """Whether this index has the tier's table at all.
+
+        The read path needs this because `segments_nonen` is ABSENT on every index built before
+        S2.9 — which is all of them — and a missing table must read as "no non-English content"
+        rather than as an error. That tolerance is what lets the table be added without forcing
+        a rebuild (D-14).
+        """
+        return self._open_if_exists(tier) is not None
 
     def create_indices(self) -> None:
         """Create FTS (required for BM25) + vector indices on all tables that exist.
@@ -253,7 +335,9 @@ class LanceDBBackend:
         search anyway, so the ANN index is unnecessary. An empty table is skipped
         entirely.
         """
-        for tier in ("segment", "insight", "aux"):
+        # The non-English tier is included for FTS and EXCLUDED from the vector index below —
+        # it has no `embedding` column to index, which is the point of the separate table (S2.9).
+        for tier in (*self.DENSE_TIERS, *self.KEYWORD_ONLY_TIERS):
             table = self._open_if_exists(tier)
             if table is None:
                 continue  # tier never populated (e.g. a corpus with no kg/quote rows)
@@ -264,6 +348,8 @@ class LanceDBBackend:
             if n_rows <= 0:
                 continue  # nothing to index; a native build on 0 rows can SIGSEGV
             table.create_fts_index("text", replace=True)
+            if tier in self.KEYWORD_ONLY_TIERS:
+                continue  # no vector column: BM25 is the only retrieval this tier supports
             if n_rows < self._MIN_VECTOR_INDEX_ROWS:
                 continue  # brute-force search below the ANN training floor
             try:
@@ -283,7 +369,7 @@ class LanceDBBackend:
         on the just-superseded version (see the constant). Best-effort: a compaction
         failure must never fail the build.
         """
-        for tier in ("segment", "insight", "aux"):
+        for tier in (*self.DENSE_TIERS, *self.KEYWORD_ONLY_TIERS):
             table = self._open_if_exists(tier)
             if table is None:
                 continue
@@ -292,9 +378,32 @@ class LanceDBBackend:
             except Exception as exc:  # noqa: BLE001 - optimize is best-effort
                 logger.warning("LanceDB compaction skipped for %s table: %s", tier, exc)
 
-    def _tables_for_tier(self, tier: Tier) -> List[str]:
+    def _tables_for_tier(self, tier: Tier, *, keyword: bool = False) -> List[str]:
+        """The tiers to read for this request.
+
+        ``keyword=True`` adds the vector-less tiers (S2.9). They are consulted for BM25 ONLY —
+        not because a filter excludes them from dense search, but because they have no vector
+        column at all, so a dense query has nothing to match against. The separation is in the
+        storage; this just declines to open a table that cannot answer the question asked.
+
+        A SCOPED request gets its counterpart too. This used to return a bare ``[tier]`` for
+        anything but ``"all"``, so `doc_types=["transcript"]` — the episode transcript search,
+        whose whole job is "find this in the transcript" — could never reach `segments_nonen`,
+        and a verbatim sentence from a Spanish episode's own body matched nothing. Having no
+        vector column decides which SIGNAL can read a tier, not which SCOPE it belongs to;
+        `segment_nonen` is a segment tier either way.
+        """
         if tier == "all":
-            return ["segment", "insight", "aux"]
+            tiers = list(self.DENSE_TIERS)
+            if keyword:
+                tiers.extend(self.KEYWORD_ONLY_TIERS)
+            return tiers
+        if keyword:
+            return [
+                physical
+                for physical in self.physical_tiers_written_with(tier)
+                if physical == tier or physical in self.KEYWORD_ONLY_TIERS
+            ]
         return [tier]
 
     # --- retrieval -------------------------------------------------------------
@@ -323,8 +432,39 @@ class LanceDBBackend:
                 req = req.where(where)
             return list(req.limit(query.k).to_list())
 
-        for tier in self._tables_for_tier(query.tier):
-            rows_list = self._fresh_read(tier, _run_tier)  # fresh open per read (#1205)
+        def _run_keyword_only_tier(table: Any) -> List[Dict[str, Any]]:
+            """Same query, minus any filter naming a column this tier does not have.
+
+            The non-English tier mirrors the English segment schema, so the shared filters
+            apply — but it is a different table and a filter referencing a column it lacks
+            would raise rather than return nothing. Falling back to the unfiltered query would
+            LEAK rows past a filter, so the read is skipped instead.
+            """
+            try:
+                return _run_tier(table)
+            except Exception as exc:  # noqa: BLE001 — a tier that cannot answer returns nothing
+                # The EXPECTED case is a filter naming a column this tier lacks; that is a
+                # routine skip and stays quiet. Anything else is a real failure of this tier,
+                # and `debug` hid one for exactly as long as it existed: an empty
+                # `segments_nonen` gets no FTS index, so every BM25 read raised "Cannot perform
+                # full text search unless an INVERTED index has been created" and the whole
+                # non-English layer returned nothing, silently, on every query.
+                text = str(exc).lower()
+                expected = "no such column" in text or "column" in text and "not found" in text
+                if expected:
+                    logger.debug("keyword-only tier read skipped (filter column): %s", exc)
+                else:
+                    logger.warning(
+                        "keyword-only tier %r could not answer the query, so NO non-English "
+                        "results are included: %s",
+                        tier,
+                        exc,
+                    )
+                return []
+
+        for tier in self._tables_for_tier(query.tier, keyword=query_type == "fts"):
+            runner = _run_keyword_only_tier if tier in self.KEYWORD_ONLY_TIERS else _run_tier
+            rows_list = self._fresh_read(tier, runner)  # fresh open per read (#1205)
             if rows_list is None:
                 continue
             for row in rows_list:
@@ -383,8 +523,18 @@ class LanceDBBackend:
         self._upsert_many(tier, [data])
 
     def upsert_segment(self, doc: SegmentDocument) -> None:
-        """Insert or update a Tier-1 segment document."""
-        self._upsert("segment", dataclasses.asdict(doc))
+        """Insert or update a Tier-1 segment document.
+
+        Routes through the SAME splitter the batch path uses. Writing
+        ``dataclasses.asdict(doc)`` straight to the `segment` tier was a real failure: the
+        English schema has no `language` column, so every caller of this method broke the
+        moment the field was added. One router, both paths.
+        """
+        english, non_english = self._split_segments_by_language([doc])
+        if english:
+            self._upsert("segment", english[0])
+        if non_english:
+            self._upsert("segment_nonen", non_english[0])
 
     def upsert_insight(self, doc: InsightDocument) -> None:
         """Insert or update a Tier-2 insight document."""
@@ -394,9 +544,45 @@ class LanceDBBackend:
         """Insert or update an aux document (kg_entity / kg_topic / quote / summary)."""
         self._upsert("aux", dataclasses.asdict(doc))
 
+    @staticmethod
+    def _split_segments_by_language(
+        docs: List[SegmentDocument],
+    ) -> "tuple[List[Dict[str, Any]], List[Dict[str, Any]]]":
+        """``(english_rows, non_english_rows)`` — the router, in one place (S2.9).
+
+        English rows keep the `segments` schema exactly (no `language` field, so the stored
+        schema does not move). Non-English rows drop `embedding` and gain `language`: there is
+        no column to hold a vector, which is what makes "cannot appear in a semantic result" a
+        property of the storage rather than of every query path remembering a filter.
+
+        A row with no language routes ENGLISH, because most of the corpus predates language
+        resolution and sending those to a keyword-only tier would silently remove them from
+        semantic search — a large, invisible regression for the corpus that works today.
+        """
+        english: List[Dict[str, Any]] = []
+        non_english: List[Dict[str, Any]] = []
+        for doc in docs:
+            row = dataclasses.asdict(doc)
+            language = (row.pop("language", None) or "").strip().lower()
+            if not language or language.split("-")[0] == "en":
+                english.append(row)
+                continue
+            row.pop("embedding", None)
+            row["language"] = language.split("-")[0]
+            non_english.append(row)
+        return english, non_english
+
     def upsert_segments(self, docs: List[SegmentDocument]) -> None:
-        """Batch-upsert Tier-1 segments in one transaction (see ``_upsert_many``)."""
-        self._upsert_many("segment", [dataclasses.asdict(d) for d in docs])
+        """Batch-upsert Tier-1 segments in one transaction (see ``_upsert_many``).
+
+        Routes by language: English rows to `segments`, everything else to the vector-less
+        `segments_nonen` tier (S2.9 / D-14 option B).
+        """
+        english, non_english = self._split_segments_by_language(docs)
+        if english:
+            self._upsert_many("segment", english)
+        if non_english:
+            self._upsert_many("segment_nonen", non_english)
 
     def upsert_insights(self, docs: List[InsightDocument]) -> None:
         """Batch-upsert Tier-2 insights in one transaction."""
@@ -428,12 +614,32 @@ class LanceDBBackend:
         """
         if not rows:
             return
-        schema = self._SCHEMAS[tier](self.embed_dim)
+        schema = self._schema_for(tier)
         self.db.create_table(self.TABLES[tier], data=rows, schema=schema, mode="overwrite")
 
+    def _schema_for(self, tier: str) -> "pa.Schema":
+        """The tier's Arrow schema — vector-less tiers take no dimension (S2.9)."""
+        if tier in self._VECTORLESS_SCHEMAS:
+            return self._VECTORLESS_SCHEMAS[tier]()
+        return self._SCHEMAS[tier](self.embed_dim)
+
     def replace_segments(self, docs: List[SegmentDocument]) -> None:
-        """MVCC-replace the segment table with exactly *docs* (full-reindex first flush)."""
-        self._replace_many("segment", [dataclasses.asdict(d) for d in docs])
+        """MVCC-replace the segment tables with exactly *docs* (full-reindex first flush).
+
+        BOTH tiers are replaced, and the non-English one is replaced even when *docs* contains
+        no non-English rows. A full reindex that replaced only `segments` would leave the old
+        `segments_nonen` rows serving alongside fresh English ones — stale content from a
+        previous build, which is exactly what "replace" exists to prevent.
+        """
+        english, non_english = self._split_segments_by_language(docs)
+        self._replace_many("segment", english)
+        if non_english:
+            self._replace_many("segment_nonen", non_english)
+        elif self.has_tier("segment_nonen"):
+            # `_replace_many` no-ops on an empty batch, which for a normal tier is right. Here
+            # it would leave a PREVIOUS build's non-English rows serving beside fresh English
+            # ones — an English-only reindex silently inheriting stale Spanish. Clear instead.
+            self.clear_tier_mvcc("segment_nonen")
 
     def replace_insights(self, docs: List[InsightDocument]) -> None:
         """MVCC-replace the insight table with exactly *docs* (full-reindex first flush)."""
@@ -556,25 +762,56 @@ class LanceDBBackend:
             return 0
 
     def delete(self, doc_id: str, tier: Tier) -> None:
-        """Delete a document by id; ``tier="all"`` removes from every table."""
-        tiers = ("segment", "insight", "aux") if tier == "all" else (tier,)
+        """Delete a document by id; ``tier="all"`` removes from every table.
+
+        ``"all"`` INCLUDES THE KEYWORD-ONLY TIER, and it did not until 2026-10-03: it resolved to
+        `DENSE_TIERS` — `("segment", "insight", "aux")` — so a source-language row in
+        `segments_nonen` survived a delete-all while this docstring already promised otherwise.
+        Everything built on "delete-all clears this id" inherited that: a withdrawal, a reindex, an
+        episode removal each left non-English rows searchable with no trace.
+
+        Found by `tests/search_backend_contract.py` run against both implementations — the
+        in-memory fake deleted from every tier it had, the real backend did not, and a contract
+        that both must satisfy is what turned the disagreement into a failing test. No hand-written
+        fake had ever reproduced it, because each fake was written to match the code rather than
+        the promise.
+        """
+        tiers = (*self.DENSE_TIERS, *self.KEYWORD_ONLY_TIERS) if tier == "all" else (tier,)
         for t in tiers:
             table = self._open_if_exists(t)
             if table is not None:
                 table.delete(f"id = '{self._sql_str(doc_id)}'")
 
+    #: Report key per physical tier. Named rather than derived from the tier string because
+    #: `segments`/`insights` are READ BY `m0002`'s verify step and must not be renamed.
+    _HEALTH_KEYS = {
+        "segment": "segments",
+        "insight": "insights",
+        "aux": "aux",
+        "segment_nonen": "segments_nonen",
+    }
+
     def health(self) -> Dict:
-        """Return backend status + per-table row counts."""
+        """Return backend status + per-table row counts, for EVERY tier this backend has.
+
+        DERIVED FROM THE TIER LIST, not three hardcoded lookups, and that is the fix. It reported
+        `segment` / `insight` / `aux` by name and never `segment_nonen`, so a corpus whose only
+        indexed content was non-English looked like a corpus with nothing indexed — in the one
+        place an operator goes to check. Same blind spot as `delete(tier="all")` had, found the
+        same way: `tests/search_backend_contract.py` run against both the in-memory fake and this
+        backend, where the two disagreed about whether a populated tier is reported.
+
+        Deriving it means the next tier is counted on the day it is added rather than the day
+        somebody notices.
+        """
         try:
-            seg = self._open_if_exists("segment")
-            ins = self._open_if_exists("insight")
-            aux = self._open_if_exists("aux")
-            return {
-                "status": "ok",
-                "segments": seg.count_rows() if seg is not None else 0,
-                "insights": ins.count_rows() if ins is not None else 0,
-                "aux": aux.count_rows() if aux is not None else 0,
-            }
+            counts: Dict[str, int] = {}
+            for tier in (*self.DENSE_TIERS, *self.KEYWORD_ONLY_TIERS):
+                table = self._open_if_exists(tier)
+                counts[self._HEALTH_KEYS.get(tier, tier)] = (
+                    int(table.count_rows()) if table is not None else 0
+                )
+            return {"status": "ok", **counts}
         except Exception as exc:  # noqa: BLE001
             return {"status": "error", "error": str(exc)}
 

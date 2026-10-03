@@ -1,0 +1,28 @@
+{
+  "fixture": "p11_e03",
+  "podcast": "Sentieri d'Autore — Episodio",
+  "episode": "Permessi e Pazienza",
+  "type": "interview",
+  "speakers": [
+    "Giulia Ferrara",
+    "Marco Bellini"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Giulia Ferrara": "Alice",
+    "Marco Bellini": "Alice"
+  },
+  "voice_pitch_shift": {
+    "Marco Bellini": 0.4
+  },
+  "cameo": null,
+  "transcript_sha256": "86c56c91d60de44dd03253cbbffc871786ff46cbd3d2606624689326f4fbc783",
+  "audio_sha256": "960f0fe8a126e83042349f4d2efc73e524a6ec52d0a1e607d2f6bf31bab7c7b5",
+  "rttm_sha256": "2127190d0d7fd05a4e6d8cd84a32c7383d6b51afce7a8b5a7ad84df4102ed5f5"
+}

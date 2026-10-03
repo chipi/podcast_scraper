@@ -1117,6 +1117,10 @@ def _newest_run_transcripts(root: Path) -> List[Path]:
     for meta in metas:
         stem = meta.name[: -len(".metadata.json")]
         transcripts = meta.parent.parent / filesystem.TRANSCRIPTS_SUBDIR
+        # First rendering with the pre-roll gone; this scan does not care about offsets. Inline
+        # and local on purpose: it briefly routed through `workflow.transcript_resolution`, a
+        # module written for translation, which made a generic scan depend on a language feature
+        # for five lines of precedence it can state itself (reverted 2026-10-02).
         for suffix in (".adfree.txt", ".cleaned.txt", ".txt"):
             candidate = transcripts / f"{stem}{suffix}"
             if candidate.is_file():
@@ -2102,7 +2106,13 @@ def prepare_episode_download_args(
     # Only fires when the run EXPLICITLY asked for reprocessing. A normal incremental run where
     # everything is already ingested reaches here legitimately, and warning on that would make
     # the counter noise — non-zero on healthy nightly runs, which is how a signal gets ignored.
-    reprocess_stages = {"rederive_only", "relabel_only", "rediarize_only", "retranscript_only"}
+    reprocess_stages = {
+        "rederive_only",
+        "relabel_only",
+        "rediarize_only",
+        "retranscript_only",
+        "translate_only",
+    }
     asked_for_reprocess = (
         bool(getattr(cfg, "reprocess_existing_only", False))
         or str(getattr(cfg, "pipeline_stage", "full") or "full") in reprocess_stages

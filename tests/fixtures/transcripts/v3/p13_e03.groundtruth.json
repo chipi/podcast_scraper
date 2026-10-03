@@ -1,0 +1,28 @@
+{
+  "fixture": "p13_e03",
+  "podcast": "Pfadgespräche — Episodio",
+  "episode": "Genehmigungen und Geduld",
+  "type": "interview",
+  "speakers": [
+    "Katrin Vogel",
+    "Stefan Brandt"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Katrin Vogel": "Anna",
+    "Stefan Brandt": "Anna"
+  },
+  "voice_pitch_shift": {
+    "Stefan Brandt": 0.4
+  },
+  "cameo": null,
+  "transcript_sha256": "de4c91405c3ea7baf724f4a277e93d8e902e3d6c69f8aebd39b4a906eb7e44ff",
+  "audio_sha256": "a52e275dc78bebb10624a5e1c79591b98caf0f57aff8dfa10999dfa1a5ecb3fb",
+  "rttm_sha256": "53bb439e5aea22352ec42412c4d4c31ca333f605fefa51b202867e9095742f58"
+}

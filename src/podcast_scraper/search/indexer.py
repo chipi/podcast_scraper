@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, cast, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, cast, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 from podcast_scraper import config
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
@@ -18,6 +17,10 @@ from podcast_scraper.search.corpus_scope import (
     vector_doc_scope_tag,
 )
 from podcast_scraper.workflow.metadata_generation import _determine_gi_path, _determine_kg_path
+from podcast_scraper.workflow.transcript_resolution import (
+    resolve_text_path,
+    TranscriptPurpose,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -98,16 +101,11 @@ def _transcript_path(episode_root: Path, doc: Dict[str, Any]) -> Optional[Path]:
     rel = content.get("transcript_file_path")
     if not isinstance(rel, str) or not rel.strip():
         return None
-    rel = rel.strip()
-    # #974: prefer the ad-free processing base (<base>.adfree.txt) when present, so
-    # search chunks and enrich-edges SPOKEN_BY share the coordinate space GI computed
-    # quote char_start in. Fall back to the raw transcript for pre-#974 corpora.
-    base, ext = os.path.splitext(rel)
-    adfree = (episode_root / f"{base}.adfree{ext}").resolve()
-    if adfree.is_file():
-        return adfree
-    p = (episode_root / rel).resolve()
-    return p if p.is_file() else None
+    # ANALYSIS: search chunks and enrich-edges SPOKEN_BY must share the coordinate space GI
+    # computed quote char_start in (#974), so the ad-free base wins and a pre-#974 corpus
+    # falls back to raw. The precedence lives in one place now (#2170).
+    resolved = resolve_text_path(episode_root, rel.strip(), purpose=TranscriptPurpose.ANALYSIS)
+    return resolved.resolve() if resolved is not None else None
 
 
 def _filter_rows_by_doc_types(
@@ -259,6 +257,141 @@ def _scope_display_titles(
     return episode_title, feed_title
 
 
+def _indexed_text_language(
+    episode_root: Path, metadata_path: Path, doc: Dict[str, Any]
+) -> Optional[str]:
+    """The language of the transcript text this episode will be INDEXED from (S2.9).
+
+    Not simply the episode's language: what matters is the language of the body the chunker
+    read. A translated episode's transcript resolves to the translation (D-38), so its chunks are
+    English and belong in the vector-bearing tier — routing them by the episode's SOURCE
+    language would exile a perfectly good English translation from semantic search, which is
+    the opposite of what the arc is for.
+
+    UNDER D-44 THERE IS NOTHING TO INFER. The ANALYSIS body is the canonical ``<base>.txt`` (or
+    its ad-free derivative), and that file always holds the analysis language: ASR wrote English
+    there on an English episode, and translation's atomic swap put English there on a translated
+    one. So the chunks this function labels are English, full stop.
+
+    This used to RESOLVE the transcript and inspect the resulting filename for an ``.en`` suffix, to
+    work out whether it had read a translation. That inference is what went wrong twice: first by
+    building ``english_transcript_relpath(resolved)`` on an already-resolved path and testing a name
+    that can never exist (``ep1.en.adfree<base>.txt``), then by reading the suffix stack. Measured
+    2026-09-30: a successfully translated Spanish episode's chunks came from the English render and
+    were labelled ``es``, so ``_split_segments_by_language`` dropped their embeddings into the
+    vector-less tier and the episode was findable by neither semantic search nor its own language —
+    invisible, because both the chunking and the upsert "succeeded".
+
+    The SOURCE-language layer is labelled separately, by the caller that deliberately resolved the
+    source body and therefore knows its language without asking a filename.
+
+    IT VERIFIES THE SWAP RATHER THAN ASSUMING IT. An episode whose swap never happened still has a
+    SOURCE-language ``<base>.txt`` — a pending or failed translation — and labelling that English
+    would file Spanish text in the English vector tier, which is the very bug this function exists
+    to prevent, reached from the other direction. So the episode's own language is returned unless
+    the tagged source body proves the swap completed.
+
+    That check is one `os.path.isfile`, and it is deliberately NOT delegated to an upstream
+    "unusable episode" marker: the indexer can establish the fact cheaply and locally, and a reader
+    that trusts a guarantee it could have verified is how the first version of this went wrong.
+    """
+    from ..languages import TARGET_LANGUAGE
+    from ..translation.artifacts import translation_swap_happened
+
+    ep = doc.get("episode") or {}
+    feed = doc.get("feed") or {}
+    language = ep.get("language") or feed.get("language")
+    normalized = str(language or "").strip().lower().split("-")[0] or None
+    # `None` STAYS `None`: most of the corpus predates language resolution, and claiming the target
+    # language for an episode nobody resolved asserts something unmeasured — the distinction
+    # `language_source` exists to keep. The router already treats an unlabelled row as English, so
+    # the routing is identical; only the honesty of the recorded value differs.
+    if not normalized or normalized == TARGET_LANGUAGE:
+        return normalized
+
+    content = doc.get("content") or {}
+    rel = content.get("transcript_file_path")
+    if isinstance(rel, str) and rel.strip():
+        if translation_swap_happened(rel.strip(), str(episode_root), normalized):
+            return TARGET_LANGUAGE
+    return normalized
+
+
+#: Suffix that makes a source-layer chunk id distinct from its English sibling. LanceDB merges
+#: on id, so without this the second chunk set would OVERWRITE the first (RFC-124 §6.2). English
+#: ids stay byte-identical so stored `source_segment_id` references keep resolving.
+_SOURCE_LAYER_ID_SUFFIX = "src"
+
+#: Marks a chunk as belonging to the SOURCE-language second layer, whose `char_start`/`char_end`
+#: index the source text rather than the analysis body.
+#:
+#: An explicit marker rather than a language comparison, because "non-English" is the WRONG
+#: discriminator: an UNTRANSLATED Spanish episode's chunks are Spanish AND are the analysis
+#: space, since the analysis body is the only body. What downstream consumers need to know is
+#: "are these offsets comparable with GI's", and only this says that. Absent means analysis,
+#: which is correct for every row in every index built before this field existed.
+INDEX_LAYER_KEY = "index_layer"
+INDEX_LAYER_SOURCE = "source"
+
+
+def is_source_layer_chunk(meta: Mapping[str, Any]) -> bool:
+    """True when this chunk's char offsets are in the SOURCE-language coordinate space.
+
+    The one predicate the quote-offset verifier, the transcript lift and the insight linker all
+    use, so "which rows are not comparable with GI's offsets" has a single answer. Reading the
+    id suffix would work too and is what this replaces — but only the callers that happen to
+    hold the doc_id, and the lift path does not.
+    """
+    return meta.get(INDEX_LAYER_KEY) == INDEX_LAYER_SOURCE
+
+
+def _source_layer_body(
+    episode_root: Path, doc: Dict[str, Any], indexed_language: Optional[str]
+) -> "Optional[tuple[Path, str]]":
+    """``(path, language)`` of the SOURCE-language body to index as a second layer, or ``None``.
+
+    RFC-124 §6.2: "Tier-1 chunks are built from the source-language transcript *and* the English
+    analysis transcript, both keyed to the same episode_slug. A Greek query matches the Greek
+    chunks lexically; an English query matches the English chunks." The English half shipped;
+    this is the other half, without which Goal 6 ("an episode findable in the language it was
+    spoken in") is false for every translated episode — the English-first precedence (D-38)
+    cannot deliver it by construction, because it resolves AWAY from the source language.
+
+    Returns ``None`` — one layer only — in every case where a second layer would be a duplicate
+    or a lie:
+
+    * the episode has no recorded language, or it is English: there is no second language.
+    * ``indexed_language`` is not ``en``: the primary pass already indexed the source language,
+      so a second pass would chunk the same body twice under two ids.
+    * the source body is missing, or resolves to the same file the primary pass read.
+    """
+    if indexed_language != "en":
+        return None
+    ep = doc.get("episode") or {}
+    feed = doc.get("feed") or {}
+    raw = ep.get("language") or feed.get("language")
+    source_language = str(raw or "").strip().lower().split("-")[0]
+    if not source_language or source_language == "en":
+        return None
+
+    content = doc.get("content") or {}
+    rel = content.get("transcript_file_path")
+    if not isinstance(rel, str) or not rel.strip():
+        return None
+
+    from ..workflow.transcript_resolution import resolve_source_language_text_path
+
+    path = resolve_source_language_text_path(episode_root, rel.strip(), source_language)
+    if path is None:
+        return None
+    primary = _transcript_path(episode_root, doc)
+    if primary is not None and path.resolve() == primary.resolve():
+        # Defensive: if the two resolvers ever agree, indexing twice would double every chunk
+        # under two ids rather than adding a layer.
+        return None
+    return path.resolve(), source_language
+
+
 def _collect_docs_for_episode(  # noqa: C901
     episode_root: Path,
     metadata_path: Path,
@@ -275,6 +408,13 @@ def _collect_docs_for_episode(  # noqa: C901
     raw_feed_id = feed.get("feed_id")
     feed_norm = normalize_feed_id(raw_feed_id)
     published = ep.get("published_date")
+    # S2.9: the language of the TEXT being indexed. A translated episode's transcript rows are
+    # the ENGLISH render (the resolver serves the translation first by D-38), so they index as
+    # English
+    # and keep their vector; only an episode whose served text is still its source language
+    # routes to the vector-less tier. Falls back to the feed's declared language for artifacts
+    # written before per-episode language existed, which is the same fallback the API uses.
+    chunk_language = _indexed_text_language(episode_root, metadata_path, doc)
     if not isinstance(episode_id, str) or not episode_id:
         return _rows_with_text_metadata(rows)
 
@@ -455,6 +595,55 @@ def _collect_docs_for_episode(  # noqa: C901
                             "episode_id": episode_id,
                             "feed_id": raw_feed_id,
                             "publish_date": published,
+                            "language": chunk_language,
+                            "source_id": str(ch.chunk_index),
+                            "char_start": ch.char_start,
+                            "char_end": ch.char_end,
+                            "timestamp_start_ms": ch.timestamp_start_ms,
+                            "timestamp_end_ms": ch.timestamp_end_ms,
+                        },
+                    )
+                )
+
+    # RFC-124 §6.2, the source layer. Emitted only for a TRANSLATED episode (see
+    # `_source_layer_body`), so an English or untranslated episode produces byte-identical rows
+    # to before this block existed.
+    #
+    # THREE THINGS DOWNSTREAM MUST NOT DO WITH THESE ROWS, all keyed off `language`:
+    #   - embed them into the dense tier (the router drops the vector — S2.9),
+    #   - count their char offsets as analysis-space (the quote-offset verifier skips them),
+    #   - lift them as evidence under an English insight (the lift path skips them).
+    # Their char offsets index the SOURCE text, which shares nothing with the English body but
+    # the audio timeline.
+    source_layer = _source_layer_body(episode_root, doc, chunk_language)
+    if source_layer is not None:
+        source_path, source_language = source_layer
+        try:
+            stext = source_path.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            logger.warning("Source-language transcript read failed %s: %s", source_path, exc)
+            stext = ""
+        if stext.strip():
+            for ch in chunk_transcript(
+                stext,
+                target_tokens=target_tokens,
+                overlap_tokens=overlap_tokens,
+                # Deliberately the SAME timestamps: both layers describe one audio timeline, so
+                # a source chunk's time span is meaningful even though its char offsets are not
+                # comparable with the English layer's.
+                timestamps=chunk_ts,
+            ):
+                rows.append(
+                    (
+                        f"chunk:{scope_tag}:{ch.chunk_index}:{_SOURCE_LAYER_ID_SUFFIX}",
+                        ch.text,
+                        {
+                            "doc_type": "transcript",
+                            "episode_id": episode_id,
+                            "feed_id": raw_feed_id,
+                            "publish_date": published,
+                            "language": source_language,
+                            INDEX_LAYER_KEY: INDEX_LAYER_SOURCE,
                             "source_id": str(ch.chunk_index),
                             "char_start": ch.char_start,
                             "char_end": ch.char_end,

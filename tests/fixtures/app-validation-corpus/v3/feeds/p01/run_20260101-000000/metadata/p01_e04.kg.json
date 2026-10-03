@@ -31,6 +31,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:correlated-bets",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:crash-causation-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:error-propagation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:financial-risk-analogy",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:performance-through-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:preemptive-risk-naming",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:race-line-strategy",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:systemic-failure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-de59d003651d9e5d",
+      "target": "topic:trail-run-as-a-system",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-de59d003651d9e5d",
       "to": "person:maya",
       "type": "MENTIONS"
@@ -102,6 +147,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:correlated-bets",
+      "properties": {
+        "label": "correlated bets",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:crash-causation-patterns",
+      "properties": {
+        "label": "crash causation patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:error-propagation",
+      "properties": {
+        "label": "error propagation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:financial-risk-analogy",
+      "properties": {
+        "label": "financial risk analogy",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:performance-through-design",
+      "properties": {
+        "label": "performance through design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:preemptive-risk-naming",
+      "properties": {
+        "label": "preemptive risk naming",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:race-line-strategy",
+      "properties": {
+        "label": "race line strategy",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systemic-failure",
+      "properties": {
+        "label": "systemic failure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trail-run-as-a-system",
+      "properties": {
+        "label": "trail run as a system",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

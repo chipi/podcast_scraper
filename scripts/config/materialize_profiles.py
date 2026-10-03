@@ -56,11 +56,54 @@ PROFILE_DIR = REPO / "config" / "profiles"
 _BLOCK_HEADER = "# --- registry-materialized (make profiles-materialize) — do not hand-edit ---"
 
 
+#: Governed fields that legitimately do not appear in every profile's resolved settings.
+#:
+#: A governed field the resolver never emits for ANY preset is governed in name only — the filter
+#: below skips it and the drift check passes on any value a YAML happens to carry. That is not
+#: hypothetical: `translate_api_base` and `translate_model` sat in `REGISTRY_GOVERNED_FIELDS` and
+#: on `ProfilePreset` while `resolve_profile_to_settings` never emitted them, so
+#: `translate_model: totally/unsanctioned-model` in prod_dgx_full.yaml produced "All 18
+#: registry-governed profiles match the registry" (measured 2026-09-30). ADR-157 stated the
+#: opposite as fact: "registry-governed, so a profile cannot silently route translation somewhere
+#: unsanctioned."
+#:
+#: `check_every_governed_field_is_emitted` fails on any such field. This set is for the ones where
+#: per-profile absence is correct — a field only some presets have — keyed by field with a reason.
+#: A field emitted by NO preset can never be legitimate, so nothing belongs here for that case.
+PARTIALLY_EMITTED_FIELDS: Dict[str, str] = {}
+
+
+def check_every_governed_field_is_emitted() -> List[str]:
+    """Every governed field must be emitted by at least one preset.
+
+    The audit that would have caught the translate fields. A field listed as governed but never
+    produced by the resolver is a permission nobody checks, and it fails OPEN: the YAML keeps
+    whatever it was last given, including a hand-edit.
+    """
+    emitted: set = set()
+    for name in _PROFILE_PRESETS:
+        emitted |= set(resolve_profile_to_settings(name))
+    missing = [
+        f
+        for f in REGISTRY_GOVERNED_FIELDS
+        if f not in emitted and f not in PARTIALLY_EMITTED_FIELDS
+    ]
+    return [
+        f"{f} is in REGISTRY_GOVERNED_FIELDS but `resolve_profile_to_settings` emits it for NO "
+        f"preset, so it is governed in name only: the drift check skips it and any value a YAML "
+        f"carries passes. Emit it from the resolver, or drop it from the governed list."
+        for f in sorted(missing)
+    ]
+
+
 def governed_settings(name: str) -> Dict[str, Any]:
     """The registry's verdict for one profile, narrowed to the fields it OWNS.
 
     ``resolve_profile_to_settings`` also emits resolver-only keys (endpoints and such) that are not
     ``Config`` fields; writing those into a YAML would make it un-loadable.
+
+    The ``if k in resolved`` filter is what makes an un-emitted governed field silent, which is why
+    :func:`check_every_governed_field_is_emitted` runs alongside this.
     """
     resolved = resolve_profile_to_settings(name)
     return {k: resolved[k] for k in REGISTRY_GOVERNED_FIELDS if k in resolved}
@@ -142,6 +185,18 @@ def main() -> int:
         help="do not write; exit non-zero if any profile disagrees with the registry (for CI)",
     )
     args = ap.parse_args()
+
+    # FIRST, because it invalidates every result below. If a governed field is emitted by no
+    # preset, the per-profile comparison silently skips it and "all profiles match" is a claim
+    # about a smaller set of fields than the one it names. Fails in both modes: writing profiles
+    # from a governed list the resolver does not honour produces exactly the state this audit
+    # exists to report.
+    ungoverned = check_every_governed_field_is_emitted()
+    if ungoverned:
+        print(f"GOVERNED IN NAME ONLY: {len(ungoverned)} field(s)\n")
+        for problem in ungoverned:
+            print(f"  - {problem}")
+        return 1
 
     stale: List[Tuple[str, List[str]]] = []
     inconsistent: List[Tuple[str, List[str]]] = []

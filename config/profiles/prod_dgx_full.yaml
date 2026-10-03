@@ -111,13 +111,21 @@ gil_evidence_match_summary_provider: true
 transcription_fallback_providers: [tailnet_dgx_whisper, whisper]
 diarization_fallback_providers: [local]
 resilience_run_context: serve
-resilience_failure_strategy: failover
+resilience_failure_strategy: hold
 transcription_coverage_min: 0.0
 enforce_model_governance: false
 transcription_coverage_failover_model: null
 transcription_coverage_failover_provider: null
 vllm_summary_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 vllm_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8003/v1
+
+# Translation vLLM (#2169, Gate V) — CO-RESIDENT with the summary model above, not swapped
+# against it. `gpu-mode-swap.sh prod` brings both up; the tailnet ACL grants :8005 to tag:prod.
+# TranslateGemma-12B: WMT24++ MetricX 3.60 / Comet22 83.5, and it beats BASE Gemma-3-27B (4.04),
+# so the fine-tune is worth more than the size step — and unlike the 27B it co-resides with the
+# 30B summary model at bf16.
+translate_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1
+translate_model: google/translategemma-12b-it
 vllm_speaker_model: NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4
 ner_model: en_core_web_trf
 transcription_speech_coverage_min: 0.0

@@ -80,7 +80,11 @@ from podcast_scraper.utils.filesystem import (  # noqa: E402
 _LINE = re.compile(r"^([^:\n]{1,60}): ")
 
 #: Variant suffixes that are not the base transcript.
-_VARIANTS = (".adfree.", ".cleaned.")
+#: Derived transcripts, which are not base transcripts and must not be counted as episodes.
+#: `.anon.` joined them in the multilingual arc — without it this audit reports one extra
+#: "base" transcript per diarized episode, and Step 0a of the post-deploy runbook (#2082)
+#: exists precisely to produce trustworthy counts.
+_VARIANTS = (".adfree.", ".cleaned.", ".anon.")
 
 
 def _metadata_files(corpus: Path, newest_run_only: bool = False) -> List[Path]:

@@ -3118,6 +3118,29 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             cfg, pipeline_metrics
         )
 
+        # #2172: carry the feed's DECLARED language onto the config every later stage reads, so
+        # `languages.transcription_language(cfg)` — THE one reader (S0.6) — sees the channel tag
+        # instead of answering from the profile default. Without this the transcriber said `en`
+        # for a feed declaring `es-ES` while the metadata writer said `es / rss`, and a `de`
+        # feed produced no skip reason at all.
+        #
+        # Set here rather than inside `_fetch_and_prepare_episodes` because the config is frozen
+        # and the replacement has to be visible to everything downstream; this is the first point
+        # where the parsed feed and the config that flows onward are both in hand.
+        # Unconditional when the feed declares a tag: the MEASURED value outranks anything
+        # already sitting in the field. An earlier `and not getattr(cfg, ...)` guard here
+        # defended no named case and created one — a stale or profile-set value would win over
+        # the real channel tag while `language_source` still reported `rss`, which means
+        # "measured from the feed". That is a provenance lie, and provenance is the only thing
+        # that distinguishes a measured corpus from a defaulted one.
+        _declared = getattr(feed, "language", None)
+        if _declared:
+            cfg = cfg.model_copy(update={"feed_declared_language": _declared})
+            logger.info(
+                "    feed declares language %r; it now routes transcription and the skip gate",
+                _declared,
+            )
+
         # Step 5-6.5: Setup pipeline resources
         normalizing_start, host_detection_result, transcription_resources, processing_resources = (
             _setup_pipeline_resources(

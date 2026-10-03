@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p05_e01",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:behavioral-risk-management",
+      "label": "behavioral risk management"
+    },
+    {
+      "id": "topic:decision-framing",
+      "label": "decision framing"
+    },
+    {
+      "id": "topic:index-fund-strategy",
+      "label": "index fund strategy"
+    },
+    {
+      "id": "topic:low-cost-structure",
+      "label": "low cost structure"
+    },
+    {
+      "id": "topic:market-reaction-framing",
+      "label": "market reaction framing"
+    },
+    {
+      "id": "topic:operational-iteration",
+      "label": "operational iteration"
+    },
+    {
+      "id": "topic:platform-integration",
+      "label": "platform integration"
+    },
+    {
+      "id": "topic:reliability-intersection",
+      "label": "reliability intersection"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:small-value-tilt",
+      "label": "small-value tilt"
+    }
+  ]
+}

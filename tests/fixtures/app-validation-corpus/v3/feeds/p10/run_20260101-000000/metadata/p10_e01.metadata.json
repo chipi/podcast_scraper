@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p10-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p10_e01.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Lucía Herrera",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Javier Benavides",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p10_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 436,
+    "episode_id": "ep-7072d2e85dcd5233",
+    "language": "es",
+    "language_source": "rss",
+    "published_date": "2026-01-19T00:00:00",
+    "title": "Construyendo Senderos Que Duran"
+  },
+  "feed": {
+    "authors": [
+      "Lucía Herrera"
+    ],
+    "description": "Conversaciones sobre construcción de senderos: drenaje, trazado, y las personas que construyen la ruta. Contraparte en español de Singletrack Sessions.",
+    "feed_id": "p10",
+    "language": "es",
+    "language_raw": "es-ES",
+    "language_source": "rss",
+    "last_updated": "2026-01-19T00:00:00",
+    "title": "Sesiones de Sendero",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p10.svg",
+    "image_url": "http://localhost/images/p10.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Drainage is the design decision that has the biggest impact on any trail, with improper drainage leading to erosion and eventual trail failure.",
+      "Excavating with too much of a slope is the most common mistake new trail builders make, resulting in long-term structural issues.",
+      "Cuts in the bank on slopes are not optional—ignoring them turns a short-term shortcut into a landslide within years.",
+      "Soil structure matters more than people realize, and understanding it enables better trail longevity and resilience.",
+      "The framework of land management decisions determines the compromises builders must make, and these should be addressed before excavation begins.",
+      "Using tools like Spoke & Wrench or Cascadia Alliance within workflow improves progress visibility and prevents redundant rebuilding.",
+      "Machine-made trails are not inherently inferior to hand-made ones—this belief has been re-evaluated based on observed outcomes across multiple teams.",
+      "Outside of specific systems like RockShox or Spoke & Wrench, failure modes become harder to detect, making early intervention critical."
+    ],
+    "raw_text": "Drainage is the design decision that has the biggest impact on any trail, with improper drainage leading to erosion and eventual trail failure. Excavating with too much of a slope is the most common mistake new trail builders make, resulting in long-term structural issues.",
+    "title": "Drainage and Soil Structure as Foundational Elements in Trail Building"
+  }
+}

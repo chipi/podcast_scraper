@@ -547,6 +547,13 @@ class TestFinish(unittest.TestCase):
             "llm_speaker_detection_avg_output_tokens_per_call",
             "llm_speaker_detection_cost_usd",
             "llm_summarization_calls",
+            # RFC-124 / S2.3: translation counts UNITS, not episodes, so this climbs far faster
+            # than the other LLM counters. Cost is a measured zero (local GPU), which is why the
+            # token totals are what S2.10 sizes capacity from.
+            "llm_translation_calls",
+            "llm_translation_input_tokens",
+            "llm_translation_output_tokens",
+            "llm_translation_cost_usd",
             "llm_summarization_input_tokens",
             "llm_summarization_output_tokens",
             "llm_summarization_avg_input_tokens_per_call",

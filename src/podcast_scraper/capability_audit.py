@@ -325,6 +325,10 @@ def measure_entity_identity(
                 "token": p,
                 "episodes": counts[p],
                 "feeds": len(token_feeds.get(p, set())),
+                # WHICH shows, not just how many. The count says a precision failure exists;
+                # only the ids say where to go and look, and canonicalising a pooled token is
+                # per-show work. Sorted so the row is stable across runs.
+                "feed_ids": sorted(token_feeds.get(p, set())),
             }
             for p in single_word
         ),
@@ -1348,7 +1352,14 @@ def _render_picker_discrimination(report: AuditReport, out: List[str]) -> None:
         # `person:a-correspondent` ("A. correspondent") and first-name-only entities, which
         # separate the corpus perfectly and are not things anyone would offer as an interest.
         # Print the band so that is visible rather than inferred from a count.
-        for entry in picker["band_top"][:8]:
+        #
+        # ALL of `band_top`, not a second `[:8]` slice of it. The line above reports the
+        # distinct-feed count for "its top {len(band_top)}", so listing fewer than that
+        # described a set the reader could not see. It also made the warning depend on
+        # rank: adding the 41st episode pushed `person:a-correspondent` from 8th to 10th
+        # and the unofferable entries vanished from the report while the count still read
+        # as a recommendation — the exact misreading this listing exists to prevent.
+        for entry in picker["band_top"]:
             out.append(f"    - `{entry['token']}` — {entry['episodes']} ep, {entry['share']:.0%}")
         if picker["decorative"]:
             out.append("- ⚠ **DECORATIVE**: every offered option yields the same feed")
@@ -1445,7 +1456,11 @@ def _render_entity_identity(report: AuditReport, out: List[str]) -> None:
                 "the user cannot undo"
             )
         for r in (ident.get("single_word_worst") or [])[:4]:
-            out.append(f"    - `{r['token']}` — {r['episodes']} ep across {r['feeds']} feed(s)")
+            shows = ", ".join(r.get("feed_ids") or [])
+            where = f" ({shows})" if shows and int(r["feeds"]) > 1 else ""
+            out.append(
+                f"    - `{r['token']}` — {r['episodes']} ep across {r['feeds']} feed(s){where}"
+            )
         for ex in ident["prefix_examples"][:4]:
             out.append(f"    - `{ex['short']}` ({ex['short_episodes']} ep) may be `{ex['long']}`")
         for ex in ident["shared_surname_examples"][:3]:

@@ -2133,6 +2133,53 @@ Common causes:
 - Profile in operator YAML names a provider whose key isn't set
 - Corpus directory has a permission issue (run owner mismatch)
 
+### "An episode was skipped: language 'xx' is not enabled"
+
+**What happened.** The episode's resolved language is not `enabled: true` in
+`config/languages.yaml`, so it was refused **before any transcription provider was called**
+(#2179). Nothing was transcribed and nothing was charged. Look for:
+
+```text
+[N] SKIPPING episode: language 'de' (from the profile default) is not enabled in
+    config/languages.yaml, so this episode was NOT transcribed.
+```
+
+The same sentence is in the episode ledger (`error_type: UnsupportedLanguage`) and in the
+transcription incidents file, so the run summary counts it as `skipped` rather than losing it.
+
+**Why it is a refusal and not a best effort.** Transcribing a German episode with an English-first
+chain produces a plausible transcript of the wrong words, and every downstream stage — summary, GI,
+KG, search — then trusts it. A visible skip is cheaper than a corpus you cannot tell is wrong.
+
+**Deciding which case you have.** Run the audit first; it says what the corpus actually contains
+and, crucially, WHERE each language came from:
+
+```bash
+CORPUS_DIR=<corpus> make corpus-language-audit
+```
+
+Then:
+
+1. **The feed really is in that language, and we want it.** Set `enabled: true` for it in
+   `config/languages.yaml` — *and* in `src/podcast_scraper/data/languages.yaml`, the wheel-bundled
+   copy the container reads. A test asserts the two are byte-identical. Note that enabling a
+   language only makes it *ingestable*; translation is Phase 2.
+2. **The feed's declared tag is WRONG** (common — publishers mis-tag), or you want this one feed
+   processed as English regardless. Add a per-feed override in `feeds.spec.yaml`:
+
+   ```yaml
+   feeds:
+     - url: https://example.com/feed.xml
+       language: en
+   ```
+
+   The override outranks the feed's own tag, so it is the remedy for a mis-tagged show. A typo
+   there raises at config load rather than silently falling back.
+3. **The feed should not be ingested at all.** Leave it skipped and remove it from the feed list.
+
+**What NOT to do.** Do not set the run-global `language:` to work around one feed — that is the
+assumption Phase 0 removed, and it re-labels every episode in the run. Use the per-feed override.
+
 ### "Stale Docker volume after env path changes"
 
 `docker volume inspect compose_corpus_data` — if the `device:` field

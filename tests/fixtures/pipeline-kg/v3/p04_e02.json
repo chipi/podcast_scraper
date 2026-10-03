@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p04_e02",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:capture-one-workflow",
+      "label": "capture one workflow"
+    },
+    {
+      "id": "topic:color-grading",
+      "label": "color grading"
+    },
+    {
+      "id": "topic:documentary-essay",
+      "label": "documentary essay"
+    },
+    {
+      "id": "topic:documentary-frames",
+      "label": "documentary frames"
+    },
+    {
+      "id": "topic:editing-workflow",
+      "label": "editing workflow"
+    },
+    {
+      "id": "topic:frame-positioning",
+      "label": "frame positioning"
+    },
+    {
+      "id": "topic:operational-angle",
+      "label": "operational angle"
+    },
+    {
+      "id": "topic:peak-design-slings",
+      "label": "peak design slings"
+    },
+    {
+      "id": "topic:platform-integration",
+      "label": "platform integration"
+    },
+    {
+      "id": "topic:second-order-effect",
+      "label": "second-order effect"
+    }
+  ]
+}

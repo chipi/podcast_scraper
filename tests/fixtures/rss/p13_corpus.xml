@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Pfadgespräche</title>
+    <link>http://localhost/</link>
+    <description>Gespräche über Wegebau: Entwässerung, Linienführung, und die Menschen, die den Weg bauen. Deutsches Gegenstück zu Singletrack Sessions.</description>
+    <language>de-DE</language>
+
+    <itunes:author>Katrin Vogel</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p13_cover.svg"/>
+
+    <item>
+      <title>Wege Bauen, Die Bleiben</title>
+      <guid isPermaLink="false">p13_e01</guid>
+      <pubDate>Mon, 01 Dec 2025 00:00:00 +0000</pubDate>
+      <description>Katrin Vogel spricht mit dem Wegebauer Stefan Brandt über Entwässerung, Linienführung, und wie Wege den Winter über befahrbar bleiben.</description>
+      <enclosure url="/audio/p13_e01.mp3" length="3362942" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p13_e01.vtt" type="text/vtt"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:07:00</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Drainage, Gefälle und das Dritte Jahr</title>
+      <guid isPermaLink="false">p13_e02</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Katrin Vogel talks with Stefan Brandt: Drainage, Gefälle und das Dritte Jahr.</description>
+      <enclosure url="/audio/p13_e02.mp3" length="638057" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p13_e02.vtt" type="text/vtt"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:01:20</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Genehmigungen und Geduld</title>
+      <guid isPermaLink="false">p13_e03</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Katrin Vogel talks with Stefan Brandt: Genehmigungen und Geduld.</description>
+      <enclosure url="/audio/p13_e03.mp3" length="532940" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p13_e03.vtt" type="text/vtt"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:01:07</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

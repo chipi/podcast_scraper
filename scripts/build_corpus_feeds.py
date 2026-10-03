@@ -65,19 +65,22 @@ ROOT = Path(__file__).resolve().parents[1]
 _ITUNES_NS = "{http://www.itunes.com/dtds/podcast-1.0.dtd}"
 _EPISODE_RE = re.compile(r"^p(\d+)_e(\d+)$")
 
-# (rss stem carrying the show's channel metadata, show id) — mirrors APP_SHOWS in
-# build_app_validation_corpus.py, in corpus order.
-SHOWS: list[tuple[str, str]] = [
-    ("p01_mtb", "p01"),
-    ("p02_software", "p02"),
-    ("p03_scuba", "p03"),
-    ("p04_photo", "p04"),
-    ("p05_investing", "p05"),
-    ("p06_edge_cases", "p06"),
-    ("p07_sustainability", "p07"),
-    ("p08_solar", "p08"),
-    ("p09_biohacking", "p09"),
-]
+# (rss stem carrying the show's channel metadata, show id) — IMPORTED from the corpus builder
+# rather than copied beside it.
+#
+# This was a duplicate of `APP_SHOWS` with a comment saying it "mirrors" it, which is a promise a
+# comment cannot keep: adding p10..p14 to the corpus builder left this one at nine, so the feeds
+# described a 40-episode corpus while the builder built a 45-episode one. A pipeline run can only
+# process what a feed advertises — which is the EXACT failure this script's own docstring was
+# written about, reappearing through the back door of a second list.
+#
+# One list, one truth. The import also runs the builder's umbrella guard, so a show missing from
+# `CROSS_CUTTING_TOPICS` fails here too rather than silently producing a thinner corpus.
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from build_app_validation_corpus import APP_SHOWS as SHOWS  # noqa: E402
 
 # p06/p08/p09 RSS fixtures are themed for other shows; restore the v3 identity (#1148).
 SHOW_META_OVERRIDE: dict[str, dict[str, str]] = {

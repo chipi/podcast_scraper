@@ -162,6 +162,18 @@ const shareModel = computed<EntityCardModel>(() => {
   }
 })
 const segments = ref<Segment[]>([])
+// S3.1 — the transcript language control (D-25).
+//
+// `transcriptLang` is the ALTERNATIVE the listener asked for, not the language on screen:
+// `null` means "whatever the resolver serves by default", which is English wherever an English
+// render exists (D-38). `servedLanguage` / `sourceLanguage` are what the response actually
+// reported, so the control describes the transcript rather than the request. Keeping those
+// separate is what makes the "asked for English, none exists" case honest — the response says
+// `es`, and the toggle shows the original as active.
+const transcriptLang = ref<string | null>(null)
+const servedLanguage = ref<string | null>(null)
+const sourceLanguage = ref<string | null>(null)
+const transcriptLangBusy = ref(false)
 const audioUrl = ref<string | null>(null)
 const insights = ref<Insight[]>([])
 const topics = ref<Topic[]>([])
@@ -593,6 +605,46 @@ function serverAnswered(err: unknown): boolean {
   return err instanceof ApiError
 }
 
+/** Whether this episode HAS a second rendering to offer (translated, and we know its source). */
+const canSwitchTranscriptLanguage = computed(
+  () => !!sourceLanguage.value && sourceLanguage.value !== 'en' && segments.value.length > 0,
+)
+
+/** The language on screen right now — what the response reported, else the requested fallback. */
+const shownTranscriptLanguage = computed(
+  () => servedLanguage.value ?? transcriptLang.value ?? 'en',
+)
+
+/**
+ * Swap the transcript between English and the episode's original (D-25).
+ *
+ * Refetches rather than holding both: the two renderings are different artifacts with their own
+ * segment ids, and the one thing that must stay true is that the timestamps match the audio being
+ * played. `getSegments` resolves the FULL-TIMELINE body for either language — never the ad-free
+ * analysis base, which is minutes shorter and would drift every highlight and seek.
+ *
+ * On failure the previous transcript stays on screen and the toggle snaps back: a listener who
+ * asked for the original and got a network error should not be left with an empty panel.
+ */
+async function setTranscriptLanguage(lang: string | null): Promise<void> {
+  const slug = props.slug
+  const previous = transcriptLang.value
+  if (previous === lang || transcriptLangBusy.value) return
+  transcriptLangBusy.value = true
+  transcriptLang.value = lang
+  try {
+    const next = await getSegments(slug, lang)
+    if (props.slug !== slug) return
+    segments.value = next?.segments ?? []
+    servedLanguage.value = next?.language ?? null
+    sourceLanguage.value = next?.source_language ?? sourceLanguage.value
+  } catch {
+    if (props.slug === slug) transcriptLang.value = previous
+  } finally {
+    if (props.slug === slug) transcriptLangBusy.value = false
+  }
+}
+
 async function load(slug: string): Promise<void> {
   const cached = getPlayerViewSnapshot(slug)
   // Per LOAD, not per view: one mounted PlayerView serves every episode you walk to from it.
@@ -602,6 +654,13 @@ async function load(slug: string): Promise<void> {
   loadFailed.value = false
   notDownloaded.value = false
   transcriptBroken.value = false
+  // Per EPISODE: a language choice belongs to the transcript you made it on. Carrying `es` to the
+  // next episode would ask for a rendering it may not have, and the listener never asked for it
+  // there. Reset before the fetch below reads it.
+  transcriptLang.value = null
+  servedLanguage.value = null
+  sourceLanguage.value = null
+  transcriptLangBusy.value = false
   // Only for a DIFFERENT episode. Returning to the one already playing (tapping the mini-player)
   // must not touch transport state: the store's load() no-ops for the same slug, so nothing would
   // restore what we wiped — the element keeps playing while the UI shows Play at 0:00, the first
@@ -756,9 +815,13 @@ async function load(slug: string): Promise<void> {
   // parallel but do NOT gate the render on them, exactly like the related rail above. This is what
   // lets audio start after ONE round-trip (detail + audio) instead of waiting on all six, including
   // the ~76 KB transcript. Slug-guarded so a late reply for a since-navigated episode is dropped.
-  getSegments(slug)
+  getSegments(slug, transcriptLang.value)
     .then((segs) => {
-      if (props.slug === slug) segments.value = segs?.segments ?? []
+      if (props.slug === slug) {
+        segments.value = segs?.segments ?? []
+        servedLanguage.value = segs?.language ?? null
+        sourceLanguage.value = segs?.source_language ?? null
+      }
     })
     .catch(async (err: unknown) => {
       if (props.slug !== slug) return
@@ -1708,6 +1771,49 @@ onBeforeUnmount(() => {
                 @click="adjustSync(1)"
               >
                 +
+              </button>
+            </div>
+          </div>
+          <!-- S3.1 — transcript language control (D-25). Renders ONLY for a translated episode:
+               an English-native one has no second rendering, so a toggle there would be a control
+               with one position. The badge COMPONENT is in scope here; its use as metadata
+               decoration elsewhere stays v2 (D-26). -->
+          <div
+            v-if="canSwitchTranscriptLanguage"
+            data-testid="transcript-language-control"
+            class="mb-2 flex items-center justify-end gap-2 text-xs text-muted"
+          >
+            <span>{{ t('player.transcriptLanguage') }}</span>
+            <div class="flex items-center gap-1" role="group" :aria-label="t('player.transcriptLanguage')">
+              <button
+                type="button"
+                data-testid="transcript-lang-en"
+                class="rounded-full border border-border px-2 py-0.5 leading-none"
+                :class="
+                  shownTranscriptLanguage === 'en'
+                    ? 'bg-canvas-foreground text-canvas'
+                    : 'text-muted'
+                "
+                :aria-pressed="shownTranscriptLanguage === 'en'"
+                :disabled="transcriptLangBusy"
+                @click="setTranscriptLanguage(null)"
+              >
+                {{ t('player.transcriptLanguageEnglish') }}
+              </button>
+              <button
+                type="button"
+                data-testid="transcript-lang-source"
+                class="rounded-full border border-border px-2 py-0.5 uppercase leading-none"
+                :class="
+                  shownTranscriptLanguage !== 'en'
+                    ? 'bg-canvas-foreground text-canvas'
+                    : 'text-muted'
+                "
+                :aria-pressed="shownTranscriptLanguage !== 'en'"
+                :disabled="transcriptLangBusy"
+                @click="setTranscriptLanguage(sourceLanguage)"
+              >
+                {{ sourceLanguage }}
               </button>
             </div>
           </div>

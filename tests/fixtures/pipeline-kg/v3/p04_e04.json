@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p04_e04",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:crowd-shoot-conditions",
+      "label": "crowd-shoot conditions"
+    },
+    {
+      "id": "topic:failure-mode-identification",
+      "label": "failure mode identification"
+    },
+    {
+      "id": "topic:frame-and-light-decisions",
+      "label": "frame and light decisions"
+    },
+    {
+      "id": "topic:iteration-through-testing",
+      "label": "iteration through testing"
+    },
+    {
+      "id": "topic:post-processing-tools",
+      "label": "post-processing tools"
+    },
+    {
+      "id": "topic:practical-reliability-of-gear",
+      "label": "practical reliability of gear"
+    },
+    {
+      "id": "topic:roundtable-photography",
+      "label": "roundtable photography"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:strobe-lighting-trade-offs",
+      "label": "strobe lighting trade-offs"
+    },
+    {
+      "id": "topic:tooling-platforms",
+      "label": "tooling platforms"
+    }
+  ]
+}

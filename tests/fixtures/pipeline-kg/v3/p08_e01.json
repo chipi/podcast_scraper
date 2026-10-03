@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p08_e01",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:deliberate-style",
+      "label": "deliberate style"
+    },
+    {
+      "id": "topic:format-reliability",
+      "label": "format reliability"
+    },
+    {
+      "id": "topic:format-vs-content",
+      "label": "format vs content"
+    },
+    {
+      "id": "topic:listener-trust",
+      "label": "listener trust"
+    },
+    {
+      "id": "topic:pronunciation-reliability",
+      "label": "pronunciation reliability"
+    },
+    {
+      "id": "topic:public-radio-voice",
+      "label": "public radio voice"
+    },
+    {
+      "id": "topic:second-order-effect",
+      "label": "second-order effect"
+    },
+    {
+      "id": "topic:team-consistency",
+      "label": "team consistency"
+    },
+    {
+      "id": "topic:tooling-failure-mode",
+      "label": "tooling failure mode"
+    },
+    {
+      "id": "topic:trade-off-framing",
+      "label": "trade-off framing"
+    }
+  ]
+}

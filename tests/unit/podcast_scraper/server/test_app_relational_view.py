@@ -914,11 +914,22 @@ class TestWhatHoldsAStorylineTogether:
         got = [lift[m.id] for m in card.member_topics]
         assert got == sorted(got, reverse=True), f"members not in lift order: {got}"
 
-    def test_lift_breaks_a_tie_episode_count_cannot(self) -> None:
-        """Two members on the same episode count must still have a defined order, and it is lift's.
+    def test_lift_outranks_episode_count(self) -> None:
+        """Storyline members are ordered by LIFT, and a bigger member does not jump the queue.
 
-        `safety practices` and `endurance sport` both appear in 4 episodes; their lifts are 1.7 and
-        1.5. Ordering by size alone would leave this pair arbitrary.
+        THE PREVIOUS VERSION ASSERTED A WEAKER AND SLIGHTLY WRONG THING. It looked for two members
+        tied on `episode_count` and checked lift broke the tie, describing lift as a tiebreaker.
+        The sort key is `(-lift, -episodes, id)` — lift is PRIMARY — so "tie on size, ordered by
+        lift" only ever described a fixture where the two happened to co-vary. When the five
+        non-English counterpart shows merged in they took `endurance sport` from 4 episodes to 9
+        (each carries it as an authored topic), the tie vanished, and the test failed with its own
+        message: "fixture no longer has a tie; this test needs a new example".
+
+        The merged fixture offers something stronger than a tie: `safety practices` has 4 episodes
+        and `endurance sport` has 9, yet safety practices ranks HIGHER because its lift is 1.7
+        against 1.5. Ordering by size alone would invert them, so this is the real claim —
+        asserted over the whole list rather than one hand-picked pair, which is also why it cannot
+        go stale the way the tie did.
         """
         from podcast_scraper.search.storylines import storyline_member_lift
         from podcast_scraper.server.app_relational_view import build_storyline_card
@@ -926,9 +937,26 @@ class TestWhatHoldsAStorylineTogether:
         card = build_storyline_card(self.FIXTURE, self.STORYLINE)
         lift = storyline_member_lift(self.FIXTURE)[self.STORYLINE]
         assert card is not None
-        tied = [m for m in card.member_topics if m.episode_count == 4]
-        assert len(tied) >= 2, "fixture no longer has a tie; this test needs a new example"
-        assert lift[tied[0].id] > lift[tied[1].id]
+        members = card.member_topics
+        assert len(members) >= 2, "a single member cannot demonstrate an ordering"
+
+        lifts = [lift.get(m.id, 0.0) for m in members]
+        assert lifts == sorted(lifts, reverse=True), (
+            "storyline members are not ordered by lift descending: "
+            f"{[(m.label, lift.get(m.id)) for m in members]}"
+        )
+        # The case that makes the ordering load-bearing: at least one member outranks a LARGER one.
+        # Without this the assertion above would also pass on a fixture where lift and size agree,
+        # which is exactly how the old tie-based version became untrue without failing.
+        inversions = [
+            (a.label, a.episode_count, b.label, b.episode_count)
+            for a, b in zip(members, members[1:])
+            if a.episode_count < b.episode_count
+        ]
+        assert inversions, (
+            "every member is also ordered by episode count, so this fixture cannot show that lift "
+            "is the key — pick a storyline where a smaller member has the higher lift"
+        )
 
     def test_strongest_pair_is_the_storylines_evidence(self) -> None:
         from podcast_scraper.server.app_relational_view import build_storyline_card
@@ -971,18 +999,33 @@ class TestAGroupingMovesOverTime:
             pytest.skip(f"fixture corpus missing: {self.FIXTURE}")
 
     def test_a_member_that_stopped_appearing_is_gone(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_storyline_card
+        """`tc:macroeconomics`, which still has members that stopped appearing.
 
-        card = build_storyline_card(self.FIXTURE, "thc:managing-risk")
+        MOVED FROM THE STORYLINE, for the same reason the sibling `new` test moved: the example
+        stopped existing. It used `endurance sport` in `thc:managing-risk`, and the five
+        non-English counterpart shows each carry `endurance sport` as an authored topic — taking it
+        from 4 episodes to 9 and from `gone` to `steady`. The corpus has exactly ONE storyline, so
+        there is no other storyline to move the example to.
+
+        A theme card tests the same code: `build_theme_card` and `build_storyline_card` are both
+        thin wrappers over `_build_cluster_card`, and `_trend` lives inside it. The only difference
+        between the two is the member ORDERING (storylines have lift, themes do not), which this
+        test does not touch.
+        """
+        from podcast_scraper.server.app_relational_view import build_theme_card
+
+        card = build_theme_card(self.FIXTURE, "tc:macroeconomics")
         assert card is not None
-        by_label = {m.label: m for m in card.member_topics}
-        endurance = by_label["endurance sport"]
-        assert endurance.trend == "gone", f"expected gone, got {endurance.trend}"
+        gone = [m for m in card.member_topics if m.trend == "gone"]
+        assert gone, (
+            "no member of tc:macroeconomics is `gone`, so the state is unexercised — find a "
+            f"cluster that has one: {[(m.label, m.trend) for m in card.member_topics]}"
+        )
         # `gone` must be justified by the dates it reports, not asserted on its own.
-        assert endurance.last_seen is not None
-        assert endurance.last_seen < max(
-            m.last_seen for m in card.member_topics if m.last_seen
-        ), "a member called gone is not the most recent one"
+        newest = max(m.last_seen for m in card.member_topics if m.last_seen)
+        for m in gone:
+            assert m.last_seen is not None
+            assert m.last_seen < newest, f"{m.label} is called gone but is the most recent member"
 
     def test_a_member_absent_from_the_first_half_is_new(self) -> None:
         """`tc:macroeconomics`, which has members on both sides of its own median.

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
+from podcast_scraper.languages import episode_is_unusable, normalize_language_tag
 from podcast_scraper.search.corpus_scope import (
     discover_all_metadata_files,
     discover_metadata_files,
@@ -157,13 +158,33 @@ def _feed_authors(doc: dict[str, Any]) -> tuple[str, ...]:
 
 
 def _feed_language(doc: dict[str, Any]) -> Optional[str]:
-    """The feed language tag (e.g. 'en'), or None."""
+    """The feed language tag, NORMALIZED to its primary subtag (e.g. ``'en'``), or None.
+
+    A VALUE CHANGE for existing clients (#2176): this returned the stored tag verbatim, and
+    every episode in ``app-validation-corpus/v3`` stores ``"en-us"`` — so that is what the API
+    served. Normalizing here means a client comparing against ``"en"`` stops missing, and two
+    feeds differing only by region stop looking like different languages.
+    """
     feed = doc.get("feed")
     if isinstance(feed, dict):
         lang = feed.get("language")
         if isinstance(lang, str) and lang.strip():
-            return lang.strip()
+            return normalize_language_tag(lang)
     return None
+
+
+def _episode_language(doc: dict[str, Any]) -> Optional[str]:
+    """This EPISODE's language, normalized, falling back to the feed's.
+
+    The episode is the answer once #2172 has written it; the feed block is the fallback for
+    every artifact produced before that, and for shows where the two cannot differ.
+    """
+    episode = doc.get("episode")
+    if isinstance(episode, dict):
+        lang = episode.get("language")
+        if isinstance(lang, str) and lang.strip():
+            return normalize_language_tag(lang)
+    return _feed_language(doc)
 
 
 def _feed_last_updated(doc: dict[str, Any]) -> Optional[str]:
@@ -309,6 +330,10 @@ class CatalogEpisodeRow:
     feed_category: Optional[str] = None
     feed_authors: tuple[str, ...] = ()
     feed_language: Optional[str] = None
+    #: This episode's own language (#2176). Distinct from ``feed_language`` because a show
+    #: can carry an episode in another language, and because the per-feed override applies
+    #: per run rather than to the feed's declared tag.
+    episode_language: Optional[str] = None
     feed_last_updated: Optional[str] = None
 
     def sort_key(self) -> tuple[int, int, str]:
@@ -337,6 +362,12 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
             continue
         doc = _load_metadata_doc(str(meta_path))
         if doc is None:
+            continue
+        # D-44 point 2: an episode the pipeline could not complete appears NOWHERE. One check, in
+        # the one function that feeds the app, the digest and the topic clusters — so there is no
+        # surface left where a half-processed episode can show up empty instead of not at all,
+        # which is the shape of #2198.
+        if episode_is_unusable(doc):
             continue
         fid_norm, eid = _feed_and_episode_ids(doc)
         feed_id = fid_norm or ""
@@ -400,6 +431,7 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 feed_category=feed_cat,
                 feed_authors=feed_authors,
                 feed_language=feed_lang,
+                episode_language=_episode_language(doc),
                 feed_last_updated=feed_updated,
             )
         )
@@ -501,6 +533,7 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 feed_category=feed_cat,
                 feed_authors=feed_authors,
                 feed_language=feed_lang,
+                episode_language=_episode_language(doc),
                 feed_last_updated=feed_updated,
             )
         )
@@ -607,6 +640,7 @@ def catalog_row_for_metadata_path(
         feed_category=feed_cat,
         feed_authors=feed_authors,
         feed_language=feed_lang,
+        episode_language=_episode_language(doc),
         feed_last_updated=feed_updated,
     )
 

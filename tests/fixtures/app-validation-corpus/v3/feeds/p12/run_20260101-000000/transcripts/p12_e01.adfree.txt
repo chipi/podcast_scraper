@@ -1,0 +1,50 @@
+SPEAKER_00: Strava is the home of athletes. Start at strava.com/podcast. Tell me about how you made that decision. How does RockShox fit into this picture?
+SPEAKER_01: Honestly, drainage is the most crucial design decision for any trail. We've seen this in teams that use the Alliance Cascadia. I've observed this pattern repeating itself in three different teams.
+SPEAKER_00: Tell me how you came to that decision. Which version of the question is truly important?
+SPEAKER_01: Yes, listen – the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.
+SPEAKER_00: I want to delve deeper. Where do soil erosion and trail construction intersect?
+SPEAKER_01: Of course. Discussions about land management should take place before the first shovel hits the ground. We've seen this in teams that use RockShox. The frame matters because it tells you what compromises you're making.
+SPEAKER_00: Tell me more.
+SPEAKER_01: And when teams adopt Spoke & Wrench within this workflow, the trade-offs become apparent. If you ignore these trade-offs, you'll end up having to rebuild everything from scratch a year later.
+SPEAKER_00: Tell me how you came to that decision. Where do soil erosion and trail construction intersect?
+SPEAKER_01: Of course. The benches along the hillside are not optional. The shortcut of the first year is the ravine of the third year. And the second-order effect is the part that almost everyone overlooks.
+SPEAKER_00: This is a useful framework. Which version of the question is truly important?
+SPEAKER_01: Yes, listen – the structure of the team is more important than people realize. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.
+SPEAKER_00: What does the failure mode look like? What is the structural aspect that most auditors do not have access to?
+SPEAKER_01: Let me tell you the version that I truly believe in. I've changed my mind about machine-made trails compared to those made by hand. I've seen this pattern repeat itself in three different teams.
+SPEAKER_00: Tell me more. What does the failure mode look like? Where do soil erosion and trail construction intersect?
+SPEAKER_01: That's how I see it. Drainage is the most crucial design decision for any trail. We've seen it in teams that use Shimano components. If you ignore that, you'll end up having to rebuild everything from scratch a year later.
+SPEAKER_00: Tell me how you came to that decision. How does RockShox fit into this picture?
+SPEAKER_01: Yes, listen – the most common mistake that beginner builders make is digging with too steep a slope. Once you understand that, the rest of the decisions become much easier.
+SPEAKER_00: Challenge my conventional wisdom. What did you used to believe about this, and what have you revised your views on?
+SPEAKER_01: Let me give you the version that I truly believe in. Discussions about land management should take place before the first shovel hits the ground. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.
+SPEAKER_00: It's settled.
+Or:
+It's a done deal.
+Or:
+That's confirmed.
+Or:
+It's arranged.
+Or:
+It's agreed.
+(The best option depends on the context.)
+SPEAKER_01: Outside of the tools available at the Cascadia Alliance level, it is more difficult to identify the failure mode. And the second-order effect is the part that almost everyone overlooks.
+SPEAKER_00: What heuristic do you always find yourself returning to? Which version of the question is truly the most important?
+SPEAKER_01: It boils down to this: benches along the hillside are not optional. The shortcut of the first year leads to the ravine of the third year. I've seen this pattern repeat itself in three different teams.
+SPEAKER_00: What does the failure mode look like? What is the most underestimated aspect of trail construction?
+SPEAKER_01: Let me give you the version that I truly believe in. The structure of the soil is more important than people realize. We've seen this in teams that use the Alliance Cascadia. I've seen this pattern repeat itself in three different teams.
+SPEAKER_00: I want to delve deeper. How does Shimano fit into this picture?
+SPEAKER_01: Yes, listen – I've changed my mind about machine-made trails versus those made by hand. Once you understand that, the rest of the decisions become easier.
+SPEAKER_00: Where does it stop working?
+SPEAKER_01: Outside of issues related to RockShox components, the failure mode is more difficult to identify. Once you understand that, the rest of the decisions become easier.
+SPEAKER_00: Let's change the subject – I want to dedicate the final section to the management of the territory.
+SPEAKER_01: That's where the conversation becomes interesting, because the compromises surrounding land management touch upon everything we've discussed.
+SPEAKER_00: I want to delve deeper. What is the opposing perspective that most listeners don't have access to?
+SPEAKER_01: It all boils down to this: drainage is the most crucial design decision for any trail. We've seen this with teams that use RockShox components. If you ignore this, you'll end up having to rebuild everything from scratch a year later.
+SPEAKER_00: What does the failure mode look like? What is the most underestimated aspect of trail construction?
+SPEAKER_01: Honestly, the most common mistake that beginner builders make is digging with too steep a slope. The framework is important because it tells you what compromises you are making.
+SPEAKER_00: Before we conclude, what is one thing that listeners can try this week?
+SPEAKER_01: Choose one of the ideas we discussed and implement it for two weeks. Everything else is iteration.
+SPEAKER_00: And finally, a big thank you to our partners at Linear. Linear is the ticketing system designed for speed – built for the keyboard. Check them out at linear.com. Julien Mercier, thank you for this conversation.
+SPEAKER_01: Thank you, Camille.
+SPEAKER_00: That's all for today's episode of Sessions Sentier. See you next time.

@@ -1,0 +1,28 @@
+{
+  "fixture": "p14_e03",
+  "podcast": "Sessões de Trilha — Episodio",
+  "episode": "Licenças e Paciência",
+  "type": "interview",
+  "speakers": [
+    "Beatriz Antunes",
+    "Rafael Vasconcelos"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Beatriz Antunes": "Luciana",
+    "Rafael Vasconcelos": "Joana"
+  },
+  "voice_pitch_shift": {
+    "Rafael Vasconcelos": 0.4
+  },
+  "cameo": null,
+  "transcript_sha256": "21f6c0f24d7d06cc0e89593a23c46d4e9ad622ae332bb122463df4b1e4af6b0d",
+  "audio_sha256": "2dfedb92c9bc4b36e696a500c28706fc16e456344fc23e114404f9305266ff81",
+  "rttm_sha256": "d4ab01a9e64f10e837eecd6c018291b8e25db2b7f89d23d80fb94646fcac91aa"
+}

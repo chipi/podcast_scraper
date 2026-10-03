@@ -36,6 +36,7 @@ from ...exceptions import (
     ProviderNotInitializedError,
     ProviderRuntimeError,
 )
+from ...languages import transcription_language
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ..capabilities import ProviderCapabilities
 from . import speaker_detection, summarizer
@@ -127,6 +128,45 @@ def _import_third_party_whisper() -> ModuleType:
                 "Make sure 'openai-whisper' is installed: pip install openai-whisper"
             )
         ) from exc
+
+
+#: Languages the LOCAL whisper tier can actually transcribe (S0.7, #2178).
+#:
+#: A capability of this provider, declared as data rather than hardcoded into a predicate's name.
+#: Its model default is `base.en`, and `normalize_whisper_model_name` strips the `.en` for anything
+#: else — so a non-English request silently degrades to the small multilingual `["base", "tiny"]`
+#: chain, whose output is confident and wrong. Widening this tuple is how the provider would
+#: announce it had become multilingual; nothing else needs to change.
+LOCAL_WHISPER_SUPPORTED_LANGUAGES: Tuple[str, ...] = ("en",)
+
+
+def _guard_supported_languages(
+    language: object, supported: Tuple[str, ...] = LOCAL_WHISPER_SUPPORTED_LANGUAGES
+) -> None:
+    """Refuse a language this provider cannot transcribe, rather than transcribing it badly.
+
+    ROUTES ON A PARAMETER, and the name says nothing about which language. The caller (or the
+    provider) states what is supported; this decides. The predicate used to be called
+    `_guard_english_only`, which baked one provider's current capability into a function name on a
+    platform meant to be multilingual — so widening support would have meant renaming the guard.
+
+    ``None`` PROCEEDS: nobody resolved a language, the engine decides, and that is the honest
+    pre-#2172 state of most of the corpus. Only an explicitly UNSUPPORTED request is refused.
+    """
+    from ...languages import normalize_language_tag
+
+    if not isinstance(language, str):
+        return
+    normalized = normalize_language_tag(language)
+    if normalized is None or normalized in supported:
+        return
+    raise ValueError(
+        f"the local whisper provider supports {list(supported)} and was asked for "
+        f"{normalized!r}: its model default is base.en, and an unsupported request falls back to "
+        'the small multilingual ["base", "tiny"] models, whose output is confident and wrong. '
+        "Route this episode to a multilingual transcriber (tailnet_dgx_whisper) or leave the "
+        "language unset."
+    )
 
 
 class MLProvider:
@@ -823,8 +863,22 @@ class MLProvider:
                 capability="transcription",
             )
 
-        # Use provided language or fall back to config
-        effective_language = language if language is not None else (self.cfg.language or "en")
+        # S0.6 (#2177): the caller's language, else the run config -- but NEVER a fabricated
+        # "en". This used to end `or "en"`, so an episode whose language nobody resolved was
+        # transcribed as English by a model chain whose local default is `base.en`. The result is
+        # a plausible transcript of the wrong words, which every downstream stage then trusts.
+        # None means "let the engine decide", which is honest; "en" was an assertion.
+        effective_language = language if language is not None else self.cfg.language
+
+        # S0.7 (#2178): this provider is ENGLISH-ONLY, and says so rather than producing a
+        # plausible transcript of the wrong words. Its Whisper default is `base.en`, and for a
+        # non-English language `normalize_whisper_model_name` strips the `.en` and runs
+        # ["base", "tiny"] -- small multilingual models whose output is confident and wrong.
+        #
+        # The provider STAYS: it is the PRIMARY transcriber in eight local / dev / airgapped
+        # profiles. What changed is that it refuses work it cannot do, so the hazard cannot come
+        # back through a dev profile even though the DGX profiles now hold rather than fail over.
+        _guard_supported_languages(effective_language)
 
         logger.debug("Transcribing audio file: %s (language: %s)", audio_path, effective_language)
 
@@ -881,8 +935,22 @@ class MLProvider:
                 capability="transcription",
             )
 
-        # Use provided language or fall back to config
-        effective_language = language if language is not None else (self.cfg.language or "en")
+        # S0.6 (#2177): the caller's language, else the run config -- but NEVER a fabricated
+        # "en". This used to end `or "en"`, so an episode whose language nobody resolved was
+        # transcribed as English by a model chain whose local default is `base.en`. The result is
+        # a plausible transcript of the wrong words, which every downstream stage then trusts.
+        # None means "let the engine decide", which is honest; "en" was an assertion.
+        effective_language = language if language is not None else self.cfg.language
+
+        # S0.7 (#2178): this provider is ENGLISH-ONLY, and says so rather than producing a
+        # plausible transcript of the wrong words. Its Whisper default is `base.en`, and for a
+        # non-English language `normalize_whisper_model_name` strips the `.en` and runs
+        # ["base", "tiny"] -- small multilingual models whose output is confident and wrong.
+        #
+        # The provider STAYS: it is the PRIMARY transcriber in eight local / dev / airgapped
+        # profiles. What changed is that it refuses work it cannot do, so the hazard cannot come
+        # back through a dev profile even though the DGX profiles now hold rather than fail over.
+        _guard_supported_languages(effective_language)
 
         logger.debug(
             "Transcribing audio file with segments: %s (language: %s)",
@@ -1064,6 +1132,14 @@ class MLProvider:
                 nlp=self._spacy_nlp,
                 cfg=self.cfg,
                 cached_hosts=known_hosts,
+                # S2.14. The EPISODE's language, not "en", and the difference is the whole
+                # point: the inputs here are the feed's title and description, which stay in
+                # the source language even after the TRANSCRIPT has been translated — nothing
+                # translates feed metadata. So English NER over a Spanish title is a live
+                # hazard for a translated episode too, and §5.2 measured what it produces:
+                # recall 2/2 with precision falling 67% -> 18%. Phantom people, not missing
+                # ones, and a phantom name becomes a person in the roster and then the KG.
+                text_language=transcription_language(self.cfg),
             )
         )
 

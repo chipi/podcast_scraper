@@ -262,11 +262,29 @@ def _feed_recurring_text(cfg: config.Config) -> set:
     out_dir = str(getattr(cfg, "output_dir", "") or "")
     if not out_dir:
         return set()
-    paths = [
-        p
-        for p in Path(out_dir).glob("**/transcripts/*.txt")
-        if ".adfree" not in p.name and ".cleaned" not in p.name
-    ]
+    # DERIVED AND SOURCE-LANGUAGE TEXTS ARE NOT EPISODES. Both exclusions below were missing and
+    # both double-counted:
+    #
+    #   * `.anon` is a derived copy of the same transcript (`transcript_resolution.ANON_SUFFIX`),
+    #     written for every diarized episode. Counting it doubles each episode's weight in the
+    #     shingle tally and defeats the three-transcript abstention at two episodes.
+    #   * `<base>.<lang>.txt` is the SOURCE body a translated episode keeps beside its English
+    #     canonical one (D-44). Counting it reads one episode as two, in two different languages.
+    #
+    # The language case is matched against the registry, not a two-letter regex: only the registry
+    # knows which tokens are languages, and a base transcript ending in a dotted two-letter token
+    # would otherwise disappear from the detector entirely.
+    from ....languages import language_registry
+
+    _lang_suffixes = tuple(f".{code}." for code in language_registry())
+
+    def _is_episode_text(name: str) -> bool:
+        if ".adfree" in name or ".cleaned" in name or ".anon" in name:
+            return False
+        stem = name[: -len(".txt")] if name.endswith(".txt") else name
+        return not any(stem.endswith(s[:-1]) for s in _lang_suffixes)
+
+    paths = [p for p in Path(out_dir).glob("**/transcripts/*.txt") if _is_episode_text(p.name)]
     count = len(paths)
     cached = _recurring_cache.get(out_dir)
     if cached is not None and count <= cached[0]:

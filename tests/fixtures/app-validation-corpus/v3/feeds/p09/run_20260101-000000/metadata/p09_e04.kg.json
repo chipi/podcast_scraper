@@ -26,6 +26,46 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-4d94c63887afbd1a",
+      "target": "topic:coupling-vs-components",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4d94c63887afbd1a",
+      "target": "topic:cross-cutting-trade-offs",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4d94c63887afbd1a",
+      "target": "topic:framing-risks",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4d94c63887afbd1a",
+      "target": "topic:ipcc-teams",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4d94c63887afbd1a",
+      "target": "topic:iterative-improvement",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4d94c63887afbd1a",
+      "target": "topic:measured-systems-behavior",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4d94c63887afbd1a",
+      "target": "topic:reliability-trade-offs",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-4d94c63887afbd1a",
+      "target": "topic:slow-correlated-risks",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-4d94c63887afbd1a",
       "to": "person:sam",
       "type": "MENTIONS"
@@ -89,6 +129,70 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:coupling-vs-components",
+      "properties": {
+        "label": "coupling vs components",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cross-cutting-trade-offs",
+      "properties": {
+        "label": "cross cutting trade offs",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:framing-risks",
+      "properties": {
+        "label": "framing risks",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:ipcc-teams",
+      "properties": {
+        "label": "ipcc teams",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iterative-improvement",
+      "properties": {
+        "label": "iterative improvement",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:measured-systems-behavior",
+      "properties": {
+        "label": "measured systems behavior",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability-trade-offs",
+      "properties": {
+        "label": "reliability trade offs",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:slow-correlated-risks",
+      "properties": {
+        "label": "slow correlated risks",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

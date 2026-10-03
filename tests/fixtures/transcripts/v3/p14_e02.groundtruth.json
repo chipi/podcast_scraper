@@ -1,0 +1,28 @@
+{
+  "fixture": "p14_e02",
+  "podcast": "Sessões de Trilha — Episodio",
+  "episode": "Drenagem, Inclinação e o Terceiro Ano",
+  "type": "interview",
+  "speakers": [
+    "Beatriz Antunes",
+    "Rafael Vasconcelos"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Beatriz Antunes": "Luciana",
+    "Rafael Vasconcelos": "Joana"
+  },
+  "voice_pitch_shift": {
+    "Rafael Vasconcelos": 0.4
+  },
+  "cameo": null,
+  "transcript_sha256": "140b1b461e026723eb83ba937a42fa480bb10c02f1a31b841475a047ca0752b3",
+  "audio_sha256": "451dfb11999c35ae2a1d9b41bb5272f53218b6104b424b9e41c47706d7751cf8",
+  "rttm_sha256": "9c1cb1f790324134ca24f41bfbc3c5351c14066a0a78a5b84a65007f76028f43"
+}

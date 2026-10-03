@@ -36,6 +36,56 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:color-temperature-mistakes",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:commercial-lighting-workflow",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:frame-and-light",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:heuristic-iteration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:light-shaping-decisions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:on-location-framing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:strobe-lighting-intersection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:tooling-failure-modes",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:trade-off-visibility",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9f97daef33906cf6",
+      "target": "topic:two-light-setups",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-9f97daef33906cf6",
       "to": "person:leo",
       "type": "MENTIONS"
@@ -115,6 +165,86 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:color-temperature-mistakes",
+      "properties": {
+        "label": "color temperature mistakes",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:commercial-lighting-workflow",
+      "properties": {
+        "label": "commercial lighting workflow",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame-and-light",
+      "properties": {
+        "label": "frame and light",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:heuristic-iteration",
+      "properties": {
+        "label": "heuristic iteration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:light-shaping-decisions",
+      "properties": {
+        "label": "light shaping decisions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:on-location-framing",
+      "properties": {
+        "label": "on location framing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:strobe-lighting-intersection",
+      "properties": {
+        "label": "strobe lighting intersection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tooling-failure-modes",
+      "properties": {
+        "label": "tooling failure modes",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trade-off-visibility",
+      "properties": {
+        "label": "trade off visibility",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:two-light-setups",
+      "properties": {
+        "label": "two light setups",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

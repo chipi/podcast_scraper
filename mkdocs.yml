@@ -108,6 +108,8 @@ nav:
       - Hosting and infrastructure: architecture/HOSTING_AND_INFRASTRUCTURE.md
       - DGX serving (bridge to homelab): architecture/DGX_SERVING.md
       - Corpus artifacts and viewer surfaces: architecture/CORPUS_ARTIFACTS_AND_SURFACES.md
+      - "Arc: Multilingual ingest (v1)": architecture/MULTILINGUAL_ARC.md
+      - "Arc: Multilingual ingest (v2)": architecture/MULTILINGUAL_ARC_V2.md
       - Viewer Frontend: architecture/VIEWER_FRONTEND_ARCHITECTURE.md
       - Viewer graph (implementation): architecture/VIEWER_GRAPH_SPEC.md
       - Viewer async stability: architecture/VIEWER_ASYNC_STABILITY.md
@@ -177,6 +179,7 @@ nav:
       - PRD-044 Operator Shows Library: prd/PRD-044-operator-shows-library.md
       - PRD-045 Search v3 — Query Workspace: prd/PRD-045-search-v3-query-workspace.md
       - PRD-046 Delivery & Curation: prd/PRD-046-delivery-and-curation.md
+      - PRD-047 Multilingual Ingest: prd/PRD-047-multilingual-ingest.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -426,6 +429,9 @@ nav:
       - RFC-119 Holistic Collections: rfc/RFC-119-holistic-collections.md
       - RFC-120 Login-first Access with Lure Landing: rfc/RFC-120-login-first-lure-landing.md
       - RFC-121 Unified Saved Model: rfc/RFC-121-unified-saved-model.md
+      - RFC-123 Speaker Turns Artifact: rfc/RFC-123-speaker-turns-artifact.md
+      - RFC-124 Multilingual Transcription and Translation: rfc/RFC-124-multilingual-transcription-and-translation.md
+      - RFC-125 Translation Confidence and Claim Verification: rfc/RFC-125-translation-confidence-and-claim-verification.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

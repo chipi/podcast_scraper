@@ -1,0 +1,45 @@
+{
+  "callbacks": [],
+  "episode_id": "p12_e01",
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "fr-FR",
+  "host_accent": "fr-FR",
+  "host_canonical_name": "Camille Dubois",
+  "podcast_id": "p12",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p12:Julien",
+  "primary_guest_canonical_name": "Julien Mercier",
+  "primary_guest_surface_in_transcript": "Julien Mercier",
+  "primary_topic": "topic:trail-building",
+  "publish_date": "2025-11-01",
+  "publish_offset_days": 670,
+  "secondary_topics": [
+    "topic:soil-erosion",
+    "topic:land-stewardship"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Strava",
+      "kind": "template_opening",
+      "line_index": 10
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 64
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p12:Julien",
+      "kind": "canonical",
+      "surface": "Julien Mercier"
+    }
+  ]
+}

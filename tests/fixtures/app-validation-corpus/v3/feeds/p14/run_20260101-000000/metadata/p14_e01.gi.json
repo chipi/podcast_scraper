@@ -1,0 +1,326 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:trail-building",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:soil-erosion",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:land-stewardship",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "insight:73ab8bbdf5e8606a",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "insight:0a024706cf2eb2d1",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-28614332add8c2ae",
+      "to": "insight:c96fe39596a05e6d",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:15abdb5d8df294f1",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:73ab8bbdf5e8606a",
+      "to": "quote:15abdb5d8df294f1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c8d67e90ca8103b0",
+      "to": "person:rafael-vasconcelos",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0a024706cf2eb2d1",
+      "to": "quote:c8d67e90ca8103b0",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:ccc7dddfd4e6962a",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c96fe39596a05e6d",
+      "to": "quote:ccc7dddfd4e6962a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:bdf312c5a1427c48",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:73ab8bbdf5e8606a",
+      "to": "quote:bdf312c5a1427c48",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:208fee5dff01beb7",
+      "to": "person:rafael-vasconcelos",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:0a024706cf2eb2d1",
+      "to": "quote:208fee5dff01beb7",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:857464342c055c41",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c96fe39596a05e6d",
+      "to": "quote:857464342c055c41",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:73ab8bbdf5e8606a",
+      "to": "person:beatriz-antunes",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:0a024706cf2eb2d1",
+      "to": "person:rafael-vasconcelos",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:c96fe39596a05e6d",
+      "to": "person:beatriz-antunes",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-28614332add8c2ae",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-28614332add8c2ae",
+      "properties": {
+        "duration_ms": 443000,
+        "feed_id": "p14",
+        "podcast_id": "p14",
+        "publish_date": "2026-01-01T00:00:00",
+        "title": "Construir Trilhas Que Duram"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:trail-building",
+      "properties": {
+        "label": "trail building"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "properties": {
+        "label": "soil erosion"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:land-stewardship",
+      "properties": {
+        "label": "land stewardship"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:73ab8bbdf5e8606a",
+      "properties": {
+        "episode_id": "ep-28614332add8c2ae",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "text": "Bem-vindos de volta a Sess\u00f5es de Trilha. Hoje falamos sobre constru\u00e7\u00e3o de trilhas, e comigo est\u00e1 Rafael Vasconcelos, construtor de trilhas da Alian\u00e7a Cascadia. Rafael Vasconcelos, obrigada por esta\u2026"
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:0a024706cf2eb2d1",
+      "properties": {
+        "episode_id": "ep-28614332add8c2ae",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "text": "Obrigado, Beatriz. Com muito gosto \u2014 a constru\u00e7\u00e3o de trilhas \u00e9 algo em que tenho pensado bastante."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:c96fe39596a05e6d",
+      "properties": {
+        "episode_id": "ep-28614332add8c2ae",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "text": "Este epis\u00f3dio \u00e9 patrocinado pela Strava. A Strava \u00e9 a casa dos atletas. Comece em strava.com/podcast."
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:beatriz-antunes",
+      "properties": {
+        "name": "Beatriz Antunes"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:15abdb5d8df294f1",
+      "properties": {
+        "char_end": 221,
+        "char_start": 17,
+        "episode_id": "ep-28614332add8c2ae",
+        "speaker_id": "person:speaker-01",
+        "text": "Bem-vindos de volta a Sess\u00f5es de Trilha. Hoje falamos sobre constru\u00e7\u00e3o de trilhas, e comigo est\u00e1 Rafael Vasconcelos, construtor de trilhas da Alian\u00e7a Cascadia. Rafael Vasconcelos, obrigada por estar aqui.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p14_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:rafael-vasconcelos",
+      "properties": {
+        "name": "Rafael Vasconcelos"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c8d67e90ca8103b0",
+      "properties": {
+        "char_end": 340,
+        "char_start": 242,
+        "episode_id": "ep-28614332add8c2ae",
+        "speaker_id": "person:speaker-02",
+        "text": "Obrigado, Beatriz. Com muito gosto \u2014 a constru\u00e7\u00e3o de trilhas \u00e9 algo em que tenho pensado bastante.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p14_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:ccc7dddfd4e6962a",
+      "properties": {
+        "char_end": 459,
+        "char_start": 358,
+        "episode_id": "ep-28614332add8c2ae",
+        "speaker_id": "person:speaker-01",
+        "text": "Este epis\u00f3dio \u00e9 patrocinado pela Strava. A Strava \u00e9 a casa dos atletas. Comece em strava.com/podcast.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p14_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:bdf312c5a1427c48",
+      "properties": {
+        "char_end": 538,
+        "char_start": 459,
+        "episode_id": "ep-28614332add8c2ae",
+        "speaker_id": "person:speaker-01",
+        "text": "Conta-me como tomaste a decis\u00e3o. Como \u00e9 que a RockShox se encaixa neste quadro?",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p14_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:208fee5dff01beb7",
+      "properties": {
+        "char_end": 752,
+        "char_start": 559,
+        "episode_id": "ep-28614332add8c2ae",
+        "speaker_id": "person:speaker-02",
+        "text": "Sinceramente, a drenagem \u00e9 a decis\u00e3o de projeto com maior impacto em qualquer trilha. Vimos isso em equipas que usam a Alian\u00e7a Cascadia. J\u00e1 vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p14_e01.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:857464342c055c41",
+      "properties": {
+        "char_end": 853,
+        "char_start": 770,
+        "episode_id": "ep-28614332add8c2ae",
+        "speaker_id": "person:speaker-01",
+        "text": "Conta-me como tomaste a decis\u00e3o. Qual \u00e9 a vers\u00e3o da pergunta que realmente importa?",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p14_e01.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

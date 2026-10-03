@@ -31,6 +31,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-a89e6a42509c9af0",
+      "target": "topic:dialogue-texture",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a89e6a42509c9af0",
+      "target": "topic:failure-mode",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a89e6a42509c9af0",
+      "target": "topic:framing-trade-offs",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a89e6a42509c9af0",
+      "target": "topic:iteration-practice",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a89e6a42509c9af0",
+      "target": "topic:long-form-posture",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a89e6a42509c9af0",
+      "target": "topic:operational-angle",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a89e6a42509c9af0",
+      "target": "topic:platform-tooling",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a89e6a42509c9af0",
+      "target": "topic:second-order-effect",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a89e6a42509c9af0",
+      "target": "topic:tooling-replacement",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-a89e6a42509c9af0",
       "to": "person:cam",
       "type": "MENTIONS"
@@ -102,6 +147,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dialogue-texture",
+      "properties": {
+        "label": "dialogue texture",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:failure-mode",
+      "properties": {
+        "label": "failure mode",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:framing-trade-offs",
+      "properties": {
+        "label": "framing trade offs",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "properties": {
+        "label": "iteration practice",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form-posture",
+      "properties": {
+        "label": "long form posture",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:operational-angle",
+      "properties": {
+        "label": "operational angle",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:platform-tooling",
+      "properties": {
+        "label": "platform tooling",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effect",
+      "properties": {
+        "label": "second order effect",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tooling-replacement",
+      "properties": {
+        "label": "tooling replacement",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

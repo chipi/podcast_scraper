@@ -327,7 +327,18 @@ def _finalize_reindex_clear(
     Uses the build's own backend when one was created; otherwise (empty new corpus, nothing
     flushed) opens a bare backend just to clear, and drops the now-stale doc_id sidecar.
     """
-    stale_tiers = pre_existing_tiers - overwritten_tiers
+    # Expand each overwritten LOGICAL tier to the PHYSICAL tables that write actually replaced.
+    # `segment` and `segment_nonen` are written by one call (the backend splits by language), so
+    # subtracting the logical name alone left `segment_nonen` looking never-written — and this
+    # sweep then emptied it, in the same build that had just populated it. The rows existed only
+    # until finalize, which made non-English content unsearchable on every corpus that already
+    # had an index, while a first-ever build (this sweep does not run) looked correct.
+    written = {
+        physical
+        for tier in overwritten_tiers
+        for physical in LanceDBBackend.physical_tiers_written_with(tier)
+    }
+    stale_tiers = pre_existing_tiers - written
     if stale_tiers:
         cleanup_backend = backend or LanceDBBackend(str(lance_path))
         for tier in sorted(stale_tiers):
@@ -714,6 +725,11 @@ def build_two_tier_index(
                         start_time=float(meta.get("timestamp_start_ms") or 0.0) / 1000.0,
                         end_time=float(meta.get("timestamp_end_ms") or 0.0) / 1000.0,
                         publish_date=meta.get("publish_date"),
+                        # S2.9: routes this chunk to `segments` or the vector-less
+                        # `segments_nonen` tier. The embedding is still computed — it is simply
+                        # dropped by the router for a non-English row, which keeps the embed
+                        # path free of a language branch.
+                        language=meta.get("language"),
                         embedding=_embed(text, model_id, allow_download=allow_download),
                     )
                 )

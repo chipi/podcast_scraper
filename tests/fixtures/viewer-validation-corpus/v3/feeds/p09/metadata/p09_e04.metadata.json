@@ -37,6 +37,8 @@
   },
   "episode": {
     "episode_id": "e5f72053-f000-519e-95cb-204c957f7ab3",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2026-09-22",
     "title": "The Long View: Biohacking \u2014 Episode 4"
   },
@@ -45,6 +47,9 @@
   "feed": {
     "description": "Solo, long-form reflections on biohacking: the state of the field in 2025, what actually works, and the ethics and limits of human optimization.",
     "feed_id": "sha256:255b515964dcdf7f0f2123a46053fbf8c961882868ea3c88bb8ba794824c52e8",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "title": "The Long View: Biohacking",
     "url": "http://localhost/"
   },

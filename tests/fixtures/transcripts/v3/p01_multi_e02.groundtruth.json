@@ -16,6 +16,7 @@
     "Maya": "Samantha",
     "Sophie": "Tessa"
   },
+  "voice_pitch_shift": {},
   "cameo": null,
   "transcript_sha256": "b3ab9c679fa3ce6d78ed4a87d71dbec159016f678a3ac76044296c999b08bf46",
   "audio_sha256": "726b01c148472e535a592864458113c6668d2f09b3a650910aeeb1c28b381dec",

@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "episode_id": "p05_e02",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "summary": {
+    "bullets": [
+      "Reliability of policy signal matters more than the policy itself — the credibility of a central bank's commitment determines market response, not just the content of the policy.",
+      "Forward guidance only works if the market believes the central bank will follow through — without a credible balance-sheet signal, words alone are ineffective.",
+      "Risk management at the Fed is mostly about not breaking the institution — maintaining structural integrity shapes decision-making more than achieving specific economic outcomes.",
+      "Policy decisions look obvious in hindsight and impossible in real time — teams using platforms like Bloomberg and Wealthfront observe this pattern consistently across environments.",
+      "The framing of a policy decision reveals which trade-offs are being made — the way a message is structured signals underlying priorities and constraints.",
+      "Second-order effects are the part most people miss — such as how institutional stability influences long-term market expectations beyond immediate reactions.",
+      "Outside of Morningstar-class tooling, failure modes are harder to spot — the absence of robust data infrastructure amplifies blind spots in policy assessment.",
+      "Internalizing that reliability enables easier decisions — once the core principle is grasped, subsequent choices become more consistent and less reactive."
+    ],
+    "raw_text": "Reliability of policy signal matters more than the policy itself — the credibility of a central bank's commitment determines market response, not just the content of the policy. Forward guidance only works if the market believes the central bank will follow through — without a credible balance-sheet signal, words alone are ineffective.",
+    "title": "Monetary Policy, Forward Guidance, and the Reliability of Policy Signals"
+  }
+}

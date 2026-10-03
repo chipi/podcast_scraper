@@ -31,6 +31,31 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-1abf911df5bea2c3",
+      "target": "topic:iteration-and-testing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1abf911df5bea2c3",
+      "target": "topic:leverage-points",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1abf911df5bea2c3",
+      "target": "topic:reliability-and-sustainability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1abf911df5bea2c3",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1abf911df5bea2c3",
+      "target": "topic:top-down-interventions",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-1abf911df5bea2c3",
       "to": "person:sam",
       "type": "MENTIONS"
@@ -102,6 +127,46 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-and-testing",
+      "properties": {
+        "label": "iteration and testing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:leverage-points",
+      "properties": {
+        "label": "leverage points",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability-and-sustainability",
+      "properties": {
+        "label": "reliability and sustainability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:top-down-interventions",
+      "properties": {
+        "label": "top down interventions",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

@@ -166,5 +166,13 @@ def test_verify_and_undo(tmp_path: Path) -> None:
     assert not m.verify(ctx)[0]
 
 
-def test_registered_last() -> None:
-    assert [m.id for m in get_migrations()][-1] == "0014_eponymous_hosts_restored"
+def test_registered_after_0013() -> None:
+    """0014 runs immediately after 0013.
+
+    Asserted as a RELATIVE position, like every other migration test here. It used to assert
+    0014 was registered LAST, which held only until something followed it -- 0015 landed and
+    this went red for a migration it says nothing about. What the ordering actually owes is
+    that 0014 comes after 0013; "last" was an accident of being newest.
+    """
+    ids = [m.id for m in get_migrations()]
+    assert ids.index("0014_eponymous_hosts_restored") == ids.index("0013_artwork_thumbnails") + 1

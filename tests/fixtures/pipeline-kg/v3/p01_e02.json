@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p01_e02",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:braking-technique",
+      "label": "braking technique"
+    },
+    {
+      "id": "topic:equipment-performance",
+      "label": "equipment performance"
+    },
+    {
+      "id": "topic:erosion-patterns",
+      "label": "erosion patterns"
+    },
+    {
+      "id": "topic:failure-mode-analysis",
+      "label": "failure mode analysis"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:suspension-tuning",
+      "label": "suspension tuning"
+    },
+    {
+      "id": "topic:team-strategy",
+      "label": "team strategy"
+    },
+    {
+      "id": "topic:tire-pressure-selection",
+      "label": "tire pressure selection"
+    },
+    {
+      "id": "topic:track-line-optimization",
+      "label": "track line optimization"
+    }
+  ]
+}

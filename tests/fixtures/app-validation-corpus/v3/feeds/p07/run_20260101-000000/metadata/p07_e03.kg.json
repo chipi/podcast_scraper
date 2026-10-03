@@ -26,6 +26,46 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:correlated-risks",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:coupling-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:discounted-risks",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:emissions-optimization",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:modeling-interventions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:portfolio-risk",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:sustainability-interventions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a86da8f148d3bf29",
+      "target": "topic:systemic-failure",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-a86da8f148d3bf29",
       "to": "person:alex-morgan",
       "type": "MENTIONS"
@@ -89,6 +129,70 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:correlated-risks",
+      "properties": {
+        "label": "correlated risks",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:coupling-management",
+      "properties": {
+        "label": "coupling management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:discounted-risks",
+      "properties": {
+        "label": "discounted risks",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:emissions-optimization",
+      "properties": {
+        "label": "emissions optimization",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:modeling-interventions",
+      "properties": {
+        "label": "modeling interventions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:portfolio-risk",
+      "properties": {
+        "label": "portfolio risk",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:sustainability-interventions",
+      "properties": {
+        "label": "sustainability interventions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systemic-failure",
+      "properties": {
+        "label": "systemic failure",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

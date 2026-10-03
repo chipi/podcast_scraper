@@ -7,6 +7,7 @@ import re
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 from ..kg.speaker_coherence import same_person
+from ..languages import TARGET_LANGUAGE
 from .entities import extract_person_entities as _extract_person_entities_direct
 from .entity_kind_votes import KindVotes
 
@@ -565,9 +566,22 @@ def detect_hosts_from_transcript_intro(
     nlp: Optional[Any] = None,
     intro_duration_seconds: int = 120,
     words_per_second: float = 2.5,
+    text_language: Optional[str] = None,
 ) -> Set[str]:
-    """Detect host names from transcript intro patterns (first 60-120 seconds)."""
+    """Detect host names from transcript intro patterns (first 60-120 seconds).
+
+    ``text_language`` is the S2.14 guard: the cue regexes below are English (``I'm X``,
+    ``Welcome to … I'm X``) and the NER model is ``en_core_web_sm``, so on non-English prose
+    this does not find nothing — measured on the V.6a Spanish fixture, recall held at 2/2 while
+    precision fell from 67% to 18%. A missing name is visible; a wrong one becomes a person.
+    Left ``None`` the guard does not engage, which is the pre-existing behaviour for every
+    caller that has no language to offer.
+    """
     if not transcript_text or not nlp:
+        return set()
+    from ..languages_guard import refuse_unsupported_language
+
+    if refuse_unsupported_language("transcript-intro host detection", text_language):
         return set()
 
     intro_word_count = int(intro_duration_seconds * words_per_second)
@@ -742,16 +756,61 @@ def _feed_statement(
 
 # A capitalised run is not automatically a name: it can start with a preposition ("At Planet
 # Money"), or be prefixed by the publisher's possessive ("Bloomberg's Joe Weisenthal").
-_LEADING_JUNK = re.compile(r"^(?:At|In|On|By|With|From|The)\s+", re.IGNORECASE)
+#
+# KEYED BY LANGUAGE, because both halves are grammar. Under D-44 the canonical body is always the
+# analysis language, so `_LEADING_JUNK` / `_POSSESSIVE_PREFIX` below resolve to the English rows
+# and behave exactly as they shipped; the map is what makes another analysis language a data edit.
+#
+# NAME PARTICLES ARE DELIBERATELY ABSENT from every non-English row, and that is the one real
+# decision here. English can strip a leading "The"/"From" safely because English names do not
+# begin with them. Spanish, Italian, French, German and Portuguese names DO begin with exactly the
+# words a naive translation would add: "de la Fuente", "Da Vinci", "De Gaulle", "Le Pen", "von
+# Neumann", "da Silva", "dos Santos". Stripping those corrupts the name instead of cleaning it, so
+# `de/di/da/do/dos/das/du/le/la/les/von/zu` appear in NO row — the junk list stays short rather
+# than becoming symmetric with English.
+_LEADING_JUNK_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    "en": re.compile(r"^(?:At|In|On|By|With|From|The)\s+", re.IGNORECASE),
+    "es": re.compile(r"^(?:En|Al|Con|Desde|Para|Sobre|El|La|Los|Las)\s+", re.IGNORECASE),
+    "it": re.compile(r"^(?:A|In|Su|Con|Per|Il|Lo|La|Gli|Le)\s+", re.IGNORECASE),
+    "fr": re.compile(r"^(?:(?:À|A)|En|Sur|Avec|Dans|Chez|Pour)\s+", re.IGNORECASE),
+    "de": re.compile(r"^(?:Bei|In|An|Auf|Mit|Aus|F(?:ü|u)r|Der|Die|Das)\s+", re.IGNORECASE),
+    "pt": re.compile(r"^(?:Em|No|Na|Com|Desde|Para|Sobre|Os|As)\s+", re.IGNORECASE),
+}
+
 # "Bloomberg's Joe Weisenthal", "Red Hat's Chris Wright" — the employer, then the person. Non-greedy
 # so it strips through the FIRST possessive only, leaving "Patrick O'Shaughnessy" (no "'s ") alone.
-_POSSESSIVE_PREFIX = re.compile(r"^.*?['’]s\s+")
+#
+# `None` FOR FIVE LANGUAGES IS THE ANSWER, NOT A HOLE I DID NOT FILL. The construction this strips
+# is PREFIX possession, and Spanish, Italian, French and Portuguese do not have it: they postpose
+# the employer ("Joe Weisenthal de Bloomberg"), so there is nothing in front of the name to remove
+# and any pattern here would only be able to damage one.
+#
+# GERMAN IS A GENUINE UNCOVERED CASE, recorded as `None` rather than guessed. German does front the
+# genitive — "Bloombergs Joe Weisenthal" — but with a bare `s` and no apostrophe, so the English
+# shape has no anchor to match on. `^\w+s\s+` would strip the first word of every name whose first
+# token happens to end in s ("Hans Zimmer" -> "Zimmer"), which is worse than not cleaning. A safe
+# pattern needs a capitalisation or NER anchor this stage does not have.
+_POSSESSIVE_PREFIX_BY_LANGUAGE: Dict[str, Optional["re.Pattern[str]"]] = {
+    "en": re.compile(r"^.*?['’]s\s+"),
+    "es": None,
+    "it": None,
+    "fr": None,
+    "de": None,
+    "pt": None,
+}
+
+_LEADING_JUNK = _LEADING_JUNK_BY_LANGUAGE[TARGET_LANGUAGE]
+_POSSESSIVE_PREFIX = _POSSESSIVE_PREFIX_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
-def _clean_stated_name(name: str) -> str:
+def _clean_stated_name(name: str, language: str = TARGET_LANGUAGE) -> str:
     clean = (name or "").strip()
-    clean = _POSSESSIVE_PREFIX.sub("", clean)
-    clean = _LEADING_JUNK.sub("", clean)
+    possessive = _POSSESSIVE_PREFIX_BY_LANGUAGE.get(language, _POSSESSIVE_PREFIX)
+    if possessive is not None:
+        clean = possessive.sub("", clean)
+    junk = _LEADING_JUNK_BY_LANGUAGE.get(language)
+    if junk is not None:
+        clean = junk.sub("", clean)
     return clean.strip()
 
 
@@ -769,17 +828,73 @@ def _clean_stated_name(name: str) -> str:
 #
 # The host usually announces himself and names his guest in one breath, which yields both roles and
 # both names from a single utterance.
-_HOST_SPEECH_ACTS = [
-    re.compile(p, re.IGNORECASE)
-    for p in (
-        r"\bwelcome (?:back )?to (?:the |my |our )?\w+",
-        r"\bi'?m your host\b",
-        r"\b(?:my|our) guests? (?:today )?(?:is|are)\b",
-        r"\b(?:joining|with) (?:me|us) (?:today|now|this week)\b",
-        r"\bthanks? (?:so much )?for (?:coming on|joining me|joining us|being here)\b",
-        r"\bthis week on (?:the )?\w+",
-    )
-]
+#: KEYED BY LANGUAGE for the reason the ad and cue vocabularies are: these are phrases, and a flat
+#: list is a list in English wearing no label. Non-English rows are TRANSLATIONS of the English
+#: categories — the English row is the measured one, and the three feeds quoted above are what
+#: measured it. No non-English conversation has been run against these.
+_HOST_SPEECH_ACTS_BY_LANGUAGE: Dict[str, Tuple["re.Pattern[str]", ...]] = {
+    lang: tuple(re.compile(p, re.IGNORECASE) for p in patterns)
+    for lang, patterns in {
+        "en": (
+            r"\bwelcome (?:back )?to (?:the |my |our )?\w+",
+            r"\bi'?m your host\b",
+            r"\b(?:my|our) guests? (?:today )?(?:is|are)\b",
+            r"\b(?:joining|with) (?:me|us) (?:today|now|this week)\b",
+            r"\bthanks? (?:so much )?for (?:coming on|joining me|joining us|being here)\b",
+            r"\bthis week on (?:the )?\w+",
+        ),
+        "es": (
+            r"\bbienvenid[oa]s? (?:de nuevo )?a (?:la |el |mi |nuestro )?\w+",
+            r"\bsoy (?:tu|su|vuestro) (?:anfitri(?:ó|o)n|presentador[a]?)\b",
+            r"\b(?:mi|nuestro|nuestra)s? invitad[oa]s? (?:de hoy )?(?:es|son)\b",
+            r"\b(?:me|nos) acompa(?:ñ|n)a (?:hoy|ahora|esta semana)\b",
+            r"\bgracias por (?:venir|acompa(?:ñ|n)arnos|estar aqu(?:í|i))\b",
+            r"\besta semana en (?:la |el )?\w+",
+        ),
+        "it": (
+            r"\bben(?:venut|tornat)[oiae]+ (?:di nuovo )?(?:a|su|nel|nella) "
+            r"(?:il |la |mio |nostro )?\w+",
+            r"\bsono il (?:vostro|tuo) (?:conduttore|host)\b",
+            r"\b(?:il mio|il nostro|i nostri) ospit[ei] (?:di oggi )?(?:(?:è|e'|e)|sono)\b",
+            r"\bcon (?:me|noi) (?:oggi|ora|questa settimana)\b",
+            r"\bgrazie per (?:essere qui|essere venut[oa]|esserci)\b",
+            r"\bquesta settimana (?:a|su|in) (?:il |la )?\w+",
+        ),
+        "fr": (
+            r"\bbienvenue (?:(?:à|a) nouveau )?(?:dans|(?:à|a)|sur) (?:le |la |mon |notre )?\w+",
+            r"\bje suis votre (?:h(?:ô|o)te"  # codespell:ignore te
+            r"|animat(?:eur|rice)|pr(?:é|e)sentat(?:eur|rice))\b",
+            r"\b(?:mon|notre|nos) invit(?:é|e)e?s? (?:du jour )?(?:est|sont)\b",
+            r"\bavec (?:moi|nous) (?:aujourd'hui|maintenant|cette semaine)\b",
+            r"\bmerci (?:d'(?:ê|e)tre "  # codespell:ignore tre
+            r"(?:l(?:à|a)|ici|venu[e]?)|de venir)\b",
+            r"\bcette semaine (?:dans|sur) (?:le |la )?\w+",
+        ),
+        "de": (
+            r"\bwillkommen (?:zur(?:ü|u)ck )?(?:bei|zu|in|im) "
+            r"(?:der |die |das |meinem |unserem )?\w+",
+            r"\bich bin (?:euer|ihr|dein) (?:gastgeber(?:in)?|moderator(?:in)?)\b",
+            r"\b(?:mein|unser)(?:e)? "  # codespell:ignore unser
+            r"g(?:ä|a)st(?:e|in)? (?:heute )?(?:ist|sind)\b",
+            r"\bbei (?:mir|uns) (?:heute|jetzt|diese woche)\b",
+            r"\bdanke,? dass (?:du|sie|ihr) "  # codespell:ignore sie
+            r"(?:hier|da|dabei) (?:bist|sind|seid)\b",
+            r"\bdiese woche (?:bei|in|im) (?:der |die )?\w+",
+        ),
+        "pt": (
+            r"\bbem-vind[oa]s? (?:de volta )?(?:ao|(?:à|a)|para o|para a) "
+            r"(?:o |a |meu |nosso )?\w+",  # codespell:ignore meu
+            r"\beu sou (?:o|a) (?:seu|sua) (?:anfitri(?:ã|a)o|apresentador[a]?)\b",
+            r"\b(?:meu|minha|nosso|nossa)s? "  # codespell:ignore meu
+            r"convidad[oa]s? (?:de hoje )?(?:(?:é|e)|s(?:ã|a)o)\b",
+            r"\b(?:comigo|conosco) (?:hoje|agora|esta semana)\b",
+            r"\bobrigad[oa] por (?:vir|estar aqui|nos acompanhar)\b",
+            r"\besta semana (?:no|na|em) (?:o |a )?\w+",
+        ),
+    }.items()
+}
+
+_HOST_SPEECH_ACTS = _HOST_SPEECH_ACTS_BY_LANGUAGE[TARGET_LANGUAGE]
 # NOTE (#1228) — a "floor-managing" host act (a co-host who only self-introduces on a no-host feed
 # but directs the show, "Let's get into this week's news") was TRIED as a recall lever and REVERTED.
 # On the prod-v2 corpus (90 eps, `relabel_corpus.py --llm none`) the tightened, nameability-gated
@@ -789,17 +904,50 @@ _HOST_SPEECH_ACTS = [
 # clusters). Inert on real data + precision-dangerous ⇒ not worth the code path (#876). The
 # co-host-on-a-no-host-feed case stays the documented precision boundary (roster leaves the role
 # unknown rather than risk a wrong name); revisit only with the #1189 human-GT fixtures.
-_GUEST_SPEECH_ACTS = [
-    re.compile(p, re.IGNORECASE)
-    for p in (
-        # "thanks/thank you [so much | very much] for having me" — the intensifier is optional AND
-        # may be "very much", not only "so much". "Thank you very much for having me" (The Daily's
-        # guest Robert Pape) matched NEITHER old fixed pattern, so the dominant guest was never
-        # flagged and community-1's clustering then crowned him a host (#1169).
-        r"\b(?:thanks?|thank you)(?:\s+(?:so|very)\s+much)? for having me\b",
-        r"\b(?:glad|happy|great|good) to be (?:here|on|back)\b",
-    )
-]
+#: The guest's half, keyed the same way. Gendered participles are spelled out in the rows that
+#: have them (``obrigad[oa]``, ``encantad[oa]``, ``ravi(?:e)?``) — a row that only matched the
+#: masculine form would see half the guests.
+_GUEST_SPEECH_ACTS_BY_LANGUAGE: Dict[str, Tuple["re.Pattern[str]", ...]] = {
+    lang: tuple(re.compile(p, re.IGNORECASE) for p in patterns)
+    for lang, patterns in {
+        "en": (
+            # "thanks/thank you [so much | very much] for having me" — the intensifier is optional
+            # AND may be "very much", not only "so much". "Thank you very much for having me" (The
+            # Daily's guest Robert Pape) matched NEITHER old fixed pattern, so the dominant guest
+            # was never flagged and community-1's clustering then crowned him a host (#1169).
+            r"\b(?:thanks?|thank you)(?:\s+(?:so|very)\s+much)? for having me\b",
+            r"\b(?:glad|happy|great|good) to be (?:here|on|back)\b",
+        ),
+        "es": (
+            r"\bgracias(?:\s+(?:mil|muchas))? por (?:invitarme|recibirme|tenerme)\b",
+            r"\b(?:encantad[oa]|content[oa]|feli(?:z|ces)) de estar (?:aqu(?:í|i)|de vuelta)\b",
+            r"\bun placer estar (?:aqu(?:í|i)|contigo|con ustedes)\b",
+        ),
+        "it": (
+            r"\bgrazie(?:\s+mille)? per (?:avermi invitato|l'invito|avermi qui)\b",
+            r"\b(?:felice|content[oa]|un piacere) di essere (?:qui|qua|di nuovo qui)\b",
+            r"\b(?:è|e'|e) un piacere essere (?:qui|qua)\b",
+        ),
+        "fr": (
+            r"\bmerci(?:\s+beaucoup)? de m'(?:avoir invit(?:é|e)e?|accueillir|recevoir)\b",
+            r"\b(?:ravi(?:e)?|content(?:e)?|heureu(?:x|se)) d'(?:ê|e)tre "  # codespell:ignore tre
+            r"(?:l(?:à|a)|ici|de retour)\b",
+            r"\bc'est un plaisir d'(?:ê|e)tre (?:l(?:à|a)|ici)\b",  # codespell:ignore tre
+        ),
+        "de": (
+            r"\b(?:vielen |herzlichen )?dank f(?:ü|u)r die einladung\b",
+            r"\b(?:freut mich|sch(?:ö|o)n|toll),? (?:hier|dabei|wieder hier) zu sein\b",
+            r"\bich freue mich,? hier zu sein\b",
+        ),
+        "pt": (
+            r"\bobrigad[oa](?:\s+(?:muito|demais))? por me (?:receber|convidar|ter aqui)\b",
+            r"\b(?:feli(?:z|zes)|contente|um prazer) (?:de |em )?estar (?:aqui|de volta)\b",
+            r"\b(?:é|e) um prazer estar aqui\b",
+        ),
+    }.items()
+}
+
+_GUEST_SPEECH_ACTS = _GUEST_SPEECH_ACTS_BY_LANGUAGE[TARGET_LANGUAGE]
 # The host hands the floor to someone, BY NAME. "My guest today is Brian Chesky" is only one of the
 # ways they do it, and knowing only that phrasing left 5.2% of the corpus's talk anonymous —
 # measured by `scripts/audit/attribution_ceiling.py`. Planet Money is full of it: a narrated desk

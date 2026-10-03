@@ -36,6 +36,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-9b36e2e3b959298d",
+      "target": "topic:crowd-shoot-conditions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9b36e2e3b959298d",
+      "target": "topic:failure-mode-identification",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9b36e2e3b959298d",
+      "target": "topic:frame-and-light-decisions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9b36e2e3b959298d",
+      "target": "topic:iteration-through-testing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9b36e2e3b959298d",
+      "target": "topic:post-processing-tools",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9b36e2e3b959298d",
+      "target": "topic:practical-reliability-of-gear",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9b36e2e3b959298d",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9b36e2e3b959298d",
+      "target": "topic:strobe-lighting-trade-offs",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-9b36e2e3b959298d",
+      "target": "topic:tooling-platforms",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-9b36e2e3b959298d",
       "to": "person:leo",
       "type": "MENTIONS"
@@ -115,6 +160,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:crowd-shoot-conditions",
+      "properties": {
+        "label": "crowd shoot conditions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:failure-mode-identification",
+      "properties": {
+        "label": "failure mode identification",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame-and-light-decisions",
+      "properties": {
+        "label": "frame and light decisions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-through-testing",
+      "properties": {
+        "label": "iteration through testing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:post-processing-tools",
+      "properties": {
+        "label": "post processing tools",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:practical-reliability-of-gear",
+      "properties": {
+        "label": "practical reliability of gear",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:strobe-lighting-trade-offs",
+      "properties": {
+        "label": "strobe lighting trade offs",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tooling-platforms",
+      "properties": {
+        "label": "tooling platforms",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

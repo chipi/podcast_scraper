@@ -1,0 +1,28 @@
+{
+  "fixture": "p10_e03",
+  "podcast": "Sesiones de Sendero — Episodio",
+  "episode": "Permisos y Paciencia",
+  "type": "interview",
+  "speakers": [
+    "Lucía Herrera",
+    "Javier Benavides"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": false,
+  "num_ad_voices": 0,
+  "expected_diarized_voices": 2,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Lucía Herrera": "Monica",
+    "Javier Benavides": "Paulina"
+  },
+  "voice_pitch_shift": {
+    "Javier Benavides": 0.45
+  },
+  "cameo": null,
+  "transcript_sha256": "6bc63c36f2c2dc2df0b5552015a635df122977f0a6047c6b740bcdc37f834ac3",
+  "audio_sha256": "2bff3e770bcffef61b10f90fc75afc8a3e301df0a11f4bded885be9961c63ebd",
+  "rttm_sha256": "cec76a0097280e260a02827aad41a92d1fe1b24631e6a05af4745bad0567d7c9"
+}

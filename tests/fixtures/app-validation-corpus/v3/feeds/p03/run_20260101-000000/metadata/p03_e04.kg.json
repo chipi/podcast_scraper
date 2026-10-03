@@ -31,6 +31,36 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:ascent-control",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:current-assessment",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:gas-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:incident-prevention",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:systemic-interaction",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-916dab1698f88aec",
+      "target": "topic:team-coordination",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-916dab1698f88aec",
       "to": "person:rina",
       "type": "MENTIONS"
@@ -102,6 +132,54 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:ascent-control",
+      "properties": {
+        "label": "ascent control",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:current-assessment",
+      "properties": {
+        "label": "current assessment",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:gas-management",
+      "properties": {
+        "label": "gas management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:incident-prevention",
+      "properties": {
+        "label": "incident prevention",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systemic-interaction",
+      "properties": {
+        "label": "systemic interaction",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:team-coordination",
+      "properties": {
+        "label": "team coordination",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

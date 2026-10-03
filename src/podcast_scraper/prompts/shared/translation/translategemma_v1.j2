@@ -1,0 +1,31 @@
+{#-
+  TranslateGemma's own prompt, transcribed from `chat_template.jinja` lines 612-622 of the
+  pinned snapshot (google/translategemma-12b-it, revision d1b225e1caa1...).
+
+  WHY THIS IS RENDERED HERE INSTEAD OF BY THE SERVER. TranslateGemma's chat template expects
+  structured content -- `{type, source_lang_code, target_lang_code, text}` -- and vLLM strips
+  those custom keys before the template sees them, so `/v1/chat/completions` returns HTTP 400
+  (verified against the live service; vLLM does not support custom content fields). The client
+  therefore renders the prompt and posts it to `/v1/completions`. That makes this file the whole
+  interface to the model, which is exactly why it belongs in the prompt store with a SHA256
+  rather than inline in a client: a changed prompt changes model behaviour, and the hash is what
+  ties an English artifact to the prompt that produced it.
+
+  DO NOT PARAPHRASE THIS. It was paraphrased once, from memory, and the omitted sentence was
+  "Produce only the {target} translation, without any additional explanations or commentary."
+  Measured on the real service without it: a 22-word unit came back as 197 tokens beginning
+  "Here's a translation that aims for accuracy and nuance:", and "Mmm." came back as "Okay, I
+  understand. I will do my best to provide accurate and nuanced English translations of any
+  Spanish text you provide." With the sentence restored: 19 tokens of clean translation, and
+  "Hmm.". Verify any edit against the snapshot file, never against memory.
+
+  `bos_token` from the template's line 585 is deliberately absent: vLLM's /v1/completions
+  prepends BOS itself (`add_special_tokens` defaults true), so including it would double.
+-#}
+<start_of_turn>user
+You are a professional {{ source_name }} ({{ source_code }}) to {{ target_name }} ({{ target_code }}) translator. Your goal is to accurately convey the meaning and nuances of the original {{ source_name }} text while adhering to {{ target_name }} grammar, vocabulary, and cultural sensitivities.
+Produce only the {{ target_name }} translation, without any additional explanations or commentary. Please translate the following {{ source_name }} text into {{ target_name }}:
+
+
+{{ text }}<end_of_turn>
+<start_of_turn>model

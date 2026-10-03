@@ -18,6 +18,7 @@
               "ep-1979e93514355ea6",
               "ep-1abf911df5bea2c3",
               "ep-1e526e495918fb27",
+              "ep-28614332add8c2ae",
               "ep-2a703b6f57d9020f",
               "ep-2cd5c6d11325a312",
               "ep-35f04bce441bf827",
@@ -27,7 +28,9 @@
               "ep-60d667843dc40fca",
               "ep-6351d18dc6f1ff70",
               "ep-64ef09a7ee543045",
+              "ep-7072d2e85dcd5233",
               "ep-8aa4d883afa10fa4",
+              "ep-8dce4ec000757097",
               "ep-916dab1698f88aec",
               "ep-919c77e84ad37664",
               "ep-a05e37624721d37c",
@@ -37,10 +40,12 @@
               "ep-a884b153355070f0",
               "ep-b3570c1ceb5eca41",
               "ep-bccfce5798a83a6e",
+              "ep-c0ab3bfb1ebdab6d",
               "ep-d428e906f5affc60",
               "ep-d8cc458a5f0049a8",
               "ep-db8f44d2e07a22bd",
               "ep-de59d003651d9e5d",
+              "ep-e2231244311ca964",
               "ep-efc13989b676df9d"
             ],
             "label": "risk management",
@@ -95,9 +100,14 @@
           {
             "episode_ids": [
               "ep-0d9100843ee555f8",
+              "ep-28614332add8c2ae",
               "ep-60d667843dc40fca",
+              "ep-7072d2e85dcd5233",
+              "ep-8dce4ec000757097",
+              "ep-c0ab3bfb1ebdab6d",
               "ep-db8f44d2e07a22bd",
-              "ep-de59d003651d9e5d"
+              "ep-de59d003651d9e5d",
+              "ep-e2231244311ca964"
             ],
             "label": "endurance sport",
             "lift_to_cluster": 1.5,
@@ -108,7 +118,7 @@
         "super_theme_label": "Managing risk across domains"
       }
     ],
-    "episode_count": 40,
+    "episode_count": 45,
     "merge_threshold": 2.0,
     "method": "cooccurrence_lift",
     "min_pair_episode_count": 2,

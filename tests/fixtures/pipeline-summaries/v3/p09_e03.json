@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "episode_id": "p09_e03",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "summary": {
+    "bullets": [
+      "Labor markets are where macroeconomic concepts stop being abstract and become tangible in practice — a critical insight for teams using financial data platforms like BloombergNEF.",
+      "Risk is fundamentally a household-level variable, not a portfolio-level one, and ignoring this leads to redundant work — teams end up rebuilding systems from scratch within a year.",
+      "Systems thinking reveals trade-offs that cross-cut all aspects of economic analysis, making it essential to evaluate decisions explicitly rather than defaulting to familiar patterns.",
+      "The intersection of risk management and labor markets is best understood through concrete examples where household-level economic behavior drives macro outcomes.",
+      "Failure to recognize that risk is embedded at the household level results in inefficient systems design and repeated effort — a pattern observed across multiple teams.",
+      "One key idea is to pick a concept from the discussion and test it over two weeks, using iteration to refine understanding rather than relying on initial assumptions.",
+      "The most effective insights emerge when teams treat economic variables as interconnected systems rather than isolated data points.",
+      "A core principle is that macroeconomic models must reflect real-world household behavior — not just aggregate portfolio metrics — to avoid being abstract or misaligned with reality."
+    ],
+    "raw_text": "Labor markets are where macroeconomic concepts stop being abstract and become tangible in practice — a critical insight for teams using financial data platforms like BloombergNEF. Risk is fundamentally a household-level variable, not a portfolio-level one, and ignoring this leads to redundant work — teams end up rebuilding systems from scratch within a year.",
+    "title": "Labor Markets and Risk: The Household-Level Variable"
+  }
+}

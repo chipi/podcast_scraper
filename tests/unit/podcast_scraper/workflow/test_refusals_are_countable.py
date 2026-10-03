@@ -52,6 +52,10 @@ EXPECTED_ERROR_TYPES = {
     # Found by the structural guard below, not by review: an unaccounted refusal on the
     # ORDINARY transcribe path, where a misconfigured provider under-delivers on every episode.
     "NoTranscriptionProvider",
+    # S0.8 (#2179): an episode in a language config/languages.yaml does not enable. Refused
+    # before any provider is called, and countable for the same reason as the rest -- a skip
+    # must be at least as loud as the plausible-wrong-language transcript it replaces.
+    "UnsupportedLanguage",
 }
 
 

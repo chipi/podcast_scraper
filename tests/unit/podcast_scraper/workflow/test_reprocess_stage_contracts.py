@@ -48,12 +48,19 @@ REPROCESS_STAGES = sorted(PIPELINE_STAGES_REPROCESS)
 class TestTheReprocessStageSetIsWhatWeThinkItIs:
     """Pin the membership itself. Every assertion below is only as good as this list."""
 
-    def test_the_four_known_reprocess_stages_are_present(self):
+    def test_the_five_known_reprocess_stages_are_present(self):
+        """`translate_only` joined on 2026-09-30 with the multilingual arc.
+
+        It reuses the on-disk transcript and never transcribes, so it belongs in both constants,
+        and every contract below is parametrised over this set — adding it here extends them
+        rather than exempting it, which is what the message demands.
+        """
         assert set(REPROCESS_STAGES) == {
             "rederive_only",
             "relabel_only",
             "rediarize_only",
             "retranscript_only",
+            "translate_only",
         }, (
             "A stage was added or removed. Every contract in this file is parametrised over this "
             "set — extend the contracts, do not just update this assertion."
@@ -168,7 +175,12 @@ class TestEveryReprocessStageNeverCallsASR:
             "rederive_only is the only stage that reaches its reuse branch with "
             f"transcribe_missing=False; got {sorted(by_coercion)}"
         )
-        assert by_constant == {"relabel_only", "rediarize_only", "retranscript_only"}
+        assert by_constant == {
+            "relabel_only",
+            "rediarize_only",
+            "retranscript_only",
+            "translate_only",
+        }
         assert by_constant | by_coercion == set(REPROCESS_STAGES), "every stage must be covered"
 
 

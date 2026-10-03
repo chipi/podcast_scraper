@@ -24,12 +24,12 @@
             "topic_label": "reliability"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -55,12 +55,12 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -86,12 +86,12 @@
             "topic_label": "reliability"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -117,12 +117,12 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.59,
+            "similarity": 0.585556,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.59,
+            "similarity": 0.585556,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -148,12 +148,12 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.59,
+            "similarity": 0.585556,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.59,
+            "similarity": 0.585556,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -174,17 +174,17 @@
             "topic_label": "wreck diving"
           },
           {
-            "similarity": 0.63,
+            "similarity": 0.59,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
           {
-            "similarity": 0.576667,
+            "similarity": 0.572857,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.57,
+            "similarity": 0.567778,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -215,7 +215,7 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -231,22 +231,22 @@
             "topic_label": "maintenance"
           },
           {
-            "similarity": 0.65,
+            "similarity": 0.594444,
             "topic_id": "topic:endurance-sport",
             "topic_label": "endurance sport"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -277,7 +277,7 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.57,
+            "similarity": 0.567778,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -308,7 +308,7 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -319,29 +319,29 @@
       {
         "top_k": [
           {
-            "similarity": 0.75,
-            "topic_id": "topic:enduro-racing",
-            "topic_label": "enduro racing"
-          },
-          {
-            "similarity": 0.683333,
-            "topic_id": "topic:soil-erosion",
-            "topic_label": "soil erosion"
-          },
-          {
-            "similarity": 0.65,
-            "topic_id": "topic:drivetrain-mechanics",
-            "topic_label": "drivetrain mechanics"
-          },
-          {
-            "similarity": 0.65,
+            "similarity": 0.816667,
             "topic_id": "topic:land-stewardship",
             "topic_label": "land stewardship"
           },
           {
-            "similarity": 0.65,
-            "topic_id": "topic:maintenance",
-            "topic_label": "maintenance"
+            "similarity": 0.816667,
+            "topic_id": "topic:trail-building",
+            "topic_label": "trail building"
+          },
+          {
+            "similarity": 0.804545,
+            "topic_id": "topic:soil-erosion",
+            "topic_label": "soil erosion"
+          },
+          {
+            "similarity": 0.652857,
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management"
+          },
+          {
+            "similarity": 0.638889,
+            "topic_id": "topic:enduro-racing",
+            "topic_label": "enduro racing"
           }
         ],
         "topic_id": "topic:endurance-sport",
@@ -350,27 +350,27 @@
       {
         "top_k": [
           {
-            "similarity": 0.75,
+            "similarity": 0.638889,
             "topic_id": "topic:endurance-sport",
             "topic_label": "endurance sport"
           },
           {
-            "similarity": 0.63,
+            "similarity": 0.59,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
           {
-            "similarity": 0.576667,
+            "similarity": 0.572857,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.57,
+            "similarity": 0.567778,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.57,
+            "similarity": 0.567778,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -396,12 +396,12 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -417,24 +417,24 @@
             "topic_label": "lifelong learning"
           },
           {
-            "similarity": 0.85,
+            "similarity": 0.861111,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.82,
+            "similarity": 0.79,
             "topic_id": "topic:systems-thinking",
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.72,
+            "similarity": 0.701111,
             "topic_id": "topic:reliability",
             "topic_label": "reliability"
           },
           {
-            "similarity": 0.61,
-            "topic_id": "topic:frame",
-            "topic_label": "frame"
+            "similarity": 0.63,
+            "topic_id": "topic:endurance-sport",
+            "topic_label": "endurance sport"
           }
         ],
         "topic_id": "topic:expert-interviews",
@@ -489,12 +489,12 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -520,12 +520,12 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.576667,
+            "similarity": 0.572857,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.57,
+            "similarity": 0.567778,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -551,12 +551,12 @@
             "topic_label": "reliability"
           },
           {
-            "similarity": 0.59,
+            "similarity": 0.584286,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.58,
+            "similarity": 0.576667,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -603,17 +603,17 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -629,22 +629,22 @@
             "topic_label": "trail building"
           },
           {
-            "similarity": 0.65,
+            "similarity": 0.816667,
             "topic_id": "topic:endurance-sport",
             "topic_label": "endurance sport"
           },
           {
-            "similarity": 0.65,
+            "similarity": 0.816667,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.618571,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.603333,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -660,24 +660,24 @@
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.85,
+            "similarity": 0.861111,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.82,
+            "similarity": 0.79,
             "topic_id": "topic:systems-thinking",
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.72,
+            "similarity": 0.701111,
             "topic_id": "topic:reliability",
             "topic_label": "reliability"
           },
           {
-            "similarity": 0.61,
-            "topic_id": "topic:frame",
-            "topic_label": "frame"
+            "similarity": 0.63,
+            "topic_id": "topic:endurance-sport",
+            "topic_label": "endurance sport"
           }
         ],
         "topic_id": "topic:lifelong-learning",
@@ -706,7 +706,7 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -763,12 +763,12 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -784,17 +784,17 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.59,
+            "similarity": 0.584286,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.58,
+            "similarity": 0.576667,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.58,
+            "similarity": 0.576667,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           },
@@ -815,22 +815,22 @@
             "topic_label": "drivetrain mechanics"
           },
           {
-            "similarity": 0.65,
+            "similarity": 0.594444,
             "topic_id": "topic:endurance-sport",
             "topic_label": "endurance sport"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -851,17 +851,17 @@
             "topic_label": "safety practices"
           },
           {
-            "similarity": 0.63,
+            "similarity": 0.59,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
           {
-            "similarity": 0.576667,
+            "similarity": 0.572857,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.57,
+            "similarity": 0.567778,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -882,17 +882,17 @@
             "topic_label": "reliability"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -918,12 +918,12 @@
             "topic_label": "reliability"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -944,17 +944,17 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -980,12 +980,12 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -1016,7 +1016,7 @@
             "topic_label": "monetary policy"
           },
           {
-            "similarity": 0.616667,
+            "similarity": 0.607143,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           }
@@ -1042,12 +1042,12 @@
             "topic_label": "reliability"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -1099,17 +1099,17 @@
             "topic_label": "safety practices"
           },
           {
-            "similarity": 0.63,
+            "similarity": 0.59,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
           {
-            "similarity": 0.576667,
+            "similarity": 0.572857,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.57,
+            "similarity": 0.567778,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -1120,17 +1120,17 @@
       {
         "top_k": [
           {
-            "similarity": 0.776667,
+            "similarity": 0.744286,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.72,
+            "similarity": 0.701111,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.72,
+            "similarity": 0.701111,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           },
@@ -1151,29 +1151,29 @@
       {
         "top_k": [
           {
-            "similarity": 0.85,
+            "similarity": 0.861111,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.85,
+            "similarity": 0.861111,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           },
           {
-            "similarity": 0.776667,
+            "similarity": 0.744286,
             "topic_id": "topic:reliability",
             "topic_label": "reliability"
           },
           {
-            "similarity": 0.72,
+            "similarity": 0.701111,
             "topic_id": "topic:systems-thinking",
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.616667,
-            "topic_id": "topic:personal-finance",
-            "topic_label": "personal finance"
+            "similarity": 0.652857,
+            "topic_id": "topic:endurance-sport",
+            "topic_label": "endurance sport"
           }
         ],
         "topic_id": "topic:risk-management",
@@ -1202,7 +1202,7 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -1228,14 +1228,14 @@
             "topic_label": "reef conservation"
           },
           {
-            "similarity": 0.683333,
-            "topic_id": "topic:soil-erosion",
-            "topic_label": "soil erosion"
-          },
-          {
             "similarity": 0.65,
             "topic_id": "topic:wreck-diving",
             "topic_label": "wreck diving"
+          },
+          {
+            "similarity": 0.622727,
+            "topic_id": "topic:soil-erosion",
+            "topic_label": "soil erosion"
           }
         ],
         "topic_id": "topic:safety-practices",
@@ -1259,12 +1259,12 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -1275,29 +1275,29 @@
       {
         "top_k": [
           {
-            "similarity": 0.683333,
-            "topic_id": "topic:endurance-sport",
-            "topic_label": "endurance sport"
-          },
-          {
-            "similarity": 0.683333,
-            "topic_id": "topic:safety-practices",
-            "topic_label": "safety practices"
-          },
-          {
-            "similarity": 0.65,
+            "similarity": 0.816667,
             "topic_id": "topic:land-stewardship",
             "topic_label": "land stewardship"
           },
           {
-            "similarity": 0.65,
+            "similarity": 0.816667,
             "topic_id": "topic:trail-building",
             "topic_label": "trail building"
           },
           {
-            "similarity": 0.65,
-            "topic_id": "topic:wreck-diving",
-            "topic_label": "wreck diving"
+            "similarity": 0.804545,
+            "topic_id": "topic:endurance-sport",
+            "topic_label": "endurance sport"
+          },
+          {
+            "similarity": 0.652857,
+            "topic_id": "topic:risk-management",
+            "topic_label": "risk management"
+          },
+          {
+            "similarity": 0.63,
+            "topic_id": "topic:expert-interviews",
+            "topic_label": "expert interviews"
           }
         ],
         "topic_id": "topic:soil-erosion",
@@ -1321,12 +1321,12 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -1378,17 +1378,17 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.59,
+            "similarity": 0.584286,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.58,
+            "similarity": 0.576667,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.58,
+            "similarity": 0.576667,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           }
@@ -1399,17 +1399,17 @@
       {
         "top_k": [
           {
-            "similarity": 0.82,
+            "similarity": 0.79,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           },
           {
-            "similarity": 0.82,
+            "similarity": 0.79,
             "topic_id": "topic:lifelong-learning",
             "topic_label": "lifelong learning"
           },
           {
-            "similarity": 0.72,
+            "similarity": 0.701111,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
@@ -1435,22 +1435,22 @@
             "topic_label": "land stewardship"
           },
           {
-            "similarity": 0.65,
+            "similarity": 0.816667,
             "topic_id": "topic:endurance-sport",
             "topic_label": "endurance sport"
           },
           {
-            "similarity": 0.65,
+            "similarity": 0.816667,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.618571,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.603333,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -1481,7 +1481,7 @@
             "topic_label": "systems thinking"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }
@@ -1533,17 +1533,17 @@
             "topic_label": "safety practices"
           },
           {
-            "similarity": 0.65,
+            "similarity": 0.594444,
             "topic_id": "topic:soil-erosion",
             "topic_label": "soil erosion"
           },
           {
-            "similarity": 0.563333,
+            "similarity": 0.561429,
             "topic_id": "topic:risk-management",
             "topic_label": "risk management"
           },
           {
-            "similarity": 0.56,
+            "similarity": 0.558889,
             "topic_id": "topic:expert-interviews",
             "topic_label": "expert interviews"
           }

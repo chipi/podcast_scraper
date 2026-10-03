@@ -133,6 +133,46 @@ class TestParseRSSItems(unittest.TestCase):
         assert rss_parser._channel_description(b"") is None
         assert rss_parser._channel_description(b"<not xml") is None
 
+    def test_channel_language_extracted_raw(self):
+        """#2172: the channel <language> is parsed, and returned EXACTLY as declared.
+
+        Nothing read this tag before — `feed.language` on disk was the run config written back
+        out — so every episode in the corpus claimed the profile's language regardless of what
+        its publisher said.
+        """
+        xml_bytes = f"""<?xml version="1.0"?>
+        <rss version="2.0">
+            <channel>
+                <title>{TEST_FEED_TITLE}</title>
+                <language>es-ES</language>
+                <item><title>Episode 1</title></item>
+            </channel>
+        </rss>""".encode()
+        assert rss_parser._channel_language(xml_bytes) == "es-ES"
+
+    def test_channel_language_is_not_normalized_here(self):
+        """Raw on purpose: the operator judging an odd tag needs the publisher's original."""
+        for declared in ("en-US", "pt_BR", "EN", "  de-DE  "):
+            xml_bytes = f"""<?xml version="1.0"?>
+            <rss version="2.0"><channel><title>{TEST_FEED_TITLE}</title>
+            <language>{declared}</language></channel></rss>""".encode()
+            assert rss_parser._channel_language(xml_bytes) == declared.strip()
+
+    def test_channel_language_none_when_absent(self):
+        """No tag → None (never raises on missing / unparsable XML), same as the sibling."""
+        xml_bytes = f"""<?xml version="1.0"?>
+        <rss version="2.0"><channel><title>{TEST_FEED_TITLE}</title></channel></rss>""".encode()
+        assert rss_parser._channel_language(xml_bytes) is None
+        assert rss_parser._channel_language(b"") is None
+        assert rss_parser._channel_language(b"<not xml") is None
+
+    def test_channel_language_empty_element_is_none(self):
+        """An empty <language/> is "said nothing", not an empty-string language."""
+        xml_bytes = f"""<?xml version="1.0"?>
+        <rss version="2.0"><channel><title>{TEST_FEED_TITLE}</title>
+        <language>   </language></channel></rss>""".encode()
+        assert rss_parser._channel_language(xml_bytes) is None
+
     def test_parse_rss_with_author_tags(self):
         """Test parsing RSS feed with author tags."""
         xml_bytes = f"""<?xml version="1.0"?>

@@ -36,6 +36,56 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-d8cc458a5f0049a8",
+      "target": "topic:authn-authz-separation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d8cc458a5f0049a8",
+      "target": "topic:compliance-vs-real-security",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d8cc458a5f0049a8",
+      "target": "topic:decision-framing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d8cc458a5f0049a8",
+      "target": "topic:embedded-ownership",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d8cc458a5f0049a8",
+      "target": "topic:operational-angle",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d8cc458a5f0049a8",
+      "target": "topic:reliability-incidents",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d8cc458a5f0049a8",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d8cc458a5f0049a8",
+      "target": "topic:security-incidents",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d8cc458a5f0049a8",
+      "target": "topic:threat-modeling",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d8cc458a5f0049a8",
+      "target": "topic:tooling-visibility",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-d8cc458a5f0049a8",
       "to": "person:ethan",
       "type": "MENTIONS"
@@ -115,6 +165,86 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:authn-authz-separation",
+      "properties": {
+        "label": "authn authz separation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:compliance-vs-real-security",
+      "properties": {
+        "label": "compliance vs real security",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:decision-framing",
+      "properties": {
+        "label": "decision framing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:embedded-ownership",
+      "properties": {
+        "label": "embedded ownership",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:operational-angle",
+      "properties": {
+        "label": "operational angle",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability-incidents",
+      "properties": {
+        "label": "reliability incidents",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:security-incidents",
+      "properties": {
+        "label": "security incidents",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:threat-modeling",
+      "properties": {
+        "label": "threat modeling",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tooling-visibility",
+      "properties": {
+        "label": "tooling visibility",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },
