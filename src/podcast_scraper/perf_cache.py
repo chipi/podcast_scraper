@@ -35,6 +35,8 @@ _STORE: Dict[str, Dict[Hashable, Tuple[float, Any]]] = {}
 # namespace -> [hits, misses, build_seconds_total] — build time lets stats() report whether the
 # cache is actually EARNING its keep (time saved on hits) vs just being overhead.
 _STATS: Dict[str, list] = {}
+# (namespace, key, token) -> set when the build in progress for it finishes (single-flight).
+_IN_FLIGHT: Dict[Tuple[str, Hashable, float], threading.Event] = {}
 
 
 def _ns(namespace: str) -> Dict[Hashable, Tuple[float, Any]]:
@@ -67,24 +69,53 @@ def get_or_compute(namespace: str, key: Hashable, token: float, compute: Callabl
     """Return the cached value for ``(namespace, key)`` when its stored token
     matches *token*; otherwise call *compute*, store, and return it.
 
-    ``compute()`` runs OUTSIDE the lock (it may be slow / do IO), so a concurrent
-    duplicate compute is possible and acceptable — last writer wins. The reads
-    this backs are idempotent, so that is safe.
+    ``compute()`` runs OUTSIDE the lock (it may be slow / do IO). SINGLE-FLIGHT: a caller that
+    misses while another is already building the same ``(namespace, key, token)`` waits for that
+    build instead of starting its own. Duplicates looked harmless for a 100 ms build, but the
+    corpus digest's cold build is seconds of embedding-model and LanceDB warm-up, and on the
+    2026-10-03 deploys every retry of the post-deploy smoke started another one: the duplicates
+    starved each other (api at 160-180% CPU) and the first answer took 131 s against ~17 s alone,
+    so the smoke's digest probe never passed on a cold api. If the build raises, waiters fall
+    back to computing themselves.
     """
-    with _LOCK:
-        store = _ns(namespace)
-        hit = store.get(key)
-        if hit is not None and hit[0] == token:
-            _STATS[namespace][0] += 1
-            return hit[1]
-        _STATS[namespace][1] += 1
-    started = time.perf_counter()
-    value = compute()
-    elapsed = time.perf_counter() - started
-    with _LOCK:
-        _ns(namespace)[key] = (token, value)
-        _STATS[namespace][2] += elapsed
-    return value
+    flight_key = (namespace, key, token)
+    while True:
+        with _LOCK:
+            store = _ns(namespace)
+            hit = store.get(key)
+            if hit is not None and hit[0] == token:
+                _STATS[namespace][0] += 1
+                return hit[1]
+            in_flight = _IN_FLIGHT.get(flight_key)
+            if in_flight is None:
+                _STATS[namespace][1] += 1
+                done = threading.Event()
+                _IN_FLIGHT[flight_key] = done
+                break
+        in_flight.wait()
+        with _LOCK:
+            hit = _ns(namespace).get(key)
+            if hit is not None and hit[0] == token:
+                _STATS[namespace][0] += 1
+                return hit[1]
+            if flight_key in _IN_FLIGHT:
+                continue  # another waiter already took over the build; wait for it
+            _STATS[namespace][1] += 1
+            done = threading.Event()
+            _IN_FLIGHT[flight_key] = done
+            break  # the build we waited on failed: compute ourselves
+    try:
+        started = time.perf_counter()
+        value = compute()
+        elapsed = time.perf_counter() - started
+        with _LOCK:
+            _ns(namespace)[key] = (token, value)
+            _STATS[namespace][2] += elapsed
+        return value
+    finally:
+        with _LOCK:
+            _IN_FLIGHT.pop(flight_key, None)
+        done.set()
 
 
 def clear(namespace: str | None = None) -> None:
