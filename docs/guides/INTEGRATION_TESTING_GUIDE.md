@@ -93,6 +93,73 @@ belongs in `tests/e2e/` with `@pytest.mark.e2e` and `@pytest.mark.ml_models`.
 Integration tests verify how *our* components wire together. The ML/AI boundary is
 always a mock or stub at this layer.
 
+## Search and the vector store {#search-and-the-vector-store}
+
+> This section was written on 2026-10-03, after eight tests were filed as unit tests, passed on a
+> developer machine, and failed in CI. The guides predated LanceDB search and said nothing about
+> it, so the rule below is derived from what the suite already does rather than invented.
+
+**The vector STORE is integration-legal. The EMBEDDER is not.** They arrive together in the
+`[search]` extra, which is why they get conflated:
+
+| Dependency | What it is | Where a test using it belongs |
+| ---------- | ---------- | ----------------------------- |
+| `lancedb`, `pyarrow` | storage and serialisation — a database in a temp directory | **integration**, behind `pytest.importorskip("lancedb")` |
+| `sentence-transformers`, `torch` | a real ML model that computes embeddings | integration **only** with `@requires("sentence_transformers")` per test; otherwise **E2E** |
+
+The distinction is not a loophole. "ML/AI models and APIs are always mocked" exists because loading
+a model is slow, non-deterministic and needs weights; a LanceDB table in `tmp_path` is none of
+those — it is the **real filesystem**, which this layer already specifies as real. `pyproject`
+agrees and says so explicitly: `lancedb` is deliberately **not** in `[ml]` — *"it is search-only
+(used solely under `search/` + the index-rebuild route + upgrade migration, never by transcription
+/ summarization / GI)"*.
+
+### What the suite actually does (measured 2026-10-03)
+
+| Layer | Files touching search | Instantiate a real `LanceDBBackend` | `importorskip` | `@requires` |
+| ----- | --------------------- | ----------------------------------- | -------------- | ----------- |
+| unit | 20 | **0** | **0** | **0** |
+| integration | 22 | 10 | 17 | 7 |
+| e2e | 1 | 0 | 1 | 1 |
+
+**Unit search tests touch no backend at all — not even a mocked one.** They cover what is
+expressible without the store: query parsing and language signals
+(`search/query_language.py`), chunk-id construction, tier routing decisions, offset arithmetic.
+If a unit test needs the store to be meaningful, it is not a unit test.
+
+### The trap, and how it was found
+
+CI's `test-unit` job installs **`.[dev]`** only — no `lancedb`, no `pyarrow`, no `torch`. The
+integration and E2E jobs install **`.[dev,ml,llm,search]`**. A development machine typically has
+the full set, so:
+
+- a unit test that imports `search.backends.lancedb_backend` for one helper **passes locally** and
+  **fails in CI**, because the backend imports `pyarrow`/`lancedb` lazily;
+- `make ci-fast` reported **13,353 passing** while CI's `test-unit` job failed **8** — the same
+  commit, the same tests, a different dependency set.
+
+Neither `check-test-policy` nor `check-unit-imports` catches that shape: rule U1 bans the
+import-or-skip helper and rule U2 bans `*_AVAILABLE` guards, but these tests used neither — they
+simply imported a module whose dependency was absent. `check-unit-imports` validates that *library*
+modules import without ML deps, not that the *tests* do.
+
+**To reproduce CI's unit environment locally,** use `make venv-dev-init` + `make
+test-unit-dev-venv`, which creates `.venv-dev` with `.[dev]` only — the same extras as the
+`test-unit` job.
+
+### Which layer, for a search change
+
+| You are testing | Layer | How |
+| --------------- | ----- | --- |
+| Query parsing, language signal, chunk ids, routing choice | unit | plain functions, no backend |
+| A schema's shape, a table's contents after a write, index/delete/reindex behaviour | integration | real store, `importorskip("lancedb")`, literal vectors |
+| Ranking, recall, anything where the EMBEDDING's value matters | integration + `@requires("sentence_transformers")`, or E2E | real model |
+| A full search request through the API over a built index | E2E | real stack |
+
+`@requires(...)` is per **test**, never module-level — see its docstring in
+`tests/integration/conftest.py`: a module-level guard "would have silenced about a hundred working
+integration tests to quiet a dozen failures."
+
 ## Test Patterns
 
 ### Component Workflow Test

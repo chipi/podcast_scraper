@@ -14,7 +14,6 @@ confirmed in this slice.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pytest
@@ -22,36 +21,36 @@ import pytest
 from podcast_scraper.search.backend import SegmentDocument
 from podcast_scraper.search.backends.lancedb_backend import (
     _segment_nonen_schema,
-    _segment_schema,
-    DEFAULT_EMBED_DIM as _EMBED_DIM,
     LANCE_SCHEMA_VERSION,
     LanceDBBackend,
 )
 
 pytestmark = pytest.mark.unit
 
+# MOVED 2026-10-03 — the four real-schema assertions and the whole reindex-survival class now
+# live in tests/integration/search/test_nonenglish_tier_real_schema.py.
+#
+# They build a real pyarrow schema or open a real LanceDB table, which a unit test may not: the
+# Unit Testing Guide requires unit tests to run with no ML packages installed, and the policy
+# checker's rule U1 forbids the import-or-skip helper here. (This note deliberately does not
+# spell that helper's name out — the checker matches the literal string, comments included, and
+# flagged an earlier draft of this very comment.)
+#
+# Mocking was not an option either: against a MagicMock those assertions would pass while
+# asserting nothing. What stays here is every test that only inspects a function SIGNATURE, which
+# needs neither wheel.
+#
+# How it was found: CI's test-unit job installs neither lancedb nor pyarrow, this machine has
+# both, and lancedb_backend imports them lazily — so `make ci-fast` reported 13,353 passing while
+# CI's unit job failed these eight.
+
 
 class TestTheGuaranteeIsStructural:
-    def test_the_non_english_schema_has_NO_embedding_column(self) -> None:
-        """The whole design in one assertion: there is nowhere to put a vector, so no code path
-        — present or future — can include these rows in a dense search."""
-        names = set(_segment_nonen_schema().names)
-        assert "embedding" not in names
-        assert "text" in names, "but BM25 still needs the text"
-        assert "language" in names
-
     def test_the_schema_builder_takes_no_dimension(self) -> None:
         """A signature that cannot accept `dim` cannot be handed one by mistake."""
         import inspect
 
         assert list(inspect.signature(_segment_nonen_schema).parameters) == []
-
-    def test_it_otherwise_mirrors_the_english_segment_schema(self) -> None:
-        """A reader of one should not have to learn a second shape. Everything but the vector
-        and the added language tag is identical, so joins and filters behave the same."""
-        en = set(_segment_schema(8).names) - {"embedding"}
-        non_en = set(_segment_nonen_schema().names) - {"language"}
-        assert en == non_en
 
     def test_the_tier_is_excluded_from_every_dense_path(self) -> None:
         """Dense paths derive their tier list from `DENSE_TIERS`, never from `TABLES` — so
@@ -71,23 +70,6 @@ class TestItDoesNotForceARebuild:
         Adding a TABLE leaves the three stored schemas untouched, so it does not.
         """
         assert LANCE_SCHEMA_VERSION == 3
-
-    def test_the_three_existing_schemas_are_unchanged(self) -> None:
-        """The other half of the same claim: if a field had been added to `segments` instead,
-        every corpus would need rebuilding."""
-        assert set(_segment_schema(8).names) == {
-            "id",
-            "text",
-            "embedding",
-            "show_id",
-            "episode_id",
-            "speaker_id",
-            "start_time",
-            "end_time",
-            "linked_insight_ids",
-            "source_tier",
-            "publish_date",
-        }
 
 
 class TestReadPathTolerance:
@@ -169,15 +151,6 @@ class TestTheRouter:
         )
         assert [r["id"] for r in english] == ["a", "c"]
         assert [r["id"] for r in non_english] == ["b", "d"]
-
-    def test_the_schema_resolver_handles_both_kinds_of_tier(self) -> None:
-        class _B(LanceDBBackend):
-            def __init__(self) -> None:
-                self.embed_dim = 8
-
-        b = _B()
-        assert "embedding" in set(b._schema_for("segment").names)
-        assert "embedding" not in set(b._schema_for("segment_nonen").names)
 
 
 class TestBothWritePathsRoute:
@@ -444,85 +417,6 @@ class TestWhatFEEDSTheRouter:
 # classifying and the predicate has no question to answer. What it was protecting — the
 # router labelling English chunks `es` and dropping their embeddings — is now impossible by
 # construction, and asserted as such in `TestWhatFEEDSTheRouter` above.
-
-
-class TestAReindexDoesNotDELETETheNonEnglishTier:
-    """A full reindex over an EXISTING index must not empty `segments_nonen` (S2.9 regression).
-
-    THE BUG, MEASURED. The rows were written and then deleted, in the same build:
-
-    * `_flush_tier` records the LOGICAL tier it was called with — `segment` — in
-      `overwritten_tiers`. `replace_segments`/`upsert_segments` then write to TWO physical
-      tables, `segments` and `segments_nonen`, because the language split lives inside the
-      backend. Nothing ever put `segment_nonen` in that set.
-    * `_finalize_reindex_clear` computes `pre_existing_tiers - overwritten_tiers` and
-      MVCC-empties the difference, so `segment_nonen` was always in the difference and always
-      cleared — after its rows had been written.
-
-    WHY IT WAS INVISIBLE. A first build (no index on disk yet) takes neither path:
-    `_plan_reindex_clear` returns no reason, so `_finalize_reindex_clear` never runs and the
-    rows survive. The failure needs an index to already exist, which is every reindex in
-    production and no test here. The read path then fails silently too — `segments_nonen` with
-    zero rows gets no FTS index (`create_indices` skips empty tables), so BM25 raises
-    "Cannot perform full text search unless an INVERTED index has been created", and
-    `_run_keyword_only_tier` swallows that at `logger.debug`. Net effect: a verbatim sentence
-    from an episode's own Spanish transcript returned 612 rows, none of them that episode's
-    source layer.
-
-    This is what "an episode findable in the language it was spoken in" (Goal 6) rests on, so
-    it is asserted against a REAL index on disk rather than against the splitter.
-    """
-
-    @staticmethod
-    def _docs() -> List[SegmentDocument]:
-        def doc(doc_id: str, language: Optional[str]) -> SegmentDocument:
-            return SegmentDocument(
-                id=doc_id,
-                text="drenaje y estructura del suelo" if language else "drainage and soil",
-                show_id="p10",
-                episode_id="ep1",
-                start_time=0.0,
-                end_time=5.0,
-                embedding=[0.1] * _EMBED_DIM,
-                language=language,
-            )
-
-        return [doc("ep1_chunk_0", "en"), doc("ep1_chunk_0:src", "es")]
-
-    def _rows(self, path: str, tier: str) -> Optional[int]:
-        backend = LanceDBBackend(path, embed_dim=_EMBED_DIM)
-        table = backend._open_if_exists(tier)
-        return None if table is None else int(table.count_rows())
-
-    def test_the_source_rows_survive_a_reindex_over_an_existing_index(self, tmp_path: Any) -> None:
-        from podcast_scraper.search.two_tier_indexer import _finalize_reindex_clear
-
-        path = str(tmp_path / "lance_index")
-        backend = LanceDBBackend(path, embed_dim=_EMBED_DIM)
-        backend.replace_segments(self._docs())
-        assert self._rows(path, "segment_nonen") == 1, "setup: the source row was not written"
-
-        # Exactly what the build does at the end of a full reindex: every tier that existed
-        # before and was not recorded as overwritten gets MVCC-emptied.
-        pre_existing = set(backend.existing_tier_tables())
-        assert "segment_nonen" in pre_existing
-        _finalize_reindex_clear(Path(path), backend, pre_existing, overwritten_tiers={"segment"})
-
-        assert self._rows(path, "segment_nonen") == 1, (
-            "the reindex emptied the non-English tier — the rows were written by "
-            "replace_segments and then deleted by the finalize clear, so no non-English "
-            "content is searchable on any corpus that already had an index"
-        )
-
-    def test_replacing_segments_counts_as_overwriting_BOTH_physical_tables(self) -> None:
-        """The fix stated as a property, so it cannot regress by someone re-deriving the set.
-
-        `segment` and `segment_nonen` are written by one call and must be bookkept as one unit.
-        """
-        assert "segment_nonen" in LanceDBBackend.physical_tiers_written_with("segment")
-        assert "segment" in LanceDBBackend.physical_tiers_written_with("segment")
-        # A tier with no split is just itself — no special-casing leaks to the other tiers.
-        assert LanceDBBackend.physical_tiers_written_with("insight") == ("insight",)
 
 
 class TestAScopedTranscriptSearchStillReachesTheSourceLayer:
