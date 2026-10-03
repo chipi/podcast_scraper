@@ -2546,27 +2546,50 @@ ANDROID_SDK_DIR ?= $(HOME)/Library/Android/sdk
 ADB ?= $(ANDROID_SDK_DIR)/platform-tools/adb
 ANDROID_DIR = $(APP_DIR)/android
 
-test-android:
-	@# ASYMMETRIC GUARD, same as test-ios: skip LOUDLY where the tier cannot run, FAIL where it
-	@# can run but the setup is broken. A skip that covers real breakage is how a tier stops
-	@# running without anyone noticing — which is precisely how `DownloadThroughUITests.swift` sat
-	@# uncompilable for weeks on the iOS side.
-	@if [ ! -d "$(ANDROID_SDK_DIR)" ]; then \
-		echo "SKIP: test-android — no Android SDK at $(ANDROID_SDK_DIR)."; \
-		echo "      Not a pass: NOTHING on the Android device tier was verified here."; \
-		exit 0; \
-	fi
-	@test -x $(ADB) || { \
-		echo "FAIL: test-android — an Android SDK exists but adb is missing at $(ADB)."; \
-		exit 1; \
-	}
-	@$(ANDROID_SDK_DIR)/emulator/emulator -list-avds 2>/dev/null | grep -qx "$(ANDROID_AVD)" || { \
-		echo "FAIL: test-android — no '$(ANDROID_AVD)' AVD. Create it in Android Studio, or set"; \
-		echo "      ANDROID_AVD=<name> to one from: $(ANDROID_SDK_DIR)/emulator/emulator -list-avds"; \
-		exit 1; \
-	}
-	@echo ""; echo "=== test-android START $$(date '+%Y-%m-%d %H:%M:%S') — avd '$(ANDROID_AVD)' ==="
-	@$(MAKE) android-emulator-up
+# Build the app against the single fixture origin and install it on the AVD — the Android twin of
+# `ios-app-install`, and shared by `test-android` and `android-contact-sheet`.
+#
+# EXTRACTED from `test-android` (2026-10-03) rather than copied into the contact-sheet target. The
+# iOS side already learned this one: `test-app-ios-sim-download` carried a byte-identical copy of
+# `ios-app-install` MINUS its two integrity probes, which is the half that matters — so phase 1 ran
+# without them for weeks. A second copy here would have drifted the same way, and the drift is
+# invisible until a tier fails for a reason the other tier already fixed.
+#: Where the Android tour's shots are pulled to, and the sheet written.
+ANDROID_SHOTS_DIR ?= /tmp/lp-android-shots
+#: The account the tour photographs. Passed to the SEEDING suites too, via `-e identity`, so both
+#: halves land on one account — the iOS sheet regressed for weeks because they did not.
+ANDROID_SEED_IDENTITY ?= simtest
+
+# ONE image per surface of the Android app, stitched into a single sheet — the twin of
+# `ios-contact-sheet`, and meant to be read beside it. A surface that renders differently on the two
+# platforms is the whole reason both exist.
+android-contact-sheet: android-app-install
+	@echo "--> seeding data so the tour photographs a populated app (as $(ANDROID_SEED_IDENTITY))"
+	@# SAME ACCOUNT as the tour, stated at the call site rather than left to two defaults agreeing.
+	@# `-e identity` is read by `UITestCase.accountIdentity()`. Without it the seeders populate
+	@# `appjourneytests` / `personalisationtests` while the tour reads `simtest`, and the sheet is a
+	@# wall of empty states — which is exactly how the iOS sheet regressed in silence (#2091).
+	@$(MAKE) android-suite SUITE=AppJourneyTests ANDROID_EXTRA_ARGS="-e identity $(ANDROID_SEED_IDENTITY)" || true
+	@$(MAKE) android-suite SUITE=PersonalisationTests ANDROID_EXTRA_ARGS="-e identity $(ANDROID_SEED_IDENTITY)" || true
+	@echo "--> touring every surface"
+	@$(MAKE) android-suite SUITE=ScreenshotTourTests ANDROID_EXTRA_ARGS="-e identity $(ANDROID_SEED_IDENTITY)"
+	@echo "--> pulling shots"
+	@rm -rf $(ANDROID_SHOTS_DIR) && mkdir -p $(ANDROID_SHOTS_DIR)
+	@# The app's EXTERNAL files dir, not /sdcard directly — scoped storage refuses the latter, which
+	@# is why `Journey.shot` writes here in the first place.
+	@$(ADB) pull /sdcard/Android/data/$(ANDROID_PKG)/files/lp-shots $(ANDROID_SHOTS_DIR) >/dev/null 2>&1 \
+		|| { echo "FAIL: no shots pulled — the tour wrote none. Check the SHOT markers:"; \
+		     $(ADB) logcat -d -s LPHARNESS:I 2>/dev/null | grep "=====SHOT" | tail -20; exit 1; }
+	@n=$$(ls $(ANDROID_SHOTS_DIR)/lp-shots/*.png 2>/dev/null | wc -l | tr -d ' '); \
+		[ "$$n" -gt 0 ] || { echo "FAIL: pulled 0 screenshots."; exit 1; }; \
+		echo "OK: $$n screenshot(s)"
+	@$(PYTHON) scripts/tools/contact_sheet.py \
+		--in $(ANDROID_SHOTS_DIR)/lp-shots \
+		--out $(ANDROID_SHOTS_DIR)/contact-sheet.png \
+		--cols $(IOS_SHEET_COLS)
+	@echo "--> $(ANDROID_SHOTS_DIR)/contact-sheet.png"
+
+android-app-install:
 	@# DISABLE THE CACHED-APP FREEZER (2026-09-26). Sign-in opens the OAuth consent page in a
 	@# Capacitor `BrowserControllerActivity` — a Chrome Custom Tab, hosted by com.android.chrome.
 	@# Android's freezer suspends that process mid-flow, so the consent page never finishes, no
@@ -2619,6 +2642,29 @@ test-android:
 	@# repeat (the comment at build.gradle:30 and `make android-bundle`).
 	@$(ADB) install -r -t -d $(ANDROID_DIR)/app/build/outputs/apk/debug/app-debug.apk >/dev/null
 	@$(ADB) install -r -t -d $(ANDROID_DIR)/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
+
+test-android:
+	@# ASYMMETRIC GUARD, same as test-ios: skip LOUDLY where the tier cannot run, FAIL where it
+	@# can run but the setup is broken. A skip that covers real breakage is how a tier stops
+	@# running without anyone noticing — which is precisely how `DownloadThroughUITests.swift` sat
+	@# uncompilable for weeks on the iOS side.
+	@if [ ! -d "$(ANDROID_SDK_DIR)" ]; then \
+		echo "SKIP: test-android — no Android SDK at $(ANDROID_SDK_DIR)."; \
+		echo "      Not a pass: NOTHING on the Android device tier was verified here."; \
+		exit 0; \
+	fi
+	@test -x $(ADB) || { \
+		echo "FAIL: test-android — an Android SDK exists but adb is missing at $(ADB)."; \
+		exit 1; \
+	}
+	@$(ANDROID_SDK_DIR)/emulator/emulator -list-avds 2>/dev/null | grep -qx "$(ANDROID_AVD)" || { \
+		echo "FAIL: test-android — no '$(ANDROID_AVD)' AVD. Create it in Android Studio, or set"; \
+		echo "      ANDROID_AVD=<name> to one from: $(ANDROID_SDK_DIR)/emulator/emulator -list-avds"; \
+		exit 1; \
+	}
+	@echo ""; echo "=== test-android START $$(date '+%Y-%m-%d %H:%M:%S') — avd '$(ANDROID_AVD)' ==="
+	@$(MAKE) android-emulator-up
+	@$(MAKE) android-app-install
 	@# A CLEAN DEVICE, every time. Forced-offline is device-local and survives both a relaunch and
 	@# an account change, and a run that leaves it on cannot sign in on the NEXT run either — the
 	@# switch is in Settings, Settings is behind the masthead avatar, and the avatar needs a
@@ -2665,6 +2711,10 @@ test-android:
 
 # One suite. `am instrument` rather than gradle's `connectedAndroidTest`, because gradle UNINSTALLS
 # both apks when it finishes — which would delete the downloads the offline suites exist to read.
+#: Extra `am instrument` arguments, e.g. `-e identity simtest`. Used by `android-contact-sheet` to
+#: put the seeding suites and the photographing suite on ONE account.
+ANDROID_EXTRA_ARGS ?=
+
 android-suite:
 	@test -n "$(SUITE)" || { echo "FAIL: android-suite needs SUITE=<ClassName>"; exit 1; }
 	@# Optional `TEST=<method>` runs ONE test, via `am instrument`'s `Class#method` form. The
@@ -2702,6 +2752,7 @@ android-suite:
 	if [ -n "$(TEST)" ]; then target="$$target\#$(TEST)"; fi; \
 	$(ADB) logcat -c >/dev/null 2>&1 || true; \
 	out=$$($(ADB) shell am instrument -w -e class "$$target" -e originPort $(IOS_ORIGIN_PORT) \
+		$(ANDROID_EXTRA_ARGS) \
 		$(ANDROID_PKG).test/androidx.test.runner.AndroidJUnitRunner 2>&1); \
 	echo "$$out"; \
 	echo "$$out" | grep -q "^OK (" || { \
@@ -4989,6 +5040,9 @@ docker-clean:
 	@echo "Cleaned up Docker test images"
 
 # --- Observability control plane (podcast_obs, #803) ---
+# android tiers
+.PHONY: android-app-install android-contact-sheet
+
 .PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-sync obs-verify-dashboard obs-umami-views obs-umami-views-check
 
 obs-test: ## Unit tests for the observability control plane (podcast_obs). Fast, no network.

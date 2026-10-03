@@ -88,14 +88,39 @@ def test_envelope_carries_ttl(golden_path: Path) -> None:
     assert isinstance(env.get("expires_at"), str) and env["expires_at"] > env["created_at"]
 
 
+#: Transactional envelopes. These exist to DO something for the recipient right now (sign them in),
+#: not to deliver corpus content, so the content invariants below do not apply to them: they carry
+#: no graph items, and their address is unverified BY DEFINITION — proving control of it is the
+#: entire purpose of the message.
+#:
+#: Scoped by template rather than skipped ad hoc in each test, so adding another transactional
+#: template is one edit here and not three silent exemptions.
+_TRANSACTIONAL_TEMPLATES = {"magic-link.v1"}
+
+
+def _is_transactional(env: dict) -> bool:
+    return env.get("template") in _TRANSACTIONAL_TEMPLATES
+
+
 @pytest.mark.parametrize("golden_path", _GOLDEN_FILES, ids=lambda p: p.name)
 def test_channel_recipient_consistency(golden_path: Path) -> None:
     env = _load(golden_path)
     recipient = env["recipient"]
     if env["channel"] == "email":
         assert recipient.get("email"), "email channel needs an address"
-        # Never enqueue email to an unverified address.
-        assert recipient.get("email_verified") is True
+        if _is_transactional(env):
+            # INVERTED for auth, deliberately. "Never mail an unverified address" is the right rule
+            # for anything we send ON OUR INITIATIVE — it is how we avoid mailing someone who never
+            # confirmed the address is theirs. A sign-in link is the opposite case: the recipient
+            # just asked for it, and clicking it is what PERFORMS the verification. Claiming
+            # `email_verified: true` here would assert something we have not established yet.
+            assert recipient.get("email_verified") is False, (
+                "a sign-in link goes to an as-yet-unverified address; marking it verified would "
+                "claim a fact the message exists to establish"
+            )
+        else:
+            # Never enqueue email to an unverified address.
+            assert recipient.get("email_verified") is True
     elif env["channel"] == "push":
         assert recipient.get("push_subscription"), "push channel needs a subscription"
 
@@ -132,6 +157,11 @@ def _digest_items(env: dict):
 def test_every_item_carries_the_graph(golden_path: Path) -> None:
     # The moat rule: an outbound item is a graph node (deep_link + graph_refs), not a flat clip.
     env = _load(golden_path)
+    if _is_transactional(env):
+        # A sign-in link carries no corpus content and must not: the moat rule is about what we
+        # send ABOUT the corpus, and this message is about the recipient's own session.
+        assert not list(_digest_items(env)), "a transactional envelope must carry no digest items"
+        return
     items = list(_digest_items(env))
     assert items, "an envelope with no deliverable items should not have been enqueued"
     for item in items:

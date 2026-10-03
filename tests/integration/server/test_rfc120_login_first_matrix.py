@@ -28,6 +28,14 @@ _ANON_ALLOW = {
     "/api/app/comms/unsubscribe",
     "/api/app/auth/login",
     "/api/app/auth/callback",
+    # Email magic-link sign-in (#2272). Unauthenticated BY NECESSITY: these are the routes that
+    # CREATE a session, so requiring one would make the second front door unopenable. Exactly the
+    # same reason `/auth/login` and `/auth/callback` are listed above.
+    #
+    # The access allowlist still applies — it is checked inside `/auth/email/verify`, as it is for
+    # OAuth — so "anonymous" here means "no session yet", never "anyone may sign in".
+    "/api/app/auth/email/request",
+    "/api/app/auth/email/verify",
     "/api/app/auth/logout",
     "/api/app/auth/dev-users",
     "/api/app/auth/status",
