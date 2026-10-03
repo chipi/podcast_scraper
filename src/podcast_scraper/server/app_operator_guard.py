@@ -19,6 +19,7 @@ Consumer routes (``/api/app/*``) have their own auth and are never gated here.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 from collections.abc import Awaitable, Callable
 from pathlib import Path
@@ -77,6 +78,22 @@ def is_operator_write(method: str, path: str) -> bool:
     return is_operator_path(path) or _matches_base(path, _OPERATOR_WRITE_BASES)
 
 
+#: HMAC label of the GET-only operator key. MUST equal the label deploy-player.yml stages the key
+#: with (``operator-read-v1``), or the derived key and the staged one disagree.
+READ_KEY_LABEL = b"operator-read-v1"
+
+
+def derived_read_key(operator_key: str) -> str:
+    """The GET-only key derived from the operator key: ``HMAC-SHA256(key, READ_KEY_LABEL)``.
+
+    An api that holds the WRITE key can compute the read key itself, so no second secret has to be
+    staged for it. The operator api (compose-api) holds the write key and no read key; obs holds
+    only the read key, staged by deploy-player.yml from the same write key — so obs's read probes
+    (/api/jobs, /api/enrichment/*, /api/ops/cache-stats) were 403 there (prod, 2026-10-03).
+    """
+    return hmac.new(operator_key.encode(), READ_KEY_LABEL, hashlib.sha256).hexdigest()
+
+
 def _valid_key(request: Request, key: str) -> bool:
     """True when a configured operator key matches the request's ``X-Operator-Key`` header."""
     return bool(key) and hmac.compare_digest(request.headers.get("x-operator-key", ""), key)
@@ -111,7 +128,7 @@ class OperatorWriteGuard(BaseHTTPMiddleware):
 
         state = request.app.state
         key = getattr(state, "operator_api_key", "") or ""
-        read_key = getattr(state, "operator_read_key", "") or ""
+        read_key = getattr(state, "operator_read_key", "") or (derived_read_key(key) if key else "")
         secret = getattr(state, "session_secret", "") or ""
         data_dir = getattr(state, "app_data_dir", None)
         audit_path = getattr(state, "audit_path", None)

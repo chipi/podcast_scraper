@@ -27,8 +27,9 @@ default_target: prod
 
 targets:
   prod:
-    # The content API in the same compose network — health / version / recent runs.
-    api_base: http://api:8000
+    # The OPERATOR api (container name: on two networks the service name `api` is ambiguous).
+    # player-api, the `api` of obs's own stack, serves none of the read probes but /api/health.
+    api_base: http://compose-api-1:8000
 
     # Operator key for the GATED probes (#1921). /api/jobs and /api/enrichment/* moved under
     # ``app_operator_guard`` (#1071/#1128) while these probes still called them bare, so

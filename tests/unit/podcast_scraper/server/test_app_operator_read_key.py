@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
-from podcast_scraper.server.app_operator_guard import OperatorWriteGuard
+from podcast_scraper.server.app_operator_guard import derived_read_key, OperatorWriteGuard
 
 pytestmark = [pytest.mark.unit]
 
@@ -77,3 +77,23 @@ def test_a_read_key_alone_enforces_the_gate() -> None:
     assert _status(c, "GET", "/api/jobs", None) == 403
     assert _status(c, "GET", "/api/jobs", READ) == 200
     assert _status(c, "POST", "/api/jobs", READ) == 403
+
+
+def test_an_api_holding_only_the_write_key_accepts_the_derived_read_key() -> None:
+    """compose-api has the write key and no read key; obs holds only the read key, staged by
+    deploy-player.yml as HMAC(write key, operator-read-v1). Its read probes were 403 there."""
+    c = _client(write_key=WRITE, read_key="")
+    derived = derived_read_key(WRITE)
+    assert _status(c, "GET", "/api/jobs", derived) == 200
+    assert _status(c, "POST", "/api/jobs", derived) == 403
+    assert _status(c, "POST", "/api/jobs/abc/cancel", derived) == 403
+    assert _status(c, "GET", "/api/jobs", "nope") == 403
+
+
+def test_the_derivation_matches_the_one_deploy_player_stages() -> None:
+    """The workflow's one-liner, verbatim, must produce the same key as the guard derives."""
+    import hashlib
+    import hmac
+
+    staged = hmac.new(WRITE.encode(), b"operator-read-v1", hashlib.sha256).hexdigest()
+    assert derived_read_key(WRITE) == staged
