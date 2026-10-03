@@ -125,7 +125,8 @@ def test_a_junk_statement_and_the_real_author_tags_are_both_visible(feed_dir: Pa
     hosts = {h["name"]: h["sources"] for h in _build(feed_dir)["hosts"]}
     assert hosts["Ben Carter"] == ["author_tag"]
     assert hosts["Ana Ortiz"] == ["author_tag"]
-    assert hosts["Two Carnegie Mellon"] == ["feed_statement"]
+    # The statement's non-person is refused by the person check but stays visible, marked as such.
+    assert hosts["Two Carnegie Mellon"] == ["feed_statement_refused"]
 
 
 def test_an_organisation_author_tag_is_not_a_host(feed_dir: Path) -> None:

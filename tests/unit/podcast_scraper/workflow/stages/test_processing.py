@@ -364,17 +364,19 @@ class TestStatementFirstHostDetection(unittest.TestCase):
         self.assertEqual(result.cached_hosts, {"Kevin Roose", "Casey Newton"})
         detector.detect_hosts.assert_not_called()  # statement won; provider not consulted
 
-    def test_statement_beats_a_personal_author_tag(self):
-        # F2's specific divergence: the RSS author tag is a PERSONAL name (a producer) that differs
-        # from the hosts the description states. The provider would short-circuit to the producer;
-        # statement-first keeps the actual hosts. Same episode down full vs relabel now agree.
+    def test_statement_and_a_personal_author_tag_are_both_read(self):
+        # F2's divergence: the RSS author tag is a PERSONAL name that differs from the hosts the
+        # description states. The provider would short-circuit to the tag alone; the statement and
+        # the tag are now read together (2026-10-03, gold sets), so the stated hosts are never lost.
+        # A tag that is a producer joins the pool; a pool entry is named only on a voice that
+        # introduces itself or by one-name-one-seat, never by position.
         feed, ep = self._feed_and_episode(
             "Hosted by Kevin Roose and Casey Newton.", ["Priya Producer"]
         )
         cfg = create_test_config(auto_speakers=True)
         detector = self._detector({"Priya Producer"})
         result = processing.detect_feed_hosts_and_patterns(cfg, feed, [ep], None, detector)
-        self.assertEqual(result.cached_hosts, {"Kevin Roose", "Casey Newton"})
+        self.assertEqual(result.cached_hosts, {"Kevin Roose", "Casey Newton", "Priya Producer"})
 
     def test_no_host_in_description_stays_empty_no_invention(self):
         # NVIDIA-style: org author + a blurb that names no host. Statement empty -> provider is

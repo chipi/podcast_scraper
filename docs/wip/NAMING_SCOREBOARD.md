@@ -36,6 +36,12 @@ question this scoreboard answers is how much of it RULES can recover.
 | + seats (v4, accepted) | 604 | 138 | 399 | 47 | 31 | 342 |
 | + person check (accepted) | 604 | 119 | 418 | 47 | 31 | 342 |
 | + presenter evidence (accepted) | 615 | 118 | 417 | 47 | 22 | 352 |
+| (pools rebuilt from metadata with the committed detector — stale stored pools, not a change) | 623 | 118 | 408 | 47 | 23 | 360 |
+| + host pools (accepted) | 644 | 112 | 395 | 46 | 21 | 378 |
+
+From the host-pool row on, every column is measured with `naming_gate.py --repool` (each variant
+rebuilds the episode's pool from stored metadata with its own hosts module); the rows above it
+replay the stored pools. The unlabelled row between them is the repool itself.
 
 ## Attempts
 
@@ -47,6 +53,8 @@ question this scoreboard answers is how much of it RULES can recover.
 | 2 | host/guest judged across the whole voice | 1 | a guest phrase counts only in the first 60% of a voice | 3 / 0 | 0 / 3 | rejected (guests whose only "thanks for having me" is a farewell) |
 | 2 | host/guest judged across the whole voice | 2 | presenter evidence (advisor p7): a voice naming the show in a presenting formula, introducing the stated guest, or one half of an "I'm A / And I'm B" pair is a host even outside the pool, and outranks a lone guest phrase; episode-stated guest host joins the pool; show-name pool entries never named | 22 / 0 | 13 / 2 | accepted (last loop; 2 worse: Hard Fork Kevin's voice named Casey, an unnamed Business of Africa host voice named) |
 | 3 | junk names passing the person check | 1 | show/brand and region tails, count words, captured role words, job titles in long names, product mononyms, stray `?` | 4 / 0 | 20 / 0 | accepted (census: 15 distinct names newly refused, all junk) |
+| 4 | host pools | 1 | statement ∪ author tags with a per-name person check, wider stated-name grammar, episode-described hosts (byline silenced when the description names one), respelt/merged host not a stranger, solo/ownership/show-mononym guards (measured with `--repool` on both sides; repooling alone with the committed detector = +8 correct on val, stale stored pools) | 11 / 1 | 28 / 6 (3 guests given the host's name or role, 2 co-hosts given the pooled host's name, 1 pooled host unnamed) | loop again |
+| 4 | host pools | 2 | + unnamed introducer seat (1c), a forced pool name declines when another voice presents, a self-introduced stated guest who sounds like one is never a stand-in host, a respelt guest name is not spare, a guest the description names after the cue is not a described host, a carried pool name is never forced onto a second voice, a pool host's own self-introduced name stays on a non-host voice (production wiring: the roster pool also gets the episode's stated people) | 2 / 0 vs loop 1 (13 / 1 vs before) | 4 / 0 vs loop 1 (31 / 5 vs before) | accepted (last loop; 5 worse remain: an MLST guest named Tim Scarfe, a Flip guest named Justin Norman, two Latin America in Focus co-host voices named Carin Zissis, one Carin Zissis voice unnamed) |
 
 ## Step 1 result — the LLM step's marginal value (2026-10-03)
 
@@ -67,12 +75,18 @@ that.
 
 ## Running conclusion (updated after every problem)
 
-After 3 accepted slices and 1 rejected loop (presenter evidence is the first slice that ADDS
-correct names: +11 on validation, +10 hosts correct, swaps 31 -> 22): rules move single- to low-double-digit voices per
-slice on 2,010 scored validation voices. Both accepted slices mostly turn WRONG names into NO name
-(wrong 155 -> 119, missing 384 -> 418); correct names barely move (602 -> 604). Removing bad
-answers is what rules do well here; producing right answers is where they have not moved yet. The rejected loop is the held-out set working as intended
-(the development set alone would have accepted it). Not yet enough slices to call a wall.
+After 4 accepted slices and 1 rejected loop: correct names 602 -> 644 on validation (+42, of
+which +8 is only the stale stored pools being rebuilt), wrong names 155 -> 112, hosts correct
+342 -> 378, swaps 31 -> 21. The first two slices turned WRONG names into NO name; presenter
+evidence (+11) and host pools (+21) are the first to ADD correct names, and both did it by giving
+the roster better METADATA (who presents, who the feed and the episode say host), not cleverer seat
+arithmetic. Each accepted slice still leaves a few new errors (host pools: 5 on validation, three
+of them a guest given a host's name), and the last loop of host pools moved validation by only 4
+voices: the per-episode rule tail is getting thin. Against the labeller ceiling (1,368 named
+voices), the gap was 766 voices; four slices closed 42 of them (5%). The rejected loop is the
+held-out set working as intended (the development set alone would have accepted it). Not yet
+enough slices to call a wall; whether per-show profiles (step 5) and the LLM step (steps 4 and 6)
+move more than this is the open question those steps measure.
 
 Next after the planned slices (operator, 2026-10-03): a FEED-LEVEL analysis with the Fable advisor —
 patterns per show (who hosts it, who recurs across its episodes, how its transcripts/voices look),

@@ -12,7 +12,19 @@ import threading
 import time
 from concurrent.futures import as_completed, Future, ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Callable, cast, Dict, List, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
+from typing import (
+    Any,
+    Callable,
+    cast,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    TYPE_CHECKING,
+)
 
 from ... import config, models
 
@@ -469,6 +481,7 @@ from ...providers.resilience import ResilienceFuseOpenError
 from ...speaker_detectors.corroboration import corroborate_guests
 from ...speaker_detectors.factory import create_speaker_detector
 from ...speaker_detectors.hosts import (
+    compose_episode_hosts,
     detect_hosts_from_feed,
     distinct_self_introductions,
     drop_non_person_names,
@@ -950,35 +963,49 @@ def _validate_hosts_with_first_episode(
     return validated_hosts if validated_hosts else feed_hosts
 
 
-def hosts_for_episode(result: HostDetectionResult, episode: Any) -> set[str]:
-    """The hosts to anchor ONE episode on — the feed's hosts, with its OWN authors (#2197).
+def hosts_for_episode(
+    result: HostDetectionResult, episode: Any, episode_people: Iterable[str] = ()
+) -> set[str]:
+    """The hosts to anchor ONE episode on (#2197, then problem 3 of the naming scoreboard).
+
+    The feed-level set (statement, author tags, config ``known_hosts``, recurrence) is kept; the
+    episode-author fallback's contribution is replaced by THIS episode's own byline; and the hosts
+    this episode's own description names join the pool — through one composer,
+    :func:`~podcast_scraper.speaker_detectors.hosts.compose_episode_hosts`, which also decides that
+    a byline listing everybody in the room adds nobody once the description says who hosts (The a16z
+    Show: "Erik Torenberg sits down with Amjad Masad and Gagan Biyani" — the byline names all
+    three).
 
     When a feed names nobody, the episode-level ``<itunes:author>`` fallback unions the authors of
     the feed's first episodes into the FEED's host set, and every episode inherits it. On Latent
     Space one post's authors ("Brandon Anderson, RJ Honicky, and Latent.Space") were seated as the
     hosts of 9 episodes; the live feed carries that tag on ONE of its 229 items — 170 say only
     "Latent.Space". Another episode's author is not this episode's host.
-
-    So the fallback's contribution is replaced here by this episode's own authors, through the same
-    gates (``normalize_host_names``, the org and show filters). Everything else in the set — config
-    ``known_hosts``, hosts recurring across the feed — is untouched. Without the fallback (a feed
-    that states its hosts) this returns ``cached_hosts`` unchanged.
     """
     hosts = set(result.cached_hosts or ())
     fallback = set(getattr(result, "episode_author_hosts", frozenset()) or ())
-    if not fallback:
-        return hosts
     from ...rss import parser as rss_parser
 
     item = getattr(episode, "item", None)
-    own_raw = rss_parser.extract_episode_authors(item) if item is not None else []
-    own = {
-        a
-        for a in normalize_host_names(own_raw, feed_title=result.feed_title)
-        if not is_network_or_org_author(a)
-    }
-    own = set(drop_non_person_names(sorted(own), result.feed_title, result.kind_votes))
-    return (hosts - fallback) | own
+    own: set[str] = set()
+    if fallback and item is not None:
+        own_raw = rss_parser.extract_episode_authors(item)
+        own = {
+            a
+            for a in normalize_host_names(own_raw, feed_title=result.feed_title)
+            if not is_network_or_org_author(a)
+        }
+        own = set(drop_non_person_names(sorted(own), result.feed_title, result.kind_votes))
+    return set(
+        compose_episode_hosts(
+            sorted(hosts - fallback),
+            sorted(own),
+            episode_title=getattr(episode, "title", None),
+            episode_description=extract_episode_description(item) if item is not None else None,
+            feed_title=result.feed_title,
+            episode_people=list(episode_people or ()),
+        )
+    )
 
 
 def _fallback_to_episode_authors(

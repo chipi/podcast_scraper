@@ -253,6 +253,7 @@ def build_show_metadata(feed_dir: Path) -> Optional[Dict[str, Any]]:
         hosts_from_feed_statement,
         is_network_or_org_author,
         names_the_show,
+        refused_feed_statement_names,
         split_author_names,
     )
 
@@ -281,6 +282,8 @@ def build_show_metadata(feed_dir: Path) -> Optional[Dict[str, Any]]:
 
     for name in sorted(hosts_from_feed_statement(title, description)):
         _add(name, "feed_statement")
+    for name in refused_feed_statement_names(title, description):
+        _add(name, "feed_statement_refused")
     for tag in authors:
         for name in split_author_names(tag):
             if name and not names_the_show(name, title) and not is_network_or_org_author(name):

@@ -62,6 +62,13 @@ def load_episode(meta: Path) -> Dict[str, Any]:
 #: OTHER episodes of the same feed, never the one being replayed.
 _SIBLINGS: Dict[str, List[Any]] = {}
 
+#: ``--repool``: rebuild each episode's host pool with the VARIANT's own ``hosts`` module instead of
+#: replaying the pool stored in its diagnostics. What it recomputes and what it cannot see is in
+#: :func:`repool`.
+REPOOL = False
+#: ``--roles``: also report a voice whose NAME is unchanged but whose host/guest ROLE flipped.
+ROLES = False
+
 
 def index_siblings(corpus: Path) -> None:
     """Index every newest-run episode's diagnostics by feed dir (for feed-history variants)."""
@@ -86,6 +93,55 @@ def index_siblings(corpus: Path) -> None:
         _SIBLINGS.setdefault(str(run.parent), []).append((str(meta), diag))
 
 
+def repool(hosts_mod: Any, ep: Dict[str, Any], tried: Dict[str, Any]) -> List[str]:
+    """This episode's host pool, rebuilt from its stored metadata with *hosts_mod*.
+
+    SEEN: the feed's title / description / author tags and the episode's title / description are on
+    the metadata, so the feed-level detector (``detect_hosts_from_feed``) and the episode-level
+    composer (``compose_episode_hosts``, when the variant has one) run exactly as production would.
+
+    NOT SEEN: config ``known_hosts``, the recurrence scan over sibling transcripts, and the
+    episode's own ``<itunes:author>`` byline are not stored. Whatever the STORED pool holds beyond
+    the variant's feed-level result (``residue``) stands in for them. For a variant with a composer,
+    residue names the episode's metadata also states as participants (``metadata_named`` /
+    ``detected_guests``) are treated as the byline (dropped when the description names the host);
+    the rest as config/recurrence (kept, person-checked). A variant without a composer gets
+    ``feed_level + residue`` — the stored pool refreshed by its own detector.
+    """
+    from podcast_scraper.kg.speaker_coherence import same_person
+
+    feed = ep["meta"].get("feed") or {}
+    episode = ep["meta"].get("episode") or {}
+    stored = [str(n) for n in (tried.get("known_hosts") or []) if n]
+    feed_level = sorted(
+        hosts_mod.detect_hosts_from_feed(
+            feed.get("title"), feed.get("description"), feed.get("authors") or []
+        )
+    )
+    residue = [n for n in stored if not any(same_person(n, h) for h in feed_level)]
+    if not hasattr(hosts_mod, "compose_episode_hosts"):
+        return list(dict.fromkeys(feed_level + residue))
+    participants = list(tried.get("metadata_named") or []) + list(
+        tried.get("detected_guests") or []
+    )
+    byline = [n for n in residue if any(same_person(n, p) for p in participants)]
+    more = [n for n in residue if n not in byline]
+    extra: Dict[str, Any] = {}
+    if "episode_people" in inspect.signature(hosts_mod.compose_episode_hosts).parameters:
+        extra["episode_people"] = participants
+    return list(
+        hosts_mod.compose_episode_hosts(
+            feed_level,
+            byline,
+            episode_title=episode.get("title"),
+            episode_description=episode.get("description"),
+            feed_title=feed.get("title"),
+            more=more,
+            **extra,
+        )
+    )
+
+
 def roster_inputs(ep: Dict[str, Any], roster: Any, ad_signatures: Any = None) -> Dict[str, Any]:
     """What ``providers/ml/diarization/pipeline.py`` hands ``resolve_speaker_roster``."""
     from podcast_scraper.providers.ml.diarization import pipeline as P
@@ -108,7 +164,9 @@ def roster_inputs(ep: Dict[str, Any], roster: Any, ad_signatures: Any = None) ->
         num_speakers=len(voice_texts),
     )
     ad_intervals = P._ad_intervals(ep["segs"])
-    recurring = P._feed_recurring_text(SimpleNamespace(output_dir=str(ep["feed_dir"])))
+    # The production reader only needs ``output_dir``; a namespace stands in for the Config.
+    feed_cfg: Any = SimpleNamespace(output_dir=str(ep["feed_dir"]))
+    recurring = P._feed_recurring_text(feed_cfg)
     extra = {"ad_signatures": ad_signatures} if ad_signatures is not None else {}
     cleaning = roster.classify_voices(
         dz,
@@ -124,11 +182,17 @@ def roster_inputs(ep: Dict[str, Any], roster: Any, ad_signatures: Any = None) ->
     llm = [v for v in voices if v.get("source") == "llm_resolution"]
     tried = ep["diag"].get("tried") or {}
     episode = ep["meta"].get("episode") or {}
+    hosts_mod = getattr(roster, "_replay_hosts", None)
+    known_hosts = (
+        repool(hosts_mod, ep, tried)
+        if REPOOL and hosts_mod is not None
+        else list(tried.get("known_hosts") or [])
+    )
     return dict(
         diarization=dz,
         transcript_text=" ".join(t for _, t in turns),
         detected_guests=tried.get("detected_guests") or [],
-        known_hosts=tried.get("known_hosts") or [],
+        known_hosts=known_hosts,
         voice_texts=voice_texts,
         ordered_turns=turns,
         ad_intervals=ad_intervals,
@@ -141,11 +205,13 @@ def roster_inputs(ep: Dict[str, Any], roster: Any, ad_signatures: Any = None) ->
         diarization_provider="tailnet_dgx",
         episode_text=" ".join(x for x in (episode.get("title"), episode.get("description")) if x)
         or None,
-        **_optional_inputs(roster, ep, tried),
+        **_optional_inputs(roster, ep, tried, known_hosts),
     )
 
 
-def _optional_inputs(roster: Any, ep: Dict[str, Any], tried: Dict[str, Any]) -> Dict[str, Any]:
+def _optional_inputs(
+    roster: Any, ep: Dict[str, Any], tried: Dict[str, Any], known_hosts: List[str]
+) -> Dict[str, Any]:
     """Inputs only some roster variants accept — passed only when the variant's signature has them,
     so an OLD variant replays exactly as before."""
     params = inspect.signature(roster.resolve_speaker_roster).parameters
@@ -156,9 +222,7 @@ def _optional_inputs(roster: Any, ep: Dict[str, Any], tried: Dict[str, Any]) -> 
         siblings = [
             d for m, d in _SIBLINGS.get(str(ep["feed_dir"]), []) if m != ep.get("meta_path")
         ]
-        out["host_copresence"] = roster.host_copresence_from_diagnostics(
-            siblings, tried.get("known_hosts") or []
-        )
+        out["host_copresence"] = roster.host_copresence_from_diagnostics(siblings, known_hosts)
     return out
 
 
@@ -218,6 +282,9 @@ def load_variant(files: Dict[str, Path]) -> Dict[str, types.ModuleType]:
         for name, mod in saved.items():
             if mod is not None:
                 sys.modules[name] = mod
+    # The roster remembers its variant's host-rule module, so ``--repool`` rebuilds pools with it.
+    if "roster" in built:
+        built["roster"]._replay_hosts = built.get("hosts") or sys.modules.get(MODULES["hosts"])
     return built
 
 
@@ -246,9 +313,13 @@ def compare(
             x, y = a.by_voice.get(v), b.by_voice.get(v)
             xn = x.name if x and x.named else None
             yn = y.name if y and y.named else None
+            xr, yr = getattr(x, "role", None), getattr(y, "role", None)
             if xn == yn:
-                continue
-            kind = "gained" if not xn else ("lost" if not yn else "renamed")
+                if not (ROLES and xn and xr != yr and {xr, yr} <= {"host", "guest"}):
+                    continue
+                kind = f"rerole:{xr}->{yr}"
+            else:
+                kind = "gained" if not xn else ("lost" if not yn else "renamed")
             counts[kind] += 1
             talk = sum(s["end"] - s["start"] for s in segs if s.get("speaker") == v)
             yield {
@@ -304,7 +375,21 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="build cross-show ad signatures in memory from the corpus (each side with its own "
         "ad_signatures module) and pass them to classify_voices",
     )
+    ap.add_argument(
+        "--repool",
+        action="store_true",
+        help="rebuild each episode's host pool from its stored metadata with each variant's own "
+        "hosts module (see repool()) instead of replaying the stored pool",
+    )
+    ap.add_argument(
+        "--roles",
+        action="store_true",
+        help="also report voices whose name is unchanged but whose host/guest role flipped",
+    )
     args = ap.parse_args(argv)
+    global REPOOL, ROLES
+    REPOOL = bool(args.repool)
+    ROLES = bool(args.roles)
     index_siblings(args.corpus)
     old = load_variant(_variant_arg(args.old))
     new = load_variant(_variant_arg(args.new))

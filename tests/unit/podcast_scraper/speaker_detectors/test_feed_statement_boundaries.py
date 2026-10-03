@@ -95,11 +95,13 @@ class TestAFunctionWordIsNeverPartOfAName:
 
 
 class TestARefusedStatementNamesNoHost:
-    def test_no_fallback_to_the_author_tag(self) -> None:
-        """Latin America in Focus: the statement named the junk tail `Americas Online`; falling back
-        to the author tag then added a real presenter the seat rule placed on guests' answers."""
+    def test_the_junk_is_refused_and_the_author_tag_is_read(self) -> None:
+        """Latin America in Focus: the statement named the junk tail `Americas Online`. The junk is
+        refused on its own and the author tag (the real presenter) is read; the seat logic names a
+        pool entry only from a self-introduction or a forced one-name-one-seat answer (2026-10-03,
+        measured on the gold sets)."""
         desc = "Twice a month the Council of the Andean Online team brings you the region."
-        assert detect_hosts_from_feed("Andes Focus", desc, ["Ada Brook"]) == set()
+        assert detect_hosts_from_feed("Andes Focus", desc, ["Ada Brook"]) == {"Ada Brook"}
 
     def test_an_ordinary_refusal_still_falls_back_as_before(self) -> None:
         """A name main's own checks refuse (an organisation) keeps main's author-tag fallback."""

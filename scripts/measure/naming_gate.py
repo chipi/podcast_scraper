@@ -67,11 +67,20 @@ def _same(a: str, b: str) -> bool:
     return a.strip().lower() == b.strip().lower() or same_person(a, b)
 
 
+def is_scored(label: Dict[str, Any]) -> bool:
+    """Unknown roles and low-confidence labels are not scored."""
+    role = str(label.get("role") or "unknown")
+    return role != "unknown" and str(label.get("confidence") or "") != "low"
+
+
 def score_voice(label: Dict[str, Any], name: Optional[str], role: Optional[str]) -> Optional[str]:
     """The outcome for one voice, or None when the label is not scored."""
+    return outcome(label, name, role) if is_scored(label) else None
+
+
+def outcome(label: Dict[str, Any], name: Optional[str], role: Optional[str]) -> str:
+    """The outcome for one voice whose label is scored."""
     lrole = str(label.get("role") or "unknown")
-    if lrole == "unknown" or str(label.get("confidence") or "") == "low":
-        return None
     lname = label.get("name") or None
     if lrole in NON_PARTICIPANT:
         return "non_participant" if name else "correct_unnamed"
@@ -122,7 +131,7 @@ def run(
     fixes: List[Dict[str, Any]] = []
     better: List[Dict[str, Any]] = []
     worse: List[Dict[str, Any]] = []
-    skipped = Counter()
+    skipped: Counter[str] = Counter()
     for case, labels in labelled:
         try:
             ep = R.load_episode(corpus / case["meta_relpath"])
@@ -135,10 +144,10 @@ def run(
             voice = str(lab.get("voice"))
             on, orole = _published(a, voice)
             nn, nrole = _published(b, voice)
-            so, sn = score_voice(lab, on, orole), score_voice(lab, nn, nrole)
-            if so is None:
+            if not is_scored(lab):
                 skipped["unscored_label"] += 1
                 continue
+            so, sn = outcome(lab, on, orole), outcome(lab, nn, nrole)
             tallies["old"][so] += 1
             tallies["new"][sn] += 1
             if lab.get("role") == "host":
@@ -186,12 +195,12 @@ def ladder(
     step is a complete code variant, so a column shows the whole stack up to that slice.
     """
     names = [s[0] for s in steps]
-    tallies = {n: Counter() for n in names}
-    hosts = {n: Counter() for n in names}
+    tallies: Dict[str, Counter[str]] = {n: Counter() for n in names}
+    hosts: Dict[str, Counter[str]] = {n: Counter() for n in names}
     changes: Dict[str, Dict[str, List[Dict[str, Any]]]] = {
         n: {"better": [], "worse": []} for n in names[1:]
     }
-    skipped = Counter()
+    skipped: Counter[str] = Counter()
     for case, labels in labelled:
         try:
             ep = R.load_episode(corpus / case["meta_relpath"])
@@ -202,10 +211,10 @@ def ladder(
         for lab in labels.get("voices") or []:
             voice = str(lab.get("voice"))
             published = [_published(r, voice) for r in results]
-            scores = [score_voice(lab, n, ro) for n, ro in published]
-            if scores[0] is None:
+            if not is_scored(lab):
                 skipped["unscored_label"] += 1
                 continue
+            scores = [outcome(lab, n, ro) for n, ro in published]
             for name, score in zip(names, scores):
                 tallies[name][score] += 1
                 if lab.get("role") == "host":
@@ -304,7 +313,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="ladder mode: one cumulative step per flag, in order; the first is the baseline "
         "(e.g. --step today --step +seat_v4 roster=/tmp/v4.py). Replaces --old/--new.",
     )
+    ap.add_argument("--repool", action="store_true", help="see roster_replay.py --repool")
     args = ap.parse_args(argv)
+    R.REPOOL = bool(args.repool)
     labelled = load_labelled(args.cases, args.labels)
     R.index_siblings(args.corpus)
     if args.step:
