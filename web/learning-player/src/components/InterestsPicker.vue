@@ -253,6 +253,7 @@ onMounted(async () => {
             type="button"
             :disabled="saving || loading"
             class="rounded-full bg-accent px-5 py-2 text-sm font-bold text-accent-foreground disabled:opacity-50"
+            data-testid="interests-save"
             @click="save"
           >
             {{ saving ? t("interests.saving") : t("interests.save") }}

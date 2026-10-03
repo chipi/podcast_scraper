@@ -269,6 +269,18 @@ to the same contract as the PR suite.
 | `design/groupings.design.spec.ts` | **Where a theme and a storyline land once both are first-class** — Library › Following (separate groups + filter chips), Library › Saved (`followed-interests`), and Boards (a collected grouping, and the notes kind chips). Seeds follows / saves / a board / notes through the API first, because the design identity starts empty and every one of these surfaces would otherwise shoot its empty state while looking fine. A FRESH identity per TEST, not per module: all three seed, and a shared one produced three duplicate boards and nine notes. Asserts only that the seed landed; input, not a test | manual / design runs |
 | `design/clusters.design.spec.ts` | **Topic vs theme vs storyline, side by side** — the three are the hardest thing in the product to tell apart, so this shoots all three for the SAME subject (`topic:risk-management` is a topic, a member of `tc:safety-practices`, and the anchor of `thc:managing-risk`), making any difference between the images a difference in PRESENTATION rather than data. Ids are read out of the v3 fixture artifacts, so a fixture refresh fails loudly instead of quietly shooting an error card. Asserts only that each page loaded its subject; input, not a test | manual / design runs |
 | `design/queue-2026-09-23.design.spec.ts` | The queue panel after the 2026-09-23 round, shot from a REAL state: three episodes queued and three finished, not an empty panel. Covers the whole-line summary clamp, **Read more** on compact cards (`card-read-more`), the demoted queue toggle and the stacked last-played stamp in Recently played. Uses a FRESH account per run — unlike its siblings this spec MUTATES state, and a fixed identity accumulated a queue across runs. **Does not cover the inline download** (`download-button`): it is `v-if="native"`, unfakeable from a browser, and proven by `EpisodeCard.test.ts` instead | manual / design runs |
+| `telemetry/00-smoke.spec.ts` | **The harness check for the analytics tier.** Proves the Umami beacon is installed with `data-exclude-search`, reports into the DEV website id, and is ACCEPTED — a 200 is not enough, since the collector answers 200 with `{"beep":"boop"}` for a bot-looking UA and 200 with `Website not found.` for an unknown id, which is exactly how dev analytics looked healthy while storing nothing | on demand (Tier-4) |
+| `telemetry/01-landing-funnel.spec.ts` | `landing_view` (once per visit, before the teaser fetch), `landing_cta_click` per-element positions (`landing-cta-primary`/`-signin`/`-foot`), `landing_teaser_click` kinds (`landing-card`/`landing-chip`), and `screen_view` carrying a route NAME never a path | on demand (Tier-4) |
+| `telemetry/02-boot-race.spec.ts` | **The pre-load queue.** Holds `script.js` back 1.2s to make the boot race deterministic: before the fix `landing_view` never reached the wire at all, because `track()` read a `window.umami` the deferred script had not yet defined. Also covers replay ORDER (identify before the events it tags) and that a tracker which never loads drops its queue instead of leaking | on demand (Tier-4) |
+| `telemetry/03-auth-and-interests.spec.ts` | `auth_started` / `auth_completed` (and that the latch stops one listener counting many times), `identify` carrying the pseudonymous `analytics_id` and NEITHER the account id nor the email, and the picker's shown / saved / dismissed split with a bucketed count | on demand (Tier-4) |
+
+**Tier-4 (`telemetry/`) runs on demand, not in CI, and that is the point.** These specs are only evidence because they
+talk to the REAL Umami and the REAL GlitchTip on the homelab box, reading the surface back afterwards to show it agrees
+with what left the browser. A CI runner has neither, and pointing them at a stub would reproduce the exact failure the
+analytics arc exists to fix: a telemetry path that looks wired and silently goes nowhere. They target the DEV Umami site
+(`3ccaa1bc-…`) and the DEV GlitchTip project (`player-dev`, id 20) — never the prod site, which carries real traffic.
+Run with `make test-app-telemetry`. The machine-independent half of the same contract — the typed registry and the static
+wiring guards — stays in CI as `services/analytics.test.ts` and `__checks__/analytics-wiring.test.ts`.
 
 `search-result-actions` is the `EpisodeActions` cluster on a SearchView result row; it is covered
 by unit (`SearchView.test.ts`) rather than by a spec, and named here so the map accounts for it.
@@ -403,7 +415,13 @@ Storylines surface in `DiscoveryList` when `kind="storyline"` — each row is `d
 | ------- | ---- |
 | Topics section | `data-testid="interests-topics"` (semantic `tc:` chips) |
 | Storylines section | `data-testid="interests-storylines"` (`thc:` chips) |
-| Chip pressed state | `aria-pressed` per chip; **Save** / **Cancel** buttons (`interests.save` / `interests.cancel`) |
+| Chip pressed state | `aria-pressed` per chip |
+| Save | `data-testid="interests-save"` — the ONLY control that saves. Added 2026-10-03: it was the one
+action in the sheet without a testid, and a telemetry spec reaching for the sheet's primary button
+instead clicked `interests-close`, which routes through `closeSheet()` and reports a *dismissal*. The
+spec asserted a save while performing the opposite action |
+| Cancel | `data-testid="interests-cancel"` — routes through `closeSheet()`, so it reports
+`interests_dismissed`, same as **✕** and the backdrop |
 | Modal | `role="dialog"` `aria-modal="true"`; backdrop click / **Esc** / **✕** dismiss (focus trap) |
 
 ### Player ([PlayerView](../src/views/PlayerView.vue) + [EpisodeDensity](../src/components/EpisodeDensity.vue))

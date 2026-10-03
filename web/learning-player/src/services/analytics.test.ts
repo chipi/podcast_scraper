@@ -4,7 +4,9 @@ import {
   EVENT_NAMES,
   identify,
   installUmami,
+  pendingTelemetryCount,
   resetIdentity,
+  setUserOptedOut,
   resolveSession,
   SOURCES,
   toCountBucket,
@@ -441,5 +443,88 @@ describe('the VITE_ANALYTICS_OFF kill switch', () => {
     const appended = captureAppends()
     installUmami()
     expect(appended, 'no tag may be injected when analytics is switched off').toHaveLength(0)
+  })
+})
+
+
+describe('the pre-load queue (#2267)', () => {
+  /**
+   * `installUmami` appends a `defer` script and `track` called through optionally, so until that
+   * script executed every event was a silent no-op. The events in that window are the earliest in a
+   * session — `landing_view`, the first `screen_view`, `auth_completed` at boot — i.e. the funnel's
+   * first steps, so the funnel under-counted its own top, worst on slow networks.
+   *
+   * The browser half of this (the real `load` event draining the queue) is proven in
+   * `e2e/telemetry/02-boot-race.spec.ts`, which holds `script.js` back 1.2s against the real Umami.
+   * happy-dom refuses to load scripts at all, so the flush cannot be driven from a tag here — these
+   * tests cover the queue's own behaviour, which is where the logic lives.
+   */
+  beforeEach(() => {
+    // The unit runner sets VITE_ANALYTICS_OFF=1 globally so no suite emits analytics by accident.
+    // These tests are about what happens WHEN analytics is on, so they opt in the same way the rest
+    // of this file does.
+    enableAnalytics()
+    setUserOptedOut(false)
+    // Drain the queue through a temporary tracker, so each test starts from a known depth rather
+    // than inheriting whatever an earlier test queued.
+    ;(window as unknown as { umami?: unknown }).umami = { track: () => {}, identify: () => {} }
+    track('landing_view')
+    delete (window as unknown as { umami?: unknown }).umami
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('remembers an event fired before the tracker exists instead of dropping it', () => {
+    const before = pendingTelemetryCount()
+    track('landing_view')
+    expect(pendingTelemetryCount(), 'the event must be queued, not lost').toBe(before + 1)
+  })
+
+  it('replays the queue in order on the next event once the tracker appears', () => {
+    const seen: string[] = []
+    track('landing_view')
+    track('landing_cta_click', { cta: 'create_account', position: 'hero' })
+    expect(pendingTelemetryCount()).toBeGreaterThanOrEqual(2)
+
+    ;(window as unknown as { umami?: unknown }).umami = {
+      track: (name: string) => void seen.push(name),
+      identify: () => {},
+    }
+    // A third event drains the two queued ones FIRST, then itself — order is load-bearing, since
+    // `identify` has to be applied before the events it is meant to tag.
+    track('screen_view', { screen: 'home' })
+    expect(seen).toEqual(['landing_view', 'landing_cta_click', 'screen_view'])
+    expect(pendingTelemetryCount()).toBe(0)
+  })
+
+  it('keeps the EARLIEST events when the cap is reached', () => {
+    // The cap drops the newest on purpose: the whole reason the queue exists is that the first
+    // events of a session are the valuable ones. Dropping the oldest would discard exactly what it
+    // was built to save.
+    for (let i = 0; i < 80; i++) track('landing_view')
+    const depth = pendingTelemetryCount()
+    expect(depth, 'the queue must be bounded').toBeLessThanOrEqual(50)
+
+    const seen: string[] = []
+    ;(window as unknown as { umami?: unknown }).umami = {
+      track: (name: string, props?: Record<string, unknown>) => void seen.push(`${name}:${props?.screen ?? ''}`),
+      identify: () => {},
+    }
+    track('screen_view', { screen: 'last' })
+    expect(seen[0], 'the first thing replayed is the first thing that happened').toBe('landing_view:')
+    expect(seen[seen.length - 1]).toBe('screen_view:last')
+  })
+
+  it('queues nothing at all when analytics is off', () => {
+    setUserOptedOut(true)
+    const before = pendingTelemetryCount()
+    track('landing_view')
+    expect(
+      pendingTelemetryCount(),
+      'an opted-out listener must not even accumulate events in memory',
+    ).toBe(before)
+    setUserOptedOut(false)
   })
 })

@@ -452,6 +452,83 @@ const TAG_MARKER = 'data-umami-installed'
 let identifiedAs: string | null = null
 
 /**
+ * Operations recorded before the tracker existed, replayed in order once it does (#2267).
+ *
+ * ── Why this is needed at all ────────────────────────────────────────────────
+ * `installUmami` appends a `defer` script, and `track` calls through optionally
+ * (`umami?.track?.(...)`). Until that script has downloaded AND executed, `window.umami` is
+ * undefined and every call is a silent no-op. Umami's own script does not buffer either — measured
+ * in the served `script.js`, it defines its global at execution time and has nothing to catch
+ * calls made before that.
+ *
+ * The events in that window are not a random sample. They are the earliest ones in a session:
+ * `landing_view` on mount, the first `screen_view` from the router, and `auth_completed` when a
+ * returning session resolves at boot. Those are the FIRST steps of the onboarding funnel, so the
+ * funnel under-counted its own top — and it under-counted hardest on slow connections and cold
+ * caches, which is the population a beta most needs to see honestly. A conversion rate missing its
+ * slowest visitors from the denominator reads better than the truth.
+ *
+ * Measured, not reasoned: with `script.js` held back 1.2s in `e2e/telemetry/02-boot-race.spec.ts`,
+ * `landing_view` never reached the wire at all.
+ *
+ * ── Why it drops rather than grows ───────────────────────────────────────────
+ * The window this exists for is milliseconds. If the script never arrives — an ad blocker, a CSP,
+ * an offline first launch — there is nowhere to replay to, so the queue is cleared on load failure
+ * and capped regardless. The cap drops the NEWEST, keeping the earliest: the whole reason the queue
+ * exists is that the first events are the valuable ones.
+ */
+type PendingOp =
+  | { kind: 'track'; name: string; props?: Record<string, unknown> }
+  | { kind: 'identify'; id: string; session: Record<string, unknown> }
+
+const PENDING_CAP = 50
+const pending: PendingOp[] = []
+
+/** The live tracker, or undefined while the script has not executed yet. */
+function umamiGlobal(): UmamiGlobal | undefined {
+  if (typeof window === 'undefined') return undefined
+  return (window as unknown as { umami?: UmamiGlobal }).umami
+}
+
+/** Queue an operation, keeping the earliest ones when the cap is reached. */
+function enqueue(op: PendingOp): void {
+  if (pending.length >= PENDING_CAP) return
+  pending.push(op)
+}
+
+/**
+ * Replay everything queued, in the order it happened.
+ *
+ * Order is load-bearing: `identify` must be applied before the events it is meant to tag, or the
+ * first events of a signed-in session are filed as anonymous — the same attribution bug
+ * `resetIdentity` exists to prevent, arriving from the other direction.
+ */
+function flushPending(): void {
+  const umami = umamiGlobal()
+  if (!umami) return
+  // Splice first: a throw mid-replay must not leave the queue to be replayed a second time.
+  const ops = pending.splice(0, pending.length)
+  for (const op of ops) {
+    try {
+      if (op.kind === 'track') umami.track?.(op.name, op.props)
+      else umami.identify?.(op.id, op.session)
+    } catch {
+      // Fire-and-forget, as everywhere else here.
+    }
+  }
+}
+
+/** Discard the queue — the tracker is never arriving, so replaying is impossible, not merely late. */
+function dropPending(): void {
+  pending.length = 0
+}
+
+/** Test seam: how many operations are waiting. Not used by the app. */
+export function pendingTelemetryCount(): number {
+  return pending.length
+}
+
+/**
  * Inject the Umami `<script>` exactly once. Idempotent and safe to call before the app mounts.
  *
  * `data-exclude-search` is set here, and it is the whole reason the search term stays out of
@@ -475,6 +552,10 @@ export function installUmami(): void {
     tag.setAttribute('data-website-id', websiteId)
     tag.setAttribute('data-exclude-search', 'true')
     tag.setAttribute(TAG_MARKER, '1')
+    // Handlers BEFORE appendChild: a cached script can execute as soon as it is in the document,
+    // and attaching afterwards would race the very load this is here to catch.
+    tag.addEventListener('load', flushPending)
+    tag.addEventListener('error', dropPending)
     document.head.appendChild(tag)
   } catch {
     // APPENDING A SCRIPT CAN THROW, and this runs during app bootstrap in `main.ts` — before the
@@ -503,8 +584,17 @@ export function identify(analyticsId: string, session: SessionProps): void {
     // background revalidation, and each `identify` is a network payload. Re-sending the same id
     // would put a request on the wire every time the app regained focus for no new information.
     if (identifiedAs === analyticsId) return
-    const umami = (window as unknown as { umami?: UmamiGlobal }).umami
-    umami?.identify?.(analyticsId, { ...session })
+    const umami = umamiGlobal()
+    if (!umami?.identify) {
+      // Queued through the SAME queue as events, so the replay keeps them in the order they
+      // happened. A separate identify-only latch would let the first signed-in events replay
+      // before the id that is supposed to tag them.
+      enqueue({ kind: 'identify', id: analyticsId, session: { ...session } })
+      identifiedAs = analyticsId
+      return
+    }
+    if (pending.length) flushPending()
+    umami.identify(analyticsId, { ...session })
     identifiedAs = analyticsId
   } catch {
     // Fire-and-forget, as everywhere else here.
@@ -546,7 +636,9 @@ export function resetIdentity(): void {
  * The name is constrained to {@link EVENT_NAMES} and the props to {@link EventProps}, so a typo or
  * an out-of-vocabulary value is a compile error rather than a silently-wrong dashboard.
  *
- * Safe to call before the Umami script has loaded (it queues internally) and a no-op when
+ * Safe to call before the Umami script has loaded — calls made then are QUEUED HERE and replayed
+ * on load (Umami's own script does not buffer; this claim used to be made with nothing behind
+ * it, and the events were being dropped). A no-op when
  * analytics is disabled or the user opted out. Never throws.
  */
 export function track<N extends EventName>(
@@ -556,8 +648,20 @@ export function track<N extends EventName>(
   try {
     if (!analyticsEnabled()) return
     if (typeof window === 'undefined') return
-    const umami = (window as unknown as { umami?: UmamiGlobal }).umami
-    umami?.track?.(name, args[0] as Record<string, unknown> | undefined)
+    const props = args[0] as Record<string, unknown> | undefined
+    const umami = umamiGlobal()
+    // Not loaded yet → remember it. This used to be a silent drop, and it dropped precisely the
+    // funnel's first steps. See the queue's own comment for the measurement.
+    if (!umami?.track) {
+      enqueue({ kind: 'track', name, props })
+      return
+    }
+    // The tracker is here, so anything queued goes FIRST — both to keep the replay in the order it
+    // happened and because this makes the queue self-healing: if the tag's `load` never fired (a
+    // cached script executing before a listener could attach, a tag installed by something other
+    // than `installUmami`), the next event still drains it instead of stranding it forever.
+    if (pending.length) flushPending()
+    umami.track(name, props)
   } catch {
     // Fire-and-forget: a metric that fails must never reach the listener.
   }
