@@ -3977,7 +3977,7 @@ def _select_host_voices(
         ):
             host_voices.append(v)
             claimed_host_names.add(nl)
-    tr.appended("host_seat_step", host_voices, 0, "seated", step="1_self_intro_as_stated_host")
+    tr.appended("host_seat_step", host_voices, 0, "seated", step="1_named_as_a_stated_host")
     _n = len(host_voices)
 
     cap = len(host_pool) if host_pool else None

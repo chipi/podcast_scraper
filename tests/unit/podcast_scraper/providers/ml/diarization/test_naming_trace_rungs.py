@@ -478,9 +478,7 @@ def _ep(d: Dict[str, Any], rung: str) -> Dict[str, Any]:
 def test_each_host_seat_records_the_step_that_took_it() -> None:
     d = _traced(_DZ + "test_seat_logic_v4.py", "test_cohost_formula_is_name_bearing_not_positional")
     for v in ("SPEAKER_00", "SPEAKER_01"):
-        assert _has(
-            d["voices"][v], {"rung": "host_seat_step", "step": "1_self_intro_as_stated_host"}
-        )
+        assert _has(d["voices"][v], {"rung": "host_seat_step", "step": "1_named_as_a_stated_host"})
     d = _traced(
         _DZ + "test_roster_ad_voices.py",
         "test_the_final_gate_demotes_an_opener_laden_name_reaching_the_roster",
