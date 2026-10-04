@@ -21,10 +21,16 @@
     assumed to match UXS-001.
 - **Related issues**:
   - GitHub #911 (Epic 1 — foundation), Epic 2 (consumer app — to be opened)
-- **Implementation paths** (where tokens and styles should land):
-  - `web/learning-player/` (new top-level Vue 3 project — RFC-099 §1)
-  - `web/learning-player/src/styles/tokens.css` (`:root` CSS custom properties — the single token layer)
-  - `web/learning-player/tailwind.config.ts` (theme keys mapped to the CSS variables, if Tailwind is adopted)
+- **Implementation paths** (where tokens and styles live):
+  - `web/learning-player/` (top-level Vue 3 project — RFC-099 §1)
+  - `web/learning-player/src/theme/tokens.css` (`:root` CSS custom properties — the single token layer)
+  - `web/learning-player/tailwind.config.js` (Tailwind theme keys mapped to the CSS variables)
+  - `web/learning-player/src/theme/directions.css` (visual directions — each repaints the tokens)
+- **Token tables are checked:** `src/__checks__/uxs-token-tables.test.ts` fails when a token
+  tabled below is missing from `tokens.css`, when its value differs from the shipped default, or
+  when a path named in this spec does not exist (#2280). Change the code and the table together.
+- **Cross-system map:** [`TOKEN-VOCABULARY-CROSSMAP.md`](TOKEN-VOCABULARY-CROSSMAP.md) — the token
+  names this system shares with UXS-001, and what each one means here versus there.
 
 ## Summary
 
@@ -86,7 +92,7 @@ autoscroll/seek logic, keyboard shortcuts) belong in **RFC-099**. See the
 ## Semantic color tokens
 
 Use **semantic names** in code (CSS custom properties / Tailwind theme keys). No raw hex in
-components except in the single token layer (`web/learning-player/src/styles/tokens.css`). Every surface token has a
+components except in the single token layer (`web/learning-player/src/theme/tokens.css`). Every surface token has a
 matching `-foreground` so contrast is validated at the token level.
 
 > **Not universally true (#1604).** `canvas` and `surface` have `-foreground` pairs; **`elevated`
@@ -136,8 +142,8 @@ and never hard-code the colour.
 
 | Token | Dark | Usage |
 | --- | --- | --- |
-| `primary` | `var(--accent)` | Primary actions (per-show) — **focus ring, aria-selected active state, .lp-fav hover/pressed only** (#2013) |
-| `primary-foreground` | `#080D1B` | Text/icon on primary fill |
+| `accent` | `var(--brand-default)` | Per-show adaptive accent, set at runtime from the artwork — **focus ring, aria-selected active state, .lp-fav hover/pressed only** (#2013) |
+| `accent-foreground` | `#080D1B` | Text/icon on an accent fill |
 | `brand-default` | `#EFA843` | "Evening Broadcast Archive" — accent fallback when no show colour |
 | `success` | `#9FB8A4` | Positive feedback |
 | `warning` | `#EFA843` | Caution (pending, partial) |
@@ -162,18 +168,32 @@ and never hard-code the colour.
 Domain cues that mark intelligence provenance — separate from generic UI intents. They keep the GIL /
 KG / grounding semantics visually consistent with the operator stack's meaning without copying its hues.
 
-| Token      | Dark            | Usage                                           |
-| ---------- | --------------- | ----------------------------------------------- |
-| `grounded` | `#9FB8A4`       | "N% grounded" badge, grounded-quote affordances |
-| `insight`  | `var(--accent)` | GIL insight markers / "insight surfacing now"   |
-| `topic`    | `#A8B0C6`       | KG topic chips                                  |
-| `person`   | `#CCC7BB`       | Person chips / speaker emphasis                 |
-| `theme`    | `#98A0AE`       | **Theme** chips (`tc:` — vector similarity)     |
+| Token                      | Dark              | Usage                                                   |
+| -------------------------- | ----------------- | ------------------------------------------------------- |
+| `grounded`                 | `#9FB8A4`         | "N% grounded" badge, grounded-quote affordances         |
+| `topic`                    | `#A8B0C6`         | KG topic chips                                          |
+| `person`                   | `#CCC7BB`         | Person chips / speaker emphasis                         |
+| `storyline`                | `#98A0AE`         | **Storyline** chips — topics that recur *together*      |
+| `theme`                    | `#A9A3C6`         | **Theme** chips — topics that *mean* the same thing     |
+| `insight-claim`            | `var(--topic)`    | Insight type mark: claim                                |
+| `insight-observation`      | `var(--grounded)` | Insight type mark: observation                          |
+| `insight-recommendation`   | `var(--warning)`  | Insight type mark: recommendation                       |
+| `insight-question`         | `var(--person)`   | Insight type mark: question                             |
 
-> **`theme` renders THEMES, not storylines (2026-09-19).** It used to describe "theme cluster
-> (co-occurrence)" — which is a **storyline**, the other object entirely. Storylines now take the
-> accent treatment wherever they render as a pill, so this token is free to mean what its name
-> says. See UXS-013 §Vocabulary; the backend still calls a storyline a "theme cluster" on the wire.
+> **There is no single `insight` token (#2280).** This table used to list `insight` as
+> `var(--accent)`, which #2013 forbids — an insight marker is a label, and the accent means "you
+> can act on this". The code never had it: insights carry one of four **type** marks, each an alias
+> onto a domain token every visual direction already repaints, so they follow the chosen palette
+> for free. Shape is the primary channel and colour the second; `KnowledgePanel.test.ts` asserts the
+> four are distinguishable in greyscale.
+>
+> **`storyline` and `theme` are two tokens (#2225, 2026-10-01).** The token called `theme` used
+> to paint storylines (co-occurrence), which was the pipeline's `tc:`/`thc:` naming leaking into
+> the design layer. It was renamed `storyline` with its value unchanged, and `theme` became a new
+> hue for real themes (similarity), set between the topic and storyline hues. Neither takes the
+> accent — storyline pills are `--lp-storyline` (`style.css` `.lp-storyline-chip`). Colour is the
+> second channel for all three; every pill also names its kind in text. See UXS-013 §Vocabulary;
+> the backend still calls a storyline a "theme cluster" on the wire.
 
 ## Typography
 
@@ -252,12 +272,25 @@ start. (A serif was tried and rejected during the earlier design phase.)
   and a subtle `overlay` background. Inactive segments are `muted`.
 - **Grounding badge:** `grounded` text on a translucent field; hidden when no grounding signal.
 - **Insight surfacing "now":** the artwork-zone insight card swaps content as playback crosses an
-  insight's anchor; the "now" kicker uses `insight`. (Swap timing → RFC-099.)
+  insight's anchor; the "now" kicker is the instrument voice (`.lp-kicker` — muted mono, never
+  the accent, #2013). (Swap timing → RFC-099.)
 - **Scrape-pending episode (queued):** `warning` progress affordance inline; flips to playable on Ready.
+
+> **Decided — the artwork zone is FILLED, not shrunk (#2280; shipped #1996, refined 2026-09-19).**
+> The Phase-1 reconciliation left one product question open: the zone was specified as a live
+> intelligence surface (Principles: speaking-now, a grounding badge, the insight surfacing now) but
+> shipped with one of the three over a mostly empty gradient — shrink it, or fill it as specified.
+> It was filled. `PlayerView.vue` "Zone D" is a bottom-anchored band sized by its own content, with
+> two states: **live** — who is speaking, the insight, its grounding count, and what is next —
+> while an insight's quote window (plus a short linger) holds the playhead; **rest** — the artwork
+> returns with a single quiet "next" line. There is deliberately no third state that shows the
+> first insight before anything is said (shipped once, rejected), and tapping the bare artwork
+> dismisses the current insight so the picture can be seen. The reconciliation doc that held the
+> question was removed in #2195; this note is now the record.
 
 ## Components (standardize only what matters now)
 
-- **Buttons:** primary (fill `--accent`, text `primary-foreground`), secondary (outline `border`,
+- **Buttons:** primary (fill `--accent`, text `accent-foreground`), secondary (outline `border`,
   text `canvas-foreground`), ghost (text only). Pill radius for dock actions; circular for transport.
 - **Transport controls — a mirror (2026-09-30).** Seven cells, three equal cells either side of
   play: transcript · capture · ↺15 · **play** · 30↻ · output route · speed. Play is the only FILLED
@@ -1079,8 +1112,8 @@ Direction C. These are design aids (WIP), not shipped assets.
 - [ ] New UI uses semantic tokens only (no one-off hex in components; single token layer)
 - [ ] Every surface that HAS a `-foreground` uses it for text (`canvas`, `surface`; `elevated` and `overlay` inherit — see the token section)
 - [x] Per-show `--accent` is derived from artwork and contrast-clamped to ≥4.5:1 against `surface`, falling back to `brand-default` on failure (#1598; `theme/accent.ts`, `theme/contrast.ts`).
-- [ ] Intent tokens for UI feedback; domain tokens (`grounded`/`topic`/`person`/`insight`) for
-      knowledge-layer identity only
+- [ ] Intent tokens for UI feedback; domain tokens (`grounded`/`topic`/`person`/`storyline`/`theme`
+      and the four `insight-*` type marks) for knowledge-layer identity only
 - [ ] Dark baseline matches this spec; token names allow a future light theme without renames
 - [ ] Active transcript segment uses the `--accent` left rule + weight-600 treatment and stays in view
 - [ ] Key interactive states match (hover, active, focus ring, disabled, loading, error)

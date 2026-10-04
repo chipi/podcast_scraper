@@ -112,9 +112,11 @@
      in the app already responds to them — that is what keeps a direction a CSS diff with zero
      component edits, which is the whole premise of the variant harness.
 
-     The values here are chosen so the bridged scales compute to Tailwind's stock values
-     EXACTLY. Introducing the indirection must not move a single pixel of the shipping app; the
-     only thing that changes is that the scales are now steerable.
+     The values below are NOT Tailwind's stock values — they are the default "Evening Broadcast
+     Archive" posture (#1996): corners at a quarter of stock (`--lp-radius: 0.0625rem`, so `rounded`
+     is 1px and `rounded-2xl` 4px), padding / margin / gap 5% tighter (`--lp-density: 0.95`), and
+     the default transition duration at 60% (`--lp-motion: 0.6`, which steers ~114 of ~124
+     transitions). Stock Tailwind is `0.25rem / 1 / 1`; set those to compare against it.
 
      `--lp-radius` is the base step (Tailwind's `rounded`); the rest of the scale is expressed as
      multiples of it. `rounded-full` is deliberately NOT scaled — a circular play button or an

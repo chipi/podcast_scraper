@@ -10,6 +10,9 @@
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Shell information architecture (regions, axes, persistence):**
   [VIEWER_IA.md](VIEWER_IA.md)
+- **Consumer app design system:** separate, by design — see the
+  [token vocabulary cross-map](TOKEN-VOCABULARY-CROSSMAP.md) for the token names it shares with
+  this one and what each means in each system (notably `accent`).
 - **Playwright / E2E**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
 - **Feature UX specs** (each viewer surface has its own UXS):

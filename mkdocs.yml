@@ -198,6 +198,7 @@ nav:
       - UXS-015 Operator Shows Library: uxs/UXS-015-operator-shows-library.md
       - UXS-016 Query Workspace: uxs/UXS-016-query-workspace.md
       - UXS-017 Shareable Cards: uxs/UXS-017-share-cards.md
+      - Token Vocabulary Cross-map: uxs/TOKEN-VOCABULARY-CROSSMAP.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md

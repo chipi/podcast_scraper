@@ -64,8 +64,8 @@ export default {
     extend: {
       // Posture bridge, part two: whitespace follows `--lp-density`. Same trick as the radius
       // ladder — redefine the SCALE so every `p-*`, `gap-*` and `m-*` already in the app responds,
-      // rather than touching call sites. At the default `--lp-density: 1` every value computes to
-      // its stock rem, so introducing this moves nothing.
+      // rather than touching call sites. At `--lp-density: 1` every value computes to its stock
+      // rem; the shipping default is 0.95 (tokens.css, #1996), so all whitespace is 5% tighter.
       padding: dense(defaultTheme.spacing),
       gap: dense(defaultTheme.spacing),
       space: dense(defaultTheme.spacing),
@@ -124,10 +124,11 @@ export default {
        * `rounded-*` call sites to reference a variable, the SCALE itself is redefined in terms of
        * `--lp-radius`: every class already written in the app becomes direction-aware for free.
        *
-       * The multipliers reproduce Tailwind's stock ladder exactly at the default
-       * `--lp-radius: 0.25rem` (sm .125 / DEFAULT .25 / md .375 / lg .5 / xl .75 / 2xl 1 / 3xl
-       * 1.5rem), so adding this indirection is a no-op for the shipping look — verified by
-       * re-shooting every surface and diffing against the pre-change captures.
+       * The multipliers reproduce Tailwind's stock ladder exactly at `--lp-radius: 0.25rem`
+       * (sm .125 / DEFAULT .25 / md .375 / lg .5 / xl .75 / 2xl 1 / 3xl 1.5rem) — that is what was
+       * verified when the bridge was introduced, by re-shooting every surface and diffing. The
+       * shipping default is NOT that: tokens.css sets `--lp-radius: 0.0625rem` (#1996), so every
+       * corner is a quarter of stock (`rounded` 1px, `rounded-2xl` 4px).
        *
        * `full` stays 9999px on purpose: see the note in tokens.css.
        */
