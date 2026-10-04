@@ -18,8 +18,8 @@ import json
 import sys
 from pathlib import Path
 
+from podcast_scraper.server.app_account_deletion import delete_account
 from podcast_scraper.server.app_user_store import (
-    delete_user,
     get_user,
     list_users,
     set_disabled,
@@ -58,9 +58,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{args.cmd}d {uid}" if ok else f"unknown user {uid}")
         return 0 if ok else 1
     if args.cmd == "delete":
-        ok = delete_user(data_dir, uid)
-        print(f"deleted {uid}" if ok else f"unknown user {uid}")
-        return 0 if ok else 1
+        # The full purge (#2273), not just the directory. No Apple token revocation from the CLI —
+        # it has no provider config; the self-service and admin routes do that.
+        record = get_user(data_dir, uid)
+        if record is None:
+            print(f"unknown user {uid}")
+            return 1
+        report = delete_account(data_dir, record)
+        print(f"deleted {uid} ({report.outbox_envelopes} outbox envelope(s) removed)")
+        return 0
     if args.cmd == "export":
         record = get_user(data_dir, uid)
         if record is None:

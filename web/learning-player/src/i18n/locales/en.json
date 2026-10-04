@@ -698,6 +698,31 @@
     "add": "Save to favorites",
     "remove": "Remove from favorites"
   },
+  "deleteAccount": {
+    "link": "Delete account…",
+    "title": "Delete your account",
+    "signedInAs": "You're signed in with {provider} as {email}. This deletes that account.",
+    "removedTitle": "What is deleted, immediately and for good",
+    "removed": "Your profile and name, your library, queue and follows, your highlights, notes and collections, your listening history and positions, your notification settings, and any email or notification we had not sent yet.",
+    "keptTitle": "What is not",
+    "keptAnalytics": "Usage statistics we collected are not tied to your name or email; once your account is gone they cannot be linked back to you.",
+    "keptAccess": "Your email stays on the invite list, so you can sign up again later.",
+    "keptOther": "If you also signed in another way with the same email (Google, Apple or an email link), that is a separate account and is not deleted.",
+    "confirmLabel": "Type DELETE to confirm",
+    "confirmWord": "DELETE",
+    "submit": "Delete my account",
+    "deleting": "Deleting…",
+    "error": "Couldn't delete your account just now — check your connection and try again.",
+    "done": "Your account was deleted.",
+    "signedOutBody": "To delete your Close Listening account, sign in, then open Profile › Account › Delete account. If you can't sign in, email {email} from the address on the account and we'll delete it for you.",
+    "signIn": "Sign in to delete your account",
+    "providers": {
+      "google": "Google",
+      "apple": "Apple",
+      "email": "an email link",
+      "mock": "the dev account"
+    }
+  },
   "profile": {
     "title": "Your profile",
     "welcomeTitle": "Welcome to Close Listening",

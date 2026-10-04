@@ -22,7 +22,7 @@ import logging
 import os
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol
 from urllib.parse import urlencode
 
@@ -45,6 +45,9 @@ class OAuthIdentity:
     email: str
     name: str
     image: str | None = None  # provider avatar URL (Google `picture`); None when absent
+    #: Apple's refresh token (#2273). Kept ONLY so account deletion can revoke it, which Apple
+    #: requires of every app that offers Sign in with Apple. Never logged or returned.
+    refresh_token: str | None = field(default=None, repr=False)
 
 
 class OAuthError(Exception):
@@ -231,6 +234,7 @@ APPLE_ISSUER = "https://appleid.apple.com"
 APPLE_AUTH_URL = f"{APPLE_ISSUER}/auth/authorize"
 APPLE_TOKEN_URL = f"{APPLE_ISSUER}/auth/token"
 APPLE_KEYS_URL = f"{APPLE_ISSUER}/auth/keys"
+APPLE_REVOKE_URL = f"{APPLE_ISSUER}/auth/revoke"
 
 
 class AppleProvider:
@@ -341,7 +345,9 @@ class AppleProvider:
                     },
                 )
                 resp.raise_for_status()
-                id_token = resp.json().get("id_token")
+                body = resp.json()
+                id_token = body.get("id_token")
+                refresh_token = body.get("refresh_token")
         except httpx.HTTPError as exc:
             raise OAuthError(f"Apple token exchange failed: {exc}") from exc
         if not id_token:
@@ -356,7 +362,29 @@ class AppleProvider:
             subject=str(subject),
             email=str(email),
             name=_apple_name(user_json) or str(email),
+            refresh_token=str(refresh_token) if refresh_token else None,
         )
+
+    def revoke(self, refresh_token: str) -> None:
+        """Revoke the user's Apple tokens — required when they delete their account (#2273).
+
+        Apple answers 200 for a token it has already invalidated, so this is safe to repeat. Raises
+        :class:`OAuthError` on anything else; the caller decides whether that blocks deletion.
+        """
+        try:
+            with httpx.Client(timeout=self._timeout) as client:
+                resp = client.post(
+                    APPLE_REVOKE_URL,
+                    data={
+                        "client_id": self._services_id,
+                        "client_secret": self.client_secret(),
+                        "token": refresh_token,
+                        "token_type_hint": "refresh_token",
+                    },
+                )
+                resp.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise OAuthError(f"Apple token revocation failed: {exc}") from exc
 
     @classmethod
     def from_env(cls) -> "AppleProvider | None":

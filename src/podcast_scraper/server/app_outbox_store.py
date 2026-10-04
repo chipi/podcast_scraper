@@ -61,6 +61,62 @@ def _lock(data_dir: Path, envelope_id: str) -> FileLock:
     return FileLock(str(path.with_suffix(".lock")), timeout=_LOCK_TIMEOUT_S)
 
 
+#: How long a FINISHED envelope is kept (#2273). Kept forever before this: every digest sent, with
+#: the recipient's address and push endpoint in it. Long enough to answer "did my digest go out last
+#: week"; a sign-in envelope, which also carries the (by then expired) link, goes after a day.
+_RETENTION_S = 30 * 86400
+_AUTH_LINK_RETENTION_S = 86400
+
+
+def _unlink_record(path: Path) -> None:
+    for p in (path, path.with_suffix(".lock")):
+        try:
+            p.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _past_retention(record: dict[str, Any], now: int) -> bool:
+    if record.get("status") not in _TERMINAL:
+        return False
+    raw = record.get("envelope")
+    envelope: dict[str, Any] = raw if isinstance(raw, dict) else {}
+    keep = (
+        _AUTH_LINK_RETENTION_S
+        if str(envelope.get("type") or "") in TRANSACTIONAL_TYPES
+        else _RETENTION_S
+    )
+    return now - int(record.get("updated_at", 0) or 0) > keep
+
+
+def purge_for_user(data_dir: Path, user_id: str, email: str) -> int:
+    """Delete every envelope for this account (#2273) — pending AND finished. Returns the count.
+
+    Matched by ``user_id`` and ALSO by recipient address: a sign-in envelope is written before an
+    account exists and carries an empty ``user_id`` but the plaintext address, so the id alone
+    would leave exactly those behind.
+    """
+    outbox = _outbox_dir(data_dir)
+    if not outbox.is_dir():
+        return 0
+    wanted_email = email.strip().lower()
+    removed = 0
+    for path in outbox.glob("*.json"):
+        record = _read_record(path)
+        envelope = record.get("envelope") if record else None
+        if not isinstance(envelope, dict):
+            continue
+        raw_recipient = envelope.get("recipient")
+        recipient: dict[str, Any] = raw_recipient if isinstance(raw_recipient, dict) else {}
+        address = str(recipient.get("email") or "").strip().lower()
+        if (user_id and envelope.get("user_id") == user_id) or (
+            wanted_email and address == wanted_email
+        ):
+            _unlink_record(path)
+            removed += 1
+    return removed
+
+
 def _read_record(path: Path) -> dict[str, Any] | None:
     if not path.is_file():
         return None
@@ -149,6 +205,10 @@ def list_pending(
     rows: list[tuple[int, dict[str, Any]]] = []
     for path in outbox.glob("*.json"):
         record = _read_record(path)
+        if record is not None and _past_retention(record, now):
+            # Retention rides the worker's poll, which already reads every record: no scheduler.
+            _unlink_record(path)
+            continue
         if record is None or record.get("status") != "pending":
             continue
         envelope = record.get("envelope")
@@ -205,6 +265,10 @@ def _suppress(data_dir: Path, envelope: dict[str, Any]) -> None:
     """Disable the exact type×channel the terminal status arrived on (bounce/complaint → stop)."""
     user_id = str(envelope.get("user_id") or "")
     if not user_id:
+        return
+    # A bounce that arrives after the account was deleted must not re-create its directory —
+    # `set_channel` takes a lock that mkdirs `users/<id>/` (#2273).
+    if not (data_dir / "users" / user_id).is_dir():
         return
     channel = envelope.get("channel")
     if channel not in ("email", "push"):

@@ -57,6 +57,7 @@ const router = createRouter({
   routes: [
     { path: "/profile", name: "profile", component: ProfileView },
     { path: "/settings", name: "settings", component: { template: "<div/>" } },
+    { path: "/account/delete", name: "account-delete", component: { template: "<div/>" } },
     { path: "/", name: "home", component: { template: "<div/>" } },
     { path: "/catalog", name: "catalog", component: { template: "<div/>" } },
   ],

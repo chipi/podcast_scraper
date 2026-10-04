@@ -138,6 +138,25 @@ def revoke_token(data_dir: Path, user_id: str, token_id: str) -> bool:
     return True
 
 
+def forget_user(data_dir: Path, user_id: str) -> int:
+    """Drop every index entry pointing at this user (#2273). Returns how many were removed.
+
+    Their ``users/<id>/mcp_tokens.json`` goes with the directory; the index outlives it.
+    """
+    with _index_lock(data_dir):
+        index = _read_json(_index_path(data_dir), {})
+        if not isinstance(index, dict):
+            return 0
+        doomed = [h for h, uid in index.items() if uid == user_id]
+        for h in doomed:
+            index.pop(h, None)
+        if doomed:
+            atomic_write_text(
+                _index_path(data_dir), json.dumps(index, ensure_ascii=False, indent=2)
+            )
+    return len(doomed)
+
+
 def verify_token(data_dir: Path, token: str) -> str | None:
     """Resolve a presented token to its owning ``user_id`` (O(1) via the index), else None.
 
@@ -150,6 +169,10 @@ def verify_token(data_dir: Path, token: str) -> str | None:
     index = _read_json(_index_path(data_dir), {})
     user_id = index.get(token_hash) if isinstance(index, dict) else None
     if not user_id or not _is_safe_user_id(str(user_id)):
+        return None
+    # A deleted account: answer no WITHOUT taking the lock — `_tokens_lock` mkdirs `users/<id>/`,
+    # so a leaked token presented after deletion used to re-create the directory (#2273).
+    if not (data_dir / "users" / str(user_id)).is_dir():
         return None
     with _tokens_lock(data_dir, str(user_id)):
         tokens = _read_tokens(data_dir, str(user_id))

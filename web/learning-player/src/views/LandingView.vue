@@ -83,6 +83,16 @@ onMounted(async () => {
 
 <template>
   <div class="mx-auto max-w-5xl px-1">
+    <!-- After account deletion (#2273): say it happened, rather than dropping the person on a
+         sign-up page with no word about the account they just removed. -->
+    <p
+      v-if="route.query.deleted === '1'"
+      role="status"
+      class="mx-auto mt-4 max-w-md rounded-2xl border border-border px-4 py-3 text-center text-sm"
+      data-testid="landing-account-deleted"
+    >
+      {{ t('deleteAccount.done') }}
+    </p>
     <!-- Hero -->
     <section class="pb-8 pt-6 text-center sm:pt-10">
       <span class="lp-kicker">{{ t('app.tagline') }}</span>

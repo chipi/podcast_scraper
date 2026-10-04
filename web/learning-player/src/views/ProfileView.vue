@@ -969,6 +969,17 @@ onActivated(() => {
       >
         {{ t("auth.signOut") }}
       </button>
+      <!-- Account deletion (#2273, App Store 5.1.1(v)): reachable from inside the app, quieter
+           still than Sign out, and never a one-tap action — it opens a page that explains and
+           asks for a typed confirmation. -->
+      <RouterLink
+        v-if="auth.isAuthenticated"
+        :to="{ name: 'account-delete' }"
+        class="mt-4 block text-center text-xs text-muted underline"
+        data-testid="profile-delete-account"
+      >
+        {{ t("deleteAccount.link") }}
+      </RouterLink>
     </div>
 
     <InterestsPicker v-if="pickerOpen" trigger="profile" @close="pickerOpen = false" @saved="onSaved" />

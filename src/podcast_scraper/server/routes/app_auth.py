@@ -22,12 +22,14 @@ from pydantic import BaseModel, Field
 
 from podcast_scraper.server import (
     app_access_store,
+    app_account_deletion,
     app_magic_link,
     app_outbox_store,
     app_roles,
     app_sessions,
     app_user_state,
 )
+from podcast_scraper.server.app_audit import audit_event
 from podcast_scraper.server.app_oauth import OAuthError, OAuthProvider
 from podcast_scraper.server.app_user_store import get_or_create_user, get_user, set_role, User
 
@@ -402,6 +404,11 @@ def _complete_callback(
         # one account.
         on_created=_on_created,
     )
+    if identity.refresh_token:
+        # Kept only so deleting the account can revoke it, as Apple requires (#2273).
+        app_account_deletion.store_apple_refresh_token(
+            data_dir, user.user_id, identity.refresh_token
+        )
     _oauth_event(
         "oauth_callback",
         outcome="ok",
@@ -472,6 +479,70 @@ def _user_dict(user: User) -> dict[str, object]:
         # client treats empty as "do not identify" rather than identifying with a blank id.
         "analytics_id": user.analytics_id,
     }
+
+
+class AccountDeletionBody(BaseModel):
+    """The typed confirmation (operator, 2026-10-04): the literal word DELETE, nothing else."""
+
+    confirm: str = Field(max_length=20)
+
+
+def delete_user_account(request: Request, user: User) -> dict[str, object]:
+    """Revoke the account's Apple tokens (if any), then purge it everywhere (#2273).
+
+    Shared by the self-service and admin routes so the two cannot diverge. Apple revocation is
+    best-effort: deletion is what the person asked for, so a failed revoke is LOGGED (with its
+    reason) rather than blocking it — after the purge the token is gone and a retry is impossible.
+    """
+    data_dir = _data_dir(request)
+    if data_dir is None:
+        raise HTTPException(status_code=503, detail="Accounts are not configured.")
+    apple_revoked: bool | None = None
+    apple_reason: str | None = None
+    if user.provider == "apple":
+        token = app_account_deletion.apple_refresh_token(data_dir, user.user_id)
+        apple = _providers(request).get("apple")
+        if not token:
+            apple_revoked, apple_reason = False, "no stored refresh token"
+        elif apple is None or not hasattr(apple, "revoke"):
+            apple_revoked, apple_reason = False, "apple provider not configured"
+        else:
+            try:
+                apple.revoke(token)
+                apple_revoked = True
+            except OAuthError as exc:
+                apple_revoked, apple_reason = False, str(exc)[:300]
+                logger.warning("Apple token revocation failed on account deletion: %s", exc)
+    report = app_account_deletion.delete_account(data_dir, user)
+    return {
+        "provider": user.provider,
+        "apple_revoked": apple_revoked,
+        "apple_reason": apple_reason,
+        "outbox_envelopes": report.outbox_envelopes,
+        "mcp_token_index": report.mcp_token_index,
+        "mcp_oauth_records": report.mcp_oauth_records,
+        "user_dir": report.user_dir,
+    }
+
+
+@router.delete("/me", status_code=204)
+def app_delete_me(
+    request: Request, body: AccountDeletionBody, user: User = Depends(get_current_user)
+) -> Response:
+    """Delete the signed-in account, immediately and for good (#2273, App Store 5.1.1(v)).
+
+    The body must be ``{"confirm": "DELETE"}`` — checked here as well as in the UI, so no stray or
+    forged call can delete anyone. Only the signed-in identity is deleted: a person with separate
+    Google, Apple and email accounts for one address keeps the others.
+    """
+    if body.confirm != "DELETE":
+        raise HTTPException(status_code=400, detail="Type DELETE to confirm.")
+    result = delete_user_account(request, user)
+    audit_event(request, "user.self_delete", user=user.user_id, provider=user.provider)
+    _oauth_event("account_deleted", initiated_by="self", **result)
+    resp = Response(status_code=204)
+    resp.delete_cookie(app_sessions.SESSION_COOKIE)
+    return resp
 
 
 @router.get("/me")

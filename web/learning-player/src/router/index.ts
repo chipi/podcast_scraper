@@ -139,6 +139,14 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/BrowseView.vue'),
   },
   {
+    // #2273. PUBLIC on purpose: Google Play's listing needs a web address that explains deletion
+    // to someone who is not signed in. Signed in, the same page performs it.
+    path: '/account/delete',
+    name: 'account-delete',
+    component: () => import('../views/DeleteAccountView.vue'),
+    meta: { public: true },
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),

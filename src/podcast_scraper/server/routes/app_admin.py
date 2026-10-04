@@ -24,7 +24,6 @@ from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_audit import append_audit
 from podcast_scraper.server.app_user_store import (
     create_user,
-    delete_user,
     get_user,
     list_users,
     set_disabled,
@@ -33,7 +32,11 @@ from podcast_scraper.server.app_user_store import (
     User,
     user_id_for,
 )
-from podcast_scraper.server.routes.app_auth import get_admin_user
+from podcast_scraper.server.routes.app_auth import (
+    _oauth_event,
+    delete_user_account,
+    get_admin_user,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -186,9 +189,14 @@ def admin_delete_user(
     if user_id == admin.user_id:
         raise HTTPException(status_code=400, detail="You cannot delete your own account.")
     data_dir = _data_dir(request)
-    if not delete_user(data_dir, user_id):
+    target = get_user(data_dir, user_id)
+    if target is None:
         raise HTTPException(status_code=404, detail="No such user.")
+    # The SAME purge as self-service deletion (#2273): it used to remove only `users/<id>/`, leaving
+    # the person's address in every outbox envelope and their MCP grants live.
+    result = delete_user_account(request, target)
     _audit(request, action="admin.user.delete", by=admin.user_id, user=user_id)
+    _oauth_event("account_deleted", initiated_by="admin", **result)
 
 
 class AccessPolicyOut(BaseModel):

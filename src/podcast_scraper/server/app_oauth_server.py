@@ -247,6 +247,36 @@ def forget_client_use(data_dir: Path, *, user_id: str, client_id: str) -> None:
             _write(data_dir, _USE_FILE, uses)
 
 
+def forget_user(data_dir: Path, user_id: str) -> int:
+    """Remove this user from grants, consents and last-use records (#2273). Returns the count.
+
+    All three are global files keyed or valued by ``user_id``; the account's own directory going
+    away does not touch them, and a live refresh token would otherwise keep working for 30 days.
+    """
+    removed = 0
+    with _lock(data_dir, _GRANTS_FILE):
+        grants = _read(data_dir, _GRANTS_FILE)
+        doomed = [
+            h for h, r in grants.items() if isinstance(r, dict) and r.get("user_id") == user_id
+        ]
+        for h in doomed:
+            grants.pop(h, None)
+        if doomed:
+            _write(data_dir, _GRANTS_FILE, grants)
+        removed += len(doomed)
+    prefix = f"{user_id}\x00"
+    for name in (_CONSENTS_FILE, _USE_FILE):
+        with _lock(data_dir, name):
+            doc = _read(data_dir, name)
+            keys = [k for k in doc if k.startswith(prefix)]
+            for k in keys:
+                doc.pop(k, None)
+            if keys:
+                _write(data_dir, name, doc)
+            removed += len(keys)
+    return removed
+
+
 def list_consents(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
     """The connected OAuth clients.
 
