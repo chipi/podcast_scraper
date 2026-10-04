@@ -27,21 +27,13 @@ export interface TopicTheme {
   group: number
 }
 
-/** Distinct, dark-theme-legible categorical hues (sky / violet / emerald / amber / pink / cyan /
- *  lime / orange). Cycled across theme clusters. */
-export const THEME_PALETTE = [
-  "#38bdf8",
-  "#a78bfa",
-  "#34d399",
-  "#fbbf24",
-  "#f472b6",
-  "#22d3ee",
-  "#a3e635",
-  "#fb923c",
-]
+/** Categorical hues (sky / violet / emerald / amber / pink / cyan / lime / orange), cycled across
+ *  storyline groups. Tokens `--lp-cat-1..8` (tokens.css, UXS-011), so a direction can repaint them;
+ *  inline-style only (`color` / `background-color`), where `var()` always resolves. */
+export const THEME_PALETTE = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => `var(--lp-cat-${i})`)
 
-/** Fallback hue for topics not in any theme cluster. */
-export const THEME_NEUTRAL = "#94a3b8"
+/** Hue for topics not in any storyline group. */
+export const THEME_NEUTRAL = "var(--lp-cat-neutral)"
 
 export type TrendDirection = "up" | "down" | "steady"
 

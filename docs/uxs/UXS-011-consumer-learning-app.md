@@ -195,6 +195,29 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 > second channel for all three; every pill also names its kind in text. See UXS-013 §Vocabulary;
 > the backend still calls a storyline a "theme cluster" on the wire.
 
+### Categorical tokens (Discover sparklines)
+
+Meaning-free slots for "N different things": the Discover topic / people sparklines colour each
+storyline group with the next slot, and topics in no group with `cat-neutral`. Tokenized **as
+shipped** (#2280) from the inline hexes in `src/components/trending.ts`.
+
+| Token | Dark | Usage |
+| --- | --- | --- |
+| `cat-1` | `#38BDF8` | Categorical slot 1 (sky) |
+| `cat-2` | `#A78BFA` | Categorical slot 2 (violet) |
+| `cat-3` | `#34D399` | Categorical slot 3 (emerald) |
+| `cat-4` | `#FBBF24` | Categorical slot 4 (amber) |
+| `cat-5` | `#F472B6` | Categorical slot 5 (pink) |
+| `cat-6` | `#22D3EE` | Categorical slot 6 (cyan) |
+| `cat-7` | `#A3E635` | Categorical slot 7 (lime) |
+| `cat-8` | `#FB923C` | Categorical slot 8 (orange) |
+| `cat-neutral` | `#94A3B8` | Topics in no storyline group |
+
+> **Direction-independent by decision (#2280).** These were inline hexes no visual direction
+> repainted; tokenizing them as shipped keeps that, and `directions.test.ts` exempts `--lp-cat-*`
+> from the every-direction repaint rule. A direction **may** override a slot. Whether light
+> directions **must** (these hues were picked for a dark ground) is a separate, measured change.
+
 ## Typography
 
 This is a **two-voice system**, not a font choice: `--lp-font-display` and `--lp-font-ui` carry what

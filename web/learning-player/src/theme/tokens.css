@@ -126,6 +126,21 @@
   --lp-density: 0.95;
   --lp-motion: 0.6;
 
+  /* Categorical (#2280) — the Discover sparkline palette, tokenized AS SHIPPED. Meaning-free
+     slots cycled across storyline groups (`cat-N`), plus the colour for topics in none
+     (`cat-neutral`). DIRECTION-INDEPENDENT today: every direction inherits them, as the inline
+     hexes did before — `directions.test.ts` exempts `--lp-cat-*` from the repaint rule. A
+     direction MAY override them; whether any must (light grounds) is a separate, measured change. */
+  --lp-cat-1: #38bdf8;
+  --lp-cat-2: #a78bfa;
+  --lp-cat-3: #34d399;
+  --lp-cat-4: #fbbf24;
+  --lp-cat-5: #f472b6;
+  --lp-cat-6: #22d3ee;
+  --lp-cat-7: #a3e635;
+  --lp-cat-8: #fb923c;
+  --lp-cat-neutral: #94a3b8;
+
   /* "Sign in with Google", dark theme. Third-party brand values fixed by Google's branding
      guidelines (developers.google.com/identity/branding-guidelines), so no direction may steer
      them — they are tokens only so the one-token-layer rule holds. */

@@ -80,7 +80,14 @@ function aliasTokens(): Set<string> {
  */
 const BRAND_FIXED = new Set([...TOKENS.matchAll(/(--lp-(?:gsi|siwa)-[a-z-]+)\s*:/g)].map((m) => m[1]))
 
-const MAY_INHERIT = new Set([...NON_COLOUR, ...aliasTokens(), ...BRAND_FIXED])
+/**
+ * The categorical ramp (`--lp-cat-*`, #2280) is direction-independent by decision: the Discover
+ * sparkline palette shipped as inline hexes that no direction repainted, and tokenizing it AS
+ * SHIPPED keeps that. A direction may still override a slot; it is not required to.
+ */
+const CATEGORICAL = new Set([...tokensIn(TOKENS)].filter((t) => t.startsWith('--lp-cat-')))
+
+const MAY_INHERIT = new Set([...NON_COLOUR, ...aliasTokens(), ...BRAND_FIXED, ...CATEGORICAL])
 
 /** Posture tokens are opt-in: a direction that only repaints is a valid direction. */
 const POSTURE = new Set(['--lp-radius', '--lp-density', '--lp-motion'])
