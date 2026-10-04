@@ -130,7 +130,8 @@
      slots cycled across storyline groups (`cat-N`), plus the colour for topics in none
      (`cat-neutral`). DIRECTION-INDEPENDENT today: every direction inherits them, as the inline
      hexes did before — `directions.test.ts` exempts `--lp-cat-*` from the repaint rule. A
-     direction MAY override them; whether any must (light grounds) is a separate, measured change. */
+     direction MAY override them, and a light one must — `paper` does; `directions.test.ts` holds
+     every slot at 3:1 in every palette. */
   --lp-cat-1: #38bdf8;
   --lp-cat-2: #a78bfa;
   --lp-cat-3: #34d399;

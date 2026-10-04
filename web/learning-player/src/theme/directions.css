@@ -80,6 +80,17 @@
   --lp-radius: 0.0625rem; /* 1px base -> 4px at 2xl: a printed rule, not a rounded card */
   --lp-density: 0.85;
   --lp-motion: 0.6; /* print does not animate; movement is kept brisk and almost unnoticed */
+  /* Categorical slots, darkened from the dark-ground hexes to clear 3:1 on paper's grounds (#2280).
+     The only direction that needs them: every dark direction inherits the shipped values. */
+  --lp-cat-1: #0787c0;
+  --lp-cat-2: #8964f8;
+  --lp-cat-3: #1f9067;
+  --lp-cat-4: #a37703;
+  --lp-cat-5: #ee228d;
+  --lp-cat-6: #0c8b9e;
+  --lp-cat-7: #5d8c11;
+  --lp-cat-8: #cc5e04;
+  --lp-cat-neutral: #6b809d;
 }
 
 /* ── TERMINAL ─────────────────────────────────────────────────────────────────────────────

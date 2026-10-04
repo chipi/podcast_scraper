@@ -215,8 +215,9 @@ shipped** (#2280) from the inline hexes in `src/components/trending.ts`.
 
 > **Direction-independent by decision (#2280).** These were inline hexes no visual direction
 > repainted; tokenizing them as shipped keeps that, and `directions.test.ts` exempts `--lp-cat-*`
-> from the every-direction repaint rule. A direction **may** override a slot. Whether light
-> directions **must** (these hues were picked for a dark ground) is a separate, measured change.
+> from the every-direction repaint rule. A direction **may** override a slot, and a light one must:
+> the shipped hues were picked for a dark ground and measured 1.17–2.33:1 on `paper`, so `paper`
+> carries its own darker set. `directions.test.ts` holds every slot at 3:1 in every palette.
 
 ## Typography
 

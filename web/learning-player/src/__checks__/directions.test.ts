@@ -316,3 +316,35 @@ describe('third-party brand tokens', () => {
     }
   })
 })
+
+/**
+ * The categorical ramp (`--lp-cat-*`) stays visible as GRAPHICS — dots and sparklines — in every
+ * palette: 3:1 (WCAG 1.4.11), not the 4.5:1 text bar above (#2280).
+ *
+ * Parsed with digits on purpose: `values()` above reads `[a-z-]+`, so it cannot see `cat-1` at all
+ * and would pass this vacuously. The slots were tokenized from dark-ground hexes; `paper` needed
+ * its own darker set (1.17–2.33:1 before), and this keeps any future light direction honest.
+ */
+describe('categorical slots read in every palette', () => {
+  const withDigits = (block: string): Record<string, string> =>
+    Object.fromEntries(
+      Array.from(block.matchAll(/--lp-([a-z0-9-]+):\s*([^;]+);/g), (m) => [m[1], m[2].trim()]),
+    )
+
+  it.each(allPalettes())('palette "%s" keeps every cat-* slot at 3:1', (_name, block) => {
+    const v = { ...withDigits(defaultPalette()[1]), ...withDigits(block) }
+    const slots = Object.keys(v).filter((k) => k.startsWith('cat-'))
+    expect(slots.length, 'the parser found no categorical slots').toBeGreaterThanOrEqual(9)
+    const failures: string[] = []
+    for (const g of ['canvas', 'surface', 'elevated']) {
+      const ground = v[g] ? flatten(v[g], '#000000', v) : null
+      if (!ground) continue
+      for (const k of slots) {
+        const flat = flatten(v[k], ground, v)
+        const ratio = flat ? contrastRatio(flat, ground) : 0
+        if (ratio < 3) failures.push(`--lp-${k} on ${g}: ${ratio.toFixed(2)}:1`)
+      }
+    }
+    expect(failures).toEqual([])
+  })
+})
