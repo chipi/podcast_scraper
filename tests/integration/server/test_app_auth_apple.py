@@ -77,7 +77,8 @@ def test_login_with_provider_apple_goes_to_apple_and_the_state_names_it(tmp_path
     resp = client.get("/api/app/auth/login?provider=apple", follow_redirects=False)
     assert resp.headers["location"].startswith("https://appleid.example/authorize")
     state = parse_qs(urlparse(resp.headers["location"]).query)["state"][0]
-    assert app_sessions.verify(state, "test-secret", max_age=600)["provider"] == "apple"
+    verified = app_sessions.verify(state, "test-secret", max_age=600)
+    assert verified is not None and verified["provider"] == "apple"
 
 
 def test_login_without_provider_still_goes_to_the_primary(tmp_path: Path) -> None:

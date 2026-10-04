@@ -23,7 +23,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 from urllib.parse import urlencode
 
 import httpx
@@ -221,6 +221,12 @@ class MockOAuthProvider:
         )
 
 
+class SigningKeySource(Protocol):
+    """What :class:`AppleProvider` needs from a JWKS client: the key that signed a token."""
+
+    def get_signing_key_from_jwt(self, token: str) -> Any: ...
+
+
 APPLE_ISSUER = "https://appleid.apple.com"
 APPLE_AUTH_URL = f"{APPLE_ISSUER}/auth/authorize"
 APPLE_TOKEN_URL = f"{APPLE_ISSUER}/auth/token"
@@ -257,7 +263,7 @@ class AppleProvider:
         services_id: str,
         private_key_pem: str,
         timeout: float = 10.0,
-        jwks_client: jwt.PyJWKClient | None = None,
+        jwks_client: SigningKeySource | None = None,
     ) -> None:
         self._team_id = team_id
         self._key_id = key_id
