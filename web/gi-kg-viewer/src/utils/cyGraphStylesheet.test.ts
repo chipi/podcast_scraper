@@ -159,7 +159,7 @@ describe('buildGiKgCyStylesheet', () => {
       (r) => (r as { selector?: string }).selector === 'edge[edgeType = "(unknown)"]',
     ) as { style: Record<string, unknown> }
     expect(rule).toBeTruthy()
-    expect(rule.style['line-color']).toBe('#8f99a8')
+    expect(rule.style['line-color']).toBe('#929cab')
   })
 
   // RFC-080 V2 — Insight grounding selector lives in the stylesheet
@@ -335,9 +335,11 @@ describe('Tier 5C — velocity halo selectors', () => {
     const steady = sheet.find(
       (r) => (r as { selector?: string }).selector === 'node.velocity-steady',
     ) as { style: Record<string, unknown> } | undefined
-    expect(up?.style['border-color']).toBe('#22c55e')
-    expect(down?.style['border-color']).toBe('#ef4444')
-    expect(steady?.style['border-color']).toBe('#f59e0b')
+    // Theme tokens shared with trendColor() (#2280); jsdom applies no tokens, so the resolver
+    // returns its dark fallbacks — the --ps-success / --ps-danger / --ps-muted dark values.
+    expect(up?.style['border-color']).toBe('#36b270')
+    expect(down?.style['border-color']).toBe('#ea7a7e')
+    expect(steady?.style['border-color']).toBe('#929cab')
     // Border width is bumped above type-default so the halo reads at mid-zoom.
     expect(Number(up?.style['border-width'])).toBeGreaterThan(1)
   })

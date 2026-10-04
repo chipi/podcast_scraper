@@ -13,10 +13,10 @@ describe('trendDirection', () => {
 })
 
 describe('trendColor', () => {
-  it('maps direction to green / red / amber hex', () => {
-    expect(trendColor(2.0)).toBe('#22c55e')
-    expect(trendColor(0.4)).toBe('#ef4444')
-    expect(trendColor(1.0)).toBe('#f59e0b')
+  it('maps direction to the success / danger / muted theme tokens', () => {
+    expect(trendColor(2.0)).toBe('var(--ps-success)')
+    expect(trendColor(0.4)).toBe('var(--ps-danger)')
+    expect(trendColor(1.0)).toBe('var(--ps-muted)')
   })
 })
 

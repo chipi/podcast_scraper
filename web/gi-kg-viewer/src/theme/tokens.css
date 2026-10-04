@@ -16,18 +16,18 @@
   --ps-overlay: #2f343c;
   --ps-overlay-foreground: #dce0e5;
   --ps-border: #404854;
-  --ps-muted: #8f99a8;
+  --ps-muted: #929cab;
   --ps-disabled: #5f6b7c;
   --ps-link: #6cb3f7;
   --ps-primary: #4c90f0;
   /* Near-black, not white: white on #4c90f0 is 3.20:1 and fails AA on every primary button.
      #111418 is 5.70:1 and is the UXS-001 value. Guarded by __checks__/token-contrast.test.ts. */
   --ps-primary-foreground: #111418;
-  --ps-success: #32a467;
+  --ps-success: #36b270;
   --ps-success-foreground: #111418;
   --ps-warning: #ec9a3c;
   --ps-warning-foreground: #111418;
-  --ps-danger: #e76a6e;
+  --ps-danger: #ea7a7e;
   --ps-danger-foreground: #111418;
   --ps-gi: #7dd3a0;
   --ps-gi-foreground: #111418;
@@ -50,6 +50,15 @@
      hues; both are read as small label text (#2280). */
   --ps-theme: #7dd3c0;
   --ps-related-topic: #da77f2;
+  /* Categorical ramp — for charts that need N distinct, meaning-free hues (the Dashboard stream
+     chart). Not identity colours: a series takes the next slot. Light values are the same hue
+     families darkened to clear 3:1 against light surfaces (#2280). */
+  --ps-cat-1: #8b5cf6;
+  --ps-cat-2: #22d3ee;
+  --ps-cat-3: #f59e0b;
+  --ps-cat-4: #34d399;
+  --ps-cat-5: #f472b6;
+  --ps-cat-6: #60a5fa;
   /* graph-v3 A — richer contrast for the Cytoscape canvas only (feels
      "constellation" rather than surface-flat). Shell chrome keeps --ps-canvas. */
   --ps-graph-canvas: #0a0d10;
@@ -67,16 +76,16 @@
   --ps-overlay: #e4e7eb;
   --ps-overlay-foreground: #252a31;
   --ps-border: #c5ccd6;
-  --ps-muted: #5f6b7c;
+  --ps-muted: #5c6878;
   --ps-disabled: #abb3bf;
   --ps-link: #1a6fc4;
   --ps-primary: #2d72d2;
   --ps-primary-foreground: #ffffff;
-  --ps-success: #238551;
+  --ps-success: #1f7648;
   --ps-success-foreground: #ffffff;
   --ps-warning: #c87619;
   --ps-warning-foreground: #111418;
-  --ps-danger: #cd4246;
+  --ps-danger: #bf3236;
   --ps-danger-foreground: #ffffff;
   --ps-gi: #1e7a4a;
   --ps-gi-foreground: #ffffff;
@@ -87,6 +96,12 @@
   --ps-person: #9c5822;
   --ps-theme: #0e7469;
   --ps-related-topic: #9c36b5;
+  --ps-cat-1: #7c3aed;
+  --ps-cat-2: #0e7490;
+  --ps-cat-3: #b45309;
+  --ps-cat-4: #047857;
+  --ps-cat-5: #be185d;
+  --ps-cat-6: #2563eb;
   --ps-graph-canvas: var(--ps-canvas);
 }
 
@@ -103,16 +118,16 @@
     --ps-overlay: #e4e7eb;
     --ps-overlay-foreground: #252a31;
     --ps-border: #c5ccd6;
-    --ps-muted: #5f6b7c;
+    --ps-muted: #5c6878;
     --ps-disabled: #abb3bf;
     --ps-link: #1a6fc4;
     --ps-primary: #2d72d2;
     --ps-primary-foreground: #ffffff;
-    --ps-success: #238551;
+    --ps-success: #1f7648;
     --ps-success-foreground: #ffffff;
     --ps-warning: #c87619;
     --ps-warning-foreground: #111418;
-    --ps-danger: #cd4246;
+    --ps-danger: #bf3236;
     --ps-danger-foreground: #ffffff;
     --ps-gi: #1e7a4a;
     --ps-gi-foreground: #ffffff;
@@ -123,6 +138,12 @@
     --ps-person: #9c5822;
     --ps-theme: #0e7469;
     --ps-related-topic: #9c36b5;
+    --ps-cat-1: #7c3aed;
+    --ps-cat-2: #0e7490;
+    --ps-cat-3: #b45309;
+    --ps-cat-4: #047857;
+    --ps-cat-5: #be185d;
+    --ps-cat-6: #2563eb;
     --ps-graph-canvas: var(--ps-canvas);
   }
 }

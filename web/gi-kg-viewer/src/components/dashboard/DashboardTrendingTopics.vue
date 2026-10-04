@@ -105,7 +105,8 @@ const SW = 320
 const SH = 120
 const SPAD_B = 16
 const SPAD_T = 6
-const STREAM_COLORS = ['#8b5cf6', '#22d3ee', '#f59e0b', '#34d399', '#f472b6', '#60a5fa']
+// Categorical ramp tokens (UXS-001): a series takes the next slot; follows light / dark.
+const STREAM_COLORS = [1, 2, 3, 4, 5, 6].map((i) => `var(--ps-cat-${i})`)
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 function shortMonth(ym: string): string {
   const m = /^(\d{4})-(\d{2})/.exec(ym)
@@ -249,7 +250,7 @@ const hasAny = computed(() => topics.value.length > 0)
             v-for="b in stream.bands"
             :key="b.id"
             :d="b.path"
-            :fill="b.color"
+            :style="{ fill: b.color }"
             fill-opacity="0.8"
             class="cursor-pointer"
             data-testid="trend-stream-band"
@@ -280,7 +281,7 @@ const hasAny = computed(() => topics.value.length > 0)
           <text :x="MW - 12" :y="MH - 6" text-anchor="end" class="fill-muted" style="font-size: 8px">more episodes →</text>
           <text :x="12" :y="9" class="fill-muted" style="font-size: 8px">↑ rising faster</text>
           <g v-for="p in momentum" :key="p.id" class="cursor-pointer" data-testid="trend-momentum-point" @click="open(p.id)">
-            <circle :cx="p.cx" :cy="p.cy" :r="p.r" :fill="trendColor(p.v)" fill-opacity="0.55" :stroke="trendColor(p.v)" stroke-width="1">
+            <circle :cx="p.cx" :cy="p.cy" :r="p.r" :style="{ fill: trendColor(p.v), stroke: trendColor(p.v) }" fill-opacity="0.55" stroke-width="1">
               <title>{{ p.label }} — {{ p.v }}×</title>
             </circle>
             <text :x="p.lx" :y="p.ly" class="fill-surface-foreground" style="font-size: 8px">{{ p.label }}</text>

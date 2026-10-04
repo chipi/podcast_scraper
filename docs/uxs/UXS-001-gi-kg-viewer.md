@@ -147,7 +147,7 @@ Five semantic steps for surfaces, from deepest background to lightest border.
 
 | Token      | Dark      | Light     | Usage                                    |
 | ---------- | --------- | --------- | ---------------------------------------- |
-| `muted`    | `#8F99A8` | `#5F6B7C` | Secondary labels, help text, timestamps  |
+| `muted`    | `#929CAB` | `#5C6878` | Secondary labels, help text, timestamps  |
 | `disabled` | `#5F6B7C` | `#ABB3BF` | Disabled controls and placeholder text   |
 | `link`     | `#6cb3f7` | `#1a6fc4` | Inline text links (distinct from action) |
 
@@ -159,11 +159,11 @@ Separate from domain tokens; used for buttons, alerts, and status indicators.
 | ---------------------- | --------- | --------- | ------------------------------ |
 | `primary`              | `#4C90F0` | `#2D72D2` | Primary action buttons, links  |
 | `primary-foreground`   | `#111418` | `#FFFFFF` | Text on primary surfaces       |
-| `success`              | `#32A467` | `#238551` | Positive status, confirmations |
+| `success`              | `#36B270` | `#1F7648` | Positive status, confirmations |
 | `success-foreground`   | `#111418` | `#FFFFFF` | Text on success surfaces       |
 | `warning`              | `#EC9A3C` | `#C87619` | Caution states, non-critical   |
 | `warning-foreground`   | `#111418` | `#111418` | Text on warning surfaces       |
-| `danger`               | `#E76A6E` | `#CD4246` | Errors, destructive actions    |
+| `danger`               | `#EA7A7E` | `#BF3236` | Errors, destructive actions    |
 | `danger-foreground`    | `#111418` | `#FFFFFF` | Text on danger surfaces        |
 
 ### Domain tokens (GIL / KG identity)
@@ -206,9 +206,29 @@ a chart's colours follow the theme because they *are* theme tokens.
 
 > **Corrected (#2280).** This section used to specify five `series-1`…`series-5` tokens, the
 > fifth a teal (`#3FA6DA` / `#147EB3`). None was ever defined; the code has used the semantic list
-> above since charts shipped, so the fifth slot is `success` green. Defining a categorical ramp is
-> a real gap (the Dashboard's stream chart invents its own — see the design review, F4), but it is
-> a design decision, not something this table can claim already exists.
+> above since charts shipped, so the fifth slot is `success` green.
+
+**Categorical ramp.** Charts whose series are just "N different things" with no semantic meaning
+— the Dashboard's stream chart — use `cat-1`…`cat-6`. A series takes the next slot; the hue
+carries no meaning. Light values are the same hue families darkened to clear 3:1 (WCAG 1.4.11)
+against light surfaces, which the original Tailwind 400/500 hues did not (1.81–2.65:1).
+
+| Token | Dark | Light | Usage |
+| --- | --- | --- | --- |
+| `cat-1` | `#8b5cf6` | `#7c3aed` | Categorical series 1 |
+| `cat-2` | `#22d3ee` | `#0e7490` | Categorical series 2 |
+| `cat-3` | `#f59e0b` | `#b45309` | Categorical series 3 |
+| `cat-4` | `#34d399` | `#047857` | Categorical series 4 |
+| `cat-5` | `#f472b6` | `#be185d` | Categorical series 5 |
+| `cat-6` | `#60a5fa` | `#2563eb` | Categorical series 6 |
+
+**Trend direction** (`utils/trend.ts` `trendColor()`, the graph's velocity rings): rising →
+`success`, cooling → `danger`, steady → `muted`. Tokens, so they follow the theme; steady is
+grey because it is the "not moving" state.
+
+Not on the ramp yet, deliberately: the graph's theme-region tints (`themeRegionPalette.ts`) are
+0.14-opacity pastel underlays with no legibility role, and the credibility borders / consensus
+and co-guest edges reuse the old trend hexes for different meanings. Both are open, not drift.
 
 Banners may use `color-mix` against `surface` / `border`; new variants should
 still derive from the tokens above.

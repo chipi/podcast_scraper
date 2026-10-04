@@ -57,7 +57,7 @@ const PS_TOKEN_FALLBACKS: Record<string, string> = {
   '--ps-graph-canvas': '#0a0d10',
   '--ps-canvas-foreground': '#e5e8eb',
   '--ps-border': '#404854',
-  '--ps-muted': '#8f99a8',
+  '--ps-muted': '#929cab',
   '--ps-primary': '#4c90f0',
   '--ps-warning': '#ec9a3c',
   '--ps-gi': '#7dd3a0',
@@ -1010,13 +1010,19 @@ export function buildGiKgCyStylesheet(options?: {
 
   /* graph-v3 Tier 5C-1 — velocity halo. Bright coloured border on
      Topic + Person nodes when the temporal_velocity envelope classes
-     them rising / cooling / steady. Uses the same palette as the
+     them rising / cooling / steady. Uses the same tokens as the
      Digest / Trending Topics trend arrows (`utils/trend.ts`) so the
      app tells one story about "is this topic hot right now".
      Border-width bump above the type default so the halo reads at
      mid-zoom without needing a label. */
   const velocityBorder = compact ? 1.5 : 2.25
-  const velocityColours = { up: '#22c55e', down: '#ef4444', steady: '#f59e0b' }
+  // Same tokens as `trendColor()` so the graph and the trend views agree (#2280). Cytoscape needs
+  // a resolved colour, hence resolveThemeColor; the fallbacks are the dark values.
+  const velocityColours = {
+    up: resolveThemeColor('--ps-success', '#36b270'),
+    down: resolveThemeColor('--ps-danger', '#ea7a7e'),
+    steady: resolveThemeColor('--ps-muted', '#929cab'),
+  }
   ;(['up', 'down', 'steady'] as const).forEach((dir) => {
     style.push({
       selector: `node.velocity-${dir}`,

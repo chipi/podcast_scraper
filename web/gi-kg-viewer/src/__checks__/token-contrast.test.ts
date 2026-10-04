@@ -52,13 +52,20 @@ const THEMES = {
 
 /** Text tokens that are not `-foreground` pairs but are read on the shell backgrounds. */
 const TEXT_ON = {
-  muted: ['canvas', 'surface', 'elevated'],
+  muted: ['canvas', 'surface', 'elevated', 'overlay'],
   link: ['canvas', 'surface', 'elevated'],
   // Small uppercase label text in the Details panels. Hard-coded until #2280, when the light theme
   // measured 1.76:1 (theme) and 2.66:1 (related-topic) on white.
   theme: ['canvas', 'surface', 'elevated', 'overlay'],
   'related-topic': ['canvas', 'surface', 'elevated', 'overlay'],
+  // Trend figures are text (trendColor()): rising / cooling / steady.
+  // On bg-overlay chips in the Dashboard; light success / danger / muted were darkened for it.
+  success: ['canvas', 'surface', 'elevated', 'overlay'],
+  danger: ['canvas', 'surface', 'elevated', 'overlay'],
 }
+
+/** Categorical ramp slots are graphics (chart fills), so WCAG 1.4.11's 3:1 applies, not 4.5. */
+const CATEGORICAL = ['cat-1', 'cat-2', 'cat-3', 'cat-4', 'cat-5', 'cat-6']
 
 describe('viewer token contrast meets WCAG AA (#2280)', () => {
   for (const [theme, t] of Object.entries(THEMES)) {
@@ -73,11 +80,22 @@ describe('viewer token contrast meets WCAG AA (#2280)', () => {
       expect(failing).toEqual([])
     })
 
-    it(`${theme}: muted and link text read on canvas, surface and elevated at 4.5:1`, () => {
+    it(`${theme}: text tokens read on the backgrounds they sit on at 4.5:1`, () => {
       const failing = Object.entries(TEXT_ON)
         .flatMap(([fg, bgs]) => bgs.map((bg) => ({ fg, bg, ratio: contrast(t.get(fg)!, t.get(bg)!) })))
         .filter(({ ratio }) => ratio < 4.5)
         .map(({ fg, bg, ratio }) => `${fg} on ${bg}: ${ratio.toFixed(2)}:1`)
+      expect(failing).toEqual([])
+    })
+  }
+
+  for (const [theme, t] of Object.entries(THEMES)) {
+    it(`${theme}: categorical ramp reads against canvas and surface at 3:1`, () => {
+      const failing = CATEGORICAL.flatMap((c) =>
+        ['canvas', 'surface'].map((bg) => ({ c, bg, ratio: contrast(t.get(c)!, t.get(bg)!) })),
+      )
+        .filter(({ ratio }) => ratio < 3)
+        .map(({ c, bg, ratio }) => `${c} on ${bg}: ${ratio.toFixed(2)}:1`)
       expect(failing).toEqual([])
     })
   }
