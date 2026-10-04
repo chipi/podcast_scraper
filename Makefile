@@ -78,7 +78,7 @@ PYTEST_WORKERS ?= 2
 # triggered fallback, doubling wall time).
 
 .PHONY: ios-origin-up ios-origin-down ios-origin-check app-e2e-users-reset test-app-ios-sim-download
-.PHONY: test-app-ios-journey-ui test-app-ios-restore ios-journey-signin ios-journey-shots test-app-ios-server-degraded
+.PHONY: test-app-ios-journey-ui test-app-ios-restore test-app-android-restore ios-journey-signin ios-journey-shots test-app-ios-server-degraded
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-bundle android-device-install android-fastlane-install android-play-preflight android-play
 .PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
@@ -2942,6 +2942,13 @@ test-app-ios-magic-link:
 #   make test-app-android-magic-link PHASE=M1 MAGIC_EMAIL=you@example.com
 #   make test-app-android-magic-link PHASE=M2 MAGIC_EMAIL=you@example.com MAGIC_LINK='<link 1>'
 #   make test-app-android-magic-link PHASE=M3 MAGIC_LINK='<link 2>'
+# The cold-launch restore on Android (#2278) — the twin of `test-app-ios-restore`. A SHELL journey
+# (android/scripts/cold-launch-restore.sh), because it kills the app and instrumentation runs inside
+# the app's own process. Prereq: `make android-app-install`.
+test-app-android-restore:
+	@ADB=$(ADB) $(APP_DIR)/android/scripts/cold-launch-restore.sh $(IOS_ORIGIN_PORT); rc=$$?; \
+		echo "ANDROID_RESTORE_EXIT=$$rc"; exit $$rc
+
 test-app-android-magic-link:
 	@test -n "$(PHASE)" || { echo "FAIL: PHASE=M1|M2|M3 is required"; exit 1; }
 	@if [ "$(PHASE)" = "M3" ]; then \
