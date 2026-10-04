@@ -606,6 +606,18 @@ def test_self_intro_rejects_nationality_mononym() -> None:
     assert _self_intros_by_voice(vt) == {}
 
 
+def test_this_is_a_stated_person_then_he_is_presenting_them_not_a_self_intro() -> None:
+    """'This is Ada Rook. She built...' is the narrator presenting the guest (#2276, The Flip);
+    the stated-person 'This is Ada Rook.' with no third-person follow-on still binds."""
+    from podcast_scraper.providers.ml.diarization.roster import _self_intros_by_voice
+
+    stated = ["Ada Rook"]
+    presenting = {"SPEAKER_00": "This is Ada Rook. She built a payments company in Lagos."}
+    assert _self_intros_by_voice(presenting, stated) == {}
+    owning = {"SPEAKER_00": "Hey everyone, welcome to the show. This is Ada Rook. Today we talk."}
+    assert _self_intros_by_voice(owning, stated) == {"SPEAKER_00": "Ada Rook"}
+
+
 # --- host GREETS the guest by name: "Kara Swisher, welcome back" (#1226 follow-up) -----------
 # The deterministic introduction reader only read the cue-FIRST form ("joined by X"); a host who
 # greets a just-arrived guest name-first ("Jody Rosen, welcome to the show") named nobody. Two

@@ -1612,6 +1612,11 @@ def _vouched_by_metadata(candidate: str, metadata_named: Sequence[str]) -> Optio
 # states X as a person — whatever its token count, because "This is Latent Space Podcast" is three
 # tokens and no more a person than "Unhedged" is.
 _THIS_IS_INTRO = re.compile(r"\b[Tt]his is\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})")
+# ...and a stated person is still not the SPEAKER when the next sentence talks about them in the
+# third person: "This is Sid Sridhar. He helped sell an African fintech..." is the narrator of The
+# Flip presenting the guest, and reading it as a self-introduction barred the host's own voice from
+# every host seat (#2276; all 4 such openings in the gold sets are spoken by somebody else).
+_THIS_IS_THIRD_PERSON = re.compile(r"\s*[.,;]\s+(?:And\s+)?(?:He|She|They|His|Her|Their)\b")
 
 
 # Case-blind intro detectors on match-form text (ADR-139). The capitalization-based regexes in
@@ -1860,7 +1865,11 @@ def _self_intros_by_voice(
             continue
         # A bare first name we couldn't vouch, or a "this is <X>" — neither stands alone. Metadata.
         candidates = [name] if name else []
-        candidates += [m.group(1).strip(" .,") for m in _THIS_IS_INTRO.finditer(head)]
+        candidates += [
+            m.group(1).strip(" .,")
+            for m in _THIS_IS_INTRO.finditer(head)
+            if not _THIS_IS_THIRD_PERSON.match(head, m.end())
+        ]
         for cand in candidates:
             stated = _vouched_by_metadata(cand, metadata_named)
             if stated:
