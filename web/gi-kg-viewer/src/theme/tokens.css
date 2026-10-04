@@ -20,7 +20,9 @@
   --ps-disabled: #5f6b7c;
   --ps-link: #6cb3f7;
   --ps-primary: #4c90f0;
-  --ps-primary-foreground: #ffffff;
+  /* Near-black, not white: white on #4c90f0 is 3.20:1 and fails AA on every primary button.
+     #111418 is 5.70:1 and is the UXS-001 value. Guarded by __checks__/token-contrast.test.ts. */
+  --ps-primary-foreground: #111418;
   --ps-success: #32a467;
   --ps-warning: #ec9a3c;
   --ps-danger: #e76a6e;
