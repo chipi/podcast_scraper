@@ -1090,7 +1090,7 @@ most of what it listed.
 - **The tab is called Interests.** `?tab=topics` links written before the rename still land on it.
 - **The note comes first.** "These shape what surfaces on your Home when personalization is on."
   sits above the first section, not inside one, because it is about all four.
-- **One section per kind — Topics, People, Themes, Storylines** (`InterestSections`). Closed, a
+- **One section per kind — Topics, People, Themes, Storylines** (`InterestSections`). The heading and its one-line explanation share a row (truncated, never wrapped). Closed, a
   section is only its heading, a one-line hint and its pills:
   - **what is followed** — tap the label to open its card (a storyline opens on its anchor topic;
     a theme has no card destination yet, so it is text), **×** to stop following;

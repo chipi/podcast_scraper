@@ -224,8 +224,15 @@ function kindPill(kind: InterestKind): string {
       class="rounded-2xl border border-border p-5"
       :data-testid="`interests-section-${kind}`"
     >
-      <h2 class="lp-section">{{ t(`interestSections.heading_${kind}`) }}</h2>
-      <p class="mb-3 text-sm text-muted">{{ t(`interestSections.hint_${kind}`) }}</p>
+      <!-- Heading and its one-line explanation share a row (beta feedback 2026-10-04): stacked,
+           they spent two lines per section on what the pills below already show. Truncates rather
+           than wraps, so a long translation cannot push it back onto a second line. -->
+      <div class="mb-3 flex min-w-0 items-baseline gap-2">
+        <h2 class="lp-section shrink-0">{{ t(`interestSections.heading_${kind}`) }}</h2>
+        <p class="min-w-0 truncate text-sm text-muted" :data-testid="`interest-hint-${kind}`">
+          {{ t(`interestSections.hint_${kind}`) }}
+        </p>
+      </div>
 
       <!-- Following, then "+ Add" at the end of the same row: tap a label to open it (Profile),
            × to stop following, + Add to search and see suggestions for this kind. -->
