@@ -226,9 +226,25 @@ against light surfaces, which the original Tailwind 400/500 hues did not (1.81�
 `success`, cooling → `danger`, steady → `muted`. Tokens, so they follow the theme; steady is
 grey because it is the "not moving" state.
 
-Not on the ramp yet, deliberately: the graph's theme-region tints (`themeRegionPalette.ts`) are
-0.14-opacity pastel underlays with no legibility role, and the credibility borders / consensus
-and co-guest edges reuse the old trend hexes for different meanings. Both are open, not drift.
+**Graph overlays** — tokenized as shipped (#2280): today's values, identical in light and dark,
+named after what the UI shows. Separate from the trend colours they used to share by accident.
+Whether any of them needs a light-theme value is a measured, separate decision.
+
+| Token | Dark | Light | Usage |
+| --- | --- | --- | --- |
+| `region-1` | `#7ba3d9` | `#7ba3d9` | Theme / person-community region tint 1 |
+| `region-2` | `#d9d97b` | `#d9d97b` | Theme / person-community region tint 2 |
+| `region-3` | `#d97ba3` | `#d97ba3` | Theme / person-community region tint 3 |
+| `region-4` | `#7bd9a3` | `#7bd9a3` | Theme / person-community region tint 4 |
+| `region-5` | `#d9a37b` | `#d9a37b` | Theme / person-community region tint 5 |
+| `region-6` | `#a37bd9` | `#a37bd9` | Theme / person-community region tint 6 |
+| `region-7` | `#a3d97b` | `#a3d97b` | Theme / person-community region tint 7 |
+| `region-8` | `#7bd9d9` | `#7bd9d9` | Theme / person-community region tint 8 |
+| `credibility-high` | `#22c55e` | `#22c55e` | "Person credibility" border — high grounding rate |
+| `credibility-medium` | `#f59e0b` | `#f59e0b` | "Person credibility" border — medium |
+| `credibility-low` | `#ef4444` | `#ef4444` | "Person credibility" border — low (dashed) |
+| `consensus` | `#22c55e` | `#22c55e` | "Consensus edges" |
+| `coguest` | `#f59e0b` | `#f59e0b` | "Co-guest edges" (dotted) |
 
 Banners may use `color-mix` against `surface` / `border`; new variants should
 still derive from the tokens above.

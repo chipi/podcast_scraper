@@ -981,7 +981,7 @@ export function buildGiKgCyStylesheet(options?: {
     style.push({
       selector: `node.theme-region-${i}`,
       style: {
-        'underlay-color': hex,
+        'underlay-color': resolveThemeColor(`--ps-region-${i + 1}`, hex),
         'underlay-opacity': underlayOpacity,
         'underlay-padding': underlayPadding,
         'underlay-shape': 'ellipse',
@@ -1000,7 +1000,7 @@ export function buildGiKgCyStylesheet(options?: {
     style.push({
       selector: `node.person-region-${i}`,
       style: {
-        'underlay-color': hex,
+        'underlay-color': resolveThemeColor(`--ps-region-${i + 1}`, hex),
         'underlay-opacity': personUnderlayOpacity,
         'underlay-padding': personUnderlayPadding,
         'underlay-shape': 'ellipse',
@@ -1045,7 +1045,7 @@ export function buildGiKgCyStylesheet(options?: {
     style: {
       'border-width': credibilityBorder,
       'border-style': 'solid',
-      'border-color': '#22c55e',
+      'border-color': resolveThemeColor('--ps-credibility-high', '#22c55e'),
       'border-opacity': 0.85,
     },
   })
@@ -1054,7 +1054,7 @@ export function buildGiKgCyStylesheet(options?: {
     style: {
       'border-width': credibilityBorder,
       'border-style': 'solid',
-      'border-color': '#f59e0b',
+      'border-color': resolveThemeColor('--ps-credibility-medium', '#f59e0b'),
       'border-opacity': 0.8,
     },
   })
@@ -1063,7 +1063,7 @@ export function buildGiKgCyStylesheet(options?: {
     style: {
       'border-width': credibilityBorder,
       'border-style': 'dashed',
-      'border-color': '#ef4444',
+      'border-color': resolveThemeColor('--ps-credibility-low', '#ef4444'),
       'border-opacity': 0.8,
     },
   })
@@ -1076,7 +1076,7 @@ export function buildGiKgCyStylesheet(options?: {
     selector: 'edge.lens-consensus-edge',
     style: {
       width: compact ? 1 : 1.5,
-      'line-color': '#22c55e',
+      'line-color': resolveThemeColor('--ps-consensus', '#22c55e'),
       'line-style': 'solid',
       'line-opacity': 0.65,
       'target-arrow-shape': 'none',
@@ -1093,7 +1093,7 @@ export function buildGiKgCyStylesheet(options?: {
     selector: 'edge.lens-coguest-edge',
     style: {
       width: `mapData(weight, 2, 10, ${compact ? 0.7 : 1}, ${compact ? 2 : 3})`,
-      'line-color': '#f59e0b',
+      'line-color': resolveThemeColor('--ps-coguest', '#f59e0b'),
       'line-style': 'dotted',
       'line-opacity': 0.55,
       'target-arrow-shape': 'none',

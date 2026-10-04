@@ -1,3 +1,5 @@
+import { getTokenVar } from '../theme/theme'
+
 /**
  * Shared palette + stable hash for graph-v3 theme-cluster region tints.
  *
@@ -36,7 +38,10 @@ export function storylineRegionIndex(clusterId: string): number {
   return Math.abs(h) % THEME_REGION_PALETTE_SIZE
 }
 
-/** Convenience: hex swatch for a `thc:...` id. */
+/** Swatch for a `thc:...` id: the `--ps-region-N` token, falling back to the palette hex when no
+ *  stylesheet is applied (jsdom / pre-mount). The palette above holds the token values (#2280). */
 export function themeRegionColor(clusterId: string): string {
-  return THEME_REGION_PALETTE[storylineRegionIndex(clusterId)] ?? THEME_REGION_PALETTE[0]
+  const idx = storylineRegionIndex(clusterId)
+  const fallback = THEME_REGION_PALETTE[idx] ?? THEME_REGION_PALETTE[0]
+  return getTokenVar(`--ps-region-${idx + 1}`) || fallback
 }
