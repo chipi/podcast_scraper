@@ -262,3 +262,28 @@ def test_the_pipeline_says_why_the_resolver_was_not_asked(tmp_path: Path) -> Non
         report=report,
     )
     assert report == {"skipped": "speaker_resolution_llm_off"}
+
+
+def test_a_person_the_detector_names_only_as_a_speaker_is_stated_never_a_guest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2276 problem 14: stated (a resolver candidate, counted when unplaced), never corroborated —
+    so no count-based placement can paint them on a voice."""
+    det = _Detector([GUEST], set(), raw="{}")
+    det.last_speaker_detection_stated_only = ["Cleo Marsh"]  # type: ignore[attr-defined]
+
+    def detect(**kw: Any) -> Tuple[List[str], Set[str], bool, bool]:
+        det.last_speaker_detection_stated_only = ["Cleo Marsh"]  # type: ignore[attr-defined]
+        return [GUEST], set(), True, False
+
+    det.detect_speakers = detect  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        processing, "extract_episode_description", lambda _item: f"{GUEST} joins {HOST}."
+    )
+    ep = _Episode()
+    hd = processing.HostDetectionResult(set(), {}, det)
+    out = processing._detect_speakers_for_episode(ep, _Cfg(), hd, None)  # type: ignore[arg-type]
+    assert out is not None
+    assert "Cleo Marsh" in out.stated and "Cleo Marsh" not in out.guests
+    assert ep.speaker_detection_report is not None
+    assert ep.speaker_detection_report["stated_only"] == ["Cleo Marsh"]

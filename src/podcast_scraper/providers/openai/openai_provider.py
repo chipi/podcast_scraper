@@ -498,6 +498,20 @@ from ..common.token_budget import fit_text_to_token_budget
 from ..common.transcript_cache import openai_style_messages as _openai_style_messages
 
 
+def _as_known_host(name: str, known_hosts: Set[str]) -> str:
+    """``name`` in the feed's spelling when it is one of the feed's known hosts written another way
+    (accents, case, or a given name only one known host has); otherwise ``name`` unchanged."""
+    folded = _fold_name(name)
+    for host in known_hosts:
+        if _fold_name(host) == folded:
+            return host
+    if len(folded.split()) == 1:
+        owners = [h for h in known_hosts if _fold_name(h).split(" ")[0] == folded]
+        if len(owners) == 1:
+            return owners[0]
+    return name
+
+
 def _fold_name(name: str) -> str:
     """A name without accents, case or extra spaces: "Nína Pániková" folds to "nina panikova"."""
     import unicodedata
@@ -1727,6 +1741,7 @@ class OpenAICompatibleProvider:
         """
         # The model's raw answer, for the episode's naming decision trace (#2276).
         self.last_speaker_detection_raw = response_text
+        self.last_speaker_detection_stated_only: List[str] = []
         try:
             data = json.loads(response_text)
 
@@ -1744,21 +1759,27 @@ class OpenAICompatibleProvider:
             # spelling — accents or case ("Nina Pániková" for the stated "Nina Panikova"). It takes
             # the feed's spelling; kept apart it became a second spare guest name and cost the real
             # guest his name (gold dev c085, #2276).
-            known_by_fold = {_fold_name(h): h for h in known_hosts}
-            all_speakers = [known_by_fold.get(_fold_name(n), n) for n in all_speakers]
-            detected_hosts_list = [known_by_fold.get(_fold_name(n), n) for n in detected_hosts_list]
-            guests_list = [known_by_fold.get(_fold_name(n), n) for n in guests_list]
+            # So is a bare given name only one known host has ("Elad" for "Elad Gil").
+            all_speakers = [_as_known_host(n, known_hosts) for n in all_speakers]
+            detected_hosts_list = [_as_known_host(n, known_hosts) for n in detected_hosts_list]
+            guests_list = [_as_known_host(n, known_hosts) for n in guests_list]
 
-            # A host the model names is TRUSTED as a host only if the feed already states it.
+            # A host the model names is TRUSTED as a host only if the feed already states it, and a
+            # host it names that the feed does not state is dropped: kept as a stated person, it
+            # became a guest candidate and cost a real host or guest their name (gold val: Kenny
+            # Malone unnamed, Kris Maher named after a reporter the model called "host"; #2276).
             detected_hosts = {host for host in detected_hosts_list if host in known_hosts}
+            speaker_names = list(detected_hosts) + guests_list
 
-            # ...but every person it names is a person the episode states, and is KEPT: known hosts
-            # first, then guests, then the rest (an unknown "host", a "speaker" in neither list) —
-            # each goes on to corroboration like any proposed name. Dropping them is how a feed that
-            # states no host (rotating hosts) lost every name the model found and got the failure
-            # placeholders instead: 8 of 103 gold episodes re-detected on 2026-10-04 (#2276).
-            speaker_names = list(
-                dict.fromkeys([*detected_hosts, *guests_list, *detected_hosts_list, *all_speakers])
+            # A person the model lists among the SPEAKERS but neither as host nor guest is a person
+            # the episode states — the reporter who files the story, the guest it did not label —
+            # and dropping them lost real names. Kept apart from the guest list, though: they are
+            # stated (an LLM-resolver candidate, counted when unplaced) but never corroborated, so
+            # no count-based placement can paint them on a voice. Gold val, same answers: 4 better,
+            # 0 worse; as corroborated guests: 5 better, 2 worse (#2276).
+            labelled = {*detected_hosts_list, *guests_list, *known_hosts}
+            self.last_speaker_detection_stated_only = list(
+                dict.fromkeys(n for n in all_speakers if n not in labelled)
             )
 
             # Ensure we have at least MIN_SPEAKERS_REQUIRED speakers

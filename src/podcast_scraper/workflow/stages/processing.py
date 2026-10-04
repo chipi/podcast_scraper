@@ -1865,6 +1865,7 @@ def _detect_speakers_for_episode(
     # previous episode's must not stand in for it.
     try:
         speaker_detector.last_speaker_detection_raw = None
+        speaker_detector.last_speaker_detection_stated_only = None
     except AttributeError:  # pragma: no cover - a detector that refuses attributes
         pass
     # A raising detector previously recorded NOTHING — no ledger entry at all — so an episode
@@ -2061,6 +2062,23 @@ def _detect_speakers_for_episode(
         report["proposed_guests"] = list(proposed)
         report["corroborated_guests"] = list(corroborated)
         report["corroboration_rejected"] = _refused
+        # People the detector named but labelled neither host nor guest: STATED (the resolver may
+        # match a voice to them, and an unplaced one is counted) but never corroborated, so no
+        # count-based placement paints them on a voice (#2276; see the OpenAI-compatible parser).
+        _stated_only = [
+            n
+            for n in drop_non_person_names(
+                filter_default_speaker_names(
+                    list(
+                        getattr(speaker_detector, "last_speaker_detection_stated_only", None) or []
+                    )
+                ),
+                _feed_t,
+                _votes,
+            )
+            if n not in proposed and n not in host_strings
+        ]
+        report["stated_only"] = _stated_only
         # Counts, not names: the ledger is a health signal, and a name list would make every
         # episode's record unbounded. `proposed` vs `corroborated` is the useful delta — a
         # detector proposing names that never survive corroboration is a distinct failure
@@ -2096,7 +2114,7 @@ def _detect_speakers_for_episode(
         # NOT VERIFIED: the forced-path effect of the wider `guests` list is not measured. The
         # offline replay feeds stored `detected_guests`, which are pre-fix and capped, so no tier
         # available here can observe it. It needs a real run.
-        return DetectedSpeakers(guests=corroborated, stated=proposed)
+        return DetectedSpeakers(guests=corroborated, stated=[*proposed, *_stated_only])
     return None
 
 
