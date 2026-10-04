@@ -23,7 +23,8 @@ _PLIST = _APP / "ios" / "App" / "App" / "Info.plist"
 
 def _plist() -> dict:
     with _PLIST.open("rb") as fh:
-        return plistlib.load(fh)
+        data: dict = plistlib.load(fh)
+    return data
 
 
 def _vue_sources() -> str:
