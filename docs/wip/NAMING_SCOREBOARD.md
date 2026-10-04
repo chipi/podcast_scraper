@@ -120,6 +120,35 @@ becomes a candidate the roster may bind (the over-broad surname match was doing 
 | FUTURES "Why Machines Can't Replace Us w/ Neil Lawrence" (2/60) | guest Neil Lawrence given the HOST role; real host Luke Robert Mason unplaced | **7 (new): host/guest swap** — the title's "w/ <name>" marks the guest |
 | Google DeepMind "When millions of AI agents meet" (3/49) | no guest stated anywhere in the metadata (timecodes-only description); the 78% voice opens "Very happy to be here" | **8 (new): guest named only in the transcript** — check why the introduction reader did not bind it |
 
+## What the decision trace showed (#2276, 2026-10-04)
+
+On main, not on this branch: the per-voice decision trace (`docs/wip/NAMING_DECISION_TRACE.md`
+v3 on main supersedes this branch's v1 design — take main's on the next rebase). Numbers below are
+from replaying the 2,319 prod episodes with the trace (rule counts, NOT correctness), plus a
+5-episode run with the real LLM on the DGX (Vox, Sean Illing feed) and a join to the gold labels.
+
+Fixed on main (`acbfaecb0`): **the non-regression contract restored arithmetic names.** Of 56
+restored voices in gold episodes, 49 carried a forced name (spare pool host name forced onto a
+seat, or spare guest name forced onto the last voice) and 42 of those were wrong — "Misha Glenny" on
+promos, a host's name on the guest, often beside the same name on the right voice. Forced names are
+no longer restored (`SpeakerRole.forced`); expected on the gold cases 42 fixed / 7 lost. Not yet
+measured on a live ingest.
+
+Open — new problems, each to be gated dev -> val like every slice:
+
+| # | Problem | Evidence | Size |
+| --- | --- | --- | --- |
+| 9 | **An LLM-inferred host name takes host-seat step 1** ("named as a stated host"), the strongest rule, exactly like a spoken self-introduction | DGX No Priors run; the Tyler / Julia Ioffe case (c087) is this shape | 710 of 1,712 step-1 seats rest on an LLM name (970 self-intro, 21 co-host formula, 11 intro reader) |
+| 10 | **A guest the LLM calls "guest" is seated as host by step 2** (performs host role) — step 2 does not consult the LLM's guest verdict | DGX run ep. 5: "Anna Luise Sussman" (LLM: guest) seated host; her respelling "Anna-Louis Sussman" left spare | not counted yet; related to problem 7 (host/guest swap) |
+| 11 | **Cross-promo ads named as guests by their own self-introduction** ("Kara Swisher", "Sky Galloway", "Anne Applebaum", "Jake Sullivan" on Vox promos) | all 5 DGX-run episodes | local run had no ad signatures; check what prod's signatures catch BEFORE designing anything |
+| 12 | **A corroborated guest is lost**: the LLM puts her name on a voice that only talks about her (refused, third person), a promo self-intro then takes that voice, the name ends spare | DGX run ep. 4: "Theo Baker" | not counted yet |
+| — | `host_elimination` (forced guest variant) never fired | 0 of 2,319 episodes | dead rule, or its conditions never hold — read before deleting |
+| — | the failure pool: voices typed `a_name_existed_and_we_failed` | 707 voices (2,179 more that nobody names) | the set phase 2 should classify first |
+
+Order (operator, 2026-10-04): these after the deploy, on this branch. First #2276 phase 2 — join the
+replayed traces to the gold labels for per-rung precision — so problems 9-12 are ranked by
+measured damage, not by how vivid the example was. Problem 11 starts with a prod check, not code.
+
 ## Also on this branch — the two open plan steps (from 2026-10-02/03)
 
 ### Feed-level analysis and per-show profiles — #2261 (scoreboard plan step 5)
