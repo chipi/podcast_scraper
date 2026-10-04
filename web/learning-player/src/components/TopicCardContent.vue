@@ -282,7 +282,7 @@ function searchLibrary(): void {
       @click="openStoryline"
     >
       <span class="min-w-0 flex-1">
-        <span class="block text-sm font-bold text-accent">{{ storylineLabel }}</span>
+        <span class="block text-sm font-bold text-storyline">{{ storylineLabel }}</span>
         <span v-if="storylineSize" class="lp-kicker">{{
           t("ec.clusterSize", storylineSize, { named: { count: storylineSize } })
         }}</span>

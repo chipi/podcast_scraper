@@ -750,6 +750,11 @@ onActivated(() => {
       <p v-if="interestsFailed" class="text-sm text-muted" data-testid="interests-unavailable">
         {{ t("profile.unavailable") }}
       </p>
+      <!-- Not until the follows are KNOWN: rendered before, every section read "You're not following
+           any … yet" for an account that follows plenty, until the load landed. -->
+      <p v-else-if="!interests.loaded" class="text-sm text-muted" data-testid="interests-loading">
+        {{ t("interests.loading") }}
+      </p>
       <InterestSections
         v-else
         :selected="interests.ids"

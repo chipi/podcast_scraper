@@ -149,7 +149,7 @@ const hasAny = computed(
           :key="th.storyline_id"
           type="button"
           data-testid="ps-theme"
-          class="lp-storyline-chip rounded-full px-2.5 py-1 text-xs font-semibold text-surface-foreground transition disabled:opacity-60"
+          class="lp-storyline-chip rounded-full px-2.5 py-1 text-xs font-semibold text-storyline transition disabled:opacity-60"
           :disabled="!th.anchor_topic_id"
           @click="th.anchor_topic_id && emit('open', { kind: 'storyline', id: th.anchor_topic_id })"
         >
@@ -174,7 +174,7 @@ const hasAny = computed(
           type="button"
           data-testid="ps-distinctive-topic"
           :title="t('podcast.sigDistinctiveHint', { factor: formatLift(tp.lift) })"
-          class="rounded-full border border-border bg-overlay px-2.5 py-1 text-xs font-semibold text-surface-foreground transition hover:bg-elevated"
+          class="rounded-full border border-border bg-overlay px-2.5 py-1 text-xs font-semibold text-topic transition hover:bg-elevated"
           @click="emit('open', { kind: 'topic', id: tp.topic_id })"
         >
           {{ tp.label }}

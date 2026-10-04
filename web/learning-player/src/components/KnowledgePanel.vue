@@ -39,6 +39,7 @@ import EntityCardBody from "./EntityCardBody.vue"
 import { personName } from "../utils/personName"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import StorylineCard from "./StorylineCard.vue"
+import ThemeCard from "./ThemeCard.vue"
 import EpisodeDensity from "./EpisodeDensity.vue"
 import { isNative, openExternal, saveAndShareText } from "../services/native"
 import { exportFilename } from "../utils/exportFilename"
@@ -283,6 +284,16 @@ const storylineDominantTopicId = computed<string | null>(
   () => props.topics.find((t) => t.storyline_id === storylineDominantId.value)?.id ?? null
 )
 const storylineOpen = ref(false)
+/**
+ * The dominant THEME, named beside the storyline (operator 2026-10-04: "don't forget THEME").
+ * The panel already ranked topics by it and ringed its members, but never said which theme that
+ * was — so the ring explained nothing. Opens as a sheet ON TOP, like the storyline, because
+ * `router.push` from inside this top-layer dialog changes the page underneath and looks dead.
+ */
+const dominantThemeLabel = computed(
+  () => props.topics.find((t) => t.cluster_id === dominantClusterId.value)?.cluster_label ?? null
+)
+const themeOpen = ref(false)
 // Speaker-role badge on person chips (BE.4/PL.2) — same host/guest/mentioned vocabulary and i18n
 // keys as EntityCardBody, so the label reads identically wherever a person appears.
 const ROLE_LABEL_KEYS: Record<string, string> = {
@@ -874,7 +885,21 @@ watch(() => auth.isAuthenticated, loadCaptures)
           <!-- Storyline + similar context (IN.2): promoted from a cramped, right-aligned `text-xs`
              column to a clear left-aligned block, so the storyline (theme cluster) this episode's
              topics belong to reads at a glance rather than as fine print. -->
-          <div v-if="storylineDominantLabel" class="mb-2 flex items-center gap-2">
+          <div
+            v-if="storylineDominantLabel || (dominantClusterId && dominantThemeLabel)"
+            class="mb-2 flex flex-wrap items-center gap-2"
+          >
+            <button
+              v-if="dominantClusterId && dominantThemeLabel"
+              type="button"
+              data-testid="kp-theme-link"
+              class="lp-tap inline-flex items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-theme ring-1 ring-inset ring-theme/40 transition hover:bg-elevated"
+              :aria-label="t('kp.openTheme', { label: dominantThemeLabel })"
+              @click="themeOpen = true"
+            >
+              <span class="font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.themeKind") }}</span>
+              {{ dominantThemeLabel }}
+            </button>
             <!-- The storyline OPENS (operator 2026-09-19): it is a real destination with its own
                  sheet, and reading its name without being able to go there was the gap. Falls back
                  to a plain <span> when no member topic id is available to route with. -->
@@ -882,15 +907,15 @@ watch(() => auth.isAuthenticated, loadCaptures)
                  It used to be an underlined text link stacked above an inert "Similar ·" line, in a
                  wall of identical grey topic pills — the one tappable thing in the section did not
                  look tappable, and the line above it looked equally tappable and was not.
-                 Accent is correct by the app's own rule (`__checks__/accent-discipline`): it means
-                 "you can act on this", and in this section the storyline is the only thing you can.
+                 It wears the storyline's OWN hue and tint (`--lp-storyline`, 2026-10-04), the same
+                 pill a storyline wears everywhere — not the accent, which is not a kind colour.
                  The word STORYLINE rides along so the kind is NAMED, not inferred from colour —
                  colour alone reaches neither a colour-blind reader nor VoiceOver. -->
             <button
-              v-if="storylineDominantTopicId"
+              v-if="storylineDominantLabel && storylineDominantTopicId"
               type="button"
               data-testid="kp-storyline-link"
-              class="lp-tap inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent transition hover:bg-accent/25"
+              class="lp-tap lp-storyline-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-storyline transition"
               :aria-label="t('kp.openStoryline', { label: storylineDominantLabel })"
               @click="storylineOpen = true"
             >
@@ -898,7 +923,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
               {{ storylineDominantLabel }}
             </button>
             <span
-              v-else
+              v-else-if="storylineDominantLabel"
               class="inline-flex items-center gap-1.5 rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-muted"
             >
               <span class="font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.storylineKind") }}</span>
@@ -923,13 +948,20 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 tag.storylineMember
                   ? 'lp-storyline-chip'
                   : tag.dominant
-                  ? 'bg-overlay ring-1 ring-topic hover:bg-elevated'
+                  ? 'bg-overlay ring-1 ring-inset ring-theme/60 hover:bg-elevated'
                   : 'bg-overlay hover:bg-elevated',
               ]"
               :aria-label="tag.episodeScoped ? undefined : t('kp.openEntity', { term: tag.label })"
               @click="tag.episodeScoped ? undefined : openCard(tag)"
             >
-              {{ tag.label
+              <!-- Every pill in this MIXED group names its kind, the way the storyline pill above
+                   does (operator 2026-10-04): naming one kind and leaving the rest to colour made
+                   the one named pill look like the odd one out. Groups that sit under a kind
+                   heading (show page, Library, Profile › Interests) carry no label — the heading
+                   already says it. -->
+              <span class="mr-1.5 font-mono text-[10px] uppercase tracking-wide opacity-80" data-testid="kp-chip-kind">{{
+                t(tag.kind === "topic" ? "notes.kind_topic" : "notes.kind_person")
+              }}</span>{{ tag.label
               }}<span
                 v-if="roleLabel(tag.role)"
                 data-testid="kp-person-role"
@@ -1159,6 +1191,12 @@ watch(() => auth.isAuthenticated, loadCaptures)
     <!-- The storyline named by the lead-in, opened ON TOP of this panel rather than replacing it —
          the same stacking the panel already documents for a card's storyline ("topic underneath,
          storyline on it"). Outside the `v-else` so it survives a chip swapping the body. -->
+    <ThemeCard
+      v-if="themeOpen && dominantClusterId"
+      :id="dominantClusterId"
+      :depth="1"
+      @close="themeOpen = false"
+    />
     <StorylineCard
       v-if="storylineOpen && storylineDominantTopicId"
       :id="storylineDominantTopicId"

@@ -171,10 +171,10 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 | Token                      | Dark              | Usage                                                   |
 | -------------------------- | ----------------- | ------------------------------------------------------- |
 | `grounded`                 | `#9FB8A4`         | "N% grounded" badge, grounded-quote affordances         |
-| `topic`                    | `#A8B0C6`         | KG topic chips                                          |
-| `person`                   | `#CCC7BB`         | Person chips / speaker emphasis                         |
-| `storyline`                | `#98A0AE`         | **Storyline** chips — topics that recur *together*      |
-| `theme`                    | `#A9A3C6`         | **Theme** chips — topics that *mean* the same thing     |
+| `topic`                    | `#B98CFF`         | Topic pills — violet, everywhere a topic is a pill      |
+| `person`                   | `#FF9F5A`         | Person pills / speaker emphasis — orange                |
+| `storyline`                | `#5CE1E6`         | **Storyline** pills — cyan; topics that recur *together* |
+| `theme`                    | `#99B9F4`         | **Theme** pills — blue; topics that *mean* the same     |
 | `insight-claim`            | `var(--topic)`    | Insight type mark: claim                                |
 | `insight-observation`      | `var(--grounded)` | Insight type mark: observation                          |
 | `insight-recommendation`   | `var(--warning)`  | Insight type mark: recommendation                       |
@@ -191,8 +191,20 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 > to paint storylines (co-occurrence), which was the pipeline's `tc:`/`thc:` naming leaking into
 > the design layer. It was renamed `storyline` with its value unchanged, and `theme` became a new
 > hue for real themes (similarity), set between the topic and storyline hues. Neither takes the
-> accent — storyline pills are `--lp-storyline` (`style.css` `.lp-storyline-chip`). Colour is the
-> second channel for all three; every pill also names its kind in text. See UXS-013 §Vocabulary;
+> accent — storyline pills are `--lp-storyline` (`style.css` `.lp-storyline-chip`).
+>
+> **Each kind has its own hue (operator, 2026-10-04).** Topic, person and theme were three
+> near-identical greys and only the storyline stood out, which testers read as random. They now
+> carry the Signal direction's set — topic violet, person orange, theme blue, storyline cyan — on
+> every surface that renders one of these kinds as a pill. Shape and the kind's name still carry it
+> for a colour-blind reader; colour is the channel a sighted reader learns once and reuses.
+>
+> **A pill names its kind only where kinds are mixed (operator, same day).** In a group that holds
+> more than one kind — the episode Knowledge Panel's tags: a THEME and a STORYLINE pill above TOPIC
+> and PERSON pills — every pill carries its kind label, not just some. Under a heading that already
+> names the kind (Profile › Interests sections, Library › Following, a show's Topics / Key people)
+> pills carry none. The panel's topics in the dominant theme wear a ring in the theme colour; those
+> in the storyline wear the storyline tint, tying each to the pill that names it. See UXS-013 §Vocabulary;
 > the backend still calls a storyline a "theme cluster" on the wire.
 
 ### Categorical tokens (Discover sparklines)

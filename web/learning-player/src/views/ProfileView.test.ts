@@ -327,6 +327,19 @@ describe("ProfileView — Interests tab (beta feedback 2026-10-04)", () => {
     expect(inSection("storyline")).toEqual(["AI safety"])
   })
 
+  it("does not claim you follow nothing while your follows are still loading", async () => {
+    let release: (ids: string[]) => void = () => {}
+    vi.spyOn(api, "getUserInterests").mockImplementation(() => new Promise((r) => (release = r)))
+    const w = mountProfile()
+    await flushPromises()
+    expect(w.find('[data-testid="interests-loading"]').exists()).toBe(true)
+    expect(w.text()).not.toContain("You're not following any topics yet.")
+    release(["topic:sleep"])
+    await flushPromises()
+    expect(w.find('[data-testid="interests-loading"]').exists()).toBe(false)
+    expect(w.findAll('[data-testid="interest-following-topic"]')).toHaveLength(1)
+  })
+
   it("× stops following straight away — no Save step on Profile", async () => {
     vi.spyOn(api, "getUserInterests").mockResolvedValue(["topic:sleep"])
     const remove = vi.spyOn(api, "removeInterest").mockResolvedValue([])

@@ -201,14 +201,15 @@ onBeforeUnmount(() => {
 })
 
 /**
- * Each kind keeps the pill it had on the Profile strip this replaced (operator 2026-10-04: "look
- * like this"): a storyline in the accent on an accent tint, a theme and a person outlined in their
- * own hue, a topic filled. Followed, suggested and found items all wear their kind's pill, so the
- * colour teaches the kind; what differs between them is the mark — ×, + or ✓.
+ * Each kind wears its own hue (`--lp-topic` / `--lp-person` / `--lp-theme` / `--lp-storyline`, the
+ * shared palette set 2026-10-04) and its own shape: a topic filled, a person and a theme outlined,
+ * a storyline tinted. Followed, suggested and found items all wear their kind's pill, so the colour
+ * teaches the kind; what differs between them is the mark — ×, + or ✓. Never the accent: that
+ * means "you can act on this", not "storyline".
  */
 function kindPill(kind: InterestKind): string {
   return {
-    storyline: "bg-accent/15 font-semibold text-accent",
+    storyline: "lp-storyline-chip font-semibold text-storyline",
     person: "bg-overlay text-person ring-1 ring-inset ring-person/30",
     theme: "bg-overlay text-theme ring-1 ring-inset ring-theme/30",
     topic: "bg-overlay text-topic",

@@ -476,6 +476,8 @@
     "storyline": "Storyline · {cluster}",
     "storylineKind": "Storyline",
     "openStoryline": "Open the {label} storyline",
+    "themeKind": "Theme",
+    "openTheme": "Open the {label} theme",
     "insights": "Insights",
     "related": "More like this",
     "showAll": "Show all",

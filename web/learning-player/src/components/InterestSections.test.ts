@@ -84,9 +84,8 @@ describe('InterestSections', () => {
     expect(w.emitted('toggle')).toEqual([['person:jane']])
   })
 
-  it('each kind keeps its Profile pill, followed or suggested alike', async () => {
-    // The colours teach the kind: storyline in the accent, theme and person outlined, topic filled —
-    // the treatment the Profile strip already had, which the operator asked to keep.
+  it('each kind wears its own hue, followed or suggested alike — and never the accent', async () => {
+    // The colours teach the kind: each kind its own hue token, never the accent (2026-10-04).
     vi.mocked(api.getTrending).mockImplementation(async (kind: string) =>
       ({
         topic: [trend('topic:ai', 'AI')],
@@ -97,11 +96,12 @@ describe('InterestSections', () => {
     )
     const w = mountSections(['topic:sleep', 'person:ada', 'tc:mind', 'thc:tides'])
     await flushPromises()
-    const pill = { topic: 'text-topic', person: 'ring-person/30', theme: 'ring-theme/30', storyline: 'text-accent' }
+    const pill = { topic: 'text-topic', person: 'text-person', theme: 'text-theme', storyline: 'text-storyline' }
     for (const [kind, cls] of Object.entries(pill)) {
       await openAdd(w, kind)
       expect(section(w, kind).get(`[data-testid="interest-following-${kind}"]`).classes(), kind).toContain(cls)
       expect(section(w, kind).get('[data-testid="interest-suggestion"]').classes(), kind).toContain(cls)
+      expect(section(w, kind).get(`[data-testid="interest-following-${kind}"]`).classes().join(' '), kind).not.toMatch(/accent/)
     }
   })
 
