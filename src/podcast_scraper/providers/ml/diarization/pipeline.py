@@ -24,6 +24,7 @@ from .cache import (
 )
 from .factory import create_diarization_provider
 from .labeling_profile import DEFAULT_LABELING_PROFILE, get_profile
+from .naming_trace import NamingTrace
 from .roster import (
     build_speaker_diagnostics,
     classify_voices,
@@ -695,7 +696,9 @@ def apply_diarization_to_result(
     }
 
     def _run_roster(
-        names: Optional[Dict[str, str]], roles: Optional[Dict[str, str]]
+        names: Optional[Dict[str, str]],
+        roles: Optional[Dict[str, str]],
+        trace: Optional[NamingTrace] = None,
     ) -> SpeakerRoster:
         return resolve_speaker_roster(
             diarization,
@@ -723,9 +726,13 @@ def apply_diarization_to_result(
                 x for x in (episode_title or "", episode_description or "") if x
             ).strip()
             or None,
+            trace=trace,
         )
 
-    roster = _run_roster(llm_voice_names, llm_voice_roles)
+    # The per-voice decision trace of the SHIPPED pass (#2276): what each rung of the ladder
+    # proposed, accepted, refused or overrode. Written to the sidecar as `decision_trace`.
+    naming_trace = NamingTrace()
+    roster = _run_roster(llm_voice_names, llm_voice_roles, naming_trace)
     # ADR-137 attribution — how much the LLM did vs the deterministic cues. A second roster pass
     # with the LLM inputs emptied is the pure-cue BASELINE; the diff against the shipped roster is
     # the LLM's marginal contribution. The baseline pass is deterministic (no network), so it is
@@ -735,6 +742,17 @@ def apply_diarization_to_result(
         baseline_roster = _run_roster({}, {})
         # Enforce the ADDITIVE contract: the LLM path must never un-name a voice the cues resolved.
         roster, restored_names = _reconcile_non_regression(baseline_roster, roster)
+        # The rules-only roster per voice (not just its counts), and the names the
+        # non-regression contract put back over the LLM pass.
+        naming_trace.input(
+            "baseline_without_llm",
+            {
+                v: {"name": r.name, "role": r.role, "named": r.named, "source": r.source}
+                for v, r in baseline_roster.by_voice.items()
+            },
+        )
+        for _v in restored_names:
+            naming_trace.voice(_v, "non_regression", "restored", name=roster.by_voice[_v].name)
         resolution_attribution = _resolution_attribution(baseline_roster, roster)
         resolution_attribution["llm_delta"]["names_restored"] = restored_names
         _d = resolution_attribution["llm_delta"]
@@ -770,6 +788,7 @@ def apply_diarization_to_result(
     )
     if resolution_attribution is not None:
         enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution
+    enriched_result["speaker_diagnostics"]["decision_trace"] = naming_trace.to_dict()
     enriched_result["diarization_num_speakers"] = roster.num_speakers
     # ADR-132 provenance: the ACTUAL diarization model served (e.g. pyannote/speaker-diarization-
     # community-1), so the processing manifest records which model produced the speaker turns — the

@@ -226,10 +226,72 @@ def _optional_inputs(
     return out
 
 
-def replay(roster: Any, ep: Dict[str, Any], ad_signatures: Any = None) -> Any:
+def replay(roster: Any, ep: Dict[str, Any], ad_signatures: Any = None, trace: Any = None) -> Any:
     kw = roster_inputs(ep, roster, ad_signatures)
     dz, text = kw.pop("diarization"), kw.pop("transcript_text")
+    if trace is not None and "trace" in inspect.signature(roster.resolve_speaker_roster).parameters:
+        kw["trace"] = trace
     return roster.resolve_speaker_roster(dz, text, **kw)
+
+
+def _role_dict(role: Any) -> Dict[str, Any]:
+    return {
+        "name": role.name,
+        "role": role.role,
+        "named": role.named,
+        "source": role.source,
+        "voice_type": getattr(role, "voice_type", None),
+    }
+
+
+def write_traces(
+    episodes: Iterable[Dict[str, Any]], variant: Dict[str, Any], out: Path, signatures: Any = None
+) -> Dict[str, int]:
+    """Replay each episode with a decision trace (#2276); write ``{episode, roster, trace}`` JSONL.
+
+    Each episode is ALSO replayed without the trace and the two rosters compared: the trace is a
+    pure observer, so ``traced_roster_differs``, ``traced_only_error`` (an exception only the
+    traced pass raised) and ``trace_degraded`` (a recorder swallowed an error) must all stay 0 —
+    the phase-1 gate of #2276. ``trace_bytes_max`` bounds what the trace adds to a sidecar.
+    """
+    from podcast_scraper.providers.ml.diarization.naming_trace import NamingTrace
+
+    if "trace" not in inspect.signature(variant["roster"].resolve_speaker_roster).parameters:
+        # Without a trace parameter both passes run the same code: the gate would pass vacuously.
+        raise SystemExit("--trace-out: this roster variant takes no `trace`; nothing to measure")
+    counts: Counter = Counter()
+    with out.open("w", encoding="utf-8") as fh:
+        for ep in episodes:
+            trace = NamingTrace()
+            try:
+                plain = replay(variant["roster"], ep, signatures)
+            except Exception as exc:  # noqa: BLE001 — one bad episode must not stop the run
+                counts["replay_error"] += 1
+                counts[f"error:{type(exc).__name__}"] += 1
+                continue
+            try:
+                traced = replay(variant["roster"], ep, signatures, trace)
+            except Exception as exc:  # noqa: BLE001 — only the trace broke it
+                counts["traced_only_error"] += 1
+                counts[f"traced_error:{type(exc).__name__}"] += 1
+                continue
+            counts["episodes"] += 1
+            if traced.by_voice != plain.by_voice:
+                counts["traced_roster_differs"] += 1
+            if trace.degraded:
+                counts["trace_degraded"] += 1
+            counts["trace_bytes_max"] = max(
+                counts["trace_bytes_max"], len(json.dumps(trace.to_dict(), ensure_ascii=False))
+            )
+            rec = {
+                "meta_path": ep.get("meta_path"),
+                "feed": (ep["meta"].get("feed") or {}).get("title"),
+                "episode": (ep["meta"].get("episode") or {}).get("title"),
+                "roster": {v: _role_dict(r) for v, r in traced.by_voice.items()},
+                "decision_trace": trace.to_dict(),
+            }
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    return dict(counts)
 
 
 def _exec_module(name: str, path: Path) -> types.ModuleType:
@@ -385,13 +447,26 @@ def main(argv: Optional[List[str]] = None) -> int:
         action="store_true",
         help="also report voices whose name is unchanged but whose host/guest role flipped",
     )
+    ap.add_argument(
+        "--trace-out",
+        type=Path,
+        help="instead of comparing: replay the --new variant with a per-voice decision trace "
+        "(#2276) and write {episode, roster, decision_trace} JSONL here; also checks that the "
+        "traced roster equals an untraced one",
+    )
     args = ap.parse_args(argv)
     global REPOOL, ROLES
     REPOOL = bool(args.repool)
     ROLES = bool(args.roles)
     index_siblings(args.corpus)
-    old = load_variant(_variant_arg(args.old))
     new = load_variant(_variant_arg(args.new))
+    if args.trace_out:
+        sig = _signatures(new.get("ad_signatures"), args.corpus) if args.signatures else None
+        summary = write_traces(corpus_episodes(args.corpus), new, args.trace_out, sig)
+        print(json.dumps({"summary": summary}, ensure_ascii=False))
+        failed = ("traced_roster_differs", "traced_only_error", "trace_degraded")
+        return 1 if any(summary.get(k) for k in failed) else 0
+    old = load_variant(_variant_arg(args.old))
     sig_old = sig_new = None
     if args.signatures:
         sig_old = _signatures(old.get("ad_signatures"), args.corpus)

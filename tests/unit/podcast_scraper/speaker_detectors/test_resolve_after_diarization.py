@@ -287,7 +287,8 @@ class TestTheRosterActuallyHonoursIt:
         # The resolver's answer must reach the roster. It is forwarded through the ``_run_roster``
         # closure — ``_run_roster(llm_voice_names, llm_voice_roles)`` — which passes them on as
         # ``llm_voice_names=names`` / ``llm_voice_roles=roles``. Assert the wiring, not one literal.
-        assert "_run_roster(llm_voice_names, llm_voice_roles)" in src, (
+        # (A third argument, the decision trace (#2276), may follow the two LLM outputs.)
+        assert "_run_roster(llm_voice_names, llm_voice_roles" in src, (
             "the resolver runs and its answer is thrown away — the voices stay unnamed and the "
             "LLM call is billed for nothing"
         )

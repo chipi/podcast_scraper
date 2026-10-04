@@ -73,6 +73,7 @@ from .labeling_strategy import (
     DiarizationLabelingStrategy,
     labeling_strategy_for,
 )
+from .naming_trace import NamingTrace, NullTrace
 
 INTRO_WINDOW_SECONDS = 90.0
 # A non-primary voice is also treated as a host when it owns at least this share of the intro
@@ -4174,6 +4175,9 @@ def resolve_speaker_roster(
     # The feed's title: lets a voice that presents THIS show by name take a host seat, and drops a
     # pool entry that is the show's own name. None = no opinion.
     feed_title: Optional[str] = None,
+    # Pure observer (#2276): each stage records what it proposed / accepted / refused / overrode,
+    # per voice and per name, for the diagnostics sidecar. Never changes a decision.
+    trace: Optional[NamingTrace] = None,
 ) -> SpeakerRoster:
     """Resolve every diarized voice to a ``SpeakerRole`` (see module docstring).
 
@@ -4196,9 +4200,20 @@ def resolve_speaker_roster(
     if not diarization.segments:
         return SpeakerRoster(by_voice={}, num_speakers=diarization.num_speakers or 0)
 
+    tr: NamingTrace = trace if trace is not None else NullTrace()
+    tr.roster_inputs(
+        known_hosts=list(known_hosts or ()),
+        detected_guests=list(detected_guests or ()),
+        metadata_named=list(metadata_named or ()),
+        stated_voice_names=dict(stated_voice_names or {}),
+        llm_voice_names=dict(llm_voice_names or {}),
+        llm_voice_roles=dict(llm_voice_roles or {}),
+    )
+    _hosts_in = list(known_hosts or ())
     # THE EPISODE MAY NAME ITS OWN HOST: a guest host the description states joins the pool for
     # this episode (see `_GUEST_HOST_NAMED`).
     known_hosts = _pool_with_episode_guest_hosts(known_hosts, episode_text)
+    tr.added_to_pool("guest_host_pool", _hosts_in, known_hosts)
 
     # One space between words, whoever built the text. Turns are joined with " " and ASR segments
     # start with a space, so every turn boundary carried two — and the speech-act and self-intro
@@ -4255,6 +4270,7 @@ def resolve_speaker_roster(
     conv_roles = roles_from_conversation(voice_texts)
     conv_guests = {v for v, r in conv_roles.items() if r == "guest"}
     conv_host_voices = {v for v, r in conv_roles.items() if r == "host"}
+    tr.roster_inputs(ad_voices=sorted(ad_voices), conversation_roles=dict(conv_roles))
     # A voice that IDENTIFIES ITSELF as one of the feed's stated hosts is a host, even if a guest
     # speech act also appears in its cluster. community-1 merged an ad testimonial ("...thank you so
     # much for having me") into a co-host's cluster; that flipped him to a conv_guest, dropped his
@@ -4300,6 +4316,7 @@ def resolve_speaker_roster(
         # a fuller form.
         stated_seed[_v] = _canonicalize_to_known_host(_n, known_hosts)
         publisher_named.add(_v)
+    tr.stated("publisher_label", stated_seed)
 
     # POSITIVE HOST EVIDENCE OUTRANKS A LONE GUEST PHRASE. A voice that presents the show by name
     # or introduces the stated guest is the presenter even when the guest's "great to be here"
@@ -4338,14 +4355,20 @@ def resolve_speaker_roster(
     # "I'm your host, Trivium co-founder Andrew Polk" reads as the mononym "Trivium" — the show's
     # name, which marked the real host a stated non-host and let the forced pool name land on the
     # guest (corpus replay, 2026-10-03). Not a name; dropped before anything seats on it.
+    tr.diff_names("self_intro", {}, voice_intro)
+    _vi_before = dict(voice_intro)
     voice_intro = {
         v: n for v, n in voice_intro.items() if not _is_show_mononym(n, feed_title, known_hosts)
     }
+    tr.diff_names("show_mononym_filter", _vi_before, voice_intro)
+    _vi_before = dict(voice_intro)
     # The publisher's label WINS over a self-intro for the same voice. A self-intro is the ASR's
     # transcription of a spoken name ("I'm Kevin Russo"); the publisher's label is the name the
     # source wrote down. When they disagree about spelling the written one is the better record,
     # and when they disagree about identity the file is the thing we were handed as fact.
     voice_intro.update(stated_seed)
+    tr.diff_names("publisher_label", _vi_before, voice_intro)
+    _vi_before = dict(voice_intro)
 
     # WHICH voices can plausibly be hosts, for the introduction reader's gate and the greeting
     # reclamation (#1226 follow-up): a voice that self-introduced as a STATED host, plus the first
@@ -4392,6 +4415,8 @@ def resolve_speaker_roster(
             voice_texts=voice_texts or {},
         )
     )
+    tr.diff_names("intro_reader", _vi_before, voice_intro)
+    tr.refused_spellings(introduced_but_unspellable)
 
     # ...and the voices an LLM matched to a STATED name from their own words (ADR-110). It ranks
     # BELOW both of the above on purpose: a voice that says "I'm Peter Ludwig" needs no model's
@@ -4407,12 +4432,24 @@ def resolve_speaker_roster(
             # The closed list carried the show's own name ("Machine Learning Street") and the model
             # matched a voice to it: that voice is unnamed, and may take a forced pool name below.
             if feed_title and names_the_show(n, feed_title):
+                tr.voice(v, "llm_merge", "skipped", proposed=n, reason="names_the_show")
                 continue
             voice_intro[v] = _canonicalize_to_known_host(n, known_hosts)
             # PROVENANCE. These must not be recorded as `self_intro`: an audit that cannot tell a
             # name the voice SAID from a name a model INFERRED cannot audit the model at all, and
             # the model is the part that needs watching.
             llm_named.add(v)
+            tr.voice(v, "llm_merge", "accepted", name=voice_intro[v], llm_said=n)
+        else:
+            tr.voice(
+                v,
+                "llm_merge",
+                "skipped",
+                proposed=n,
+                reason="ad_voice" if v in ad_voices else "already_named",
+                kept=voice_intro.get(v),
+            )
+    _vi_before = dict(voice_intro)
 
     # THE CO-HOST FORMULA. "Hello and welcome to Empire with me, Anita Anand." -- "And me, William
     # de Rumpel." The second voice says the cue and a stated host's first name; the surname is
@@ -4427,6 +4464,7 @@ def resolve_speaker_roster(
     _claim_cohost_formula_voices(
         voice_intro, diarization, voice_texts, known_hosts, ad_voices, conv_guests
     )
+    tr.diff_names("cohost_formula", _vi_before, voice_intro)
     # The presenters, re-read with every name source heard (see above): an introducer that is
     # itself named as the person it "introduces" drops out, and the co-presenter formula joins.
     _branded_voices, _introducer_voices = _presenter_voices_by_evidence(
@@ -4435,6 +4473,13 @@ def resolve_speaker_roster(
     copresenter_voices = _copresenter_pair_voices(ordered_turns or [], voice_intro, ad_voices)
     presenter_voices = _branded_voices | _introducer_voices | set(copresenter_voices)
     conv_guests = _conv_guests_heard - presenter_voices
+    tr.note(
+        "presenter_evidence",
+        branded=sorted(_branded_voices),
+        introducers=sorted(_introducer_voices),
+        copresenters=sorted(copresenter_voices),
+        conversation_guests=sorted(conv_guests),
+    )
     ad_names_lower = {
         n.lower()
         for v, n in _self_intros_by_voice(voice_texts, intro_sources).items()
@@ -4466,6 +4511,7 @@ def resolve_speaker_roster(
     host_pool_named = [
         (n, s) for n, s in host_pool if not (feed_title and names_the_show(n, feed_title))
     ]
+    tr.host_pool(host_pool, host_pool_named)
 
     # WHICH voices are the hosts. Metadata and conversation are CROSS-REFERENCED here; neither
     # replaces the other, and neither is a statistic.
@@ -4507,6 +4553,7 @@ def resolve_speaker_roster(
     _cohost_present = _an_unseated_host_is_said_present(
         voice_texts, known_hosts, voice_intro, host_voices, ad_voices
     )
+    tr.host_seats(host_voices, _cohost_present)
 
     host_names_lower = {n.lower() for n, _ in host_pool_named}
     used_lower: set[str] = set()
@@ -4529,6 +4576,7 @@ def resolve_speaker_roster(
         host_evidence_voices=presenter_voices,
         introducer_voices=_introducer_voices,
     )
+    tr.diff_roles("host_naming", {}, by_voice)
 
     # The host also NAMES the guest out loud — "My guest today is Brian Chesky". That is a stated
     # fact from the conversation, and it complements the guests the episode description declared
@@ -4561,9 +4609,16 @@ def resolve_speaker_roster(
                 and s.lower() not in {h.lower() for h in (known_hosts or ())}
             ]
             if _resembles_stated(snapped, unbound_stated) is not None:
+                tr.name(
+                    n,
+                    "host_introduction_harvest",
+                    "refused",
+                    reason="resembles_an_unbound_stated_name",
+                )
                 continue
         if snapped.lower() not in {d.lower() for d in declared}:
             declared.append(snapped)
+            tr.name(snapped, "host_introduction_harvest", "added", heard=n)
 
     # A two-voice interview whose named host hands over to the one stated guest by full name.
     if not declared:
@@ -4578,6 +4633,7 @@ def resolve_speaker_roster(
         )
         if introduced:
             declared.append(introduced)
+            tr.name(introduced, "two_voice_interview", "added")
 
     # DELIBERATELY NOT DONE HERE: an "anchor" rule, letting one confirmed guest vouch for the other
     # people the description names ("Qasar Younis and Peter Ludwig have spent the last decade...";
@@ -4612,6 +4668,8 @@ def resolve_speaker_roster(
         and g.lower() not in intro_names_lower
         and not any(_same_spoken_person(g, c) for c in _claimed)
     ]
+    tr.guest_pool(declared, guest_names, host_names_lower, intro_names_lower)
+    _bv_before = dict(by_voice)
     # Ad voices are excluded from GUEST naming too — otherwise the pre-roll consumes a real guest's
     # name out of the pool and the guest is left as SPEAKER_0n.
     by_voice.update(
@@ -4632,6 +4690,8 @@ def resolve_speaker_roster(
             refused_intro_voices=introduced_but_unspellable,
         )
     )
+    tr.diff_roles("guest_naming", _bv_before, by_voice)
+    _bv_before = dict(by_voice)
     _name_a_talkative_host_once_the_guests_are_placed(
         by_voice,
         host_voices,
@@ -4656,9 +4716,13 @@ def resolve_speaker_roster(
             ignore_ownership=True,
         ),
     )
+    tr.diff_roles("talkative_host", _bv_before, by_voice)
+    _bv_before = dict(by_voice)
     # They still belong in the roster — as "Advertisement", not as a missing id.
     for v in ad_voices:
         by_voice.setdefault(v, SpeakerRole(name=v, role="unknown", named=False, source="raw"))
+    tr.diff_roles("ad_voice_placeholder", _bv_before, by_voice)
+    _bv_before = dict(by_voice)
 
     # A HOST SEATED ON ITS OWN EVIDENCE CARRIES THE ASR'S SPELLING OF ITS NAME, and the feed's
     # pool cannot correct it (the whole point is that the pool does not list this person). The
@@ -4674,6 +4738,8 @@ def resolve_speaker_roster(
         used_lower,
         [n for n in list(detected_guests or ()) + list(metadata_named or ()) if n],
     )
+    tr.diff_roles("stated_spelling_snap", _bv_before, by_voice)
+    _bv_before = dict(by_voice)
 
     # ADR-130 — provider-agnostic name recovery: snap any published name that ASR-mangled a STATED
     # person (host OR guest) back to the metadata spelling. Runs for every provider (repairs
@@ -4688,6 +4754,7 @@ def resolve_speaker_roster(
         _recover_stated_names(
             by_voice, stated_refs, known_hosts, fuzzy=profile.nickname_fuzzy_binding
         )
+    tr.diff_roles("recover_stated_names", _bv_before, by_voice)
 
     # FINAL PLAUSIBILITY GATE (ADR-134 shared core). Every naming path above — self-intro, host
     # pool, greeting reader, strategy snap, LLM, metadata — writes into `by_voice`, and each has its
@@ -4703,14 +4770,18 @@ def resolve_speaker_roster(
         # Keep the person, drop the job or the show in front of them ("Your Host Luisa Leni").
         _bare = strip_role_prefix(_role.name)
         if _bare != _role.name and is_publishable_speaker_name(_bare):
+            tr.voice(_v, "publish_gate", "prefix_stripped", name=_bare, previous=_role.name)
             _role = replace(_role, name=_bare)
             by_voice[_v] = _role
-        if not is_publishable_speaker_name(_role.name) or _is_show_mononym(
-            _role.name, feed_title, known_hosts
-        ):
+        _publishable = is_publishable_speaker_name(_role.name)
+        if not _publishable or _is_show_mononym(_role.name, feed_title, known_hosts):
+            tr.publish_refused(
+                _v, _role.name, "not_publishable" if not _publishable else "show_mononym"
+            )
             by_voice[_v] = replace(_role, name=_v, named=False, source="raw")
 
     # One person, one name, one role — across every voice diarization split them over.
+    _bv_before = dict(by_voice)
     by_voice = _one_name_per_person(
         by_voice,
         total,
@@ -4719,6 +4790,7 @@ def resolve_speaker_roster(
         episode_text=episode_text,
         evidence_hosts={v for v in host_voices if v in presenter_voices},
     )
+    tr.diff_roles("one_name_per_person", _bv_before, by_voice)
 
     # Which unnamed voices did we FAIL on, and which could nobody have named?
     #
@@ -4779,6 +4851,14 @@ def resolve_speaker_roster(
         )
         nameable |= set(promoted)
 
+    tr.note(
+        "nameable",
+        voices=sorted(nameable),
+        leftover_guest_names=list(leftover_names),
+        stated_unbound=list(stated_unbound),
+        spare_name_count=spare_name_count,
+    )
+    _bv_before = dict(by_voice)
     by_voice = _classify_voice_types(
         by_voice,
         diarization,
@@ -4788,6 +4868,7 @@ def resolve_speaker_roster(
         cleaning=cleaning,
         cameo_max_talk_s=profile.cameo_max_talk_s,
     )
+    tr.diff_roles("voice_types", _bv_before, by_voice)
     return SpeakerRoster(by_voice=by_voice, num_speakers=diarization.num_speakers or len(by_voice))
 
 
