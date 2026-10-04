@@ -157,7 +157,7 @@ const momentum = computed(() => {
   const maxV = Math.max(1.6, ...t.map((x) => x.v))
   const xOf = (total: number): number => 10 + (total / maxTotal) * (MW - 22)
   const yOf = (v: number): number => MH - 20 - ((v - 1) / (maxV - 1)) * (MH - 32)
-  return t.map((tp) => {
+  const points = t.map((tp) => {
     const cx = xOf(tp.total)
     const cy = yOf(tp.v)
     const r = 3 + (tp.total / maxTotal) * 5
@@ -173,10 +173,51 @@ const momentum = computed(() => {
       r,
       lx: onLeft ? cx - r - 3 : cx + r + 3,
       ly: Math.max(8, cy - r - 2),
-      anchor: onLeft ? 'end' : 'start',
+      anchor: (onLeft ? 'end' : 'start') as 'end' | 'start',
     }
   })
+  return separateLabels(points)
 })
+
+/** Per-character width of an 8px label, from measured getBBox() widths (3.8–5.0 per char across
+ *  real labels), rounded up so the widest still clears. */
+const LABEL_CHAR_W = 5.2
+/** One label line: the measured 10-unit text box plus a 1-unit gap. 9 left labels overlapping. */
+const LABEL_LINE_H = 11
+
+/**
+ * Nudge labels so two close topics do not print on top of each other ("Energy transition" ran
+ * into "Bond markets"). Top to bottom, a label that overlaps an already-placed one moves down a
+ * line until it is clear, staying above the x-axis; if it would cross the axis it moves up
+ * instead. Deterministic and cheap — a handful of points, no layout engine.
+ */
+function separateLabels<
+  T extends { label: string; lx: number; ly: number; anchor: 'start' | 'end' },
+>(points: T[]): T[] {
+  const span = (p: T): [number, number] => {
+    const w = p.label.length * LABEL_CHAR_W
+    return p.anchor === 'end' ? [p.lx - w, p.lx] : [p.lx, p.lx + w]
+  }
+  const floor = MH - 24
+  const placed: T[] = []
+  for (const p of [...points].sort((a, b) => a.ly - b.ly)) {
+    const [x0, x1] = span(p)
+    const clashes = (ly: number) =>
+      placed.some((q) => {
+        const [q0, q1] = span(q)
+        return x0 < q1 && q0 < x1 && Math.abs(q.ly - ly) < LABEL_LINE_H
+      })
+    let ly = p.ly
+    while (clashes(ly) && ly + LABEL_LINE_H <= floor) ly += LABEL_LINE_H
+    if (clashes(ly)) {
+      ly = p.ly
+      while (clashes(ly) && ly - LABEL_LINE_H >= 8) ly -= LABEL_LINE_H
+    }
+    p.ly = ly
+    placed.push(p)
+  }
+  return points
+}
 
 const hasAny = computed(() => topics.value.length > 0)
 </script>
