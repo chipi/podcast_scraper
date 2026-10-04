@@ -80,17 +80,23 @@
   --lp-radius: 0.0625rem; /* 1px base -> 4px at 2xl: a printed rule, not a rounded card */
   --lp-density: 0.85;
   --lp-motion: 0.6; /* print does not animate; movement is kept brisk and almost unnoticed */
-  /* Categorical slots, darkened from the dark-ground hexes to clear 3:1 on paper's grounds (#2280).
+  /* Categorical slots, darkened from the dark-ground hexes to clear 3:1 on paper's grounds and
+     their overlay wash (#2280).
      The only direction that needs them: every dark direction inherits the shipped values. */
-  --lp-cat-1: #0787c0;
-  --lp-cat-2: #8964f8;
-  --lp-cat-3: #1f9067;
-  --lp-cat-4: #a37703;
-  --lp-cat-5: #ee228d;
-  --lp-cat-6: #0c8b9e;
-  --lp-cat-7: #5d8c11;
-  --lp-cat-8: #cc5e04;
-  --lp-cat-neutral: #6b809d;
+  --lp-cat-1: #067eb3;
+  --lp-cat-2: #7f57f8;
+  --lp-cat-3: #1d8660;
+  --lp-cat-4: #986f03;
+  --lp-cat-5: #e3127f;
+  --lp-cat-6: #0b8294;
+  --lp-cat-7: #588310;
+  --lp-cat-8: #c05904;
+  --lp-cat-neutral: #637896;
+  /* Trend text, darkened to clear 4.5:1 on paper's grounds and their overlay wash (#2280; the
+     shipped hues measured 1.67–2.15). */
+  --lp-trend-rising: #126a33;
+  --lp-trend-cooling: #ba0909;
+  --lp-trend-steady: #805205;
 }
 
 /* ── TERMINAL ─────────────────────────────────────────────────────────────────────────────

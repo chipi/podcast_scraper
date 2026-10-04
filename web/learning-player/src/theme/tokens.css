@@ -141,6 +141,13 @@
   --lp-cat-7: #a3e635;
   --lp-cat-8: #fb923c;
   --lp-cat-neutral: #94a3b8;
+  /* Trend direction (#2280) — rising / cooling / steady, as TEXT (the ↑ / ↓ / → figures) and as
+     sparkline strokes. Tokenized as shipped and direction-independent like `cat-*`; `paper` carries
+     a darker set because these measured 1.67–2.15:1 there as text. Artwork rails use the fixed
+     dark-ground values in `trending.ts` instead — they sit on a scrim, not on a direction's ground. */
+  --lp-trend-rising: #22c55e;
+  --lp-trend-cooling: #f87171;
+  --lp-trend-steady: #f59e0b;
 
   /* "Sign in with Google", dark theme. Third-party brand values fixed by Google's branding
      guidelines (developers.google.com/identity/branding-guidelines), so no direction may steer

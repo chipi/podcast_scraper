@@ -81,11 +81,14 @@ function aliasTokens(): Set<string> {
 const BRAND_FIXED = new Set([...TOKENS.matchAll(/(--lp-(?:gsi|siwa)-[a-z-]+)\s*:/g)].map((m) => m[1]))
 
 /**
- * The categorical ramp (`--lp-cat-*`, #2280) is direction-independent by decision: the Discover
- * sparkline palette shipped as inline hexes that no direction repainted, and tokenizing it AS
- * SHIPPED keeps that. A direction may still override a slot; it is not required to.
+ * The categorical ramp (`--lp-cat-*`) and the trend colours (`--lp-trend-*`) are
+ * direction-independent by decision (#2280): both shipped as inline hexes that no direction
+ * repainted, and tokenizing them AS SHIPPED keeps that. A direction may override them, and a light
+ * one must — the legibility checks below enforce it (`paper` does).
  */
-const CATEGORICAL = new Set([...tokensIn(TOKENS)].filter((t) => t.startsWith('--lp-cat-')))
+const CATEGORICAL = new Set(
+  [...tokensIn(TOKENS)].filter((t) => t.startsWith('--lp-cat-') || t.startsWith('--lp-trend-')),
+)
 
 const MAY_INHERIT = new Set([...NON_COLOUR, ...aliasTokens(), ...BRAND_FIXED, ...CATEGORICAL])
 
@@ -197,6 +200,10 @@ const TEXT_TOKENS = [
   'person',
   'theme',
   'brand-default',
+  // Trend figures (↑ / ↓ / →) are text in Discover and the momentum chips (#2280).
+  'trend-rising',
+  'trend-cooling',
+  'trend-steady',
 ]
 
 function values(block: string): Record<string, string> {
@@ -336,9 +343,17 @@ describe('categorical slots read in every palette', () => {
     const slots = Object.keys(v).filter((k) => k.startsWith('cat-'))
     expect(slots.length, 'the parser found no categorical slots').toBeGreaterThanOrEqual(9)
     const failures: string[] = []
+    // Same grounds as the text check: each ground, and each ground under the overlay wash (a
+    // hovered / active row). Without the wash this passed paper at 2.76:1 (#2280).
+    const grounds: Array<[string, string]> = []
     for (const g of ['canvas', 'surface', 'elevated']) {
       const ground = v[g] ? flatten(v[g], '#000000', v) : null
       if (!ground) continue
+      grounds.push([g, ground])
+      const washed = v.overlay ? compositeOver(v.overlay, ground) : null
+      if (washed) grounds.push([`${g}+overlay`, washed])
+    }
+    for (const [g, ground] of grounds) {
       for (const k of slots) {
         const flat = flatten(v[k], ground, v)
         const ratio = flat ? contrastRatio(flat, ground) : 0

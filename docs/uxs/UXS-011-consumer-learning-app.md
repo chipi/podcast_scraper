@@ -212,12 +212,20 @@ shipped** (#2280) from the inline hexes in `src/components/trending.ts`.
 | `cat-7` | `#A3E635` | Categorical slot 7 (lime) |
 | `cat-8` | `#FB923C` | Categorical slot 8 (orange) |
 | `cat-neutral` | `#94A3B8` | Topics in no storyline group |
+| `trend-rising` | `#22C55E` | Trend ↑ — figures and sparkline strokes |
+| `trend-cooling` | `#F87171` | Trend ↓ |
+| `trend-steady` | `#F59E0B` | Trend → |
 
 > **Direction-independent by decision (#2280).** These were inline hexes no visual direction
 > repainted; tokenizing them as shipped keeps that, and `directions.test.ts` exempts `--lp-cat-*`
 > from the every-direction repaint rule. A direction **may** override a slot, and a light one must:
 > the shipped hues were picked for a dark ground and measured 1.17–2.33:1 on `paper`, so `paper`
 > carries its own darker set. `directions.test.ts` holds every slot at 3:1 in every palette.
+>
+> **Trend colours** (`trend-*`) follow the same rule, as **text**: 4.5:1 in every palette. On
+> `paper` the shipped hues measured 1.67–2.15:1, so `paper` overrides them. The trending-shows rail
+> is the exception: its figures and sparkline sit on a dark scrim over artwork, not on a
+> direction's ground, so it uses the fixed dark-ground values (`trendColorOnArtwork()`).
 
 ## Typography
 

@@ -45,12 +45,24 @@ export function trendDirection(v: number): TrendDirection {
   return "steady"
 }
 
-/** Green (rising) / red (cooling) / amber (steady). Returned as a hex so callers can drive
- *  both SVG ``fill`` and CSS ``color`` without depending on the configured Tailwind palette. */
+/** Green (rising) / red (cooling) / amber (steady) as the `--lp-trend-*` tokens, so a visual
+ *  direction can repaint them (`paper` does). Inline-style only (`color`, `drop-shadow()`), where
+ *  `var()` resolves; not for an SVG ``fill=`` attribute. */
 export function trendColor(v: number): string {
   const d = trendDirection(v)
-  // Cooling uses red-400 (#f87171), not red-500 — the darker red failed WCAG AA (4.49:1) as small
-  // bold text on the dark surface / over artwork scrims; the lighter red clears it (~6:1).
+  return d === "up"
+    ? "var(--lp-trend-rising)"
+    : d === "down"
+      ? "var(--lp-trend-cooling)"
+      : "var(--lp-trend-steady)"
+}
+
+/** Trend colour for text and strokes that sit on a dark scrim OVER ARTWORK (the trending-shows
+ *  rail), not on a direction's ground — so it must not follow a light direction's darker set.
+ *  These are the dark-ground values `--lp-trend-*` ship with. Cooling is red-400 (#f87171), not
+ *  red-500: the darker red failed AA (4.49:1) as small bold text over scrims; this clears ~6:1. */
+export function trendColorOnArtwork(v: number): string {
+  const d = trendDirection(v)
   return d === "up" ? "#22c55e" : d === "down" ? "#f87171" : "#f59e0b"
 }
 

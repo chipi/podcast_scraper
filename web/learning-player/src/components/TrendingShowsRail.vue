@@ -23,7 +23,7 @@ import FollowButton from './FollowButton.vue'
 import FavoriteButton from './FavoriteButton.vue'
 import { useLibraryStore } from '../stores/library'
 import { useSignInGate } from '../composables/useSignInGate'
-import { trendArrow, trendColor, trendDirection } from './trending'
+import { trendArrow, trendColorOnArtwork, trendDirection } from './trending'
 
 const props = withDefaults(
   defineProps<{
@@ -207,7 +207,7 @@ function spark(series: number[]): { line: string; area: string } {
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
           aria-hidden="true"
-          :style="{ color: trendColor(e.velocity), filter: `drop-shadow(0 0 3px ${trendColor(e.velocity)})` }"
+          :style="{ color: trendColorOnArtwork(e.velocity), filter: `drop-shadow(0 0 3px ${trendColorOnArtwork(e.velocity)})` }"
         >
           <defs>
             <linearGradient :id="`sg-${e.entity_id}`" x1="0" y1="0" x2="0" y2="1">
@@ -245,7 +245,7 @@ function spark(series: number[]): { line: string; area: string } {
       <div class="absolute right-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">
         <span
           class="rounded-full bg-black/50 px-1.5 py-0.5 text-[0.7rem] font-bold tabular-nums backdrop-blur"
-          :style="{ color: trendColor(e.velocity) }"
+          :style="{ color: trendColorOnArtwork(e.velocity) }"
           >{{ trendArrow(e.velocity) }} {{ vFmt(e.velocity) }}×</span
         >
         <FollowButton
