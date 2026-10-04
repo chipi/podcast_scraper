@@ -22,16 +22,35 @@ theme; the consumer app repaints through visual directions (`src/theme/direction
 | `person` | Peach `#ffb37a`. | Warm grey `#ccc7bb`. |
 | `grounded` | **Alias of `gi`** (`#7dd3a0`) — grounding is the GI layer's colour. | Its own sage `#9fb8a4`; no `gi`/`kg` tokens exist in the consumer app. |
 | `warning` | Orange `#ec9a3c`. | Amber `#efa843` — the same value as the brand default, so a warning and the default accent share a hue; meaning is carried by placement and text. |
+| `theme` | **Topics discussed together** (co-occurrence) — teal `#7dd3c0`. | **Topics that mean the same thing** (similarity) — lilac `#a9a3c6`. **Same word, different data** — see *Topic groupings* below. |
+
+## Topic groupings — the same word means different data
+
+Both apps show two ways of grouping topics, and the API feeds both. Each app's **visible** names
+are the source of truth; its CSS token names follow its visible names; the **API names lag** and
+match neither app exactly (the wire still calls a storyline a "theme cluster", `thc:`).
+
+| Grouping | API / data | Consumer app shows | Viewer shows | CSS |
+| --- | --- | --- | --- | --- |
+| Topics **discussed together** (co-occurrence) | `storylines`, `thc:` ids — `/api/app/storylines`, `storylinesDoc` | **Storyline** | **Theme** (Details block, "Theme regions" legend, show rail, "Theme landscape") | `--lp-storyline` · `--ps-theme` |
+| Topics that **mean the same thing** (similarity) | topic clusters, `tc:` ids — `/api/app/themes` (`AppInterestCluster`), `topicClustersDoc` | **Theme** | **Topic cluster** | `--lp-theme` · viewer uses `kg` (UXS-001) |
+| A single topic | `topic` | Topic | Topic | `--lp-topic` · `--ps-topic` |
+
+So **`--ps-theme` and `--lp-theme` are the same name for different data.** Code, copy or a design
+decision moved between the apps must be translated by grouping, not by word: the viewer's
+"Theme" is the consumer app's "Storyline", and the consumer app's "Theme" is the viewer's
+"Topic cluster". Whether the two apps *should* share words is a product decision about visible
+labels; this page records the current state, it does not change it.
 
 ## Names only one system has
 
 | Only in the operator viewer | Only in the consumer app |
 | --- | --- |
-| `primary` / `primary-foreground`, `gi`, `kg` (identity colours, marked frozen in UXS-001) | `storyline`, `theme`, the four `insight-*` type marks (aliases onto `topic` / `grounded` / `warning` / `person`), `brand-default` |
+| `primary` / `primary-foreground`; the `-foreground` pairs for `success`, `warning`, `danger`, `gi`, `kg`; `gi`, `kg` (identity colours, marked frozen in UXS-001); `related-topic`; `graph-canvas` | `storyline`; the four `insight-*` type marks (aliases onto `topic` / `grounded` / `warning` / `person`); `brand-default` |
 
-There is **no `primary` token in the consumer app** and **no `storyline` / `theme` / `insight-*`
-token in the viewer**. A class written for one app that names one of these will not resolve in the
-other.
+There is **no `primary` token in the consumer app** and **no `storyline` / `insight-*` token in the
+viewer**. A class written for one app that names one of these will not resolve in the other.
+`theme` resolves in both — to different data (above).
 
 ## Rules of thumb
 
@@ -40,8 +59,11 @@ other.
 - **`accent` is the dangerous one.** In the viewer it is ordinary chrome; in the consumer app it is
   a scarce signal guarded by a test. Code moved from the viewer into the consumer app that uses
   `accent` for a label or a badge will fail `accent-discipline.test.ts`, correctly.
+- **`theme` is a false friend.** It compiles in both apps and names different groupings: the
+  viewer's co-occurrence grouping, the consumer app's similarity grouping. Translate by grouping.
 - **Concept names agree; meanings mostly agree.** `topic`, `person` and `grounded` mark the same
-  knowledge-layer objects in both apps — only the paint differs. `accent` is the exception.
+  knowledge-layer objects in both apps — only the paint differs. `accent` and `theme` are the
+  exceptions.
 
 ## Keeping this page true
 
