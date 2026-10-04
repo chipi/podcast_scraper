@@ -60,6 +60,7 @@ from ....speaker_detectors.hosts import (
     roles_from_conversation,
     strip_role_prefix,
 )
+from ....speaker_detectors.normalization import filter_default_speaker_names
 from ....speaker_detectors.resolution import _addressed_at_open, refuted_by_third_person
 from ....text_normalization import (
     first_names_match,
@@ -1940,6 +1941,7 @@ def _name_host_voices(
     host_evidence_voices: AbstractSet[str] = frozenset(),
     introducer_voices: AbstractSet[str] = frozenset(),
     ignore_ownership: bool = False,
+    feed_title: Optional[str] = None,
     trace: Optional[NamingTrace] = None,
 ) -> Dict[str, SpeakerRole]:
     """Name host voices from EVIDENCE — a self-introduction, or a forced single answer.
@@ -2111,6 +2113,18 @@ def _name_host_voices(
         ):
             forced_name = unclaimed[0]
             rescued = True
+        # ...AND A VOICE THAT TALKS ABOUT THE HOST BY GIVEN NAME IS NOT THAT HOST
+        # (`_speaks_of_by_first_name`): "Rory's a great believer of the honor system, Bill" is
+        # Alastair Campbell's second cluster, not Rory Stewart (#2276).
+        # Not when the seat keeps ADDRESSING the co-host and never this host: that is how the host
+        # in question talks, and the third-person line is the co-host's, bled into the cluster
+        # (Hard Fork: Kevin's "Casey, will you record my audiobook" cluster also carries Casey's
+        # "Kevin's personal website").
+        speaks_of = _speaks_of_by_first_name(
+            text, unclaimed[0][0], feed_title
+        ) and not _talks_to_the_cohost(text, unclaimed[0][0], [n for n, _ in host_pool])
+        if speaks_of:
+            forced_name = None
         tr.voice(
             seat,
             "host_naming",
@@ -2119,6 +2133,7 @@ def _name_host_voices(
             performs_guest_act=performs_guest,
             greeted_by_that_name=addressed,
             rescued_from_bleed=rescued,
+            speaks_of_by_given_name=speaks_of,
             forced=forced_name is not None,
         )
 
@@ -2140,6 +2155,10 @@ def _name_host_voices(
                 texts_, unnamed_seats[0], unnamed_seats[1], [n for n, _ in unclaimed]
             )
         )
+        if pair and any(
+            _speaks_of_by_first_name(texts_.get(v, ""), n, feed_title) for v, n in pair.items()
+        ):
+            pair = None
         src_of = dict(unclaimed)
         pair_names = {v: (n, src_of[n]) for v, n in (pair or {}).items()}
         tr.note(
@@ -3634,6 +3653,49 @@ def _introduces_itself_as_host(text: str, host: str) -> bool:
     )
 
 
+#: Verbs that, right after a bare given name, make it the SUBJECT of a sentence about that person
+#: ("Rory just occasionally...", "the tension that Justin was describing"). A vocative carries a
+#: comma ("Rory, just..."), so it never matches.
+_THIRD_PERSON_VERBS = (
+    r"(?:was|is|has|had|said|says|thinks|thought|mentioned|described|describing|talked|talking"
+    r"|just|always|would|will|did|does|knows|wrote|told|asked|made|makes|pointed)"
+)
+
+
+def _speaks_of_by_first_name(text: str, host: str, feed_title: Optional[str] = None) -> bool:
+    """Does this voice talk ABOUT ``host`` by given name -- "Rory's a great believer", "when Rory
+    and I were doing a tour", "the tension that Justin was describing"? Then it is not them.
+
+    `refuted_by_third_person` matches only the full name or the surname, and co-hosts call each
+    other by given name: on The Rest Is Politics a second cluster of Alastair Campbell's voice took
+    Rory Stewart's forced name while saying exactly these things (#2276). The possessive does not
+    count when the SHOW is named after the host ("Lenny's Newsletter"). Over the stored corpus the
+    pattern fires on 1.3% of self-introduced hosts, which is the false-positive floor this veto
+    accepts; it guards only forced names, never a name a voice gave itself."""
+    first = _first_name(host)
+    if len(first) < 3 or not text or _introduces_itself_as_host(text, host):
+        return False
+    # The show's own name is not a mention of the host: "Conversations with Tyler is produced by
+    # the Mercatus Center" is the outro, read on the host's own voice.
+    if feed_title:
+        text = re.sub(re.escape(feed_title), " ", text, flags=re.IGNORECASE)
+    f = re.escape(first)
+    if re.search(rf"\b{f} and (?:I|me)\b|\b(?:me|myself) and {f}\b", text):
+        return True
+    if re.search(rf"(?<!\bI'm )(?<!\bam )(?<!\bis )\b{f} {_THIRD_PERSON_VERBS}\b", text):
+        return True
+    named_show = bool(feed_title and re.search(rf"\b{f}\b", feed_title, re.IGNORECASE))
+    return not named_show and bool(re.search(rf"\b{f}['’]s\b", text))
+
+
+def _talks_to_the_cohost(text: str, host: str, pool: Sequence[str]) -> bool:
+    """Does this voice address another stated host by given name at least twice, and ``host``
+    never? Then it behaves as ``host`` does on a two-host show."""
+    if _vocative_count(text, host):
+        return False
+    return any(_vocative_count(text, h) >= 2 for h in pool if h.lower() != host.lower())
+
+
 def _vocative_count(text: str, host: str) -> int:
     """How often the voice ADDRESSES this host by first name ("You know, Jeremy, you've had...",
     "Kevin. Oh, I see it's performance review season"). Punctuation-anchored: a vocative, not a
@@ -4849,7 +4911,12 @@ def resolve_speaker_roster(
         ad_intervals=ad_intervals,
         ad_voices=ad_voices,
         voice_texts=voice_texts,
-        stated_others=list(metadata_named or ()) + list(detected_guests or ()),
+        # A PLACEHOLDER IS NOT A PERSON IN THE ROOM. Episodes detected before the parser fix store
+        # the failure default (`Host`, `unknown_guest_1`); counted as an unplaced third party,
+        # `Host` refused the co-host's seat on The Rest Is Politics (#2276).
+        stated_others=filter_default_speaker_names(
+            list(metadata_named or ()) + list(detected_guests or ())
+        ),
         host_copresence=host_copresence,
         presenter_voices=presenter_voices,
         copresenter_voices=copresenter_voices,
@@ -4881,6 +4948,7 @@ def resolve_speaker_roster(
         absent_hosts=_hosts_said_absent(voice_texts or {}, known_hosts, set(host_voices)),
         host_evidence_voices=presenter_voices,
         introducer_voices=_introducer_voices,
+        feed_title=feed_title,
         trace=tr,
     )
 
@@ -5019,6 +5087,7 @@ def resolve_speaker_roster(
             host_evidence_voices=presenter_voices,
             introducer_voices=_introducer_voices,
             ignore_ownership=True,
+            feed_title=feed_title,
         ),
     )
     tr.diff_roles("talkative_host", _bv_before, by_voice)

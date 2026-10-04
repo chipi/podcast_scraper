@@ -689,3 +689,65 @@ def test_without_the_pair_the_history_still_holds_the_second_seat() -> None:
     )
     assert roster.by_voice["SPEAKER_01"].role != "host"
     assert roster.by_voice["SPEAKER_01"].name not in (HOST_A, HOST_B)
+
+
+# ---------------------------------------------------------------------------------------------
+# A voice that talks ABOUT a host by given name is not that host (#2276)
+# ---------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Greta's a great believer in the honour system, honestly.",
+        "When Greta and I were touring the north, it rained.",
+        "This is the tension that Greta was describing earlier.",
+    ],
+)
+def test_speaks_of_by_first_name_catches_third_person_mentions(text: str) -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _speaks_of_by_first_name
+
+    assert _speaks_of_by_first_name(text, HOST_B)
+
+
+@pytest.mark.parametrize(
+    "text, feed_title",
+    [
+        ("Greta, was that the reason?", None),  # a vocative is not a mention
+        ("I'm Greta Holm and this is the show.", None),  # her own introduction
+        ("Sign up to Greta's newsletter for the notes.", "Greta's Newsletter"),  # the show's name
+        ("The ports moved north over a decade.", None),
+    ],
+)
+def test_speaks_of_by_first_name_leaves_the_rest(text: str, feed_title: Optional[str]) -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _speaks_of_by_first_name
+
+    assert not _speaks_of_by_first_name(text, HOST_B, feed_title)
+
+
+def test_a_forced_pool_name_is_refused_to_a_voice_that_talks_about_that_host() -> None:
+    """One spare name, one spare seat -- but the seat says "Greta's a great believer...": it is
+    not Greta, so it stays unnamed rather than wear her name."""
+    about = "Greta's a great believer in the honour system. The ports moved north."
+    roster = _roster(_span_turns([(850.0, 100.0)]))
+    assert _seated_as_b(roster, "SPEAKER_01")  # control: the same shape names the seat
+    turns = [(v, about if v == "SPEAKER_01" else t, d) for v, t, d in _span_turns([(850.0, 100.0)])]
+    assert roster.by_voice["SPEAKER_01"].name == HOST_B
+    vetoed = _roster(turns)
+    assert vetoed.by_voice["SPEAKER_01"].name != HOST_B
+
+
+def test_the_shows_own_name_is_not_a_mention_of_its_host() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _speaks_of_by_first_name
+
+    outro = "Conversations with Greta is produced by the Harbour Institute."
+    assert not _speaks_of_by_first_name(outro, HOST_B, "Conversations with Greta")
+    assert _speaks_of_by_first_name(outro, HOST_B, None)
+
+
+def test_a_seat_that_keeps_addressing_the_cohost_keeps_its_forced_name() -> None:
+    """The co-host's "Greta's website" line bled into Greta's cluster, but the cluster talks TO
+    Tobias, twice, and never to Greta: it is Greta, and the veto stands aside (Hard Fork)."""
+    bled = "Tobias, will you read this for me? To say nothing of Greta's website. Well, Tobias, go."
+    turns = [(v, bled if v == "SPEAKER_01" else t, d) for v, t, d in _span_turns([(850.0, 100.0)])]
+    assert _seated_as_b(_roster(turns), "SPEAKER_01")
