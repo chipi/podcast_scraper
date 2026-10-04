@@ -110,6 +110,17 @@ becomes a candidate the roster may bind (the over-broad surname match was doing 
 - One episode per show with nearly every insight hidden behind one unnamed voice: ZOE 0/40,
   AI 4 UX 1/64, FUTURES 2/60, Google DeepMind 3/49 — the stated-guest problem (problem 6).
 - Brand author tag in a host pool: "Brilliant Experience" (AI 4 UX), never placed on a voice.
+- The Knowledge Project (2026-10-04, job 4502a2dc): host on a voice 10/10, artifacts clean. One
+  narrated episode ("John D. Rockefeller…") hides 58 of 104 insights on one `unidentified` voice;
+  the Steve Jobs episode lists the people it is ABOUT (Steve Jobs, Ross Perot, Larry Ellison, Bill
+  Gates) as unplaced guests next to the real guest Geoffrey Cain, also unplaced. One DEADLINE
+  EXCEEDED alarm (metadata > 1,200 s on a long episode), completed.
+- Philosophy For Our Times (IAI debates, 2026-10-04, job 8dc97a09): **no host** for the feed
+  (5 of 8 `no_host_name_found`); three episodes have nothing visible — two with an EMPTY roster
+  ("The secret history of cool" 0/37, "Love is more than magic" 0/44) and Catherine Liu 0/45 with
+  her stated name unplaced; a four-person panel 1/40. Junk self-intro names: host "Osbir" (twice)
+  and guest "James Madison" (a quotation) placed while stated Elizabeth Anderson is unplaced.
+  Rotating-chair debate format: a per-show profile case (#2261), like Planet Money.
 
 ## Low-visibility episodes, classified (2026-10-04 morning)
 
