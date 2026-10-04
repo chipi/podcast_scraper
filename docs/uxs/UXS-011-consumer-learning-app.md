@@ -1048,6 +1048,38 @@ INTO an episode, and opening at the resume point would silently drop the only re
 existed. A malformed `t` still opens the episode: losing the moment is a shame, losing the episode
 is a broken link.
 
+### Account, privacy and leaving (2026-10-04)
+
+**Sign-in buttons.** The OAuth button says which provider it is — "Sign in with Google" / "Sign up
+with Google" — built to Google's branding rules: dark theme (fill `#131314`, 1px stroke `#8E918F`,
+text `#E3E3E3`, Google Sans Medium 14/20, self-hosted), the official gradient G, pill shape, 40px.
+"Sign in with Apple" sits beside it **only when the server lists `apple` in `/health`** — never a
+button for a provider the deployment has not configured. Apple's rules: official logo artwork at
+full button height, the white style on our dark canvas, title at 43% of the height. Both buttons
+are the same height and width: Apple must be no smaller than any other sign-in button, Google no
+less prominent. Side by side when each gets 192px; stacked on a phone, where "Sign in with Google"
+needs 178px and half the row is ~173px. The brand colours are tokens (`--lp-gsi-*`, `--lp-siwa-*`)
+that no visual direction may repaint.
+
+**Clear listening history** (Profile › Account). Removes playback positions, finished marks,
+listening time and history; keeps the library, queue, follows, highlights, notes and collections.
+Never one tap: the first tap only explains what goes and what stays.
+
+**Delete account** (Profile › Account › Delete account…, page `/account/delete`). Names the
+account that goes — one address can hold separate Google, Apple and email accounts, and only the
+signed-in one is deleted — lists what is removed and what is not, and stays disabled until the
+person types `DELETE`. It takes effect immediately; the landing then says so. Signed out, the same
+public page explains how, including deleting some data without deleting the account (the Play
+listing links here).
+
+**Privacy policy** (Settings › Privacy policy, public at `/privacy`). Written from what the app
+collects, and must agree with the store declarations. Anything undecided is shown in a visible
+draft notice, never as silent placeholder text.
+
+**Reopen where you left off** (native). When the system ends the app in the background, the next
+launch returns to the screen the person was on, with the loaded episode back in the mini-player,
+paused at its position — within 12 hours, for the same account. Public routes are never restored.
+
 ### Where each surface is verified
 
 | Surface | Spec |
@@ -1061,6 +1093,11 @@ is a broken link.
 | Email magic-link sign-in (#2272) | Browser: `magic-link-welcome.spec.ts` (request from `/login` → link read from the outbox → new account). Device: `MagicLinkJourneyTests.swift` M1–M3 against a real mailbox (new → Profile; returning → Home, never the landing). The CLOSED-app case (the link launches the app) was at first never exercised on iOS — M3 launched the app before opening the link. M3 now terminates the app first, and passed that way on 2026-10-03 for a genuine returning account (verify event `outcome: returning`). On Android the closed-app case was driven and FAILED twice before passing — the token arrived mid-boot and a stale boot `/me` 401 wiped it (see `auth.test.ts` "two windows"). Server: `test_app_auth_magic_link.py` (oracle-free request, single use, allowlist at verify, all ten o11y outcomes, no address or token in any app event). uvicorn's own access log printed the verify URL with the token (whose payload carries the address); now redacted at the logger, `test_uvicorn_access_log_never_carries_the_link_token`. Unit: `messages.test.ts` (every English string compiles — the `@` in the placeholder once blanked `/login`), `redirect.test.ts` (`postLinkSignInRoute`), `native.callback.test.ts` (`new=1`), `native.launch.test.ts` (launch-by-link, both arrival paths once), `auth.test.ts` (a 401 about a replaced token never signs out or wipes) |
 | Welcome card + display name (#2272) | Browser: `magic-link-welcome.spec.ts` (card pre-filled → save → gone, survives reload → header rename). Device: M2 lands on Profile. Server: `test_app_profile.py` (`POST /profile/name`: trim, refusals, auth, a later sign-in never undoes a rename). Unit: `ProfileView.test.ts` (save, Not now, refused name keeps the card, header rename) |
 | Android: link sign-in | Device, emulator, real mailbox (2026-10-03): `android/…/MagicLinkJourneyTests.java` M1 (request from `/login`) and M2 (link through Chrome → intent filter → app; new account on Profile with the welcome card; sign out; request again) — both `OK (1 test)`. The CLOSED-app case cannot run inside instrumentation (it shares the app's process), so it is `android/scripts/magic-link-cold-launch.sh`: force-stop → link through Chrome → the link launches the app → signed in on Home, token still stored afterwards → `COLD_LAUNCH=PASS`. Chrome showed no "open in app?" prompt |
+| Sign-in buttons (Google naming, Apple when configured) | `sign-in-providers.spec.ts` (labels per framing · Apple absent unless `/health` lists it · equal height and width · the Apple button starts `?provider=apple`). Server: `test_app_auth_apple.py`, `test_app_oauth_apple.py` |
+| Clear listening history | `delete-account.spec.ts` (confirm → cleared → still signed in). Server: `test_app_account_deletion.py` (what goes, what stays). Unit: `ProfileView.test.ts` |
+| Delete account | `delete-account.spec.ts` (Profile → typed DELETE → landing notice → session 401 · the page signed out). Server: `test_app_account_deletion.py` (the full purge, Apple revocation, no resurrection, retention). Unit: `DeleteAccountView.test.ts` |
+| Privacy policy | `delete-account.spec.ts` (readable signed out at `/privacy`). Unit: `AboutPageView.test.ts` (the declared claims are on the page; the draft notice names the open items) |
+| Reopen where you left off | Device: `ColdLaunchRestoreTests` (iOS, `make test-app-ios-restore`), `android/scripts/cold-launch-restore.sh` (`make test-app-android-restore`). Unit: `lastPlace.test.ts`, `lifecycle.test.ts` |
 
 ### Navigation: Search is part of Discovery (operator 2026-09-20)
 
@@ -1108,13 +1145,13 @@ review or rebuild it.
 
 | View | What it is for | The rule that governs it |
 | ---- | -------------- | ------------------------ |
-| `LoginView` | The sign-in surface: Google, the email magic link (#2272) on both the sign-up and sign-in framings, and the dev identity picker | Signing in must return the visitor **where they were**, never to Home — a gated tap is deferred, not restarted (#1590). The email form answers "check your email" for ANY address: it must never reveal whether an address has an account |
+| `LoginView` | The sign-in surface: "Sign in with Google", "Sign in with Apple" when the server offers it (#2275), the email magic link (#2272) on both the sign-up and sign-in framings, and the dev identity picker | Signing in must return the visitor **where they were**, never to Home — a gated tap is deferred, not restarted (#1590). The email form answers "check your email" for ANY address: it must never reveal whether an address has an account |
 | `CatalogView` (Browse) | The corpus by show / topic / person | It is a HUB, not a list: it routes onward and holds no state of its own |
 | `PodcastView` | One show: its episodes, its signals band, follow | Following is the primary action and must respond instantly (optimistic), reverting only on a server REFUSAL |
 | `TopicView` | One topic: perspectives, arc, episodes | Every claim carries its source; ungrounded content is omitted, not shown greyed |
 | `PersonView` | One person: positions, topics, episodes | Same grounding rule as `TopicView` |
 | `ShowBrowseView` · `TopicBrowseView` · `PersonBrowseView` | The three browse indexes behind Catalog | Consistent card + heading treatment across all three; they differ in content, never in shape |
-| `ProfileView` | Identity (name — editable by every account — photo, handle, email), activity, interests, connected agents, device settings | Ordered account-first, device-LAST: device settings belong to the phone and are shared by everyone who signs in on it. A NEW account arriving with `?welcome=1` is asked ONE question — its name, pre-filled, skippable — and either answer drops `welcome` so the page never asks twice |
+| `ProfileView` | Identity (name — editable by every account — photo, handle, email), activity, interests, connected agents, device settings; Account ends with Sign out, Clear listening history… and Delete account… (#2273) | Ordered account-first, device-LAST: device settings belong to the phone and are shared by everyone who signs in on it. A NEW account arriving with `?welcome=1` is asked ONE question — its name, pre-filled, skippable — and either answer drops `welcome` so the page never asks twice |
 | `DeleteAccountView` | Delete account (#2273, App Store 5.1.1(v), Play data deletion): reached from Profile › Account, under Sign out; public at `/account/delete` | Says WHICH account goes — one address can hold separate Google, Apple and email accounts and only the signed-in one is deleted. States what is removed (everything that is theirs, immediately) and what is not (unlinkable usage statistics, the invite-list entry, other accounts). Never one tap: the button stays disabled until the person types `DELETE`. Afterwards the landing says the account was deleted. Signed out, the same page explains how — it is the link the Play listing points at |
 | `PrivacyPolicy` | The privacy policy (#2210), on the About › Privacy page; public, and `/privacy` redirects there | Written from what the app actually collects and must agree with the store declarations (Play Data safety): if the code starts collecting something new, this page changes in the same change. Anything not yet decided is shown in a visible draft notice, never left as silent placeholder text. English only: a legal text no one reviewed in a language is not a policy in that language |
 | `CollectionsView` | User-made collections of episodes | Per-item additive; a collection can never destroy the queue or another collection |
