@@ -191,7 +191,12 @@ REUSED: List[Tuple[str, str, Tuple[Any, ...], str, str, Dict[str, Any]]] = [
         (),
         "voices",
         "SPEAKER_09",
-        {"rung": "voice_types", "decision": "changed", "voice_type": "commercial"},
+        {
+            "rung": "voice_types",
+            "decision": "typed",
+            "voice_type": "commercial",
+            "reason": "edge_ad",
+        },
     ),
 ]
 
@@ -270,7 +275,12 @@ def test_a_talkative_host_is_named_after_the_guest_is_placed() -> None:
     )
     assert r.by_voice["SPEAKER_00"].name == "Maya Koster"
     host = d["voices"]["SPEAKER_00"]
-    assert _has(host, {"rung": "host_naming", "decision": "set", "named": False})
+    # Seated for performing the host's role; the forced pool name held back by the ownership
+    # guard; named only once the stated guest was placed on the other voice.
+    assert _has(host, {"rung": "host_seat_step", "step": "2_performs_host_role"})
+    assert _has(host, {"rung": "host_naming", "decision": "unnamed"})
+    gates = next(e for e in d["episode"] if e["rung"] == "host_naming_forced_gates")
+    assert gates["one_name_one_seat"] is True and gates["seat_owns_the_talk"] is True
     assert _has(
         host,
         {
@@ -456,3 +466,129 @@ def test_without_llm_answers_there_is_no_baseline_but_still_a_trace(
     trace = out["speaker_diagnostics"]["decision_trace"]
     assert "baseline_without_llm" not in trace["inputs"]
     assert trace["voices"]
+
+
+# --- inside the helpers: which step, which variant, which gate (#2276 phase 1, part 2) ---------
+
+
+def _ep(d: Dict[str, Any], rung: str) -> Dict[str, Any]:
+    return next(e for e in d["episode"] if e["rung"] == rung)
+
+
+def test_each_host_seat_records_the_step_that_took_it() -> None:
+    d = _traced(_DZ + "test_seat_logic_v4.py", "test_cohost_formula_is_name_bearing_not_positional")
+    for v in ("SPEAKER_00", "SPEAKER_01"):
+        assert _has(
+            d["voices"][v], {"rung": "host_seat_step", "step": "1_self_intro_as_stated_host"}
+        )
+    d = _traced(
+        _DZ + "test_roster_ad_voices.py",
+        "test_the_final_gate_demotes_an_opener_laden_name_reaching_the_roster",
+    )
+    assert _has(
+        d["voices"]["SPEAKER_HOST"], {"rung": "host_seat_step", "step": "2_performs_host_role"}
+    )
+    assert "stated_non_host" in _ep(d, "host_seat_guards")
+
+
+def test_step_4_records_its_arithmetic() -> None:
+    d = _traced(
+        _DZ + "test_presenter_evidence.py",
+        "test_a_guest_host_the_episode_names_is_seated_over_the_feed_hosts",
+    )
+    step4 = _ep(d, "host_seat_step_4")
+    assert step4["empty_seats"] == 2 and step4["fillable"] == 2 and step4["candidates"] == []
+    assert step4["guest_present"] is True
+    assert _ep(d, "host_naming_forced_gates")["guest_hosted_episode"] is True
+
+
+def test_a_forced_host_name_records_every_gate_and_veto() -> None:
+    d = _traced(
+        _DZ + "test_host_not_read_as_guest.py",
+        "test_host_posing_a_hypothetical_is_not_named_after_it",
+    )
+    gates = _ep(d, "host_naming_forced_gates")
+    assert gates["spare_names"] == ["Tobias Wren"] and gates["one_name_one_seat"] is True
+    host = d["voices"]["SPEAKER_00"]
+    assert _has(
+        host,
+        {
+            "rung": "host_naming",
+            "decision": "forced_name_vetoes",
+            "performs_guest_act": False,
+            "greeted_by_that_name": False,
+            "forced": True,
+        },
+    )
+    assert _has(
+        host, {"rung": "host_naming", "decision": "forced_pool_name", "name": "Tobias Wren"}
+    )
+
+
+def test_a_forced_guest_name_records_which_variant_fired() -> None:
+    d = _traced(
+        _DZ + "test_two_voice_host_introduced_guest.py",
+        "test_the_guest_the_host_introduces_is_named",
+        "With me today is Maria Lindqvist, a historian of medieval trade.",
+    )
+    forced = _ep(d, "guest_naming_forced")
+    assert forced["forced_by"] == "one_name_one_voice" and forced["forced_voice"] == "SPEAKER_01"
+    assert _has(
+        d["voices"]["SPEAKER_01"],
+        {"rung": "guest_naming", "decision": "forced_name", "forced_by": "one_name_one_voice"},
+    )
+
+
+def test_an_unnamed_leftover_records_its_role_evidence_and_its_type() -> None:
+    d = _traced(_DZ + "test_seat_logic_v4.py", "test_cohost_formula_is_name_bearing_not_positional")
+    steps = d["voices"]["SPEAKER_02"]
+    assert _has(
+        steps, {"rung": "guest_naming", "decision": "unnamed", "role_evidence": "none_left"}
+    )
+    assert _has(
+        steps, {"rung": "voice_types", "decision": "typed", "reason": "no_source_names_them"}
+    )
+
+
+def test_one_name_per_person_records_the_spelling_and_role_it_kept_and_why() -> None:
+    d = _traced(
+        _DZ + "test_presenter_evidence.py",
+        "test_an_evidence_host_takes_the_episodes_stated_spelling_of_the_name",
+    )
+    unified = _ep(d, "one_name_per_person")
+    assert unified["decision"] == "unified" and unified["kept_name"] == "Imani Moise"
+    assert unified["kept_because"] == "stated" and unified["role"] == "host"
+    assert unified["role_reason"] == "a_known_host_or_a_voice_with_host_evidence"
+    d = _traced(
+        _DZ + "test_one_person_one_name.py",
+        "test_two_spellings_of_one_guest_publish_as_one_name",
+        cls="TestTheResolvedRosterCarriesOneName",
+    )
+    unified = _ep(d, "one_name_per_person")
+    assert unified["kept_because"] == "fullest_then_most_talk"
+    assert unified["role_reason"] == "voices_agree"
+
+
+def test_the_intro_reader_records_what_it_heard_and_names_the_spelling_it_refused() -> None:
+    _, d = _resolve(
+        [
+            ("SPEAKER_00", "Welcome to the podcast. I'm Dwarkesh Patel.", 10.0),
+            ("SPEAKER_00", "Today I'm chatting with Drance Anderson, who runs the blue one.", 10.0),
+            ("SPEAKER_01", "Thanks for having me. Maths is a joy to explain.", 200.0),
+            ("SPEAKER_00", "Why animations?", 10.0),
+            ("SPEAKER_01", "Because pictures carry the intuition.", 200.0),
+        ],
+        known_hosts=["Dwarkesh Patel"],
+        metadata_named=["Grant Sanderson"],
+    )
+    steps = d["voices"]["SPEAKER_01"]
+    assert _has(steps, {"rung": "intro_reader", "decision": "heard", "heard": "Drance Anderson"})
+    assert _has(
+        steps,
+        {
+            "rung": "intro_reader",
+            "decision": "refused_spelling",
+            "name": "Drance Anderson",
+            "resembles": "Grant Sanderson",
+        },
+    )

@@ -22,7 +22,7 @@ from __future__ import annotations
 import functools
 import json
 import logging
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Sequence, Tuple, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +172,14 @@ class NamingTrace:
             self.note(rung, added=added)
 
     @_recorder
+    def appended(
+        self, rung: str, seq: Sequence[str], start: int, decision: str, **detail: Any
+    ) -> None:
+        """Every voice a step appended to ``seq`` since index ``start`` (e.g. a host-seat step)."""
+        for v in list(seq)[start:]:
+            self.voice(v, rung, decision, **detail)
+
+    @_recorder
     def stated(self, rung: str, names_by_voice: Mapping[str, str]) -> None:
         """Names a source states per voice (the publisher's own label), whether or not they change
         what the voice already had — the name diff that follows records only the changes."""
@@ -179,10 +187,24 @@ class NamingTrace:
             self.voice(v, rung, "stated", name=names_by_voice[v])
 
     @_recorder
-    def refused_spellings(self, voices: Iterable[str]) -> None:
-        """Voices whose introduced name was refused (the person the host introduced is unstated)."""
+    def refused_spellings(
+        self,
+        voices: Iterable[str],
+        proposed: Mapping[str, str],
+        stated: Sequence[str],
+        resembles: Optional[Callable[[str, Sequence[str]], Optional[str]]] = None,
+    ) -> None:
+        """Voices whose introduced spelling was refused: it names nobody the episode states."""
         for v in sorted(voices):
-            self.voice(v, "intro_reader", "refused_spelling", reason="introduced_name_not_stated")
+            name = proposed.get(v)
+            self.voice(
+                v,
+                "intro_reader",
+                "refused_spelling",
+                name=name,
+                resembles=resembles(name, stated) if resembles and name else None,
+                reason="introduced_name_not_stated",
+            )
 
     @_recorder
     def host_pool(self, pool: Sequence[Tuple[str, str]], named: Sequence[Tuple[str, str]]) -> None:
@@ -253,3 +275,8 @@ class NullTrace(NamingTrace):
     """Records nothing: the roster's default when no trace is requested."""
 
     enabled = False
+
+
+def or_null(trace: "NamingTrace | None") -> NamingTrace:
+    """The trace a helper records into: the caller's, or a ``NullTrace`` when none was passed."""
+    return trace if trace is not None else NullTrace()

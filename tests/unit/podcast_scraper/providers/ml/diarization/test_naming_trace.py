@@ -87,7 +87,18 @@ def test_a_traced_roster_is_identical_to_an_untraced_one(extra) -> None:
     assert traced.num_speakers == plain.num_speakers
 
 
-_SETS_A_NAME = {"named", "renamed", "set", "changed", "accepted", "added", "restored"}
+_SETS_A_NAME = {
+    "named",
+    "renamed",
+    "set",
+    "changed",
+    "accepted",
+    "added",
+    "restored",
+    "named_from_earlier_rung",
+    "forced_pool_name",
+    "forced_name",
+}
 
 
 def test_the_trace_records_inputs_seats_and_names() -> None:
