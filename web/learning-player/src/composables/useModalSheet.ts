@@ -1,5 +1,7 @@
 import { nextTick, onMounted, onUnmounted, watch, type Ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
+import { lastTappedElement, tapTopOf } from "../utils/backAnchor"
+import { keepInPlace } from "../utils/scrollRestore"
 
 /**
  * The modal-sheet plumbing shared by every teleported sheet (EntityCard, StorylineCard, QueuePanel,
@@ -33,6 +35,8 @@ export function useModalSheet(
   const route = useRoute()
   const router = useRouter()
   let restoreFocus: HTMLElement | null = null
+  /** Where the opener sat on screen when the sheet opened — it goes back there (scrollRestore). */
+  let openerTop: number | null = null
   /** The query went away on its own — a Back press, or a route change from inside the sheet. */
   let closedByNavigation = false
 
@@ -74,7 +78,18 @@ export function useModalSheet(
   }
 
   onMounted(() => {
-    restoreFocus = document.activeElement as HTMLElement | null
+    // The opener: what was TAPPED just now, else what has focus (a keyboard open). Focus alone is
+    // wrong on touch — a tap does not move focus there, so inside a sheet it still sat on that
+    // sheet's own ✕, and the stack put the ✕ back in place instead of the voice that was tapped
+    // (measured 2026-10-04: theme → person, the voice came back 163px off).
+    const focused = document.activeElement as HTMLElement | null
+    restoreFocus =
+      lastTappedElement(1000) ?? (focused && focused !== document.body ? focused : null)
+    // At the TAP if this sheet was opened by one (backAnchor), else where the opener is now.
+    openerTop =
+      restoreFocus && restoreFocus !== document.body
+        ? (tapTopOf(restoreFocus) ?? restoreFocus.getBoundingClientRect().top)
+        : null
     window.addEventListener("keydown", onKeydown)
     void nextTick(() => (focusables()[0] ?? dialogEl.value)?.focus())
     if (history) void router.push({ query: { ...route.query, [history.key]: history.value() } })
@@ -82,7 +97,10 @@ export function useModalSheet(
 
   onUnmounted(() => {
     window.removeEventListener("keydown", onKeydown)
-    restoreFocus?.focus?.()
+    // preventScroll: the opener goes back to where the reader saw it, not to wherever focus() would
+    // nudge it; keepInPlace then holds it there while the surface underneath finishes loading.
+    restoreFocus?.focus?.({ preventScroll: true })
+    if (restoreFocus?.isConnected && openerTop != null) keepInPlace(restoreFocus, openerTop)
     // Only when WE closed it (✕ / Escape / backdrop). A Back press or a navigation from inside the
     // sheet already consumed the entry — popping again would undo the user's actual navigation.
     if (history && !closedByNavigation && route.query[history.key]) void router.back()

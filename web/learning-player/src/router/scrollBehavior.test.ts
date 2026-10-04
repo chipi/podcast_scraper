@@ -69,6 +69,12 @@ describe('router scrollBehavior', () => {
     expect(await scrollBehavior(over, page, null)).toBe(false)
   })
 
+  it('closing a SHEET (Back pops its key) leaves the page where it is too', async () => {
+    const over = route({ path: '/episode/a', query: { card: 'topic:ai', theme: 'tc:x' } })
+    const page = route({ path: '/episode/a', query: { card: 'topic:ai' } })
+    expect(await scrollBehavior(page, over, { left: 0, top: 1200 })).toBe(false)
+  })
+
   it('a query change that is not a sheet still starts at the top', async () => {
     const browse = route({ path: '/browse', query: {} })
     expect(await scrollBehavior(route({ path: '/browse', query: { tab: 'shows' } }), browse, null)).toEqual({

@@ -14,6 +14,7 @@
 import { computed, nextTick, ref, watch } from "vue"
 import BackIcon from "./BackIcon.vue"
 import CloseIcon from "./CloseIcon.vue"
+import { anchorWithin, restoreAnchorWithin, type ClickAnchor } from "../utils/backAnchor"
 import { restoreScroll } from "../utils/scrollRestore"
 import { useI18n } from "vue-i18n"
 import { getOrgCard, getPersonCard, getTopicCard, getTopicPerspectives } from "../services/api"
@@ -36,7 +37,13 @@ type EntityKind = "person" | "topic" | "organization"
  * return them there. Two offsets because the card scrolls in its own body inside a sheet or panel,
  * but the PAGE scrolls on the standalone /person and /topic routes, where the body is unbounded.
  */
-type Target = { kind: EntityKind; id: string; scroll?: { body: number; page: number } }
+type Target = {
+  kind: EntityKind
+  id: string
+  scroll?: { body: number; page: number }
+  /** The control the reader tapped to walk on — Back puts THAT back where it sat (backAnchor). */
+  anchor?: ClickAnchor | null
+}
 
 const props = withDefaults(
   defineProps<{
@@ -172,6 +179,7 @@ watch(
 const bodyEl = ref<HTMLElement | null>(null)
 // Set by Back, applied once the entity it returned to has loaded (operator 2026-10-04).
 let pendingScroll: Target["scroll"] | null = null
+let pendingAnchor: ClickAnchor | null = null
 // The standalone /person and /topic routes, where the card IS the page and the page is what
 // scrolls. Anywhere else (a panel, a sheet) the page behind belongs to someone else — on desktop
 // the episode-notes rail sits beside the episode — and the card must not move it.
@@ -182,6 +190,7 @@ function open(kind: EntityKind, id: string): void {
   const leaving: Target = {
     ...current.value,
     scroll: { body: bodyEl.value?.scrollTop ?? 0, page: cardIsPage.value ? window.scrollY : 0 },
+    anchor: bodyEl.value ? anchorWithin(bodyEl.value) : null,
   }
   stack.value = [...here, leaving, { kind, id }]
   // A new entity starts at its top, not at the offset the reader had reached on the last one.
@@ -193,14 +202,21 @@ function onBack(): void {
   if (stack.value.length > 1) {
     stack.value = stack.value.slice(0, -1)
     pendingScroll = current.value.scroll ?? null
+    pendingAnchor = current.value.anchor ?? null
   } else emit("close")
 }
 watch(loading, (isLoading) => {
   if (isLoading || !pendingScroll) return
   const { body, page } = pendingScroll
+  const anchor = pendingAnchor
   pendingScroll = null
-  void nextTick(() => {
-    void restoreScroll(bodyEl.value, body)
+  pendingAnchor = null
+  void nextTick(async () => {
+    // The tapped control, back where it sat — robust to sections above it loading at a different
+    // pace than last time. The offsets are the fallback when it cannot be found again.
+    const body_ = bodyEl.value
+    if (anchor && body_ && (await restoreAnchorWithin(body_, anchor))) return
+    void restoreScroll(body_, body)
     if (cardIsPage.value) void restoreScroll(null, page)
   })
 })

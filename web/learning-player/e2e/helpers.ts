@@ -1,4 +1,4 @@
-import { expect, type Page, type TestInfo } from '@playwright/test'
+import { expect, type Locator, type Page, type TestInfo } from '@playwright/test'
 
 /**
  * Sign in as an ISOLATED mock identity, unique per (spec, project). The mock OAuth provider honours
@@ -26,7 +26,11 @@ export async function expectSignedIn(page: Page): Promise<void> {
 }
 
 export async function signInIsolated(page: Page, who: string, testInfo: TestInfo): Promise<void> {
-  const id = `${who}-${testInfo.project.name}`.toLowerCase().replace(/[^a-z0-9-]/g, '')
+  // Per REPEAT too. `--repeat-each` runs copies of a test in parallel, and copies sharing one
+  // account read each other's state — one copy's Save showed up as "Saved ✓" in another
+  // (2026-10-04). A normal run has repeatEachIndex 0 and keeps its existing account id.
+  const repeat = testInfo.repeatEachIndex > 0 ? `-r${testInfo.repeatEachIndex}` : ''
+  const id = `${who}-${testInfo.project.name}${repeat}`.toLowerCase().replace(/[^a-z0-9-]/g, '')
   await page.goto(`/api/app/auth/login?as=${encodeURIComponent(id)}`)
   await expectSignedIn(page)
 }
@@ -117,4 +121,29 @@ export async function navTo(
     profile: 'Profile',
   }
   await page.locator('header').getByRole('link', { name: LABELS[dest] }).click()
+}
+
+/**
+ * Tap `el` and return its top ON SCREEN AT THE TAP, read by a capture-phase click listener before
+ * any app handler runs. A measurement taken before `click()` is not where the reader tapped: content
+ * still loading above can move the control in between (measured 2026-10-04: 517px when measured,
+ * 680px when tapped). The Back-lands-where-you-left contract is about where it was TAPPED.
+ */
+export async function tapAndRecordTop(el: Locator): Promise<number> {
+  await el.page().evaluate(() => {
+    const w = window as unknown as { __tapTop?: number }
+    delete w.__tapTop
+    window.addEventListener(
+      'click',
+      (e) => {
+        const c = (e.target as Element).closest('button, a, [role="button"]') ?? (e.target as Element)
+        w.__tapTop = c.getBoundingClientRect().top
+      },
+      { capture: true, once: true },
+    )
+  })
+  await el.click()
+  const top = await el.page().evaluate(() => (window as unknown as { __tapTop?: number }).__tapTop)
+  expect(top, 'the tap never reached the page').not.toBeUndefined()
+  return top as number
 }

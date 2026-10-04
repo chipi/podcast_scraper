@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { signInIsolated } from './helpers'
+import { signInIsolated, tapAndRecordTop } from './helpers'
 
 /**
  * Episode notes panel — the people in the room lead the panel, with their photos.
@@ -110,9 +110,13 @@ test('closing a card opened from the notes chips returns the panel to those chip
   const before = await panelScroll()
   expect(before, 'the chips are not below the fold, so this proves nothing').toBeGreaterThan(100)
 
-  await chip.click()
+  const seenAt = await tapAndRecordTop(chip)
   await expect(page.getByTestId('kp-episode-dossier')).toHaveCount(0)
   await page.getByTestId('ec-dismiss').click()
   await expect(chip).toBeInViewport({ ratio: 1 })
-  expect(await panelScroll(), 'the panel reset to its top instead').toBeGreaterThan(before / 2)
+  await expect
+    .poll(async () => Math.round(Math.abs((await chip.boundingBox())!.y - seenAt)), {
+      message: 'the chip is not back at the spot on screen it was tapped at',
+    })
+    .toBeLessThan(12)
 })

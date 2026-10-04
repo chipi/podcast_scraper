@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { holdScroll, restoreScroll, waitUntilScrollable } from "./scrollRestore"
+import { holdScroll, keepInPlace, restoreScroll, waitUntilScrollable } from "./scrollRestore"
 
 function scroller(scrollHeight: number, clientHeight = 400): HTMLElement {
   const el = document.createElement("div")
@@ -67,6 +67,33 @@ describe("scrollRestore", () => {
     el.scrollTop = 1400 // the reader's own scroll
     await new Promise((r) => setTimeout(r, 60))
     expect(el.scrollTop).toBe(1400)
+  })
+
+  it("is abandoned when the reader scrolls before the content is ready — a late restore never yanks", async () => {
+    const el = scroller(500) // still loading: cannot hold 900 yet
+    const done = restoreScroll(el, 900, 400)
+    el.scrollTop = 300 // the reader scrolls (programmatically here; a wheel would do the same)
+    window.dispatchEvent(new Event("wheel"))
+    Object.defineProperty(el, "scrollHeight", { value: 3000 }) // ...and then the content arrives
+    await done
+    expect(el.scrollTop).toBe(300)
+  })
+
+  it("keeps a sheet's opener where it sat when content loads above it while the sheet was open", async () => {
+    const box = scroller(3000)
+    box.style.overflowY = "auto"
+    Object.defineProperty(box, "scrollHeight", { value: 3000, configurable: true })
+    document.body.appendChild(box)
+    const opener = document.createElement("button")
+    box.appendChild(opener)
+    let above = 629 // the opener's offset inside the box; rails above it are still loading
+    vi.spyOn(box, "getBoundingClientRect").mockReturnValue({ top: 0 } as DOMRect)
+    vi.spyOn(opener, "getBoundingClientRect").mockImplementation(() => ({ top: above - box.scrollTop }) as DOMRect)
+    keepInPlace(opener, 629) // seen at 629 when the sheet opened
+    above = 902 // the rest of the card filled in above it
+    await new Promise((r) => setTimeout(r, 60))
+    expect(opener.getBoundingClientRect().top).toBe(629)
+    box.remove()
   })
 
   it("does nothing for the top of the page", async () => {

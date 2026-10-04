@@ -31,11 +31,15 @@ trackClicks()
 /** Clearance above a section an anchor lands on. */
 const ANCHOR_GAP = 8
 
-/** Same page, and the only query keys that appeared are sheet keys — a sheet opened over it. */
-function opensSheetOnly(to: RouteLocationNormalized, from: RouteLocationNormalized): boolean {
+/**
+ * Same page, and the only query keys that changed are sheet keys — a sheet opened over it or closed
+ * off it. Neither moves the page: the sheet's own opener is put back by `useModalSheet`.
+ */
+function sheetOnlyChange(to: RouteLocationNormalized, from: RouteLocationNormalized): boolean {
   if (to.path !== from.path) return false
-  const added = Object.keys(to.query).filter((k) => !(k in from.query))
-  return added.length > 0 && added.every((k) => (SHEET_HISTORY_KEYS as readonly string[]).includes(k))
+  const keys = new Set([...Object.keys(to.query), ...Object.keys(from.query)])
+  const changed = [...keys].filter((k) => String(to.query[k] ?? '') !== String(from.query[k] ?? ''))
+  return changed.length > 0 && changed.every((k) => (SHEET_HISTORY_KEYS as readonly string[]).includes(k))
 }
 // `getAuthToken` / `isNative` are no longer imported here: the native-token check moved into the
 // shared `auth.hasSession` getter, which the masthead reads too, so the guard and the header cannot
@@ -235,6 +239,7 @@ export const router = createRouter({
   // Both then HOLD the position for a few seconds (utils/scrollRestore `holdScroll`): content that
   // arrives later still moves the page, and a one-shot restore loses to it under load.
   scrollBehavior: async (to, from, saved) => {
+    if (sheetOnlyChange(to, from)) return false
     if (saved) {
       // The control the reader left by, put back where it sat — robust to the page having grown.
       const anchor = backAnchors.get(to.fullPath)
@@ -245,7 +250,6 @@ export const router = createRouter({
       await waitUntilScrollable(null, saved.top, 5000)
       return saved
     }
-    if (opensSheetOnly(to, from)) return false
     if (to.hash) {
       // Already on the page (Home's "See all" onto Discover's trends): nothing will move under it,
       // so the smooth scroll the operator asked for (2026-09-17) stays.
@@ -271,7 +275,7 @@ export const router = createRouter({
 // a `redirect` back to the intended path so a shared deep link survives signup.
 router.beforeEach((to, from) => {
   // A SHEET opening keeps the page: its anchor is still the one the page was left by.
-  if (opensSheetOnly(to, from)) return
+  if (sheetOnlyChange(to, from)) return
   const anchor = anchorFromLastClick()
   if (anchor) backAnchors.set(from.fullPath, anchor)
   else backAnchors.delete(from.fullPath)

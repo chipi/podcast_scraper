@@ -157,16 +157,62 @@ export function holdScroll(
   nextFrame(tick)
 }
 
+/** The box that scrolls `el`: its nearest scrolling ancestor, or `null` for the page. */
+export function scrollParentOf(el: HTMLElement): HTMLElement | null {
+  let n = el.parentElement
+  while (n) {
+    const o = getComputedStyle(n).overflowY
+    if ((o === "auto" || o === "scroll") && n.scrollHeight > n.clientHeight) return n
+    n = n.parentElement
+  }
+  return null
+}
+
+/**
+ * Keep `el` where it sat on screen (`viewportTop`) while the content around it settles.
+ *
+ * For a sheet closing back onto the control that opened it (operator 2026-10-04). The surface under
+ * a sheet stays mounted, but it can still be LOADING: a voice tapped while the topic card was
+ * half-rendered came back pushed 270px below the screen by sections that filled in above it while
+ * the person sheet was open (measured: card 1016px tall at the tap, 1698px at close, scroll 0 — and
+ * at scroll 0 the browser's own scroll anchoring does not engage).
+ */
+export function keepInPlace(el: HTMLElement, viewportTop: number): void {
+  const box = scrollParentOf(el)
+  const boxTop = box ? box.getBoundingClientRect().top : 0
+  holdScroll(box, () => Math.max(0, offsetWithin(box, el) - (viewportTop - boxTop)))
+}
+
 /** Where `el` sits inside `target` (or the page), as a scroll offset. */
 export function offsetWithin(target: Scroller, el: HTMLElement): number {
   const top = el.getBoundingClientRect().top
   return target ? top - target.getBoundingClientRect().top + target.scrollTop : top + window.scrollY
 }
 
-/** Scroll `target` (or the page, for `null`) back to `top` once its content allows it, and hold it. */
+/**
+ * Scroll `target` (or the page, for `null`) back to `top` once its content allows it, and hold it.
+ *
+ * ABANDONED if the reader moves first. The wait can be seconds on a slow fetch, and a restore that
+ * lands after the reader has already scrolled somewhere and tapped something yanks them away from
+ * it — measured 2026-10-04: Back from a similar topic, scroll to a voice, open the person on top,
+ * and the late restore moved the topic underneath so the voice was gone when the person closed.
+ */
 export async function restoreScroll(target: Scroller, top: number, timeoutMs = 5000): Promise<void> {
-  if (top <= 0) return
-  await waitUntilScrollable(target, top, timeoutMs)
+  if (top <= 0 || typeof window === "undefined") return
+  let moved = false
+  const onInput = (): void => {
+    moved = true
+  }
+  for (const e of USER_SCROLL_EVENTS) window.addEventListener(e, onInput, { passive: true, capture: true })
+  const startedAt = target ? target.scrollTop : window.scrollY
+  try {
+    await waitUntilScrollable(target, top, timeoutMs)
+  } finally {
+    for (const e of USER_SCROLL_EVENTS) window.removeEventListener(e, onInput, { capture: true })
+  }
+  const now = target ? target.scrollTop : window.scrollY
+  // Someone scrolled while we waited — the reader, or the app on their behalf. Theirs wins.
+  if (moved || Math.abs(now - startedAt) > 4) return
   if (target) target.scrollTop = top
   else window.scrollTo({ top })
   holdScroll(target, () => top)

@@ -12,7 +12,13 @@
  * page fills in (`holdScroll` follows the element, not a number). Falls back to the offset when the
  * element cannot be identified.
  */
-import { ANCHOR_WAIT_MS, holdScroll, offsetWithin, waitUntilScrollable } from './scrollRestore'
+import {
+  ANCHOR_WAIT_MS,
+  holdScroll,
+  keepInPlace,
+  offsetWithin,
+  waitUntilScrollable,
+} from './scrollRestore'
 
 export interface ClickAnchor {
   testid: string
@@ -23,10 +29,43 @@ export interface ClickAnchor {
 
 let lastTarget: Element | null = null
 
+/**
+ * The CONTROL a tap belongs to: the nearest button or link that carries a testid, else the nearest
+ * testid. Not just `closest('[data-testid]')` — a control can contain testid'd parts (the related
+ * person's role badge, `ec-related-person-role`), and anchoring on the badge put a DIFFERENT person
+ * back on screen (measured 2026-10-04: off by 221px, every time the tap landed on a badge).
+ */
+function controlOf(target: Element | null): HTMLElement | null {
+  return (target?.closest?.(
+    'button[data-testid], a[data-testid], [role="button"][data-testid]'
+  ) ?? target?.closest?.('[data-testid]')) as HTMLElement | null
+}
+/** Where the tapped control sat on screen AT THE TAP — before any handler or late render moves it. */
+let lastTap: { el: Element; top: number; at: number } | null = null
+
 /** Remember what the reader last activated. Capture phase, so a handler that navigates still counts. */
 export function trackClicks(): void {
   if (typeof window === 'undefined') return
-  window.addEventListener('click', (e) => (lastTarget = e.target as Element), { capture: true })
+  window.addEventListener(
+    'click',
+    (e) => {
+      lastTarget = e.target as Element
+      const control = lastTarget.closest?.('button, a, [role="button"]') ?? controlOf(lastTarget)
+      lastTap = control ? { el: control, top: control.getBoundingClientRect().top, at: Date.now() } : null
+    },
+    { capture: true }
+  )
+}
+
+/**
+ * Where `el` sat on screen when the reader tapped it, if it (or something inside it) was the last
+ * thing tapped; null otherwise. A sheet opens a frame or more after the tap, and content still
+ * loading above the opener can move it in between — measured 2026-10-04: tapped at 629, at 902 by
+ * the time the person sheet mounted, so a position read at mount put it back off screen.
+ */
+export function tapTopOf(el: Element): number | null {
+  if (!lastTap) return null
+  return el === lastTap.el || el.contains(lastTap.el) || lastTap.el.contains(el) ? lastTap.top : null
 }
 
 /**
@@ -34,25 +73,57 @@ export function trackClicks(): void {
  * a PAGE element: a control inside a sheet or panel scrolls its own box, not the page.
  */
 export function anchorFromLastClick(): ClickAnchor | null {
-  const el = lastTarget?.closest?.('[data-testid]') as HTMLElement | null
+  const el = controlOf(lastTarget)
   lastTarget = null
   if (!el || !el.isConnected || el.closest('dialog, [role="dialog"]')) return null
   const testid = el.dataset.testid as string
   const index = Array.from(document.querySelectorAll(`[data-testid="${CSS.escape(testid)}"]`)).indexOf(el)
-  return { testid, index, viewportTop: el.getBoundingClientRect().top }
+  return { testid, index, viewportTop: tapTopOf(el) ?? el.getBoundingClientRect().top }
 }
 
-function find(a: ClickAnchor): HTMLElement | null {
-  const all = document.querySelectorAll<HTMLElement>(`[data-testid="${CSS.escape(a.testid)}"]`)
+function find(a: ClickAnchor, root: ParentNode = document): HTMLElement | null {
+  const all = root.querySelectorAll<HTMLElement>(`[data-testid="${CSS.escape(a.testid)}"]`)
   return all[a.index] ?? null
 }
 
+/** The element the reader tapped within the last `maxAgeMs`, if it is still in the document. */
+export function lastTappedElement(maxAgeMs = Infinity): HTMLElement | null {
+  if (!lastTap || Date.now() - lastTap.at > maxAgeMs) return null
+  const el = lastTap.el as HTMLElement
+  return el.isConnected ? el : null
+}
+
+/**
+ * The same description as {@link anchorFromLastClick}, for a control INSIDE `root` (a card body
+ * that re-renders its content in place), without consuming the click. Index is counted within
+ * `root`, so the anchor survives the card being rebuilt.
+ */
+export function anchorWithin(root: Element): ClickAnchor | null {
+  const el = controlOf(lastTarget)
+  if (!el || !root.contains(el)) return null
+  const testid = el.dataset.testid as string
+  const index = Array.from(root.querySelectorAll(`[data-testid="${CSS.escape(testid)}"]`)).indexOf(el)
+  return { testid, index, viewportTop: tapTopOf(el) ?? el.getBoundingClientRect().top }
+}
+
+/** Put `a` back where it sat on screen inside `root` once it renders again; false if it never did. */
+export async function restoreAnchorWithin(root: HTMLElement, a: ClickAnchor): Promise<boolean> {
+  const el = await waitForAnchor(a, ANCHOR_WAIT_MS, root)
+  if (!el) return false
+  keepInPlace(el, a.viewportTop)
+  return true
+}
+
 /** Resolves with the anchor's element once the re-mounted page renders it, or null after `timeoutMs`. */
-export function waitForAnchor(a: ClickAnchor, timeoutMs = ANCHOR_WAIT_MS): Promise<HTMLElement | null> {
+export function waitForAnchor(
+  a: ClickAnchor,
+  timeoutMs = ANCHOR_WAIT_MS,
+  root: ParentNode = document
+): Promise<HTMLElement | null> {
   const started = Date.now()
   return new Promise((resolve) => {
     const check = (): void => {
-      const el = find(a)
+      const el = find(a, root)
       if (el) resolve(el)
       else if (Date.now() - started >= timeoutMs) resolve(null)
       else requestAnimationFrame(check)

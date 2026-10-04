@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { signInIsolated, tapAndRecordTop } from './helpers'
 
 /**
  * StorylineView (F4.5) — the storyline overlay (StorylineCard), reached from the Home
@@ -214,12 +214,16 @@ test('Back from a person opened in Top voices returns to Top voices, not the top
   const before = await page.evaluate(() => window.scrollY)
   expect(before, 'Top voices is not below the fold, so this proves nothing').toBeGreaterThan(200)
 
-  await voice.click()
+  const seenAt = await tapAndRecordTop(voice)
   await expect(page).toHaveURL(/\/person\//)
   await page.getByTestId('ec-dismiss').click() // the person page's ✕ — a history Back
   await expect(page).toHaveURL(/\/storyline\//)
   // The voice tapped is back on screen, whole — not an exact offset: rails above it can finish
   // loading after the restore, and scroll anchoring then shifts the offset to keep it in view.
   await expect(voice).toBeInViewport({ ratio: 1 })
-  expect(await page.evaluate(() => window.scrollY), 'reset to the top instead').toBeGreaterThan(before / 2)
+  await expect
+    .poll(async () => Math.round(Math.abs((await voice.boundingBox())!.y - seenAt)), {
+      message: 'the voice is not back at the spot on screen it was tapped at',
+    })
+    .toBeLessThan(12)
 })
