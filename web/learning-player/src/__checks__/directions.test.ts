@@ -78,7 +78,7 @@ function aliasTokens(): Set<string> {
  * guidelines, so a direction must never repaint them — the opposite of every other colour token.
  * They live in tokens.css only so the one-token-layer rule holds; the test below holds them fixed.
  */
-const BRAND_FIXED = new Set([...TOKENS.matchAll(/(--lp-gsi-[a-z-]+)\s*:/g)].map((m) => m[1]))
+const BRAND_FIXED = new Set([...TOKENS.matchAll(/(--lp-(?:gsi|siwa)-[a-z-]+)\s*:/g)].map((m) => m[1]))
 
 const MAY_INHERIT = new Set([...NON_COLOUR, ...aliasTokens(), ...BRAND_FIXED])
 
@@ -296,7 +296,13 @@ describe('visual directions are legible', () => {
 
 describe('third-party brand tokens', () => {
   it('exist, and no direction overrides them', () => {
-    expect([...BRAND_FIXED].sort()).toEqual(['--lp-gsi-fill', '--lp-gsi-stroke', '--lp-gsi-text'])
+    expect([...BRAND_FIXED].sort()).toEqual([
+      '--lp-gsi-fill',
+      '--lp-gsi-stroke',
+      '--lp-gsi-text',
+      '--lp-siwa-fill',
+      '--lp-siwa-text',
+    ])
     for (const [name, block] of directionBlocks()) {
       const overridden = [...tokensIn(block)].filter((t) => BRAND_FIXED.has(t))
       expect(overridden, `direction "${name}" repaints a brand-fixed token`).toEqual([])

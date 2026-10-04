@@ -299,6 +299,8 @@
     "signUp": "Sign up",
     "signInWithGoogle": "Sign in with Google",
     "signUpWithGoogle": "Sign up with Google",
+    "signInWithApple": "Sign in with Apple",
+    "signUpWithApple": "Sign up with Apple",
     "signOut": "Sign out",
     "loginTitle": "Sign in to your library",
     "loginTagline": "Save your place, build a queue, and grow your personal library.",

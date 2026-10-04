@@ -647,6 +647,8 @@ export interface HealthInfo {
   player_version: string | null
   /** False when the server cannot authenticate anyone (lost signing secret / user store). */
   auth_ready?: boolean
+  /** Sign-in providers this deployment has configured, primary first (#2275), e.g. ['google','apple']. */
+  auth_providers?: string[]
   /**
    * Non-secret fingerprint of the session signing key. Changes if and only if the key changes —
    * the moment every issued token becomes unverifiable at once, for a SERVER-side reason. Absent

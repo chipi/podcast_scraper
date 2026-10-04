@@ -10,7 +10,7 @@ import { Capacitor } from '@capacitor/core'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { getDevUsers, requestMagicLink, type DevUser } from '../services/api'
+import { getDevUsers, getHealth, requestMagicLink, type DevUser } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { safeInternalPath } from '../utils/redirect'
 
@@ -41,11 +41,18 @@ watch(
 const devEnabled = ref(false)
 const devUsers = ref<DevUser[]>([])
 const custom = ref('')
+/**
+ * Sign in with Apple is offered only when the server lists it (#2275): a button for a provider the
+ * deployment has not configured would 404. Read from `/health` rather than baked into the build,
+ * so turning Apple on is a server change and every shipped app picks it up.
+ */
+const appleEnabled = ref(false)
 
 onMounted(async () => {
-  const { enabled, users } = await getDevUsers()
+  const [{ enabled, users }, health] = await Promise.all([getDevUsers(), getHealth()])
   devEnabled.value = enabled
   devUsers.value = users
+  appleEnabled.value = !!health?.auth_providers?.includes('apple')
 })
 
 // --- Email magic link (#2272) -----------------------------------------------------------------
@@ -147,10 +154,20 @@ function signInCustom(): void {
          platform padding (Android/Web 12·10·12, iOS 16·12·16). The text is one of the three strings
          Google allows; "Sign in" alone sat above "Email me a sign-in link" and did not say which
          door it was. -->
-    <button
+    <!-- Side by side when the row has room, stacked at equal width when it does not (operator
+         2026-10-04). Measured, not guessed: "Sign in with Google" is 178px wide at Google's fixed
+         14px text and padding, and half of an iPhone's 355px content row is ~173px — so on a phone
+         they cannot share a row without breaking one brand's rules. `minmax(12rem, 1fr)` puts them
+         on one row only when each gets 192px, and gives both the same width either way. -->
+    <div
       v-else
+      class="grid gap-3"
+      :class="appleEnabled ? 'grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]' : 'justify-start'"
+      data-testid="provider-buttons"
+    >
+    <button
       type="button"
-      class="lp-gsi inline-flex h-10 items-center rounded-full"
+      class="lp-gsi inline-flex h-10 items-center justify-center rounded-full"
       :class="isIos ? 'pl-4 pr-4' : 'pl-3 pr-3'"
       data-testid="signin-button"
       @click="auth.login(undefined, redirectTarget)"
@@ -165,6 +182,25 @@ function signInCustom(): void {
       />
       {{ isSignup ? t('auth.signUpWithGoogle') : t('auth.signInWithGoogle') }}
     </button>
+
+    <!-- Sign in with Apple (#2275), App Store guideline 4.8. A CUSTOM button per Apple's HIG: the
+         official left-aligned logo artwork from Apple Design Resources at the button's full height
+         (its built-in padding sets the leading margin and the gap to the title — no left padding
+         here, none added vertically), white on our dark canvas with black logo and title, title at
+         43% of the height (17px for 40px), one of the three allowed titles, and a right margin
+         above Apple's 8% minimum. The SAME height as the Google button: Apple requires it be no
+         smaller than other sign-in buttons, Google that its own be no less prominent. -->
+    <button
+      v-if="appleEnabled"
+      type="button"
+      class="lp-siwa inline-flex h-10 items-center justify-center overflow-hidden rounded-full pr-5"
+      data-testid="signin-apple-button"
+      @click="auth.login(undefined, redirectTarget, 'apple')"
+    >
+      <img src="/brand/apple-logo-left-black-medium.svg" alt="" class="h-10 w-auto shrink-0" />
+      {{ isSignup ? t('auth.signUpWithApple') : t('auth.signInWithApple') }}
+    </button>
+    </div>
 
     <!-- Email magic link: the second front door (#2272). Offered on BOTH framings, because it
          creates an account just as readily as it signs one in. -->
@@ -257,6 +293,13 @@ function signInCustom(): void {
 
 <style scoped>
 /* Google's dark-theme values (tokens.css `--lp-gsi-*`), fixed by the branding guidelines. */
+.lp-siwa {
+  background: var(--lp-siwa-fill);
+  color: var(--lp-siwa-text);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+}
 .lp-gsi {
   background: var(--lp-gsi-fill);
   box-shadow: inset 0 0 0 1px var(--lp-gsi-stroke);

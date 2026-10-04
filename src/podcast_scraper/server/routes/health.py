@@ -127,6 +127,7 @@ async def health(
         update={
             "status": "ok" if auth_ready else "degraded",
             "auth_ready": auth_ready,
+            "auth_providers": list((getattr(st, "oauth_providers", None) or {}).keys()),
             "auth_epoch": _auth_epoch(getattr(st, "session_secret", "")),
             "code_version": __version__,
             "player_version": getattr(st, "player_version", None),

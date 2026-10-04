@@ -242,25 +242,26 @@ export const useAuthStore = defineStore('auth', {
       // `loaded`, and login-first then routes to the lure landing.
       await this.refresh()
     },
-    login(as?: string, returnTo?: string): void {
+    login(as?: string, returnTo?: string, provider?: string): void {
       // The funnel's third step (#2267). Fired HERE because this is the only entry point both
       // platforms share — the native shell opens an external browser and the web does a full-page
       // redirect, and after either one this code is gone, so there is no later moment to report
       // "they set off". The provider is whatever the server has configured; the client only knows
       // whether the dev picker is in play, so `as` distinguishes that case and nothing else.
-      track('auth_started', { provider: as ? 'mock' : 'oauth' })
+      // `apple` names itself (#2275); the primary stays 'oauth', so existing funnel rows keep meaning.
+      track('auth_started', { provider: as ? 'mock' : (provider ?? 'oauth') })
       if (isNative()) {
         // Native (#1310): iOS uses ASWebAuthenticationSession (prompt-free), Android the system
         // browser + intent-filter callback; both return the signed token → refresh() via
         // initNativeAuth's onAuthed. The in-app LoginView watch handles ?redirect after the token
         // lands, so native doesn't need return_to. A full-page redirect here would strand the WebView.
-        void startNativeLogin(loginUrl(as, true))
+        void startNativeLogin(loginUrl(as, true, undefined, provider))
         return
       }
       // Web: full-page redirect into the OAuth flow (Google in prod, mock provider in dev/e2e).
       // `as` is the dev-picker identity hint (mock provider only). `returnTo` carries the login-first
       // `?redirect` across the full-page OAuth bounce (RFC-120 #2009).
-      window.location.assign(loginUrl(as, false, returnTo))
+      window.location.assign(loginUrl(as, false, returnTo, provider))
     },
     async logout(): Promise<void> {
       // Drop the local identity even if the server call fails — otherwise a sign-out with no

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -192,6 +192,25 @@ class AppDiscoverClickBody(BaseModel):
 
     slug: str = Field(description="The clicked episode's slug, as shown in the feed.")
     position: int = Field(ge=0, description="0-based rank position where it was shown.")
+
+
+class AppExitEntry(BaseModel):
+    """One reason the native app (or its WebView) ended, as the device recorded it (#2279)."""
+
+    source: Literal["metrickit", "android_exit_info", "webview_terminated", "memory_warning"]
+    reason: str = Field(pattern=r"^[a-z0-9_]{1,48}$", description="Platform reason, snake_case.")
+    count: int = Field(default=1, ge=0, le=1_000_000)
+    at: Optional[str] = Field(
+        default=None, max_length=40, description="When it happened (or a MetricKit window end)."
+    )
+
+
+class AppExitsBody(BaseModel):
+    """A batch of app-exit records the native app forwards on its next launch (#2279)."""
+
+    platform: Literal["ios", "android"]
+    app_version: str = Field(default="", max_length=40)
+    entries: list[AppExitEntry] = Field(default_factory=list, max_length=50)
 
 
 class AppGraphEventsBody(BaseModel):
@@ -2111,6 +2130,14 @@ class HealthResponse(BaseModel):
             "lost its signing secret across a reboot kept answering 200 while every authed route "
             "failed (incident 2026-09-16). Clients read this to enter a degraded/offline mode "
             "instead of concluding that every user had been signed out."
+        ),
+    )
+    auth_providers: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Names of the sign-in providers this deployment has configured, primary first (e.g. "
+            "``['google', 'apple']``) (#2275). The client shows a provider's button only when it "
+            "is listed, so a half-configured Apple setup never offers a button that 503s."
         ),
     )
     auth_epoch: str | None = Field(

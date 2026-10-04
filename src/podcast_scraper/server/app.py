@@ -22,7 +22,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from podcast_scraper import __version__
 from podcast_scraper.server import app_access_store, app_roles
 from podcast_scraper.server.app_access import policy_from_env
-from podcast_scraper.server.app_oauth import provider_from_env
+from podcast_scraper.server.app_oauth import providers_from_env
 from podcast_scraper.server.app_operator_guard import OperatorWriteGuard
 from podcast_scraper.server.app_user_seed import seed_from_env
 from podcast_scraper.server.pathutil import CorpusPathRequestError
@@ -38,6 +38,7 @@ from podcast_scraper.server.routes import (
     app_discover,
     app_enrichment,
     app_episodes,
+    app_exits,
     app_export,
     app_graph_events,
     app_key_voices,
@@ -124,7 +125,10 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
         app.state.app_data_dir = resolved_output / ".app"
     else:
         app.state.app_data_dir = None
-    app.state.oauth_provider = provider_from_env()
+    # Every configured provider (#2275); the primary is the first and stays `oauth_provider`, which
+    # everything that predates multi-provider sign-in (health, tests) reads.
+    app.state.oauth_providers = providers_from_env()
+    app.state.oauth_provider = next(iter(app.state.oauth_providers.values()), None)
     app.state.access_policy = policy_from_env()
     app.state.admin_emails = app_roles.admin_emails_from_env()
     # Seed a fixed dev roster (1 admin / 2 creators / 2 listeners, mock identities) when
@@ -244,6 +248,7 @@ _APP_ROUTES = (
     app_admin,
     app_artwork,
     app_episodes,
+    app_exits,
     app_graph_events,
     app_relational,
     app_discover,

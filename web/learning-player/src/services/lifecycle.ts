@@ -17,7 +17,8 @@
  */
 import { App } from '@capacitor/app'
 import { registerPlugin } from '@capacitor/core'
-import { track, type AwayBucket, type LaunchKind } from './analytics'
+import { resolveSession, track, type AwayBucket, type LaunchKind } from './analytics'
+import { postAppExits, type AppExitEntry } from './api'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
 import { restoreOutcome } from './lastPlace'
 import { isNative } from './native'
@@ -31,6 +32,10 @@ interface LastState {
 
 interface AppProcessPlugin {
   uptime(): Promise<{ ms: number }>
+  /** #2279: pending exit records, oldest first. Android adds the exit-history watermark. */
+  exitLog(): Promise<{ entries: AppExitEntry[]; historyThrough?: number }>
+  /** Clear what was delivered: iOS by `count`, Android by `historyThrough`. */
+  clearExitLog(opts: { count: number; historyThrough?: number }): Promise<void>
 }
 const AppProcess = registerPlugin<AppProcessPlugin>('AppProcess')
 
@@ -54,6 +59,31 @@ export function toAwayBucket(ms: number | null): AwayBucket {
   if (min < 15) return '5-15m'
   if (min < 60) return '15-60m'
   return '1h+'
+}
+
+/**
+ * Forward why the app last ended to the server, then clear what was delivered (#2279).
+ *
+ * The device records it natively — MetricKit's daily exit counts and memory warnings on iOS, the
+ * system's exit history on Android, and the WebView's content/renderer process dying on both —
+ * because the web layer is exactly what is gone when it happens. Cleared only after the server
+ * accepted it, so an offline launch keeps the records for the next one.
+ */
+export async function forwardExitLog(): Promise<void> {
+  try {
+    const { entries, historyThrough } = await AppProcess.exitLog()
+    if (!entries?.length) return
+    const session = resolveSession()
+    if (session.platform === 'web') return
+    const ok = await postAppExits({
+      platform: session.platform,
+      app_version: session.app_version,
+      entries: entries.slice(0, 50),
+    })
+    if (ok) await AppProcess.clearExitLog({ count: Math.min(entries.length, 50), historyThrough })
+  } catch {
+    // Telemetry never breaks the app.
+  }
 }
 
 async function writeState(state: LastState['state'], at = Date.now()): Promise<void> {
@@ -86,6 +116,7 @@ export async function initLifecycle(onBackground: () => Promise<void> | void): P
       restored: restoreOutcome(),
     })
     await writeState('foreground', now)
+    void forwardExitLog()
 
     let backgroundAt: number | null = null
     await App.addListener('appStateChange', ({ isActive }) => {

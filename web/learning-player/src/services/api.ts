@@ -956,6 +956,37 @@ export async function unmarkCompleted(slug: string): Promise<string[]> {
  * carries when the listen actually happened for events flushed after the fact; the server clamps
  * it, so a wrong device clock cannot write into the far past or the future.
  */
+/** One record of why the native app or its WebView ended (#2279); see services/lifecycle.ts. */
+export interface AppExitEntry {
+  source: 'metrickit' | 'android_exit_info' | 'webview_terminated' | 'memory_warning'
+  reason: string
+  count: number
+  at?: string
+}
+
+/**
+ * Forward the device's exit records to `/api/app/app-exits` (#2279). True only when the server
+ * accepted them, because the caller clears the device log on true — a false must leave the records
+ * for the next launch rather than losing them.
+ */
+export async function postAppExits(body: {
+  platform: 'ios' | 'android'
+  app_version: string
+  entries: AppExitEntry[]
+}): Promise<boolean> {
+  try {
+    const resp = await apiFetch(`${BASE}/app-exits`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    return resp.ok
+  } catch {
+    return false
+  }
+}
+
 export async function logListen(slug: string, clientTs?: number): Promise<boolean> {
   try {
     const resp = await apiFetch(`${BASE}/listen/${encodeURIComponent(slug)}`, {
@@ -1024,9 +1055,16 @@ export async function getEpisodeStats(slug: string): Promise<EpisodeStats> {
 }
 
 /** Begin the OAuth login flow (full-page redirect; Google in prod, mock in dev/e2e). */
-export function loginUrl(as?: string, native = false, returnTo?: string): string {
+export function loginUrl(
+  as?: string,
+  native = false,
+  returnTo?: string,
+  provider?: string,
+): string {
   const params = new URLSearchParams()
   if (as) params.set("as", as)
+  // Which configured provider (#2275) — `apple`; absent means the server's primary (Google).
+  if (provider) params.set("provider", provider)
   // Native (#1310): tells the backend to return the signed token via the app's deep link instead of
   // setting a cookie (which an external OAuth browser can't hand back to the WebView).
   if (native) params.set("platform", "native")

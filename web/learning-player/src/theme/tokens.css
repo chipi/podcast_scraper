@@ -130,4 +130,8 @@
   --lp-gsi-fill: #131314;
   --lp-gsi-stroke: #8e918f;
   --lp-gsi-text: #e3e3e3;
+  /* "Sign in with Apple", white style (for dark backgrounds) — Apple's HIG allows only black or
+     white, logo and title in the same colour. */
+  --lp-siwa-fill: #ffffff;
+  --lp-siwa-text: #000000;
 }

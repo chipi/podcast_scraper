@@ -9,18 +9,25 @@ flow with ``httpx``; credentials come from env (``APP_OAUTH_GOOGLE_CLIENT_ID`` /
 e2e: it self-completes the code flow with a fixed dev identity. It is selected **only**
 when ``APP_OAUTH_PROVIDER=mock`` is set explicitly (never the default), so it can never
 ship to production by accident — Google stays the production provider.
+
+``AppleProvider`` (#2275) — Sign in with Apple, which App Store guideline 4.8 requires next to
+Google Sign-In. It sits BESIDE the primary provider (``APP_OAUTH_PROVIDERS=google,apple``); see
+:func:`providers_from_env`.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import urlencode
 
 import httpx
+import jwt
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +67,12 @@ class OAuthProvider(Protocol):
         ...
 
     def exchange_code(self, *, code: str, redirect_uri: str) -> OAuthIdentity:
-        """Exchange an authorization ``code`` for the resolved identity."""
+        """Exchange an authorization ``code`` for the resolved identity.
+
+        A provider that receives extra callback fields (Apple's ``user``) takes them as optional
+        keyword arguments; the route passes them only when present, so the other providers — and
+        test stubs — keep this two-argument signature.
+        """
         ...
 
 
@@ -207,6 +219,198 @@ class MockOAuthProvider:
             subject=(os.environ.get("APP_OAUTH_MOCK_SUBJECT", "").strip() or "dev-local"),
             display_name=(os.environ.get("APP_OAUTH_MOCK_NAME", "").strip() or "Dev User"),
         )
+
+
+APPLE_ISSUER = "https://appleid.apple.com"
+APPLE_AUTH_URL = f"{APPLE_ISSUER}/auth/authorize"
+APPLE_TOKEN_URL = f"{APPLE_ISSUER}/auth/token"
+APPLE_KEYS_URL = f"{APPLE_ISSUER}/auth/keys"
+
+
+class AppleProvider:
+    """Sign in with Apple, web flow (#2275).
+
+    Three things differ from Google, and each is handled here rather than in the route:
+
+    * **The client secret is a JWT**, signed ES256 with the team's ``.p8`` key (iss = team id,
+      sub = Services ID, aud = Apple). Apple accepts one up to six months old; this mints a short
+      one and reuses it until it is close to expiry.
+    * **Identity comes from the ``id_token``**, verified against Apple's published keys (RS256,
+      audience = the Services ID, issuer = Apple). There is no userinfo endpoint.
+    * **The name is sent ONCE**, in the ``user`` form field of the very first authorization, never
+      again. ``get_or_create_user`` only uses the name when it creates the account, which is that
+      same first call — so it lands; later sign-ins fall back to the email, as Google's do.
+
+    ``response_mode=form_post`` is required whenever ``name``/``email`` are requested, so Apple's
+    callback is a cross-site POST that carries no SameSite=lax state cookie; the route's signed-
+    state fallback (#1977) is what accepts it.
+    """
+
+    name = "apple"
+    _SECRET_TTL_S = 24 * 3600
+
+    def __init__(
+        self,
+        *,
+        team_id: str,
+        key_id: str,
+        services_id: str,
+        private_key_pem: str,
+        timeout: float = 10.0,
+        jwks_client: jwt.PyJWKClient | None = None,
+    ) -> None:
+        self._team_id = team_id
+        self._key_id = key_id
+        self._services_id = services_id
+        self._private_key = private_key_pem
+        self._timeout = timeout
+        self._jwks = jwks_client or jwt.PyJWKClient(APPLE_KEYS_URL, timeout=int(timeout))
+        self._secret: tuple[str, float] | None = None
+
+    def authorization_url(
+        self, *, state: str, redirect_uri: str, login_hint: str | None = None
+    ) -> str:
+        """Apple's consent URL, asking for name + email (hence ``form_post``)."""
+        query = urlencode(
+            {
+                "client_id": self._services_id,
+                "redirect_uri": redirect_uri,
+                "response_type": "code",
+                "response_mode": "form_post",
+                "scope": "name email",
+                "state": state,
+            }
+        )
+        return f"{APPLE_AUTH_URL}?{query}"
+
+    def client_secret(self, now: float | None = None) -> str:
+        """The ES256 client-secret JWT, reused until an hour before it expires."""
+        now = time.time() if now is None else now
+        if self._secret is not None and self._secret[1] - now > 3600:
+            return self._secret[0]
+        exp = now + self._SECRET_TTL_S
+        token = jwt.encode(
+            {
+                "iss": self._team_id,
+                "iat": int(now),
+                "exp": int(exp),
+                "aud": APPLE_ISSUER,
+                "sub": self._services_id,
+            },
+            self._private_key,
+            algorithm="ES256",
+            headers={"kid": self._key_id},
+        )
+        self._secret = (token, exp)
+        return token
+
+    def verify_id_token(self, id_token: str) -> dict:
+        """Verify Apple's ``id_token`` (signature, issuer, audience, expiry); return the claims."""
+        try:
+            key = self._jwks.get_signing_key_from_jwt(id_token)
+            return jwt.decode(
+                id_token,
+                key.key,
+                algorithms=["RS256"],
+                audience=self._services_id,
+                issuer=APPLE_ISSUER,
+            )
+        except jwt.PyJWTError as exc:
+            raise OAuthError(f"Apple id_token rejected: {exc}") from exc
+
+    def exchange_code(
+        self, *, code: str, redirect_uri: str, user_json: str | None = None
+    ) -> OAuthIdentity:
+        """Exchange the code, verify the ``id_token``, and resolve the identity."""
+        try:
+            with httpx.Client(timeout=self._timeout) as client:
+                resp = client.post(
+                    APPLE_TOKEN_URL,
+                    data={
+                        "client_id": self._services_id,
+                        "client_secret": self.client_secret(),
+                        "code": code,
+                        "grant_type": "authorization_code",
+                        "redirect_uri": redirect_uri,
+                    },
+                )
+                resp.raise_for_status()
+                id_token = resp.json().get("id_token")
+        except httpx.HTTPError as exc:
+            raise OAuthError(f"Apple token exchange failed: {exc}") from exc
+        if not id_token:
+            raise OAuthError("Apple token response missing id_token")
+        claims = self.verify_id_token(id_token)
+        subject = claims.get("sub")
+        email = claims.get("email")
+        if not subject or not email:
+            raise OAuthError("Apple id_token missing sub/email")
+        return OAuthIdentity(
+            provider=self.name,
+            subject=str(subject),
+            email=str(email),
+            name=_apple_name(user_json) or str(email),
+        )
+
+    @classmethod
+    def from_env(cls) -> "AppleProvider | None":
+        """Build from ``APP_OAUTH_APPLE_*``, or ``None`` (with a warning) when any part is missing.
+
+        The key is the ``.p8`` file's PEM text in ``APP_OAUTH_APPLE_PRIVATE_KEY`` (``\\n`` escapes
+        accepted, since env files are one line per value) or a path in
+        ``APP_OAUTH_APPLE_PRIVATE_KEY_FILE``.
+        """
+        team_id = os.environ.get("APP_OAUTH_APPLE_TEAM_ID", "").strip()
+        key_id = os.environ.get("APP_OAUTH_APPLE_KEY_ID", "").strip()
+        services_id = os.environ.get("APP_OAUTH_APPLE_SERVICES_ID", "").strip()
+        pem = os.environ.get("APP_OAUTH_APPLE_PRIVATE_KEY", "").strip().replace("\\n", "\n")
+        key_file = os.environ.get("APP_OAUTH_APPLE_PRIVATE_KEY_FILE", "").strip()
+        if not pem and key_file:
+            try:
+                with open(key_file, encoding="utf-8") as fh:
+                    pem = fh.read().strip()
+            except OSError:
+                pem = ""
+        if team_id and key_id and services_id and pem:
+            return cls(team_id=team_id, key_id=key_id, services_id=services_id, private_key_pem=pem)
+        logger.warning(
+            "Apple sign-in requested but APP_OAUTH_APPLE_TEAM_ID/KEY_ID/SERVICES_ID/PRIVATE_KEY "
+            "are not all set — the Apple button stays hidden."
+        )
+        return None
+
+
+def _apple_name(user_json: str | None) -> str:
+    """The display name from Apple's first-authorization ``user`` field (empty when absent)."""
+    if not user_json:
+        return ""
+    try:
+        name = (json.loads(user_json) or {}).get("name") or {}
+    except (ValueError, AttributeError):
+        return ""
+    parts = [str(name.get(k) or "").strip() for k in ("firstName", "lastName")]
+    return " ".join(p for p in parts if p)[:60]
+
+
+def providers_from_env() -> dict[str, OAuthProvider]:
+    """Every configured provider, by name; the PRIMARY (``provider_from_env``) first.
+
+    ``APP_OAUTH_PROVIDERS`` (e.g. ``google,apple``) adds providers beside the primary — still
+    explicit, never inferred from credentials being present. Only ``apple`` can be added this way:
+    the primary already covers google/mock, and the mock must never ride along with a real one.
+    """
+    out: dict[str, OAuthProvider] = {}
+    primary = provider_from_env()
+    if primary is not None:
+        out[primary.name] = primary
+    extra = {
+        p.strip().lower() for p in os.environ.get("APP_OAUTH_PROVIDERS", "").split(",") if p.strip()
+    }
+    if "apple" in extra and primary is not None and primary.name != "mock":
+        apple = AppleProvider.from_env()
+        if apple is not None:
+            out[apple.name] = apple
+    return out
 
 
 def provider_from_env() -> OAuthProvider | None:

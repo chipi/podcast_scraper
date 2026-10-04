@@ -14,6 +14,7 @@ import time
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
@@ -53,6 +54,16 @@ def _secret(request: Request) -> str:
 def _data_dir(request: Request) -> Path | None:
     raw = getattr(request.app.state, "app_data_dir", None)
     return Path(raw) if raw is not None else None
+
+
+def _providers(request: Request) -> dict[str, OAuthProvider]:
+    """Every configured provider by name (#2275). Falls back to the single primary provider, which
+    is all a test app — or a deployment without ``APP_OAUTH_PROVIDERS`` — sets."""
+    configured = getattr(request.app.state, "oauth_providers", None)
+    if configured:
+        return dict(configured)
+    primary = _provider(request)
+    return {primary.name: primary} if primary is not None else {}
 
 
 def _provider(request: Request) -> OAuthProvider | None:
@@ -193,6 +204,11 @@ def app_auth_login(
         default=None,
         description="Same-origin path to return to after login (open-redirect-guarded).",
     ),
+    provider_name: str | None = Query(
+        default=None,
+        alias="provider",
+        description="Which configured provider to use (e.g. 'apple'); the primary when absent.",
+    ),
 ) -> RedirectResponse:
     """Begin the OAuth flow: redirect to the provider with a CSRF state cookie.
 
@@ -202,8 +218,10 @@ def app_auth_login(
     ``?grant=creator`` is the viewer's login hint: a *new* (or ``listener``) user is promoted to
     ``creator`` on callback. Only ``creator`` is ever granted this way — never ``admin``.
     """
-    provider = _provider(request)
+    provider = _providers(request).get(provider_name) if provider_name else _provider(request)
     secret = _secret(request)
+    if provider_name and provider is None:
+        raise HTTPException(status_code=404, detail="That sign-in provider is not configured.")
     if provider is None or not secret:
         raise HTTPException(status_code=503, detail="Auth is not configured.")
     nonce = secrets.token_urlsafe(24)
@@ -219,6 +237,9 @@ def app_auth_login(
             "grant": grant or "",
             "platform": "native" if platform == "native" else "",
             "return_to": _safe_return_to(return_to) or "",
+            # Which provider must complete this flow. The callback reads it from the VERIFIED
+            # state, never from a request parameter, so a callback cannot be steered to another.
+            "provider": provider.name,
         },
         secret,
     )
@@ -244,10 +265,36 @@ def app_auth_callback(
     state: str = Query(..., description="CSRF state echoed by the provider."),
 ) -> RedirectResponse:
     """Complete the OAuth flow: verify state, exchange code, upsert user, set session."""
-    provider = _provider(request)
+    return _complete_callback(request, code=code, state=state, user_json=None, status=307)
+
+
+@router.post("/auth/callback")
+async def app_auth_callback_form(request: Request) -> RedirectResponse:
+    """The same completion for a provider that POSTs its callback — Sign in with Apple (#2275).
+
+    Apple uses ``response_mode=form_post`` whenever name/email are requested. Parsed by hand from
+    the urlencoded body rather than with FastAPI ``Form`` fields, which would add the
+    ``python-multipart`` dependency for one route. The redirect that follows is a **303**: a 307
+    would make the browser re-POST to the app's home page.
+    """
+    form = parse_qs((await request.body()).decode("utf-8", "replace"))
+    code = (form.get("code") or [""])[0]
+    state = (form.get("state") or [""])[0]
+    if not code or not state:
+        # Apple posts `error=user_cancelled_authorize` (and no code) when the person cancels.
+        raise HTTPException(status_code=400, detail="Sign-in was cancelled or incomplete.")
+    return _complete_callback(
+        request, code=code, state=state, user_json=(form.get("user") or [""])[0] or None, status=303
+    )
+
+
+def _complete_callback(
+    request: Request, *, code: str, state: str, user_json: str | None, status: int
+) -> RedirectResponse:
+    """Verify state, exchange the code with the provider that started the flow, upsert, sign in."""
     secret = _secret(request)
     data_dir = _data_dir(request)
-    if provider is None or not secret or data_dir is None:
+    if not _providers(request) or not secret or data_dir is None:
         raise HTTPException(status_code=503, detail="Auth is not configured.")
     raw_state_cookie = request.cookies.get(app_sessions.STATE_COOKIE)
     from_cookie = app_sessions.verify(raw_state_cookie, secret, max_age=600)
@@ -280,8 +327,14 @@ def app_auth_callback(
             reason = "state cookie and echoed state are both valid but disagree"
         logger.warning("OAuth callback rejected: %s", reason)
         raise HTTPException(status_code=400, detail="Invalid OAuth state.")
+    # A state minted before #2275 carries no provider: that flow was the primary's.
+    named = saved.get("provider")
+    provider = _providers(request).get(named) if named else _provider(request)
+    if provider is None:
+        raise HTTPException(status_code=503, detail="Auth is not configured.")
+    extra = {"user_json": user_json} if user_json else {}
     try:
-        identity = provider.exchange_code(code=code, redirect_uri=_callback_uri(request))
+        identity = provider.exchange_code(code=code, redirect_uri=_callback_uri(request), **extra)
     except OAuthError as exc:
         raise HTTPException(status_code=502, detail="OAuth exchange failed.") from exc
     # Resolved PER SIGN-IN, not once at startup: the persisted policy (admin endpoint, #2190) wins
@@ -324,13 +377,13 @@ def app_auth_callback(
     # proxies the way a query string is), and the state cookie is cleared either way.
     if saved.get("platform") == "native":
         deep_link = f"{_native_scheme(request)}://auth#token={token}"
-        resp = RedirectResponse(deep_link, status_code=307)
+        resp = RedirectResponse(deep_link, status_code=status)
         resp.delete_cookie(app_sessions.STATE_COOKIE)
         return resp
     # Return to where login was initiated (e.g. the MCP /authorize consent, RFC-112) when a
     # guarded same-origin return_to rode the state cookie; otherwise the player home.
     dest = _safe_return_to(saved.get("return_to")) or "/"
-    resp = RedirectResponse(dest, status_code=307)
+    resp = RedirectResponse(dest, status_code=status)
     resp.set_cookie(
         app_sessions.SESSION_COOKIE,
         token,
