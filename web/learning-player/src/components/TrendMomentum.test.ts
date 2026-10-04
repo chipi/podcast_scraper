@@ -21,6 +21,25 @@ describe('TrendMomentum', () => {
     expect(el.find('svg').exists()).toBe(true)
   })
 
+  it('badge variant says "Cooling" with a down arrow below the flat band, never "Rising"', () => {
+    // Repro: the storyline page showed "↑ Rising · 0.4× vs its 6-month average" — the pill
+    // hard-coded the rising arrow and word for any velocity.
+    const w = mountIt({ variant: 'badge', velocity: 0.4, series: [6, 3, 1] })
+    const el = w.get('[data-testid="trend-momentum"]')
+    expect(el.text()).not.toContain('Rising')
+    expect(el.text()).not.toContain('↑')
+    expect(el.text()).toContain('Cooling')
+    expect(el.text()).toContain('↓')
+    expect(el.text()).toContain('0.4×')
+  })
+
+  it('badge variant says "Steady" with a level arrow inside the flat band', () => {
+    const el = mountIt({ variant: 'badge', velocity: 1.0 }).get('[data-testid="trend-momentum"]')
+    expect(el.text()).toContain('Steady')
+    expect(el.text()).toContain('→')
+    expect(el.text()).not.toContain('Rising')
+  })
+
   it('rail variant renders the arrow + velocity + sparkline', () => {
     const w = mountIt({ variant: 'rail', velocity: 1.8, series: [2, 4, 5] })
     const el = w.get('[data-testid="trend-momentum"]')

@@ -599,6 +599,8 @@
     "sigOn": "on {topic}",
     "sigMomentum": "Momentum",
     "sig_rising": "Rising",
+    "sig_cooling": "Cooling",
+    "sig_steady": "Steady",
     "sigVsAvg": "vs its 6-month average",
     "sigSimilar": "Similar topics",
     "sigAlongside": "Often discussed alongside"

@@ -14,7 +14,7 @@
 import { computed } from "vue"
 import { useI18n } from "vue-i18n"
 import Sparkline from "./Sparkline.vue"
-import { trendArrow, trendColor } from "./trending"
+import { trendArrow, trendColor, trendDirection } from "./trending"
 
 const props = withDefaults(
   defineProps<{
@@ -30,6 +30,25 @@ const props = withDefaults(
 const { t } = useI18n()
 const v = computed(() => Math.round(props.velocity * 10) / 10)
 const showSpark = computed(() => !props.hideSpark && (props.series?.length ?? 0) > 1)
+// The badge used to hard-code "↑ Rising" for ANY velocity, so a storyline at 0.4× read
+// "↑ Rising · 0.4×". It now follows the same direction bands as the rail. Rising keeps its
+// emerald pill exactly; cooling / steady take the trend token colour (which `paper` repaints).
+const direction = computed(() => trendDirection(props.velocity))
+const directionLabel = computed(() =>
+  direction.value === "up"
+    ? t("ec.sig_rising")
+    : direction.value === "down"
+      ? t("ec.sig_cooling")
+      : t("ec.sig_steady")
+)
+const pillStyle = computed(() =>
+  direction.value === "up"
+    ? undefined
+    : {
+        color: trendColor(props.velocity),
+        backgroundColor: `color-mix(in srgb, ${trendColor(props.velocity)} 18%, transparent)`,
+      }
+)
 </script>
 
 <template>
@@ -43,12 +62,20 @@ const showSpark = computed(() => !props.hideSpark && (props.series?.length ?? 0)
          — a 120px chart floating in a wide card read as unfinished). `w-full` + the svg's
          `preserveAspectRatio="none"` stretches it edge to edge. -->
     <span
-      class="inline-flex w-fit items-center gap-1 self-start whitespace-nowrap rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-300"
+      class="inline-flex w-fit items-center gap-1 self-start whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold"
+      :class="direction === 'up' ? 'bg-emerald-500/20 text-emerald-300' : ''"
+      :style="pillStyle"
     >
-      <span aria-hidden="true">↑</span>
-      {{ t("ec.sig_rising") }} · {{ v }}× {{ t("ec.sigVsAvg") }}
+      <span aria-hidden="true">{{ trendArrow(velocity) }}</span>
+      {{ directionLabel }} · {{ v }}× {{ t("ec.sigVsAvg") }}
     </span>
-    <Sparkline v-if="showSpark" :values="series!" class="h-8 w-full text-emerald-300" />
+    <Sparkline
+      v-if="showSpark"
+      :values="series!"
+      class="h-8 w-full"
+      :class="direction === 'up' ? 'text-emerald-300' : ''"
+      :style="direction === 'up' ? undefined : { color: trendColor(velocity) }"
+    />
   </span>
   <span
     v-else
