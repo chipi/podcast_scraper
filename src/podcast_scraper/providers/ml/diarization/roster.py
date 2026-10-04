@@ -2122,6 +2122,32 @@ def _name_host_voices(
             forced=forced_name is not None,
         )
 
+    # TWO NAMES, TWO SEATS, AND EACH SEAT ADDRESSES A DIFFERENT ONE (`_pair_by_address`): The Rest
+    # Is History, where Dominic says "Tom", Tom says "Dominic", and both seats sat unnamed (#2276).
+    # Not on a guest-hosted episode, and not when a seat performs a guest speech act.
+    pair_names: Dict[str, Tuple[str, str]] = {}
+    if forced_name is None and len(unnamed_seats) == 2 and len(unclaimed) == 2 and not guest_hosted:
+        texts_ = voice_texts or {}
+        guest_act = any(
+            s not in host_evidence_voices
+            and any(p.search(texts_.get(s, "")) for p in _GUEST_SPEECH_ACTS)
+            for s in unnamed_seats
+        )
+        pair = (
+            None
+            if guest_act
+            else _pair_by_address(
+                texts_, unnamed_seats[0], unnamed_seats[1], [n for n, _ in unclaimed]
+            )
+        )
+        src_of = dict(unclaimed)
+        pair_names = {v: (n, src_of[n]) for v, n in (pair or {}).items()}
+        tr.note(
+            "host_naming_pair",
+            performs_guest_act=guest_act,
+            named=sorted(f"{v}={n}" for v, (n, _) in pair_names.items()),
+        )
+
     for v in host_voices:
         iname = voice_intro.get(v)
         if iname and iname.lower() not in used_lower:
@@ -2146,6 +2172,12 @@ def _name_host_voices(
             used_lower.add(name.lower())
             out[v] = SpeakerRole(name=name, role="host", named=True, source=src, forced=True)
             tr.voice(v, "host_naming", "forced_pool_name", name=name, source=src)
+            continue
+        if v in pair_names:
+            name, src = pair_names[v]
+            used_lower.add(name.lower())
+            out[v] = SpeakerRole(name=name, role="host", named=True, source=src, forced=True)
+            tr.voice(v, "host_naming", "forced_pool_name", name=name, source=src, by="address_pair")
             continue
         out[v] = SpeakerRole(name=v, role="host", named=False, source="raw")
         tr.voice(v, "host_naming", "unnamed", intro_name_taken=iname or None)
@@ -3618,6 +3650,37 @@ def _vocative_count(text: str, host: str) -> int:
     return n
 
 
+def _pair_by_address(
+    texts: Mapping[str, str], a: str, b: str, names: Sequence[str]
+) -> Optional[Dict[str, str]]:
+    """Two voices and the two stated hosts: ``{a: name, b: name}`` when each voice addresses
+    exactly ONE of the two by first name, and not the same one -- each is then the host the other
+    addresses. One voice saying "Tom" proves only that it is not Tom (6 right / 4 wrong over the
+    gold sets: guests address hosts too); the consistent pair was 7 of 7 on gold host pairs
+    (#2276, The Rest Is History)."""
+    if len(names) != 2:
+        return None
+    said = {v: [n for n in names if _vocative_count(texts.get(v, ""), n) >= 1] for v in (a, b)}
+    if len(said[a]) != 1 or len(said[b]) != 1 or said[a][0] == said[b][0]:
+        return None
+    return {a: said[b][0], b: said[a][0]}
+
+
+def _address_pair(
+    texts: Mapping[str, str],
+    host_voices: Sequence[str],
+    candidates: Sequence[str],
+    unclaimed_hosts: Sequence[str],
+    fillable: int,
+) -> bool:
+    """Is the one empty seat's single candidate in the room by the hosts' OWN words -- the seated
+    host addresses one stated host and the candidate the other? That is evidence the co-host is
+    present, as "with me, Katie Martin" is, so the feed's co-presence history need not vouch."""
+    if fillable != 1 or len(candidates) != 1 or len(host_voices) != 1:
+        return False
+    return _pair_by_address(texts, host_voices[0], candidates[0], unclaimed_hosts) is not None
+
+
 def _addresses_rather_than_is(text: str, host: str, seated_hosts: Sequence[str]) -> bool:
     """Is this voice addressing ``host`` (so it is NOT them)? Diarization bleed puts both co-hosts'
     vocatives into one cluster (Hard Fork: a Kevin cluster carries "Casey, where are you?" AND
@@ -4180,12 +4243,19 @@ def _select_host_voices(
         absent = _hosts_said_absent(texts, known_hosts, set(host_voices))
         unclaimed_hosts = [h for h in host_names if h.lower() not in claimed and h not in absent]
         fillable = min(empty, len(unclaimed_hosts))
+        # A voice that addresses an unclaimed host is not THAT host -- but while two names are
+        # unclaimed it may still be the other one: on The Rest Is History the presenter's seat is
+        # filled but unnamed, so Tom Holland saying "Dominic" ruled him out of his own seat
+        # (#2276). Only a voice that addresses EVERY unclaimed host is none of them.
         candidates = [
             v
             for v in candidates
-            if not any(
-                _addresses_rather_than_is(texts.get(v, ""), h, seated_names)
-                for h in unclaimed_hosts
+            if not (
+                unclaimed_hosts
+                and all(
+                    _addresses_rather_than_is(texts.get(v, ""), h, seated_names)
+                    for h in unclaimed_hosts
+                )
             )
         ]
         guest_present = (
@@ -4227,7 +4297,7 @@ def _select_host_voices(
             candidates = picked if len(picked) == fillable else []
         cohost_present = any(
             _cohost_named_present(texts, h, set(ad_voices)) for h in unclaimed_hosts
-        )
+        ) or _address_pair(texts, host_voices, candidates, unclaimed_hosts, fillable)
         tr.note(
             "host_seat_step_4",
             empty_seats=empty,

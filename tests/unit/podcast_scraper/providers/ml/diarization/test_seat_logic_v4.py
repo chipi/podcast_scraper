@@ -633,3 +633,59 @@ def test_a_spare_voice_spanning_ninety_percent_of_the_episode_is_seated() -> Non
     """Control: the same voice whose turns cover 90% of the episode is seated."""
     roster = _roster(_span_turns([(850.0, 100.0)]))
     assert _seated_as_b(roster, "SPEAKER_01")
+
+
+# ---------------------------------------------------------------------------------------------
+# Two stated hosts, neither self-introduces, each addresses the other (#2276)
+# ---------------------------------------------------------------------------------------------
+
+NO_HISTORY_OF_BOTH = {1: 1.0, 2: 0.0, 3: 0.0}
+
+
+def _pair_episode(a_says: str, b_says: str) -> List[Turn]:
+    return [
+        ("SPEAKER_00", "Welcome back to the show. Today, the silk road.", 60.0),
+        ("SPEAKER_01", b_says, 300.0),
+        ("SPEAKER_00", a_says, 300.0),
+        ("SPEAKER_01", STUDIO2, 300.0),
+        ("SPEAKER_00", "Let's leave it there for today.", 40.0),
+    ]
+
+
+def test_pair_by_address_each_voice_is_the_host_the_other_addresses() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _pair_by_address
+
+    texts = {"A": "So, Greta, where do we start?", "B": "Well, Tobias, with the caravans."}
+    assert _pair_by_address(texts, "A", "B", [HOST_A, HOST_B]) == {"A": HOST_A, "B": HOST_B}
+
+
+def test_pair_by_address_abstains_when_both_address_the_same_host_or_one_addresses_both() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _pair_by_address
+
+    same = {"A": "So, Greta, where?", "B": "Right, Greta. The caravans."}
+    assert _pair_by_address(same, "A", "B", [HOST_A, HOST_B]) is None
+    bleed = {"A": "So, Greta, where? Yes, Tobias.", "B": "Well, Tobias, the caravans."}
+    assert _pair_by_address(bleed, "A", "B", [HOST_A, HOST_B]) is None
+
+
+def test_two_hosts_addressing_each_other_are_both_seated_and_named() -> None:
+    """The feed's history never named both by evidence (co-presence 0), and neither host says his
+    own name: the address pair is the evidence for the second seat AND for which host is which."""
+    roster = _roster(
+        _pair_episode("Greta, what became of the guilds?", "Well, Tobias, the ports moved north."),
+        host_copresence=NO_HISTORY_OF_BOTH,
+    )
+    assert roster.by_voice["SPEAKER_00"].name == HOST_A
+    assert roster.by_voice["SPEAKER_01"].name == HOST_B
+    assert roster.by_voice["SPEAKER_01"].role == "host"
+
+
+def test_without_the_pair_the_history_still_holds_the_second_seat() -> None:
+    """Control: the spare voice addresses nobody, so the co-presence history keeps it unseated and
+    no pool name is painted on either voice."""
+    roster = _roster(
+        _pair_episode("Greta, what became of the guilds?", STUDIO),
+        host_copresence=NO_HISTORY_OF_BOTH,
+    )
+    assert roster.by_voice["SPEAKER_01"].role != "host"
+    assert roster.by_voice["SPEAKER_01"].name not in (HOST_A, HOST_B)
