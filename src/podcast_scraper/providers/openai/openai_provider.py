@@ -1731,11 +1731,17 @@ class OpenAICompatibleProvider:
             detected_hosts_list = [name.strip() for name in detected_hosts_list if name.strip()]
             guests_list = [name.strip() for name in guests_list if name.strip()]
 
-            # Filter hosts to only include those in known_hosts
+            # A host the model names is TRUSTED as a host only if the feed already states it.
             detected_hosts = {host for host in detected_hosts_list if host in known_hosts}
 
-            # Build speaker names list: hosts first, then guests
-            speaker_names = list(detected_hosts) + guests_list
+            # ...but every person it names is a person the episode states, and is KEPT: known hosts
+            # first, then guests, then the rest (an unknown "host", a "speaker" in neither list) —
+            # each goes on to corroboration like any proposed name. Dropping them is how a feed that
+            # states no host (rotating hosts) lost every name the model found and got the failure
+            # placeholders instead: 8 of 103 gold episodes re-detected on 2026-10-04 (#2276).
+            speaker_names = list(
+                dict.fromkeys([*detected_hosts, *guests_list, *detected_hosts_list, *all_speakers])
+            )
 
             # Ensure we have at least MIN_SPEAKERS_REQUIRED speakers
             min_speakers = getattr(self.cfg, "screenplay_num_speakers", 2)

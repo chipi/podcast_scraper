@@ -118,3 +118,38 @@ def test_the_shape_that_regressed() -> None:
 
     names, _, _ = _provider()._parse_speakers_from_response(_json.dumps(payload), HOSTS)
     assert len(names) == 3, f"expected both hosts and the guest, got {names}"
+
+
+class TestEveryPersonTheModelNamesIsKept:
+    """A host the model names is TRUSTED as a host only if the feed already states it — but it is
+    still a person the episode states, and must never be dropped (#2276, problem 14).
+
+    Found by re-running today's detector on gold episodes with the raw answer recorded: on 8 of 103
+    the model answered correctly ("Jeff Guo", "Emma Peaslee" on a feed that states no host) and the
+    parser threw it all away, then padded the list with the failure placeholders. Synthetic names.
+    """
+
+    def test_hosts_on_a_feed_that_states_none_are_kept_as_people(self) -> None:
+        payload = (
+            '{"speakers": ["Ana Rook", "Ben Vale"],'
+            ' "hosts": ["Ana Rook", "Ben Vale"], "guests": []}'
+        )
+        names, hosts, ok = _provider()._parse_speakers_from_response(payload, set())
+        assert ok
+        assert hosts == set(), "not trusted as hosts: the feed states none"
+        assert {"Ana Rook", "Ben Vale"} <= set(names)
+        assert "Host" not in names and "unknown_guest_1" not in names
+
+    def test_a_named_person_who_is_neither_host_nor_guest_is_kept(self) -> None:
+        payload = (
+            '{"speakers": ["Kevin Roose", "Cleo Marsh", "Dev Patel-Ng"],'
+            ' "hosts": ["Kevin Roose"], "guests": ["Dev Patel-Ng"]}'
+        )
+        names, hosts, _ = _provider()._parse_speakers_from_response(payload, HOSTS)
+        assert hosts == {"Kevin Roose"}
+        assert {"Kevin Roose", "Cleo Marsh", "Dev Patel-Ng"} <= set(names)
+
+    def test_an_unknown_host_is_listed_once(self) -> None:
+        payload = '{"speakers": ["Ana Rook"], "hosts": ["Ana Rook"], "guests": ["Ana Rook"]}'
+        names, _, _ = _provider()._parse_speakers_from_response(payload, set())
+        assert names.count("Ana Rook") == 1
