@@ -8,6 +8,7 @@ import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 defineOptions({ name: "ProfileView" }) // stable name for <keep-alive :include> (App.vue)
 import {
+  clearListeningHistory,
   getComms,
   getMyStats,
   getStorylines,
@@ -192,6 +193,28 @@ async function onSignOut(): Promise<void> {
   // just signed out might want next. Sending them to a bare list instead reads like a session that
   // half-broke rather than one they deliberately ended.
   await router.push({ name: "home" })
+}
+
+/** Clear listening history (#2273): the inline confirmation and its outcome. */
+const clearAsk = ref(false)
+const clearing = ref(false)
+const clearResult = ref("")
+
+async function onClearHistory(): Promise<void> {
+  clearing.value = true
+  clearResult.value = ""
+  try {
+    await clearListeningHistory()
+  } catch {
+    clearing.value = false
+    clearResult.value = t("deleteAccount.clearHistoryError")
+    return
+  }
+  clearing.value = false
+  clearAsk.value = false
+  clearResult.value = t("deleteAccount.clearHistoryDone")
+  // The stats on this page are built from exactly what was cleared.
+  stats.value = await getMyStats().catch(() => null)
 }
 
 const stats = ref<UserStats | null>(null)
@@ -969,6 +992,44 @@ onActivated(() => {
       >
         {{ t("auth.signOut") }}
       </button>
+      <!-- Clear listening history (#2273): Google Play's "delete some data without deleting the
+           account". Two steps — the first tap only explains what goes and what stays. -->
+      <div v-if="auth.isAuthenticated" class="mt-6 text-center" data-testid="profile-clear-history">
+        <button
+          v-if="!clearAsk"
+          type="button"
+          class="text-xs text-muted underline"
+          data-testid="profile-clear-history-open"
+          @click="clearAsk = true"
+        >
+          {{ t("deleteAccount.clearHistoryLink") }}
+        </button>
+        <div v-else class="rounded-2xl border border-border p-4 text-left text-sm">
+          <p class="mb-3">{{ t("deleteAccount.clearHistoryBody") }}</p>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="rounded-full bg-danger px-4 py-2 text-sm font-bold text-canvas disabled:opacity-40"
+              :disabled="clearing"
+              data-testid="profile-clear-history-confirm"
+              @click="onClearHistory"
+            >
+              {{ t("deleteAccount.clearHistoryConfirm") }}
+            </button>
+            <button
+              type="button"
+              class="rounded-full border border-border px-4 py-2 text-sm"
+              data-testid="profile-clear-history-cancel"
+              @click="clearAsk = false"
+            >
+              {{ t("deleteAccount.clearHistoryCancel") }}
+            </button>
+          </div>
+        </div>
+        <p v-if="clearResult" role="status" class="mt-2 text-xs" data-testid="profile-clear-history-result">
+          {{ clearResult }}
+        </p>
+      </div>
       <!-- Account deletion (#2273, App Store 5.1.1(v)): reachable from inside the app, quieter
            still than Sign out, and never a one-tap action — it opens a page that explains and
            asks for a typed confirmation. -->

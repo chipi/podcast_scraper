@@ -23,8 +23,27 @@ describe('AboutPageView', () => {
   it('titles the page from the :page param and links back to Settings', () => {
     const w = mountAbout('privacy')
     expect(w.get('[data-testid="about-page-title"]').text()).toBe(en.about.privacy)
-    expect(w.get('[data-testid="about-page"]').text()).toContain(en.about.placeholder)
     expect(w.find('a[href="/settings"]').exists()).toBe(true)
+  })
+
+  it('the privacy page is the real policy (#2210), with its open items flagged as a draft', () => {
+    const w = mountAbout('privacy')
+    const policy = w.get('[data-testid="privacy-policy"]').text()
+    expect(w.get('[data-testid="about-page"]').text()).not.toContain(en.about.placeholder)
+    // The things the store declarations promise must be stated here too.
+    for (const claim of ['Delete your account', 'Clear listening history', 'Settings › Privacy', 'aged 16', 'info@closelistening.app', 'do not sell']) {
+      expect(policy, claim).toContain(claim)
+    }
+    // Unfinished parts are visible, not silent — the controller and backup retention.
+    const notice = w.get('[data-testid="privacy-draft-notice"]').text()
+    expect(notice).toContain('controller')
+    expect(notice).toContain('backups')
+  })
+
+  it('the other legal pages are still placeholders', () => {
+    const w = mountAbout('terms')
+    expect(w.text()).toContain(en.about.placeholder)
+    expect(w.find('[data-testid="privacy-policy"]').exists()).toBe(false)
   })
 
   it('resolves each known page slug to its title', () => {

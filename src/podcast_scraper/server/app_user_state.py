@@ -761,6 +761,42 @@ def list_listen_events(data_dir: Path, user_id: str) -> list[dict[str, Any]]:
     return out
 
 
+#: Everything that records WHAT a person listened to and WHEN (Google Play "activity history",
+#: #2273). The library, follows, queue, highlights, notes, collections and interests are the
+#: person's own choices, not history, and are left alone.
+_HISTORY_JSON = ("playback", "listening_daily", "completed")
+_HISTORY_LOGS = ("listen_events.jsonl", "playback_events.jsonl", "topic_exposure.jsonl")
+#: Owned by app_corpus_revision; its snapshot lists every "experienced" episode. Removing it makes
+#: the next read rebuild an empty log — consumers behind it get a full re-export (RFC-113 §2).
+_CORPUS_LOG = "corpus_log.json"
+
+
+def clear_listening_history(data_dir: Path, user_id: str) -> list[str]:
+    """Delete the person's listening history, keeping the account and everything they chose.
+
+    Positions, daily listening time, finished marks, the listen, playback-milestone and topic
+    logs and the corpus change log. Returns the names actually removed (for the log event). Each
+    JSON store is removed under its own write lock, so a concurrent position save cannot land on a
+    half-cleared state and resurrect a row.
+    """
+    removed: list[str] = []
+    udir = data_dir / "users" / user_id
+    if not udir.is_dir():
+        return removed
+    for name in _HISTORY_JSON:
+        with _user_lock(data_dir, user_id, name):
+            path = _state_path(data_dir, user_id, name)
+            if path.is_file():
+                path.unlink()
+                removed.append(f"{name}.json")
+    for name in (*_HISTORY_LOGS, _CORPUS_LOG):
+        path = udir / name
+        if path.is_file():
+            path.unlink()
+            removed.append(name)
+    return removed
+
+
 def iter_user_ids(data_dir: Path) -> list[str]:
     """Every user id with a per-user directory (for cross-user aggregation)."""
     users_dir = data_dir / "users"

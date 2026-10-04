@@ -791,3 +791,46 @@ describe("ProfileView — display name and the new-account welcome (#2272)", () 
     expect(w.find('[data-testid="profile-name-form"]').exists(), "editor closes").toBe(false)
   })
 })
+
+describe("ProfileView — clear listening history (#2273)", () => {
+  it("asks first, then clears, then refreshes the stats it was built from", async () => {
+    const clear = vi.spyOn(api, "clearListeningHistory").mockResolvedValue()
+    const w = mountProfile()
+    await flushPromises()
+    expect(w.find('[data-testid="profile-clear-history-confirm"]').exists()).toBe(false)
+    await w.get('[data-testid="profile-clear-history-open"]').trigger("click")
+    expect(w.get('[data-testid="profile-clear-history"]').text()).toContain("library, queue")
+    expect(clear).not.toHaveBeenCalled()
+    const statsCalls = (api.getMyStats as unknown as { mock: { calls: unknown[] } }).mock.calls.length
+    await w.get('[data-testid="profile-clear-history-confirm"]').trigger("click")
+    await flushPromises()
+    expect(clear).toHaveBeenCalledOnce()
+    expect(w.get('[data-testid="profile-clear-history-result"]').text()).toBe(
+      "Your listening history was cleared."
+    )
+    expect((api.getMyStats as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(
+      statsCalls + 1
+    )
+  })
+
+  it("cancel clears nothing", async () => {
+    const clear = vi.spyOn(api, "clearListeningHistory").mockResolvedValue()
+    const w = mountProfile()
+    await flushPromises()
+    await w.get('[data-testid="profile-clear-history-open"]').trigger("click")
+    await w.get('[data-testid="profile-clear-history-cancel"]').trigger("click")
+    expect(clear).not.toHaveBeenCalled()
+    expect(w.find('[data-testid="profile-clear-history-confirm"]').exists()).toBe(false)
+  })
+
+  it("a failure says so and keeps the confirmation open", async () => {
+    vi.spyOn(api, "clearListeningHistory").mockRejectedValue(new api.ApiError(500, "boom"))
+    const w = mountProfile()
+    await flushPromises()
+    await w.get('[data-testid="profile-clear-history-open"]').trigger("click")
+    await w.get('[data-testid="profile-clear-history-confirm"]').trigger("click")
+    await flushPromises()
+    expect(w.get('[data-testid="profile-clear-history-result"]').text()).toContain("Couldn't clear")
+    expect(w.find('[data-testid="profile-clear-history-confirm"]').exists()).toBe(true)
+  })
+})

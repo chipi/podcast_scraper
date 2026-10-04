@@ -109,6 +109,8 @@ describe("DeleteAccountView", () => {
     await flushPromises()
     expect(w.get('[data-testid="delete-account-signed-out"]').text()).toContain("info@closelistening.app")
     expect(w.find('[data-testid="delete-account-submit"]').exists()).toBe(false)
+    // Play's "Manage app data" link points here too: partial deletion must be explained.
+    expect(w.get('[data-testid="delete-account-partial"]').text()).toContain("Clear listening history")
     expect(w.get("a").attributes("href")).toBe("/login?redirect=/account/delete")
   })
 })

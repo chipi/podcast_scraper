@@ -301,6 +301,19 @@ def unmark_completed(
     )
 
 
+@router.delete("/me/history", status_code=204)
+def clear_history(request: Request, user: User = Depends(get_current_user)) -> None:
+    """Clear the signed-in person's listening history (#2273 — Play "delete some data").
+
+    Positions, finished marks, listening time and the event logs go; the account, library,
+    follows, queue, highlights, notes and collections stay. The UI asks for confirmation first.
+    """
+    from podcast_scraper.obs.events import emit_event
+
+    removed = app_user_state.clear_listening_history(_data_dir(request), user.user_id)
+    emit_event("listening_history_cleared", sink="log", logger=logger, files=len(removed))
+
+
 @router.get("/interests", response_model=InterestsResponse)
 def get_interests(request: Request, user: User = Depends(get_current_user)) -> InterestsResponse:
     """Return the user's saved interest cluster ids (personalized discovery)."""

@@ -247,3 +247,47 @@ def test_finished_envelopes_age_out_and_sign_in_ones_sooner(tmp_path: Path) -> N
         json.loads(p.read_text())["envelope"]["id"] for p in (data / "outbox").glob("*.json")
     )
     assert left == ["new_digest", "pending_old"], "pending is never pruned; finished ones age out"
+
+
+# --- Clear listening history (#2273, Play "delete some data") ------------------------------------
+
+from podcast_scraper.server import app_user_state  # noqa: E402
+
+
+def test_clear_history_removes_what_was_heard_and_keeps_what_was_chosen(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    data = app.state.app_data_dir
+    client = _login(app, "ada")
+    uid = _uid(client)
+    udir = data / "users" / uid
+    # History
+    app_user_state.set_playback(data, uid, "ep-1", 120.0, int(time.time()))
+    app_user_state.mark_completed(data, uid, "ep-2")
+    for name in ("listen_events.jsonl", "playback_events.jsonl", "topic_exposure.jsonl"):
+        (udir / name).write_text('{"slug": "ep-1"}\n')
+    (udir / "listening_daily.json").write_text('{"2026-10-04": 600}')
+    (udir / "corpus_log.json").write_text('{"revision": 3, "snapshot": ["experienced:ep-1"]}')
+    # Choices
+    app_user_state.add_queue_item(data, uid, "ep-9")
+    app_user_state.add_favorite(data, uid, {"kind": "episode", "ref": "ep-9"})
+
+    assert client.delete("/api/app/me/history").status_code == 204
+
+    for gone in (
+        "playback.json",
+        "completed.json",
+        "listening_daily.json",
+        "listen_events.jsonl",
+        "playback_events.jsonl",
+        "topic_exposure.jsonl",
+        "corpus_log.json",
+    ):
+        assert not (udir / gone).exists(), gone
+    assert app_user_state.get_queue(data, uid) == ["ep-9"]
+    assert app_user_state.get_favorites(data, uid)
+    assert get_user(data, uid) is not None
+    assert client.get("/api/app/me").status_code == 200
+
+
+def test_clear_history_needs_a_session(tmp_path: Path) -> None:
+    assert TestClient(_app(tmp_path)).delete("/api/app/me/history").status_code == 401

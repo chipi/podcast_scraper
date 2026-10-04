@@ -39,3 +39,23 @@ test('the deletion page explains itself to someone signed out (the Play listing 
   await expect(page.getByTestId('delete-account-signed-out')).toContainText('Profile › Account › Delete account')
   await expect(page.getByTestId('delete-account-submit')).toHaveCount(0)
 })
+
+test('clear listening history asks first, then clears, and the account stays', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'clear-history', testInfo)
+  await page.goto('/profile?tab=account')
+  await page.getByTestId('profile-clear-history-open').click()
+  await expect(page.getByTestId('profile-clear-history')).toContainText('library, queue')
+  await page.getByTestId('profile-clear-history-confirm').click()
+  await expect(page.getByTestId('profile-clear-history-result')).toHaveText(
+    'Your listening history was cleared.',
+  )
+  const me = await page.request.get('/api/app/me')
+  expect(me.status()).toBe(200)
+})
+
+test('the privacy policy is readable signed out, at /privacy (the store-listing URL)', async ({ page }) => {
+  await page.goto('/privacy')
+  await expect(page).toHaveURL(/\/about\/privacy$/)
+  await expect(page.getByTestId('privacy-policy')).toContainText('Delete your account')
+  await expect(page.getByTestId('privacy-draft-notice')).toBeVisible()
+})

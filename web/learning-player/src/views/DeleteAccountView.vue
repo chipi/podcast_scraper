@@ -75,6 +75,9 @@ async function onDelete(): Promise<void> {
         <li>{{ t('deleteAccount.keptOther') }}</li>
       </ul>
 
+      <h2 class="mb-1 text-sm font-bold">{{ t('deleteAccount.partialTitle') }}</h2>
+      <p class="mb-6 text-sm text-muted" data-testid="delete-account-partial">{{ t('deleteAccount.partialBody') }}</p>
+
       <form @submit.prevent="onDelete">
         <label class="mb-1 block text-sm font-bold" for="delete-confirm">
           {{ t('deleteAccount.confirmLabel') }}
@@ -107,6 +110,8 @@ async function onDelete(): Promise<void> {
       <p class="mb-5 text-sm" data-testid="delete-account-signed-out">
         {{ t('deleteAccount.signedOutBody', { email: SUPPORT_EMAIL }) }}
       </p>
+      <h2 class="mb-1 text-sm font-bold">{{ t('deleteAccount.partialTitle') }}</h2>
+      <p class="mb-5 text-sm text-muted" data-testid="delete-account-partial">{{ t('deleteAccount.partialBody') }}</p>
       <RouterLink
         :to="{ name: 'login', query: { redirect: '/account/delete' } }"
         class="inline-block rounded-full border border-border px-5 py-2 text-sm font-bold no-underline"

@@ -152,12 +152,16 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/SettingsView.vue'),
   },
   {
-    // Placeholder About/legal pages (3rd-party / privacy / terms) — empty content for now.
+    // About/legal pages (3rd-party / privacy / terms). PUBLIC: a privacy policy must be readable
+    // before signing up, and the store listings link to it (#2210).
     path: '/about/:page',
     name: 'about-page',
     component: () => import('../views/AboutPageView.vue'),
     props: true,
+    meta: { public: true },
   },
+  // The address store listings give for the privacy policy (#2210).
+  { path: '/privacy', redirect: { name: 'about-page', params: { page: 'privacy' } } },
   /**
    * Browse is ONE surface with tabs — these paths are aliases into it (#2004 follow-up).
    *

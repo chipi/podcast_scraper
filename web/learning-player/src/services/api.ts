@@ -1155,6 +1155,15 @@ export async function uploadAvatar(file: Blob): Promise<{ image: string }> {
 /** Set the signed-in user's display name. Resolves to the name as stored (whitespace collapsed);
  *  throws ApiError 400 for a name the server refuses (empty, too long, control characters). */
 /**
+ * Clear the signed-in person's listening history (#2273): positions, finished marks, listening time
+ * and the event logs. The account, library, queue, highlights, notes and collections stay.
+ */
+export async function clearListeningHistory(): Promise<void> {
+  const resp = await apiFetch(`${BASE}/me/history`, { method: "DELETE", credentials: "include" })
+  if (resp.status !== 204) throw new ApiError(resp.status, `DELETE /me/history → ${resp.status}`)
+}
+
+/**
  * Delete the signed-in account, irreversibly (#2273). `confirm` must be the literal "DELETE" — the
  * server checks it too, so a stray call cannot delete anyone. Throws ApiError on anything but 204.
  */
