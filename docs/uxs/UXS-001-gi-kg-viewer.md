@@ -226,9 +226,11 @@ against light surfaces, which the original Tailwind 400/500 hues did not (1.81�
 `success`, cooling → `danger`, steady → `muted`. Tokens, so they follow the theme; steady is
 grey because it is the "not moving" state.
 
-**Graph overlays** — tokenized as shipped (#2280): today's values, identical in light and dark,
-named after what the UI shows. Separate from the trend colours they used to share by accident.
-Whether any of them needs a light-theme value is a measured, separate decision.
+**Graph overlays** — tokenized as shipped (#2280), named after what the UI shows, and separate
+from the trend colours they used to share by accident. Dark keeps the shipped values. On the
+light graph canvas the green and amber measured 2.00–2.13:1, so light uses the same hues
+darkened to clear 3:1 (`token-contrast.test.ts` holds it); region tints are low-opacity
+underlays with no legibility role and are identical in both themes.
 
 | Token | Dark | Light | Usage |
 | --- | --- | --- | --- |
@@ -240,11 +242,11 @@ Whether any of them needs a light-theme value is a measured, separate decision.
 | `region-6` | `#a37bd9` | `#a37bd9` | Theme / person-community region tint 6 |
 | `region-7` | `#a3d97b` | `#a3d97b` | Theme / person-community region tint 7 |
 | `region-8` | `#7bd9d9` | `#7bd9d9` | Theme / person-community region tint 8 |
-| `credibility-high` | `#22c55e` | `#22c55e` | "Person credibility" border — high grounding rate |
-| `credibility-medium` | `#f59e0b` | `#f59e0b` | "Person credibility" border — medium |
+| `credibility-high` | `#22c55e` | `#1ca14d` | "Person credibility" border — high grounding rate |
+| `credibility-medium` | `#f59e0b` | `#c27d08` | "Person credibility" border — medium |
 | `credibility-low` | `#ef4444` | `#ef4444` | "Person credibility" border — low (dashed) |
-| `consensus` | `#22c55e` | `#22c55e` | "Consensus edges" |
-| `coguest` | `#f59e0b` | `#f59e0b` | "Co-guest edges" (dotted) |
+| `consensus` | `#22c55e` | `#1ca14d` | "Consensus edges" |
+| `coguest` | `#f59e0b` | `#c27d08` | "Co-guest edges" (dotted) |
 
 Banners may use `color-mix` against `surface` / `border`; new variants should
 still derive from the tokens above.

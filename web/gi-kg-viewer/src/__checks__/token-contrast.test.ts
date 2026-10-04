@@ -100,6 +100,19 @@ describe('viewer token contrast meets WCAG AA (#2280)', () => {
     })
   }
 
+  /** Graph overlays are borders / edges on the graph canvas — graphics, so 3:1. */
+  const GRAPH_OVERLAYS = ['credibility-high', 'credibility-medium', 'credibility-low', 'consensus', 'coguest']
+  for (const [theme, t] of Object.entries(THEMES)) {
+    it(`${theme}: graph overlay colours read against the graph canvas at 3:1`, () => {
+      const raw = t.get('graph-canvas')!
+      const canvas = raw.startsWith('var(') ? t.get(raw.slice(9, -1))! : raw
+      const failing = GRAPH_OVERLAYS.map((k) => ({ k, ratio: contrast(t.get(k)!, canvas) }))
+        .filter(({ ratio }) => ratio < 3)
+        .map(({ k, ratio }) => `${k}: ${ratio.toFixed(2)}:1`)
+      expect(failing).toEqual([])
+    })
+  }
+
   it('the OS-preference light palette is the explicit light palette', () => {
     // tokens.css repeats the light palette for `prefers-color-scheme`; a value edited in one copy
     // and not the other gives users a different theme depending on how they reached it.
