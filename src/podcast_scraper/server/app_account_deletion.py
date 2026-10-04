@@ -56,6 +56,10 @@ def store_apple_refresh_token(data_dir: Path, user_id: str, token: str) -> None:
 
 
 def apple_refresh_token(data_dir: Path, user_id: str) -> str | None:
+    """Return the stored Sign in with Apple refresh token for ``user_id``, or None.
+
+    None when the id is not a safe path segment, no token file exists, or it cannot be read.
+    """
     if not _is_safe_user_id(user_id):
         return None
     path = data_dir / "users" / user_id / _APPLE_TOKEN_FILE

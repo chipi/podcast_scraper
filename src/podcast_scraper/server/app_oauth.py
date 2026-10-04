@@ -227,7 +227,9 @@ class MockOAuthProvider:
 class SigningKeySource(Protocol):
     """What :class:`AppleProvider` needs from a JWKS client: the key that signed a token."""
 
-    def get_signing_key_from_jwt(self, token: str) -> Any: ...
+    def get_signing_key_from_jwt(self, token: str) -> Any:
+        """Return the JWKS key that signed ``token`` (matched on its ``kid`` header)."""
+        ...
 
 
 APPLE_ISSUER = "https://appleid.apple.com"
