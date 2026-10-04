@@ -11,9 +11,6 @@ import {
   clearListeningHistory,
   getComms,
   getMyStats,
-  getStorylines,
-  getTopClusters,
-  getUserInterests,
   putComms,
   setProfileName,
   uploadAvatar,
@@ -22,8 +19,6 @@ import type {
   CommsChannel,
   CommsSettings,
   CommsType,
-  InterestCluster,
-  Storyline,
   UserStats,
 } from "../services/types"
 import { disablePush, enablePush } from "../composables/usePushSubscription"
@@ -33,14 +28,15 @@ import { useAuthStore } from "../stores/auth"
 import { useUserPreferencesStore } from "../stores/userPreferences"
 import Tabs from "../components/Tabs.vue"
 import { panelAttrs, type TabSpec } from "../components/tabs"
-import InterestsPicker from "../components/InterestsPicker.vue"
+import InterestSections from "../components/InterestSections.vue"
 import Sparkline from "../components/Sparkline.vue"
 import ListeningRecap from "../components/ListeningRecap.vue"
 import ProfileAvatar from "../components/ProfileAvatar.vue"
 import AvatarCropModal from "../components/AvatarCropModal.vue"
 const EntityCard = defineAsyncComponent(() => import("../components/EntityCard.vue"))
 const StorylineCard = defineAsyncComponent(() => import("../components/StorylineCard.vue"))
-import { dedupeByLabel, interestKind, interestLabel } from "../utils/interests"
+import { useInterestsStore } from "../stores/interests"
+import type { InterestKind } from "../utils/interests"
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -76,13 +72,19 @@ async function onCropConfirm(blob: Blob): Promise<void> {
   }
 }
 
-// Profile is tabbed (Account / Topics / Stats) so the identity, personalization and analytics are
-// three destinations rather than one long scroll. About/version/help live in Settings (the gear).
-type ProfileTab = "account" | "topics" | "stats"
+// Profile is tabbed (Account / Interests / Stats) so the identity, personalization and analytics
+// are three destinations rather than one long scroll. About/version/help live in Settings (the gear).
+type ProfileTab = "account" | "interests" | "stats"
 // Open the tab named in `?tab=` (Home's "see my stats" prompt deep-links to `?tab=stats`); default
 // to Account. Was hardcoded to "account", so every entry point landed on the first tab (operator
 // 2026-09-14). Only whitelisted keys, so a bad query can't blank the panel.
-const PROFILE_TABS: ProfileTab[] = ["account", "topics", "stats"]
+const PROFILE_TABS: ProfileTab[] = ["account", "interests", "stats"]
+/** The Interests tab was "Topics" until 2026-10-04; links written before then still land on it. */
+function tabFromQuery(raw: unknown): ProfileTab | null {
+  const key = String(raw || "")
+  if (key === "topics") return "interests"
+  return (PROFILE_TABS as string[]).includes(key) ? (key as ProfileTab) : null
+}
 const route = useRoute()
 
 // --- Display name (#2272) ------------------------------------------------------------------------
@@ -137,22 +139,19 @@ watch(
   { immediate: true }
 )
 
-const initialTab = String(route.query.tab || "")
-const tab = ref<ProfileTab>(
-  (PROFILE_TABS as string[]).includes(initialTab) ? (initialTab as ProfileTab) : "account"
-)
+const tab = ref<ProfileTab>(tabFromQuery(route.query.tab) ?? "account")
 // ProfileView is kept alive (KEEP_ALIVE_TABS), so setup runs once — re-navigating with a new `?tab=`
 // (e.g. tapping "see my stats" while Profile is already cached) must still switch the tab.
 watch(
   () => route.query.tab,
   (v) => {
-    const next = String(v || "")
-    if ((PROFILE_TABS as string[]).includes(next)) tab.value = next as ProfileTab
+    const next = tabFromQuery(v)
+    if (next) tab.value = next
   }
 )
 const profileTabs = computed<TabSpec<ProfileTab>[]>(() => [
   { key: "account", label: t("profile.tabAccount") },
-  { key: "topics", label: t("profile.tabTopics") },
+  { key: "interests", label: t("profile.tabInterests") },
   { key: "stats", label: t("profile.tabStats") },
 ])
 
@@ -169,11 +168,9 @@ function setYourWeekLayout(v: "compact" | "full"): void {
   void userPrefs.set(YOUR_WEEK_LAYOUT_KEY, v)
 }
 
-const interests = ref<string[]>([])
-const clusters = ref<InterestCluster[]>([])
-// Followed `thc:` tokens resolve their label AND their anchor topic through this.
-const storylines = ref<Storyline[]>([])
-const pickerOpen = ref(false)
+// Every follow on the Interests tab goes through the store, the same toggle an entity card's Follow
+// uses — so a change here is the change Home and the cards see, with no Save step to forget.
+const interests = useInterestsStore()
 
 // Listening analytics (UXS-014) — the user's own play history, summarized.
 const router = useRouter()
@@ -247,46 +244,17 @@ const hasStats = computed(() => !!stats.value && stats.value.episodes > 0)
  */
 const kept = computed(() => (stats.value?.captures ?? 0) > 0 ? stats.value : null)
 
-// Map saved interest tokens → human labels, through the SHARED helper (utils/interests).
-//
-// This stripped `^(tc|topic|person):` inline, which omits `thc:` — so a followed storyline rendered
-// as the literal "thc:managing on the edge of chaos" on the user's own profile. It also showed one
-// label twice when two prefixes pointed at the same thing (operator 2026-09-18).
-/**
- * What each followed interest OPENS, and whether it can be opened at all.
- *
- * Styling these as pills made them look like the tappable storyline pill the Knowledge Panel
- * renders — and they were inert `<span>`s, which is an affordance lie: the same object, the same
- * look, one of them does nothing. So they open now.
- *
- * `openId` is deliberately separate from `id`. A storyline is READ as its anchor topic's card, so
- * handing `thc:…` to a topic lookup resolves nothing — that is exactly the dead tap this round
- * started with, and it would have been reproduced here by wiring the pill to its own id. A `tc:`
- * theme has nowhere to go at all yet (#1603 is where its destination is being decided), so it
- * stays inert — and, per the same lesson, inert ON SIGHT rather than on tap.
- */
-const interestLabels = computed(() => {
-  const byId = new Map<string, string>([
-    ...clusters.value.map((c) => [c.id, c.label] as [string, string]),
-    ...storylines.value.map((s) => [s.id, s.label] as [string, string]),
-  ])
-  const anchors = new Map(storylines.value.map((s) => [s.id, s.anchor_topic_id]))
-  return dedupeByLabel(interests.value, byId).map((id) => {
-    const kind = interestKind(id)
-    const openId =
-      kind === "storyline" ? (anchors.get(id) ?? null) : kind === "theme" ? null : id
-    return { id, kind, label: interestLabel(id, byId), openId }
-  })
-})
-
 // A tapped interest opens the SAME overlay its kind opens everywhere else — a storyline as the
 // StorylineCard, a topic or person as the entity card.
+// `InterestSections` decides WHETHER a chip opens and hands over the id to open on — a storyline's
+// anchor topic, never its `thc:` id.
 const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
 const storylineTarget = ref<string | null>(null)
-function openInterest(i: { kind: string; openId: string | null }): void {
-  if (!i.openId) return
-  if (i.kind === "storyline") storylineTarget.value = i.openId
-  else cardTarget.value = { kind: i.kind === "person" ? "person" : "topic", id: i.openId }
+function openInterest(target: { kind: InterestKind; id: string }): void {
+  if (target.kind === "storyline") storylineTarget.value = target.id
+  else if (target.kind === "person" || target.kind === "topic") {
+    cardTarget.value = { kind: target.kind, id: target.id }
+  }
 }
 
 // Delivery consent (PRD-046 FR1 / #1414) — the "Your Week" digest + push nudges.
@@ -300,16 +268,10 @@ async function load(): Promise<void> {
   statsFailed.value = false
   commsFailed.value = false
   interestsFailed.value = false
-  const [ints, tops, stories, st, cm] = await Promise.all([
-    getUserInterests().catch(() => {
+  const [, st, cm] = await Promise.all([
+    interests.load().catch(() => {
       interestsFailed.value = true
-      return [] as string[]
     }),
-    getTopClusters(50).catch(() => [] as InterestCluster[]),
-    // Storylines carry a real label for `thc:` ids (they de-slugged to "ai safety" before) and the
-    // anchor topic the pill opens on. Failure is not fatal: the pills fall back to de-slugged
-    // labels and go inert, which is the honest state when we cannot resolve where they lead.
-    getStorylines(50).catch(() => [] as Storyline[]),
     getMyStats().catch(() => {
       statsFailed.value = true
       return null
@@ -319,18 +281,11 @@ async function load(): Promise<void> {
       return null
     }),
   ])
-  interests.value = ints
-  clusters.value = tops
-  storylines.value = stories
   stats.value = st
   comms.value = cm
   await userPrefs.hydrate()
   const layoutPref = userPrefs.get<string>(YOUR_WEEK_LAYOUT_KEY)
   if (layoutPref === "full" || layoutPref === "compact") yourWeekLayout.value = layoutPref
-}
-
-function onSaved(ids: string[]): void {
-  interests.value = ids
 }
 
 // The per-type × per-channel matrix (wave-I). Types down, channels across.
@@ -787,74 +742,21 @@ onActivated(() => {
       <ListeningRecap class="mt-6" />
     </div>
 
-    <!-- TOPICS tab: the interest topics driving personalization. -->
-    <div v-show="tab === 'topics'" v-bind="panelAttrs('profile', 'topics')">
-      <section class="rounded-2xl border border-border p-5">
-        <div class="mb-3 flex items-center justify-between gap-2">
-          <h2 class="lp-section">{{ t("profile.interests") }}</h2>
-          <button
-            type="button"
-            class="text-sm font-bold text-accent"
-            data-testid="profile-edit-interests"
-            @click="pickerOpen = true"
-          >
-            {{ t("profile.editInterests") }}
-          </button>
-        </div>
-        <p class="mb-3 text-sm text-muted">{{ t("profile.interestsHelp") }}</p>
-        <!-- Three KINDS share this strip — topics, storylines and people — and they used to be two
-             styles between them: `text-person` for people, `text-topic` for everything else. So a
-             storyline was indistinguishable from a topic, and the only way to tell them apart was
-             to already know (operator 2026-09-19).
-
-             Each pill now NAMES its kind in a mono kicker as well as carrying its own hue. The
-             kicker is the load-bearing part: these three colours sit close in value by design (the
-             knowledge layer is meant to be quiet), so hue alone was never going to carry the
-             distinction, and it carries nothing at all for a colour-blind reader. Storyline reuses
-             the accent treatment the Knowledge Panel's storyline pill uses, so the same object looks
-             the same in both places a PILL renders it. The topic card renders a storyline as a
-             full-width bordered row instead — a different component for a different job, not a
-             third style for the same one. -->
-        <div v-if="interestLabels.length" class="flex flex-wrap gap-1.5">
-          <!-- A BUTTON when it opens something, a span when it does not. These carry the same look
-               as the Knowledge Panel's tappable storyline pill, and shipping that look on an inert
-               element is an affordance lie — the same object, the same styling, one of them dead.
-               A theme (`tc:`) has nowhere to go yet, so it is dimmed and not a button: inert on
-               sight rather than on tap, which is the lesson from the trend rows. -->
-          <component
-            :is="i.openId ? 'button' : 'span'"
-            v-for="i in interestLabels"
-            :key="i.id"
-            :type="i.openId ? 'button' : undefined"
-            class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition"
-            :class="[
-              {
-                'bg-accent/15 font-semibold text-accent': i.kind === 'storyline',
-                'bg-overlay text-person ring-1 ring-inset ring-person/30': i.kind === 'person',
-                'bg-overlay text-theme ring-1 ring-inset ring-theme/30': i.kind === 'theme',
-                'bg-overlay text-topic': i.kind === 'topic',
-              },
-              i.openId ? 'lp-tap hover:brightness-125' : 'cursor-default opacity-60',
-            ]"
-            :aria-label="i.openId ? t('profile.openInterest', { label: i.label }) : undefined"
-            :data-testid="`profile-interest-${i.kind}`"
-            @click="openInterest(i)"
-          >
-            <span class="font-mono text-[10px] uppercase tracking-wide opacity-70">{{
-              t(`notes.kind_${i.kind}`)
-            }}</span>
-            {{ i.label }}
-          </component>
-        </div>
-        <p
-          v-else-if="interestsFailed"
-          class="text-sm text-muted"
-          data-testid="interests-unavailable"
-        >
-          {{ t("profile.unavailable") }}
-        </p>
-        <p v-else class="text-sm text-muted">{{ t("profile.noInterests") }}</p>
-      </section>
+    <!-- INTERESTS tab: one section per kind, each editable in place (beta feedback 2026-10-04). -->
+    <div v-show="tab === 'interests'" v-bind="panelAttrs('profile', 'interests')">
+      <p class="mb-4 text-sm text-muted" data-testid="interests-help">{{ t("profile.interestsHelp") }}</p>
+      <!-- Failed to load, the sections would offer "Follow" on things already followed and a Stop
+           button on nothing — so say so instead of rendering a confidently wrong list (#1591). -->
+      <p v-if="interestsFailed" class="text-sm text-muted" data-testid="interests-unavailable">
+        {{ t("profile.unavailable") }}
+      </p>
+      <InterestSections
+        v-else
+        :selected="interests.ids"
+        openable
+        @toggle="(id) => void interests.toggle(id)"
+        @open="openInterest"
+      />
     </div>
 
     <!-- ACCOUNT tab: delivery/notifications + sign out. -->
@@ -1043,7 +945,6 @@ onActivated(() => {
       </RouterLink>
     </div>
 
-    <InterestsPicker v-if="pickerOpen" trigger="profile" @close="pickerOpen = false" @saved="onSaved" />
 
     <!-- A tapped interest opens the same overlay its kind opens everywhere else, rather than
          navigating away from the profile you were reading. Async so this view does not pull the

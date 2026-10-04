@@ -898,6 +898,29 @@ class AppStorylinesResponse(BaseModel):
     items: list[AppStoryline] = Field(default_factory=list)
 
 
+class AppInterestHit(BaseModel):
+    """One followable match for the Interests search box (GET /api/app/interests/search)."""
+
+    id: str = Field(
+        description="The interest token to follow — topic:{slug} / person:{slug} / tc:{slug} "
+        "(theme) / thc:{slug} (storyline)."
+    )
+    kind: Literal["topic", "person", "theme", "storyline"]
+    label: str
+    anchor_topic_id: str | None = Field(
+        default=None,
+        description="Storylines only: the topic card a storyline opens on. Null otherwise.",
+    )
+
+
+class AppInterestSearchResponse(BaseModel):
+    """Followables of one kind whose label contains the query, best match first."""
+
+    query: str
+    kind: str
+    items: list[AppInterestHit] = Field(default_factory=list)
+
+
 class AppTrendingEntity(BaseModel):
     """One trending entity (RFC-103 momentum) — velocity (rising) + volume (recent level)."""
 

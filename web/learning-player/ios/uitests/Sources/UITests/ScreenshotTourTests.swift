@@ -101,7 +101,7 @@ final class ScreenshotTourTests: UITestCase {
     if Journey.openProfile(app, labels: profileLabels) {
       sleep(4)
       frame("t08-profile-account")
-      if Journey.tap(app, labels: ["Topics"], timeout: 10) { sleep(3); frame("t09-profile-topics") }
+      if Journey.tap(app, labels: ["Interests"], timeout: 10) { sleep(3); frame("t09-profile-interests") }
       if Journey.tap(app, labels: ["Stats"], timeout: 10) { sleep(3); frame("t10-profile-stats") }
       if Journey.tap(app, labels: ["Settings"], contains: true, timeout: 10) {
         sleep(3)

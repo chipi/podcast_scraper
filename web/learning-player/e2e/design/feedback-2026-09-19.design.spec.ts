@@ -347,10 +347,11 @@ test('profile: topic, theme, storyline and person pills are told apart', async (
   await signIn(page)
   await page.goto('/')
   await seedFollowsAndSaves(page)
-  await page.goto('/profile?tab=topics')
-  const pills = page.locator('[data-testid^="profile-interest-"]')
+  await page.goto('/profile?tab=interests')
+  // One section per kind since 2026-10-04, each pill in its episode-panel colour.
+  const pills = page.locator('[data-testid^="interest-following-"]')
   if (!(await pills.count())) test.skip(true, 'this account follows nothing yet')
-  await shootNear(page, pills.first().locator('xpath=..'), 'profile-interest-kinds')
+  await shootNear(page, page.getByTestId('interests-section-topic'), 'profile-interest-kinds')
 })
 
 // --- Player --------------------------------------------------------------------------------- //

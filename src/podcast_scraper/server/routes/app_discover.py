@@ -8,9 +8,10 @@ and otherwise (or when the flag is off) returns recency — the default, unchang
 
 from __future__ import annotations
 
+import asyncio
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 
@@ -36,7 +37,7 @@ from podcast_scraper.server.app_ranking_config import (
     ranking_config_from_dict,
     ranking_config_to_dict,
 )
-from podcast_scraper.server.app_relational_view import hosted_photo_urls
+from podcast_scraper.server.app_relational_view import hosted_photo_urls, search_interests
 from podcast_scraper.server.app_user_corpus import derive_interests
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import (
@@ -49,6 +50,7 @@ from podcast_scraper.server.schemas import (
     AppEpisodesResponse,
     AppInterestCluster,
     AppInterestClustersResponse,
+    AppInterestSearchResponse,
     AppStoryline,
     AppStorylinesResponse,
     AppTrendingEntity,
@@ -110,6 +112,26 @@ def top_storylines(
     root = corpus_root_or_503(request)
     items = [AppStoryline(**s) for s in top_storylines_by_member_count(root, limit)]
     return AppStorylinesResponse(items=items)
+
+
+@router.get("/interests/search", response_model=AppInterestSearchResponse)
+async def interest_search(
+    request: Request,
+    kind: Literal["topic", "person", "theme", "storyline"] = Query(
+        description="Which kind of followable to search."
+    ),
+    q: str = Query(min_length=1, max_length=100, description="Text the label must contain."),
+    limit: int = Query(default=20, ge=1, le=50),
+    _user: User = Depends(get_current_user),
+) -> AppInterestSearchResponse:
+    """Followables of ``kind`` whose label contains ``q`` — each Interests section's search box.
+
+    ``/themes`` and ``/storylines`` stop at 50 and ``/entities/search`` returns at most one exact
+    match, so without this a listener could only follow what a list happened to show them.
+    """
+    root = corpus_root_or_503(request)
+    items = await asyncio.to_thread(search_interests, root, kind, q, limit)
+    return AppInterestSearchResponse(query=q, kind=kind, items=items)
 
 
 @router.get("/trending", response_model=AppTrendingResponse)

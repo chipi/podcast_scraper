@@ -78,7 +78,7 @@
 
      STORYLINE — topics that keep coming up TOGETHER (co-occurrence). This token was called
      `--lp-theme` until 2026-10-01, which was simply wrong: all three things it paints are
-     storylines (`lp-storyline-chip` in KnowledgePanel, PodcastSignalsBand, InterestsPicker), and
+     storylines (`lp-storyline-chip` in KnowledgePanel, PodcastSignalsBand, InterestSections), and
      its own comment described co-occurrence. The name was the last `tc:`/`thc:` inversion still
      leaking out of the pipeline and into the design layer. Value unchanged by the rename.
 
@@ -96,7 +96,7 @@
 
      Colour is the SECOND channel here, never the only one. These three sit close in value by
      design and carry nothing for a colour-blind reader, which is why every pill that renders them
-     also names its kind in a mono kicker (ProfileView) or a heading (InterestsPicker). */
+     also names its kind in a heading (InterestSections) or a kicker. */
   --lp-storyline: #98a0ae;
   --lp-theme: #a9a3c6;
 

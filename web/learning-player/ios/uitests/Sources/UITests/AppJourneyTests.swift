@@ -59,7 +59,7 @@ final class AppJourneyTests: UITestCase {
     Journey.inventory(app, "profile")
     Journey.shot(self, "01-profile-account")
 
-    for tab in ["Topics", "Stats"] {
+    for tab in ["Interests", "Stats"] {
       if Journey.tap(app, labels: [tab], timeout: 12) {
         sleep(3)
         Journey.shot(self, "01-profile-\(tab.lowercased())")

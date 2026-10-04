@@ -1080,6 +1080,37 @@ draft notice, never as silent placeholder text.
 launch returns to the screen the person was on, with the loaded episode back in the mini-player,
 paused at its position — within 12 hours, for the same account. Public routes are never restored.
 
+### Interests (2026-10-04)
+
+Beta feedback: the Profile tab then called **Topics** showed every follow in one mixed strip, and
+its **Edit** sheet offered only the top 12 themes and storylines — so people and plain topics could
+be followed from an entity card and nowhere else, and the screen that edits interests could not add
+most of what it listed.
+
+- **The tab is called Interests.** `?tab=topics` links written before the rename still land on it.
+- **The note comes first.** "These shape what surfaces on your Home when personalization is on."
+  sits above the first section, not inside one, because it is about all four.
+- **One section per kind — Topics, People, Themes, Storylines** (`InterestSections`), each with:
+  - **what is followed** — tap the label to open its card (a storyline opens on its anchor topic;
+    a theme has no card destination yet, so it is text), **×** to stop following;
+  - **a search box over every item of that kind** (`GET /api/app/interests/search` — a substring
+    match over labels, best placed and most-covered first; two characters minimum, because one
+    matches most of the corpus);
+  - **Suggested** — what is trending in that kind, minus what is already followed; a tap follows.
+    While there is a query the results replace the suggestions, so there is one list at a time.
+- **Edits are immediate on Profile.** Each tap goes through the interests store, the same toggle an
+  entity card's Follow uses; there is no Save step to forget.
+- **The onboarding sheet is the same four sections** (`InterestsPicker`, opened from Home's
+  "Personalize your Home" card), but keeps a local selection and writes once on **Save**, because it
+  is a funnel step and Cancel has to mean nothing changed. If the current interests cannot be read,
+  Save is disabled: it replaces the whole set, so saving an unloaded selection would wipe it.
+- **Each kind wears its episode pill.** Followed, suggested and found items use exactly the pill the
+  kind has on an episode's Knowledge Panel and a show's signals band — topic `text-topic`, person
+  `text-person`, storyline the `lp-storyline-chip` fill; a theme, with no pill elsewhere yet, its
+  own `text-theme`. The colours are there to teach: whoever learns here that a storyline is the
+  tinted pill recognises one in an episode. What differs between followed, suggested and found is
+  the mark — ×, + or ✓ — never the colour.
+
 ### Where each surface is verified
 
 | Surface | Spec |
@@ -1094,6 +1125,7 @@ paused at its position — within 12 hours, for the same account. Public routes 
 | Welcome card + display name (#2272) | Browser: `magic-link-welcome.spec.ts` (card pre-filled → save → gone, survives reload → header rename). Device: M2 lands on Profile. Server: `test_app_profile.py` (`POST /profile/name`: trim, refusals, auth, a later sign-in never undoes a rename). Unit: `ProfileView.test.ts` (save, Not now, refused name keeps the card, header rename) |
 | Android: link sign-in | Device, emulator, real mailbox (2026-10-03): `android/…/MagicLinkJourneyTests.java` M1 (request from `/login`) and M2 (link through Chrome → intent filter → app; new account on Profile with the welcome card; sign out; request again) — both `OK (1 test)`. The CLOSED-app case cannot run inside instrumentation (it shares the app's process), so it is `android/scripts/magic-link-cold-launch.sh`: force-stop → link through Chrome → the link launches the app → signed in on Home, token still stored afterwards → `COLD_LAUNCH=PASS`. Chrome showed no "open in app?" prompt |
 | Sign-in buttons (Google naming, Apple when configured) | `sign-in-providers.spec.ts` (labels per framing · Apple absent unless `/health` lists it · equal height and width · the Apple button starts `?provider=apple`). Server: `test_app_auth_apple.py`, `test_app_oauth_apple.py` |
+| Profile › Interests | `interests-sections.spec.ts` (tab name + note above four sections · a suggestion follows and survives a reload · search finds a person the suggestions do not show · × unfollows). Onboarding sheet: `browse-and-profile.spec.ts` (from Home's card, four sections, dismissible). Server: `test_app_relational.py` (`/interests/search`: substring, ranking, theme `tc:` and storyline `thc:` tokens, bad kind). Unit: `InterestSections.test.ts`, `InterestsPicker.test.ts`, `ProfileView.test.ts`. Device: `PersonalisationTests` test10 (iOS + Android) |
 | Clear listening history | `delete-account.spec.ts` (confirm → cleared → still signed in). Server: `test_app_account_deletion.py` (what goes, what stays). Unit: `ProfileView.test.ts` |
 | Delete account | `delete-account.spec.ts` (Profile → typed DELETE → landing notice → session 401 · the page signed out). Server: `test_app_account_deletion.py` (the full purge, Apple revocation, no resurrection, retention). Unit: `DeleteAccountView.test.ts` |
 | Privacy policy | `delete-account.spec.ts` (readable signed out at `/privacy`). Unit: `AboutPageView.test.ts` (the declared claims are on the page; the draft notice names the open items) |
@@ -1151,7 +1183,7 @@ review or rebuild it.
 | `TopicView` | One topic: perspectives, arc, episodes | Every claim carries its source; ungrounded content is omitted, not shown greyed |
 | `PersonView` | One person: positions, topics, episodes | Same grounding rule as `TopicView` |
 | `ShowBrowseView` · `TopicBrowseView` · `PersonBrowseView` | The three browse indexes behind Catalog | Consistent card + heading treatment across all three; they differ in content, never in shape |
-| `ProfileView` | Identity (name — editable by every account — photo, handle, email), activity, interests, connected agents, device settings; Account ends with Sign out, Clear listening history… and Delete account… (#2273) | Ordered account-first, device-LAST: device settings belong to the phone and are shared by everyone who signs in on it. A NEW account arriving with `?welcome=1` is asked ONE question — its name, pre-filled, skippable — and either answer drops `welcome` so the page never asks twice |
+| `ProfileView` | Identity (name — editable by every account — photo, handle, email), activity, interests (edited in place, one section per kind), connected agents, device settings; Account ends with Sign out, Clear listening history… and Delete account… (#2273) | Ordered account-first, device-LAST: device settings belong to the phone and are shared by everyone who signs in on it. A NEW account arriving with `?welcome=1` is asked ONE question — its name, pre-filled, skippable — and either answer drops `welcome` so the page never asks twice |
 | `DeleteAccountView` | Delete account (#2273, App Store 5.1.1(v), Play data deletion): reached from Profile › Account, under Sign out; public at `/account/delete` | Says WHICH account goes — one address can hold separate Google, Apple and email accounts and only the signed-in one is deleted. States what is removed (everything that is theirs, immediately) and what is not (unlinkable usage statistics, the invite-list entry, other accounts). Never one tap: the button stays disabled until the person types `DELETE`. Afterwards the landing says the account was deleted. Signed out, the same page explains how — it is the link the Play listing points at |
 | `PrivacyPolicy` | The privacy policy (#2210), on the About › Privacy page; public, and `/privacy` redirects there | Written from what the app actually collects and must agree with the store declarations (Play Data safety): if the code starts collecting something new, this page changes in the same change. Anything not yet decided is shown in a visible draft notice, never left as silent placeholder text. English only: a legal text no one reviewed in a language is not a policy in that language |
 | `CollectionsView` | User-made collections of episodes | Per-item additive; a collection can never destroy the queue or another collection |
@@ -1165,9 +1197,13 @@ review or rebuild it.
 - **`QueueButton`** — the ONE add/remove-to-queue control, everywhere. Renders for signed-out
   visitors (#1590). Since the 2026-09 offline arc it stays ENABLED with no connection: adding and
   removing are item-level and replay safely; only reordering needs a live list.
-- **`InterestsPicker`** — the modal over the corpus's top clusters. Modal a11y matches the entity
-  card exactly; "Not now" must be as easy to reach as "Save", because a picker that traps someone
-  into choosing is a picker they will dismiss by leaving.
+- **`InterestsPicker`** — the onboarding sheet: the same four `InterestSections` as Profile ›
+  Interests, saved once on Save. Modal a11y matches the entity card exactly; "Not now" must be as
+  easy to reach as "Save", because a picker that traps someone into choosing is a picker they will
+  dismiss by leaving.
+- **`InterestSections`** — Topics, People, Themes and Storylines, each: followed (×), search all,
+  suggested (+). Reports taps and never writes; the parent decides what a tap means (see
+  "Interests (2026-10-04)").
 - **`PwaUpdateToast`** — announces a new build is available. It **offers**, never forces: a reload
   mid-listen would cost the listener their place, so the toast waits for a deliberate tap.
 

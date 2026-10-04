@@ -768,6 +768,16 @@ export interface EntityRef {
   label: string
 }
 
+/** One followable match for an Interests section's search box (GET /api/app/interests/search).
+ *  `id` is the interest TOKEN to follow; `anchor_topic_id` is set for storylines only — the card a
+ *  storyline OPENS on, which is never its `thc:` id. */
+export interface InterestHit {
+  id: string
+  kind: "topic" | "person" | "theme" | "storyline"
+  label: string
+  anchor_topic_id?: string | null
+}
+
 /** Entity-in-search resolution (AppEntitySearchResponse) — at most one exact/near-exact match. */
 export interface EntitySearchResponse {
   query: string

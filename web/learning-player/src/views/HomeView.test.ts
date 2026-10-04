@@ -342,7 +342,8 @@ describe('HomeView interests card (3.5)', () => {
 
     await w.findAll('button').find((b) => b.text() === 'Choose interests')!.trigger('click')
     await flushPromises()
-    await w.findAll('button').find((b) => b.text() === 'AI')!.trigger('click')
+    // A suggestion reads "+ AI" since the sheet became the four interest sections (2026-10-04).
+    await w.findAll('button').find((b) => b.text() === '+ AI')!.trigger('click')
     await w.findAll('button').find((b) => b.text() === 'Save')!.trigger('click')
     await flushPromises()
 

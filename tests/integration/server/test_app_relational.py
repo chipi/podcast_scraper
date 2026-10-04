@@ -375,3 +375,90 @@ def test_grouping_perspectives_404_on_an_absence_not_a_fault(tmp_path: Path) -> 
     assert client.get("/api/app/themes/tc:nope/perspectives").status_code == 404
     # A THEME id is not a storyline — the kind is explicit, never sniffed from the prefix.
     assert client.get("/api/app/storylines/tc:safety-practices/perspectives").status_code == 404
+
+
+def _search(client: TestClient, kind: str, q: str) -> list[dict]:
+    resp = client.get("/api/app/interests/search", params={"kind": kind, "q": q})
+    assert resp.status_code == 200, resp.text
+    items: list[dict] = resp.json()["items"]
+    return items
+
+
+def test_interest_search_finds_people_by_any_part_of_the_name(tmp_path: Path) -> None:
+    """Substring, not exact: "doe" finds Jane Doe, which /entities/search never would."""
+    _two_episode_corpus(tmp_path)
+    client = _client(tmp_path)
+    items = _search(client, "person", "doe")
+    assert [(i["id"], i["kind"], i["label"]) for i in items] == [
+        ("person:jane-doe", "person", "Jane Doe")
+    ]
+    # Only the asked-for kind: "a" matches the AI topic, but this is the person section.
+    assert all(i["kind"] == "person" for i in _search(client, "person", "a"))
+
+
+def test_interest_search_ranks_a_prefix_first_then_by_coverage(tmp_path: Path) -> None:
+    _write_episode(
+        tmp_path,
+        stem="0001-a",
+        episode_id="ep1",
+        persons=[],
+        topics=[("topic:open-ai", "Open AI"), ("topic:ai-safety", "AI safety")],
+    )
+    _write_episode(
+        tmp_path,
+        stem="0002-b",
+        episode_id="ep2",
+        persons=[],
+        topics=[("topic:ai-safety", "AI safety"), ("topic:ai", "AI")],
+    )
+    ids = [i["id"] for i in _search(_client(tmp_path), "topic", "ai")]
+    # Both prefix matches come before the later-word match; among them, the topic in TWO episodes
+    # ("AI safety") beats the one in one ("AI").
+    assert ids == ["topic:ai-safety", "topic:ai", "topic:open-ai"]
+
+
+def test_interest_search_themes_return_their_tc_token(tmp_path: Path) -> None:
+    _two_episode_corpus(tmp_path)
+    _write_clusters(tmp_path)
+    items = _search(_client(tmp_path), "theme", "intelligence")
+    assert [(i["id"], i["label"]) for i in items] == [("tc:ai", "Artificial Intelligence")]
+
+
+def test_interest_search_storylines_follow_by_thc_and_open_by_anchor(tmp_path: Path) -> None:
+    """The id is what gets FOLLOWED (thc:), the anchor is what gets OPENED — never swapped."""
+    _two_episode_corpus(tmp_path)
+    (tmp_path / "enrichments").mkdir(parents=True, exist_ok=True)
+    payload = {
+        "clusters": [
+            {
+                "graph_compound_parent_id": "thc:shadow-fleet",
+                "canonical_label": "Shadow fleet",
+                "members": [
+                    {"topic_id": "topic:sanctions", "lift_to_cluster": 3.0},
+                    {"topic_id": "topic:tankers", "lift_to_cluster": 1.0},
+                ],
+            }
+        ]
+    }
+    (tmp_path / "enrichments" / "topic_theme_clusters.json").write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+    items = _search(_client(tmp_path), "storyline", "fleet")
+    assert items == [
+        {
+            "id": "thc:shadow-fleet",
+            "kind": "storyline",
+            "label": "Shadow fleet",
+            "anchor_topic_id": "topic:sanctions",
+        }
+    ]
+
+
+def test_interest_search_rejects_an_unknown_kind_and_ignores_punctuation_only(
+    tmp_path: Path,
+) -> None:
+    _two_episode_corpus(tmp_path)
+    client = _client(tmp_path)
+    bad = client.get("/api/app/interests/search", params={"kind": "show", "q": "x"})
+    assert bad.status_code == 422
+    assert _search(client, "topic", "--") == []

@@ -66,7 +66,7 @@ public class AppJourneyTests extends UITestCase {
                 Journey.openProfile(profileLabels()));
         Journey.sleep(3_000);
 
-        for (String tab : Arrays.asList("Topics", "Stats")) {
+        for (String tab : Arrays.asList("Interests", "Stats")) {
             boolean tapped = Journey.tap(tab, false, 12_000);
             if (tapped) {
                 Journey.sleep(3_000);
