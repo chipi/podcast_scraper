@@ -132,3 +132,56 @@ def test_reconcile_keeps_llm_role_correction_when_name_was_never_in_baseline() -
     fixed, restored = _reconcile_non_regression(baseline, final)
     assert restored == []
     assert fixed.by_voice["S0"].role == "guest"  # LLM role change preserved
+
+
+# --- An arithmetic name is not an established one ---------------------------------------------
+#
+# Measured on the gold sets (dev 101 + val 500) against the prod sidecars, 2026-10-04: of 56 voices
+# the non-regression contract restored, 49 carried an ARITHMETIC name (a forced pool host name or
+# a forced spare guest name) and 42 of those were wrong — "Misha Glenny" on a promo, "Ryan Knutson"
+# on the guest. When the LLM path, which reads the conversation, leaves such a voice unnamed, that
+# is usually a correction. Only names the cues established from EVIDENCE are restored.
+
+
+def test_reconcile_does_not_restore_a_forced_name_the_llm_path_dropped() -> None:
+    baseline = _roster(
+        {
+            "S0": SpeakerRole(name="Misha Glenny", role="host", named=True, source="self_intro"),
+            "S1": SpeakerRole(
+                name="Misha Glenny", role="host", named=True, source="known_hosts", forced=True
+            ),
+            "S2": SpeakerRole(
+                name="Ada Quill", role="guest", named=True, source="forced", forced=True
+            ),
+        }
+    )
+    final = _roster(
+        {
+            "S0": SpeakerRole(name="Misha Glenny", role="host", named=True, source="self_intro"),
+            "S1": SpeakerRole(name="S1", role="unknown", named=False, source="raw"),
+            "S2": SpeakerRole(name="S2", role="guest", named=False, source="raw"),
+        }
+    )
+    fixed, restored = _reconcile_non_regression(baseline, final)
+    assert restored == []
+    assert not fixed.by_voice["S1"].named and not fixed.by_voice["S2"].named
+
+
+def test_reconcile_still_restores_an_evidence_name_next_to_a_forced_one() -> None:
+    baseline = _roster(
+        {
+            "S0": SpeakerRole(name="John Kim", role="guest", named=True, source="self_intro"),
+            "S1": SpeakerRole(
+                name="Ada Quill", role="guest", named=True, source="forced", forced=True
+            ),
+        }
+    )
+    final = _roster(
+        {
+            "S0": SpeakerRole(name="S0", role="guest", named=False, source="raw"),
+            "S1": SpeakerRole(name="S1", role="guest", named=False, source="raw"),
+        }
+    )
+    fixed, restored = _reconcile_non_regression(baseline, final)
+    assert restored == ["S0"]
+    assert fixed.by_voice["S0"].name == "John Kim" and not fixed.by_voice["S1"].named

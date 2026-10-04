@@ -231,6 +231,10 @@ class SpeakerRole:
     named: bool  # True when ``name`` is a real name (not a raw diarization id)
     source: str  # provenance: self_intro | known_hosts | feed | guest | raw
     voice_type: str = VOICE_PERSON  # person | cameo | commercial | unknown (see constants)
+    # The name was placed by ARITHMETIC — one spare pool host name for one unnamed seat, or one
+    # spare guest name for one voice — not by evidence on the voice. `source` cannot say this: a
+    # forced host name keeps its pool entry's source. Read by the non-regression contract (#2276).
+    forced: bool = False
 
 
 @dataclass(frozen=True)
@@ -2131,7 +2135,7 @@ def _name_host_voices(
             # falls rather than being renamed.
             name, src = forced_name
             used_lower.add(name.lower())
-            out[v] = SpeakerRole(name=name, role="host", named=True, source=src)
+            out[v] = SpeakerRole(name=name, role="host", named=True, source=src, forced=True)
             tr.voice(v, "host_naming", "forced_pool_name", name=name, source=src)
             continue
         out[v] = SpeakerRole(name=v, role="host", named=False, source="raw")
@@ -2549,7 +2553,9 @@ def _name_guest_voices(
             and v not in refused_intro_voices
         ):
             used_lower.add(forced.lower())
-            out[v] = SpeakerRole(name=forced, role="guest", named=True, source="forced")
+            out[v] = SpeakerRole(
+                name=forced, role="guest", named=True, source="forced", forced=True
+            )
             tr.voice(v, "guest_naming", "forced_name", name=forced, forced_by=forced_by)
         else:
             # Paint a leftover unnamed voice as "guest" only with positive GUEST

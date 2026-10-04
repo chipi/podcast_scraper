@@ -590,3 +590,35 @@ def test_the_intro_reader_records_what_it_heard_and_names_the_spelling_it_refuse
             "resembles": "Grant Sanderson",
         },
     )
+
+
+def _rosters_of(rel: str, test: str, *args: Any) -> List[Any]:
+    """Run an existing roster test and keep the rosters it built."""
+    mod = _load(rel)
+    built: List[Any] = []
+    real = roster_mod.resolve_speaker_roster
+
+    def keep(*a: Any, **kw: Any) -> Any:
+        built.append(real(*a, **kw))
+        return built[-1]
+
+    mod.resolve_speaker_roster = keep  # type: ignore[attr-defined]
+    getattr(mod, test)(*args)
+    return built
+
+
+def test_a_forced_name_is_marked_forced_and_an_evidence_name_is_not() -> None:
+    """The roster says which names are arithmetic, so the non-regression contract can tell."""
+    [r] = _rosters_of(
+        _DZ + "test_two_voice_host_introduced_guest.py",
+        "test_the_guest_the_host_introduces_is_named",
+        "With me today is Maria Lindqvist, a historian of medieval trade.",
+    )
+    assert r.by_voice["SPEAKER_01"].forced is True  # one spare name, one voice
+    assert r.by_voice["SPEAKER_00"].forced is False  # "I'm Tobias Wren"
+    [r] = _rosters_of(
+        _DZ + "test_host_not_read_as_guest.py",
+        "test_host_posing_a_hypothetical_is_not_named_after_it",
+    )
+    host = r.by_voice["SPEAKER_00"]
+    assert host.name == "Tobias Wren" and host.forced is True  # forced pool host name

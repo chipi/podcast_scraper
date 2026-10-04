@@ -397,11 +397,20 @@ def _reconcile_non_regression(baseline: Any, final: Any) -> Tuple[Any, List[str]
 
     Returns the (rebuilt when needed) roster and the list of restored voice ids. ``final`` is
     frozen, so a rebuilt roster is returned rather than mutated in place.
+
+    AN ARITHMETIC NAME IS NOT AN ESTABLISHED ONE. A name the baseline placed by count alone
+    (``forced``: one spare pool host name for one unnamed seat, one spare guest name for one voice)
+    is not restored. Measured on the gold sets against the prod sidecars (2026-10-04, #2276): of 56
+    restored voices, 49 carried a forced name and 42 of those were wrong ("Misha Glenny" on a
+    promo, a host's name on the guest); the LLM path, which reads the conversation, had corrected
+    them. Names from evidence (a self-introduction, the publisher's label) are still restored.
     """
     restored: List[str] = []
     merged = dict(final.by_voice)
     for vid, base_role in baseline.by_voice.items():
         fin_role = merged.get(vid)
+        if base_role.forced:
+            continue
         if base_role.named and (fin_role is None or not fin_role.named):
             merged[vid] = base_role
             restored.append(vid)
@@ -774,6 +783,11 @@ def apply_diarization_to_result(
         )
         for _v in restored_names:
             naming_trace.voice(_v, "non_regression", "restored", name=roster.by_voice[_v].name)
+        for _v, _base in baseline_roster.by_voice.items():
+            if _base.forced and _base.named and not roster.by_voice.get(_v, _base).named:
+                naming_trace.voice(
+                    _v, "non_regression", "not_restored", name=_base.name, reason="arithmetic_name"
+                )
         resolution_attribution = _resolution_attribution(baseline_roster, roster)
         resolution_attribution["llm_delta"]["names_restored"] = restored_names
         _d = resolution_attribution["llm_delta"]
