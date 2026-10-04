@@ -243,8 +243,11 @@ function spark(series: number[]): { line: string; area: string } {
            become a single group. Vertically centred — the band is only 56px, so there is no room to
            stack. -->
       <div class="absolute right-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">
+        <!-- black/70, not /50: the row scrim is only 35% black at this edge, so over BRIGHT artwork
+             the /50 chip measured 2.78–3.58:1 for the trend figure. /70 clears 4.5:1 for all three
+             directions (cooling, the tightest, at 4.64:1 over pure white art). -->
         <span
-          class="rounded-full bg-black/50 px-1.5 py-0.5 text-[0.7rem] font-bold tabular-nums backdrop-blur"
+          class="rounded-full bg-black/70 px-1.5 py-0.5 text-[0.7rem] font-bold tabular-nums backdrop-blur"
           :style="{ color: trendColorOnArtwork(e.velocity) }"
           >{{ trendArrow(e.velocity) }} {{ vFmt(e.velocity) }}×</span
         >
