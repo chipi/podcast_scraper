@@ -1130,6 +1130,9 @@ def _feed_title(feed: Any) -> Optional[str]:
 # that opens with a sponsor read or a cold-open clip puts its host introduction well past 2,000.
 # The corpus measurement behind the thresholds was taken at this window.
 _INTRO_SCAN_CHARS = 4000
+# The detector's raw answer as kept in the naming decision trace (#2276); `raw_chars` keeps the
+# uncut length. A detection answer is a short JSON object; the cap only bounds a runaway reply.
+_DETECTION_RAW_MAX_CHARS = 8_000
 
 
 def _newest_run_transcripts(root: Path) -> List[Path]:
@@ -1770,7 +1773,18 @@ def _detect_speakers_for_episode(
     ambiguity that let #1646 run unnoticed across 72 % of the corpus.
     """
 
+    # The episode's detection record for the naming decision trace (#2276). Set first so every
+    # exit below leaves one — a skipped detection is a fact the trace must show, not an absence.
+    report: Dict[str, Any] = {}
+    try:
+        episode.speaker_detection_report = report
+    except AttributeError:  # pragma: no cover - a stand-in episode without the field
+        pass
+
     def _record(outcome: str, reason: Optional[str] = None, **kwargs: Any) -> None:
+        report["outcome"] = outcome
+        if reason:
+            report["reason"] = reason
         if pipeline_metrics is not None:
             pipeline_metrics.record_stage_outcome(
                 "speaker_detection", episode.idx, outcome, reason=reason, **kwargs
@@ -1846,6 +1860,13 @@ def _detect_speakers_for_episode(
     detect_metrics = cost_probe if cost_probe is not None else pipeline_metrics
 
     sig = inspect.signature(speaker_detector.detect_speakers)
+    report["detector"] = type(speaker_detector).__name__
+    # Cleared first: a provider whose call fails before it parses leaves no raw answer, and the
+    # previous episode's must not stand in for it.
+    try:
+        speaker_detector.last_speaker_detection_raw = None
+    except AttributeError:  # pragma: no cover - a detector that refuses attributes
+        pass
     # A raising detector previously recorded NOTHING — no ledger entry at all — so an episode
     # whose speaker detection blew up was indistinguishable from one where it never ran. That
     # silence is the #1646 shape, and it is also why ``failed`` ended up being misused for the
@@ -1922,6 +1943,15 @@ def _detect_speakers_for_episode(
         )
         raise
     elapsed = time.time() - extract_names_start
+    _raw = getattr(speaker_detector, "last_speaker_detection_raw", None)
+    if isinstance(_raw, str):
+        report["raw"] = _raw[:_DETECTION_RAW_MAX_CHARS]
+        report["raw_chars"] = len(_raw)
+    report["returned"] = {
+        "speakers": [str(x) for x in (detected_speakers or [])],
+        "hosts": sorted(str(x) for x in (detected_hosts_set or ())),
+        "succeeded": bool(detection_succeeded),
+    }
     _record_naming_cost(pipeline_metrics, cost_probe, episode.idx)
     if pipeline_metrics is not None:
         pipeline_metrics.record_extract_names_time(elapsed, episode.idx)
@@ -1971,8 +2001,12 @@ def _detect_speakers_for_episode(
         # whole guard (#876) is that the list only contains people someone actually named.
         # Filtering leaves detection reporting honestly that it found nobody — which is what
         # happened.
+        _before_speakers, _before_hosts = list(flat_speakers), set(host_strings)
         flat_speakers = filter_default_speaker_names(flat_speakers)
         host_strings = set(filter_default_speaker_names(sorted(host_strings)))
+        report["dropped_placeholders"] = sorted(
+            (set(_before_speakers) - set(flat_speakers)) | (_before_hosts - host_strings)
+        )
 
         # ...and no organisations either. An LLM detector asked who is on the episode answers with
         # the network and the show as readily as with a person, and every name surviving here
@@ -1980,8 +2014,12 @@ def _detect_speakers_for_episode(
         # "Machine Learning Street" came to be published as a speaker 26 times by that resolver.
         _feed_t = host_detection_result.feed_title
         _votes = host_detection_result.kind_votes
+        _before_speakers, _before_hosts = list(flat_speakers), set(host_strings)
         flat_speakers = drop_non_person_names(flat_speakers, _feed_t, _votes)
         host_strings = set(drop_non_person_names(sorted(host_strings), _feed_t, _votes))
+        report["dropped_non_persons"] = sorted(
+            (set(_before_speakers) - set(flat_speakers)) | (_before_hosts - host_strings)
+        )
 
         # THE EPISODE'S OWN DESCRIPTION NAMES ITS HOST, on the shows where nothing else can.
         # "Elena Burger is joined by a16z's Andy McCall" — the guest cue reads what FOLLOWS the
@@ -1997,6 +2035,7 @@ def _detect_speakers_for_episode(
         _ep_hosts = hosts_from_episode_description(
             episode.title, episode_description, host_detection_result.feed_title
         )
+        report["hosts_from_description"] = sorted(_ep_hosts or ())
         if _ep_hosts:
             host_strings = set(host_strings) | _ep_hosts
             logger.info("  → Host from the episode description: %s", sorted(_ep_hosts))
@@ -2010,12 +2049,18 @@ def _detect_speakers_for_episode(
         # But keep the PROPOSAL as well. A rejected name is still a name the metadata stated, and
         # the roster needs to know it existed — otherwise a guest we could not place is filed as a
         # person nobody could have named.
+        _refused: List[Dict[str, str]] = []
         corroborated = corroborate_guests(
             proposed,
             episode_title=episode.title,
             episode_description=episode_description,
             known_hosts=host_strings | combined_hosts,
+            rejected_out=_refused,
         )
+        report["hosts"] = sorted(host_strings)
+        report["proposed_guests"] = list(proposed)
+        report["corroborated_guests"] = list(corroborated)
+        report["corroboration_rejected"] = _refused
         # Counts, not names: the ledger is a health signal, and a name list would make every
         # episode's record unbounded. `proposed` vs `corroborated` is the useful delta — a
         # detector proposing names that never survive corroboration is a distinct failure

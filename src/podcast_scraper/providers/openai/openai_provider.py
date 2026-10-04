@@ -1716,6 +1716,8 @@ class OpenAICompatibleProvider:
         Returns:
             Tuple of (speaker_names_list, detected_hosts_set, detection_succeeded)
         """
+        # The model's raw answer, for the episode's naming decision trace (#2276).
+        self.last_speaker_detection_raw = response_text
         try:
             data = json.loads(response_text)
 

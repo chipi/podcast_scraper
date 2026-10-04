@@ -2855,6 +2855,7 @@ def _relabel_existing_transcript(
         episode_title=job.ep_title,
         episode_description=getattr(job.episode, "description", None),
         detection_ran=getattr(job, "speaker_detection_ran", None),
+        detection_report=_detection_report_of(job),
     )
     # AND THEY SURVIVE THE NEXT RELABEL TOO. The roster is handed a stripped
     # ``{start, end, text}`` view, so whatever it returns carries no ``stated_speaker`` — writing
@@ -2984,6 +2985,11 @@ def _segments_carry_native_speakers(result: Any) -> bool:
     return any(isinstance(s, dict) and s.get("speaker") is not None for s in segs)
 
 
+def _detection_report_of(job: Any) -> Optional[Dict[str, Any]]:
+    """This job's speaker-detection record for the naming decision trace (#2276), if any."""
+    return getattr(getattr(job, "episode", None), "speaker_detection_report", None)
+
+
 def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> dict:
     """``_roster_native_segments`` for a :class:`TranscriptionJob`. See that function."""
     return _roster_native_segments(
@@ -2994,6 +3000,7 @@ def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> 
         metadata_named=job.metadata_named,
         feed_hosts=job.feed_hosts,
         detection_ran=getattr(job, "speaker_detection_ran", None),
+        detection_report=_detection_report_of(job),
     )
 
 
@@ -3008,6 +3015,7 @@ def _roster_native_segments(
     detection_ran: Optional[bool] = None,
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
+    detection_report: Optional[Dict[str, Any]] = None,
 ) -> dict:
     """Route a natively-diarized transcript through the SINGLE role authority (the roster).
 
@@ -3089,6 +3097,7 @@ def _roster_native_segments(
             detection_ran=detection_ran,
             episode_title=episode_title,
             episode_description=episode_description,
+            detection_report=detection_report,
         )
         # KEEP WHAT THE SOURCE SAID, beside what we resolved. `speaker_label` is OUR answer and a
         # later `relabel_only` is entitled to re-derive it — that is what relabel is for. The
@@ -3187,6 +3196,7 @@ def _rediarize_existing_transcript(
         metadata_named=job.metadata_named,
         feed_hosts=feed_hosts,
         bypass_cache_read=True,
+        detection_report=_detection_report_of(job),
     )
     new_text = _format_transcript_if_needed(
         result, cfg, job.detected_speaker_names, transcription_provider
@@ -3500,6 +3510,7 @@ def _maybe_speech_coverage_failover(
         metadata_named=job.metadata_named,
         cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
         feed_hosts=job.feed_hosts,
+        detection_report=_detection_report_of(job),
     )
     fo_speech = float(fo_result.get("diarization_speech_seconds") or speech)
     fo_cov = (
@@ -3748,6 +3759,7 @@ def transcribe_media_to_text(
                     # ADR-137 — title + description feed the LLM's host/guest role determination.
                     episode_title=job.ep_title,
                     episode_description=getattr(job.episode, "description", None),
+                    detection_report=_detection_report_of(job),
                 )
             except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
                 # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).
@@ -4494,6 +4506,7 @@ def process_transcript_download(
                 detection_ran=speaker_detection_ran,
                 episode_title=getattr(episode, "title", None),
                 episode_description=getattr(episode, "description", None),
+                detection_report=getattr(episode, "speaker_detection_report", None),
             )
             segments = rostered.get("segments") or segments
 

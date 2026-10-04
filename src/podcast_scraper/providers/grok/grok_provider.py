@@ -577,6 +577,8 @@ class GrokProvider:
         self, response_text: str, known_hosts: Set[str]
     ) -> Tuple[list[str], Set[str], bool]:
         """Parse speaker names from Grok API response."""
+        # The model's raw answer, for the episode's naming decision trace (#2276).
+        self.last_speaker_detection_raw = response_text
         try:
             # Ensure response_text is a string, not a Mock or other object
             if not isinstance(response_text, str):

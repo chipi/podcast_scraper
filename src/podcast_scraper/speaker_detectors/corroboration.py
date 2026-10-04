@@ -27,7 +27,7 @@ it is idempotent by construction, and one gate covers every provider.
 from __future__ import annotations
 
 import logging
-from typing import Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set
 
 from .guests import _is_likely_actual_guest
 
@@ -39,6 +39,7 @@ def corroborate_guests(
     episode_title: str,
     episode_description: Optional[str],
     known_hosts: Optional[Set[str]] = None,
+    rejected_out: Optional[List[Dict[str, str]]] = None,
 ) -> List[str]:
     """Keep only the proposed guests the episode text actually introduces as speakers.
 
@@ -48,6 +49,8 @@ def corroborate_guests(
         episode_description: The episode description — the evidence. This is the *same* text the
             LLM was shown, so corroborating against it is a fair test of the model's claim.
         known_hosts: Hosts, which are never subject to the interview-cue test.
+        rejected_out: When given, each name NOT kept is appended as ``{name, reason}`` —
+            ``is_a_host`` or ``no_interview_cue`` — for the naming decision trace (#2276).
 
     Returns:
         The corroborated guests, order preserved.
@@ -61,11 +64,15 @@ def corroborate_guests(
         if not clean:
             continue
         if clean.lower() in hosts_lower:
+            if rejected_out is not None:
+                rejected_out.append({"name": clean, "reason": "is_a_host"})
             continue
         if _is_likely_actual_guest(clean, episode_title, episode_description):
             kept.append(clean)
         else:
             rejected.append(clean)
+            if rejected_out is not None:
+                rejected_out.append({"name": clean, "reason": "no_interview_cue"})
 
     if rejected:
         logger.warning(

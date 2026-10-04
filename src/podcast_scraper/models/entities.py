@@ -102,6 +102,10 @@ class Episode:
     # where the RSS item may be synthesized from disk and carry none of its own. `retranscript_only`
     # re-fetches from here.
     on_disk_transcript_urls: Optional[List[Dict[str, Any]]] = None
+    # What speaker detection did for THIS episode (#2276): the detector's raw answer, the names
+    # each filter dropped, and the guests corroboration refused, with reasons. Set by
+    # `_detect_speakers_for_episode`; read into the diagnostics sidecar's `decision_trace`.
+    speaker_detection_report: Optional[Dict[str, Any]] = None
 
 
 @dataclass

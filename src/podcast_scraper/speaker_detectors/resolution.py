@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 # The host/guest roles the model is allowed to assert. Anything else is discarded like an invented
 # name — a prompt is not an enforcement mechanism (#876), so the vocabulary is closed in code.
 _VALID_ROLES = {"host", "guest"}
+# The model's answer as kept in the diagnostics sidecar (#2276). A reasoning model's preamble can
+# run long; the JSON verdict is a few hundred characters. `raw_chars` records the uncut length.
+_REPORT_RAW_MAX_CHARS = 16_000
 
 
 @dataclass(frozen=True)
@@ -489,6 +492,7 @@ def resolve_voices_and_roles(
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
     intro_block: Optional[str] = None,
+    report: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, LLMVoice]:
     """``{voice: LLMVoice(name, role)}`` — the name AND host/guest role, in one call (ADR-137).
 
@@ -500,7 +504,14 @@ def resolve_voices_and_roles(
     exists to prevent), a name a voice only speaks in the third person is discarded, and a role
     outside {host, guest} is dropped. Name and role are independent: a voice may keep its role even
     if its name is refuted, and vice-versa.
+
+    ``report`` (#2276), when given, is filled with the model's FULL answer and what became of each
+    part of it — the raw text, every per-voice verdict with its outcome (``accepted`` /
+    ``invented`` / ``third_person`` / ``duplicate`` / ``unmapped_voice`` / ``role_only``), and any
+    complement or swap — so a refused proposal is on record, not only the names that survived.
+    Pure observation: it never changes what is returned.
     """
+    rep_: Dict[str, Any] = report if report is not None else {}
     stated = [n for n in (stated_names or ()) if str(n).strip()]
     # Naming needs a closed candidate list, but ROLE does not — it reads title/description/intro.
     # A no-stated-host show (Planet Money) names nobody in metadata, yet its hosts self-introduce
@@ -508,6 +519,7 @@ def resolve_voices_and_roles(
     # stay closed and come back null). Requires real voices AND some role context.
     has_role_context = bool(episode_title or episode_description or intro_block)
     if not voice_texts or (not stated and not has_role_context):
+        rep_["skipped"] = "no_voices" if not voice_texts else "no_candidates_and_no_role_context"
         return {}
 
     prompt = build_resolution_prompt(
@@ -519,11 +531,19 @@ def resolve_voices_and_roles(
         episode_description,
         intro_block,
     )
+    rep_["stated_names"] = list(stated)
+    rep_["prompt_chars"] = len(prompt)
     try:
         raw = complete(prompt)
     except Exception as exc:  # noqa: BLE001
         logger.warning("speaker resolution failed (%s); no voice is named/roled from it", exc)
+        rep_["error"] = f"{type(exc).__name__}: {exc}"
         return {}
+    rep_["raw"] = (raw or "")[:_REPORT_RAW_MAX_CHARS]
+    rep_["raw_chars"] = len(raw or "")
+    verdicts: List[Dict[str, Any]] = []
+    rep_["verdicts"] = verdicts
+    rep_["complement"] = []
 
     by_stated = {n.lower(): n for n in stated}
 
@@ -562,21 +582,35 @@ def resolve_voices_and_roles(
 
     for said_voice, verdict in _parse(raw).items():
         voice = _voice_id_in(said_voice, voice_texts)
+        seen: Dict[str, Any] = {
+            "said_voice": said_voice,
+            "voice": voice,
+            "name": verdict.name,
+            "role": verdict.role,
+        }
+        verdicts.append(seen)
         if voice is None:
+            seen["outcome"] = "unmapped_voice"
             continue
         canonical: Optional[str] = None
         if verdict.name:
             match = _stated_match(verdict.name)
+            seen["matched"] = match
             if match is None:
                 invented.append(verdict.name)
+                seen["outcome"] = "invented"
             elif refuted_by_third_person(voice_texts[voice], match):
                 refuted.append(f"{voice}={match}")
                 refuted_pairs.append((voice, match))
+                seen["outcome"] = "third_person"
             elif match.lower() in used:  # rule 5 — one person, one voice
-                pass
+                seen["outcome"] = "duplicate"
             else:
                 used.add(match.lower())
                 canonical = match
+                seen["outcome"] = "accepted"
+        else:
+            seen["outcome"] = "role_only" if verdict.role else "abstained"
         if canonical or verdict.role:
             out[voice] = LLMVoice(name=canonical, role=verdict.role)
 
@@ -651,6 +685,9 @@ def resolve_voices_and_roles(
                 refuted_voice = out.get(bad_voice)
                 out[other] = LLMVoice(name=name, role=refuted_voice.role if refuted_voice else None)
                 out[bad_voice] = LLMVoice(name=other_name, role=existing.role)
+                rep_["complement"].append(
+                    {"kind": "swap", "name": name, "voice": other, "other_name": other_name}
+                )
                 logger.info(
                     "speaker resolution: %r was refuted on %s while %r sat on %s — the two stated "
                     "names are swapped, binding each to the voice the audio allows",
@@ -664,6 +701,7 @@ def resolve_voices_and_roles(
                 continue  # the other voice talks about them too — no evidence either way
             used.add(name.lower())
             out[other] = LLMVoice(name=name, role=existing.role if existing else None)
+            rep_["complement"].append({"kind": "two_voice", "name": name, "voice": other})
             logger.info(
                 "speaker resolution: %r was refuted on %s, and %s is the only other voice and is "
                 "not refuted — binding it there (two-voice complement)",

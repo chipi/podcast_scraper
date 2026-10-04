@@ -816,6 +816,8 @@ class MistralProvider:
         self, response_text: str, known_hosts: Set[str]
     ) -> Tuple[list[str], Set[str], bool]:
         """Parse speaker names from Mistral API response."""
+        # The model's raw answer, for the episode's naming decision trace (#2276).
+        self.last_speaker_detection_raw = response_text
         try:
             data = json.loads(response_text)
             if isinstance(data, dict):

@@ -449,6 +449,7 @@ def _resolve_voices_via_llm(
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
     intro_block: Optional[str] = None,
+    report: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Dict[str, str], Dict[str, str]]:
     """ADR-110/ADR-137 — match stated names to voices AND decide host/guest, from the conversation.
 
@@ -458,14 +459,21 @@ def _resolve_voices_via_llm(
 
     This never fails the episode. A speaker we cannot name costs an unnamed voice; a speaker we name
     WRONGLY puts words in a real person's mouth, and those are not symmetric (#876).
+
+    ``report`` (#2276) is filled with whether the model was asked, and if so its full answer (see
+    ``resolve_voices_and_roles``); if not, why not.
     """
+    rep_: Dict[str, Any] = report if report is not None else {}
     # Role-only mode (ADR-137): run even with no candidate names, as long as there are voices and
     # some role context (title/description/intro) — a no-stated-host show still needs host/guest.
     if not voice_texts:
+        rep_["skipped"] = "no_real_voices"
         return {}, {}
     if not stated_names and not (episode_title or episode_description or intro_block):
+        rep_["skipped"] = "no_candidates_and_no_role_context"
         return {}, {}
     if not bool(getattr(cfg, "speaker_resolution_llm", True)):
+        rep_["skipped"] = "speaker_resolution_llm_off"
         return {}, {}
 
     try:
@@ -478,7 +486,9 @@ def _resolve_voices_via_llm(
         provider = create_summarization_provider(cfg)
         provider.initialize()
         complete = completion_fn_for(provider)
+        rep_["provider"] = type(provider).__name__
         if complete is None:
+            rep_["skipped"] = "provider_has_no_completion_endpoint"
             logger.debug(
                 "speaker resolution: %s has no completion endpoint — the deterministic cue "
                 "matcher stays in charge",
@@ -494,6 +504,7 @@ def _resolve_voices_via_llm(
             episode_title=episode_title,
             episode_description=episode_description,
             intro_block=intro_block,
+            report=rep_,
         )
         names = {v: lv.name for v, lv in resolved.items() if lv.name}
         roles = {v: lv.role for v, lv in resolved.items() if lv.role}
@@ -504,6 +515,7 @@ def _resolve_voices_via_llm(
             type(exc).__name__,
             exc,
         )
+        rep_["error"] = f"{type(exc).__name__}: {exc}"
         return {}, {}
 
 
@@ -522,6 +534,7 @@ def apply_diarization_to_result(
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
     detection_ran: Optional[bool] = None,
+    detection_report: Optional[Mapping[str, Any]] = None,
 ) -> dict:
     """Enrich transcription segments with diarized speaker labels.
 
@@ -669,6 +682,9 @@ def apply_diarization_to_result(
     real_voice_texts = {
         v: t for v, t in _voice_texts_from_aligned(adfree_aligned).items() if v in cleaning.real
     }
+    # The resolver's FULL answer (#2276) — including what it proposed and was refused — goes into
+    # the decision trace; the roster only ever sees the names that survived.
+    llm_report: Dict[str, Any] = {}
     llm_voice_names, llm_voice_roles = _resolve_voices_via_llm(
         cfg,
         stated_names=candidates,
@@ -678,6 +694,7 @@ def apply_diarization_to_result(
         episode_title=episode_title,
         episode_description=episode_description,
         intro_block=intro_block,
+        report=llm_report,
     )
 
     _md_named = list(metadata_named or ())
@@ -732,6 +749,10 @@ def apply_diarization_to_result(
     # The per-voice decision trace of the SHIPPED pass (#2276): what each rung of the ladder
     # proposed, accepted, refused or overrode. Written to the sidecar as `decision_trace`.
     naming_trace = NamingTrace()
+    naming_trace.input("llm_resolution", llm_report)
+    # What ingest-time speaker detection did (#2276): raw answer, filter drops, corroboration
+    # refusals. None when the caller had no detection record (e.g. a reprocess that skipped it).
+    naming_trace.input("detection", detection_report)
     roster = _run_roster(llm_voice_names, llm_voice_roles, naming_trace)
     # ADR-137 attribution — how much the LLM did vs the deterministic cues. A second roster pass
     # with the LLM inputs emptied is the pure-cue BASELINE; the diff against the shipped roster is
