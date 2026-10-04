@@ -45,6 +45,9 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   const hydrated = ref(false)
   const hydrating = ref(false)
   const available = ref(true)
+  /** Local writes, in order — so a hydrate can tell which keys changed while it was in flight. */
+  let writeCount = 0
+  const writtenAt = new Map<string, number>()
 
   function get<T = unknown>(key: string): T | undefined {
     const v = preferences.value[key]
@@ -59,6 +62,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     // surfaces (Profile/Library/YourWeek) call it on mount too.
     if (!useAuthStore().isAuthenticated) return
     hydrating.value = true
+    const startedAt = writeCount
     try {
       const res = await fetch(PREFS_URL, {
         method: 'GET',
@@ -70,7 +74,17 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
         return
       }
       const parsed = await safeParseJson(res)
-      preferences.value = parsed?.preferences ?? {}
+      // The snapshot was read at some point while this fetch was in flight, so it can predate a
+      // write the user made in the meantime. Keep the LOCAL value for every key written since the
+      // fetch began; take the server's for the rest. Replacing wholesale undid the user's last
+      // taps: Save, un-Save, then a snapshot taken between the two landed and the search read
+      // "Saved ✓" again (e2e flake, 2026-10-04 — the savedQueries guards could not see it, because
+      // both of their writes had already settled when the stale snapshot arrived).
+      const merged: Record<string, unknown> = { ...(parsed?.preferences ?? {}) }
+      for (const [key, at] of writtenAt) {
+        if (at > startedAt) merged[key] = preferences.value[key]
+      }
+      preferences.value = merged
       hydrated.value = true
     } catch {
       available.value = false
@@ -97,13 +111,18 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     // Optimistic local update — feature stores watch this ref and hydrate
     // their state from it if changed. Silent-degrade the network call.
     preferences.value = { ...preferences.value, [key]: value }
+    writtenAt.set(key, ++writeCount)
     if (!available.value) return
     try {
       const res = await fetch(PREFS_URL, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [key]: value }),
+        // `{ preferences: … }` is the server's contract (UserPreferencesPatch). The bare `{ [key]: value }`
+        // this sent before was rejected with 422 on EVERY write, so nothing the player stored here ever
+        // reached the server — saved searches lived in memory only, and the first 422 also switched
+        // syncing off for the session. Found 2026-10-04 behind a "flaky" Save/un-Save e2e.
+        body: JSON.stringify({ preferences: { [key]: value } }),
       })
       if (!res.ok) available.value = false
     } catch {
@@ -132,6 +151,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     hydrated.value = false
     hydrating.value = false
     available.value = true
+    writtenAt.clear()
   }
 
   return {

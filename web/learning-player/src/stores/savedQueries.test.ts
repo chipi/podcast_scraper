@@ -190,8 +190,10 @@ describe('useSavedQueriesStore (#1261-8)', () => {
     const sent: string[][] = []
     let release: (() => void) | undefined
     vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
-      const body = JSON.parse(String((init as RequestInit).body)) as Record<string, SavedQuery[]>
-      sent.push((body['lp.savedQueries'] ?? []).map((it) => it.q))
+      const body = JSON.parse(String((init as RequestInit).body)) as {
+        preferences: Record<string, SavedQuery[]>
+      }
+      sent.push((body.preferences['lp.savedQueries'] ?? []).map((it) => it.q))
       return new Promise((resolve) => {
         release = () =>
           resolve(new Response(JSON.stringify({ preferences: {} }), { status: 200 }))

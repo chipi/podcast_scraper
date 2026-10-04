@@ -139,7 +139,13 @@ test('save-query button toggles Save/Saved-✓ on click', async ({ page }, testI
   const saveBtn = page.getByTestId('save-query-button')
   await expect(saveBtn).toBeVisible()
   await expect(saveBtn).toHaveText('Save')
+  // The SERVER must accept the save, not just the button flip. Every player preference write used
+  // to 422 (wrong body shape) while the UI looked right off its local copy (2026-10-04).
+  const persisted = page.waitForResponse(
+    (r) => r.url().includes('/api/app/preferences') && r.request().method() === 'PATCH',
+  )
   await saveBtn.click()
+  expect((await persisted).status(), 'the server rejected the saved search').toBe(200)
   await expect(saveBtn).toHaveText('Saved ✓')
   // Toggle-off round-trip.
   await saveBtn.click()
