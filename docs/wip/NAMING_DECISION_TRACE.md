@@ -5,7 +5,7 @@
 | Doc version | 2 |
 | Last updated | 2026-10-04 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | the commit immediately before the one that sets this row (phase 1, #2276) |
+| Implemented by | `448151fab` (phase 1, #2276) |
 | Code content hash | `8a795c303601` (see below) |
 | Status | Phase 1 shipped to main, **not yet deployed**: prod sidecars get `decision_trace` only after the next deploy. `roster_replay --trace-out` works offline today |
 
