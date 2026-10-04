@@ -161,7 +161,20 @@ const momentum = computed(() => {
     const cx = xOf(tp.total)
     const cy = yOf(tp.v)
     const r = 3 + (tp.total / maxTotal) * 5
-    return { id: tp.id, label: tp.label, v: tp.v, cx, cy, r, lx: Math.min(MW - 2, cx + r + 3), ly: Math.max(8, cy - r - 2) }
+    // Labels in the right half go on the circle's LEFT, right-aligned. Placed to the right they ran
+    // past the SVG edge and were clipped — and the right is where the biggest topics sit.
+    const onLeft = cx > MW / 2
+    return {
+      id: tp.id,
+      label: tp.label,
+      v: tp.v,
+      cx,
+      cy,
+      r,
+      lx: onLeft ? cx - r - 3 : cx + r + 3,
+      ly: Math.max(8, cy - r - 2),
+      anchor: onLeft ? 'end' : 'start',
+    }
   })
 })
 
@@ -287,7 +300,7 @@ const hasAny = computed(() => topics.value.length > 0)
             <circle :cx="p.cx" :cy="p.cy" :r="p.r" :style="{ fill: trendColor(p.v), stroke: trendColor(p.v) }" fill-opacity="0.55" stroke-width="1">
               <title>{{ p.label }} — {{ p.v }}×</title>
             </circle>
-            <text :x="p.lx" :y="p.ly" class="fill-surface-foreground" style="font-size: 8px">{{ p.label }}</text>
+            <text :x="p.lx" :y="p.ly" :text-anchor="p.anchor" class="fill-surface-foreground" style="font-size: 8px">{{ p.label }}</text>
           </g>
         </svg>
       </div>
