@@ -175,19 +175,17 @@ onBeforeUnmount(() => {
 })
 
 /**
- * Each kind wears the SAME pill it wears on an episode's Knowledge Panel and a show's signals band
- * (beta feedback 2026-10-04): a topic is `text-topic` on the overlay, a person `text-person`, a
- * storyline the `lp-storyline-chip` fill. A theme has no pill elsewhere yet, so it takes its own
- * token, `text-theme`. The point is that the colours TEACH: someone who learns here that a storyline
- * is the tinted pill recognises one in an episode without reading a label. So followed, suggested
- * and found items all share their kind's pill, and what differs is the mark — ×, + or ✓.
+ * Each kind keeps the pill it had on the Profile strip this replaced (operator 2026-10-04: "look
+ * like this"): a storyline in the accent on an accent tint, a theme and a person outlined in their
+ * own hue, a topic filled. Followed, suggested and found items all wear their kind's pill, so the
+ * colour teaches the kind; what differs between them is the mark — ×, + or ✓.
  */
 function kindPill(kind: InterestKind): string {
   return {
-    topic: "bg-overlay text-topic hover:bg-elevated",
-    person: "bg-overlay text-person hover:bg-elevated",
-    theme: "bg-overlay text-theme hover:bg-elevated",
-    storyline: "lp-storyline-chip font-semibold text-surface-foreground",
+    storyline: "bg-accent/15 font-semibold text-accent",
+    person: "bg-overlay text-person ring-1 ring-inset ring-person/30",
+    theme: "bg-overlay text-theme ring-1 ring-inset ring-theme/30",
+    topic: "bg-overlay text-topic",
   }[kind]
 }
 </script>

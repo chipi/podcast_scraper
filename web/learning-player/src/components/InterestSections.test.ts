@@ -77,9 +77,9 @@ describe('InterestSections', () => {
     expect(w.emitted('toggle')).toEqual([['person:jane']])
   })
 
-  it('each kind wears the pill it wears on an episode, followed or suggested alike', async () => {
-    // The colours teach: learn here that a storyline is the tinted pill, recognise one in an
-    // episode's Knowledge Panel. Same classes as KnowledgePanel (topic/person/storyline).
+  it('each kind keeps its Profile pill, followed or suggested alike', async () => {
+    // The colours teach the kind: storyline in the accent, theme and person outlined, topic filled —
+    // the treatment the Profile strip already had, which the operator asked to keep.
     vi.mocked(api.getTrending).mockImplementation(async (kind: string) =>
       ({
         topic: [trend('topic:ai', 'AI')],
@@ -90,7 +90,7 @@ describe('InterestSections', () => {
     )
     const w = mountSections(['topic:sleep', 'person:ada', 'tc:mind', 'thc:tides'])
     await flushPromises()
-    const pill = { topic: 'text-topic', person: 'text-person', theme: 'text-theme', storyline: 'lp-storyline-chip' }
+    const pill = { topic: 'text-topic', person: 'ring-person/30', theme: 'ring-theme/30', storyline: 'text-accent' }
     for (const [kind, cls] of Object.entries(pill)) {
       expect(section(w, kind).get(`[data-testid="interest-following-${kind}"]`).classes(), kind).toContain(cls)
       expect(section(w, kind).get('[data-testid="interest-suggestion"]').classes(), kind).toContain(cls)

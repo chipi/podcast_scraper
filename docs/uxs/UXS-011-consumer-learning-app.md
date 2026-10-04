@@ -1104,12 +1104,10 @@ most of what it listed.
   "Personalize your Home" card), but keeps a local selection and writes once on **Save**, because it
   is a funnel step and Cancel has to mean nothing changed. If the current interests cannot be read,
   Save is disabled: it replaces the whole set, so saving an unloaded selection would wipe it.
-- **Each kind wears its episode pill.** Followed, suggested and found items use exactly the pill the
-  kind has on an episode's Knowledge Panel and a show's signals band — topic `text-topic`, person
-  `text-person`, storyline the `lp-storyline-chip` fill; a theme, with no pill elsewhere yet, its
-  own `text-theme`. The colours are there to teach: whoever learns here that a storyline is the
-  tinted pill recognises one in an episode. What differs between followed, suggested and found is
-  the mark — ×, + or ✓ — never the colour.
+- **Each kind keeps its Profile pill.** A storyline in the accent on an accent tint, a theme and a
+  person outlined in their own hue, a topic filled — the treatment the old Profile strip had, kept
+  on the operator's call. Followed, suggested and found items all wear their kind's pill, so the
+  colour teaches the kind; what differs between them is the mark — ×, + or ✓ — never the colour.
 
 ### Where each surface is verified
 
