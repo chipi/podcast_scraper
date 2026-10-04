@@ -91,7 +91,10 @@ function buttonShapeClasses(): string {
       :data-theme-member="themeMemberIds.has(p.topic_id) ? '' : undefined"
       :style="
         themeMemberIds.has(p.topic_id)
-          ? { backgroundColor: 'rgba(125,211,192,0.22)', color: 'var(--color-surface-foreground, inherit)' }
+          ? {
+              backgroundColor: 'color-mix(in srgb, var(--ps-theme) 22%, transparent)',
+              color: 'var(--color-surface-foreground, inherit)',
+            }
           : p.in_topic_cluster && clusterMemberAppearance === 'quote'
             ? cilClusteredTopicPillChrome
             : undefined

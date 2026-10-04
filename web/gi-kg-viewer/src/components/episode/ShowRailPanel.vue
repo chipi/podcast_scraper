@@ -366,7 +366,10 @@ watch(
             type="button"
             data-testid="show-rail-theme"
             class="rounded-full border px-2 py-0.5 text-[11px] font-medium outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary"
-            style="border-color: rgba(125, 211, 192, 0.5); background-color: rgba(125, 211, 192, 0.18)"
+            style="
+              border-color: color-mix(in srgb, var(--ps-theme) 50%, transparent);
+              background-color: color-mix(in srgb, var(--ps-theme) 18%, transparent);
+            "
             :disabled="!th.anchor_topic_id"
             :class="!th.anchor_topic_id ? 'cursor-not-allowed opacity-50' : ''"
             :title="!th.anchor_topic_id ? 'No member topic in this show to open' : undefined"

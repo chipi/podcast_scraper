@@ -180,6 +180,8 @@ themes and distinguish GIL from KG content at a glance.
 | `grounded` | `var(--gi)` | `var(--gi)` | Grounded claims — same concept as GI |
 | `topic` | `#7cd0d4` | `#1f7a7f` | Topic chips (teal — distinct from KG purple) |
 | `person` | `#ffb37a` | `#9c5822` | Person chips (peach) |
+| `theme` | `#7dd3c0` | `#0e7469` | Theme (topics discussed together; `storylines` in the API) — graph ring, Details block, show-rail and topic pills |
+| `related-topic` | `#da77f2` | `#9c36b5` | "Related topics" (shared insights) heading and chips |
 
 > **Tables are checked (#2280).** `web/gi-kg-viewer/src/__checks__/uxs-token-tables.test.ts`
 > fails when a token in these tables is missing from `tokens.css`, when its dark or light value

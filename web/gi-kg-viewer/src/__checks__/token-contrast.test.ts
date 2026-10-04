@@ -51,7 +51,14 @@ const THEMES = {
 }
 
 /** Text tokens that are not `-foreground` pairs but are read on the shell backgrounds. */
-const TEXT_ON = { muted: ['canvas', 'surface', 'elevated'], link: ['canvas', 'surface', 'elevated'] }
+const TEXT_ON = {
+  muted: ['canvas', 'surface', 'elevated'],
+  link: ['canvas', 'surface', 'elevated'],
+  // Small uppercase label text in the Details panels. Hard-coded until #2280, when the light theme
+  // measured 1.76:1 (theme) and 2.66:1 (related-topic) on white.
+  theme: ['canvas', 'surface', 'elevated', 'overlay'],
+  'related-topic': ['canvas', 'surface', 'elevated', 'overlay'],
+}
 
 describe('viewer token contrast meets WCAG AA (#2280)', () => {
   for (const [theme, t] of Object.entries(THEMES)) {

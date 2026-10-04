@@ -44,6 +44,12 @@
   --ps-grounded: var(--ps-gi);
   --ps-topic: #7cd0d4;
   --ps-person: #ffb37a;
+  /* Theme = topics discussed together — the graph's teal ring and the Details panel's Theme
+     block (the API still calls these "storylines"; names here follow what the UI shows).
+     Related-topic = topics that share insights with this one. Two distinct groupings, so two
+     hues; both are read as small label text (#2280). */
+  --ps-theme: #7dd3c0;
+  --ps-related-topic: #da77f2;
   /* graph-v3 A — richer contrast for the Cytoscape canvas only (feels
      "constellation" rather than surface-flat). Shell chrome keeps --ps-canvas. */
   --ps-graph-canvas: #0a0d10;
@@ -79,6 +85,8 @@
   --ps-grounded: var(--ps-gi);
   --ps-topic: #1f7a7f;
   --ps-person: #9c5822;
+  --ps-theme: #0e7469;
+  --ps-related-topic: #9c36b5;
   --ps-graph-canvas: var(--ps-canvas);
 }
 
@@ -113,6 +121,8 @@
     --ps-grounded: var(--ps-gi);
     --ps-topic: #1f7a7f;
     --ps-person: #9c5822;
+    --ps-theme: #0e7469;
+    --ps-related-topic: #9c36b5;
     --ps-graph-canvas: var(--ps-canvas);
   }
 }

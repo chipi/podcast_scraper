@@ -45,6 +45,8 @@ export default {
         grounded: 'var(--ps-grounded)',
         topic: 'var(--ps-topic)',
         person: 'var(--ps-person)',
+        theme: 'var(--ps-theme)',
+        'related-topic': 'var(--ps-related-topic)',
       },
     },
   },

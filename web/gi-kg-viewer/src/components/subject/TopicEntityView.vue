@@ -339,8 +339,7 @@ function onPrefillSearch(): void {
         data-testid="tev-related-topics"
       >
         <p
-          class="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider"
-          style="color: #da77f2"
+          class="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-related-topic"
         >
           Related topics
           <HelpTip :pref-width="260" button-aria-label="About related topics">
@@ -359,7 +358,7 @@ function onPrefillSearch(): void {
             :key="t.id"
             type="button"
             class="rounded-full border border-transparent px-2 py-0.5 text-[10px] text-surface-foreground hover:opacity-90"
-            :style="{ backgroundColor: 'rgba(218,119,242,0.22)' }"
+            :style="{ backgroundColor: 'color-mix(in srgb, var(--ps-related-topic) 22%, transparent)' }"
             data-testid="tev-related-topic-chip"
             :title="`Open ${t.text}`"
             @click="subject.focusTopic(t.id)"

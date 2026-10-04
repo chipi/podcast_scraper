@@ -2409,16 +2409,16 @@ const graphConnectionsCenterInView = computed((): boolean => {
             {{ topicAliasesLine }}
           </p>
 
-          <!-- Theme (co-occurrence "discussed together") identity + members — mirrors
-           the player entity card. Teal, distinct from the semantic Topic cluster. -->
+          <!-- Theme (co-occurrence "discussed together") identity + members. The API names
+           this data "storylines" (artifacts.storylinesDoc); the visible name, and the colour
+           token `--ps-theme`, follow the UI (#2280). -->
           <div
             v-if="isTopicNode && storylineInfo"
             class="mb-2"
             data-testid="node-detail-theme-cluster"
           >
             <div
-              class="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide"
-              style="color: #7dd3c0"
+              class="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-theme"
             >
               <span class="min-w-0 truncate">Theme · {{ storylineInfo.label }}</span>
               <HelpTip :pref-width="270" button-aria-label="About themes">
@@ -2439,7 +2439,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
                 :key="m.topic_id"
                 type="button"
                 class="rounded-full border border-transparent px-2 py-0.5 text-[10px] text-surface-foreground hover:opacity-90"
-                :style="{ backgroundColor: 'rgba(125,211,192,0.22)' }"
+                :style="{ backgroundColor: 'color-mix(in srgb, var(--ps-theme) 22%, transparent)' }"
                 :data-testid="`node-detail-theme-member-${m.topic_id}`"
                 :title="`Discussed together: ${m.label}`"
                 @click="subject.focusTopic(m.topic_id)"
@@ -2594,7 +2594,11 @@ const graphConnectionsCenterInView = computed((): boolean => {
                 type="button"
                 class="shrink-0 rounded border border-default px-1.5 py-0.5 text-[10px] transition hover:bg-overlay"
                 :class="{ 'bg-overlay': timelineShowTheme }"
-                :style="timelineShowTheme ? { color: '#7dd3c0', borderColor: '#7dd3c0' } : {}"
+                :style="
+                  timelineShowTheme
+                    ? { color: 'var(--ps-theme)', borderColor: 'var(--ps-theme)' }
+                    : {}
+                "
                 data-testid="node-detail-timeline-theme-toggle"
                 :aria-pressed="timelineShowTheme"
                 :title="
