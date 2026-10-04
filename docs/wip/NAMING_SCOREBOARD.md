@@ -242,6 +242,32 @@ episodes' title + description — ~70 small DGX calls, budget to agree first —
 from "still missed". The corpus cannot be re-detected and re-rostered under the prod rule; this is a
 forward fix plus that measurement.
 
+**Today's detector on those 135 names** (real `_detect_speakers_for_episode` path, `prod_dgx_full`,
+vLLM Qwen3-30B, 103 episodes, 2026-10-04):
+
+| Result | n | guest / host |
+| --- | --- | --- |
+| extracted, then REFUSED by corroboration (`no_interview_cue`) | **67** | 58 / 9 |
+| extracted and corroborated (fixed since those ingests) | 33 | 32 / 1 |
+| still not extracted | 35 | 16 / 19 |
+
+1. **Corroboration is now the bottleneck** (problem 13): half of these names are in the episode's
+   own description ("Sandra Parthie, Cillian Lohan, …", "co-hosted by Eloho Omame") and refused for
+   want of an interview cue next to the name. This is the operator's original point — what the
+   title/description states should weigh more. The refused names still reach `metadata_named`, so
+   the roster knows they went unplaced, but they never become candidates a voice may be named from.
+2. **A parser bug discards hosts the model names** (problem 14):
+   `OpenAICompatibleProvider._parse_speakers_from_response` (inherited by the `vllm` provider prod
+   runs) keeps a host only if it is ALREADY in the feed's `known_hosts`, by exact string, and
+   ignores every `speakers` entry that is neither a host nor a guest. With `"guests": []` nothing
+   survives and the list is padded with `['Host', 'unknown_guest_1']`. 8 of the 103 episodes: the
+   model answered correctly — Planet Money "Jeff Guo", "Emma Peaslee" (feed states no host);
+   "Steve, Yushan, Yangyang"; "Laolu, Furo, Nosa"; "Robert Smith, Dan Wang" — and all of it was
+   thrown away. Visible only because the detection report now keeps the raw answer (#2276).
+   Fix direction: a model-named host not in `known_hosts` is not trusted as a HOST, but it is a
+   person the episode states — keep it as a candidate (`proposed` → corroboration → stated),
+   never drop it. Check the other five providers' copies of the parser.
+
 ## Also on this branch — the two open plan steps (from 2026-10-02/03)
 
 ### Feed-level analysis and per-show profiles — #2261 (scoreboard plan step 5)
