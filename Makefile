@@ -3610,9 +3610,16 @@ ANDROID_AAB = $(APP_DIR)/android/app/build/outputs/bundle/release/app-release.aa
 # `:capacitor-filesystem:compileDebugJavaWithJavac` with "Cannot find a Java installation ...
 # matching {languageVersion=21}", which reads like a missing dependency rather than a wrong JDK.
 #
-# Homebrew is not an option on this box: it dropped Intel x86_64 support in September 2026 and no
-# longer builds bottles for it. The working route is a Temurin tarball unpacked anywhere readable.
-ANDROID_JAVA_HOME ?= $(HOME)/tools/jdk-21.0.12.1+1/Contents/Home
+# Homebrew is not an option on the Intel build Mac: it dropped Intel x86_64 support in September
+# 2026 and no longer builds bottles for it. The working route there is a Temurin tarball unpacked
+# under ~/tools. Elsewhere (an arm64 laptop with the Temurin .pkg in /Library/Java), ask macOS for
+# its JDK 21 instead of failing on a path that machine has never had.
+#
+# `-F` is load-bearing. Without it `java_home -v 21` falls back to ANY installed JDK when no 21 is
+# registered — on the build Mac it returns JDK 1.8 — and gradle then dies with the
+# `Unsupported major.minor version 52.0` error described at `android-app-install`. With `-F` it
+# returns nothing, and the `[ -x .../bin/java ]` checks below fail with their usual message.
+ANDROID_JAVA_HOME ?= $(or $(wildcard $(HOME)/tools/jdk-21.0.12.1+1/Contents/Home),$(shell /usr/libexec/java_home -F -v 21 2>/dev/null))
 
 android-build:
 	@$(MAKE) mobile-build-internal

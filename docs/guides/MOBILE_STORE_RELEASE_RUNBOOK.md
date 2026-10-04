@@ -74,6 +74,42 @@ with an opaque 404.
 Grant that service account **"Release to testing tracks"** and nothing more. It exists to push
 internal builds; its blast radius should say so.
 
+### Creating the Play service account (once)
+
+The Firebase admin service account (`firebase-adminsdk-…`) is **not** this credential — it sends
+push and carries broad Firebase rights. Make a dedicated one.
+
+1. **Google Cloud console**, project `closelistening-39437`:
+   - APIs & Services → Library → enable **Google Play Android Developer API**.
+   - IAM & Admin → Service accounts → **Create** `play-release`. Grant **no** project roles —
+     Play permissions live in Play, not in Cloud IAM.
+   - That account → **Keys → Add key → JSON**. It downloads once. Keep it outside the repo
+     (`~/secrets/play-release.json`, `chmod 600`).
+2. **Play Console**, at the developer-account level (not inside the app) → **Users and
+   permissions**. There is **no "Setup → API access" page any more** and no Cloud project to
+   link; and "Invite new users" is not a button — it is inside the **"Manage users ▾"** dropdown
+   above the user table.
+   - Email: the service account's address.
+   - **App permissions** → add Close Listening → *Release to testing tracks* and *View app
+     information (read-only)*. Leave **Account permissions** empty; never grant production.
+3. Point `SUPPLY_JSON_KEY` at the JSON and run `make android-play-preflight`. Success prints the
+   internal track's version codes — which also proves the manual first upload is visible to the
+   API.
+
+### Version codes come from Play
+
+`make android-play` asks Play for the next free `versionCode` (`fastlane next_version_code`)
+before building, because the git-count fallback is monotonic on one branch only — a squash merge
+makes main's count go backwards relative to a branch that already shipped.
+
+The lane prints `NEXT_VERSION_CODE=<n>` and the Makefile takes only the digits after that label.
+It used to take fastlane's **last stdout line** and strip it to digits — which is the timestamped
+run summary — and on the first run with a real credential (2026-10-04) that produced versionCode
+**115305320** from `11:53:05` plus ANSI colour codes. It was caught and stopped before upload.
+Play never lets a versionCode go down, so that one upload would have pushed every future code
+above 115 million. **Read the `Play says the next free versionCode is …` line before the upload
+starts**; it should be one more than the track's current code.
+
 **Signing** — `android/keystore.properties` (gitignored), or the four `ANDROID_KEYSTORE_*` /
 `ANDROID_KEY_*` environment variables, which take precedence and are what CI would use.
 
@@ -97,6 +133,30 @@ the hook for "ask Play for the last one and add one", the trick the iOS lane pla
 no network. `versionName` comes from `package.json`. Play rejects a duplicate `versionCode` *after*
 the upload finishes, which is why neither is typed by hand.
 
+## What a release machine needs that git does not have
+
+Everything below is gitignored or lives outside the repo. Moving releases to a new machine means
+copying exactly this set — and checking it, because two machines' copies drift (on 2026-10-04 the
+laptop's `.env.mobile.testflight` was missing `VITE_PREVIEW_COOKIE` and both Umami values that the
+build Mac's had).
+
+| File | Used by | Notes |
+| --- | --- | --- |
+| `web/learning-player/.env.mobile.testflight` | both store builds | the release env; compare per key, not per file |
+| `web/learning-player/.env.mobile` | internal/dev builds | |
+| `web/learning-player/.env.local` | web dev | |
+| `web/learning-player/android/keystore.properties` | `bundleRelease` | `storeFile=` is an absolute path — rewrite it on the new machine |
+| the upload keystore (`upload-keystore.jks`) | `bundleRelease` | **irreplaceable** — losing it loses the ability to update the listing |
+| `web/learning-player/android/app/google-services.json` | release builds (push) | |
+| `web/learning-player/android/fastlane/.env` | Play upload | `SUPPLY_JSON_KEY=` → the Play service-account JSON |
+| `web/learning-player/ios/fastlane/.env` | TestFlight upload | `ASC_KEY_PATH=` → `AuthKey_<id>.p8` |
+| App Store Connect `.p8` key | TestFlight upload | downloadable once |
+| Apple Distribution identity | iOS signing | in a keychain; compare by SHA-1 with `security find-identity -v -p codesigning` |
+| "Close Listening Player AppStore" provisioning profile | iOS signing (manual) | `~/Library/Developer/Xcode/UserData/Provisioning Profiles/`; regenerable via the ASC API |
+
+Verify a copy by hash (`md5 -q`) on both ends; compare env files per key by hashing each value,
+so no secret is printed.
+
 ## The Android toolchain on this build Mac
 
 Three things that are not obvious and each cost a debugging cycle.
@@ -112,11 +172,13 @@ requirement. With 17, Gradle resolves every dependency and *then* dies in
 
 **`JAVA_HOME` is pinned in the Makefile** (`ANDROID_JAVA_HOME`), not inherited from the caller's
 shell. A build that works only for whoever exported it is a build that fails confusingly for
-everyone else, CI included.
+everyone else, CI included. It resolves to the `~/tools` tarball when that exists (the Intel build
+Mac), else to `/usr/libexec/java_home -F -v 21` (e.g. an arm64 laptop with the Temurin `.pkg`).
+The `-F` matters: without it, a Mac with no JDK 21 registered gets **JDK 1.8** back, not an error.
 
 | Component | Where |
 | --- | --- |
-| Temurin JDK 21 | `~/tools/jdk-21.*/Contents/Home` (override: `ANDROID_JAVA_HOME`) |
+| Temurin JDK 21 | `~/tools/jdk-21.0.12.1+1/Contents/Home`, else `java_home -F -v 21` (override: `ANDROID_JAVA_HOME`) |
 | Android SDK | `~/Library/Android/sdk` (override: `ANDROID_SDK_DIR`) |
 | Platform / build-tools | `platforms;android-36`, `build-tools;36.0.0` — match `variables.gradle` |
 
