@@ -52,6 +52,8 @@ describe('InterestsPicker', () => {
     await flushPromises()
     expect(w.findAll('[data-testid="interest-following-person"]')).toHaveLength(1)
 
+    await w.get('[data-testid="interest-add-topic"]').trigger('click')
+    await flushPromises()
     await button(w, '+ Sleep').trigger('click')
     // Nothing written until Save — Cancel has to mean nothing changed.
     expect(put).not.toHaveBeenCalled()
@@ -105,6 +107,8 @@ describe('InterestsPicker', () => {
     expect(store.ids).toEqual([])
 
     const w = mountPicker()
+    await flushPromises()
+    await w.get('[data-testid="interest-add-theme"]').trigger('click')
     await flushPromises()
     await button(w, '+ AI').trigger('click')
     await button(w, 'Save').trigger('click')

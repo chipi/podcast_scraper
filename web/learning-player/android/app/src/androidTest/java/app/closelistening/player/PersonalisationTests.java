@@ -28,7 +28,7 @@ import java.util.List;
  * PERFORM the action first (play episodes / choose interests) and then assert the panel changed.
  *
  * INTERESTS ARE EDITED IN PLACE (2026-10-04). Profile › Interests has a section per kind, each
- * offering "Follow X" suggestions; a tap follows at once and the item moves to the section's
+ * offering "Follow X" suggestions behind its "+ Add"; a tap follows at once and the item moves to the section's
  * followed row, whose control is "Stop following X". This replaced a toggle picker whose chips
  * reported `checked=false` whatever their state, which is why the earlier version of test10 had to
  * infer selection from the card's empty state. Suggestions never include what is already followed,
@@ -112,8 +112,12 @@ public class PersonalisationTests extends UITestCase {
         assertTrue("no Interests tab on Profile. On screen: " + Journey.labelledInventory(80),
                 Journey.tap("Interests", false, 12_000));
 
-        // WAIT for the sections' content — they fetch their suggestions, and a snapshot taken while
-        // they load finds nothing to tap. i18n: interestSections.suggested = "Suggested".
+        // Suggestions live behind the Topics section's "+ Add" (one open at a time, 2026-10-04).
+        // i18n: interestSections.add_topic = "Add a topic".
+        assertTrue("no Add control on the Topics section. On screen: " + Journey.labelledInventory(80),
+                Journey.tap("Add a topic", false, 12_000));
+        // WAIT for the suggestions — they are fetched, and a snapshot taken while they load finds
+        // nothing to tap. i18n: interestSections.suggested = "Suggested".
         assertTrue("the Interests tab never finished loading its suggestions. On screen: "
                 + Journey.labelledInventory(80), Journey.find("Suggested", false, 20_000) != null);
         Journey.sleep(2_000);

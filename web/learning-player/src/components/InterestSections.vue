@@ -12,7 +12,7 @@
  * each tap through the interests store, the picker keeps a local selection until Save. One
  * component, two persistence contracts, and neither leaks into the other.
  */
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue"
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import CheckIcon from "./CheckIcon.vue"
 import CloseIcon from "./CloseIcon.vue"
@@ -145,6 +145,32 @@ async function runSearch(kind: InterestKind, q: string): Promise<void> {
   }
 }
 
+/**
+ * The ONE section whose Add is open (beta feedback 2026-10-04: "search is too big"). Four always-on
+ * search boxes plus four suggestion lists made the tab a wall of inputs; now a closed section is its
+ * heading and its pills, and Add opens search and suggestions in place. Opening another section
+ * closes this one and drops its query, so there is never more than one search on screen.
+ */
+const openKind = ref<InterestKind | null>(null)
+const inputs = new Map<InterestKind, HTMLInputElement>()
+
+function setInput(kind: InterestKind, el: unknown): void {
+  if (el instanceof HTMLInputElement) inputs.set(kind, el)
+  else inputs.delete(kind)
+}
+
+async function openAdd(kind: InterestKind): Promise<void> {
+  if (openKind.value && openKind.value !== kind) onQuery(openKind.value, "")
+  openKind.value = kind
+  await nextTick()
+  inputs.get(kind)?.focus()
+}
+
+function closeAdd(): void {
+  if (openKind.value) onQuery(openKind.value, "")
+  openKind.value = null
+}
+
 function fromTrending(rows: TrendingEntity[]): string[] {
   for (const r of rows) learn(r.entity_id, r.label, r.anchor_topic_id)
   return rows.map((r) => r.entity_id)
@@ -201,8 +227,9 @@ function kindPill(kind: InterestKind): string {
       <h2 class="lp-section">{{ t(`interestSections.heading_${kind}`) }}</h2>
       <p class="mb-3 text-sm text-muted">{{ t(`interestSections.hint_${kind}`) }}</p>
 
-      <!-- Following: tap the label to open it (Profile), × to stop following. -->
-      <div v-if="following[kind].length" class="mb-4 flex flex-wrap gap-1.5">
+      <!-- Following, then "+ Add" at the end of the same row: tap a label to open it (Profile),
+           × to stop following, + Add to search and see suggestions for this kind. -->
+      <div class="flex flex-wrap items-center gap-1.5">
         <span
           v-for="id in following[kind]"
           :key="id"
@@ -231,76 +258,103 @@ function kindPill(kind: InterestKind): string {
             <CloseIcon :size="12" />
           </button>
         </span>
+        <span v-if="!following[kind].length" class="mr-1 text-sm text-muted" data-testid="interest-none">
+          {{ t(`interestSections.none_${kind}`) }}
+        </span>
+        <button
+          v-if="openKind !== kind"
+          type="button"
+          class="lp-tap inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted transition hover:text-canvas-foreground"
+          :aria-label="t(`interestSections.add_${kind}`)"
+          aria-expanded="false"
+          :data-testid="`interest-add-${kind}`"
+          @click="openAdd(kind)"
+        >
+          <span aria-hidden="true">+</span>
+          {{ t("interestSections.add") }}
+        </button>
       </div>
-      <p v-else class="mb-4 text-sm text-muted" data-testid="interest-none">
-        {{ t(`interestSections.none_${kind}`) }}
-      </p>
 
-      <input
-        :value="search[kind].q"
-        type="search"
-        :placeholder="t(`interestSections.search_${kind}`)"
-        :aria-label="t(`interestSections.search_${kind}`)"
-        :data-testid="`interest-search-${kind}`"
-        class="lp-search mb-3 w-full rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
-        @input="onQuery(kind, ($event.target as HTMLInputElement).value)"
-      />
-
-      <!-- Search results replace the suggestions while there is a query: one list at a time. -->
-      <template v-if="search[kind].q.trim().length >= MIN_QUERY">
-        <p v-if="search[kind].busy" class="text-sm text-muted">{{ t("interestSections.searching") }}</p>
-        <p v-else-if="search[kind].failed" class="text-sm text-muted" data-testid="interest-search-failed">
-          {{ t("interestSections.searchFailed") }}
-        </p>
-        <p v-else-if="!search[kind].hits.length" class="text-sm text-muted" data-testid="interest-no-match">
-          {{ t("interestSections.noMatch", { q: search[kind].q.trim() }) }}
-        </p>
-        <div v-else class="flex flex-wrap gap-1.5">
+      <div v-if="openKind === kind" class="mt-4" :data-testid="`interest-add-panel-${kind}`">
+        <div class="mb-3 flex items-center gap-2">
+          <input
+            :ref="(el) => setInput(kind, el)"
+            :value="search[kind].q"
+            type="search"
+            :placeholder="t(`interestSections.search_${kind}`)"
+            :aria-label="t(`interestSections.search_${kind}`)"
+            :data-testid="`interest-search-${kind}`"
+            class="lp-search min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
+            @input="onQuery(kind, ($event.target as HTMLInputElement).value)"
+            @keydown.esc="closeAdd()"
+          />
           <button
-            v-for="id in search[kind].hits"
-            :key="id"
             type="button"
-            :aria-pressed="selectedSet.has(id)"
-            :aria-label="
-              t(selectedSet.has(id) ? 'interestSections.remove' : 'interestSections.follow', {
-                name: label(id),
-              })
-            "
-            class="lp-tap inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition"
-            :class="kindPill(kind)"
-            data-testid="interest-result"
-            @click="emit('toggle', id)"
+            class="shrink-0 px-2 text-sm font-bold text-accent"
+            aria-expanded="true"
+            :data-testid="`interest-add-done-${kind}`"
+            @click="closeAdd()"
           >
-            <CheckIcon v-if="selectedSet.has(id)" :size="12" />
-            <span v-else aria-hidden="true">+</span>
-            {{ label(id) }}
+            {{ t("interestSections.done") }}
           </button>
         </div>
-      </template>
-      <template v-else>
-        <p class="mb-1.5 font-mono text-[10px] uppercase tracking-wide text-muted">
-          {{ t("interestSections.suggested") }}
-        </p>
-        <p v-if="loading" class="text-sm text-muted">{{ t("interests.loading") }}</p>
-        <div v-else-if="visibleSuggestions(kind).length" class="flex flex-wrap gap-1.5">
-          <button
-            v-for="id in visibleSuggestions(kind)"
-            :key="id"
-            type="button"
-            :aria-label="t('interestSections.follow', { name: label(id) })"
-            class="lp-tap inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition"
-            :class="kindPill(kind)"
-            data-testid="interest-suggestion"
-            @click="emit('toggle', id)"
-          >
-            <span aria-hidden="true">+</span>
-            {{ label(id) }}
-          </button>
-        </div>
-        <p v-else class="text-sm text-muted" data-testid="interest-no-suggestions">
-          {{ t("interestSections.noSuggestions") }}
-        </p>
-      </template>
+
+        <!-- Search results replace the suggestions while there is a query: one list at a time. -->
+        <template v-if="search[kind].q.trim().length >= MIN_QUERY">
+          <p v-if="search[kind].busy" class="text-sm text-muted">{{ t("interestSections.searching") }}</p>
+          <p v-else-if="search[kind].failed" class="text-sm text-muted" data-testid="interest-search-failed">
+            {{ t("interestSections.searchFailed") }}
+          </p>
+          <p v-else-if="!search[kind].hits.length" class="text-sm text-muted" data-testid="interest-no-match">
+            {{ t("interestSections.noMatch", { q: search[kind].q.trim() }) }}
+          </p>
+          <div v-else class="flex flex-wrap gap-1.5">
+            <button
+              v-for="id in search[kind].hits"
+              :key="id"
+              type="button"
+              :aria-pressed="selectedSet.has(id)"
+              :aria-label="
+                t(selectedSet.has(id) ? 'interestSections.remove' : 'interestSections.follow', {
+                  name: label(id),
+                })
+              "
+              class="lp-tap inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition"
+              :class="kindPill(kind)"
+              data-testid="interest-result"
+              @click="emit('toggle', id)"
+            >
+              <CheckIcon v-if="selectedSet.has(id)" :size="12" />
+              <span v-else aria-hidden="true">+</span>
+              {{ label(id) }}
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <p class="mb-1.5 font-mono text-[10px] uppercase tracking-wide text-muted">
+            {{ t("interestSections.suggested") }}
+          </p>
+          <p v-if="loading" class="text-sm text-muted">{{ t("interests.loading") }}</p>
+          <div v-else-if="visibleSuggestions(kind).length" class="flex flex-wrap gap-1.5">
+            <button
+              v-for="id in visibleSuggestions(kind)"
+              :key="id"
+              type="button"
+              :aria-label="t('interestSections.follow', { name: label(id) })"
+              class="lp-tap inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition"
+              :class="kindPill(kind)"
+              data-testid="interest-suggestion"
+              @click="emit('toggle', id)"
+            >
+              <span aria-hidden="true">+</span>
+              {{ label(id) }}
+            </button>
+          </div>
+          <p v-else class="text-sm text-muted" data-testid="interest-no-suggestions">
+            {{ t("interestSections.noSuggestions") }}
+          </p>
+        </template>
+      </div>
     </section>
   </div>
 </template>

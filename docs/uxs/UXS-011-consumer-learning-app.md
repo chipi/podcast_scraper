@@ -1090,14 +1090,17 @@ most of what it listed.
 - **The tab is called Interests.** `?tab=topics` links written before the rename still land on it.
 - **The note comes first.** "These shape what surfaces on your Home when personalization is on."
   sits above the first section, not inside one, because it is about all four.
-- **One section per kind — Topics, People, Themes, Storylines** (`InterestSections`), each with:
+- **One section per kind — Topics, People, Themes, Storylines** (`InterestSections`). Closed, a
+  section is only its heading, a one-line hint and its pills:
   - **what is followed** — tap the label to open its card (a storyline opens on its anchor topic;
     a theme has no card destination yet, so it is text), **×** to stop following;
-  - **a search box over every item of that kind** (`GET /api/app/interests/search` — a substring
-    match over labels, best placed and most-covered first; two characters minimum, because one
-    matches most of the corpus);
-  - **Suggested** — what is trending in that kind, minus what is already followed; a tap follows.
-    While there is a query the results replace the suggestions, so there is one list at a time.
+  - **+ Add** at the end of the same row. It opens, in place, **a search box over every item of
+    that kind** (`GET /api/app/interests/search` — a substring match over labels, best placed and
+    most-covered first; two characters minimum, because one matches most of the corpus) and
+    **Suggested** — what is trending in that kind, minus what is already followed. While there is a
+    query the results replace the suggestions. **Done** or Esc closes it.
+  - **One Add open at a time.** Opening another section's Add closes this one and drops its query:
+    four always-open search boxes made the tab a wall of inputs (beta feedback, same day).
 - **Edits are immediate on Profile.** Each tap goes through the interests store, the same toggle an
   entity card's Follow uses; there is no Save step to forget.
 - **The onboarding sheet is the same four sections** (`InterestsPicker`, opened from Home's
@@ -1123,7 +1126,7 @@ most of what it listed.
 | Welcome card + display name (#2272) | Browser: `magic-link-welcome.spec.ts` (card pre-filled → save → gone, survives reload → header rename). Device: M2 lands on Profile. Server: `test_app_profile.py` (`POST /profile/name`: trim, refusals, auth, a later sign-in never undoes a rename). Unit: `ProfileView.test.ts` (save, Not now, refused name keeps the card, header rename) |
 | Android: link sign-in | Device, emulator, real mailbox (2026-10-03): `android/…/MagicLinkJourneyTests.java` M1 (request from `/login`) and M2 (link through Chrome → intent filter → app; new account on Profile with the welcome card; sign out; request again) — both `OK (1 test)`. The CLOSED-app case cannot run inside instrumentation (it shares the app's process), so it is `android/scripts/magic-link-cold-launch.sh`: force-stop → link through Chrome → the link launches the app → signed in on Home, token still stored afterwards → `COLD_LAUNCH=PASS`. Chrome showed no "open in app?" prompt |
 | Sign-in buttons (Google naming, Apple when configured) | `sign-in-providers.spec.ts` (labels per framing · Apple absent unless `/health` lists it · equal height and width · the Apple button starts `?provider=apple`). Server: `test_app_auth_apple.py`, `test_app_oauth_apple.py` |
-| Profile › Interests | `interests-sections.spec.ts` (tab name + note above four sections · a suggestion follows and survives a reload · search finds a person the suggestions do not show · × unfollows). Onboarding sheet: `browse-and-profile.spec.ts` (from Home's card, four sections, dismissible). Server: `test_app_relational.py` (`/interests/search`: substring, ranking, theme `tc:` and storyline `thc:` tokens, bad kind). Unit: `InterestSections.test.ts`, `InterestsPicker.test.ts`, `ProfileView.test.ts`. Device: `PersonalisationTests` test10 (iOS + Android) |
+| Profile › Interests | `interests-sections.spec.ts` (tab name + note above four sections · one + Add open at a time, focus, Esc · a suggestion follows and survives a reload · search finds a person the suggestions do not show · × unfollows). Onboarding sheet: `browse-and-profile.spec.ts` (from Home's card, four sections, dismissible). Server: `test_app_relational.py` (`/interests/search`: substring, ranking, theme `tc:` and storyline `thc:` tokens, bad kind). Unit: `InterestSections.test.ts`, `InterestsPicker.test.ts`, `ProfileView.test.ts`. Device: `PersonalisationTests` test10 (iOS + Android) |
 | Clear listening history | `delete-account.spec.ts` (confirm → cleared → still signed in). Server: `test_app_account_deletion.py` (what goes, what stays). Unit: `ProfileView.test.ts` |
 | Delete account | `delete-account.spec.ts` (Profile → typed DELETE → landing notice → session 401 · the page signed out). Server: `test_app_account_deletion.py` (the full purge, Apple revocation, no resurrection, retention). Unit: `DeleteAccountView.test.ts` |
 | Privacy policy | `delete-account.spec.ts` (readable signed out at `/privacy`). Unit: `AboutPageView.test.ts` (the declared claims are on the page; the draft notice names the open items) |

@@ -26,10 +26,26 @@ test('the tab is Interests, with the note above four sections', async ({ page },
   await expect(headings).toHaveText(['Topics', 'People', 'Themes', 'Storylines'])
 })
 
+test('+ Add opens one search at a time; a closed section shows only its pills', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'interests-add', testInfo)
+  await openInterests(page)
+  await expect(page.locator('input[type="search"]')).toHaveCount(0)
+  await page.getByTestId('interest-add-topic').click()
+  await expect(page.getByTestId('interest-search-topic')).toBeFocused()
+  await page.getByTestId('interest-add-person').click()
+  await expect(page.locator('input[type="search"]')).toHaveCount(1)
+  await expect(page.getByTestId('interest-search-person')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('input[type="search"]')).toHaveCount(0)
+})
+
 test('a suggestion follows on tap and survives a reload', async ({ page }, testInfo) => {
   await signInIsolated(page, 'interests-suggest', testInfo)
   await openInterests(page)
   const topics = page.getByTestId('interests-section-topic')
+  await topics.getByTestId('interest-add-topic').click()
   const first = topics.getByTestId('interest-suggestion').first()
   await expect(first).toBeVisible()
   const name = ((await first.textContent()) ?? '').replace('+', '').trim()
@@ -50,6 +66,7 @@ test('search finds a person the suggestions do not show, and × unfollows', asyn
   await signInIsolated(page, 'interests-search', testInfo)
   await openInterests(page)
   const people = page.getByTestId('interests-section-person')
+  await people.getByTestId('interest-add-person').click()
   // Pick a person from the corpus who is NOT among the suggestions, so the search is what finds
   // them. The API answers the same question the box asks.
   const suggested = (await people.getByTestId('interest-suggestion').allTextContents()).map((s) =>
@@ -67,7 +84,7 @@ test('search finds a person the suggestions do not show, and × unfollows', asyn
   await hit.click()
   await expect(hit).toHaveAttribute('aria-pressed', 'true')
 
-  await people.getByTestId('interest-search-person').fill('')
+  await people.getByTestId('interest-add-done-person').click()
   const chip = people.getByTestId('interest-following-person').filter({ hasText: target! })
   await expect(chip).toBeVisible()
   await chip.getByTestId('interest-remove').click()

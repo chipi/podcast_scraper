@@ -316,13 +316,13 @@ public class AccessibleNameAuditTests extends UITestCase {
         //
         // 2026-10-04: the tab itself is now CALLED "Interests" and the panel heading is gone, so
         // waiting for "Interests" would match the tab label and "arrive" before the panel had. The
-        // arrival mark is the Topics section's search box, `interestSections.search_topic`, which
-        // exists only inside the panel.
+        // arrival mark is the Topics section's "+ Add", `interestSections.add_topic`, which exists
+        // only inside the panel.
         //
         // The finding this produced was indistinguishable in shape from a real a11y defect, and it
         // sat on top of the ACTUAL defect this suite was parked for: with the surface finally
         // audited, Settings reports zero findings, so the two nameless switches of P1 are fixed.
-        audit("Profile ▸ Interests", openProfileTab("Interests", "Search all topics"), findings);
+        audit("Profile ▸ Interests", openProfileTab("Interests", "Add a topic"), findings);
         audit("Profile ▸ Stats", openProfileTab("Stats", "Your activity"), findings);
 
         // Settings verifies by ARRIVING (Journey.openSettings), not by the tap returning true.

@@ -67,7 +67,8 @@ final class PersonalisationTests: UITestCase {
 
   // MARK: - 10 interests → follows + Home
 
-  /// Profile › Interests edits in place (2026-10-04): each section offers "Follow X" suggestions, a
+  /// Profile › Interests edits in place (2026-10-04): each section offers "Follow X" suggestions
+  /// behind its "+ Add", a
   /// tap follows at once and moves the item to the section's followed row, whose control is "Stop
   /// following X". No picker, no Save. Suggestions never include what is already followed, so every
   /// "Follow …" control is safe to tap — the selected-state guessing the old toggle picker forced
@@ -82,6 +83,12 @@ final class PersonalisationTests: UITestCase {
     sleep(3)
     guard Journey.tap(app, labels: ["Interests"], timeout: 12) else {
       XCTFail("no Interests tab on Profile"); return
+    }
+    // Suggestions live behind the Topics section's "+ Add" (one open at a time, 2026-10-04).
+    // i18n: interestSections.add_topic = "Add a topic".
+    guard Journey.tap(app, labels: ["Add a topic"], timeout: 12) else {
+      Journey.inventory(app, "interests-no-add")
+      XCTFail("no Add control on the Topics section"); return
     }
     // WAIT for the sections' suggestions — they are fetched, and a snapshot taken while they load
     // finds nothing to tap. i18n: interestSections.suggested = "Suggested".

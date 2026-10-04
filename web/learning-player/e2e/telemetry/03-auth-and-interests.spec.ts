@@ -143,6 +143,7 @@ test.describe('interests picker', () => {
 
     // Now actually save something.
     await open.click()
+    await page.getByTestId('interest-add-topic').click()
     const chip = page.getByTestId('interest-suggestion').first()
     await expect(chip, 'the picker needs real clusters to have something to choose').toBeVisible()
     await chip.click()

@@ -28,6 +28,11 @@ const mountSections = (selected: string[], openable = false) =>
 const section = (w: ReturnType<typeof mountSections>, kind: string) =>
   w.get(`[data-testid="interests-section-${kind}"]`)
 
+async function openAdd(w: ReturnType<typeof mountSections>, kind: string) {
+  await w.get(`[data-testid="interest-add-${kind}"]`).trigger('click')
+  await flushPromises()
+}
+
 beforeEach(() => {
   vi.spyOn(api, 'getTrending').mockImplementation(async (kind: string) => {
     if (kind === 'topic') return [trend('topic:sleep', 'Sleep'), trend('topic:ai', 'AI')]
@@ -53,6 +58,7 @@ describe('InterestSections', () => {
   it('suggests what is trending, minus what is already followed, and follows on tap', async () => {
     const w = mountSections(['topic:sleep'])
     await flushPromises()
+    await openAdd(w, 'topic')
     const topics = section(w, 'topic')
     const offered = topics.findAll('[data-testid="interest-suggestion"]')
     expect(offered.map((b) => b.text())).toEqual(['+ AI'])
@@ -64,6 +70,7 @@ describe('InterestSections', () => {
   it('falls back to the top themes when nothing is trending', async () => {
     const w = mountSections([])
     await flushPromises()
+    await openAdd(w, 'theme')
     const themes = section(w, 'theme').findAll('[data-testid="interest-suggestion"]')
     expect(themes.map((b) => b.text())).toEqual(['+ Health'])
   })
@@ -92,6 +99,7 @@ describe('InterestSections', () => {
     await flushPromises()
     const pill = { topic: 'text-topic', person: 'ring-person/30', theme: 'ring-theme/30', storyline: 'text-accent' }
     for (const [kind, cls] of Object.entries(pill)) {
+      await openAdd(w, kind)
       expect(section(w, kind).get(`[data-testid="interest-following-${kind}"]`).classes(), kind).toContain(cls)
       expect(section(w, kind).get('[data-testid="interest-suggestion"]').classes(), kind).toContain(cls)
     }
@@ -114,10 +122,58 @@ describe('InterestSections', () => {
     expect(section(w, 'theme').findAll('[data-testid="interest-following-theme"]')).toHaveLength(1)
   })
 
+  describe('+ Add — one search on screen at a time', () => {
+    it('a closed section is its heading and pills: no search box, no suggestions', async () => {
+      const w = mountSections(['topic:sleep'])
+      await flushPromises()
+      for (const kind of ['topic', 'person', 'theme', 'storyline']) {
+        expect(section(w, kind).find('input').exists(), kind).toBe(false)
+        expect(section(w, kind).find('[data-testid="interest-suggestion"]').exists(), kind).toBe(false)
+        expect(section(w, kind).find(`[data-testid="interest-add-${kind}"]`).exists(), kind).toBe(true)
+      }
+    })
+
+    it('Add sits in the followed row, and in the empty one too', async () => {
+      const w = mountSections(['topic:sleep'])
+      await flushPromises()
+      const topicRow = section(w, 'topic').get('[data-testid="interest-following-topic"]').element.parentElement!
+      expect(topicRow.querySelector('[data-testid="interest-add-topic"]')).not.toBeNull()
+      const personRow = section(w, 'person').get('[data-testid="interest-none"]').element.parentElement!
+      expect(personRow.querySelector('[data-testid="interest-add-person"]')).not.toBeNull()
+    })
+
+    it('opening another section closes the first and drops its query', async () => {
+      vi.useFakeTimers()
+      vi.spyOn(api, 'searchInterests').mockResolvedValue([])
+      const w = mountSections([])
+      await flushPromises()
+      await openAdd(w, 'topic')
+      await section(w, 'topic').get('[data-testid="interest-search-topic"]').setValue('sle')
+      await openAdd(w, 'person')
+      expect(w.findAll('input')).toHaveLength(1)
+      expect(section(w, 'person').find('input').exists()).toBe(true)
+      await openAdd(w, 'topic')
+      expect((section(w, 'topic').get('input').element as HTMLInputElement).value).toBe('')
+    })
+
+    it('Done closes it', async () => {
+      const w = mountSections([])
+      await flushPromises()
+      await openAdd(w, 'theme')
+      await w.get('[data-testid="interest-add-done-theme"]').trigger('click')
+      expect(w.find('input').exists()).toBe(false)
+      expect(w.find('[data-testid="interest-add-theme"]').exists()).toBe(true)
+    })
+  })
+
   describe('search', () => {
     beforeEach(() => vi.useFakeTimers())
 
     async function type(w: ReturnType<typeof mountSections>, kind: string, q: string) {
+      if (!section(w, kind).find(`[data-testid="interest-search-${kind}"]`).exists()) {
+        await w.get(`[data-testid="interest-add-${kind}"]`).trigger('click')
+        await flushPromises()
+      }
       await section(w, kind).get(`[data-testid="interest-search-${kind}"]`).setValue(q)
       await vi.advanceTimersByTimeAsync(300)
       await flushPromises()

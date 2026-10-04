@@ -297,7 +297,10 @@ describe('HomeView interests card (3.5)', () => {
     await w.findAll('button').find((b) => b.text() === 'Choose interests')!.trigger('click')
     await flushPromises()
     expect(w.find('[role="dialog"]').exists()).toBe(true)
-    expect(w.text()).toContain('AI') // a cluster chip in the picker
+    // A theme suggestion in the picker, behind its section's + Add.
+    await w.get('[data-testid="interest-add-theme"]').trigger('click')
+    await flushPromises()
+    expect(w.findAll('[data-testid="interest-suggestion"]').map((b) => b.text())).toContain('+ AI')
   })
 
   it('dismissing hides the card', async () => {
@@ -342,7 +345,10 @@ describe('HomeView interests card (3.5)', () => {
 
     await w.findAll('button').find((b) => b.text() === 'Choose interests')!.trigger('click')
     await flushPromises()
-    // A suggestion reads "+ AI" since the sheet became the four interest sections (2026-10-04).
+    // A suggestion reads "+ AI", behind its section's + Add, since the sheet became the four
+    // interest sections (2026-10-04).
+    await w.get('[data-testid="interest-add-theme"]').trigger('click')
+    await flushPromises()
     await w.findAll('button').find((b) => b.text() === '+ AI')!.trigger('click')
     await w.findAll('button').find((b) => b.text() === 'Save')!.trigger('click')
     await flushPromises()

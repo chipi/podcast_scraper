@@ -209,7 +209,7 @@ listed after it, with the reason it is not automatable rather than merely undone
 | **Your Week** (`your-week`) | `home-rails.spec.ts`, `your-week.spec.ts` |
 | **Catalog / Browse** — `CatalogView`, `ShowBrowseView` (`browse-view`, `browse-tab-*`, `show-browse-grid`, `show-browse-search`, `show-browse-sort`) | `browse-and-profile.spec.ts` |
 | **Profile** — `ProfileView` (`profile-settings-link`) | `browse-and-profile.spec.ts`, `recap-and-deep-links.spec.ts` |
-| **Profile › Interests** — `InterestSections` (`interests-help`, `interests-section-topic`, `interests-section-person`, `interests-section-theme`, `interests-section-storyline`, `interest-following-*`, `interest-open`, `interest-remove`, `interest-search-*`, `interest-suggestion`, `interest-result`, `interest-none`, `interest-no-suggestions`, `interest-no-match`, `interest-search-failed`, `interests-unavailable`) | `interests-sections.spec.ts` |
+| **Profile › Interests** — `InterestSections` (`interests-help`, `interests-section-topic`, `interests-section-person`, `interests-section-theme`, `interests-section-storyline`, `interest-following-*`, `interest-open`, `interest-remove`, `interest-add-topic`, `interest-add-person`, `interest-add-done-person`, `interest-search-*`, `interest-suggestion`, `interest-result`, `interest-none`, `interest-no-suggestions`, `interest-no-match`, `interest-search-failed`, `interests-unavailable`) | `interests-sections.spec.ts` |
 | **Interests picker (UI)** (`interests-load-failed`) | `browse-and-profile.spec.ts` — opened from Home's card and asserted, never skipped |
 | **Podcast signals band** — `PodcastSignalsBand` (`podcast-signals`, `ps-distinctive-heading`, `ps-distinctive-topic`, `ps-topics-heading`, `ps-theme`, `ps-topic`, `ps-person`) | `knowledge-bands.spec.ts` |
 | **Show activity chart** (`show-activity`, `show-activity-bar-*`) | `knowledge-bands.spec.ts` |
@@ -427,7 +427,8 @@ Storylines surface in `DiscoveryList` when `kind="storyline"` — each row is `d
 | ------- | ---- |
 | Section per kind | `interests-section-topic`, `interests-section-person`, `interests-section-theme`, `interests-section-storyline` |
 | Followed item | `interest-following-{kind}`; label button `interest-open` (absent for a theme, and for a storyline with no anchor); `interest-remove` (aria-label "Stop following …") |
-| Search | `interest-search-{kind}` → hits `interest-result` (`aria-pressed`), else `interest-no-match` / `interest-search-failed` |
+| + Add | `interest-add-topic`, `interest-add-person`, `interest-add-theme`, `interest-add-storyline` (aria-label "Add a topic" …) at the end of the followed row → panel `interest-add-panel-{kind}` with **Done** `interest-add-done-{kind}`; ONE open at a time |
+| Search | `interest-search-topic`, `interest-search-person` (inside the open panel) → hits `interest-result` (`aria-pressed`), else `interest-no-match` / `interest-search-failed` |
 | Suggestions | `interest-suggestion` (aria-label "Follow …"), else `interest-no-suggestions` |
 | Nothing followed | `interest-none` |
 | Profile note | `interests-help` — above the first section |
