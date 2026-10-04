@@ -734,6 +734,22 @@ final class Journey {
                         + labelledInventory(16) + "=====");
                 return false;
             }
+            // LIFT IT CLEAR OF THE BOTTOM NAV first, as `tap` does. `scrollTo` stops as soon as the
+            // row is on screen, which on a long Settings page is the bottom edge — and a click there
+            // lands on the tab bar. Measured 2026-10-05: the box at y=2184..2239 and then 2328..2383
+            // on a 2400px screen, three clicks, the switch never moved, and `lp.forceOffline` was
+            // still unset afterwards; the same switch toggled at once when clicked clear of the nav.
+            int floor = device().getDisplayHeight() - 220;
+            for (int lift = 0; lift < 6; lift++) {
+                Rect b = attr(box, UiObject2::getVisibleBounds);
+                if (b == null || b.bottom <= floor) break;
+                swipeUp();
+                UiObject2 again = find(Arrays.asList(OFFLINE_ROW), false, 3_000);
+                UiObject2 againBox = again == null ? null : nearestCheckable(again);
+                if (againBox == null) break;
+                box = againBox;
+                row = again;
+            }
 
             // EXACTLY ONE interaction per round, then go and look.
             //
