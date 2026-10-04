@@ -45,7 +45,7 @@ other.
 
 ## Keeping this page true
 
-The consumer column is checked indirectly: UXS-011's own tables are tested against `tokens.css`
-(`web/learning-player/src/__checks__/uxs-token-tables.test.ts`, #2280). The viewer column is **not**
-checked — UXS-001's tables are hand-maintained. When a value on either side changes, update this
-page in the same change.
+Both columns are checked indirectly: each design system's own tables are tested against its
+`tokens.css` (`web/learning-player/src/__checks__/uxs-token-tables.test.ts` and
+`web/gi-kg-viewer/src/__checks__/uxs-token-tables.test.ts`, #2280). This page itself is not — when
+a value on either side changes, update it in the same change.
