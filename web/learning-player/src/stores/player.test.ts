@@ -854,3 +854,37 @@ describe('output routing — the system picker, never our own device list (opera
   })
 })
 
+
+describe('cold-launch restore support (#2278)', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('nowPlaying is null with nothing loaded', () => {
+    expect(usePlayerStore().nowPlaying()).toBeNull()
+  })
+
+  it('nowPlaying carries the ORIGIN url, not a local source, so the episode can be reloaded', () => {
+    const p = usePlayerStore()
+    p.setSourceResolver(() => 'capacitor://localhost/_capacitor_file_/ep.mp3')
+    p.load({ slug: 'ep', url: 'https://cdn.example/ep.mp3', title: 'Ep', showTitle: 'Show' })
+    expect(p.nowPlaying()).toMatchObject({
+      slug: 'ep',
+      url: 'https://cdn.example/ep.mp3',
+      title: 'Ep',
+      showTitle: 'Show',
+      position: 0,
+    })
+    p.clear()
+    expect(p.nowPlaying()).toBeNull()
+  })
+
+  it('loadAt waits for metadata before seeking — WebKit ignores an earlier currentTime — and never plays', () => {
+    const p = usePlayerStore()
+    p.loadAt({ slug: 'ep', url: 'https://cdn.example/ep.mp3' }, 754)
+    const el = p.el!
+    expect(p.currentTime).toBe(0)
+    el.dispatchEvent(new Event('loadedmetadata'))
+    expect(el.currentTime).toBe(754)
+    expect(p.currentTime).toBe(754)
+    expect(p.playing).toBe(false)
+  })
+})

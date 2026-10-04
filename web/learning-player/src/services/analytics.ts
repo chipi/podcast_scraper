@@ -103,6 +103,15 @@ export type CountBucket = '0' | '1' | '2-5' | '6-20' | '21+'
 export type RankBucket = '1' | '2-3' | '4-10' | '11+'
 /** Durations are reported as buckets, never exact. */
 export type DurationBucket = '<1m' | '1-5m' | '5-15m' | '15-45m' | '45m+'
+/**
+ * Time away from the app before it came back (#2277). Its own scale, not `DurationBucket`: the
+ * question is "how long does iOS keep us alive in the background", and 15 minutes to an hour is the
+ * range that answers it. `none` = there was no recorded background (first launch, or the previous
+ * run died in the foreground).
+ */
+export type AwayBucket = '<1m' | '1-5m' | '5-15m' | '15-60m' | '1h+' | 'none'
+/** How this page booted (#2277); see services/lifecycle.ts. */
+export type LaunchKind = 'cold' | 'webview_reload' | 'unknown'
 
 /**
  * Bucket a count.
@@ -193,6 +202,8 @@ export const EVENT_NAMES = [
   'empty_state_shown',
   'offline_session',
   'update_prompt',
+  'app_launch',
+  'app_resume',
   // notifications
   'push_permission',
   'notification_open',
@@ -339,6 +350,18 @@ export type EventProps = {
   empty_state_shown: { surface: string; reason: 'no_results' | 'no_content' | 'not_in_corpus' }
   offline_session: undefined
   update_prompt: { kind: 'pwa_toast' | 'native_banner'; action: 'accepted' | 'dismissed' }
+  /**
+   * Native only (#2277). `previous_exit: 'background'` covers both iOS ending the app and the user
+   * swiping it away — the app cannot tell those apart. `restored` is what #2278 brought back.
+   */
+  app_launch: {
+    kind: LaunchKind
+    previous_exit: 'background' | 'foreground' | 'first'
+    away: AwayBucket
+    restored: 'route' | 'episode' | 'both' | 'none'
+  }
+  /** A warm return to a live app — the case that needs nothing restored. */
+  app_resume: { away: AwayBucket }
 
   push_permission: { result: 'granted' | 'denied' | 'deferred' }
   notification_open: { type: string; channel: 'push' | 'bell' }

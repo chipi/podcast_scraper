@@ -105,6 +105,12 @@ export const usePlayerStore = defineStore('player', () => {
   const routeAvailable = ref(false)
   const playingRemotely = ref(false)
   const currentArtwork = ref<string | null>(null)
+  /**
+   * The ORIGIN url of the loaded episode. `audio.src` is not it: a downloaded episode plays from a
+   * local file. Kept so `nowPlaying()` can describe the episode well enough to load it again after
+   * a cold launch (#2278).
+   */
+  let currentUrl: string | null = null
   const playing = ref(false)
   const currentTime = ref(0)
   /**
@@ -299,6 +305,7 @@ export const usePlayerStore = defineStore('player', () => {
     savePosition()
     resetForLoad()
     currentSlug.value = opts.slug
+    currentUrl = opts.url
     currentTitle.value = opts.title ?? null
     currentShowTitle.value = opts.showTitle ?? null
     currentArtwork.value = opts.artwork ?? null
@@ -330,10 +337,45 @@ export const usePlayerStore = defineStore('player', () => {
     el.value?.pause()
     if (el.value) el.value.removeAttribute('src')
     currentSlug.value = null
+    currentUrl = null
     currentTitle.value = null
     currentShowTitle.value = null
     currentArtwork.value = null
     resetForLoad()
+  }
+
+  /** The loaded episode and where in it we are, or null with nothing loaded (#2278). */
+  function nowPlaying(): (NextUp & { position: number }) | null {
+    if (!currentSlug.value || !currentUrl) return null
+    return {
+      slug: currentSlug.value,
+      url: currentUrl,
+      title: currentTitle.value,
+      showTitle: currentShowTitle.value,
+      artwork: currentArtwork.value,
+      durationSeconds: duration.value > 0 ? duration.value : undefined,
+      position: el.value?.currentTime ?? currentTime.value,
+    }
+  }
+
+  /**
+   * Load an episode PAUSED at a position — the cold-launch restore (#2278).
+   *
+   * Setting `currentTime` before the element has metadata is ignored by WebKit, so it waits for
+   * `loadedmetadata` when it has to. Never plays: iOS refuses autoplay without a gesture anyway, and
+   * a restore that started talking would be worse than one that did nothing.
+   */
+  function loadAt(opts: NextUp, seconds: number): void {
+    load(opts)
+    if (!(seconds > 0)) return
+    const e = el.value
+    if (!e) return
+    const apply = (): void => {
+      e.currentTime = seconds
+      currentTime.value = seconds
+    }
+    if (e.readyState >= 1) apply()
+    else e.addEventListener('loadedmetadata', apply, { once: true })
   }
 
   // --- element event sinks (PlayerView's <audio> forwards these) ---
@@ -746,6 +788,8 @@ export const usePlayerStore = defineStore('player', () => {
     currentArtwork,
     justFinished,
     load,
+    loadAt,
+    nowPlaying,
     clear,
     playNext,
     setAdvanceHold,

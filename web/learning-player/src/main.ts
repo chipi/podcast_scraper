@@ -12,8 +12,11 @@ import { initGateCookie, platform, rehydrateNativeToken } from './services/nativ
 import { getTier, tierSwitchEnabled } from './services/tier'
 import { setOnUnauthorized } from './services/api'
 import { installUmami } from './services/analytics'
+import { installLastPlace, recordPlace, type SavedEpisode } from './services/lastPlace'
+import { initLifecycle } from './services/lifecycle'
 import { scrubEventRequestUrl, scrubNavigationBreadcrumb } from './services/telemetryScrub'
 import { useAuthStore } from './stores/auth'
+import { usePlayerStore } from './stores/player'
 
 applyTheme('dark')
 
@@ -137,7 +140,22 @@ if (SENTRY_DSN_PLAYER) {
 // fork-silent default when neither resolves — is documented there, next to the code that does it.
 installUmami()
 
+// Reopen where you left off after the OS ends the app in the background (#2278). Installed before
+// `use(router)`, which starts the first navigation — the one the restore may redirect. The stores
+// are reached lazily, inside the callbacks, because pinia is installed in the same chain below.
+const lastPlaceDeps = {
+  userId: () => useAuthStore().user?.user_id ?? null,
+  nowPlaying: () => usePlayerStore().nowPlaying(),
+  loadAt: (episode: SavedEpisode, seconds: number) => usePlayerStore().loadAt(episode, seconds),
+  ensureAuthLoaded: () => useAuthStore().ensureLoaded(),
+}
+installLastPlace(router, lastPlaceDeps)
+
 app.use(createPinia()).use(router).use(i18n)
+
+// How the app came back — warm, WebView reload or cold — once the first navigation (and so the
+// restore) has settled (#2277). Going to the background also saves the place with its position.
+void router.isReady().then(() => initLifecycle(() => recordPlace(router, lastPlaceDeps)))
 
 // RFC-120 (#2009): route an EXPIRED session to the lure landing. A 401 fires this only when we
 // still believe we're signed in (guards against a redirect loop — anonymous 401s are normal under

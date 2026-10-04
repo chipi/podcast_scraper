@@ -78,7 +78,7 @@ PYTEST_WORKERS ?= 2
 # triggered fallback, doubling wall time).
 
 .PHONY: ios-origin-up ios-origin-down ios-origin-check app-e2e-users-reset test-app-ios-sim-download
-.PHONY: test-app-ios-journey-ui ios-journey-signin ios-journey-shots test-app-ios-server-degraded
+.PHONY: test-app-ios-journey-ui test-app-ios-restore ios-journey-signin ios-journey-shots test-app-ios-server-degraded
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-bundle android-device-install android-fastlane-install android-play-preflight android-play
 .PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
@@ -2353,8 +2353,21 @@ test-app-ios-journey-ui:
 			-only-testing:OfflineSpikeUITests/AppJourneyTests \
 			-only-testing:OfflineSpikeUITests/PersonalisationTests \
 			-only-testing:OfflineSpikeUITests/OfflineCacheTests \
+			-only-testing:OfflineSpikeUITests/ColdLaunchRestoreTests \
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
 		rc=$${PIPESTATUS[0]}; echo "IOS_JOURNEY_EXIT=$$rc"; exit $$rc
+
+# The cold-launch restore alone (#2278): load an episode, move to Discover, background, terminate,
+# relaunch, expect Discover with the episode in the mini-player. Same preconditions as the journey
+# phase above (fixture origin up, app installed).
+test-app-ios-restore:
+	@command -v xcodegen >/dev/null || { echo "FAIL: xcodegen missing — brew install xcodegen"; exit 1; }
+	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
+		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
+			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
+			-only-testing:OfflineSpikeUITests/ColdLaunchRestoreTests \
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_RESTORE_EXIT=$$rc"; exit $$rc
 
 # The Capacitor-only capabilities + the deep-stack/boards surfaces (operator 2026-09-18).
 #

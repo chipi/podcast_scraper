@@ -112,10 +112,11 @@ describe('registry guard', () => {
     ).toEqual([])
   })
 
-  it('holds all 39 catalog events, with no duplicates', () => {
-    // 39 rather than 40: `show_missing` is excluded because it needs an affordance that does not
-    // exist. If this number changes, the catalog changed — update #2267, do not just bump it.
-    expect(EVENT_NAMES).toHaveLength(39)
+  it('holds all 41 catalog events, with no duplicates', () => {
+    // 39 from #2267 (`show_missing` excluded: it needs an affordance that does not exist) plus
+    // `app_launch` and `app_resume` from #2277. If this number changes, the catalog changed —
+    // update the issue that changed it, do not just bump it.
+    expect(EVENT_NAMES).toHaveLength(41)
     expect(new Set(EVENT_NAMES).size).toBe(EVENT_NAMES.length)
   })
 
@@ -492,7 +493,7 @@ describe('resolveSession', () => {
 // ── 5. Completeness (#2267) ──────────────────────────────────────────────────
 
 describe('every registered event is actually wired', () => {
-  it('has a call site in src/ for all 39 names', () => {
+  it('has a call site in src/ for every registered name', () => {
     // The registry test at the top proves no call site invents a name. This proves the converse,
     // which is the failure that hides: an event sitting in the registry with nothing emitting it
     // looks exactly like a feature nobody used. A dashboard built on it reports zero, honestly and

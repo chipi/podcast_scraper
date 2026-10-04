@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Register the local background-audio plugin before the bridge starts (#1310).
         registerPlugin(BackgroundAudioPlugin.class);
+        registerPlugin(AppProcessPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
