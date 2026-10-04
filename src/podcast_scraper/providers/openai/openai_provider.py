@@ -498,6 +498,15 @@ from ..common.token_budget import fit_text_to_token_budget
 from ..common.transcript_cache import openai_style_messages as _openai_style_messages
 
 
+def _fold_name(name: str) -> str:
+    """A name without accents, case or extra spaces: "Nína Pániková" folds to "nina panikova"."""
+    import unicodedata
+
+    decomposed = unicodedata.normalize("NFKD", name or "")
+    bare = "".join(c for c in decomposed if not unicodedata.combining(c))
+    return " ".join(bare.casefold().split())
+
+
 class OpenAICompatibleProvider:
     """OpenAI-compatible transport shared by OpenAIProvider (OpenAI-native) and VLLMProvider
     (DGX-local open models). They are SIBLINGS, not parent/child — vLLM serves a wide family of
@@ -1730,6 +1739,15 @@ class OpenAICompatibleProvider:
             all_speakers = [name.strip() for name in all_speakers if name.strip()]
             detected_hosts_list = [name.strip() for name in detected_hosts_list if name.strip()]
             guests_list = [name.strip() for name in guests_list if name.strip()]
+
+            # A name the model writes is the feed's KNOWN host when it is that host in another
+            # spelling — accents or case ("Nina Pániková" for the stated "Nina Panikova"). It takes
+            # the feed's spelling; kept apart it became a second spare guest name and cost the real
+            # guest his name (gold dev c085, #2276).
+            known_by_fold = {_fold_name(h): h for h in known_hosts}
+            all_speakers = [known_by_fold.get(_fold_name(n), n) for n in all_speakers]
+            detected_hosts_list = [known_by_fold.get(_fold_name(n), n) for n in detected_hosts_list]
+            guests_list = [known_by_fold.get(_fold_name(n), n) for n in guests_list]
 
             # A host the model names is TRUSTED as a host only if the feed already states it.
             detected_hosts = {host for host in detected_hosts_list if host in known_hosts}

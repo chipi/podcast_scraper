@@ -153,3 +153,15 @@ class TestEveryPersonTheModelNamesIsKept:
         payload = '{"speakers": ["Ana Rook"], "hosts": ["Ana Rook"], "guests": ["Ana Rook"]}'
         names, _, _ = _provider()._parse_speakers_from_response(payload, set())
         assert names.count("Ana Rook") == 1
+
+    def test_a_known_host_spelt_with_accents_is_that_host_not_a_new_person(self) -> None:
+        """The model wrote "Nina Pániková", the feed states "Nina Panikova". Kept as a new person,
+        she became a second spare guest name and cost the real guest his name (gold dev, c085)."""
+        payload = (
+            '{"speakers": ["Nína Pániková", "Mira Holt"],'
+            ' "hosts": ["Nína Pániková"], "guests": ["Mira Holt"]}'
+        )
+        names, hosts, _ = _provider()._parse_speakers_from_response(payload, {"Nina Panikova"})
+        assert hosts == {"Nina Panikova"}, "matched to the feed's own spelling"
+        assert "Nína Pániková" not in names and names.count("Nina Panikova") == 1
+        assert "Mira Holt" in names
