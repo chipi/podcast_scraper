@@ -220,6 +220,28 @@ guest, 3 clip/ad); step 3 opener 25 / **16 wrong** (39%); 1b 56 / 0; 1c 13 / 0. 
 stated names never bound 62 · promo/ad self-intros 48 · wrong seats at steps 2+3 49 · LLM names at
 step 1 17. Next: classify the 212, then pick the first fix from the top of this list.
 
+**The 212 names that never reach the trace, classified** (where the gold name appears in the case
+text; `name_evidence` from the labels):
+
+| Where the name is available | n | gold host / guest |
+| --- | --- | --- |
+| the episode DESCRIPTION, in full | 101 | 28 / 73 |
+| the episode TITLE, in full | 33 (+1 surname) | 1 / 33 |
+| only spoken, by another voice ("That's Joyce Mongi…", "Sarah, let me come back to you") | 27 (+1) | 6 / 22 |
+| only spoken, in the voice's own words ("Christian Sinclair. I'm the production manager…") | 14 | 4 / 10 |
+| not in the case excerpt at all (later in the transcript) | 34 | 8 / 26 |
+| the feed description | 1 | 1 / 0 |
+
+So 135 (64%) are in the episode's own title or description and still never became a stated name —
+not lost at corroboration: speaker detection never extracted them. Not (mainly) a truncation issue:
+the name sits at a median of 327 characters into the description (p75 862). Mostly OLD ingests: 78
+from August, 54 from September, 3 from October; 74 of the 135 have no stated name at all, others
+only the old failure placeholders (`['Host', 'unknown_guest_1']` on "Today's guest is Aigboje
+Aig-Imoukhuede"). Next: run TODAY's detector (vllm Qwen3-30B, `guest_host_v1`) on these ~70
+episodes' title + description — ~70 small DGX calls, budget to agree first — to split "fixed since"
+from "still missed". The corpus cannot be re-detected and re-rostered under the prod rule; this is a
+forward fix plus that measurement.
+
 ## Also on this branch — the two open plan steps (from 2026-10-02/03)
 
 ### Feed-level analysis and per-show profiles — #2261 (scoreboard plan step 5)
