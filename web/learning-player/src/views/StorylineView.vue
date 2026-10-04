@@ -10,6 +10,7 @@
  */
 import CollapsibleSection from "../components/CollapsibleSection.vue"
 import { computed, ref, watch, defineAsyncComponent } from "vue"
+import BackIcon from "../components/BackIcon.vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
@@ -192,7 +193,7 @@ function goBack(): void {
       :aria-label="t('nav.back')"
       @click="goBack"
     >
-      <span aria-hidden="true" class="text-base leading-none">‹</span>
+      <BackIcon />
       <span>{{ t("nav.back") }}</span>
     </button>
 

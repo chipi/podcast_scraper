@@ -5,11 +5,38 @@
  * (The per-route `meta.requiresAuth` flags are legacy no-ops now that deny-is-default.)
  */
 
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import {
+  createRouter,
+  createWebHistory,
+  type RouteLocationNormalized,
+  type RouteRecordRaw,
+} from 'vue-router'
 import { i18n } from '../i18n'
 import { track } from '../services/analytics'
 import { noteNavigation } from '../services/provenance'
 import { useAuthStore } from '../stores/auth'
+import {
+  holdScroll,
+  offsetWithin,
+  waitForSettledElement,
+  waitUntilScrollable,
+} from '../utils/scrollRestore'
+import { SHEET_HISTORY_KEYS } from '../composables/useModalSheet'
+import { anchorFromLastClick, restoreToAnchor, trackClicks, type ClickAnchor } from '../utils/backAnchor'
+
+// Which control each page was left by — Back puts it back where it was (utils/backAnchor).
+const backAnchors = new Map<string, ClickAnchor>()
+trackClicks()
+
+/** Clearance above a section an anchor lands on. */
+const ANCHOR_GAP = 8
+
+/** Same page, and the only query keys that appeared are sheet keys — a sheet opened over it. */
+function opensSheetOnly(to: RouteLocationNormalized, from: RouteLocationNormalized): boolean {
+  if (to.path !== from.path) return false
+  const added = Object.keys(to.query).filter((k) => !(k in from.query))
+  return added.length > 0 && added.every((k) => (SHEET_HISTORY_KEYS as readonly string[]).includes(k))
+}
 // `getAuthToken` / `isNative` are no longer imported here: the native-token check moved into the
 // shared `auth.hasSession` getter, which the masthead reads too, so the guard and the header cannot
 // disagree about who is signed in (2026-09-16).
@@ -192,8 +219,49 @@ export const router = createRouter({
   // Discover's trends section, which sits below the fold, so scrolling to the top would drop the
   // reader above the very thing they asked for (operator 2026-09-17). `behavior: 'smooth'` makes
   // the jump legible as a move rather than a page swap.
-  scrollBehavior: (to) =>
-    to.hash ? { el: to.hash, behavior: 'smooth', top: 8 } : { top: 0 },
+  //
+  // BACK returns to where you were, not the top (operator 2026-10-04): opening a person from a
+  // section halfway down an episode and coming back must land on that section. The browser hands
+  // us the position (`saved`); detail pages re-fetch on return, so wait for the page to be tall
+  // enough first — see utils/scrollRestore.
+  //
+  // A SHEET opening is not a new page: it only adds its `?card=` / `?theme=` … key, and the page
+  // underneath must stay exactly where it is, so closing the whole stack lands where it started.
+  //
+  // An anchor (a note's Open → `#notes`) usually names a section that renders only after the page's
+  // own fetch, and then gets pushed down by the sections above it as they stream in. Wait for it to
+  // exist AND stop moving, or the reader lands at the top or above it.
+  //
+  // Both then HOLD the position for a few seconds (utils/scrollRestore `holdScroll`): content that
+  // arrives later still moves the page, and a one-shot restore loses to it under load.
+  scrollBehavior: async (to, from, saved) => {
+    if (saved) {
+      // The control the reader left by, put back where it sat — robust to the page having grown.
+      const anchor = backAnchors.get(to.fullPath)
+      const top = anchor ? await restoreToAnchor(anchor) : null
+      if (top != null) return { top }
+      // Not identifiable: the browser's offset. No hold — it would fight the browser's own scroll
+      // anchoring, which is what keeps the content in place as the page grows.
+      await waitUntilScrollable(null, saved.top, 5000)
+      return saved
+    }
+    if (opensSheetOnly(to, from)) return false
+    if (to.hash) {
+      // Already on the page (Home's "See all" onto Discover's trends): nothing will move under it,
+      // so the smooth scroll the operator asked for (2026-09-17) stays.
+      if (document.querySelector(to.hash)) return { el: to.hash, behavior: 'smooth', top: ANCHOR_GAP }
+      // Rendered later (a note's Open onto `#notes`): land INSTANTLY and hold. A smooth scroll here
+      // animates toward where the section WAS; content arriving above then moves the section, and
+      // the animation carries the reader away from it (measured 2026-10-04: scroll anchoring put the
+      // page at ~2210, the animation dragged it back to 1053, the notes ended off screen).
+      const anchor = await waitForSettledElement(to.hash)
+      if (anchor) {
+        holdScroll(null, () => offsetWithin(null, anchor) - ANCHOR_GAP)
+        return { top: offsetWithin(null, anchor) - ANCHOR_GAP }
+      }
+    }
+    return { top: 0 }
+  },
 })
 
 // Login-first guard (RFC-120): a free account is required for everything except the two
@@ -201,6 +269,14 @@ export const router = createRouter({
 // once BEFORE deciding, so a signed-in visitor never flashes the landing on cold start / refresh
 // (native rehydrates its Bearer here too). An unauthenticated visitor is sent to the landing with
 // a `redirect` back to the intended path so a shared deep link survives signup.
+router.beforeEach((to, from) => {
+  // A SHEET opening keeps the page: its anchor is still the one the page was left by.
+  if (opensSheetOnly(to, from)) return
+  const anchor = anchorFromLastClick()
+  if (anchor) backAnchors.set(from.fullPath, anchor)
+  else backAnchors.delete(from.fullPath)
+})
+
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
   await auth.ensureLoaded()

@@ -16,10 +16,19 @@ import { useRoute, useRouter } from "vue-router"
  * the query disappears, and the watcher fires `onClose`. Sheets with no URL (queue, interests) omit
  * it and get only the focus trap.
  */
+/**
+ * Every query key a sheet records. The router reads this list: a navigation that only ADDS one of
+ * these is a sheet opening over the page, not a new page, so the page underneath keeps its scroll
+ * (operator 2026-10-04 — a stacked topic → theme → person must close back onto the exact spot).
+ * Typed, so a sheet cannot use a key the router does not know about.
+ */
+export const SHEET_HISTORY_KEYS = ["card", "card2", "storyline", "theme"] as const
+export type SheetHistoryKey = (typeof SHEET_HISTORY_KEYS)[number]
+
 export function useModalSheet(
   dialogEl: Ref<HTMLElement | null>,
   onClose: () => void,
-  history?: { key: string; value: () => string }
+  history?: { key: SheetHistoryKey; value: () => string }
 ): void {
   const route = useRoute()
   const router = useRouter()

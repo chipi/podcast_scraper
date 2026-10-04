@@ -11,8 +11,10 @@
  *   • `inline`  — replaces a panel's content with a ‹ Back (Insights → entity); no new layer.
  *   • `overlay` — wrapped in EntityCard's modal (Search → entity, a page-level surface).
  */
-import { computed, ref, watch } from "vue"
+import { computed, nextTick, ref, watch } from "vue"
+import BackIcon from "./BackIcon.vue"
 import CloseIcon from "./CloseIcon.vue"
+import { restoreScroll } from "../utils/scrollRestore"
 import { useI18n } from "vue-i18n"
 import { getOrgCard, getPersonCard, getTopicCard, getTopicPerspectives } from "../services/api"
 import type { OrgCard, PersonCard, TopicCard } from "../services/types"
@@ -29,7 +31,12 @@ import { useInterestsStore } from "../stores/interests"
 import { useFavoritesStore } from "../stores/favorites"
 
 type EntityKind = "person" | "topic" | "organization"
-type Target = { kind: EntityKind; id: string }
+/**
+ * `scroll` is where the reader was on this entity when they walked on to the next one, so Back can
+ * return them there. Two offsets because the card scrolls in its own body inside a sheet or panel,
+ * but the PAGE scrolls on the standalone /person and /topic routes, where the body is unbounded.
+ */
+type Target = { kind: EntityKind; id: string; scroll?: { body: number; page: number } }
 
 const props = withDefaults(
   defineProps<{
@@ -162,14 +169,41 @@ watch(
   { immediate: true }
 )
 
+const bodyEl = ref<HTMLElement | null>(null)
+// Set by Back, applied once the entity it returned to has loaded (operator 2026-10-04).
+let pendingScroll: Target["scroll"] | null = null
+// The standalone /person and /topic routes, where the card IS the page and the page is what
+// scrolls. Anywhere else (a panel, a sheet) the page behind belongs to someone else — on desktop
+// the episode-notes rail sits beside the episode — and the card must not move it.
+const cardIsPage = computed(() => props.variant === "inline" && props.rootControl === "close")
+
 function open(kind: EntityKind, id: string): void {
-  stack.value = [...stack.value, { kind, id }]
+  const here = stack.value.slice(0, -1)
+  const leaving: Target = {
+    ...current.value,
+    scroll: { body: bodyEl.value?.scrollTop ?? 0, page: cardIsPage.value ? window.scrollY : 0 },
+  }
+  stack.value = [...here, leaving, { kind, id }]
+  // A new entity starts at its top, not at the offset the reader had reached on the last one.
+  if (bodyEl.value) bodyEl.value.scrollTop = 0
+  if (cardIsPage.value) window.scrollTo({ top: 0 })
 }
 // Left control: pop the stack if deeper, else dismiss the whole card (back to panel / close modal).
 function onBack(): void {
-  if (stack.value.length > 1) stack.value = stack.value.slice(0, -1)
-  else emit("close")
+  if (stack.value.length > 1) {
+    stack.value = stack.value.slice(0, -1)
+    pendingScroll = current.value.scroll ?? null
+  } else emit("close")
 }
+watch(loading, (isLoading) => {
+  if (isLoading || !pendingScroll) return
+  const { body, page } = pendingScroll
+  pendingScroll = null
+  void nextTick(() => {
+    void restoreScroll(bodyEl.value, body)
+    if (cardIsPage.value) void restoreScroll(null, page)
+  })
+})
 
 const label = computed(() => person.value?.label ?? topic.value?.label ?? org.value?.label ?? "")
 
@@ -257,10 +291,10 @@ const isTopic = computed(() => current.value.kind === "topic")
           data-testid="ec-dismiss"
           @click="onBack"
         >
-          <!-- ✕ is drawn, not typed: U+2715 is a tofu box in the iOS UI font (see CloseIcon).
-               ‹ (U+2039) does render, so the back chevron stays a character. -->
+          <!-- Both drawn, same box and stroke: ✕ because U+2715 is a tofu box in the iOS UI font
+               (see CloseIcon), ‹ because as a character it was a sliver beside that ✕ (BackIcon). -->
           <CloseIcon v-if="dismissAtRoot" />
-          <span v-else aria-hidden="true" class="text-base leading-none">‹</span>
+          <BackIcon v-else />
         </button>
       </div>
 
@@ -308,7 +342,7 @@ const isTopic = computed(() => current.value.kind === "topic")
            where it actually bit (tapping an episode landed on Home). -->
     </header>
 
-    <div class="min-h-0 flex-1 overflow-y-auto py-4" :class="props.flush ? '' : 'px-4'">
+    <div ref="bodyEl" class="min-h-0 flex-1 overflow-y-auto py-4" :class="props.flush ? '' : 'px-4'">
       <p v-if="loading" class="text-sm text-muted">{{ t("ec.loading") }}</p>
       <p v-else-if="failed || (!person && !topic && !org)" class="text-sm text-muted">
         {{ t("ec.notFound") }}

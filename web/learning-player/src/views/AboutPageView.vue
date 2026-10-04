@@ -8,6 +8,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
+import BackIcon from '../components/BackIcon.vue'
 import PrivacyPolicy from '../components/PrivacyPolicy.vue'
 import TermsOfUse from '../components/TermsOfUse.vue'
 import ThirdPartySoftware from '../components/ThirdPartySoftware.vue'
@@ -48,7 +49,7 @@ function goBack(e: MouseEvent): void {
       data-testid="about-page-back"
       @click="goBack"
     >
-      ‹ {{ cameFromApp ? t('nav.back') : t('settings.title') }}
+      <BackIcon /> {{ cameFromApp ? t('nav.back') : t('settings.title') }}
     </RouterLink>
     <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight" data-testid="about-page-title">
       {{ t(titleKey) }}

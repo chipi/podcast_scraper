@@ -8,6 +8,7 @@ import en from "../i18n/locales/en.json"
 import type { EpisodeSummary, PersonCard, TopicCard } from "../services/types"
 import { useAuthStore } from "../stores/auth"
 import EntityCardBody from "./EntityCardBody.vue"
+import PersonCardContent from "./PersonCardContent.vue"
 import StorylineCard from "./StorylineCard.vue"
 import ShareMenu from "./ShareMenu.vue"
 
@@ -97,6 +98,45 @@ beforeEach(() => {
   vi.spyOn(api, "getEntitySignals").mockResolvedValue({})
 })
 afterEach(() => vi.restoreAllMocks())
+
+describe("EntityCardBody — Back (operator 2026-10-04)", () => {
+  it("draws the back chevron, the same kind of icon as the close ✕, not the ‹ character", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    setActivePinia(createPinia())
+    // `inline` with no rootControl is a drill-down inside a panel: its control is Back.
+    const w = mount(EntityCardBody, {
+      props: { kind: "person", id: "person:jane-doe", variant: "inline" },
+      global: { plugins: [i18n, router] },
+    })
+    await flushPromises()
+    const dismiss = w.find('[data-testid="ec-dismiss"]')
+    expect(dismiss.attributes("aria-label")).toBe("Back")
+    expect(dismiss.find("svg").exists()).toBe(true)
+    expect(dismiss.text()).not.toContain("‹")
+  })
+
+  it("stepping back from a drilled-in entity returns to where the reader was on the first one", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    vi.spyOn(api, "getTopicPerspectives").mockResolvedValue({ perspectives: [] } as never)
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    const body = w.find(".overflow-y-auto").element as HTMLElement
+    // jsdom lays nothing out; give the body room to scroll.
+    Object.defineProperty(body, "scrollHeight", { value: 3000, configurable: true })
+    body.scrollTop = 480 // down in the person's related topics
+
+    w.findComponent(PersonCardContent).vm.$emit("open", { kind: "topic", id: "topic:ai" })
+    await flushPromises()
+    expect(w.text()).toContain("AI")
+    expect(body.scrollTop, "the topic opened at the person's offset, not its own top").toBe(0)
+
+    await w.find('[data-testid="ec-dismiss"]').trigger("click")
+    await flushPromises()
+    expect(w.text()).toContain("Jane Doe")
+    expect(body.scrollTop).toBe(480)
+  })
+})
 
 describe("EntityCardBody — person web bio + photo credit (wave-G)", () => {
   it("renders the hosted photo and strips HTML from the image-artist credit", async () => {

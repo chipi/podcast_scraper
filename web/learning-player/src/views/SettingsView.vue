@@ -10,6 +10,7 @@
  * the phone, and grouping them with the account's own settings is what makes that legible. This
  * view is build identity and help; it is not the home for every future option.
  */
+import BackIcon from '../components/BackIcon.vue'
 import DeviceSettings from '../components/DeviceSettings.vue'
 import ConnectedAgents from '../components/ConnectedAgents.vue'
 import { computed, defineAsyncComponent, ref } from 'vue'
@@ -171,7 +172,7 @@ async function openHelp(): Promise<void> {
       :to="{ name: 'profile' }"
       class="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted no-underline transition hover:text-canvas-foreground"
     >
-      ‹ {{ t('profile.title') }}
+      <BackIcon /> {{ t('profile.title') }}
     </RouterLink>
     <h1 class="mb-1 font-display text-3xl font-extrabold tracking-tight">{{ t('settings.title') }}</h1>
     <p class="mb-5 text-sm text-muted">{{ t('settings.subtitle') }}</p>

@@ -25,6 +25,7 @@ import { computed, defineAsyncComponent, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 
+import BackIcon from "../components/BackIcon.vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import EntityEpisodeList from "../components/EntityEpisodeList.vue"
 import MemberTrendBadge from "../components/MemberTrendBadge.vue"
@@ -189,7 +190,7 @@ function goBack(): void {
       :aria-label="t('nav.back')"
       @click="goBack"
     >
-      <span aria-hidden="true" class="text-base leading-none">‹</span>
+      <BackIcon />
       <span>{{ t("nav.back") }}</span>
     </button>
 

@@ -99,6 +99,11 @@ still clamp; show names do not.)
 
 - Drilling deeper is **replace-in-place with a `‹ Back` stack**; closing returns to the prior view
   in the **same** surface (no layer added or removed).
+- **Back returns to where the reader was, not the top** (operator 2026-10-04). Opening a person from
+  the people row halfway down an episode's notes, then Back, lands on that row. This holds for every
+  back: a route (the router restores the browser's saved position), the entity card's own stack,
+  and the Knowledge Panel's replace-in-panel card. The restore waits for re-fetched content to make
+  the page tall enough, or it is clamped to the loading state — `utils/scrollRestore`.
 - The shared body (e.g. `EntityCardBody`) is rendered **inline** in a panel and **wrapped in the
   modal** from a page — one component, two presentations (`variant`), so they cannot drift.
 
@@ -112,8 +117,12 @@ still clamp; show names do not.)
   not typed**: it used to be the character `✕` (U+2715), which is absent from the iOS UI font and
   rendered as a tofu box on device, so every dismiss control read as "?" (2026-09-16). Adding
   emoji/symbol faces to the font stacks did not fix it. The rule this sets: **an icon that carries
-  meaning is an SVG, never a codepoint** — the back chevron `‹` (U+2039) stays a character only
-  because it is verified to render. Same conclusion as the profile edit badge and the streak mark.
+  meaning is an SVG, never a codepoint**. Same conclusion as the profile edit badge and the streak
+  mark.
+- Back is **`BackIcon`**, the ✕'s twin: same 16px box, same 2.5 stroke. The chevron used to be the
+  character `‹` (U+2039), kept because it rendered — but it rendered as a sliver beside the drawn ✕,
+  so the two dismiss controls looked unrelated (operator 2026-10-04). Every `lp-nav` back control
+  uses it; the visible "Back" labels beside it are unchanged.
 
 ## Sharing (#2036)
 

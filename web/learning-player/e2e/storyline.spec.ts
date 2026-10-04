@@ -192,3 +192,34 @@ test('the storyline PAGE shows its people as Top voices — the topic card\'s gr
   await expect(voices.getByTestId('ec-top-voice').first()).toHaveAttribute('href', /\/person\//)
   await expect(view.getByText('Related people')).toHaveCount(0)
 })
+
+test('Back from a person opened in Top voices returns to Top voices, not the top of the page', async ({
+  page,
+}, testInfo) => {
+  // Operator 2026-10-04: Back landed at the top of the page the person was opened from, so the
+  // reader had to find their place again. Phone-sized, so Top voices sits below the fold.
+  await page.setViewportSize({ width: 390, height: 760 })
+  await signInIsolated(page, 'storyline-back-scroll', testInfo)
+  await page.goto('/')
+  await page.getByTestId('discovery-tab-storyline').click()
+  const row = await firstOpenableStorylineRow(page)
+  await row.click()
+  await expect(page).toHaveURL(/[?&]storyline=/)
+  const anchor = new URL(page.url()).searchParams.get('storyline')
+  expect(anchor, 'no ?storyline= anchor in the URL').toBeTruthy()
+
+  await page.goto(`/storyline/${encodeURIComponent(anchor!)}`)
+  const voice = page.getByTestId('storyline-view').getByTestId('ec-top-voice').first()
+  await voice.scrollIntoViewIfNeeded()
+  const before = await page.evaluate(() => window.scrollY)
+  expect(before, 'Top voices is not below the fold, so this proves nothing').toBeGreaterThan(200)
+
+  await voice.click()
+  await expect(page).toHaveURL(/\/person\//)
+  await page.getByTestId('ec-dismiss').click() // the person page's ✕ — a history Back
+  await expect(page).toHaveURL(/\/storyline\//)
+  // The voice tapped is back on screen, whole — not an exact offset: rails above it can finish
+  // loading after the restore, and scroll anchoring then shifts the offset to keep it in view.
+  await expect(voice).toBeInViewport({ ratio: 1 })
+  expect(await page.evaluate(() => window.scrollY), 'reset to the top instead').toBeGreaterThan(before / 2)
+})

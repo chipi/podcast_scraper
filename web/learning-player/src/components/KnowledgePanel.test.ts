@@ -148,6 +148,61 @@ describe("KnowledgePanel", () => {
     expect(w.find('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Back")
   })
 
+  it("opened from a note (focusNotes), the panel lands on the notes section", async () => {
+    // Put the notes 900px down the panel body (jsdom lays nothing out).
+    const rect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement
+    ) {
+      // Like a browser: scrolling the panel body moves the notes up by as much.
+      const body = this.closest(".overflow-y-auto") as HTMLElement | null
+      return { top: this.id === "notes" ? 900 - (body?.scrollTop ?? 0) : 0 } as DOMRect
+    })
+    const w = mount(KnowledgePanel, {
+      props: {
+        episode: episode(),
+        insights: [insight()],
+        topics: [],
+        persons: [],
+        slug: "s1",
+        activeInsightId: null,
+        focusNotes: true,
+      },
+      global: { plugins: [i18n, router] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    // The landing waits for the notes to stop moving (300ms settle).
+    await new Promise((r) => setTimeout(r, 450))
+    expect((w.find(".overflow-y-auto").element as HTMLElement).scrollTop).toBe(900)
+    rect.mockRestore()
+  })
+
+  it("closing the card returns the panel to where it was scrolled, not the top (operator 2026-10-04)", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue({
+      id: "person:matthew-walker",
+      label: "Matthew Walker",
+      episode_count: 0,
+      episodes: [],
+      related_people: [],
+      related_topics: [],
+    })
+    // jsdom lays nothing out, so every scroller reports zero height; give them room to scroll.
+    const height = vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(3000)
+    const w = mountPanel()
+    const body = () => w.find(".overflow-y-auto").element as HTMLElement
+    body().scrollTop = 640 // down at the people row
+    await w
+      .findAll("button")
+      .find((b) => b.text() === "Matthew Walker")!
+      .trigger("click")
+    await flushPromises()
+    await w.find('[data-testid="ec-dismiss"]').trigger("click")
+    await flushPromises()
+    // The panel body is a NEW element after the card closes; it must not start at 0.
+    expect(body().scrollTop).toBe(640)
+    height.mockRestore()
+  })
+
   it("tapping a topic chip opens its entity card (not a search)", async () => {
     const getTopic = vi.spyOn(api, "getTopicCard").mockResolvedValue({
       id: "topic:memory",

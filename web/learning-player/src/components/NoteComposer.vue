@@ -89,7 +89,8 @@ function onMicClick(): void {
 </script>
 
 <template>
-  <section class="mt-4" data-testid="note-composer">
+  <!-- `id="notes"`: a note's Open link lands here (composables/noteTarget). -->
+  <section id="notes" class="mt-4 scroll-mt-4" data-testid="note-composer">
     <h3 class="lp-section mb-2">{{ t('notes.title') }}</h3>
 
     <ul v-if="notes.length" class="mb-3 flex flex-col gap-2">

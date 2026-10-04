@@ -23,6 +23,7 @@ import { useSignInGate } from '../composables/useSignInGate'
 import { scrollBehavior } from '../utils/motion'
 import { useCaptureStore } from '../stores/capture'
 import { useCompletedStore } from '../stores/completed'
+import BackIcon from '../components/BackIcon.vue'
 import RouteButton from '../components/RouteButton.vue'
 import { usePlayed } from '../composables/usePlayed'
 import { useUserPreferencesStore } from '../stores/userPreferences'
@@ -260,7 +261,9 @@ function syncPanelDialog(): void {
   else d.showModal()
 }
 
-watch([panelOpen, isDesktop], () => void nextTick(syncPanelDialog))
+// `panelDialog` too: the dialog renders only once the episode has loaded, so a panel opened before
+// that (a note's Open arrives with `?notes=1`) found no dialog to show and stayed shut.
+watch([panelOpen, isDesktop, panelDialog], () => void nextTick(syncPanelDialog))
 
 /**
  * `knowledge_panel_open` (#2267) — part of "learning actions per active day".
@@ -351,6 +354,11 @@ function openInsight(insightId: string): void {
     focusInsightId.value = insightId
   })
 }
+
+// A note's "Open" (composables/noteTarget) arrives with `?notes=1`: the episode's notes live in the
+// episode-notes panel, so open it and let it scroll to them (operator 2026-10-04).
+const focusNotes = computed(() => route.query.notes === '1')
+watch(focusNotes, (on) => { if (on) panelOpen.value = true }, { immediate: true })
 
 // Playback state + transport live in the player store (single source of truth for the UI,
 // MediaSession, and native controls — #1307). What is left here is genuinely view-shaped:
@@ -1329,7 +1337,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section>
-    <button type="button" class="lp-nav" @click="goBack">‹ {{ t('player.back') }}</button>
+    <button type="button" class="lp-nav" @click="goBack"><BackIcon /> {{ t('player.back') }}</button>
     <!-- Polite SR confirmation for captures (mark-moment / save line or phrase). -->
     <p aria-live="polite" class="sr-only">{{ captureAnnounce }}</p>
 
@@ -1971,6 +1979,7 @@ onBeforeUnmount(() => {
           :slug="slug"
           :active-insight-id="activeInsight?.id ?? null"
           :focus-insight-id="focusInsightId"
+          :focus-notes="focusNotes"
           @seek="seekContent"
           @announce="announceCapture"
           @close="panelOpen = false"

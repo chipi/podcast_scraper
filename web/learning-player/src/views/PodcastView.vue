@@ -8,6 +8,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useClampedProse } from '../composables/useClampedProse'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import BackIcon from '../components/BackIcon.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
 import EntityCard from '../components/EntityCard.vue'
@@ -299,7 +300,7 @@ watch(() => props.feedId, reset)
 
 <template>
   <section>
-    <button type="button" class="lp-nav" @click="goBack">‹ {{ t('nav.back') }}</button>
+    <button type="button" class="lp-nav" @click="goBack"><BackIcon /> {{ t('nav.back') }}</button>
 
     <header class="mb-6 mt-2 flex gap-4 sm:gap-5">
       <!--

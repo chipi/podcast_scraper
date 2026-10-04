@@ -29,6 +29,8 @@ import { useAuthStore } from "../stores/auth"
 import { sheetTeleportTarget } from "../composables/sheetStack"
 import { useSignInGate } from "../composables/useSignInGate"
 import { scrollBehavior } from "../utils/motion"
+import { holdScroll, offsetWithin, restoreScroll, waitForSettledElement } from "../utils/scrollRestore"
+import { NOTES_ANCHOR } from "../composables/noteTarget"
 import { useQueueStore } from "../stores/queue"
 import { useCaptureStore } from "../stores/capture"
 import CollapsibleSection from "./CollapsibleSection.vue"
@@ -54,8 +56,10 @@ const props = withDefaults(
     activeInsightId: string | null
     /** An insight tapped from the transcript — scroll it into view + highlight it. */
     focusInsightId?: string | null
+    /** Opened from a note's "Open" (operator 2026-10-04) — land on the notes, not the panel top. */
+    focusNotes?: boolean
   }>(),
-  { focusInsightId: null }
+  { focusInsightId: null, focusNotes: false }
 )
 const emit = defineEmits<{
   (e: "seek", seconds: number): void
@@ -214,8 +218,21 @@ type Tag = {
 
 // Tapping a chip opens its entity card (PRD-043; library search now lives inside the card).
 const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
+// The card REPLACES the panel body, so closing it rebuilt the panel at the top — far from the
+// people or topics row the card was opened from. Remember the offset; put it back on close
+// (operator 2026-10-04).
+const panelBodyEl = ref<HTMLElement | null>(null)
+let panelScrollBeforeCard = 0
+function showCard(kind: "person" | "topic", id: string): void {
+  panelScrollBeforeCard = panelBodyEl.value?.scrollTop ?? 0
+  cardTarget.value = { kind, id }
+}
 function openCard(tag: Tag): void {
-  cardTarget.value = { kind: tag.kind, id: tag.key }
+  showCard(tag.kind, tag.key)
+}
+function closeCard(): void {
+  cardTarget.value = null
+  void nextTick(() => restoreScroll(panelBodyEl.value, panelScrollBeforeCard))
 }
 
 // How many of THIS episode's topics fall in each corpus cluster (intra-episode dominance).
@@ -454,6 +471,25 @@ watch(
   }
 )
 
+// The notes sit at the very bottom of the panel, below every rail; scroll the panel's own body to
+// them once they are rendered.
+watch(
+  () => props.focusNotes,
+  async (on) => {
+    if (!on) return
+    await nextTick()
+    const notes = await waitForSettledElement(NOTES_ANCHOR)
+    if (!notes) return
+    // Instant, then held: rails above the notes can still arrive and push them down, and a smooth
+    // scroll would animate toward where they WERE (see the router's anchor branch).
+    const body = panelBodyEl.value
+    if (!body) return notes.scrollIntoView({ block: "start" })
+    body.scrollTop = offsetWithin(body, notes)
+    holdScroll(body, () => offsetWithin(body, notes))
+  },
+  { immediate: true }
+)
+
 // --- ask (extractive grounded search) ---
 const q = ref("")
 const results = ref<SearchHit[]>([])
@@ -598,7 +634,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
       can-layer
       :kind="cardTarget.kind"
       :id="cardTarget.id"
-      @close="cardTarget = null"
+      @close="closeCard"
     />
     <template v-else>
       <header class="flex items-center justify-between border-b border-border px-4 py-3">
@@ -615,7 +651,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
         </button>
       </header>
 
-      <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <div ref="panelBodyEl" class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <!-- WHICH EPISODE THIS IS (operator 2026-09-19).
 
              The panel carries the summary, the topics, the people and every insight — it is the
@@ -649,7 +685,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 class="flex items-center gap-2 text-left"
                 :aria-label="p.episode_scoped ? undefined : t('kp.openEntity', { term: personName(p.name) })"
                 data-testid="kp-dossier-person"
-                @click="p.episode_scoped ? undefined : (cardTarget = { kind: 'person', id: p.id })"
+                @click="p.episode_scoped ? undefined : showCard('person', p.id)"
               >
                 <ProfileAvatar :name="personName(p.name)" :src="p.image_url" :size="32" />
                 <span class="flex flex-col leading-tight">
