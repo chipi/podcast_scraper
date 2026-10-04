@@ -173,13 +173,16 @@ const hasAny = computed(() => topics.value.length > 0)
     class="rounded border border-border bg-surface p-3 text-surface-foreground"
     data-testid="intelligence-trending"
   >
-    <div class="mb-2 flex items-center justify-between gap-2">
+    <!-- The header row wraps, the switcher does not: when the four views do not fit beside the
+         title, the whole switcher moves under it instead of breaking "Momentum" onto a second line
+         inside its own border. -->
+    <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
       <h3 class="text-sm font-semibold">Trending topics</h3>
       <div
         v-if="hasAny"
         role="tablist"
         aria-label="Trending view"
-        class="inline-flex flex-wrap gap-0.5 rounded border border-border p-0.5 text-[11px]"
+        class="inline-flex shrink-0 gap-0.5 whitespace-nowrap rounded border border-border p-0.5 text-[11px]"
       >
         <button
           v-for="opt in VIEWS"
