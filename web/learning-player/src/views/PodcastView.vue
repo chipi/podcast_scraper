@@ -21,6 +21,7 @@ import FollowButton from '../components/FollowButton.vue'
 import ShareMenu from '../components/ShareMenu.vue'
 import { accentForKind, type EntityCardModel } from '../composables/entityShareCard'
 import { formatPublishDate } from '../utils/format'
+import { scrollBehavior } from '../utils/motion'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
@@ -110,6 +111,33 @@ const hidePlayed = ref(false)
 const visibleEpisodes = computed(() =>
   hidePlayed.value ? episodes.value.filter((e) => !isPlayed(e.slug)) : episodes.value,
 )
+
+/**
+ * A tapped activity bar jumps to that month's first episode in the list (operator 2026-10-04).
+ *
+ * The chart is built from the loaded episodes, so the month always has one here — but "Hide played"
+ * can be hiding all of them, and a tap that scrolls nowhere looks broken. So the filter is lifted
+ * first when it is what stands in the way. The card is flashed briefly so the eye lands on it.
+ */
+const flashSlug = ref<string | null>(null)
+let flashTimer: ReturnType<typeof setTimeout> | undefined
+async function jumpToMonth(month: string): Promise<void> {
+  const inMonth = (e: EpisodeSummary) => (e.publish_date ?? '').startsWith(month)
+  let target = visibleEpisodes.value.find(inMonth)
+  if (!target && hidePlayed.value) {
+    hidePlayed.value = false
+    target = episodes.value.find(inMonth)
+  }
+  if (!target) return
+  await nextTick()
+  document
+    .querySelector(`[data-episode-slug="${CSS.escape(target.slug)}"]`)
+    ?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
+  flashSlug.value = target.slug
+  clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => (flashSlug.value = null), 1600)
+}
+onBeforeUnmount(() => clearTimeout(flashTimer))
 
 // Update cadence (SD.6) — the median gap between the loaded (recent) episodes' publish dates,
 // bucketed into a one-word rhythm. Needs ≥3 dated episodes to be meaningful.
@@ -407,7 +435,7 @@ watch(() => props.feedId, reset)
 
     <!-- Activity first (SD.4): the publishing rhythm up top, right under the header, before the
          topic/people signals. -->
-    <ShowActivityChart :episodes="episodes" />
+    <ShowActivityChart :episodes="episodes" @select="jumpToMonth" />
 
     <!-- Show-level signals: what this show's about + who's on it (taps open the entity card). -->
     <PodcastSignalsBand :feed-id="feedId" @open="cardTarget = $event" />
@@ -433,8 +461,14 @@ watch(() => props.feedId, reset)
            the newest — label it, then the rest follow. -->
       <template v-else>
         <span class="lp-kicker mb-1 block text-accent" data-testid="latest-label">{{ t('podcast.latest') }}</span>
-        <EpisodeCard :episode="visibleEpisodes[0]" />
-        <EpisodeCard v-for="ep in visibleEpisodes.slice(1)" :key="ep.slug" :episode="ep" />
+        <EpisodeCard
+          v-for="ep in visibleEpisodes"
+          :key="ep.slug"
+          :episode="ep"
+          :data-episode-slug="ep.slug"
+          class="scroll-mt-24"
+          :class="{ 'bg-overlay ring-1 ring-inset ring-border': flashSlug === ep.slug }"
+        />
       </template>
       <!-- The one "there is more of this list below" shape (operator 2026-09-19). This is the same
            paginated episode list Discover renders, and it kept the old centred pill only because it

@@ -37,6 +37,25 @@ test('the show activity chart renders one bar per period', async ({ page }, test
   expect(await page.locator('[data-testid^="show-activity-bar-"]').count()).toBeGreaterThan(1)
 })
 
+test('tapping an activity bar jumps to that month in the episode list', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'show-activity-jump', testInfo)
+  await page.goto('/podcast/p05')
+  await expect(page.getByTestId('show-activity-unit')).toHaveText('Episodes per month')
+  // The OLDEST month with episodes: furthest down the newest-first list, so the jump has to scroll.
+  const bar = page.locator('button[data-testid^="show-activity-bar-"]').first()
+  await expect(bar).toBeVisible()
+  const month = ((await bar.getAttribute('data-testid')) ?? '').replace('show-activity-bar-', '')
+  // The episode it should land on: the first (newest) one of that month in the page's own list.
+  const list = (await (await page.request.get('/api/app/podcasts/p05/episodes?page=1&page_size=20')).json()) as {
+    items: { slug: string; publish_date: string | null }[]
+  }
+  const target = list.items.find((e) => (e.publish_date ?? '').startsWith(month))
+  expect(target, `no loaded episode in ${month}`).toBeTruthy()
+
+  await bar.click()
+  await expect(page.locator(`[data-episode-slug="${target!.slug}"]`)).toBeInViewport()
+})
+
 test('the player insight density band shows where the insights sit', async ({ page }, testInfo) => {
   await signInIsolated(page, 'insight-density', testInfo)
   await page.goto('/podcast/p05')

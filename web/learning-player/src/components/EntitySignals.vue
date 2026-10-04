@@ -15,6 +15,7 @@
  *   Topic  → momentum (velocity). (Similar / discussed-alongside topics are shown once, on the
  *            card itself, to avoid four near-identical related-topic chip rows.)
  */
+import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { personName, personNameFromId } from "../utils/personName"
@@ -139,47 +140,49 @@ const hasAny = computed(() => Boolean(coappears.value.length || consensus.value.
   <div v-if="hasAny" data-testid="entity-signals">
     <!-- Person -->
     <section v-if="coappears.length" class="mb-4" data-testid="es-coappears">
-      <h3 class="lp-section mb-2">{{ t("ec.sigCoappears") }}</h3>
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          v-for="p in coappears"
-          :key="p.id"
-          type="button"
-          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
-          @click="emit('open', { kind: 'person', id: p.id })"
-        >
-          {{ p.name }} <span class="text-muted">· {{ p.count }}</span>
-        </button>
-      </div>
+      <CollapsibleSection :title="t('ec.sigCoappears')" section-key="signals-coappears" :level="3">
+        <div class="flex flex-wrap gap-1.5">
+          <button
+            v-for="p in coappears"
+            :key="p.id"
+            type="button"
+            class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
+            @click="emit('open', { kind: 'person', id: p.id })"
+          >
+            {{ p.name }} <span class="text-muted">· {{ p.count }}</span>
+          </button>
+        </div>
+      </CollapsibleSection>
     </section>
 
     <section v-if="consensus.length" class="mb-4" data-testid="es-consensus">
-      <h3 class="lp-section mb-2">{{ t("ec.sigConsensus") }}</h3>
-      <ul class="flex flex-col gap-2">
-        <li
-          v-for="(c, i) in consensus"
-          :key="i"
-          class="rounded-md bg-overlay px-3 py-2"
-          data-testid="es-consensus-row"
-        >
-          <p class="text-xs">
-            <button
-              type="button"
-              class="font-semibold text-person hover:underline"
-              @click="emit('open', { kind: 'person', id: c.otherId })"
-            >
-              {{ c.otherName }}
-            </button>
-            <span class="text-muted">{{ " " + t("ec.sigOn", { topic: c.topic }) }}</span>
-          </p>
-          <p v-if="c.selfText" class="mt-1 text-xs text-muted">
-            <span class="text-canvas-foreground">“{{ c.selfText }}”</span>
-          </p>
-          <p v-if="c.otherText" class="mt-0.5 text-xs text-muted">
-            {{ c.otherName }}: “{{ c.otherText }}”
-          </p>
-        </li>
-      </ul>
+      <CollapsibleSection :title="t('ec.sigConsensus')" section-key="signals-consensus" :level="3">
+        <ul class="flex flex-col gap-2">
+          <li
+            v-for="(c, i) in consensus"
+            :key="i"
+            class="rounded-md bg-overlay px-3 py-2"
+            data-testid="es-consensus-row"
+          >
+            <p class="text-xs">
+              <button
+                type="button"
+                class="font-semibold text-person hover:underline"
+                @click="emit('open', { kind: 'person', id: c.otherId })"
+              >
+                {{ c.otherName }}
+              </button>
+              <span class="text-muted">{{ " " + t("ec.sigOn", { topic: c.topic }) }}</span>
+            </p>
+            <p v-if="c.selfText" class="mt-1 text-xs text-muted">
+              <span class="text-canvas-foreground">“{{ c.selfText }}”</span>
+            </p>
+            <p v-if="c.otherText" class="mt-0.5 text-xs text-muted">
+              {{ c.otherName }}: “{{ c.otherText }}”
+            </p>
+          </li>
+        </ul>
+      </CollapsibleSection>
     </section>
   </div>
 </template>

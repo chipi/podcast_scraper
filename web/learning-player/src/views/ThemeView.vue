@@ -20,6 +20,7 @@
  * anchor's card carries the cluster. A theme has a real id and a real endpoint, so it uses them: a
  * theme link stays valid even when its biggest member changes, which an anchor-topic link does not.
  */
+import CollapsibleSection from "../components/CollapsibleSection.vue"
 import { computed, defineAsyncComponent, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
@@ -257,32 +258,33 @@ function goBack(): void {
            surfaces". Top voices moves below the episodes rather than staying beside the quotes —
            pairing the faces with what they argued was my addition, not the request. -->
       <section class="mt-6">
-        <h2 class="lp-section mb-2">{{ t("home.themeTopicsHeading") }}</h2>
-        <ol class="flex flex-col">
-          <li v-for="(tp, i) in topics" :key="tp.id">
-            <RouterLink
-              :to="{ name: 'topic', params: { id: tp.id } }"
-              class="flex items-center gap-3 border-b border-border py-2 text-canvas-foreground no-underline hover:bg-overlay"
-              @click="openEntity('topic', tp.id, $event)"
-            >
-              <span class="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-muted">{{
-                i + 1
-              }}</span>
-              <span class="min-w-0 flex-1 truncate text-sm font-semibold text-topic">{{
-                tp.label
-              }}</span>
-              <MemberTrendBadge
-                :trend="tp.trend"
-                :first-seen="tp.firstSeen"
-                :last-seen="tp.lastSeen"
-              />
-              <span class="shrink-0 text-xs tabular-nums text-muted" data-testid="member-episodes">{{
-                t("home.memberEpisodes", tp.episodeCount, { named: { n: tp.episodeCount } })
-              }}</span>
-              <span class="shrink-0 text-muted" aria-hidden="true">›</span>
-            </RouterLink>
-          </li>
-        </ol>
+        <CollapsibleSection :title="t('home.themeTopicsHeading')" section-key="theme-topics" :level="2">
+          <ol class="flex flex-col">
+            <li v-for="(tp, i) in topics" :key="tp.id">
+              <RouterLink
+                :to="{ name: 'topic', params: { id: tp.id } }"
+                class="flex items-center gap-3 border-b border-border py-2 text-canvas-foreground no-underline hover:bg-overlay"
+                @click="openEntity('topic', tp.id, $event)"
+              >
+                <span class="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-muted">{{
+                  i + 1
+                }}</span>
+                <span class="min-w-0 flex-1 truncate text-sm font-semibold text-topic">{{
+                  tp.label
+                }}</span>
+                <MemberTrendBadge
+                  :trend="tp.trend"
+                  :first-seen="tp.firstSeen"
+                  :last-seen="tp.lastSeen"
+                />
+                <span class="shrink-0 text-xs tabular-nums text-muted" data-testid="member-episodes">{{
+                  t("home.memberEpisodes", tp.episodeCount, { named: { n: tp.episodeCount } })
+                }}</span>
+                <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+              </RouterLink>
+            </li>
+          </ol>
+        </CollapsibleSection>
       </section>
 
       <!-- What is SAID across the grouping — its members' insights, grouped by speaker, each with
@@ -302,13 +304,15 @@ function goBack(): void {
            reason to exist — a reader on one member's topic page sees only that member's episodes,
            and a similarity grouping exists precisely because that misses the rest. -->
       <section v-if="episodes.length" class="mt-6">
-        <h2 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
-          <span>{{
-            t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } })
-          }}</span>
-          <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
-        </h2>
-        <EntityEpisodeList :episodes="episodes" />
+        <CollapsibleSection section-key="theme-episodes" :level="2">
+          <template #title>
+            <span>{{
+              t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } })
+            }}</span>
+            <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
+          </template>
+          <EntityEpisodeList :episodes="episodes" />
+        </CollapsibleSection>
       </section>
 
       <!-- Counted across the whole union, so these are the voices that recur across the theme

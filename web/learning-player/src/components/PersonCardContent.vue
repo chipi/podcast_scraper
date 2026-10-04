@@ -7,6 +7,7 @@
  * `PersonCard`. Graph navigation (tapping a related chip / a signal) emits `open`; `close` dismisses
  * the whole card (the shell re-emits it upward).
  */
+import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed, ref } from "vue"
 import { useClampedProse } from "../composables/useClampedProse"
 import { useI18n } from "vue-i18n"
@@ -211,38 +212,39 @@ function searchLibrary(): void {
 
 
   <section v-if="relatedPeople.length" class="mb-4">
-    <h3 class="lp-section mb-2">{{ t("ec.relatedPeople") }}</h3>
-    <div class="flex flex-wrap gap-1.5">
-      <!--
-        Role badge, matching the show page and the episode Insights panel (operator 2026-09-27) —
-        same markup, same `ec.role*` keys. Three surfaces that list people, one appearance.
+    <CollapsibleSection :title="t('ec.relatedPeople')" section-key="person-related-people" :level="3">
+      <div class="flex flex-wrap gap-1.5">
+        <!--
+          Role badge, matching the show page and the episode Insights panel (operator 2026-09-27) —
+          same markup, same `ec.role*` keys. Three surfaces that list people, one appearance.
 
-        The role is aggregated SERVER-side over the episodes this person shares with the card's
-        subject. It could not be read straight off the entity: the builder collects co-appearing
-        people last-write-wins, so an unaggregated `role` is whichever shared episode happened to be
-        processed last — a co-host would read "mentioned" whenever their final shared episode merely
-        mentioned them.
+          The role is aggregated SERVER-side over the episodes this person shares with the card's
+          subject. It could not be read straight off the entity: the builder collects co-appearing
+          people last-write-wins, so an unaggregated `role` is whichever shared episode happened to be
+          processed last — a co-host would read "mentioned" whenever their final shared episode merely
+          mentioned them.
 
-        Roleless renders unbadged rather than guessing "mentioned".
-      -->
-      <button
-        v-for="p in relatedPeople"
-        :key="p.id"
-        type="button"
-        data-testid="ec-related-person"
-        :data-role="p.role?.toLowerCase()"
-        class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
-        @click="emit('open', { kind: 'person', id: p.id })"
-      >
-        {{ personName(p.name)
-        }}<span
-          v-if="roleLabel(p.role)"
-          data-testid="ec-related-person-role"
-          class="ml-1 rounded-full bg-canvas/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
-          >{{ roleLabel(p.role) }}</span
+          Roleless renders unbadged rather than guessing "mentioned".
+        -->
+        <button
+          v-for="p in relatedPeople"
+          :key="p.id"
+          type="button"
+          data-testid="ec-related-person"
+          :data-role="p.role?.toLowerCase()"
+          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
+          @click="emit('open', { kind: 'person', id: p.id })"
         >
-      </button>
-    </div>
+          {{ personName(p.name)
+          }}<span
+            v-if="roleLabel(p.role)"
+            data-testid="ec-related-person-role"
+            class="ml-1 rounded-full bg-canvas/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
+            >{{ roleLabel(p.role) }}</span
+          >
+        </button>
+      </div>
+    </CollapsibleSection>
   </section>
 
   <!-- Search transcripts — placed BETWEEN related people and related topics so it separates the two
@@ -259,18 +261,19 @@ function searchLibrary(): void {
   </button>
 
   <section v-if="relatedTopics.length" class="mb-4">
-    <h3 class="lp-section mb-2">{{ t("ec.relatedTopics") }}</h3>
-    <div class="flex flex-wrap gap-1.5">
-      <button
-        v-for="tp in relatedTopics"
-        :key="tp.id"
-        type="button"
-        class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-        @click="emit('open', { kind: 'topic', id: tp.id })"
-      >
-        {{ tp.label }}
-      </button>
-    </div>
+    <CollapsibleSection :title="t('ec.relatedTopics')" section-key="person-related-topics" :level="3">
+      <div class="flex flex-wrap gap-1.5">
+        <button
+          v-for="tp in relatedTopics"
+          :key="tp.id"
+          type="button"
+          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+          @click="emit('open', { kind: 'topic', id: tp.id })"
+        >
+          {{ tp.label }}
+        </button>
+      </div>
+    </CollapsibleSection>
   </section>
 
   <!-- Episodes (newest-first, STATED not offered as a control — #2004 item 11). Host-show
@@ -282,17 +285,19 @@ function searchLibrary(): void {
        person is connected to is the shorter, denser answer, so it comes first; the episodes are the
        archive you descend into, and they sit above the notes where the page bottoms out. -->
   <section v-if="shownEpisodes.length" class="mb-4">
-    <h3 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
-      <span>{{
-        hostShows.length
-          ? t("ec.personOtherEpisodes", shownEpisodes.length, {
-              named: { count: shownEpisodes.length },
-            })
-          : t("ec.personEpisodes", episodeCount, { named: { count: episodeCount } })
-      }}</span>
-      <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
-    </h3>
-    <EntityEpisodeList :episodes="shownEpisodes" />
+    <CollapsibleSection section-key="person-episodes" :level="3">
+      <template #title>
+        <span>{{
+          hostShows.length
+            ? t("ec.personOtherEpisodes", shownEpisodes.length, {
+                named: { count: shownEpisodes.length },
+              })
+            : t("ec.personEpisodes", episodeCount, { named: { count: episodeCount } })
+        }}</span>
+        <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
+      </template>
+      <EntityEpisodeList :episodes="shownEpisodes" />
+    </CollapsibleSection>
   </section>
 
   <!-- Notes on this person (PD.4). -->

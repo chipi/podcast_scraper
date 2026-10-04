@@ -12,6 +12,7 @@
  * with the transcript search, the episode list and two analysis panels buried the people at the
  * very bottom, where a reader had already decided whether the topic was worth their time.
  */
+import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed, defineAsyncComponent, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
@@ -232,21 +233,20 @@ function searchLibrary(): void {
        the first thing under it is the topic whose page you are reading, which is not similar to
        itself. The count now counts what is actually listed. -->
   <section v-if="siblings.length" class="mb-4" data-testid="ec-similar-topics">
-    <h3 class="lp-section mb-2">
-      {{ t("ec.clusterMembers", siblings.length, { named: { count: siblings.length } }) }}
-    </h3>
-    <div class="flex flex-wrap gap-1.5">
-      <button
-        v-for="s in siblings"
-        :key="s.id"
-        type="button"
-        data-testid="ec-similar-topic"
-        class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-        @click="emit('open', { kind: 'topic', id: s.id })"
-      >
-        {{ s.label }}
-      </button>
-    </div>
+    <CollapsibleSection :title="t('ec.clusterMembers', siblings.length, { named: { count: siblings.length } })" section-key="topic-similar" :level="3">
+      <div class="flex flex-wrap gap-1.5">
+        <button
+          v-for="s in siblings"
+          :key="s.id"
+          type="button"
+          data-testid="ec-similar-topic"
+          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+          @click="emit('open', { kind: 'topic', id: s.id })"
+        >
+          {{ s.label }}
+        </button>
+      </div>
+    </CollapsibleSection>
   </section>
 
   <!-- Part of a theme: the grouping this topic MEANS the same thing as. Sits directly above the
@@ -254,41 +254,43 @@ function searchLibrary(): void {
        claims — "means the same thing" against "keeps coming up together" — rather than meeting one
        of them and inferring the other from a chip list. -->
   <section v-if="themeLabel && themeId" class="mb-4" data-testid="ec-theme">
-    <h3 class="lp-section mb-2">{{ t("ec.themeHeading") }}</h3>
-    <button
-      type="button"
-      data-testid="ec-theme-link"
-      class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
-      @click="openTheme"
-    >
-      <span class="min-w-0 flex-1">
-        <span class="block text-sm font-bold text-theme">{{ themeLabel }}</span>
-        <span v-if="themeSize" class="lp-kicker">{{
-          t("ec.clusterSize", themeSize, { named: { count: themeSize } })
-        }}</span>
-      </span>
-      <span class="shrink-0 text-muted" aria-hidden="true">›</span>
-    </button>
+    <CollapsibleSection :title="t('ec.themeHeading')" section-key="topic-theme" :level="3">
+      <button
+        type="button"
+        data-testid="ec-theme-link"
+        class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
+        @click="openTheme"
+      >
+        <span class="min-w-0 flex-1">
+          <span class="block text-sm font-bold text-theme">{{ themeLabel }}</span>
+          <span v-if="themeSize" class="lp-kicker">{{
+            t("ec.clusterSize", themeSize, { named: { count: themeSize } })
+          }}</span>
+        </span>
+        <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+      </button>
+    </CollapsibleSection>
   </section>
 
   <!-- Part of a storyline: ONE link that opens the whole storyline ON TOP (StorylineCard overlay).
        A topic with no cluster says so, quietly. -->
   <section v-if="storylineLabel" class="mb-4" data-testid="ec-storyline">
-    <h3 class="lp-section mb-2">{{ t("ec.storylineHeading") }}</h3>
-    <button
-      type="button"
-      data-testid="ec-storyline-link"
-      class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
-      @click="openStoryline"
-    >
-      <span class="min-w-0 flex-1">
-        <span class="block text-sm font-bold text-storyline">{{ storylineLabel }}</span>
-        <span v-if="storylineSize" class="lp-kicker">{{
-          t("ec.clusterSize", storylineSize, { named: { count: storylineSize } })
-        }}</span>
-      </span>
-      <span class="shrink-0 text-muted" aria-hidden="true">›</span>
-    </button>
+    <CollapsibleSection :title="t('ec.storylineHeading')" section-key="topic-storyline" :level="3">
+      <button
+        type="button"
+        data-testid="ec-storyline-link"
+        class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
+        @click="openStoryline"
+      >
+        <span class="min-w-0 flex-1">
+          <span class="block text-sm font-bold text-storyline">{{ storylineLabel }}</span>
+          <span v-if="storylineSize" class="lp-kicker">{{
+            t("ec.clusterSize", storylineSize, { named: { count: storylineSize } })
+          }}</span>
+        </span>
+        <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+      </button>
+    </CollapsibleSection>
   </section>
   <p v-else class="mb-4 text-xs text-muted" data-testid="ec-single-topic">
     {{ t("ec.singleTopic") }}
@@ -323,34 +325,35 @@ function searchLibrary(): void {
 
   <!-- Strongest shows on this topic — only when it spans more than one show. -->
   <section v-if="topShows.length > 1" class="mb-4" data-testid="ec-top-shows">
-    <h3 class="lp-section mb-2">{{ t("ec.topShows") }}</h3>
-    <!-- Artwork, then the name, then the tally — the compact row `EpisodeRow` uses, at its 40px
-         thumbnail (operator 2026-09-19). It was a bare line of text with a number on the right,
-         which is the one way a show does NOT get recognised: cover art is how you know a podcast at
-         a glance, and every other list of shows in the app shows it. Deliberately NOT the full
-         `ShowRow` (128px artwork + description) — this sits inside a card as a short aside, not as
-         the page's subject. -->
-    <ul class="flex flex-col">
-      <li v-for="s in topShows" :key="s.feed_id">
-        <RouterLink
-          :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
-          class="flex items-center gap-2.5 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
-        >
-          <img
-            v-if="s.art"
-            :src="s.art"
-            alt=""
-            loading="lazy"
-            class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
-          />
-          <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" aria-hidden="true" />
-          <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ s.title }}</span>
-          <span class="shrink-0 text-xs text-muted">{{
-            t("ec.topShowCount", s.count, { named: { count: s.count } })
-          }}</span>
-        </RouterLink>
-      </li>
-    </ul>
+    <CollapsibleSection :title="t('ec.topShows')" section-key="topic-top-shows" :level="3">
+      <!-- Artwork, then the name, then the tally — the compact row `EpisodeRow` uses, at its 40px
+           thumbnail (operator 2026-09-19). It was a bare line of text with a number on the right,
+           which is the one way a show does NOT get recognised: cover art is how you know a podcast at
+           a glance, and every other list of shows in the app shows it. Deliberately NOT the full
+           `ShowRow` (128px artwork + description) — this sits inside a card as a short aside, not as
+           the page's subject. -->
+      <ul class="flex flex-col">
+        <li v-for="s in topShows" :key="s.feed_id">
+          <RouterLink
+            :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
+            class="flex items-center gap-2.5 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+          >
+            <img
+              v-if="s.art"
+              :src="s.art"
+              alt=""
+              loading="lazy"
+              class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
+            />
+            <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" aria-hidden="true" />
+            <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ s.title }}</span>
+            <span class="shrink-0 text-xs text-muted">{{
+              t("ec.topShowCount", s.count, { named: { count: s.count } })
+            }}</span>
+          </RouterLink>
+        </li>
+      </ul>
+    </CollapsibleSection>
   </section>
 
   <!-- Top voices (wave-G): the people who drive THIS topic. Shared with the storyline page. -->
@@ -383,11 +386,13 @@ function searchLibrary(): void {
 
   <!-- Episodes (newest-first, STATED not offered as a control — #2004 item 11). -->
   <section v-if="episodes.length" class="mb-4">
-    <h3 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
-      <span>{{ t("ec.topicEpisodes", episodeCount, { named: { count: episodeCount } }) }}</span>
-      <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
-    </h3>
-    <EntityEpisodeList :episodes="episodes" />
+    <CollapsibleSection section-key="topic-episodes" :level="3">
+      <template #title>
+        <span>{{ t("ec.topicEpisodes", episodeCount, { named: { count: episodeCount } }) }}</span>
+        <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
+      </template>
+      <EntityEpisodeList :episodes="episodes" />
+    </CollapsibleSection>
   </section>
 
   <!-- Notes on this topic (TD.7). -->

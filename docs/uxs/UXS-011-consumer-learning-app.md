@@ -1124,6 +1124,24 @@ most of what it listed.
   on the operator's call. Followed, suggested and found items all wear their kind's pill, so the
   colour teaches the kind; what differs between them is the mark — ×, + or ✓ — never the colour.
 
+### Foldable sections and the show activity chart (2026-10-04)
+
+- **Every section on an entity surface folds**, the way the episode Knowledge Panel's do: the show
+  page's "What this show's about"; the person, topic and organisation cards' related people /
+  topics / organisations, episodes, signals and perspectives; the theme and storyline pages' topics,
+  episodes and top voices. One component (`CollapsibleSection`): open by default, and the choice is
+  remembered per listener for that section everywhere it appears, because "I don't need this" is a
+  preference about the page, not about one show or person.
+- **The show activity chart says what it shows.** "Episodes per month" beside the heading, the month
+  under each bar (the year at the first bar and at each January; every third month past 12 bars),
+  and the count above each bar. Its bars are neutral — data, not a kind, so neither the accent nor
+  the topic violet.
+- **A bar is a way into the list.** A month with episodes is a button: it scrolls to that month's
+  first episode below and flashes it. If "Hide played" is hiding every episode of that month, the
+  filter is lifted first, so the tap always lands. Empty months are not buttons.
+- **Known limit:** the chart is built from the episodes loaded on the page (the first page of 20),
+  so a long-running show's chart covers its recent months, not its whole history.
+
 ### Where each surface is verified
 
 | Surface | Spec |
@@ -1139,6 +1157,7 @@ most of what it listed.
 | Android: link sign-in | Device, emulator, real mailbox (2026-10-03): `android/…/MagicLinkJourneyTests.java` M1 (request from `/login`) and M2 (link through Chrome → intent filter → app; new account on Profile with the welcome card; sign out; request again) — both `OK (1 test)`. The CLOSED-app case cannot run inside instrumentation (it shares the app's process), so it is `android/scripts/magic-link-cold-launch.sh`: force-stop → link through Chrome → the link launches the app → signed in on Home, token still stored afterwards → `COLD_LAUNCH=PASS`. Chrome showed no "open in app?" prompt |
 | Sign-in buttons (Google naming, Apple when configured) | `sign-in-providers.spec.ts` (labels per framing · Apple absent unless `/health` lists it · equal height and width · the Apple button starts `?provider=apple`). Server: `test_app_auth_apple.py`, `test_app_oauth_apple.py` |
 | Profile › Interests | `interests-sections.spec.ts` (tab name + note above four sections · one + Add open at a time, focus, Esc · a suggestion follows and survives a reload · search finds a person the suggestions do not show · × unfollows). Onboarding sheet: `browse-and-profile.spec.ts` (from Home's card, four sections, dismissible). Server: `test_app_relational.py` (`/interests/search`: substring, ranking, theme `tc:` and storyline `thc:` tokens, bad kind). Unit: `InterestSections.test.ts`, `InterestsPicker.test.ts`, `ProfileView.test.ts`. Device: `PersonalisationTests` test10 (iOS + Android) |
+| Foldable sections · show activity chart | `knowledge-bands.spec.ts` ("Episodes per month" · a bar jumps to that month's episode). Unit: `ShowActivityChart.test.ts` (labels, counts, buttons only for months with episodes, no kind colour), `KnowledgePanel.test.ts` (sections fold) |
 | Clear listening history | `delete-account.spec.ts` (confirm → cleared → still signed in). Server: `test_app_account_deletion.py` (what goes, what stays). Unit: `ProfileView.test.ts` |
 | Delete account | `delete-account.spec.ts` (Profile → typed DELETE → landing notice → session 401 · the page signed out). Server: `test_app_account_deletion.py` (the full purge, Apple revocation, no resurrection, retention). Unit: `DeleteAccountView.test.ts` |
 | Privacy policy | `delete-account.spec.ts` (readable signed out at `/privacy`). Unit: `AboutPageView.test.ts` (the declared claims are on the page; the draft notice names the open items) |
