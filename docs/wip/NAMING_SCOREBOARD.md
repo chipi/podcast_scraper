@@ -111,6 +111,15 @@ becomes a candidate the roster may bind (the over-broad surname match was doing 
   AI 4 UX 1/64, FUTURES 2/60, Google DeepMind 3/49 — the stated-guest problem (problem 6).
 - Brand author tag in a host pool: "Brilliant Experience" (AI 4 UX), never placed on a voice.
 
+## Low-visibility episodes, classified (2026-10-04 morning)
+
+| Episode | What happened | Problem |
+| --- | --- | --- |
+| AI 4 UX "A New Role for Researchers - as Orchestrators" (1/64 visible) | stated guest Ned Dwyer unplaced; the dominant voice (63 insights) unnamed | 6, exactly |
+| ZOE "Is your gut the secret to anti-aging?" (0/40) | the LLM put stated guest Prof Elaine Dennison on SPEAKER_01 (9%, the show-intro read); the real guest voice SPEAKER_00 (62%, answering) left `unidentified` | 6, variant: the stated name is spent on a minor voice, so the dominant-voice rule never sees it spare |
+| FUTURES "Why Machines Can't Replace Us w/ Neil Lawrence" (2/60) | guest Neil Lawrence given the HOST role; real host Luke Robert Mason unplaced | **7 (new): host/guest swap** — the title's "w/ <name>" marks the guest |
+| Google DeepMind "When millions of AI agents meet" (3/49) | no guest stated anywhere in the metadata (timecodes-only description); the 78% voice opens "Very happy to be here" | **8 (new): guest named only in the transcript** — check why the introduction reader did not bind it |
+
 ## Also on this branch — the two open plan steps (from 2026-10-02/03)
 
 ### Feed-level analysis and per-show profiles — #2261 (scoreboard plan step 5)
