@@ -165,6 +165,61 @@ Order (operator, 2026-10-04): these after the deploy, on this branch. First #227
 replayed traces to the gold labels for per-rung precision — so problems 9-12 are ranked by
 measured damage, not by how vivid the example was. Problem 11 starts with a prod check, not code.
 
+## #2276 phase 2 — per-rung precision on the gold sets (2026-10-04)
+
+`scripts/measure/trace_rung_precision.py` over the corpus replay's traces (`095a2954d`, 2,319
+episodes, `--repool --signatures`) joined to dev 101 + val 500 (601 episodes matched), scored with
+the gate's own `outcome()`. Totals: correct 777, missing 465, wrong 141, non-participant 57,
+role error 23, spurious 20. Caveat: offline replay, so the LLM rung sees only the LLM names that
+survived (lossy) and the pipeline's non-regression restore is not in it.
+
+**Published names, by the rung that brought the name in**
+
+| Origin rung | correct | wrong | non-participant | role err | spurious | precision |
+| --- | --- | --- | --- | --- | --- | --- |
+| self_intro | 329 | 20 | **48** | 13 | 3 | 79.7% |
+| llm_merge (accepted) | 246 | **78** | 2 | 8 | 10 | 71.5% |
+| intro_reader | 126 | 25 | 5 | 2 | 3 | 78.3% |
+| forced pool host name | 47 | 12 | 1 | 0 | 3 | 74.6% |
+| forced guest, one name one voice | 21 | 6 | 1 | 0 | 1 | 72.4% |
+| cohost_formula | 6 | 0 | 0 | 0 | 0 | 100% |
+| forced guest, dominant voice | 2 | 0 | 0 | 0 | 0 | 100% |
+
+**Missing names (465) — where the gold name is in the trace instead**
+
+| Where | n |
+| --- | --- |
+| never in the trace at all | **212** |
+| published on ANOTHER voice | 88 |
+| a known host never placed (stated only as `known_hosts`) | 76 |
+| stated in the metadata only, never bound (`metadata_named` 45, `detected_guests` 17) | 62 |
+| harvested from the host's introduction, then not placed | 19 (+3 refused) |
+| other | 8 |
+
+**Host seats by step** (gold role of the voice): step 1 "named as a stated host" 387 right / 20
+wrong, and **17 of the 20 wrong are LLM names** (self-introduced: 248 / 2); step 2 "performs host
+role" 76 / **33 wrong** (12 unnamed guests, 9 promos, 6 LLM-named guests, 3 forced pool names on a
+guest, 3 clip/ad); step 3 opener 25 / **16 wrong** (39%); 1b 56 / 0; 1c 13 / 0. Not seated at all:
+77 real hosts published as guests, 135 hosts and 169 guests left with role `unknown`.
+
+**What this changes**
+
+- The vivid example behind #2276 (an LLM name reused on a second voice once the episode bound it)
+  is RARE: 1 of the LLM's 78 wrong names. The LLM's errors are misassignment: 41 are a host-pool
+  name (27 the wrong host of the pool on a host voice, 14 a host's name on the guest).
+- Problem 9 is real but smaller than the 710-seat count suggested: LLM-named step-1 seats are
+  132 right / 17 wrong (88.6%) against 248 / 2 for self-introductions.
+- Problem 11 (promos named by their own self-introduction) is the self-intro rung's biggest error:
+  48 of its 413 published names are ads / promos / clips.
+- The largest pool of loss is upstream of the roster: 212 missing names never reach the trace
+  (neither stated, nor heard, nor proposed) — the next thing to classify.
+- Seat steps 2 and 3 are where host roles go wrong (49 of 63 wrong seats), not step 1.
+
+**Ranked by measured damage (voices)**: names never in the trace 212 · the LLM's wrong names 78
+(41 pool-host misassignment) · the right name on the wrong voice 88 · known hosts never placed 76 ·
+stated names never bound 62 · promo/ad self-intros 48 · wrong seats at steps 2+3 49 · LLM names at
+step 1 17. Next: classify the 212, then pick the first fix from the top of this list.
+
 ## Also on this branch — the two open plan steps (from 2026-10-02/03)
 
 ### Feed-level analysis and per-show profiles — #2261 (scoreboard plan step 5)
