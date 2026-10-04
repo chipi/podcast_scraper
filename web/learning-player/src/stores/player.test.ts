@@ -633,6 +633,35 @@ describe('finishing an episode', () => {
     p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
     expect(el.src).toBe('https://x/a.mp3')
   })
+
+  // Repro (test-ios phase 2, 2026-10-04): the cold-launch restore loads the last episode BEFORE the
+  // shell injects the local resolver (and before the downloads registry is read), so it is pinned
+  // to the origin URL. Opening the downloaded copy then re-loads the SAME slug, which used to be a
+  // no-op — offline that left "Couldn't load the audio from the source" on a downloaded episode.
+  it('re-loading the same episode switches to a local copy that became known since', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    expect(el.src).toBe('https://x/a.mp3')
+    el.currentTime = 37
+    p.setSourceResolver((slug) => (slug === 'a' ? 'capacitor-file:///local/a.mp3' : null))
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    expect(el.src).toBe('capacitor-file:///local/a.mp3')
+    // The position survives the source switch: applied once the new source has metadata.
+    ;(el as unknown as { __emit: (k: string) => void }).__emit('loadedmetadata')
+    expect(el.currentTime).toBe(37)
+  })
+
+  it('re-loading the same episode does NOT touch a source that is already the local copy', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    p.setSourceResolver(() => 'capacitor-file:///local/a.mp3')
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    el.currentTime = 12
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    expect(el.src).toBe('capacitor-file:///local/a.mp3')
+    expect(el.currentTime).toBe(12)
+  })
 })
 
 /**

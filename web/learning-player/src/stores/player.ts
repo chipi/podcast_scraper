@@ -292,6 +292,28 @@ export const usePlayerStore = defineStore('player', () => {
   function load(opts: NextUp): void {
     const audio = ensureElement()
     if (currentSlug.value === opts.slug && audio.src) {
+      // ...unless a LOCAL copy has become known since this episode was loaded. The cold-launch
+      // restore (#2278) loads the last episode on the first navigation — before the shell injects
+      // the local resolver and before the downloads registry is read — so it is pinned to the
+      // origin URL. Without this switch, opening the downloaded copy offline kept that dead URL and
+      // showed "Couldn't load the audio from the source" (test-ios phase 2, 2026-10-04). Position and
+      // play state carry over: this is the same episode, only from a better source.
+      const local = sourceResolvers.local?.(opts.slug)
+      if (local && audio.src !== local) {
+        const at = audio.currentTime
+        const wasPlaying = !audio.paused
+        audio.src = local
+        if (at > 0) {
+          audio.addEventListener(
+            'loadedmetadata',
+            () => {
+              audio.currentTime = at
+            },
+            { once: true },
+          )
+        }
+        if (wasPlaying) void audio.play().catch(() => {})
+      }
       currentTitle.value = opts.title ?? currentTitle.value
       currentShowTitle.value = opts.showTitle ?? currentShowTitle.value
       currentArtwork.value = opts.artwork ?? currentArtwork.value
