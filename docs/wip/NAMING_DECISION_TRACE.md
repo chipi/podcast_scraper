@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| Doc version | 2 |
+| Doc version | 3 |
 | Last updated | 2026-10-04 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (phase 1, #2276) |
-| Code content hash | `8a795c303601` (see below) |
-| Status | Phase 1 shipped to main, **not yet deployed**: prod sidecars get `decision_trace` only after the next deploy. `roster_replay --trace-out` works offline today |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276 |
+| Code content hash | `45947daab823` (see below) |
+| Status | Phase 1 on main, **not yet deployed**: prod sidecars get `decision_trace` only after the next deploy. Verified end to end on a laptop against the DGX (below). `roster_replay --trace-out` works offline today |
 
 **How to tell whether this doc matches the code.**
 
@@ -24,6 +24,10 @@
 
 **Changelog**
 
+- **v3, 2026-10-04.** v2 called phase 1 "Done"; it was not — the helpers' decisions (host-seat
+  steps, forced names, guest variants, one-name groups, voice-type reasons) were listed as phase 1
+  in v1 and not recorded. Now recorded, plus both LLM answers in full (moved forward from phase 3),
+  a test per rung, an end-to-end run with the real LLM, and an old-vs-new behaviour gate.
 - **v2, 2026-10-04.** Phase 1 implemented and reviewed. The design text is replaced by what the
   code records, the real sidecar shape, what is NOT recorded, and the purity-gate result.
 - **v1, 2026-10-04.** Design, written from the 31-rung inventory.
@@ -65,233 +69,183 @@ The old sidecar showed none of this chain.
 
 ### Mechanism
 
-`resolve_speaker_roster(..., trace: Optional[NamingTrace] = None)`.
+`resolve_speaker_roster(..., trace: Optional[NamingTrace] = None)`. The helpers that make the
+decisions take the same optional `trace`; `resolve_speaker_roster` passes its own.
 
-- **Observer only.** The roster calls recorders on a `NamingTrace`. With no trace it calls a
-  `NullTrace` (`enabled = False`), so the roster code carries plain calls and no `if trace`
-  branches.
-- **Failure isolation.** Every recorder is wrapped:
-  - an exception inside a recorder is swallowed and sets `degraded: true`;
-  - it never propagates into the roster;
-  - `to_dict()` never raises, and returns a JSON-safe **copy** (sets become sorted lists).
-  - A trace that still cannot be serialised (for example NaN) becomes
-    `{version, degraded: true, error}`, so the sidecar is still written.
-  - What is NOT guarded: the arguments the roster builds at a call site (`sorted(...)`, `dict(...)`)
-    are evaluated by the roster itself. They use the same operations the roster already performs on
-    the same values.
-- **Pipeline.** `pipeline.py` traces the **shipped** pass only. It adds to the trace:
-  - the rules-only baseline roster per voice, as `inputs.baseline_without_llm`;
-  - every voice `_reconcile_non_regression` put back, as a `non_regression` / `restored` step.
-
-  The result is written as `speaker_diagnostics.decision_trace`. The baseline pass itself is
-  untraced.
+- **Observer only.** Recorders are plain calls on a `NamingTrace`; with none given, a `NullTrace`
+  (`enabled = False`) records nothing, so the ladder carries no `if trace` branches.
+  `_select_host_voices` sits at the complexity cap (mccabe 25), so its recorders are straight-line
+  calls only.
+- **One decision-code refactor**, in `_name_host_voices`: the forced-name condition was one `and`
+  chain; it is now named booleans (`one_name_one_seat`, `seat_owns_talk`, `presenter_elsewhere`,
+  `addressed`) evaluated in the same order with the same short-circuits, so the trace can say which
+  gate held. Gated by the old-vs-new replay below.
+- **Failure isolation.** A recorder's exception is swallowed and sets `degraded: true`;
+  `to_dict()` never raises and returns a JSON-safe copy (sets → sorted lists); an unserialisable
+  trace (NaN) becomes `{version, degraded: true, error}` so the sidecar is still written. NOT
+  guarded: arguments the roster builds at a call site (`sorted(...)`, `dict(...)`).
+- **The talkative-host retry runs untraced** (`_name_host_voices` a second time, one seat's answer
+  taken); its `talkative_host` diff records the result.
+- **Pipeline.** Traces the SHIPPED pass. Adds `inputs.baseline_without_llm` (rules-only roster per
+  voice), `non_regression` / `restored` steps, `inputs.llm_resolution` and `inputs.detection`.
+  Written as `speaker_diagnostics.decision_trace`.
 - **Offline replay.** `scripts/measure/roster_replay.py --trace-out PATH` replays every stored
-  episode twice, once plain and once traced, and writes JSONL:
-  `{meta_path, feed, episode, roster, decision_trace}`. Its summary counts:
-  - `traced_roster_differs`;
-  - `traced_only_error` (the traced pass raised where the plain pass did not);
-  - `trace_degraded`;
-  - `trace_bytes_max`.
+  episode plain and traced; summary counts `traced_roster_differs`, `traced_only_error`,
+  `trace_degraded`, `trace_bytes_max`; exits 1 if any of the first three is non-zero; refuses a
+  roster variant without a `trace` parameter.
 
-  It exits 1 if any of the first three is non-zero. It refuses to run against a roster variant
-  without a `trace` parameter, because that gate would pass vacuously.
+### The two LLM answers, in full
 
-### Sidecar shape (as emitted)
-
-```json
-"decision_trace": {
-  "version": 1,
-  "degraded": false,
-  "inputs": {
-    "known_hosts": ["…"], "detected_guests": ["…"], "metadata_named": ["…"],
-    "stated_voice_names": {"SPEAKER_00": "…"},
-    "llm_voice_names": {"SPEAKER_01": "…"}, "llm_voice_roles": {"SPEAKER_01": "guest"},
-    "ad_voices": ["SPEAKER_04"], "conversation_roles": {"SPEAKER_00": "host"},
-    "host_pool": [["Name", "source"]],
-    "baseline_without_llm": {"SPEAKER_00": {"name": "…", "role": "…", "named": true, "source": "…"}}
-  },
-  "voices": {
-    "SPEAKER_00": [
-      {"rung": "self_intro", "decision": "named", "name": "Julia Ioffe"},
-      {"rung": "llm_merge", "decision": "skipped", "proposed": "…", "reason": "already_named", "kept": "Julia Ioffe"},
-      {"rung": "host_seat", "decision": "seated", "order": 0},
-      {"rung": "host_naming", "decision": "set", "name": "…", "role": "host", "named": true, "source": "…"},
-      {"rung": "voice_types", "decision": "changed", "voice_type": "person", "previous": {"voice_type": null}}
-    ]
-  },
-  "names": {
-    "Before Gene": [{"rung": "publish_gate", "decision": "refused", "reason": "not_publishable", "voice": "SPEAKER_02"}]
-  },
-  "episode": [
-    {"rung": "presenter_evidence", "branded": [], "introducers": [], "copresenters": [], "conversation_guests": []},
-    {"rung": "host_seats", "voices": ["SPEAKER_00"], "cohost_said_present": false},
-    {"rung": "guest_pool", "declared": ["…"], "guest_names": ["…"]},
-    {"rung": "nameable", "voices": [], "leftover_guest_names": [], "stated_unbound": [], "spare_name_count": 0}
-  ]
-}
-```
+- **`inputs.detection`** — ingest-time speaker detection, recorded on the `Episode`
+  (`speaker_detection_report`) by `_detect_speakers_for_episode` and carried to every
+  `apply_diarization_to_result` call site: `detector`, `raw` (the model's answer; each LLM
+  provider's parser keeps its last one, cleared before every call; capped at 8k chars, `raw_chars`
+  keeps the length), `returned` (speakers / hosts / succeeded), `dropped_placeholders`,
+  `dropped_non_persons`, `hosts_from_description`, `hosts`, `proposed_guests`,
+  `corroborated_guests`, `corroboration_rejected` (`{name, reason}`, reason `is_a_host` /
+  `no_interview_cue`), and `outcome` / `reason` (a skipped detection says so). `null` when the call
+  site had no record (e.g. a reprocess that skipped detection).
+- **`inputs.llm_resolution`** — the post-diarization resolver: `provider`, `stated_names`,
+  `prompt_chars`, `raw` (capped at 16k, `raw_chars` uncut), `verdicts` (per voice the model named:
+  `said_voice`, mapped `voice`, `name`, `role`, `matched` stated name, `outcome` = `accepted` /
+  `invented` / `third_person` / `duplicate` / `unmapped_voice` / `role_only` / `abstained`),
+  `complement` (`two_voice` / `swap`), `error`, or `skipped` with the reason it was never asked.
 
 ### Step semantics
 
-- `name` is always the name the step **set** (or refused, at the publish gate).
-- A proposal the step did not take is recorded as `proposed`, never as `name`.
-- **Set-a-name decisions:**
-  - `named`, `renamed`, `removed` come from voice-intro name diffs;
-  - `set`, `changed`, `dropped` come from roster-entry diffs;
-  - `changed` carries `previous` holding the old value of every changed field;
-  - `cleared` lists the fields that became null;
-  - the others are `accepted`, `seated` and `restored`.
-- `stated`: a source states this name. It is recorded even when it changes nothing.
-- **Did-not-take decisions:** `skipped`, `refused`, `refused_spelling`, `excluded`, `never_names`.
+- `name` is the name a step SET (or refused at the publish gate / intro reader); a proposal not
+  taken is `proposed`.
+- **Set a name:** `named` / `renamed` (name diffs), `set` / `changed` (roster diffs; `changed`
+  carries `previous`, `cleared` lists fields that became null), `accepted` (LLM merge),
+  `named_from_earlier_rung` (host or guest naming kept a name an earlier rung put on the voice —
+  that rung's own step says which), `forced_pool_name`, `forced_name`, `prefix_stripped`, `restored`.
+- **Other:** `seated`, `stated`, `heard`, `typed`, `unnamed`, `forced_name_vetoes`,
+  `bare_first_name_joins`; did-not-take: `skipped`, `refused`, `refused_spelling`, `excluded`,
+  `never_names`, `removed`, `dropped`.
 
 ### Rungs recorded, in ladder order
 
 | Rung (trace key) | Recorded as | What it captures |
 |---|---|---|
-| `inputs.*` | input | `known_hosts`, `detected_guests`, `metadata_named`, `stated_voice_names`, `llm_voice_names`, `llm_voice_roles`, as received |
-| `guest_host_pool` | episode note | names the episode text added to the host pool (a guest host) |
-| `inputs.ad_voices`, `inputs.conversation_roles` | input | the edge-ad voices; the speech-act roles per voice |
-| `publisher_label` | per voice `stated` | every person label the publisher states (after the spelling snap) |
-| `self_intro` | name diff | names the voices gave themselves |
-| `show_mononym_filter` | name diff | self-intro names removed because they are the show's mononym |
-| `publisher_label` | name diff | where the publisher label replaced or added a name |
-| `intro_reader` | name diff, plus per voice `refused_spelling` | names read from a host's introduction; refused when the introduced person is unstated |
-| `llm_merge` | per voice `accepted` (`llm_said`) / `skipped` (`proposed`, `reason` = `names_the_show` / `ad_voice` / `already_named`, `kept`) | every LLM name and what happened to it |
+| `inputs.detection`, `inputs.llm_resolution` | input | both LLM answers in full (above) |
+| `inputs.*` | input | `known_hosts`, `detected_guests`, `metadata_named`, `stated_voice_names`, `llm_voice_names`, `llm_voice_roles`, `ad_voices`, `conversation_roles`, `host_pool` |
+| `guest_host_pool` | episode note | a guest host the episode text added to the pool |
+| `publisher_label` | per voice `stated`, then name diff | every person label the publisher states; where it replaced a name |
+| `self_intro`, `show_mononym_filter` | name diff | names voices gave themselves; show-mononyms removed |
+| `intro_reader` | per voice `heard` (`heard`, `spelling`) / `skipped` (`ad_voice` / `named_itself`) / `refused_spelling` (`name`, `resembles`), plus name diff | every introduction read, what it became, what was refused and whom it resembled |
+| `llm_merge` | per voice `accepted` (`llm_said`) / `skipped` (`proposed`, `reason`, `kept`) | every surviving LLM name and what happened to it |
 | `cohost_formula` | name diff | names from the co-host formula |
-| `presenter_evidence` | episode note | branded / introducer / copresenter voices; conversation guests after presenters are removed |
-| `host_pool` | input, plus per name `never_names` | the pool with each name's source; entries that may seat a voice but never name it |
-| `host_seats` / `host_seat` | episode note, plus per voice `seated` (`order`) | which voices took host seats, in order; whether a co-host was said to be present |
-| `host_naming` | role diff against `{}` | every seat's resulting entry |
-| `host_introduction_harvest` | per name `added` (`heard`) / `refused` (`resembles_an_unbound_stated_name`) | guest names harvested from the host's introduction |
-| `two_voice_interview` | per name `added` | the one stated guest a two-voice host hands over to |
-| `guest_pool` | per name `excluded` (`host_pool_name` / `already_named_on_a_voice` / `same_person_as_a_named_voice`), plus episode note | the guest pool and why declared names left it |
-| `guest_naming` | role diff | guest names placed |
-| `talkative_host` | role diff | a host named once the guests are placed |
-| `ad_voice_placeholder` | role diff | ad voices given their placeholder |
-| `stated_spelling_snap` | role diff | hosts snapped to the episode's stated spelling |
-| `recover_stated_names` | role diff | stated names recovered onto unnamed voices |
-| `publish_gate` | per voice `prefix_stripped` (`previous`) / `refused` (`not_publishable` / `show_mononym`), plus per name `refused` | the final plausibility gate |
-| `one_name_per_person` | role diff | duplicate-person resolution |
-| `nameable` | episode note | nameable voices, leftover guest names, stated-but-unbound names, spare name count |
-| `voice_types` | role diff | voice-type classification and edge-ad demotion |
-| `non_regression` | per voice `restored` (pipeline) | names the additive contract put back over the LLM pass |
-| `inputs.baseline_without_llm` | input (pipeline) | the rules-only roster per voice |
+| `presenter_evidence` | episode note | branded / introducer / copresenter voices; conversation guests |
+| `host_pool` | input, plus per name `never_names` | the pool with each name's source |
+| `host_seat_guards` | episode note | every veto set the seat steps consult, and the cap |
+| `host_seat_step` | per voice `seated` (`step`) | WHICH step seated it: `1_named_as_a_stated_host`, `1b_presents_on_own_evidence`, `1c_unnamed_introducer`, `2_performs_host_role`, `3_opener`, `4_count_fill`, `5_llm_host_no_pool`, `6_stand_in_interviewer` |
+| `host_seat_opener`, `host_seat_step_4` | episode notes | the opener; step 4's arithmetic (empty seats, unclaimed / said-absent hosts, fillable, candidates, guest present, third-party excess, co-host said present) |
+| `host_seats` / `host_seat` | episode note, per voice `order` | final seats in order |
+| `host_naming_forced_gates` | episode note | spare names before/after the feed-history and said-absent filters, unnamed seats, guest-hosted episode, one-name-one-seat, seat owns the talk, better presenter elsewhere |
+| `host_naming` | per seat `named_from_earlier_rung` / `forced_pool_name` / `unnamed` (`intro_name_taken`), plus `forced_name_vetoes` (guest act, greeted by that name, rescued from bleed, forced) | how each seat was named or why not |
+| `host_introduction_harvest`, `two_voice_interview` | per name `added` / `refused` | guest names harvested from the host's introduction |
+| `guest_pool` | per name `excluded` (reason), episode note | the guest pool and why declared names left it |
+| `guest_naming_forced` | episode note | spare names, candidates above the cameo floor, forced name, `forced_by` = `one_name_one_voice` / `only_voice_left_below_cameo_floor` / `dominant_unassigned_voice` / `host_elimination`, forced voice |
+| `guest_naming` | per voice `named_from_earlier_rung` / `forced_name` (`forced_by`) / `unnamed` (`role`, `intro_name_refused`, `forced_name_refused`, `role_evidence`) | how each remaining voice was named or why not |
+| `talkative_host`, `ad_voice_placeholder`, `stated_spelling_snap`, `recover_stated_names` | role diff | changes only |
+| `publish_gate` | per voice `prefix_stripped` / `refused`, per name `refused` | the final plausibility gate |
+| `one_name_per_person` | role diff, per voice `bare_first_name_joins`, episode note per group (`unified`: names, roles, kept name + `kept_because`, role + `role_reason`; or `kept_apart`) | one person, one name, one role |
+| `nameable` | episode note | nameable voices, leftover / unbound names |
+| `voice_types` | per voice `typed` (`voice_type`, `reason` = `edge_ad` (+`name_demoted`) / `named` / `mostly_inside_ads` / `brief` / `no_source_names_them` / `a_name_existed_and_we_failed`, `talk_s`, `classified_by`) | every voice's type and why |
+| `non_regression`, `inputs.baseline_without_llm` | pipeline | names the additive contract restored; the rules-only roster |
 
-## Phase 1: what is NOT recorded yet
+## What is NOT recorded yet
 
-These are known gaps. Do not read their absence from a trace as "did not happen".
+Do not read an absence in a trace as "did not happen".
 
-**Inside the roster (phase 1 follow-ups, replayable):**
+- **"Considered and declined" for diff-recorded rungs** (`talkative_host`, `stated_spelling_snap`,
+  `recover_stated_names`, `ad_voice_placeholder`): no step when nothing changed.
+- **Host-seat vetoes per voice.** The veto SETS are recorded once (`host_seat_guards`); which veto
+  stopped a given voice at a given step is derivable from them, not recorded per voice. Step 1b's
+  presence test (share / span / co-presenter partner) is not recorded.
+- **Inside `_voice_named_by_the_introduction`** (complexity 22): its per-cue rules (narrator cue,
+  first-name-only, report-verb corroborated resolution) — only what it returned (`heard`).
+- **`_guest_voice_by_host_elimination`**: only whether it picked (`forced_by=host_elimination`),
+  not why it declined.
+- **LLM name reuse** is not flagged; it is visible as an `llm_merge` `accepted` step on a second
+  voice plus the first voice's earlier-rung step.
+- **Host-pool sub-source** beyond the single `source` tag (feed statement / author tag /
+  description / config / recurrence).
+- **Detection on non-LLM detectors** (spaCy) has no `raw`; `returned` is its answer.
+- **`post_hoc`.** Migrations m0012–m0020 never write the diagnostics sidecar; a migrated episode's
+  trace can disagree with its published roster.
+- **`source` is still lossy** (the `self_intro` split is a behaviour change, phase 4).
+- **Offline replays stay lossy for the LLM rung**: `roster_replay` rebuilds LLM inputs only from
+  voices whose final `source` is `llm_resolution`. Full LLM answers exist only in traces written
+  at ingest (after the deploy).
 
-- **Host seats, steps 1 / 1b / 1c / 2–6.** Only the final seats and their order are recorded. Not
-  recorded: which step seated each voice, and which veto refused a voice.
-- **Host naming (`_name_host_voices`).** Not recorded: intro vs forced pool name, which veto blocked
-  a forced name, and the ownership guard. Only the end state and the coarse `source` are recorded.
-- **Guest naming (`_name_guest_voices`).** Not recorded: which variant fired (forced / cameo floor /
-  dominant / host elimination), the third-person guard, and the refused-intro guards. Only the
-  end-state diff is recorded.
-- **Intro reader.** Only the name diff and `refused_spelling` are recorded. Not recorded: per-rung
-  proposals it rejected, and the report-verb corroborated resolution.
-- **One name per person.** Only the diff is recorded. Not recorded: the groups, the losers, and the
-  role unification.
-- **Voice types.** Only the diff is recorded. Not recorded: why each voice got its type.
-- **No "considered and declined" for diff-recorded stages.** A diff-based rung (`talkative_host`,
-  `stated_spelling_snap`, `recover_stated_names`, …) leaves no step when it changes nothing. So an
-  absent step means "no change", never "not eligible".
-- **LLM role verdicts.** `llm_voice_roles` appears only in `inputs`. There is no per-voice step for
-  a role the LLM changed.
-- **LLM name reuse.** The worked example (an LLM name on a second voice after the episode bound it
-  by self-intro) shows up only as an `accepted` step on the second voice. Reuse has to be detected
-  in analysis by joining against other voices' `self_intro` steps. The trace has no explicit flag.
+## Gates and evidence
 
-**Ingest side (phase 3, forward only, not replayable):**
+All runs 2026-10-04. The prod runs are read-only, inside `compose-api-1`, over `/app/output`, with
+staged files whose md5s matched the committed ones.
 
-- the raw `detect_speakers` answer;
-- names dropped by the placeholder and organisation filters;
-- corroboration rejects with a reason (for example `no_interview_cue`; today this is only a log
-  line);
-- the host-pool sub-source beyond the single `source` tag (feed statement, author tag, description,
-  config, recurrence);
-- the LLM resolution's raw per-voice verdict;
-- names the LLM's closed list, third-person rule or one-per-voice rule refused;
-- whether the two-voice complement or swap fired.
+**1. Behaviour gate — the helpers' instrumentation and the `_name_host_voices` refactor change no
+decision.** Old roster (`6117aedb5`) vs new (`c8bda243d`, pre-rebase `095a2954d`), every field of every voice (name, role,
+named, source, voice_type), same inputs (`--repool --signatures` equivalents):
 
-**After ingest:**
-
-- **`post_hoc`.** Migrations m0012–m0020 rewrite metadata, segments and graphs but never the
-  diagnostics sidecar. A migrated episode's trace can disagree with its published roster. Planned:
-  migrations that touch a speaker surface append `{migration, change}` to
-  `decision_trace.post_hoc`.
-
-**Not changed by phase 1:**
-
-- `source` is still lossy. Only the trace's rung name tells `self_intro` apart from `intro_reader`
-  and `cohost_formula`. The `source` split is a behaviour change, gated in phase 4.
-
-**Not measured:**
-
-- Sidecar size on prod. The replay summary's `trace_bytes_max` bounds the trace's JSON size, but
-  not the `indent=2` file growth.
-
-## Phase 1 gate result
-
-**Run:** 2026-10-04, 09:14–09:52 UTC, on prod (`compose-api-1`, read-only, `/app/output`).
-The code was staged into `/tmp/rp9`, with md5s matching the committed files (content hash
-`8a795c303601`).
-
-```sh
-python run_trace_replay.py --corpus /app/output --repool --signatures \
-  --new roster=/tmp/rp9/roster_new.py --trace-out /tmp/rp9/traces.jsonl
-# {"summary": {"episodes": 2311, "trace_bytes_max": 9652}}   EXIT=0   tracebacks: 0
+```text
+run_equal.py /app/output   ->  {"episodes": 2319}   EXIT=0   (differ 0; old_error 0; new_error 0)
 ```
 
-**Gate counters.** The summary prints only non-zero counters. All of these were absent, so 0:
+`11e75c7ab` after it renames one step label (string only), covered by the unit tests.
 
-| Counter | Value |
-|---|---|
-| `traced_roster_differs` | 0 |
-| `traced_only_error` | 0 |
-| `trace_degraded` | 0 |
-| `replay_error` | 0 |
+**2. Purity gate — a trace never changes the roster.** New code, traced vs untraced:
 
-**Completeness check over the 2,311 traces:**
+```text
+run_trace_replay.py --corpus /app/output --repool --signatures --new roster=... --trace-out ...
+  -> {"summary": {"episodes": 2319, "trace_bytes_max": 12181}}   EXIT=0   tracebacks 0
+```
 
-- 4,162 voices were published by name.
-- Every one of them (0 without) has a step that SET exactly that name. A set step is `named`,
-  `renamed`, `set`, `changed`, `accepted`, `added`, `restored` or `prefix_stripped`.
-- Trace JSON size: p50 1,773 B, p99 6,084 B, max 9,652 B.
+`traced_roster_differs`, `traced_only_error`, `trace_degraded`, `replay_error` all 0 (absent).
+Also, locally, every `resolve_speaker_roster` call in the unit suite (184) run traced and untraced
+through a pytest plugin: 0 differ, 0 degraded.
 
-**What this gate does NOT prove:**
+**3. Completeness.** In those 2,319 traces: 4,171 voices published by name, every one with a step
+that SET exactly that name (0 without). Trace JSON: p50 2,876 B, p99 7,245 B, max 12,181 B.
 
-- **It compares the traced roster with the untraced roster of the SAME code.** It proves the
-  recorder changes no decision. It says nothing about whether the decisions are right.
-- **The replay runs `resolve_speaker_roster` only.** The pipeline-side additions are not exercised
-  by the replay: `baseline_without_llm`, the `non_regression` step and the sidecar write. They are
-  covered only by the unit suite (`pytest tests/unit`: 13094 passed, 55 skipped).
-- **No prod sidecar has a `decision_trace` yet.** That needs a deploy. The first ingest after it is
-  the first end-to-end check.
-- **The replay's LLM inputs are lossy.** The sidecar does not store the LLM's raw answer.
-  `roster_replay` rebuilds `llm_voice_names` / `llm_voice_roles` only from voices whose FINAL
-  `source` is `llm_resolution`. An LLM proposal that lost (skipped as `already_named`, refused at
-  the publish gate, overridden later) is not in a replayed trace. Offline traces therefore
-  undercount `llm_merge` `skipped` steps and LLM-proposed junk. Phase-2 analysis of the LLM rung
-  needs ingest-time traces (after the deploy), or the phase-3 raw-verdict record.
+**4. End to end with the real LLM.** Laptop, worktree code at `c8bda243d` (pre-rebase `095a2954d`), profile
+`prod_dgx_full` (DGX Whisper, pyannote, vLLM Qwen3-30B), No Priors, newest episode:
+`EXIT=0`; the written `.speakers.diagnostics.json` holds `decision_trace` v1, `degraded: false`,
+with `inputs.detection` (`detector: VLLMProvider`, the model's raw JSON, corroboration result) and
+`inputs.llm_resolution` (raw answer; two verdicts, one written `SPEAKER_1` and mapped to
+`SPEAKER_01`), seat steps, forced-name gates and voice types; 4.6 KB.
+A 5-episode run of one feed (`prod_dgx_full`) was still running at the cut-off push; its result is added when it lands.
+
+**5. Tests.** `test_naming_trace.py` (15), `test_naming_trace_rungs.py` (32: one per rung, mostly
+reusing an existing roster test's scenario with a trace injected), `test_llm_answers_are_recorded.py`
+(13). Mutation-checked: deleting any of 12 sampled recorders fails a test. Full unit suite with
+`PYTHONPATH=src`: 13,139 passed, 55 skipped.
+
+**What the gates do NOT prove.**
+
+- That the decisions are RIGHT: gates 1–2 compare code with code.
+- Prod sidecars: nothing is deployed; the first ingest after the deploy is the first prod check.
+- Order-dependent unit flakes seen three times in this work (`test_run_manifest`,
+  `test_summary_poison_guard`, `test_metadata_generation::test_generate_metadata_dry_run`): each
+  failed once inside the parallel full suite and passed alone and on re-run. Not investigated to
+  cause.
+- `test_cli_profile_subprocess` and two other subprocess tests fail in this worktree unless
+  `PYTHONPATH=src` is set (the borrowed venv's editable install points at a removed worktree);
+  with it they pass.
+
 
 ## Phases
 
-1. **Roster trace + `roster_replay --trace-out`.** Done. See the gate result above.
-   - Gate: the traced roster equals the untraced roster on every replayed episode, with no
-     traced-only errors and no degraded traces.
-   - Unit tests: `test_naming_trace.py` (14).
-2. **Analysis on existing data.** Per-rung precision against the gold labels: how often each rung's
-   decision matches the label, and how often it overrode an earlier rung that was right. Failure
-   chains across ~2,300 prod episodes, per show. This sets the priority order. It runs on
-   `roster_replay --trace-out`; no deploy is needed.
-3. **Ingest-side records** (see "NOT recorded"). Forward only; ships with a deploy.
-4. **Then priority and ordering changes.** Each is gated on the dev and validation sets, with the
-   trace explaining every voice that moved. Candidates already visible:
-   - title and description guest phrases ("X on …", "— X", "with X", "In conversation with X") as
-     corroboration;
-   - an LLM name may not be reused on a second voice once the episode bound it by
-     self-introduction;
-   - `self_intro` split into self_intro / intro_reader / cohost_formula.
+1. **Trace (roster, helpers, both LLM answers) + `roster_replay --trace-out`.** Code on main;
+   deployed: no. Remaining gaps are listed above.
+2. **Analysis on existing data.** Per-rung precision against the gold labels; failure chains per
+   show across ~2,300 prod episodes. Runs on `roster_replay --trace-out` now; the LLM rung needs
+   ingest-time traces.
+3. **Ingest-side records** — detection and the resolver are now done (pulled into phase 1); left:
+   host-pool sub-source, `post_hoc` migration records.
+4. **Then priority and ordering changes**, each gated on dev + validation with the trace explaining
+   every voice that moved. Candidates already visible: title/description guest phrases ("X on …",
+   "— X", "with X") as corroboration; an LLM name may not take a second voice once the episode bound
+   it by self-introduction; an LLM-inferred host name should not count as step 1's "named as a
+   stated host" the way a spoken self-introduction does (seen on the first DGX run); the
+   `self_intro` source split.
