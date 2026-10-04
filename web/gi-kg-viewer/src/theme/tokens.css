@@ -24,10 +24,15 @@
      #111418 is 5.70:1 and is the UXS-001 value. Guarded by __checks__/token-contrast.test.ts. */
   --ps-primary-foreground: #111418;
   --ps-success: #32a467;
+  --ps-success-foreground: #111418;
   --ps-warning: #ec9a3c;
+  --ps-warning-foreground: #111418;
   --ps-danger: #e76a6e;
+  --ps-danger-foreground: #111418;
   --ps-gi: #7dd3a0;
+  --ps-gi-foreground: #111418;
   --ps-kg: #c4a8ff;
+  --ps-kg-foreground: #111418;
   /* Knowledge-domain hues used across ShowRailPanel, GraphCanvas,
      NodeDetail, admin surfaces, and the search-result icon.
      - grounded → aliases to GI green (same concept: grounded claim).
@@ -62,10 +67,15 @@
   --ps-primary: #2d72d2;
   --ps-primary-foreground: #ffffff;
   --ps-success: #238551;
+  --ps-success-foreground: #ffffff;
   --ps-warning: #c87619;
+  --ps-warning-foreground: #111418;
   --ps-danger: #cd4246;
+  --ps-danger-foreground: #ffffff;
   --ps-gi: #1e7a4a;
+  --ps-gi-foreground: #ffffff;
   --ps-kg: #5c4d8a;
+  --ps-kg-foreground: #ffffff;
   --ps-grounded: var(--ps-gi);
   --ps-topic: #1f7a7f;
   --ps-person: #9c5822;
@@ -91,10 +101,15 @@
     --ps-primary: #2d72d2;
     --ps-primary-foreground: #ffffff;
     --ps-success: #238551;
+    --ps-success-foreground: #ffffff;
     --ps-warning: #c87619;
+    --ps-warning-foreground: #111418;
     --ps-danger: #cd4246;
+    --ps-danger-foreground: #ffffff;
     --ps-gi: #1e7a4a;
+    --ps-gi-foreground: #ffffff;
     --ps-kg: #5c4d8a;
+    --ps-kg-foreground: #ffffff;
     --ps-grounded: var(--ps-gi);
     --ps-topic: #1f7a7f;
     --ps-person: #9c5822;

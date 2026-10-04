@@ -130,17 +130,18 @@ separation.
 
 Five semantic steps for surfaces, from deepest background to lightest border.
 
-| Token                  | Dark      | Light     | Usage                                 |
-| ---------------------- | --------- | --------- | ------------------------------------- |
-| `canvas`               | `#111418` | `#F6F7F9` | Page/app background                   |
-| `canvas-foreground`    | `#E5E8EB` | `#1C2127` | Primary text on canvas                |
-| `surface`              | `#1C2127` | `#FFFFFF` | Panels, cards, `code` blocks          |
-| `surface-foreground`   | `#E5E8EB` | `#1C2127` | Primary text on surface               |
-| `elevated`             | `#252A31` | `#F6F7F9` | Popovers, dropdowns, modals           |
-| `elevated-foreground`  | `#DCE0E5` | `#252A31` | Text on elevated surfaces             |
-| `overlay`              | `#2F343C` | `#EDEFF2` | Hover overlays, active table rows     |
-| `overlay-foreground`   | `#DCE0E5` | `#252A31` | Text on overlay surfaces              |
-| `border`               | `#404854` | `#D3D8DE` | Dividers, input borders               |
+| Token | Dark | Light | Usage |
+| --- | --- | --- | --- |
+| `canvas` | `#111418` | `#F6F7F9` | Page/app background |
+| `canvas-foreground` | `#E5E8EB` | `#1C2127` | Primary text on canvas |
+| `surface` | `#1C2127` | `#FFFFFF` | Panels, cards, `code` blocks |
+| `surface-foreground` | `#E5E8EB` | `#1C2127` | Primary text on surface |
+| `elevated` | `#252A31` | `#F0F1F4` | Popovers, dropdowns, modals |
+| `elevated-foreground` | `#DCE0E5` | `#252A31` | Text on elevated surfaces |
+| `overlay` | `#2F343C` | `#E4E7EB` | Hover overlays, active table rows |
+| `overlay-foreground` | `#DCE0E5` | `#252A31` | Text on overlay surfaces |
+| `border` | `#404854` | `#C5CCD6` | Dividers, input borders |
+| `graph-canvas` | `#0A0D10` | `var(--canvas)` | Cytoscape canvas only (dark is deeper than `canvas`) |
 
 ### Text tokens
 
@@ -170,12 +171,21 @@ Separate from domain tokens; used for buttons, alerts, and status indicators.
 These are visualization-level cues, not generic UI intents. They stay stable across
 themes and distinguish GIL from KG content at a glance.
 
-| Token                | Dark      | Light     | Usage                     |
-| -------------------- | --------- | --------- | ------------------------- |
-| `gi`                 | `#7dd3a0` | `#1e7a4a` | GIL / insight affordances |
-| `gi-foreground`      | `#111418` | `#FFFFFF` | Text on gi surfaces       |
-| `kg`                 | `#c4a3ff` | `#5c3d9e` | KG affordances            |
-| `kg-foreground`      | `#111418` | `#FFFFFF` | Text on kg surfaces       |
+| Token | Dark | Light | Usage |
+| --- | --- | --- | --- |
+| `gi` | `#7dd3a0` | `#1e7a4a` | GIL / insight affordances |
+| `gi-foreground` | `#111418` | `#FFFFFF` | Text on gi surfaces |
+| `kg` | `#c4a8ff` | `#5c4d8a` | KG affordances |
+| `kg-foreground` | `#111418` | `#FFFFFF` | Text on kg surfaces |
+| `grounded` | `var(--gi)` | `var(--gi)` | Grounded claims — same concept as GI |
+| `topic` | `#7cd0d4` | `#1f7a7f` | Topic chips (teal — distinct from KG purple) |
+| `person` | `#ffb37a` | `#9c5822` | Person chips (peach) |
+
+> **Tables are checked (#2280).** `web/gi-kg-viewer/src/__checks__/uxs-token-tables.test.ts`
+> fails when a token in these tables is missing from `tokens.css`, when its dark or light value
+> differs, or when `tokens.css` defines a `--ps-*` token no table lists.
+> `src/__checks__/token-contrast.test.ts` holds every `-foreground` pair, plus `muted` and `link`,
+> to 4.5:1 in both themes. Change the code and the table in the same commit.
 
 **`warning` token vs clusters:** After CIL digest pill alignment (UXS-002),
 **`warning`** fill/border for **search-hit emphasis** on graph nodes (e.g.
@@ -184,18 +194,19 @@ discovery UI use the **`kg`** token everywhere — Digest CIL pills, graph
 `TopicCluster` compounds, Dashboard Intelligence cluster cards. Do **not** use
 `warning` fill for cluster membership or topic grouping.
 
-### Chart series tokens
+### Chart series colours
 
-Used by Chart.js bar/line/pie charts when more than two series are plotted. Derived
-from Blueprint extended palette colors that complement the domain and intent tokens.
+There are **no `series-*` tokens.** Multi-series Chart.js charts take their colours from
+`chartSeriesColors()` in `src/utils/chartTheme.ts`, which walks five existing semantic tokens in
+order — `primary`, `gi`, `kg`, `warning`, `success` — at 0.75 alpha, and repeats after five
+(`CHART_SEMANTIC_COLOR_SLOTS`; more hues than that is rainbow sprawl). That list is the contract:
+a chart's colours follow the theme because they *are* theme tokens.
 
-| Token      | Dark      | Light     | Usage                    |
-| ---------- | --------- | --------- | ------------------------ |
-| `series-1` | `#4C90F0` | `#2D72D2` | First series (= primary) |
-| `series-2` | `#7dd3a0` | `#1e7a4a` | Second series (= gi)     |
-| `series-3` | `#c4a3ff` | `#5c3d9e` | Third series (= kg)      |
-| `series-4` | `#EC9A3C` | `#C87619` | Fourth series (= warning)|
-| `series-5` | `#3FA6DA` | `#147EB3` | Fifth series (teal)      |
+> **Corrected (#2280).** This section used to specify five `series-1`…`series-5` tokens, the
+> fifth a teal (`#3FA6DA` / `#147EB3`). None was ever defined; the code has used the semantic list
+> above since charts shipped, so the fifth slot is `success` green. Defining a categorical ramp is
+> a real gap (the Dashboard's stream chart invents its own — see the design review, F4), but it is
+> a design decision, not something this table can claim already exists.
 
 Banners may use `color-mix` against `surface` / `border`; new variants should
 still derive from the tokens above.
@@ -312,8 +323,9 @@ supplemented by text labels (colour is never the sole differentiator).
 - Chart.js (and future chart wrappers) **must** resolve axis/grid/text colors from the
   same light/dark logic as the page (CSS variables or the shared `chartTheme.ts`
   module).
-- Multi-series charts use `series-1` through `series-5` in order. Single-series charts
-  default to `primary`. Domain-specific charts (GIL vs KG breakdowns) use `gi` / `kg`.
+- Multi-series charts use `chartSeriesColors()` (`primary`, `gi`, `kg`, `warning`, `success`
+  in order — see *Chart series colours*). Single-series charts default to `primary`.
+  Domain-specific charts (GIL vs KG breakdowns) use `gi` / `kg`.
 - Cytoscape (v2) node/edge styling consumes the same semantic tokens via
   `cyGraphStylesheet.ts` so the graph matches panels and charts.
 - **Dashboard charts (UXS-006):** Every chart on the Dashboard **must** expose a
@@ -414,7 +426,7 @@ DevTools; do not hard-code alternatives in component files.
 | Shadow depth                            | None (flat)                                | Open   | Subtle shadow = more depth/elevation cue                 |
 | Surface gray palette                    | Blueprint-derived `#111418`..`#404854`     | Open   | Exact values may shift during contrast review            |
 | Intent color hues                       | Blueprint-derived blue/green/orange/red    | Open   | Hues stable; saturation/lightness may tune               |
-| Domain color hues (gi/kg)               | Green `#7dd3a0` / Purple `#c4a3ff`         | Frozen | Identity colors; do not change w/o UXS rev               |
+| Domain color hues (gi/kg)               | Green `#7dd3a0` / Purple `#c4a8ff`         | Frozen | Identity colors; do not change w/o UXS rev               |
 | Token names                             | `canvas`, `surface`, `primary`, `gi`, etc. | Frozen | Names are the API; values are the theme                  |
 | Pairing convention                      | Every surface gets `-foreground`           | Frozen | Structural rule; not negotiable                          |
 | Intent/domain separation                | Intent for UI; domain for GIL/KG           | Frozen | Structural rule; not negotiable                          |
@@ -493,7 +505,7 @@ search overlay.
 - [ ] Key interactive states match this spec (hover, focus, disabled, error, empty,
   loading)
 - [ ] Focus states visible on buttons, inputs, and graph controls
-- [ ] Chart.js series use `series-1` through `series-5`; graph colors derive from
+- [ ] Chart.js series use `chartSeriesColors()` (semantic tokens); graph colors derive from
   palette
 - [ ] Inter and JetBrains Mono load correctly (or system fallbacks render acceptably)
 - [ ] RFC-062 implementation checklist references this UXS for theme work
@@ -532,3 +544,4 @@ search overlay.
 | 2026-04-21 | Operator save: profile `<select>` sole source of truth; None strips pasted `profile:` in textarea; shallow validation called out |
 | 2026-04-21 | Corpus sources Feeds: **Add feed** one URL at a time + **Manage** / **Raw JSON** sub-tabs; operator **GET** seeds `profile: cloud_balanced` when `viewer_operator.yaml` is missing/whitespace-only and preset exists; client parses FastAPI JSON `detail` for clearer errors |
 | 2026-04-19 | Shell IA pointer to VIEWER_IA; `warning` vs `kg` clusters; Dashboard charts require a **written takeaway** (dedicated line or chart title); tunables: graph 7d seed, COSE lengths, recency decay, label tiers, compound opacity, Dashboard thresholds / caps |
+| 2026-10-04 | **Token tables reconciled with `tokens.css` (#2280).** The tables were written 2026-04-03, three days before the viewer shipped, and never reconciled. The shipped values have not changed since 2026-04-06, so the **tables now follow the code**: light `elevated` `#F0F1F4`, `overlay` `#E4E7EB`, `border` `#C5CCD6`; **`kg` (Frozen) `#c4a8ff` / `#5c4d8a`** — the frozen identity colour is the one users have seen for six months, not a revision of it. Dark `primary-foreground` went the other way: the code was wrong (white, 3.20:1) and now matches the table's `#111418`. Defined the five specified-but-missing `-foreground` tokens (success, warning, danger, gi, kg — all ≥ 4.5:1). Removed the never-defined `series-1`…`5` in favour of the real `chartSeriesColors()` contract. Added rows for `grounded`, `topic`, `person`, `graph-canvas`. Both directions are now tested |

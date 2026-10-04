@@ -24,20 +24,24 @@ export default {
         accent: 'var(--ps-primary)',
         'accent-foreground': 'var(--ps-primary-foreground)',
         success: 'var(--ps-success)',
+        'success-foreground': 'var(--ps-success-foreground)',
         warning: 'var(--ps-warning)',
+        'warning-foreground': 'var(--ps-warning-foreground)',
         danger: 'var(--ps-danger)',
+        'danger-foreground': 'var(--ps-danger-foreground)',
         // Action-oriented error styling aliases to danger today. Split
         // by adding --ps-destructive later if the operator theme calls
         // for a distinct color.
         destructive: 'var(--ps-danger)',
         gi: 'var(--ps-gi)',
+        'gi-foreground': 'var(--ps-gi-foreground)',
         kg: 'var(--ps-kg)',
-        // Knowledge-domain aliases used across ShowRailPanel,
+        'kg-foreground': 'var(--ps-kg-foreground)',
+        // Knowledge-domain tokens used across ShowRailPanel,
         // NodeDetail, GraphCanvas, admin surfaces, search-result
         // icons (UXS-013 + UXS-015). Backed by --ps-grounded /
-        // --ps-topic / --ps-person in tokens.css; those alias to
-        // GI/KG values today and can be split when the operator
-        // theme calls for distinct hues.
+        // --ps-topic / --ps-person in tokens.css: grounded aliases
+        // GI; topic (teal) and person (peach) have their own hues.
         grounded: 'var(--ps-grounded)',
         topic: 'var(--ps-topic)',
         person: 'var(--ps-person)',
