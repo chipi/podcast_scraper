@@ -302,6 +302,10 @@ export const usePlayerStore = defineStore('player', () => {
       if (local && audio.src !== local) {
         const at = audio.currentTime
         const wasPlaying = !audio.paused
+        // The dead origin URL has usually already ERRORED by now (offline), and audioError is only
+        // cleared by resetForLoad(). Left set, the view keeps "Couldn't load the audio" and hides
+        // Play over a perfectly good local file — the second half of the same device failure.
+        audioError.value = false
         audio.src = local
         if (at > 0) {
           audio.addEventListener(

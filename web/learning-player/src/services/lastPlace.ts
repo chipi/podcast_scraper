@@ -87,6 +87,14 @@ interface Deps {
   nowPlaying: () => SavedEpisode | null
   loadAt: (episode: SavedEpisode, seconds: number) => void
   ensureAuthLoaded: () => Promise<void>
+  /**
+   * Make this account's DOWNLOADS visible before anything is restored: the player's local-source
+   * resolver and the downloads registry. The restore runs on the first navigation, before the shell
+   * mounts and wires either, so without this a restored episode page or player load cannot see an
+   * episode sitting on the device and falls back to the origin URL — offline, "Couldn't load the
+   * audio from the source" (`make test-ios` phase 2, 2026-10-04).
+   */
+  prepareLocalSources?: (userId: string) => Promise<void>
 }
 
 /** Write the current place. Public routes (landing, login, magic-link) are never recorded. */
@@ -133,6 +141,11 @@ export function installLastPlace(router: Router, deps: Deps): void {
         playerEmpty: deps.nowPlaying() === null,
       })
       outcome = outcomeOf(plan)
+      const userId = deps.userId()
+      if ((plan.episode || plan.route) && userId) {
+        // Before the page or the player looks for a local copy — see Deps.prepareLocalSources.
+        await deps.prepareLocalSources?.(userId).catch(() => {})
+      }
       if (plan.episode) deps.loadAt(plan.episode, plan.episode.position)
       if (plan.route) return plan.route
     } catch {

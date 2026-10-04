@@ -652,6 +652,21 @@ describe('finishing an episode', () => {
     expect(el.currentTime).toBe(37)
   })
 
+  // The device half of the same repro: offline, the pinned origin URL ERRORS before the user opens
+  // the downloaded copy, setting audioError — which only resetForLoad() cleared. Switching the source
+  // without clearing it left the view on "Couldn't load the audio from the source" with no Play.
+  it('switching to the local copy clears the error the dead origin URL raised', () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    p.onError()
+    expect(p.audioError).toBe(true)
+    p.setSourceResolver((slug) => (slug === 'a' ? 'capacitor-file:///local/a.mp3' : null))
+    p.load({ slug: 'a', url: 'https://x/a.mp3', title: 'A', artwork: null })
+    expect(el.src).toBe('capacitor-file:///local/a.mp3')
+    expect(p.audioError).toBe(false)
+  })
+
   it('re-loading the same episode does NOT touch a source that is already the local copy', () => {
     const el = stubAudio()
     const p = usePlayerStore()

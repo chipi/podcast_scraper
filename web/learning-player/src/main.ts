@@ -15,7 +15,9 @@ import { installUmami } from './services/analytics'
 import { installLastPlace, recordPlace, type SavedEpisode } from './services/lastPlace'
 import { initLifecycle } from './services/lifecycle'
 import { scrubEventRequestUrl, scrubNavigationBreadcrumb } from './services/telemetryScrub'
+import { localSourceFor } from './services/downloads'
 import { useAuthStore } from './stores/auth'
+import { useDownloadsStore } from './stores/downloads'
 import { usePlayerStore } from './stores/player'
 
 applyTheme('dark')
@@ -148,6 +150,11 @@ const lastPlaceDeps = {
   nowPlaying: () => usePlayerStore().nowPlaying(),
   loadAt: (episode: SavedEpisode, seconds: number) => usePlayerStore().loadAt(episode, seconds),
   ensureAuthLoaded: () => useAuthStore().ensureLoaded(),
+  // App.vue wires both again on mount; doing it here too is idempotent.
+  prepareLocalSources: async (userId: string) => {
+    usePlayerStore().setSourceResolver(localSourceFor)
+    await useDownloadsStore().setNamespace(userId)
+  },
 }
 installLastPlace(router, lastPlaceDeps)
 
