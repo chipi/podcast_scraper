@@ -121,6 +121,11 @@ becomes a candidate the roster may bind (the over-broad surname match was doing 
   her stated name unplaced; a four-person panel 1/40. Junk self-intro names: host "Osbir" (twice)
   and guest "James Madison" (a quotation) placed while stated Elizabeth Anderson is unplaced.
   Rotating-chair debate format: a per-show profile case (#2261), like Planet Money.
+- The Living Philosophy (2026-10-04, job 70e6aef3): **no host** for the feed (7 of 9
+  `no_host_name_found`); the guest is the only roster entry and is made HOST twice ("Dr. Sharon
+  Blackie", "Benjamin Studebaker", LLM); nothing visible on three episodes (an EMPTY roster 0/77,
+  Michael Montgomery 0/78 and Layman Pascal 0/59 with the stated guest unplaced and the dominant
+  voice unnamed). Same class as Philosophy For Our Times: a show that states no host (#2261).
 
 ## Low-visibility episodes, classified (2026-10-04 morning)
 
