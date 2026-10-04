@@ -3742,7 +3742,11 @@ android-play:
 	@# Non-fatal when Play cannot be reached (no credential yet, offline): fall through to the git
 	@# count, which is what made a release buildable before the Play account existed. The build is
 	@# then exactly as safe as it was yesterday, and the reason is printed.
-	@code=$$(cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane next_version_code 2>/dev/null | tail -1 | tr -dc '0-9'); \
+	@# The lane prints `NEXT_VERSION_CODE=<n>` (fastlane prefixes it with a timestamp); take only the
+	@# digits after the label. Taking the last line and stripping it to digits read fastlane's
+	@# timestamped summary instead (115305320, 2026-10-04).
+	@code=$$(cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane next_version_code 2>/dev/null \
+		| sed -n 's/.*NEXT_VERSION_CODE=\([0-9][0-9]*\)$$/\1/p' | tail -1); \
 	if [ -n "$$code" ]; then \
 		echo "--> Play says the next free versionCode is $$code"; \
 		$(MAKE) android-bundle ANDROID_VERSION_CODE=$$code; \

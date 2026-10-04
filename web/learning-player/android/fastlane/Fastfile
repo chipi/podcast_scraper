@@ -76,8 +76,14 @@ platform :android do
     # worktrees collide the same way.
     #
     # Play itself is the only authority on "what have we already used", exactly as
-    # `latest_testflight_build_number` is on iOS. Printed bare on stdout so the Makefile can
-    # capture it; every other line fastlane writes goes to stderr.
+    # `latest_testflight_build_number` is on iOS.
+    #
+    # Printed as a LABELLED line (fastlane prefixes even `puts` with a timestamp, so the Makefile
+    # takes only the digits after `NEXT_VERSION_CODE=`). fastlane writes its own lines to
+    # stdout after this one, so "the last line" is the run summary — and stripping that to digits
+    # turned the timestamp and ANSI colour codes into versionCode 115305320 on the first real run
+    # (2026-10-04, stopped before upload). Play never lowers a versionCode, so that upload would
+    # have pushed every future one above 115 million.
     codes = google_play_track_version_codes(
       package_name: PACKAGE,
       track: "internal",
@@ -85,7 +91,7 @@ platform :android do
     )
     next_code = (codes.max || 0) + 1
     UI.message("internal track has #{codes.inspect}; next is #{next_code}")
-    puts next_code
+    puts "NEXT_VERSION_CODE=#{next_code}"
   end
 
   desc "Verify the Play credentials + that the app record exists (no build, no upload)."
