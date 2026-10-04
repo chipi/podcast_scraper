@@ -19,7 +19,7 @@ import os
 import threading
 from datetime import date
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Any, Callable, Iterator, Sequence
 
 from podcast_scraper import perf_cache
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
@@ -191,25 +191,62 @@ def iter_cil_episode_bundles(
     for safe_bridge in bridge_paths:
         if not safe_bridge.startswith(root_prefix):
             continue
-        parent = os.path.dirname(safe_bridge)
-        name = os.path.basename(safe_bridge)
-        if not name.endswith(".bridge.json"):
-            continue
-        stem = name[: -len(".bridge.json")]
-        gi_j = os.path.normpath(os.path.join(parent, f"{stem}.gi.json"))
-        kg_j = os.path.normpath(os.path.join(parent, f"{stem}.kg.json"))
-        if not gi_j.startswith(root_prefix):
-            continue
-        if not kg_j.startswith(root_prefix):
-            continue
-        if not os.path.isfile(gi_j) or not os.path.isfile(kg_j):
+        siblings = _sibling_gi_kg(safe_bridge, root_prefix)
+        if siblings is None:
             continue
         bridge = _read_json(safe_bridge)
-        gi = _read_json(gi_j)
-        kg = _read_json(kg_j)
-        if bridge is None or gi is None or kg is None:
+        if bridge is None:
             continue
-        yield safe_bridge, bridge, gi, kg
+        yield safe_bridge, bridge, siblings[0], siblings[1]
+
+
+def _sibling_gi_kg(
+    safe_bridge: str, root_prefix: str
+) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    """The parsed ``.gi.json`` / ``.kg.json`` beside a bridge, or None when either is missing or
+    unreadable. Same normpath + prefix checks as the walk (the path-injection-safe shape this
+    module uses everywhere; see the module docstring)."""
+    parent = os.path.dirname(safe_bridge)
+    name = os.path.basename(safe_bridge)
+    if not name.endswith(".bridge.json"):
+        return None
+    stem = name[: -len(".bridge.json")]
+    gi_j = os.path.normpath(os.path.join(parent, f"{stem}.gi.json"))
+    kg_j = os.path.normpath(os.path.join(parent, f"{stem}.kg.json"))
+    if not gi_j.startswith(root_prefix) or not kg_j.startswith(root_prefix):
+        return None
+    if not os.path.isfile(gi_j) or not os.path.isfile(kg_j):
+        return None
+    gi = _read_json(gi_j)
+    kg = _read_json(kg_j)
+    if gi is None or kg is None:
+        return None
+    return gi, kg
+
+
+def iter_cil_episode_bundles_where(
+    root_path: str,
+    anchor_path: str,
+    keep: Callable[[dict[str, Any]], bool],
+) -> Iterator[tuple[str, dict[str, Any], dict[str, Any], dict[str, Any]]]:
+    """:func:`iter_cil_episode_bundles`, reading GI/KG only for the bridges ``keep`` accepts.
+
+    The plain walk parses EVERY episode's bridge, GI and KG and only then lets the caller discard
+    the episodes that do not mention the topic — so opening one topic, theme or storyline read the
+    whole corpus from disk, uncached, every time (prod 2026-10-04: perspectives 1.25s mean, the
+    topic card up to 4.6s). Every per-topic / per-person caller rejects on the BRIDGE alone, so the
+    bridges come from the corpus-keyed cache (:func:`_cached_bridge_bundles`) and the heavy GI/KG
+    files are read only for the few episodes that pass. Yields exactly what the plain walk yields
+    for those episodes, in the same order.
+    """
+    root_prefix = os.path.normpath(root_path) + os.sep
+    for safe_bridge, bridge in _cached_bridge_bundles(root_path, anchor_path):
+        if not safe_bridge.startswith(root_prefix) or not keep(bridge):
+            continue
+        siblings = _sibling_gi_kg(safe_bridge, root_prefix)
+        if siblings is None:
+            continue
+        yield safe_bridge, bridge, siblings[0], siblings[1]
 
 
 def iter_cil_bridge_bundles(
@@ -647,7 +684,11 @@ def position_arc(
     topic_equiv = _canonical_equivalents(root_path, topic)
     root_prefix = os.path.normpath(root_path) + os.sep
     results: list[dict[str, Any]] = []
-    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
+    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles_where(
+        root_path,
+        anchor_path,
+        lambda b: bool(person_equiv & _bridge_gi_ids(b)) and bool(topic_equiv & _bridge_gi_ids(b)),
+    ):
         gi_ids = _bridge_gi_ids(bridge)
         if not (person_equiv & gi_ids) or not (topic_equiv & gi_ids):
             continue
@@ -756,7 +797,9 @@ def person_profile(root_path: str, anchor_path: str, target_person: str) -> dict
     by_topic: dict[str, list[dict[str, Any]]] = {}
     all_quotes: list[dict[str, Any]] = []
 
-    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
+    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles_where(
+        root_path, anchor_path, lambda b: bool(equiv & _bridge_gi_ids(b))
+    ):
         gi_ids = _bridge_gi_ids(bridge)
         if not (equiv & gi_ids):
             continue
@@ -780,7 +823,9 @@ def topic_timeline(
     equiv = _canonical_equivalents(root_path, topic)  # #852 cross-episode variants
     root_prefix = os.path.normpath(root_path) + os.sep
     results: list[dict[str, Any]] = []
-    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
+    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles_where(
+        root_path, anchor_path, lambda b: bool(equiv & _bridge_all_ids(b))
+    ):
         if not (equiv & _bridge_all_ids(bridge)):
             continue
 
@@ -913,7 +958,9 @@ def topic_timeline_merged(
 
     root_prefix = os.path.normpath(root_path) + os.sep
     results: list[dict[str, Any]] = []
-    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
+    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles_where(
+        root_path, anchor_path, lambda b: bool(topics_set & _bridge_all_ids(b))
+    ):
         bridge_ids = _bridge_all_ids(bridge)
         active = topics_set & bridge_ids
         if not active:
@@ -1128,7 +1175,9 @@ def topics_perspectives(
     allowed = {x.strip().lower() for x in insight_types if x.strip()} if insight_types else None
     by_person: dict[str, dict[str, Any]] = {}
     person_name: dict[str, str] = {}
-    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
+    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles_where(
+        root_path, anchor_path, lambda b: bool(equiv & _bridge_all_ids(b))
+    ):
         if not (equiv & _bridge_all_ids(bridge)):
             continue
         if keep_episode_ids is not None and _episode_id_from_bridge(bridge) not in keep_episode_ids:
@@ -1216,7 +1265,9 @@ def topic_person_ids(root_path: str, anchor_path: str, target_topic: str) -> lis
     topic = canonical_cil_entity_id(target_topic)
     equiv = _canonical_equivalents(root_path, topic)  # #852 cross-episode variants
     persons: set[str] = set()
-    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
+    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles_where(
+        root_path, anchor_path, lambda b: bool(equiv & _bridge_all_ids(b))
+    ):
         if not (equiv & _bridge_all_ids(bridge)):
             continue
 
