@@ -42,6 +42,13 @@ services:
       APP_OAUTH_PROVIDER: google
       APP_OAUTH_GOOGLE_CLIENT_ID: ${APP_OAUTH_GOOGLE_CLIENT_ID:-}
       APP_OAUTH_GOOGLE_CLIENT_SECRET: ${APP_OAUTH_GOOGLE_CLIENT_SECRET:-}
+      # Sign in with Apple beside Google (#2275). All empty unless the deploy wrote them, which
+      # it does only when PLAYER_APPLE_SIWA_PRIVATE_KEY is set — then the button appears.
+      APP_OAUTH_PROVIDERS: ${APP_OAUTH_PROVIDERS:-}
+      APP_OAUTH_APPLE_TEAM_ID: ${APP_OAUTH_APPLE_TEAM_ID:-}
+      APP_OAUTH_APPLE_KEY_ID: ${APP_OAUTH_APPLE_KEY_ID:-}
+      APP_OAUTH_APPLE_SERVICES_ID: ${APP_OAUTH_APPLE_SERVICES_ID:-}
+      APP_OAUTH_APPLE_PRIVATE_KEY: ${APP_OAUTH_APPLE_PRIVATE_KEY:-}
       APP_SESSION_SECRET: ${APP_SESSION_SECRET:-}
       # Delivery seam (#1412/#1415): the infra worker authenticates to /internal/outbox/*
       # with this shared token (X-Internal-Token); empty → the endpoints 503 (disabled).

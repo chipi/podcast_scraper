@@ -215,6 +215,8 @@ jobs:
           PODCAST_IMAGE_TAG: ${{ steps.imgsha.outputs.tag }}
           GOOGLE_CLIENT_ID: ${{ vars.PLAYER_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
+          # Sign in with Apple (#2275): the .p8 key's PEM text. Absent = Apple stays off.
+          APPLE_SIWA_PRIVATE_KEY: ${{ secrets.PLAYER_APPLE_SIWA_PRIVATE_KEY }}
           APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
           # Delivery seam (#1412/#1415): shared token the infra worker presents on
           # /internal/outbox/* (X-Internal-Token) — a runtime SECRET (tmpfs under Option A).
@@ -343,6 +345,15 @@ jobs:
             echo "PODCAST_IMAGE_TAG=${PODCAST_IMAGE_TAG}"
             echo "APP_OAUTH_PROVIDER=google"
             echo "APP_OAUTH_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
+            # Sign in with Apple (#2275), ONLY when its key secret exists — otherwise this block
+            # writes nothing and the deployment is exactly Google-only as before. The ids are not
+            # secret (team, key id, Services ID); the key is, and rides below with the others.
+            if [ -n "${APPLE_SIWA_PRIVATE_KEY:-}" ]; then
+              echo "APP_OAUTH_PROVIDERS=google,apple"
+              echo "APP_OAUTH_APPLE_TEAM_ID=3P3PX275ZM"
+              echo "APP_OAUTH_APPLE_KEY_ID=YCX7SLGNQU"
+              echo "APP_OAUTH_APPLE_SERVICES_ID=app.closelistening.player.web"
+            fi
             # VAPID PUBLIC key — not secret (the browser fetches it); always written.
             echo "APP_VAPID_PUBLIC_KEY=${APP_VAPID_PUBLIC_KEY}"
             # Runtime secrets (ADR-115 Option A): under PLAYER_SECRETS_VIA_FILES=1 these are
@@ -350,6 +361,11 @@ jobs:
             # .env.player (no secrets at rest on disk). Flag off = today's env behaviour.
             if [ "${PLAYER_SECRETS_VIA_FILES:-}" != "1" ]; then
               echo "APP_OAUTH_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"
+              # One line in an env file: the PEM's newlines as literal \n, which
+              # AppleProvider.from_env turns back into newlines.
+              if [ -n "${APPLE_SIWA_PRIVATE_KEY:-}" ]; then
+                printf 'APP_OAUTH_APPLE_PRIVATE_KEY=%s\n' "$(printf '%s' "$APPLE_SIWA_PRIVATE_KEY" | awk 'BEGIN{ORS="\\n"} {print}')"
+              fi
               echo "APP_SESSION_SECRET=${APP_SESSION_SECRET}"
               echo "INTERNAL_OUTBOX_TOKEN=${INTERNAL_OUTBOX_TOKEN}"
             fi
@@ -443,6 +459,8 @@ jobs:
         env:
           SSH_TARGET: deploy@${{ steps.ts_host.outputs.resolved_fqdn }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
+          # Sign in with Apple (#2275): the .p8 key's PEM text. Absent = Apple stays off.
+          APPLE_SIWA_PRIVATE_KEY: ${{ secrets.PLAYER_APPLE_SIWA_PRIVATE_KEY }}
           APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
           PROD_SENTRY_DSN_PLAYER_API: ${{ secrets.PROD_SENTRY_DSN_PLAYER_API }}
           INTERNAL_OUTBOX_TOKEN: ${{ secrets.PLAYER_INTERNAL_OUTBOX_TOKEN }}
@@ -452,6 +470,10 @@ jobs:
           STAGE=$(mktemp -d -p /dev/shm plsecstage.XXXXXX)
           trap 'rm -rf "$STAGE" 2>/dev/null || true' EXIT
           printf '%s' "$GOOGLE_CLIENT_SECRET"       > "$STAGE/app_oauth_google_client_secret"
+          # Sign in with Apple key (#2275). ALWAYS written — the compose secrets overlay mounts it,
+          # and a missing file would fail the deploy — but empty when the secret is unset, which
+          # AppleProvider.from_env treats as "Apple off".
+          printf '%s' "${APPLE_SIWA_PRIVATE_KEY:-}" > "$STAGE/app_oauth_apple_private_key"
           printf '%s' "$APP_SESSION_SECRET"         > "$STAGE/app_session_secret"
           printf '%s' "$PROD_SENTRY_DSN_PLAYER_API" > "$STAGE/podcast_sentry_dsn_api"
           # Delivery seam shared token → /run/secrets/internal_outbox_token; the shim

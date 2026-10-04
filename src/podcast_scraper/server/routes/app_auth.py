@@ -224,6 +224,11 @@ def app_auth_login(
         raise HTTPException(status_code=404, detail="That sign-in provider is not configured.")
     if provider is None or not secret:
         raise HTTPException(status_code=503, detail="Auth is not configured.")
+    _oauth_event(
+        "oauth_login_started",
+        provider=provider.name,
+        platform="native" if platform == "native" else "web",
+    )
     nonce = secrets.token_urlsafe(24)
     # #1977: the SIGNED payload is what goes to the provider, not the bare nonce. It is
     # tamper-evident and URL-safe (`{b64(json)}.{hmac}`), so the callback can validate the flow
@@ -282,6 +287,13 @@ async def app_auth_callback_form(request: Request) -> RedirectResponse:
     state = (form.get("state") or [""])[0]
     if not code or not state:
         # Apple posts `error=user_cancelled_authorize` (and no code) when the person cancels.
+        signed = app_sessions.verify(state, _secret(request), max_age=600) if state else None
+        _oauth_event(
+            "oauth_callback",
+            outcome="cancelled",
+            provider=(signed or {}).get("provider") or None,
+            error=((form.get("error") or [""])[0] or None),
+        )
         raise HTTPException(status_code=400, detail="Sign-in was cancelled or incomplete.")
     return _complete_callback(
         request, code=code, state=state, user_json=(form.get("user") or [""])[0] or None, status=303
@@ -295,6 +307,7 @@ def _complete_callback(
     secret = _secret(request)
     data_dir = _data_dir(request)
     if not _providers(request) or not secret or data_dir is None:
+        _oauth_event("oauth_callback", outcome="unconfigured")
         raise HTTPException(status_code=503, detail="Auth is not configured.")
     raw_state_cookie = request.cookies.get(app_sessions.STATE_COOKIE)
     from_cookie = app_sessions.verify(raw_state_cookie, secret, max_age=600)
@@ -326,16 +339,32 @@ def _complete_callback(
         else:
             reason = "state cookie and echoed state are both valid but disagree"
         logger.warning("OAuth callback rejected: %s", reason)
+        _oauth_event("oauth_callback", outcome="state_invalid", reason=reason)
         raise HTTPException(status_code=400, detail="Invalid OAuth state.")
     # A state minted before #2275 carries no provider: that flow was the primary's.
     named = saved.get("provider")
     provider = _providers(request).get(named) if named else _provider(request)
+    platform_kind = "native" if saved.get("platform") == "native" else "web"
     if provider is None:
+        _oauth_event(
+            "oauth_callback", outcome="unconfigured", provider=named, platform=platform_kind
+        )
         raise HTTPException(status_code=503, detail="Auth is not configured.")
     extra = {"user_json": user_json} if user_json else {}
     try:
         identity = provider.exchange_code(code=code, redirect_uri=_callback_uri(request), **extra)
     except OAuthError as exc:
+        # This used to be a bare 502 with nothing in the log: a provider rejecting our client
+        # secret, Apple's id_token failing verification, or a network error all looked the same.
+        # The reason is the OAuthError's own message — endpoint and failure, never a code or token.
+        logger.warning("OAuth exchange failed (%s): %s", provider.name, exc)
+        _oauth_event(
+            "oauth_callback",
+            outcome="exchange_failed",
+            provider=provider.name,
+            platform=platform_kind,
+            reason=str(exc)[:300],
+        )
         raise HTTPException(status_code=502, detail="OAuth exchange failed.") from exc
     # Resolved PER SIGN-IN, not once at startup: the persisted policy (admin endpoint, #2190) wins
     # over the env one, so admitting a beta tester is an API call rather than a production
@@ -345,7 +374,20 @@ def _complete_callback(
         getattr(request.app.state, "access_policy", None),
     )
     if policy is not None and not policy.is_allowed(identity.email):
+        _oauth_event(
+            "oauth_callback",
+            outcome="not_allowed",
+            provider=provider.name,
+            platform=platform_kind,
+            email_fp=_email_fingerprint(identity.email),
+        )
         raise HTTPException(status_code=403, detail="This account is not allowed to sign in.")
+    created: list[str] = []
+
+    def _on_created(new_user: User) -> None:
+        created.append(new_user.user_id)
+        app_user_state.append_account_created(data_dir, new_user.user_id, identity.provider)
+
     user = get_or_create_user(
         data_dir,
         provider=identity.provider,
@@ -358,9 +400,15 @@ def _complete_callback(
         # creation branch so it is exactly once per account even when an OAuth callback double-fires
         # — the alternative, checking existence here first, races and would report two signups for
         # one account.
-        on_created=lambda created: app_user_state.append_account_created(
-            data_dir, created.user_id, identity.provider
-        ),
+        on_created=_on_created,
+    )
+    _oauth_event(
+        "oauth_callback",
+        outcome="ok",
+        provider=provider.name,
+        platform=platform_kind,
+        new_account=bool(created),
+        email_fp=_email_fingerprint(identity.email),
     )
     # Apply the role policy: admin allowlist > creator grant > existing role (never downgraded).
     admin_emails: frozenset[str] = getattr(request.app.state, "admin_emails", frozenset())
@@ -515,6 +563,15 @@ def _email_fingerprint(email: str) -> str:
     import hashlib
 
     return hashlib.sha256(app_magic_link.normalise_email(email).encode("utf-8")).hexdigest()[:16]
+
+
+def _oauth_event(event_type: str, **fields: Any) -> None:
+    """One ADR-119 event for the OAuth flows (Google, Apple, mock) — same sink and shape as the
+    magic-link events, so every way in is visible in the same place (#2275). Best-effort.
+
+    Never the address (an ``email_fp`` fingerprint instead), never a code, token or state value.
+    """
+    _magic_event(event_type, **fields)
 
 
 def _magic_event(event_type: str, **fields: Any) -> None:
