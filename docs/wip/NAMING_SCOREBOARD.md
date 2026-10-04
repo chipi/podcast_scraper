@@ -101,6 +101,16 @@ becomes a candidate the roster may bind (the over-broad surname match was doing 
   meet" (3/49 insights visible), "From deepfakes to DNA" (26/46); see also the Freakonomics,
   Gray Area and StarTalk reviews above.
 
+## Deepen reviews, night of 2026-10-03/04
+
+- Listener / caller first names captured as self-introduced guests: Curious Cases (Bernie, Jack,
+  Laurie, Andrew, Marlon, Keith, Elizabeth) — the same shape as StarTalk's Patreon question names.
+- ASR spelling not snapped to the stated guest: "Maggie Adair" placed, stated "Maggie
+  Aderin-Pocock" unplaced (Curious Cases).
+- One episode per show with nearly every insight hidden behind one unnamed voice: ZOE 0/40,
+  AI 4 UX 1/64, FUTURES 2/60, Google DeepMind 3/49 — the stated-guest problem (problem 6).
+- Brand author tag in a host pool: "Brilliant Experience" (AI 4 UX), never placed on a voice.
+
 ## Also on this branch — the two open plan steps (from 2026-10-02/03)
 
 ### Feed-level analysis and per-show profiles — #2261 (scoreboard plan step 5)
