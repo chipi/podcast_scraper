@@ -122,10 +122,14 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         pip uninstall -y podcast-scraper; \
     fi && \
     # Cleanup: Remove pip cache from final image to reduce size (cache is preserved in BuildKit cache mount)
-    pip cache purge || true && \
-    rm -rf /tmp/pip-* /tmp/build-* /tmp/*.whl /tmp/*.tar.gz || true && \
-    find /tmp -type f -name "*.pyc" -delete 2>/dev/null || true && \
-    find /tmp -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    # Each cleanup is its OWN `{ ...; || true; }` group. Written as `install && cleanup || true`,
+    # shell reads `(install && cleanup) || true` — and that swallowed a failed install: on
+    # 2026-10-04 a GitHub 403 on the spaCy model wheel aborted `pip install '.[ml,...]'`, the
+    # step still exited 0, and the build died two steps later as "openai-whisper not installed".
+    { pip cache purge || true; } && \
+    { rm -rf /tmp/pip-* /tmp/build-* /tmp/*.whl /tmp/*.tar.gz || true; } && \
+    { find /tmp -type f -name "*.pyc" -delete 2>/dev/null || true; } && \
+    { find /tmp -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true; }
 
 # Copy all remaining files and install the podcast_scraper package itself (without reinstalling deps)
 # Note: Dependencies are already installed in previous step, so --no-deps is safe
@@ -135,8 +139,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-deps . && \
     # Verify critical dependencies are available (yaml module)
     python -c "import yaml; print('PyYAML available')" && \
-    # Clean up temporary build files
-    rm -rf /tmp/pip-* /tmp/build-* /tmp/*.whl /tmp/*.tar.gz || true
+    # Clean up temporary build files. Grouped, so a failed check above still fails the step —
+    # ungrouped, `|| true` made this verification unable to fail (see the step above).
+    { rm -rf /tmp/pip-* /tmp/build-* /tmp/*.whl /tmp/*.tar.gz || true; }
 
 # OTEL distributed tracing (ADR-119 "traces" signal). The entrypoint wraps the run
 # in ``opentelemetry-instrument`` when OTEL_TRACES_EXPORTER=otlp; bootstrap installs

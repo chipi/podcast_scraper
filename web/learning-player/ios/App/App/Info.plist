@@ -72,5 +72,10 @@
 	<string>Close Listening uses speech recognition to turn your spoken notes into text.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Close Listening uses the microphone to dictate notes on episodes.</string>
+	<!-- Profile picture: the avatar picker is an <input type="file" accept="image/..."> and iOS's
+	     picker for it ALWAYS offers "Take Photo". Choosing it without this key is a TCC privacy
+	     kill, not a prompt — the app crashed on 2026-09-15 exactly that way. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Close Listening uses the camera only when you choose to take a new profile picture.</string>
 </dict>
 </plist>
