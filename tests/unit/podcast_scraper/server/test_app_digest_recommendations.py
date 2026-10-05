@@ -28,7 +28,7 @@ _TRENDING = [
     {
         "episode_slug": "ep-ai",
         "graph_refs": [{"id": "topic:ai", "kind": "topic", "label": "AI"}],
-        "deep_link": "/topic/ai?scope=mine",
+        "deep_link": "/topic/topic%3Aai",
     }
 ]
 _INTERESTS = [

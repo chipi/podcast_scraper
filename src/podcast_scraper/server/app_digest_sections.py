@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from podcast_scraper.server import app_graph_refs, app_user_state
 from podcast_scraper.server.app_corpus_access import load_json_artifact
@@ -177,12 +178,14 @@ def trending_items(root: Path, data_dir: Path, user_id: str, *, limit: int) -> l
     ranked.sort(reverse=True)  # hottest first
     items: list[dict[str, Any]] = []
     for _vel, topic_id, label, slug in ranked[:limit]:
-        topic_slug = topic_id.split(":", 1)[-1]
+        # The FULL graph id, encoded — the topic page resolves `topic:x`, never a bare `x` (a
+        # stripped id opened an empty page), and it is the same link the share menu and the app
+        # build (operator 2026-10-05). No `?scope=`: the topic page does not read it.
         items.append(
             {
                 "episode_slug": slug,
                 "graph_refs": [{"id": topic_id, "kind": "topic", "label": label}],
-                "deep_link": f"/topic/{topic_slug}?scope=mine",
+                "deep_link": f"/topic/{quote(topic_id, safe='')}",
             }
         )
     return items
