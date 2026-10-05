@@ -37,10 +37,8 @@ import ShowAllToggle from "../components/ShowAllToggle.vue"
 import { useCappedSections } from "../composables/useCappedSections"
 import TopicPerspectives from "../components/TopicPerspectives.vue"
 import ShareMenu from "../components/ShareMenu.vue"
-import { shareUrl } from "../utils/shareLink"
 import TopVoices from "../components/TopVoices.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
-import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { getThemeCard } from "../services/api"
 import type { ClusterMember, Entity, EpisodeSummary } from "../services/types"
@@ -155,22 +153,6 @@ function toggleFollow(): void {
   void interests.toggle(props.id)
 }
 
-const shareModel = computed<EntityCardModel>(() => {
-  const parts = [`${topics.value.length} ${topics.value.length === 1 ? "topic" : "topics"}`]
-  if (episodes.value.length) {
-    parts.push(`${episodes.value.length} ${episodes.value.length === 1 ? "episode" : "episodes"}`)
-  }
-  return {
-    kicker: t("share.kickerTheme"),
-    title: label.value || props.id,
-    stats: parts.join(" · "),
-    // A theme owns its hue now. It shared the storyline's violet while "both are groupings" was
-    // the whole rule — which made the two share cards indistinguishable, the same collision the
-    // page eyebrows had. Both are still groupings; the colour now says WHICH.
-    accent: accentForKind("theme"),
-    url: shareUrl("theme", props.id),
-  }
-})
 
 function goBack(): void {
   if (window.history.length > 1) router.back()
@@ -224,7 +206,9 @@ function goBack(): void {
       <div class="mt-3 flex flex-wrap items-center gap-2">
         <FavoriteButton :item="{ kind: 'theme', ref: id, label: label || id }" />
         <AddToCollectionButton :item="{ kind: 'theme', ref: id }" variant="pill" />
-        <ShareMenu :model="shareModel" target-kind="topic" />
+        <!-- Shares as a THEME — its own server card and link (operator 2026-10-05); it used to share
+             as a topic. Analytics has no theme bucket, so `target-kind` stays topic. -->
+        <ShareMenu kind="theme" :id="id" :title="label || id" target-kind="topic" />
         <FollowButton
           v-if="auth.isAuthenticated"
           variant="theme"

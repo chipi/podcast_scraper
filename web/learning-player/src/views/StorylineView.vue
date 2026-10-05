@@ -33,8 +33,6 @@ import FavoriteButton from "../components/FavoriteButton.vue"
 import FollowButton from "../components/FollowButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
 import ShareMenu from "../components/ShareMenu.vue"
-import { shareUrl } from "../utils/shareLink"
-import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
 import type { ClusterMember, ClusterPair, Entity, EpisodeSummary } from "../services/types"
 
 type Member = { id: string; label: string; episodeCount: number; anchor: boolean; firstSeen: string | null; lastSeen: string | null; trend: ClusterMember['trend'] }
@@ -161,21 +159,6 @@ function toggleFollow(): void {
   if (storylineId.value) void interests.toggle(storylineId.value)
 }
 
-// #2036 — the shareable card for this storyline: the cluster label + how many topics/episodes it
-// spans + a canonical link. Violet accent (accentForKind("storyline")) — distinct from topic cyan.
-const shareModel = computed<EntityCardModel>(() => {
-  const parts = [`${topics.value.length} ${topics.value.length === 1 ? "topic" : "topics"}`]
-  if (episodes.value.length) {
-    parts.push(`${episodes.value.length} ${episodes.value.length === 1 ? "episode" : "episodes"}`)
-  }
-  return {
-    kicker: t("share.kickerStoryline"),
-    title: label.value || props.id,
-    stats: parts.join(" · "),
-    accent: accentForKind("storyline"),
-    url: shareUrl("storyline", props.id),
-  }
-})
 
 function goBack(): void {
   if (window.history.length > 1) router.back()
@@ -229,7 +212,7 @@ function goBack(): void {
         <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
         <!-- Share (card / link / text) — #2036. -->
         <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" variant="pill" />
-        <ShareMenu :model="shareModel" target-kind="storyline" />
+        <ShareMenu kind="storyline" :id="id" :title="label || id" target-kind="storyline" />
         <FollowButton
           v-if="auth.isAuthenticated && storylineId"
           variant="storyline"

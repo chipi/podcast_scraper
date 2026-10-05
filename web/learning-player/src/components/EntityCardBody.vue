@@ -17,7 +17,7 @@ import CloseIcon from "./CloseIcon.vue"
 import { anchorWithin, restoreAnchorWithin, type ClickAnchor } from "../utils/backAnchor"
 import { restoreScroll } from "../utils/scrollRestore"
 import { useI18n } from "vue-i18n"
-import { getOrgCard, getPersonCard, getTopicCard, getTopicPerspectives } from "../services/api"
+import { getOrgCard, getPersonCard, getTopicCard } from "../services/api"
 import type { OrgCard, PersonCard, TopicCard } from "../services/types"
 import AddToCollectionButton from "./AddToCollectionButton.vue"
 import FavoriteButton from "./FavoriteButton.vue"
@@ -26,8 +26,6 @@ import PersonCardContent from "./PersonCardContent.vue"
 import TopicCardContent from "./TopicCardContent.vue"
 import OrgCardContent from "./OrgCardContent.vue"
 import ShareMenu from "./ShareMenu.vue"
-import { shareUrl } from "../utils/shareLink"
-import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useFavoritesStore } from "../stores/favorites"
@@ -154,29 +152,6 @@ watch(
 )
 watch(current, (target) => void load(target), { immediate: true })
 
-// #2036 fast-follow — the topic card's shareable "signature quote": the leading voice's strongest
-// take on this topic. Perspectives are salience-sorted, so perspectives[0].insights[0] IS the take.
-// Topic-only (person/org have no perspective endpoint) and best-effort — the card is clean without
-// it. The `current`-guarded resolve keeps a slow fetch from stamping a quote after the user has
-// walked on to another entity in the same panel.
-const signatureQuote = ref<string | null>(null)
-watch(
-  current,
-  (target) => {
-    signatureQuote.value = null
-    if (target.kind !== "topic") return
-    const { id } = target
-    void getTopicPerspectives(id)
-      .then((r) => {
-        if (current.value.kind === "topic" && current.value.id === id) {
-          signatureQuote.value = r.perspectives?.[0]?.insights?.[0]?.text ?? null
-        }
-      })
-      .catch(() => {})
-  },
-  { immediate: true }
-)
-
 const bodyEl = ref<HTMLElement | null>(null)
 // Set by Back, applied once the entity it returned to has loaded (operator 2026-10-04).
 let pendingScroll: Target["scroll"] | null = null
@@ -223,32 +198,6 @@ watch(loading, (isLoading) => {
 })
 
 const label = computed(() => person.value?.label ?? topic.value?.label ?? org.value?.label ?? "")
-
-// #2036 — the shareable card model for the current entity. Lean v1: kicker + title + an
-// episode-count stat + canonical link (person/topic have pages; org is overlay-only → no link).
-const shareModel = computed<EntityCardModel>(() => {
-  const kind = current.value.kind
-  const kicker =
-    kind === "person" ? t("ec.person") : kind === "organization" ? t("ec.organization") : t("ec.topic")
-  const card = person.value ?? topic.value ?? org.value
-  const eps = card?.episode_count ?? 0
-  // Org has no standalone page yet, so no link.
-  const url =
-    kind === "topic" || kind === "person" ? shareUrl(kind, current.value.id) : null
-  return {
-    kicker,
-    title: label.value || current.value.id,
-    // Topic cards carry the leading voice's take as the card's signature quote (fast-follow); the
-    // engine renders nothing when it's null, so person/org stay clean.
-    quote: signatureQuote.value,
-    stats: eps ? `${eps} ${eps === 1 ? "episode" : "episodes"}` : null,
-    // Per-kind accent (topic cyan / person gold / else brand cyan) — resolved token→hex in the .ts
-    // so the literal never lands in this component (no-hex-in-`.vue` guard).
-    accent: accentForKind(kind),
-    url,
-    context: person.value?.web?.description ?? org.value?.web?.description ?? null,
-  }
-})
 
 // Speaker role badge (host / guest / mentioned) — KG-grounded from the person node's aggregate
 // role. Empty for topics / unknown role.
@@ -343,7 +292,14 @@ const isTopic = computed(() => current.value.kind === "topic")
           <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
         </template>
         <!-- Share (card / link / text) — #2036. -->
-        <ShareMenu :model="shareModel" :target-kind="current.kind" />
+        <!-- The server's card for this entity (operator 2026-10-05) — the menu needs only what it is. -->
+        <ShareMenu
+          :kind="current.kind"
+          :id="current.id"
+          :title="label || current.id"
+          :context="person?.web?.description ?? org?.web?.description ?? null"
+          :target-kind="current.kind"
+        />
       </div>
 
       <!-- REMOVED (operator 2026-09-16): the "Open in page ›" escape hatch (#1261-9).

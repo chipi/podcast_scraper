@@ -128,10 +128,12 @@ still clamp; show names do not.)
 
 One **Share** affordance (`ShareMenu`), a menu of three modes, never a single action:
 
-- **Share card** — an editorial PNG of the entity (quote-led, mono + one accent, square, the app's
-  own type), rendered client-side (`entityShareCard`) and shared via Web Share → download. The card
-  is the "short, beautiful overview"; it carries transcript-derived text + KG metadata only, never
-  audio (bridge-only).
+- **Share card** — the entity's card as a PNG, drawn by the **server** (`GET /og/{kind}/{id}.png`,
+  below) and handed to the platform: the native share sheet as a file on the phones, the browser's
+  file share or a download on the web (`composables/shareCard`). It is the SAME image a shared link
+  unfurls as — one card design, the server's (operator 2026-10-05; the app's own plainer canvas card
+  is gone). The card is the "short, beautiful overview"; it carries transcript-derived text + KG
+  metadata + artwork only, never audio (bridge-only).
 - **Copy link** — copies the entity's public URL, `https://closelistening.app/<kind>/<id>` (2026-10-05:
   it was "Share link" and opened the same OS sheet as Share card, so testers could not tell them
   apart). One link for everything: inside the native apps it is the public site, never the
@@ -143,16 +145,18 @@ One **Share** affordance (`ShareMenu`), a menu of three modes, never a single ac
   which handed the OS sheet a .txt file on native.
 
 Closes on ESC / outside-click. Wired on the **entity card** (topic/person/org), the **episode**
-(PlayerView), the **show** (PodcastView) and the **storyline** (StorylineView).
+(PlayerView), the **show** (PodcastView), the **storyline** (StorylineView) and the **theme**
+(ThemeView, which shares as a theme). The menu is given only WHAT to share (`kind` + `id`) and its
+name.
 
 **Server OG-image (link unfurl).** `GET /og/{kind}/{id}.png` (`routes/app_og.py`) renders the same
 card server-side with Pillow (`server/og/`), and `server/spa.py` (`SpaStaticFiles`) injects
 `og:image`/`og:title`/`twitter:*` into each entity document's head. The route is **unauthenticated**
 (unfurl bots carry no session) and lives outside `/api/app`; the `.png` suffix lets the edge's
 static rule reach the backend without the coming-soon gate. Kinds: topic, person, organization,
-episode, show, storyline. The server card layouts (full-bleed episode background, framed square,
-guest gallery, KPI trend tile) are richer than the client canvas card — kept in step by eye; the
-SSOT is `docs/uxs/UXS-017-share-cards.md`.
+episode, show, storyline, theme. Layouts: full-bleed episode background, framed square, guest
+gallery, KPI trend tile — and a gallery of the shows that discuss a topic / storyline / theme when
+it has no rising trend. The SSOT is `docs/uxs/UXS-017-share-cards.md`.
 
 ## Tab strips and option groups (#1594 item 7)
 
@@ -933,7 +937,7 @@ when native is merely nicer.** Each entry below names the promise it is protecti
 | **Downloads** (`DownloadButton`, `DownloadedList`, `downloads`/`downloadScheduler`) | Audio is BRIDGED, never rehosted, and the service worker deliberately does not cache it. There is no web mechanism that stores an episode for a flight without breaking that rule. | The control self-hides. Not disabled — an affordance that cannot work is worse than an absent one. |
 | **"On this device"** (`/offline`, `OfflineDownloadsView`) | It lists the download registry, which only exists on a device. | Route resolves, list is empty by construction. |
 | **Device settings** (`DeviceSettings`, network policy) | Governs Wi-Fi-vs-cellular for downloads; meaningless without downloads. | Hidden. |
-| **Share as an image card** (`ShareMenu`, `useShareCard`, `entityShareCard`) | The native share sheet takes a FILE; the Web Share API's file support is uneven and silently degrades. | Falls back to link/text sharing. |
+| **Share as an image card** (`ShareMenu`, `composables/shareCard`, `useShareCard` for highlights) | The native share sheet takes a FILE; the Web Share API's file support is uneven and silently degrades. | Falls back to link/text sharing. |
 | **Push** (`usePushSubscription`) | APNs/FCM registration is a shell capability. | Web push where the browser supports it; otherwise absent. |
 | **App update prompt** (`useAppUpdate`) | The shell knows about a downloaded binary; a web page knows about a service worker. | The PWA update toast instead — a different mechanism for the same intent. |
 | **Session auth** (`stores/auth`, `services/native`) | The shell authenticates with a BEARER TOKEN; the web uses the session cookie. Same accounts, different credential. | Cookie session. |

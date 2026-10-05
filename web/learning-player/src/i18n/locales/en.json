@@ -571,6 +571,7 @@
     "text": "Copy text",
     "linkCopied": "Link copied",
     "textCopied": "Text copied",
+    "cardFailed": "Couldn't make the card — try again",
     "kickerShow": "Show",
     "kickerTheme": "Theme",
     "kickerStoryline": "Storyline"

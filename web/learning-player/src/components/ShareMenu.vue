@@ -1,35 +1,54 @@
 <script setup lang="ts">
 /**
- * Share menu (#2036) — **Share card** (the editorial PNG, through the platform share sheet),
- * **Copy link** and **Copy text** (operator 2026-10-05).
+ * Share menu (#2036) — **Share card**, **Copy link** and **Copy text** (operator 2026-10-05).
  *
- * The last two were "Share link" and "Share text", and beta testers could not tell them apart from
- * the first: on a phone all three opened the same system sheet, and "Share text" handed it a .txt
- * FILE. Now they do what they say — put the link, or a line of text ending in the link, on the
- * clipboard — and confirm it. The link is the public https URL (utils/shareLink), so whoever opens
- * it lands on the same thing, in the app when they have it.
+ * **Share card** is the SERVER's card (`server/og/card.py`, via composables/shareCard) — the same
+ * image a shared link unfurls as, so the card you send and the preview a link shows are one design.
+ * The menu therefore needs only WHAT is shared (`kind` + `id`) and its name; it no longer builds a
+ * card model of its own.
+ *
+ * Copy link / Copy text put the public https link (utils/shareLink), or a line of text ending in
+ * it, on the clipboard and confirm it. They were "Share link" and "Share text", and beta testers
+ * could not tell them apart from the card: on a phone all three opened the same system sheet.
  */
-import { ref } from "vue"
+import { computed, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { track } from "../services/analytics"
 
-import { type EntityCardModel, entityCopyText, shareEntityCard } from "../composables/entityShareCard"
+import type { ShareCardKind } from "../services/api"
+import { shareCard } from "../composables/shareCard"
 import { copyText } from "../utils/clipboard"
+import { shareUrl, type ShareTarget } from "../utils/shareLink"
 import { useAnchoredMenu } from "../composables/useAnchoredMenu"
 
 /**
- * `targetKind` is REQUIRED, not derived (#2267).
- *
- * `EntityCardModel.kicker` is display text ("TOPIC", "EPISODE · CROSS-SHOW"), so parsing it would
- * make an analytics enum depend on copy — a wording change would silently retire a category. Each
- * of the five call sites knows exactly what it is sharing, and a required prop makes forgetting it
- * a compile error.
+ * `targetKind` is the ANALYTICS enum and stays required (#2267) — `kind` is what the card and the
+ * link are about. They differ where analytics has no bucket of its own (a show reports `episode`).
  */
 const props = defineProps<{
-  model: EntityCardModel
+  kind: ShareCardKind
+  id: string
+  /** The thing's name — the file name, and the head of Copy text. */
+  title: string
+  /** What it is, in a few words, for Copy text: the show an episode is from, a person's one-liner. */
+  context?: string | null
   targetKind: 'episode' | 'moment' | 'topic' | 'person' | 'storyline' | 'organization'
 }>()
 const { t } = useI18n()
+
+/** The page a link opens. An organization has none of its own (overlay-only), so no link. */
+const LINK_TARGET: Partial<Record<ShareCardKind, ShareTarget>> = {
+  episode: 'episode',
+  show: 'podcast',
+  topic: 'topic',
+  person: 'person',
+  storyline: 'storyline',
+  theme: 'theme',
+}
+const url = computed(() => {
+  const target = LINK_TARGET[props.kind]
+  return target ? shareUrl(target, props.id) : null
+})
 
 const note = ref("") // transient confirmation ("Link copied")
 const triggerEl = ref<HTMLElement | null>(null)
@@ -39,21 +58,36 @@ const panelEl = ref<HTMLElement | null>(null)
 // share opened from Home): `anchorPanel` clamps it on screen (operator 2026-09-13).
 const { open, toggle, close, teleportTarget } = useAnchoredMenu(triggerEl, panelEl, { align: "end" })
 
+const making = ref(false)
 async function onCard(): Promise<void> {
   close()
+  if (making.value) return
   // An image card always goes through the platform sheet — there is nothing to copy.
   track('share', { target_kind: props.targetKind, method: 'native_sheet' })
-  await shareEntityCard(props.model)
+  making.value = true
+  try {
+    await shareCard(props.kind, props.id, props.title)
+  } catch {
+    // Offline, or the server could not draw it — say so rather than doing nothing.
+    flash(t("share.cardFailed"))
+  } finally {
+    making.value = false
+  }
 }
 async function onLink(): Promise<void> {
   close()
-  if (!props.model.url || !(await copyText(props.model.url))) return
+  if (!url.value || !(await copyText(url.value))) return
   track('share', { target_kind: props.targetKind, method: 'copy_link' })
   flash(t("share.linkCopied"))
 }
+/** "Name — what it is", then the link, so a pasted message leads back. */
+function copyTextBody(): string {
+  const head = props.context ? `${props.title} — ${props.context}` : props.title
+  return [head, url.value].filter(Boolean).join("\n")
+}
 async function onText(): Promise<void> {
   close()
-  if (!(await copyText(entityCopyText(props.model)))) return
+  if (!(await copyText(copyTextBody()))) return
   track('share', { target_kind: props.targetKind, method: 'copy_text' })
   flash(t("share.textCopied"))
 }
@@ -117,12 +151,13 @@ function flash(msg: string): void {
           role="menuitem"
           class="block w-full px-3 py-2 text-left text-sm text-canvas-foreground hover:bg-overlay"
           data-testid="share-card"
+          :disabled="making"
           @click="onCard"
         >
           {{ t("share.card") }}
         </button>
         <button
-          v-if="model.url"
+          v-if="url"
           type="button"
           role="menuitem"
           class="block w-full px-3 py-2 text-left text-sm text-canvas-foreground hover:bg-overlay"

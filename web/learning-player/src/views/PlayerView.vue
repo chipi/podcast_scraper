@@ -37,8 +37,6 @@ import CaptureMoment from '../components/CaptureMoment.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import OverflowMenu from '../components/OverflowMenu.vue'
 import ShareMenu from '../components/ShareMenu.vue'
-import { shareUrl } from '../utils/shareLink'
-import type { EntityCardModel } from '../composables/entityShareCard'
 import PlayerSkeleton from '../components/PlayerSkeleton.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import TranscriptList from '../components/TranscriptList.vue'
@@ -184,19 +182,6 @@ watch(
 
 // #2036 — shareable card model for this episode: title + show, a signature insight as the quote,
 // duration byline, canonical link. The insights are salience-sorted, so the first is the strongest.
-const shareModel = computed<EntityCardModel>(() => {
-  const e = episode.value
-  const secs = e?.duration_seconds ?? null
-  const topInsight = insights.value.find((i) => i.text?.trim())?.text ?? null
-  return {
-    kicker: e?.podcast_title ? `Episode · ${e.podcast_title}` : 'Episode',
-    title: e?.title ?? props.slug,
-    quote: topInsight,
-    byline: secs ? `${Math.max(1, Math.round(secs / 60))} min` : null,
-    url: shareUrl('episode', props.slug),
-    context: e?.podcast_title ?? null,
-  }
-})
 const segments = ref<Segment[]>([])
 // S3.1 — the transcript language control (D-25).
 //
@@ -1450,7 +1435,13 @@ onBeforeUnmount(() => {
             -->
             <AddToCollectionButton :item="{ kind: 'episode', ref: props.slug }" />
             <!-- Share this episode as a card / link / text (#2036). -->
-            <ShareMenu :model="shareModel" target-kind="episode" />
+            <ShareMenu
+              kind="episode"
+              :id="slug"
+              :title="episode?.title ?? slug"
+              :context="episode?.podcast_title ?? null"
+              target-kind="episode"
+            />
             <!-- Secondary actions overflow (UXS-014). Mark-as-played lives here — it's a rare,
                  deliberate action, not a primary transport control (PL.6). -->
             <OverflowMenu :label="t('player.moreActions')">

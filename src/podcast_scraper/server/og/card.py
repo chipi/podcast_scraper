@@ -1,9 +1,9 @@
-"""The OG card renderer — a Pillow port of ``entityShareCard.ts``'s canvas draw.
+"""The share card renderer — the ONE card, for the player's Share menu and for ``og:image``.
 
-Same design as the client card (design note ``docs/uxs/UXS-017-share-cards.md``):
-near-black canvas, serif display, mono kickers/stats, ONE accent, square, lots of air. Kept in
-lock-step with the TS renderer by eye — this is the server twin used for ``og:image`` so a shared
-link unfurls as the card.
+Design note ``docs/uxs/UXS-017-share-cards.md``: near-black canvas, serif display, mono
+kickers/stats, ONE accent, square, lots of air. It began as a Pillow port of a client-side canvas
+card; since 2026-10-05 it is the only renderer (the client one was deleted), so there is nothing to
+keep in step with.
 
 Fonts are bundled (``og/fonts/*.ttf``, DejaVu) rather than taken from the OS so the render is
 identical on any host and needs no system fonts. Pillow is imported lazily inside the render so

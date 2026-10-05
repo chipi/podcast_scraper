@@ -248,6 +248,12 @@ export default defineConfig({
         target: process.env.VITE_MEDIA_TARGET || 'http://127.0.0.1:18765',
         changeOrigin: true,
       },
+      // The share card (operator 2026-10-05): the SERVER draws it at /og/{kind}/{id}.png, outside
+      // /api — without this the dev server answered the SPA's index.html and the card was a 404.
+      '/og': {
+        target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8000',
+        changeOrigin: false,
+      },
       '/api': {
         target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8000',
         // changeOrigin:false preserves the Host (localhost:5174) so the API builds
@@ -273,6 +279,10 @@ export default defineConfig({
       '/audio': {
         target: process.env.VITE_MEDIA_TARGET || 'http://127.0.0.1:18765',
         changeOrigin: true,
+      },
+      '/og': {
+        target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8011',
+        changeOrigin: false,
       },
       '/api': {
         target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8011',
