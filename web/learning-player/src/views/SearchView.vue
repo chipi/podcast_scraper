@@ -12,9 +12,9 @@ import { useI18n } from "vue-i18n"
 import { noteRoute as resolveNoteRoute, noteTargetLabel } from "../composables/noteTarget"
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
-import { resolveEntity, searchCorpus } from "../services/api"
+import { getPodcasts, resolveEntity, searchCorpus } from "../services/api"
 import { resolveMediaUrl } from "../services/tier"
-import type { EntityRef, EpisodeSummary, Note, SearchHit } from "../services/types"
+import type { EntityRef, EpisodeSummary, Note, Podcast, SearchHit } from "../services/types"
 import { hitStartSeconds } from "../player/insights"
 import { formatTime } from "../player/transcriptSync"
 import { aggregateRelatedTopics } from "../utils/relatedTopics"
@@ -37,6 +37,8 @@ import EpisodeGroupCard from "../components/EpisodeGroupCard.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import TypeFilterBar from "../components/TypeFilterBar.vue"
+import ShowRow from "../components/ShowRow.vue"
+import { matchesAllWords } from "../utils/textMatch"
 
 const { t } = useI18n()
 const route = useRoute()
@@ -80,11 +82,34 @@ const noteMatches = computed<Note[]>(() => {
   // `?? []`: the async ensureLoaded() from onMounted can resolve after the store is disposed (test
   // teardown), re-running this computed against a torn-down store whose `notes` is undefined. A
   // computed must be total, so read defensively rather than throw into Vue's flush.
-  return newestFirst((capture.notes ?? []).filter((n) => n.text.toLowerCase().includes(q)))
+  return newestFirst((capture.notes ?? []).filter((n) => matchesAllWords(n.text, q)))
 })
 // Newest first, five at a time (operator 2026-10-05).
 const noteCaps = useCappedSections(5, 5)
 const shownNoteMatches = computed(() => noteCaps.visible("notes", noteMatches.value))
+/** The term the results on screen were found for — the box can be edited without re-running. */
+const ranTerm = ref("")
+
+/**
+ * SHOWS matching the search (operator 2026-10-04: search should include shows wherever there is a
+ * search). The corpus search returns passages, never a show, so "pragmatic engineer" found the
+ * show's episodes but not the show — while Library's own filter did find it. Matched client-side
+ * over the catalogue, by title and host names (every word, any order — utils/textMatch). Not by
+ * description: a word like "engineer" is in many shows' blurbs, and that would bury the one show
+ * the listener named.
+ */
+const catalogue = ref<Podcast[]>([])
+onMounted(() => {
+  void getPodcasts()
+    .then((rows) => (catalogue.value = rows))
+    .catch(() => (catalogue.value = []))
+})
+const showMatches = computed<Podcast[]>(() => {
+  const q = ranTerm.value
+  if (!ran.value || !q) return []
+  return catalogue.value.filter((p) => matchesAllWords([p.title ?? "", ...(p.authors ?? [])].join(" "), q))
+})
+
 // USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
 // watch reacts when the payload arrives so the Save button flips to
 // "Saved ✓" if the current query was already persisted. No per-view
@@ -383,6 +408,7 @@ async function run(q: string): Promise<void> {
     entity.value = null
     ran.value = false
     lastRunSig.value = ""
+    ranTerm.value = ""
     return
   }
   // Already showing these exact results (e.g. this kept-alive view was re-activated on a tab
@@ -393,6 +419,7 @@ async function run(q: string): Promise<void> {
   recordRecent(term)
   inFlightSig = sig
   lastRunTerm = term
+  ranTerm.value = term
   // Generation token: two different queries can be in flight at once (no request cancellation), and
   // without this the slower-OLDER response wins — "cats" landing after "dogs" would paint cat
   // results over the dogs query. Every mutation below is gated on still being the current run.
@@ -542,6 +569,10 @@ watch(
       })
       return
     }
+    // The box follows the URL (operator 2026-10-04). This view is kept alive, so the box was filled
+    // from `?q` ONCE, at setup; a later search from Home or Discover ran the new term while the box
+    // still showed the old one.
+    if (qs) query.value = qs
     void run(qs)
   },
   { immediate: true }
@@ -590,6 +621,7 @@ const availableResultTypes = computed(() => {
   // Index-found storylines get the chip even when the resolver returned nothing (a partial match).
   if (storylineResults.value.length && entityKey.value !== "storylines")
     out.push({ key: "storylines", label: t("search.type_storylines") })
+  if (showMatches.value.length) out.push({ key: "shows", label: t("search.type_shows") })
   if (noteMatches.value.length) out.push({ key: "notes", label: t("notes.title") })
   if (yearSections.value.length) out.push({ key: "episodes", label: t("search.typeEpisodes") })
   return out
@@ -808,6 +840,19 @@ const showEmpty = computed(
       </ul>
     </template>
 
+    <!-- SHOWS — matched by title / host, every word in any order (see `showMatches`). -->
+    <template v-if="showMatches.length && !searching && typeVisible('shows')">
+      <h2 class="lp-section mb-1 mt-4" data-testid="search-section-shows">
+        {{ t("search.type_shows") }}
+      </h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        {{ t("search.showsSummary", { count: showMatches.length }, showMatches.length) }}
+      </p>
+      <ul class="flex flex-col gap-2" data-testid="search-shows">
+        <li v-for="p in showMatches" :key="p.feed_id"><ShowRow :show="p" /></li>
+      </ul>
+    </template>
+
     <!-- SR.1: the listener's OWN notes matching the query, as their own section above the corpus
          passages (a note is not a transcript hit). Independent of the results chain below, so notes
          and corpus hits can both show. Client-side text match on the capture store. -->
@@ -885,7 +930,9 @@ const showEmpty = computed(
         {{ t("search.typeEpisodes") }}
       </h2>
       <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-        {{ t("search.summary", { passages: passageResults.length, episodes: groups.length }) }}
+        <!-- The term is confirmed IN the count row (operator 2026-10-04) — the box can be edited after
+             a search, so the results needed to say what they are results for. -->
+        {{ t("search.summaryFor", { passages: passageResults.length, episodes: groups.length, term: ranTerm }) }}
       </p>
 
       <!-- #1261-2: related-topic chip row above the episode groups. Silent
