@@ -19,6 +19,7 @@ import { useDictation } from '../composables/useDictation'
 import { formatPublishDate } from '../utils/format'
 import type { NoteTarget } from '../services/types'
 import { useCappedSections } from '../composables/useCappedSections'
+import { newestFirst } from '../utils/newestFirst'
 import ShowAllToggle from './ShowAllToggle.vue'
 
 const props = defineProps<{ target: NoteTarget; targetId: string }>()
@@ -29,11 +30,7 @@ const { enabled: voiceEnabled } = useVoiceInput()
 
 // Newest first, five at a time (operator 2026-10-05). The store appends, so its order is oldest
 // first — paging that would have put a note you just wrote behind "Show more".
-const notes = computed(() =>
-  [...capture.notesFor(props.target, props.targetId)].sort((a, b) =>
-    (b.created_at ?? 0) - (a.created_at ?? 0)
-  )
-)
+const notes = computed(() => newestFirst(capture.notesFor(props.target, props.targetId)))
 const noteCaps = useCappedSections(5, 5)
 const shownNotes = computed(() => noteCaps.visible('notes', notes.value))
 const draft = ref('')

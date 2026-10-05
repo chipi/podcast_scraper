@@ -31,6 +31,7 @@ import { useSavedQueriesStore } from "../stores/savedQueries"
 import { useCaptureStore } from "../stores/capture"
 import EntityCard from "../components/EntityCard.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
+import { newestFirst } from "../utils/newestFirst"
 import { useCappedSections } from "../composables/useCappedSections"
 import EpisodeGroupCard from "../components/EpisodeGroupCard.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
@@ -79,9 +80,7 @@ const noteMatches = computed<Note[]>(() => {
   // `?? []`: the async ensureLoaded() from onMounted can resolve after the store is disposed (test
   // teardown), re-running this computed against a torn-down store whose `notes` is undefined. A
   // computed must be total, so read defensively rather than throw into Vue's flush.
-  return (capture.notes ?? [])
-    .filter((n) => n.text.toLowerCase().includes(q))
-    .sort((a, b) => b.created_at - a.created_at)
+  return newestFirst((capture.notes ?? []).filter((n) => n.text.toLowerCase().includes(q)))
 })
 // Newest first, five at a time (operator 2026-10-05).
 const noteCaps = useCappedSections(5, 5)

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signInIsolated } from './helpers'
 
 /**
  * The legal pages and the way in to them (2026-10-05).
@@ -57,4 +58,32 @@ test('third-party software lists the packages this build ships, each with its li
     .locator('[data-testid="third-party"] > ul > li > [data-testid="third-party-entry"]')
     .filter({ has: page.getByText('Sentry', { exact: true }) })
   await expect(sentryPod.getByTestId('third-party-platform')).toHaveText('iOS')
+})
+
+test('Terms carries its draft notice; opened directly, Back falls back to Settings', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'legal-back-fallback', testInfo)
+  await page.goto('/about/terms')
+  await expect(page.getByTestId('terms-draft-notice')).toBeVisible()
+  // No in-app history to return to (a fresh load), so Back goes to Settings, where these live.
+  await page.getByTestId('about-page-back').click()
+  await expect(page).toHaveURL(/\/settings$/)
+})
+
+test('third-party rows: members named without their prefix, a labelled licence box, the font listed', async ({
+  page,
+}) => {
+  await page.goto('/about/third-party')
+  const list = page.getByTestId('third-party')
+  await expect(page.getByTestId('third-party-count')).toBeVisible()
+  // A scope row opens to its members, each named WITHOUT the "@vue/" prefix the group shows.
+  const vueGroup = page.getByTestId('third-party-group').filter({ hasText: '@vue' })
+  await vueGroup.locator('summary').first().click()
+  const member = vueGroup.getByTestId('third-party-entry').first()
+  await expect(member).toBeVisible()
+  expect(await member.locator('summary').innerText()).not.toContain('@vue/')
+  // Opening a row shows the link and a LABELLED "Licence text" box.
+  await member.locator('summary').click()
+  await expect(member.getByText('Licence text', { exact: true })).toBeVisible()
+  // The self-hosted font is listed with its licence.
+  await expect(list.getByText('Google Sans (font)')).toBeVisible()
 })

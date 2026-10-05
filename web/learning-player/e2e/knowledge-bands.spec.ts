@@ -124,3 +124,34 @@ test('the knowledge panel opens in place and closes with Escape', async ({ page 
     await expect(panel).toBeVisible()
   }
 })
+
+test('the activity chart labels its months and names each bar for a screen reader', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'show-activity-axis', testInfo)
+  await page.goto('/podcast/p05')
+  const axis = page.getByTestId('show-activity-axis')
+  await expect(axis).toBeVisible()
+  // The month under the bars, with a year at the first bar.
+  await expect(axis).toContainText(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/)
+  await expect(axis).toContainText(/20\d\d/)
+  const bar = page.locator('button[data-testid^="show-activity-bar-"]').first()
+  await expect(bar).toHaveAttribute('aria-label', /: \d+ episodes?$/)
+})
+
+test('the episode notes name every pill’s kind, and the THEME pill opens the theme on top', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'kp-mixed-kinds', testInfo)
+  await page.goto('/podcast/p05')
+  await page.getByText('Index Investing Without the Myths').first().click()
+  await page.getByTestId('player-open-insights').click()
+  const panel = page.getByTestId('knowledge-panel')
+  await expect(panel).toBeVisible()
+  const chips = panel.locator('[data-testid="kp-topic-chip"], [data-testid="kp-person-chip"]')
+  await expect(chips.first()).toBeVisible()
+  const n = await chips.count()
+  expect(n).toBeGreaterThan(1)
+  // A MIXED group: every chip carries its kind label, not just some.
+  await expect(panel.locator('[data-testid="kp-topic-chip"] [data-testid="kp-chip-kind"], [data-testid="kp-person-chip"] [data-testid="kp-chip-kind"]')).toHaveCount(n)
+  await panel.getByTestId('kp-theme-link').click()
+  await expect(page.getByTestId('theme-card')).toBeVisible()
+})

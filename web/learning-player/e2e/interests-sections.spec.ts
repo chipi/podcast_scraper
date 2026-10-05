@@ -91,3 +91,35 @@ test('search finds a person the suggestions do not show, and × unfollows', asyn
   await expect(chip).toHaveCount(0)
   await expect(people.getByTestId('interest-none')).toBeVisible()
 })
+
+test('an old ?tab=topics link lands on Interests; each heading carries its one-line hint', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'interests-alias', testInfo)
+  await page.goto('/profile?tab=topics')
+  await expect(page.getByRole('tab', { name: 'Interests' })).toHaveAttribute('aria-selected', 'true')
+  const hint = page.getByTestId('interest-hint-storyline')
+  await expect(hint).toHaveText('Topics that come up together')
+  // On the heading's row, not under it.
+  const [h, t] = await page.evaluate(() => {
+    const s = document.querySelector('[data-testid="interests-section-storyline"]')!
+    return [s.querySelector('h2, h3')!.getBoundingClientRect(), s.querySelector('[data-testid="interest-hint-storyline"]')!.getBoundingClientRect()].map(
+      (r) => r.top + r.height / 2,
+    )
+  })
+  expect(Math.abs(h - t)).toBeLessThanOrEqual(6)
+})
+
+test('a followed interest opens its card; a search with no hits says so', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'interests-open', testInfo)
+  const res = await page.request.put('/api/app/interests', { data: { items: ['topic:risk-management'] } })
+  expect(res.ok()).toBeTruthy()
+  await page.goto('/profile?tab=interests')
+  const section = page.getByTestId('interests-section-topic')
+  await section.getByTestId('interest-open').first().click()
+  await expect(page.getByRole('dialog').last()).toContainText('risk management')
+  await page.keyboard.press('Escape')
+  await section.getByTestId('interest-add-topic').click()
+  await section.getByTestId('interest-search-topic').fill('zzqq-nothing-matches')
+  await expect(section.getByTestId('interest-no-match')).toHaveText('Nothing matches “zzqq-nothing-matches”.')
+})

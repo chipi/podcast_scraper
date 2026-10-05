@@ -28,6 +28,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
 import EpisodeRow from '../components/EpisodeRow.vue'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
+import { newestFirst } from '../utils/newestFirst'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
 import { borderClass } from '../utils/highlightColors'
@@ -43,7 +44,7 @@ const capture = useCaptureStore()
 // the same section cap as the highlights themselves (`itemCaps`).
 const noteCaps = useCappedSections(5, 5)
 function hlNotes(id: string) {
-  return [...capture.notesFor('highlight', id)].sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))
+  return newestFirst(capture.notesFor('highlight', id))
 }
 
 /**
@@ -654,6 +655,7 @@ onMounted(async () => {
               v-for="n in noteCaps.visible(h.id, hlNotes(h.id))"
               :key="n.id"
               class="border-l-2 border-border pl-2 text-sm text-muted"
+              data-testid="highlight-note"
             >
               <div v-if="editing === n.id">
                 <textarea

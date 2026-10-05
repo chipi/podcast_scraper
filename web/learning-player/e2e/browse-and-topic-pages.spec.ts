@@ -165,3 +165,45 @@ for (const viewport of [
     }
   })
 }
+
+/**
+ * The other five search / filter rows on the shared `.lp-search` rule end where the content under
+ * them ends too (operator 2026-10-05). Measured from the field outward: the outermost flex row it
+ * sits in must end at its container's right edge.
+ */
+test('every other search / filter row ends where its area ends', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await signInIsolated(page, 'filter-rows-all', testInfo)
+  // Library's saved filter needs something saved; the Boards filter needs a board.
+  const eps = (await (await page.request.get('/api/app/episodes?page_size=1')).json()) as { items: { slug: string; title: string }[] }
+  expect((await page.request.put('/api/app/favorites', { data: { kind: 'episode', ref: eps.items[0].slug, label: eps.items[0].title } })).ok()).toBeTruthy()
+  expect((await page.request.post('/api/app/collections', { data: { name: 'Filter row board' } })).ok()).toBeTruthy()
+  const gap = (selector: string) =>
+    page.evaluate((sel) => {
+      const field = document.querySelector(sel)!
+      let row: Element = field
+      while (row.parentElement && getComputedStyle(row.parentElement).display === 'flex') row = row.parentElement
+      if (row === field) row = field.parentElement!
+      const kids = Array.from(row.children).filter((c) => c.getBoundingClientRect().width > 0)
+      const end = Math.max(...kids.map((k) => k.getBoundingClientRect().right))
+      return Math.round(row.parentElement!.getBoundingClientRect().right - end)
+    }, selector)
+  const cases: [string, string, () => Promise<void>][] = [
+    ['/', '[data-testid="home-search-input"]', async () => {}],
+    ['/library?tab=saved', '[data-testid="saved-search"]', async () => {}],
+    ['/library?tab=collections', 'input.lp-search', async () => {}],
+    ['/profile?tab=interests', '[data-testid="interest-search-topic"]', async () => {
+      await page.getByTestId('interest-add-topic').click()
+    }],
+    ['/podcast/p05', '#kp-ask', async () => {
+      await page.getByText('Index Investing Without the Myths').first().click()
+      await page.getByTestId('player-open-insights').click()
+    }],
+  ]
+  for (const [url, selector, open] of cases) {
+    await page.goto(url)
+    await open()
+    await page.locator(selector).first().waitFor()
+    expect(Math.abs(await gap(selector)), `${url} ${selector}`).toBeLessThanOrEqual(1)
+  }
+})

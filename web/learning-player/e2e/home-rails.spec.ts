@@ -179,3 +179,51 @@ test('closing the card with Escape does not leave a dead Back press behind', asy
   expect(new URL(page.url()).pathname, 'a stale history entry absorbed the Back press').not.toBe('/')
 })
 
+
+test('a theme row says how many topics it holds, and can be followed', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'trends-theme-row', testInfo)
+  await page.goto('/')
+  await page.getByTestId('discovery-tab-theme').click()
+  const row = page.getByTestId('discovery-list-theme').getByTestId('discovery-row').first()
+  await expect(row).toBeVisible()
+  await expect(row.locator('button').first()).toHaveAttribute('aria-label', /\(\d+\)/)
+  const follow = row.getByTestId('discovery-follow')
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/api/app/interests') && r.request().method() !== 'GET'),
+    follow.click(),
+  ])
+})
+
+/**
+ * Home and Discover render ONE search + Trends block (operator 2026-10-05): search before Trends on
+ * both, the two trending-topic chips under the search on both, 3 Trends rows on a phone and 5 on
+ * desktop, and "all ›" expanding in place on both (Home used to link out).
+ */
+for (const viewport of [
+  { width: 412, height: 915, rows: 3 },
+  { width: 1440, height: 900, rows: 5 },
+]) {
+  test(`Home and Discover share the search + Trends block (${viewport.width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport)
+    await signInIsolated(page, `trends-block-${viewport.width}`, testInfo)
+    for (const [url, search, trends] of [
+      ['/', 'home-search-section', 'home-discovery'],
+      ['/browse', 'browse-search-section', 'browse-discovery'],
+    ] as const) {
+      await page.goto(url)
+      const block = page.getByTestId(trends)
+      const rows = block.getByTestId('discovery-list-topic').getByTestId('discovery-row')
+      await expect(rows).toHaveCount(viewport.rows)
+      await expect(page.getByTestId(search).getByTestId('home-topic-chip')).toHaveCount(2)
+      const [s, t] = await page.evaluate(
+        ([a, b]) => [a, b].map((id) => document.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect().top),
+        [search, trends],
+      )
+      expect(t, `${url}: Trends below the search`).toBeGreaterThan(s)
+      // "all ›" expands in place: more rows, same page.
+      await block.getByTestId('discovery-see-all').click()
+      await expect(page).toHaveURL(new RegExp(url === '/' ? '/$|/\\?' : '/browse'))
+      expect(await rows.count()).toBeGreaterThan(viewport.rows)
+    }
+  })
+}

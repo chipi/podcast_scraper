@@ -164,3 +164,76 @@ for (const viewport of [
     await pair(`/storyline/${encodeURIComponent('topic:risk-management')}`, 'storyline-view', 'storyline-topics', 'ec-top-voices')
   })
 }
+
+/**
+ * One page width (operator 2026-10-05): every page fills the app shell, so on desktop every page's
+ * content starts at the SAME left edge — the shell's. Measured on each page's first child of <main>.
+ */
+test('every full-width page starts at the shell edge on desktop', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await signInIsolated(page, 'one-page-width', testInfo)
+  const lefts: Record<string, number> = {}
+  for (const url of [
+    '/',
+    '/browse',
+    '/catalog',
+    '/search?q=reliability',
+    '/queue',
+    '/library',
+    '/podcast/p05',
+    `/topic/${encodeURIComponent('topic:risk-management')}`,
+    `/person/${encodeURIComponent('person:nora')}`,
+    `/theme/${encodeURIComponent('tc:safety-practices')}`,
+    `/storyline/${encodeURIComponent('topic:risk-management')}`,
+  ]) {
+    await page.goto(url)
+    await page.locator('main > *').first().waitFor()
+    lefts[url] = await page.evaluate(() => Math.round(document.querySelector('main > *')!.getBoundingClientRect().left))
+  }
+  const edge = lefts['/']
+  for (const [url, left] of Object.entries(lefts)) expect(left, `${url} left edge`).toBe(edge)
+})
+
+test('long reading text keeps a readable width; sign-in fills a phone and centres its contents', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/about/privacy')
+  const prose = await page.getByTestId('privacy-policy').evaluate((e) => e.getBoundingClientRect().width)
+  expect(prose, 'Privacy text column').toBeLessThanOrEqual(672)
+  await page.goto('/login')
+  const view = page.getByTestId('login-view')
+  await expect(view.getByRole('heading', { level: 1 })).toHaveCSS('text-align', 'center')
+  await expect(page.getByTestId('login-legal')).toHaveCSS('text-align', 'center')
+  await page.setViewportSize({ width: 412, height: 915 })
+  await page.goto('/login')
+  const b = (await view.boundingBox())!
+  expect(Math.round(b.x)).toBeLessThanOrEqual(20)
+  expect(Math.round(412 - (b.x + b.width))).toBeLessThanOrEqual(20)
+})
+
+/**
+ * Offline ("On this device") is a centred 448px column with its title and messages centred, like
+ * sign-in. It renders only offline AND signed out, so: load it once online (its chunk loads, then it
+ * redirects away), cut the network, and route to it in-app.
+ */
+test('the offline page is a centred column with centred text', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/offline')
+  await page.waitForURL((u) => !u.pathname.startsWith('/offline'))
+  await context.setOffline(true)
+  try {
+    await page.evaluate(() => {
+      history.pushState({}, '', '/offline')
+      window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }))
+    })
+    const view = page.getByTestId('offline-downloads')
+    await expect(view).toBeVisible()
+    const b = (await view.boundingBox())!
+    expect(b.width).toBeLessThanOrEqual(448)
+    expect(Math.abs(b.x - (1440 - (b.x + b.width))), 'centred').toBeLessThanOrEqual(2)
+    await expect(view.getByRole('heading', { level: 1 })).toHaveCSS('text-align', 'center')
+  } finally {
+    await context.setOffline(false)
+  }
+})
