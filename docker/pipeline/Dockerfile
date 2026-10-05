@@ -164,7 +164,10 @@ ARG PRELOAD_TIMEOUT=1200
 ENV PRELOAD_TIMEOUT=${PRELOAD_TIMEOUT}
 
 # hadolint ignore=SC2261
-# Preload ML models when INSTALL_EXTRAS=ml and PRELOAD_ML_MODELS=true.
+# Preload ML models when INSTALL_EXTRAS=ml and PRELOAD_ML_MODELS=true. The llm image instead bakes
+# the two sentence-transformers models its enrichers and GI chunking load (MiniLM, and
+# nli-deberta-v3-small for topic_consensus), at the revisions the code pins, so it can run with
+# the Hub offline (HF_OFFLINE below).
 # Variant selects the bundle: ``production`` (full nightly bundle) or
 # ``airgapped-thin`` (only what config/profiles/airgapped_thin.yaml needs).
 # Do NOT use BuildKit cache mounts for Whisper/HF paths here: cache mounts are not persisted into
@@ -191,6 +194,13 @@ RUN bash -c 'set -e; \
             echo "To skip: rebuild with --build-arg PRELOAD_ML_MODELS=false (see make docker-build-fast)."; \
             exit 1; \
         }; \
+    elif [ "$INSTALL_EXTRAS" = "llm" ]; then \
+        export HF_HUB_CACHE=/root/.cache/huggingface/hub; \
+        echo "Baking the HF models the llm image loads, at the revisions the code pins..."; \
+        python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; \
+from podcast_scraper.config_constants import get_pinned_revision_for_model as pin; \
+m = \"sentence-transformers/all-MiniLM-L6-v2\"; SentenceTransformer(m, revision=pin(m)); \
+n = \"cross-encoder/nli-deberta-v3-small\"; CrossEncoder(n, revision=pin(n))"; \
     else \
         echo "Skipping ML model preloading (INSTALL_EXTRAS=$INSTALL_EXTRAS, PRELOAD_ML_MODELS=$PRELOAD_ML_MODELS)"; \
     fi'
@@ -244,6 +254,15 @@ ENV PYTHONUNBUFFERED=1 \
     OMP_NUM_THREADS=1 \
     MKL_NUM_THREADS=1 \
     NUMEXPR_NUM_THREADS=1
+
+# HF_OFFLINE=1 (the llm image): the container never asks the HF Hub. Without it every model load
+# made an unauthenticated metadata call to the Hub ("You are sending unauthenticated requests to
+# the HF Hub", twice per prod job) for a model already on disk. A model that is not baked now
+# fails loudly at load instead of being fetched behind our back -- bake it above. "0" (the
+# default, the ml image) leaves the Hub reachable: its preload bundle is not audited for this.
+ARG HF_OFFLINE=0
+ENV HF_HUB_OFFLINE=${HF_OFFLINE} \
+    TRANSFORMERS_OFFLINE=${HF_OFFLINE}
 
 # Install runtime dependencies. ffmpeg is needed in BOTH modes:
 #   - ml: local Whisper transcription decodes mp3/m4a → 16k mono.

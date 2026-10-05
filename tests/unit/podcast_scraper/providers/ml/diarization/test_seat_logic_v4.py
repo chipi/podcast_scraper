@@ -633,3 +633,225 @@ def test_a_spare_voice_spanning_ninety_percent_of_the_episode_is_seated() -> Non
     """Control: the same voice whose turns cover 90% of the episode is seated."""
     roster = _roster(_span_turns([(850.0, 100.0)]))
     assert _seated_as_b(roster, "SPEAKER_01")
+
+
+# ---------------------------------------------------------------------------------------------
+# Two stated hosts, neither self-introduces, each addresses the other (#2276)
+# ---------------------------------------------------------------------------------------------
+
+NO_HISTORY_OF_BOTH = {1: 1.0, 2: 0.0, 3: 0.0}
+
+
+def _pair_episode(a_says: str, b_says: str) -> List[Turn]:
+    return [
+        ("SPEAKER_00", "Welcome back to the show. Today, the silk road.", 60.0),
+        ("SPEAKER_01", b_says, 300.0),
+        ("SPEAKER_00", a_says, 300.0),
+        ("SPEAKER_01", STUDIO2, 300.0),
+        ("SPEAKER_00", "Let's leave it there for today.", 40.0),
+    ]
+
+
+def test_pair_by_address_each_voice_is_the_host_the_other_addresses() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _pair_by_address
+
+    texts = {"A": "So, Greta, where do we start?", "B": "Well, Tobias, with the caravans."}
+    assert _pair_by_address(texts, "A", "B", [HOST_A, HOST_B]) == {"A": HOST_A, "B": HOST_B}
+
+
+def test_pair_by_address_abstains_when_both_address_the_same_host_or_one_addresses_both() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _pair_by_address
+
+    same = {"A": "So, Greta, where?", "B": "Right, Greta. The caravans."}
+    assert _pair_by_address(same, "A", "B", [HOST_A, HOST_B]) is None
+    bleed = {"A": "So, Greta, where? Yes, Tobias.", "B": "Well, Tobias, the caravans."}
+    assert _pair_by_address(bleed, "A", "B", [HOST_A, HOST_B]) is None
+
+
+def test_two_hosts_addressing_each_other_are_both_seated_and_named() -> None:
+    """The feed's history never named both by evidence (co-presence 0), and neither host says his
+    own name: the address pair is the evidence for the second seat AND for which host is which."""
+    roster = _roster(
+        _pair_episode("Greta, what became of the guilds?", "Well, Tobias, the ports moved north."),
+        host_copresence=NO_HISTORY_OF_BOTH,
+    )
+    assert roster.by_voice["SPEAKER_00"].name == HOST_A
+    assert roster.by_voice["SPEAKER_01"].name == HOST_B
+    assert roster.by_voice["SPEAKER_01"].role == "host"
+
+
+def test_without_the_pair_the_history_still_holds_the_second_seat() -> None:
+    """Control: the spare voice addresses nobody, so the co-presence history keeps it unseated and
+    no pool name is painted on either voice."""
+    roster = _roster(
+        _pair_episode("Greta, what became of the guilds?", STUDIO),
+        host_copresence=NO_HISTORY_OF_BOTH,
+    )
+    assert roster.by_voice["SPEAKER_01"].role != "host"
+    assert roster.by_voice["SPEAKER_01"].name not in (HOST_A, HOST_B)
+
+
+# ---------------------------------------------------------------------------------------------
+# A voice that talks ABOUT a host by given name is not that host (#2276)
+# ---------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Greta's a great believer in the honour system, honestly.",
+        "When Greta and I were touring the north, it rained.",
+        "This is the tension that Greta was describing earlier.",
+    ],
+)
+def test_speaks_of_by_first_name_catches_third_person_mentions(text: str) -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _speaks_of_by_first_name
+
+    assert _speaks_of_by_first_name(text, HOST_B)
+
+
+@pytest.mark.parametrize(
+    "text, feed_title",
+    [
+        ("Greta, was that the reason?", None),  # a vocative is not a mention
+        ("I'm Greta Holm and this is the show.", None),  # her own introduction
+        ("Sign up to Greta's newsletter for the notes.", "Greta's Newsletter"),  # the show's name
+        ("The ports moved north over a decade.", None),
+    ],
+)
+def test_speaks_of_by_first_name_leaves_the_rest(text: str, feed_title: Optional[str]) -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _speaks_of_by_first_name
+
+    assert not _speaks_of_by_first_name(text, HOST_B, feed_title)
+
+
+def test_a_forced_pool_name_is_refused_to_a_voice_that_talks_about_that_host() -> None:
+    """One spare name, one spare seat -- but the seat says "Greta's a great believer...": it is
+    not Greta, so it stays unnamed rather than wear her name."""
+    about = "Greta's a great believer in the honour system. The ports moved north."
+    roster = _roster(_span_turns([(850.0, 100.0)]))
+    assert _seated_as_b(roster, "SPEAKER_01")  # control: the same shape names the seat
+    turns = [(v, about if v == "SPEAKER_01" else t, d) for v, t, d in _span_turns([(850.0, 100.0)])]
+    assert roster.by_voice["SPEAKER_01"].name == HOST_B
+    vetoed = _roster(turns)
+    assert vetoed.by_voice["SPEAKER_01"].name != HOST_B
+
+
+def test_the_shows_own_name_is_not_a_mention_of_its_host() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _speaks_of_by_first_name
+
+    outro = "Conversations with Greta is produced by the Harbour Institute."
+    assert not _speaks_of_by_first_name(outro, HOST_B, "Conversations with Greta")
+    assert _speaks_of_by_first_name(outro, HOST_B, None)
+
+
+def test_a_seat_that_keeps_addressing_the_cohost_keeps_its_forced_name() -> None:
+    """The co-host's "Greta's website" line bled into Greta's cluster, but the cluster talks TO
+    Tobias, twice, and never to Greta: it is Greta, and the veto stands aside (Hard Fork)."""
+    bled = "Tobias, will you read this for me? To say nothing of Greta's website. Well, Tobias, go."
+    turns = [(v, bled if v == "SPEAKER_01" else t, d) for v, t, d in _span_turns([(850.0, 100.0)])]
+    assert _seated_as_b(_roster(turns), "SPEAKER_01")
+
+
+def test_thanking_a_guest_for_joining_is_not_an_introduction_cue() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _INTRODUCTION_CUE
+
+    assert not _INTRODUCTION_CUE.search(
+        "So, Rob, so much to talk about, but thank you for joining us."
+    )
+    assert _INTRODUCTION_CUE.search("Joining us today is the head of the Lex column.")
+
+
+def test_a_self_introduced_spelling_takes_back_a_name_that_was_forced_onto_another_voice() -> None:
+    """The guest said only "Kashmir"; the forced one-name rule had painted "Kashmir Hill" on a
+    tape insert. Recovering the guest's spelling unnames the forced voice (#2276, The Daily)."""
+    from podcast_scraper.providers.ml.diarization.roster import _recover_stated_names, SpeakerRole
+
+    by_voice = {
+        "A": SpeakerRole(name="Kashmir", role="guest", named=True, source="self_intro"),
+        "B": SpeakerRole(
+            name="Kashmir Hill", role="guest", named=True, source="forced", forced=True
+        ),
+    }
+    _recover_stated_names(by_voice, ["Kashmir Hill"])
+    assert by_voice["A"].name == "Kashmir Hill"
+    assert not by_voice["B"].named
+
+
+def test_one_introduction_read_twice_names_one_voice() -> None:
+    """The capitalized pass binds the spoken "Brendan Futi"; the case-blind pass resolves the same
+    sentence to the stated "Brendan Foody". The co-host who speaks after the guest must not get it.
+    """
+    from podcast_scraper.providers.ml.diarization.roster import _voice_named_by_the_introduction
+
+    turns = [
+        ("HOST", "Welcome back. Today we're chatting with Brendan Futi, cofounder of a company."),
+        ("GUEST", "Thanks. So at a high level we train models that predict performance."),
+        ("COHOST", "I think it's very funny when the proofs come out."),
+    ]
+    out = _voice_named_by_the_introduction(
+        turns, {"HOST"}, None, frozenset(), metadata_named=["Brendan Foody"]
+    )
+    assert "COHOST" not in out
+    assert out.get("GUEST") in ("Brendan Futi", "Brendan Foody")
+
+
+def test_two_voices_that_talk_to_each_other_are_not_unified_into_one_person() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _one_name_per_person, SpeakerRole
+
+    by_voice = {
+        "A": SpeakerRole(name="Kevin Roose", role="host", named=True, source="self_intro"),
+        "B": SpeakerRole(name="Kevin Rose", role="host", named=True, source="llm_resolution"),
+    }
+    talk = {"A": 400.0, "B": 350.0}
+    out = _one_name_per_person(
+        by_voice, talk, [], ["Kevin Roose"], alternations={frozenset(("A", "B")): 30}
+    )
+    assert out["A"].name == "Kevin Roose" and out["A"].named
+    assert not out["B"].named
+    # The keeper takes the stated spelling even when its own is the bare given name.
+    # (the LLM only matches stated names, so the other voice carries the stated spelling)
+    bare = {
+        "A": SpeakerRole(name="Kevin", role="host", named=True, source="self_intro"),
+        "B": SpeakerRole(name="Kevin Roose", role="host", named=True, source="llm_resolution"),
+    }
+    kept = _one_name_per_person(
+        bare, talk, [], ["Kevin Roose"], alternations={frozenset(("A", "B")): 30}
+    )
+    assert kept["A"].name == "Kevin Roose" and not kept["B"].named
+    # A known host keeps the HOST role even when its own voice had been typed a guest.
+    as_guest = dict(
+        bare, A=SpeakerRole(name="Kevin", role="guest", named=True, source="self_intro")
+    )
+    hosted = _one_name_per_person(
+        as_guest, talk, [], ["Kevin Roose"], alternations={frozenset(("A", "B")): 30}
+    )
+    assert hosted["A"].role == "host"
+    # Control: a fragment that never converses is still unified (a diarizer split).
+    split = _one_name_per_person(by_voice, {"A": 400.0, "B": 8.0}, [], ["Kevin Roose"])
+    assert split["B"].name == "Kevin Roose"
+
+
+def test_a_thank_you_by_name_is_an_address_without_punctuation() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _thanked_by_name
+
+    assert _thanked_by_name("so thank you very much indeed thank you Greta see you soon", HOST_B)
+    assert not _thanked_by_name("Greta thanked everyone at the end", HOST_B)
+
+
+def test_one_introduction_read_twice_keeps_the_voice_that_then_talks() -> None:
+    """Latent Space: the co-host interjects right after the introduction, the guest answers at
+    length. Whichever reading bound first, the guest keeps the name."""
+    from podcast_scraper.providers.ml.diarization.roster import _voice_named_by_the_introduction
+
+    long_answer = "Yes, so the database work started years ago and it grew from there. " * 8
+    turns = [
+        ("HOST", "Today we're chatting with Brendan Futi, cofounder of a company."),
+        ("COHOST", "Great to have you."),
+        ("GUEST", long_answer),
+    ]
+    out = _voice_named_by_the_introduction(
+        turns, {"HOST"}, None, frozenset(), metadata_named=["Brendan Foody"]
+    )
+    assert "COHOST" not in out
+    assert out.get("GUEST") in ("Brendan Futi", "Brendan Foody")

@@ -498,6 +498,29 @@ from ..common.token_budget import fit_text_to_token_budget
 from ..common.transcript_cache import openai_style_messages as _openai_style_messages
 
 
+def _as_known_host(name: str, known_hosts: Set[str]) -> str:
+    """``name`` in the feed's spelling when it is one of the feed's known hosts written another way
+    (accents, case, or a given name only one known host has); otherwise ``name`` unchanged."""
+    folded = _fold_name(name)
+    for host in known_hosts:
+        if _fold_name(host) == folded:
+            return host
+    if len(folded.split()) == 1:
+        owners = [h for h in known_hosts if _fold_name(h).split(" ")[0] == folded]
+        if len(owners) == 1:
+            return owners[0]
+    return name
+
+
+def _fold_name(name: str) -> str:
+    """A name without accents, case or extra spaces: "Nína Pániková" folds to "nina panikova"."""
+    import unicodedata
+
+    decomposed = unicodedata.normalize("NFKD", name or "")
+    bare = "".join(c for c in decomposed if not unicodedata.combining(c))
+    return " ".join(bare.casefold().split())
+
+
 class OpenAICompatibleProvider:
     """OpenAI-compatible transport shared by OpenAIProvider (OpenAI-native) and VLLMProvider
     (DGX-local open models). They are SIBLINGS, not parent/child — vLLM serves a wide family of
@@ -1718,6 +1741,7 @@ class OpenAICompatibleProvider:
         """
         # The model's raw answer, for the episode's naming decision trace (#2276).
         self.last_speaker_detection_raw = response_text
+        self.last_speaker_detection_stated_only: List[str] = []
         try:
             data = json.loads(response_text)
 
@@ -1731,11 +1755,32 @@ class OpenAICompatibleProvider:
             detected_hosts_list = [name.strip() for name in detected_hosts_list if name.strip()]
             guests_list = [name.strip() for name in guests_list if name.strip()]
 
-            # Filter hosts to only include those in known_hosts
-            detected_hosts = {host for host in detected_hosts_list if host in known_hosts}
+            # A name the model writes is the feed's KNOWN host when it is that host in another
+            # spelling — accents or case ("Nina Pániková" for the stated "Nina Panikova"). It takes
+            # the feed's spelling; kept apart it became a second spare guest name and cost the real
+            # guest his name (gold dev c085, #2276).
+            # So is a bare given name only one known host has ("Elad" for "Elad Gil").
+            all_speakers = [_as_known_host(n, known_hosts) for n in all_speakers]
+            detected_hosts_list = [_as_known_host(n, known_hosts) for n in detected_hosts_list]
+            guests_list = [_as_known_host(n, known_hosts) for n in guests_list]
 
-            # Build speaker names list: hosts first, then guests
+            # A host the model names is TRUSTED as a host only if the feed already states it, and a
+            # host it names that the feed does not state is dropped: kept as a stated person, it
+            # became a guest candidate and cost a real host or guest their name (gold val: Kenny
+            # Malone unnamed, Kris Maher named after a reporter the model called "host"; #2276).
+            detected_hosts = {host for host in detected_hosts_list if host in known_hosts}
             speaker_names = list(detected_hosts) + guests_list
+
+            # A person the model lists among the SPEAKERS but neither as host nor guest is a person
+            # the episode states — the reporter who files the story, the guest it did not label —
+            # and dropping them lost real names. Kept apart from the guest list, though: they are
+            # stated (an LLM-resolver candidate, counted when unplaced) but never corroborated, so
+            # no count-based placement can paint them on a voice. Gold val, same answers: 4 better,
+            # 0 worse; as corroborated guests: 5 better, 2 worse (#2276).
+            labelled = {*detected_hosts_list, *guests_list, *known_hosts}
+            self.last_speaker_detection_stated_only = list(
+                dict.fromkeys(n for n in all_speakers if n not in labelled)
+            )
 
             # Ensure we have at least MIN_SPEAKERS_REQUIRED speakers
             min_speakers = getattr(self.cfg, "screenplay_num_speakers", 2)

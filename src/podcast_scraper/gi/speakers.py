@@ -312,6 +312,7 @@ def add_spoken_by_edges(
     hosts: Sequence[str],
     guests: Sequence[str],
     replace: bool = False,
+    stats: Optional[Dict[str, int]] = None,
 ) -> int:
     """Mutate a gi.json *artifact* in place: add ``Person`` nodes + ``SPOKEN_BY`` edges
     (Quote → Person) for confidently-attributed quotes. Idempotent. Returns the number
@@ -372,8 +373,14 @@ def add_spoken_by_edges(
             "the transcript but at a different offset.",
             reanchored,
         )
+    if stats is not None:
+        stats["misaligned"] = stats.get("misaligned", 0) + misaligned
+        stats["reanchored"] = stats.get("reanchored", 0) + reanchored
+        stats["episodes"] = stats.get("episodes", 0) + (1 if misaligned else 0)
+    # INFO per episode: the corpus pass (`enrich-edges`) revisits every episode on every run and
+    # re-reported the same 11 episodes each time; it logs ONE summary line from ``stats``.
     if misaligned:
-        logger.warning(
+        logger.info(
             "add_spoken_by_edges: %d quote(s) have char_start not aligned with the "
             "transcript and their text is absent or occurs more than once; skipping their "
             "speaker attribution.",

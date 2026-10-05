@@ -1747,6 +1747,19 @@ def _persist_scoped_kg(
         )
 
 
+def _log_quote_alignment(stats: Dict[str, int], logger: logging.Logger) -> None:
+    """One line for the whole enrich-edges pass (see `add_spoken_by_edges` ``stats``)."""
+    if stats.get("misaligned"):
+        logger.warning(
+            "enrich-edges: %d quote(s) in %d episode(s) have a char_start that does not index into "
+            "the transcript and text that is absent or ambiguous; their speaker is not attributed "
+            "(%d other quote(s) were re-anchored by their text).",
+            stats["misaligned"],
+            stats.get("episodes", 0),
+            stats.get("reanchored", 0),
+        )
+
+
 def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     """Derive relational edges into each gi.json (#874): Podcast→HAS_EPISODE→Episode,
     Insight→MENTIONS→Entity, and (unless --no-speaker) Quote→SPOKEN_BY→Person.
@@ -1831,6 +1844,8 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
         "kg_scoped": 0,
         "kg_write_failed": 0,
     }
+    # One summary for the whole pass instead of one warning per episode on every run (#2276).
+    quote_alignment: Dict[str, int] = {}
     for meta_path in discover_metadata_files(corpus):
         doc = _load_metadata_file(meta_path)
         if not doc:
@@ -1889,6 +1904,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
                     hosts=roster_hosts,
                     guests=roster_guests,
                     replace=replace_speakers,
+                    stats=quote_alignment,
                 )
                 totals["spoken_by"] += per_episode_spoken_by
         # Retro-audit marker — stamp ONLY when --retro-audit set AND we
@@ -1943,6 +1959,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
         f"kg_write_failed={totals['kg_write_failed']}"
     )
     logger.info(msg)
+    _log_quote_alignment(quote_alignment, logger)
     print(msg)
 
     # BUMP THE CACHE TOKEN. This command rewrote gi.json — including SPOKEN_BY, which is what

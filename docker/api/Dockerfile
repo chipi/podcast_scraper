@@ -116,8 +116,18 @@ ENV OTEL_TRACES_EXPORTER=none \
 # the LanceDB index is present. ``HF_HOME`` is shared across users via
 # ``/opt/podcast_hf``; the entrypoint chowns it for the runtime user.
 ENV HF_HOME=/opt/podcast_hf
+# Baked AT THE PINNED REVISION the code loads (``get_pinned_revision_for_model``): with the Hub
+# offline below, a snapshot that is not the pinned one cannot be found. MiniLM (search) is the
+# only HF model the api container loads: pipeline jobs and their enrichers run in the
+# pipeline-llm image, which bakes its own (docker/pipeline/Dockerfile).
 RUN mkdir -p "$HF_HOME" \
-    && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+    && python -c "from sentence_transformers import SentenceTransformer; \
+from podcast_scraper.config_constants import get_pinned_revision_for_model as pin; \
+m = 'sentence-transformers/all-MiniLM-L6-v2'; SentenceTransformer(m, revision=pin(m))"
+# ...and from here on the container never asks the Hub for it. A model that is NOT baked fails
+# loudly at load instead of being fetched behind our back -- bake it above.
+ENV HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
 
 # Ship packaged pipeline profiles so the operator-config endpoint can
 # enumerate them via ``GET /api/operator-config``. Profiles live

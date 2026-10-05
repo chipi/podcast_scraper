@@ -118,3 +118,64 @@ def test_the_shape_that_regressed() -> None:
 
     names, _, _ = _provider()._parse_speakers_from_response(_json.dumps(payload), HOSTS)
     assert len(names) == 3, f"expected both hosts and the guest, got {names}"
+
+
+class TestWhatTheParserKeepsOfTheModelsAnswer:
+    """#2276, problem 14 — measured on the gold sets with the model's stored answers (val, same
+    answers, old parser vs new): keeping a host the feed does not state as a stated person cost a
+    real host and a real guest their names; keeping the people the model lists ONLY among the
+    speakers, as stated-but-never-corroborated, was 4 better / 0 worse. Synthetic names.
+    """
+
+    def test_a_host_the_feed_does_not_state_is_not_kept(self) -> None:
+        payload = (
+            '{"speakers": ["Ana Rook", "Ben Vale"],'
+            ' "hosts": ["Ana Rook", "Ben Vale"], "guests": []}'
+        )
+        p = _provider()
+        names, hosts, ok = p._parse_speakers_from_response(payload, set())
+        assert ok
+        assert hosts == set()
+        assert "Ana Rook" not in names and "Ben Vale" not in names
+        assert p.last_speaker_detection_stated_only == []
+
+    def test_a_person_listed_only_among_the_speakers_is_stated_not_a_guest(self) -> None:
+        payload = (
+            '{"speakers": ["Kevin Roose", "Cleo Marsh", "Dev Patel-Ng"],'
+            ' "hosts": ["Kevin Roose"], "guests": ["Dev Patel-Ng"]}'
+        )
+        p = _provider()
+        names, hosts, _ = p._parse_speakers_from_response(payload, HOSTS)
+        assert hosts == {"Kevin Roose"}
+        assert "Cleo Marsh" not in names, "never a guest candidate"
+        assert p.last_speaker_detection_stated_only == ["Cleo Marsh"]
+
+    def test_a_guest_also_called_host_is_listed_once(self) -> None:
+        payload = '{"speakers": ["Ana Rook"], "hosts": ["Ana Rook"], "guests": ["Ana Rook"]}'
+        names, _, _ = _provider()._parse_speakers_from_response(payload, set())
+        assert names.count("Ana Rook") == 1
+
+    def test_a_known_host_spelt_with_accents_is_that_host_not_a_new_person(self) -> None:
+        """The model wrote "Nina Pániková", the feed states "Nina Panikova". Kept as a new person,
+        she became a second spare guest name and cost the real guest his name (gold dev, c085)."""
+        payload = (
+            '{"speakers": ["Nína Pániková", "Mira Holt"],'
+            ' "hosts": ["Nína Pániková"], "guests": ["Mira Holt"]}'
+        )
+        p = _provider()
+        names, hosts, _ = p._parse_speakers_from_response(payload, {"Nina Panikova"})
+        assert hosts == {"Nina Panikova"}, "matched to the feed's own spelling"
+        assert "Nína Pániková" not in names and names.count("Nina Panikova") == 1
+        assert "Mira Holt" in names and p.last_speaker_detection_stated_only == []
+
+    def test_a_given_name_only_one_known_host_has_is_that_host(self) -> None:
+        payload = '{"speakers": ["Elad", "Sara"], "hosts": ["Elad", "Sara"], "guests": []}'
+        p = _provider()
+        _, hosts, _ = p._parse_speakers_from_response(payload, {"Elad Gill", "Sara Gu"})
+        assert hosts == {"Elad Gill", "Sara Gu"}
+        assert p.last_speaker_detection_stated_only == []
+
+    def test_a_given_name_two_known_hosts_share_stays_as_written(self) -> None:
+        payload = '{"speakers": ["Sam"], "hosts": ["Sam"], "guests": []}'
+        _, hosts, _ = _provider()._parse_speakers_from_response(payload, {"Sam Ode", "Sam Ray"})
+        assert hosts == set()
