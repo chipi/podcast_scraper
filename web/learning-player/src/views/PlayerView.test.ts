@@ -171,6 +171,13 @@ describe('PlayerView', () => {
     expect(w.get('[data-testid="player-open-insights"]').text()).not.toMatch(/\d/)
   })
 
+  it('marks the open count with a chart glyph, not ▶ — the chip is not a play control (operator 2026-10-05)', async () => {
+    const w = await mountPlayer('ep-1')
+    const reach = w.get('[data-testid="player-reach"]')
+    expect(reach.find('[data-testid="player-reach-opens-icon"]').exists()).toBe(true)
+    expect(reach.text()).not.toContain('▶')
+  })
+
   it('compacts large counts without a decimal at/above 10k', async () => {
     vi.spyOn(api, 'getEpisodeStats').mockResolvedValue(epStats({ opens: 12000, listeners: 50 }))
     const w = await mountPlayer('ep-1')

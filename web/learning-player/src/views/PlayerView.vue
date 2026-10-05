@@ -1590,7 +1590,12 @@ onBeforeUnmount(() => {
                     class="flex items-center gap-1 text-canvas-foreground"
                     :aria-label="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
                     :title="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
-                  >▶ {{ compact(stats.opens) }}</span>
+                  >
+                    <!-- A count, so a bar-chart glyph — not ▶, which read as a play control on a
+                         chip that is not one (operator 2026-10-05). -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-3 w-3" aria-hidden="true" data-testid="player-reach-opens-icon"><path d="M6 20V12M12 20V4M18 20v-6"/></svg>
+                    {{ compact(stats.opens) }}
+                  </span>
                 </div>
                 <Sparkline
                   v-if="stats && statsSeries.some((n) => n > 0)"
