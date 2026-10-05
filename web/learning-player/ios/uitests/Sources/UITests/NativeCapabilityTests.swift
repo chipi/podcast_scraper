@@ -214,15 +214,16 @@ final class NativeCapabilityTests: UITestCase {
       return
     }
     sleep(2)
-    // The in-app popover offers card / link / text; picking one hands off to the OS share sheet,
-    // which is Springboard's UI — the app cannot see it, so it is asserted there.
-    // "Share TEXT" specifically: on native it writes `closelistening.txt` and hands that file to the
-    // OS sheet, so the sheet displays the item name — a marker that OUR payload got there.
+    // The in-app popover offers Share card / Copy link / Copy text. The two Copy items write the
+    // clipboard; only "Share card" hands off to the OS share sheet (operator 2026-10-05: the card
+    // is the SERVER's PNG, delivered as a FILE). The sheet is Springboard's UI — the app cannot see
+    // it, so it is asserted there, and it must show an IMAGE file: a marker that OUR card got there.
     // Asserting only that "a sheet appeared" would pass just as happily if the app shared the wrong
-    // thing, or nothing at all (operator 2026-09-16).
-    guard Journey.tap(app, labels: ["Share text"], contains: true, timeout: 8) else {
-      Journey.inventory(app, "share-popover-no-text-option")
-      XCTFail("share popover offered no 'Share text' option")
+    // thing — the old canvas cards fell back to a text file — or nothing at all (operator
+    // 2026-09-16).
+    guard Journey.tap(app, labels: ["Share card"], contains: false, timeout: 8) else {
+      Journey.inventory(app, "share-popover-no-card-option")
+      XCTFail("share popover offered no 'Share card' option")
       return
     }
     sleep(5)
@@ -236,7 +237,9 @@ final class NativeCapabilityTests: UITestCase {
         || owner.buttons["Copy"].waitForExistence(timeout: 2) {
         sheetUp = true
       }
-      let named = NSPredicate(format: "label CONTAINS[c] 'closelistening'")
+      // The sheet's header names the shared file (`<episode-title>.png`) and/or its type ("PNG
+      // image"); either one says an image arrived rather than text.
+      let named = NSPredicate(format: "label CONTAINS[c] 'png'")
       if owner.staticTexts.matching(named).firstMatch.waitForExistence(timeout: 4)
         || owner.otherElements.matching(named).firstMatch.waitForExistence(timeout: 2) {
         carriedOurContent = true
@@ -248,7 +251,7 @@ final class NativeCapabilityTests: UITestCase {
     XCTAssertTrue(sheetUp, "picking a share option did not produce a share sheet")
     XCTAssertTrue(
       carriedOurContent,
-      "share sheet opened but showed no sign of OUR payload (expected the item named closelistening…)"
+      "share sheet opened but showed no sign of OUR card (expected a PNG item in the sheet header)"
     )
     _ = Journey.tap(app, labels: ["Cancel", "Close"], contains: true, timeout: 5)
   }
