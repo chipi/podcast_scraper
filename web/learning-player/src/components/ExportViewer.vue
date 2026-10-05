@@ -92,7 +92,7 @@ async function printOrShare(): Promise<void> {
 <template>
   <Teleport :to="to">
     <div
-      class="fixed inset-0 z-[60] flex flex-col bg-canvas"
+      class="fixed inset-0 z-[60] flex flex-col bg-canvas pb-[env(safe-area-inset-bottom)]"
       role="dialog"
       aria-modal="true"
       :aria-label="title"
