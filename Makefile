@@ -2799,6 +2799,7 @@ test-android:
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=PersonalisationTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=NativeCapabilityTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=StackDepthProbeTests || rc=$$?; }; \
+		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=MediaNotificationTests || rc=$$?; }; \
 		[ $$rc -eq 0 ] && { $(MAKE) android-suite SUITE=AccessibleNameAuditTests || rc=$$?; }; fi; \
 	if [ $$rc -eq 0 ]; then echo ""; echo "=== test-android [$$(date '+%H:%M:%S')] 6/7 degraded server (needs a session — BEFORE the sign-out suite) ==="; \
 		$(MAKE) test-android-server-degraded || rc=$$?; fi; \

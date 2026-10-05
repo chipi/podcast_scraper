@@ -18,23 +18,77 @@ import { routeForDeepLink, type DeepLinkTarget } from './deepLinks'
 import { track } from './analytics'
 import { resolveApiBase, resolveGateCookie } from './tier'
 
-// Local Android plugin (#1310): a foreground media service keep-alive so the OS doesn't suspend the
-// WebView's <audio> when backgrounded. iOS handles background audio via AVAudioSession (AppDelegate)
-// + UIBackgroundModes, so this is Android-only; the calls no-op elsewhere.
+// Local Android plugin (#1310): the media session, the media notification (lock screen + shade), the
+// foreground keep-alive, and the system output switcher. Android System WebView does not turn
+// `navigator.mediaSession` into any of those the way iOS WKWebView does (operator 2026-10-05: no
+// lock-screen controls, no output button), so the player store mirrors itself into this. iOS keeps
+// the web MediaSession + AVAudioSession, so every call no-ops off Android.
+export interface NativeMediaState {
+  title?: string
+  artist?: string
+  album?: string
+  artworkUrl?: string
+  playing?: boolean
+  position?: number
+  duration?: number
+  rate?: number
+}
+export interface NativeMediaAction {
+  action: 'play' | 'pause' | 'seekbackward' | 'seekforward' | 'seekto' | 'nexttrack' | 'previoustrack'
+  seekTime?: number
+}
 interface BackgroundAudioPlugin {
   start(): Promise<void>
+  pause(): Promise<void>
   stop(): Promise<void>
+  update(state: NativeMediaState): Promise<void>
+  canShowOutputSwitcher(): Promise<{ available: boolean }>
+  showOutputSwitcher(): Promise<{ shown: boolean }>
+  addListener(event: 'action', cb: (a: NativeMediaAction) => void): Promise<{ remove: () => Promise<void> }>
 }
 const BackgroundAudio = registerPlugin<BackgroundAudioPlugin>('BackgroundAudio')
 
-/** Start the Android foreground keep-alive (on play). No-op on iOS/web. */
+const onAndroid = (): boolean => isNative() && platform() === 'android'
+
+/** Playing: media notification in the foreground. No-op on iOS/web. */
 export async function startBackgroundAudio(): Promise<void> {
-  if (isNative() && platform() === 'android') await BackgroundAudio.start().catch(() => {})
+  if (onAndroid()) await BackgroundAudio.start().catch(() => {})
 }
 
-/** Stop the Android foreground keep-alive (on pause/end). No-op on iOS/web. */
+/** Paused: the controls stay (with Play) so the lock screen can resume. No-op on iOS/web. */
+export async function pauseBackgroundAudio(): Promise<void> {
+  if (onAndroid()) await BackgroundAudio.pause().catch(() => {})
+}
+
+/** Ended / replaced / failed: the notification and the session go. No-op on iOS/web. */
 export async function stopBackgroundAudio(): Promise<void> {
-  if (isNative() && platform() === 'android') await BackgroundAudio.stop().catch(() => {})
+  if (onAndroid()) await BackgroundAudio.stop().catch(() => {})
+}
+
+/** Metadata / position / rate into the Android session. No-op on iOS/web. */
+export async function updateNativeMedia(state: NativeMediaState): Promise<void> {
+  if (onAndroid()) await BackgroundAudio.update(state).catch(() => {})
+}
+
+/** What the lock screen / notification / headphones asked for. Android only; never fires elsewhere. */
+export function onNativeMediaAction(cb: (a: NativeMediaAction) => void): void {
+  if (onAndroid()) void BackgroundAudio.addListener('action', cb).catch(() => {})
+}
+
+/** Whether this Android can open the system output switcher (API 34+). False off Android. */
+export async function canShowOutputSwitcher(): Promise<boolean> {
+  if (!onAndroid()) return false
+  return BackgroundAudio.canShowOutputSwitcher()
+    .then((r) => r.available)
+    .catch(() => false)
+}
+
+/** Open Android's output switcher — the counterpart of the AirPlay sheet. */
+export async function showOutputSwitcher(): Promise<boolean> {
+  if (!onAndroid()) return false
+  return BackgroundAudio.showOutputSwitcher()
+    .then((r) => r.shown)
+    .catch(() => false)
 }
 
 /** True inside the iOS/Android Capacitor shell; false on the web (SSR/dev/preview/prod web). */
