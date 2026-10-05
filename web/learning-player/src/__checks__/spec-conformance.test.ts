@@ -77,6 +77,9 @@ describe('UXS-014 pattern rules that can be executed', () => {
       // class and the binding sat on separate lines, the same line-formatting evasion that hid
       // ShowBrowseView's real violation. Declared rather than left to luck (operator 2026-09-17).
       'components/EpisodeCard.vue',
+      // Same kicker-above-the-title shape, for the episode heading a Search / Saved / Revisit group
+      // (operator 2026-10-05): one line, so the header stays the height of its 80px artwork.
+      'components/EpisodeGroupCard.vue',
     ]
     const KNOWN_VIOLATIONS = FIXED_WIDTH_TILES
     const offenders: string[] = []

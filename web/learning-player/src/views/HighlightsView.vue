@@ -26,7 +26,8 @@ import { deliverFile, isNative, openExternal, saveAndShareText } from '../servic
 import type { EpisodeDetail, EpisodeSummary, Highlight } from '../services/types'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
-import EpisodeRow from '../components/EpisodeRow.vue'
+import EpisodeGroupCard from '../components/EpisodeGroupCard.vue'
+import { formatPublishDate } from '../utils/format'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { newestFirst } from '../utils/newestFirst'
 import { useCaptureStore } from '../stores/capture'
@@ -37,7 +38,7 @@ import { matchesQuery } from '../utils/textFilter'
 import { useCappedSections } from '../composables/useCappedSections'
 import { shareHighlightCard } from '../composables/useShareCard'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const capture = useCaptureStore()
 
 // A highlight's notes: newest first, five at a time (operator 2026-10-05), keyed per highlight —
@@ -94,7 +95,7 @@ const details = ref<Record<string, EpisodeDetail>>({})
 const titleFor = (slug: string): string => details.value[slug]?.title ?? slug
 
 /**
- * The group heading's episode, in the shape `EpisodeRow` takes.
+ * The group heading's episode, in the shape `EpisodeGroupCard` takes.
  *
  * Through `summaryFromDetail` — the one adapter Queue, Recent and Revisit use — so the heading
  * cannot drift from the rows it is modelled on. Unresolved episodes still render a row, titled by
@@ -471,46 +472,33 @@ onMounted(async () => {
       </RouterLink>
     </div>
 
-    <section v-for="g in visibleGroups" :key="g.slug" class="mb-6">
-      <!-- The episode heads its own group as the SHARED compact row (operator 2026-09-18) — the
-           same `EpisodeRow` Home's What's New 2-5, the entity cards and the storyline sheet use.
-           It already is the standard small view: 40px artwork, title, and the show name under it,
-           which is the part a text-only heading was missing. Hand-rolling an img + title here was
-           a fourth near-copy of a row that already exists.
-
-           Before the episode resolves, the row still renders with the slug as its title rather
-           than the group disappearing or reserving a grey box for something that may not arrive. -->
-      <div class="mb-2" data-testid="highlight-group-heading">
-        <EpisodeRow :episode="headingEpisode(g.slug)">
-          <!-- Collapse the episode (operator 2026-09-18), in the row's own `#trailing` slot so the
-               control is a SIBLING of the link rather than nested inside it — an interactive inside
-               an interactive is the thing EpisodeRow's slot exists to avoid. Groups start open:
-               collapsing is for tidying a long Saved list, not a default that hides your captures. -->
-          <template #trailing>
-            <!-- `self-center`: EpisodeRow's row is `items-start` (correct for artwork beside two
-                 lines of text), which pinned this control to the top corner. It acts on the whole
-                 row, so it centres against it. -->
-            <button
-              type="button"
-              class="lp-tap shrink-0 self-center rounded-full px-2 py-1 text-xs font-bold text-accent"
-              :aria-expanded="!collapsed.has(g.slug)"
-              :aria-label="
-                collapsed.has(g.slug)
-                  ? t('highlights.expandGroup', { title: g.title })
-                  : t('highlights.collapseGroup', { title: g.title })
-              "
-              data-testid="highlight-group-collapse"
-              @click="toggleGroup(g.slug)"
-            >{{ collapsed.has(g.slug) ? '▼' : '▲' }}</button>
-          </template>
-        </EpisodeRow>
-      </div>
-      <ul v-show="!collapsed.has(g.slug)" class="flex flex-col gap-3">
+    <!-- The SHARED episode-group header (operator 2026-10-05) — the same one Search and Revisit use:
+         artwork, show, title, one meta line, the fold as a chevron. Before the episode resolves the
+         header still renders, titled by slug, rather than the group popping in later. Groups start
+         open: collapsing tidies a long Saved list, it is not a default that hides your captures. -->
+    <ul class="flex flex-col gap-6">
+    <EpisodeGroupCard
+      v-for="g in visibleGroups"
+      :key="g.slug"
+      :episode="headingEpisode(g.slug)"
+      :item-count="g.highlights.length"
+      :expanded="!collapsed.has(g.slug)"
+      testid="highlight-group"
+      toggle-testid="highlight-group-collapse"
+      @update:expanded="toggleGroup(g.slug)"
+    >
+      <template #meta>
+        <template v-if="formatPublishDate(headingEpisode(g.slug).publish_date, locale)">{{
+          formatPublishDate(headingEpisode(g.slug).publish_date, locale)
+        }} · </template>{{ t('collections.count', g.highlights.length) }}
+      </template>
+      <ul class="flex flex-col gap-3">
         <li
           v-for="h in itemCaps.visible(g.slug, g.highlights, searchActive)"
           :key="h.id"
           class="rounded-xl border border-l-4 border-border p-3"
           :class="borderClass(h.color)"
+          data-testid="highlight-card"
         >
           <!-- Content is full-width; the controls sit in their own row BELOW it, not in a
                shrink-0 column beside it that squeezed the quote to ~half the row. -->
@@ -718,7 +706,8 @@ onMounted(async () => {
         :remaining="itemCaps.remaining(g.slug, g.highlights.length)"
         @toggle="itemCaps.toggle(g.slug, g.highlights.length)"
       />
-    </section>
+    </EpisodeGroupCard>
+    </ul>
 
     <!-- Episode groups page 10 at a time; a search lifts it (#2042 follow-up). -->
     <ShowAllToggle

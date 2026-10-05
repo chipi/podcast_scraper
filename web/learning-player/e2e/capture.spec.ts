@@ -60,7 +60,9 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
   // This spec asserted only the "Marked moment" kicker, so the mark → store → render path for the
   // captured LINE was uncovered end to end: a moment that stored a timestamp and nothing else
   // passed here and produced a Library card with no content — exactly what was reported.
-  const momentCard = page.locator('li', { has: page.getByText('Marked moment') }).first()
+  // The CARD, by its testid: the episode group around it is an <li> too, so a bare `li` filter
+  // matched the whole group and every quote in it.
+  const momentCard = page.getByTestId('highlight-card').filter({ has: page.getByText('Marked moment') }).first()
   await expect(
     momentCard.getByTestId('highlight-quote'),
     'the marked moment rendered no captured text',
@@ -72,7 +74,7 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
 
   // Each episode group is headed by its episode — artwork in front of the title.
   await expect(
-    page.getByTestId('highlight-group-heading').first(),
+    page.getByTestId('highlight-group').first().getByTestId('episode-group-title'),
     'the episode group lost its heading',
   ).toBeVisible()
 

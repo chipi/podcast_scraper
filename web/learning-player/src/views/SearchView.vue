@@ -17,6 +17,7 @@ import { resolveMediaUrl } from "../services/tier"
 import type { EntityRef, EpisodeSummary, Note, Podcast, SearchHit } from "../services/types"
 import { hitStartSeconds } from "../player/insights"
 import { formatTime } from "../player/transcriptSync"
+import { formatPublishDate } from "../utils/format"
 import { aggregateRelatedTopics } from "../utils/relatedTopics"
 import {
   collapseFoldableHits,
@@ -40,7 +41,7 @@ import TypeFilterBar from "../components/TypeFilterBar.vue"
 import ShowRow from "../components/ShowRow.vue"
 import { matchesAllWords } from "../utils/textMatch"
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { isGated, gated } = useSignInGate()
@@ -970,26 +971,25 @@ const showEmpty = computed(
             · {{ t("search.yearEpisodes", section.groups.length) }}
           </span>
         </h2>
-        <ul class="mt-3 flex flex-col gap-3">
-          <!-- The SHARED episode-group block (`EpisodeGroupCard`), also used by Revisit: the real
-               EpisodeCard as the header — the same one Discover and Library render — with the rows
-               collapsible beneath it (operator 2026-09-17). Search's own content rides the card's
-               slots: the match count under the artwork, the matched-field breakdown between title
-               and summary. The passage list stays a sibling BELOW the card, since it is per-match
-               rather than part of the episode. -->
+        <ul class="mt-3 flex flex-col gap-6">
+          <!-- The SHARED episode-group header (`EpisodeGroupCard`), also used by Saved and Revisit
+               (operator 2026-10-05): artwork, show, title, one meta line, the fold as a chevron.
+               Search's own content rides its slots — when + how many in `#meta`, the matched-field
+               breakdown under the title in `#extra` — and the passages are the body. -->
           <EpisodeGroupCard
             v-for="(g, gi) in section.groups"
             :key="g.slug ?? g.title"
             :episode="groupAsEpisode(g)"
-            :noun="t('search.groupNoun')"
             :item-count="g.rows.length"
           >
-            <template #aside>{{ t("search.matchCount", g.hits.length) }}</template>
+            <template #meta>
+              <template v-if="formatPublishDate(g.date, locale)">{{ formatPublishDate(g.date, locale) }} · </template>{{ t("search.matchCount", g.hits.length) }}
+            </template>
             <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary ×2 · Transcript") —
                  so the listener knows WHY this episode surfaced without tapping through. Hidden
                  when nothing resolved to an episode-level field. -->
-            <template v-if="matchedFieldChips(g.hits).length" #meta>
-              <span class="lp-kicker block" data-testid="matched-fields">
+            <template v-if="matchedFieldChips(g.hits).length" #extra>
+              <span class="lp-kicker mt-1 block" data-testid="matched-fields">
                 {{ t("search.matchedPrefix") }}
                 <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
                   <template v-if="mi > 0"> · </template>
@@ -1002,14 +1002,14 @@ const showEmpty = computed(
 
             <!-- Matching passages (#1261-3: foldable rows collapse to one
                expandable summary per (episode, source-kind)). -->
-            <ul class="mt-3 flex flex-col">
+            <ul class="flex flex-col">
               <template v-for="(row, i) in g.rows" :key="rowKey(row, i)">
                 <!-- FoldedHitCluster: N hits of the same foldable kind (transcript /
                    title / description / summary) collapsed into one expandable row. -->
-                <li v-if="isFoldedCluster(row)" class="border-t border-border">
+                <li v-if="isFoldedCluster(row)" class="border-b border-border">
                   <button
                     type="button"
-                    class="flex w-full items-center gap-2 px-4 py-3 text-left"
+                    class="flex w-full items-center gap-2 py-3 text-left"
                     :aria-expanded="isClusterOpen(g.slug, row)"
                     :aria-label="
                       t('search.expandCluster', {
@@ -1036,7 +1036,7 @@ const showEmpty = computed(
                     <li
                       v-for="(m, mi) in row.members"
                       :key="m.doc_id + mi"
-                      class="border-t border-border px-6 py-2"
+                      class="border-t border-border py-2 pl-4"
                     >
                       <div class="flex items-center gap-2">
                         <button
@@ -1062,7 +1062,7 @@ const showEmpty = computed(
                   </ul>
                 </li>
                 <!-- Plain hit (insight / kg_topic / kg_entity / lifted transcript). -->
-                <li v-else class="border-t border-border px-4 py-3">
+                <li v-else class="border-b border-border py-3">
                   <div class="flex items-center gap-2">
                     <span
                       class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"

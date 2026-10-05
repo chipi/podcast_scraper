@@ -121,10 +121,11 @@ describe("SearchView", () => {
       params: { slug: "show-x" },
       query: { t: "20" },
     })
-    // #2 — each episode result carries per-episode quick actions (favorite + queue), like a Library
-    // row. The shared `episode-actions` testid, since Search renders the shared EpisodeCard now.
+    // #2 — each episode result carries its actions, as ONE ⋯ (operator 2026-10-05: the three
+    // circles under the artwork were most of the header's height). Favourite and queue are inside it.
     const actions = w.get('[data-testid="episode-actions"]')
-    expect(actions.findAll("button").length).toBeGreaterThanOrEqual(2)
+    expect(actions.findAll("button")).toHaveLength(1)
+    expect(actions.get("button").attributes("aria-label")).toBe("More actions")
   })
 
   it("persists results across a tab switch — navigate away and back does not clear them", async () => {
@@ -349,7 +350,7 @@ describe("SearchView", () => {
     await flushPromises()
     expect(w.find('[data-testid="search-storylines"]').exists()).toBe(true)
     expect(w.text()).toContain("Managing risk across domains")
-    expect(w.find('[data-testid="episode-card"]').exists(), "storyline became an episode").toBe(
+    expect(w.find('[data-testid="episode-group"]').exists(), "storyline became an episode").toBe(
       false
     )
     expect(w.text(), "rendered a nonexistent episode").not.toContain("Not found")
@@ -423,14 +424,14 @@ describe("SearchView", () => {
     await w.find('[data-testid="search-type-notes"]').trigger("click")
     await flushPromises()
     expect(w.text()).toContain("my own note about sleep")
-    expect(w.find('[data-testid="episode-card"]').exists(), "episodes survived a notes-only filter").toBe(
+    expect(w.find('[data-testid="episode-group"]').exists(), "episodes survived a notes-only filter").toBe(
       false
     )
 
     // All restores everything.
     await w.find('[data-testid="search-type-all"]').trigger("click")
     await flushPromises()
-    expect(w.find('[data-testid="episode-card"]').exists()).toBe(true)
+    expect(w.find('[data-testid="episode-group"]').exists()).toBe(true)
   })
 
   it("names what each note is attached to, not just its kind", async () => {
@@ -969,37 +970,36 @@ describe("SearchView", () => {
       return w
     }
 
-    // These three invariants predate the shared card and still hold — Search now renders
-    // `EpisodeCard` (operator 2026-09-17), so they are asserted against ITS structure rather than
-    // against the hand-rolled copy they were written for. The action cluster's testid is the shared
-    // `episode-actions`; the narrow column is `lp-media-aside`; the text column is `lp-media-body`.
+    // The shared episode-group header (operator 2026-10-05) — the SAME one Saved and Revisit render:
+    // 80px artwork, show name above a title capped at three lines, ONE meta line (date · count), and
+    // the fold as a chevron in the header rather than a full-width "Hide matches" row.
 
-    it("the match count and the actions sit in ONE column with the artwork", async () => {
-      // The header was [artwork + text] | [count + actions], squeezing the text from both sides while
-      // the right rail kept a column to itself with empty space under it. Everything that is not the
-      // text stacks under the artwork, at one width.
+    it("is the compact shared header: 80px art, 3-line title, one meta line", async () => {
       const w = await resultRow()
-      const column = w.get('[data-testid="episode-card"] .lp-media-aside').element as HTMLElement
-      expect(
-        column.querySelector('[data-testid="episode-actions"]'),
-        "the actions are not in the narrow left column"
-      ).not.toBeNull()
-      expect(column.textContent, "the match count is not in the same column").toMatch(/match/i)
+      const group = w.get('[data-testid="episode-group"]')
+      // No artwork on this result, so the placeholder holds the slot — at the same 80px.
+      const art = group.get('[data-testid="episode-group-link"] > :first-child')
+      expect(art.classes()).toEqual(expect.arrayContaining(["h-20", "w-20"]))
+      const title = group.get('[data-testid="episode-group-title"]')
+      expect(title.text()).toBe("A title long enough to want the room")
+      expect(title.classes()).toContain("line-clamp-3")
+      expect(group.get('[data-testid="episode-group-meta"]').text()).toMatch(/1 match/)
     })
 
     it("an episode group collapses its matches and starts expanded", async () => {
-      // Collapsible on BOTH Search and Revisit through the shared EpisodeGroupCard (operator
-      // 2026-09-17). Expanded by default: a listener who just searched must not have to open every
-      // group to read the results they asked for. `v-show`, so a folded transcript cluster the user
-      // expanded INSIDE the group survives collapsing and re-opening it.
+      // Expanded by default: a listener who just searched must not have to open every group to read
+      // the results they asked for. `v-show`, so a folded transcript cluster the user expanded INSIDE
+      // the group survives collapsing and re-opening it. The control is a chevron in the header —
+      // the labelled full-width row cost a line of height per episode.
       const w = await resultRow()
       const toggle = w.get('[data-testid="episode-group-toggle"]')
       const body = w.get('[data-testid="episode-group-body"]')
       expect(toggle.attributes("aria-expanded")).toBe("true")
-      expect(toggle.text()).toContain("Hide matches")
+      expect(toggle.attributes("aria-label")).toBe("Collapse A title long enough to want the room")
+      expect(w.text()).not.toContain("Hide matches")
       await toggle.trigger("click")
       expect(toggle.attributes("aria-expanded")).toBe("false")
-      expect(toggle.text()).toContain("Show matches")
+      expect(toggle.attributes("aria-label")).toBe("Expand A title long enough to want the room")
       expect(body.attributes("style")).toContain("display: none")
     })
 
@@ -1023,17 +1023,6 @@ describe("SearchView", () => {
           n = n.parentElement
         }
       }
-    })
-
-    it("the text block is a sibling of that column, free to use the rest of the row", async () => {
-      const w = await resultRow()
-      const card = w.get('[data-testid="episode-card"]').element as HTMLElement
-      const column = card.querySelector(".lp-media-aside") as HTMLElement
-      const body = card.querySelector(".lp-media-body") as HTMLElement
-      expect(column, "no narrow column").toBeTruthy()
-      expect(body, "no text column beside the column").toBeTruthy()
-      expect(body.parentElement, "the two are not siblings").toBe(column.parentElement)
-      expect(body.textContent).toContain("A title long enough to want the room")
     })
 
     it("surfaces the listener's own matching notes (SR.1)", async () => {
