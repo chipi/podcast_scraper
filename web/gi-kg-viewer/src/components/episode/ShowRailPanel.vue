@@ -11,8 +11,10 @@
  * (cluster-coloured), fetched with `with_cil_topics`. Chips open the node view in
  * this same rail via focusTopic/focusPerson; each pushes the show onto the Back stack.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
+import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
 import {
@@ -33,6 +35,15 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const subject = useSubjectStore()
 const artifacts = useArtifactsStore()
+const graphExplorer = useGraphExplorerStore()
+const loadCorpusGraphBaseline = inject(corpusGraphBaselineLoaderKey, null)
+
+/** Same merged-graph load as first Graph visit — skip if corpus slice is already loaded. */
+async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
+  if (!loadCorpusGraphBaseline) return
+  if (graphExplorer.graphTabOpenedThisSession && artifacts.selectedRelPaths.length > 0) return
+  await loadCorpusGraphBaseline()
+}
 
 const feed = ref<CorpusFeedItem | null>(null)
 const episodes = ref<CorpusEpisodeListItem[]>([])
@@ -200,6 +211,9 @@ async function openShowInGraph(): Promise<void> {
   }
   emit('switch-main-tab', 'graph')
   try {
+    // Land the first-visit baseline BEFORE adding the show, as the episode panel and Library do;
+    // appended first, the show was replaced by that baseline (1 of p01's 4 episodes drawn).
+    await ensureDefaultCorpusGraphIfNeeded()
     await artifacts.appendRelativeArtifacts(paths)
   } catch (e) {
     graphError.value = e instanceof Error ? e.message : 'Could not load the show graph.'

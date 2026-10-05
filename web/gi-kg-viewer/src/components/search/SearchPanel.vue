@@ -602,15 +602,17 @@ const advancedFeedCombinedTitle = computed(() =>
       >
         {{ search.apiError }}
       </p>
+      <!-- Search v3 §S5 — EnrichedAnswerHero sits ABOVE the operator bar
+           and the hit cards. Renders nothing when enrichment is off or
+           no decorated hits came back; renders skeleton on loading;
+           renders muted error on non-fatal chain failure. Mounted OUTSIDE
+           the results block: a search clears `results` before it loads, so
+           inside it the loading skeleton could never render. -->
+      <EnrichedAnswerHero class="mt-3" />
       <div
         v-if="search.results.length"
         class="mt-3 space-y-2"
       >
-        <!-- Search v3 §S5 — EnrichedAnswerHero sits ABOVE the operator bar
-             and the hit cards. Renders nothing when enrichment is off or
-             no decorated hits came back; renders skeleton on loading;
-             renders muted error on non-fatal chain failure. -->
-        <EnrichedAnswerHero />
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
           <p class="text-xs font-medium text-muted">
             {{ visibleResults.length }}

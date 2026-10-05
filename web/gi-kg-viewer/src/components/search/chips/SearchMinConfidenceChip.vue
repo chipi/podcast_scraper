@@ -61,8 +61,10 @@ function clear(): void {
       <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted">
         Min confidence
       </label>
+      <!-- Not v-model: on a number input it hands the store a NUMBER, and the filter is a string
+           (.trim() below and in the store threw). Keep the raw text. -->
       <input
-        v-model="search.filters.minConfidence"
+        :value="search.filters.minConfidence"
         type="number"
         min="0"
         max="1"
@@ -70,6 +72,7 @@ function clear(): void {
         placeholder="0.0 – 1.0"
         class="mt-1 w-full rounded border border-border bg-elevated px-2 py-1 text-xs tabular-nums"
         data-testid="search-popover-min-confidence-input"
+        @input="search.filters.minConfidence = ($event.target as HTMLInputElement).value"
         @keydown.enter="close"
       >
       <p class="mt-2 text-[10px] text-muted">
