@@ -168,4 +168,17 @@ describe('ShowBrowseView', () => {
     expect(w.find('[data-testid="show-browse-list"]').exists()).toBe(true)
     expect(w.find('[data-testid="show-browse-grid"]').exists()).toBe(false)
   })
+
+  it("the list puts Follow + heart UNDER the artwork, like the Episodes tab (operator 2026-10-05)", async () => {
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([show('f-a', 'Acme Show')])
+    const w = await mountView()
+    await w.get('[data-testid="show-view"]').trigger('click')
+    await w.get('[data-testid="show-view-opt-list"]').trigger('click')
+    const below = w.get('[data-testid="show-browse-list"] [data-testid="show-row-actions"]')
+    const follow = below.get('[data-testid="follow-show"]')
+    expect(follow.text().trim()).toBe('Follow')
+    // The plain pill, not the plated overlay one: it sits on the page, not on the artwork.
+    expect(follow.classes()).toContain('px-3')
+    expect(below.findAll('button').length).toBeGreaterThanOrEqual(2) // follow + heart
+  })
 })

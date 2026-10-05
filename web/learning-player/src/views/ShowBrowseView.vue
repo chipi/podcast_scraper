@@ -227,12 +227,13 @@ onMounted(load)
              one tab across. Library's Saved tab renders the identical component. -->
         <ul v-else class="flex flex-col" data-testid="show-browse-list">
           <li v-for="p in capped" :key="p.feed_id">
-            <ShowRow :show="p">
-              <!-- Bare controls: ShowRow stacks them into the right-aligned column over the
-                   artwork and plates them, so wrapping them in a row here would flatten the L. -->
+            <!-- Controls UNDER the artwork, where the Episodes tab's cards put theirs (operator
+                 2026-10-05): one page, one place for controls. Follow is the plain inline pill
+                 there, not the plated overlay one — it sits on the page, not on a picture. -->
+            <ShowRow :show="p" actions-below>
               <template #actions>
                 <FollowButton
-                  variant="overlay"
+                  variant="inline"
                   :following="library.has(p.feed_id)"
                   :busy="busyFollow === p.feed_id"
                   :gated="isGated"

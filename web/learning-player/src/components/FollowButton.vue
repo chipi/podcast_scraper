@@ -113,7 +113,10 @@ function srLabel(followKey: string, followingKey: string): string {
     :disabled="busy"
     @click.prevent.stop="$emit('toggle')"
   >
-    <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
+    <!-- The glyph only where it is the whole visible control (`icon`). The labelled variants read
+         just "Follow" / "Following" (operator 2026-10-05): a "+" and "show" made the pill too wide
+         to sit beside the heart under a 128px artwork; the filled accent already marks Following. -->
+    <span v-if="variant === 'icon'" aria-hidden="true">{{ following ? "✓" : "+" }}</span>
     <!-- The label is the whole control in the labelled variants. -->
     <template v-if="variant !== 'icon'">{{
       following ? t("podcast.following") : t("podcast.follow")

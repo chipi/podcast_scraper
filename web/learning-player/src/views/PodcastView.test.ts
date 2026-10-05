@@ -99,21 +99,21 @@ describe('PodcastView — follow show', () => {
     const w = await mountView()
 
     const btn = w.find('[data-testid="follow-show"]')
-    expect(btn.text()).toContain('Follow show')
+    expect(btn.text().trim()).toBe('Follow') // no '+', no 'show' (operator 2026-10-05)
     expect(btn.attributes('aria-pressed')).toBe('false')
 
     await btn.trigger('click')
     await flushPromises()
 
     expect(post).toHaveBeenCalledWith(FEED, { title: 'The Show' })
-    expect(w.find('[data-testid="follow-show"]').text()).toContain('Following')
+    expect(w.find('[data-testid="follow-show"]').text().trim()).toBe('Following')
     expect(w.find('[data-testid="follow-show"]').attributes('aria-pressed')).toBe('true')
   })
 
   it('renders Following when the show is already in the library', async () => {
     vi.spyOn(api, 'getLibrary').mockResolvedValue([libItem()])
     const w = await mountView()
-    expect(w.find('[data-testid="follow-show"]').text()).toContain('Following')
+    expect(w.find('[data-testid="follow-show"]').text().trim()).toBe('Following')
   })
 
   it('unfollows an already-followed show', async () => {
@@ -125,7 +125,7 @@ describe('PodcastView — follow show', () => {
     await flushPromises()
 
     expect(del).toHaveBeenCalledWith(FEED)
-    expect(w.find('[data-testid="follow-show"]').text()).toContain('Follow show')
+    expect(w.find('[data-testid="follow-show"]').text().trim()).toBe('Follow')
   })
 
   it('reverts the optimistic flip when the POST fails', async () => {
@@ -139,7 +139,7 @@ describe('PodcastView — follow show', () => {
     await flushPromises()
 
     // The button must not claim a subscription the server refused.
-    expect(w.find('[data-testid="follow-show"]').text()).toContain('Follow show')
+    expect(w.find('[data-testid="follow-show"]').text().trim()).toBe('Follow')
     expect(w.find('[data-testid="follow-show"]').attributes('aria-pressed')).toBe('false')
   })
 })
