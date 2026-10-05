@@ -25,7 +25,6 @@
  * rather than overflowing into the text. Each button stops its own click propagation, so the row is
  * safe inside a card/tile whose body is a link.
  */
-import PlayNowButton from './PlayNowButton.vue'
 import FavoriteButton from './FavoriteButton.vue'
 import DownloadButton from './DownloadButton.vue'
 import QueueButton from './QueueButton.vue'
@@ -79,14 +78,7 @@ defineProps<{
    * `DownloadButton` self-hides on web, so this adds nothing to a browser row.
    */
   showDownload?: boolean
-  /**
-   * Add ▶ (start playing now) between the heart and the queue toggle — What's new on Home, where
-   * the row is a list you scan to pick something to listen to (operator 2026-10-05). Emits `play`
-   * so the surface can count it.
-   */
-  showPlay?: boolean
 }>()
-defineEmits<{ play: [] }>()
 const { t } = useI18n()
 </script>
 
@@ -104,7 +96,6 @@ const { t } = useI18n()
          its colour picker here, so the row stays three wide and does not wrap). -->
     <slot name="lead" />
     <FavoriteButton v-if="!hideFavorite" :item="{ kind: 'episode', ref: slug }" />
-    <PlayNowButton v-if="showPlay" :slug="slug" @play="$emit('play')" />
     <QueueButton v-if="!hideQueue" :slug="slug" />
     <OverflowMenu :label="t('common.moreActions')">
       <template #default="{ close }">
