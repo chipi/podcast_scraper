@@ -35,6 +35,7 @@ import ShowAllToggle from "../components/ShowAllToggle.vue"
 import { newestFirst } from "../utils/newestFirst"
 import { useCappedSections } from "../composables/useCappedSections"
 import EpisodeGroupCard from "../components/EpisodeGroupCard.vue"
+import PlayFrom from "../components/PlayFrom.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import TypeFilterBar from "../components/TypeFilterBar.vue"
@@ -1039,10 +1040,10 @@ const showEmpty = computed(
                       class="border-t border-border py-2 pl-4"
                     >
                       <div class="flex items-center gap-2">
-                        <button
+                        <PlayFrom
                           v-if="hitStartSeconds(m) != null && g.slug"
-                          type="button"
-                          class="ml-auto font-mono text-xs font-bold text-accent"
+                          class="ml-auto"
+                          :seconds="hitStartSeconds(m)"
                           :aria-label="
                             t('search.jumpTo', {
                               time: formatTime(hitStartSeconds(m) ?? 0),
@@ -1050,10 +1051,7 @@ const showEmpty = computed(
                             })
                           "
                           @click="openEpisode(g.slug, m, gi + 1)"
-                        >
-                          ▶
-                          {{ t("search.playHere", { time: formatTime(hitStartSeconds(m) ?? 0) }) }}
-                        </button>
+                        />
                       </div>
                       <p class="mt-1 line-clamp-2 text-sm leading-relaxed text-surface-foreground">
                         {{ m.text }}
@@ -1075,10 +1073,10 @@ const showEmpty = computed(
                     >
                       {{ t(`search.kind.${hitKind(row)}`) }}
                     </span>
-                    <button
+                    <PlayFrom
                       v-if="hitStartSeconds(row) != null && g.slug"
-                      type="button"
-                      class="ml-auto font-mono text-xs font-bold text-accent"
+                      class="ml-auto"
+                      :seconds="hitStartSeconds(row)"
                       :aria-label="
                         t('search.jumpTo', {
                           time: formatTime(hitStartSeconds(row) ?? 0),
@@ -1086,9 +1084,7 @@ const showEmpty = computed(
                         })
                       "
                       @click="openEpisode(g.slug, row, gi + 1)"
-                    >
-                      ▶ {{ t("search.playHere", { time: formatTime(hitStartSeconds(row) ?? 0) }) }}
-                    </button>
+                    />
                   </div>
                   <p
                     class="mt-1.5 line-clamp-2 text-sm leading-relaxed"

@@ -7,8 +7,9 @@
  */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import EpisodeGroupCard from '../components/EpisodeGroupCard.vue'
+import PlayFrom from '../components/PlayFrom.vue'
 import CheckIcon from '../components/CheckIcon.vue'
 import BellOffIcon from '../components/BellOffIcon.vue'
 import BookmarkIcon from '../components/BookmarkIcon.vue'
@@ -28,7 +29,6 @@ import {
 } from '../services/api'
 import { useResurfacingStore } from '../stores/resurfacing'
 import type { EpisodeDetail, EpisodeSummary, ResurfacingItem } from '../services/types'
-import { formatTime } from '../player/transcriptSync'
 import { formatPublishDate } from '../utils/format'
 import { borderClass } from '../utils/highlightColors'
 import { scrollBehavior } from '../utils/motion'
@@ -442,10 +442,19 @@ onMounted(load)
             ]"
             data-testid="revisit-item"
           >
-            <!-- KIND · DATE, the same label the notes rows on Boards carry (operator). "Marked
-                 moment" used to stand in as the BODY text, which is why a moment card said nothing
-                 about itself — it is the label, and the quote below is the content. -->
-            <span class="lp-kicker">{{ kindLabel(item) }} · {{ itemDate(item.highlight.created_at) }}</span>
+            <!-- KIND, then Play hard right — the same line Search and Saved use (operator
+                 2026-10-05). "Marked moment" used to stand in as the BODY text, which is why a
+                 moment card said nothing about itself — it is the label, and the quote below is the
+                 content. The capture date moved to the bottom row to make room for Play. -->
+            <div class="flex items-start justify-between gap-2">
+              <span class="lp-kicker">{{ kindLabel(item) }}</span>
+              <PlayFrom
+                :seconds="item.highlight.start_ms != null ? item.highlight.start_ms / 1000 : null"
+                :fallback="t('revisit.open')"
+                :to="{ name: 'player', params: { slug: item.highlight.episode_slug }, query: jumpQuery(item) }"
+                data-testid="revisit-jump"
+              />
+            </div>
             <!-- WHAT the moment is about: the captured words. A moment saved before the text was
                  stored has none and shows nothing here rather than a placeholder. -->
             <blockquote
@@ -464,11 +473,8 @@ onMounted(load)
               {{ item.reflection_prompt }}
             </p>
             <div class="mt-2 flex items-center gap-3">
-              <RouterLink
-                :to="{ name: 'player', params: { slug: item.highlight.episode_slug }, query: jumpQuery(item) }"
-                class="font-mono text-xs font-bold text-accent no-underline"
-                data-testid="revisit-jump"
-              >▶ {{ item.highlight.start_ms != null ? formatTime(item.highlight.start_ms / 1000) : t('revisit.open') }}</RouterLink>
+              <!-- When it was captured, on the left of the outcome row. -->
+              <span class="lp-kicker" data-testid="revisit-captured">{{ itemDate(item.highlight.created_at) }}</span>
               <!-- Three outcomes, all visible, in the app's 32px circle idiom (operator
                    2026-09-18) — the same `lp-tap h-8 w-8 rounded-full border border-border` shape
                    FavoriteButton and the Saved cards use, so these read as controls the user has

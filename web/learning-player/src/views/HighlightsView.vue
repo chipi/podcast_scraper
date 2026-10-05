@@ -27,11 +27,11 @@ import type { EpisodeDetail, EpisodeSummary, Highlight } from '../services/types
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
 import EpisodeGroupCard from '../components/EpisodeGroupCard.vue'
+import PlayFrom from '../components/PlayFrom.vue'
 import { formatPublishDate } from '../utils/format'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { newestFirst } from '../utils/newestFirst'
 import { useCaptureStore } from '../stores/capture'
-import { formatTime } from '../player/transcriptSync'
 import { borderClass } from '../utils/highlightColors'
 import { summaryFromDetail } from '../utils/episode'
 import { matchesQuery } from '../utils/textFilter'
@@ -506,11 +506,10 @@ onMounted(async () => {
               <!-- TITLE — what kind of capture this is. A moment says so too now: it used to be
                    the only kind with no kicker, because the words "Marked moment" were standing in
                    as the body text (operator 2026-09-17). -->
-              <!-- The kicker and the per-card icon actions share ONE line, actions hard right
-                   (operator 2026-09-18). They used to wrap onto a second row beneath the controls,
-                   giving every card a trailing strip of three lonely glyphs and making a two-line
-                   capture three lines tall. The kicker line was half empty; this is space the card
-                   already had. -->
+              <!-- The kicker line: what kind of capture this is, and Play hard right (operator
+                   2026-10-05). The icon actions that sat here moved to the bottom row, beside Add
+                   note — the kind, Play and four icons do not fit one phone line, and the bottom
+                   row is no longer three lonely glyphs (the 2026-09-18 reason they came up here). -->
               <div class="flex items-start justify-between gap-2">
                 <span class="flex min-w-0 flex-wrap items-center gap-2">
                   <span class="lp-kicker">{{
@@ -530,59 +529,13 @@ onMounted(async () => {
                     data-testid="highlight-drifted"
                   >⚠ {{ t('highlights.drifted') }}</span>
                 </span>
-                <div class="-mt-1 flex shrink-0 items-center gap-1">
-                  <!-- ORDER: colour first, share last (operator 2026-09-18). Colour is what
-                       this capture IS, so it leads; share sends it somewhere else, so it
-                       trails. The state and unsave controls sit between, bell before
-                       bookmark — the same order as the Revisit card. -->
-                  <!-- Colour: the shared collapsed control (one current-colour dot that expands the
-                       palette on tap) — identical on every saved surface (#2042). -->
-                  <SavedColorControl :color="h.color" @pick="capture.setColor(h.id, $event)" />
-                  <!-- RETIRED: shown ONLY when it is (operator 2026-09-18) — "by default, things
-                       are not quiet", so a not-retired capture carries no badge and the row is
-                       unchanged for the overwhelming majority.
-
-                       This exists because retiring was otherwise a one-way door. Stopping a
-                       capture resurfacing removes it from Revisit, which makes Revisit the one
-                       place the undo CANNOT live; Saved is the only surface listing every capture,
-                       so it is where the state has to be visible and reversible. The icon is the
-                       same bell-with-slash pressed on the Revisit card — pressing it again undoes
-                       exactly what that press did. -->
-                  <button
-                    v-if="h.retired"
-                    type="button"
-                    class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent text-accent transition hover:bg-accent/10"
-                    :aria-label="t('highlights.resumeResurfacing')"
-                    :title="t('highlights.resumeResurfacing')"
-                    data-testid="highlight-retired"
-                    @click="resume(h.id)"
-                  ><BellOffIcon /></button>
-                  <!-- The FILLED bookmark, not a ✕ (operator 2026-09-18) — the same control, and the
-                       same reasoning, as the Revisit card's third outcome. This action UNSAVES, so
-                       it shows the glyph that did the saving, filled: tapping it reads as undoing
-                       the save rather than as a generic destroy.
-
-                       Identical here and on Revisit deliberately. These are the two surfaces that
-                       list the same objects, so an unsave that looked like ✕ on one and a bookmark
-                       on the other would be two controls for one action. Accent at rest (the saved
-                       state it shows), danger on hover (what pressing it does), and still
-                       confirm-gated (#1594) — the capture and its notes do not come back. -->
-                  <button
-                    type="button"
-                    class="lp-tap rounded-full p-1 text-accent transition hover:text-danger"
-                    :aria-label="t('highlights.unsave')"
-                    :title="t('highlights.unsave')"
-                    data-testid="highlight-delete"
-                    @click="pendingHighlight = h.id"
-                  ><BookmarkIcon filled /></button>
-                  <button
-                    type="button"
-                    class="rounded-full p-1 text-muted transition hover:text-accent"
-                    :aria-label="t('highlights.share')"
-                    :title="t('highlights.share')"
-                    @click="share(h)"
-                  >↗</button>
-                </div>
+                <!-- Play leads the kind's line, hard right — the same place Search and Revisit
+                     put it (operator 2026-10-05). -->
+                <PlayFrom
+                  v-if="h.start_ms != null"
+                  :seconds="h.start_ms / 1000"
+                  :to="{ name: 'player', params: { slug: h.episode_slug }, query: jumpQuery(h) }"
+                />
               </div>
               <!-- The QUOTE — the spoken line that was captured, under the title and above the
                    speaker who said it. Set as a quotation rather than a heading: these are somebody
@@ -603,11 +556,6 @@ onMounted(async () => {
                    already says while pushing the text itself down. -->
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-2">
-              <RouterLink
-                v-if="h.start_ms != null"
-                :to="{ name: 'player', params: { slug: h.episode_slug }, query: jumpQuery(h) }"
-                class="font-mono text-xs text-accent no-underline"
-              >▶ {{ formatTime(h.start_ms / 1000) }}</RouterLink>
               <!-- The failed-load case is SAID, not implied by an absent control. Hiding the
                    select on error reads as "you have no collections", which is the exact reading
                    the ref was added to prevent — and then it was never rendered (review
@@ -635,6 +583,57 @@ onMounted(async () => {
                 data-testid="highlight-add-note"
                 @click="startAdd(h.id)"
               >+ {{ t('highlights.addNote') }}</button>
+              <div class="ms-auto flex shrink-0 items-center gap-1">
+                <!-- ORDER: colour first, share last (operator 2026-09-18). Colour is what
+                     this capture IS, so it leads; share sends it somewhere else, so it
+                     trails. The state and unsave controls sit between, bell before
+                     bookmark — the same order as the Revisit card. -->
+                <!-- Colour: the shared collapsed control (one current-colour dot that expands the
+                     palette on tap) — identical on every saved surface (#2042). -->
+                <SavedColorControl :color="h.color" @pick="capture.setColor(h.id, $event)" />
+                <!-- RETIRED: shown ONLY when it is (operator 2026-09-18) — "by default, things
+                     are not quiet", so a not-retired capture carries no badge and the row is
+                     unchanged for the overwhelming majority.
+                     This exists because retiring was otherwise a one-way door. Stopping a
+                     capture resurfacing removes it from Revisit, which makes Revisit the one
+                     place the undo CANNOT live; Saved is the only surface listing every capture,
+                     so it is where the state has to be visible and reversible. The icon is the
+                     same bell-with-slash pressed on the Revisit card — pressing it again undoes
+                     exactly what that press did. -->
+                <button
+                  v-if="h.retired"
+                  type="button"
+                  class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent text-accent transition hover:bg-accent/10"
+                  :aria-label="t('highlights.resumeResurfacing')"
+                  :title="t('highlights.resumeResurfacing')"
+                  data-testid="highlight-retired"
+                  @click="resume(h.id)"
+                ><BellOffIcon /></button>
+                <!-- The FILLED bookmark, not a ✕ (operator 2026-09-18) — the same control, and the
+                     same reasoning, as the Revisit card's third outcome. This action UNSAVES, so
+                     it shows the glyph that did the saving, filled: tapping it reads as undoing
+                     the save rather than as a generic destroy.
+                     Identical here and on Revisit deliberately. These are the two surfaces that
+                     list the same objects, so an unsave that looked like ✕ on one and a bookmark
+                     on the other would be two controls for one action. Accent at rest (the saved
+                     state it shows), danger on hover (what pressing it does), and still
+                     confirm-gated (#1594) — the capture and its notes do not come back. -->
+                <button
+                  type="button"
+                  class="lp-tap rounded-full p-1 text-accent transition hover:text-danger"
+                  :aria-label="t('highlights.unsave')"
+                  :title="t('highlights.unsave')"
+                  data-testid="highlight-delete"
+                  @click="pendingHighlight = h.id"
+                ><BookmarkIcon filled /></button>
+                <button
+                  type="button"
+                  class="rounded-full p-1 text-muted transition hover:text-accent"
+                  :aria-label="t('highlights.share')"
+                  :title="t('highlights.share')"
+                  @click="share(h)"
+                >↗</button>
+              </div>
             </div>
 
           <!-- Notes attached to this highlight -->

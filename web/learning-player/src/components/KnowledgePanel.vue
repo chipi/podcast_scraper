@@ -26,6 +26,7 @@ import { hitStartSeconds, insightStartSeconds } from "../player/insights"
 import { speakerLabel } from "../utils/format"
 import CardRail from "./CardRail.vue"
 import EpisodeTile from "./EpisodeTile.vue"
+import PlayFrom from "./PlayFrom.vue"
 import { useAuthStore } from "../stores/auth"
 import { sheetTeleportTarget } from "../composables/sheetStack"
 import { useSignInGate } from "../composables/useSignInGate"
@@ -862,14 +863,12 @@ watch(() => auth.isAuthenticated, loadCaptures)
               class="rounded-xl border border-border p-3"
             >
               <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
-              <button
+              <PlayFrom
                 v-if="hitStartSeconds(hit) != null"
-                type="button"
-                class="mt-1 font-mono text-xs text-accent"
+                class="mt-1 inline-block"
+                :seconds="hitStartSeconds(hit)"
                 @click="emit('seek', hitStartSeconds(hit) as number)"
-              >
-                ▶ {{ formatTime(hitStartSeconds(hit) as number) }}
-              </button>
+              />
             </li>
           </ul>
           <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">
@@ -1111,16 +1110,13 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 <span class="flex items-center gap-2">
                   <!-- The mm:ss is WHERE in the episode this insight was said — tapping jumps there.
                      Labelled so it isn't read as a bare, unexplained number (IN.4). -->
-                  <button
+                  <PlayFrom
                     v-if="insightStartSeconds(ins) != null"
-                    type="button"
-                    class="font-mono text-xs text-accent"
+                    :seconds="insightStartSeconds(ins)"
                     :aria-label="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
                     :title="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
                     @click="emit('seek', insightStartSeconds(ins) as number)"
-                  >
-                    ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
-                  </button>
+                  />
                   <!-- Save this insight — a BOOKMARK, like every other highlight (operator
                        2026-09-27).
 

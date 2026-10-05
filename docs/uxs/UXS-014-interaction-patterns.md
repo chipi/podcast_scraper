@@ -638,30 +638,33 @@ gives back ~70pt and puts the whole transport on screen. Desktop has the height 
   `SavedFilterBar` search input, reused on Following) filters every section by label; a non-empty
   query lifts every cap so a match is never hidden. Following reuses the same bar minus colour, with a
   **recent / A–Z** sort; each section heading carries its count.
-- **Grouping by episode: two weights, one idea (2026-09-17, revised 2026-09-18).** Where a surface
-  groups by **episode**, the group is headed by the real episode — never a bare line of text — and
-  its rows **collapse**, starting expanded, because folding is an affordance for a long page rather
-  than a default that hides what the reader came for. Collapse is `v-show`, so anything expanded
-  *inside* a group (Search's folded transcript clusters) survives a fold and re-open.
+- **Grouping by episode: one header (2026-09-17, revised 2026-09-18, unified 2026-10-05).** Where a
+  surface groups by **episode** — **Search**, **Library → Saved**, **Library → Revisit** — the group
+  is headed by **`EpisodeGroupCard`**, the same header on all three:
 
-  Which weight depends on what the group IS:
+  - **80px artwork** — the height of the text beside it, so neither column leaves a gap;
+  - the **show name above the title, one line**, and the **title at most three lines** (the cap every
+    rail uses);
+  - **one muted meta line** under it: date · N matches (Search), date · N items (Saved), Listened
+    {date} · N moments (Revisit — the listened part omitted, not guessed, with no playback history);
+  - **one ⋯** carrying the episode's actions, and the **fold as a chevron** in the header;
+  - **no frame** — a divider ends the header and the items follow.
 
-  - **Results** → **`EpisodeGroupCard`**: the full `EpisodeCard` as a bordered block, count under
-    the artwork (`#aside`), "Hide / Show {noun}" beneath. **Search** uses this — the episode is the
-    result, and something you act on.
-  - **Your own captures** → the flat idiom: **`EpisodeRow`** as the heading (40px artwork, title,
-    show name), the fold control in its `#trailing` slot, and the capture cards as a plain list.
-    **Library → Saved** and **Library → Revisit** use this.
+  Groups start **expanded**: folding is an affordance for a long page, not a default that hides what
+  the reader came for. Collapse is `v-show`, so anything expanded *inside* a group (Search's folded
+  transcript clusters) survives a fold and re-open.
 
-  Revisit moved from the first to the second on 2026-09-18 (operator): it is the **same captures as
-  Saved**, surfaced because they are due rather than because you went looking, so it reads the same
-  way and only the framing differs — a reflection prompt per card, "Mark reviewed" in place of the
-  edit controls. Its previous form nested a bordered container, a toggle row, and a bordered box per
-  moment: three frames to say "these four moments are from this episode", where a heading and a list
-  say it with one. Cards keep their **colour stripe** across both surfaces, so a moment filed under
-  amber is still amber when it comes back to you. Revisit's heading also carries **when the episode
-  was listened to** ("Listened {date}", from the listener's playback positions) and the due count —
-  one muted line under the row. The listened line is omitted, not guessed, with no playback history.
+  It replaced two weights that had drifted to opposite failures (operator 2026-10-05): Search used
+  the full `EpisodeCard` — 128px artwork with the date, count and three action circles stacked under
+  it, then a full-width "Hide matches" row, ~300px before the first match — while Saved and Revisit
+  used `EpisodeRow`, a 40px thumbnail beside a title that ran five lines. Capture cards keep their
+  **colour stripe** across Saved and Revisit, so a moment filed under amber is still amber when it
+  comes back to you.
+- **The items inside share one card shape (2026-10-05).** The **kind** on the left of the top line
+  and **`PlayFrom`** — "▶ Play from 1:05", the ONE jump-to-a-moment control — hard right; the content
+  under it; the bottom row carries the date or the editing controls on the left and the card's icon
+  actions on the right. `PlayFrom` is also the jump in the episode-notes panel and topic
+  perspectives: before it, Search said "Play from 0:20" and every other surface a bare "▶ 1:05".
 - **One kind-filter strip, everywhere (2026-09-17).** Filtering a list by the KIND of thing in it is
   one pattern, so it is one component: **`TypeFilterBar`** — a multi-select chip strip led by an
   explicit **All** chip (so clearing is one tap), where no selection means all, and a chip renders

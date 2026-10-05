@@ -9,10 +9,10 @@
 import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
-import { RouterLink } from "vue-router"
 
 import SectionStatus from "./SectionStatus.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
+import PlayFrom from "./PlayFrom.vue"
 import { useSectionState } from "../composables/useSectionState"
 import { useCappedSections } from "../composables/useCappedSections"
 import ShowAllToggle from "./ShowAllToggle.vue"
@@ -223,19 +223,18 @@ function toggle(personId: string): void {
                   <!-- #2032: topic → insight → episode-moment. Grounded insights carry their source
                        episode + the supporting quote's start, so the take jumps into the player AT
                        the moment. Ungrounded/quote-less insights render with no ▶ (stays honest). -->
-                  <RouterLink
+                  <PlayFrom
                     v-if="ins.episode_slug && ins.start_ms != null"
+                    :seconds="ins.start_ms / 1000"
                     :to="{
                       name: 'player',
                       params: { slug: ins.episode_slug },
                       query: { t: String(Math.floor(ins.start_ms / 1000)) },
                     }"
-                    class="shrink-0 font-mono text-xs font-bold text-accent no-underline"
                     data-testid="perspective-jump"
                     :aria-label="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
                     :title="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
-                    >▶ {{ formatTime(ins.start_ms / 1000) }}</RouterLink
-                  >
+                  />
                 </li>
               </ul>
               <button
