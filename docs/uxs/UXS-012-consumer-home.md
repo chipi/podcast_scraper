@@ -375,8 +375,9 @@ piece to its design home:
   Corpus⇄Mine scope (`home-trending-scope`) switches. The kind pills are `dense` so all four and
   both switches share one row down to a 375px phone, and Home and Discover render the section at
   the SAME inset and width — Discover's container no longer adds its own `px-4` on top of the app
-  shell's gutter (`page-gutters.spec.ts`). A theme row opens the theme sheet on Home and the theme
-  page on Discover, by the theme's own `tc:` id. Used by BOTH Home and Discover through `TrendsSection`
+  shell's gutter (`page-gutters.spec.ts`). A theme row shows how many topics the theme holds
+  ("(N)"), can be followed with the row's + (a `tc:` interest token), and opens the theme sheet on
+  Home and the theme page on Discover, by the theme's own `tc:` id. Used by BOTH Home and Discover through `TrendsSection`
   (3 rows on a phone, 5 on desktop, expanding in place via `discovery-see-all`); `/browse?trends={kind}`
   selects that kind in this same explorer and scrolls it into view. Extracted from
   HomeView so Home and Discover cannot drift (operator 2026-09-14, replaced the top-3

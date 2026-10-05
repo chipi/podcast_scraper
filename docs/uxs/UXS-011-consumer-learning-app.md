@@ -204,7 +204,9 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 > and PERSON pills — every pill carries its kind label, not just some. Under a heading that already
 > names the kind (Profile › Interests sections, Library › Following, a show's Topics / Key people)
 > pills carry none. The panel's topics in the dominant theme wear a ring in the theme colour; those
-> in the storyline wear the storyline tint, tying each to the pill that names it. See UXS-013 §Vocabulary;
+> in the storyline wear the storyline tint, tying each to the pill that names it. The THEME pill
+> opens that theme as a sheet on top of the panel, as the STORYLINE pill opens its storyline. The
+> person page's related topics are mixed the same way (see Entity pages). See UXS-013 §Vocabulary;
 > the backend still calls a storyline a "theme cluster" on the wire.
 
 ### Categorical tokens (Discover sparklines)
@@ -296,44 +298,79 @@ start. (A serif was tried and rejected during the earlier design phase.)
   adds a second gutter, so every page's content starts at the same left edge. Pages used to choose
   their own (768 centred, 672 centred, 672 left, 448 left, full), and no two lined up on desktop.
 - **Two exceptions, both centred at every width:** **sign-in / sign-up** is a focused 448px column
-  (`max-w-md mx-auto`), as on most sites — the Offline page uses the same column; and the **account pages** — everything behind the avatar:
-  Profile and its tabs, Settings, the About and legal pages, Delete account — are a 42rem column
-  (`.lp-focus`), because their label-and-switch rows lose their pairing across ~1100px. On a phone
-  both are wider than the screen, so they fill it like every page.
+  (`max-w-md mx-auto`), as on most sites, with its title, provider buttons, "New here?" line and
+  legal footer centred inside it; the **Offline** page ("On this device") uses the same column, its
+  title and messages centred, its downloads list left-aligned. The **account pages** — everything
+  behind the avatar: Profile and its tabs, Settings, the About and legal pages, Delete account — are
+  a centred 42rem column (`.lp-focus`), because their label-and-switch rows lose their pairing
+  across ~1100px. On a phone both columns are wider than the screen, so they fill it like every page.
 - **Long reading text** keeps a readable line length (~80 characters, 42rem): the legal pages get it
   from `.lp-focus`, and `.lp-prose` gives it to long text on a full-width page, starting at the
   page's left edge, never centred.
-- **Desktop entity pages pair sections**, half the width each, from `lg` (operator 2026-10-05).
-  Topic: "Discussed over time" beside "Conversation over time"; then similar topics, "Part of a
-  theme" and "Part of a storyline" stacked in the left column with Top voices alone on the right.
-  Theme and storyline: member topics beside Top voices, then what's said, then the episode list at
-  full width. Sheets, the Knowledge Panel and phones stay one column. Page labels are singular:
-  Topic, Person, Theme, Storyline.
-- **Person page order** (operator 2026-10-05): often appears with → related people → related topics
-  → where they agree → episodes → notes. Related topics is a MIXED group — the themes and
-  storylines those topics belong to (from the topics' own enrichment, each once), then the topics —
-  every pill in its kind's colour and naming its kind, as in the episode notes; a theme or storyline
-  opens on top as a sheet.
-- **Entity sheets** (topic, person, theme, storyline) are 512px (`max-w-lg`) below `lg` and 768px
-  (`lg:max-w-3xl`) on desktop, where the narrow sheet left most of the screen unused (operator
-  2026-10-05).
-- **Long lists page** (operator 2026-10-05), all on the app's one section cap —
-  `useCappedSections(cap, step)` + `ShowAllToggle` ("Show more (N hidden)" / "Show less"):
-  five at a time for perspectives, "Often appears with", "Who agrees with …", theme/storyline member
-  topics, notes (newest first, every notes box and a highlight's notes), Search's "Your notes",
-  and Library's saved topics / themes / storylines / people; ten at a time for followed interests
-  per kind and an open board's items. Entity episode lists page ten (`EntityEpisodeList`). All
-  episodes keeps "Load more" (20, or 10 in Discover) while a search, sort or filter is active.
-  Left unpaged on purpose: the queue (drag-reordered), notifications (newest 50; older ones need a
-  server change), the "add to board" pickers (menus), and the small fixed caps (related lists 12,
-  show signals 10, search 12, recently played 30).
 - **Search and filter rows** span the width of the list or results under them (`.lp-search`, no
-  cap): the row ends where its content ends.
+  cap): the row ends where its content ends — list filters, Search, the Home / Discover search, the
+  episode panel's search, Interests, Library's saved filter and the Boards filter.
+- **A header's "all ›" ends where its content ends.** Discover's Trending shows header is as wide
+  as its tiles (the tile formula times the shown count), so with fewer shows than a full row the
+  link sits at the last tile, not at the far edge of an empty half-row.
+
 - The Player two-column splits transcript (≈60%) + Knowledge rail (≈40%).
 - **Major regions (Player):** masthead → intelligence artwork zone → scrubber + controls → synced
   transcript list → knowledge dock. On `lg` the artwork zone + controls sit in the left rail head and
   the transcript scrolls beside the Knowledge Panel.
 - **Hairline rules** (`border`) separate regions instead of heavy cards — part of the editorial feel.
+
+### Entity pages (topic, person, theme, storyline) — operator 2026-10-05
+
+- **Desktop layout**, from `lg`, on the standalone page only (the topic and person cards render
+  `flush` there, starting at the page's left edge; sheets, the Knowledge Panel and phones stay one
+  column):
+  - **Topic:** a top row of two charts — "Discussed over time" beside "Conversation over time". The
+    activity chart mirrors the arc: the same title row (its momentum badge, when the topic is rising,
+    sits where the arc puts its insight count, at its natural width) and the same 64px chart
+    height, so both charts start on one line. Below it, two columns: on the left similar topics,
+    then the theme link, then the storyline link; on the right Top voices alone. On a phone or in a
+    sheet the badge sits above the chart and "Discussed over time" is its caption, and Top voices
+    follows the storyline link.
+  - **Theme and storyline:** member topics beside Top voices, then what's said, then "Discussed in
+    N episodes" at full width, then notes.
+- **Topic page sections:**
+  - **Similar topics** have no section heading: "N similar topics" is a small kicker label at the
+    start of the pill row (the label-then-pills style of the show page's topic groups).
+  - **Theme and storyline links** have no "Part of a theme / storyline" heading — the link card is
+    the section, and its caption names the kind ("THEME · 3 TOPICS", "STORYLINE · 4 TOPICS") so the
+    two are not told apart by colour alone. "Not part of a storyline yet" when there is none.
+  - **Perspectives** are titled "N perspectives on {topic}".
+- **Page labels are singular:** TOPIC, PERSON, THEME, STORYLINE.
+- **Person page order:** bio and hosted shows → often appears with → related people → related
+  topics → search transcripts → "Who agrees with {name}" → episodes → notes.
+  - **Hosted shows** read "Host of A, B and C".
+  - **Related topics** is a MIXED group: the themes and storylines those topics belong to (from
+    the topics' own enrichment, each once, themes first), then the topics — every pill in its
+    kind's colour and naming its kind ("THEME", "STORYLINE", "TOPIC"), as in the episode notes. A
+    theme or storyline opens on top as a sheet.
+  - **"Who agrees with {name}"** (it was "Where they agree", which never said who "they" were):
+    each row is the topic as a kicker, this person's claim as the quote, then "{Other} agrees: …" —
+    the other person named once.
+- **Entity sheets** (topic, person, theme, storyline) are 512px (`max-w-lg`) below `lg` and 768px
+  (`lg:max-w-3xl`) on desktop, where the narrow sheet left most of the screen unused.
+
+### Long lists page — operator 2026-10-05
+
+All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggle`, whose label is
+"Show more (N)" — N is how many are still hidden — then "Show less" once everything is out:
+
+- **Five at a time:** perspectives (topic, theme, storyline), "Often appears with", "Who agrees with
+  …", theme / storyline member topics, notes (newest first, in every notes box and under a
+  highlight), Search's "Your notes", and Library's saved topics / themes / storylines / people.
+- **Ten at a time:** followed interests per kind (the cap lifts while that kind's search is open),
+  an open board's items, and entity episode lists (`EntityEpisodeList`, "Show 10 more").
+- **All episodes** keeps "Load more" (20, or 10 in Discover) while a search, sort or filter is
+  active: every page is fetched — the filter needs the whole list — but the matches are revealed a
+  page at a time.
+- **Left unpaged on purpose:** the queue (drag-reordered), notifications (the newest 50; older ones
+  need a server change), the "add to board" pickers (menus), and the small fixed caps (related lists
+  12, show signals 10, search 12, recently played 30).
 
 ## Key states
 
@@ -1161,26 +1198,36 @@ most of what it listed.
   "Personalize your Home" card), but keeps a local selection and writes once on **Save**, because it
   is a funnel step and Cancel has to mean nothing changed. If the current interests cannot be read,
   Save is disabled: it replaces the whole set, so saving an unloaded selection would wipe it.
-- **Each kind keeps its Profile pill.** A storyline in the accent on an accent tint, a theme and a
-  person outlined in their own hue, a topic filled — the treatment the old Profile strip had, kept
-  on the operator's call. Followed, suggested and found items all wear their kind's pill, so the
-  colour teaches the kind; what differs between them is the mark — ×, + or ✓ — never the colour.
+- **Each kind wears its own colour** — topic violet, person orange, theme blue, storyline cyan (the
+  kind tokens, see Colour) — never the accent. Followed, suggested and found items all wear their
+  kind's pill, so the colour teaches the kind; what differs between them is the mark — ×, + or ✓.
+  (2026-10-04 kept the old Profile strip's storyline-in-the-accent; the kind tokens replaced it the
+  same week.)
+- **States.** + Add puts the cursor in its search box. While the followed set loads, the tab shows
+  a loading state rather than claiming nothing is followed; nothing followed reads "You're not
+  following any topics yet." (people: "anyone"); a search with no hits reads "Nothing matches
+  “{q}”."; a search that fails reads "Search isn't available right now." rather than showing no
+  results.
+- **Followed chips page ten at a time per kind** ("Show more (N)"), the cap lifting while that
+  kind's search is open so a match is never hidden.
 
 ### Foldable sections and the show activity chart (2026-10-04)
 
 - **Every section on an entity surface folds**, the way the episode Knowledge Panel's do: the show
   page's "What this show's about"; the person, topic and organisation cards' related people /
   topics / organisations, episodes, signals and perspectives; the theme and storyline pages' topics,
-  episodes and top voices. One component (`CollapsibleSection`): open by default, and the choice is
+  episodes and top voices. (Exceptions since 2026-10-05: the topic page's similar topics and its
+  theme / storyline links have no heading, so nothing to fold — see Entity pages.) One component (`CollapsibleSection`): open by default, and the choice is
   remembered per listener for that section everywhere it appears, because "I don't need this" is a
   preference about the page, not about one show or person.
 - **The show activity chart says what it shows.** "Episodes per month" beside the heading, the month
   under each bar (the year at the first bar and at each January; every third month past 12 bars),
   and the count above each bar. Its bars are neutral — data, not a kind, so neither the accent nor
-  the topic violet.
+  the topic violet. Each bar is named for a screen reader ("March 2026: 3 episodes").
 - **A bar is a way into the list.** A month with episodes is a button: it scrolls to that month's
   first episode below and flashes it. If "Hide played" is hiding every episode of that month, the
-  filter is lifted first, so the tap always lands. Empty months are not buttons.
+  filter is lifted first, so the tap always lands. Empty months are not buttons. The scroll is
+  instant, not smooth, when the listener has asked for reduced motion.
 - **Known limit:** the chart is built from the episodes loaded on the page (the first page of 20),
   so a long-running show's chart covers its recent months, not its whole history.
 
@@ -1261,7 +1308,7 @@ review or rebuild it.
 | `DeleteAccountView` | Delete account (#2273, App Store 5.1.1(v), Play data deletion): reached from Profile › Account, under Sign out; public at `/account/delete` | Says WHICH account goes — one address can hold separate Google, Apple and email accounts and only the signed-in one is deleted. States what is removed (everything that is theirs, immediately) and what is not (unlinkable usage statistics, the invite-list entry, other accounts). Never one tap: the button stays disabled until the person types `DELETE`. Afterwards the landing says the account was deleted. Signed out, the same page explains how — it is the link the Play listing points at |
 | `PrivacyPolicy` | The privacy policy (#2210), on the About › Privacy page; public, and `/privacy` redirects there | Written from what the app actually collects and must agree with the store declarations (Play Data safety): if the code starts collecting something new, this page changes in the same change. Anything not yet decided is shown in a visible draft notice, never left as silent placeholder text. English only: a legal text no one reviewed in a language is not a policy in that language |
 | `TermsOfUse` | The terms of use, first version (2026-10-05), on the About › Terms page; public, and `/terms` redirects there | Written from what the app actually does — beta, 16+, podcasts belong to their creators, automatically generated content can be wrong and is not professional advice, your notes stay yours, connected agents act on your behalf, fair use, deletion. Same visible draft notice as the privacy policy for what is not decided (the company, the governing law, legal review). English only, for the same reason |
-| `ThirdPartySoftware` | The third-party software list, on the About › Third-party page | NOT hand-written: `scripts/third-party.mjs` regenerates `public/third-party.json` from npm's production dependency tree (direct and transitive) on every `npm run build`, minus build-only tooling (`@capacitor/cli`, which never ships), plus the native iOS pods and Android release-classpath libraries from the committed snapshot `scripts/third-party-native.json` (regenerated on the Mac with `make third-party-native`; `src/__checks__/third-party-native.test.ts` fails when the native dependency files change without a regenerate), plus the self-hosted Google Sans font, so it cannot drift from what ships. Fetched when the page opens, not bundled. Grouped by name prefix (operator 2026-10-05): a scope or Maven-group row (`@vue`, `androidx.core` …) expands to its members, named without the prefix; an unscoped package is its own row; native rows carry an iOS / Android badge. Every row carries a ▸/▾ chevron and opens in place to the project link, a labelled "Licence text" box, and a "Notice" box when the library ships a NOTICE file (Apache-2.0) |
+| `ThirdPartySoftware` | The third-party software list, on the About › Third-party page | NOT hand-written: `scripts/third-party.mjs` regenerates `public/third-party.json` from npm's production dependency tree (direct and transitive) on every `npm run build`, minus build-only tooling (`@capacitor/cli`, which never ships), plus the native iOS pods and Android release-classpath libraries from the committed snapshot `scripts/third-party-native.json` (regenerated on the Mac with `make third-party-native`; `src/__checks__/third-party-native.test.ts` fails when the native dependency files change without a regenerate), plus the self-hosted Google Sans font, so it cannot drift from what ships. Fetched when the page opens, not bundled. Grouped by name prefix (operator 2026-10-05): a scope or Maven-group row (`@vue`, `androidx.core` …) expands to its members, named without the prefix; an unscoped package is its own row; native rows carry an iOS / Android badge. Every row carries a ▸/▾ chevron and opens in place to the project link, a labelled "Licence text" box, and a "Notice" box when the library ships a NOTICE file (Apache-2.0). The copy counts "libraries" (npm packages, pods and Maven artifacts alike). Android lists what the release APK links: Kotlin Multiplatform "umbrella" coordinates (a POM + a `.module` redirecting to the `-jvm` / `-android` build, which is listed) and BOMs ship no code, so they are not rows; every listed archive is searched for a LICENSE / NOTICE, and the generator names any whose archive is not in the Gradle cache. If the list cannot be fetched (offline) the page says so ("Couldn't load the list — it needs a connection.") |
 | `CollectionsView` | User-made collections of episodes | Per-item additive; a collection can never destroy the queue or another collection |
 | `HighlightsView` | Everything captured, with export | The listener's own words — export must be lossless and must never require a network round trip to read |
 
@@ -1363,9 +1410,10 @@ design home:
   agents to the corpus over MCP via a connector URL and personal-access tokens.
 - **`TierSwitch`** — the dev↔prod target pill, internal builds only (`tierSwitchEnabled()`), never
   rendered on the web PWA; repoints the API base and reloads.
-- **`AboutPageView`** — the placeholder About/legal pages (Third-party software, Privacy policy,
-  Terms of use) linked from Settings › About & legal; empty content for now, back-nav to Settings.
-  Support is a link (external), not one of these pages.
+- **`AboutPageView`** — the About/legal pages (Third-party software, Privacy policy, Terms of use),
+  linked from Settings › About & legal and from the sign-in footer; readable signed out. Its back
+  link returns to wherever the page was opened from (sign-in, Settings), falling back to Settings
+  when there is no history. Support is a link (external), not one of these pages.
 
 ## Revision history
 
