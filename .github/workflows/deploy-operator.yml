@@ -378,20 +378,11 @@ jobs:
       - run: npm ci
       - name: Install Playwright Chromium
         run: ./node_modules/.bin/playwright install --with-deps chromium
-      - name: Live smoke vs the deployed operator viewer
+      - name: Live smoke — the operator host is closed
         env:
+          # The operator surface is tailnet-only (2026-10-05): the smoke asserts every path answers
+          # coming-soon, with or without the old preview credentials. It needs no secrets.
           LIVE_BASE_URL: https://${{ vars.OPERATOR_DOMAIN || 'operator.closelistening.app' }}
-          OPERATOR_PREVIEW_USER: ${{ vars.OPERATOR_PREVIEW_USER || 'marko' }}
-          # The operator doorman reuses the player's basic-auth hashes (see playwright.live.config.ts).
-          # Without it the gated + authed specs skip; the public coming-soon assertion still runs.
-          OPERATOR_PREVIEW_PASS: ${{ secrets.PLAYER_PREVIEW_PASS }}
-          # Authed operator surface runs as a dedicated PROD TEST ACCOUNT (CREATOR only — we do not
-          # mint an admin session in CI): the smoke mints the app's own HMAC session token from the
-          # session secret + the seeded user's STORED id. Same session secret the backend verifies
-          # with (deploy sets APP_SESSION_SECRET from it). Absent → the authed block skips. See
-          # docs/guides/OPERATOR_SMOKE_TEST.md + the runbook for the one-time operator setup.
-          PLAYER_APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
-          OPERATOR_SMOKE_CREATOR_USER_ID: ${{ vars.OPERATOR_SMOKE_CREATOR_USER_ID }}
         run: npm run test:e2e:live
       - name: Alert GlitchTip on smoke failure
         if: failure()

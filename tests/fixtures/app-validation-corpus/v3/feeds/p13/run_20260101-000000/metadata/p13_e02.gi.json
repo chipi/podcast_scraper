@@ -1,0 +1,299 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "insight:ef8a4d033d12e2cc",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "insight:3ddbec3aa8112546",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "insight:d5f33f440d0d2837",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:fb649031f915940b",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ef8a4d033d12e2cc",
+      "to": "quote:fb649031f915940b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c588b90a0cf15ba2",
+      "to": "person:lena-hofmann",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3ddbec3aa8112546",
+      "to": "quote:c588b90a0cf15ba2",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:cd724144c5312be4",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d5f33f440d0d2837",
+      "to": "quote:cd724144c5312be4",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9118e4bf926afe79",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ef8a4d033d12e2cc",
+      "to": "quote:9118e4bf926afe79",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:135c32d89f353e17",
+      "to": "person:lena-hofmann",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3ddbec3aa8112546",
+      "to": "quote:135c32d89f353e17",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:af7b45d31947527a",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d5f33f440d0d2837",
+      "to": "quote:af7b45d31947527a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:ef8a4d033d12e2cc",
+      "to": "person:katrin-vogel",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3ddbec3aa8112546",
+      "to": "person:lena-hofmann",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:d5f33f440d0d2837",
+      "to": "person:katrin-vogel",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-ca65ab78f4c50f2a",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-ca65ab78f4c50f2a",
+      "properties": {
+        "duration_ms": 408000,
+        "feed_id": "p13",
+        "podcast_id": "p13",
+        "publish_date": "2025-12-22T00:00:00",
+        "title": "Enduro-Technik Ohne Hype"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:ef8a4d033d12e2cc",
+      "properties": {
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Willkommen zur\u00fcck bei Pfadgespr\u00e4chen. Heute sprechen wir \u00fcber Enduro-Rennen, und bei mir ist Lena Hofmann, Enduro-Fahrerin und Trainerin. Lena Hofmann, danke, dass du hier bist.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3ddbec3aa8112546",
+      "properties": {
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Danke, Katrin. Sch\u00f6n, wieder hier zu sein.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:d5f33f440d0d2837",
+      "properties": {
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Diese Folge wird von Linear gesponsert. Linear ist der Issue-Tracker, der auf Geschwindigkeit gebaut ist \u2014 gedacht f\u00fcr die Tastatur. Probiere linear.com heute aus.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:katrin-vogel",
+      "properties": {
+        "name": "Katrin Vogel"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:fb649031f915940b",
+      "properties": {
+        "char_end": 191,
+        "char_start": 14,
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "speaker_id": "person:speaker-01",
+        "text": "Willkommen zur\u00fcck bei Pfadgespr\u00e4chen. Heute sprechen wir \u00fcber Enduro-Rennen, und bei mir ist Lena Hofmann, Enduro-Fahrerin und Trainerin. Lena Hofmann, danke, dass du hier bist.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p13_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:lena-hofmann",
+      "properties": {
+        "name": "Lena Hofmann"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c588b90a0cf15ba2",
+      "properties": {
+        "char_end": 248,
+        "char_start": 206,
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "speaker_id": "person:speaker-02",
+        "text": "Danke, Katrin. Sch\u00f6n, wieder hier zu sein.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p13_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:cd724144c5312be4",
+      "properties": {
+        "char_end": 426,
+        "char_start": 263,
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "speaker_id": "person:speaker-01",
+        "text": "Diese Folge wird von Linear gesponsert. Linear ist der Issue-Tracker, der auf Geschwindigkeit gebaut ist \u2014 gedacht f\u00fcr die Tastatur. Probiere linear.com heute aus.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p13_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9118e4bf926afe79",
+      "properties": {
+        "char_end": 568,
+        "char_start": 426,
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "speaker_id": "person:speaker-01",
+        "text": "Bevor wir einsteigen \u2014 Stefan Brandt war in der Sendung und hat erz\u00e4hlt, dass Entw\u00e4sserung die Designentscheidung mit der gr\u00f6\u00dften Wirkung ist.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p13_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:135c32d89f353e17",
+      "properties": {
+        "char_end": 644,
+        "char_start": 583,
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "speaker_id": "person:speaker-02",
+        "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p13_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:af7b45d31947527a",
+      "properties": {
+        "char_end": 750,
+        "char_start": 659,
+        "episode_id": "ep-ca65ab78f4c50f2a",
+        "speaker_id": "person:speaker-01",
+        "text": "Ich m\u00f6chte etwas anmerken \u2014 Stefan Brandt hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p13_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

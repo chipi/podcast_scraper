@@ -1,0 +1,1162 @@
+{
+ "captured_from": "712ff7ebb",
+ "modules": {
+  "podcast_scraper.gi.speakers": {
+   "_NAMED_TURN_RE": {
+    "flags": 40,
+    "re": "(?m)^[ \\t]*([^\\n:]{1,60}?)[ \\t]*:[ \\t]"
+   },
+   "_NON_PERSON_TOKENS": {
+    "set": [
+     "bloomberg",
+     "inc",
+     "industries",
+     "llc",
+     "media",
+     "network",
+     "news",
+     "podcast",
+     "podcasts",
+     "studios"
+    ]
+   }
+  },
+  "podcast_scraper.providers.ml.diarization.roster": {
+   "CUE_FIRST_BODY": {
+    "str": "(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are)"
+   },
+   "CUE_FIRST_PAST_BODY": {
+    "str": "(?:i|we)\\s+(?:spoke|talked|sat\\s+down)\\s+with"
+   },
+   "GREETED_TAIL": {
+    "str": "welcome\\b|thanks?(?:\\s+so\\s+much)?\\s+for\\s+(?:coming|joining|being)|thank\\s+you(?:\\s+so\\s+much)?\\s+for\\s+(?:coming|joining|being)"
+   },
+   "HONORIFIC_TITLES": {
+    "set": [
+     "capt",
+     "captain",
+     "col",
+     "dame",
+     "doctor",
+     "dr",
+     "father",
+     "fr",
+     "gen",
+     "gov",
+     "governor",
+     "judge",
+     "justice",
+     "lady",
+     "lord",
+     "miss",
+     "mr",
+     "mrs",
+     "ms",
+     "pres",
+     "president",
+     "prof",
+     "professor",
+     "rep",
+     "rev",
+     "reverend",
+     "sen",
+     "senator",
+     "sgt",
+     "sir"
+    ]
+   },
+   "NAME_FIRST_REPORT_TAIL": {
+    "str": "explains?|reports?|tells\\s+us|walks\\s+us\\s+through|talks\\s+us\\s+through|takes\\s+us\\s+(?:through|inside)|breaks\\s+(?:it\\s+|this\\s+)?down"
+   },
+   "NAME_FIRST_TAIL": {
+    "str": "(?:is|are)\\s+(?:here\\s+)?with\\s+(?:me|us)|(?:is|are)\\s+(?:my|our)\\s+guests?|(?:is|are)\\s+joining\\s+(?:me|us)|joins?\\s+(?:me|us)|(?:is|are)\\s+here\\s+to\\b"
+   },
+   "NON_PERSON_VOICE_LABELS": {
+    "set": [
+     "ad",
+     "ads",
+     "advert",
+     "advertisement",
+     "advertiser",
+     "announcer",
+     "commercial",
+     "music",
+     "narrator",
+     "promo",
+     "sfx",
+     "sponsor",
+     "sponsored",
+     "voiceover"
+    ]
+   },
+   "UNNAMED_HOST_LABEL": {
+    "str": "Host"
+   },
+   "VOICE_CAMEO": {
+    "str": "cameo"
+   },
+   "VOICE_COMMERCIAL": {
+    "str": "commercial"
+   },
+   "VOICE_PERSON": {
+    "str": "person"
+   },
+   "VOICE_UNIDENTIFIED": {
+    "str": "unidentified"
+   },
+   "VOICE_UNKNOWN": {
+    "str": "unknown"
+   },
+   "_ABSENT_CUE": {
+    "str": "\\b{first}(?:'s| is| has)?\\b[^.?!]{{0,40}}?\\b(?:busy|away|off (?:this week|today)|not (?:here|with us)|another project|on holiday|on vacation|couldn'?t (?:join|make it)|can'?t (?:join|make it))\\b"
+   },
+   "_COHOST_PRESENT": {
+    "str": "\\b(?:joined\\b(?:[^.?!]|(?<=\\bMr)\\.|(?<=\\bMrs)\\.|(?<=\\bMs)\\.|(?<=\\bDr)\\.){{0,80}}?\\bby|joining (?:me|us)\\b(?:[^.?!]|(?<=\\bMr)\\.|(?<=\\bMrs)\\.|(?<=\\bMs)\\.|(?<=\\bDr)\\.){{0,40}}?\\bis|with me|alongside|my co-?host|our co-?host|co-?hosts|and (?:him|her))\\b(?:[^.?!]|(?<=\\bMr)\\.|(?<=\\bMrs)\\.|(?<=\\bMs)\\.|(?<=\\bDr)\\.){{0,70}}?\\b{first}\\b"
+   },
+   "_COHOST_SELF_INTRO": {
+    "str": "\\b(?:(?<!\\byou )and|with) me,?\\s+{first}\\b"
+   },
+   "_CREDENTIAL_SUFFIXES": {
+    "set": [
+     "ba",
+     "bsc",
+     "cfa",
+     "cpa",
+     "dds",
+     "do",
+     "dphil",
+     "dvm",
+     "edd",
+     "esq",
+     "jd",
+     "llm",
+     "ma",
+     "mba",
+     "md",
+     "msc",
+     "pe",
+     "pharmd",
+     "phd",
+     "psyd",
+     "rn"
+    ]
+   },
+   "_CUE_FIRST_MATCHFORM": {
+    "flags": 32,
+    "re": "\\b(?:(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are))\\s+(?:the\\s+|our\\s+)?([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})"
+   },
+   "_CUE_FIRST_PAST_MATCHFORM": {
+    "flags": 32,
+    "re": "\\b(?:(?:i|we)\\s+(?:spoke|talked|sat\\s+down)\\s+with)\\s+(?:the\\s+|our\\s+)?([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})"
+   },
+   "_GAP": {
+    "str": "(?:[^.?!]|(?<=\\bMr)\\.|(?<=\\bMrs)\\.|(?<=\\bMs)\\.|(?<=\\bDr)\\.)"
+   },
+   "_GENERATIONAL_SUFFIXES": {
+    "set": [
+     "ii",
+     "iii",
+     "iv",
+     "jnr",
+     "jr",
+     "junior",
+     "senior",
+     "snr",
+     "sr"
+    ]
+   },
+   "_GREETED_MATCHFORM": {
+    "flags": 32,
+    "re": "([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})\\s*,\\s*(?:welcome\\b|thanks?(?:\\s+so\\s+much)?\\s+for\\s+(?:coming|joining|being)|thank\\s+you(?:\\s+so\\s+much)?\\s+for\\s+(?:coming|joining|being))"
+   },
+   "_GUEST_GREETED_RE": {
+    "flags": 34,
+    "re": "(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})\\s*,\\s*(?:welcome\\b|thanks?(?:\\s+so\\s+much)?\\s+for\\s+(?:coming|joining|being)|thank\\s+you(?:\\s+so\\s+much)?\\s+for\\s+(?:coming|joining|being))"
+   },
+   "_GUEST_HOST_EPISODE": {
+    "flags": 34,
+    "re": "\\bguest[- ]host(?:ed|ing|s)?\\b|\\bsitting\\s+in\\b|\\bin\\s+for\\s+[A-Z]"
+   },
+   "_GUEST_HOST_NAMED": {
+    "flags": 32,
+    "re": "\\bguest[- ]host(?:ed\\s+by|s|ing)?,?\\s+(?P<name>[A-Z][\\w'\\u2019\\-]+(?:\\s+[A-Z][\\w'\\u2019\\-]+){1,2})|(?P<name2>[A-Z][\\w'\\u2019\\-]+(?:\\s+[A-Z][\\w'\\u2019\\-]+){1,2})\\s+(?:is\\s+|as\\s+)?(?:guest[- ]host(?:s|ing)?|sitting\\s+in|sits\\s+in|fill(?:s|ing)?\\s+in)\\b"
+   },
+   "_GUEST_INTRODUCED_BY_HOST_RE": {
+    "flags": 34,
+    "re": "\\b(?:(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are))\\s+(?:the\\s+|our\\s+)?(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})"
+   },
+   "_GUEST_INTRODUCED_NAME_FIRST_RE": {
+    "flags": 34,
+    "re": "(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})\\s*,?\\s+(?:(?:is|are)\\s+(?:here\\s+)?with\\s+(?:me|us)|(?:is|are)\\s+(?:my|our)\\s+guests?|(?:is|are)\\s+joining\\s+(?:me|us)|joins?\\s+(?:me|us)|(?:is|are)\\s+here\\s+to\\b|explains?|reports?|tells\\s+us|walks\\s+us\\s+through|talks\\s+us\\s+through|takes\\s+us\\s+(?:through|inside)|breaks\\s+(?:it\\s+|this\\s+)?down)"
+   },
+   "_GUEST_REPLY_WIDE": {
+    "patterns": [
+     {
+      "flags": 34,
+      "re": "\\b(?:thanks?|thank you)(?:\\s+(?:so|very)\\s+much)?\\s+for having me\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\b(?:glad|happy|great|good|nice|excited|pleased?|honou?red)\\s+to be (?:here|on|back)\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\bit'?s (?:a )?(?:pleasure|honou?r) to be (?:here|on)\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\bthanks? for (?:the invite|inviting me)\\b"
+     }
+    ]
+   },
+   "_GUEST_SPEECH_ACTS": {
+    "patterns": [
+     {
+      "flags": 34,
+      "re": "\\b(?:thanks?|thank you)(?:\\s+(?:so|very)\\s+much)? for having me\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\b(?:glad|happy|great|good) to be (?:here|on|back)\\b"
+     }
+    ]
+   },
+   "_HOST_EVIDENCE_SOURCES": {
+    "set": [
+     "llm_resolution",
+     "publisher_transcript",
+     "self_intro"
+    ]
+   },
+   "_HOST_INTRODUCES_BEFORE": {
+    "flags": 34,
+    "re": "(?:with\\s+me(?:\\s+today)?(?:\\s+is)?|joined\\s+by|joining\\s+(?:me|us)(?:\\s+today)?(?:\\s+is)?|welcome|my\\s+guest(?:\\s+today)?(?:\\s+is)?|today'?s\\s+guest\\s+is|(?:talking|chatting|speaking|sitting(?:\\s+here)?)\\s+(?:with|to)|i'?m\\s+back\\s+with|here\\s+with|(?:delighted|thrilled|happy|privileged|pleased|excited)\\s+(?:today\\s+)?to\\s+(?:have|welcome)|i'?ve\\s+got\\s+with\\s+me|have\\s+with\\s+me)\\W+(?:[\\w'’.,-]+\\W+){0,12}?$"
+   },
+   "_HOST_SPEECH_ACTS": {
+    "patterns": [
+     {
+      "flags": 34,
+      "re": "\\bwelcome (?:back )?to (?:the |my |our )?\\w+"
+     },
+     {
+      "flags": 34,
+      "re": "\\bi'?m your host\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\b(?:my|our) guests? (?:today )?(?:is|are)\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\b(?:joining|with) (?:me|us) (?:today|now|this week)\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\bthanks? (?:so much )?for (?:coming on|joining me|joining us|being here)\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\bthanks?(?: you)? (?:both|all)(?: (?:so|very) much)? for (?:coming(?: on)?|joining (?:me|us)|being here)\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\bthis week on (?:the )?\\w+"
+     }
+    ]
+   },
+   "_INTRODUCTION_CUE": {
+    "flags": 34,
+    "re": "\\b(?:joined\\b[^.?!]{0,80}?\\bby\\b|(?<!\\bfor )joining (?:me|us)\\b|(?:my|our) guests? (?:today )?(?:is|are)\\b|here with (?:me|us) (?:is|are)\\b|(?:i'?m|i am|we'?re|we are) (?:here )?(?:joined|sitting down|talking|speaking|chatting) (?:with|by|to)\\b(?!\\s+(?:you|me|us|him|her|them)\\b)|(?:i'?m|we'?re|i am|we are) here with\\b(?!\\s+(?:you|me|us|him|her|them)\\b)|welcome(?: back)? to the (?:show|podcast|pod),|(?:my|our) colleagues?\\b|\\b(?!(?:you|me|him|her|them|us|it|that|this|there|so|well|then|now|here|what|who|and|or|but)\\b)[A-Za-z]{3,} and i (?:are|were|will|have|discuss|talk|sit|look|go|get)\\b)"
+   },
+   "_INTRO_AFFILIATION_TOKENS": {
+    "set": [
+     "a",
+     "an",
+     "and",
+     "as",
+     "at",
+     "by",
+     "do",
+     "for",
+     "from",
+     "go",
+     "he",
+     "here",
+     "if",
+     "in",
+     "is",
+     "it",
+     "me",
+     "my",
+     "no",
+     "of",
+     "on",
+     "or",
+     "our",
+     "so",
+     "the",
+     "to",
+     "up",
+     "us",
+     "we",
+     "with"
+    ]
+   },
+   "_INTRO_NAME_RE": {
+    "flags": 32,
+    "re": "(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})"
+   },
+   "_NAME_FIRST_MATCHFORM": {
+    "flags": 32,
+    "re": "([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})\\s*,?\\s+(?:(?:is|are)\\s+(?:here\\s+)?with\\s+(?:me|us)|(?:is|are)\\s+(?:my|our)\\s+guests?|(?:is|are)\\s+joining\\s+(?:me|us)|joins?\\s+(?:me|us)|(?:is|are)\\s+here\\s+to\\b)"
+   },
+   "_NAME_FIRST_REPORT_MATCHFORM": {
+    "flags": 32,
+    "re": "([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})\\s*,?\\s+(?:explains?|reports?|tells\\s+us|walks\\s+us\\s+through|talks\\s+us\\s+through|takes\\s+us\\s+(?:through|inside)|breaks\\s+(?:it\\s+|this\\s+)?down)"
+   },
+   "_NAME_SUFFIXES": {
+    "set": [
+     "ii",
+     "iii",
+     "iv",
+     "jr",
+     "sr",
+     "v"
+    ]
+   },
+   "_NAME_WINDOW_MF": {
+    "str": "([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})"
+   },
+   "_NOISE_VOICE_TYPES": {
+    "set": [
+     "cameo",
+     "commercial"
+    ]
+   },
+   "_NOT_A_CLIPPED_NAME": {
+    "set": [
+     "add",
+     "all",
+     "america",
+     "and",
+     "any",
+     "are",
+     "art",
+     "bar",
+     "big",
+     "brand",
+     "but",
+     "call",
+     "came",
+     "can",
+     "car",
+     "case",
+     "conversation",
+     "day",
+     "did",
+     "far",
+     "for",
+     "get",
+     "got",
+     "had",
+     "has",
+     "heat",
+     "her",
+     "his",
+     "how",
+     "its",
+     "just",
+     "let",
+     "man",
+     "mar",
+     "math",
+     "may",
+     "men",
+     "most",
+     "must",
+     "new",
+     "nor",
+     "not",
+     "now",
+     "off",
+     "old",
+     "our",
+     "out",
+     "own",
+     "pet",
+     "pro",
+     "run",
+     "say",
+     "see",
+     "set",
+     "step",
+     "the",
+     "ton",
+     "too",
+     "turk",
+     "was",
+     "way",
+     "who",
+     "why",
+     "win",
+     "yes",
+     "yet",
+     "you"
+    ]
+   },
+   "_PRESENTER_INTRO_AFTER": {
+    "str": "(?:is|are) (?:back )?on the (?:show|podcast|pod)|(?:is|are) (?:here )?with (?:me|us)|(?:is|are) (?:my|our) guests?|(?:is|are) joining (?:me|us)|joins? (?:me|us)|(?:is|are) here to\\b|thanks?(?: so much)? for (?:coming|joining|being)|thank you(?: so much)? for (?:coming|joining|being)|welcome(?: back)?\\b"
+   },
+   "_PRESENTER_INTRO_BEFORE": {
+    "str": "(?:my|our) guests? (?:today |this week )?(?:is|are)|joining (?:me|us)(?: today| now| this week)? (?:is|are)|(?:please )?welcome(?: back)?(?: to the (?:show|podcast|pod))?,?|here with (?:me|us) (?:today )?(?:is|are)"
+   },
+   "_RECAP_MARKER_RE": {
+    "flags": 32,
+    "re": "last\\s+(?:week|month|year|night|time)|earlier|previously|recently|yesterday|back\\s+then|a\\s+while\\s+ago|the\\s+other\\s+(?:day|week)"
+   },
+   "_SELF_INTRO_MATCHFORM": {
+    "flags": 32,
+    "re": "\\b(?:i'm|i am|my name is)\\s+([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})"
+   },
+   "_SENTENCE_END": {
+    "flags": 32,
+    "re": "(?<!\\bDr)(?<!\\bProf)(?<!\\bMr)(?<!\\bMs)(?<!\\bMrs)[.!?]\\s+"
+   },
+   "_SIGN_OFF": {
+    "flags": 34,
+    "re": "I['’]?m\\s+((?-i:[A-Z][\\w'’\\-]+)(?:\\s+(?-i:[A-Z][\\w'’\\-]+)){1,3})\\s*[.,!]\\s*(?=(?:And\\s+)?(?:you\\s+can\\s+follow|follow\\s+(?:me|us)|see\\s+you|talk\\s+(?:to\\s+you\\s+)?soon|thanks?\\s+(?:you\\s+)?for\\s+listening|until\\s+next))"
+   },
+   "_SOLO_EPISODE": {
+    "flags": 34,
+    "re": "\\bsolo\\s+(?:episode|show)\\b|\\bflying\\s+solo\\b"
+   },
+   "_THIRD_PERSON_VERBS": {
+    "str": "(?:was|is|has|had|said|says|thinks|thought|mentioned|described|describing|talked|talking|just|always|would|will|did|does|knows|wrote|told|asked|made|makes|pointed)"
+   },
+   "_THIS_IS_INTRO": {
+    "flags": 32,
+    "re": "\\b[Tt]his is\\s+([A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){0,3})"
+   },
+   "_THIS_IS_THIRD_PERSON": {
+    "flags": 32,
+    "re": "\\s*[.,;]\\s+(?:And\\s+)?(?:He|She|They|His|Her|Their)\\b"
+   }
+  },
+  "podcast_scraper.speaker_detectors.hosts": {
+   "CUE_FIRST_BODY": {
+    "str": "(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are)"
+   },
+   "CUE_FIRST_PAST_BODY": {
+    "str": "(?:i|we)\\s+(?:spoke|talked|sat\\s+down)\\s+with"
+   },
+   "GREETED_TAIL": {
+    "str": "welcome\\b|thanks?(?:\\s+so\\s+much)?\\s+for\\s+(?:coming|joining|being)|thank\\s+you(?:\\s+so\\s+much)?\\s+for\\s+(?:coming|joining|being)"
+   },
+   "HONORIFIC_TITLES": {
+    "set": [
+     "capt",
+     "captain",
+     "col",
+     "dame",
+     "doctor",
+     "dr",
+     "father",
+     "fr",
+     "gen",
+     "gov",
+     "governor",
+     "judge",
+     "justice",
+     "lady",
+     "lord",
+     "miss",
+     "mr",
+     "mrs",
+     "ms",
+     "pres",
+     "president",
+     "prof",
+     "professor",
+     "rep",
+     "rev",
+     "reverend",
+     "sen",
+     "senator",
+     "sgt",
+     "sir"
+    ]
+   },
+   "KNOWN_NETWORKS": {
+    "set": [
+     "a16z",
+     "acast",
+     "andreessen horowitz",
+     "associated press",
+     "audible",
+     "barstool",
+     "bloomberg",
+     "cadence13",
+     "crooked media",
+     "earwolf",
+     "financial times",
+     "gimlet",
+     "headgum",
+     "iheart",
+     "iheartradio",
+     "kaleidoscope",
+     "maximum fun",
+     "maximumfun",
+     "megaphone",
+     "new york times",
+     "npr",
+     "patreon",
+     "pushkin",
+     "pushkin industries",
+     "radiotopia",
+     "reuters",
+     "ringer",
+     "spotify",
+     "stitcher",
+     "substack",
+     "the atlantic",
+     "the economist",
+     "the guardian",
+     "the new york times",
+     "the ringer",
+     "the wall street journal",
+     "the washington post",
+     "vox",
+     "washington post",
+     "wondery"
+    ]
+   },
+   "NAME_FIRST_REPORT_TAIL": {
+    "str": "explains?|reports?|tells\\s+us|walks\\s+us\\s+through|talks\\s+us\\s+through|takes\\s+us\\s+(?:through|inside)|breaks\\s+(?:it\\s+|this\\s+)?down"
+   },
+   "NAME_FIRST_TAIL": {
+    "str": "(?:is|are)\\s+(?:here\\s+)?with\\s+(?:me|us)|(?:is|are)\\s+(?:my|our)\\s+guests?|(?:is|are)\\s+joining\\s+(?:me|us)|joins?\\s+(?:me|us)|(?:is|are)\\s+here\\s+to\\b"
+   },
+   "_ARTICLE_BEFORE": {
+    "flags": 34,
+    "re": "\\b(?:the|of)\\s+$"
+   },
+   "_AUTHOR_SEPARATORS": {
+    "flags": 34,
+    "re": "\\s*(?:,|;|&|\\band\\b)\\s*"
+   },
+   "_BRAND_MONONYMS": {
+    "set": [
+     "alexa",
+     "amazon",
+     "apple",
+     "chatgpt",
+     "claude",
+     "copilot",
+     "gemini",
+     "google",
+     "meta",
+     "microsoft",
+     "nvidia",
+     "openai",
+     "siri"
+    ]
+   },
+   "_DESCRIPTOR_SUFFIX": {
+    "flags": 34,
+    "re": "\\w-(?:winning|nominated|based|born|selling|renowned|acclaimed)\\b"
+   },
+   "_EPISODE_HOST_CUE": {
+    "flags": 32,
+    "re": "\\b([A-Z][a-z'\\u2019\\-]{2,}\\s+[A-Z][a-z'\\u2019.\\-]{1,})(?:\\s+and\\s+([A-Z][a-z'\\u2019\\-]{2,}\\s+[A-Z][a-z'\\u2019.\\-]{1,}))?\\s+(?:(?:is|are)\\s+joined\\s+by|speaks?\\s+with|sits?\\s+down\\s+with)\\b"
+   },
+   "_FIRST_NAME_PRESENTERS": {
+    "flags": 34,
+    "re": "(?P<names>(?-i:[A-Z][a-z]+(?:\\s*(?:,\\s*and|,|and|&)\\s*[A-Z][a-z]+){1,3}))[\\w\\s,'’\\-]{0,40}?\\s+(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover|tackle)s?\\b"
+   },
+   "_FIRST_NAME_RE": {
+    "flags": 32,
+    "re": "(?-i:[A-Z][a-z]+)"
+   },
+   "_GUEST_GREETED": {
+    "flags": 34,
+    "re": "(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})\\s*,\\s*(?:welcome\\b|thanks?(?:\\s+so\\s+much)?\\s+for\\s+(?:coming|joining|being)|thank\\s+you(?:\\s+so\\s+much)?\\s+for\\s+(?:coming|joining|being))"
+   },
+   "_GUEST_INTRODUCED_BY_HOST": {
+    "flags": 34,
+    "re": "\\b(?:(?:my|our)\\s+guests?\\s+(?:today\\s+)?(?:is|are)|joined\\s+(?:today\\s+)?by|joining\\s+(?:me|us)(?:\\s+(?:today|now|this\\s+week))?\\s+(?:is|are)|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:joined\\s+)?with|(?:please\\s+)?welcome\\s+(?:back\\s+)?|here\\s+with\\s+me\\s+(?:is|are)|(?:my|our)\\s+colleague|(?:i'?m|we'?re)\\s+(?:here\\s+)?(?:chatting|talking|speaking|sitting\\s+down)\\s+(?:with|to)|with\\s+us\\s+(?:today\\s+)?(?:is|are))\\s+(?:the\\s+|our\\s+)?(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})"
+   },
+   "_GUEST_INTRODUCED_NAME_FIRST": {
+    "flags": 34,
+    "re": "(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})\\s*,?\\s+(?:(?:is|are)\\s+(?:here\\s+)?with\\s+(?:me|us)|(?:is|are)\\s+(?:my|our)\\s+guests?|(?:is|are)\\s+joining\\s+(?:me|us)|joins?\\s+(?:me|us)|(?:is|are)\\s+here\\s+to\\b|explains?|reports?|tells\\s+us|walks\\s+us\\s+through|talks\\s+us\\s+through|takes\\s+us\\s+(?:through|inside)|breaks\\s+(?:it\\s+|this\\s+)?down)"
+   },
+   "_GUEST_SPEECH_ACTS": {
+    "patterns": [
+     {
+      "flags": 34,
+      "re": "\\b(?:thanks?|thank you)(?:\\s+(?:so|very)\\s+much)? for having me\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\b(?:glad|happy|great|good) to be (?:here|on|back)\\b"
+     }
+    ]
+   },
+   "_HOST_BRANDED_INTRO": {
+    "flags": 32,
+    "re": "\\b[Ii]t'?s\\s+([A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,2})\\s+(?:with|from|for)\\s+([A-Z][\\w'’\\-]*(?:\\s+[A-Z][\\w'’\\-]*){0,3})"
+   },
+   "_HOST_PHRASES": {
+    "patterns": [
+     {
+      "flags": 34,
+      "re": "\\bhosted\\s+by\\s+(?:[\\w\\-]+\\s+){0,6}?(?P<names>(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)(?:\\s*(?:,\\s*and|,|and|&)\\s*(?-i:(?:[a-z][\\w\\-]*\\s+){0,3}?)(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)){0,9})"
+     },
+     {
+      "flags": 34,
+      "re": "\\b(?:run|presented)\\s+by\\s+(?P<names>(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)(?:\\s*(?:,\\s*and|,|and|&)\\s*(?-i:(?:[a-z][\\w\\-]*\\s+){0,3}?)(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)){0,9})"
+     },
+     {
+      "flags": 34,
+      "re": "\\b(?:co-?)?hosts?\\s+(?P<names>(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)(?:\\s*(?:,\\s*and|,|and|&)\\s*(?-i:(?:[a-z][\\w\\-]*\\s+){0,3}?)(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)){0,9})"
+     },
+     {
+      "flags": 34,
+      "re": "\\bjoin\\s+(?:[\\w\\-]+\\s+){0,6}?(?P<names>(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)(?:\\s*(?:,\\s*and|,|and|&)\\s*(?-i:(?:[a-z][\\w\\-]*\\s+){0,3}?)(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)){0,9})"
+     },
+     {
+      "flags": 34,
+      "re": "\\bjournalists?\\s+(?P<names>(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)(?:\\s*(?:,\\s*and|,|and|&)\\s*(?-i:(?:[a-z][\\w\\-]*\\s+){0,3}?)(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)){0,9})"
+     },
+     {
+      "flags": 34,
+      "re": "\\bwith\\s+(?P<names>(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)(?:\\s*(?:,\\s*and|,|and|&)\\s*(?-i:(?:[a-z][\\w\\-]*\\s+){0,3}?)(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)){0,9})(?:,\\s*(?:PhD|Ph\\.D\\.?|MD|M\\.D\\.?))?(?:\\s*\\([^)]*\\))?\\s*$"
+     }
+    ]
+   },
+   "_HOST_PHRASES_DESCRIPTION_ONLY": {
+    "patterns": [
+     {
+      "flags": 34,
+      "re": "(?P<names>(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)(?:\\s*(?:,\\s*and|,|and|&)\\s*(?-i:(?:[a-z][\\w\\-]*\\s+){0,3}?)(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)){0,9})[\\w\\s,'’\\-]{0,60}?\\s+(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover|tackle)s?\\b"
+     }
+    ]
+   },
+   "_HOST_ROLE_BEFORE_NAME": {
+    "flags": 34,
+    "re": "\\b(?:(?:co-?|guest )?hosts?|presenters?)\\s*,?\\s*$"
+   },
+   "_HOST_SELF_INTRO": {
+    "flags": 32,
+    "re": "\\b(?:I'?m|I am|[Mm]y name is|[Mm]y name['’]s)\\s+(?:(?:your|the)\\s+(?:co-?)?host(?:\\s+(?:for\\s+)?today)?,?\\s+)?([A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){0,3})"
+   },
+   "_HOST_SPEECH_ACTS": {
+    "patterns": [
+     {
+      "flags": 34,
+      "re": "\\bwelcome (?:back )?to (?:the |my |our )?\\w+"
+     },
+     {
+      "flags": 34,
+      "re": "\\bi'?m your host\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\b(?:my|our) guests? (?:today )?(?:is|are)\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\b(?:joining|with) (?:me|us) (?:today|now|this week)\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\bthanks? (?:so much )?for (?:coming on|joining me|joining us|being here)\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\bthanks?(?: you)? (?:both|all)(?: (?:so|very) much)? for (?:coming(?: on)?|joining (?:me|us)|being here)\\b"
+     },
+     {
+      "flags": 34,
+      "re": "\\bthis week on (?:the )?\\w+"
+     }
+    ]
+   },
+   "_HOST_WITH_ME_INTRO": {
+    "flags": 32,
+    "re": "\\b(?:with|and)\\s+me,\\s+([A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){0,2})"
+   },
+   "_HYPOTHETICAL_LEAD": {
+    "flags": 34,
+    "re": "(?:\\blet'?s\\s+say|\\blet\\s+us\\s+say|\\bsuppose|\\bsupposing|\\bimagine|\\bpretend|\\bif)(?:\\s+that)?,?\\s*$"
+   },
+   "_JOB_TITLE_TOKENS": {
+    "set": [
+     "analyst",
+     "chairman",
+     "columnist",
+     "correspondent",
+     "director",
+     "editor",
+     "executive",
+     "founder",
+     "manager",
+     "partner",
+     "president",
+     "senior",
+     "specialist"
+    ]
+   },
+   "_LEADING_ARTICLE": {
+    "flags": 32,
+    "re": "^(?:the|a|an)\\s+"
+   },
+   "_LEADING_JUNK": {
+    "flags": 34,
+    "re": "^(?:At|In|On|By|With|From|The)\\s+"
+   },
+   "_LEADING_ROLE_WORDS": {
+    "set": [
+     "announcer",
+     "co-host",
+     "cohost",
+     "guest",
+     "host",
+     "mister",
+     "moderator",
+     "narrator",
+     "presenter",
+     "producer",
+     "reporter",
+     "speaker"
+    ]
+   },
+   "_NAME": {
+    "str": "(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})"
+   },
+   "_NAMES": {
+    "str": "(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9}"
+   },
+   "_NAME_RE": {
+    "flags": 32,
+    "re": "(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})"
+   },
+   "_NAME_SUFFIXES": {
+    "set": [
+     "esq",
+     "esq.",
+     "ii",
+     "iii",
+     "iv",
+     "jr",
+     "jr.",
+     "m.d.",
+     "md",
+     "ph.d.",
+     "phd",
+     "sr",
+     "sr."
+    ]
+   },
+   "_NONPERSON_AUTHOR_MARKERS": {
+    "flags": 34,
+    "re": "[|/&@]|\\d|\\b(?:podcasts?|media|networks?|productions?|studios?|radio|fm|news|inc|llc|ltd|co|company|corp|shows?|entertainment|audio|broadcasting|group|labs?|times|journal|tribune|gazette|herald|chronicle|magazine|quarterly|newspaper|gmbh|plc|centers?|centres?|universit(?:y|ies)|colleges?|institutes?|foundations?|committees?|councils?|associations?|societies|society|museums?|librar(?:y|ies)|plus)\\b"
+   },
+   "_NOT_A_MONONYM": {
+    "set": [
+     "african",
+     "american",
+     "asian",
+     "atheist",
+     "australian",
+     "brazilian",
+     "british",
+     "buddhist",
+     "canadian",
+     "catholic",
+     "chinese",
+     "christian",
+     "conservative",
+     "danish",
+     "democrat",
+     "democratic",
+     "dutch",
+     "english",
+     "european",
+     "french",
+     "german",
+     "hindu",
+     "hispanic",
+     "independent",
+     "indian",
+     "irish",
+     "italian",
+     "japanese",
+     "jewish",
+     "korean",
+     "latina",
+     "latino",
+     "liberal",
+     "mexican",
+     "muslim",
+     "norwegian",
+     "portuguese",
+     "progressive",
+     "protestant",
+     "republican",
+     "russian",
+     "scottish",
+     "spanish",
+     "swedish",
+     "welsh"
+    ]
+   },
+   "_NOT_A_NAME_TOKEN": {
+    "set": [
+     "a",
+     "about",
+     "afraid",
+     "after",
+     "also",
+     "always",
+     "am",
+     "an",
+     "and",
+     "anyway",
+     "are",
+     "aren't",
+     "aren’t",
+     "as",
+     "at",
+     "back",
+     "be",
+     "because",
+     "been",
+     "before",
+     "but",
+     "by",
+     "can't",
+     "can’t",
+     "coming",
+     "couldn't",
+     "couldn’t",
+     "curious",
+     "did",
+     "didn't",
+     "didn’t",
+     "does",
+     "doesn't",
+     "doesn’t",
+     "don't",
+     "don’t",
+     "excited",
+     "fine",
+     "for",
+     "from",
+     "glad",
+     "going",
+     "gonna",
+     "good",
+     "great",
+     "had",
+     "happy",
+     "has",
+     "hasn't",
+     "hasn’t",
+     "have",
+     "haven't",
+     "haven’t",
+     "he",
+     "her",
+     "here",
+     "here's",
+     "here’s",
+     "him",
+     "his",
+     "i",
+     "i'd",
+     "i'll",
+     "i'm",
+     "i've",
+     "in",
+     "into",
+     "is",
+     "isn't",
+     "isn’t",
+     "it",
+     "it's",
+     "its",
+     "it’s",
+     "i’d",
+     "i’ll",
+     "i’m",
+     "i’ve",
+     "just",
+     "let's",
+     "let’s",
+     "look",
+     "looking",
+     "me",
+     "my",
+     "not",
+     "now",
+     "of",
+     "okay",
+     "on",
+     "or",
+     "our",
+     "out",
+     "plus",
+     "really",
+     "saying",
+     "she",
+     "shouldn't",
+     "shouldn’t",
+     "so",
+     "sorry",
+     "still",
+     "sure",
+     "talking",
+     "telling",
+     "that",
+     "that's",
+     "that’s",
+     "the",
+     "their",
+     "them",
+     "then",
+     "there",
+     "there's",
+     "there’s",
+     "these",
+     "they",
+     "they're",
+     "they've",
+     "they’re",
+     "they’ve",
+     "thinking",
+     "this",
+     "those",
+     "to",
+     "trying",
+     "us",
+     "very",
+     "was",
+     "wasn't",
+     "wasn’t",
+     "we",
+     "we'll",
+     "we're",
+     "we've",
+     "well",
+     "were",
+     "weren't",
+     "weren’t",
+     "we’ll",
+     "we’re",
+     "we’ve",
+     "with",
+     "won't",
+     "wondering",
+     "won’t",
+     "working",
+     "worried",
+     "wouldn't",
+     "wouldn’t",
+     "yeah",
+     "you",
+     "you'd",
+     "you'll",
+     "you're",
+     "you've",
+     "your",
+     "you’d",
+     "you’ll",
+     "you’re",
+     "you’ve"
+    ]
+   },
+   "_NOT_IN_A_NAME": {
+    "flags": 32,
+    "re": "[?{}<>!/@#|]"
+   },
+   "_NUMBER_WORDS": {
+    "set": [
+     "both",
+     "eight",
+     "five",
+     "four",
+     "nine",
+     "one",
+     "seven",
+     "six",
+     "ten",
+     "three",
+     "two"
+    ]
+   },
+   "_ORG_TAIL_TOKENS": {
+    "set": [
+     "association",
+     "book",
+     "ceo",
+     "commission",
+     "committee",
+     "conquest",
+     "context",
+     "council",
+     "exchange",
+     "experience",
+     "foundation",
+     "initiative",
+     "institute",
+     "media",
+     "network",
+     "online",
+     "podcast",
+     "project",
+     "report",
+     "research",
+     "show",
+     "society",
+     "studios",
+     "summit",
+     "tech"
+    ]
+   },
+   "_PLACE_PREPOSITION": {
+    "flags": 34,
+    "re": "(?:At|From|In|On)\\s+"
+   },
+   "_PLACE_TAIL_TOKENS": {
+    "set": [
+     "africa",
+     "america",
+     "americas",
+     "asia",
+     "china",
+     "europe",
+     "india"
+    ]
+   },
+   "_POSSESSIVE_PREFIX": {
+    "flags": 32,
+    "re": "^(?:[A-Z][\\w&.\\-]*\\s+){0,3}[A-Z][\\w&.\\-]*['’]s\\s+"
+   },
+   "_PRESENTS": {
+    "str": "(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover|tackle)s?\\b"
+   },
+   "_REPORTED_LEAD": {
+    "flags": 34,
+    "re": "(?P<who>\\b\\w+)(?:\\s+\\w+ly)?\\s+(?:said|says|told\\s+(?:me|us|him|her)|asked)\\b,?\\s*[\\\"“]?\\s*(?:(?:hello|hi|hey)\\W{0,2})?\\s*$"
+   },
+   "_ROLE_OR_FILLER_TOKENS": {
+    "set": [
+     "announcer",
+     "co-host",
+     "cohost",
+     "guest",
+     "guests",
+     "hello",
+     "hi",
+     "host",
+     "hosts",
+     "interviewer",
+     "moderator",
+     "narrator",
+     "ok",
+     "okay",
+     "right",
+     "sorry",
+     "speaker",
+     "sure",
+     "thank",
+     "thanks",
+     "yeah",
+     "yep"
+    ]
+   },
+   "_ROLE_PREFIX": {
+    "flags": 34,
+    "re": "^(?:your\\s+)?(?:(?:co-?)?host|(?:(?:deputy|senior|executive|managing|contributing)\\s+)?editor|producer|correspondent|reporter)\\s*,?\\s+"
+   },
+   "_SHOW_INTRO_CUE": {
+    "str": "(?:this is|you'?re listening to|you are listening to|welcome(?: back)? to(?: (?:another|this|today'?s) (?:episode|edition) of)?|(?:today|tonight|this week|this time|this season|this month|next (?:few )?\\w+) on|here on|(?:hello|hi)(?:,?\\s+(?:everyone|everybody|there|folks|all))?,?)"
+   },
+   "_SHOW_TAIL_WORDS": {
+    "set": [
+     "podcast",
+     "show"
+    ]
+   },
+   "_SHOW_TITLE_PAREN": {
+    "flags": 32,
+    "re": "\\s*\\([^)]*\\)\\s*$"
+   },
+   "_SHOW_TITLE_SEPARATOR": {
+    "flags": 32,
+    "re": "\\s+[:|\\u2013\\u2014-]\\s+|:\\s+"
+   },
+   "_STATED_LEAD": {
+    "str": "(?:[\\w\\-]+\\s+){0,6}?"
+   },
+   "_STATED_NAME": {
+    "str": "(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})"
+   },
+   "_STATED_NAMES": {
+    "str": "(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)(?:\\s*(?:,\\s*and|,|and|&)\\s*(?-i:(?:[a-z][\\w\\-]*\\s+){0,3}?)(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)){0,9}"
+   },
+   "_STATED_NAME_RE": {
+    "flags": 32,
+    "re": "(?-i:[A-ZÀ-ÖØ-Þ][\\w'’\\-]+(?:\\s+(?:[A-Z]\\.|(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)\\s+[A-ZÀ-ÖØ-Þ][\\w'’\\-]+|[A-ZÀ-ÖØ-Þ][\\w'’\\-]*)){1,5})"
+   },
+   "_STATED_PARTICLE": {
+    "str": "(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)"
+   },
+   "_STATED_PLACE": {
+    "str": "(?-i:(?:\\s+in\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+(?:\\s+[A-ZÀ-ÖØ-Þ][\\w\\-]+)?)?)"
+   },
+   "_STATED_POSSESSIVE_PREFIX": {
+    "flags": 32,
+    "re": "^.*?['’]s?\\s+"
+   },
+   "_STATED_UC": {
+    "str": "[A-ZÀ-ÖØ-Þ]"
+   },
+   "_TITLE_WITH_SUFFIX": {
+    "flags": 34,
+    "re": "\\s+with\\s+.+$"
+   },
+   "_TRAILING_JOB_TOKENS": {
+    "set": [
+     "ceo",
+     "cfo",
+     "co-founder",
+     "cofounder",
+     "coo",
+     "cto",
+     "founder"
+    ]
+   }
+  },
+  "podcast_scraper.speaker_detectors.resolution": {
+   "_ADDRESSED_AT_OPEN": {
+    "str": "^\\W*(?:hey|hi|hello|good\\s+(?:morning|afternoon|evening)|morning)[,!]?\\s+{first}\\b[,.!?]"
+   },
+   "_SELF_INTRO_BEFORE": {
+    "flags": 34,
+    "re": "(?:\\bI['’]?m|\\bI am|\\bmy name is)\\s*$"
+   },
+   "_SPOKEN_FULL_NAME": {
+    "flags": 32,
+    "re": "(?:(?<![A-Za-z])|(?<=[a-z]))(?=([A-Z][a-z'’\\-]+)\\s+([A-Z][a-zA-Z'’\\-]+))"
+   },
+   "_VALID_ROLES": {
+    "set": [
+     "guest",
+     "host"
+    ]
+   }
+  }
+ },
+ "sha": "712ff7ebbf73c3b70920a34f958553d3d0e652f0"
+}

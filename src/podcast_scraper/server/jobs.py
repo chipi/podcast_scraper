@@ -66,7 +66,15 @@ from podcast_scraper.config import DEPRECATED_PIPELINE_STAGE_ALIASES as _CONFIG_
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 PIPELINE_STAGES_REPROCESS = frozenset(
-    {"rederive_only", "relabel_only", "rediarize_only", "retranscript_only"}
+    {
+        "rederive_only",
+        "relabel_only",
+        "rediarize_only",
+        "retranscript_only",
+        # RFC-124 §5.2's retry for a `translation_pending` episode. Reprocess, not partial: it
+        # reuses the on-disk transcript and never re-runs ASR.
+        "translate_only",
+    }
 )
 PIPELINE_STAGES_PARTIAL = frozenset({"audio_only", "download_only"})
 PIPELINE_STAGES_ALLOWED = PIPELINE_STAGES_REPROCESS | PIPELINE_STAGES_PARTIAL

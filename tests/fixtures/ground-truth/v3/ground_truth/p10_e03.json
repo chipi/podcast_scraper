@@ -1,0 +1,65 @@
+{
+  "callbacks": [
+    "Marta Sol\u00eds estuvo en el episodio anterior contando que la presi\u00f3n de los neum\u00e1ticos importa m\u00e1s que los ajustes de suspensi\u00f3n."
+  ],
+  "episode_id": "p10_e03",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "native_ad"
+  ],
+  "guest_accent": "es-ES",
+  "host_accent": "es-ES",
+  "host_canonical_name": "Luc\u00eda Herrera",
+  "podcast_id": "p10",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p10:Diego",
+  "primary_guest_canonical_name": "Diego Ferrer",
+  "primary_guest_surface_in_transcript": "Diego Ferrer",
+  "primary_topic": "topic:drivetrain-mechanics",
+  "publish_date": "2026-08-17",
+  "publish_offset_days": 959,
+  "secondary_topics": [
+    "topic:maintenance",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Notion",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Linear",
+      "kind": "native_ad",
+      "line_index": 30,
+      "note": "Host-read native ad \u2014 no canonical 'brought to you by' marker."
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 34
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 67
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p10:Diego",
+      "kind": "canonical",
+      "surface": "Diego Ferrer"
+    },
+    {
+      "canonical_id": "p10:Marta",
+      "kind": "canonical",
+      "surface": "Marta Sol\u00eds"
+    },
+    {
+      "canonical_id": "p10:Javier",
+      "kind": "canonical",
+      "surface": "Javier Benavides"
+    }
+  ]
+}

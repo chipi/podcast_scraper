@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "episode_id": "p12_e01",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "summary": {
+    "bullets": [
+      "Drainage is the most crucial design decision for any trail, as ignoring it leads to needing a complete rebuild within a year.",
+      "Beginner trail builders commonly make the mistake of digging with too steep a slope, which undermines trail longevity and stability.",
+      "Benches along the hillside are not optional — their absence results in erosion that turns the shortcut of year one into a ravine by year three.",
+      "Soil erosion and trail construction intersect fundamentally at the design phase, where land management discussions must occur before any ground is disturbed.",
+      "The structure of the soil is more important than people realize, and its properties directly influence trail durability and maintenance needs.",
+      "Teams using Spoke & Wrench or the Cascadia Alliance reveal trade-offs that are invisible without structured workflows and repeatable processes.",
+      "Machine-made trails are not inherently better than hand-built ones — the method matters less than the design integrity and adherence to ecological principles.",
+      "Failure modes are difficult to identify outside of established frameworks like the Cascadia Alliance, where structural aspects and second-order effects are often overlooked."
+    ],
+    "raw_text": "Drainage is the most crucial design decision for any trail, as ignoring it leads to needing a complete rebuild within a year. Beginner trail builders commonly make the mistake of digging with too steep a slope, which undermines trail longevity and stability.",
+    "title": "Trail Building: The Critical Role of Drainage and Soil Management"
+  }
+}

@@ -1,0 +1,338 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 0.0,
+    "text": "Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de carreras de enduro, y me acompa\u00f1a Marta Sol\u00eds, corredora de enduro y entrenadora. Marta Sol\u00eds, gracias por estar aqu\u00ed."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 6.0,
+    "text": "Gracias, Luc\u00eda. Contenta de estar de vuelta."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 12.0,
+    "text": "El episodio de hoy es patrocinado por Linear. Linear es el gestor de incidencias hecho para la velocidad \u2014 pensado para el teclado. Prueba linear.com hoy."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 18.0,
+    "text": "Antes de entrar en materia \u2014 Javier Benavides estuvo en el programa contando que el drenaje es la decisi\u00f3n de dise\u00f1o con m\u00e1s impacto."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 24.0,
+    "text": "S\u00ed, exacto. Y se conecta con lo que vamos a cubrir hoy."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 30.0,
+    "text": "Quiero se\u00f1alar algo \u2014 Javier Benavides mencion\u00f3 esta misma din\u00e1mica hace un par de episodios."
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 36.0,
+    "text": "Cu\u00e9ntame un ejemplo concreto. \u00bfD\u00f3nde se cruzan la erosi\u00f3n del suelo y las carreras de enduro?"
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 42.0,
+    "text": "Sinceramente, la velocidad viene de frenar antes y m\u00e1s suave, no de asumir riesgos mayores. Lo hemos visto en equipos que usan RockShox. He visto este patr\u00f3n repetirse en tres equipos distintos."
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 48.0,
+    "text": "Quiero profundizar en eso. \u00bfD\u00f3nde se cruzan la erosi\u00f3n del suelo y las carreras de enduro?"
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 54.0,
+    "text": "Claro. La presi\u00f3n de los neum\u00e1ticos y la elecci\u00f3n de la carcasa suelen importar m\u00e1s que un ajuste menor de suspensi\u00f3n. El marco importa porque te dice qu\u00e9 concesiones est\u00e1s haciendo."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 60.0,
+    "text": "Empecemos por ah\u00ed. \u00bfD\u00f3nde se cruzan la erosi\u00f3n del suelo y las carreras de enduro?"
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 66.0,
+    "text": "Sinceramente, la gesti\u00f3n del riesgo en carrera no es evitar las ca\u00eddas \u2014 es elegir qu\u00e9 ca\u00eddas son sobrevivibles. Lo hemos visto en equipos que usan Shimano. Si ignoras eso, acabas reconstruy\u00e9ndolo desde cero un a\u00f1o despu\u00e9s."
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 72.0,
+    "text": "\u00bfD\u00f3nde deja de funcionar eso?"
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 78.0,
+    "text": "La Alianza Cascadia es una de las plataformas donde esto se ve con claridad. Y el efecto de segundo orden es la parte que casi todos pasan por alto."
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 84.0,
+    "text": "\u00bfCu\u00e1l es la heur\u00edstica a la que siempre vuelves? \u00bfC\u00f3mo encaja Spoke & Wrench en este panorama?"
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 90.0,
+    "text": "As\u00ed lo veo yo. Los patrones de erosi\u00f3n en los tramos de carrera cambian la elecci\u00f3n de trazada entre los entrenos y el d\u00eda de la carrera. Una vez que interiorizas eso, el resto de las decisiones se vuelven m\u00e1s f\u00e1ciles."
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 96.0,
+    "text": "Antes de seguir \u2014 apoya el programa pasando por el sitio de nuestro patrocinador. Strava es el hogar de los atletas."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 102.0,
+    "text": "Volvemos enseguida, despu\u00e9s de una breve pausa publicitaria."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Ad",
+    "start": 108.0,
+    "text": "El episodio de hoy es patrocinado por Notion. Notion reemplaza la docena de herramientas que tu equipo usa a medias. Visita notion.com/podcast para una prueba gratuita."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 114.0,
+    "text": "Bienvenidos de nuevo al programa."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 120.0,
+    "text": "Quiero profundizar en eso. \u00bfCu\u00e1l es la versi\u00f3n de la pregunta que de verdad importa?"
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 126.0,
+    "text": "D\u00e9jame darte la versi\u00f3n que de verdad creo. La velocidad viene de frenar antes y m\u00e1s suave, no de asumir riesgos mayores. Lo hemos visto en equipos que usan RockShox. Y el efecto de segundo orden es la parte que casi todos pasan por alto."
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 132.0,
+    "text": "\u00bfC\u00f3mo se ve el modo de fallo? \u00bfCu\u00e1l es el \u00e1ngulo operativo al que la mayor\u00eda de los oyentes no tiene acceso?"
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 138.0,
+    "text": "S\u00ed, mira \u2014 la presi\u00f3n de los neum\u00e1ticos y la elecci\u00f3n de la carcasa suelen importar m\u00e1s que un ajuste menor de suspensi\u00f3n. El marco importa porque te dice qu\u00e9 concesiones est\u00e1s haciendo."
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 144.0,
+    "text": "Cu\u00e9ntame un ejemplo concreto. \u00bfCu\u00e1l es la versi\u00f3n de la pregunta que de verdad importa?"
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 150.0,
+    "text": "S\u00ed, mira \u2014 la gesti\u00f3n del riesgo en carrera no es evitar las ca\u00eddas \u2014 es elegir qu\u00e9 ca\u00eddas son sobrevivibles. Lo hemos visto en equipos que usan RockShox. He visto este patr\u00f3n repetirse en tres equipos distintos."
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 156.0,
+    "text": "Cu\u00e9ntame m\u00e1s sobre eso."
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 162.0,
+    "text": "La Alianza Cascadia es una de las plataformas donde esto se ve con claridad. Una vez que interiorizas eso, el resto de las decisiones se vuelven m\u00e1s f\u00e1ciles."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 168.0,
+    "text": "Empecemos por ah\u00ed. \u00bfCu\u00e1l es el aspecto m\u00e1s subestimado de las carreras de enduro?"
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 174.0,
+    "text": "Se reduce a esto: los patrones de erosi\u00f3n en los tramos de carrera cambian la elecci\u00f3n de trazada entre los entrenos y el d\u00eda de la carrera. He visto este patr\u00f3n repetirse en tres equipos distintos."
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 180.0,
+    "text": "Cambiemos de tema \u2014 quiero dedicar el \u00faltimo tramo a la gesti\u00f3n del riesgo."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 186.0,
+    "text": "Ah\u00ed es donde la conversaci\u00f3n se pone interesante, porque las concesiones alrededor de la gesti\u00f3n del riesgo atraviesan todo lo que hemos cubierto."
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 192.0,
+    "text": "\u00bfC\u00f3mo se ve el modo de fallo? \u00bfCu\u00e1l es el \u00e1ngulo contrario al que la mayor\u00eda de los oyentes no tiene acceso?"
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 198.0,
+    "text": "Claro. La velocidad viene de frenar antes y m\u00e1s suave, no de asumir riesgos mayores. Lo hemos visto en equipos que usan RockShox. He visto este patr\u00f3n repetirse en tres equipos distintos."
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 204.0,
+    "text": "Cu\u00e9ntame un ejemplo concreto. \u00bfCu\u00e1l es el aspecto m\u00e1s subestimado de las carreras de enduro?"
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 210.0,
+    "text": "S\u00ed, mira \u2014 la presi\u00f3n de los neum\u00e1ticos y la elecci\u00f3n de la carcasa suelen importar m\u00e1s que un ajuste menor de suspensi\u00f3n. He visto este patr\u00f3n repetirse en tres equipos distintos."
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 216.0,
+    "text": "Cu\u00e9ntame un ejemplo concreto. \u00bfCu\u00e1l es la versi\u00f3n de la pregunta que de verdad importa?"
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 222.0,
+    "text": "D\u00e9jame darte la versi\u00f3n que de verdad creo. La gesti\u00f3n del riesgo en carrera no es evitar las ca\u00eddas \u2014 es elegir qu\u00e9 ca\u00eddas son sobrevivibles. Lo hemos visto en equipos que usan Spoke & Wrench. He visto este patr\u00f3n repetirse en tres equipos distintos."
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 228.0,
+    "text": "Eso cuadra."
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 234.0,
+    "text": "Y cuando los equipos adoptan Spoke & Wrench en ese flujo, la concesi\u00f3n se vuelve visible \u2014 he visto este patr\u00f3n repetirse en tres equipos distintos."
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 240.0,
+    "text": "\u00bfCu\u00e1l es la heur\u00edstica a la que siempre vuelves? \u00bfCu\u00e1l es la versi\u00f3n de la pregunta que de verdad importa?"
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 246.0,
+    "text": "As\u00ed lo veo yo. Los patrones de erosi\u00f3n en los tramos de carrera cambian la elecci\u00f3n de trazada entre los entrenos y el d\u00eda de la carrera. He visto este patr\u00f3n repetirse en tres equipos distintos."
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 252.0,
+    "text": "Antes de terminar, \u00bfqu\u00e9 es una cosa que los oyentes pueden probar esta semana?"
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 258.0,
+    "text": "Elige una de las ideas que cubrimos y apl\u00edcala durante dos semanas. El resto es iteraci\u00f3n."
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 264.0,
+    "text": "Y para terminar, gracias a nuestros patrocinadores de Vanta. Vanta automatiza el cumplimiento de SOC 2 e ISO. \u00c9chale un ojo en vanta.com."
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 270.0,
+    "text": "Marta Sol\u00eds, gracias por la conversaci\u00f3n."
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Marta Sol\u00eds",
+    "start": 276.0,
+    "text": "Gracias, Luc\u00eda."
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Luc\u00eda Herrera",
+    "start": 282.0,
+    "text": "Eso es todo por el episodio de hoy de Sesiones de Sendero. Nos vemos la pr\u00f3xima."
+  }
+]

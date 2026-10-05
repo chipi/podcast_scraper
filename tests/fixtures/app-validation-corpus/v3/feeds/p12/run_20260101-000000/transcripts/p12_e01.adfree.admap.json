@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 371,
+  "postroll_cut_start": null,
+  "chars_removed": 771,
+  "preroll_pattern_hits": 3,
+  "postroll_pattern_hits": 3,
+  "source_length": 7007,
+  "excised_ranges": [
+    [
+      0,
+      371
+    ],
+    [
+      2635,
+      3035
+    ]
+  ],
+  "excised_texts": [
+    "SPEAKER_00: Welcome back to Sessions Sentier. Today, we're talking about trail building, and I'm joined by Julien Mercier, a trail builder from the Cascadia Alliance. Julien Mercier, thank you for being here.\nSPEAKER_01: Thank you, Camille. My pleasure \u2013 trail construction is a topic I've given a lot of thought to.\nSPEAKER_00: This episode is brought to you by Strava. ",
+    "If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.\nSPEAKER_00: We'll be right back after a short commercial break.\nSPEAKER_02: Today's episode is brought to you by Stripe. Stripe simplifies payments, whether you're running a marketplace or a subscription-based business. Visit stripe.com/podcast for a free trial.\nSPEAKER_00: Welcome back to the show. "
+  ]
+}

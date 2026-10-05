@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p09_e04",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:coupling-vs-components",
+      "label": "coupling vs components"
+    },
+    {
+      "id": "topic:cross-cutting-trade-offs",
+      "label": "cross-cutting trade-offs"
+    },
+    {
+      "id": "topic:framing-risks",
+      "label": "framing risks"
+    },
+    {
+      "id": "topic:ipcc-teams",
+      "label": "ipcc teams"
+    },
+    {
+      "id": "topic:iterative-improvement",
+      "label": "iterative improvement"
+    },
+    {
+      "id": "topic:measured-systems-behavior",
+      "label": "measured systems behavior"
+    },
+    {
+      "id": "topic:reliability-trade-offs",
+      "label": "reliability trade-offs"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:slow-correlated-risks",
+      "label": "slow correlated risks"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "label": "systems thinking"
+    }
+  ]
+}

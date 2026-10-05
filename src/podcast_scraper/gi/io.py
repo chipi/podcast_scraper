@@ -47,6 +47,18 @@ def write_artifact(path: Path, payload: Dict[str, Any], validate: bool = True) -
         payload: Dict with schema_version, model_version, prompt_version, episode_id, nodes, edges.
         validate: If True, run minimal validation before writing.
     """
+    # S2.11: translation provenance on EVERY claim, attached at the one choke point every
+    # gi.json writer passes through. There are more than ten call sites — the artifact builder,
+    # `add_spoken_by_edges(replace=True)`, `gi/repair.py`, the bridge post-pass, topic
+    # clustering — and a decoration step added to each is one that will be missed at the
+    # eleventh. A no-op unless the episode being processed published a translation.
+    try:
+        from ..translation.provenance import decorate_from_context
+
+        decorate_from_context(payload)
+    except Exception:  # noqa: BLE001 — provenance never blocks an artifact write
+        pass
+
     if validate:
         validate_artifact(payload, strict=False)
     write_json_atomic(

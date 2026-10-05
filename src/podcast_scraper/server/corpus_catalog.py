@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
 from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
+from podcast_scraper.languages import episode_is_unusable, normalize_language_tag
 from podcast_scraper.search.corpus_scope import (
     discover_all_metadata_files,
     discover_metadata_files,
@@ -157,13 +158,33 @@ def _feed_authors(doc: dict[str, Any]) -> tuple[str, ...]:
 
 
 def _feed_language(doc: dict[str, Any]) -> Optional[str]:
-    """The feed language tag (e.g. 'en'), or None."""
+    """The feed language tag, NORMALIZED to its primary subtag (e.g. ``'en'``), or None.
+
+    A VALUE CHANGE for existing clients (#2176): this returned the stored tag verbatim, and
+    every episode in ``app-validation-corpus/v3`` stores ``"en-us"`` — so that is what the API
+    served. Normalizing here means a client comparing against ``"en"`` stops missing, and two
+    feeds differing only by region stop looking like different languages.
+    """
     feed = doc.get("feed")
     if isinstance(feed, dict):
         lang = feed.get("language")
         if isinstance(lang, str) and lang.strip():
-            return lang.strip()
+            return normalize_language_tag(lang)
     return None
+
+
+def _episode_language(doc: dict[str, Any]) -> Optional[str]:
+    """This EPISODE's language, normalized, falling back to the feed's.
+
+    The episode is the answer once #2172 has written it; the feed block is the fallback for
+    every artifact produced before that, and for shows where the two cannot differ.
+    """
+    episode = doc.get("episode")
+    if isinstance(episode, dict):
+        lang = episode.get("language")
+        if isinstance(lang, str) and lang.strip():
+            return normalize_language_tag(lang)
+    return _feed_language(doc)
 
 
 def _feed_last_updated(doc: dict[str, Any]) -> Optional[str]:
@@ -309,6 +330,10 @@ class CatalogEpisodeRow:
     feed_category: Optional[str] = None
     feed_authors: tuple[str, ...] = ()
     feed_language: Optional[str] = None
+    #: This episode's own language (#2176). Distinct from ``feed_language`` because a show
+    #: can carry an episode in another language, and because the per-feed override applies
+    #: per run rather than to the feed's declared tag.
+    episode_language: Optional[str] = None
     feed_last_updated: Optional[str] = None
 
     def sort_key(self) -> tuple[int, int, str]:
@@ -337,6 +362,29 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
             continue
         doc = _load_metadata_doc(str(meta_path))
         if doc is None:
+            continue
+        # D-44 point 2: an episode the pipeline could not complete appears NOWHERE.
+        #
+        # THIS COMMENT USED TO CLAIM "one check, in the one function that feeds the app" and that
+        # there was "no surface left" — which was wrong. This module has THREE row builders and
+        # the other two had no check. Who they feed, enumerated because the first version of this
+        # correction got it wrong too and named the capability audit under the single-row builder:
+        #
+        #   `build_catalog_rows_cumulative` -> `app_catalog_cache` (so the app's cached catalog),
+        #       the operator library and stats endpoints, `capability_audit.measure`, and the
+        #       eval ranking scripts;
+        #   `catalog_row_for_metadata_path` -> one operator library route and the MCP
+        #       catalog/GI tools.
+        #
+        # So an unusable episode was hidden from one app path and visible on every other, which
+        # is #2198's shape surviving in the surfaces nobody looked at. All three check it now.
+        #
+        # ONE THING THIS DOES NOT FIX, stated because the check makes it complete rather than
+        # creating it: NOTHING reports unusable episodes. `episode_is_unusable` has exactly these
+        # three readers, all of them filters, so after this an unusable episode is absent from the
+        # audit's denominator as well — correct for a coverage metric, and still no surface an
+        # operator can ask "what did the pipeline fail to finish".
+        if episode_is_unusable(doc):
             continue
         fid_norm, eid = _feed_and_episode_ids(doc)
         feed_id = fid_norm or ""
@@ -400,6 +448,7 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 feed_category=feed_cat,
                 feed_authors=feed_authors,
                 feed_language=feed_lang,
+                episode_language=_episode_language(doc),
                 feed_last_updated=feed_updated,
             )
         )
@@ -438,6 +487,10 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
             continue
         doc = _load_metadata_doc(str(meta_path))
         if doc is None:
+            continue
+        # D-44 point 2, same rule as `build_catalog_rows`: an episode the pipeline could not
+        # complete appears NOWHERE — including the operator library and stats this builder feeds.
+        if episode_is_unusable(doc):
             continue
         fid_norm, eid = _feed_and_episode_ids(doc)
         feed_id = fid_norm or ""
@@ -501,6 +554,7 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 feed_category=feed_cat,
                 feed_authors=feed_authors,
                 feed_language=feed_lang,
+                episode_language=_episode_language(doc),
                 feed_last_updated=feed_updated,
             )
         )
@@ -545,6 +599,11 @@ def catalog_row_for_metadata_path(
         return None
     doc = _load_metadata_doc(safe_meta)
     if doc is None:
+        return None
+    # D-44 point 2, same rule as the two scanning builders. This one is reached by the MCP
+    # catalog/GI tools and the capability audit, where an unusable episode showing up as a row
+    # with empty fields is exactly the "shows up empty instead of not at all" failure.
+    if episode_is_unusable(doc):
         return None
     fid_norm, eid = _feed_and_episode_ids(doc)
     feed_id = fid_norm or ""
@@ -607,6 +666,7 @@ def catalog_row_for_metadata_path(
         feed_category=feed_cat,
         feed_authors=feed_authors,
         feed_language=feed_lang,
+        episode_language=_episode_language(doc),
         feed_last_updated=feed_updated,
     )
 

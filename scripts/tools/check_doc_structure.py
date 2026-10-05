@@ -28,6 +28,17 @@ Checks
      Repo-wide, not just the structural docs, because the cost of a dead link is the same
      wherever it lives.
 
+  4. No numbered doc (ADR-NNN / RFC-NNN / PRD-NNN) reuses a number already taken on the merge
+     target, and none is duplicated on this branch
+     This one is checked against ``origin/main`` rather than locally, because a locally-valid
+     branch is exactly the state that breaks. Two branches that each add ADR-156 under a
+     DIFFERENT filename merge with **zero conflict markers** — git sees two unrelated new files
+     — and the result is two ADR-156s, each cited by different code. Measured 2026-09-30:
+     ``feat/multilingual-ingest`` carried ADR-156-translation-model-and-serving.md while main
+     had ADR-156-topics-come-only-from-the-extractor.md. Every existing check passed on both
+     sides: both files exist, both are real prose, every link resolves. Only the comparison
+     sees it.
+
 What this deliberately does NOT check
 -------------------------------------
 Whether the prose is still TRUE. Nothing can. That is why these documents are written as contracts,
@@ -207,6 +218,108 @@ def check_links() -> list[str]:
     return problems
 
 
+#: Doc families whose filenames lead with a number that is meant to be unique forever.
+NUMBERED_DOC_DIRS: tuple[str, ...] = ("docs/adr", "docs/rfc", "docs/prd")
+
+NUMBERED_DOC = re.compile(r"^((?:ADR|RFC|PRD)-(\d+))-(.+)\.md$")
+
+#: What a branch is measured against. A PR merges here, so this is where a number collides.
+MERGE_TARGET = "origin/main"
+
+
+def _numbered_docs_in_tree() -> dict[tuple[str, str], str]:
+    """``{(family, number): filename}`` for the working tree."""
+    found: dict[tuple[str, str], str] = {}
+    for rel in NUMBERED_DOC_DIRS:
+        directory = REPO_ROOT / rel
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.glob("*.md")):
+            m = NUMBERED_DOC.match(path.name)
+            if m:
+                found[(m.group(1).split("-")[0], m.group(2))] = path.name
+    return found
+
+
+def _numbered_docs_on(ref: str) -> dict[tuple[str, str], str] | None:
+    """The same mapping for a git ref, or ``None`` when the ref is not available.
+
+    ``None`` rather than an empty dict, and rather than an error: a shallow clone, a fresh
+    worktree with no remote, or an offline run all legitimately lack the ref. Treating that as
+    "no numbers are taken" would turn an unavailable check into a silent pass, and treating it
+    as a failure would break every environment that has no remote.
+    """
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["git", "ls-tree", "-r", "--name-only", ref, "--", *NUMBERED_DOC_DIRS],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+
+    found: dict[tuple[str, str], str] = {}
+    for line in out.stdout.splitlines():
+        name = line.strip().rsplit("/", 1)[-1]
+        m = NUMBERED_DOC.match(name)
+        if m:
+            found[(m.group(1).split("-")[0], m.group(2))] = name
+    return found
+
+
+def check_doc_numbers() -> list[str]:
+    """No ADR/RFC/PRD number is claimed twice — on this branch, or against the merge target."""
+    problems: list[str] = []
+    mine = _numbered_docs_in_tree()
+
+    # Same-branch duplicates. `glob` gives one filename per number, so a true same-number pair
+    # is only visible by counting files, not by the mapping above.
+    for rel in NUMBERED_DOC_DIRS:
+        directory = REPO_ROOT / rel
+        if not directory.is_dir():
+            continue
+        by_number: dict[tuple[str, str], list[str]] = {}
+        for path in sorted(directory.glob("*.md")):
+            m = NUMBERED_DOC.match(path.name)
+            if m:
+                by_number.setdefault((m.group(1).split("-")[0], m.group(2)), []).append(path.name)
+        for (family, number), names in sorted(by_number.items()):
+            if len(names) > 1:
+                problems.append(
+                    f"{rel}/ has {len(names)} documents numbered {family}-{number}: "
+                    f"{', '.join(names)}. Renumber all but the earliest."
+                )
+
+    theirs = _numbered_docs_on(MERGE_TARGET)
+    if theirs is None:
+        # Reported, not silent: an unavailable check must not read as a passing one.
+        problems_note = (
+            f"(note: {MERGE_TARGET} is not available, so the cross-branch number check was "
+            f"SKIPPED — run `git fetch origin main` to enable it)"
+        )
+        print(f"  {problems_note}")
+        return problems
+
+    for key, name in sorted(mine.items()):
+        family, number = key
+        other = theirs.get(key)
+        if other is not None and other != name:
+            problems.append(
+                f"{family}-{number} is taken on {MERGE_TARGET} by {other}, and this branch adds "
+                f"{name} under the same number. These MERGE WITH NO CONFLICT — git sees two "
+                f"unrelated files — leaving two {family}-{number}s, each cited by different "
+                f"code. Renumber this branch's document to the next free number and update every "
+                f"reference to it."
+            )
+    return problems
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--list", action="store_true", help="print what is enforced and exit")
@@ -218,9 +331,17 @@ def main() -> int:
             mark = "ok " if (REPO_ROOT / rel / "README.md").exists() else "MISSING"
             print(f"  {mark:8} {rel}/README.md")
         print(f"\nLink check covers {len(markdown_files())} markdown files.")
+        _mine = _numbered_docs_in_tree()
+        _theirs = _numbered_docs_on(MERGE_TARGET)
+        print(
+            f"Number check covers {len(_mine)} numbered doc(s) against "
+            f"{MERGE_TARGET} ("
+            + (f"{len(_theirs)} there" if _theirs is not None else "UNAVAILABLE")
+            + ")."
+        )
         return 0
 
-    problems = check_required_readmes() + check_not_stubs() + check_links()
+    problems = check_required_readmes() + check_not_stubs() + check_links() + check_doc_numbers()
 
     if problems:
         print(f"Documentation structure: {len(problems)} problem(s)\n")

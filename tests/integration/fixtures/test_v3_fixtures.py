@@ -264,27 +264,33 @@ def test_sponsor_block_kinds_recorded_per_episode():
       test exists for;
     * a NEW episode with no sponsor blocks fails too, rather than being silently absorbed — the
       exempt set is asserted to be exactly the scripted two, so growing it is a deliberate edit.
+
+    Violations are COLLECTED and sorted rather than asserted inside the loop. Asserting in the
+    loop reports the first one the glob happens to reach and says nothing about the others — two
+    episodes were empty once and only one was ever named.
     """
     truth_dir = PROJECT_ROOT / "tests" / "fixtures" / "ground-truth" / "v3" / "ground_truth"
     if not truth_dir.exists():
         pytest.skip("ground truth not on disk; run the generator first")
 
     without: set[str] = set()
-    for json_path in truth_dir.glob("*.json"):
+    missing_opening: list[str] = []
+    for json_path in sorted(truth_dir.glob("*.json")):
         truth = json.loads(json_path.read_text(encoding="utf-8"))
         stem = json_path.stem
         if not truth["sponsor_blocks"]:
             without.add(stem)
             continue
         kinds = {b["kind"] for b in truth["sponsor_blocks"]}
-        if stem not in SCRIPTED_EPISODES:
-            assert "template_opening" in kinds, f"{json_path.name}: missing template_opening"
+        if stem not in SCRIPTED_EPISODES and "template_opening" not in kinds:
+            missing_opening.append(stem)
 
     assert without == SCRIPTED_EPISODES, (
         "episodes without sponsor blocks are not the known scripted ones: "
         f"unexpected={sorted(without - SCRIPTED_EPISODES)} "
         f"newly-templated={sorted(SCRIPTED_EPISODES - without)}"
     )
+    assert not missing_opening, f"missing template_opening: {sorted(missing_opening)}"
 
 
 def test_enthusiastic_recommendation_marked_as_real_content():

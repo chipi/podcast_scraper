@@ -1,0 +1,29 @@
+{
+  "fixture": "p10_e02",
+  "podcast": "Sesiones de Sendero — Episodio",
+  "episode": "Habilidades de Enduro Sin el Bombo",
+  "type": "interview",
+  "speakers": [
+    "Lucía Herrera",
+    "Marta Solís"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Lucía Herrera": "Monica",
+    "Marta Solís": "Paulina",
+    "Ad": "Zarvox"
+  },
+  "voice_pitch_shift": {
+    "Marta Solís": 0.45
+  },
+  "cameo": null,
+  "transcript_sha256": "32a92de25b079506ad84d41837fe7a794ea7d3450a2f08b583ef5b29835d03e6",
+  "audio_sha256": "d63dfd26175ef8955aa20670a9d53055cc27de83aa7786b565672dd656884fd2",
+  "rttm_sha256": "980f95c1838ef3d333524d01ea89108fe615d5d3726997339a44a1269d2234d4"
+}

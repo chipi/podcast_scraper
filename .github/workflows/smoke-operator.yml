@@ -1,8 +1,8 @@
-# Post-deploy live smoke for the public operator viewer (#43). Runs the Playwright live smoke
+# Post-deploy live smoke for the operator host (#43). Runs the Playwright live smoke
 # (web/gi-kg-viewer/e2e/live) against the DEPLOYED operator.closelistening.app after a successful
-# "Deploy operator — PUBLIC surface" run — and on demand via workflow_dispatch. Read-only vs prod
-# (passes the coming-soon gate with the preview basic-auth; never mutates data). Mirrors
-# smoke-player.yml.
+# "Deploy operator — PUBLIC surface" run — and on demand via workflow_dispatch. The host is CLOSED
+# (operator decision 2026-10-05: the operator surface is tailnet-only), so the smoke asserts that
+# no path reaches the app. Read-only GETs; never mutates data.
 name: Smoke operator (live)
 
 on:
@@ -43,18 +43,11 @@ jobs:
       - run: npm ci
       - name: Install Playwright Chromium
         run: ./node_modules/.bin/playwright install --with-deps chromium
-      - name: Live smoke vs operator.closelistening.app
+      - name: Live smoke — operator.closelistening.app is closed
         env:
+          # The operator surface is tailnet-only (2026-10-05): asserts every path answers
+          # coming-soon, with or without the old preview credentials. Needs no secrets.
           LIVE_BASE_URL: https://${{ vars.OPERATOR_DOMAIN || 'operator.closelistening.app' }}
-          OPERATOR_PREVIEW_USER: ${{ vars.PLAYER_PREVIEW_USER || 'marko' }}
-          # The operator doorman reuses the player's basic-auth. Without it the gated specs skip;
-          # the public coming-soon assertion still runs.
-          OPERATOR_PREVIEW_PASS: ${{ secrets.PLAYER_PREVIEW_PASS }}
-          # Authed operator plane (account.live): mints a session for the seeded CREATOR test account.
-          # Absent → the authed block skips. Mirrors deploy-operator.yml's smoke job so an on-demand
-          # dispatch validates the same surface without a redeploy.
-          PLAYER_APP_SESSION_SECRET: ${{ secrets.PLAYER_APP_SESSION_SECRET }}
-          OPERATOR_SMOKE_CREATOR_USER_ID: ${{ vars.OPERATOR_SMOKE_CREATOR_USER_ID }}
         run: npm run test:e2e:live
       - name: Simulate failure (GlitchTip alert-path test)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.simulate_failure }}

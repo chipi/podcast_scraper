@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-03T12:49:31Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p12_e03",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "summary": {
+    "bullets": [
+      "Most mysterious creaking noises in bicycle drivetrains are resolved by cleaning contact surfaces and tightening bolts to specified torque — a pattern observed across multiple teams using Spoke & Wrench.",
+      "Chain wear is the most reliable early indicator of when the cassette needs replacement, a key insight for proactive maintenance planning.",
+      "Frame geometry and component compatibility reveal the trade-offs inherent in design decisions, with the geometry itself signaling what compromises are being made.",
+      "Maintenance intervals for suspension systems are fundamentally risk management decisions; ignoring them leads to full rebuilds within a year.",
+      "Adopting Spoke & Wrench within a workflow makes the underlying trade-offs apparent — failure to acknowledge them results in unnecessary system overhauls.",
+      "The structural integrity of a bicycle's drivetrain depends on predictable, consistent contact points — any deviation disrupts the rider’s focus on the trail.",
+      "Linear, the ticketing system, is optimized for keyboard-driven workflows and speed — a tool that supports rapid, iterative engineering tasks.",
+      "Choosing one maintenance or design principle and testing it for two weeks enables meaningful iteration — the rest is refinement, not discovery."
+    ],
+    "raw_text": "Most mysterious creaking noises in bicycle drivetrains are resolved by cleaning contact surfaces and tightening bolts to specified torque — a pattern observed across multiple teams using Spoke & Wrench. Chain wear is the most reliable early indicator of when the cassette needs replacement, a key insight for proactive maintenance planning.",
+    "title": "Drivetrain Mechanics and Risk Management in Bicycle Maintenance"
+  }
+}

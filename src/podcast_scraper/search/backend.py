@@ -37,6 +37,49 @@ class SegmentDocument:
     publish_date: Optional[str] = (
         None  # episode publish date (carried so date/`since` filters work)
     )
+    #: Normalized language of ``text`` (S2.9). ``None``/``"en"`` routes to the English
+    #: ``segments`` table; anything else routes to the vector-less ``segments_nonen`` tier, where
+    #: the row cannot reach a semantic result. The field is on the SHARED document so the router
+    #: reads one attribute rather than inferring a language per call site.
+    language: Optional[str] = None
+
+
+#: The STORED field list for the English ``segments`` tier, in storage order.
+#:
+#: WHY THIS LIVES HERE AND NOT IN THE ADAPTER. Until 2026-10-03 the field list existed only as
+#: arguments to ``pa.schema([...])`` inside ``lancedb_backend``, which made one of our
+#: load-bearing invariants — "the non-English tier has nowhere to put a vector" — expressible
+#: ONLY by building a real pyarrow schema and reading ``.names`` back. That is a statement about
+#: OUR data model, so a test of it should need nothing but our own code; instead it needed the
+#: ``[search]`` extra, which unit tests may not have. Four tests ended up in the wrong layer for
+#: want of this declaration.
+#:
+#: This module imports nothing outside the standard library, deliberately: a unit test can read
+#: these tuples without pulling in pyarrow or lancedb.
+SEGMENT_FIELDS: tuple[str, ...] = (
+    "id",
+    "text",
+    "embedding",
+    "show_id",
+    "episode_id",
+    "speaker_id",
+    "start_time",
+    "end_time",
+    "linked_insight_ids",
+    "source_tier",
+    "publish_date",
+)
+
+#: The non-English tier (S2.9 / D-14 option B): the same fields with the VECTOR SLOT REPLACED by
+#: the language tag.
+#:
+#: Derived rather than written out, so the relationship is executable instead of asserted in prose.
+#: Writing a second literal list is how the two drift — and the drift would be silent, because
+#: each list is independently plausible. The replacement also keeps ``language`` in the position
+#: ``embedding`` occupied, which is the order the stored table already has.
+SEGMENT_NONEN_FIELDS: tuple[str, ...] = tuple(
+    "language" if name == "embedding" else name for name in SEGMENT_FIELDS
+)
 
 
 @dataclass

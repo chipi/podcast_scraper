@@ -36,6 +36,56 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-16ff698c1bd21087",
+      "target": "topic:account-data-analysis",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16ff698c1bd21087",
+      "target": "topic:behavioral-risk",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16ff698c1bd21087",
+      "target": "topic:concentration-risk",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16ff698c1bd21087",
+      "target": "topic:conviction-based-sizing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16ff698c1bd21087",
+      "target": "topic:correlated-bets",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16ff698c1bd21087",
+      "target": "topic:diversification-strategy",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16ff698c1bd21087",
+      "target": "topic:portfolio-construction",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16ff698c1bd21087",
+      "target": "topic:risk-control",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16ff698c1bd21087",
+      "target": "topic:systematic-risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16ff698c1bd21087",
+      "target": "topic:understanding-vs-ignorance",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-16ff698c1bd21087",
       "to": "person:nora",
       "type": "MENTIONS"
@@ -120,6 +170,86 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:account-data-analysis",
+      "properties": {
+        "label": "account data analysis",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:behavioral-risk",
+      "properties": {
+        "label": "behavioral risk",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:concentration-risk",
+      "properties": {
+        "label": "concentration risk",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:conviction-based-sizing",
+      "properties": {
+        "label": "conviction based sizing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:correlated-bets",
+      "properties": {
+        "label": "correlated bets",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:diversification-strategy",
+      "properties": {
+        "label": "diversification strategy",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:portfolio-construction",
+      "properties": {
+        "label": "portfolio construction",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-control",
+      "properties": {
+        "label": "risk control",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systematic-risk-management",
+      "properties": {
+        "label": "systematic risk management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:understanding-vs-ignorance",
+      "properties": {
+        "label": "understanding vs ignorance",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

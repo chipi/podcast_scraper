@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 311,
+  "postroll_cut_start": null,
+  "chars_removed": 600,
+  "preroll_pattern_hits": 3,
+  "postroll_pattern_hits": 3,
+  "source_length": 6819,
+  "excised_ranges": [
+    [
+      0,
+      311
+    ],
+    [
+      2609,
+      2898
+    ]
+  ],
+  "excised_texts": [
+    "Beatriz Antunes: Welcome back to Trail Sessions. Today, we're talking about drivetrain mechanics, and I'm joined by Tiago Moreira, a mechanic at Spoke & Wrench. Tiago Moreira, thank you for being here.\nTiago Moreira: Thank you, Beatriz. Glad to be back.\nBeatriz Antunes: Today's episode is sponsored by Notion. ",
+    "We'll be right back, after a short commercial break.\nSPEAKER_02: Today's episode is sponsored by Stripe. Stripe makes payments simple, whether you're running a marketplace or a subscription business. Visit stripe.com/podcast for a free trial.\nBeatriz Antunes: Welcome back to the program. "
+  ]
+}

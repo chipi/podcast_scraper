@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "episode_id": "p01_e01",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "summary": {
+    "bullets": [
+      "Drainage is the single highest-leverage design choice on any trail — ignoring it leads to rebuilding from scratch a year later.",
+      "The most common mistake new builders make is grading too aggressively, a decision that compounds into long-term trail degradation.",
+      "Bench cuts on hillsides aren't optional — the shortcut on day one becomes the washout on year three.",
+      "Soil structure matters more than people think, and its failure mode is often invisible until erosion has already taken hold.",
+      "Land-stewardship conversations must happen before the first dig — the framing determines which trade-offs are made.",
+      "Machine-built versus hand-built trails is a revised belief: the right tooling makes the difference, not the method alone.",
+      "Spoke & Wrench, RockShox, and Cascadia Alliance are platforms where these patterns consistently hold across teams.",
+      "The second-order effect — often missed — is that failure modes are harder to spot outside of high-quality tooling ecosystems."
+    ],
+    "raw_text": "Drainage is the single highest-leverage design choice on any trail — ignoring it leads to rebuilding from scratch a year later. The most common mistake new builders make is grading too aggressively, a decision that compounds into long-term trail degradation.",
+    "title": "Trail Building: The Hidden Leverage Points"
+  }
+}

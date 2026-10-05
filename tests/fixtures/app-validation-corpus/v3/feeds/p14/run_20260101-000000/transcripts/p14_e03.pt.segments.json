@@ -1,0 +1,345 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Beatriz Antunes",
+    "start": 0.0,
+    "text": "Bem-vindos de novo \u00e0s Sess\u00f5es de Trilha. Hoje falamos de mec\u00e2nica de transmiss\u00e3o, e comigo est\u00e1 Tiago Moreira, mec\u00e2nico na Spoke & Wrench. Tiago Moreira, obrigada por estares aqui."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Tiago Moreira",
+    "start": 6.0,
+    "text": "Obrigado, Beatriz. Contente de estar de volta."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Beatriz Antunes",
+    "start": 12.0,
+    "text": "O epis\u00f3dio de hoje \u00e9 patrocinado pela Notion. A Notion substitui a d\u00fazia de ferramentas que a tua equipa usa a meio. Experimenta notion.com hoje."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Beatriz Antunes",
+    "start": 18.0,
+    "text": "Antes de entrarmos no assunto \u2014 a In\u00eas Carvalho esteve no epis\u00f3dio anterior a dizer que a press\u00e3o dos pneus conta mais do que os ajustes de suspens\u00e3o."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Tiago Moreira",
+    "start": 24.0,
+    "text": "Sim, exatamente. E liga-se ao que vamos cobrir hoje."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Beatriz Antunes",
+    "start": 30.0,
+    "text": "Quero assinalar uma coisa \u2014 a In\u00eas Carvalho mencionou esta mesma din\u00e2mica h\u00e1 alguns epis\u00f3dios."
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Beatriz Antunes",
+    "start": 36.0,
+    "text": "Quero assinalar uma coisa \u2014 o Rafael Vasconcelos mencionou esta mesma din\u00e2mica h\u00e1 alguns epis\u00f3dios."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Beatriz Antunes",
+    "start": 42.0,
+    "text": "Quero aprofundar isso. O que \u00e9 que acreditavas sobre isto e j\u00e1 revistes?"
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Tiago Moreira",
+    "start": 48.0,
+    "text": "Resume-se a isto: a maioria dos rangidos misteriosos resolve-se limpando as superf\u00edcies de contacto e reapertando ao bin\u00e1rio previsto. Vimos isso em equipas que usam Spoke & Wrench. O enquadramento conta porque te diz que compromissos est\u00e1s a fazer."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Beatriz Antunes",
+    "start": 54.0,
+    "text": "\u00c9 um enquadramento \u00fatil. Onde se cruzam a manuten\u00e7\u00e3o e a mec\u00e2nica de transmiss\u00e3o?"
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Tiago Moreira",
+    "start": 60.0,
+    "text": "Vejo assim. Uma bicicleta devia sentir-se silenciosa e previs\u00edvel para que a tua aten\u00e7\u00e3o fique na trilha. E o efeito de segunda ordem \u00e9 a parte que quase todos deixam passar."
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Beatriz Antunes",
+    "start": 66.0,
+    "text": "Quero aprofundar isso. Qual \u00e9 o \u00e2ngulo estrutural a que a maioria dos ouvintes n\u00e3o tem acesso?"
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Tiago Moreira",
+    "start": 72.0,
+    "text": "Claro. O desgaste da corrente \u00e9 o melhor indicador antecipado de quando vais ter de substituir a cassete. Vimos isso em equipas que usam Spoke & Wrench. O enquadramento conta porque te diz que compromissos est\u00e1s a fazer."
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Beatriz Antunes",
+    "start": 78.0,
+    "text": "Conta-me mais sobre isso."
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Tiago Moreira",
+    "start": 84.0,
+    "text": "A Spoke & Wrench \u00e9 uma das plataformas onde isto aparece com clareza. Vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Beatriz Antunes",
+    "start": 90.0,
+    "text": "Conta-me como tomaste a decis\u00e3o. Como \u00e9 que a RockShox encaixa neste quadro?"
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Tiago Moreira",
+    "start": 96.0,
+    "text": "Claro. Os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. Se ignorares isso, acabas a reconstruir tudo de zero um ano depois."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Beatriz Antunes",
+    "start": 102.0,
+    "text": "Sabes que mais? Digo-o sem rodeios: a Linear gere toda a minha opera\u00e7\u00e3o de engenharia. A Linear \u00e9 o gestor de tarefas feito para a velocidade \u2014 pensado para o teclado. Usa o link nas notas do epis\u00f3dio."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Beatriz Antunes",
+    "start": 108.0,
+    "text": "Voltamos j\u00e1, depois de uma breve pausa publicit\u00e1ria."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Ad",
+    "start": 114.0,
+    "text": "O epis\u00f3dio de hoje \u00e9 patrocinado pela Stripe. A Stripe simplifica os pagamentos, quer geres um marketplace quer um neg\u00f3cio de subscri\u00e7\u00f5es. Visite stripe.com/podcast para um teste gratuito."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Beatriz Antunes",
+    "start": 120.0,
+    "text": "Bem-vindos de novo ao programa."
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Beatriz Antunes",
+    "start": 126.0,
+    "text": "\u00c9 um enquadramento \u00fatil. Onde se cruzam a manuten\u00e7\u00e3o e a mec\u00e2nica de transmiss\u00e3o?"
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Tiago Moreira",
+    "start": 132.0,
+    "text": "Vejo assim. A maioria dos rangidos misteriosos resolve-se limpando as superf\u00edcies de contacto e reapertando ao bin\u00e1rio previsto. Vimos isso em equipas que usam Shimano. Vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Beatriz Antunes",
+    "start": 138.0,
+    "text": "D\u00e1-me um exemplo concreto. O que \u00e9 que acreditavas sobre isto e j\u00e1 revistes?"
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Tiago Moreira",
+    "start": 144.0,
+    "text": "Sim, ent\u00e3o \u2014 uma bicicleta devia sentir-se silenciosa e previs\u00edvel para que a tua aten\u00e7\u00e3o fique na trilha. Depois de interiorizares isso, o resto das decis\u00f5es torna-se mais f\u00e1cil."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Beatriz Antunes",
+    "start": 150.0,
+    "text": "Comecemos por a\u00ed. O que \u00e9 que acreditavas sobre isto e j\u00e1 revistes?"
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Tiago Moreira",
+    "start": 156.0,
+    "text": "Vejo assim. O desgaste da corrente \u00e9 o melhor indicador antecipado de quando vais ter de substituir a cassete. Vimos isso em equipas que usam Shimano. Depois de interiorizares isso, o resto das decis\u00f5es torna-se mais f\u00e1cil."
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Beatriz Antunes",
+    "start": 162.0,
+    "text": "Isso encaixa."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Tiago Moreira",
+    "start": 168.0,
+    "text": "E quando as equipas adotam a Spoke & Wrench nesse fluxo, o compromisso torna-se vis\u00edvel \u2014 se ignorares isso, acabas a reconstruir tudo de zero um ano depois."
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Beatriz Antunes",
+    "start": 174.0,
+    "text": "Comecemos por a\u00ed. Qual \u00e9 o \u00e2ngulo operacional a que a maioria dos ouvintes n\u00e3o tem acesso?"
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Tiago Moreira",
+    "start": 180.0,
+    "text": "Vejo assim. Os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. Vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Beatriz Antunes",
+    "start": 186.0,
+    "text": "Mudemos de tema \u2014 quero dedicar o \u00faltimo trecho \u00e0 gest\u00e3o de risco."
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Tiago Moreira",
+    "start": 192.0,
+    "text": "\u00c9 a\u00ed que a conversa fica interessante, porque os compromissos em torno da gest\u00e3o de risco atravessam tudo o que cobrimos."
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Beatriz Antunes",
+    "start": 198.0,
+    "text": "D\u00e1-me um exemplo concreto. Qual \u00e9 o aspeto mais subestimado da mec\u00e2nica de transmiss\u00e3o?"
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Tiago Moreira",
+    "start": 204.0,
+    "text": "Claro. A maioria dos rangidos misteriosos resolve-se limpando as superf\u00edcies de contacto e reapertando ao bin\u00e1rio previsto. Vimos isso em equipas que usam Spoke & Wrench. Vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes."
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Beatriz Antunes",
+    "start": 210.0,
+    "text": "\u00c9 um enquadramento \u00fatil. Qual \u00e9 o \u00e2ngulo contr\u00e1rio a que a maioria dos ouvintes n\u00e3o tem acesso?"
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Tiago Moreira",
+    "start": 216.0,
+    "text": "Resume-se a isto: uma bicicleta devia sentir-se silenciosa e previs\u00edvel para que a tua aten\u00e7\u00e3o fique na trilha. O enquadramento conta porque te diz que compromissos est\u00e1s a fazer."
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Beatriz Antunes",
+    "start": 222.0,
+    "text": "Como \u00e9 o modo de falha? Qual \u00e9 o aspeto mais subestimado da mec\u00e2nica de transmiss\u00e3o?"
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Tiago Moreira",
+    "start": 228.0,
+    "text": "Sinceramente, o desgaste da corrente \u00e9 o melhor indicador antecipado de quando vais ter de substituir a cassete. Vimos isso em equipas que usam Shimano. Vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes."
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Beatriz Antunes",
+    "start": 234.0,
+    "text": "Onde \u00e9 que isso deixa de funcionar?"
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Tiago Moreira",
+    "start": 240.0,
+    "text": "E quando as equipas adotam a Shimano nesse fluxo, o compromisso torna-se vis\u00edvel \u2014 vi este padr\u00e3o repetir-se em tr\u00eas equipas diferentes."
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Beatriz Antunes",
+    "start": 246.0,
+    "text": "Qual \u00e9 a heur\u00edstica a que voltas sempre? Onde se cruzam a manuten\u00e7\u00e3o e a mec\u00e2nica de transmiss\u00e3o?"
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Tiago Moreira",
+    "start": 252.0,
+    "text": "Sinceramente, os intervalos de manuten\u00e7\u00e3o da suspens\u00e3o s\u00e3o uma decis\u00e3o de gest\u00e3o de risco. E o efeito de segunda ordem \u00e9 a parte que quase todos deixam passar."
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Beatriz Antunes",
+    "start": 258.0,
+    "text": "Antes de terminarmos, qual \u00e9 uma coisa que os ouvintes podem experimentar esta semana?"
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Tiago Moreira",
+    "start": 264.0,
+    "text": "Escolhe uma das ideias que cobrimos e aplica-a durante duas semanas. O resto \u00e9 itera\u00e7\u00e3o."
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Beatriz Antunes",
+    "start": 270.0,
+    "text": "Antes de fecharmos, obrigado de novo aos nossos amigos da Linear. A Linear \u00e9 o gestor de tarefas feito para a velocidade \u2014 pensado para o teclado."
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Beatriz Antunes",
+    "start": 276.0,
+    "text": "Tiago Moreira, obrigada pela conversa."
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Tiago Moreira",
+    "start": 282.0,
+    "text": "Obrigado a ti, Beatriz."
+  },
+  {
+    "end": 294.0,
+    "id": 48,
+    "speaker_label": "Beatriz Antunes",
+    "start": 288.0,
+    "text": "\u00c9 tudo por hoje nas Sess\u00f5es de Trilha. At\u00e9 \u00e0 pr\u00f3xima."
+  }
+]

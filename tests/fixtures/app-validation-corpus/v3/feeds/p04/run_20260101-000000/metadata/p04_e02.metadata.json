@@ -27,6 +27,8 @@
   "episode": {
     "duration_seconds": 456,
     "episode_id": "ep-fb2bb5f0f4044f1d",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2024-10-04T00:00:00",
     "title": "Documentary Workflow in the Field"
   },
@@ -36,25 +38,28 @@
     ],
     "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
     "feed_id": "p04",
-    "language": "en-us",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p04.webp",
+    "image_url": "http://localhost/images/p04.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "last_updated": "2025-06-21T00:00:00",
     "title": "Frame & Light",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p04.webp",
-    "image_url": "http://localhost/images/p04.webp"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Documentary frames carry the most weight when the photographer is closer than feels comfortable — a principle observed at teams using Profoto and Capture One, with second-order effects most people miss.",
-      "Editing a documentary essay is the second project rather than a finishing step; ignoring that distinction means rebuilding the work from scratch a year later.",
-      "Peak Design slings have changed how a photographer moves through a story, making gear choice part of the reporting process rather than a neutral accessory.",
-      "Adopting Peak Design in a working flow makes trade-offs visible — the framing matters because it reveals which trade-offs are being made.",
-      "Color grading documentary work is an area of changed conviction, a pattern observed holding across three different teams.",
-      "Editing workflow cross-cuts every other trade-off in documentary photography, from proximity to gear to grading.",
-      "Running one idea for two weeks rather than adopting everything at once is the recommended starting point — the rest is iteration."
+      "Documentary frames carry the most weight when the photographer is closer than feels comfortable — a principle that shapes the emotional and narrative impact of a story.",
+      "Editing a documentary essay is the second project, and the second-order effect — the hidden consequence of workflow decisions — is what most people miss.",
+      "Color grading in documentary work requires reconsideration; changing one's approach to grading can unlock new narrative clarity and authenticity.",
+      "Peak Design slings have changed how photographers move through a story, making the trade-offs in framing visibly explicit during the creative process.",
+      "The framing itself reveals which trade-offs are being made — the act of choosing what to include or exclude defines the story’s boundaries.",
+      "Teams using Capture One have demonstrated a consistent pattern: ignoring the core workflow principle leads to rebuilding the entire system from scratch within a year.",
+      "Operational success depends on recognizing that the editing workflow crosses all other domains — it’s not a separate task but a foundational structure.",
+      "Adopting tools like Peak Design in a workflow makes the underlying trade-offs visible, transforming how photographers perceive and shape their narrative journey."
     ],
-    "raw_text": "Documentary frames carry the most weight when the photographer is closer than feels comfortable — a principle observed at teams using Profoto and Capture One, with second-order effects most people miss. Editing a documentary essay is the second project rather than a finishing step; ignoring that distinction means rebuilding the work from scratch a year later.",
-    "title": "Documentary Photography: Proximity, Editing, and Gear on Frame & Light"
+    "raw_text": "Documentary frames carry the most weight when the photographer is closer than feels comfortable — a principle that shapes the emotional and narrative impact of a story. Editing a documentary essay is the second project, and the second-order effect — the hidden consequence of workflow decisions — is what most people miss.",
+    "title": "Documentary Photography: Framing, Workflow, and the Weight of Proximity"
   }
 }

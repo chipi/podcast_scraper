@@ -160,7 +160,7 @@ gi_qa_score_min: 0.3
 gi_nli_entailment_min: 0.75
 gil_evidence_match_summary_provider: true
 resilience_run_context: serve
-resilience_failure_strategy: failover
+resilience_failure_strategy: hold
 transcription_coverage_min: 0.0
 enforce_model_governance: false
 transcription_coverage_failover_model: null
@@ -177,3 +177,5 @@ gil_evidence_quote_bundle_chunk: 8
 vllm_presence_penalty: 1.5
 vllm_max_context_tokens: 65536
 llm_served_context_tokens: 65536
+translate_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1
+translate_model: google/translategemma-12b-it

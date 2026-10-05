@@ -31,6 +31,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-60d667843dc40fca",
+      "target": "topic:braking-technique",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-60d667843dc40fca",
+      "target": "topic:equipment-performance",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-60d667843dc40fca",
+      "target": "topic:erosion-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-60d667843dc40fca",
+      "target": "topic:failure-mode-analysis",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-60d667843dc40fca",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-60d667843dc40fca",
+      "target": "topic:suspension-tuning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-60d667843dc40fca",
+      "target": "topic:team-strategy",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-60d667843dc40fca",
+      "target": "topic:tire-pressure-selection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-60d667843dc40fca",
+      "target": "topic:track-line-optimization",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-60d667843dc40fca",
       "to": "person:maya",
       "type": "MENTIONS"
@@ -102,6 +147,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:braking-technique",
+      "properties": {
+        "label": "braking technique",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:equipment-performance",
+      "properties": {
+        "label": "equipment performance",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:erosion-patterns",
+      "properties": {
+        "label": "erosion patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:failure-mode-analysis",
+      "properties": {
+        "label": "failure mode analysis",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:suspension-tuning",
+      "properties": {
+        "label": "suspension tuning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:team-strategy",
+      "properties": {
+        "label": "team strategy",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tire-pressure-selection",
+      "properties": {
+        "label": "tire pressure selection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:track-line-optimization",
+      "properties": {
+        "label": "track line optimization",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

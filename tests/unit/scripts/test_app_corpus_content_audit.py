@@ -474,11 +474,186 @@ def test_the_fallback_can_be_accepted_deliberately() -> None:
     )
 
 
-def test_without_a_pipeline_run_the_stand_in_is_the_expected_output() -> None:
-    """There is nothing to fall back FROM, so the stand-in is not a defect."""
-    assert (
-        _synthesized_fallback_problems(
-            ran_pipeline=False, synthesized=["p01_e00"], total=1, allowed=False
-        )
-        == []
+def test_a_stand_in_is_a_defect_even_without_a_pipeline_run() -> None:
+    """INVERTED 2026-10-01, and this is the point of the whole change.
+
+    This asserted the opposite — "there is nothing to fall back FROM, so the stand-in is not a
+    defect" — which was true while a real summary existed only inside the build OUTPUT. Real
+    summaries are committed as INPUTS now (`tests/fixtures/pipeline-summaries/`), so a plain
+    rebuild replays them and a stand-in means an episode has NEITHER an authored summary NOR a
+    captured one.
+
+    The old exemption is how 38 real summaries were overwritten during the multilingual arc: the
+    obvious command after adding a show degraded the corpus and exited 0, because the one guard
+    that would have caught it had excused itself for exactly this case.
+    """
+    problems = _synthesized_fallback_problems(
+        ran_pipeline=False, synthesized=["p01_e00"], total=1, allowed=False
     )
+    assert problems, "a stand-in with no run is now a defect, not the expected output"
+    assert "no authored or captured summary" in problems[0], problems
+
+
+def test_the_message_names_the_episodes_that_fell_back() -> None:
+    """A count tells you something broke; the ids tell you where to look."""
+    problems = _synthesized_fallback_problems(
+        ran_pipeline=False, synthesized=["p01_e00", "p02_e09"], total=9, allowed=False
+    )
+    assert problems
+    assert "p01_e00" in problems[0] and "p02_e09" in problems[0], problems
+
+
+class TestEveryEpisodeHasARealSummarySource:
+    """The committed corpus must be REBUILDABLE without losing its summaries.
+
+    Asserted on the inputs rather than by running a build, because the property that matters is
+    "every episode has a source", and a 30-second corpus build to re-derive that would be paying
+    a lot for the same answer. `test_a_stand_in_is_a_defect_even_without_a_pipeline_run` above
+    covers the other half: that an episode WITHOUT a source fails the build.
+    """
+
+    CORPUS = Path(__file__).resolve().parents[3] / "tests/fixtures/app-validation-corpus/v3"
+    GT = Path(__file__).resolve().parents[3] / "tests/fixtures/ground-truth/v3/ground_truth"
+    CAPTURED = Path(__file__).resolve().parents[3] / "tests/fixtures/pipeline-summaries/v3"
+
+    def _episodes(self) -> list[str]:
+        return sorted(
+            m.name.split(".")[0] for m in self.CORPUS.glob("feeds/*/run_*/metadata/*.metadata.json")
+        )
+
+    def test_every_episode_has_an_authored_or_captured_summary(self) -> None:
+        if not self.CORPUS.is_dir():
+            pytest.skip("corpus missing")
+        episodes = self._episodes()
+        assert episodes, "no episodes found"
+        orphans = []
+        for ep in episodes:
+            gt = self.GT / f"{ep}.json"
+            authored = False
+            if gt.is_file():
+                doc = json.loads(gt.read_text(encoding="utf-8"))
+                authored = bool((doc.get("summary") or {}).get("raw_text"))
+            captured = (self.CAPTURED / f"{ep}.json").is_file()
+            if not (authored or captured):
+                orphans.append(ep)
+        assert not orphans, (
+            "these episodes would fall to the synthesized stand-in on a plain rebuild — capture "
+            f"their pipeline summary or author one: {orphans}"
+        )
+
+    def test_the_two_sources_do_not_overlap(self) -> None:
+        """One source per episode, or the build's precedence decides silently which one wins."""
+        if not self.CORPUS.is_dir():
+            pytest.skip("corpus missing")
+        both = []
+        for ep in self._episodes():
+            gt = self.GT / f"{ep}.json"
+            if not gt.is_file() or not (self.CAPTURED / f"{ep}.json").is_file():
+                continue
+            doc = json.loads(gt.read_text(encoding="utf-8"))
+            if (doc.get("summary") or {}).get("raw_text"):
+                both.append(ep)
+        assert not both, (
+            "these episodes have BOTH an authored and a captured summary; the authored one wins "
+            f"and the captured file is dead weight that will drift: {both}"
+        )
+
+    def test_a_captured_summary_states_where_it_came_from(self) -> None:
+        """A recording of model output is only trustworthy if it says what it is a recording OF."""
+        if not self.CAPTURED.is_dir():
+            pytest.skip("no captured summaries")
+        for f in sorted(self.CAPTURED.glob("*.json")):
+            doc = json.loads(f.read_text(encoding="utf-8"))
+            assert doc.get("provenance"), f"{f.name} does not say where it came from"
+            assert str(doc["summary"]["raw_text"]).strip(), f"{f.name} has an empty summary"
+
+
+class TestTheCaptureReplayLoopActuallyCloses:
+    """A recording is only worth anything if it can be re-made and read back.
+
+    `--capture-summaries` writes a real run's summaries out as fixture inputs, and
+    `_captured_summary_for` reads them on every later build. Those are two halves of one loop,
+    written in different places, and the failure mode if they disagree is silent: the build
+    replays nothing and falls to the stand-in, which is the defect this mechanism exists to
+    prevent.
+    """
+
+    def _mod(self):
+        import importlib.util
+
+        root = Path(__file__).resolve().parents[3]
+        spec = importlib.util.spec_from_file_location(
+            "bavc", root / "scripts" / "build_app_validation_corpus.py"
+        )
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = mod
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_what_capture_writes_is_what_replay_reads(self, tmp_path, monkeypatch) -> None:
+        mod = self._mod()
+        monkeypatch.setattr(mod, "CAPTURED_SUMMARY_DIR", tmp_path / "pipeline-summaries")
+        gt_dir = tmp_path / "gt"
+        gt_dir.mkdir()
+
+        written, _skipped = mod._capture_summaries(
+            {
+                "p01_e01": {
+                    "has_summary": True,
+                    "title": "A Real Title",
+                    "raw_text": "A real summary sentence, produced by a model.",
+                    "bullets": ["one", "two"],
+                }
+            },
+            "v3",
+            gt_dir,
+            tmp_path / "some-run",
+        )
+        assert written == 1
+
+        back = mod._captured_summary_for("p01_e01", "v3")
+        assert back is not None, "capture wrote a file that replay cannot read"
+        assert back["raw_text"] == "A real summary sentence, produced by a model."
+        assert back["title"] == "A Real Title"
+        assert back["bullets"] == ["one", "two"]
+
+    def test_capture_skips_an_episode_that_already_has_an_authored_summary(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Authored wins at build time, so a captured file beside it is dead weight that drifts."""
+        mod = self._mod()
+        monkeypatch.setattr(mod, "CAPTURED_SUMMARY_DIR", tmp_path / "pipeline-summaries")
+        gt_dir = tmp_path / "gt"
+        gt_dir.mkdir()
+        (gt_dir / "p06_e05.json").write_text(
+            json.dumps({"summary": {"raw_text": "Hand-written.", "title": "T", "bullets": []}}),
+            encoding="utf-8",
+        )
+
+        written, skipped = mod._capture_summaries(
+            {"p06_e05": {"has_summary": True, "title": "X", "raw_text": "Y", "bullets": []}},
+            "v3",
+            gt_dir,
+            tmp_path / "some-run",
+        )
+        assert written == 0
+        assert any("authored" in s for s in skipped), skipped
+        assert mod._captured_summary_for("p06_e05", "v3") is None
+
+    def test_an_empty_or_summaryless_run_entry_is_not_captured(self, tmp_path, monkeypatch) -> None:
+        """Capturing an empty string would make the next build replay nothing, loudly-silently."""
+        mod = self._mod()
+        monkeypatch.setattr(mod, "CAPTURED_SUMMARY_DIR", tmp_path / "pipeline-summaries")
+        gt_dir = tmp_path / "gt"
+        gt_dir.mkdir()
+        written, skipped = mod._capture_summaries(
+            {
+                "p01_e01": {"has_summary": False, "raw_text": "ignored"},
+                "p01_e02": {"has_summary": True, "raw_text": "   "},
+            },
+            "v3",
+            gt_dir,
+            tmp_path / "run",
+        )
+        assert written == 0
+        assert len(skipped) == 2, skipped

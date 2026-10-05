@@ -36,6 +36,56 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-64ef09a7ee543045",
+      "target": "topic:cross-cutting-trade-offs",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-64ef09a7ee543045",
+      "target": "topic:iteration-practice",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-64ef09a7ee543045",
+      "target": "topic:listener-perception",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-64ef09a7ee543045",
+      "target": "topic:mispronunciation-signal",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-64ef09a7ee543045",
+      "target": "topic:preparation-humility",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-64ef09a7ee543045",
+      "target": "topic:public-radio-conventions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-64ef09a7ee543045",
+      "target": "topic:second-order-effect",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-64ef09a7ee543045",
+      "target": "topic:team-consistency",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-64ef09a7ee543045",
+      "target": "topic:trade-off-framing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-64ef09a7ee543045",
+      "target": "topic:voice-reliability",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-64ef09a7ee543045",
       "to": "person:a-correspondent",
       "type": "MENTIONS"
@@ -115,6 +165,86 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cross-cutting-trade-offs",
+      "properties": {
+        "label": "cross cutting trade offs",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "properties": {
+        "label": "iteration practice",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:listener-perception",
+      "properties": {
+        "label": "listener perception",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:mispronunciation-signal",
+      "properties": {
+        "label": "mispronunciation signal",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:preparation-humility",
+      "properties": {
+        "label": "preparation humility",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:public-radio-conventions",
+      "properties": {
+        "label": "public radio conventions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effect",
+      "properties": {
+        "label": "second order effect",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:team-consistency",
+      "properties": {
+        "label": "team consistency",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trade-off-framing",
+      "properties": {
+        "label": "trade off framing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:voice-reliability",
+      "properties": {
+        "label": "voice reliability",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

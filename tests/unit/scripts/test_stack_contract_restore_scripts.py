@@ -290,3 +290,81 @@ def test_restore_ops_scripts_pass_bash_syntax_check(script: Path) -> None:
         check=False,
     )
     assert proc.returncode == 0, proc.stderr
+
+
+class TestTheSnapshotTagRegexSurvivesTheShell:
+    """The Makefile must hand `select_release_tag.sh` a VALID ERE (#2178 follow-up).
+
+    THE BUG. Both selector targets built their default with `$${TAG_REGEX:-^snapshot-...{8}$$}`.
+    Inside a brace default the shell parses the ERE's own `{8}` as brace syntax and transposes the
+    tail, so the script received::
+
+        ^snapshot-prod-[0-9]{8$}
+
+    which matches no tag. `make corpus-snapshot-select-tag-prod` failed with "no releases
+    matching" while real snapshots existed — a DR-path failure that reads like missing backups.
+
+    Quoting the default leaves literal quotes in the value and escaping the brace leaves a
+    backslash; only assigning it outside a brace default works. Asserted on the RENDERED value,
+    not the Makefile text, because the corruption happens at shell-expansion time — a source grep
+    would have looked correct throughout.
+    """
+
+    MAKEFILE = REPO_ROOT / "Makefile"
+
+    @pytest.mark.parametrize(
+        "target,expected",
+        [
+            ("corpus-snapshot-select-tag", r"^snapshot-[0-9]{8}$"),
+            ("corpus-snapshot-select-tag-prod", r"^snapshot-prod-[0-9]{8}$"),
+        ],
+    )
+    def test_the_rendered_default_is_the_regex_we_wrote(self, target: str, expected: str) -> None:
+        """Extract the target's TAG_REGEX default and run it through a real shell."""
+        import re
+
+        body = self.MAKEFILE.read_text(encoding="utf-8").split(f"\n{target}:\n", 1)[1]
+        body = body.split("\n\n", 1)[0]
+        m = re.search(r"TAG_REGEX='([^']+)'", body)
+        assert m, f"{target} no longer assigns a quoted TAG_REGEX default:\n{body}"
+        # Makefiles escape `$` as `$$`; the shell sees one.
+        shell_literal = m.group(1).replace("$$", "$")
+
+        rendered = subprocess.run(
+            ["bash", "-c", f"T='{shell_literal}'; printf '%s' \"$T\""],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        assert rendered == expected, (
+            f"{target} hands the script {rendered!r}, not {expected!r} — the ERE was mangled by "
+            "shell expansion and will match no tag"
+        )
+
+    @pytest.mark.parametrize(
+        "regex,tag,should_match",
+        [
+            (r"^snapshot-prod-[0-9]{8}$", "snapshot-prod-20260927", True),
+            (r"^snapshot-prod-[0-9]{8}$", "operator-appdata-prod-20260929", False),
+            (r"^snapshot-prod-[0-9]{8}$", "snapshot-20260927", False),
+            (r"^snapshot-[0-9]{8}$", "snapshot-20260927", True),
+            (r"^snapshot-[0-9]{8}$", "snapshot-prod-20260927", False),
+            # The corrupted form, proving it is the failure and not merely different.
+            (r"^snapshot-prod-[0-9]{8$}", "snapshot-prod-20260927", False),
+        ],
+    )
+    def test_the_regex_selects_what_it_should(
+        self, regex: str, tag: str, should_match: bool
+    ) -> None:
+        """Tested through `jq`'s `test()`, which is what select_release_tag.sh actually uses."""
+        result = subprocess.run(
+            ["jq", "-r", "--arg", "re", regex, 'if (. | test($re)) then "y" else "n" end'],
+            input=f'"{tag}"',
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            pytest.skip(f"jq unavailable or rejected the pattern: {result.stderr.strip()}")
+        assert (
+            result.stdout.strip() == "y"
+        ) is should_match, f"{regex!r} vs {tag!r}: expected match={should_match}"

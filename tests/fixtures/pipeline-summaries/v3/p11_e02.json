@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-03T12:49:31Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p11_e02",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "summary": {
+    "bullets": [
+      "Soil erosion patterns on race tracks directly influence trajectory choices between practice and race day, making track condition awareness a core racing strategy.",
+      "Tire pressure and casing selection matter more than minor suspension adjustments, as they impact grip and stability on eroded terrain.",
+      "Speed comes from braking earlier and more smoothly rather than taking greater risks, a principle observed across multiple teams using RockShox.",
+      "The framing of a race setup reveals the compromises being made — design decisions reflect tradeoffs in risk, durability, and performance.",
+      "Risk management in enduro racing isn't about avoiding crashes but about choosing which crashes are survivable through disciplined technique.",
+      "The Cascadia Alliance highlights how second-order effects — like altered rider behavior due to track erosion — shape long-term race outcomes.",
+      "Spoke & Wrench integration into team workflows makes the trade-off between risk and reliability visibly apparent across three observed teams.",
+      "Listeners should implement one core idea from the episode for two weeks to test its impact — everything else is iteration."
+    ],
+    "raw_text": "Soil erosion patterns on race tracks directly influence trajectory choices between practice and race day, making track condition awareness a core racing strategy. Tire pressure and casing selection matter more than minor suspension adjustments, as they impact grip and stability on eroded terrain.",
+    "title": "Enduro Racing: Erosion, Risk, and the Power of Smart Decision-Making"
+  }
+}

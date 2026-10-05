@@ -36,6 +36,7 @@ def create_test_config(**kwargs):
         "generate_metadata": True,
         "download_podcast_artwork": False,
         "auto_speakers": False,
+        "feed_declared_language": "en",  # #2283: an English feed
     }
     defaults.update(kwargs)
     return config.Config(**defaults)

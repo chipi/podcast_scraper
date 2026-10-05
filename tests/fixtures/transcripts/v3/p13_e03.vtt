@@ -1,0 +1,148 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:10.920
+<v Katrin Vogel>Willkommen zurück bei Pfadgesprächen. Heute sprechen wir über Antriebsmechanik, und bei mir ist Jonas Richter, Mechaniker bei Spoke &amp; Wrench. Jonas Richter, danke, dass du hier bist.</v>
+
+00:00:10.920 --> 00:00:13.440
+<v Jonas Richter>Danke, Katrin. Schön, wieder hier zu sein.</v>
+
+00:00:13.440 --> 00:00:21.600
+<v Katrin Vogel>Diese Folge wird von Notion gesponsert. Notion ersetzt das Dutzend Werkzeuge, die dein Team halb benutzt. Probiere notion.com heute aus.</v>
+
+00:00:21.600 --> 00:00:29.520
+<v Katrin Vogel>Bevor wir einsteigen — Lena Hofmann war in der letzten Folge dabei und sagte, dass Reifendruck mehr zählt als Fahrwerksabstimmungen.</v>
+
+00:00:29.520 --> 00:00:33.180
+<v Jonas Richter>Ja, genau. Und das knüpft an das an, was wir heute behandeln.</v>
+
+00:00:33.180 --> 00:00:38.580
+<v Katrin Vogel>Ich möchte etwas anmerken — Lena Hofmann hat dieselbe Dynamik vor ein paar Folgen erwähnt.</v>
+
+00:00:38.580 --> 00:00:44.040
+<v Katrin Vogel>Ich möchte etwas anmerken — Stefan Brandt hat dieselbe Dynamik vor ein paar Folgen erwähnt.</v>
+
+00:03:30.000 --> 00:03:35.160
+<v Katrin Vogel>Da will ich tiefer rein. Was hast du darüber früher geglaubt und inzwischen revidiert?</v>
+
+00:03:35.160 --> 00:03:52.320
+<v Jonas Richter>Es läuft darauf hinaus: die meisten rätselhaften Knarzgeräusche löst man, indem man die Kontaktflächen reinigt und auf das vorgegebene Drehmoment nachzieht. Wir haben das bei Teams gesehen, die Spoke &amp; Wrench nutzen. Die Rahmung zählt, weil sie dir sagt, welche Kompromisse du eingehst.</v>
+
+00:03:52.320 --> 00:03:57.300
+<v Katrin Vogel>Das ist eine nützliche Rahmung. Wo überschneiden sich Wartung und Antriebsmechanik?</v>
+
+00:03:57.300 --> 00:04:08.760
+<v Jonas Richter>So sehe ich das. Ein Bike sollte sich leise und vorhersehbar anfühlen, damit deine Aufmerksamkeit auf dem Trail bleibt. Und der Effekt zweiter Ordnung ist der Teil, den die meisten übersehen.</v>
+
+00:04:08.760 --> 00:04:15.240
+<v Katrin Vogel>Da will ich tiefer rein. Was ist der strukturelle Blickwinkel, zu dem die meisten Hörer keinen Zugang haben?</v>
+
+00:04:15.240 --> 00:04:28.500
+<v Jonas Richter>Klar. Kettenverschleiß ist der beste Frühindikator dafür, wann du Kassetten ersetzen musst. Wir haben das bei Teams gesehen, die Spoke &amp; Wrench nutzen. Die Rahmung zählt, weil sie dir sagt, welche Kompromisse du eingehst.</v>
+
+00:04:28.500 --> 00:04:30.000
+<v Katrin Vogel>Erzähl mir mehr darüber.</v>
+
+00:04:30.000 --> 00:04:37.800
+<v Jonas Richter>Spoke &amp; Wrench ist eine der Plattformen, wo das klar sichtbar wird. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.</v>
+
+00:04:37.800 --> 00:04:42.060
+<v Katrin Vogel>Erzähl mir, wie du entschieden hast. Wie passt RockShox in dieses Bild?</v>
+
+00:04:42.060 --> 00:04:51.360
+<v Jonas Richter>Klar. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Wenn du das ignorierst, baust du es ein Jahr später von Null wieder auf.</v>
+
+00:04:51.360 --> 00:05:03.960
+<v Katrin Vogel>Weißt du was? Ich sage es einfach: Linear steuert meinen ganzen Engineering-Betrieb. Linear ist der Issue-Tracker, der auf Geschwindigkeit gebaut ist — gedacht für die Tastatur. Nutze den Link in den Shownotes.</v>
+
+00:12:00.000 --> 00:12:03.000
+<v Katrin Vogel>Wir sind gleich zurück, nach einer kurzen Werbung.</v>
+
+00:12:03.000 --> 00:12:14.400
+<v Ad>Diese Folge wird von Stripe gesponsert. Stripe macht Zahlungen einfach, egal ob du einen Marktplatz oder ein Abo-Geschäft betreibst. Besuche stripe.com/podcast für eine kostenlose Testphase.</v>
+
+00:12:14.400 --> 00:12:16.380
+<v Katrin Vogel>Willkommen zurück in der Sendung.</v>
+
+00:14:00.000 --> 00:14:04.980
+<v Katrin Vogel>Das ist eine nützliche Rahmung. Wo überschneiden sich Wartung und Antriebsmechanik?</v>
+
+00:14:04.980 --> 00:14:20.880
+<v Jonas Richter>So sehe ich das. Die meisten rätselhaften Knarzgeräusche löst man, indem man die Kontaktflächen reinigt und auf das vorgegebene Drehmoment nachzieht. Wir haben das bei Teams gesehen, die Shimano nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.</v>
+
+00:14:20.880 --> 00:14:26.460
+<v Katrin Vogel>Gib mir ein konkretes Beispiel. Was hast du darüber früher geglaubt und inzwischen revidiert?</v>
+
+00:14:26.460 --> 00:14:38.220
+<v Jonas Richter>Ja, also — ein Bike sollte sich leise und vorhersehbar anfühlen, damit deine Aufmerksamkeit auf dem Trail bleibt. Wenn du das einmal verinnerlicht hast, werden die übrigen Entscheidungen leichter.</v>
+
+00:14:38.220 --> 00:14:42.960
+<v Katrin Vogel>Fangen wir da an. Was hast du darüber früher geglaubt und inzwischen revidiert?</v>
+
+00:14:42.960 --> 00:14:57.240
+<v Jonas Richter>So sehe ich das. Kettenverschleiß ist der beste Frühindikator dafür, wann du Kassetten ersetzen musst. Wir haben das bei Teams gesehen, die Shimano nutzen. Wenn du das einmal verinnerlicht hast, werden die übrigen Entscheidungen leichter.</v>
+
+00:14:57.240 --> 00:14:58.740
+<v Katrin Vogel>Das passt.</v>
+
+00:14:58.740 --> 00:15:08.460
+<v Jonas Richter>Und wenn Teams Spoke &amp; Wrench in diesen Ablauf übernehmen, wird der Kompromiss sichtbar — wenn du das ignorierst, baust du es ein Jahr später von Null wieder auf.</v>
+
+00:15:08.460 --> 00:15:14.340
+<v Katrin Vogel>Fangen wir da an. Was ist der operative Blickwinkel, zu dem die meisten Hörer keinen Zugang haben?</v>
+
+00:15:14.340 --> 00:15:23.700
+<v Jonas Richter>So sehe ich das. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.</v>
+
+00:22:00.000 --> 00:22:05.040
+<v Katrin Vogel>Wechseln wir das Thema — den letzten Abschnitt will ich dem Risikomanagement widmen.</v>
+
+00:22:05.040 --> 00:22:12.420
+<v Jonas Richter>Da wird das Gespräch interessant, weil die Kompromisse rund um Risikomanagement alles durchziehen, was wir behandelt haben.</v>
+
+00:22:12.420 --> 00:22:18.120
+<v Katrin Vogel>Gib mir ein konkretes Beispiel. Was ist der am meisten unterschätzte Teil der Antriebsmechanik?</v>
+
+00:22:18.120 --> 00:22:33.780
+<v Jonas Richter>Klar. Die meisten rätselhaften Knarzgeräusche löst man, indem man die Kontaktflächen reinigt und auf das vorgegebene Drehmoment nachzieht. Wir haben das bei Teams gesehen, die Spoke &amp; Wrench nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.</v>
+
+00:22:33.780 --> 00:22:40.440
+<v Katrin Vogel>Das ist eine nützliche Rahmung. Was ist der konträre Blickwinkel, zu dem die meisten Hörer keinen Zugang haben?</v>
+
+00:22:40.440 --> 00:22:52.200
+<v Jonas Richter>Es läuft darauf hinaus: ein Bike sollte sich leise und vorhersehbar anfühlen, damit deine Aufmerksamkeit auf dem Trail bleibt. Die Rahmung zählt, weil sie dir sagt, welche Kompromisse du eingehst.</v>
+
+00:22:52.200 --> 00:22:57.780
+<v Katrin Vogel>Wie sieht der Fehlerfall aus? Was ist der am meisten unterschätzte Teil der Antriebsmechanik?</v>
+
+00:22:57.780 --> 00:23:10.800
+<v Jonas Richter>Ehrlich gesagt, Kettenverschleiß ist der beste Frühindikator dafür, wann du Kassetten ersetzen musst. Wir haben das bei Teams gesehen, die Shimano nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.</v>
+
+00:23:10.800 --> 00:23:12.300
+<v Katrin Vogel>Wo bricht das zusammen?</v>
+
+00:23:12.300 --> 00:23:21.000
+<v Jonas Richter>Und wenn Teams Shimano in diesen Ablauf übernehmen, wird der Kompromiss sichtbar — ich habe dieses Muster in drei verschiedenen Teams beobachtet.</v>
+
+00:23:21.000 --> 00:23:27.240
+<v Katrin Vogel>Was ist die Heuristik, zu der du immer zurückkehrst? Wo überschneiden sich Wartung und Antriebsmechanik?</v>
+
+00:23:27.240 --> 00:23:37.080
+<v Jonas Richter>Ehrlich gesagt, Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Und der Effekt zweiter Ordnung ist der Teil, den die meisten übersehen.</v>
+
+00:28:00.000 --> 00:28:04.980
+<v Katrin Vogel>Bevor wir schließen, was ist eine Sache, die Hörer diese Woche ausprobieren können?</v>
+
+00:28:04.980 --> 00:28:11.220
+<v Jonas Richter>Nimm eine der Ideen, die wir behandelt haben, und wende sie zwei Wochen lang an. Der Rest ist Iteration.</v>
+
+00:28:11.220 --> 00:28:20.880
+<v Katrin Vogel>Bevor wir schließen, danke noch einmal an unsere Freunde von Linear. Linear ist der Issue-Tracker, der auf Geschwindigkeit gebaut ist — gedacht für die Tastatur.</v>
+
+00:28:20.880 --> 00:28:23.160
+<v Katrin Vogel>Jonas Richter, danke für das Gespräch.</v>
+
+00:28:23.160 --> 00:28:24.660
+<v Jonas Richter>Danke dir, Katrin.</v>
+
+00:28:24.660 --> 00:28:29.100
+<v Katrin Vogel>Das war es für die heutige Folge von Pfadgesprächen. Bis zum nächsten Mal.</v>

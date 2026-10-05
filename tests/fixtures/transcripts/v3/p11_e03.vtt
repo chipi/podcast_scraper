@@ -1,0 +1,148 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:10.260
+<v Giulia Ferrara>Bentornati a Sentieri d'Autore. Oggi parliamo di meccanica della trasmissione, e con me c'è Luca Moretti, meccanico da Spoke &amp; Wrench. Luca Moretti, grazie per essere qui.</v>
+
+00:00:10.260 --> 00:00:13.020
+<v Luca Moretti>Grazie, Giulia. Felice di essere di nuovo qui.</v>
+
+00:00:13.020 --> 00:00:21.180
+<v Giulia Ferrara>Questo episodio è sponsorizzato da Notion. Notion sostituisce la dozzina di strumenti che il tuo team usa a metà. Prova notion.com oggi.</v>
+
+00:00:21.180 --> 00:00:30.720
+<v Giulia Ferrara>Prima di entrare nel merito — Chiara Ricci era ospite nell'episodio scorso e diceva che la pressione delle gomme conta più delle regolazioni delle sospensioni.</v>
+
+00:00:30.720 --> 00:00:33.840
+<v Luca Moretti>Sì, esatto. E si collega a quello che copriamo oggi.</v>
+
+00:00:33.840 --> 00:00:39.600
+<v Giulia Ferrara>Voglio segnalare una cosa — Chiara Ricci ha menzionato la stessa dinamica un paio di episodi fa.</v>
+
+00:00:39.600 --> 00:00:45.420
+<v Giulia Ferrara>Voglio segnalare una cosa — Marco Bellini ha menzionato la stessa dinamica un paio di episodi fa.</v>
+
+00:03:30.000 --> 00:03:34.020
+<v Giulia Ferrara>Voglio approfondire. Cosa credevi su questo tema e hai poi rivisto?</v>
+
+00:03:34.020 --> 00:03:49.500
+<v Luca Moretti>Si riduce a questo: la maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Spoke &amp; Wrench. L'inquadratura conta perché ti dice quali compromessi stai facendo.</v>
+
+00:03:49.500 --> 00:03:55.140
+<v Giulia Ferrara>È un'inquadratura utile. Dove si incrociano la manutenzione e la meccanica della trasmissione?</v>
+
+00:03:55.140 --> 00:04:05.940
+<v Luca Moretti>Io la vedo così. Una bici dovrebbe sembrare silenziosa e prevedibile così la tua attenzione resta sul sentiero. E l'effetto di secondo ordine è la parte che quasi tutti si perdono.</v>
+
+00:04:05.940 --> 00:04:12.300
+<v Giulia Ferrara>Voglio approfondire. Qual è il taglio strutturale a cui la maggior parte degli ascoltatori non ha accesso?</v>
+
+00:04:12.300 --> 00:04:25.680
+<v Luca Moretti>Certo. L'usura della catena è il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Spoke &amp; Wrench. L'inquadratura conta perché ti dice quali compromessi stai facendo.</v>
+
+00:04:25.680 --> 00:04:27.180
+<v Giulia Ferrara>Dimmi di più.</v>
+
+00:04:27.180 --> 00:04:34.740
+<v Luca Moretti>Spoke &amp; Wrench è una delle piattaforme dove questo emerge con chiarezza. Ho visto questo schema ripetersi in tre team diversi.</v>
+
+00:04:34.740 --> 00:04:39.060
+<v Giulia Ferrara>Raccontami come hai deciso. Come si inserisce RockShox in questo quadro?</v>
+
+00:04:39.060 --> 00:04:48.960
+<v Luca Moretti>Certo. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo.</v>
+
+00:04:48.960 --> 00:05:00.600
+<v Giulia Ferrara>Sai cosa? Lo dico e basta: Linear gestisce tutta la mia operatività di ingegneria. Linear è l'issue tracker fatto per la velocità — pensato per la tastiera. Usa il link nelle note dell'episodio.</v>
+
+00:12:00.000 --> 00:12:03.120
+<v Giulia Ferrara>Torniamo subito, dopo una breve pausa pubblicitaria.</v>
+
+00:12:03.120 --> 00:12:14.220
+<v Ad>Questo episodio è sponsorizzato da Stripe. Stripe semplifica i pagamenti, sia che gestisci un marketplace o un business in abbonamento. Visita stripe.com/podcast per una prova gratuita.</v>
+
+00:12:14.220 --> 00:12:15.720
+<v Giulia Ferrara>Bentornati al programma.</v>
+
+00:14:00.000 --> 00:14:05.640
+<v Giulia Ferrara>È un'inquadratura utile. Dove si incrociano la manutenzione e la meccanica della trasmissione?</v>
+
+00:14:05.640 --> 00:14:19.680
+<v Luca Moretti>Io la vedo così. La maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Shimano. Ho visto questo schema ripetersi in tre team diversi.</v>
+
+00:14:19.680 --> 00:14:24.060
+<v Giulia Ferrara>Fammi un esempio concreto. Cosa credevi su questo tema e hai poi rivisto?</v>
+
+00:14:24.060 --> 00:14:35.040
+<v Luca Moretti>Sì, allora — una bici dovrebbe sembrare silenziosa e prevedibile così la tua attenzione resta sul sentiero. Una volta che lo interiorizzi, il resto delle decisioni diventa più facile.</v>
+
+00:14:35.040 --> 00:14:38.760
+<v Giulia Ferrara>Partiamo da lì. Cosa credevi su questo tema e hai poi rivisto?</v>
+
+00:14:38.760 --> 00:14:52.800
+<v Luca Moretti>Io la vedo così. L'usura della catena è il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Shimano. Una volta che lo interiorizzi, il resto delle decisioni diventa più facile.</v>
+
+00:14:52.800 --> 00:14:54.300
+<v Giulia Ferrara>Torna.</v>
+
+00:14:54.300 --> 00:15:03.600
+<v Luca Moretti>E quando i team adottano Spoke &amp; Wrench in quel flusso, il compromesso diventa visibile — se lo ignori, finisci per ricostruire tutto da zero un anno dopo.</v>
+
+00:15:03.600 --> 00:15:09.540
+<v Giulia Ferrara>Partiamo da lì. Qual è il taglio operativo a cui la maggior parte degli ascoltatori non ha accesso?</v>
+
+00:15:09.540 --> 00:15:19.320
+<v Luca Moretti>Io la vedo così. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Ho visto questo schema ripetersi in tre team diversi.</v>
+
+00:22:00.000 --> 00:22:04.740
+<v Giulia Ferrara>Cambiamo argomento — voglio dedicare l'ultimo tratto alla gestione del rischio.</v>
+
+00:22:04.740 --> 00:22:13.680
+<v Luca Moretti>È lì che la conversazione diventa interessante, perché i compromessi intorno alla gestione del rischio attraversano tutto quello che abbiamo coperto.</v>
+
+00:22:13.680 --> 00:22:19.500
+<v Giulia Ferrara>Fammi un esempio concreto. Qual è l'aspetto più sottovalutato della meccanica della trasmissione?</v>
+
+00:22:19.500 --> 00:22:33.360
+<v Luca Moretti>Certo. La maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Spoke &amp; Wrench. Ho visto questo schema ripetersi in tre team diversi.</v>
+
+00:22:33.360 --> 00:22:40.140
+<v Giulia Ferrara>È un'inquadratura utile. Qual è il taglio controcorrente a cui la maggior parte degli ascoltatori non ha accesso?</v>
+
+00:22:40.140 --> 00:22:51.060
+<v Luca Moretti>Si riduce a questo: una bici dovrebbe sembrare silenziosa e prevedibile così la tua attenzione resta sul sentiero. L'inquadratura conta perché ti dice quali compromessi stai facendo.</v>
+
+00:22:51.060 --> 00:22:57.120
+<v Giulia Ferrara>Com'è fatto il modo di guasto? Qual è l'aspetto più sottovalutato della meccanica della trasmissione?</v>
+
+00:22:57.120 --> 00:23:09.660
+<v Luca Moretti>Sinceramente, l'usura della catena è il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Shimano. Ho visto questo schema ripetersi in tre team diversi.</v>
+
+00:23:09.660 --> 00:23:11.220
+<v Giulia Ferrara>Dove smette di funzionare?</v>
+
+00:23:11.220 --> 00:23:19.380
+<v Luca Moretti>E quando i team adottano Shimano in quel flusso, il compromesso diventa visibile — ho visto questo schema ripetersi in tre team diversi.</v>
+
+00:23:19.380 --> 00:23:25.860
+<v Giulia Ferrara>Qual è l'euristica a cui torni sempre? Dove si incrociano la manutenzione e la meccanica della trasmissione?</v>
+
+00:23:25.860 --> 00:23:36.360
+<v Luca Moretti>Sinceramente, gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. E l'effetto di secondo ordine è la parte che quasi tutti si perdono.</v>
+
+00:28:00.000 --> 00:28:05.280
+<v Giulia Ferrara>Prima di chiudere, qual è una cosa che gli ascoltatori possono provare questa settimana?</v>
+
+00:28:05.280 --> 00:28:10.980
+<v Luca Moretti>Scegli una delle idee che abbiamo coperto e applicala per due settimane. Il resto è iterazione.</v>
+
+00:28:10.980 --> 00:28:18.960
+<v Giulia Ferrara>Prima di chiudere, grazie ancora ai nostri amici di Linear. Linear è l'issue tracker fatto per la velocità — pensato per la tastiera.</v>
+
+00:28:18.960 --> 00:28:21.480
+<v Giulia Ferrara>Luca Moretti, grazie per la conversazione.</v>
+
+00:28:21.480 --> 00:28:22.980
+<v Luca Moretti>Grazie a te, Giulia.</v>
+
+00:28:22.980 --> 00:28:27.900
+<v Giulia Ferrara>È tutto per l'episodio di oggi di Sentieri d'Autore. Ci vediamo la prossima volta.</v>

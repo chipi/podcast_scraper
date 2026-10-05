@@ -1,0 +1,902 @@
+[
+{
+"start": 16.08,
+"end": 20.28,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Notion replaces the dozen tools your team uses inconsistently.",
+"char_start": 15,
+"char_end": 77,
+"unit_id": "t0002.u01",
+"sent_id": "t0002.s02"
+},
+{
+"start": 20.34,
+"end": 21.66,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Try notion.com today.",
+"char_start": 78,
+"char_end": 99,
+"unit_id": "t0002.u01",
+"sent_id": "t0002.s03"
+},
+{
+"start": 21.66,
+"end": 31.02,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Before we get started \u2013 Marta Sol\u00eds was on the previous episode, explaining that tire pressure is more important than suspension adjustments.",
+"char_start": 100,
+"char_end": 241,
+"unit_id": "t0002.u01",
+"sent_id": "t0002.s04"
+},
+{
+"start": 31.02,
+"end": 31.68,
+"speaker_label": "Diego Ferrer",
+"text": "Yes, exactly.",
+"char_start": 256,
+"char_end": 269,
+"unit_id": "t0003.u01",
+"sent_id": "t0003.s01"
+},
+{
+"start": 31.74,
+"end": 34.32,
+"speaker_label": "Diego Ferrer",
+"text": "And it connects to what we're going to be discussing today.",
+"char_start": 270,
+"char_end": 329,
+"unit_id": "t0003.u01",
+"sent_id": "t0003.s02"
+},
+{
+"start": 34.32,
+"end": 39.6,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "I want to point something out \u2013 Marta Sol\u00eds mentioned this same dynamic a couple of episodes ago.",
+"char_start": 345,
+"char_end": 442,
+"unit_id": "t0004.u01",
+"sent_id": "t0004.s01"
+},
+{
+"start": 39.6,
+"end": 45.18,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "I want to point something out \u2013 Javier Benavides mentioned this same dynamic a couple of episodes ago.",
+"char_start": 443,
+"char_end": 545,
+"unit_id": "t0004.u01",
+"sent_id": "t0004.s02"
+},
+{
+"start": 210.0,
+"end": 211.56,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "I want to delve deeper into that.",
+"char_start": 546,
+"char_end": 579,
+"unit_id": "t0004.u01",
+"sent_id": "t0004.s03"
+},
+{
+"start": 211.62,
+"end": 215.22,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "What's something you used to believe about this that you've since re-evaluated?",
+"char_start": 580,
+"char_end": 659,
+"unit_id": "t0004.u01",
+"sent_id": "t0004.s04"
+},
+{
+"start": 215.22,
+"end": 224.22,
+"speaker_label": "Diego Ferrer",
+"text": "It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and re-tightening them to the specified torque.",
+"char_start": 674,
+"char_end": 822,
+"unit_id": "t0005.u01",
+"sent_id": "t0005.s01"
+},
+{
+"start": 224.28,
+"end": 227.28,
+"speaker_label": "Diego Ferrer",
+"text": "We've seen this happen with equipment that uses Spoke & Wrench.",
+"char_start": 823,
+"char_end": 886,
+"unit_id": "t0005.u01",
+"sent_id": "t0005.s02"
+},
+{
+"start": 227.34,
+"end": 231.12,
+"speaker_label": "Diego Ferrer",
+"text": "The frame matters because it tells you what compromises you're making.",
+"char_start": 887,
+"char_end": 957,
+"unit_id": "t0005.u01",
+"sent_id": "t0005.s03"
+},
+{
+"start": 231.12,
+"end": 232.38,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "That's a useful framework.",
+"char_start": 973,
+"char_end": 999,
+"unit_id": "t0006.u01",
+"sent_id": "t0006.s01"
+},
+{
+"start": 232.44,
+"end": 236.22,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Where do maintenance and transmission mechanics intersect?",
+"char_start": 1000,
+"char_end": 1058,
+"unit_id": "t0006.u01",
+"sent_id": "t0006.s02"
+},
+{
+"start": 236.22,
+"end": 237.06,
+"speaker_label": "Diego Ferrer",
+"text": "That's how I see it.",
+"char_start": 1073,
+"char_end": 1093,
+"unit_id": "t0007.u01",
+"sent_id": "t0007.s01"
+},
+{
+"start": 237.12,
+"end": 242.76,
+"speaker_label": "Diego Ferrer",
+"text": "A bike should feel quiet and predictable so that your attention can remain focused on the trail.",
+"char_start": 1094,
+"char_end": 1190,
+"unit_id": "t0007.u01",
+"sent_id": "t0007.s02"
+},
+{
+"start": 242.82,
+"end": 247.08,
+"speaker_label": "Diego Ferrer",
+"text": "And the second-order effect is the part that almost everyone overlooks.",
+"char_start": 1191,
+"char_end": 1262,
+"unit_id": "t0007.u01",
+"sent_id": "t0007.s03"
+},
+{
+"start": 247.08,
+"end": 248.64,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "I want to delve deeper into that.",
+"char_start": 1278,
+"char_end": 1311,
+"unit_id": "t0008.u01",
+"sent_id": "t0008.s01"
+},
+{
+"start": 248.7,
+"end": 253.5,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "What is the underlying structural element that most listeners don't have access to?",
+"char_start": 1312,
+"char_end": 1395,
+"unit_id": "t0008.u01",
+"sent_id": "t0008.s02"
+},
+{
+"start": 253.5,
+"end": 253.86,
+"speaker_label": "Diego Ferrer",
+"text": "Sure.",
+"char_start": 1410,
+"char_end": 1415,
+"unit_id": "t0009.u01",
+"sent_id": "t0009.s01"
+},
+{
+"start": 253.92,
+"end": 260.04,
+"speaker_label": "Diego Ferrer",
+"text": "Chain wear is the best early indicator of when you'll need to replace the cassette.",
+"char_start": 1416,
+"char_end": 1499,
+"unit_id": "t0009.u01",
+"sent_id": "t0009.s02"
+},
+{
+"start": 260.1,
+"end": 263.1,
+"speaker_label": "Diego Ferrer",
+"text": "We've seen this in equipment that uses Spoke & Wrench.",
+"char_start": 1500,
+"char_end": 1554,
+"unit_id": "t0009.u01",
+"sent_id": "t0009.s03"
+},
+{
+"start": 263.16,
+"end": 266.94,
+"speaker_label": "Diego Ferrer",
+"text": "The frame matters because it tells you what compromises you're making.",
+"char_start": 1555,
+"char_end": 1625,
+"unit_id": "t0009.u01",
+"sent_id": "t0009.s04"
+},
+{
+"start": 266.94,
+"end": 268.44,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Tell me more about that.",
+"char_start": 1641,
+"char_end": 1665,
+"unit_id": "t0010.u01",
+"sent_id": "t0010.s01"
+},
+{
+"start": 268.44,
+"end": 272.7,
+"speaker_label": "Diego Ferrer",
+"text": "Spoke & Wrench is one of the platforms where this is clearly evident.",
+"char_start": 1680,
+"char_end": 1749,
+"unit_id": "t0011.u01",
+"sent_id": "t0011.s01"
+},
+{
+"start": 272.76,
+"end": 276.18,
+"speaker_label": "Diego Ferrer",
+"text": "I have observed this pattern repeating itself in three different teams.",
+"char_start": 1750,
+"char_end": 1821,
+"unit_id": "t0011.u01",
+"sent_id": "t0011.s02"
+},
+{
+"start": 276.18,
+"end": 278.22,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Tell me how you made the decision.",
+"char_start": 1837,
+"char_end": 1871,
+"unit_id": "t0012.u01",
+"sent_id": "t0012.s01"
+},
+{
+"start": 278.28,
+"end": 280.62,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "How does RockShox fit into this landscape?",
+"char_start": 1872,
+"char_end": 1914,
+"unit_id": "t0012.u01",
+"sent_id": "t0012.s02"
+},
+{
+"start": 280.62,
+"end": 280.98,
+"speaker_label": "Diego Ferrer",
+"text": "Sure.",
+"char_start": 1929,
+"char_end": 1934,
+"unit_id": "t0013.u01",
+"sent_id": "t0013.s01"
+},
+{
+"start": 281.04,
+"end": 286.02,
+"speaker_label": "Diego Ferrer",
+"text": "The service intervals for the suspension are a risk management decision.",
+"char_start": 1935,
+"char_end": 2007,
+"unit_id": "t0013.u01",
+"sent_id": "t0013.s02"
+},
+{
+"start": 286.08,
+"end": 290.04,
+"speaker_label": "Diego Ferrer",
+"text": "If you ignore that, you'll end up rebuilding it from scratch a year later.",
+"char_start": 2008,
+"char_end": 2082,
+"unit_id": "t0013.u01",
+"sent_id": "t0013.s03"
+},
+{
+"start": 290.04,
+"end": 290.7,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "You know what?",
+"char_start": 2098,
+"char_end": 2112,
+"unit_id": "t0014.u01",
+"sent_id": "t0014.s01"
+},
+{
+"start": 290.76,
+"end": 294.48,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "I'm just saying: Linear handles my entire engineering operation.",
+"char_start": 2113,
+"char_end": 2177,
+"unit_id": "t0014.u01",
+"sent_id": "t0014.s02"
+},
+{
+"start": 294.54,
+"end": 299.64,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Linear is the incident management tool built for speed \u2013 designed for keyboard use.",
+"char_start": 2178,
+"char_end": 2261,
+"unit_id": "t0014.u01",
+"sent_id": "t0014.s03"
+},
+{
+"start": 299.7,
+"end": 302.1,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Use the link in the episode notes.",
+"char_start": 2262,
+"char_end": 2296,
+"unit_id": "t0014.u01",
+"sent_id": "t0014.s04"
+},
+{
+"start": 840.0,
+"end": 841.26,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "That's a useful framework.",
+"char_start": 2297,
+"char_end": 2323,
+"unit_id": "t0016.u01",
+"sent_id": "t0016.s02"
+},
+{
+"start": 841.32,
+"end": 845.1,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Where do maintenance and transmission mechanics intersect?",
+"char_start": 2324,
+"char_end": 2382,
+"unit_id": "t0016.u01",
+"sent_id": "t0016.s03"
+},
+{
+"start": 845.1,
+"end": 845.94,
+"speaker_label": "Diego Ferrer",
+"text": "That's how I see it.",
+"char_start": 2397,
+"char_end": 2417,
+"unit_id": "t0017.u01",
+"sent_id": "t0017.s01"
+},
+{
+"start": 846.0,
+"end": 853.92,
+"speaker_label": "Diego Ferrer",
+"text": "Most of the mysterious creaking noises are resolved by cleaning the contact surfaces and re-tightening them to the specified torque.",
+"char_start": 2418,
+"char_end": 2550,
+"unit_id": "t0017.u01",
+"sent_id": "t0017.s02"
+},
+{
+"start": 853.98,
+"end": 856.56,
+"speaker_label": "Diego Ferrer",
+"text": "We've seen this happen with equipment that uses Shimano components.",
+"char_start": 2551,
+"char_end": 2618,
+"unit_id": "t0017.u01",
+"sent_id": "t0017.s03"
+},
+{
+"start": 856.62,
+"end": 860.04,
+"speaker_label": "Diego Ferrer",
+"text": "I've observed this pattern repeating in three different sets of equipment.",
+"char_start": 2619,
+"char_end": 2693,
+"unit_id": "t0017.u01",
+"sent_id": "t0017.s04"
+},
+{
+"start": 860.04,
+"end": 861.78,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Tell me a specific example.",
+"char_start": 2709,
+"char_end": 2736,
+"unit_id": "t0018.u01",
+"sent_id": "t0018.s01"
+},
+{
+"start": 861.84,
+"end": 865.44,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "What is something you used to believe about this that you have since re-evaluated?",
+"char_start": 2737,
+"char_end": 2819,
+"unit_id": "t0018.u01",
+"sent_id": "t0018.s02"
+},
+{
+"start": 865.44,
+"end": 871.74,
+"speaker_label": "Diego Ferrer",
+"text": "Yes, see \u2013 a bike should feel quiet and predictable so that your attention can stay focused on the trail.",
+"char_start": 2834,
+"char_end": 2939,
+"unit_id": "t0019.u01",
+"sent_id": "t0019.s01"
+},
+{
+"start": 871.8,
+"end": 876.6,
+"speaker_label": "Diego Ferrer",
+"text": "Once you understand that, the rest of the decisions become easier.",
+"char_start": 2940,
+"char_end": 3006,
+"unit_id": "t0019.u01",
+"sent_id": "t0019.s02"
+},
+{
+"start": 876.6,
+"end": 877.68,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Let's start there.",
+"char_start": 3022,
+"char_end": 3040,
+"unit_id": "t0020.u01",
+"sent_id": "t0020.s01"
+},
+{
+"start": 877.74,
+"end": 881.34,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "What's something you used to believe about this that you've since re-evaluated?",
+"char_start": 3041,
+"char_end": 3120,
+"unit_id": "t0020.u01",
+"sent_id": "t0020.s02"
+},
+{
+"start": 881.34,
+"end": 882.18,
+"speaker_label": "Diego Ferrer",
+"text": "That's how I see it.",
+"char_start": 3135,
+"char_end": 3155,
+"unit_id": "t0021.u01",
+"sent_id": "t0021.s01"
+},
+{
+"start": 882.24,
+"end": 888.36,
+"speaker_label": "Diego Ferrer",
+"text": "The wear and tear on the chain is the best early indicator of when you'll need to replace the cassette.",
+"char_start": 3156,
+"char_end": 3259,
+"unit_id": "t0021.u01",
+"sent_id": "t0021.s02"
+},
+{
+"start": 888.42,
+"end": 891.0,
+"speaker_label": "Diego Ferrer",
+"text": "We've seen this in equipment that uses Shimano components.",
+"char_start": 3260,
+"char_end": 3318,
+"unit_id": "t0021.u01",
+"sent_id": "t0021.s03"
+},
+{
+"start": 891.06,
+"end": 895.86,
+"speaker_label": "Diego Ferrer",
+"text": "Once you understand that, the rest of the decisions become easier.",
+"char_start": 3319,
+"char_end": 3385,
+"unit_id": "t0021.u01",
+"sent_id": "t0021.s04"
+},
+{
+"start": 895.86,
+"end": 897.36,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "That makes sense.",
+"char_start": 3401,
+"char_end": 3418,
+"unit_id": "t0022.u01",
+"sent_id": "t0022.s01"
+},
+{
+"start": 897.36,
+"end": 906.78,
+"speaker_label": "Diego Ferrer",
+"text": "And when teams adopt Spoke & Wrench within that workflow, the value becomes apparent. If you ignore that, you'll end up rebuilding it from scratch a year later.",
+"char_start": 3433,
+"char_end": 3593,
+"unit_id": "t0023.u01",
+"sent_id": "t0023.s01"
+},
+{
+"start": 906.78,
+"end": 907.86,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Let's start with that.",
+"char_start": 3609,
+"char_end": 3631,
+"unit_id": "t0024.u01",
+"sent_id": "t0024.s01"
+},
+{
+"start": 907.92,
+"end": 912.6,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "What is the operational aspect that most listeners don't have access to?",
+"char_start": 3632,
+"char_end": 3704,
+"unit_id": "t0024.u01",
+"sent_id": "t0024.s02"
+},
+{
+"start": 912.6,
+"end": 913.44,
+"speaker_label": "Diego Ferrer",
+"text": "That's how I see it.",
+"char_start": 3719,
+"char_end": 3739,
+"unit_id": "t0025.u01",
+"sent_id": "t0025.s01"
+},
+{
+"start": 913.5,
+"end": 918.48,
+"speaker_label": "Diego Ferrer",
+"text": "The service intervals for the suspension are a risk management decision.",
+"char_start": 3740,
+"char_end": 3812,
+"unit_id": "t0025.u01",
+"sent_id": "t0025.s02"
+},
+{
+"start": 918.54,
+"end": 921.96,
+"speaker_label": "Diego Ferrer",
+"text": "I've seen this pattern repeat itself in three different teams.",
+"char_start": 3813,
+"char_end": 3875,
+"unit_id": "t0025.u01",
+"sent_id": "t0025.s03"
+},
+{
+"start": 1320.0,
+"end": 1324.5,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Let's change the subject \u2013 I want to dedicate the final part to risk management.",
+"char_start": 3891,
+"char_end": 3971,
+"unit_id": "t0026.u01",
+"sent_id": "t0026.s01"
+},
+{
+"start": 1324.5,
+"end": 1333.26,
+"speaker_label": "Diego Ferrer",
+"text": "That's where the conversation gets interesting, because the considerations surrounding risk management permeate everything we've discussed.",
+"char_start": 3986,
+"char_end": 4125,
+"unit_id": "t0027.u01",
+"sent_id": "t0027.s01"
+},
+{
+"start": 1333.26,
+"end": 1335.0,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Tell me a specific example.",
+"char_start": 4141,
+"char_end": 4168,
+"unit_id": "t0028.u01",
+"sent_id": "t0028.s01"
+},
+{
+"start": 1335.06,
+"end": 1339.02,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "What is the most underestimated aspect of transmission mechanics?",
+"char_start": 4169,
+"char_end": 4234,
+"unit_id": "t0028.u01",
+"sent_id": "t0028.s02"
+},
+{
+"start": 1339.02,
+"end": 1339.38,
+"speaker_label": "Diego Ferrer",
+"text": "Sure.",
+"char_start": 4249,
+"char_end": 4254,
+"unit_id": "t0029.u01",
+"sent_id": "t0029.s01"
+},
+{
+"start": 1339.44,
+"end": 1347.36,
+"speaker_label": "Diego Ferrer",
+"text": "Most mysterious creaking noises can be resolved by cleaning the contact surfaces and re-tightening them to the specified torque.",
+"char_start": 4255,
+"char_end": 4383,
+"unit_id": "t0029.u01",
+"sent_id": "t0029.s02"
+},
+{
+"start": 1347.42,
+"end": 1350.42,
+"speaker_label": "Diego Ferrer",
+"text": "We've seen this happen with equipment that uses Spoke & Wrench.",
+"char_start": 4384,
+"char_end": 4447,
+"unit_id": "t0029.u01",
+"sent_id": "t0029.s03"
+},
+{
+"start": 1350.48,
+"end": 1353.9,
+"speaker_label": "Diego Ferrer",
+"text": "I've observed this pattern repeating in three different pieces of equipment.",
+"char_start": 4448,
+"char_end": 4524,
+"unit_id": "t0029.u01",
+"sent_id": "t0029.s04"
+},
+{
+"start": 1353.9,
+"end": 1355.16,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "That's a useful framework.",
+"char_start": 4540,
+"char_end": 4566,
+"unit_id": "t0030.u01",
+"sent_id": "t0030.s01"
+},
+{
+"start": 1355.22,
+"end": 1359.9,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "What is the opposing perspective that most listeners don't have access to?",
+"char_start": 4567,
+"char_end": 4641,
+"unit_id": "t0030.u01",
+"sent_id": "t0030.s02"
+},
+{
+"start": 1359.9,
+"end": 1366.62,
+"speaker_label": "Diego Ferrer",
+"text": "It all boils down to this: a bike should feel quiet and predictable so that your focus remains on the trail.",
+"char_start": 4656,
+"char_end": 4764,
+"unit_id": "t0031.u01",
+"sent_id": "t0031.s01"
+},
+{
+"start": 1366.68,
+"end": 1370.46,
+"speaker_label": "Diego Ferrer",
+"text": "The frame matters because it tells you what compromises you're making.",
+"char_start": 4765,
+"char_end": 4835,
+"unit_id": "t0031.u01",
+"sent_id": "t0031.s02"
+},
+{
+"start": 1370.46,
+"end": 1372.2,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "What does the failure mode look like?",
+"char_start": 4851,
+"char_end": 4888,
+"unit_id": "t0032.u01",
+"sent_id": "t0032.s01"
+},
+{
+"start": 1372.26,
+"end": 1376.22,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "What is the most underestimated aspect of transmission mechanics?",
+"char_start": 4889,
+"char_end": 4954,
+"unit_id": "t0032.u01",
+"sent_id": "t0032.s02"
+},
+{
+"start": 1376.22,
+"end": 1383.18,
+"speaker_label": "Diego Ferrer",
+"text": "Honestly, the wear and tear on the chain is the best early indicator of when you'll need to replace the cassette.",
+"char_start": 4969,
+"char_end": 5082,
+"unit_id": "t0033.u01",
+"sent_id": "t0033.s01"
+},
+{
+"start": 1383.24,
+"end": 1385.82,
+"speaker_label": "Diego Ferrer",
+"text": "We've seen this in equipment that uses Shimano components.",
+"char_start": 5083,
+"char_end": 5141,
+"unit_id": "t0033.u01",
+"sent_id": "t0033.s02"
+},
+{
+"start": 1385.88,
+"end": 1389.3,
+"speaker_label": "Diego Ferrer",
+"text": "I've observed this pattern repeating itself in three different sets of equipment.",
+"char_start": 5142,
+"char_end": 5223,
+"unit_id": "t0033.u01",
+"sent_id": "t0033.s03"
+},
+{
+"start": 1389.3,
+"end": 1391.04,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Where does that stop working?",
+"char_start": 5239,
+"char_end": 5268,
+"unit_id": "t0034.u01",
+"sent_id": "t0034.s01"
+},
+{
+"start": 1391.04,
+"end": 1399.5,
+"speaker_label": "Diego Ferrer",
+"text": "And when teams adopt Shimano equipment within that system, the benefits become apparent \u2013 I've seen this pattern repeat itself in three different teams.",
+"char_start": 5283,
+"char_end": 5435,
+"unit_id": "t0035.u01",
+"sent_id": "t0035.s01"
+},
+{
+"start": 1399.5,
+"end": 1402.38,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "What is the heuristic that you always rely on?",
+"char_start": 5451,
+"char_end": 5497,
+"unit_id": "t0036.u01",
+"sent_id": "t0036.s01"
+},
+{
+"start": 1402.44,
+"end": 1406.22,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Where do maintenance and transmission mechanics intersect?",
+"char_start": 5498,
+"char_end": 5556,
+"unit_id": "t0036.u01",
+"sent_id": "t0036.s02"
+},
+{
+"start": 1406.22,
+"end": 1412.04,
+"speaker_label": "Diego Ferrer",
+"text": "Frankly, the service intervals for the suspension are a risk management decision.",
+"char_start": 5571,
+"char_end": 5652,
+"unit_id": "t0037.u01",
+"sent_id": "t0037.s01"
+},
+{
+"start": 1412.1,
+"end": 1416.36,
+"speaker_label": "Diego Ferrer",
+"text": "And the second-order effect is the part that almost everyone overlooks.",
+"char_start": 5653,
+"char_end": 5724,
+"unit_id": "t0037.u01",
+"sent_id": "t0037.s02"
+},
+{
+"start": 1680.0,
+"end": 1684.68,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Before we wrap up, what's one thing that listeners can try out this week?",
+"char_start": 5740,
+"char_end": 5813,
+"unit_id": "t0038.u01",
+"sent_id": "t0038.s01"
+},
+{
+"start": 1684.68,
+"end": 1688.7,
+"speaker_label": "Diego Ferrer",
+"text": "Choose one of the ideas we discussed and implement it for two weeks.",
+"char_start": 5828,
+"char_end": 5896,
+"unit_id": "t0039.u01",
+"sent_id": "t0039.s01"
+},
+{
+"start": 1688.76,
+"end": 1690.08,
+"speaker_label": "Diego Ferrer",
+"text": "Everything else is iteration.",
+"char_start": 5897,
+"char_end": 5926,
+"unit_id": "t0039.u01",
+"sent_id": "t0039.s02"
+},
+{
+"start": 1690.08,
+"end": 1693.8,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Before we close, thank you again to our friends at Linear.",
+"char_start": 5942,
+"char_end": 6000,
+"unit_id": "t0040.u01",
+"sent_id": "t0040.s01"
+},
+{
+"start": 1693.86,
+"end": 1698.96,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Linear is the issue tracking system designed for speed \u2013 built for the keyboard.",
+"char_start": 6001,
+"char_end": 6081,
+"unit_id": "t0040.u01",
+"sent_id": "t0040.s02"
+},
+{
+"start": 1698.96,
+"end": 1701.48,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "Diego Ferrer, thank you for the conversation.",
+"char_start": 6082,
+"char_end": 6127,
+"unit_id": "t0040.u01",
+"sent_id": "t0040.s03"
+},
+{
+"start": 1701.48,
+"end": 1702.98,
+"speaker_label": "Diego Ferrer",
+"text": "Thank you, Luc\u00eda.",
+"char_start": 6142,
+"char_end": 6159,
+"unit_id": "t0041.u01",
+"sent_id": "t0041.s01"
+},
+{
+"start": 1702.98,
+"end": 1706.46,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "That's all for today's episode of Trail Sessions.",
+"char_start": 6175,
+"char_end": 6224,
+"unit_id": "t0042.u01",
+"sent_id": "t0042.s01"
+},
+{
+"start": 1706.52,
+"end": 1707.78,
+"speaker_label": "Luc\u00eda Herrera",
+"text": "See you next time.",
+"char_start": 6225,
+"char_end": 6243,
+"unit_id": "t0042.u01",
+"sent_id": "t0042.s02"
+}
+]

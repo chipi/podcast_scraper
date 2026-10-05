@@ -1,0 +1,299 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "insight:b366e5ef770befc1",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "insight:9a6eb0b77655b0ce",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "insight:63d23a6f883ba1cf",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:14f3429ee4f96fdd",
+      "to": "person:lucia-herrera",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b366e5ef770befc1",
+      "to": "quote:14f3429ee4f96fdd",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f9c38bfb473a48aa",
+      "to": "person:marta-solis",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9a6eb0b77655b0ce",
+      "to": "quote:f9c38bfb473a48aa",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:dbd685fb52fbb055",
+      "to": "person:lucia-herrera",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:63d23a6f883ba1cf",
+      "to": "quote:dbd685fb52fbb055",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1e20540f93b6e267",
+      "to": "person:lucia-herrera",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:b366e5ef770befc1",
+      "to": "quote:1e20540f93b6e267",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:23de01944ceaf9fb",
+      "to": "person:marta-solis",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:9a6eb0b77655b0ce",
+      "to": "quote:23de01944ceaf9fb",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:d4251e3693fd8c5a",
+      "to": "person:lucia-herrera",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:63d23a6f883ba1cf",
+      "to": "quote:d4251e3693fd8c5a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:b366e5ef770befc1",
+      "to": "person:lucia-herrera",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:9a6eb0b77655b0ce",
+      "to": "person:marta-solis",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:63d23a6f883ba1cf",
+      "to": "person:lucia-herrera",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-7fd3ec879c8c2b44",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-7fd3ec879c8c2b44",
+      "properties": {
+        "duration_ms": 379000,
+        "feed_id": "p10",
+        "podcast_id": "p10",
+        "publish_date": "2025-12-31T00:00:00",
+        "title": "Habilidades de Enduro Sin el Bombo"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:b366e5ef770befc1",
+      "properties": {
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de carreras de enduro, y me acompa\u00f1a Marta Sol\u00eds, corredora de enduro y entrenadora. Marta Sol\u00eds, gracias por estar aqu\u00ed.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:9a6eb0b77655b0ce",
+      "properties": {
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Gracias, Luc\u00eda. Contenta de estar de vuelta.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:63d23a6f883ba1cf",
+      "properties": {
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "El episodio de hoy es patrocinado por Linear. Linear es el gestor de incidencias hecho para la velocidad \u2014 pensado para el teclado. Prueba linear.com hoy.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:lucia-herrera",
+      "properties": {
+        "name": "Luc\u00eda Herrera"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:14f3429ee4f96fdd",
+      "properties": {
+        "char_end": 193,
+        "char_start": 15,
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "speaker_id": "person:speaker-01",
+        "text": "Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de carreras de enduro, y me acompa\u00f1a Marta Sol\u00eds, corredora de enduro y entrenadora. Marta Sol\u00eds, gracias por estar aqu\u00ed.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p10_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:marta-solis",
+      "properties": {
+        "name": "Marta Sol\u00eds"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:f9c38bfb473a48aa",
+      "properties": {
+        "char_end": 251,
+        "char_start": 207,
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "speaker_id": "person:speaker-02",
+        "text": "Gracias, Luc\u00eda. Contenta de estar de vuelta.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p10_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:dbd685fb52fbb055",
+      "properties": {
+        "char_end": 421,
+        "char_start": 267,
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "speaker_id": "person:speaker-01",
+        "text": "El episodio de hoy es patrocinado por Linear. Linear es el gestor de incidencias hecho para la velocidad \u2014 pensado para el teclado. Prueba linear.com hoy.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p10_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1e20540f93b6e267",
+      "properties": {
+        "char_end": 554,
+        "char_start": 421,
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "speaker_id": "person:speaker-01",
+        "text": "Antes de entrar en materia \u2014 Javier Benavides estuvo en el programa contando que el drenaje es la decisi\u00f3n de dise\u00f1o con m\u00e1s impacto.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p10_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:23de01944ceaf9fb",
+      "properties": {
+        "char_end": 623,
+        "char_start": 568,
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "speaker_id": "person:speaker-02",
+        "text": "S\u00ed, exacto. Y se conecta con lo que vamos a cubrir hoy.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p10_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:d4251e3693fd8c5a",
+      "properties": {
+        "char_end": 732,
+        "char_start": 639,
+        "episode_id": "ep-7fd3ec879c8c2b44",
+        "speaker_id": "person:speaker-01",
+        "text": "Quiero se\u00f1alar algo \u2014 Javier Benavides mencion\u00f3 esta misma din\u00e1mica hace un par de episodios.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p10_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

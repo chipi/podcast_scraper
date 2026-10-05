@@ -1,0 +1,992 @@
+[
+{
+"start": 0.0,
+"end": 2.58,
+"speaker_label": "Lucía Herrera",
+"text": "Welcome back to Trail Sessions.",
+"char_start": 15,
+"char_end": 46,
+"unit_id": "t0000.u01",
+"sent_id": "t0000.s01"
+},
+{
+"start": 2.64,
+"end": 8.46,
+"speaker_label": "Lucía Herrera",
+"text": "Today, we're talking about enduro racing, and I'm joined by Marta Solís, an enduro racer and coach.",
+"char_start": 47,
+"char_end": 146,
+"unit_id": "t0000.u01",
+"sent_id": "t0000.s02"
+},
+{
+"start": 8.52,
+"end": 10.68,
+"speaker_label": "Lucía Herrera",
+"text": "Marta Solís, thank you for being here.",
+"char_start": 147,
+"char_end": 185,
+"unit_id": "t0000.u01",
+"sent_id": "t0000.s03"
+},
+{
+"start": 10.68,
+"end": 11.58,
+"speaker_label": "Marta Solís",
+"text": "Thank you, Lucía.",
+"char_start": 199,
+"char_end": 216,
+"unit_id": "t0001.u01",
+"sent_id": "t0001.s01"
+},
+{
+"start": 11.64,
+"end": 13.32,
+"speaker_label": "Marta Solís",
+"text": "Glad to be back.",
+"char_start": 217,
+"char_end": 233,
+"unit_id": "t0001.u01",
+"sent_id": "t0001.s02"
+},
+{
+"start": 13.32,
+"end": 16.02,
+"speaker_label": "Lucía Herrera",
+"text": "Today's episode is sponsored by Linear.",
+"char_start": 249,
+"char_end": 288,
+"unit_id": "t0002.u01",
+"sent_id": "t0002.s01"
+},
+{
+"start": 16.08,
+"end": 21.18,
+"speaker_label": "Lucía Herrera",
+"text": "Linear is the incident management platform built for speed – designed for the keyboard.",
+"char_start": 289,
+"char_end": 376,
+"unit_id": "t0002.u01",
+"sent_id": "t0002.s02"
+},
+{
+"start": 21.24,
+"end": 22.56,
+"speaker_label": "Lucía Herrera",
+"text": "Try linear.com today.",
+"char_start": 377,
+"char_end": 398,
+"unit_id": "t0002.u01",
+"sent_id": "t0002.s03"
+},
+{
+"start": 22.56,
+"end": 30.54,
+"speaker_label": "Lucía Herrera",
+"text": "Before we get started, Javier Benavides was on the show discussing how drainage is the design decision with the biggest impact.",
+"char_start": 399,
+"char_end": 526,
+"unit_id": "t0002.u01",
+"sent_id": "t0002.s04"
+},
+{
+"start": 30.54,
+"end": 31.2,
+"speaker_label": "Marta Solís",
+"text": "Yes, exactly.",
+"char_start": 540,
+"char_end": 553,
+"unit_id": "t0003.u01",
+"sent_id": "t0003.s01"
+},
+{
+"start": 31.26,
+"end": 33.84,
+"speaker_label": "Marta Solís",
+"text": "And it connects to what we're going to be discussing today.",
+"char_start": 554,
+"char_end": 613,
+"unit_id": "t0003.u01",
+"sent_id": "t0003.s02"
+},
+{
+"start": 33.84,
+"end": 39.42,
+"speaker_label": "Lucía Herrera",
+"text": "I want to point out something – Javier Benavides mentioned this same dynamic a couple of episodes ago.",
+"char_start": 629,
+"char_end": 731,
+"unit_id": "t0004.u01",
+"sent_id": "t0004.s01"
+},
+{
+"start": 210.0,
+"end": 211.74,
+"speaker_label": "Lucía Herrera",
+"text": "Tell me a specific example.",
+"char_start": 732,
+"char_end": 759,
+"unit_id": "t0004.u01",
+"sent_id": "t0004.s02"
+},
+{
+"start": 211.8,
+"end": 215.58,
+"speaker_label": "Lucía Herrera",
+"text": "Where do soil erosion and enduro racing intersect?",
+"char_start": 760,
+"char_end": 810,
+"unit_id": "t0004.u01",
+"sent_id": "t0004.s03"
+},
+{
+"start": 215.58,
+"end": 221.04,
+"speaker_label": "Marta Solís",
+"text": "Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks.",
+"char_start": 824,
+"char_end": 916,
+"unit_id": "t0005.u01",
+"sent_id": "t0005.s01"
+},
+{
+"start": 221.1,
+"end": 223.74,
+"speaker_label": "Marta Solís",
+"text": "We've seen this in teams that use RockShox components.",
+"char_start": 917,
+"char_end": 971,
+"unit_id": "t0005.u01",
+"sent_id": "t0005.s02"
+},
+{
+"start": 223.8,
+"end": 227.22,
+"speaker_label": "Marta Solís",
+"text": "I've observed this pattern repeating itself in three different teams.",
+"char_start": 972,
+"char_end": 1041,
+"unit_id": "t0005.u01",
+"sent_id": "t0005.s03"
+},
+{
+"start": 227.22,
+"end": 228.78,
+"speaker_label": "Lucía Herrera",
+"text": "I want to delve deeper into that.",
+"char_start": 1057,
+"char_end": 1090,
+"unit_id": "t0006.u01",
+"sent_id": "t0006.s01"
+},
+{
+"start": 228.84,
+"end": 232.62,
+"speaker_label": "Lucía Herrera",
+"text": "Where do soil erosion and enduro racing intersect?",
+"char_start": 1091,
+"char_end": 1141,
+"unit_id": "t0006.u01",
+"sent_id": "t0006.s02"
+},
+{
+"start": 232.62,
+"end": 232.98,
+"speaker_label": "Marta Solís",
+"text": "Sure.",
+"char_start": 1155,
+"char_end": 1160,
+"unit_id": "t0007.u01",
+"sent_id": "t0007.s01"
+},
+{
+"start": 233.04,
+"end": 239.7,
+"speaker_label": "Marta Solís",
+"text": "Tire pressure and the choice of tire casing are usually more important than minor suspension adjustments.",
+"char_start": 1161,
+"char_end": 1266,
+"unit_id": "t0007.u01",
+"sent_id": "t0007.s02"
+},
+{
+"start": 239.76,
+"end": 243.54,
+"speaker_label": "Marta Solís",
+"text": "The frame matters because it tells you what compromises you're making.",
+"char_start": 1267,
+"char_end": 1337,
+"unit_id": "t0007.u01",
+"sent_id": "t0007.s03"
+},
+{
+"start": 243.54,
+"end": 244.62,
+"speaker_label": "Lucía Herrera",
+"text": "Let's start there.",
+"char_start": 1353,
+"char_end": 1371,
+"unit_id": "t0008.u01",
+"sent_id": "t0008.s01"
+},
+{
+"start": 244.68,
+"end": 248.46,
+"speaker_label": "Lucía Herrera",
+"text": "Where do soil erosion and enduro racing intersect?",
+"char_start": 1372,
+"char_end": 1422,
+"unit_id": "t0008.u01",
+"sent_id": "t0008.s02"
+},
+{
+"start": 248.46,
+"end": 255.18,
+"speaker_label": "Marta Solís",
+"text": "Honestly, risk management in cycling isn't about avoiding crashes altogether; it's about choosing which crashes are survivable.",
+"char_start": 1436,
+"char_end": 1563,
+"unit_id": "t0009.u01",
+"sent_id": "t0009.s01"
+},
+{
+"start": 255.24,
+"end": 257.82,
+"speaker_label": "Marta Solís",
+"text": "We've seen it in teams that use Shimano components.",
+"char_start": 1564,
+"char_end": 1615,
+"unit_id": "t0009.u01",
+"sent_id": "t0009.s02"
+},
+{
+"start": 257.88,
+"end": 261.84,
+"speaker_label": "Marta Solís",
+"text": "If you ignore that, you'll end up rebuilding it from scratch a year later.",
+"char_start": 1616,
+"char_end": 1690,
+"unit_id": "t0009.u01",
+"sent_id": "t0009.s03"
+},
+{
+"start": 261.84,
+"end": 263.58,
+"speaker_label": "Lucía Herrera",
+"text": "Where does that stop working?",
+"char_start": 1706,
+"char_end": 1735,
+"unit_id": "t0010.u01",
+"sent_id": "t0010.s01"
+},
+{
+"start": 263.58,
+"end": 268.14,
+"speaker_label": "Marta Solís",
+"text": "The Cascadia Alliance is one of the platforms where this is clearly evident.",
+"char_start": 1749,
+"char_end": 1825,
+"unit_id": "t0011.u01",
+"sent_id": "t0011.s01"
+},
+{
+"start": 268.2,
+"end": 272.46,
+"speaker_label": "Marta Solís",
+"text": "And the second-order effect is the part that almost everyone overlooks.",
+"char_start": 1826,
+"char_end": 1897,
+"unit_id": "t0011.u01",
+"sent_id": "t0011.s02"
+},
+{
+"start": 272.46,
+"end": 275.34,
+"speaker_label": "Lucía Herrera",
+"text": "What is the heuristic that you always fall back on?",
+"char_start": 1913,
+"char_end": 1964,
+"unit_id": "t0012.u01",
+"sent_id": "t0012.s01"
+},
+{
+"start": 275.4,
+"end": 278.1,
+"speaker_label": "Lucía Herrera",
+"text": "How does Spoke & Wrench fit into this landscape?",
+"char_start": 1965,
+"char_end": 2013,
+"unit_id": "t0012.u01",
+"sent_id": "t0012.s02"
+},
+{
+"start": 278.1,
+"end": 278.94,
+"speaker_label": "Marta Solís",
+"text": "That's how I see it.",
+"char_start": 2027,
+"char_end": 2047,
+"unit_id": "t0013.u01",
+"sent_id": "t0013.s01"
+},
+{
+"start": 279.0,
+"end": 286.32,
+"speaker_label": "Marta Solís",
+"text": "The erosion patterns on the track sections change the choice of racing line between practice sessions and the actual race day.",
+"char_start": 2048,
+"char_end": 2174,
+"unit_id": "t0013.u01",
+"sent_id": "t0013.s02"
+},
+{
+"start": 286.38,
+"end": 291.18,
+"speaker_label": "Marta Solís",
+"text": "Once you understand that, the rest of the decisions become easier.",
+"char_start": 2175,
+"char_end": 2241,
+"unit_id": "t0013.u01",
+"sent_id": "t0013.s03"
+},
+{
+"start": 291.18,
+"end": 296.04,
+"speaker_label": "Lucía Herrera",
+"text": "Before continuing, please support the program by visiting the website of our sponsor.",
+"char_start": 2257,
+"char_end": 2342,
+"unit_id": "t0014.u01",
+"sent_id": "t0014.s01"
+},
+{
+"start": 296.1,
+"end": 298.14,
+"speaker_label": "Lucía Herrera",
+"text": "Strava is the home of athletes.",
+"char_start": 2343,
+"char_end": 2374,
+"unit_id": "t0014.u01",
+"sent_id": "t0014.s02"
+},
+{
+"start": 720.0,
+"end": 723.6,
+"speaker_label": "Lucía Herrera",
+"text": "We'll be right back after a short commercial break.",
+"char_start": 2375,
+"char_end": 2426,
+"unit_id": "t0014.u01",
+"sent_id": "t0014.s03"
+},
+{
+"start": 723.6,
+"end": 726.3,
+"speaker_label": "SPEAKER_02",
+"text": "Today's episode is sponsored by Notion.",
+"char_start": 2439,
+"char_end": 2478,
+"unit_id": "t0015.u01",
+"sent_id": "t0015.s01"
+},
+{
+"start": 726.36,
+"end": 730.56,
+"speaker_label": "SPEAKER_02",
+"text": "Notion replaces the dozen tools your team uses inconsistently.",
+"char_start": 2479,
+"char_end": 2541,
+"unit_id": "t0015.u01",
+"sent_id": "t0015.s02"
+},
+{
+"start": 730.62,
+"end": 733.68,
+"speaker_label": "SPEAKER_02",
+"text": "Visit notion.com/podcast for a free trial.",
+"char_start": 2542,
+"char_end": 2584,
+"unit_id": "t0015.u01",
+"sent_id": "t0015.s03"
+},
+{
+"start": 733.68,
+"end": 735.66,
+"speaker_label": "Lucía Herrera",
+"text": "Welcome back to the program.",
+"char_start": 2600,
+"char_end": 2628,
+"unit_id": "t0016.u01",
+"sent_id": "t0016.s01"
+},
+{
+"start": 840.0,
+"end": 841.56,
+"speaker_label": "Lucía Herrera",
+"text": "I want to delve deeper into that.",
+"char_start": 2629,
+"char_end": 2662,
+"unit_id": "t0016.u01",
+"sent_id": "t0016.s02"
+},
+{
+"start": 841.62,
+"end": 845.04,
+"speaker_label": "Lucía Herrera",
+"text": "What is the version of the question that truly matters?",
+"char_start": 2663,
+"char_end": 2718,
+"unit_id": "t0016.u01",
+"sent_id": "t0016.s03"
+},
+{
+"start": 845.04,
+"end": 847.62,
+"speaker_label": "Marta Solís",
+"text": "Let me give you the version that I truly believe in.",
+"char_start": 2732,
+"char_end": 2784,
+"unit_id": "t0017.u01",
+"sent_id": "t0017.s01"
+},
+{
+"start": 847.68,
+"end": 852.3,
+"speaker_label": "Marta Solís",
+"text": "Speed comes from braking earlier and more smoothly, not from taking greater risks.",
+"char_start": 2785,
+"char_end": 2867,
+"unit_id": "t0017.u01",
+"sent_id": "t0017.s02"
+},
+{
+"start": 852.36,
+"end": 855.0,
+"speaker_label": "Marta Solís",
+"text": "We've seen this in teams that use RockShox.",
+"char_start": 2868,
+"char_end": 2911,
+"unit_id": "t0017.u01",
+"sent_id": "t0017.s03"
+},
+{
+"start": 855.06,
+"end": 859.32,
+"speaker_label": "Marta Solís",
+"text": "And the secondary effect is the part that almost everyone overlooks.",
+"char_start": 2912,
+"char_end": 2980,
+"unit_id": "t0017.u01",
+"sent_id": "t0017.s04"
+},
+{
+"start": 859.32,
+"end": 861.06,
+"speaker_label": "Lucía Herrera",
+"text": "What does the failure mode look like?",
+"char_start": 2996,
+"char_end": 3033,
+"unit_id": "t0018.u01",
+"sent_id": "t0018.s01"
+},
+{
+"start": 861.12,
+"end": 865.8,
+"speaker_label": "Lucía Herrera",
+"text": "What is the operating angle that most listeners do not have access to?",
+"char_start": 3034,
+"char_end": 3104,
+"unit_id": "t0018.u01",
+"sent_id": "t0018.s02"
+},
+{
+"start": 865.8,
+"end": 873.12,
+"speaker_label": "Marta Solís",
+"text": "Yes, look – tire pressure and the choice of tire casing often matter more than a minor suspension adjustment.",
+"char_start": 3118,
+"char_end": 3227,
+"unit_id": "t0019.u01",
+"sent_id": "t0019.s01"
+},
+{
+"start": 873.18,
+"end": 876.96,
+"speaker_label": "Marta Solís",
+"text": "The frame matters because it tells you what compromises you're making.",
+"char_start": 3228,
+"char_end": 3298,
+"unit_id": "t0019.u01",
+"sent_id": "t0019.s02"
+},
+{
+"start": 876.96,
+"end": 878.7,
+"speaker_label": "Lucía Herrera",
+"text": "Tell me a specific example.",
+"char_start": 3314,
+"char_end": 3341,
+"unit_id": "t0020.u01",
+"sent_id": "t0020.s01"
+},
+{
+"start": 878.76,
+"end": 882.18,
+"speaker_label": "Lucía Herrera",
+"text": "What is the version of the question that truly matters?",
+"char_start": 3342,
+"char_end": 3397,
+"unit_id": "t0020.u01",
+"sent_id": "t0020.s02"
+},
+{
+"start": 882.18,
+"end": 888.72,
+"speaker_label": "Marta Solís",
+"text": "Yes, look – risk management in cycling isn't about avoiding crashes; it's about choosing which crashes are survivable.",
+"char_start": 3411,
+"char_end": 3529,
+"unit_id": "t0021.u01",
+"sent_id": "t0021.s01"
+},
+{
+"start": 888.78,
+"end": 891.42,
+"speaker_label": "Marta Solís",
+"text": "We've seen this in teams that use RockShox components.",
+"char_start": 3530,
+"char_end": 3584,
+"unit_id": "t0021.u01",
+"sent_id": "t0021.s02"
+},
+{
+"start": 891.48,
+"end": 894.9,
+"speaker_label": "Marta Solís",
+"text": "I've seen this pattern repeat itself in three different teams.",
+"char_start": 3585,
+"char_end": 3647,
+"unit_id": "t0021.u01",
+"sent_id": "t0021.s03"
+},
+{
+"start": 894.9,
+"end": 896.4,
+"speaker_label": "Lucía Herrera",
+"text": "Tell me more about that.",
+"char_start": 3663,
+"char_end": 3687,
+"unit_id": "t0022.u01",
+"sent_id": "t0022.s01"
+},
+{
+"start": 896.4,
+"end": 900.96,
+"speaker_label": "Marta Solís",
+"text": "The Cascadia Alliance is one of the platforms where this is clearly evident.",
+"char_start": 3701,
+"char_end": 3777,
+"unit_id": "t0023.u01",
+"sent_id": "t0023.s01"
+},
+{
+"start": 901.02,
+"end": 905.82,
+"speaker_label": "Marta Solís",
+"text": "Once you understand that, the rest of the decisions become easier.",
+"char_start": 3778,
+"char_end": 3844,
+"unit_id": "t0023.u01",
+"sent_id": "t0023.s02"
+},
+{
+"start": 905.82,
+"end": 906.9,
+"speaker_label": "Lucía Herrera",
+"text": "Let's start with that.",
+"char_start": 3860,
+"char_end": 3882,
+"unit_id": "t0024.u01",
+"sent_id": "t0024.s01"
+},
+{
+"start": 906.96,
+"end": 910.68,
+"speaker_label": "Lucía Herrera",
+"text": "What is the most underestimated aspect of enduro racing?",
+"char_start": 3883,
+"char_end": 3939,
+"unit_id": "t0024.u01",
+"sent_id": "t0024.s02"
+},
+{
+"start": 910.68,
+"end": 919.08,
+"speaker_label": "Marta Solís",
+"text": "It boils down to this: the erosion patterns on the track sections change the optimal racing line between practice sessions and the actual race day.",
+"char_start": 3953,
+"char_end": 4100,
+"unit_id": "t0025.u01",
+"sent_id": "t0025.s01"
+},
+{
+"start": 919.14,
+"end": 922.56,
+"speaker_label": "Marta Solís",
+"text": "I've seen this pattern repeat itself in three different teams.",
+"char_start": 4101,
+"char_end": 4163,
+"unit_id": "t0025.u01",
+"sent_id": "t0025.s02"
+},
+{
+"start": 1320.0,
+"end": 1324.5,
+"speaker_label": "Lucía Herrera",
+"text": "Let's change the subject – I want to dedicate the final part to risk management.",
+"char_start": 4179,
+"char_end": 4259,
+"unit_id": "t0026.u01",
+"sent_id": "t0026.s01"
+},
+{
+"start": 1324.5,
+"end": 1333.26,
+"speaker_label": "Marta Solís",
+"text": "That's where the conversation gets interesting, because the considerations surrounding risk management permeate everything we've discussed.",
+"char_start": 4273,
+"char_end": 4412,
+"unit_id": "t0027.u01",
+"sent_id": "t0027.s01"
+},
+{
+"start": 1333.26,
+"end": 1335.0,
+"speaker_label": "Lucía Herrera",
+"text": "What does the failure mode look like?",
+"char_start": 4428,
+"char_end": 4465,
+"unit_id": "t0028.u01",
+"sent_id": "t0028.s01"
+},
+{
+"start": 1335.06,
+"end": 1339.74,
+"speaker_label": "Lucía Herrera",
+"text": "What is the opposite perspective that most listeners don't have access to?",
+"char_start": 4466,
+"char_end": 4540,
+"unit_id": "t0028.u01",
+"sent_id": "t0028.s02"
+},
+{
+"start": 1339.74,
+"end": 1340.1,
+"speaker_label": "Marta Solís",
+"text": "Sure.",
+"char_start": 4554,
+"char_end": 4559,
+"unit_id": "t0029.u01",
+"sent_id": "t0029.s01"
+},
+{
+"start": 1340.16,
+"end": 1344.78,
+"speaker_label": "Marta Solís",
+"text": "The speed comes from braking earlier and more smoothly, not from taking greater risks.",
+"char_start": 4560,
+"char_end": 4646,
+"unit_id": "t0029.u01",
+"sent_id": "t0029.s02"
+},
+{
+"start": 1344.84,
+"end": 1347.48,
+"speaker_label": "Marta Solís",
+"text": "We've seen this in teams that use RockShox.",
+"char_start": 4647,
+"char_end": 4690,
+"unit_id": "t0029.u01",
+"sent_id": "t0029.s03"
+},
+{
+"start": 1347.54,
+"end": 1350.96,
+"speaker_label": "Marta Solís",
+"text": "I've seen this pattern repeat itself in three different teams.",
+"char_start": 4691,
+"char_end": 4753,
+"unit_id": "t0029.u01",
+"sent_id": "t0029.s04"
+},
+{
+"start": 1350.96,
+"end": 1352.7,
+"speaker_label": "Lucía Herrera",
+"text": "Tell me a specific example.",
+"char_start": 4769,
+"char_end": 4796,
+"unit_id": "t0030.u01",
+"sent_id": "t0030.s01"
+},
+{
+"start": 1352.76,
+"end": 1356.48,
+"speaker_label": "Lucía Herrera",
+"text": "What is the most underestimated aspect of enduro racing?",
+"char_start": 4797,
+"char_end": 4853,
+"unit_id": "t0030.u01",
+"sent_id": "t0030.s02"
+},
+{
+"start": 1356.48,
+"end": 1363.8,
+"speaker_label": "Marta Solís",
+"text": "Yes, look – tire pressure and the choice of tire casing are usually more important than minor suspension adjustments.",
+"char_start": 4867,
+"char_end": 4984,
+"unit_id": "t0031.u01",
+"sent_id": "t0031.s01"
+},
+{
+"start": 1363.86,
+"end": 1367.28,
+"speaker_label": "Marta Solís",
+"text": "I've seen this pattern repeat itself in three different teams.",
+"char_start": 4985,
+"char_end": 5047,
+"unit_id": "t0031.u01",
+"sent_id": "t0031.s02"
+},
+{
+"start": 1367.28,
+"end": 1369.02,
+"speaker_label": "Lucía Herrera",
+"text": "Tell me a specific example.",
+"char_start": 5063,
+"char_end": 5090,
+"unit_id": "t0032.u01",
+"sent_id": "t0032.s01"
+},
+{
+"start": 1369.08,
+"end": 1372.5,
+"speaker_label": "Lucía Herrera",
+"text": "What is the version of the question that truly matters?",
+"char_start": 5091,
+"char_end": 5146,
+"unit_id": "t0032.u01",
+"sent_id": "t0032.s02"
+},
+{
+"start": 1372.5,
+"end": 1375.08,
+"speaker_label": "Marta Solís",
+"text": "Let me give you the version that I truly believe in.",
+"char_start": 5160,
+"char_end": 5212,
+"unit_id": "t0033.u01",
+"sent_id": "t0033.s01"
+},
+{
+"start": 1375.14,
+"end": 1381.02,
+"speaker_label": "Marta Solís",
+"text": "Risk management in a career isn't about avoiding falls; it's about choosing which falls are survivable.",
+"char_start": 5213,
+"char_end": 5316,
+"unit_id": "t0033.u01",
+"sent_id": "t0033.s02"
+},
+{
+"start": 1381.08,
+"end": 1384.08,
+"speaker_label": "Marta Solís",
+"text": "We've seen this with teams that use Spoke & Wrench.",
+"char_start": 5317,
+"char_end": 5368,
+"unit_id": "t0033.u01",
+"sent_id": "t0033.s03"
+},
+{
+"start": 1384.14,
+"end": 1387.56,
+"speaker_label": "Marta Solís",
+"text": "I've seen this pattern repeat itself in three different teams.",
+"char_start": 5369,
+"char_end": 5431,
+"unit_id": "t0033.u01",
+"sent_id": "t0033.s04"
+},
+{
+"start": 1387.56,
+"end": 1389.06,
+"speaker_label": "Lucía Herrera",
+"text": "That makes sense.",
+"char_start": 5447,
+"char_end": 5464,
+"unit_id": "t0034.u01",
+"sent_id": "t0034.s01"
+},
+{
+"start": 1389.06,
+"end": 1397.94,
+"speaker_label": "Marta Solís",
+"text": "And when teams adopt Spoke & Wrench within that workflow, the benefit becomes clear – I've seen this pattern repeat itself in three different teams.",
+"char_start": 5478,
+"char_end": 5626,
+"unit_id": "t0035.u01",
+"sent_id": "t0035.s01"
+},
+{
+"start": 1397.94,
+"end": 1400.82,
+"speaker_label": "Lucía Herrera",
+"text": "What is the heuristic that you always fall back on?",
+"char_start": 5642,
+"char_end": 5693,
+"unit_id": "t0036.u01",
+"sent_id": "t0036.s01"
+},
+{
+"start": 1400.88,
+"end": 1404.3,
+"speaker_label": "Lucía Herrera",
+"text": "What is the version of the question that truly matters?",
+"char_start": 5694,
+"char_end": 5749,
+"unit_id": "t0036.u01",
+"sent_id": "t0036.s02"
+},
+{
+"start": 1404.3,
+"end": 1405.14,
+"speaker_label": "Marta Solís",
+"text": "That's how I see it.",
+"char_start": 5763,
+"char_end": 5783,
+"unit_id": "t0037.u01",
+"sent_id": "t0037.s01"
+},
+{
+"start": 1405.2,
+"end": 1412.52,
+"speaker_label": "Marta Solís",
+"text": "The erosion patterns on the track sections change the choice of racing line between practice sessions and the actual race day.",
+"char_start": 5784,
+"char_end": 5910,
+"unit_id": "t0037.u01",
+"sent_id": "t0037.s02"
+},
+{
+"start": 1412.58,
+"end": 1416.0,
+"speaker_label": "Marta Solís",
+"text": "I've seen this pattern repeat itself in three different teams.",
+"char_start": 5911,
+"char_end": 5973,
+"unit_id": "t0037.u01",
+"sent_id": "t0037.s03"
+},
+{
+"start": 1680.0,
+"end": 1684.68,
+"speaker_label": "Lucía Herrera",
+"text": "Before we wrap up, what's one thing that listeners can try out this week?",
+"char_start": 5989,
+"char_end": 6062,
+"unit_id": "t0038.u01",
+"sent_id": "t0038.s01"
+},
+{
+"start": 1684.68,
+"end": 1688.7,
+"speaker_label": "Marta Solís",
+"text": "Choose one of the ideas we discussed and implement it for two weeks.",
+"char_start": 6076,
+"char_end": 6144,
+"unit_id": "t0039.u01",
+"sent_id": "t0039.s01"
+},
+{
+"start": 1688.76,
+"end": 1690.08,
+"speaker_label": "Marta Solís",
+"text": "Everything else is iteration.",
+"char_start": 6145,
+"char_end": 6174,
+"unit_id": "t0039.u01",
+"sent_id": "t0039.s02"
+},
+{
+"start": 1690.08,
+"end": 1693.68,
+"speaker_label": "Lucía Herrera",
+"text": "And finally, thank you to our sponsors at Vanta.",
+"char_start": 6190,
+"char_end": 6238,
+"unit_id": "t0040.u01",
+"sent_id": "t0040.s01"
+},
+{
+"start": 1693.74,
+"end": 1696.62,
+"speaker_label": "Lucía Herrera",
+"text": "Vanta automates SOC 2 and ISO compliance.",
+"char_start": 6239,
+"char_end": 6280,
+"unit_id": "t0040.u01",
+"sent_id": "t0040.s02"
+},
+{
+"start": 1696.68,
+"end": 1698.3,
+"speaker_label": "Lucía Herrera",
+"text": "Check it out at vanta.com.",
+"char_start": 6281,
+"char_end": 6307,
+"unit_id": "t0040.u01",
+"sent_id": "t0040.s03"
+},
+{
+"start": 1698.3,
+"end": 1700.76,
+"speaker_label": "Lucía Herrera",
+"text": "Marta Solís, thank you for the conversation.",
+"char_start": 6308,
+"char_end": 6352,
+"unit_id": "t0040.u01",
+"sent_id": "t0040.s04"
+},
+{
+"start": 1700.76,
+"end": 1702.26,
+"speaker_label": "Marta Solís",
+"text": "Thank you, Lucía.",
+"char_start": 6366,
+"char_end": 6383,
+"unit_id": "t0041.u01",
+"sent_id": "t0041.s01"
+},
+{
+"start": 1702.26,
+"end": 1705.74,
+"speaker_label": "Lucía Herrera",
+"text": "That's all for today's episode of Trail Sessions.",
+"char_start": 6399,
+"char_end": 6448,
+"unit_id": "t0042.u01",
+"sent_id": "t0042.s01"
+},
+{
+"start": 1705.8,
+"end": 1707.06,
+"speaker_label": "Lucía Herrera",
+"text": "See you next time.",
+"char_start": 6449,
+"char_end": 6467,
+"unit_id": "t0042.u01",
+"sent_id": "t0042.s02"
+}
+]

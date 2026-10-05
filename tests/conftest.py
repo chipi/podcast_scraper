@@ -505,6 +505,10 @@ def create_test_config(**overrides):
         "ner_model": config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
     }
     defaults.update(overrides)
+    # #2283: the profile `language` no longer gives an episode a language; the feed's tag
+    # does. A test's language goes there, and an unstated one is an English feed.
+    if "feed_declared_language" not in overrides:
+        defaults["feed_declared_language"] = overrides.get("language") or "en"
 
     # Auto-enable generate_metadata if generate_summaries is True
     # (required by cross-field validation)
@@ -531,6 +535,9 @@ def create_test_feed(**overrides):
         "items": [],
         "base_url": TEST_BASE_URL,
         "authors": ["Test Host"],
+        # #2283: a feed with no <language> is refused before download, and every real fixture
+        # feed declares one — so a test feed is an English one unless a test says otherwise.
+        "language": "en",
     }
     defaults.update(overrides)
     return models.RssFeed(**defaults)
@@ -573,6 +580,7 @@ def build_rss_xml_with_transcript(title, transcript_url, transcript_type="text/p
 <rss xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>{title}</title>
+    <language>en</language>
     <item>
       <title>Episode 1</title>
       <podcast:transcript url="{transcript_url}" type="{transcript_type}" />
@@ -596,6 +604,7 @@ def build_rss_xml_with_media(title, media_url, media_type="audio/mpeg"):
 <rss>
   <channel>
     <title>{title}</title>
+    <language>en</language>
     <item>
       <title>Episode 1</title>
       <enclosure url="{media_url}" type="{media_type}" />
@@ -635,6 +644,7 @@ def build_rss_xml_with_speakers(title, authors=None, items=None):
 <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
   <channel>
     <title>{title}</title>
+    <language>en</language>
 {author_tags}{items_xml}  </channel>
 </rss>""".strip()
 

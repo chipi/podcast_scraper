@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p10_e02",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from the run's <ep>.kg.json Topic nodes",
+  "topics": [
+    {
+      "id": "topic:braking-technique",
+      "label": "braking technique"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:tire-pressure-selection",
+      "label": "tire pressure selection"
+    },
+    {
+      "id": "topic:track-erosion-patterns",
+      "label": "track erosion patterns"
+    },
+    {
+      "id": "topic:equipment-performance",
+      "label": "equipment performance"
+    },
+    {
+      "id": "topic:frame-design-compromises",
+      "label": "frame design compromises"
+    },
+    {
+      "id": "topic:team-performance-patterns",
+      "label": "team performance patterns"
+    },
+    {
+      "id": "topic:compliance-automation",
+      "label": "compliance automation"
+    },
+    {
+      "id": "topic:workflow-integration",
+      "label": "workflow integration"
+    },
+    {
+      "id": "topic:performance-iteration",
+      "label": "performance iteration"
+    }
+  ]
+}

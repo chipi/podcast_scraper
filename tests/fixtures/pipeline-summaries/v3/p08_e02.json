@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "episode_id": "p08_e02",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "summary": {
+    "bullets": [
+      "Mispronunciation is a high-signal mistake — it signals to listeners that a speaker isn’t paying attention, undermining trust and credibility.",
+      "Reliability of voice is partly preparation, partly humility, and the second-order effect is the part most people overlook.",
+      "The trade-offs around reliability intersect with every aspect of public radio production, from editorial decisions to team dynamics.",
+      "Ignoring the foundational role of humility leads to rebuilding trust and consistency from scratch a year later.",
+      "The most underrated piece of public radio is not content or delivery but the consistent, grounded reliability of voice.",
+      "Teams using NPR have demonstrated that mispronunciation patterns correlate directly with perceived lack of care or attention.",
+      "Listeners detect inconsistencies in voice reliability — especially in tone and precision — long before they notice the content.",
+      "Running a single idea for two weeks enables iteration and reveals how small adjustments compound into meaningful improvement."
+    ],
+    "raw_text": "Mispronunciation is a high-signal mistake — it signals to listeners that a speaker isn’t paying attention, undermining trust and credibility. Reliability of voice is partly preparation, partly humility, and the second-order effect is the part most people overlook.",
+    "title": "Reliability of Voice in Public Radio: Preparation, Humility, and the Cost of Mispronunciation"
+  }
+}

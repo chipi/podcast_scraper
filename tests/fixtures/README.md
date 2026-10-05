@@ -62,7 +62,7 @@ in doing so, lost the long-form content entirely — see "What v3 does not cover
 | `p08` | Public Hour — public radio | e01–e04 | 545 – 792 |
 | `p09` | Cross-Show — cross-podcast guests | e01–e04 | 589 – 629 |
 
-**40 episodes across 9 shows.** `FIXTURES_SPEC.md` explains why you will also see
+**55 episodes across 14 shows.** `FIXTURES_SPEC.md` explains why you will also see
 46, 38 and 36 quoted, and which of them means what.
 
 ### What v3 does not cover
@@ -140,7 +140,7 @@ from every episode count, and they exist for good reasons:
 | `p01_e01_fast` | the first ~60s of `p01_e01` | cuts E2E-fast from ~180-240s to ~30-45s; counting it would count `p01_e01` twice |
 | `p01_multi_e01`–`e05` | five ~40-word stubs | multi-feed connectivity fixture — they belong to no show's storyline and exercise feed handling, not content |
 
-`46 files − these 6 = 40 episodes.` See `FIXTURES_SPEC.md` for the full
+`61 files − these 6 = 55 episodes.` See `FIXTURES_SPEC.md` for the full
 reconciliation of 46 / 40 / 38 / 36.
 
 ---

@@ -1,0 +1,217 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ca65ab78f4c50f2a",
+      "target": "topic:braking-technique",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ca65ab78f4c50f2a",
+      "target": "topic:tire-pressure-selection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ca65ab78f4c50f2a",
+      "target": "topic:erosion-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ca65ab78f4c50f2a",
+      "target": "topic:suspension-adjustment",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ca65ab78f4c50f2a",
+      "target": "topic:spoke-wrench-process",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ca65ab78f4c50f2a",
+      "target": "topic:cascadia-alliance-platform",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ca65ab78f4c50f2a",
+      "target": "topic:team-performance-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ca65ab78f4c50f2a",
+      "target": "topic:design-compromise",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ca65ab78f4c50f2a",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "person:katrin-vogel",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ca65ab78f4c50f2a",
+      "to": "person:lena-hofmann",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-ca65ab78f4c50f2a",
+  "extraction": {
+    "extracted_at": "2025-12-22T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p13_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-ca65ab78f4c50f2a",
+      "properties": {
+        "podcast_id": "p13",
+        "publish_date": "2025-12-22T00:00:00",
+        "title": "Enduro-Technik Ohne Hype"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:braking-technique",
+      "properties": {
+        "label": "braking technique",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tire-pressure-selection",
+      "properties": {
+        "label": "tire pressure selection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:erosion-patterns",
+      "properties": {
+        "label": "erosion patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:suspension-adjustment",
+      "properties": {
+        "label": "suspension adjustment",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:spoke-wrench-process",
+      "properties": {
+        "label": "spoke wrench process",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cascadia-alliance-platform",
+      "properties": {
+        "label": "cascadia alliance platform",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:team-performance-patterns",
+      "properties": {
+        "label": "team performance patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:design-compromise",
+      "properties": {
+        "label": "design compromise",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:katrin-vogel",
+      "properties": {
+        "name": "Katrin Vogel",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:lena-hofmann",
+      "properties": {
+        "name": "Lena Hofmann",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

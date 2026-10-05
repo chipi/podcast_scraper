@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p03_e01",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:buoyancy-control",
+      "label": "buoyancy control"
+    },
+    {
+      "id": "topic:dan-safety-stops",
+      "label": "dan safety stops"
+    },
+    {
+      "id": "topic:equipment-failure",
+      "label": "equipment failure"
+    },
+    {
+      "id": "topic:eroded-wreck-sites",
+      "label": "eroded wreck sites"
+    },
+    {
+      "id": "topic:finning-technique",
+      "label": "finning technique"
+    },
+    {
+      "id": "topic:planning-and-navigation",
+      "label": "planning and navigation"
+    },
+    {
+      "id": "topic:silt-out-risk",
+      "label": "silt-out risk"
+    },
+    {
+      "id": "topic:soil-erosion-impact",
+      "label": "soil erosion impact"
+    },
+    {
+      "id": "topic:technology-integration",
+      "label": "technology integration"
+    },
+    {
+      "id": "topic:wreck-penetration-planning",
+      "label": "wreck penetration planning"
+    }
+  ]
+}

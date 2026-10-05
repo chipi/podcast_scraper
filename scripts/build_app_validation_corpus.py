@@ -55,7 +55,7 @@ import importlib.util
 import json
 import re
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -66,12 +66,16 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
+# normalize_language_tag is re-exported from the sibling rather than imported through a
+# second sys.path dance. Both generators normalize exactly as the pipeline does, so a
+# fixture cannot disagree with production about what a language tag means (#2185).
 from build_synthetic_validation_corpus import (  # noqa: E402
     build_gi,
     build_kg,
     episode_topics_for,
     format_screenplay_with_offsets,
     is_greeting_or_filler,
+    normalize_language_tag,
     parse_diarized_segments,
     parse_rss_feed_metadata,
     slug,
@@ -95,6 +99,19 @@ APP_SHOWS: list[tuple[str, str]] = [
     ("p06_edge_cases", "p06"),  # The Drift — low-grounding dialogue
     ("p08_solar", "p08"),  # Public Hour — NPR-shape / zero_host_ner
     ("p09_biohacking", "p09"),  # Cross-Show — recurring-guest web
+    # The SPANISH counterpart of p01 (#2169). Same show, same Maya, same Liam Verbeek, same two
+    # sponsor reads — only the language differs, which is what makes it a control: anything the
+    # pipeline does differently here is attributable to language and not to content. Its feed
+    # declares <language>es-ES</language> and `es` is enabled as of 2026-09-30, so this is a
+    # show the pipeline processes rather than a metadata fixture.
+    ("p10_spanish", "p10"),  # Sesiones de Sendero — Spanish
+    # Four more, 2026-10-01, on the shape `es` proved. Parallel CONTENT (so a translation can be
+    # compared against one known meaning across five languages) and their OWN people (so one host
+    # does not end up spanning seven feeds and drowning the entity-identity signal).
+    ("p11_italian", "p11"),  # Sentieri d'Autore — Italian
+    ("p12_french", "p12"),  # Sessions Sentier — French
+    ("p13_german", "p13"),  # Pfadgespräche — German
+    ("p14_portuguese", "p14"),  # Sessões de Trilha — Portuguese
 ]
 
 # p06/p08/p09 RSS fixtures are themed for other shows (edge_cases / solar /
@@ -148,6 +165,438 @@ def _publish_date_for(ep_label: str, gt_dir: Path) -> str | None:
     except (OSError, ValueError):
         return None
     return pd if isinstance(pd, str) else None
+
+
+#: Real pipeline summaries, captured as committed INPUTS.
+CAPTURED_SUMMARY_DIR = Path("tests/fixtures/pipeline-summaries")
+
+
+#: Real extracted topics, captured from a pipeline run — the KG counterpart of
+#: CAPTURED_SUMMARY_DIR.
+CAPTURED_KG_DIR = Path("tests/fixtures/pipeline-kg")
+
+
+#: Real ENGLISH RENDERS captured from a pipeline run. Named `.en.*` before D-44; since the atomic
+#: swap the English IS the canonical `<stem>.txt` and the source is the language-tagged file.
+#:
+#: The third leg of the same loop, and the one whose absence was invisible. Summaries and topics
+#: were captured because they are expensive to regenerate; the English render was not, because it
+#: looked like a derived file. It is not — RFC-124 makes the ABSENCE of `.en.txt` mean "no complete
+#: translation exists", so a corpus without it does not read as half-built, it reads as five
+#: untranslated episodes, and the indexer then correctly emits a single source-language layer.
+#: RFC-124 §6.2's two-layer path got no corpus coverage at all while appearing to be covered.
+CAPTURED_RENDER_DIR = Path("tests/fixtures/pipeline-renders")
+
+#: The suffixes a captured render carries, and the ONLY ones `_replay_english_stack` writes back.
+#:
+#: An ALLOW-LIST, not "every canonical sibling", because a run produces more than the corpus
+#: wants: `.anon.txt` (D-40's pre-naming view), `.turns.json` (a structural view no consumer
+#: reads yet), `.manifest.json` (run bookkeeping) and `.speakers.diagnostics.json` (which the
+#: builder writes itself from its own diarization replay). Replaying those would give the ten
+#: `e02`/`e03` episodes files the five committed `e01` captures do not have, so the corpus would
+#: be internally inconsistent in a way no test looks for. These seven are exactly the keys in
+#: `pipeline-renders/v3/p10_e01.json`, which is the shape being matched.
+#:
+#: The SOURCE-language files (`<stem>.es.txt` and friends) are absent on purpose: the builder
+#: writes the source body to the canonical names itself, and `_replay_english_stack` moves it
+#: aside before laying this stack down. Capturing the source would make the replay write it twice.
+CAPTURED_STACK_SUFFIXES: tuple[str, ...] = (
+    "txt",
+    "segments.json",
+    "cleaned.txt",
+    "adfree.txt",
+    "adfree.segments.json",
+    "adfree.admap.json",
+    "translation.json",
+)
+
+
+def _captured_render_for(ep_label: str, version: str) -> dict[str, Any] | None:
+    """The English render a REAL translation produced for this episode, replayed from disk."""
+    path = CAPTURED_RENDER_DIR / version / f"{ep_label}.json"
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    render = doc.get("render") if isinstance(doc, dict) else None
+    if not isinstance(render, dict) or not str(render.get("text") or "").strip():
+        return None
+    return render
+
+
+def _capture_english_renders(
+    pipeline_outputs: dict[str, Any], version: str, run_root: Path
+) -> tuple[int, list[str]]:
+    """Write this run's `.en.*` artifacts back out as committed fixture INPUTS.
+
+    Only episodes the run actually translated have one, so an English episode being skipped here
+    is the correct outcome rather than a miss — which is why the skip list is returned and
+    reported rather than warned about.
+
+    Returns ``(written, skipped_episode_labels)``.
+    """
+    out_dir = CAPTURED_RENDER_DIR / version
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    written, skipped = 0, []
+    for ep_label, payload in sorted(pipeline_outputs.items()):
+        if not isinstance(payload, dict):
+            continue
+        text = str(payload.get("english_render") or "").strip()
+        if not text:
+            skipped.append(f"{ep_label} (no .en.txt in the run — not translated)")
+            continue
+        doc = {
+            "episode_id": ep_label,
+            "captured_from": str(run_root),
+            "captured_at": stamp,
+            "provenance": (
+                "captured by build_app_validation_corpus.py --capture-summaries " f"from {run_root}"
+            ),
+            "render": {
+                "text": text,
+                "segments": payload.get("english_segments") or [],
+                "stack": payload.get("english_stack") or {},
+                "source_language": payload.get("source_language"),
+                #: Replay needs this to move the source body aside before laying the stack down.
+                "source_suffix": payload.get("source_suffix"),
+                "translated_title": payload.get("translated_title"),
+                "translation_status": payload.get("translation_status"),
+            },
+        }
+        (out_dir / f"{ep_label}.json").write_text(
+            json.dumps(doc, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        written += 1
+    return written, skipped
+
+
+def _captured_topics_for(ep_label: str, version: str) -> list[str]:
+    """Topic ids a REAL extraction produced for this episode, replayed from disk.
+
+    ADDED TO the authored topics, never substituted for them, and the distinction is the whole
+    design. Measured over the 44 episodes of the 2026-10-01 run:
+
+        321 distinct topics, 34 on more than one episode, ZERO on every episode
+        the same conversation in six languages shared 2 of its 10 topic ids
+        `topic:second-order-effects` (18 eps) and `topic:second-order-effect` (6 eps) are
+            two topics, split by a trailing `s`
+
+    So extraction has no canonicalisation: one concept becomes many ids, worse across languages
+    but demonstrably not caused by them. That is a real property of the product and a fixture
+    carrying real output SHOULD expose it.
+
+    What it cannot also do is carry the cross-show overlap the interests picker, topic clusters
+    and discover rails need — at this corpus size real extraction produces almost none. Dropping
+    the authored umbrellas to "be more realistic" would not make those surfaces more honest, it
+    would silently leave them with no data and their tests asserting nothing.
+
+    Hence both, and labelled: see `topic_source` on the KG node.
+    """
+    path = CAPTURED_KG_DIR / version / f"{ep_label}.json"
+    if not path.is_file():
+        return []
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    out: list[str] = []
+    for entry in doc.get("topics") or []:
+        tid = str((entry or {}).get("id") or "").strip()
+        if tid.startswith("topic:") and tid not in out:
+            out.append(tid)
+    return out
+
+
+def _add_extracted_topics(kg: dict[str, Any], topic_ids: list[str], episode_id: str) -> int:
+    """Add REAL extracted topics to the KG, marked `topic_source: "extracted"`.
+
+    The authored ones carry no such marker, so the two are always tellable apart in the committed
+    artifact. That matters more than it sounds: a reader who cannot tell which topics a model
+    produced from which a human wrote cannot use this corpus to measure extraction at all, and
+    the mix would quietly become "the fixture's topics" to everyone downstream.
+
+    Returns how many were added.
+    """
+    have = {n.get("id") for n in kg.get("nodes", [])}
+    ep_node = f"episode:{episode_id}"
+    added = 0
+    for tid in topic_ids:
+        if tid in have:
+            continue
+        kg.setdefault("nodes", []).append(
+            {
+                "id": tid,
+                "type": "Topic",
+                "properties": {
+                    "label": tid.split(":", 1)[-1].replace("-", " "),
+                    #: Marks model output. Absent on the authored/umbrella topics.
+                    "topic_source": "extracted",
+                },
+            }
+        )
+        kg.setdefault("edges", []).append({"source": ep_node, "target": tid, "type": "MENTIONS"})
+        added += 1
+    return added
+
+
+def _captured_summary_for(ep_label: str, version: str) -> dict[str, Any] | None:
+    """A real pipeline summary, replayed from disk instead of regenerated on a GPU.
+
+    WHY THIS EXISTS. A summary produced by `--pipeline-run` used to live in exactly one place:
+    the built `metadata.json`, which is an OUTPUT. So running the builder without that flag —
+    the obvious thing to do after adding a show — silently replaced 38 real summaries with a
+    transcript excerpt, and the only way back was another run of Deepgram plus an LLM gateway
+    over the whole corpus. That happened during the multilingual arc and cost a `git checkout` of
+    the entire corpus directory, which then also reverted an unrelated migration that had been
+    applied to the same files.
+
+    Capturing them as INPUTS makes a plain rebuild reproduce the corpus instead of degrading it.
+    The real run is still the source — this is a recording of one, with its provenance stated in
+    each file — and `--pipeline-run` still wins when a fresh run is supplied, so re-capturing is
+    how the recording gets updated.
+
+    Deliberately NOT stored in the ground truth beside the authored summaries. Ground truth is
+    the reference we wrote; this is output we observed. Merging them would mean a later "does the
+    pipeline still reproduce the reference?" check comparing a model against its own old answer.
+    """
+    path = CAPTURED_SUMMARY_DIR / version / f"{ep_label}.json"
+    if not path.is_file():
+        return None
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    captured = doc.get("summary")
+    if not isinstance(captured, dict) or not str(captured.get("raw_text") or "").strip():
+        return None
+    return captured
+
+
+def _capture_kg_topics(
+    pipeline_outputs: dict[str, Any], version: str, run_root: Path
+) -> tuple[int, list[str]]:
+    """Write this run's EXTRACTED topic ids back out as committed fixture inputs.
+
+    THE THIRD LEG, and until 2026-10-03 the only one with a reader and no writer:
+    `_captured_topics_for` has always replayed `tests/fixtures/pipeline-kg/<version>/<ep>.json`,
+    but nothing produced those files. The five committed ones carry
+    `captured_from: "fixture_validation_dgx run, 2026-10-01"` and were made by hand, so the ten
+    new episodes had no route to one and the build failed the topic audit — "2/3 episodes carry
+    only feed-wide topics … the corpus collapses to one theme cluster" — with no command to fix
+    it. That is the same "the recording can never be refreshed" failure `_capture_summaries`
+    warns about in its own docstring, one leg over.
+
+    Returns ``(written, skipped_episode_labels)``.
+    """
+    out_dir = CAPTURED_KG_DIR / version
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written, skipped = 0, []
+    for ep_label, payload in sorted(pipeline_outputs.items()):
+        if not isinstance(payload, dict):
+            continue
+        topics = payload.get("kg_topics") or []
+        if not topics:
+            skipped.append(f"{ep_label} (no Topic nodes in the run's kg.json)")
+            continue
+        doc = {
+            "episode_id": ep_label,
+            "captured_from": f"fixture_validation_dgx run, {run_root}",
+            "provenance": (
+                "captured by build_app_validation_corpus.py --capture-summaries from the run's "
+                "<ep>.kg.json Topic nodes"
+            ),
+            "topics": topics,
+        }
+        (out_dir / f"{ep_label}.json").write_text(
+            json.dumps(doc, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        written += 1
+    return written, skipped
+
+
+def _capture_summaries(
+    pipeline_outputs: dict[str, Any], version: str, gt_dir: Path, run_root: Path
+) -> tuple[int, list[str]]:
+    """Write this run's summaries back out as committed fixture INPUTS. Closes the loop.
+
+    The replay in :func:`_captured_summary_for` is only half of it: without a repeatable way to
+    RE-capture, the recording can never be refreshed and the first real run after this one leaves
+    its summaries stranded in a build output again — the exact situation this whole mechanism
+    exists to end.
+
+    Skips any episode with an authored ground-truth summary. That one wins at build time, so
+    capturing beside it would write a file nothing reads, which then drifts from the thing that
+    does. One source per episode.
+
+    Returns ``(written, skipped_episode_labels)``.
+    """
+    out_dir = CAPTURED_SUMMARY_DIR / version
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    written, skipped = 0, []
+    for ep_label, payload in sorted(pipeline_outputs.items()):
+        if not isinstance(payload, dict) or not payload.get("has_summary"):
+            skipped.append(f"{ep_label} (no summary in the run)")
+            continue
+        if _authored_summary_for(ep_label, gt_dir):
+            skipped.append(f"{ep_label} (authored)")
+            continue
+        raw = str(payload.get("raw_text") or "").strip()
+        if not raw:
+            skipped.append(f"{ep_label} (empty)")
+            continue
+        doc = {
+            "episode_id": ep_label,
+            "captured_from": str(run_root),
+            "captured_at": stamp,
+            "provenance": (
+                "captured by build_app_validation_corpus.py --capture-summaries " f"from {run_root}"
+            ),
+            "summary": {
+                "title": payload.get("title"),
+                "raw_text": raw,
+                "bullets": list(payload.get("bullets") or []),
+            },
+        }
+        (out_dir / f"{ep_label}.json").write_text(
+            json.dumps(doc, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        written += 1
+    return written, skipped
+
+
+def _drop_untranslated_non_english(
+    transcripts: list[Path], feed_meta: dict[str, Any], feed_id: str, version: str
+) -> list[Path]:
+    """Remove non-English episodes that have no captured translation to replay.
+
+    Extracted rather than inlined for the reason :func:`_replay_english_stack` was — ``main`` sits
+    at the flake8 complexity ceiling and this block pushed it to 26.
+
+    SKIPPING IS THE ONLY CORRECT OPTION HERE, not the cautious one. D-44 makes the canonical
+    ``<base>.txt`` the ANALYSIS language: a reader that opens it without naming a language is
+    promised English. The translation is REPLAYED from a captured run and never synthesised,
+    because a hand-written "English" body would make the two-layer index path look covered while
+    testing nothing real. With no capture there is nothing to replay, so the episode would land
+    with its SOURCE body at the canonical path — every generic reader then gets Spanish while
+    believing it has English, and ``test_fixture_languages`` fails on the missing tagged source,
+    correctly.
+
+    So the episode waits for its capture. Produce one by running the translation stage over it and
+    re-running this builder with the capture in place.
+    """
+    language = str(feed_meta.get("language") or "").split("-")[0].lower()
+    if language in ("", "en"):
+        return transcripts
+    missing = [tr.stem for tr in transcripts if _captured_render_for(tr.stem, version) is None]
+    if not missing:
+        return transcripts
+    print(
+        f"  !! {feed_id}: SKIPPING {len(missing)} non-English episode(s) with no captured "
+        f"translation: {', '.join(missing)}",
+        file=sys.stderr,
+    )
+    print(
+        "     They exist as transcripts/VTT/audio and ARE served by the mock server; they are "
+        f"absent from THIS corpus until a translation run captures their English render into "
+        f"{CAPTURED_RENDER_DIR / version}/.",
+        file=sys.stderr,
+    )
+    return [tr for tr in transcripts if tr.stem not in missing]
+
+
+def _replay_english_stack(run_tr_dir: Path, ep_label: str, version: str) -> int:
+    """Write this episode's captured `.en.*` stack beside its source transcript. Returns a count.
+
+    Lives outside ``main`` for the same reason :func:`_capture_or_remind` does — ``main`` is at the
+    flake8 complexity ceiling and two more branches push it over.
+
+    THE WHOLE STACK, VERBATIM. `.en.adfree.txt` is the ANALYSIS base every GI/KG/index reader
+    resolves to, so replaying only `.en.txt` + `.en.segments.json` (the two files the completeness
+    gate reads) recreates the state translation_stage.py warns about: the gate passes,
+    `translation_status` says `translated`, and ANALYSIS falls through the absent ad-free body to
+    the SOURCE text. Reconstructing an ad-free body here instead of replaying one would be
+    inventing fixture content, which is the one thing a captured fixture must not do.
+
+    Absent for English episodes, and that is correct rather than a miss: they have no render and
+    must not be given one (D-38 serves their source body directly). Keyed on a captured render
+    existing, never on the episode's language.
+    """
+    captured = _captured_render_for(ep_label, version)
+    if not captured:
+        return 0
+    stack = captured.get("stack") or {}
+    if not stack:
+        return 0
+
+    # THE SWAP, replayed (D-44). The builder has just written the SOURCE body to the canonical
+    # names, so before the captured translation can take them the source has to move to its
+    # language-tagged name — the same trade the translation stage performs, in the same order. A
+    # side-by-side write would leave the source at the canonical path and the translation nowhere a
+    # generic reader looks, which is the pre-D-44 layout this replaced.
+    suffix = str(captured.get("source_suffix") or "").strip()
+    if not suffix:
+        lang = str(captured.get("source_language") or "").strip().lower().split(".")[0]
+        lang = lang.split("-")[0]
+        suffix = f"{lang}.txt" if lang and lang != "en" else ""
+    if suffix:
+        lang = suffix[: -len(".txt")] if suffix.endswith(".txt") else suffix
+        for canon, tagged in (
+            (f"{ep_label}.txt", f"{ep_label}.{lang}.txt"),
+            (f"{ep_label}.segments.json", f"{ep_label}.{lang}.segments.json"),
+        ):
+            src = run_tr_dir / canon
+            if src.is_file():
+                src.replace(run_tr_dir / tagged)
+
+    for stack_suffix, body in sorted(stack.items()):
+        (run_tr_dir / f"{ep_label}.{stack_suffix}").write_text(body, encoding="utf-8")
+    return len(stack)
+
+
+def _capture_or_remind(
+    *,
+    capture: bool,
+    pipeline_outputs: dict[str, Any],
+    from_pipeline: list[str],
+    version: str,
+    gt_dir: Path,
+    run_root: Path | None,
+) -> None:
+    """Close the loop, or say loudly that it was left open.
+
+    Lives outside ``main`` because ``main`` is already at the complexity ceiling, and because the
+    decision here — "does this run's output survive the build?" — is one thing worth naming.
+    """
+    if capture and pipeline_outputs and run_root is not None:
+        written, skipped = _capture_summaries(pipeline_outputs, version, gt_dir, run_root)
+        print(f"\n  CAPTURED {written} summaries -> {CAPTURED_SUMMARY_DIR / version}")
+        print("    ^ commit these; later builds replay them with no --pipeline-run.")
+        if skipped:
+            print(f"    skipped {len(skipped)}: {', '.join(skipped[:8])}")
+        # The English render rides the SAME gesture. A separate flag would be a second thing to
+        # remember, and forgetting it is exactly how the corpus ended up with five non-English
+        # episodes and no `.en.txt` while every gate stayed green.
+        k_written, k_skipped = _capture_kg_topics(pipeline_outputs, version, run_root)
+        print(f"  CAPTURED {k_written} topic set(s) -> {CAPTURED_KG_DIR / version}")
+        if k_skipped:
+            print(f"    skipped: {', '.join(k_skipped)}")
+        r_written, r_skipped = _capture_english_renders(pipeline_outputs, version, run_root)
+        print(f"  CAPTURED {r_written} English renders -> {CAPTURED_RENDER_DIR / version}")
+        if r_skipped:
+            print(f"    no render for {len(r_skipped)}: {', '.join(r_skipped[:4])}")
+        return
+    if pipeline_outputs and from_pipeline:
+        # Not an error — but a real run is expensive, and its output is about to exist only in
+        # this build's metadata.json, which is how 38 summaries were lost once already.
+        print(
+            f"\n  NOTE: {len(from_pipeline)} summaries came from this run and were NOT captured."
+            "\n    Re-run with --capture-summaries to commit them as fixture inputs, or the next"
+            "\n    plain build has nothing to replay for them."
+        )
 
 
 def _authored_summary_for(ep_label: str, gt_dir: Path) -> dict[str, Any] | None:
@@ -261,11 +710,110 @@ def _load_pipeline_outputs(run_root: Path) -> dict[str, dict[str, Any]]:
         # episode to the 1800s default. p01_e02 in the committed fixture is exactly this: 1800s
         # recorded against 360.8s of real audio, the only episode in the corpus that disagrees with
         # its own file. Summary quality and duration measurement are independent facts.
+        # RFC-124's English render, read from the run the same way the pipeline names it: the
+        # suffix stack is only well-defined from the CANONICAL transcript path.
+        en_text, en_segments = "", []
+        en_title, translation_status = None, None
+        en_stack: dict[str, str] = {}
+        source_suffix: str | None = None
+        kg_topics: list[dict[str, str]] = []
+        kg_path = meta_path.with_name(meta_path.name[: -len(".metadata.json")] + ".kg.json")
+        try:
+            kg_doc = json.loads(kg_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            kg_doc = {}
+        for node in (kg_doc.get("nodes") or []) if isinstance(kg_doc, dict) else []:
+            if not isinstance(node, dict) or node.get("type") != "Topic":
+                continue
+            tid = str(node.get("id") or "").strip()
+            label = str((node.get("properties") or {}).get("label") or "").strip()
+            if tid.startswith("topic:") and not any(k["id"] == tid for k in kg_topics):
+                kg_topics.append({"id": tid, "label": label})
+        t_rel = (doc.get("content") or {}).get("transcript_file_path")
+        if isinstance(t_rel, str) and t_rel.endswith(".txt"):
+            src = (meta_path.parent.parent / t_rel).resolve()
+            stem = src.name[: -len(".txt")]
+
+            # `title_en` lives in the LEDGER, not the metadata: the run deliberately keeps
+            # `episode.title` in the source language, so reading the title from there would
+            # capture `Construyendo Senderos Que Duran` into a field named for the translation.
+            # Read FIRST because `source_language` is what says where the English body IS.
+            led_path = src.with_name(stem + ".translation.json")
+            try:
+                ledger = json.loads(led_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                ledger = {}
+            if not isinstance(ledger, dict):
+                ledger = {}
+            src_lang = str(ledger.get("source_language") or "").strip().lower().split("-")[0]
+
+            # THE ENGLISH IS AT THE CANONICAL PATH. This block used to read `<stem>.en.txt` and
+            # glob `<stem>.en.*`, which is the PRE-D-44 layout and has produced nothing since
+            # 2026-10-02: the atomic swap puts the ANALYSIS language at `<stem>.txt` and moves the
+            # source to `<stem>.<lang>.txt`, so there is no `.en.txt` in a run any more. The
+            # symptom was silent — `en_text` came back "" and `_capture_english_renders` skipped
+            # every episode as "no .en.txt in the run — not translated", so `--capture-summaries`
+            # captured the summaries and NOTHING ELSE while reporting success. The five committed
+            # `e01` captures predate D-44, which is why they exist and why nobody noticed.
+            #
+            # Two tells that this writer was half-migrated and should have been caught: the
+            # ledger below was already being stored under the UN-prefixed key `translation.json`
+            # while the glob produced `en.`-prefixed ones, and `_replay_english_stack` already
+            # reads a `source_suffix` that nothing wrote.
+            if src_lang and src_lang != "en" and src.is_file():
+                source_suffix = f"{src_lang}.txt"
+                try:
+                    en_text = src.read_text(encoding="utf-8")
+                except OSError:
+                    en_text = ""
+                try:
+                    parsed = json.loads(
+                        src.with_name(stem + ".segments.json").read_text(encoding="utf-8")
+                    )
+                    en_segments = parsed if isinstance(parsed, list) else []
+                except (OSError, ValueError):
+                    en_segments = []
+                # THE WHOLE STACK, not just the two files the completeness gate reads. Capturing
+                # only the body + segments recreates the state translation_stage.py warns about:
+                # the gate passes, `translation_status` says `translated`, and then every ANALYSIS
+                # reader falls through the ABSENT ad-free body to the source text. The corpus
+                # would claim to be translated and behave as though it were not — strictly worse
+                # than having no render at all. See CAPTURED_STACK_SUFFIXES for why it is an
+                # allow-list rather than a glob.
+                for suffix in CAPTURED_STACK_SUFFIXES:
+                    try:
+                        en_stack[suffix] = src.with_name(f"{stem}.{suffix}").read_text(
+                            encoding="utf-8"
+                        )
+                    except OSError:
+                        continue
+
+            if ledger:
+                en_title = str(ledger.get("title_en") or "").strip() or None
+                translation_status = ledger.get("status")
         out[guid] = {
             "title": (summary.get("title") or "").strip() or None,
             "bullets": bullets,
             "raw_text": body,
             "duration_seconds": episode.get("duration_seconds"),
+            #: RFC-124 artifacts. Empty for an English episode, which never has a render.
+            "english_render": en_text,
+            "english_segments": en_segments,
+            #: The stack as ``{suffix: text}`` with CANONICAL (un-prefixed) keys — `txt`,
+            #: `segments.json`, `cleaned.txt`, `adfree.txt`, `adfree.segments.json`,
+            #: `adfree.admap.json`, `translation.json`. These are the names
+            #: `_replay_english_stack` writes back, so the keys are the post-swap ones.
+            "english_stack": en_stack,
+            #: Where the SOURCE body goes when the render is replayed, e.g. `es.txt`.
+            #: `_replay_english_stack` has always read this; nothing wrote it until 2026-10-03.
+            "source_suffix": source_suffix,
+            #: `{id, label}` per Topic node in the run's `<ep>.kg.json`, for the third capture
+            #: leg. Shaped to match what `_captured_topics_for` reads back.
+            "kg_topics": kg_topics,
+            "source_language": (doc.get("episode") or {}).get("language")
+            or (doc.get("feed") or {}).get("language"),
+            "translated_title": en_title,
+            "translation_status": translation_status,
             #: False when the guard dropped the summary. The caller falls back for the summary and
             #: counts it in the stand-in report, while still taking the duration.
             "has_summary": bool(body or bullets),
@@ -610,9 +1158,35 @@ CROSS_CUTTING_TOPICS: dict[str, list[str]] = {
     "p06": ["long-form", "systems thinking"],
     "p08": ["public radio", "risk management"],
     "p09": ["systems thinking", "risk management"],
+    # p10 is p01's Spanish counterpart — the same trail-building show, so the same
+    # umbrellas. It is NOT a language variant of the entry: nothing here branches on
+    # language, and the analysis layer these topics live on is English either way
+    # (D-38). Adding the show without this entry left it holding only SHARED_UMBRELLAS,
+    # which dropped `risk management` from one episode and so cost `tc:managing-risk`
+    # its corpus-wide coverage — the interests picker went from two offerable options
+    # to one. Silently, because a `.get(show, [])` has no opinion about a missing show.
+    "p10": ["endurance sport", "risk management"],
+    # The it/fr/de/pt counterparts, same reasoning: same conversation, same umbrellas.
+    # The guard below is what makes forgetting one of these impossible now.
+    "p11": ["endurance sport", "risk management"],
+    "p12": ["endurance sport", "risk management"],
+    "p13": ["endurance sport", "risk management"],
+    "p14": ["endurance sport", "risk management"],
 }
 # Shared umbrellas injected into every show so clusters are genuinely multi-member.
 SHARED_UMBRELLAS: list[str] = ["lifelong learning", "expert interviews"]
+
+#: Every wired show MUST declare its umbrellas. The map is keyed by show and read with
+#: ``.get(..., [])``, so a new show in APP_SHOWS without an entry builds a corpus that
+#: is quietly less discriminating than the one the capability audit measures. Checked at
+#: import so the build cannot start, rather than at the end when the artifacts are written.
+_SHOWS_WITHOUT_UMBRELLAS = [sdir for _stem, sdir in APP_SHOWS if sdir not in CROSS_CUTTING_TOPICS]
+if _SHOWS_WITHOUT_UMBRELLAS:
+    raise SystemExit(
+        "CROSS_CUTTING_TOPICS is missing an entry for: "
+        + ", ".join(_SHOWS_WITHOUT_UMBRELLAS)
+        + " — add the show's two umbrella topics (see the comment above the map)."
+    )
 
 
 def _episode_subtitle(transcript_path: Path, fallback: str) -> str:
@@ -1341,7 +1915,12 @@ def main() -> int:
         default=Path("tests/fixtures/transcripts") / default_version,
     )
     p.add_argument("--output", type=Path, default=Path("tests/fixtures/app-validation-corpus"))
-    p.add_argument("--max-feeds", type=int, default=9)
+    # Defaults to every show in APP_SHOWS. It was a literal 9 while APP_SHOWS held nine, so
+    # adding `p10` silently excluded it — the corpus built 40 episodes from 41 on disk, the
+    # exact shape the `--max-episodes-per-feed` comment below describes: "a cap you have to
+    # ask for cannot do that to you". Derived from the list now, so a new show cannot be
+    # dropped by a stale number.
+    p.add_argument("--max-feeds", type=int, default=len(APP_SHOWS))
     # No default cap. It used to default to 4, which was a silent no-op while every
     # show had four episodes — and then silently started EXCLUDING when p02/p05 grew
     # to five and p06 to six. Four episodes with transcript, audio and ground truth
@@ -1359,11 +1938,24 @@ def main() -> int:
         default=None,
         help=(
             "Root of a real pipeline run (the --output-dir it was given). Its summaries and "
-            "measured durations are used instead of the synthesized stand-in, keyed on "
-            "episode.guid. Without this the corpus's 'summary' is the transcript's opening line."
+            "measured durations are used instead of the replayed ones, keyed on episode.guid. "
+            "Without this the corpus replays the captured summaries committed under "
+            "tests/fixtures/pipeline-summaries/."
+        ),
+    )
+    p.add_argument(
+        "--capture-summaries",
+        action="store_true",
+        help=(
+            "Write this run's summaries back to tests/fixtures/pipeline-summaries/<version>/ so "
+            "later builds can replay them without a GPU. Requires --pipeline-run. This is the "
+            "step that turns a one-off run into a committed fixture input — commit what it "
+            "writes."
         ),
     )
     args = p.parse_args()
+    if args.capture_summaries and not args.pipeline_run:
+        sys.exit("--capture-summaries needs --pipeline-run: there is nothing to capture without it")
 
     if not args.rss_dir.is_dir():
         sys.exit(f"--rss-dir does not exist: {args.rss_dir}")
@@ -1387,6 +1979,12 @@ def main() -> int:
     allow_synthesized = bool(args.allow_synthesized_summaries)
     summaries_from_pipeline: list[str] = []
     summaries_synthesized: list[str] = []
+    #: Real pipeline summaries REPLAYED from `tests/fixtures/pipeline-summaries/`. Counted
+    #: apart from `summaries_from_pipeline` because the provenance differs — one is a run
+    #: that happened just now, the other a recording of one that happened in #2147 — even
+    #: though the bytes are equally real. Collapsing them would make the report unable to
+    #: say whether a GPU was involved in THIS build.
+    summaries_replayed: list[str] = []
     #: Hand-written in the ground truth. NOT a stand-in — a stand-in is the transcript's
     #: opening line, which is the v3 defect; an authored summary is the best available
     #: description of an episode no model can summarise (44 words, all of it boilerplate).
@@ -1420,6 +2018,7 @@ def main() -> int:
 
         transcripts = sorted(args.transcripts_dir.glob(f"{show_dir}_e[0-9]*.txt"))
         transcripts = [t for t in transcripts if "_multi_" not in t.stem and "_fast" not in t.stem]
+        transcripts = _drop_untranslated_non_english(transcripts, feed_meta, feed_id, version)
         if args.max_episodes_per_feed is not None:
             transcripts = transcripts[: args.max_episodes_per_feed]
 
@@ -1465,6 +2064,11 @@ def main() -> int:
                 for t in CROSS_CUTTING_TOPICS.get(show_dir, []) + SHARED_UMBRELLAS
                 if t not in authored
             ]
+            # Real extracted topics from the committed pipeline run, APPENDED. They carry the
+            # product's actual extraction behaviour — including its lack of canonicalisation —
+            # while the authored ones above keep the cross-show overlap the picker needs. See
+            # `_captured_topics_for` for the measurements behind doing both.
+            extracted = [t for t in _captured_topics_for(ep_label, version) if t not in topics]
             # Insights/quotes from CLEAN diarized utterances (not the raw header block).
             excerpts = _clean_insight_quote_excerpts(diar_segments, topics)
 
@@ -1508,6 +2112,7 @@ def main() -> int:
             )
             # The viewer build_kg emits no Person nodes; add the diarized roster so the
             # consumer entity-card people surface has real data (host/guest).
+            _add_extracted_topics(kg, extracted, episode_id)
             _enrich_kg_with_people(kg, roster)
             # #1148: canonicalize Person ids (speaker-NN → name-slug) so the
             # cross-episode enrichers (guest_coappearance / grounding_rate) work,
@@ -1577,11 +2182,30 @@ def main() -> int:
             )
 
             # Transcript text + RAW canonical segments (player contract).
+            #
+            # BOTH ARE WRITTEN BEFORE THE REPLAY, and the order is load-bearing. The segments
+            # write used to sit AFTER `_replay_english_stack`, which silently undid the swap for
+            # every non-English episode: the replay moves `<ep>.segments.json` to the tagged name
+            # and puts the ENGLISH segments at the canonical one, and the later write then
+            # clobbered those English segments with the raw source ones. The move itself was also
+            # a no-op, because the file it looked for did not exist yet.
+            #
+            # Found 2026-10-02 by rebuilding the corpus and diffing: the committed
+            # `p10_e01.segments.json` carried the English segments with their `unit_id` /
+            # `char_start` mapping, and a rebuild replaced them with raw Spanish — so the
+            # committed artifacts were right and the builder could no longer reproduce them.
             (run_tr_dir / f"{ep_label}.txt").write_text(raw_text, encoding="utf-8")
             (run_tr_dir / f"{ep_label}.segments.json").write_text(
                 json.dumps(_raw_canonical_segments(offset_segs), indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
             )
+            # RFC-124: a translated episode's ENGLISH RENDER travels with it. Replayed from the
+            # captured run, never synthesised -- a hand-written "English" body would make the
+            # two-layer index path look covered while testing nothing real. Absent for English
+            # episodes, which is correct: they have no render and must not get one (D-38 serves
+            # the source body directly), so this is keyed on a captured render existing, not on
+            # the episode's language.
+            _replay_english_stack(run_tr_dir, ep_label, version)
             # Diarization diagnostics next to the transcript — what the diarized-speaker read
             # surfaces (MCP episode_speaker_roster) read (talk-share, roster, host/guest).
             (run_tr_dir / f"{ep_label}.speakers.diagnostics.json").write_text(
@@ -1613,6 +2237,16 @@ def main() -> int:
                 summary_body = pipeline_summary["raw_text"] or episode_title
                 summary_title = pipeline_summary["title"] or episode_title
                 summaries_from_pipeline.append(ep_label)
+            elif captured_summary := _captured_summary_for(ep_label, version):
+                # A real pipeline summary, replayed. Ranks BELOW a live `--pipeline-run` (a fresh
+                # run supersedes a recording of an old one) and ABOVE the stand-in, which is the
+                # whole point: without this, a build with no run degrades 38 episodes.
+                bullets = [str(b) for b in (captured_summary.get("bullets") or [])] or [
+                    episode_title
+                ]
+                summary_body = str(captured_summary["raw_text"])
+                summary_title = str(captured_summary.get("title") or episode_title)
+                summaries_replayed.append(ep_label)
             else:
                 bullets = excerpts["insights"][:3] or [f"Key point {n + 1}" for n in range(3)]
                 # Not insights[0] blindly: for most episodes greeting-filtering has already
@@ -1643,7 +2277,12 @@ def main() -> int:
                     # show page. Authors + language come from the RSS channel; last_updated is the
                     # show's newest episode date (see above).
                     "authors": list(feed_meta.get("authors") or []),
-                    "language": feed_meta.get("language") or None,
+                    # #2185: this carried the raw tag ("en-us"), so the corpus disagreed with the
+                    # pipeline about what the language IS. Normalized now, with the publisher's
+                    # original kept beside it and the provenance recorded.
+                    "language": normalize_language_tag(feed_meta.get("language")),
+                    "language_raw": feed_meta.get("language") or None,
+                    "language_source": "rss" if feed_meta.get("language") else None,
                     "last_updated": show_last_updated,
                 },
                 "episode": {
@@ -1653,6 +2292,11 @@ def main() -> int:
                     # Measured off the audio by the pipeline when available. The old hardcoded
                     # 1800 was wrong for every episode — the fixtures run from 82s to ~32min.
                     "duration_seconds": duration_seconds,
+                    # Per-episode language (#2185), inherited from the feed: these fixtures have
+                    # no per-feed override, and an episode differing from its show is a Phase 2
+                    # shape. No episode-level language existed anywhere before #2172.
+                    "language": normalize_language_tag(feed_meta.get("language")),
+                    "language_source": "rss" if feed_meta.get("language") else None,
                 },
                 "summary": {
                     "title": summary_title,
@@ -1824,9 +2468,17 @@ def main() -> int:
     # quietly fell back for half its episodes would still claim "we ran the pipeline", and the
     # synthesized stand-in is a greeting, not a summary — so the gap is reported, never implied.
     total_summaries = (
-        len(summaries_from_pipeline) + len(summaries_synthesized) + len(summaries_authored)
+        len(summaries_from_pipeline)
+        + len(summaries_synthesized)
+        + len(summaries_authored)
+        + len(summaries_replayed)
     )
     print(f"\n  summaries — real pipeline: {len(summaries_from_pipeline)}/{total_summaries}")
+    if summaries_replayed:
+        print(
+            f"  summaries — REPLAYED from captured pipeline output: "
+            f"{len(summaries_replayed)}/{total_summaries}"
+        )
     if summaries_authored:
         print(
             f"  summaries — AUTHORED ground truth: {len(summaries_authored)}/{total_summaries}"
@@ -1846,6 +2498,15 @@ def main() -> int:
             )
         else:
             print("    ^ no --pipeline-run was supplied, so every summary is the stand-in.")
+
+    _capture_or_remind(
+        capture=bool(args.capture_summaries),
+        pipeline_outputs=pipeline_outputs,
+        from_pipeline=summaries_from_pipeline,
+        version=version,
+        gt_dir=gt_dir,
+        run_root=args.pipeline_run,
+    )
 
     problems = _audit_built_corpus(out)
     problems += _feed_parity_problems(out, args.rss_dir)
@@ -2061,14 +2722,25 @@ def _synthesized_fallback_problems(
     this". Printing a problem is not the same as refusing to call the build a success.
 
     ``--allow-synthesized-summaries`` is the deliberate escape hatch; there is no accidental one.
-    Without ``--pipeline-run`` there is nothing to fall back FROM, so the stand-in is the expected
-    output rather than a defect.
+
+    THE `ran_pipeline` EXEMPTION IS GONE (2026-10-01). It read: "without --pipeline-run there is
+    nothing to fall back FROM, so the stand-in is the expected output rather than a defect".
+    That was true while a real summary existed only inside the build output. It is false now
+    that they are committed as inputs under `tests/fixtures/pipeline-summaries/`: a plain
+    rebuild replays them, so a stand-in means an episode has NEITHER an authored summary NOR a
+    captured one — a real gap, whatever flags were passed.
+
+    That exemption is also exactly how 38 real summaries got overwritten during the
+    multilingual arc: the obvious command after adding a show degraded the corpus and exited
+    0, because the one guard that would have caught it had excused itself.
     """
-    if not ran_pipeline or not synthesized or allowed:
+    if not synthesized or allowed:
         return []
+    whence = "under --pipeline-run" if ran_pipeline else "with no authored or captured summary"
     return [
-        f"{len(synthesized)}/{total} summaries fell back to the synthesized stand-in under "
-        "--pipeline-run (pass --allow-synthesized-summaries to accept this deliberately)"
+        f"{len(synthesized)}/{total} summaries fell back to the synthesized stand-in "
+        f"{whence} (pass --allow-synthesized-summaries to accept this deliberately): "
+        f"{', '.join(synthesized[:8])}"
     ]
 
 

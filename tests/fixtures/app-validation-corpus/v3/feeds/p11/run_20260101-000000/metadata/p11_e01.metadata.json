@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p11-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p11_e01.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Giulia Ferrara",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Marco Bellini",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p11_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 390,
+    "episode_id": "ep-e2231244311ca964",
+    "language": "it",
+    "language_source": "rss",
+    "published_date": "2025-10-01T00:00:00",
+    "title": "Costruire Sentieri Che Durano"
+  },
+  "feed": {
+    "authors": [
+      "Giulia Ferrara"
+    ],
+    "description": "Conversazioni sulla costruzione di sentieri: drenaggio, tracciato, e le persone che costruiscono il percorso. Controparte italiana di Singletrack Sessions.",
+    "feed_id": "p11",
+    "language": "it",
+    "language_raw": "it-IT",
+    "language_source": "rss",
+    "last_updated": "2025-12-28T00:00:00",
+    "title": "Sentieri d'Autore",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p11.svg",
+    "image_url": "http://localhost/images/p11.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Drainage is the design decision that has the biggest impact on any trail, determining long-term stability and erosion resistance.",
+      "Cutting switchbacks into slopes is not optional — shortcuts on the first day inevitably lead to landslides by the third year.",
+      "The structure of the soil is more important than people realize, and ignoring it leads to needing to rebuild the entire trail within a year.",
+      "Novice builders most commonly make the mistake of digging with a slope that is too steep, a decision that cascades into multiple downstream failures.",
+      "The use of Spoke & Wrench within workflow enables teams to see benefits immediately — ignoring it results in a complete rebuild later.",
+      "Machine-made trails versus hand-crafted trails are not a simple dichotomy; the pattern of success repeats across teams using different methods.",
+      "Land management discussions must occur before any excavation begins — the absence of early planning leads to structural compromise.",
+      "The Cascadia Alliance framework provides diagnostic tools that help identify root causes outside of standard toolsets, enabling more accurate troubleshooting."
+    ],
+    "raw_text": "Drainage is the design decision that has the biggest impact on any trail, determining long-term stability and erosion resistance. Cutting switchbacks into slopes is not optional — shortcuts on the first day inevitably lead to landslides by the third year.",
+    "title": "Drainage and Soil Structure as Foundational Elements in Trail Construction"
+  }
+}

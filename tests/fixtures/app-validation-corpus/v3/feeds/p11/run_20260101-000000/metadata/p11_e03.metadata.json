@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p11-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p11_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Giulia Ferrara",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Luca Moretti",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p11_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 369,
+    "episode_id": "ep-ec0bf35da3719170",
+    "language": "it",
+    "language_source": "rss",
+    "published_date": "2025-12-27T00:00:00",
+    "title": "La Meccanica di Una Bici Silenziosa e Veloce"
+  },
+  "feed": {
+    "authors": [
+      "Giulia Ferrara"
+    ],
+    "description": "Conversazioni sulla costruzione di sentieri: drenaggio, tracciato, e le persone che costruiscono il percorso. Controparte italiana di Singletrack Sessions.",
+    "feed_id": "p11",
+    "language": "it",
+    "language_raw": "it-IT",
+    "language_source": "rss",
+    "last_updated": "2025-12-28T00:00:00",
+    "title": "Sentieri d'Autore",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p11.svg",
+    "image_url": "http://localhost/images/p11.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Most mysterious squeaks in bike transmissions are resolved by cleaning contact surfaces and tightening components to the specified torque — a simple fix that prevents more complex failures.",
+      "Chain wear is the best early indicator of when the cassette needs replacement, a pattern consistently observed across multiple teams using Shimano components.",
+      "Adopting Spoke & Wrench within maintenance workflows reveals clear benefits, especially when teams prioritize systematic, repeatable procedures over reactive fixes.",
+      "Maintenance intervals for suspension systems are fundamentally a risk management decision — ignoring them leads to full system rebuilds a year later.",
+      "The structural element most listeners lack access to is the direct link between chain wear and cassette longevity, which determines the timing of component replacements.",
+      "A bike should feel quiet and predictable to keep attention on the trail — the geometry and setup reflect the tradeoffs made in design and maintenance.",
+      "The second-order effect of proper maintenance is often overlooked: it preserves system integrity beyond immediate performance, reducing long-term failure risk.",
+      "Implementing one key maintenance idea for two weeks enables meaningful iteration — real progress comes from consistent practice, not just theoretical understanding."
+    ],
+    "raw_text": "Most mysterious squeaks in bike transmissions are resolved by cleaning contact surfaces and tightening components to the specified torque — a simple fix that prevents more complex failures. Chain wear is the best early indicator of when the cassette needs replacement, a pattern consistently observed across multiple teams using Shimano components.",
+    "title": "Transmission Mechanics and Risk Management in Bike Maintenance"
+  }
+}

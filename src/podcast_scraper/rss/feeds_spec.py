@@ -16,6 +16,8 @@ from urllib.parse import urlparse
 import yaml
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..languages import normalize_language_tag
+
 _CfgT = TypeVar("_CfgT", bound=BaseModel)
 
 logger = logging.getLogger(__name__)
@@ -58,6 +60,12 @@ RSS_FEED_ENTRY_OVERRIDE_KEYS: frozenset[str] = frozenset(
         "show_centric",
         "diarization_min_segment_ms",
         "crosspromo_cue_patterns",
+        # Per-feed language override (#2174). Feed <language> tags are routinely wrong, and this
+        # is how an operator corrects one at onboarding without a code change. It needs BOTH this
+        # entry and the typed field on RssFeedEntry below: the model is extra="forbid", so the key
+        # is rejected without the field, and Config's _coerce_rss_urls_list silently DROPS keys
+        # missing from this set.
+        "language",
     }
 )
 
@@ -116,11 +124,45 @@ class RssFeedEntry(BaseModel):
     # Per-feed opening cross-promo cue patterns (#1188). Extend the built-in cue set with a feed's
     # cross-promo phrasing at onboarding — the intended evolving surface for ads the defaults miss.
     crosspromo_cue_patterns: Optional[List[str]] = None
+    # Per-feed language override (#2174), the highest-precedence source. A publisher's <language>
+    # is routinely wrong — an English show tagged `de` would otherwise be skipped on every run
+    # with no remedy — so this is what corrects it at onboarding.
+    #
+    # WHY THE FIELD IS NOT CALLED `language`. The operator writes `language:` in the YAML (the
+    # alias), but `override_update_dict()` dumps by FIELD NAME into
+    # `Config.model_copy(update=...)`. Landing on `cfg.language` would make the override
+    # indistinguishable from the profile default, so the artifact could not say which it was —
+    # and worse, `_build_feed_metadata` prefers the feed's own tag over the profile default, so
+    # an override would LOSE to the wrong tag it exists to correct. It lands on
+    # `Config.language_override` instead, and resolution reads the two separately.
+    language_override: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("language", "language_override")
+    )
 
     @field_validator("url", mode="after")
     @classmethod
     def _check_url(cls, v: str) -> str:
         return _validate_http_url(v.strip())
+
+    @field_validator("language_override", mode="after")
+    @classmethod
+    def _normalize_language_override(cls, v: Optional[str]) -> Optional[str]:
+        """Normalize at the MODEL boundary, because ``model_copy`` skips Config's validators.
+
+        Without this, an operator writing ``language: es-ES`` puts the raw tag straight onto the
+        Config — the same shape as the ``en-US`` -> ``en-us`` bug this slice fixes, arriving by a
+        different door. An unusable value raises rather than being silently dropped: a typo in a
+        hand-edited override should stop the run, not quietly fall back.
+        """
+        if v is None:
+            return None
+        normalized = normalize_language_tag(v)
+        if not normalized:
+            raise ValueError(
+                f"language override {v!r} is not a usable language tag "
+                "(expected e.g. 'es', 'es-ES', 'pt_BR')"
+            )
+        return normalized
 
     def override_update_dict(self) -> Dict[str, Any]:
         """Flat dict for ``Config.model_copy(update=...)`` — excludes ``url``."""

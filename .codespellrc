@@ -1,6 +1,6 @@
 [codespell]
-skip = *.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git
-ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot,Carin,Hart,Empress,ist,sie,te,coo
+skip = *.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git,*/speaker_detectors/naming_vocabulary.py
+ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,sting,summar,pres,isnt,arent,wasnt,werent,dont,doesnt,didnt,hasnt,havent,cant,couldnt,wouldnt,wont,shouldnt,canonicalizations,covert,disjointness,mot,Carin,Hart,Empress,ist,sie,te,coo,Wege,Technik
 # ist / sie / te: German and Dutch function words in the ad-language detector's word lists
 # (providers/ml/diarization/ad_signatures.py); not typos
 # coo: the job title COO in the stated-name trailing job tokens (speaker_detectors/hosts.py)
@@ -8,6 +8,20 @@ ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,stin
 # covert: real word ("a covert vLLM shim" — hidden/disguised, ADR-147); not a typo of "convert"
 # disjointness: real word ("vendor disjointness" — the state of being disjoint, ADR-149/JUDGING.md); not a typo
 # mot: local variable name (max_output_tokens abbrev, gemini_provider.py); not a typo of "not"
+# Wege: German for "paths/ways" — the p13 fixture's literal episode title
+# (`Wege Bauen, Die Bleiben`), quoted in workflow/translation_stage.py as the measured
+# evidence for why a title must travel with context. Quoting a non-English string is
+# unavoidable in a multilingual pipeline's docs; not a typo of "Wedge".
+# Technik: German for "technique" — quoted in MULTILINGUAL_ARC_V2.md §11 as the SOURCE word in a
+# measured mistranslation: the p13 fixture title `Enduro-Technik Ohne Hype` came back from
+# translategemma as "Enduro Technology, No Hype", and the error is only visible because p01_e02
+# holds the correct English ("Enduro Skills"). codespell's suggestion here is in fact the right
+# TRANSLATION, which is the joke — but the German word is what has to appear on the page for the
+# finding to mean anything. Same category as `Wege` below; not a typo of "Technique".
+# ist: German for "is" — a member of the `_MARKERS["de"]` function-word set in
+# search/query_language.py, which detects a query's language from words that are common in
+# one language and rare in English. Every list there is deliberately foreign vocabulary, so
+# more of these will arrive as languages are added; not a typo of "is".
 # Carin / Hart: people's names (Carin Zissis, Americas Quarterly; Emily Hart, Colombia Calling) —
 # measured evidence for the remove-only feed-host rule (#2075); not a typo of "Caring"
 # Empress: a real title, in the worked example for the matched-bracket rule in
@@ -23,3 +37,8 @@ ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,stin
 # isnt/arent/wasnt/werent/dont/doesnt/didnt/hasnt/havent: intentional patterns in
 # gi/insight_type_classifier.py — apostrophe-stripped contractions that match
 # transcript artifacts where the transcriber dropped the apostrophe. Not typos.
+# speaker_detectors/naming_vocabulary.py is SKIPPED whole, not word by word: it is the per-language
+# naming vocabulary (six languages × ~43 maps), so nearly every non-English row is a word codespell
+# reads as an English typo (vor, unser, oder, nome, meu, hace, studi, groupe, ...). Adding those to
+# ignore-words-list would hide real typos of the same spelling in every other file. The cost is
+# that English typos in that one file's comments go unchecked.

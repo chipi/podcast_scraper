@@ -74,7 +74,15 @@ class ArtworkThumbnailsMigration(Migration):
         return True, f"every stored image has a thumbnail ({len(failed)} undecodable, recorded)"
 
     def apply(self, ctx: MigrationContext) -> MigrationResult:
-        """Write each missing thumbnail; record undecodable images instead of failing."""
+        """Write a thumbnail for every stored cover that lacks one.
+
+        The serving API mounts the corpus READ-ONLY, so it cannot derive these on demand
+        and was serving full-size images in their place. Backfilling here is what makes
+        the read-only mount correct rather than merely safe.
+
+        An undecodable image is RECORDED rather than raised: one unreadable cover must not
+        stop the backfill for every other episode.
+        """
         root = ctx.corpus_root
         missing = self._missing(root)
         written: List[str] = []

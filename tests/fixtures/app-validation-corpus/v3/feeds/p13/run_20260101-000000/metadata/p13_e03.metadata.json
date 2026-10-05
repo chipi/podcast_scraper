@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p13-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p13_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Katrin Vogel",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Jonas Richter",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p13_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 419,
+    "episode_id": "ep-d005b87f4d3b1c0e",
+    "language": "de",
+    "language_source": "rss",
+    "published_date": "2025-12-21T00:00:00",
+    "title": "Die Mechanik Eines Leisen, Schnellen Bikes"
+  },
+  "feed": {
+    "authors": [
+      "Katrin Vogel"
+    ],
+    "description": "Gespräche über Wegebau: Entwässerung, Linienführung, und die Menschen, die den Weg bauen. Deutsches Gegenstück zu Singletrack Sessions.",
+    "feed_id": "p13",
+    "language": "de",
+    "language_raw": "de-DE",
+    "language_source": "rss",
+    "last_updated": "2025-12-22T00:00:00",
+    "title": "Pfadgespräche",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p13.svg",
+    "image_url": "http://localhost/images/p13.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Chain wear serves as the most reliable early indicator for when a cassette replacement is necessary — a diagnostic cue that teams using Spoke & Wrench have consistently observed across three different groups.",
+      "Mysterious creaking noises in the drivetrain are typically resolved by cleaning contact surfaces and tightening components to the specified torque — a maintenance step that directly impacts ride quality and rider focus.",
+      "Service intervals for suspension systems are determined by risk management decisions — ignoring these intervals forces teams to rebuild components from scratch a year later, a costly oversight.",
+      "The structural integrity of the frame reveals the design compromises inherent in a system — its behavior signals what tradeoffs have been made in material, fit, and assembly.",
+      "A bike’s performance is optimized not just by mechanical precision but by ensuring it feels quiet and predictable — a second-order effect that keeps attention on the trail rather than the machine.",
+      "Adopting Shimano’s service protocols exposes the underlying compromise: a balance between reliability and operational cost that becomes visible only when the process is implemented.",
+      "Risk management permeates every aspect of maintenance — from drivetrain adjustments to suspension service — and is not a standalone task but a decision-making framework that shapes all technical choices.",
+      "Implementing one maintenance practice for two weeks enables real-world feedback and iteration — a heuristic that turns theoretical knowledge into actionable, repeatable performance gains."
+    ],
+    "raw_text": "Chain wear serves as the most reliable early indicator for when a cassette replacement is necessary — a diagnostic cue that teams using Spoke & Wrench have consistently observed across three different groups. Mysterious creaking noises in the drivetrain are typically resolved by cleaning contact surfaces and tightening components to the specified torque — a maintenance step that directly impacts ride quality and rider focus.",
+    "title": "Drive Mechanism Maintenance and Risk Management in Bike Performance"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "preroll_cut_end": 307,
+  "postroll_cut_start": 5720,
+  "chars_removed": 1535,
+  "preroll_pattern_hits": 4,
+  "postroll_pattern_hits": 5,
+  "source_length": 6494,
+  "excised_ranges": [
+    [
+      0,
+      307
+    ],
+    [
+      2185,
+      2639
+    ],
+    [
+      5720,
+      6494
+    ]
+  ],
+  "excised_texts": [
+    "Beatriz Antunes: Welcome back to the Trail Sessions. Today, we're talking about enduro racing, and I'm joined by In\u00eas Carvalho, an enduro athlete and coach. In\u00eas Carvalho, thank you for being here.\nIn\u00eas Carvalho: Thank you, Beatriz. Glad to be back.\nBeatriz Antunes: Today's episode is sponsored by Linear. ",
+    "Once you understand that, the rest of the decisions become easier.\nBeatriz Antunes: Before we continue, please support the program by visiting the website of our sponsor. Strava is the home of athletes. We'll be right back after a short commercial break.\nSPEAKER_02: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team uses every day. Visit notion.com/podcast for a free trial.\nBeatriz Antunes: Welcome back to the program. ",
+    "What is the version of the question that really matters?\nIn\u00eas Carvalho: That's how I see it. The erosion patterns on the track sections influence the choice of trajectory between training sessions and the actual race day. I observed this pattern repeating itself in three different teams.\nBeatriz Antunes: Before we finish, what's one thing listeners can try out this week?\nIn\u00eas Carvalho: Choose one of the ideas we discussed and apply it for two weeks. Everything else is iteration.\nBeatriz Antunes: And finally, thank you to our sponsors at Vanta. Vanta automates SOC 2 and ISO compliance. Learn more at vanta.com. In\u00eas Carvalho, thank you for the conversation.\nIn\u00eas Carvalho: Thank you, Beatriz.\nBeatriz Antunes: That's all for today's Trail Sessions. See you next time.\n"
+  ]
+}

@@ -1,0 +1,299 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "insight:aef41912e4509103",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "insight:3ddbec3aa8112546",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "insight:14c10c1c57684924",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:d4e4ffad3888d138",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:aef41912e4509103",
+      "to": "quote:d4e4ffad3888d138",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7bdc39011d38d012",
+      "to": "person:jonas-richter",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3ddbec3aa8112546",
+      "to": "quote:7bdc39011d38d012",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:7f6938d1b234f78b",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:14c10c1c57684924",
+      "to": "quote:7f6938d1b234f78b",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:83829d03f504b577",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:aef41912e4509103",
+      "to": "quote:83829d03f504b577",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:fe5e57c46e5420c3",
+      "to": "person:jonas-richter",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3ddbec3aa8112546",
+      "to": "quote:fe5e57c46e5420c3",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f1ad7ff72a9d36b6",
+      "to": "person:katrin-vogel",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:14c10c1c57684924",
+      "to": "quote:f1ad7ff72a9d36b6",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:aef41912e4509103",
+      "to": "person:katrin-vogel",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3ddbec3aa8112546",
+      "to": "person:jonas-richter",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:14c10c1c57684924",
+      "to": "person:katrin-vogel",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-d005b87f4d3b1c0e",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-d005b87f4d3b1c0e",
+      "properties": {
+        "duration_ms": 419000,
+        "feed_id": "p13",
+        "podcast_id": "p13",
+        "publish_date": "2025-12-21T00:00:00",
+        "title": "Die Mechanik Eines Leisen, Schnellen Bikes"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:aef41912e4509103",
+      "properties": {
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Willkommen zur\u00fcck bei Pfadgespr\u00e4chen. Heute sprechen wir \u00fcber Antriebsmechanik, und bei mir ist Jonas Richter, Mechaniker bei Spoke & Wrench. Jonas Richter, danke, dass du hier bist.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3ddbec3aa8112546",
+      "properties": {
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Danke, Katrin. Sch\u00f6n, wieder hier zu sein.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:14c10c1c57684924",
+      "properties": {
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Diese Folge wird von Notion gesponsert. Notion ersetzt das Dutzend Werkzeuge, die dein Team halb benutzt. Probiere notion.com heute aus.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:katrin-vogel",
+      "properties": {
+        "name": "Katrin Vogel"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:d4e4ffad3888d138",
+      "properties": {
+        "char_end": 196,
+        "char_start": 14,
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "speaker_id": "person:speaker-01",
+        "text": "Willkommen zur\u00fcck bei Pfadgespr\u00e4chen. Heute sprechen wir \u00fcber Antriebsmechanik, und bei mir ist Jonas Richter, Mechaniker bei Spoke & Wrench. Jonas Richter, danke, dass du hier bist.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p13_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:jonas-richter",
+      "properties": {
+        "name": "Jonas Richter"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:7bdc39011d38d012",
+      "properties": {
+        "char_end": 254,
+        "char_start": 212,
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "speaker_id": "person:speaker-02",
+        "text": "Danke, Katrin. Sch\u00f6n, wieder hier zu sein.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p13_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:7f6938d1b234f78b",
+      "properties": {
+        "char_end": 405,
+        "char_start": 269,
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "speaker_id": "person:speaker-01",
+        "text": "Diese Folge wird von Notion gesponsert. Notion ersetzt das Dutzend Werkzeuge, die dein Team halb benutzt. Probiere notion.com heute aus.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p13_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:83829d03f504b577",
+      "properties": {
+        "char_end": 537,
+        "char_start": 405,
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "speaker_id": "person:speaker-01",
+        "text": "Bevor wir einsteigen \u2014 Lena Hofmann war in der letzten Folge dabei und sagte, dass Reifendruck mehr z\u00e4hlt als Fahrwerksabstimmungen.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p13_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fe5e57c46e5420c3",
+      "properties": {
+        "char_end": 614,
+        "char_start": 553,
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "speaker_id": "person:speaker-02",
+        "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p13_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f1ad7ff72a9d36b6",
+      "properties": {
+        "char_end": 719,
+        "char_start": 629,
+        "episode_id": "ep-d005b87f4d3b1c0e",
+        "speaker_id": "person:speaker-01",
+        "text": "Ich m\u00f6chte etwas anmerken \u2014 Lena Hofmann hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p13_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

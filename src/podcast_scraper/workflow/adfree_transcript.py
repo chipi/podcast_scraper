@@ -15,6 +15,22 @@ Artifacts written next to the raw ``<base>.txt``:
   no cumulative-length guard — #974 Fault B)
 - ``<base>.adfree.admap.json``   — the ad-map: excised ranges in raw-screenplay space,
   to reconcile an ad-free offset back to the raw transcript for the future player
+
+This module PRODUCES those artifacts. Two neighbouring jobs deliberately do not live here:
+
+* The SUFFIX VOCABULARY (``.adfree``, ``.cleaned``, ``.anon``) and the order a reader should try
+  them in belong to :mod:`podcast_scraper.workflow.transcript_resolution`. One module owning the
+  whole stack is what stops a producer and a reader disagreeing about a filename, so this module
+  imports :data:`~podcast_scraper.workflow.transcript_resolution.ADFREE_SUFFIX` rather than
+  declaring its own. The direction is deliberate: the resolver is light enough for any reader to
+  import, while this module pulls in the diarization/ad-excision stack, so the dependency can
+  only run this way.
+* LOADING a transcript (``load_transcript``, ``load_processing_transcript``,
+  ``TranscriptPurpose``) is a reader concern and lives in that same module. Those names were
+  re-exported here for a while so importers predating #2170 kept working; the re-export is gone
+  (2026-10-02) and importers name the defining module directly. A second import path for a name
+  this module does not itself use was a standing invitation to import the wrong one, and the
+  ``noqa: F401`` it needed also silenced the linter that would have pointed that out.
 """
 
 from __future__ import annotations
@@ -23,7 +39,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..cleaning.commercial.crosspromo import crosspromo_char_end
 from ..gi.ad_regions import (
@@ -33,10 +49,9 @@ from ..gi.ad_regions import (
     merge_preroll_range,
 )
 from ..providers.ml.diarization.formatting import format_diarized_screenplay_with_offsets
+from .transcript_resolution import ADFREE_SUFFIX
 
 logger = logging.getLogger(__name__)
-
-ADFREE_SUFFIX = ".adfree"
 
 
 @dataclass
@@ -47,12 +62,6 @@ class AdfreeArtifacts:
     segments: List[Dict[str, Any]]
     ad_map: Dict[str, Any]
     chars_removed: int
-
-
-def adfree_transcript_relpath(transcript_relpath: str) -> str:
-    """``transcripts/01 - ep.txt`` -> ``transcripts/01 - ep.adfree.txt``."""
-    base, ext = os.path.splitext(transcript_relpath)
-    return f"{base}{ADFREE_SUFFIX}{ext or '.txt'}"
 
 
 def _derive_offsets_by_find(text: str, segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -194,71 +203,28 @@ def save_adfree_artifacts(
     return os.path.relpath(adfree_txt, effective_output_dir)
 
 
-def _read_text(path: str) -> str:
-    try:
-        with open(path, encoding="utf-8") as f:
-            return f.read()
-    except OSError:
-        return ""
+def produce_adfree_artifacts(
+    text: str,
+    segments: Optional[List[Dict[str, Any]]],
+    rel_transcript_path: str,
+    effective_output_dir: str,
+    *,
+    extra_cue_patterns: Optional[List[str]] = None,
+) -> Optional[Tuple[str, AdfreeArtifacts]]:
+    """Build + save, returning BOTH the ``.adfree.txt`` relpath and the artifacts themselves.
 
-
-def _read_json(path: str) -> Optional[Any]:
-    try:
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError):
+    The caller needs the artifacts, not just the path: the ad-free variant's ``turns.json``
+    (RFC-123 §3) must be built from the exact segment list the ad-free text was rendered from.
+    Re-reading the text back off disk and re-deriving offsets would reintroduce the very
+    two-sources problem the ad-free coordinate space exists to remove.
+    """
+    artifacts = build_adfree_artifacts(text, segments, extra_cue_patterns=extra_cue_patterns)
+    if artifacts is None:
         return None
-
-
-@dataclass
-class ProcessingTranscript:
-    """The transcript a consumer should reason over (#974).
-
-    ``is_adfree`` is True when the ad-free base was found and loaded; in that case the
-    text + segments already exclude ads and ``segments`` carry exact ``char_start`` /
-    ``char_end`` ranges, and ``ad_map`` describes what was cut. When False the caller
-    got the raw ``.txt`` (old corpus / ad-free disabled) and must excise itself.
-    """
-
-    text: str
-    segments: Optional[List[Dict[str, Any]]]
-    transcript_ref: str
-    ad_map: Optional[Dict[str, Any]]
-    is_adfree: bool
-
-
-def load_processing_transcript(output_dir: str, transcript_file_path: str) -> ProcessingTranscript:
-    """Load the ad-free base if present, else the raw transcript.
-
-    This is the single resolver all NLP consumers (GI, enrich-edges, search) use so
-    they read one coordinate space. ``transcript_ref`` is the relpath that was actually
-    loaded — point quote/viewer references at it so highlights align.
-    """
-    adfree_rel = adfree_transcript_relpath(transcript_file_path)
-    adfree_full = os.path.join(output_dir, adfree_rel)
-    if os.path.isfile(adfree_full):
-        adfree_base = os.path.splitext(adfree_full)[0]  # <…>.adfree
-        text = _read_text(adfree_full)
-        segs = _read_json(adfree_base + ".segments.json")
-        ad_map = _read_json(adfree_base + ".admap.json")
-        return ProcessingTranscript(
-            text=text,
-            segments=segs if isinstance(segs, list) else None,
-            transcript_ref=adfree_rel,
-            ad_map=ad_map if isinstance(ad_map, dict) else None,
-            is_adfree=True,
-        )
-
-    raw_full = os.path.join(output_dir, transcript_file_path)
-    text = _read_text(raw_full) if os.path.isfile(raw_full) else ""
-    segs = _read_json(os.path.splitext(raw_full)[0] + ".segments.json")
-    return ProcessingTranscript(
-        text=text,
-        segments=segs if isinstance(segs, list) else None,
-        transcript_ref=transcript_file_path,
-        ad_map=None,
-        is_adfree=False,
-    )
+    rel = save_adfree_artifacts(rel_transcript_path, effective_output_dir, artifacts)
+    if rel is None:
+        return None
+    return rel, artifacts
 
 
 def produce_adfree_transcript(
@@ -270,7 +236,11 @@ def produce_adfree_transcript(
     extra_cue_patterns: Optional[List[str]] = None,
 ) -> Optional[str]:
     """Convenience: build + save the ad-free artifacts. Returns the ``.adfree.txt`` relpath."""
-    artifacts = build_adfree_artifacts(text, segments, extra_cue_patterns=extra_cue_patterns)
-    if artifacts is None:
-        return None
-    return save_adfree_artifacts(rel_transcript_path, effective_output_dir, artifacts)
+    produced = produce_adfree_artifacts(
+        text,
+        segments,
+        rel_transcript_path,
+        effective_output_dir,
+        extra_cue_patterns=extra_cue_patterns,
+    )
+    return None if produced is None else produced[0]

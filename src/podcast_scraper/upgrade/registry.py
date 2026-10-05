@@ -34,6 +34,7 @@ from .migrations.m0019_descriptor_speaker_names_removed import (
     DescriptorSpeakerNamesRemovedMigration,
 )
 from .migrations.m0020_titled_person_ids_remerged import TitledPersonIdsRemergedMigration
+from .migrations.m0021_backfill_feed_language import BackfillFeedLanguageMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -67,6 +68,21 @@ _MIGRATIONS: List[Migration] = [
     OrgSpeakersRemovedResidueMigration(),
     DescriptorSpeakerNamesRemovedMigration(),
     TitledPersonIdsRemergedMigration(),
+    # 0021 backfills each show's declared RSS <language> onto its episodes (#2173).
+    # It FETCHES -- the first migration here that does. Every pre-#2172 artifact
+    # carries the run config in feed.language, and skip_existing is GUID-keyed, so a
+    # normal pipeline run never rewrites them: this is the only path.
+    #
+    # RENUMBERED THREE TIMES, and the reason is worth keeping because it will happen again. It
+    # was 0011 until `main` landed its own m0011 (shared artwork store), 0015 until `main` landed
+    # m0015-m0018 (the post-deploy speaker-name cleanups) on 2026-10-03, and 0019 until `main`
+    # landed m0019-m0020 (descriptor names, titled person ids) on 2026-10-04. Two migrations
+    # cannot share an id — the ledger records the id as applied, so a duplicate makes a corpus's
+    # migration history ambiguous about which one ran — and `get_migrations()` sorts by id, so a
+    # collision also silently reorders the sequence. A long-lived branch that adds a migration
+    # must re-check the number at every merge; this one has never run in production, which is the
+    # only reason renumbering is free.
+    BackfillFeedLanguageMigration(),
 ]
 
 

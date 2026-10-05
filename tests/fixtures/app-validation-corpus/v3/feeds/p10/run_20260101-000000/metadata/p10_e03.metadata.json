@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p10-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p10_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Lucía Herrera",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Diego Ferrer",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p10_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 392,
+    "episode_id": "ep-a341174daaf88193",
+    "language": "es",
+    "language_source": "rss",
+    "published_date": "2025-12-30T00:00:00",
+    "title": "La Mecánica de Una Bici Silenciosa y Rápida"
+  },
+  "feed": {
+    "authors": [
+      "Lucía Herrera"
+    ],
+    "description": "Conversaciones sobre construcción de senderos: drenaje, trazado, y las personas que construyen la ruta. Contraparte en español de Singletrack Sessions.",
+    "feed_id": "p10",
+    "language": "es",
+    "language_raw": "es-ES",
+    "language_source": "rss",
+    "last_updated": "2026-01-19T00:00:00",
+    "title": "Sesiones de Sendero",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p10.svg",
+    "image_url": "http://localhost/images/p10.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Chain wear serves as the best early indicator of when the cassette will need replacement, a pattern consistently observed across multiple teams using Shimano components.",
+      "Mysterious creaking noises are most commonly resolved by cleaning contact surfaces and re-tightening them to the specified torque, a fix that restores quiet and predictable bike behavior.",
+      "The service intervals for suspension systems are a risk management decision—ignoring them leads to full rebuilds within a year, a second-order effect often overlooked.",
+      "Transmission mechanics intersect with maintenance through the need for consistent, predictable performance, allowing focus to remain on the trail rather than the equipment.",
+      "Adopting Spoke & Wrench within a workflow amplifies the value of early diagnostics and systematic maintenance, especially when teams use Shimano components.",
+      "Frame design reflects the compromises made in engineering, and understanding that informs how maintenance decisions are prioritized.",
+      "The heuristic of prioritizing quiet, reliable operation over reactive fixes enables better decision-making across the entire system.",
+      "Implementing one key maintenance practice for two weeks enables meaningful iteration—everything else is refinement of that initial action."
+    ],
+    "raw_text": "Chain wear serves as the best early indicator of when the cassette will need replacement, a pattern consistently observed across multiple teams using Shimano components. Mysterious creaking noises are most commonly resolved by cleaning contact surfaces and re-tightening them to the specified torque, a fix that restores quiet and predictable bike behavior.",
+    "title": "Drivetrain Mechanics and Risk Management in Bike Maintenance"
+  }
+}

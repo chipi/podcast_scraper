@@ -156,6 +156,20 @@ export interface SegmentsResponse {
   version: string
   episode_slug: string
   segments: Segment[]
+  /** Language of the text in `segments` — what was ACTUALLY served, not what was asked for.
+   *  `en` by default for a translated episode (D-38); the source tag when `?lang=` asked for the
+   *  original. Optional so a response from before S2.8 still parses. */
+  language?: string | null
+  /** The served text came from the translation model rather than from ASR. False both for a
+   *  native-English episode and for a translated one served in its own language — in both cases
+   *  the text is what was actually spoken. */
+  machine_translated?: boolean
+  /** Pinned model id that produced the served text, when `machine_translated`. */
+  translation_model?: string | null
+  /** The episode's ORIGINAL language, whatever is being served. Present on a translated episode
+   *  even while `language` is `en`, which is what lets the panel offer the switch without a
+   *  second request. */
+  source_language?: string | null
 }
 
 /** Origin audio descriptor (GET /api/app/episodes/{slug}/audio-source). */

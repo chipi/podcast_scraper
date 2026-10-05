@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p02_e02",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:architecture-tradeoffs",
+      "label": "architecture tradeoffs"
+    },
+    {
+      "id": "topic:decision-iteration",
+      "label": "decision iteration"
+    },
+    {
+      "id": "topic:engineering-communication",
+      "label": "engineering communication"
+    },
+    {
+      "id": "topic:on-call-rotation-design",
+      "label": "on-call rotation design"
+    },
+    {
+      "id": "topic:platform-integration",
+      "label": "platform integration"
+    },
+    {
+      "id": "topic:postmortem-focus",
+      "label": "postmortem focus"
+    },
+    {
+      "id": "topic:rfc-structure",
+      "label": "rfc structure"
+    },
+    {
+      "id": "topic:risk-communication",
+      "label": "risk communication"
+    },
+    {
+      "id": "topic:systemic-failure-analysis",
+      "label": "systemic failure analysis"
+    },
+    {
+      "id": "topic:writing-things-down",
+      "label": "writing things down"
+    }
+  ]
+}

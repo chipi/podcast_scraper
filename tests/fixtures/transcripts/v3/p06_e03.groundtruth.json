@@ -19,6 +19,7 @@
     "Jordan Park": "Matilda",
     "Ad": "Zarvox"
   },
+  "voice_pitch_shift": {},
   "cameo": null,
   "transcript_sha256": "c2323f8294a9b1d32061edba76ed82f953348c3b5dce04cb1ee37d9b3267dcdd",
   "audio_sha256": "55a9041b19a48f73d05ccaa6cc820a906842527ce28068b7363e76f7631bc926",

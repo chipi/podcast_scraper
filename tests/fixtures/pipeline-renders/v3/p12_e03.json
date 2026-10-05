@@ -1,0 +1,1034 @@
+{
+  "captured_at": "2026-10-03T12:49:31Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p12_e03",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "render": {
+    "segments": [
+      {
+        "char_end": 49,
+        "char_start": 16,
+        "end": 2.52,
+        "sent_id": "t0000.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 0.0,
+        "text": "Welcome back to Sessions Sentier.",
+        "unit_id": "t0000.u01"
+      },
+      {
+        "char_end": 163,
+        "char_start": 50,
+        "end": 9.3,
+        "sent_id": "t0000.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 2.58,
+        "text": "Today, we're talking about drivetrain mechanics, and I'm joined by Mathieu Lefèvre, a mechanic at Spoke & Wrench.",
+        "unit_id": "t0000.u01"
+      },
+      {
+        "char_end": 206,
+        "char_start": 164,
+        "end": 11.34,
+        "sent_id": "t0000.s03",
+        "speaker_label": "Camille Dubois",
+        "start": 9.36,
+        "text": "Mathieu Lefèvre, thank you for being here.",
+        "unit_id": "t0000.u01"
+      },
+      {
+        "char_end": 243,
+        "char_start": 224,
+        "end": 12.24,
+        "sent_id": "t0001.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 11.34,
+        "text": "Thank you, Camille.",
+        "unit_id": "t0001.u01"
+      },
+      {
+        "char_end": 260,
+        "char_start": 244,
+        "end": 13.8,
+        "sent_id": "t0001.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 12.3,
+        "text": "Glad to be back.",
+        "unit_id": "t0001.u01"
+      },
+      {
+        "char_end": 313,
+        "char_start": 277,
+        "end": 16.08,
+        "sent_id": "t0002.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 13.8,
+        "text": "This episode is sponsored by Notion.",
+        "unit_id": "t0002.u01"
+      },
+      {
+        "char_end": 390,
+        "char_start": 314,
+        "end": 20.4,
+        "sent_id": "t0002.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 16.14,
+        "text": "Notion replaces the dozen tools your team is currently using, half the time.",
+        "unit_id": "t0002.u01"
+      },
+      {
+        "char_end": 412,
+        "char_start": 391,
+        "end": 22.56,
+        "sent_id": "t0002.s03",
+        "speaker_label": "Camille Dubois",
+        "start": 20.46,
+        "text": "Try notion.com today.",
+        "unit_id": "t0002.u01"
+      },
+      {
+        "char_end": 562,
+        "char_start": 413,
+        "end": 31.92,
+        "sent_id": "t0002.s04",
+        "speaker_label": "Camille Dubois",
+        "start": 22.56,
+        "text": "Before we get into the details – Élodie Chevalier was on the previous episode and said that tire pressure is more important than suspension settings.",
+        "unit_id": "t0002.u01"
+      },
+      {
+        "char_end": 593,
+        "char_start": 580,
+        "end": 32.88,
+        "sent_id": "t0003.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 31.92,
+        "text": "Yes, exactly.",
+        "unit_id": "t0003.u01"
+      },
+      {
+        "char_end": 644,
+        "char_start": 594,
+        "end": 35.46,
+        "sent_id": "t0003.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 32.94,
+        "text": "And that ties in with what we're discussing today.",
+        "unit_id": "t0003.u01"
+      },
+      {
+        "char_end": 757,
+        "char_start": 661,
+        "end": 41.7,
+        "sent_id": "t0004.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 35.46,
+        "text": "I want to point something out – Élodie Chevalier mentioned this same dynamic a few episodes ago.",
+        "unit_id": "t0004.u01"
+      },
+      {
+        "char_end": 852,
+        "char_start": 758,
+        "end": 47.82,
+        "sent_id": "t0004.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 41.7,
+        "text": "I want to point something out – Julien Mercier mentioned this same dynamic a few episodes ago.",
+        "unit_id": "t0004.u01"
+      },
+      {
+        "char_end": 884,
+        "char_start": 853,
+        "end": 211.14,
+        "sent_id": "t0004.s03",
+        "speaker_label": "Camille Dubois",
+        "start": 210.0,
+        "text": "I want to explore this further.",
+        "unit_id": "t0004.u01"
+      },
+      {
+        "char_end": 964,
+        "char_start": 885,
+        "end": 214.62,
+        "sent_id": "t0004.s04",
+        "speaker_label": "Camille Dubois",
+        "start": 211.2,
+        "text": "What did you believe about this topic, and what have you revised your views on?",
+        "unit_id": "t0004.u01"
+      },
+      {
+        "char_end": 1132,
+        "char_start": 982,
+        "end": 223.2,
+        "sent_id": "t0005.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 214.62,
+        "text": "It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.",
+        "unit_id": "t0005.u01"
+      },
+      {
+        "char_end": 1182,
+        "char_start": 1133,
+        "end": 226.62,
+        "sent_id": "t0005.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 223.26,
+        "text": "We've seen this in teams that use Spoke & Wrench.",
+        "unit_id": "t0005.u01"
+      },
+      {
+        "char_end": 1260,
+        "char_start": 1183,
+        "end": 230.34,
+        "sent_id": "t0005.s03",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 226.68,
+        "text": "The framing is important because it tells you what compromises you're making.",
+        "unit_id": "t0005.u01"
+      },
+      {
+        "char_end": 1306,
+        "char_start": 1277,
+        "end": 231.72,
+        "sent_id": "t0006.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 230.34,
+        "text": "This is a useful perspective.",
+        "unit_id": "t0006.u01"
+      },
+      {
+        "char_end": 1383,
+        "char_start": 1307,
+        "end": 235.38,
+        "sent_id": "t0006.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 231.78,
+        "text": "Where do the fields of human resources and transmission mechanics intersect?",
+        "unit_id": "t0006.u01"
+      },
+      {
+        "char_end": 1421,
+        "char_start": 1401,
+        "end": 236.88,
+        "sent_id": "t0007.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 235.38,
+        "text": "That's how I see it.",
+        "unit_id": "t0007.u01"
+      },
+      {
+        "char_end": 1518,
+        "char_start": 1422,
+        "end": 242.52,
+        "sent_id": "t0007.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 236.94,
+        "text": "A bicycle should feel quiet and predictable so that your attention remains focused on the trail.",
+        "unit_id": "t0007.u01"
+      },
+      {
+        "char_end": 1584,
+        "char_start": 1519,
+        "end": 246.9,
+        "sent_id": "t0007.s03",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 242.58,
+        "text": "And the secondary effect is the part that almost everyone misses.",
+        "unit_id": "t0007.u01"
+      },
+      {
+        "char_end": 1632,
+        "char_start": 1601,
+        "end": 248.04,
+        "sent_id": "t0008.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 246.9,
+        "text": "I want to explore this further.",
+        "unit_id": "t0008.u01"
+      },
+      {
+        "char_end": 1704,
+        "char_start": 1633,
+        "end": 252.72,
+        "sent_id": "t0008.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 248.1,
+        "text": "What is the structural aspect that most listeners don't have access to?",
+        "unit_id": "t0008.u01"
+      },
+      {
+        "char_end": 1732,
+        "char_start": 1722,
+        "end": 253.26,
+        "sent_id": "t0009.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 252.72,
+        "text": "Of course.",
+        "unit_id": "t0009.u01"
+      },
+      {
+        "char_end": 1830,
+        "char_start": 1733,
+        "end": 259.32,
+        "sent_id": "t0009.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 253.32,
+        "text": "The wear and tear on the chain is the best indicator of when you'll need to replace the cassette.",
+        "unit_id": "t0009.u01"
+      },
+      {
+        "char_end": 1880,
+        "char_start": 1831,
+        "end": 262.74,
+        "sent_id": "t0009.s03",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 259.38,
+        "text": "We've seen this in teams that use Spoke & Wrench.",
+        "unit_id": "t0009.u01"
+      },
+      {
+        "char_end": 1960,
+        "char_start": 1881,
+        "end": 266.46,
+        "sent_id": "t0009.s04",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 262.8,
+        "text": "The frame geometry matters because it tells you what compromises you're making.",
+        "unit_id": "t0009.u01"
+      },
+      {
+        "char_end": 1990,
+        "char_start": 1977,
+        "end": 267.96,
+        "sent_id": "t0010.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 266.46,
+        "text": "Tell me more.",
+        "unit_id": "t0010.u01"
+      },
+      {
+        "char_end": 2077,
+        "char_start": 2008,
+        "end": 271.92,
+        "sent_id": "t0011.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 267.96,
+        "text": "Spoke & Wrench is one of the platforms where this is clearly evident.",
+        "unit_id": "t0011.u01"
+      },
+      {
+        "char_end": 2140,
+        "char_start": 2078,
+        "end": 275.58,
+        "sent_id": "t0011.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 271.98,
+        "text": "I've seen this pattern repeat itself in three different teams.",
+        "unit_id": "t0011.u01"
+      },
+      {
+        "char_end": 2195,
+        "char_start": 2157,
+        "end": 277.56,
+        "sent_id": "t0012.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 275.58,
+        "text": "Tell me how you came to that decision.",
+        "unit_id": "t0012.u01"
+      },
+      {
+        "char_end": 2236,
+        "char_start": 2196,
+        "end": 280.26,
+        "sent_id": "t0012.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 277.62,
+        "text": "How does RockShox fit into this picture?",
+        "unit_id": "t0012.u01"
+      },
+      {
+        "char_end": 2264,
+        "char_start": 2254,
+        "end": 280.8,
+        "sent_id": "t0013.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 280.26,
+        "text": "Of course.",
+        "unit_id": "t0013.u01"
+      },
+      {
+        "char_end": 2341,
+        "char_start": 2265,
+        "end": 285.9,
+        "sent_id": "t0013.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 280.86,
+        "text": "The maintenance intervals for the suspension are a risk management decision.",
+        "unit_id": "t0013.u01"
+      },
+      {
+        "char_end": 2431,
+        "char_start": 2342,
+        "end": 290.34,
+        "sent_id": "t0013.s03",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 285.96,
+        "text": "If you ignore that, you'll end up having to rebuild everything from scratch a year later.",
+        "unit_id": "t0013.u01"
+      },
+      {
+        "char_end": 2462,
+        "char_start": 2448,
+        "end": 291.18,
+        "sent_id": "t0014.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 290.34,
+        "text": "You know what?",
+        "unit_id": "t0014.u01"
+      },
+      {
+        "char_end": 2536,
+        "char_start": 2463,
+        "end": 295.92,
+        "sent_id": "t0014.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 291.24,
+        "text": "I'll be frank: Linear powers all of my engineering work on a daily basis.",
+        "unit_id": "t0014.u01"
+      },
+      {
+        "char_end": 2617,
+        "char_start": 2537,
+        "end": 301.02,
+        "sent_id": "t0014.s03",
+        "speaker_label": "Camille Dubois",
+        "start": 295.98,
+        "text": "Linear is the ticketing system designed for speed – it's built for keyboard use.",
+        "unit_id": "t0014.u01"
+      },
+      {
+        "char_end": 2652,
+        "char_start": 2618,
+        "end": 303.72,
+        "sent_id": "t0014.s04",
+        "speaker_label": "Camille Dubois",
+        "start": 301.08,
+        "text": "Use the link in the episode notes.",
+        "unit_id": "t0014.u01"
+      },
+      {
+        "char_end": 2704,
+        "char_start": 2653,
+        "end": 723.72,
+        "sent_id": "t0014.s05",
+        "speaker_label": "Camille Dubois",
+        "start": 720.0,
+        "text": "We'll be right back after a short commercial break.",
+        "unit_id": "t0014.u01"
+      },
+      {
+        "char_end": 2753,
+        "char_start": 2717,
+        "end": 726.0,
+        "sent_id": "t0015.s01",
+        "speaker_label": "SPEAKER_02",
+        "start": 723.72,
+        "text": "This episode is sponsored by Stripe.",
+        "unit_id": "t0015.u01"
+      },
+      {
+        "char_end": 2852,
+        "char_start": 2754,
+        "end": 731.76,
+        "sent_id": "t0015.s02",
+        "speaker_label": "SPEAKER_02",
+        "start": 726.06,
+        "text": "Stripe makes payments easy, whether you're running a marketplace or a subscription-based business.",
+        "unit_id": "t0015.u01"
+      },
+      {
+        "char_end": 2895,
+        "char_start": 2853,
+        "end": 734.76,
+        "sent_id": "t0015.s03",
+        "speaker_label": "SPEAKER_02",
+        "start": 731.82,
+        "text": "Visit stripe.com/podcast for a free trial.",
+        "unit_id": "t0015.u01"
+      },
+      {
+        "char_end": 2937,
+        "char_start": 2912,
+        "end": 736.92,
+        "sent_id": "t0016.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 734.76,
+        "text": "Welcome back to the show.",
+        "unit_id": "t0016.u01"
+      },
+      {
+        "char_end": 2967,
+        "char_start": 2938,
+        "end": 841.38,
+        "sent_id": "t0016.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 840.0,
+        "text": "That's a helpful perspective.",
+        "unit_id": "t0016.u01"
+      },
+      {
+        "char_end": 3044,
+        "char_start": 2968,
+        "end": 845.04,
+        "sent_id": "t0016.s03",
+        "speaker_label": "Camille Dubois",
+        "start": 841.44,
+        "text": "Where do the fields of human resources and transmission mechanics intersect?",
+        "unit_id": "t0016.u01"
+      },
+      {
+        "char_end": 3083,
+        "char_start": 3062,
+        "end": 846.54,
+        "sent_id": "t0017.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 845.04,
+        "text": "This is how I see it.",
+        "unit_id": "t0017.u01"
+      },
+      {
+        "char_end": 3223,
+        "char_start": 3084,
+        "end": 853.86,
+        "sent_id": "t0017.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 846.6,
+        "text": "Most of these mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.",
+        "unit_id": "t0017.u01"
+      },
+      {
+        "char_end": 3277,
+        "char_start": 3224,
+        "end": 856.86,
+        "sent_id": "t0017.s03",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 853.92,
+        "text": "We've seen this in teams that use Shimano components.",
+        "unit_id": "t0017.u01"
+      },
+      {
+        "char_end": 3347,
+        "char_start": 3278,
+        "end": 860.52,
+        "sent_id": "t0017.s04",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 856.92,
+        "text": "I've observed this pattern repeating itself in three different teams.",
+        "unit_id": "t0017.u01"
+      },
+      {
+        "char_end": 3391,
+        "char_start": 3364,
+        "end": 862.26,
+        "sent_id": "t0018.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 860.52,
+        "text": "Give me a concrete example.",
+        "unit_id": "t0018.u01"
+      },
+      {
+        "char_end": 3476,
+        "char_start": 3392,
+        "end": 865.74,
+        "sent_id": "t0018.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 862.32,
+        "text": "What did you previously believe about this, and what have you revised your views on?",
+        "unit_id": "t0018.u01"
+      },
+      {
+        "char_end": 3597,
+        "char_start": 3494,
+        "end": 872.1,
+        "sent_id": "t0019.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 865.74,
+        "text": "Yes, so – a bike should feel quiet and predictable so that your attention remains focused on the trail.",
+        "unit_id": "t0019.u01"
+      },
+      {
+        "char_end": 3669,
+        "char_start": 3598,
+        "end": 876.84,
+        "sent_id": "t0019.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 872.16,
+        "text": "Once you've internalized that, the rest of the decisions become easier.",
+        "unit_id": "t0019.u01"
+      },
+      {
+        "char_end": 3708,
+        "char_start": 3686,
+        "end": 877.92,
+        "sent_id": "t0020.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 876.84,
+        "text": "Let's start with that.",
+        "unit_id": "t0020.u01"
+      },
+      {
+        "char_end": 3779,
+        "char_start": 3709,
+        "end": 881.4,
+        "sent_id": "t0020.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 877.98,
+        "text": "What did you previously believe about this, and what have you revised?",
+        "unit_id": "t0020.u01"
+      },
+      {
+        "char_end": 3817,
+        "char_start": 3797,
+        "end": 882.9,
+        "sent_id": "t0021.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 881.4,
+        "text": "That's how I see it.",
+        "unit_id": "t0021.u01"
+      },
+      {
+        "char_end": 3915,
+        "char_start": 3818,
+        "end": 888.96,
+        "sent_id": "t0021.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 882.96,
+        "text": "The wear and tear on the chain is the best indicator of when you'll need to replace the cassette.",
+        "unit_id": "t0021.u01"
+      },
+      {
+        "char_end": 3969,
+        "char_start": 3916,
+        "end": 891.96,
+        "sent_id": "t0021.s03",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 889.02,
+        "text": "We've seen this in teams that use Shimano components.",
+        "unit_id": "t0021.u01"
+      },
+      {
+        "char_end": 4036,
+        "char_start": 3970,
+        "end": 896.7,
+        "sent_id": "t0021.s04",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 892.02,
+        "text": "Once you understand that, the rest of the decisions become easier.",
+        "unit_id": "t0021.u01"
+      },
+      {
+        "char_end": 4143,
+        "char_start": 4053,
+        "end": 898.2,
+        "sent_id": "t0022.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 896.7,
+        "text": "It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.",
+        "unit_id": "t0022.u01"
+      },
+      {
+        "char_end": 4349,
+        "char_start": 4161,
+        "end": 907.98,
+        "sent_id": "t0023.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 898.2,
+        "text": "And when teams adopt Spoke & Wrench within this workflow, the trade-offs become apparent. If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.",
+        "unit_id": "t0023.u01"
+      },
+      {
+        "char_end": 4388,
+        "char_start": 4366,
+        "end": 909.06,
+        "sent_id": "t0024.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 907.98,
+        "text": "Let's start with that.",
+        "unit_id": "t0024.u01"
+      },
+      {
+        "char_end": 4466,
+        "char_start": 4389,
+        "end": 913.86,
+        "sent_id": "t0024.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 909.12,
+        "text": "What is the operational perspective that most auditors do not have access to?",
+        "unit_id": "t0024.u01"
+      },
+      {
+        "char_end": 4504,
+        "char_start": 4484,
+        "end": 915.36,
+        "sent_id": "t0025.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 913.86,
+        "text": "That's how I see it.",
+        "unit_id": "t0025.u01"
+      },
+      {
+        "char_end": 4581,
+        "char_start": 4505,
+        "end": 920.46,
+        "sent_id": "t0025.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 915.42,
+        "text": "The maintenance intervals for the suspension are a risk management decision.",
+        "unit_id": "t0025.u01"
+      },
+      {
+        "char_end": 4644,
+        "char_start": 4582,
+        "end": 924.12,
+        "sent_id": "t0025.s03",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 920.52,
+        "text": "I've seen this pattern repeat itself in three different teams.",
+        "unit_id": "t0025.u01"
+      },
+      {
+        "char_end": 4744,
+        "char_start": 4661,
+        "end": 1324.86,
+        "sent_id": "t0026.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 1320.0,
+        "text": "Let's change the subject – I want to dedicate the final section to risk management.",
+        "unit_id": "t0026.u01"
+      },
+      {
+        "char_end": 4902,
+        "char_start": 4762,
+        "end": 1333.32,
+        "sent_id": "t0027.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1324.86,
+        "text": "That's where the conversation becomes interesting, because the compromises related to risk management touch upon everything we've discussed.",
+        "unit_id": "t0027.u01"
+      },
+      {
+        "char_end": 4946,
+        "char_start": 4919,
+        "end": 1335.06,
+        "sent_id": "t0028.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 1333.32,
+        "text": "Give me a concrete example.",
+        "unit_id": "t0028.u01"
+      },
+      {
+        "char_end": 5012,
+        "char_start": 4947,
+        "end": 1339.38,
+        "sent_id": "t0028.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 1335.12,
+        "text": "What is the most underestimated aspect of transmission mechanics?",
+        "unit_id": "t0028.u01"
+      },
+      {
+        "char_end": 5040,
+        "char_start": 5030,
+        "end": 1339.92,
+        "sent_id": "t0029.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1339.38,
+        "text": "Of course.",
+        "unit_id": "t0029.u01"
+      },
+      {
+        "char_end": 5171,
+        "char_start": 5041,
+        "end": 1347.24,
+        "sent_id": "t0029.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1339.98,
+        "text": "Most mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.",
+        "unit_id": "t0029.u01"
+      },
+      {
+        "char_end": 5221,
+        "char_start": 5172,
+        "end": 1350.66,
+        "sent_id": "t0029.s03",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1347.3,
+        "text": "We've seen this in teams that use Spoke & Wrench.",
+        "unit_id": "t0029.u01"
+      },
+      {
+        "char_end": 5277,
+        "char_start": 5222,
+        "end": 1354.32,
+        "sent_id": "t0029.s04",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1350.72,
+        "text": "I've seen this pattern repeat in three different teams.",
+        "unit_id": "t0029.u01"
+      },
+      {
+        "char_end": 5323,
+        "char_start": 5294,
+        "end": 1355.7,
+        "sent_id": "t0030.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 1354.32,
+        "text": "This is a useful perspective.",
+        "unit_id": "t0030.u01"
+      },
+      {
+        "char_end": 5398,
+        "char_start": 5324,
+        "end": 1360.74,
+        "sent_id": "t0030.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 1355.76,
+        "text": "What is the contrarian viewpoint that most listeners don't have access to?",
+        "unit_id": "t0030.u01"
+      },
+      {
+        "char_end": 5536,
+        "char_start": 5416,
+        "end": 1367.64,
+        "sent_id": "t0031.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1360.74,
+        "text": "It all boils down to this: a bike should feel quiet and predictable so that your attention remains focused on the trail.",
+        "unit_id": "t0031.u01"
+      },
+      {
+        "char_end": 5610,
+        "char_start": 5537,
+        "end": 1371.36,
+        "sent_id": "t0031.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1367.7,
+        "text": "The geometry matters because it tells you what compromises you're making.",
+        "unit_id": "t0031.u01"
+      },
+      {
+        "char_end": 5664,
+        "char_start": 5627,
+        "end": 1373.82,
+        "sent_id": "t0032.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 1371.36,
+        "text": "What does the failure mode look like?",
+        "unit_id": "t0032.u01"
+      },
+      {
+        "char_end": 5730,
+        "char_start": 5665,
+        "end": 1378.14,
+        "sent_id": "t0032.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 1373.88,
+        "text": "What is the most underestimated aspect of transmission mechanics?",
+        "unit_id": "t0032.u01"
+      },
+      {
+        "char_end": 5852,
+        "char_start": 5748,
+        "end": 1384.92,
+        "sent_id": "t0033.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1378.14,
+        "text": "Honestly, the wear on the chain is the best early indicator of when you'll need to replace the cassette.",
+        "unit_id": "t0033.u01"
+      },
+      {
+        "char_end": 5906,
+        "char_start": 5853,
+        "end": 1387.92,
+        "sent_id": "t0033.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1384.98,
+        "text": "We've seen this in teams that use Shimano components.",
+        "unit_id": "t0033.u01"
+      },
+      {
+        "char_end": 5976,
+        "char_start": 5907,
+        "end": 1391.58,
+        "sent_id": "t0033.s03",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1387.98,
+        "text": "I've observed this pattern repeating itself in three different teams.",
+        "unit_id": "t0033.u01"
+      },
+      {
+        "char_end": 6023,
+        "char_start": 5993,
+        "end": 1393.56,
+        "sent_id": "t0034.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 1391.58,
+        "text": "Where is it no longer working?",
+        "unit_id": "t0034.u01"
+      },
+      {
+        "char_end": 6178,
+        "char_start": 6041,
+        "end": 1402.14,
+        "sent_id": "t0035.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1393.56,
+        "text": "And when teams adopt Shimano equipment, this compromise becomes apparent – I've seen this pattern repeat itself in three different teams.",
+        "unit_id": "t0035.u01"
+      },
+      {
+        "char_end": 6238,
+        "char_start": 6195,
+        "end": 1405.68,
+        "sent_id": "t0036.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 1402.14,
+        "text": "What heuristic do you consistently rely on?",
+        "unit_id": "t0036.u01"
+      },
+      {
+        "char_end": 6312,
+        "char_start": 6239,
+        "end": 1409.34,
+        "sent_id": "t0036.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 1405.74,
+        "text": "Where do the fields of interviewing and transmission mechanics intersect?",
+        "unit_id": "t0036.u01"
+      },
+      {
+        "char_end": 6416,
+        "char_start": 6330,
+        "end": 1415.16,
+        "sent_id": "t0037.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1409.34,
+        "text": "Honestly, the maintenance intervals for the suspension are a risk management decision.",
+        "unit_id": "t0037.u01"
+      },
+      {
+        "char_end": 6485,
+        "char_start": 6417,
+        "end": 1419.54,
+        "sent_id": "t0037.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1415.22,
+        "text": "And the second-order effect is the part that almost everyone misses.",
+        "unit_id": "t0037.u01"
+      },
+      {
+        "char_end": 6573,
+        "char_start": 6502,
+        "end": 1685.34,
+        "sent_id": "t0038.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 1680.0,
+        "text": "Before we conclude, what is one thing that listeners can try this week?",
+        "unit_id": "t0038.u01"
+      },
+      {
+        "char_end": 6659,
+        "char_start": 6591,
+        "end": 1689.96,
+        "sent_id": "t0039.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1685.34,
+        "text": "Choose one of the ideas we discussed and implement it for two weeks.",
+        "unit_id": "t0039.u01"
+      },
+      {
+        "char_end": 6695,
+        "char_start": 6660,
+        "end": 1691.88,
+        "sent_id": "t0039.s02",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1690.02,
+        "text": "Everything else is about iteration.",
+        "unit_id": "t0039.u01"
+      },
+      {
+        "char_end": 6773,
+        "char_start": 6712,
+        "end": 1695.06,
+        "sent_id": "t0040.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 1691.88,
+        "text": "Before we conclude, thank you again to our friends at Linear.",
+        "unit_id": "t0040.u01"
+      },
+      {
+        "char_end": 6858,
+        "char_start": 6774,
+        "end": 1700.16,
+        "sent_id": "t0040.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 1695.12,
+        "text": "Linear is the ticketing system designed for speed – built with the keyboard in mind.",
+        "unit_id": "t0040.u01"
+      },
+      {
+        "char_end": 6907,
+        "char_start": 6859,
+        "end": 1702.8,
+        "sent_id": "t0040.s03",
+        "speaker_label": "Camille Dubois",
+        "start": 1700.16,
+        "text": "Mathieu Lefèvre, thank you for the conversation.",
+        "unit_id": "t0040.u01"
+      },
+      {
+        "char_end": 6944,
+        "char_start": 6925,
+        "end": 1704.3,
+        "sent_id": "t0041.s01",
+        "speaker_label": "Mathieu Lefèvre",
+        "start": 1702.8,
+        "text": "Thank you, Camille.",
+        "unit_id": "t0041.u01"
+      },
+      {
+        "char_end": 7012,
+        "char_start": 6961,
+        "end": 1707.9,
+        "sent_id": "t0042.s01",
+        "speaker_label": "Camille Dubois",
+        "start": 1704.3,
+        "text": "That's all for today's episode of Sessions Sentier.",
+        "unit_id": "t0042.u01"
+      },
+      {
+        "char_end": 7031,
+        "char_start": 7013,
+        "end": 1708.86,
+        "sent_id": "t0042.s02",
+        "speaker_label": "Camille Dubois",
+        "start": 1707.96,
+        "text": "See you next time.",
+        "unit_id": "t0042.u01"
+      }
+    ],
+    "source_language": "fr",
+    "source_suffix": "fr.txt",
+    "stack": {
+      "adfree.admap.json": "{\n  \"preroll_cut_end\": 314,\n  \"postroll_cut_start\": null,\n  \"chars_removed\": 599,\n  \"preroll_pattern_hits\": 4,\n  \"postroll_pattern_hits\": 4,\n  \"source_length\": 7032,\n  \"excised_ranges\": [\n    [\n      0,\n      314\n    ],\n    [\n      2653,\n      2938\n    ]\n  ],\n  \"excised_texts\": [\n    \"Camille Dubois: Welcome back to Sessions Sentier. Today, we're talking about drivetrain mechanics, and I'm joined by Mathieu Lef\\u00e8vre, a mechanic at Spoke & Wrench. Mathieu Lef\\u00e8vre, thank you for being here.\\nMathieu Lef\\u00e8vre: Thank you, Camille. Glad to be back.\\nCamille Dubois: This episode is sponsored by Notion. \",\n    \"We'll be right back after a short commercial break.\\nSPEAKER_02: This episode is sponsored by Stripe. Stripe makes payments easy, whether you're running a marketplace or a subscription-based business. Visit stripe.com/podcast for a free trial.\\nCamille Dubois: Welcome back to the show. \"\n  ]\n}",
+      "adfree.segments.json": "[\n{\n\"start\": 16.14,\n\"end\": 20.4,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Notion replaces the dozen tools your team is currently using, half the time.\",\n\"char_start\": 16,\n\"char_end\": 92,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s02\"\n},\n{\n\"start\": 20.46,\n\"end\": 22.56,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Try notion.com today.\",\n\"char_start\": 93,\n\"char_end\": 114,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s03\"\n},\n{\n\"start\": 22.56,\n\"end\": 31.92,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Before we get into the details \\u2013 \\u00c9lodie Chevalier was on the previous episode and said that tire pressure is more important than suspension settings.\",\n\"char_start\": 115,\n\"char_end\": 264,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s04\"\n},\n{\n\"start\": 31.92,\n\"end\": 32.88,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Yes, exactly.\",\n\"char_start\": 282,\n\"char_end\": 295,\n\"unit_id\": \"t0003.u01\",\n\"sent_id\": \"t0003.s01\"\n},\n{\n\"start\": 32.94,\n\"end\": 35.46,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"And that ties in with what we're discussing today.\",\n\"char_start\": 296,\n\"char_end\": 346,\n\"unit_id\": \"t0003.u01\",\n\"sent_id\": \"t0003.s02\"\n},\n{\n\"start\": 35.46,\n\"end\": 41.7,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"I want to point something out \\u2013 \\u00c9lodie Chevalier mentioned this same dynamic a few episodes ago.\",\n\"char_start\": 363,\n\"char_end\": 459,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s01\"\n},\n{\n\"start\": 41.7,\n\"end\": 47.82,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"I want to point something out \\u2013 Julien Mercier mentioned this same dynamic a few episodes ago.\",\n\"char_start\": 460,\n\"char_end\": 554,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s02\"\n},\n{\n\"start\": 210.0,\n\"end\": 211.14,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"I want to explore this further.\",\n\"char_start\": 555,\n\"char_end\": 586,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s03\"\n},\n{\n\"start\": 211.2,\n\"end\": 214.62,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What did you believe about this topic, and what have you revised your views on?\",\n\"char_start\": 587,\n\"char_end\": 666,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s04\"\n},\n{\n\"start\": 214.62,\n\"end\": 223.2,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.\",\n\"char_start\": 684,\n\"char_end\": 834,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s01\"\n},\n{\n\"start\": 223.26,\n\"end\": 226.62,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"We've seen this in teams that use Spoke & Wrench.\",\n\"char_start\": 835,\n\"char_end\": 884,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s02\"\n},\n{\n\"start\": 226.68,\n\"end\": 230.34,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"The framing is important because it tells you what compromises you're making.\",\n\"char_start\": 885,\n\"char_end\": 962,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s03\"\n},\n{\n\"start\": 230.34,\n\"end\": 231.72,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"This is a useful perspective.\",\n\"char_start\": 979,\n\"char_end\": 1008,\n\"unit_id\": \"t0006.u01\",\n\"sent_id\": \"t0006.s01\"\n},\n{\n\"start\": 231.78,\n\"end\": 235.38,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Where do the fields of human resources and transmission mechanics intersect?\",\n\"char_start\": 1009,\n\"char_end\": 1085,\n\"unit_id\": \"t0006.u01\",\n\"sent_id\": \"t0006.s02\"\n},\n{\n\"start\": 235.38,\n\"end\": 236.88,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"That's how I see it.\",\n\"char_start\": 1103,\n\"char_end\": 1123,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s01\"\n},\n{\n\"start\": 236.94,\n\"end\": 242.52,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"A bicycle should feel quiet and predictable so that your attention remains focused on the trail.\",\n\"char_start\": 1124,\n\"char_end\": 1220,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s02\"\n},\n{\n\"start\": 242.58,\n\"end\": 246.9,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"And the secondary effect is the part that almost everyone misses.\",\n\"char_start\": 1221,\n\"char_end\": 1286,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s03\"\n},\n{\n\"start\": 246.9,\n\"end\": 248.04,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"I want to explore this further.\",\n\"char_start\": 1303,\n\"char_end\": 1334,\n\"unit_id\": \"t0008.u01\",\n\"sent_id\": \"t0008.s01\"\n},\n{\n\"start\": 248.1,\n\"end\": 252.72,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What is the structural aspect that most listeners don't have access to?\",\n\"char_start\": 1335,\n\"char_end\": 1406,\n\"unit_id\": \"t0008.u01\",\n\"sent_id\": \"t0008.s02\"\n},\n{\n\"start\": 252.72,\n\"end\": 253.26,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Of course.\",\n\"char_start\": 1424,\n\"char_end\": 1434,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s01\"\n},\n{\n\"start\": 253.32,\n\"end\": 259.32,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"The wear and tear on the chain is the best indicator of when you'll need to replace the cassette.\",\n\"char_start\": 1435,\n\"char_end\": 1532,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s02\"\n},\n{\n\"start\": 259.38,\n\"end\": 262.74,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"We've seen this in teams that use Spoke & Wrench.\",\n\"char_start\": 1533,\n\"char_end\": 1582,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s03\"\n},\n{\n\"start\": 262.8,\n\"end\": 266.46,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"The frame geometry matters because it tells you what compromises you're making.\",\n\"char_start\": 1583,\n\"char_end\": 1662,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s04\"\n},\n{\n\"start\": 266.46,\n\"end\": 267.96,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Tell me more.\",\n\"char_start\": 1679,\n\"char_end\": 1692,\n\"unit_id\": \"t0010.u01\",\n\"sent_id\": \"t0010.s01\"\n},\n{\n\"start\": 267.96,\n\"end\": 271.92,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Spoke & Wrench is one of the platforms where this is clearly evident.\",\n\"char_start\": 1710,\n\"char_end\": 1779,\n\"unit_id\": \"t0011.u01\",\n\"sent_id\": \"t0011.s01\"\n},\n{\n\"start\": 271.98,\n\"end\": 275.58,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 1780,\n\"char_end\": 1842,\n\"unit_id\": \"t0011.u01\",\n\"sent_id\": \"t0011.s02\"\n},\n{\n\"start\": 275.58,\n\"end\": 277.56,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Tell me how you came to that decision.\",\n\"char_start\": 1859,\n\"char_end\": 1897,\n\"unit_id\": \"t0012.u01\",\n\"sent_id\": \"t0012.s01\"\n},\n{\n\"start\": 277.62,\n\"end\": 280.26,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"How does RockShox fit into this picture?\",\n\"char_start\": 1898,\n\"char_end\": 1938,\n\"unit_id\": \"t0012.u01\",\n\"sent_id\": \"t0012.s02\"\n},\n{\n\"start\": 280.26,\n\"end\": 280.8,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Of course.\",\n\"char_start\": 1956,\n\"char_end\": 1966,\n\"unit_id\": \"t0013.u01\",\n\"sent_id\": \"t0013.s01\"\n},\n{\n\"start\": 280.86,\n\"end\": 285.9,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"The maintenance intervals for the suspension are a risk management decision.\",\n\"char_start\": 1967,\n\"char_end\": 2043,\n\"unit_id\": \"t0013.u01\",\n\"sent_id\": \"t0013.s02\"\n},\n{\n\"start\": 285.96,\n\"end\": 290.34,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"If you ignore that, you'll end up having to rebuild everything from scratch a year later.\",\n\"char_start\": 2044,\n\"char_end\": 2133,\n\"unit_id\": \"t0013.u01\",\n\"sent_id\": \"t0013.s03\"\n},\n{\n\"start\": 290.34,\n\"end\": 291.18,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"You know what?\",\n\"char_start\": 2150,\n\"char_end\": 2164,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s01\"\n},\n{\n\"start\": 291.24,\n\"end\": 295.92,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"I'll be frank: Linear powers all of my engineering work on a daily basis.\",\n\"char_start\": 2165,\n\"char_end\": 2238,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s02\"\n},\n{\n\"start\": 295.98,\n\"end\": 301.02,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Linear is the ticketing system designed for speed \\u2013 it's built for keyboard use.\",\n\"char_start\": 2239,\n\"char_end\": 2319,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s03\"\n},\n{\n\"start\": 301.08,\n\"end\": 303.72,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Use the link in the episode notes.\",\n\"char_start\": 2320,\n\"char_end\": 2354,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s04\"\n},\n{\n\"start\": 840.0,\n\"end\": 841.38,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"That's a helpful perspective.\",\n\"char_start\": 2355,\n\"char_end\": 2384,\n\"unit_id\": \"t0016.u01\",\n\"sent_id\": \"t0016.s02\"\n},\n{\n\"start\": 841.44,\n\"end\": 845.04,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Where do the fields of human resources and transmission mechanics intersect?\",\n\"char_start\": 2385,\n\"char_end\": 2461,\n\"unit_id\": \"t0016.u01\",\n\"sent_id\": \"t0016.s03\"\n},\n{\n\"start\": 845.04,\n\"end\": 846.54,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"This is how I see it.\",\n\"char_start\": 2479,\n\"char_end\": 2500,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s01\"\n},\n{\n\"start\": 846.6,\n\"end\": 853.86,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Most of these mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.\",\n\"char_start\": 2501,\n\"char_end\": 2640,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s02\"\n},\n{\n\"start\": 853.92,\n\"end\": 856.86,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"We've seen this in teams that use Shimano components.\",\n\"char_start\": 2641,\n\"char_end\": 2694,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s03\"\n},\n{\n\"start\": 856.92,\n\"end\": 860.52,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 2695,\n\"char_end\": 2764,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s04\"\n},\n{\n\"start\": 860.52,\n\"end\": 862.26,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Give me a concrete example.\",\n\"char_start\": 2781,\n\"char_end\": 2808,\n\"unit_id\": \"t0018.u01\",\n\"sent_id\": \"t0018.s01\"\n},\n{\n\"start\": 862.32,\n\"end\": 865.74,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What did you previously believe about this, and what have you revised your views on?\",\n\"char_start\": 2809,\n\"char_end\": 2893,\n\"unit_id\": \"t0018.u01\",\n\"sent_id\": \"t0018.s02\"\n},\n{\n\"start\": 865.74,\n\"end\": 872.1,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Yes, so \\u2013 a bike should feel quiet and predictable so that your attention remains focused on the trail.\",\n\"char_start\": 2911,\n\"char_end\": 3014,\n\"unit_id\": \"t0019.u01\",\n\"sent_id\": \"t0019.s01\"\n},\n{\n\"start\": 872.16,\n\"end\": 876.84,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Once you've internalized that, the rest of the decisions become easier.\",\n\"char_start\": 3015,\n\"char_end\": 3086,\n\"unit_id\": \"t0019.u01\",\n\"sent_id\": \"t0019.s02\"\n},\n{\n\"start\": 876.84,\n\"end\": 877.92,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Let's start with that.\",\n\"char_start\": 3103,\n\"char_end\": 3125,\n\"unit_id\": \"t0020.u01\",\n\"sent_id\": \"t0020.s01\"\n},\n{\n\"start\": 877.98,\n\"end\": 881.4,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What did you previously believe about this, and what have you revised?\",\n\"char_start\": 3126,\n\"char_end\": 3196,\n\"unit_id\": \"t0020.u01\",\n\"sent_id\": \"t0020.s02\"\n},\n{\n\"start\": 881.4,\n\"end\": 882.9,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"That's how I see it.\",\n\"char_start\": 3214,\n\"char_end\": 3234,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s01\"\n},\n{\n\"start\": 882.96,\n\"end\": 888.96,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"The wear and tear on the chain is the best indicator of when you'll need to replace the cassette.\",\n\"char_start\": 3235,\n\"char_end\": 3332,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s02\"\n},\n{\n\"start\": 889.02,\n\"end\": 891.96,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"We've seen this in teams that use Shimano components.\",\n\"char_start\": 3333,\n\"char_end\": 3386,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s03\"\n},\n{\n\"start\": 892.02,\n\"end\": 896.7,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Once you understand that, the rest of the decisions become easier.\",\n\"char_start\": 3387,\n\"char_end\": 3453,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s04\"\n},\n{\n\"start\": 896.7,\n\"end\": 898.2,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"It's settled.\\nAlternatively:\\nIt's a done deal.\\nIt's confirmed.\\nIt's arranged.\\nIt's agreed.\",\n\"char_start\": 3470,\n\"char_end\": 3560,\n\"unit_id\": \"t0022.u01\",\n\"sent_id\": \"t0022.s01\"\n},\n{\n\"start\": 898.2,\n\"end\": 907.98,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"And when teams adopt Spoke & Wrench within this workflow, the trade-offs become apparent. If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.\",\n\"char_start\": 3578,\n\"char_end\": 3766,\n\"unit_id\": \"t0023.u01\",\n\"sent_id\": \"t0023.s01\"\n},\n{\n\"start\": 907.98,\n\"end\": 909.06,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Let's start with that.\",\n\"char_start\": 3783,\n\"char_end\": 3805,\n\"unit_id\": \"t0024.u01\",\n\"sent_id\": \"t0024.s01\"\n},\n{\n\"start\": 909.12,\n\"end\": 913.86,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What is the operational perspective that most auditors do not have access to?\",\n\"char_start\": 3806,\n\"char_end\": 3883,\n\"unit_id\": \"t0024.u01\",\n\"sent_id\": \"t0024.s02\"\n},\n{\n\"start\": 913.86,\n\"end\": 915.36,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"That's how I see it.\",\n\"char_start\": 3901,\n\"char_end\": 3921,\n\"unit_id\": \"t0025.u01\",\n\"sent_id\": \"t0025.s01\"\n},\n{\n\"start\": 915.42,\n\"end\": 920.46,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"The maintenance intervals for the suspension are a risk management decision.\",\n\"char_start\": 3922,\n\"char_end\": 3998,\n\"unit_id\": \"t0025.u01\",\n\"sent_id\": \"t0025.s02\"\n},\n{\n\"start\": 920.52,\n\"end\": 924.12,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 3999,\n\"char_end\": 4061,\n\"unit_id\": \"t0025.u01\",\n\"sent_id\": \"t0025.s03\"\n},\n{\n\"start\": 1320.0,\n\"end\": 1324.86,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Let's change the subject \\u2013 I want to dedicate the final section to risk management.\",\n\"char_start\": 4078,\n\"char_end\": 4161,\n\"unit_id\": \"t0026.u01\",\n\"sent_id\": \"t0026.s01\"\n},\n{\n\"start\": 1324.86,\n\"end\": 1333.32,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"That's where the conversation becomes interesting, because the compromises related to risk management touch upon everything we've discussed.\",\n\"char_start\": 4179,\n\"char_end\": 4319,\n\"unit_id\": \"t0027.u01\",\n\"sent_id\": \"t0027.s01\"\n},\n{\n\"start\": 1333.32,\n\"end\": 1335.06,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Give me a concrete example.\",\n\"char_start\": 4336,\n\"char_end\": 4363,\n\"unit_id\": \"t0028.u01\",\n\"sent_id\": \"t0028.s01\"\n},\n{\n\"start\": 1335.12,\n\"end\": 1339.38,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What is the most underestimated aspect of transmission mechanics?\",\n\"char_start\": 4364,\n\"char_end\": 4429,\n\"unit_id\": \"t0028.u01\",\n\"sent_id\": \"t0028.s02\"\n},\n{\n\"start\": 1339.38,\n\"end\": 1339.92,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Of course.\",\n\"char_start\": 4447,\n\"char_end\": 4457,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s01\"\n},\n{\n\"start\": 1339.98,\n\"end\": 1347.24,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Most mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.\",\n\"char_start\": 4458,\n\"char_end\": 4588,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s02\"\n},\n{\n\"start\": 1347.3,\n\"end\": 1350.66,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"We've seen this in teams that use Spoke & Wrench.\",\n\"char_start\": 4589,\n\"char_end\": 4638,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s03\"\n},\n{\n\"start\": 1350.72,\n\"end\": 1354.32,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"I've seen this pattern repeat in three different teams.\",\n\"char_start\": 4639,\n\"char_end\": 4694,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s04\"\n},\n{\n\"start\": 1354.32,\n\"end\": 1355.7,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"This is a useful perspective.\",\n\"char_start\": 4711,\n\"char_end\": 4740,\n\"unit_id\": \"t0030.u01\",\n\"sent_id\": \"t0030.s01\"\n},\n{\n\"start\": 1355.76,\n\"end\": 1360.74,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What is the contrarian viewpoint that most listeners don't have access to?\",\n\"char_start\": 4741,\n\"char_end\": 4815,\n\"unit_id\": \"t0030.u01\",\n\"sent_id\": \"t0030.s02\"\n},\n{\n\"start\": 1360.74,\n\"end\": 1367.64,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"It all boils down to this: a bike should feel quiet and predictable so that your attention remains focused on the trail.\",\n\"char_start\": 4833,\n\"char_end\": 4953,\n\"unit_id\": \"t0031.u01\",\n\"sent_id\": \"t0031.s01\"\n},\n{\n\"start\": 1367.7,\n\"end\": 1371.36,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"The geometry matters because it tells you what compromises you're making.\",\n\"char_start\": 4954,\n\"char_end\": 5027,\n\"unit_id\": \"t0031.u01\",\n\"sent_id\": \"t0031.s02\"\n},\n{\n\"start\": 1371.36,\n\"end\": 1373.82,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What does the failure mode look like?\",\n\"char_start\": 5044,\n\"char_end\": 5081,\n\"unit_id\": \"t0032.u01\",\n\"sent_id\": \"t0032.s01\"\n},\n{\n\"start\": 1373.88,\n\"end\": 1378.14,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What is the most underestimated aspect of transmission mechanics?\",\n\"char_start\": 5082,\n\"char_end\": 5147,\n\"unit_id\": \"t0032.u01\",\n\"sent_id\": \"t0032.s02\"\n},\n{\n\"start\": 1378.14,\n\"end\": 1384.92,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Honestly, the wear on the chain is the best early indicator of when you'll need to replace the cassette.\",\n\"char_start\": 5165,\n\"char_end\": 5269,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s01\"\n},\n{\n\"start\": 1384.98,\n\"end\": 1387.92,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"We've seen this in teams that use Shimano components.\",\n\"char_start\": 5270,\n\"char_end\": 5323,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s02\"\n},\n{\n\"start\": 1387.98,\n\"end\": 1391.58,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 5324,\n\"char_end\": 5393,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s03\"\n},\n{\n\"start\": 1391.58,\n\"end\": 1393.56,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Where is it no longer working?\",\n\"char_start\": 5410,\n\"char_end\": 5440,\n\"unit_id\": \"t0034.u01\",\n\"sent_id\": \"t0034.s01\"\n},\n{\n\"start\": 1393.56,\n\"end\": 1402.14,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"And when teams adopt Shimano equipment, this compromise becomes apparent \\u2013 I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 5458,\n\"char_end\": 5595,\n\"unit_id\": \"t0035.u01\",\n\"sent_id\": \"t0035.s01\"\n},\n{\n\"start\": 1402.14,\n\"end\": 1405.68,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What heuristic do you consistently rely on?\",\n\"char_start\": 5612,\n\"char_end\": 5655,\n\"unit_id\": \"t0036.u01\",\n\"sent_id\": \"t0036.s01\"\n},\n{\n\"start\": 1405.74,\n\"end\": 1409.34,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Where do the fields of interviewing and transmission mechanics intersect?\",\n\"char_start\": 5656,\n\"char_end\": 5729,\n\"unit_id\": \"t0036.u01\",\n\"sent_id\": \"t0036.s02\"\n},\n{\n\"start\": 1409.34,\n\"end\": 1415.16,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Honestly, the maintenance intervals for the suspension are a risk management decision.\",\n\"char_start\": 5747,\n\"char_end\": 5833,\n\"unit_id\": \"t0037.u01\",\n\"sent_id\": \"t0037.s01\"\n},\n{\n\"start\": 1415.22,\n\"end\": 1419.54,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"And the second-order effect is the part that almost everyone misses.\",\n\"char_start\": 5834,\n\"char_end\": 5902,\n\"unit_id\": \"t0037.u01\",\n\"sent_id\": \"t0037.s02\"\n},\n{\n\"start\": 1680.0,\n\"end\": 1685.34,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Before we conclude, what is one thing that listeners can try this week?\",\n\"char_start\": 5919,\n\"char_end\": 5990,\n\"unit_id\": \"t0038.u01\",\n\"sent_id\": \"t0038.s01\"\n},\n{\n\"start\": 1685.34,\n\"end\": 1689.96,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Choose one of the ideas we discussed and implement it for two weeks.\",\n\"char_start\": 6008,\n\"char_end\": 6076,\n\"unit_id\": \"t0039.u01\",\n\"sent_id\": \"t0039.s01\"\n},\n{\n\"start\": 1690.02,\n\"end\": 1691.88,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Everything else is about iteration.\",\n\"char_start\": 6077,\n\"char_end\": 6112,\n\"unit_id\": \"t0039.u01\",\n\"sent_id\": \"t0039.s02\"\n},\n{\n\"start\": 1691.88,\n\"end\": 1695.06,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Before we conclude, thank you again to our friends at Linear.\",\n\"char_start\": 6129,\n\"char_end\": 6190,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s01\"\n},\n{\n\"start\": 1695.12,\n\"end\": 1700.16,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Linear is the ticketing system designed for speed \\u2013 built with the keyboard in mind.\",\n\"char_start\": 6191,\n\"char_end\": 6275,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s02\"\n},\n{\n\"start\": 1700.16,\n\"end\": 1702.8,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Mathieu Lef\\u00e8vre, thank you for the conversation.\",\n\"char_start\": 6276,\n\"char_end\": 6324,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s03\"\n},\n{\n\"start\": 1702.8,\n\"end\": 1704.3,\n\"speaker_label\": \"Mathieu Lef\\u00e8vre\",\n\"text\": \"Thank you, Camille.\",\n\"char_start\": 6342,\n\"char_end\": 6361,\n\"unit_id\": \"t0041.u01\",\n\"sent_id\": \"t0041.s01\"\n},\n{\n\"start\": 1704.3,\n\"end\": 1707.9,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"That's all for today's episode of Sessions Sentier.\",\n\"char_start\": 6378,\n\"char_end\": 6429,\n\"unit_id\": \"t0042.u01\",\n\"sent_id\": \"t0042.s01\"\n},\n{\n\"start\": 1707.96,\n\"end\": 1708.86,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"See you next time.\",\n\"char_start\": 6430,\n\"char_end\": 6448,\n\"unit_id\": \"t0042.u01\",\n\"sent_id\": \"t0042.s02\"\n}\n]",
+      "adfree.txt": "Camille Dubois: Notion replaces the dozen tools your team is currently using, half the time. Try notion.com today. Before we get into the details – Élodie Chevalier was on the previous episode and said that tire pressure is more important than suspension settings.\nMathieu Lefèvre: Yes, exactly. And that ties in with what we're discussing today.\nCamille Dubois: I want to point something out – Élodie Chevalier mentioned this same dynamic a few episodes ago. I want to point something out – Julien Mercier mentioned this same dynamic a few episodes ago. I want to explore this further. What did you believe about this topic, and what have you revised your views on?\nMathieu Lefèvre: It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Spoke & Wrench. The framing is important because it tells you what compromises you're making.\nCamille Dubois: This is a useful perspective. Where do the fields of human resources and transmission mechanics intersect?\nMathieu Lefèvre: That's how I see it. A bicycle should feel quiet and predictable so that your attention remains focused on the trail. And the secondary effect is the part that almost everyone misses.\nCamille Dubois: I want to explore this further. What is the structural aspect that most listeners don't have access to?\nMathieu Lefèvre: Of course. The wear and tear on the chain is the best indicator of when you'll need to replace the cassette. We've seen this in teams that use Spoke & Wrench. The frame geometry matters because it tells you what compromises you're making.\nCamille Dubois: Tell me more.\nMathieu Lefèvre: Spoke & Wrench is one of the platforms where this is clearly evident. I've seen this pattern repeat itself in three different teams.\nCamille Dubois: Tell me how you came to that decision. How does RockShox fit into this picture?\nMathieu Lefèvre: Of course. The maintenance intervals for the suspension are a risk management decision. If you ignore that, you'll end up having to rebuild everything from scratch a year later.\nCamille Dubois: You know what? I'll be frank: Linear powers all of my engineering work on a daily basis. Linear is the ticketing system designed for speed – it's built for keyboard use. Use the link in the episode notes. That's a helpful perspective. Where do the fields of human resources and transmission mechanics intersect?\nMathieu Lefèvre: This is how I see it. Most of these mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Shimano components. I've observed this pattern repeating itself in three different teams.\nCamille Dubois: Give me a concrete example. What did you previously believe about this, and what have you revised your views on?\nMathieu Lefèvre: Yes, so – a bike should feel quiet and predictable so that your attention remains focused on the trail. Once you've internalized that, the rest of the decisions become easier.\nCamille Dubois: Let's start with that. What did you previously believe about this, and what have you revised?\nMathieu Lefèvre: That's how I see it. The wear and tear on the chain is the best indicator of when you'll need to replace the cassette. We've seen this in teams that use Shimano components. Once you understand that, the rest of the decisions become easier.\nCamille Dubois: It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.\nMathieu Lefèvre: And when teams adopt Spoke & Wrench within this workflow, the trade-offs become apparent. If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.\nCamille Dubois: Let's start with that. What is the operational perspective that most auditors do not have access to?\nMathieu Lefèvre: That's how I see it. The maintenance intervals for the suspension are a risk management decision. I've seen this pattern repeat itself in three different teams.\nCamille Dubois: Let's change the subject – I want to dedicate the final section to risk management.\nMathieu Lefèvre: That's where the conversation becomes interesting, because the compromises related to risk management touch upon everything we've discussed.\nCamille Dubois: Give me a concrete example. What is the most underestimated aspect of transmission mechanics?\nMathieu Lefèvre: Of course. Most mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat in three different teams.\nCamille Dubois: This is a useful perspective. What is the contrarian viewpoint that most listeners don't have access to?\nMathieu Lefèvre: It all boils down to this: a bike should feel quiet and predictable so that your attention remains focused on the trail. The geometry matters because it tells you what compromises you're making.\nCamille Dubois: What does the failure mode look like? What is the most underestimated aspect of transmission mechanics?\nMathieu Lefèvre: Honestly, the wear on the chain is the best early indicator of when you'll need to replace the cassette. We've seen this in teams that use Shimano components. I've observed this pattern repeating itself in three different teams.\nCamille Dubois: Where is it no longer working?\nMathieu Lefèvre: And when teams adopt Shimano equipment, this compromise becomes apparent – I've seen this pattern repeat itself in three different teams.\nCamille Dubois: What heuristic do you consistently rely on? Where do the fields of interviewing and transmission mechanics intersect?\nMathieu Lefèvre: Honestly, the maintenance intervals for the suspension are a risk management decision. And the second-order effect is the part that almost everyone misses.\nCamille Dubois: Before we conclude, what is one thing that listeners can try this week?\nMathieu Lefèvre: Choose one of the ideas we discussed and implement it for two weeks. Everything else is about iteration.\nCamille Dubois: Before we conclude, thank you again to our friends at Linear. Linear is the ticketing system designed for speed – built with the keyboard in mind. Mathieu Lefèvre, thank you for the conversation.\nMathieu Lefèvre: Thank you, Camille.\nCamille Dubois: That's all for today's episode of Sessions Sentier. See you next time.\n",
+      "cleaned.txt": "Camille Dubois: Welcome back to Sessions Sentier. Today, we're talking about drivetrain mechanics, and I'm joined by Mathieu Lefèvre, a mechanic at Spoke & Wrench. Mathieu Lefèvre, thank you for being here.  \nMathieu Lefèvre: Thank you, Camille. Glad to be back.  \n\nCamille Dubois: I want to point something out – Élodie Chevalier mentioned this same dynamic a few episodes ago. I want to explore this further. What did you believe about this topic, and what have you revised your views on?  \nMathieu Lefèvre: It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Spoke & Wrench. The framing is important because it tells you what compromises you're making.  \n\nCamille Dubois: This is a useful perspective. Where do the fields of human resources and transmission mechanics intersect?  \nMathieu Lefèvre: That's how I see it. A bicycle should feel quiet and predictable so that your attention remains focused on the trail. And the secondary effect is the part that almost everyone misses.  \n\nCamille Dubois: I want to explore this further. What is the structural aspect that most listeners don't have access to?  \nMathieu Lefèvre: Of course. The wear and tear on the chain is the best indicator of when you'll need to replace the cassette. We've seen this in teams that use Spoke & Wrench. The frame geometry matters because it tells you what compromises you're making.  \n\nCamille Dubois: Tell me more.  \nMathieu Lefèvre: Spoke & Wrench is one of the platforms where this is clearly evident. I've seen this pattern repeat itself in three different teams.  \n\nCamille Dubois: Tell me how you came to that decision. How does RockShox fit into this picture?  \nMathieu Lefèvre: Of course. The maintenance intervals for the suspension are a risk management decision. If you ignore that, you'll end up having to rebuild everything from scratch a year later.  \n\nCamille Dubois: You know what? I'll be frank: Linear powers all of my engineering work on a daily basis. Linear is the ticketing system designed for speed – it's built for keyboard use. Use the link in the episode notes. We'll be right back after a short commercial break.  \n\nThat's a helpful perspective. Where do the fields of human resources and transmission mechanics intersect?  \nMathieu Lefèvre: This is how I see it. Most of these mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Shimano components. I've observed this pattern repeating itself in three different teams.  \n\nCamille Dubois: Give me a concrete example. What did you previously believe about this, and what have you revised your views on?  \nMathieu Lefèvre: Yes, so – a bike should feel quiet and predictable so that your attention remains focused on the trail. Once you've internalized that, the rest of the decisions become easier.  \n\nCamille Dubois: Let's start with that. What did you previously believe about this, and what have you revised?  \nMathieu Lefèvre: That's how I see it. The wear and tear on the chain is the best indicator of when you'll need to replace the cassette. We've seen this in teams that use Shimano components. Once you understand that, the rest of the decisions become easier.  \n\nCamille Dubois: It's settled.  \nAlternatively:  \nIt's a done deal.  \nIt's confirmed.  \nIt's arranged.  \nIt's agreed.  \n\nMathieu Lefèvre: And when teams adopt Spoke & Wrench within this workflow, the trade-offs become apparent. If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.  \n\nCamille Dubois: Let's start with that. What is the operational perspective that most auditors do not have access to?  \nMathieu Lefèvre: That's how I see it. The maintenance intervals for the suspension are a risk management decision. I've seen this pattern repeat itself in three different teams.  \n\nCamille Dubois: Let's change the subject – I want to dedicate the final section to risk management.  \nMathieu Lefèvre: That's where the conversation becomes interesting, because the compromises related to risk management touch upon everything we've discussed.  \n\nCamille Dubois: Give me a concrete example. What is the most underestimated aspect of transmission mechanics?  \nMathieu Lefèvre: Of course. Most mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat in three different teams.  \n\nCamille Dubois: This is a useful perspective. What is the contrarian viewpoint that most listeners don't have access to?  \nMathieu Lefèvre: It all boils down to this: a bike should feel quiet and predictable so that your attention remains focused on the trail. The geometry matters because it tells you what compromises you're making.  \n\nCamille Dubois: What does the failure mode look like? What is the most underestimated aspect of transmission mechanics?  \nMathieu Lefèvre: Honestly, the wear on the chain is the best early indicator of when you'll need to replace the cassette. We've seen this in teams that use Shimano components. I've observed this pattern repeating itself in three different teams.  \n\nCamille Dubois: Where is it no longer working?  \nMathieu Lefèvre: And when teams adopt Shimano equipment, this compromise becomes apparent – I've seen this pattern repeat itself in three different teams.  \n\nCamille Dubois: What heuristic do you consistently rely on? Where do the fields of interviewing and transmission mechanics intersect?  \nMathieu Lefèvre: Honestly, the maintenance intervals for the suspension are a risk management decision. And the second-order effect is the part that almost everyone misses.  \n\nCamille Dubois: Before we conclude, what is one thing that listeners can try this week?  \nMathieu Lefèvre: Choose one of the ideas we discussed and implement it for two weeks. Everything else is about iteration.  \n\nCamille Dubois: Thank you again to our friends at Linear. Linear is the ticketing system designed for speed – built with the keyboard in mind. Mathieu Lefèvre, thank you for the conversation.  \nMathieu Lefèvre: Thank you, Camille.  \nCamille Dubois: That's all for today's episode of Sessions Sentier. See you next time.",
+      "segments.json": "[\n{\n\"start\": 0.0,\n\"end\": 2.52,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Welcome back to Sessions Sentier.\",\n\"char_start\": 16,\n\"char_end\": 49,\n\"unit_id\": \"t0000.u01\",\n\"sent_id\": \"t0000.s01\"\n},\n{\n\"start\": 2.58,\n\"end\": 9.3,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Today, we're talking about drivetrain mechanics, and I'm joined by Mathieu Lefèvre, a mechanic at Spoke & Wrench.\",\n\"char_start\": 50,\n\"char_end\": 163,\n\"unit_id\": \"t0000.u01\",\n\"sent_id\": \"t0000.s02\"\n},\n{\n\"start\": 9.36,\n\"end\": 11.34,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Mathieu Lefèvre, thank you for being here.\",\n\"char_start\": 164,\n\"char_end\": 206,\n\"unit_id\": \"t0000.u01\",\n\"sent_id\": \"t0000.s03\"\n},\n{\n\"start\": 11.34,\n\"end\": 12.24,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Thank you, Camille.\",\n\"char_start\": 224,\n\"char_end\": 243,\n\"unit_id\": \"t0001.u01\",\n\"sent_id\": \"t0001.s01\"\n},\n{\n\"start\": 12.3,\n\"end\": 13.8,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Glad to be back.\",\n\"char_start\": 244,\n\"char_end\": 260,\n\"unit_id\": \"t0001.u01\",\n\"sent_id\": \"t0001.s02\"\n},\n{\n\"start\": 13.8,\n\"end\": 16.08,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"This episode is sponsored by Notion.\",\n\"char_start\": 277,\n\"char_end\": 313,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s01\"\n},\n{\n\"start\": 16.14,\n\"end\": 20.4,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Notion replaces the dozen tools your team is currently using, half the time.\",\n\"char_start\": 314,\n\"char_end\": 390,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s02\"\n},\n{\n\"start\": 20.46,\n\"end\": 22.56,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Try notion.com today.\",\n\"char_start\": 391,\n\"char_end\": 412,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s03\"\n},\n{\n\"start\": 22.56,\n\"end\": 31.92,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Before we get into the details – Élodie Chevalier was on the previous episode and said that tire pressure is more important than suspension settings.\",\n\"char_start\": 413,\n\"char_end\": 562,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s04\"\n},\n{\n\"start\": 31.92,\n\"end\": 32.88,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Yes, exactly.\",\n\"char_start\": 580,\n\"char_end\": 593,\n\"unit_id\": \"t0003.u01\",\n\"sent_id\": \"t0003.s01\"\n},\n{\n\"start\": 32.94,\n\"end\": 35.46,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"And that ties in with what we're discussing today.\",\n\"char_start\": 594,\n\"char_end\": 644,\n\"unit_id\": \"t0003.u01\",\n\"sent_id\": \"t0003.s02\"\n},\n{\n\"start\": 35.46,\n\"end\": 41.7,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"I want to point something out – Élodie Chevalier mentioned this same dynamic a few episodes ago.\",\n\"char_start\": 661,\n\"char_end\": 757,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s01\"\n},\n{\n\"start\": 41.7,\n\"end\": 47.82,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"I want to point something out – Julien Mercier mentioned this same dynamic a few episodes ago.\",\n\"char_start\": 758,\n\"char_end\": 852,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s02\"\n},\n{\n\"start\": 210.0,\n\"end\": 211.14,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"I want to explore this further.\",\n\"char_start\": 853,\n\"char_end\": 884,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s03\"\n},\n{\n\"start\": 211.2,\n\"end\": 214.62,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What did you believe about this topic, and what have you revised your views on?\",\n\"char_start\": 885,\n\"char_end\": 964,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s04\"\n},\n{\n\"start\": 214.62,\n\"end\": 223.2,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.\",\n\"char_start\": 982,\n\"char_end\": 1132,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s01\"\n},\n{\n\"start\": 223.26,\n\"end\": 226.62,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"We've seen this in teams that use Spoke & Wrench.\",\n\"char_start\": 1133,\n\"char_end\": 1182,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s02\"\n},\n{\n\"start\": 226.68,\n\"end\": 230.34,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"The framing is important because it tells you what compromises you're making.\",\n\"char_start\": 1183,\n\"char_end\": 1260,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s03\"\n},\n{\n\"start\": 230.34,\n\"end\": 231.72,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"This is a useful perspective.\",\n\"char_start\": 1277,\n\"char_end\": 1306,\n\"unit_id\": \"t0006.u01\",\n\"sent_id\": \"t0006.s01\"\n},\n{\n\"start\": 231.78,\n\"end\": 235.38,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Where do the fields of human resources and transmission mechanics intersect?\",\n\"char_start\": 1307,\n\"char_end\": 1383,\n\"unit_id\": \"t0006.u01\",\n\"sent_id\": \"t0006.s02\"\n},\n{\n\"start\": 235.38,\n\"end\": 236.88,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"That's how I see it.\",\n\"char_start\": 1401,\n\"char_end\": 1421,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s01\"\n},\n{\n\"start\": 236.94,\n\"end\": 242.52,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"A bicycle should feel quiet and predictable so that your attention remains focused on the trail.\",\n\"char_start\": 1422,\n\"char_end\": 1518,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s02\"\n},\n{\n\"start\": 242.58,\n\"end\": 246.9,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"And the secondary effect is the part that almost everyone misses.\",\n\"char_start\": 1519,\n\"char_end\": 1584,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s03\"\n},\n{\n\"start\": 246.9,\n\"end\": 248.04,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"I want to explore this further.\",\n\"char_start\": 1601,\n\"char_end\": 1632,\n\"unit_id\": \"t0008.u01\",\n\"sent_id\": \"t0008.s01\"\n},\n{\n\"start\": 248.1,\n\"end\": 252.72,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What is the structural aspect that most listeners don't have access to?\",\n\"char_start\": 1633,\n\"char_end\": 1704,\n\"unit_id\": \"t0008.u01\",\n\"sent_id\": \"t0008.s02\"\n},\n{\n\"start\": 252.72,\n\"end\": 253.26,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Of course.\",\n\"char_start\": 1722,\n\"char_end\": 1732,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s01\"\n},\n{\n\"start\": 253.32,\n\"end\": 259.32,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"The wear and tear on the chain is the best indicator of when you'll need to replace the cassette.\",\n\"char_start\": 1733,\n\"char_end\": 1830,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s02\"\n},\n{\n\"start\": 259.38,\n\"end\": 262.74,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"We've seen this in teams that use Spoke & Wrench.\",\n\"char_start\": 1831,\n\"char_end\": 1880,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s03\"\n},\n{\n\"start\": 262.8,\n\"end\": 266.46,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"The frame geometry matters because it tells you what compromises you're making.\",\n\"char_start\": 1881,\n\"char_end\": 1960,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s04\"\n},\n{\n\"start\": 266.46,\n\"end\": 267.96,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Tell me more.\",\n\"char_start\": 1977,\n\"char_end\": 1990,\n\"unit_id\": \"t0010.u01\",\n\"sent_id\": \"t0010.s01\"\n},\n{\n\"start\": 267.96,\n\"end\": 271.92,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Spoke & Wrench is one of the platforms where this is clearly evident.\",\n\"char_start\": 2008,\n\"char_end\": 2077,\n\"unit_id\": \"t0011.u01\",\n\"sent_id\": \"t0011.s01\"\n},\n{\n\"start\": 271.98,\n\"end\": 275.58,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 2078,\n\"char_end\": 2140,\n\"unit_id\": \"t0011.u01\",\n\"sent_id\": \"t0011.s02\"\n},\n{\n\"start\": 275.58,\n\"end\": 277.56,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Tell me how you came to that decision.\",\n\"char_start\": 2157,\n\"char_end\": 2195,\n\"unit_id\": \"t0012.u01\",\n\"sent_id\": \"t0012.s01\"\n},\n{\n\"start\": 277.62,\n\"end\": 280.26,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"How does RockShox fit into this picture?\",\n\"char_start\": 2196,\n\"char_end\": 2236,\n\"unit_id\": \"t0012.u01\",\n\"sent_id\": \"t0012.s02\"\n},\n{\n\"start\": 280.26,\n\"end\": 280.8,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Of course.\",\n\"char_start\": 2254,\n\"char_end\": 2264,\n\"unit_id\": \"t0013.u01\",\n\"sent_id\": \"t0013.s01\"\n},\n{\n\"start\": 280.86,\n\"end\": 285.9,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"The maintenance intervals for the suspension are a risk management decision.\",\n\"char_start\": 2265,\n\"char_end\": 2341,\n\"unit_id\": \"t0013.u01\",\n\"sent_id\": \"t0013.s02\"\n},\n{\n\"start\": 285.96,\n\"end\": 290.34,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"If you ignore that, you'll end up having to rebuild everything from scratch a year later.\",\n\"char_start\": 2342,\n\"char_end\": 2431,\n\"unit_id\": \"t0013.u01\",\n\"sent_id\": \"t0013.s03\"\n},\n{\n\"start\": 290.34,\n\"end\": 291.18,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"You know what?\",\n\"char_start\": 2448,\n\"char_end\": 2462,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s01\"\n},\n{\n\"start\": 291.24,\n\"end\": 295.92,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"I'll be frank: Linear powers all of my engineering work on a daily basis.\",\n\"char_start\": 2463,\n\"char_end\": 2536,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s02\"\n},\n{\n\"start\": 295.98,\n\"end\": 301.02,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Linear is the ticketing system designed for speed – it's built for keyboard use.\",\n\"char_start\": 2537,\n\"char_end\": 2617,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s03\"\n},\n{\n\"start\": 301.08,\n\"end\": 303.72,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Use the link in the episode notes.\",\n\"char_start\": 2618,\n\"char_end\": 2652,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s04\"\n},\n{\n\"start\": 720.0,\n\"end\": 723.72,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"We'll be right back after a short commercial break.\",\n\"char_start\": 2653,\n\"char_end\": 2704,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s05\"\n},\n{\n\"start\": 723.72,\n\"end\": 726.0,\n\"speaker_label\": \"SPEAKER_02\",\n\"text\": \"This episode is sponsored by Stripe.\",\n\"char_start\": 2717,\n\"char_end\": 2753,\n\"unit_id\": \"t0015.u01\",\n\"sent_id\": \"t0015.s01\"\n},\n{\n\"start\": 726.06,\n\"end\": 731.76,\n\"speaker_label\": \"SPEAKER_02\",\n\"text\": \"Stripe makes payments easy, whether you're running a marketplace or a subscription-based business.\",\n\"char_start\": 2754,\n\"char_end\": 2852,\n\"unit_id\": \"t0015.u01\",\n\"sent_id\": \"t0015.s02\"\n},\n{\n\"start\": 731.82,\n\"end\": 734.76,\n\"speaker_label\": \"SPEAKER_02\",\n\"text\": \"Visit stripe.com/podcast for a free trial.\",\n\"char_start\": 2853,\n\"char_end\": 2895,\n\"unit_id\": \"t0015.u01\",\n\"sent_id\": \"t0015.s03\"\n},\n{\n\"start\": 734.76,\n\"end\": 736.92,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Welcome back to the show.\",\n\"char_start\": 2912,\n\"char_end\": 2937,\n\"unit_id\": \"t0016.u01\",\n\"sent_id\": \"t0016.s01\"\n},\n{\n\"start\": 840.0,\n\"end\": 841.38,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"That's a helpful perspective.\",\n\"char_start\": 2938,\n\"char_end\": 2967,\n\"unit_id\": \"t0016.u01\",\n\"sent_id\": \"t0016.s02\"\n},\n{\n\"start\": 841.44,\n\"end\": 845.04,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Where do the fields of human resources and transmission mechanics intersect?\",\n\"char_start\": 2968,\n\"char_end\": 3044,\n\"unit_id\": \"t0016.u01\",\n\"sent_id\": \"t0016.s03\"\n},\n{\n\"start\": 845.04,\n\"end\": 846.54,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"This is how I see it.\",\n\"char_start\": 3062,\n\"char_end\": 3083,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s01\"\n},\n{\n\"start\": 846.6,\n\"end\": 853.86,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Most of these mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.\",\n\"char_start\": 3084,\n\"char_end\": 3223,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s02\"\n},\n{\n\"start\": 853.92,\n\"end\": 856.86,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"We've seen this in teams that use Shimano components.\",\n\"char_start\": 3224,\n\"char_end\": 3277,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s03\"\n},\n{\n\"start\": 856.92,\n\"end\": 860.52,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 3278,\n\"char_end\": 3347,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s04\"\n},\n{\n\"start\": 860.52,\n\"end\": 862.26,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Give me a concrete example.\",\n\"char_start\": 3364,\n\"char_end\": 3391,\n\"unit_id\": \"t0018.u01\",\n\"sent_id\": \"t0018.s01\"\n},\n{\n\"start\": 862.32,\n\"end\": 865.74,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What did you previously believe about this, and what have you revised your views on?\",\n\"char_start\": 3392,\n\"char_end\": 3476,\n\"unit_id\": \"t0018.u01\",\n\"sent_id\": \"t0018.s02\"\n},\n{\n\"start\": 865.74,\n\"end\": 872.1,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Yes, so – a bike should feel quiet and predictable so that your attention remains focused on the trail.\",\n\"char_start\": 3494,\n\"char_end\": 3597,\n\"unit_id\": \"t0019.u01\",\n\"sent_id\": \"t0019.s01\"\n},\n{\n\"start\": 872.16,\n\"end\": 876.84,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Once you've internalized that, the rest of the decisions become easier.\",\n\"char_start\": 3598,\n\"char_end\": 3669,\n\"unit_id\": \"t0019.u01\",\n\"sent_id\": \"t0019.s02\"\n},\n{\n\"start\": 876.84,\n\"end\": 877.92,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Let's start with that.\",\n\"char_start\": 3686,\n\"char_end\": 3708,\n\"unit_id\": \"t0020.u01\",\n\"sent_id\": \"t0020.s01\"\n},\n{\n\"start\": 877.98,\n\"end\": 881.4,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What did you previously believe about this, and what have you revised?\",\n\"char_start\": 3709,\n\"char_end\": 3779,\n\"unit_id\": \"t0020.u01\",\n\"sent_id\": \"t0020.s02\"\n},\n{\n\"start\": 881.4,\n\"end\": 882.9,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"That's how I see it.\",\n\"char_start\": 3797,\n\"char_end\": 3817,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s01\"\n},\n{\n\"start\": 882.96,\n\"end\": 888.96,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"The wear and tear on the chain is the best indicator of when you'll need to replace the cassette.\",\n\"char_start\": 3818,\n\"char_end\": 3915,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s02\"\n},\n{\n\"start\": 889.02,\n\"end\": 891.96,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"We've seen this in teams that use Shimano components.\",\n\"char_start\": 3916,\n\"char_end\": 3969,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s03\"\n},\n{\n\"start\": 892.02,\n\"end\": 896.7,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Once you understand that, the rest of the decisions become easier.\",\n\"char_start\": 3970,\n\"char_end\": 4036,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s04\"\n},\n{\n\"start\": 896.7,\n\"end\": 898.2,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"It's settled.\\nAlternatively:\\nIt's a done deal.\\nIt's confirmed.\\nIt's arranged.\\nIt's agreed.\",\n\"char_start\": 4053,\n\"char_end\": 4143,\n\"unit_id\": \"t0022.u01\",\n\"sent_id\": \"t0022.s01\"\n},\n{\n\"start\": 898.2,\n\"end\": 907.98,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"And when teams adopt Spoke & Wrench within this workflow, the trade-offs become apparent. If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.\",\n\"char_start\": 4161,\n\"char_end\": 4349,\n\"unit_id\": \"t0023.u01\",\n\"sent_id\": \"t0023.s01\"\n},\n{\n\"start\": 907.98,\n\"end\": 909.06,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Let's start with that.\",\n\"char_start\": 4366,\n\"char_end\": 4388,\n\"unit_id\": \"t0024.u01\",\n\"sent_id\": \"t0024.s01\"\n},\n{\n\"start\": 909.12,\n\"end\": 913.86,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What is the operational perspective that most auditors do not have access to?\",\n\"char_start\": 4389,\n\"char_end\": 4466,\n\"unit_id\": \"t0024.u01\",\n\"sent_id\": \"t0024.s02\"\n},\n{\n\"start\": 913.86,\n\"end\": 915.36,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"That's how I see it.\",\n\"char_start\": 4484,\n\"char_end\": 4504,\n\"unit_id\": \"t0025.u01\",\n\"sent_id\": \"t0025.s01\"\n},\n{\n\"start\": 915.42,\n\"end\": 920.46,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"The maintenance intervals for the suspension are a risk management decision.\",\n\"char_start\": 4505,\n\"char_end\": 4581,\n\"unit_id\": \"t0025.u01\",\n\"sent_id\": \"t0025.s02\"\n},\n{\n\"start\": 920.52,\n\"end\": 924.12,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 4582,\n\"char_end\": 4644,\n\"unit_id\": \"t0025.u01\",\n\"sent_id\": \"t0025.s03\"\n},\n{\n\"start\": 1320.0,\n\"end\": 1324.86,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Let's change the subject – I want to dedicate the final section to risk management.\",\n\"char_start\": 4661,\n\"char_end\": 4744,\n\"unit_id\": \"t0026.u01\",\n\"sent_id\": \"t0026.s01\"\n},\n{\n\"start\": 1324.86,\n\"end\": 1333.32,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"That's where the conversation becomes interesting, because the compromises related to risk management touch upon everything we've discussed.\",\n\"char_start\": 4762,\n\"char_end\": 4902,\n\"unit_id\": \"t0027.u01\",\n\"sent_id\": \"t0027.s01\"\n},\n{\n\"start\": 1333.32,\n\"end\": 1335.06,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Give me a concrete example.\",\n\"char_start\": 4919,\n\"char_end\": 4946,\n\"unit_id\": \"t0028.u01\",\n\"sent_id\": \"t0028.s01\"\n},\n{\n\"start\": 1335.12,\n\"end\": 1339.38,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What is the most underestimated aspect of transmission mechanics?\",\n\"char_start\": 4947,\n\"char_end\": 5012,\n\"unit_id\": \"t0028.u01\",\n\"sent_id\": \"t0028.s02\"\n},\n{\n\"start\": 1339.38,\n\"end\": 1339.92,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Of course.\",\n\"char_start\": 5030,\n\"char_end\": 5040,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s01\"\n},\n{\n\"start\": 1339.98,\n\"end\": 1347.24,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Most mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.\",\n\"char_start\": 5041,\n\"char_end\": 5171,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s02\"\n},\n{\n\"start\": 1347.3,\n\"end\": 1350.66,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"We've seen this in teams that use Spoke & Wrench.\",\n\"char_start\": 5172,\n\"char_end\": 5221,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s03\"\n},\n{\n\"start\": 1350.72,\n\"end\": 1354.32,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"I've seen this pattern repeat in three different teams.\",\n\"char_start\": 5222,\n\"char_end\": 5277,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s04\"\n},\n{\n\"start\": 1354.32,\n\"end\": 1355.7,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"This is a useful perspective.\",\n\"char_start\": 5294,\n\"char_end\": 5323,\n\"unit_id\": \"t0030.u01\",\n\"sent_id\": \"t0030.s01\"\n},\n{\n\"start\": 1355.76,\n\"end\": 1360.74,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What is the contrarian viewpoint that most listeners don't have access to?\",\n\"char_start\": 5324,\n\"char_end\": 5398,\n\"unit_id\": \"t0030.u01\",\n\"sent_id\": \"t0030.s02\"\n},\n{\n\"start\": 1360.74,\n\"end\": 1367.64,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"It all boils down to this: a bike should feel quiet and predictable so that your attention remains focused on the trail.\",\n\"char_start\": 5416,\n\"char_end\": 5536,\n\"unit_id\": \"t0031.u01\",\n\"sent_id\": \"t0031.s01\"\n},\n{\n\"start\": 1367.7,\n\"end\": 1371.36,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"The geometry matters because it tells you what compromises you're making.\",\n\"char_start\": 5537,\n\"char_end\": 5610,\n\"unit_id\": \"t0031.u01\",\n\"sent_id\": \"t0031.s02\"\n},\n{\n\"start\": 1371.36,\n\"end\": 1373.82,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What does the failure mode look like?\",\n\"char_start\": 5627,\n\"char_end\": 5664,\n\"unit_id\": \"t0032.u01\",\n\"sent_id\": \"t0032.s01\"\n},\n{\n\"start\": 1373.88,\n\"end\": 1378.14,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What is the most underestimated aspect of transmission mechanics?\",\n\"char_start\": 5665,\n\"char_end\": 5730,\n\"unit_id\": \"t0032.u01\",\n\"sent_id\": \"t0032.s02\"\n},\n{\n\"start\": 1378.14,\n\"end\": 1384.92,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Honestly, the wear on the chain is the best early indicator of when you'll need to replace the cassette.\",\n\"char_start\": 5748,\n\"char_end\": 5852,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s01\"\n},\n{\n\"start\": 1384.98,\n\"end\": 1387.92,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"We've seen this in teams that use Shimano components.\",\n\"char_start\": 5853,\n\"char_end\": 5906,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s02\"\n},\n{\n\"start\": 1387.98,\n\"end\": 1391.58,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 5907,\n\"char_end\": 5976,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s03\"\n},\n{\n\"start\": 1391.58,\n\"end\": 1393.56,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Where is it no longer working?\",\n\"char_start\": 5993,\n\"char_end\": 6023,\n\"unit_id\": \"t0034.u01\",\n\"sent_id\": \"t0034.s01\"\n},\n{\n\"start\": 1393.56,\n\"end\": 1402.14,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"And when teams adopt Shimano equipment, this compromise becomes apparent – I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 6041,\n\"char_end\": 6178,\n\"unit_id\": \"t0035.u01\",\n\"sent_id\": \"t0035.s01\"\n},\n{\n\"start\": 1402.14,\n\"end\": 1405.68,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"What heuristic do you consistently rely on?\",\n\"char_start\": 6195,\n\"char_end\": 6238,\n\"unit_id\": \"t0036.u01\",\n\"sent_id\": \"t0036.s01\"\n},\n{\n\"start\": 1405.74,\n\"end\": 1409.34,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Where do the fields of interviewing and transmission mechanics intersect?\",\n\"char_start\": 6239,\n\"char_end\": 6312,\n\"unit_id\": \"t0036.u01\",\n\"sent_id\": \"t0036.s02\"\n},\n{\n\"start\": 1409.34,\n\"end\": 1415.16,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Honestly, the maintenance intervals for the suspension are a risk management decision.\",\n\"char_start\": 6330,\n\"char_end\": 6416,\n\"unit_id\": \"t0037.u01\",\n\"sent_id\": \"t0037.s01\"\n},\n{\n\"start\": 1415.22,\n\"end\": 1419.54,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"And the second-order effect is the part that almost everyone misses.\",\n\"char_start\": 6417,\n\"char_end\": 6485,\n\"unit_id\": \"t0037.u01\",\n\"sent_id\": \"t0037.s02\"\n},\n{\n\"start\": 1680.0,\n\"end\": 1685.34,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Before we conclude, what is one thing that listeners can try this week?\",\n\"char_start\": 6502,\n\"char_end\": 6573,\n\"unit_id\": \"t0038.u01\",\n\"sent_id\": \"t0038.s01\"\n},\n{\n\"start\": 1685.34,\n\"end\": 1689.96,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Choose one of the ideas we discussed and implement it for two weeks.\",\n\"char_start\": 6591,\n\"char_end\": 6659,\n\"unit_id\": \"t0039.u01\",\n\"sent_id\": \"t0039.s01\"\n},\n{\n\"start\": 1690.02,\n\"end\": 1691.88,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Everything else is about iteration.\",\n\"char_start\": 6660,\n\"char_end\": 6695,\n\"unit_id\": \"t0039.u01\",\n\"sent_id\": \"t0039.s02\"\n},\n{\n\"start\": 1691.88,\n\"end\": 1695.06,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Before we conclude, thank you again to our friends at Linear.\",\n\"char_start\": 6712,\n\"char_end\": 6773,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s01\"\n},\n{\n\"start\": 1695.12,\n\"end\": 1700.16,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Linear is the ticketing system designed for speed – built with the keyboard in mind.\",\n\"char_start\": 6774,\n\"char_end\": 6858,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s02\"\n},\n{\n\"start\": 1700.16,\n\"end\": 1702.8,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"Mathieu Lefèvre, thank you for the conversation.\",\n\"char_start\": 6859,\n\"char_end\": 6907,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s03\"\n},\n{\n\"start\": 1702.8,\n\"end\": 1704.3,\n\"speaker_label\": \"Mathieu Lefèvre\",\n\"text\": \"Thank you, Camille.\",\n\"char_start\": 6925,\n\"char_end\": 6944,\n\"unit_id\": \"t0041.u01\",\n\"sent_id\": \"t0041.s01\"\n},\n{\n\"start\": 1704.3,\n\"end\": 1707.9,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"That's all for today's episode of Sessions Sentier.\",\n\"char_start\": 6961,\n\"char_end\": 7012,\n\"unit_id\": \"t0042.u01\",\n\"sent_id\": \"t0042.s01\"\n},\n{\n\"start\": 1707.96,\n\"end\": 1708.86,\n\"speaker_label\": \"Camille Dubois\",\n\"text\": \"See you next time.\",\n\"char_start\": 7013,\n\"char_end\": 7031,\n\"unit_id\": \"t0042.u01\",\n\"sent_id\": \"t0042.s02\"\n}\n]",
+      "translation.json": "{\n  \"version\": \"1.0\",\n  \"episode_slug\": \"0001 - La Mécanique d_un Vélo Silencieux et Rapide_20261003-141321_0ca7efcd\",\n  \"source_language\": \"fr\",\n  \"target_language\": \"en\",\n  \"model\": \"google/translategemma-12b-it\",\n  \"prompt\": {\n    \"name\": \"shared/translation/translategemma_v1\",\n    \"file\": \"shared/translation/translategemma_v1.j2\",\n    \"sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n  },\n  \"source\": {\n    \"transcript_ref\": \"transcripts/0001 - La Mécanique d_un Vélo Silencieux et Rapide_20261003-141321_0ca7efcd.txt\",\n    \"turns\": 43\n  },\n  \"status\": \"translated\",\n  \"units_total\": 43,\n  \"units_failed\": 0,\n  \"english_withdrawn\": false,\n  \"title_en\": \"The Mechanics of a Quiet and Fast Bicycle.\",\n  \"units\": [\n    {\n      \"unit_id\": \"t0000.u01\",\n      \"turn_id\": \"t0000\",\n      \"content_key\": \"7b80fc1cbfc075dc1f3aa7847225b05a472c616826b7a9747ea08922e503f012\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0000.s01\",\n          \"en_text\": \"Welcome back to Sessions Sentier.\"\n        },\n        {\n          \"sent_id\": \"t0000.s02\",\n          \"en_text\": \"Today, we're talking about drivetrain mechanics, and I'm joined by Mathieu Lefèvre, a mechanic at Spoke & Wrench.\"\n        },\n        {\n          \"sent_id\": \"t0000.s03\",\n          \"en_text\": \"Mathieu Lefèvre, thank you for being here.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0001.u01\",\n      \"turn_id\": \"t0001\",\n      \"content_key\": \"3efb4212238d3ebb017b732ccf683e12f5cdc7e1f710c798d9031680056cbb6d\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0001.s01\",\n          \"en_text\": \"Thank you, Camille.\"\n        },\n        {\n          \"sent_id\": \"t0001.s02\",\n          \"en_text\": \"Glad to be back.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0002.u01\",\n      \"turn_id\": \"t0002\",\n      \"content_key\": \"ee730f9767016b1f4c7312bafc94190b8478956c29c069913d2a05eefe2e40d2\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0002.s01\",\n          \"en_text\": \"This episode is sponsored by Notion.\"\n        },\n        {\n          \"sent_id\": \"t0002.s02\",\n          \"en_text\": \"Notion replaces the dozen tools your team is currently using, half the time.\"\n        },\n        {\n          \"sent_id\": \"t0002.s03\",\n          \"en_text\": \"Try notion.com today.\"\n        },\n        {\n          \"sent_id\": \"t0002.s04\",\n          \"en_text\": \"Before we get into the details – Élodie Chevalier was on the previous episode and said that tire pressure is more important than suspension settings.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0003.u01\",\n      \"turn_id\": \"t0003\",\n      \"content_key\": \"7388b696aa90017c373ea7f2f4814a8446706ecfde62c3143ece1a2beb4bd7c1\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0003.s01\",\n          \"en_text\": \"Yes, exactly.\"\n        },\n        {\n          \"sent_id\": \"t0003.s02\",\n          \"en_text\": \"And that ties in with what we're discussing today.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0004.u01\",\n      \"turn_id\": \"t0004\",\n      \"content_key\": \"d8e64f4db1f6873dc1edf7fe3c614086b1e6cda7c256ab803573181347fe8cf1\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0004.s01\",\n          \"en_text\": \"I want to point something out – Élodie Chevalier mentioned this same dynamic a few episodes ago.\"\n        },\n        {\n          \"sent_id\": \"t0004.s02\",\n          \"en_text\": \"I want to point something out – Julien Mercier mentioned this same dynamic a few episodes ago.\"\n        },\n        {\n          \"sent_id\": \"t0004.s03\",\n          \"en_text\": \"I want to explore this further.\"\n        },\n        {\n          \"sent_id\": \"t0004.s04\",\n          \"en_text\": \"What did you believe about this topic, and what have you revised your views on?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0005.u01\",\n      \"turn_id\": \"t0005\",\n      \"content_key\": \"90819c9094c8496638e63393011b3a07bb7879bb2afd3565aceaf91d4b118f5c\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0005.s01\",\n          \"en_text\": \"It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.\"\n        },\n        {\n          \"sent_id\": \"t0005.s02\",\n          \"en_text\": \"We've seen this in teams that use Spoke & Wrench.\"\n        },\n        {\n          \"sent_id\": \"t0005.s03\",\n          \"en_text\": \"The framing is important because it tells you what compromises you're making.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0006.u01\",\n      \"turn_id\": \"t0006\",\n      \"content_key\": \"8659c5478f22db9a9235de193aceffdc3cf2c6418d0e8314759948dbfcb08278\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0006.s01\",\n          \"en_text\": \"This is a useful perspective.\"\n        },\n        {\n          \"sent_id\": \"t0006.s02\",\n          \"en_text\": \"Where do the fields of human resources and transmission mechanics intersect?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0007.u01\",\n      \"turn_id\": \"t0007\",\n      \"content_key\": \"9865e122ab0aff1ba8879b37bbb1184e4e560fd52e190edfd4978b5e8e43a815\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0007.s01\",\n          \"en_text\": \"That's how I see it.\"\n        },\n        {\n          \"sent_id\": \"t0007.s02\",\n          \"en_text\": \"A bicycle should feel quiet and predictable so that your attention remains focused on the trail.\"\n        },\n        {\n          \"sent_id\": \"t0007.s03\",\n          \"en_text\": \"And the secondary effect is the part that almost everyone misses.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0008.u01\",\n      \"turn_id\": \"t0008\",\n      \"content_key\": \"2dc1b68ff578c18c9d3d0db0aade6bd6361a5822b7b039261c8661dd6ee44580\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0008.s01\",\n          \"en_text\": \"I want to explore this further.\"\n        },\n        {\n          \"sent_id\": \"t0008.s02\",\n          \"en_text\": \"What is the structural aspect that most listeners don't have access to?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0009.u01\",\n      \"turn_id\": \"t0009\",\n      \"content_key\": \"e91af1713215ffc07da9bdc194bc5a0cfc886fa65d2cf28f105889fda382b53c\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0009.s01\",\n          \"en_text\": \"Of course.\"\n        },\n        {\n          \"sent_id\": \"t0009.s02\",\n          \"en_text\": \"The wear and tear on the chain is the best indicator of when you'll need to replace the cassette.\"\n        },\n        {\n          \"sent_id\": \"t0009.s03\",\n          \"en_text\": \"We've seen this in teams that use Spoke & Wrench.\"\n        },\n        {\n          \"sent_id\": \"t0009.s04\",\n          \"en_text\": \"The frame geometry matters because it tells you what compromises you're making.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0010.u01\",\n      \"turn_id\": \"t0010\",\n      \"content_key\": \"9c0f132d0e90641b623cf43ece2405fac8b3b33a43c5314e896269bf8238e3bd\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0010.s01\",\n          \"en_text\": \"Tell me more.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0011.u01\",\n      \"turn_id\": \"t0011\",\n      \"content_key\": \"caf459560e7c2e841b3b172280389cfecf976cafc574e9defcd122084e632806\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0011.s01\",\n          \"en_text\": \"Spoke & Wrench is one of the platforms where this is clearly evident.\"\n        },\n        {\n          \"sent_id\": \"t0011.s02\",\n          \"en_text\": \"I've seen this pattern repeat itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0012.u01\",\n      \"turn_id\": \"t0012\",\n      \"content_key\": \"7ea89097dfc3ec7ac6aa3e58ea14886e7fb4ed8f8cd4616d7e0006c040351bb9\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0012.s01\",\n          \"en_text\": \"Tell me how you came to that decision.\"\n        },\n        {\n          \"sent_id\": \"t0012.s02\",\n          \"en_text\": \"How does RockShox fit into this picture?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0013.u01\",\n      \"turn_id\": \"t0013\",\n      \"content_key\": \"23cc67495c2fa5b388edb8767c89c62b856706be6fb55b83223ed1841624e7fc\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0013.s01\",\n          \"en_text\": \"Of course.\"\n        },\n        {\n          \"sent_id\": \"t0013.s02\",\n          \"en_text\": \"The maintenance intervals for the suspension are a risk management decision.\"\n        },\n        {\n          \"sent_id\": \"t0013.s03\",\n          \"en_text\": \"If you ignore that, you'll end up having to rebuild everything from scratch a year later.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0014.u01\",\n      \"turn_id\": \"t0014\",\n      \"content_key\": \"3ec36cf708499570e31c152a3077e2675d63870600d5f6802ebd34272c1d8c4d\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0014.s01\",\n          \"en_text\": \"You know what?\"\n        },\n        {\n          \"sent_id\": \"t0014.s02\",\n          \"en_text\": \"I'll be frank: Linear powers all of my engineering work on a daily basis.\"\n        },\n        {\n          \"sent_id\": \"t0014.s03\",\n          \"en_text\": \"Linear is the ticketing system designed for speed – it's built for keyboard use.\"\n        },\n        {\n          \"sent_id\": \"t0014.s04\",\n          \"en_text\": \"Use the link in the episode notes.\"\n        },\n        {\n          \"sent_id\": \"t0014.s05\",\n          \"en_text\": \"We'll be right back after a short commercial break.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0015.u01\",\n      \"turn_id\": \"t0015\",\n      \"content_key\": \"4738c7a0d2c5b0a099447e388e299afd4ac82cbebeee7c055e67fef188c9b57f\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0015.s01\",\n          \"en_text\": \"This episode is sponsored by Stripe.\"\n        },\n        {\n          \"sent_id\": \"t0015.s02\",\n          \"en_text\": \"Stripe makes payments easy, whether you're running a marketplace or a subscription-based business.\"\n        },\n        {\n          \"sent_id\": \"t0015.s03\",\n          \"en_text\": \"Visit stripe.com/podcast for a free trial.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0016.u01\",\n      \"turn_id\": \"t0016\",\n      \"content_key\": \"0604cf67859c80d505a44868ce57d25aafc22f461013c0720eb042d0c50a9630\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0016.s01\",\n          \"en_text\": \"Welcome back to the show.\"\n        },\n        {\n          \"sent_id\": \"t0016.s02\",\n          \"en_text\": \"That's a helpful perspective.\"\n        },\n        {\n          \"sent_id\": \"t0016.s03\",\n          \"en_text\": \"Where do the fields of human resources and transmission mechanics intersect?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0017.u01\",\n      \"turn_id\": \"t0017\",\n      \"content_key\": \"89c0f32bad38561cc8b54de27114095b8803118e04005932541fecc78bdf576c\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0017.s01\",\n          \"en_text\": \"This is how I see it.\"\n        },\n        {\n          \"sent_id\": \"t0017.s02\",\n          \"en_text\": \"Most of these mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.\"\n        },\n        {\n          \"sent_id\": \"t0017.s03\",\n          \"en_text\": \"We've seen this in teams that use Shimano components.\"\n        },\n        {\n          \"sent_id\": \"t0017.s04\",\n          \"en_text\": \"I've observed this pattern repeating itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0018.u01\",\n      \"turn_id\": \"t0018\",\n      \"content_key\": \"894b2859b06c8b7f4a810e9d9c430590c5c6396a105c8d7defd7db80221efda4\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0018.s01\",\n          \"en_text\": \"Give me a concrete example.\"\n        },\n        {\n          \"sent_id\": \"t0018.s02\",\n          \"en_text\": \"What did you previously believe about this, and what have you revised your views on?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0019.u01\",\n      \"turn_id\": \"t0019\",\n      \"content_key\": \"d58d61b6cd1074e0bfc20e3cb6c9283bf6a9e54c964c8dd91b327bc5b9ba4990\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0019.s01\",\n          \"en_text\": \"Yes, so – a bike should feel quiet and predictable so that your attention remains focused on the trail.\"\n        },\n        {\n          \"sent_id\": \"t0019.s02\",\n          \"en_text\": \"Once you've internalized that, the rest of the decisions become easier.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0020.u01\",\n      \"turn_id\": \"t0020\",\n      \"content_key\": \"4a18ef9317bcf9cb7064fb26332338312006953d54e5be8f5969df1638de75b3\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0020.s01\",\n          \"en_text\": \"Let's start with that.\"\n        },\n        {\n          \"sent_id\": \"t0020.s02\",\n          \"en_text\": \"What did you previously believe about this, and what have you revised?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0021.u01\",\n      \"turn_id\": \"t0021\",\n      \"content_key\": \"cf9f3cc0c41b44cf2bf4d649299c18bad0fd0c3424a05ad83a1f851cd7d5c5f1\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0021.s01\",\n          \"en_text\": \"That's how I see it.\"\n        },\n        {\n          \"sent_id\": \"t0021.s02\",\n          \"en_text\": \"The wear and tear on the chain is the best indicator of when you'll need to replace the cassette.\"\n        },\n        {\n          \"sent_id\": \"t0021.s03\",\n          \"en_text\": \"We've seen this in teams that use Shimano components.\"\n        },\n        {\n          \"sent_id\": \"t0021.s04\",\n          \"en_text\": \"Once you understand that, the rest of the decisions become easier.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0022.u01\",\n      \"turn_id\": \"t0022\",\n      \"content_key\": \"1ad3bd83179f97215392d133790370b22bd67520ec94a069dd1a2d1d7f79f9af\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0022.s01\",\n          \"en_text\": \"It's settled.\\nAlternatively:\\nIt's a done deal.\\nIt's confirmed.\\nIt's arranged.\\nIt's agreed.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0023.u01\",\n      \"turn_id\": \"t0023\",\n      \"content_key\": \"8a849cf86fb78d0ea909d825d69778e945f14f79987f7cf500e9e50a58dc71f7\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0023.s01\",\n          \"en_text\": \"And when teams adopt Spoke & Wrench within this workflow, the trade-offs become apparent. If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0024.u01\",\n      \"turn_id\": \"t0024\",\n      \"content_key\": \"b65b5e7e6ad3849197cd913ce5e48341a104b74e0e5a754fe9e9b6efd1a6ff18\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0024.s01\",\n          \"en_text\": \"Let's start with that.\"\n        },\n        {\n          \"sent_id\": \"t0024.s02\",\n          \"en_text\": \"What is the operational perspective that most auditors do not have access to?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0025.u01\",\n      \"turn_id\": \"t0025\",\n      \"content_key\": \"9c79fc8dd990c1431a4eab345d2f498ccabc129739ca52a4090aa472e38bd9cc\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0025.s01\",\n          \"en_text\": \"That's how I see it.\"\n        },\n        {\n          \"sent_id\": \"t0025.s02\",\n          \"en_text\": \"The maintenance intervals for the suspension are a risk management decision.\"\n        },\n        {\n          \"sent_id\": \"t0025.s03\",\n          \"en_text\": \"I've seen this pattern repeat itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0026.u01\",\n      \"turn_id\": \"t0026\",\n      \"content_key\": \"be947befa9d2d377fe98e4cb7f1ee988e3e9c67b8ec769d2782cf0fadba080fa\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0026.s01\",\n          \"en_text\": \"Let's change the subject – I want to dedicate the final section to risk management.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0027.u01\",\n      \"turn_id\": \"t0027\",\n      \"content_key\": \"d65fd0e6842a8bd810111d281f7b87f9129cb40c4ca58b4903ec216b32c7f061\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0027.s01\",\n          \"en_text\": \"That's where the conversation becomes interesting, because the compromises related to risk management touch upon everything we've discussed.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0028.u01\",\n      \"turn_id\": \"t0028\",\n      \"content_key\": \"52732c62c7504c06f093d6274931e7170983b46d98a90bfda42146b06e06be4e\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0028.s01\",\n          \"en_text\": \"Give me a concrete example.\"\n        },\n        {\n          \"sent_id\": \"t0028.s02\",\n          \"en_text\": \"What is the most underestimated aspect of transmission mechanics?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0029.u01\",\n      \"turn_id\": \"t0029\",\n      \"content_key\": \"e9bed69133e419a93fbfce57f51163ef7bf4e038bc47940aa35d5363e73f1bab\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0029.s01\",\n          \"en_text\": \"Of course.\"\n        },\n        {\n          \"sent_id\": \"t0029.s02\",\n          \"en_text\": \"Most mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque.\"\n        },\n        {\n          \"sent_id\": \"t0029.s03\",\n          \"en_text\": \"We've seen this in teams that use Spoke & Wrench.\"\n        },\n        {\n          \"sent_id\": \"t0029.s04\",\n          \"en_text\": \"I've seen this pattern repeat in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0030.u01\",\n      \"turn_id\": \"t0030\",\n      \"content_key\": \"a683431ec111bca053dc8a4ffed358a918dc9179afc566ba4c6a6d8810d8675f\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0030.s01\",\n          \"en_text\": \"This is a useful perspective.\"\n        },\n        {\n          \"sent_id\": \"t0030.s02\",\n          \"en_text\": \"What is the contrarian viewpoint that most listeners don't have access to?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0031.u01\",\n      \"turn_id\": \"t0031\",\n      \"content_key\": \"158b9b21e04dfbff33a512b9f8e74491d826d179831027bab18063e196dece7e\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0031.s01\",\n          \"en_text\": \"It all boils down to this: a bike should feel quiet and predictable so that your attention remains focused on the trail.\"\n        },\n        {\n          \"sent_id\": \"t0031.s02\",\n          \"en_text\": \"The geometry matters because it tells you what compromises you're making.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0032.u01\",\n      \"turn_id\": \"t0032\",\n      \"content_key\": \"cdb598e91ad92e7c88209797be16b995cc9cdcec0810ccbc0788e92de69ec7e3\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0032.s01\",\n          \"en_text\": \"What does the failure mode look like?\"\n        },\n        {\n          \"sent_id\": \"t0032.s02\",\n          \"en_text\": \"What is the most underestimated aspect of transmission mechanics?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0033.u01\",\n      \"turn_id\": \"t0033\",\n      \"content_key\": \"096328656961b9f9cd1fa5f02001225875d5e1b5e35bc441e60f3b335b7fba80\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0033.s01\",\n          \"en_text\": \"Honestly, the wear on the chain is the best early indicator of when you'll need to replace the cassette.\"\n        },\n        {\n          \"sent_id\": \"t0033.s02\",\n          \"en_text\": \"We've seen this in teams that use Shimano components.\"\n        },\n        {\n          \"sent_id\": \"t0033.s03\",\n          \"en_text\": \"I've observed this pattern repeating itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0034.u01\",\n      \"turn_id\": \"t0034\",\n      \"content_key\": \"ed3063a1d5f622da3ccc0a63b730f387f4987c8d77151d3e2d33a4120e5efe4f\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0034.s01\",\n          \"en_text\": \"Where is it no longer working?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0035.u01\",\n      \"turn_id\": \"t0035\",\n      \"content_key\": \"ac4afc1a7d107df7b87ab6c159541466afaac7b8afacb922809d67cc18f17460\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0035.s01\",\n          \"en_text\": \"And when teams adopt Shimano equipment, this compromise becomes apparent – I've seen this pattern repeat itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0036.u01\",\n      \"turn_id\": \"t0036\",\n      \"content_key\": \"3a80273189d6636dcffae2429c9394be800c33f3b0584030d72790fadd708107\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0036.s01\",\n          \"en_text\": \"What heuristic do you consistently rely on?\"\n        },\n        {\n          \"sent_id\": \"t0036.s02\",\n          \"en_text\": \"Where do the fields of interviewing and transmission mechanics intersect?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0037.u01\",\n      \"turn_id\": \"t0037\",\n      \"content_key\": \"df7a2d7583451e14b5465872fbd817f3185d17553fdc55436b534d4797159f5b\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0037.s01\",\n          \"en_text\": \"Honestly, the maintenance intervals for the suspension are a risk management decision.\"\n        },\n        {\n          \"sent_id\": \"t0037.s02\",\n          \"en_text\": \"And the second-order effect is the part that almost everyone misses.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0038.u01\",\n      \"turn_id\": \"t0038\",\n      \"content_key\": \"ed1faa8df95f917987dbaeb88811d068157f648f12cb08f575e7e7ad24c1b09d\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0038.s01\",\n          \"en_text\": \"Before we conclude, what is one thing that listeners can try this week?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0039.u01\",\n      \"turn_id\": \"t0039\",\n      \"content_key\": \"9b09049f8a115bf11a4eda0c76f6d641cc42b2848142b49e56fcc36c9a478776\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0039.s01\",\n          \"en_text\": \"Choose one of the ideas we discussed and implement it for two weeks.\"\n        },\n        {\n          \"sent_id\": \"t0039.s02\",\n          \"en_text\": \"Everything else is about iteration.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0040.u01\",\n      \"turn_id\": \"t0040\",\n      \"content_key\": \"2d2a680138cbd422f5e994e5eb8146d34d214f6c80165e1a4a895ff2f3d00d80\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0040.s01\",\n          \"en_text\": \"Before we conclude, thank you again to our friends at Linear.\"\n        },\n        {\n          \"sent_id\": \"t0040.s02\",\n          \"en_text\": \"Linear is the ticketing system designed for speed – built with the keyboard in mind.\"\n        },\n        {\n          \"sent_id\": \"t0040.s03\",\n          \"en_text\": \"Mathieu Lefèvre, thank you for the conversation.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0041.u01\",\n      \"turn_id\": \"t0041\",\n      \"content_key\": \"243a50e0a0297aaf4b75b0eb1e40253d1c169a160569bbbb5b7c184ec596ea93\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0041.s01\",\n          \"en_text\": \"Thank you, Camille.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0042.u01\",\n      \"turn_id\": \"t0042\",\n      \"content_key\": \"db765b2df7bc7f55a06da3a4c927ac5e08fd28ed546c2750e184b3c8e10f6ee2\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0042.s01\",\n          \"en_text\": \"That's all for today's episode of Sessions Sentier.\"\n        },\n        {\n          \"sent_id\": \"t0042.s02\",\n          \"en_text\": \"See you next time.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    }\n  ]\n}",
+      "txt": "Camille Dubois: Welcome back to Sessions Sentier. Today, we're talking about drivetrain mechanics, and I'm joined by Mathieu Lefèvre, a mechanic at Spoke & Wrench. Mathieu Lefèvre, thank you for being here.\nMathieu Lefèvre: Thank you, Camille. Glad to be back.\nCamille Dubois: This episode is sponsored by Notion. Notion replaces the dozen tools your team is currently using, half the time. Try notion.com today. Before we get into the details – Élodie Chevalier was on the previous episode and said that tire pressure is more important than suspension settings.\nMathieu Lefèvre: Yes, exactly. And that ties in with what we're discussing today.\nCamille Dubois: I want to point something out – Élodie Chevalier mentioned this same dynamic a few episodes ago. I want to point something out – Julien Mercier mentioned this same dynamic a few episodes ago. I want to explore this further. What did you believe about this topic, and what have you revised your views on?\nMathieu Lefèvre: It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Spoke & Wrench. The framing is important because it tells you what compromises you're making.\nCamille Dubois: This is a useful perspective. Where do the fields of human resources and transmission mechanics intersect?\nMathieu Lefèvre: That's how I see it. A bicycle should feel quiet and predictable so that your attention remains focused on the trail. And the secondary effect is the part that almost everyone misses.\nCamille Dubois: I want to explore this further. What is the structural aspect that most listeners don't have access to?\nMathieu Lefèvre: Of course. The wear and tear on the chain is the best indicator of when you'll need to replace the cassette. We've seen this in teams that use Spoke & Wrench. The frame geometry matters because it tells you what compromises you're making.\nCamille Dubois: Tell me more.\nMathieu Lefèvre: Spoke & Wrench is one of the platforms where this is clearly evident. I've seen this pattern repeat itself in three different teams.\nCamille Dubois: Tell me how you came to that decision. How does RockShox fit into this picture?\nMathieu Lefèvre: Of course. The maintenance intervals for the suspension are a risk management decision. If you ignore that, you'll end up having to rebuild everything from scratch a year later.\nCamille Dubois: You know what? I'll be frank: Linear powers all of my engineering work on a daily basis. Linear is the ticketing system designed for speed – it's built for keyboard use. Use the link in the episode notes. We'll be right back after a short commercial break.\nSPEAKER_02: This episode is sponsored by Stripe. Stripe makes payments easy, whether you're running a marketplace or a subscription-based business. Visit stripe.com/podcast for a free trial.\nCamille Dubois: Welcome back to the show. That's a helpful perspective. Where do the fields of human resources and transmission mechanics intersect?\nMathieu Lefèvre: This is how I see it. Most of these mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Shimano components. I've observed this pattern repeating itself in three different teams.\nCamille Dubois: Give me a concrete example. What did you previously believe about this, and what have you revised your views on?\nMathieu Lefèvre: Yes, so – a bike should feel quiet and predictable so that your attention remains focused on the trail. Once you've internalized that, the rest of the decisions become easier.\nCamille Dubois: Let's start with that. What did you previously believe about this, and what have you revised?\nMathieu Lefèvre: That's how I see it. The wear and tear on the chain is the best indicator of when you'll need to replace the cassette. We've seen this in teams that use Shimano components. Once you understand that, the rest of the decisions become easier.\nCamille Dubois: It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.\nMathieu Lefèvre: And when teams adopt Spoke & Wrench within this workflow, the trade-offs become apparent. If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.\nCamille Dubois: Let's start with that. What is the operational perspective that most auditors do not have access to?\nMathieu Lefèvre: That's how I see it. The maintenance intervals for the suspension are a risk management decision. I've seen this pattern repeat itself in three different teams.\nCamille Dubois: Let's change the subject – I want to dedicate the final section to risk management.\nMathieu Lefèvre: That's where the conversation becomes interesting, because the compromises related to risk management touch upon everything we've discussed.\nCamille Dubois: Give me a concrete example. What is the most underestimated aspect of transmission mechanics?\nMathieu Lefèvre: Of course. Most mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat in three different teams.\nCamille Dubois: This is a useful perspective. What is the contrarian viewpoint that most listeners don't have access to?\nMathieu Lefèvre: It all boils down to this: a bike should feel quiet and predictable so that your attention remains focused on the trail. The geometry matters because it tells you what compromises you're making.\nCamille Dubois: What does the failure mode look like? What is the most underestimated aspect of transmission mechanics?\nMathieu Lefèvre: Honestly, the wear on the chain is the best early indicator of when you'll need to replace the cassette. We've seen this in teams that use Shimano components. I've observed this pattern repeating itself in three different teams.\nCamille Dubois: Where is it no longer working?\nMathieu Lefèvre: And when teams adopt Shimano equipment, this compromise becomes apparent – I've seen this pattern repeat itself in three different teams.\nCamille Dubois: What heuristic do you consistently rely on? Where do the fields of interviewing and transmission mechanics intersect?\nMathieu Lefèvre: Honestly, the maintenance intervals for the suspension are a risk management decision. And the second-order effect is the part that almost everyone misses.\nCamille Dubois: Before we conclude, what is one thing that listeners can try this week?\nMathieu Lefèvre: Choose one of the ideas we discussed and implement it for two weeks. Everything else is about iteration.\nCamille Dubois: Before we conclude, thank you again to our friends at Linear. Linear is the ticketing system designed for speed – built with the keyboard in mind. Mathieu Lefèvre, thank you for the conversation.\nMathieu Lefèvre: Thank you, Camille.\nCamille Dubois: That's all for today's episode of Sessions Sentier. See you next time.\n"
+    },
+    "text": "Camille Dubois: Welcome back to Sessions Sentier. Today, we're talking about drivetrain mechanics, and I'm joined by Mathieu Lefèvre, a mechanic at Spoke & Wrench. Mathieu Lefèvre, thank you for being here.\nMathieu Lefèvre: Thank you, Camille. Glad to be back.\nCamille Dubois: This episode is sponsored by Notion. Notion replaces the dozen tools your team is currently using, half the time. Try notion.com today. Before we get into the details – Élodie Chevalier was on the previous episode and said that tire pressure is more important than suspension settings.\nMathieu Lefèvre: Yes, exactly. And that ties in with what we're discussing today.\nCamille Dubois: I want to point something out – Élodie Chevalier mentioned this same dynamic a few episodes ago. I want to point something out – Julien Mercier mentioned this same dynamic a few episodes ago. I want to explore this further. What did you believe about this topic, and what have you revised your views on?\nMathieu Lefèvre: It boils down to this: most mysterious creaking noises are resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Spoke & Wrench. The framing is important because it tells you what compromises you're making.\nCamille Dubois: This is a useful perspective. Where do the fields of human resources and transmission mechanics intersect?\nMathieu Lefèvre: That's how I see it. A bicycle should feel quiet and predictable so that your attention remains focused on the trail. And the secondary effect is the part that almost everyone misses.\nCamille Dubois: I want to explore this further. What is the structural aspect that most listeners don't have access to?\nMathieu Lefèvre: Of course. The wear and tear on the chain is the best indicator of when you'll need to replace the cassette. We've seen this in teams that use Spoke & Wrench. The frame geometry matters because it tells you what compromises you're making.\nCamille Dubois: Tell me more.\nMathieu Lefèvre: Spoke & Wrench is one of the platforms where this is clearly evident. I've seen this pattern repeat itself in three different teams.\nCamille Dubois: Tell me how you came to that decision. How does RockShox fit into this picture?\nMathieu Lefèvre: Of course. The maintenance intervals for the suspension are a risk management decision. If you ignore that, you'll end up having to rebuild everything from scratch a year later.\nCamille Dubois: You know what? I'll be frank: Linear powers all of my engineering work on a daily basis. Linear is the ticketing system designed for speed – it's built for keyboard use. Use the link in the episode notes. We'll be right back after a short commercial break.\nSPEAKER_02: This episode is sponsored by Stripe. Stripe makes payments easy, whether you're running a marketplace or a subscription-based business. Visit stripe.com/podcast for a free trial.\nCamille Dubois: Welcome back to the show. That's a helpful perspective. Where do the fields of human resources and transmission mechanics intersect?\nMathieu Lefèvre: This is how I see it. Most of these mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Shimano components. I've observed this pattern repeating itself in three different teams.\nCamille Dubois: Give me a concrete example. What did you previously believe about this, and what have you revised your views on?\nMathieu Lefèvre: Yes, so – a bike should feel quiet and predictable so that your attention remains focused on the trail. Once you've internalized that, the rest of the decisions become easier.\nCamille Dubois: Let's start with that. What did you previously believe about this, and what have you revised?\nMathieu Lefèvre: That's how I see it. The wear and tear on the chain is the best indicator of when you'll need to replace the cassette. We've seen this in teams that use Shimano components. Once you understand that, the rest of the decisions become easier.\nCamille Dubois: It's settled.\nAlternatively:\nIt's a done deal.\nIt's confirmed.\nIt's arranged.\nIt's agreed.\nMathieu Lefèvre: And when teams adopt Spoke & Wrench within this workflow, the trade-offs become apparent. If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.\nCamille Dubois: Let's start with that. What is the operational perspective that most auditors do not have access to?\nMathieu Lefèvre: That's how I see it. The maintenance intervals for the suspension are a risk management decision. I've seen this pattern repeat itself in three different teams.\nCamille Dubois: Let's change the subject – I want to dedicate the final section to risk management.\nMathieu Lefèvre: That's where the conversation becomes interesting, because the compromises related to risk management touch upon everything we've discussed.\nCamille Dubois: Give me a concrete example. What is the most underestimated aspect of transmission mechanics?\nMathieu Lefèvre: Of course. Most mysterious creaking noises can be resolved by cleaning the contact surfaces and tightening the bolts to the specified torque. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat in three different teams.\nCamille Dubois: This is a useful perspective. What is the contrarian viewpoint that most listeners don't have access to?\nMathieu Lefèvre: It all boils down to this: a bike should feel quiet and predictable so that your attention remains focused on the trail. The geometry matters because it tells you what compromises you're making.\nCamille Dubois: What does the failure mode look like? What is the most underestimated aspect of transmission mechanics?\nMathieu Lefèvre: Honestly, the wear on the chain is the best early indicator of when you'll need to replace the cassette. We've seen this in teams that use Shimano components. I've observed this pattern repeating itself in three different teams.\nCamille Dubois: Where is it no longer working?\nMathieu Lefèvre: And when teams adopt Shimano equipment, this compromise becomes apparent – I've seen this pattern repeat itself in three different teams.\nCamille Dubois: What heuristic do you consistently rely on? Where do the fields of interviewing and transmission mechanics intersect?\nMathieu Lefèvre: Honestly, the maintenance intervals for the suspension are a risk management decision. And the second-order effect is the part that almost everyone misses.\nCamille Dubois: Before we conclude, what is one thing that listeners can try this week?\nMathieu Lefèvre: Choose one of the ideas we discussed and implement it for two weeks. Everything else is about iteration.\nCamille Dubois: Before we conclude, thank you again to our friends at Linear. Linear is the ticketing system designed for speed – built with the keyboard in mind. Mathieu Lefèvre, thank you for the conversation.\nMathieu Lefèvre: Thank you, Camille.\nCamille Dubois: That's all for today's episode of Sessions Sentier. See you next time.",
+    "translated_title": "The Mechanics of a Quiet and Fast Bicycle.",
+    "translation_status": "translated"
+  }
+}

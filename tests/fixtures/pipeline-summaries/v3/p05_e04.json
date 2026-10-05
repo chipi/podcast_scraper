@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "episode_id": "p05_e04",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "summary": {
+    "bullets": [
+      "Diversification functions as a free lunch for individual investors by eliminating the risk of a single position going to zero — a critical buffer against behavioral risk during market stress.",
+      "Concentration with deep understanding creates a more robust portfolio than broad diversification, because it enables visibility into how positions interact and move together.",
+      "Diversification across a hundred names often reflects ignorance rather than safety, as it spreads ignorance evenly rather than managing risk through insight.",
+      "The real risk for individual investors is not concentration itself but the inability to withstand a loss — a behavioral challenge that diversification helps mitigate.",
+      "A concentrated portfolio can compound an investor's edge only if that edge survives the test of personal behavior — otherwise, no diversification will save them.",
+      "Account data shows that concentrated retail portfolios exhibit fatter tails — meaning higher risk of extreme losses — compared to diversified ones.",
+      "The key question isn't whether to diversify, but whether an investor's edge can endure their own emotional response to volatility.",
+      "A system of correlated bets works better when built on a few well-understood positions than on a hundred unfamiliar ones — understanding drives resilience."
+    ],
+    "raw_text": "Diversification functions as a free lunch for individual investors by eliminating the risk of a single position going to zero — a critical buffer against behavioral risk during market stress. Concentration with deep understanding creates a more robust portfolio than broad diversification, because it enables visibility into how positions interact and move together.",
+    "title": "Diversification vs. Concentration: The Risk of Decision-Making"
+  }
+}

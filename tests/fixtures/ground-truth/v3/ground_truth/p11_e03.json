@@ -1,0 +1,65 @@
+{
+  "callbacks": [
+    "Chiara Ricci era ospite nell'episodio scorso e diceva che la pressione delle gomme conta pi\u00f9 delle regolazioni delle sospensioni."
+  ],
+  "episode_id": "p11_e03",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "native_ad"
+  ],
+  "guest_accent": "it-IT",
+  "host_accent": "it-IT",
+  "host_canonical_name": "Giulia Ferrara",
+  "podcast_id": "p11",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p11:Luca",
+  "primary_guest_canonical_name": "Luca Moretti",
+  "primary_guest_surface_in_transcript": "Luca Moretti",
+  "primary_topic": "topic:drivetrain-mechanics",
+  "publish_date": "2026-03-25",
+  "publish_offset_days": 814,
+  "secondary_topics": [
+    "topic:maintenance",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Notion",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Linear",
+      "kind": "native_ad",
+      "line_index": 30,
+      "note": "Host-read native ad \u2014 no canonical 'brought to you by' marker."
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 34
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 67
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p11:Luca",
+      "kind": "canonical",
+      "surface": "Luca Moretti"
+    },
+    {
+      "canonical_id": "p11:Chiara",
+      "kind": "canonical",
+      "surface": "Chiara Ricci"
+    },
+    {
+      "canonical_id": "p11:Marco",
+      "kind": "canonical",
+      "surface": "Marco Bellini"
+    }
+  ]
+}

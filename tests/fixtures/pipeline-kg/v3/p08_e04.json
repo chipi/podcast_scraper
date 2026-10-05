@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p08_e04",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:correction-as-reliability-signal",
+      "label": "correction as reliability signal"
+    },
+    {
+      "id": "topic:decision-making-under-uncertainty",
+      "label": "decision-making under uncertainty"
+    },
+    {
+      "id": "topic:feedback-driven-development",
+      "label": "feedback-driven development"
+    },
+    {
+      "id": "topic:iteration-over-reconstruction",
+      "label": "iteration over reconstruction"
+    },
+    {
+      "id": "topic:long-term-system-design",
+      "label": "long-term system design"
+    },
+    {
+      "id": "topic:public-failure-management",
+      "label": "public failure management"
+    },
+    {
+      "id": "topic:rebuilding-from-scratch",
+      "label": "rebuilding from scratch"
+    },
+    {
+      "id": "topic:risk-of-being-wrong-in-public",
+      "label": "risk of being wrong in public"
+    },
+    {
+      "id": "topic:trust-in-public-systems",
+      "label": "trust in public systems"
+    },
+    {
+      "id": "topic:underrated-reliability",
+      "label": "underrated reliability"
+    }
+  ]
+}

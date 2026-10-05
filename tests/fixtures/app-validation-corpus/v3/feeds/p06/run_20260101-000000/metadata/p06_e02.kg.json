@@ -31,6 +31,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-f4b940a095192621",
+      "target": "topic:canonical-framing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-f4b940a095192621",
+      "target": "topic:dialogue-heavy-formats",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-f4b940a095192621",
+      "target": "topic:failure-mode",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-f4b940a095192621",
+      "target": "topic:grounding-vs-texture",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-f4b940a095192621",
+      "target": "topic:iteration-practice",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-f4b940a095192621",
+      "target": "topic:long-form-intersection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-f4b940a095192621",
+      "target": "topic:operational-angle",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-f4b940a095192621",
+      "target": "topic:platform-specific-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-f4b940a095192621",
+      "target": "topic:structural-angle",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-f4b940a095192621",
       "to": "person:cam",
       "type": "MENTIONS"
@@ -102,6 +147,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:canonical-framing",
+      "properties": {
+        "label": "canonical framing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dialogue-heavy-formats",
+      "properties": {
+        "label": "dialogue heavy formats",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:failure-mode",
+      "properties": {
+        "label": "failure mode",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:grounding-vs-texture",
+      "properties": {
+        "label": "grounding vs texture",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "properties": {
+        "label": "iteration practice",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form-intersection",
+      "properties": {
+        "label": "long form intersection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:operational-angle",
+      "properties": {
+        "label": "operational angle",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:platform-specific-patterns",
+      "properties": {
+        "label": "platform specific patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:structural-angle",
+      "properties": {
+        "label": "structural angle",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

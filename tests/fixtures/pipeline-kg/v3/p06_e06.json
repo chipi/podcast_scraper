@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p06_e06",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:canonical-labeling",
+      "label": "canonical labeling"
+    },
+    {
+      "id": "topic:code-switching",
+      "label": "code-switching"
+    },
+    {
+      "id": "topic:edge-case-episode",
+      "label": "edge-case episode"
+    },
+    {
+      "id": "topic:language-alternation",
+      "label": "language alternation"
+    },
+    {
+      "id": "topic:multilingual-input",
+      "label": "multilingual input"
+    },
+    {
+      "id": "topic:parser-robustness",
+      "label": "parser robustness"
+    },
+    {
+      "id": "topic:processor-testing",
+      "label": "processor testing"
+    },
+    {
+      "id": "topic:robustness-testing",
+      "label": "robustness testing"
+    },
+    {
+      "id": "topic:system-validation",
+      "label": "system validation"
+    },
+    {
+      "id": "topic:transcription-robustness",
+      "label": "transcription robustness"
+    }
+  ]
+}

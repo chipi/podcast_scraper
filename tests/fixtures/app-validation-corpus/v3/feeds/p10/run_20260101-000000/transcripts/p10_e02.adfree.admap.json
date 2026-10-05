@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 289,
+  "postroll_cut_start": null,
+  "chars_removed": 743,
+  "preroll_pattern_hits": 4,
+  "postroll_pattern_hits": 4,
+  "source_length": 6468,
+  "excised_ranges": [
+    [
+      0,
+      289
+    ],
+    [
+      2175,
+      2629
+    ]
+  ],
+  "excised_texts": [
+    "Luc\u00eda Herrera: Welcome back to Trail Sessions. Today, we're talking about enduro racing, and I'm joined by Marta Sol\u00eds, an enduro racer and coach. Marta Sol\u00eds, thank you for being here.\nMarta Sol\u00eds: Thank you, Luc\u00eda. Glad to be back.\nLuc\u00eda Herrera: Today's episode is sponsored by Linear. ",
+    "Once you understand that, the rest of the decisions become easier.\nLuc\u00eda Herrera: Before continuing, please support the program by visiting the website of our sponsor. Strava is the home of athletes. We'll be right back after a short commercial break.\nSPEAKER_02: Today's episode is sponsored by Notion. Notion replaces the dozen tools your team uses inconsistently. Visit notion.com/podcast for a free trial.\nLuc\u00eda Herrera: Welcome back to the program. "
+  ]
+}

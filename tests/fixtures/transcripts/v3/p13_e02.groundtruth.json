@@ -1,0 +1,29 @@
+{
+  "fixture": "p13_e02",
+  "podcast": "Pfadgespräche",
+  "episode": "Enduro-Technik Ohne Hype",
+  "type": "interview",
+  "speakers": [
+    "Katrin Vogel",
+    "Lena Hofmann"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Katrin Vogel": "Anna",
+    "Lena Hofmann": "Anna",
+    "Ad": "Zarvox"
+  },
+  "voice_pitch_shift": {
+    "Lena Hofmann": 0.4
+  },
+  "cameo": null,
+  "transcript_sha256": "301885c881a34cafea69a8319744e98a3a010399aec4886f4bf910a4864d89d0",
+  "audio_sha256": "08a04bf89fcebb211c74bf13e189338137c799ee1dd84c9aaa3bf26fbe540073",
+  "rttm_sha256": "c7fcd35385e8fdedcf072d9b4f97b87ad82cbb3edfbfd715fa671edbbb665d1c"
+}

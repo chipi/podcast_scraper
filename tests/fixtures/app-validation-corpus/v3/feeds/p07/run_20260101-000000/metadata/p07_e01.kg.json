@@ -31,6 +31,46 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-1979e93514355ea6",
+      "target": "topic:carbon-accounting",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1979e93514355ea6",
+      "target": "topic:climate-delay-cost",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1979e93514355ea6",
+      "target": "topic:iterative-testing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1979e93514355ea6",
+      "target": "topic:optionality-loss",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1979e93514355ea6",
+      "target": "topic:planetary-risk-scale",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1979e93514355ea6",
+      "target": "topic:reliability-engineering",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1979e93514355ea6",
+      "target": "topic:second-order-effect",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1979e93514355ea6",
+      "target": "topic:trade-off-visibility",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-1979e93514355ea6",
       "to": "person:alex-morgan",
       "type": "MENTIONS"
@@ -102,6 +142,70 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:carbon-accounting",
+      "properties": {
+        "label": "carbon accounting",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:climate-delay-cost",
+      "properties": {
+        "label": "climate delay cost",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iterative-testing",
+      "properties": {
+        "label": "iterative testing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:optionality-loss",
+      "properties": {
+        "label": "optionality loss",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:planetary-risk-scale",
+      "properties": {
+        "label": "planetary risk scale",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability-engineering",
+      "properties": {
+        "label": "reliability engineering",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effect",
+      "properties": {
+        "label": "second order effect",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trade-off-visibility",
+      "properties": {
+        "label": "trade off visibility",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

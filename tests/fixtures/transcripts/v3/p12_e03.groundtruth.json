@@ -1,0 +1,27 @@
+{
+  "fixture": "p12_e03",
+  "podcast": "Sessions Sentier — Épisode",
+  "episode": "La Mécanique d'un Vélo Silencieux et Rapide",
+  "type": "interview",
+  "speakers": [
+    "Camille Dubois",
+    "Mathieu Lefèvre"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "native_ad"
+  ],
+  "voice_map": {
+    "Camille Dubois": "Amelie",
+    "Mathieu Lefèvre": "Thomas",
+    "Ad": "Zarvox"
+  },
+  "voice_pitch_shift": {},
+  "cameo": null,
+  "transcript_sha256": "a47135f7f120027acf9c0a7ab15d62496eca766fc2868c320c71d9da72757939",
+  "audio_sha256": "6704b5508d52bcc7eb691f8445639b7871949858c53c060b45bfb45344da100d",
+  "rttm_sha256": "7f2a76af9d231f73e3ed60c6fbf0d3c291d928e098fb383ad91e5776c76809c0"
+}

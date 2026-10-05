@@ -103,6 +103,7 @@ def _cfg(
         hf_token="hf-test",
         speaker_resolution_llm=False,  # deterministic + airgapped (no LLM in tests/CI)
         pipeline_stage=pipeline_stage,
+        feed_declared_language="en",  # #2283: an English feed
     )
 
 

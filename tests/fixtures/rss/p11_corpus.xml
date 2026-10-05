@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Sentieri d'Autore</title>
+    <link>http://localhost/</link>
+    <description>Conversazioni sulla costruzione di sentieri: drenaggio, tracciato, e le persone che costruiscono il percorso. Controparte italiana di Singletrack Sessions.</description>
+    <language>it-IT</language>
+
+    <itunes:author>Giulia Ferrara</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p11_cover.svg"/>
+
+    <item>
+      <title>Costruire Sentieri Che Durano</title>
+      <guid isPermaLink="false">p11_e01</guid>
+      <pubDate>Wed, 01 Oct 2025 00:00:00 +0000</pubDate>
+      <description>Giulia Ferrara parla con il costruttore di sentieri Marco Bellini di drenaggio, tracciato, e di come mantenere i sentieri percorribili durante l'inverno.</description>
+      <enclosure url="/audio/p11_e01.mp3" length="3123452" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p11_e01.vtt" type="text/vtt"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:06:30</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Tecnica Enduro Senza Clamore</title>
+      <guid isPermaLink="false">p11_e02</guid>
+      <pubDate>Sat, 15 Nov 2025 00:00:00 +0000</pubDate>
+      <description>Giulia Ferrara talks with Chiara Ricci: Tecnica Enduro Senza Clamore.</description>
+      <enclosure url="/audio/p11_e02.mp3" length="2822312" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p11_e02.vtt" type="text/vtt"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:05:53</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>La Meccanica di Una Bici Silenziosa e Veloce</title>
+      <guid isPermaLink="false">p11_e03</guid>
+      <pubDate>Wed, 25 Mar 2026 00:00:00 +0000</pubDate>
+      <description>Giulia Ferrara talks with Luca Moretti: La Meccanica di Una Bici Silenziosa e Veloce.</description>
+      <enclosure url="/audio/p11_e03.mp3" length="2952715" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p11_e03.vtt" type="text/vtt"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:06:09</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

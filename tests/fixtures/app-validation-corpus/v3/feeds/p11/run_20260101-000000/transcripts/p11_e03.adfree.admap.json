@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 325,
+  "postroll_cut_start": null,
+  "chars_removed": 613,
+  "preroll_pattern_hits": 4,
+  "postroll_pattern_hits": 4,
+  "source_length": 6783,
+  "excised_ranges": [
+    [
+      0,
+      325
+    ],
+    [
+      2600,
+      2888
+    ]
+  ],
+  "excised_texts": [
+    "Giulia Ferrara: Welcome back to \"Author's Trails.\" Today, we're talking about transmission mechanics, and I'm joined by Luca Moretti, a mechanic from Spoke & Wrench. Luca Moretti, thank you for being here.\nLuca Moretti: Thank you, Giulia. It's good to be back here again.\nGiulia Ferrara: This episode is sponsored by Notion. ",
+    "We'll be right back after a short commercial break.\nSPEAKER_02: This episode is sponsored by Stripe. Stripe makes payments easy, whether you're running a marketplace or a subscription-based business. Visit stripe.com/podcast for a free trial.\nGiulia Ferrara: Welcome back to the program. "
+  ]
+}

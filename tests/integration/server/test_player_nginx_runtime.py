@@ -176,6 +176,26 @@ def test_operator_api_never_reaches_backend(player_base: str) -> None:
     assert "backend-reached" not in body, "/api/jobs must NOT be proxied to the backend"
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/app/admin/users",
+        "/api/app/admin/overrides",
+        "/api/app/ranking-config",
+        "/api/app/graph-events/summary",
+    ],
+)
+def test_the_admin_surface_never_reaches_backend(player_base: str, path: str) -> None:
+    # Admin is tailnet-only (operator decision 2026-10-05): 404 at the edge, upstream untouched.
+    code, body = _get(f"{player_base}{path}")
+    assert code == 404 and "backend-reached" not in body, f"{path} must NOT reach the backend"
+
+
+def test_the_players_own_graph_event_ingestion_still_reaches_backend(player_base: str) -> None:
+    code, body = _get(f"{player_base}/api/app/graph-events")
+    assert code == 200 and "backend-reached" in body
+
+
 def test_consumer_api_is_rate_limited(player_base: str) -> None:
     codes = [_get(f"{player_base}/api/app/auth/login")[0] for _ in range(60)]
     assert 429 in codes, "a burst on the auth endpoint must hit the rate limit (429)"

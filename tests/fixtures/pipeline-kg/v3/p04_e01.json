@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p04_e01",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:backscatter-management",
+      "label": "backscatter management"
+    },
+    {
+      "id": "topic:frame-composition",
+      "label": "frame composition"
+    },
+    {
+      "id": "topic:iteration-over-innovation",
+      "label": "iteration over innovation"
+    },
+    {
+      "id": "topic:lighting-trade-offs",
+      "label": "lighting trade-offs"
+    },
+    {
+      "id": "topic:operational-failure-mode",
+      "label": "operational failure mode"
+    },
+    {
+      "id": "topic:platform-specific-patterns",
+      "label": "platform-specific patterns"
+    },
+    {
+      "id": "topic:strobe-positioning",
+      "label": "strobe positioning"
+    },
+    {
+      "id": "topic:tooling-class-differences",
+      "label": "tooling class differences"
+    },
+    {
+      "id": "topic:underwater-frame-design",
+      "label": "underwater frame design"
+    },
+    {
+      "id": "topic:white-balance-correction",
+      "label": "white balance correction"
+    }
+  ]
+}

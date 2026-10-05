@@ -1,0 +1,217 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-88fec846e9003e86",
+      "target": "topic:braking-technique",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-88fec846e9003e86",
+      "target": "topic:tire-pressure-selection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-88fec846e9003e86",
+      "target": "topic:erosion-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-88fec846e9003e86",
+      "target": "topic:setup-compromises",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-88fec846e9003e86",
+      "target": "topic:cascadia-alliance",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-88fec846e9003e86",
+      "target": "topic:spoke-wrench",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-88fec846e9003e86",
+      "target": "topic:suspension-adjustment",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-88fec846e9003e86",
+      "target": "topic:race-line-optimization",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-88fec846e9003e86",
+      "target": "topic:team-performance-consistency",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "person:beatriz-antunes",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "person:ines-carvalho",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-88fec846e9003e86",
+  "extraction": {
+    "extracted_at": "2025-12-19T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p14_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-88fec846e9003e86",
+      "properties": {
+        "podcast_id": "p14",
+        "publish_date": "2025-12-19T00:00:00",
+        "title": "T\u00e9cnica de Enduro Sem Exagero"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:braking-technique",
+      "properties": {
+        "label": "braking technique",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tire-pressure-selection",
+      "properties": {
+        "label": "tire pressure selection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:erosion-patterns",
+      "properties": {
+        "label": "erosion patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:setup-compromises",
+      "properties": {
+        "label": "setup compromises",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:cascadia-alliance",
+      "properties": {
+        "label": "cascadia alliance",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:spoke-wrench",
+      "properties": {
+        "label": "spoke wrench",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:suspension-adjustment",
+      "properties": {
+        "label": "suspension adjustment",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:race-line-optimization",
+      "properties": {
+        "label": "race line optimization",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:team-performance-consistency",
+      "properties": {
+        "label": "team performance consistency",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:beatriz-antunes",
+      "properties": {
+        "name": "Beatriz Antunes",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:ines-carvalho",
+      "properties": {
+        "name": "In\u00eas Carvalho",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

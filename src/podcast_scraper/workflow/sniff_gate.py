@@ -33,6 +33,8 @@ from functools import lru_cache
 from typing import Any, Optional
 
 from .. import config as _config_mod
+from ..languages import transcription_language  # noqa: E402
+from ..languages_guard import is_target_language  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,8 @@ GATE_DECISION_RAN_DEEP = "ran_deep"
 GATE_DECISION_KEPT_SNIFF = "kept_sniff"
 GATE_DECISION_DISABLED = "disabled"
 GATE_DECISION_NER_UNAVAILABLE = "ner_unavailable"
+#: The episode is not English, so the English NER entity count means nothing about it (S2.14).
+GATE_DECISION_LANGUAGE_NOT_EN = "language_not_en"
 
 # spaCy labels that count toward the gate. PERSON + ORG are the
 # discriminating signal for podcast content (host/guest names, brands).
@@ -113,7 +117,7 @@ def transcribe_with_sniff_gate(
     def _deep_only(decision_tag: str, extra: dict[str, Any]) -> tuple[dict[str, Any], float]:
         result, elapsed = provider.transcribe_with_segments(
             media_path,
-            language=cfg.language,
+            language=transcription_language(cfg),
             pipeline_metrics=pipeline_metrics,
             episode_duration_seconds=episode_duration_seconds,
             call_metrics=call_metrics,
@@ -125,9 +129,28 @@ def transcribe_with_sniff_gate(
         # Caller didn't gate on is_enabled; preserve deep-only behaviour.
         return _deep_only(GATE_DECISION_DISABLED, {})
 
+    # S2.14: the gate counts PERSON+ORG entities with `en_core_web_sm`. On non-English text that
+    # count is not an absence but a WRONG NUMBER — measured on the V.6a Spanish fixture it
+    # OVER-counted, 98 against the English control's 65 — so the gate would route on a signal
+    # that means nothing about the audio. Deep-only is both correct and cheaper here: it skips
+    # the sniff pass entirely rather than paying for a transcription whose only purpose is to
+    # feed a broken count.
+    gate_language = transcription_language(cfg)
+    # `is_target_language` rather than `!= "en"`: one predicate for all three §5.2 sites,
+    # so "is this text English enough for an English-only model" has ONE answer and one place to
+    # change. It also treats a whitespace-only tag as unknown (proceed) rather than as
+    # non-English, which a bare comparison gets wrong.
+    if not is_target_language(gate_language):
+        logger.info(
+            "[#2169] sniff gate SKIPPED for a %s episode: its entity count uses an English NER "
+            "model, which over-counts on non-English text (measured 98 vs 65). Going deep-only.",
+            gate_language,
+        )
+        return _deep_only(GATE_DECISION_LANGUAGE_NOT_EN, {"language": gate_language})
+
     sniff_result, sniff_elapsed = provider.transcribe_with_segments(
         media_path,
-        language=cfg.language,
+        language=transcription_language(cfg),
         pipeline_metrics=pipeline_metrics,
         episode_duration_seconds=episode_duration_seconds,
         call_metrics=call_metrics,
@@ -141,7 +164,7 @@ def transcribe_with_sniff_gate(
         # silently degraded transcription, which is worse than slow.
         deep_result, deep_elapsed = provider.transcribe_with_segments(
             media_path,
-            language=cfg.language,
+            language=transcription_language(cfg),
             pipeline_metrics=pipeline_metrics,
             episode_duration_seconds=episode_duration_seconds,
             call_metrics=call_metrics,
@@ -174,7 +197,7 @@ def transcribe_with_sniff_gate(
 
     deep_result, deep_elapsed = provider.transcribe_with_segments(
         media_path,
-        language=cfg.language,
+        language=transcription_language(cfg),
         pipeline_metrics=pipeline_metrics,
         episode_duration_seconds=episode_duration_seconds,
         call_metrics=call_metrics,

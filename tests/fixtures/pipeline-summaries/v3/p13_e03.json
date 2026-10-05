@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-03T12:49:31Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p13_e03",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "summary": {
+    "bullets": [
+      "Chain wear serves as the most reliable early indicator for when a cassette replacement is necessary — a diagnostic cue that teams using Spoke & Wrench have consistently observed across three different groups.",
+      "Mysterious creaking noises in the drivetrain are typically resolved by cleaning contact surfaces and tightening components to the specified torque — a maintenance step that directly impacts ride quality and rider focus.",
+      "Service intervals for suspension systems are determined by risk management decisions — ignoring these intervals forces teams to rebuild components from scratch a year later, a costly oversight.",
+      "The structural integrity of the frame reveals the design compromises inherent in a system — its behavior signals what tradeoffs have been made in material, fit, and assembly.",
+      "A bike’s performance is optimized not just by mechanical precision but by ensuring it feels quiet and predictable — a second-order effect that keeps attention on the trail rather than the machine.",
+      "Adopting Shimano’s service protocols exposes the underlying compromise: a balance between reliability and operational cost that becomes visible only when the process is implemented.",
+      "Risk management permeates every aspect of maintenance — from drivetrain adjustments to suspension service — and is not a standalone task but a decision-making framework that shapes all technical choices.",
+      "Implementing one maintenance practice for two weeks enables real-world feedback and iteration — a heuristic that turns theoretical knowledge into actionable, repeatable performance gains."
+    ],
+    "raw_text": "Chain wear serves as the most reliable early indicator for when a cassette replacement is necessary — a diagnostic cue that teams using Spoke & Wrench have consistently observed across three different groups. Mysterious creaking noises in the drivetrain are typically resolved by cleaning contact surfaces and tightening components to the specified torque — a maintenance step that directly impacts ride quality and rider focus.",
+    "title": "Drive Mechanism Maintenance and Risk Management in Bike Performance"
+  }
+}

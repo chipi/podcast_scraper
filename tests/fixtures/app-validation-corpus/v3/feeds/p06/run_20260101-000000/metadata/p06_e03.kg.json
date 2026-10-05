@@ -31,6 +31,36 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-034d8bc4204034df",
+      "target": "topic:dialogue-resolution",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-034d8bc4204034df",
+      "target": "topic:iteration-practice",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-034d8bc4204034df",
+      "target": "topic:long-form-conversation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-034d8bc4204034df",
+      "target": "topic:meaning-drift",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-034d8bc4204034df",
+      "target": "topic:operational-insight",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-034d8bc4204034df",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-034d8bc4204034df",
       "to": "person:cam",
       "type": "MENTIONS"
@@ -102,6 +132,54 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dialogue-resolution",
+      "properties": {
+        "label": "dialogue resolution",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "properties": {
+        "label": "iteration practice",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-form-conversation",
+      "properties": {
+        "label": "long form conversation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:meaning-drift",
+      "properties": {
+        "label": "meaning drift",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:operational-insight",
+      "properties": {
+        "label": "operational insight",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

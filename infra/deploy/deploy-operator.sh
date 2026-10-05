@@ -135,8 +135,8 @@ echo "[$(date -u +%FT%TZ)] building + starting operator-public..."
 # (ADR-114 validate-before-reload contract).
 # operator.caddy hardcodes `operator.closelistening.app` (the real domain), so the domain
 # sed is a no-op unless OPERATOR_DOMAIN differs — kept for parity with the player pattern.
-# The __OPERATOR_PREVIEW_COOKIE__ substitution IS required: the caddy file carries the
-# placeholder that must be swapped for the live gate secret.
+# The __OPERATOR_PREVIEW_COOKIE__ substitution is a no-op since the host closed (2026-10-05):
+# operator.caddy carries no placeholder. Kept so a re-opened gated vhost works unchanged.
 echo "[$(date -u +%FT%TZ)] installing operator Caddy vhost for ${OPERATOR_DOMAIN}..."
 sed -e "s/operator\.example\.com/${OPERATOR_DOMAIN}/g" \
     -e "s|__OPERATOR_PREVIEW_COOKIE__|${OPERATOR_PREVIEW_COOKIE}|g" \

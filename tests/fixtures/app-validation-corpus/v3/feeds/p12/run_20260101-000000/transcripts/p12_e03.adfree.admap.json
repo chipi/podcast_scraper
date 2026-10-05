@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 314,
+  "postroll_cut_start": null,
+  "chars_removed": 599,
+  "preroll_pattern_hits": 4,
+  "postroll_pattern_hits": 4,
+  "source_length": 7032,
+  "excised_ranges": [
+    [
+      0,
+      314
+    ],
+    [
+      2653,
+      2938
+    ]
+  ],
+  "excised_texts": [
+    "Camille Dubois: Welcome back to Sessions Sentier. Today, we're talking about drivetrain mechanics, and I'm joined by Mathieu Lef\u00e8vre, a mechanic at Spoke & Wrench. Mathieu Lef\u00e8vre, thank you for being here.\nMathieu Lef\u00e8vre: Thank you, Camille. Glad to be back.\nCamille Dubois: This episode is sponsored by Notion. ",
+    "We'll be right back after a short commercial break.\nSPEAKER_02: This episode is sponsored by Stripe. Stripe makes payments easy, whether you're running a marketplace or a subscription-based business. Visit stripe.com/podcast for a free trial.\nCamille Dubois: Welcome back to the show. "
+  ]
+}

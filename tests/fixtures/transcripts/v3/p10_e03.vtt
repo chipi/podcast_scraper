@@ -1,0 +1,148 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:10.680
+<v Lucía Herrera>Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de mecánica de transmisión, y me acompaña Diego Ferrer, mecánico en Spoke &amp; Wrench. Diego Ferrer, gracias por estar aquí.</v>
+
+00:00:10.680 --> 00:00:13.320
+<v Diego Ferrer>Gracias, Lucía. Contento de estar de vuelta.</v>
+
+00:00:13.320 --> 00:00:21.660
+<v Lucía Herrera>El episodio de hoy es patrocinado por Notion. Notion reemplaza la docena de herramientas que tu equipo usa a medias. Prueba notion.com hoy.</v>
+
+00:00:21.660 --> 00:00:31.020
+<v Lucía Herrera>Antes de entrar en materia — Marta Solís estuvo en el episodio anterior contando que la presión de los neumáticos importa más que los ajustes de suspensión.</v>
+
+00:00:31.020 --> 00:00:34.320
+<v Diego Ferrer>Sí, exacto. Y se conecta con lo que vamos a cubrir hoy.</v>
+
+00:00:34.320 --> 00:00:39.600
+<v Lucía Herrera>Quiero señalar algo — Marta Solís mencionó esta misma dinámica hace un par de episodios.</v>
+
+00:00:39.600 --> 00:00:45.180
+<v Lucía Herrera>Quiero señalar algo — Javier Benavides mencionó esta misma dinámica hace un par de episodios.</v>
+
+00:03:30.000 --> 00:03:35.220
+<v Lucía Herrera>Quiero profundizar en eso. ¿Qué es algo que solías creer sobre esto y que has revisado?</v>
+
+00:03:35.220 --> 00:03:51.120
+<v Diego Ferrer>Se reduce a esto: la mayoría de los crujidos misteriosos se resuelven limpiando las superficies de contacto y volviendo a apretar al par especificado. Lo hemos visto en equipos que usan Spoke &amp; Wrench. El marco importa porque te dice qué concesiones estás haciendo.</v>
+
+00:03:51.120 --> 00:03:56.220
+<v Lucía Herrera>Ese es un marco útil. ¿Dónde se cruzan el mantenimiento y la mecánica de transmisión?</v>
+
+00:03:56.220 --> 00:04:07.080
+<v Diego Ferrer>Así lo veo yo. Una bici debería sentirse silenciosa y predecible para que tu atención se quede en el sendero. Y el efecto de segundo orden es la parte que casi todos pasan por alto.</v>
+
+00:04:07.080 --> 00:04:13.500
+<v Lucía Herrera>Quiero profundizar en eso. ¿Cuál es el ángulo estructural al que la mayoría de los oyentes no tiene acceso?</v>
+
+00:04:13.500 --> 00:04:26.940
+<v Diego Ferrer>Claro. El desgaste de la cadena es el mejor indicador adelantado de cuándo vas a tener que cambiar el casete. Lo hemos visto en equipos que usan Spoke &amp; Wrench. El marco importa porque te dice qué concesiones estás haciendo.</v>
+
+00:04:26.940 --> 00:04:28.440
+<v Lucía Herrera>Cuéntame más sobre eso.</v>
+
+00:04:28.440 --> 00:04:36.180
+<v Diego Ferrer>Spoke &amp; Wrench es una de las plataformas donde esto se ve con claridad. He visto este patrón repetirse en tres equipos distintos.</v>
+
+00:04:36.180 --> 00:04:40.620
+<v Lucía Herrera>Cuéntame cómo tomaste la decisión. ¿Cómo encaja RockShox en este panorama?</v>
+
+00:04:40.620 --> 00:04:50.040
+<v Diego Ferrer>Claro. Los intervalos de servicio de la suspensión son una decisión de gestión del riesgo. Si ignoras eso, acabas reconstruyéndolo desde cero un año después.</v>
+
+00:04:50.040 --> 00:05:02.100
+<v Lucía Herrera>¿Sabes qué? Lo digo sin más: Linear lleva toda mi operación de ingeniería. Linear es el gestor de incidencias hecho para la velocidad — pensado para el teclado. Usa el enlace en las notas del episodio.</v>
+
+00:12:00.000 --> 00:12:03.600
+<v Lucía Herrera>Volvemos enseguida, después de una breve pausa publicitaria.</v>
+
+00:12:03.600 --> 00:12:15.720
+<v Ad>El episodio de hoy cuenta con el patrocinio de Stripe. Stripe simplifica los pagos, ya sea que gestiones un marketplace o un negocio de suscripciones. Visita stripe.com/podcast para una prueba gratuita.</v>
+
+00:12:15.720 --> 00:12:17.700
+<v Lucía Herrera>Bienvenidos de nuevo al programa.</v>
+
+00:14:00.000 --> 00:14:05.100
+<v Lucía Herrera>Ese es un marco útil. ¿Dónde se cruzan el mantenimiento y la mecánica de transmisión?</v>
+
+00:14:05.100 --> 00:14:20.040
+<v Diego Ferrer>Así lo veo yo. La mayoría de los crujidos misteriosos se resuelven limpiando las superficies de contacto y volviendo a apretar al par especificado. Lo hemos visto en equipos que usan Shimano. He visto este patrón repetirse en tres equipos distintos.</v>
+
+00:14:20.040 --> 00:14:25.440
+<v Lucía Herrera>Cuéntame un ejemplo concreto. ¿Qué es algo que solías creer sobre esto y que has revisado?</v>
+
+00:14:25.440 --> 00:14:36.600
+<v Diego Ferrer>Sí, mira — una bici debería sentirse silenciosa y predecible para que tu atención se quede en el sendero. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.</v>
+
+00:14:36.600 --> 00:14:41.340
+<v Lucía Herrera>Empecemos por ahí. ¿Qué es algo que solías creer sobre esto y que has revisado?</v>
+
+00:14:41.340 --> 00:14:55.860
+<v Diego Ferrer>Así lo veo yo. El desgaste de la cadena es el mejor indicador adelantado de cuándo vas a tener que cambiar el casete. Lo hemos visto en equipos que usan Shimano. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.</v>
+
+00:14:55.860 --> 00:14:57.360
+<v Lucía Herrera>Eso cuadra.</v>
+
+00:14:57.360 --> 00:15:06.780
+<v Diego Ferrer>Y cuando los equipos adoptan Spoke &amp; Wrench en ese flujo, la concesión se vuelve visible — si ignoras eso, acabas reconstruyéndolo desde cero un año después.</v>
+
+00:15:06.780 --> 00:15:12.600
+<v Lucía Herrera>Empecemos por ahí. ¿Cuál es el ángulo operativo al que la mayoría de los oyentes no tiene acceso?</v>
+
+00:15:12.600 --> 00:15:21.960
+<v Diego Ferrer>Así lo veo yo. Los intervalos de servicio de la suspensión son una decisión de gestión del riesgo. He visto este patrón repetirse en tres equipos distintos.</v>
+
+00:22:00.000 --> 00:22:04.500
+<v Lucía Herrera>Cambiemos de tema — quiero dedicar el último tramo a la gestión del riesgo.</v>
+
+00:22:04.500 --> 00:22:13.260
+<v Diego Ferrer>Ahí es donde la conversación se pone interesante, porque las concesiones alrededor de la gestión del riesgo atraviesan todo lo que hemos cubierto.</v>
+
+00:22:13.260 --> 00:22:19.020
+<v Lucía Herrera>Cuéntame un ejemplo concreto. ¿Cuál es el aspecto más subestimado de la mecánica de transmisión?</v>
+
+00:22:19.020 --> 00:22:33.900
+<v Diego Ferrer>Claro. La mayoría de los crujidos misteriosos se resuelven limpiando las superficies de contacto y volviendo a apretar al par especificado. Lo hemos visto en equipos que usan Spoke &amp; Wrench. He visto este patrón repetirse en tres equipos distintos.</v>
+
+00:22:33.900 --> 00:22:39.900
+<v Lucía Herrera>Ese es un marco útil. ¿Cuál es el ángulo contrario al que la mayoría de los oyentes no tiene acceso?</v>
+
+00:22:39.900 --> 00:22:50.460
+<v Diego Ferrer>Se reduce a esto: una bici debería sentirse silenciosa y predecible para que tu atención se quede en el sendero. El marco importa porque te dice qué concesiones estás haciendo.</v>
+
+00:22:50.460 --> 00:22:56.220
+<v Lucía Herrera>¿Cómo se ve el modo de fallo? ¿Cuál es el aspecto más subestimado de la mecánica de transmisión?</v>
+
+00:22:56.220 --> 00:23:09.300
+<v Diego Ferrer>Sinceramente, el desgaste de la cadena es el mejor indicador adelantado de cuándo vas a tener que cambiar el casete. Lo hemos visto en equipos que usan Shimano. He visto este patrón repetirse en tres equipos distintos.</v>
+
+00:23:09.300 --> 00:23:11.040
+<v Lucía Herrera>¿Dónde deja de funcionar eso?</v>
+
+00:23:11.040 --> 00:23:19.500
+<v Diego Ferrer>Y cuando los equipos adoptan Shimano en ese flujo, la concesión se vuelve visible — he visto este patrón repetirse en tres equipos distintos.</v>
+
+00:23:19.500 --> 00:23:26.220
+<v Lucía Herrera>¿Cuál es la heurística a la que siempre vuelves? ¿Dónde se cruzan el mantenimiento y la mecánica de transmisión?</v>
+
+00:23:26.220 --> 00:23:36.360
+<v Diego Ferrer>Sinceramente, los intervalos de servicio de la suspensión son una decisión de gestión del riesgo. Y el efecto de segundo orden es la parte que casi todos pasan por alto.</v>
+
+00:28:00.000 --> 00:28:04.680
+<v Lucía Herrera>Antes de terminar, ¿qué es una cosa que los oyentes pueden probar esta semana?</v>
+
+00:28:04.680 --> 00:28:10.080
+<v Diego Ferrer>Elige una de las ideas que cubrimos y aplícala durante dos semanas. El resto es iteración.</v>
+
+00:28:10.080 --> 00:28:18.960
+<v Lucía Herrera>Antes de cerrar, gracias de nuevo a nuestros amigos de Linear. Linear es el gestor de incidencias hecho para la velocidad — pensado para el teclado.</v>
+
+00:28:18.960 --> 00:28:21.480
+<v Lucía Herrera>Diego Ferrer, gracias por la conversación.</v>
+
+00:28:21.480 --> 00:28:22.980
+<v Diego Ferrer>Gracias, Lucía.</v>
+
+00:28:22.980 --> 00:28:27.780
+<v Lucía Herrera>Eso es todo por el episodio de hoy de Sesiones de Sendero. Nos vemos la próxima.</v>

@@ -26,6 +26,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-362f5d463b877d2c",
+      "target": "topic:back-tested-calls",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-362f5d463b877d2c",
+      "target": "topic:correlated-risk-systems",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-362f5d463b877d2c",
+      "target": "topic:economic-system-dynamics",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-362f5d463b877d2c",
+      "target": "topic:independent-risk-assumptions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-362f5d463b877d2c",
+      "target": "topic:institutional-data-infrastructure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-362f5d463b877d2c",
+      "target": "topic:macro-as-risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-362f5d463b877d2c",
+      "target": "topic:power-grid-analogy",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-362f5d463b877d2c",
+      "target": "topic:regime-change-positioning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-362f5d463b877d2c",
+      "target": "topic:sustainability-discipline",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-362f5d463b877d2c",
       "to": "person:alex-morgan",
       "type": "MENTIONS"
@@ -89,6 +134,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:back-tested-calls",
+      "properties": {
+        "label": "back tested calls",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:correlated-risk-systems",
+      "properties": {
+        "label": "correlated risk systems",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:economic-system-dynamics",
+      "properties": {
+        "label": "economic system dynamics",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:independent-risk-assumptions",
+      "properties": {
+        "label": "independent risk assumptions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:institutional-data-infrastructure",
+      "properties": {
+        "label": "institutional data infrastructure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:macro-as-risk-management",
+      "properties": {
+        "label": "macro as risk management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:power-grid-analogy",
+      "properties": {
+        "label": "power grid analogy",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:regime-change-positioning",
+      "properties": {
+        "label": "regime change positioning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:sustainability-discipline",
+      "properties": {
+        "label": "sustainability discipline",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

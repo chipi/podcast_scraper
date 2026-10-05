@@ -1,0 +1,217 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ec0bf35da3719170",
+      "target": "topic:tire-pressure-importance",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ec0bf35da3719170",
+      "target": "topic:maintenance-intervals",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ec0bf35da3719170",
+      "target": "topic:chain-wear-indicator",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ec0bf35da3719170",
+      "target": "topic:contact-surface-cleaning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ec0bf35da3719170",
+      "target": "topic:transmission-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ec0bf35da3719170",
+      "target": "topic:component-reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ec0bf35da3719170",
+      "target": "topic:predictable-bike-feel",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ec0bf35da3719170",
+      "target": "topic:spoke-wrench-workflow",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-ec0bf35da3719170",
+      "target": "topic:shimano-component-use",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "person:giulia-ferrara",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "person:luca-moretti",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-ec0bf35da3719170",
+  "extraction": {
+    "extracted_at": "2025-12-27T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p11_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-ec0bf35da3719170",
+      "properties": {
+        "podcast_id": "p11",
+        "publish_date": "2025-12-27T00:00:00",
+        "title": "La Meccanica di Una Bici Silenziosa e Veloce"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tire-pressure-importance",
+      "properties": {
+        "label": "tire pressure importance",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance-intervals",
+      "properties": {
+        "label": "maintenance intervals",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:chain-wear-indicator",
+      "properties": {
+        "label": "chain wear indicator",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:contact-surface-cleaning",
+      "properties": {
+        "label": "contact surface cleaning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:transmission-mechanics",
+      "properties": {
+        "label": "transmission mechanics",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:component-reliability",
+      "properties": {
+        "label": "component reliability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:predictable-bike-feel",
+      "properties": {
+        "label": "predictable bike feel",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:spoke-wrench-workflow",
+      "properties": {
+        "label": "spoke wrench workflow",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:shimano-component-use",
+      "properties": {
+        "label": "shimano component use",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:giulia-ferrara",
+      "properties": {
+        "name": "Giulia Ferrara",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:luca-moretti",
+      "properties": {
+        "name": "Luca Moretti",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sessions Sentier — the FRENCH counterpart of p01 (fr-FR).
+
+  Part of the four-language expansion (it / fr / de / pt) added 2026-10-01, after `es` proved the
+  shape. The CONTENT is parallel to p01_e01 and p10_e01 — the same trail-building conversation,
+  the same three sponsor reads — so a translation of this episode can be compared against a known
+  meaning, and anything the pipeline does differently across the five is attributable to LANGUAGE
+  rather than to subject matter.
+
+  The PEOPLE are this show's own, and that is deliberate. Reusing Maya and Liam Verbeek across
+  every language would have put one host on seven feeds, and `person:maya` spanning shows is the
+  precision-failure signal the capability audit exists to surface — real at three feeds, noise at
+  seven.
+
+  Voices: deux voix distinctes (Amelie fr_CA, Thomas fr_FR) — aucun décalage nécessaire. The measured F0 table and the reasoning behind each pitch factor live in
+  tests/fixtures/scripts/transcripts_to_mp3.py. Verified against the real pyannote service: this
+  audio diarizes into THREE speakers, which is what the transcript declares.
+
+  `fr` is ENABLED in config/languages.yaml, so this feed is one the pipeline processes.
+-->
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Sessions Sentier</title>
+    <link>http://localhost/</link>
+    <description>Conversations sur la construction de sentiers : drainage, tracé, et les personnes qui construisent le chemin. Contrepartie française de Singletrack Sessions.</description>
+    <language>fr-FR</language>
+
+    <itunes:author>Camille Dubois</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p12_cover.svg"/>
+
+    <item>
+      <title>Épisode 1 : Construire Des Sentiers Qui Durent (avec Julien Mercier)</title>
+      <guid isPermaLink="false">p12_e01</guid>
+      <pubDate>Sat, 01 Nov 2025 07:00:00 +0000</pubDate>
+      <description>Camille Dubois discute avec le constructeur de sentiers Julien Mercier du drainage, du tracé, et de comment garder les sentiers roulables en hiver.</description>
+      <enclosure url="/audio/p12_e01.mp3" length="3209342" type="audio/mpeg"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:06:41</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

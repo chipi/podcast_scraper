@@ -1,0 +1,27 @@
+{
+  "preroll_cut_end": 294,
+  "postroll_cut_start": 5609,
+  "chars_removed": 1465,
+  "preroll_pattern_hits": 5,
+  "postroll_pattern_hits": 6,
+  "source_length": 6342,
+  "excised_ranges": [
+    [
+      0,
+      294
+    ],
+    [
+      2109,
+      2547
+    ],
+    [
+      5609,
+      6342
+    ]
+  ],
+  "excised_texts": [
+    "Katrin Vogel: Welcome back to Path Talks. Today, we're talking about enduro racing, and I'm joined by Lena Hofmann, an enduro rider and coach. Lena Hofmann, thank you for being here.\nLena Hofmann: Thank you, Katrin. It's good to be back here.\nKatrin Vogel: This episode is sponsored by Linear. ",
+    "Once you understand that, the other decisions will become easier.\nKatrin Vogel: Before we continue, please support this podcast and visit the website of our sponsor. Strava is the home for athletes. We'll be right back after a short advertisement.\nSPEAKER_02: This episode is sponsored by Notion. Notion replaces the dozen tools your team only half uses. Visit notion.com/podcast for a free trial.\nKatrin Vogel: Welcome back to the show. ",
+    "What is the version of the question that really matters?\nLena Hofmann: That's how I see it. Erosion patterns on the track sections change the line choices between training and race day. I have observed this pattern in three different teams.\nKatrin Vogel: Before we wrap up, is there one thing that listeners can try out this week?\nLena Hofmann: Choose one of the ideas we discussed and implement it for two weeks. The rest is iteration.\nKatrin Vogel: And finally, thank you to our sponsors at Vanta. Vanta automates SOC 2 and ISO compliance. Learn more at vanta.com. Lena Hofmann, thank you for the conversation.\nLena Hofmann: Thank you, Katrin.\nKatrin Vogel: That's all for today's episode of \"Path Conversations.\" Until next time.\n"
+  ]
+}

@@ -22,6 +22,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from podcast_scraper import __version__
 from podcast_scraper.server import app_access_store, app_roles
 from podcast_scraper.server.app_access import policy_from_env
+from podcast_scraper.server.app_csrf import CrossSiteWriteGuard
 from podcast_scraper.server.app_oauth import providers_from_env
 from podcast_scraper.server.app_operator_guard import OperatorWriteGuard
 from podcast_scraper.server.app_user_seed import seed_from_env
@@ -69,6 +70,7 @@ from podcast_scraper.server.routes import (
     enrichment as enrichment_route,
     enrichment_config as enrichment_config_route,
     explore,
+    feed_overrides,
     feeds,
     health,
     index_rebuild,
@@ -538,34 +540,56 @@ def _install_cors(app: FastAPI) -> None:
     Extracted from ``create_app``, which was over the complexity ceiling at 30. Self-contained
     configuration with its own branching and no coupling to the rest of the factory.
     """
-    # CORS origins: default to the local Vue dev-server ports, but let prod pin
-    # the real public hostname(s) via PODCAST_SERVE_CORS_ORIGINS (comma-separated)
-    # — auth is cookie-based, so credentialed localhost origins must not be the
-    # only allowlist on a public box (review 2026-07-17 M11).
-    _default_cors = [
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "http://127.0.0.1:5174",
-        "http://localhost:5174",
-    ]
-    _cors_env = os.environ.get("PODCAST_SERVE_CORS_ORIGINS", "").strip()
-    _cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or _default_cors
-    # The Capacitor native shell's WebView serves the app from a FIXED local origin (not a network
-    # host), so its cross-origin calls to this API need explicit CORS allowance (#1310). These are
-    # constant app origins — safe to always allow, even when prod pins the web hostname above. Auth
-    # rides a Bearer token on native (not the cookie), but allow_credentials stays on for the web.
-    _native_origins = [
-        "capacitor://localhost",  # iOS default
-        "https://localhost",  # Android (androidScheme: https, our default)
-        "http://localhost",  # Android (http scheme) / fallback
-    ]
+    # The cross-site write check (app_csrf) trusts the WEB origins only. The native shell's origins
+    # are CORS-allowed so the app can call the API, but native auth rides a Bearer token, never the
+    # cookie, so they never need to make a cookie write — and `http(s)://localhost` is any local web
+    # server on the user's machine.
+    app.state.trusted_origins = web_origins()
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[*_cors_origins, *_native_origins],
+        allow_origins=cors_allowed_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+
+#: The local Vue dev servers. Trusted only on a dev box (``PODCAST_ENV`` unset or ``dev``).
+_DEV_WEB_ORIGINS = (
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:5174",
+    "http://localhost:5174",
+)
+
+#: The Capacitor native shell's WebView serves the app from a FIXED local origin (not a network
+#: host), so its cross-origin calls to this API need explicit CORS allowance (#1310).
+_NATIVE_ORIGINS = (
+    "capacitor://localhost",  # iOS default
+    "https://localhost",  # Android (androidScheme: https, our default)
+    "http://localhost",  # Android (http scheme) / fallback
+)
+
+
+def web_origins() -> list[str]:
+    """The web pages trusted to call this API with the session cookie.
+
+    ``PODCAST_SERVE_CORS_ORIGINS`` (comma-separated) when set — production pins its real domains
+    there. Otherwise the local dev servers, but ONLY on a dev box: a deployed api (``PODCAST_ENV``
+    prod/preprod) that forgot the pin trusts no other page rather than localhost (operator,
+    2026-10-05: "production should trust only its real domains"). Its own host is always trusted
+    by the cross-site check, so the same-origin SPA behind nginx needs no entry.
+    """
+    pinned = os.environ.get("PODCAST_SERVE_CORS_ORIGINS", "").strip()
+    if pinned:
+        return [o.strip() for o in pinned.split(",") if o.strip()]
+    env = os.environ.get("PODCAST_ENV", "").strip().lower()
+    return list(_DEV_WEB_ORIGINS) if env in ("", "dev") else []
+
+
+def cors_allowed_origins() -> list[str]:
+    """The credentialed CORS origins: :func:`web_origins` plus the native-shell origins."""
+    return [*web_origins(), *_NATIVE_ORIGINS]
 
 
 def _install_metrics(app: FastAPI) -> None:
@@ -817,6 +841,9 @@ def create_app(
     # Operator write-path authz (optional API key) + audit trail (#1071). Inert unless
     # APP_OPERATOR_API_KEY is set; consumer /api/app routes are never gated here.
     app.add_middleware(OperatorWriteGuard)
+    # Cross-site write check (CSRF): added AFTER the guard so it runs FIRST — a forged request is
+    # refused before any authorization or handler sees it. See app_csrf for the rule.
+    app.add_middleware(CrossSiteWriteGuard)
 
     # Request access log with trace correlation (ADR-119, G1). See _install_access_logging.
     _install_access_logging(app)
@@ -884,6 +911,8 @@ def create_app(
 
     if enable_feeds_api:
         app.include_router(feeds.router, prefix="/api")
+        # Operator overrides (#2283) live beside the feed list, on the plane that owns the corpus.
+        app.include_router(feed_overrides.router, prefix="/api")
     if enable_operator_config_api:
         app.include_router(operator_config.router, prefix="/api")
     if enable_jobs_api:

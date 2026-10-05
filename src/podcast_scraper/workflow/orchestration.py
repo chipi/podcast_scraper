@@ -42,10 +42,22 @@ from ..rss import (
     extract_episode_description as _extract_episode_description_rss,
 )
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
+from . import apply_overrides
 from .episode_processor import (
+    _unsupported_language_skip_reason,
     process_episode_download as _process_episode_download_original,
     transcribe_media_to_text as _transcribe_media_to_text_original,
 )
+
+
+def _feed_language_refusal(cfg: config.Config) -> Optional[str]:
+    """Why this whole feed is refused before any download, or ``None`` to proceed (#2283).
+
+    The feed's resolved language — operator override, else its declared ``<language>`` — must be
+    a recognised ISO code that the registry enables. No language is refused, never assumed
+    English. Same rule and same sentence as the backstop inside transcription.
+    """
+    return _unsupported_language_skip_reason(cfg)
 
 
 def extract_episode_description(item):  # noqa: F811
@@ -3117,18 +3129,6 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         # Initialize JSONL emitter if enabled
         jsonl_emitter = _setup_jsonl_emitter(cfg, effective_output_dir, pipeline_metrics)
 
-        # Step 1.5: Preload ML models if configured
-        wf_stages.setup.preload_ml_models_if_needed(cfg)
-
-        # Step 1.6: Create all providers once (singleton pattern per run)
-        # Providers are created here and passed to stages to avoid redundant initialization
-        transcription_provider, speaker_detector, summary_provider = _create_all_providers(cfg)
-
-        # Step 1.7-1.8: Setup logging and device tracking
-        _setup_logging_and_devices(
-            cfg, transcription_provider, speaker_detector, summary_provider, pipeline_metrics
-        )
-
         # Step 1.5: Create run manifest
         run_manifest = _create_run_manifest(cfg, effective_output_dir)
 
@@ -3136,6 +3136,88 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         maybe_update_pipeline_status(cfg, effective_output_dir, stage="rss_feed_fetch")
         feed, rss_bytes, feed_metadata, episodes = _fetch_and_prepare_episodes(
             cfg, pipeline_metrics
+        )
+
+        # #2172: carry the feed's DECLARED language onto the config every later stage reads, so
+        # `languages.transcription_language(cfg)` — THE one reader (S0.6) — sees the channel tag
+        # instead of answering from the profile default. Without this the transcriber said `en`
+        # for a feed declaring `es-ES` while the metadata writer said `es / rss`, and a `de`
+        # feed produced no skip reason at all.
+        #
+        # Set here rather than inside `_fetch_and_prepare_episodes` because the config is frozen
+        # and the replacement has to be visible to everything downstream; this is the first point
+        # where the parsed feed and the config that flows onward are both in hand.
+        # Unconditional when the feed declares a tag: the MEASURED value outranks anything
+        # already sitting in the field. An earlier `and not getattr(cfg, ...)` guard here
+        # defended no named case and created one — a stale or profile-set value would win over
+        # the real channel tag while `language_source` still reported `rss`, which means
+        # "measured from the feed". That is a provenance lie, and provenance is the only thing
+        # that distinguishes a measured corpus from a defaulted one.
+        _declared = getattr(feed, "language", None)
+        # A real tag only: a non-string (a test's MagicMock feed) is "the feed said nothing",
+        # exactly as `resolve_language` reads it, and must not overwrite a configured value.
+        if isinstance(_declared, str) and _declared.strip():
+            cfg = cfg.model_copy(update={"feed_declared_language": _declared})
+            logger.info(
+                "    feed declares language %r; it now routes transcription and the skip gate",
+                _declared,
+            )
+
+        # FAIL FAST ON LANGUAGE (#2283). No language — none declared, or not an ISO code — or one
+        # the registry does not enable: refuse the WHOLE FEED here, before a single episode is
+        # prepared, downloaded or transcribed. The gate inside transcription used to be the only
+        # one, which meant the audio was already downloaded, and the publisher-transcript path
+        # never reached it at all.
+        #
+        # OPERATOR OVERRIDES FIRST (#2283): an override can be what gives a feed its language, so
+        # it is applied before the gate decides. Feed fields land on the feed / config; episode
+        # fields on each episode's RSS <item> (every reader re-parses it). See apply_overrides.
+        cfg, episodes, _feed_override = apply_overrides.apply_to_run(
+            cfg, feed, feed_metadata, episodes
+        )
+        cfg, episodes, _language_refusal = apply_overrides.gate_languages(
+            cfg, episodes, _feed_language_refusal
+        )
+        if _language_refusal is not None:
+            logger.warning("REFUSED feed %s: %s", cfg.rss_url, _language_refusal)
+            maybe_update_pipeline_status(cfg, effective_output_dir, stage="done")
+            return 0, f"refused: {_language_refusal}"
+
+        # THE CONFIG IS NOW FINAL, AND NOTHING ABOVE THIS LINE MAY CAPTURE IT. Steps 1.5-1.8 used
+        # to run before the RSS fetch, which put them before the `model_copy` above — so every
+        # object built there held the PREVIOUS Config instance, the one without
+        # `feed_declared_language`. `MLProvider.__init__` stores `self.cfg`, and
+        # `MLProvider.detect_speakers` resolves `transcription_language(self.cfg)` from that
+        # stored copy to feed the S2.14 guard, which therefore answered from the profile default
+        # for the whole run:
+        # for a feed declaring `es-ES`, English NER ran over the Spanish feed title and
+        # description, which §5.2 measured as precision 67% -> 18% — phantom people in the
+        # roster and then in the KG, which is the failure S2.14 exists to prevent.
+        # `preload_ml_models_if_needed` has the same shape: it caches a provider in a module
+        # global that keeps its own `cfg`.
+        #
+        # The fix is the ORDER, not a second write. Refreshing `provider.cfg` after the copy
+        # would have worked for the two providers that exist today and silently failed for the
+        # third one someone adds. One config instance for the run, settled before anything can
+        # hold it, is the only version of this that stays true.
+        # `tests/unit/.../workflow/test_run_config_is_final_before_providers.py` pins the order,
+        # and fails if a call that captures the config moves back above the write.
+        #
+        # What this changes in failure ordering, stated because it is a real change: a broken
+        # provider config now surfaces after the RSS fetch rather than before it. The fetch is
+        # cached and cheap and the manifest is still written first, so the run that fails is the
+        # same run, one network round trip later.
+
+        # Step 1.6: Preload ML models if configured
+        wf_stages.setup.preload_ml_models_if_needed(cfg)
+
+        # Step 1.7: Create all providers once (singleton pattern per run)
+        # Providers are created here and passed to stages to avoid redundant initialization
+        transcription_provider, speaker_detector, summary_provider = _create_all_providers(cfg)
+
+        # Step 1.8: Setup logging and device tracking
+        _setup_logging_and_devices(
+            cfg, transcription_provider, speaker_detector, summary_provider, pipeline_metrics
         )
 
         # Step 5-6.5: Setup pipeline resources
@@ -3150,6 +3232,18 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 pipeline_metrics,
             )
         )
+        # An operator `hosts` override REPLACES the detected host set (#2283) — not unioned with
+        # it, which is the whole difference from config `known_hosts`. The per-episode author
+        # fallback is cleared too, so no episode re-adds a host the override removed.
+        if (
+            _feed_override is not None
+            and _feed_override.hosts is not None
+            and host_detection_result is not None
+        ):
+            host_detection_result = host_detection_result._replace(
+                cached_hosts=set(_feed_override.hosts), episode_author_hosts=frozenset()
+            )
+            logger.info("    operator override: feed hosts = %s", _feed_override.hosts)
 
         # Wrap processing + finalize: JSONL must stay open until _finalize_pipeline
         # calls emit_run_finished (see _finalize_emit_and_save). Closing the emitter in

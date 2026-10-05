@@ -1326,12 +1326,41 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         self.cfg = create_test_config(generate_metadata=True)
         self.feed = create_test_feed()
         self.episode = create_test_episode(idx=1, title="Test Episode")
+        # GI and KG refuse a transcript path with no body on disk (TranscriptBodyMissingError),
+        # so the tests that name `transcripts/ep1.txt` need it to exist.
+        os.makedirs(os.path.join(self.temp_dir, "transcripts"), exist_ok=True)
+        with open(os.path.join(self.temp_dir, "transcripts", "ep1.txt"), "w") as fh:
+            fh.write("Host: Welcome to the show. Guest: Thanks for having me.")
 
     def tearDown(self):
         """Clean up test fixtures."""
         import shutil
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_gi_refuses_a_transcript_path_with_no_body_and_writes_nothing(self):
+        """Fail hard (operator rule 2026-10-05): no body is an error that stops the episode.
+
+        Main extracted GI from empty text and wrote the artifact. It must raise out of
+        ``generate_episode_metadata`` — not be swallowed by GI's non-fatal retry loop — and leave
+        no gi.json behind.
+        """
+        from podcast_scraper.workflow.transcript_resolution import TranscriptBodyMissingError
+
+        cfg = create_test_config(generate_metadata=True, generate_gi=True, generate_summaries=False)
+        with self.assertRaises(TranscriptBodyMissingError):
+            metadata.generate_episode_metadata(
+                feed=self.feed,
+                episode=self.episode,
+                feed_url="https://example.com/feed.xml",
+                cfg=cfg,
+                output_dir=self.temp_dir,
+                transcript_file_path="transcripts/missing.txt",
+            )
+        written = [
+            f for _r, _d, files in os.walk(self.temp_dir) for f in files if f.endswith(".gi.json")
+        ]
+        self.assertEqual(written, [])
 
     def test_generate_episode_metadata_disabled(self):
         """Test that metadata generation is skipped when disabled."""

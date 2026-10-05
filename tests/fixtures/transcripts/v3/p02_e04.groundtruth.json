@@ -16,6 +16,7 @@
     "Ethan": "Alex",
     "Priya Nair": "Isha"
   },
+  "voice_pitch_shift": {},
   "cameo": null,
   "transcript_sha256": "51e596f2b4abb4e55b898b1152ec485fe3dd3b36c73acfe7f9d83e691f238041",
   "audio_sha256": "0b4616b4cc5382ffa4788aec199066ec3474fcbdaecd14ff0f722e83ab6de5fb",

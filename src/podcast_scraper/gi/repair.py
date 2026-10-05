@@ -38,6 +38,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from ..workflow.transcript_resolution import (
+    resolve_text_path,
+    segments_relpath_candidates,
+    TranscriptPurpose,
+)
 from .corpus import find_legacy_placeholder_artifacts, is_legacy_placeholder_artifact
 
 logger = logging.getLogger(__name__)
@@ -138,11 +143,11 @@ def _segments_for(run_dir: Path, transcript_rel: str) -> Optional[List[Dict[str,
     Quote grounding resolves character spans against the transcript it is given, so the segments
     and the transcript text MUST come from the same variant or every span is off.
     """
-    base = (run_dir / transcript_rel).with_suffix("")
-    for candidate in (
-        base.with_name(base.name + ".adfree.segments.json"),
-        base.with_name(base.name + ".segments.json"),
-    ):
+    candidates = [
+        run_dir / rel
+        for rel in segments_relpath_candidates(transcript_rel, purpose=TranscriptPurpose.ANALYSIS)
+    ]
+    for candidate in candidates:
         doc = _read_json(candidate)
         if isinstance(doc, dict):
             segs = doc.get("segments")
@@ -163,10 +168,11 @@ def _transcript_text_for(run_dir: Path, transcript_rel: str) -> Tuple[str, str]:
 
     Returns the SAME variant the segments come from; see ``_segments_for``.
     """
-    base = (run_dir / transcript_rel).with_suffix("")
-    adfree = base.with_name(base.name + ".adfree.txt")
-    if adfree.is_file():
-        return adfree.read_text(encoding="utf-8"), adfree.name
+    resolved = resolve_text_path(run_dir, transcript_rel, purpose=TranscriptPurpose.ANALYSIS)
+    if resolved is not None:
+        return resolved.read_text(encoding="utf-8"), resolved.name
+    # Nothing on disk: raise from the canonical path, as this did before the resolver — the
+    # caller treats an unreadable transcript as a repair it cannot attempt.
     plain = run_dir / transcript_rel
     return plain.read_text(encoding="utf-8"), Path(transcript_rel).name
 
@@ -246,12 +252,69 @@ def repair_episode(
     if not isinstance(transcript_rel, str) or not transcript_rel:
         return _fail("metadata declares no content.transcript_file_path")
 
+    # RFC-124 §5.3, and a review found this missing. `repair` resolves ANALYSIS and rebuilds the
+    # artifact for ANY episode with metadata — so on a non-English episode whose translation is
+    # pending, failed or invalidated it would rebuild GI from the SOURCE text with English
+    # prompts, which is the exact thing the seam's gate refuses. A repair tool must not be the
+    # way around the gate.
+    from ..workflow.translation_stage import analysis_blocked_reason
+
+    # THE LANGUAGE COMES FROM THE EPISODE'S METADATA, NOT FROM `cfg`. My first version of this
+    # gate passed cfg alone, which made it useless AND harmful: the repair CLI runs with
+    # `cfg=None` or a profile whose `language` defaults to `"en"`, so a Spanish episode was
+    # never blocked (the gate was inert) — and under a profile set to `es`, EVERY English
+    # episode was refused for having no the translation, which is by design. The pipeline
+    # avoids both by
+    # passing the feed's declared language; repair has the persisted per-episode language in
+    # hand and must use it.
+    #
+    # A missing language still PROCEEDS, matching `analysis_blocked_reason`'s own rule: most of
+    # the corpus predates language resolution, and refusing those would make repair unusable on
+    # the English corpus it exists for.
+    _episode_language = (meta.get("episode") or {}).get("language") or (meta.get("feed") or {}).get(
+        "language"
+    )
+    if _episode_language:
+        # Only judged when the ARTIFACT records a language. `cfg` is deliberately not consulted
+        # as a fallback: repair operates on an episode that already exists, whose language is
+        # whatever it was recorded as — not whatever the current run happens to be configured
+        # for. Letting the profile decide is what made a Spanish profile refuse every English
+        # episode. `cfg` is still passed so an operator OVERRIDE is honoured, which is the one
+        # config value that legitimately outranks a recorded tag.
+        blocked = analysis_blocked_reason(
+            cfg,
+            transcript_relpath=transcript_rel,
+            effective_output_dir=str(run_dir),
+            feed_language=_episode_language,
+        )
+        if blocked:
+            return _fail(f"translation incomplete: {blocked}")
+
     try:
         transcript_text, transcript_ref = _transcript_text_for(run_dir, transcript_rel)
     except OSError as exc:
         return _fail(f"transcript unreadable: {exc}")
     if not transcript_text.strip():
         return _fail("transcript is empty")
+
+    # And publish the episode's translation so the rebuilt artifact carries provenance (S2.11).
+    # Repair runs in the CLI main thread with no seam, so without this every Quote node it
+    # rebuilds silently loses its `translation` block — which the provenance module's own
+    # docstring claimed was covered.
+    from ..translation.provenance import publish_episode_translation
+
+    try:
+        from ..translation.provenance import load_for_provenance
+
+        _loaded = load_for_provenance(transcript_rel, str(run_dir))
+    except Exception:  # noqa: BLE001 - provenance never blocks a repair
+        _loaded = None
+    # Published rather than scoped with a context manager, for the same reason the seam does:
+    # every episode publishes before it writes, so the value is always the current episode's.
+    # Repair processes many episodes in one PROCESS, so this is set again on each — but it is
+    # left holding the last episode's doc after the loop, which is why nothing downstream may
+    # read it without publishing first.
+    publish_episode_translation(*(_loaded if _loaded else (None, None)))
 
     episode_block = meta.get("episode") or {}
     feed_block = meta.get("feed") or {}

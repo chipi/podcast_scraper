@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p06_e04",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:cultural-drift",
+      "label": "cultural drift"
+    },
+    {
+      "id": "topic:cultural-stability",
+      "label": "cultural stability"
+    },
+    {
+      "id": "topic:day-to-day-mood",
+      "label": "day-to-day mood"
+    },
+    {
+      "id": "topic:dialogue-and-drift",
+      "label": "dialogue and drift"
+    },
+    {
+      "id": "topic:drift-detection",
+      "label": "drift detection"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "label": "iteration practice"
+    },
+    {
+      "id": "topic:rebuilding-from-scratch",
+      "label": "rebuilding from scratch"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:substack-teams",
+      "label": "substack teams"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "label": "systems thinking"
+    }
+  ]
+}

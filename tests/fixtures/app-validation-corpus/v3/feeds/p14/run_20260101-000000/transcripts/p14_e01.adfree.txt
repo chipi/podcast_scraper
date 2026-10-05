@@ -1,0 +1,41 @@
+SPEAKER_00: Strava is the home of athletes. Start at strava.com/podcast. Tell me about how you made that decision. How does RockShox fit into this picture?
+SPEAKER_01: Honestly, drainage is the design decision that has the biggest impact on any trail. We've seen this in teams that use the Cascadia Alliance. I've already seen this pattern repeat itself in three different teams.
+SPEAKER_00: Tell me how you made the decision. What is the version of the question that really matters?
+SPEAKER_01: Yes, look – the most common mistake that new builders make is excavating with too steep a slope. Once you understand that, the rest of the decisions become easier.
+SPEAKER_00: I want to delve deeper into that. Where do soil erosion and trail construction intersect?
+SPEAKER_01: Certainly. Discussions about land management must take place before the first excavation. We've seen this in teams that use RockShox products. The context is important because it tells you what commitments you are making.
+SPEAKER_00: Tell me more about it.
+SPEAKER_01: And when teams adopt Spoke & Wrench within that workflow, the commitment becomes evident. If you ignore that, you'll end up having to rebuild everything from scratch a year later.
+SPEAKER_00: Tell me how you made the decision. Where do soil erosion and trail construction intersect?
+SPEAKER_01: Certainly. The cuts in the benching areas on the slopes are not optional. The shortcut of the first day is the downfall of the third year. And the second-order effect is the part that almost everyone ignores.
+SPEAKER_00: That's a useful perspective. What is the most important version of the question?
+SPEAKER_01: Yes, look – the structure of the team is more important than people realize. We've seen this in teams that use Spoke & Wrench. I've already seen this pattern repeat itself in three different teams.
+SPEAKER_00: What is the nature of the failure? What is the structural aspect that most listeners are unable to access?
+SPEAKER_01: Let me give you the version that I truly believe in. I've changed my mind about machine-made trails compared to hand-made ones. I've already seen this pattern repeat itself in three different teams.
+SPEAKER_00: Tell me more about it. What does the failure mode look like? Where do soil erosion and trail construction intersect?
+SPEAKER_01: That's how I see it. Drainage is the design decision that has the biggest impact on any trail. We've seen this with teams that use Shimano products. If you ignore this, you'll end up having to rebuild everything from scratch a year later.
+SPEAKER_00: Tell me how you made the decision. How does RockShox fit into this picture?
+SPEAKER_01: Yes, listen – the most common mistake that new builders make is excavating with too steep a slope. Once you understand that, the rest of the decisions become easier.
+SPEAKER_00: It challenges my conventional wisdom. What did you used to believe about this, and how has your perspective changed since then?
+SPEAKER_01: Let me give you the version that I truly believe in. Discussions about land management need to happen before the first excavation. We've seen this in teams that use Spoke & Wrench. I've already seen this pattern repeat itself in three different teams.
+SPEAKER_00: That makes sense.
+SPEAKER_01: Outside of the tools provided by the Cascadia Alliance, it is more difficult to detect the failure mode. And the second-order effect is the part that almost everyone ignores.
+SPEAKER_00: What heuristic do you always come back to? What is the version of the question that really matters?
+SPEAKER_01: In short: cuts in the banking (or berm) on slopes are not optional. The shortcut taken in the first year leads to a collapse in the third year. I have seen this pattern repeat itself in three different teams.
+SPEAKER_00: What is the failure mode? What is the most underestimated aspect of trail construction?
+SPEAKER_01: Let me give you the version that I truly believe in. The structure of the soil is more important than people realize. We've seen this in teams that use the Cascadia Alliance. I've already seen this pattern repeat itself in three different teams.
+SPEAKER_00: I want to delve deeper into that. How does Shimano fit into this picture?
+SPEAKER_01: Yes, look – I've changed my mind about machine-made trails compared to hand-made ones. Once you understand that, the rest of the decisions become easier.
+SPEAKER_00: Where does it stop working?
+SPEAKER_01: Outside of the RockShox-level tools, it's more difficult to detect the failure. Once you understand that, the rest of the decisions become easier.
+SPEAKER_00: Let's change the subject – I want to dedicate the final section to the management of territory.
+SPEAKER_01: That's where the conversation gets interesting, because the issues surrounding land management permeate everything we've discussed.
+SPEAKER_00: I want to delve deeper into that. What is the opposing viewpoint that most listeners don't have access to?
+SPEAKER_01: In essence, drainage is the design decision that has the biggest impact on any trail. We've seen this with teams that use RockShox products. If you ignore this, you'll end up having to rebuild everything from scratch a year later.
+SPEAKER_00: What is the failure mode? What is the most underestimated aspect of trail construction?
+SPEAKER_01: Honestly, the most common mistake that new builders make is excavating with too steep a slope. The context is important because it tells you what commitments you are making.
+SPEAKER_00: Before we finish, what's one thing listeners can try out this week?
+SPEAKER_01: Choose one of the ideas we discussed and apply it for two weeks. Everything else is iteration.
+SPEAKER_00: And to finish, a big thank you to our partners at Linear. Linear is the issue tracker designed for speed – built for the keyboard. Check it out at linear.com. Rafael Vasconcelos, thank you for the conversation.
+SPEAKER_01: Thank you, Beatriz.
+SPEAKER_00: That's all for today on "Trail Sessions." See you next time.

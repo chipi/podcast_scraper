@@ -1,0 +1,65 @@
+{
+  "callbacks": [
+    "Lena Hofmann war in der letzten Folge dabei und sagte, dass Reifendruck mehr z\u00e4hlt als Fahrwerksabstimmungen."
+  ],
+  "episode_id": "p13_e03",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "native_ad"
+  ],
+  "guest_accent": "de-DE",
+  "host_accent": "de-DE",
+  "host_canonical_name": "Katrin Vogel",
+  "podcast_id": "p13",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p13:Jonas",
+  "primary_guest_canonical_name": "Jonas Richter",
+  "primary_guest_surface_in_transcript": "Jonas Richter",
+  "primary_topic": "topic:drivetrain-mechanics",
+  "publish_date": "2026-07-02",
+  "publish_offset_days": 913,
+  "secondary_topics": [
+    "topic:maintenance",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Notion",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Linear",
+      "kind": "native_ad",
+      "line_index": 30,
+      "note": "Host-read native ad \u2014 no canonical 'brought to you by' marker."
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 34
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 67
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p13:Jonas",
+      "kind": "canonical",
+      "surface": "Jonas Richter"
+    },
+    {
+      "canonical_id": "p13:Lena",
+      "kind": "canonical",
+      "surface": "Lena Hofmann"
+    },
+    {
+      "canonical_id": "p13:Stefan",
+      "kind": "canonical",
+      "surface": "Stefan Brandt"
+    }
+  ]
+}

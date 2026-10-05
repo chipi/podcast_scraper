@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 307,
+  "postroll_cut_start": null,
+  "chars_removed": 762,
+  "preroll_pattern_hits": 5,
+  "postroll_pattern_hits": 5,
+  "source_length": 6655,
+  "excised_ranges": [
+    [
+      0,
+      307
+    ],
+    [
+      2182,
+      2637
+    ]
+  ],
+  "excised_texts": [
+    "Camille Dubois: Welcome back to Sessions Sentier. Today, we're talking about enduro racing, and I'm joined by \u00c9lodie Chevalier, an enduro rider and coach. \u00c9lodie Chevalier, thank you for being here.\n\u00c9lodie Chevalier: Thank you, Camille. Glad to be back.\nCamille Dubois: This episode is sponsored by Linear. ",
+    "Once you've internalized that, the rest of the decisions become easier.\nCamille Dubois: Before we continue, please support the program by visiting the website of our sponsor. Strava is the home of athletes. We'll be right back after a short commercial break.\nSPEAKER_02: This episode is sponsored by Notion. Notion replaces the dozen tools your team is only half using. Visit notion.com/podcast for a free trial.\nCamille Dubois: Welcome back to the show. "
+  ]
+}

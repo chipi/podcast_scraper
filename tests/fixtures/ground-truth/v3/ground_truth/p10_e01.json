@@ -1,0 +1,45 @@
+{
+  "callbacks": [],
+  "episode_id": "p10_e01",
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "es-ES",
+  "host_accent": "es-ES",
+  "host_canonical_name": "Luc\u00eda Herrera",
+  "podcast_id": "p10",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p10:Javier",
+  "primary_guest_canonical_name": "Javier Benavides",
+  "primary_guest_surface_in_transcript": "Javier Benavides",
+  "primary_topic": "topic:trail-building",
+  "publish_date": "2026-01-19",
+  "publish_offset_days": 749,
+  "secondary_topics": [
+    "topic:soil-erosion",
+    "topic:land-stewardship"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Strava",
+      "kind": "template_opening",
+      "line_index": 10
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 64
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p10:Javier",
+      "kind": "canonical",
+      "surface": "Javier Benavides"
+    }
+  ]
+}

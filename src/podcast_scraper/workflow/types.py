@@ -58,6 +58,10 @@ class HostDetectionResult(NamedTuple):
     #: once per run so every candidate filter in it judges against the same evidence (#2220).
     #: ``None`` outside a corpus — the filters then behave exactly as before.
     kind_votes: Any = None
+    #: The FEED's declared language, carried so the per-episode host pool is person-checked with
+    #: that language's reject vocabulary as well as English's — the descriptions it reads are never
+    #: translated, so "Anfitrión Miguel" arrives in Spanish. ``None`` = English only, as before.
+    language: Optional[str] = None
 
 
 @dataclass

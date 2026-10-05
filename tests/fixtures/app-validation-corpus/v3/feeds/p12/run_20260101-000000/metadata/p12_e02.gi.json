@@ -1,0 +1,299 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "insight:d032203387f747ee",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "insight:2c050f9f90c4d7a3",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "insight:83af90ed0e3d819b",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:59f5a11cbb25f905",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d032203387f747ee",
+      "to": "quote:59f5a11cbb25f905",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5a88ed21f97c577d",
+      "to": "person:elodie-chevalier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2c050f9f90c4d7a3",
+      "to": "quote:5a88ed21f97c577d",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1f9db99af720d988",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:83af90ed0e3d819b",
+      "to": "quote:1f9db99af720d988",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e3cbf0fde763fc16",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:d032203387f747ee",
+      "to": "quote:e3cbf0fde763fc16",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:6fe5d085e1460f53",
+      "to": "person:elodie-chevalier",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:2c050f9f90c4d7a3",
+      "to": "quote:6fe5d085e1460f53",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:fc7497c4f677c667",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:83af90ed0e3d819b",
+      "to": "quote:fc7497c4f677c667",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:d032203387f747ee",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:2c050f9f90c4d7a3",
+      "to": "person:elodie-chevalier",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:83af90ed0e3d819b",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-16fcdef77d624069",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-16fcdef77d624069",
+      "properties": {
+        "duration_ms": 364000,
+        "feed_id": "p12",
+        "podcast_id": "p12",
+        "publish_date": "2025-12-25T00:00:00",
+        "title": "Le Pilotage Enduro Sans le Battage"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:d032203387f747ee",
+      "properties": {
+        "episode_id": "ep-16fcdef77d624069",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Bienvenue \u00e0 nouveau dans Sessions Sentier. Aujourd'hui on parle de courses d'enduro, et je re\u00e7ois \u00c9lodie Chevalier, pilote d'enduro et entra\u00eeneuse. \u00c9lodie Chevalier, merci d'\u00eatre l\u00e0.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:2c050f9f90c4d7a3",
+      "properties": {
+        "episode_id": "ep-16fcdef77d624069",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Merci, Camille. Contente d'\u00eatre de retour.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:83af90ed0e3d819b",
+      "properties": {
+        "episode_id": "ep-16fcdef77d624069",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Avant d'entrer dans le vif \u2014 Julien Mercier \u00e9tait dans l'\u00e9mission et expliquait que le drainage est le choix de conception le plus d\u00e9terminant.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:camille-dubois",
+      "properties": {
+        "name": "Camille Dubois"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:59f5a11cbb25f905",
+      "properties": {
+        "char_end": 198,
+        "char_start": 16,
+        "episode_id": "ep-16fcdef77d624069",
+        "speaker_id": "person:speaker-01",
+        "text": "Bienvenue \u00e0 nouveau dans Sessions Sentier. Aujourd'hui on parle de courses d'enduro, et je re\u00e7ois \u00c9lodie Chevalier, pilote d'enduro et entra\u00eeneuse. \u00c9lodie Chevalier, merci d'\u00eatre l\u00e0.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p12_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:elodie-chevalier",
+      "properties": {
+        "name": "\u00c9lodie Chevalier"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:5a88ed21f97c577d",
+      "properties": {
+        "char_end": 259,
+        "char_start": 217,
+        "episode_id": "ep-16fcdef77d624069",
+        "speaker_id": "person:speaker-02",
+        "text": "Merci, Camille. Contente d'\u00eatre de retour.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p12_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1f9db99af720d988",
+      "properties": {
+        "char_end": 435,
+        "char_start": 276,
+        "episode_id": "ep-16fcdef77d624069",
+        "speaker_id": "person:speaker-01",
+        "text": "Cet \u00e9pisode est sponsoris\u00e9 par Linear. Linear est le gestionnaire de tickets con\u00e7u pour la vitesse \u2014 pens\u00e9 pour le clavier. Essayez linear.com d\u00e8s aujourd'hui.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p12_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:e3cbf0fde763fc16",
+      "properties": {
+        "char_end": 578,
+        "char_start": 435,
+        "episode_id": "ep-16fcdef77d624069",
+        "speaker_id": "person:speaker-01",
+        "text": "Avant d'entrer dans le vif \u2014 Julien Mercier \u00e9tait dans l'\u00e9mission et expliquait que le drainage est le choix de conception le plus d\u00e9terminant.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p12_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:6fe5d085e1460f53",
+      "properties": {
+        "char_end": 656,
+        "char_start": 597,
+        "episode_id": "ep-16fcdef77d624069",
+        "speaker_id": "person:speaker-02",
+        "text": "Oui, exactement. Et \u00e7a rejoint ce qu'on couvre aujourd'hui.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p12_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:fc7497c4f677c667",
+      "properties": {
+        "char_end": 775,
+        "char_start": 673,
+        "episode_id": "ep-16fcdef77d624069",
+        "speaker_id": "person:speaker-01",
+        "text": "Je veux signaler une chose \u2014 Julien Mercier a mentionn\u00e9 cette m\u00eame dynamique il y a quelques \u00e9pisodes.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p12_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

@@ -1,0 +1,299 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "insight:da2dbaed7d11f57f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "insight:ea630778dedbc918",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "insight:7cba6ed61ec0cb5c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:92acedd55b09bfab",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:da2dbaed7d11f57f",
+      "to": "quote:92acedd55b09bfab",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c1172bca36ec7e04",
+      "to": "person:tiago-moreira",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ea630778dedbc918",
+      "to": "quote:c1172bca36ec7e04",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c10db3095312515e",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7cba6ed61ec0cb5c",
+      "to": "quote:c10db3095312515e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:9afb39f257a45495",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:da2dbaed7d11f57f",
+      "to": "quote:9afb39f257a45495",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:f969a4848c03d611",
+      "to": "person:tiago-moreira",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:ea630778dedbc918",
+      "to": "quote:f969a4848c03d611",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:bfd3e00bb0941da1",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7cba6ed61ec0cb5c",
+      "to": "quote:bfd3e00bb0941da1",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:da2dbaed7d11f57f",
+      "to": "person:beatriz-antunes",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:ea630778dedbc918",
+      "to": "person:tiago-moreira",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:7cba6ed61ec0cb5c",
+      "to": "person:beatriz-antunes",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-1d733f650ad9bff9",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-1d733f650ad9bff9",
+      "properties": {
+        "duration_ms": 422000,
+        "feed_id": "p14",
+        "podcast_id": "p14",
+        "publish_date": "2025-12-18T00:00:00",
+        "title": "A Mec\u00e2nica de Uma Bicicleta Silenciosa e R\u00e1pida"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:da2dbaed7d11f57f",
+      "properties": {
+        "episode_id": "ep-1d733f650ad9bff9",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Bem-vindos de novo \u00e0s Sess\u00f5es de Trilha. Hoje falamos de mec\u00e2nica de transmiss\u00e3o, e comigo est\u00e1 Tiago Moreira, mec\u00e2nico na Spoke & Wrench. Tiago Moreira, obrigada por estares aqui.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:ea630778dedbc918",
+      "properties": {
+        "episode_id": "ep-1d733f650ad9bff9",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Obrigado, Beatriz. Contente de estar de volta.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:7cba6ed61ec0cb5c",
+      "properties": {
+        "episode_id": "ep-1d733f650ad9bff9",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "O epis\u00f3dio de hoje \u00e9 patrocinado pela Notion. A Notion substitui a d\u00fazia de ferramentas que a tua equipa usa a meio. Experimenta notion.com hoje.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:beatriz-antunes",
+      "properties": {
+        "name": "Beatriz Antunes"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:92acedd55b09bfab",
+      "properties": {
+        "char_end": 197,
+        "char_start": 17,
+        "episode_id": "ep-1d733f650ad9bff9",
+        "speaker_id": "person:speaker-01",
+        "text": "Bem-vindos de novo \u00e0s Sess\u00f5es de Trilha. Hoje falamos de mec\u00e2nica de transmiss\u00e3o, e comigo est\u00e1 Tiago Moreira, mec\u00e2nico na Spoke & Wrench. Tiago Moreira, obrigada por estares aqui.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p14_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:tiago-moreira",
+      "properties": {
+        "name": "Tiago Moreira"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c1172bca36ec7e04",
+      "properties": {
+        "char_end": 259,
+        "char_start": 213,
+        "episode_id": "ep-1d733f650ad9bff9",
+        "speaker_id": "person:speaker-02",
+        "text": "Obrigado, Beatriz. Contente de estar de volta.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p14_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c10db3095312515e",
+      "properties": {
+        "char_end": 422,
+        "char_start": 277,
+        "episode_id": "ep-1d733f650ad9bff9",
+        "speaker_id": "person:speaker-01",
+        "text": "O epis\u00f3dio de hoje \u00e9 patrocinado pela Notion. A Notion substitui a d\u00fazia de ferramentas que a tua equipa usa a meio. Experimenta notion.com hoje.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p14_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:9afb39f257a45495",
+      "properties": {
+        "char_end": 572,
+        "char_start": 422,
+        "episode_id": "ep-1d733f650ad9bff9",
+        "speaker_id": "person:speaker-01",
+        "text": "Antes de entrarmos no assunto \u2014 a In\u00eas Carvalho esteve no epis\u00f3dio anterior a dizer que a press\u00e3o dos pneus conta mais do que os ajustes de suspens\u00e3o.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p14_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:f969a4848c03d611",
+      "properties": {
+        "char_end": 640,
+        "char_start": 588,
+        "episode_id": "ep-1d733f650ad9bff9",
+        "speaker_id": "person:speaker-02",
+        "text": "Sim, exatamente. E liga-se ao que vamos cobrir hoje.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p14_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:bfd3e00bb0941da1",
+      "properties": {
+        "char_end": 752,
+        "char_start": 658,
+        "episode_id": "ep-1d733f650ad9bff9",
+        "speaker_id": "person:speaker-01",
+        "text": "Quero assinalar uma coisa \u2014 a In\u00eas Carvalho mencionou esta mesma din\u00e2mica h\u00e1 alguns epis\u00f3dios.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p14_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

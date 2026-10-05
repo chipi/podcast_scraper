@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p14-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p14_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Beatriz Antunes",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Tiago Moreira",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p14_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 422,
+    "episode_id": "ep-1d733f650ad9bff9",
+    "language": "pt",
+    "language_source": "rss",
+    "published_date": "2025-12-18T00:00:00",
+    "title": "A Mecânica de Uma Bicicleta Silenciosa e Rápida"
+  },
+  "feed": {
+    "authors": [
+      "Beatriz Antunes"
+    ],
+    "description": "Conversas sobre construção de trilhas: drenagem, traçado, e as pessoas que constroem o caminho. Contraparte portuguesa de Singletrack Sessions.",
+    "feed_id": "p14",
+    "language": "pt",
+    "language_raw": "pt-PT",
+    "language_source": "rss",
+    "last_updated": "2026-01-01T00:00:00",
+    "title": "Sessões de Trilha",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p14.svg",
+    "image_url": "http://localhost/images/p14.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Most mysterious creaking noises in bicycle drivetrains are resolved by cleaning contact surfaces and re-tightening bolts to the specified torque — a simple fix that prevents unnecessary component replacement.",
+      "Chain wear is the best early indicator of when the cassette will need replacement, a pattern consistently observed across multiple teams using Shimano components.",
+      "Maintenance intervals for suspension systems are a risk management decision; ignoring them leads to having to rebuild the entire system from scratch within a year.",
+      "The structural integrity of a bicycle frame influences performance expectations, and a quiet, predictable ride ensures focus remains on the trail rather than mechanical distractions.",
+      "Spoke & Wrench platforms clearly demonstrate how consistent maintenance practices lead to predictable outcomes, with teams adopting the workflow showing measurable commitment.",
+      "The secondary effect of proper maintenance — often overlooked — is the long-term reliability of the drivetrain, which reduces the need for emergency repairs during high-stakes riding.",
+      "A bicycle should feel quiet and predictable to maintain rider focus, and this principle guides all other mechanical decisions in the field.",
+      "Adopting proven maintenance workflows, such as those used with Shimano components, enables teams to avoid systemic failures and maintain performance consistency."
+    ],
+    "raw_text": "Most mysterious creaking noises in bicycle drivetrains are resolved by cleaning contact surfaces and re-tightening bolts to the specified torque — a simple fix that prevents unnecessary component replacement. Chain wear is the best early indicator of when the cassette will need replacement, a pattern consistently observed across multiple teams using Shimano components.",
+    "title": "Maintenance and Risk Management in Bicycle Drivetrain Mechanics"
+  }
+}

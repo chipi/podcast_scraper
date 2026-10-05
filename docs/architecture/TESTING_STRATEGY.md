@@ -71,6 +71,19 @@ The testing strategy follows a three-tier pyramid:
 | **Frontend unit** | TypeScript utility logic (parsing, merge, metrics) | Node (Vitest) | N/A | Vitest + inline fixtures | N/A |
 | **Browser UI E2E** | Vue viewer in a real browser | Browser (Playwright) | Vite dev server (local) | Playwright + fixture JSON | N/A (no Python ML in UI tests) |
 
+> **"ML/AI Models: Mocked" does not cover the vector store.** The table above predates LanceDB
+> search and reads as if every `[search]` dependency were an ML model. It is not: `lancedb` and
+> `pyarrow` are **storage and serialisation** — a database in a temp directory, which the
+> Filesystem column already says is real at the integration layer — while
+> `sentence-transformers`/`torch` are a real **model**. `pyproject` makes the same split
+> deliberately, keeping `lancedb` out of `[ml]` because it is "search-only … never by transcription
+> / summarization / GI". So: a real LanceDB table is integration-legal behind
+> `pytest.importorskip("lancedb")`; computing a real embedding needs
+> `@requires("sentence_transformers")` or belongs in E2E. Unit tests touch neither — across 20 unit
+> files that reference search, none instantiates a backend, mocked or otherwise. Full rules and the
+> CI dependency matrix: [Integration Testing Guide — Search and the vector
+> store](../guides/INTEGRATION_TESTING_GUIDE.md#search-and-the-vector-store).
+
 **Frontend unit** tests use **Vitest** (`make test-ui`) to validate pure TS logic in
 `web/gi-kg-viewer/src/utils/*.test.ts` — fast (~150 ms), no browser.
 **Browser UI E2E** is an **additive** layer: it uses **Playwright** under `web/gi-kg-viewer/`, not pytest, and is **not** counted in the ~230 pytest E2E tests. See **[Browser UI E2E (Playwright)](#browser-ui-e2e-playwright)** below and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).

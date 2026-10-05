@@ -1,0 +1,58 @@
+{
+  "callbacks": [
+    "Julien Mercier \u00e9tait dans l'\u00e9mission et expliquait que le drainage est le choix de conception le plus d\u00e9terminant."
+  ],
+  "episode_id": "p12_e02",
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "fr-FR",
+  "host_accent": "fr-FR",
+  "host_canonical_name": "Camille Dubois",
+  "podcast_id": "p12",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p12:\u00c9lodie",
+  "primary_guest_canonical_name": "\u00c9lodie Chevalier",
+  "primary_guest_surface_in_transcript": "\u00c9lodie Chevalier",
+  "primary_topic": "topic:enduro-racing",
+  "publish_date": "2026-03-11",
+  "publish_offset_days": 800,
+  "secondary_topics": [
+    "topic:soil-erosion",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Linear",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Strava",
+      "kind": "native_ad",
+      "line_index": 29,
+      "note": "Host-read native ad \u2014 no canonical 'brought to you by' marker."
+    },
+    {
+      "brand": "Notion",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Vanta",
+      "kind": "template_closing",
+      "line_index": 66
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p12:\u00c9lodie",
+      "kind": "canonical",
+      "surface": "\u00c9lodie Chevalier"
+    },
+    {
+      "canonical_id": "p12:Julien",
+      "kind": "canonical",
+      "surface": "Julien Mercier"
+    }
+  ]
+}

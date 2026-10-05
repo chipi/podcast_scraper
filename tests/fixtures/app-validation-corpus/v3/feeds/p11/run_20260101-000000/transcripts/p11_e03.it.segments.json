@@ -1,0 +1,345 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Giulia Ferrara",
+    "start": 0.0,
+    "text": "Bentornati a Sentieri d'Autore. Oggi parliamo di meccanica della trasmissione, e con me c'\u00e8 Luca Moretti, meccanico da Spoke & Wrench. Luca Moretti, grazie per essere qui."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Luca Moretti",
+    "start": 6.0,
+    "text": "Grazie, Giulia. Felice di essere di nuovo qui."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Giulia Ferrara",
+    "start": 12.0,
+    "text": "Questo episodio \u00e8 sponsorizzato da Notion. Notion sostituisce la dozzina di strumenti che il tuo team usa a met\u00e0. Prova notion.com oggi."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Giulia Ferrara",
+    "start": 18.0,
+    "text": "Prima di entrare nel merito \u2014 Chiara Ricci era ospite nell'episodio scorso e diceva che la pressione delle gomme conta pi\u00f9 delle regolazioni delle sospensioni."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Luca Moretti",
+    "start": 24.0,
+    "text": "S\u00ec, esatto. E si collega a quello che copriamo oggi."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Giulia Ferrara",
+    "start": 30.0,
+    "text": "Voglio segnalare una cosa \u2014 Chiara Ricci ha menzionato la stessa dinamica un paio di episodi fa."
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Giulia Ferrara",
+    "start": 36.0,
+    "text": "Voglio segnalare una cosa \u2014 Marco Bellini ha menzionato la stessa dinamica un paio di episodi fa."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Giulia Ferrara",
+    "start": 42.0,
+    "text": "Voglio approfondire. Cosa credevi su questo tema e hai poi rivisto?"
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Luca Moretti",
+    "start": 48.0,
+    "text": "Si riduce a questo: la maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Spoke & Wrench. L'inquadratura conta perch\u00e9 ti dice quali compromessi stai facendo."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Giulia Ferrara",
+    "start": 54.0,
+    "text": "\u00c8 un'inquadratura utile. Dove si incrociano la manutenzione e la meccanica della trasmissione?"
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Luca Moretti",
+    "start": 60.0,
+    "text": "Io la vedo cos\u00ec. Una bici dovrebbe sembrare silenziosa e prevedibile cos\u00ec la tua attenzione resta sul sentiero. E l'effetto di secondo ordine \u00e8 la parte che quasi tutti si perdono."
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Giulia Ferrara",
+    "start": 66.0,
+    "text": "Voglio approfondire. Qual \u00e8 il taglio strutturale a cui la maggior parte degli ascoltatori non ha accesso?"
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Luca Moretti",
+    "start": 72.0,
+    "text": "Certo. L'usura della catena \u00e8 il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Spoke & Wrench. L'inquadratura conta perch\u00e9 ti dice quali compromessi stai facendo."
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Giulia Ferrara",
+    "start": 78.0,
+    "text": "Dimmi di pi\u00f9."
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Luca Moretti",
+    "start": 84.0,
+    "text": "Spoke & Wrench \u00e8 una delle piattaforme dove questo emerge con chiarezza. Ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Giulia Ferrara",
+    "start": 90.0,
+    "text": "Raccontami come hai deciso. Come si inserisce RockShox in questo quadro?"
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Luca Moretti",
+    "start": 96.0,
+    "text": "Certo. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Giulia Ferrara",
+    "start": 102.0,
+    "text": "Sai cosa? Lo dico e basta: Linear gestisce tutta la mia operativit\u00e0 di ingegneria. Linear \u00e8 l'issue tracker fatto per la velocit\u00e0 \u2014 pensato per la tastiera. Usa il link nelle note dell'episodio."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Giulia Ferrara",
+    "start": 108.0,
+    "text": "Torniamo subito, dopo una breve pausa pubblicitaria."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Ad",
+    "start": 114.0,
+    "text": "Questo episodio \u00e8 sponsorizzato da Stripe. Stripe semplifica i pagamenti, sia che gestisci un marketplace o un business in abbonamento. Visita stripe.com/podcast per una prova gratuita."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Giulia Ferrara",
+    "start": 120.0,
+    "text": "Bentornati al programma."
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Giulia Ferrara",
+    "start": 126.0,
+    "text": "\u00c8 un'inquadratura utile. Dove si incrociano la manutenzione e la meccanica della trasmissione?"
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Luca Moretti",
+    "start": 132.0,
+    "text": "Io la vedo cos\u00ec. La maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Shimano. Ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Giulia Ferrara",
+    "start": 138.0,
+    "text": "Fammi un esempio concreto. Cosa credevi su questo tema e hai poi rivisto?"
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Luca Moretti",
+    "start": 144.0,
+    "text": "S\u00ec, allora \u2014 una bici dovrebbe sembrare silenziosa e prevedibile cos\u00ec la tua attenzione resta sul sentiero. Una volta che lo interiorizzi, il resto delle decisioni diventa pi\u00f9 facile."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Giulia Ferrara",
+    "start": 150.0,
+    "text": "Partiamo da l\u00ec. Cosa credevi su questo tema e hai poi rivisto?"
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Luca Moretti",
+    "start": 156.0,
+    "text": "Io la vedo cos\u00ec. L'usura della catena \u00e8 il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Shimano. Una volta che lo interiorizzi, il resto delle decisioni diventa pi\u00f9 facile."
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Giulia Ferrara",
+    "start": 162.0,
+    "text": "Torna."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Luca Moretti",
+    "start": 168.0,
+    "text": "E quando i team adottano Spoke & Wrench in quel flusso, il compromesso diventa visibile \u2014 se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Giulia Ferrara",
+    "start": 174.0,
+    "text": "Partiamo da l\u00ec. Qual \u00e8 il taglio operativo a cui la maggior parte degli ascoltatori non ha accesso?"
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Luca Moretti",
+    "start": 180.0,
+    "text": "Io la vedo cos\u00ec. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Giulia Ferrara",
+    "start": 186.0,
+    "text": "Cambiamo argomento \u2014 voglio dedicare l'ultimo tratto alla gestione del rischio."
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Luca Moretti",
+    "start": 192.0,
+    "text": "\u00c8 l\u00ec che la conversazione diventa interessante, perch\u00e9 i compromessi intorno alla gestione del rischio attraversano tutto quello che abbiamo coperto."
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Giulia Ferrara",
+    "start": 198.0,
+    "text": "Fammi un esempio concreto. Qual \u00e8 l'aspetto pi\u00f9 sottovalutato della meccanica della trasmissione?"
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Luca Moretti",
+    "start": 204.0,
+    "text": "Certo. La maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Spoke & Wrench. Ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Giulia Ferrara",
+    "start": 210.0,
+    "text": "\u00c8 un'inquadratura utile. Qual \u00e8 il taglio controcorrente a cui la maggior parte degli ascoltatori non ha accesso?"
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Luca Moretti",
+    "start": 216.0,
+    "text": "Si riduce a questo: una bici dovrebbe sembrare silenziosa e prevedibile cos\u00ec la tua attenzione resta sul sentiero. L'inquadratura conta perch\u00e9 ti dice quali compromessi stai facendo."
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Giulia Ferrara",
+    "start": 222.0,
+    "text": "Com'\u00e8 fatto il modo di guasto? Qual \u00e8 l'aspetto pi\u00f9 sottovalutato della meccanica della trasmissione?"
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Luca Moretti",
+    "start": 228.0,
+    "text": "Sinceramente, l'usura della catena \u00e8 il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Shimano. Ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Giulia Ferrara",
+    "start": 234.0,
+    "text": "Dove smette di funzionare?"
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Luca Moretti",
+    "start": 240.0,
+    "text": "E quando i team adottano Shimano in quel flusso, il compromesso diventa visibile \u2014 ho visto questo schema ripetersi in tre team diversi."
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Giulia Ferrara",
+    "start": 246.0,
+    "text": "Qual \u00e8 l'euristica a cui torni sempre? Dove si incrociano la manutenzione e la meccanica della trasmissione?"
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Luca Moretti",
+    "start": 252.0,
+    "text": "Sinceramente, gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. E l'effetto di secondo ordine \u00e8 la parte che quasi tutti si perdono."
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Giulia Ferrara",
+    "start": 258.0,
+    "text": "Prima di chiudere, qual \u00e8 una cosa che gli ascoltatori possono provare questa settimana?"
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Luca Moretti",
+    "start": 264.0,
+    "text": "Scegli una delle idee che abbiamo coperto e applicala per due settimane. Il resto \u00e8 iterazione."
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Giulia Ferrara",
+    "start": 270.0,
+    "text": "Prima di chiudere, grazie ancora ai nostri amici di Linear. Linear \u00e8 l'issue tracker fatto per la velocit\u00e0 \u2014 pensato per la tastiera."
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Giulia Ferrara",
+    "start": 276.0,
+    "text": "Luca Moretti, grazie per la conversazione."
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Luca Moretti",
+    "start": 282.0,
+    "text": "Grazie a te, Giulia."
+  },
+  {
+    "end": 294.0,
+    "id": 48,
+    "speaker_label": "Giulia Ferrara",
+    "start": 288.0,
+    "text": "\u00c8 tutto per l'episodio di oggi di Sentieri d'Autore. Ci vediamo la prossima volta."
+  }
+]

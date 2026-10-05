@@ -298,6 +298,7 @@ class TestSummarizationProviderErrorHandling(unittest.TestCase):
             auto_speakers=False,
             transcribe_missing=False,
             dry_run=False,  # Explicitly set to False to ensure provider initialization
+            feed_declared_language="en",  # #2283: else the feed is refused before providers
         )
 
         # Mock provider creation to raise exception

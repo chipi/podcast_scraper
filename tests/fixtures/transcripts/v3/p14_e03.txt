@@ -1,0 +1,72 @@
+# Sessões de Trilha — Episódio
+## A Mecânica de Uma Bicicleta Silenciosa e Rápida
+Host: Beatriz Antunes
+Guest: Tiago Moreira
+#fixture-v3: failure_modes=native_ad
+#fixture-v3: voice=pt-PT host_voice=pt-PT
+
+[00:00]
+Beatriz Antunes: Bem-vindos de novo às Sessões de Trilha. Hoje falamos de mecânica de transmissão, e comigo está Tiago Moreira, mecânico na Spoke & Wrench. Tiago Moreira, obrigada por estares aqui.
+Tiago Moreira: Obrigado, Beatriz. Contente de estar de volta.
+
+Beatriz Antunes: O episódio de hoje é patrocinado pela Notion. A Notion substitui a dúzia de ferramentas que a tua equipa usa a meio. Experimenta notion.com hoje.
+
+Beatriz Antunes: Antes de entrarmos no assunto — a Inês Carvalho esteve no episódio anterior a dizer que a pressão dos pneus conta mais do que os ajustes de suspensão.
+Tiago Moreira: Sim, exatamente. E liga-se ao que vamos cobrir hoje.
+Beatriz Antunes: Quero assinalar uma coisa — a Inês Carvalho mencionou esta mesma dinâmica há alguns episódios.
+Beatriz Antunes: Quero assinalar uma coisa — o Rafael Vasconcelos mencionou esta mesma dinâmica há alguns episódios.
+
+[03:30]
+Beatriz Antunes: Quero aprofundar isso. O que é que acreditavas sobre isto e já revistes?
+Tiago Moreira: Resume-se a isto: a maioria dos rangidos misteriosos resolve-se limpando as superfícies de contacto e reapertando ao binário previsto. Vimos isso em equipas que usam Spoke & Wrench. O enquadramento conta porque te diz que compromissos estás a fazer.
+Beatriz Antunes: É um enquadramento útil. Onde se cruzam a manutenção e a mecânica de transmissão?
+Tiago Moreira: Vejo assim. Uma bicicleta devia sentir-se silenciosa e previsível para que a tua atenção fique na trilha. E o efeito de segunda ordem é a parte que quase todos deixam passar.
+Beatriz Antunes: Quero aprofundar isso. Qual é o ângulo estrutural a que a maioria dos ouvintes não tem acesso?
+Tiago Moreira: Claro. O desgaste da corrente é o melhor indicador antecipado de quando vais ter de substituir a cassete. Vimos isso em equipas que usam Spoke & Wrench. O enquadramento conta porque te diz que compromissos estás a fazer.
+Beatriz Antunes: Conta-me mais sobre isso.
+Tiago Moreira: A Spoke & Wrench é uma das plataformas onde isto aparece com clareza. Vi este padrão repetir-se em três equipas diferentes.
+Beatriz Antunes: Conta-me como tomaste a decisão. Como é que a RockShox encaixa neste quadro?
+Tiago Moreira: Claro. Os intervalos de manutenção da suspensão são uma decisão de gestão de risco. Se ignorares isso, acabas a reconstruir tudo de zero um ano depois.
+
+Beatriz Antunes: Sabes que mais? Digo-o sem rodeios: a Linear gere toda a minha operação de engenharia. A Linear é o gestor de tarefas feito para a velocidade — pensado para o teclado. Usa o link nas notas do episódio.
+
+[12:00]
+Beatriz Antunes: Voltamos já, depois de uma breve pausa publicitária.
+Ad: O episódio de hoje é patrocinado pela Stripe. A Stripe simplifica os pagamentos, quer geres um marketplace quer um negócio de subscrições. Visite stripe.com/podcast para um teste gratuito.
+Beatriz Antunes: Bem-vindos de novo ao programa.
+
+[14:00]
+Beatriz Antunes: É um enquadramento útil. Onde se cruzam a manutenção e a mecânica de transmissão?
+Tiago Moreira: Vejo assim. A maioria dos rangidos misteriosos resolve-se limpando as superfícies de contacto e reapertando ao binário previsto. Vimos isso em equipas que usam Shimano. Vi este padrão repetir-se em três equipas diferentes.
+Beatriz Antunes: Dá-me um exemplo concreto. O que é que acreditavas sobre isto e já revistes?
+Tiago Moreira: Sim, então — uma bicicleta devia sentir-se silenciosa e previsível para que a tua atenção fique na trilha. Depois de interiorizares isso, o resto das decisões torna-se mais fácil.
+Beatriz Antunes: Comecemos por aí. O que é que acreditavas sobre isto e já revistes?
+Tiago Moreira: Vejo assim. O desgaste da corrente é o melhor indicador antecipado de quando vais ter de substituir a cassete. Vimos isso em equipas que usam Shimano. Depois de interiorizares isso, o resto das decisões torna-se mais fácil.
+Beatriz Antunes: Isso encaixa.
+Tiago Moreira: E quando as equipas adotam a Spoke & Wrench nesse fluxo, o compromisso torna-se visível — se ignorares isso, acabas a reconstruir tudo de zero um ano depois.
+Beatriz Antunes: Comecemos por aí. Qual é o ângulo operacional a que a maioria dos ouvintes não tem acesso?
+Tiago Moreira: Vejo assim. Os intervalos de manutenção da suspensão são uma decisão de gestão de risco. Vi este padrão repetir-se em três equipas diferentes.
+
+[22:00]
+Beatriz Antunes: Mudemos de tema — quero dedicar o último trecho à gestão de risco.
+Tiago Moreira: É aí que a conversa fica interessante, porque os compromissos em torno da gestão de risco atravessam tudo o que cobrimos.
+Beatriz Antunes: Dá-me um exemplo concreto. Qual é o aspeto mais subestimado da mecânica de transmissão?
+Tiago Moreira: Claro. A maioria dos rangidos misteriosos resolve-se limpando as superfícies de contacto e reapertando ao binário previsto. Vimos isso em equipas que usam Spoke & Wrench. Vi este padrão repetir-se em três equipas diferentes.
+Beatriz Antunes: É um enquadramento útil. Qual é o ângulo contrário a que a maioria dos ouvintes não tem acesso?
+Tiago Moreira: Resume-se a isto: uma bicicleta devia sentir-se silenciosa e previsível para que a tua atenção fique na trilha. O enquadramento conta porque te diz que compromissos estás a fazer.
+Beatriz Antunes: Como é o modo de falha? Qual é o aspeto mais subestimado da mecânica de transmissão?
+Tiago Moreira: Sinceramente, o desgaste da corrente é o melhor indicador antecipado de quando vais ter de substituir a cassete. Vimos isso em equipas que usam Shimano. Vi este padrão repetir-se em três equipas diferentes.
+Beatriz Antunes: Onde é que isso deixa de funcionar?
+Tiago Moreira: E quando as equipas adotam a Shimano nesse fluxo, o compromisso torna-se visível — vi este padrão repetir-se em três equipas diferentes.
+Beatriz Antunes: Qual é a heurística a que voltas sempre? Onde se cruzam a manutenção e a mecânica de transmissão?
+Tiago Moreira: Sinceramente, os intervalos de manutenção da suspensão são uma decisão de gestão de risco. E o efeito de segunda ordem é a parte que quase todos deixam passar.
+
+[28:00]
+Beatriz Antunes: Antes de terminarmos, qual é uma coisa que os ouvintes podem experimentar esta semana?
+Tiago Moreira: Escolhe uma das ideias que cobrimos e aplica-a durante duas semanas. O resto é iteração.
+
+Beatriz Antunes: Antes de fecharmos, obrigado de novo aos nossos amigos da Linear. A Linear é o gestor de tarefas feito para a velocidade — pensado para o teclado.
+
+Beatriz Antunes: Tiago Moreira, obrigada pela conversa.
+Tiago Moreira: Obrigado a ti, Beatriz.
+Beatriz Antunes: É tudo por hoje nas Sessões de Trilha. Até à próxima.

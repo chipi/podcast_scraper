@@ -338,6 +338,13 @@ class Metrics:
     llm_summarization_input_tokens: int = 0  # Total input tokens for summarization
     llm_summarization_output_tokens: int = 0  # Total output tokens for summarization
     llm_summarization_cost_usd: float = 0.0  # Accumulated summarization cost (Finding 20)
+    # Translation (RFC-124). A run translates MANY units per episode, unlike every other LLM
+    # operation here which is one-or-few calls per episode — so `calls` is the useful denominator
+    # for "average tokens per unit", and a run where calls >> episodes is normal, not a bug.
+    llm_translation_calls: int = 0
+    llm_translation_input_tokens: int = 0
+    llm_translation_output_tokens: int = 0
+    llm_translation_cost_usd: float = 0.0  # Local GPU: measured zeros, not unmeasured Nones
     # Transcript semantic cleaning (LLM path; pattern-only runs do not increment these)
     llm_cleaning_calls: int = 0
     llm_cleaning_input_tokens: int = 0
@@ -1019,6 +1026,25 @@ class Metrics:
         self.llm_summarization_output_tokens += output_tokens
         if cost_usd is not None:
             self.llm_summarization_cost_usd += float(cost_usd)
+
+    def record_llm_translation_call(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: Optional[float] = None,
+    ) -> None:
+        """Record one LLM translation call — ONE UNIT, not one episode (RFC-124 / S2.3).
+
+        An episode is roughly 200-250 units, so this counter climbs far faster than the other
+        LLM recorders. That is the point: per-unit token totals are what S2.10 needs to size
+        translation cost and capacity, and an episode-level counter would hide the distribution
+        that actually drives it.
+        """
+        self.llm_translation_calls += 1
+        self.llm_translation_input_tokens += input_tokens
+        self.llm_translation_output_tokens += output_tokens
+        if cost_usd is not None:
+            self.llm_translation_cost_usd += float(cost_usd)
 
     def record_llm_cleaning_call(
         self,
@@ -1880,6 +1906,10 @@ class Metrics:
             "llm_speaker_detection_avg_output_tokens_per_call": sp_out_avg,
             "llm_speaker_detection_cost_usd": round(self.llm_speaker_detection_cost_usd, 6),
             "llm_summarization_calls": self.llm_summarization_calls,
+            "llm_translation_calls": self.llm_translation_calls,
+            "llm_translation_input_tokens": self.llm_translation_input_tokens,
+            "llm_translation_output_tokens": self.llm_translation_output_tokens,
+            "llm_translation_cost_usd": round(self.llm_translation_cost_usd, 6),
             "llm_summarization_input_tokens": self.llm_summarization_input_tokens,
             "llm_summarization_output_tokens": self.llm_summarization_output_tokens,
             "llm_summarization_avg_input_tokens_per_call": sum_in_avg,

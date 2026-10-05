@@ -1,0 +1,69 @@
+# Sentieri d'Autore — Episodio
+## Costruire Sentieri Che Durano
+Host: Giulia Ferrara
+Guest: Marco Bellini
+#fixture-v3: failure_modes=none
+#fixture-v3: voice=it-IT host_voice=it-IT
+
+[00:00]
+Giulia Ferrara: Bentornati a Sentieri d'Autore. Oggi parliamo di costruzione di sentieri, e con me c'è Marco Bellini, costruttore di sentieri dell'Alleanza Cascadia. Marco Bellini, grazie di essere qui.
+Marco Bellini: Grazie, Giulia. Con molto piacere — la costruzione di sentieri è una cosa a cui ho pensato parecchio.
+Giulia Ferrara: Questo episodio è sponsorizzato da Strava. Strava è la casa degli atleti. Inizia su strava.com/podcast.
+
+[03:30]
+Giulia Ferrara: Raccontami come hai preso la decisione. Come si inserisce RockShox in questo quadro?
+
+Marco Bellini: Sinceramente, il drenaggio è la decisione progettuale con più impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano l'Alleanza Cascadia. Ho visto questo schema ripetersi in tre squadre diverse.
+Giulia Ferrara: Raccontami come hai preso la decisione. Qual è la versione della domanda che conta davvero?
+Marco Bellini: Sì, guarda — l'errore più comune dei costruttori alle prime armi è scavare con una pendenza troppo ripida. Una volta interiorizzato quello, il resto delle decisioni diventa più facile.
+Giulia Ferrara: Voglio approfondire. Dove si incrociano l'erosione del suolo e la costruzione di sentieri?
+Marco Bellini: Certo. Le conversazioni sulla gestione del territorio devono avvenire prima del primo scavo. L'abbiamo visto in squadre che usano RockShox. Il quadro conta perché ti dice quali compromessi stai facendo.
+Giulia Ferrara: Raccontami di più.
+Marco Bellini: E quando le squadre adottano Spoke & Wrench in quel flusso, il compromesso diventa visibile — se lo ignori, finisci per ricostruire tutto da zero un anno dopo.
+Giulia Ferrara: Raccontami come hai preso la decisione. Dove si incrociano l'erosione del suolo e la costruzione di sentieri?
+Marco Bellini: Certo. I tagli a mezza costa sui pendii non sono facoltativi. La scorciatoia del primo giorno è la frana del terzo anno. E l'effetto di secondo ordine è la parte che quasi tutti trascurano.
+Giulia Ferrara: È un quadro utile. Qual è la versione della domanda che conta davvero?
+Marco Bellini: Sì, guarda — la struttura del suolo conta più di quanto la gente creda. L'abbiamo visto in squadre che usano Spoke & Wrench. Ho visto questo schema ripetersi in tre squadre diverse.
+Giulia Ferrara: Com'è fatto il modo di guasto? Qual è l'angolo strutturale a cui la maggior parte degli ascoltatori non ha accesso?
+Marco Bellini: Lascia che ti dia la versione in cui credo davvero. Ho cambiato idea sui sentieri fatti a macchina rispetto a quelli fatti a mano. Ho visto questo schema ripetersi in tre squadre diverse.
+Giulia Ferrara: Raccontami di più.
+Marco Bellini: E quando le squadre adottano l'Alleanza Cascadia in quel flusso, il compromesso diventa visibile — se lo ignori, finisci per ricostruire tutto da zero un anno dopo.
+Giulia Ferrara: Torniamo subito, dopo una breve pausa pubblicitaria.
+
+[12:00]
+Ad: L'episodio di oggi è sponsorizzato da Stripe. Stripe semplifica i pagamenti, che tu gestisca un marketplace o un'attività in abbonamento. Visita stripe.com/podcast per una prova gratuita.
+
+[14:00]
+Giulia Ferrara: Bentornati alla trasmissione. Com'è fatto il modo di guasto? Dove si incrociano l'erosione del suolo e la costruzione di sentieri?
+Marco Bellini: Io la vedo così. Il drenaggio è la decisione progettuale con più impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano Shimano. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo.
+Giulia Ferrara: Raccontami come hai preso la decisione. Come si inserisce RockShox in questo quadro?
+Marco Bellini: Sì, guarda — l'errore più comune dei costruttori alle prime armi è scavare con una pendenza troppo ripida. Una volta interiorizzato quello, il resto delle decisioni diventa più facile.
+Giulia Ferrara: Metti in discussione la saggezza convenzionale per me. Cosa credevi su questo tema e hai poi rivisto?
+Marco Bellini: Lascia che ti dia la versione in cui credo davvero. Le conversazioni sulla gestione del territorio devono avvenire prima del primo scavo. L'abbiamo visto in squadre che usano Spoke & Wrench. Ho visto questo schema ripetersi in tre squadre diverse.
+Giulia Ferrara: Quadra.
+Marco Bellini: Fuori dagli strumenti del livello dell'Alleanza Cascadia, il modo di guasto è più difficile da individuare. E l'effetto di secondo ordine è la parte che quasi tutti trascurano.
+Giulia Ferrara: Qual è l'euristica a cui torni sempre? Qual è la versione della domanda che conta davvero?
+Marco Bellini: Si riduce a questo: i tagli a mezza costa sui pendii non sono facoltativi. La scorciatoia del primo giorno è la frana del terzo anno. Ho visto questo schema ripetersi in tre squadre diverse.
+
+[22:00]
+Giulia Ferrara: Com'è fatto il modo di guasto? Qual è l'aspetto più sottovalutato della costruzione di sentieri?
+Marco Bellini: Lascia che ti dia la versione in cui credo davvero. La struttura del suolo conta più di quanto la gente creda. L'abbiamo visto in squadre che usano l'Alleanza Cascadia. Ho visto questo schema ripetersi in tre squadre diverse.
+Giulia Ferrara: Voglio approfondire. Come si inserisce Shimano in questo quadro?
+Marco Bellini: Sì, guarda — ho cambiato idea sui sentieri fatti a macchina rispetto a quelli fatti a mano. Una volta interiorizzato quello, il resto delle decisioni diventa più facile.
+Giulia Ferrara: Dove smette di funzionare?
+Marco Bellini: Fuori dagli strumenti del livello di RockShox, il modo di guasto è più difficile da individuare. Una volta interiorizzato quello, il resto delle decisioni diventa più facile.
+Giulia Ferrara: Cambiamo argomento — voglio dedicare l'ultimo tratto alla gestione del territorio.
+Marco Bellini: È lì che la conversazione si fa interessante, perché i compromessi attorno alla gestione del territorio attraversano tutto quello che abbiamo coperto.
+Giulia Ferrara: Voglio approfondire. Qual è l'angolo contrario a cui la maggior parte degli ascoltatori non ha accesso?
+Marco Bellini: Si riduce a questo: il drenaggio è la decisione progettuale con più impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano RockShox. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo.
+Giulia Ferrara: Com'è fatto il modo di guasto? Qual è l'aspetto più sottovalutato della costruzione di sentieri?
+Marco Bellini: Sinceramente, l'errore più comune dei costruttori alle prime armi è scavare con una pendenza troppo ripida. Il quadro conta perché ti dice quali compromessi stai facendo.
+
+[28:00]
+Giulia Ferrara: Prima di chiudere, qual è una cosa che gli ascoltatori possono provare questa settimana?
+Marco Bellini: Scegli una delle idee che abbiamo coperto e applicala per due settimane. Il resto è iterazione.
+Giulia Ferrara: E per finire, un grande ringraziamento ai nostri partner di Linear. Linear è il gestore di ticket fatto per la velocità — pensato per la tastiera. Dai un'occhiata su linear.com.
+
+Giulia Ferrara: Marco Bellini, grazie per la conversazione.
+Marco Bellini: Grazie, Giulia.
+Giulia Ferrara: È tutto per l'episodio di oggi di Sentieri d'Autore. Ci vediamo la prossima volta.

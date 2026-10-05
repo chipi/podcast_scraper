@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p08_e02",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:cross-cutting-trade-offs",
+      "label": "cross-cutting trade-offs"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "label": "iteration practice"
+    },
+    {
+      "id": "topic:listener-perception",
+      "label": "listener perception"
+    },
+    {
+      "id": "topic:mispronunciation-signal",
+      "label": "mispronunciation signal"
+    },
+    {
+      "id": "topic:preparation-humility",
+      "label": "preparation humility"
+    },
+    {
+      "id": "topic:public-radio-conventions",
+      "label": "public radio conventions"
+    },
+    {
+      "id": "topic:second-order-effect",
+      "label": "second-order effect"
+    },
+    {
+      "id": "topic:team-consistency",
+      "label": "team consistency"
+    },
+    {
+      "id": "topic:trade-off-framing",
+      "label": "trade-off framing"
+    },
+    {
+      "id": "topic:voice-reliability",
+      "label": "voice reliability"
+    }
+  ]
+}

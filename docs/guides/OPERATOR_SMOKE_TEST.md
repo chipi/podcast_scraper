@@ -1,10 +1,16 @@
 # Operator surface — post-deploy live smoke test
 
-**Status:** shipped and wired; promoted out of `docs/wip/` on 2026-09-27 because
-`.github/workflows/deploy-operator.yml` cites it — a workflow must not depend on a doc
-that gets deleted when its arc ends. The smoke job drives
-`web/gi-kg-viewer/e2e/live/smoke.live.spec.ts` (unauthed) and `account.live.spec.ts`
-(authed creator + role boundary). §8 is the one-time operator setup and stays manual.
+**Status (2026-10-05): the operator host is CLOSED, and the smoke asserts exactly that.** The
+operator surface is tailnet-only (operator decision 2026-10-05); `infra/caddy/operator.caddy`
+answers every path with the coming-soon page. `web/gi-kg-viewer/e2e/live/smoke.live.spec.ts` now
+checks that `/`, `/preview`, the SPA, `/api/health`, the sign-in, `/api/app/*` (admin included)
+and `/api/feeds*` all return coming-soon, with or without the old preview basic-auth and cookie.
+It needs no secrets. `account.live.spec.ts` (authed creator + role boundary) was deleted with the
+gate: nothing past the edge is reachable to test.
+
+Everything below describes the smoke as it was while the host was open (2026-09-27 to
+2026-10-05). It is kept as the record of that design for when the host reopens; the setup in §8
+is not needed while the host is closed.
 **Surface:** `operator.closelistening.app` (the `gi-kg-viewer` SPA + `PODCAST_SERVE_OPERATOR_PUBLIC` backend)
 **Sibling:** mirrors the player post-deploy smoke (`docs/guides/PLAYER_PUBLIC_LAUNCH.md` → "Post-deploy live smoke"). This is the **third surface** (task #18) after the player public + per-user smoke.
 

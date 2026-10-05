@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p11_e03",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from the run's <ep>.kg.json Topic nodes",
+  "topics": [
+    {
+      "id": "topic:tire-pressure-importance",
+      "label": "tire pressure importance"
+    },
+    {
+      "id": "topic:maintenance-intervals",
+      "label": "maintenance intervals"
+    },
+    {
+      "id": "topic:chain-wear-indicator",
+      "label": "chain wear indicator"
+    },
+    {
+      "id": "topic:contact-surface-cleaning",
+      "label": "contact surface cleaning"
+    },
+    {
+      "id": "topic:transmission-mechanics",
+      "label": "transmission mechanics"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:component-reliability",
+      "label": "component reliability"
+    },
+    {
+      "id": "topic:predictable-bike-feel",
+      "label": "predictable bike feel"
+    },
+    {
+      "id": "topic:spoke-wrench-workflow",
+      "label": "spoke & wrench workflow"
+    },
+    {
+      "id": "topic:shimano-component-use",
+      "label": "shimano component use"
+    }
+  ]
+}

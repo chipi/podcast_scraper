@@ -36,6 +36,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-db8f44d2e07a22bd",
+      "target": "topic:bench-cuts",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-db8f44d2e07a22bd",
+      "target": "topic:drainage-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-db8f44d2e07a22bd",
+      "target": "topic:failure-mode-visibility",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-db8f44d2e07a22bd",
+      "target": "topic:grading-aggression",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-db8f44d2e07a22bd",
+      "target": "topic:machine-vs-hand-built-trails",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-db8f44d2e07a22bd",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-db8f44d2e07a22bd",
+      "target": "topic:soil-structure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-db8f44d2e07a22bd",
+      "target": "topic:tooling-platforms",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-db8f44d2e07a22bd",
+      "target": "topic:trail-longevity",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-db8f44d2e07a22bd",
       "to": "person:maya",
       "type": "MENTIONS"
@@ -115,6 +160,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:bench-cuts",
+      "properties": {
+        "label": "bench cuts",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:drainage-design",
+      "properties": {
+        "label": "drainage design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:failure-mode-visibility",
+      "properties": {
+        "label": "failure mode visibility",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:grading-aggression",
+      "properties": {
+        "label": "grading aggression",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:machine-vs-hand-built-trails",
+      "properties": {
+        "label": "machine vs hand built trails",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:soil-structure",
+      "properties": {
+        "label": "soil structure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tooling-platforms",
+      "properties": {
+        "label": "tooling platforms",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trail-longevity",
+      "properties": {
+        "label": "trail longevity",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

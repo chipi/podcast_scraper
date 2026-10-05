@@ -1,0 +1,299 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "insight:cfda9d5c9c6b2f8f",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "insight:502266bec606c53e",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "insight:7e61b50161a03c28",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:b4718b1edbccce2c",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cfda9d5c9c6b2f8f",
+      "to": "quote:b4718b1edbccce2c",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:0beb4d72d744e819",
+      "to": "person:mathieu-lefevre",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:502266bec606c53e",
+      "to": "quote:0beb4d72d744e819",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:4555268e4d516fc5",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7e61b50161a03c28",
+      "to": "quote:4555268e4d516fc5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8dc760bd57f2a49e",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:cfda9d5c9c6b2f8f",
+      "to": "quote:8dc760bd57f2a49e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:62ef845b8cda39a5",
+      "to": "person:mathieu-lefevre",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:502266bec606c53e",
+      "to": "quote:62ef845b8cda39a5",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5632fbd72c22e934",
+      "to": "person:camille-dubois",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7e61b50161a03c28",
+      "to": "quote:5632fbd72c22e934",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:cfda9d5c9c6b2f8f",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:502266bec606c53e",
+      "to": "person:mathieu-lefevre",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:7e61b50161a03c28",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-2e3fcd5d8c418fb4",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-2e3fcd5d8c418fb4",
+      "properties": {
+        "duration_ms": 375000,
+        "feed_id": "p12",
+        "podcast_id": "p12",
+        "publish_date": "2025-12-24T00:00:00",
+        "title": "La M\u00e9canique d'un V\u00e9lo Silencieux et Rapide"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:cfda9d5c9c6b2f8f",
+      "properties": {
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Bienvenue \u00e0 nouveau dans Sessions Sentier. Aujourd'hui on parle de m\u00e9canique de transmission, et je re\u00e7ois Mathieu Lef\u00e8vre, m\u00e9canicien chez Spoke & Wrench. Mathieu Lef\u00e8vre, merci d'\u00eatre l\u00e0.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:502266bec606c53e",
+      "properties": {
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Merci, Camille. Content d'\u00eatre de retour.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:7e61b50161a03c28",
+      "properties": {
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Avant d'entrer dans le vif \u2014 \u00c9lodie Chevalier \u00e9tait l\u00e0 \u00e0 l'\u00e9pisode pr\u00e9c\u00e9dent et disait que la pression des pneus compte plus que les r\u00e9glages de suspension.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:camille-dubois",
+      "properties": {
+        "name": "Camille Dubois"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:b4718b1edbccce2c",
+      "properties": {
+        "char_end": 205,
+        "char_start": 16,
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "speaker_id": "person:speaker-01",
+        "text": "Bienvenue \u00e0 nouveau dans Sessions Sentier. Aujourd'hui on parle de m\u00e9canique de transmission, et je re\u00e7ois Mathieu Lef\u00e8vre, m\u00e9canicien chez Spoke & Wrench. Mathieu Lef\u00e8vre, merci d'\u00eatre l\u00e0.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p12_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:mathieu-lefevre",
+      "properties": {
+        "name": "Mathieu Lef\u00e8vre"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:0beb4d72d744e819",
+      "properties": {
+        "char_end": 264,
+        "char_start": 223,
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "speaker_id": "person:speaker-02",
+        "text": "Merci, Camille. Content d'\u00eatre de retour.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p12_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:4555268e4d516fc5",
+      "properties": {
+        "char_end": 427,
+        "char_start": 281,
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "speaker_id": "person:speaker-01",
+        "text": "Cet \u00e9pisode est sponsoris\u00e9 par Notion. Notion remplace la douzaine d'outils que votre \u00e9quipe utilise \u00e0 moiti\u00e9. Essayez notion.com d\u00e8s aujourd'hui.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p12_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8dc760bd57f2a49e",
+      "properties": {
+        "char_end": 583,
+        "char_start": 427,
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "speaker_id": "person:speaker-01",
+        "text": "Avant d'entrer dans le vif \u2014 \u00c9lodie Chevalier \u00e9tait l\u00e0 \u00e0 l'\u00e9pisode pr\u00e9c\u00e9dent et disait que la pression des pneus compte plus que les r\u00e9glages de suspension.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p12_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:62ef845b8cda39a5",
+      "properties": {
+        "char_end": 660,
+        "char_start": 601,
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "speaker_id": "person:speaker-02",
+        "text": "Oui, exactement. Et \u00e7a rejoint ce qu'on couvre aujourd'hui.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p12_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:5632fbd72c22e934",
+      "properties": {
+        "char_end": 781,
+        "char_start": 677,
+        "episode_id": "ep-2e3fcd5d8c418fb4",
+        "speaker_id": "person:speaker-01",
+        "text": "Je veux signaler une chose \u2014 \u00c9lodie Chevalier a mentionn\u00e9 cette m\u00eame dynamique il y a quelques \u00e9pisodes.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p12_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

@@ -764,6 +764,21 @@ def configure_e2e_feed_limiting(request):
         yield
         return
 
+    # Snapshot what we are about to overwrite. `_allowed_podcasts` is CLASS-level state shared
+    # by every handler instance in the process, so leaving it set at teardown hands the next
+    # test whatever allowlist this one needed. The teardown below used to do exactly that,
+    # under a comment reading "don't reset allowed_podcasts - next test will set them" — an
+    # assumption that holds only for the tests this autouse fixture applies to, i.e. only for
+    # `tests/e2e/`. `tests/integration/infrastructure/` imports the `e2e_server` fixture
+    # directly and is NOT covered by this conftest, so those tests inherited the leftover set:
+    # they passed alone (class default `None` = allow all) and 404'd on
+    # /feeds/podcast1/feed.xml whenever any e2e test ran first, because the default mode's
+    # allowlist does not contain `podcast1`. An ordering-dependent 404 in a test whose whole
+    # subject is "is the RSS feed served" reads as a broken server, which is why this is
+    # restored rather than re-set to a default.
+    _prior_allowed = E2EHTTPRequestHandler.get_allowed_podcasts()
+    _prior_fast = E2EHTTPRequestHandler.get_use_fast_fixtures()
+
     # Get test run mode from environment variable (set by Makefile)
     test_mode = os.environ.get("E2E_TEST_MODE", "multi_episode").lower()
 
@@ -837,10 +852,12 @@ def configure_e2e_feed_limiting(request):
     # Reset on test teardown to ensure clean state
     yield
     if E2EHTTPRequestHandler is not None:
-        # Clear error behaviors only (don't reset allowed_podcasts - next test will set them)
         E2EHTTPRequestHandler.clear_all_error_behaviors()
-        # Reset to default fast fixtures mode for next test
-        E2EHTTPRequestHandler.set_use_fast_fixtures(True)
+        # RESTORE, do not re-set to a default: this fixture's mutations must not outlive the
+        # test, because the state is class-level and its consumers are not all in this
+        # directory. See the snapshot comment above for what "next test will set them" cost.
+        E2EHTTPRequestHandler.set_allowed_podcasts(_prior_allowed)
+        E2EHTTPRequestHandler.set_use_fast_fixtures(_prior_fast)
 
 
 @pytest.fixture(autouse=True)

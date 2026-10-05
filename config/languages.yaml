@@ -1,0 +1,166 @@
+# Which languages the pipeline will ingest, and what we know about each. (D-29, #2174)
+#
+# TWO COPIES, deliberately identical: this one and src/podcast_scraper/data/languages.yaml, the
+# wheel-bundled fallback for containers. If you edit one, copy it to the other — they are the
+# same document. tests/unit/podcast_scraper/test_packaged_data_files_present.py enforces it,
+# because the known_models pair had already drifted silently once.
+#
+# `enabled` is the gate. A language that is present here but not enabled is a language we have
+# described, not one we ingest: an episode resolving to it is SKIPPED with a reason (S0.8),
+# never transcribed as English. A language absent entirely is the same outcome by a different
+# route.
+#
+# `enabled` GATES INGEST AND NOTHING ELSE (S3.2, decided 2026-10-01). Turning it off for a
+# language that ALREADY has published episodes stops new ones arriving and leaves the existing
+# ones exactly as they are — still served, still searchable, still in the rails. That is on
+# purpose, for three reasons:
+#
+#   * a one-line edit to this file must not silently change what listeners can see; the blast
+#     radius of a typo here would otherwise be a content outage with no confirmation step;
+#   * filtering reads by language would break D-39 ("stages never branch by language") by putting
+#     a language branch into search, the rails, recommendations and the API;
+#   * rollback is an operator ACTION with a blast radius, so it gets a command with a dry run
+#     rather than a config state whose effect you discover later.
+#
+# To actually withdraw a language's published episodes from discovery, run the procedure in
+# src/podcast_scraper/language_withdrawal.py — it removes their SEARCH INDEX rows, leaves the
+# corpus untouched, and is therefore undone by an ordinary reindex. Read its docstring for what a
+# listener does and does not still see.
+#
+# `wer` is Whisper large-v3 FLEURS word error rate, %, from the published table (§6.2). It is
+# recorded to inform sequencing, NOT as a gate — the tiers below are ordered by editorial
+# intent, not by WER. Serbian at 33.9 sits in tier 2 because that is where it belongs
+# editorially; the number says it will need more care, not that it comes later.
+
+version: 1
+
+languages:
+  # --- enabled ---------------------------------------------------------------------------
+  en:
+    name: English
+    tier: 0
+    enabled: true
+    script: latin
+    wer: 4.2
+
+  # --- tier 1: the initial set. All Latin script, all under 10% WER. ----------------------
+  es:
+    name: Spanish
+    tier: 1
+    enabled: true
+    script: latin
+    wer: 3.0
+    # ENABLED 2026-09-30, the first language after English. `enabled` is the only gate there is
+    # (D-41: there is no feature flag), so this line is what makes a Spanish episode ingest,
+    # translate, and reach summary/GI/KG. Lowest WER of the tier-1 set (3.0 against English's
+    # 4.2) and the language the whole arc was built and measured against — V.6a's hazards,
+    # S2.10's 174 timed requests, ADR-157's model choice.
+    #
+    # What has to be true for this to be safe, and is: translation is deployed and reachable
+    # (`:8005`, ADR-157); the §5.3 completeness gate withholds `.en.*` from an incomplete
+    # translation so no English stage ever reads Spanish; naming runs AFTER translation (D-34)
+    # so guests are named and positions exist; ad excision runs on the English render, not the
+    # Spanish source (S2.7); and both chunk layers are indexed so a Spanish query reaches the
+    # episode (RFC-124 §6.2).
+  it:
+    name: Italian
+    tier: 1
+    enabled: true
+    script: latin
+    wer: 4.0
+  pt:
+    name: Portuguese
+    tier: 1
+    enabled: true
+    script: latin
+    wer: 4.3
+  de:
+    name: German
+    tier: 1
+    enabled: true
+    script: latin
+    wer: 4.5
+  nl:
+    name: Dutch
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 6.7
+  ca:
+    name: Catalan
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 7.3
+    # The one tier-1 language the chosen translator may not cover — see §6.1. Confirm before
+    # enabling, or pick the alternative model.
+  fr:
+    name: French
+    tier: 1
+    enabled: true
+    script: latin
+    wer: 8.3
+  sv:
+    name: Swedish
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 8.5
+  nb:
+    name: Norwegian
+    tier: 1
+    enabled: false
+    script: latin
+    wer: 9.5
+
+  # --- tier 2: Eastern Europe. Introduces Cyrillic. --------------------------------------
+  ru:
+    name: Russian
+    tier: 2
+    enabled: false
+    script: cyrillic
+    wer: 5.6
+  ro:
+    name: Romanian
+    tier: 2
+    enabled: false
+    script: latin
+    wer: 14.4
+  bg:
+    name: Bulgarian
+    tier: 2
+    enabled: false
+    script: cyrillic
+    wer: 14.6
+  sr:
+    name: Serbian
+    tier: 2
+    enabled: false
+    script: cyrillic
+    wer: 33.9
+
+  # --- tier 3: Asia + Middle East. Needs the CJK prerequisites first. --------------------
+  ja:
+    name: Japanese
+    tier: 3
+    enabled: false
+    script: japanese
+    wer: 5.3
+  ko:
+    name: Korean
+    tier: 3
+    enabled: false
+    script: hangul
+    wer: 14.3
+  zh:
+    name: Chinese
+    tier: 3
+    enabled: false
+    script: han
+    wer: 14.7
+  ar:
+    name: Arabic
+    tier: 3
+    enabled: false
+    script: arabic
+    wer: 16.0

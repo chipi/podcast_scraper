@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p12-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p12_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Camille Dubois",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Élodie Chevalier",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p12_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 364,
+    "episode_id": "ep-16fcdef77d624069",
+    "language": "fr",
+    "language_source": "rss",
+    "published_date": "2025-12-25T00:00:00",
+    "title": "Le Pilotage Enduro Sans le Battage"
+  },
+  "feed": {
+    "authors": [
+      "Camille Dubois"
+    ],
+    "description": "Conversations sur la construction de sentiers : drainage, tracé, et les personnes qui construisent le chemin. Contrepartie française de Singletrack Sessions.",
+    "feed_id": "p12",
+    "language": "fr",
+    "language_raw": "fr-FR",
+    "language_source": "rss",
+    "last_updated": "2025-12-25T00:00:00",
+    "title": "Sessions Sentier",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p12.svg",
+    "image_url": "http://localhost/images/p12.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Tire pressure and casing selection matter more than minor suspension adjustments, directly influencing performance and durability on technical terrain.",
+      "Risk management in enduro racing is not about avoiding crashes entirely but about choosing which crashes are survivable through strategic preparation.",
+      "Increased speed comes from braking earlier and more gently — a counterintuitive principle that reduces mechanical stress and improves control.",
+      "Erosion patterns on special stages alter the optimal racing line between reconnaissance and race day, requiring adaptive line selection based on real-time terrain feedback.",
+      "Teams using RockShox demonstrate a repeatable pattern: consistent setup choices lead to stable performance outcomes and reduced need for post-race rebuilds.",
+      "The Cascadia Alliance highlights a second-order effect where system-wide decisions ripple across team workflows, often overlooked by external auditors.",
+      "Adopting Spoke & Wrench within team workflows reveals a clear trade-off: improved data integration enables better risk assessment and decision-making.",
+      "Applying one key insight from the episode — such as adjusting for erosion patterns — over two weeks enables meaningful iteration and performance gains."
+    ],
+    "raw_text": "Tire pressure and casing selection matter more than minor suspension adjustments, directly influencing performance and durability on technical terrain. Risk management in enduro racing is not about avoiding crashes entirely but about choosing which crashes are survivable through strategic preparation.",
+    "title": "Enduro Racing: Risk, Erosion, and the Weight of Tire Choices"
+  }
+}

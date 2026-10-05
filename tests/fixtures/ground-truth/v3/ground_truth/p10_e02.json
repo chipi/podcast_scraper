@@ -1,0 +1,58 @@
+{
+  "callbacks": [
+    "Javier Benavides estuvo en el programa contando que el drenaje es la decisi\u00f3n de dise\u00f1o con m\u00e1s impacto."
+  ],
+  "episode_id": "p10_e02",
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "es-ES",
+  "host_accent": "es-ES",
+  "host_canonical_name": "Luc\u00eda Herrera",
+  "podcast_id": "p10",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p10:Marta",
+  "primary_guest_canonical_name": "Marta Sol\u00eds",
+  "primary_guest_surface_in_transcript": "Marta Sol\u00eds",
+  "primary_topic": "topic:enduro-racing",
+  "publish_date": "2026-04-19",
+  "publish_offset_days": 839,
+  "secondary_topics": [
+    "topic:soil-erosion",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Linear",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Strava",
+      "kind": "native_ad",
+      "line_index": 29,
+      "note": "Host-read native ad \u2014 no canonical 'brought to you by' marker."
+    },
+    {
+      "brand": "Notion",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Vanta",
+      "kind": "template_closing",
+      "line_index": 66
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p10:Marta",
+      "kind": "canonical",
+      "surface": "Marta Sol\u00eds"
+    },
+    {
+      "canonical_id": "p10:Javier",
+      "kind": "canonical",
+      "surface": "Javier Benavides"
+    }
+  ]
+}

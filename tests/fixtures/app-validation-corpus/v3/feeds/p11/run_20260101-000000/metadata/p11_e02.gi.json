@@ -1,0 +1,299 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "insight:c69f9f03f0ab1139",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "insight:3211dca92f6ea6e2",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "insight:855caaf55d033eef",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:7ff8d1bf0e593498",
+      "to": "person:giulia-ferrara",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c69f9f03f0ab1139",
+      "to": "quote:7ff8d1bf0e593498",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:5113963f112b5511",
+      "to": "person:chiara-ricci",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3211dca92f6ea6e2",
+      "to": "quote:5113963f112b5511",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:12171e695e425399",
+      "to": "person:giulia-ferrara",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:855caaf55d033eef",
+      "to": "quote:12171e695e425399",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8b400b3418bad3cc",
+      "to": "person:giulia-ferrara",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:c69f9f03f0ab1139",
+      "to": "quote:8b400b3418bad3cc",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c964e7cf638d3b9e",
+      "to": "person:chiara-ricci",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3211dca92f6ea6e2",
+      "to": "quote:c964e7cf638d3b9e",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:78fb8c686f2a8819",
+      "to": "person:giulia-ferrara",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:855caaf55d033eef",
+      "to": "quote:78fb8c686f2a8819",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:c69f9f03f0ab1139",
+      "to": "person:giulia-ferrara",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3211dca92f6ea6e2",
+      "to": "person:chiara-ricci",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:855caaf55d033eef",
+      "to": "person:giulia-ferrara",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-7ccfb108302b3faa",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-7ccfb108302b3faa",
+      "properties": {
+        "duration_ms": 353000,
+        "feed_id": "p11",
+        "podcast_id": "p11",
+        "publish_date": "2025-12-28T00:00:00",
+        "title": "Tecnica Enduro Senza Clamore"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:c69f9f03f0ab1139",
+      "properties": {
+        "episode_id": "ep-7ccfb108302b3faa",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Bentornati a Sentieri d'Autore. Oggi parliamo di gare di enduro, e con me c'\u00e8 Chiara Ricci, atleta di enduro e allenatrice. Chiara Ricci, grazie per essere qui.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3211dca92f6ea6e2",
+      "properties": {
+        "episode_id": "ep-7ccfb108302b3faa",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Grazie, Giulia. Felice di essere di nuovo qui.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:855caaf55d033eef",
+      "properties": {
+        "episode_id": "ep-7ccfb108302b3faa",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Prima di entrare nel merito \u2014 Marco Bellini \u00e8 stato ospite del programma e raccontava che il drenaggio \u00e8 la scelta di progetto con pi\u00f9 impatto.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:giulia-ferrara",
+      "properties": {
+        "name": "Giulia Ferrara"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:7ff8d1bf0e593498",
+      "properties": {
+        "char_end": 176,
+        "char_start": 16,
+        "episode_id": "ep-7ccfb108302b3faa",
+        "speaker_id": "person:speaker-01",
+        "text": "Bentornati a Sentieri d'Autore. Oggi parliamo di gare di enduro, e con me c'\u00e8 Chiara Ricci, atleta di enduro e allenatrice. Chiara Ricci, grazie per essere qui.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p11_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:chiara-ricci",
+      "properties": {
+        "name": "Chiara Ricci"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:5113963f112b5511",
+      "properties": {
+        "char_end": 237,
+        "char_start": 191,
+        "episode_id": "ep-7ccfb108302b3faa",
+        "speaker_id": "person:speaker-02",
+        "text": "Grazie, Giulia. Felice di essere di nuovo qui.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p11_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:12171e695e425399",
+      "properties": {
+        "char_end": 393,
+        "char_start": 254,
+        "episode_id": "ep-7ccfb108302b3faa",
+        "speaker_id": "person:speaker-01",
+        "text": "Questo episodio \u00e8 sponsorizzato da Linear. Linear \u00e8 l'issue tracker fatto per la velocit\u00e0 \u2014 pensato per la tastiera. Prova linear.com oggi.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p11_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8b400b3418bad3cc",
+      "properties": {
+        "char_end": 536,
+        "char_start": 393,
+        "episode_id": "ep-7ccfb108302b3faa",
+        "speaker_id": "person:speaker-01",
+        "text": "Prima di entrare nel merito \u2014 Marco Bellini \u00e8 stato ospite del programma e raccontava che il drenaggio \u00e8 la scelta di progetto con pi\u00f9 impatto.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p11_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:c964e7cf638d3b9e",
+      "properties": {
+        "char_end": 603,
+        "char_start": 551,
+        "episode_id": "ep-7ccfb108302b3faa",
+        "speaker_id": "person:speaker-02",
+        "text": "S\u00ec, esatto. E si collega a quello che copriamo oggi.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p11_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:78fb8c686f2a8819",
+      "properties": {
+        "char_end": 717,
+        "char_start": 620,
+        "episode_id": "ep-7ccfb108302b3faa",
+        "speaker_id": "person:speaker-01",
+        "text": "Voglio segnalare una cosa \u2014 Marco Bellini ha menzionato la stessa dinamica un paio di episodi fa.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p11_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

@@ -48,6 +48,11 @@ _OPERATOR_BASES = (
     # surface too, and were unguarded (gated only on the internal
     # jobs_api_enabled flag). Whole-codebase review 2026-07-17 (H5).
     "/api/enrichment",
+    # A compute job like its sibling /api/index/rebuild, and documented as operator-gated in
+    # HTTP_API.md — but it sat outside every base, so only the route's own
+    # `require_viewer_access` applied and a CREATOR could start it. Not a write-only base: it
+    # rebuilds a derived file, so it keeps the legacy network-only posture on a bare deploy.
+    "/api/corpus/topic-clusters/rebuild",
 )
 
 
@@ -99,16 +104,26 @@ def _valid_key(request: Request, key: str) -> bool:
     return bool(key) and hmac.compare_digest(request.headers.get("x-operator-key", ""), key)
 
 
-def _is_admin_session(request: Request, secret: str, data_dir: object) -> bool:
-    """True when the request's session cookie resolves to an enabled ``admin`` user."""
+def _admin_session_user_id(request: Request, secret: str, data_dir: object) -> str | None:
+    """The user id when the session cookie resolves to an enabled ``admin`` user, else ``None``.
+
+    Returns the id, not a bool, so the audit can record WHO made an operator change.
+    """
     if not secret or data_dir is None:
-        return False
+        return None
     payload = app_sessions.verify(request.cookies.get(app_sessions.SESSION_COOKIE), secret)
     user_id = payload.get("user_id") if payload else None
     if not user_id:
-        return False
+        return None
     user = get_user(Path(str(data_dir)), str(user_id))
-    return user is not None and not user.disabled and app_roles.is_admin(user.role)
+    if user is not None and not user.disabled and app_roles.is_admin(user.role):
+        return str(user_id)
+    return None
+
+
+def _is_admin_session(request: Request, secret: str, data_dir: object) -> bool:
+    """True when the request's session cookie resolves to an enabled ``admin`` user."""
+    return _admin_session_user_id(request, secret, data_dir) is not None
 
 
 class OperatorWriteGuard(BaseHTTPMiddleware):
@@ -149,13 +164,26 @@ class OperatorWriteGuard(BaseHTTPMiddleware):
         # The read key (APP_OPERATOR_READ_KEY) opens operator READS only: a monitor can list jobs
         # but can never start, cancel or delete anything with it.
         read_ok = not is_write and _valid_key(request, read_key)
-        if enforce and not (
-            _valid_key(request, key) or read_ok or _is_admin_session(request, secret, data_dir)
-        ):
+        # WHO, not just whether. The audit used to record `actor: "operator"` for every write, so
+        # a feeds.spec rewrite or a rollback could not be traced to a person or a key.
+        key_ok = _valid_key(request, key)
+        admin_id = None if key_ok else _admin_session_user_id(request, secret, data_dir)
+        if key_ok:
+            who: dict[str, object] = {"via": "operator_key"}
+        elif read_ok:
+            who = {"via": "operator_read_key"}
+        elif admin_id is not None:
+            who = {"via": "admin_session", "by": admin_id}
+        else:
+            who = {"via": "none"}
+        if enforce and not (key_ok or read_ok or admin_id is not None):
             if is_write:
-                append_audit(audit_path, {**base, "outcome": "denied"})
+                append_audit(audit_path, {**base, **who, "outcome": "denied"})
             return JSONResponse(status_code=403, content={"detail": "Admin access required."})
 
         if is_write:
-            append_audit(audit_path, {**base, "outcome": "allowed", "enforced": enforce})
+            append_audit(audit_path, {**base, **who, "outcome": "allowed", "enforced": enforce})
+        # Handed to the route, so a route that audits its own before/after (operator overrides)
+        # records the same WHO without re-deriving it.
+        request.state.operator_who = who
         return await call_next(request)

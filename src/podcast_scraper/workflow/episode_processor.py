@@ -22,6 +22,8 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from ..exceptions import ProviderError, ProviderRuntimeError
+from ..languages import transcription_language
+from ..languages_guard import is_target_language
 from ..preprocessing.audio.factory import preprocessing_fingerprint
 from ..rss import choose_transcript_url, downloader
 from ..rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
@@ -453,7 +455,9 @@ def download_media_for_transcription(
     # retranscript_only takes the same exit for the same reason: its input is the publisher's
     # transcript URL over the network, and downloading the audio it will never open would make
     # the cheap repair as expensive as the one it exists to avoid.
-    if cfg.pipeline_stage in ("relabel_only", "retranscript_only"):
+    # translate_only likewise: its input is the on-disk SOURCE transcript, and the whole point of
+    # the mode is that a re-translation costs no ASR and no audio.
+    if cfg.pipeline_stage in ("relabel_only", "retranscript_only", "translate_only"):
         speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
         return TranscriptionJob(  # type: ignore[no-any-return]
             idx=episode.idx,
@@ -1117,33 +1121,323 @@ def _write_processing_manifest(
         )
 
 
-def _maybe_produce_adfree(
+def _write_anon_transcript(
+    segments: List[Dict[str, Any]],
+    rel_transcript_path: str,
+    effective_output_dir: str,
+) -> Optional[str]:
+    """Write the PRE-NAMING render, ``<base>.anon.txt`` (D-40). Returns its relpath, or ``None``.
+
+    WHY IT EXISTS. With naming moved after translation (D-34) the order is diarize → write
+    anonymous → translate → name → re-render, and the naming re-render overwrites ``.txt``. That
+    would destroy the only human-readable view of what the pipeline saw BEFORE it decided who was
+    speaking — the first thing anyone debugging a naming failure wants.
+
+    RENDERED FROM ``speaker``, NOT ``speaker_label``. The voice id is frozen at diarization and
+    naming never touches it; only ``speaker_label`` is updated. So this is derivable at any point
+    after diarization, and writing it here is cheapness and clarity rather than recoverability.
+
+    ``None`` WHEN IT WOULD CARRY NOTHING NEW: undiarized segments (no ``speaker``), or a render
+    byte-identical to the named one because naming resolved no voice. An identical copy is not a
+    second artifact, and writing one for every unnamed episode would double the transcript corpus
+    to say nothing.
+
+    NEVER A RESOLUTION CANDIDATE. ``text_relpath_candidates`` does not list ``.anon.txt`` for
+    either purpose, deliberately: a reader that resolved to it would show ``SPEAKER_01`` where a
+    person's name belongs.
+    """
+    from ..providers.ml.diarization.formatting import format_diarized_screenplay_with_offsets
+    from .transcript_resolution import anon_transcript_relpath
+
+    anonymous = []
+    for seg in segments:
+        if not isinstance(seg, dict):
+            continue
+        voice = seg.get("speaker")
+        if not voice:
+            return None
+        anonymous.append({**seg, "speaker_label": str(voice)})
+    if not anonymous:
+        return None
+
+    anon_text, _offsets = format_diarized_screenplay_with_offsets(anonymous)
+    if not anon_text.strip():
+        return None
+
+    named_text, _named_offsets = format_diarized_screenplay_with_offsets(
+        [s for s in segments if isinstance(s, dict)]
+    )
+    if anon_text == named_text:
+        # Naming resolved nothing, so the two renders are the same file.
+        return None
+
+    rel = anon_transcript_relpath(rel_transcript_path)
+    out_path = os.path.join(effective_output_dir, rel)
+    try:
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as fh:
+            fh.write(anon_text)
+    except OSError as exc:
+        # NOT fatal. This is a debugging view; losing it must not cost the episode, whose real
+        # artifacts are already on disk by the time this runs.
+        logger.warning("could not write the pre-naming transcript %s: %s", rel, exc)
+        return None
+    return rel
+
+
+def _produce_transcript_sidecars(
     cfg: config.Config,
     text: str,
     segments: Optional[List[Dict[str, Any]]],
     rel_transcript_path: str,
     effective_output_dir: str,
+    *,
+    episode: Any = None,
 ) -> None:
-    """Derive + save the ad-free processing-base sidecars (#974), if enabled.
+    """Derive the ad-free processing base (#974) and the turns artifacts (RFC-123), in that order.
 
-    No-op when ``save_adfree_transcript`` is off or there are no segments. Keeps the
-    raw ``.txt`` untouched; writes ``<base>.adfree.{txt,segments.json,admap.json}``.
+    Both are structural views of the transcript we just saved, and both must be built from the
+    exact segment list the matching text was rendered from — so they belong at the one site that
+    holds both, immediately after the segments sidecar is written.
+
+    THE TWO ARE INDEPENDENTLY GATED. The ad-free base is off unless ``save_adfree_transcript``;
+    the SOURCE variant's turns are written unconditionally, because ``turns.json`` is not a
+    processing base whose absence changes which text NLP reads — it is a description of the text
+    that is already there. The ad-free variant's turns are written only when the ad-free text
+    exists, and from its in-memory segments, because its char offsets live in that text's
+    coordinate space and nowhere else.
     """
-    if not cfg.save_adfree_transcript or not rel_transcript_path:
+    if not rel_transcript_path:
         return
     if not isinstance(segments, list) or not segments:
         return
-    from .adfree_transcript import produce_adfree_transcript
 
-    adfree_rel = produce_adfree_transcript(
+    # S2.7: the SOURCE ad-free base is only built for an English episode. `_AD_PATTERNS` are
+    # English regexes, so on a Spanish transcript they match nothing and the result is an
+    # IDENTITY artifact — a file asserting ads were removed when the patterns could not see
+    # them. Measured on the V.6a fixture: zero pattern hits on the Spanish source against two
+    # on its English render. The ad-free base is `<base>.adfree.*` for every episode (D-44),
+    # built by the translation stage after the render exists (S2.5).
+    language = transcription_language(cfg)
+    adfree_artifacts = None
+    # The same predicate the sniff gate and the host-intro detector use (S2.14). Three copies of
+    # `language is None or language == "en"` had drifted into three slightly different
+    # conditions; this is the one that also treats a whitespace-only tag as unknown.
+    if cfg.save_adfree_transcript and is_target_language(language):
+        from .adfree_transcript import produce_adfree_artifacts
+
+        produced = produce_adfree_artifacts(
+            text,
+            segments,
+            rel_transcript_path,
+            effective_output_dir,
+            extra_cue_patterns=cfg.crosspromo_cue_patterns,
+        )
+        if produced is not None:
+            adfree_rel, adfree_artifacts = produced
+            logger.info("    saved ad-free transcript base: %s", adfree_rel)
+    elif cfg.save_adfree_transcript:
+        logger.info(
+            "    ad-free base SKIPPED for a %s episode: the ad patterns are English, so the "
+            "result would be an identity artifact. The ad-free base is built on the English "
+            "render instead (S2.5).",
+            language,
+        )
+
+    # D-40: the pre-naming render, before anything can overwrite `.txt`. Unconditional — it is
+    # not a processing base whose absence changes which text NLP reads, it is a description of
+    # what diarization saw, and `_write_anon_transcript` returns None when it would carry
+    # nothing `.txt` does not already say.
+    anon_rel = _write_anon_transcript(segments, rel_transcript_path, effective_output_dir)
+    if anon_rel:
+        logger.info("    saved the pre-naming transcript: %s", anon_rel)
+
+    # INVALIDATION IS NOT CONDITIONAL ON THE AD-FREE FLAG, and a review found it was. The
+    # trigger is "the SOURCE of a non-English episode was just rewritten", which has nothing to
+    # do with whether the source gets an ad-free derivative. With the flag off, a rewrite left
+    # a stale translation at the CANONICAL path: readers serve the old English with
+    # old cue times, and provenance resolves new spans against old segments — while the ledger
+    # says the translation failed.
+    if language is not None and language != "en":
+        _invalidate_translation(rel_transcript_path, effective_output_dir, language)
+
+    _write_turns_artifacts(
+        cfg,
         text,
         segments,
         rel_transcript_path,
         effective_output_dir,
-        extra_cue_patterns=cfg.crosspromo_cue_patterns,
+        adfree=adfree_artifacts,
+        episode=episode,
     )
-    if adfree_rel:
-        logger.info("    saved ad-free transcript base: %s", adfree_rel)
+
+
+def _invalidate_translation(
+    rel_transcript_path: str, effective_output_dir: str, language: Optional[str] = None
+) -> None:
+    """SWAP BACK: restore the source to the canonical path, discarding the stale translation (S2.7).
+
+    WHY ANYTHING HAPPENS AT ALL. When the source transcript is rewritten — a re-transcribe, a
+    relabel — the translation made from the old text becomes stale, and under D-44 the stale text is
+    sitting at ``<base>.txt``, which every generic reader opens without asking. Leaving it there
+    serves a translation of words nobody said any more, with char offsets that index different text.
+    That is the displacement bug with a time axis.
+
+    WHY THIS IS THE RISKIEST OPERATION IN THE SCHEME, and why it is written this way. Deleting the
+    canonical body is not an option: it is the episode's only transcript. So the two files trade
+    places back, and if that is interrupted the episode could be left with NO canonical transcript.
+    It therefore uses the same both-or-neither shape as the forward swap: the stale translation is
+    moved ASIDE to a temp name first (not deleted), then the source is moved back to the canonical
+    path, and only once that has succeeded is the temp removed. A failure at any point rolls back,
+    and the worst reachable state is a leftover temp file beside an intact episode.
+
+    `translation.json` is deliberately KEPT. It is the content-keyed translation memory (D-33): a
+    relabel changes every offset but no unit's text, so the ledger still answers for most units and
+    the re-render costs no GPU. Deleting it would turn the most common repair in this corpus into a
+    full re-translation.
+
+    A no-op for English, and for a non-English episode whose swap never happened — in both cases
+    the canonical body already holds the source.
+    """
+    import os as _os
+
+    from ..translation.artifacts import (
+        canonical_segments_relpath,
+        source_segments_relpath,
+        source_text_relpath,
+    )
+
+    normalized = (language or "").strip().lower().split("-")[0]
+    if not normalized or normalized == "en":
+        return
+
+    pairs = [
+        (source_text_relpath(rel_transcript_path, normalized), rel_transcript_path),
+        (
+            source_segments_relpath(rel_transcript_path, normalized),
+            canonical_segments_relpath(rel_transcript_path),
+        ),
+    ]
+    # EACH PAIR IS JUDGED INDEPENDENTLY, and keying this on the TEXT pair alone was a bug. The
+    # loop below already skips a pair whose tagged file is absent, but this early return meant a
+    # missing tagged TEXT abandoned the whole operation — so a crash after the text pair had
+    # swapped back but before the segments pair left canonical `.txt` holding the SOURCE and
+    # canonical `.segments.json` holding the TRANSLATION's cues, permanently, because every later
+    # run returned here. Return only when NO pair has anything to move.
+    if not any(
+        _os.path.isfile(_os.path.join(effective_output_dir, src_rel)) for src_rel, _ in pairs
+    ):
+        # No tagged source at all: the swap never happened, so the canonical body IS the source.
+        return
+
+    stashed: list = []
+    moved: list = []
+    try:
+        for src_rel, canon_rel in pairs:
+            src_abs = _os.path.join(effective_output_dir, src_rel)
+            canon_abs = _os.path.join(effective_output_dir, canon_rel)
+            if not _os.path.isfile(src_abs):
+                continue
+            if _os.path.isfile(canon_abs):
+                stale = f"{canon_abs}.stale.tmp"
+                _os.replace(canon_abs, stale)
+                stashed.append(stale)
+            _os.replace(src_abs, canon_abs)
+            moved.append((canon_abs, src_abs))
+    except OSError as exc:
+        logger.warning(
+            "    could not swap the source back for %s (%s) — rolling back; the episode keeps "
+            "whichever body it had",
+            rel_transcript_path,
+            exc,
+        )
+        for canon_abs, src_abs in reversed(moved):
+            try:
+                _os.replace(canon_abs, src_abs)
+            except OSError:
+                logger.warning("    rollback failed for %s", canon_abs, exc_info=True)
+        for stale in reversed(stashed):
+            try:
+                _os.replace(stale, stale[: -len(".stale.tmp")])
+            except OSError:
+                logger.warning("    could not restore %s", stale, exc_info=True)
+        return
+
+    for stale in stashed:
+        try:
+            _os.remove(stale)
+        except OSError:
+            logger.warning("    stale translation left behind at %s", stale)
+    logger.info(
+        "    swapped the source back to %s; the stale translation was discarded",
+        rel_transcript_path,
+    )
+
+
+def _write_turns_artifacts(
+    cfg: config.Config,
+    text: str,
+    segments: List[Dict[str, Any]],
+    rel_transcript_path: str,
+    effective_output_dir: str,
+    *,
+    adfree: Any = None,
+    episode: Any = None,
+) -> None:
+    """Write ``turns.json`` for each variant and record the manifest ``turns`` block (RFC-123 §3).
+
+    Best-effort as a whole: turns have no consumers in v1, so nothing here may cost an episode.
+    """
+    from . import processing_manifest as pm
+    from .transcript_resolution import adfree_transcript_relpath
+    from .turns_artifact import turns_manifest_metrics, write_turns_artifact
+
+    language = transcription_language(cfg)
+    try:
+        raw_outcome = write_turns_artifact(
+            text, segments, rel_transcript_path, effective_output_dir, language=language
+        )
+        adfree_outcome = None
+        if adfree is not None:
+            adfree_rel = adfree_transcript_relpath(rel_transcript_path)
+            adfree_outcome = write_turns_artifact(
+                adfree.text,
+                adfree.segments,
+                adfree_rel,
+                effective_output_dir,
+                language=language,
+            )
+    except Exception:  # noqa: BLE001 - a sidecar with no readers must never lose an episode
+        logger.warning("turns: could not build turns for %s", rel_transcript_path, exc_info=True)
+        return
+
+    if raw_outcome.relpath:
+        logger.info(
+            "    saved turns artifact: %s (%d turns)", raw_outcome.relpath, raw_outcome.count
+        )
+    episode_id = None
+    if episode is not None:
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+    from ..utils import correlation
+
+    pm.update_stage(
+        effective_output_dir,
+        rel_transcript_path,
+        "turns",
+        pm.stage_block(
+            ran=True,
+            method_version=pm.METHOD_VERSIONS["turns"],
+            # Measured and genuinely free: pure Python, milliseconds per episode. Not ``None``,
+            # which would mean nobody measured it.
+            cost_usd=0.0,
+            metrics=turns_manifest_metrics(raw_outcome, adfree_outcome),
+        ),
+        episode_id=episode_id,
+        feed_id=getattr(cfg, "rss_url", None),
+        run_id=correlation.get_run_id() or getattr(cfg, "run_id", None),
+    )
 
 
 def _cleanup_temp_media(temp_media: str, cfg: Optional[config.Config] = None) -> None:
@@ -1315,8 +1609,13 @@ def _check_transcript_cache(
         )
         if isinstance(cached_segments, list) and len(cached_segments) > 0:
             _save_transcript_segments_file(cached_segments, rel_path, effective_output_dir)
-            _maybe_produce_adfree(
-                cfg, cached_transcript, cached_segments, rel_path, effective_output_dir
+            _produce_transcript_sidecars(
+                cfg,
+                cached_transcript,
+                cached_segments,
+                rel_path,
+                effective_output_dir,
+                episode=job.episode,
             )
         _maybe_persist_episode_media(
             cfg, temp_media, effective_output_dir, rel_path, episode=job.episode
@@ -2193,6 +2492,95 @@ def _mark_episode_skipped_existing(
         logger.debug("failed to record skip-existing status", exc_info=True)
 
 
+def _unsupported_language_skip_reason(cfg: config.Config) -> Optional[str]:
+    """Why this feed / episode must not be downloaded or processed, or ``None`` to proceed.
+
+    Returns a human-readable reason rather than a bool so the log line, the incident record and
+    the metric all carry the SAME sentence -- an operator reading any one of the three learns the
+    language and where it came from, not just that something was skipped.
+
+    NO LANGUAGE IS REFUSED (operator, 2026-10-05; #2283). A feed that declares no ``<language>``,
+    or one that is not a recognised ISO code, has NO language — it is never assumed English —
+    and nothing is downloaded or processed for it. The remedy is an operator override, which
+    outranks the feed's tag (`resolve_episode_language` puts it first). A language that resolves
+    but is not enabled in the registry is refused the same way.
+
+    Called twice, on purpose: by `run_pipeline` right after the feed is fetched, BEFORE any
+    episode is prepared or downloaded (the fail-fast gate), and again inside transcription as a
+    backstop for any path that reaches it.
+    """
+    # The SAME resolver the provider call sites use, so the gate refuses exactly the language the
+    # provider would have been given.
+    from ..languages import is_language_enabled, resolve_config_language
+
+    raw, language, source = resolve_config_language(cfg)
+    if language is None:
+        if source == "override":
+            said = f"the override is set to {raw!r}, which is not an ISO language code"
+        elif raw:
+            said = (
+                f"the feed declares <language>{raw}</language>, which is not an ISO language code"
+            )
+        else:
+            said = "the feed declares no <language>"
+        return (
+            f"no language: {said}, so nothing was downloaded or processed. Set this feed's "
+            "language with an operator override (#2283) to ingest it."
+        )
+    if is_language_enabled(language):
+        return None
+    where, remedy = {
+        "override": (
+            "the operator override",
+            "Enable it in config/languages.yaml, or correct the override that set it.",
+        ),
+        "rss": (
+            "the feed's declared <language> tag",
+            "Enable it in config/languages.yaml, or — if the publisher's tag is wrong — set an "
+            "operator override, which outranks the tag.",
+        ),
+    }.get(str(source), (str(source), "Enable it in config/languages.yaml."))
+    return (
+        f"language {language!r} (from {where}) is not enabled in config/languages.yaml, so "
+        f"nothing was downloaded or processed. {remedy}"
+    )
+
+
+def _finish_download_only(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    temp_media: Optional[str],
+) -> tuple[bool, Optional[str], int]:
+    """#947 phase 1: the media is downloaded + cached; stop before transcribe/diarize.
+
+    Extracted from ``transcribe_media_to_text`` because that function sat at exactly the
+    max-complexity limit (25), so S0.8's single language guard pushed it to 26. This block is the
+    most self-contained of its early returns, and the branch it carries (does the temp file still
+    exist and is it sizeable) is genuinely about download-only, not about transcription.
+    """
+    bytes_dl = 0
+    if temp_media and os.path.exists(temp_media):
+        try:
+            bytes_dl = os.path.getsize(temp_media)
+        except OSError:
+            bytes_dl = 0
+    logger.info(
+        "[%s] [#947] download-only: audio downloaded + cached, skipping transcription (%s)",
+        job.idx,
+        job.ep_title_safe,
+    )
+    # Guarded rather than widening _cleanup_temp_media: its os.remove(None) raises TypeError,
+    # which its `except OSError` does not catch.
+    #
+    # The inline version this was extracted from called it UNCONDITIONALLY, so a download_only
+    # episode with no temp media would have raised TypeError out of the pipeline. Untyped local
+    # code hid it; extracting the block gave mypy a signature to check, and it found it. The
+    # guard is a fix, not a translation of the old behaviour.
+    if temp_media:
+        _cleanup_temp_media(temp_media, cfg)
+    return True, None, bytes_dl
+
+
 def _mark_episode_skipped_policy(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -2301,7 +2689,7 @@ def _transcribe_with_segments_maybe_chunked(
                 else:
                     result, elapsed = transcription_provider.transcribe_with_segments(
                         path,
-                        language=cfg.language,
+                        language=transcription_language(cfg),
                         pipeline_metrics=pipeline_metrics,
                         episode_duration_seconds=episode_duration_seconds,
                         call_metrics=call_metrics,
@@ -2375,7 +2763,10 @@ def _feed_hosts_from_sibling_metadata(txt_path: Path) -> List[str]:
         return []
     return sorted(
         detect_hosts_from_feed(
-            feed.get("title"), feed.get("description"), feed.get("authors") or []
+            feed.get("title"),
+            feed.get("description"),
+            feed.get("authors") or [],
+            language=str(feed.get("language") or ""),
         )
     )
 
@@ -2864,6 +3255,7 @@ def _relabel_existing_transcript(
         episode_description=getattr(job.episode, "description", None),
         detection_ran=getattr(job, "speaker_detection_ran", None),
         detection_report=_detection_report_of(job),
+        speaker_renames=_operator_renames(job),
     )
     # AND THEY SURVIVE THE NEXT RELABEL TOO. The roster is handed a stripped
     # ``{start, end, text}`` view, so whatever it returns carries no ``stated_speaker`` — writing
@@ -2888,7 +3280,9 @@ def _relabel_existing_transcript(
             rel_path,
             effective_output_dir,
         )
-        _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+        _produce_transcript_sidecars(
+            cfg, new_text, new_segs, rel_path, effective_output_dir, episode=job.episode
+        )
         _relabel_cleaned_transcript(txt_path, segs, new_segs, job.idx)
         # The record follows the labels, or the two describe different episodes (#2075).
         _rewrite_speaker_record_in_place(
@@ -3009,7 +3403,20 @@ def _apply_native_speaker_roster(result: dict, cfg: config.Config, job: Any) -> 
         feed_hosts=job.feed_hosts,
         detection_ran=getattr(job, "speaker_detection_ran", None),
         detection_report=_detection_report_of(job),
+        speaker_renames=_operator_renames(job),
     )
+
+
+def _episode_speaker_renames(episode: Any) -> Dict[str, str]:
+    """The operator's speaker renames for this episode (#2283); empty when none."""
+    from .apply_overrides import speaker_renames
+
+    return speaker_renames(episode)
+
+
+def _operator_renames(job: Any) -> Dict[str, str]:
+    """The operator's speaker renames for this job's episode (#2283); empty when none."""
+    return _episode_speaker_renames(getattr(job, "episode", None))
 
 
 def _roster_native_segments(
@@ -3024,6 +3431,7 @@ def _roster_native_segments(
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
     detection_report: Optional[Dict[str, Any]] = None,
+    speaker_renames: Optional[Dict[str, str]] = None,
 ) -> dict:
     """Route a natively-diarized transcript through the SINGLE role authority (the roster).
 
@@ -3106,6 +3514,7 @@ def _roster_native_segments(
             episode_title=episode_title,
             episode_description=episode_description,
             detection_report=detection_report,
+            speaker_renames=speaker_renames,
         )
         # KEEP WHAT THE SOURCE SAID, beside what we resolved. `speaker_label` is OUR answer and a
         # later `relabel_only` is entitled to re-derive it — that is what relabel is for. The
@@ -3205,6 +3614,7 @@ def _rediarize_existing_transcript(
         feed_hosts=feed_hosts,
         bypass_cache_read=True,
         detection_report=_detection_report_of(job),
+        speaker_renames=_operator_renames(job),
     )
     new_text = _format_transcript_if_needed(
         result, cfg, job.detected_speaker_names, transcription_provider
@@ -3219,7 +3629,9 @@ def _rediarize_existing_transcript(
             rel_path,
             effective_output_dir,
         )
-        _maybe_produce_adfree(cfg, new_text, new_segs, rel_path, effective_output_dir)
+        _produce_transcript_sidecars(
+            cfg, new_text, new_segs, rel_path, effective_output_dir, episode=job.episode
+        )
         # Fresh voices AND fresh names: the record must describe the diarization that now exists.
         _rewrite_speaker_record_in_place(
             txt_path, job, effective_output_dir, rel_path, "rediarize_only", feed_hosts
@@ -3401,7 +3813,99 @@ def _maybe_dispatch_reprocess_stage(
         return _refetch_and_reparse_transcript(
             job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
         )
+    if cfg.pipeline_stage == "translate_only":
+        return _retranslate_existing_transcript(
+            job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+        )
     return None
+
+
+def _retranslate_existing_transcript(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    transcription_provider,
+    pipeline_metrics,
+) -> Optional[tuple[bool, Optional[str], int]]:
+    """``pipeline_stage=translate_only``: discard the English render, then take the relabel path.
+
+    RFC-124 §5.2 names this as the retry for a `translation_pending` episode and for a partial
+    failure. It is deliberately thin, because the work it needs already exists in order:
+
+    1. swap the SOURCE back here, so the translation stage sees an untranslated episode;
+    2. hand off to `_relabel_existing_transcript`, which loads the on-disk transcript and its
+       frozen `SPEAKER_NN` diarization and re-runs naming — and for a non-English episode that
+       naming is DEFERRED (D-34), so the re-rendered source carries anonymous labels again,
+       which is exactly what the translator must be given;
+    3. `generate_episode_metadata` then re-translates at the seam, names from the fresh English
+       render, and cascades GI/KG.
+
+    So no audio, no ASR, no re-diarize — and the content-keyed memory means the units that
+    already succeeded are not sent again.
+
+    ``translation_discard_memory`` ALSO removes `<base>.translation.json`. That is the other
+    operation wearing this name: the model changed, and the memory is deliberately not
+    model-keyed (D-33), so an upgrade takes effect only through an explicit purge. Without the
+    flag a re-translation after a model change would reuse every cached unit and change nothing.
+    """
+    from .transcript_resolution import _canonical_relpath
+
+    txt_path = _existing_transcript_for(job, effective_output_dir, "translate_only")
+    if txt_path is None:
+        _record_unresolved_transcript(job, cfg, pipeline_metrics, "translate_only")
+        return False, None, 0
+
+    # The English derivatives sit BESIDE the existing transcript, which lives in the old run's
+    # directory rather than the new `effective_output_dir` this invocation created — the same
+    # thing `_relabel_existing_transcript` documents about overwriting in place. So the
+    # invalidation is rooted at the transcript's own parent, not at the run dir.
+    root = str(txt_path.parent.parent)
+    canonical = _canonical_relpath(os.path.relpath(str(txt_path), root))
+    # The SAME resolver the translation stage uses, because the swap-back has to know which tagged
+    # source to look for — and a language resolved differently here than there is how the two halves
+    # of this scheme would drift apart.
+    from ..languages import resolve_config_language
+
+    _raw, _language, _src = resolve_config_language(cfg)
+    _invalidate_translation(canonical, root, _language)
+
+    if bool(getattr(cfg, "translation_discard_memory", False)):
+        from ..translation.artifacts import translation_json_path
+
+        mem_path = translation_json_path(canonical, root)
+        mem_rel = os.path.relpath(mem_path, root)
+        try:
+            os.remove(mem_path)
+            logger.info(
+                "    [%s] translate_only: discarded the translation memory %s — every unit "
+                "will be sent again",
+                job.idx,
+                mem_rel,
+            )
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            # A memory that cannot be deleted is a re-translation that will silently reuse it,
+            # so say so rather than proceeding as if the purge happened.
+            logger.error(
+                "    [%s] translate_only: could not discard the translation memory %s (%s) — "
+                "the re-translation WILL reuse the cached units",
+                job.idx,
+                mem_rel,
+                exc,
+            )
+    else:
+        logger.info(
+            "    [%s] translate_only: keeping the content-keyed translation memory; only the "
+            "units that are missing or failed will be sent (use --fresh-translation to discard "
+            "it after a model change)",
+            job.idx,
+        )
+
+    return _relabel_existing_transcript(
+        job, cfg, run_suffix, effective_output_dir, transcription_provider, pipeline_metrics
+    )
 
 
 def _maybe_speech_coverage_failover(
@@ -3519,6 +4023,7 @@ def _maybe_speech_coverage_failover(
         cache_dir=os.path.join(effective_output_dir, ".cache", "diarization"),
         feed_hosts=job.feed_hosts,
         detection_report=_detection_report_of(job),
+        speaker_renames=_operator_renames(job),
     )
     fo_speech = float(fo_result.get("diarization_speech_seconds") or speech)
     fo_cov = (
@@ -3619,6 +4124,33 @@ def transcribe_media_to_text(
     # incidents, cost events, and Langfuse spans carry it (see helper).
     _bind_episode_correlation(job, cfg)
 
+    # S0.8 (#2179): an episode in a language we do not ingest is REFUSED here, loudly, before any
+    # provider is called. Ahead of the dry-run guard on purpose -- a dry run should report the skip
+    # it would make, not a transcription it would never attempt.
+    #
+    # The hazard this closes is the opposite of a crash: without it, a non-English episode is
+    # transcribed as English by a chain whose default is `base.en`, and the result is a plausible
+    # transcript of the wrong words that every downstream stage then trusts.
+    unsupported_language = _unsupported_language_skip_reason(cfg)
+    if unsupported_language is not None:
+        logger.warning("[%s] SKIPPING episode: %s", job.idx, unsupported_language)
+        _append_transcription_incident(
+            cfg,
+            job,
+            category="policy",
+            message=unsupported_language,
+            exception_type="UnsupportedLanguage",
+        )
+        _record_unresolved_transcript(
+            job,
+            cfg,
+            pipeline_metrics,
+            "transcription",
+            error_type="UnsupportedLanguage",
+            detail=unsupported_language,
+        )
+        return False, None, 0
+
     if cfg.dry_run:
         final_path = filesystem.build_whisper_output_path(
             job.idx, job.ep_title_safe, run_suffix, effective_output_dir
@@ -3629,23 +4161,8 @@ def transcribe_media_to_text(
 
     temp_media = job.temp_media
 
-    # #947 phase 1: download_only. The media has already been downloaded + cached by
-    # download_media_for_transcription (via _download_or_reuse_media). Stop here — do NOT
-    # transcribe/diarize. This is the "get the audio down first, reprocess later" stage.
     if cfg.pipeline_stage == "download_only":
-        bytes_dl = 0
-        if temp_media and os.path.exists(temp_media):
-            try:
-                bytes_dl = os.path.getsize(temp_media)
-            except OSError:
-                bytes_dl = 0
-        logger.info(
-            "[%s] [#947] download-only: audio downloaded + cached, skipping transcription (%s)",
-            job.idx,
-            job.ep_title_safe,
-        )
-        _cleanup_temp_media(temp_media, cfg)
-        return True, None, bytes_dl
+        return _finish_download_only(job, cfg, temp_media)
 
     # relabel_only: re-resolve speaker NAMES on the existing on-disk transcript + frozen
     # SPEAKER_NN diarization, then re-render + re-save in place. No audio, no re-ASR, no
@@ -3768,6 +4285,7 @@ def transcribe_media_to_text(
                     episode_title=job.ep_title,
                     episode_description=getattr(job.episode, "description", None),
                     detection_report=_detection_report_of(job),
+                    speaker_renames=_operator_renames(job),
                 )
             except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
                 # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).
@@ -3822,7 +4340,10 @@ def transcribe_media_to_text(
                 effective_output_dir,
             )
             # #974: derive the ad-free processing-base sibling. Raw .txt left untouched.
-            _maybe_produce_adfree(cfg, text, segments, rel_path, effective_output_dir)
+            # RFC-123: and the turns artifact for each variant that exists.
+            _produce_transcript_sidecars(
+                cfg, text, segments, rel_path, effective_output_dir, episode=job.episode
+            )
 
         _maybe_persist_episode_media(
             cfg, temp_media, effective_output_dir, rel_path, episode=job.episode
@@ -4541,6 +5062,7 @@ def process_transcript_download(
                 episode_title=getattr(episode, "title", None),
                 episode_description=getattr(episode, "description", None),
                 detection_report=getattr(episode, "speaker_detection_report", None),
+                speaker_renames=_episode_speaker_renames(episode),
             )
             segments = rostered.get("segments") or segments
 
@@ -4597,8 +5119,13 @@ def process_transcript_download(
             # the pre-screenplay plain text — `build_adfree_artifacts` branches on
             # `rebuilt == text` to pick its exact-offset path, and feeding it a different
             # string would silently desynchronise every quote span.
-            _maybe_produce_adfree(
-                cfg, text_to_store, segments, rel_path_result, effective_output_dir
+            _produce_transcript_sidecars(
+                cfg,
+                text_to_store,
+                segments,
+                rel_path_result,
+                effective_output_dir,
+                episode=episode,
             )
             logger.info(
                 "[%s] normalized %s to .txt with %d segment(s) for GI timing",

@@ -142,6 +142,7 @@ def row_to_summary(corpus_root: Path, row: CatalogEpisodeRow) -> AppEpisodeSumma
         slug=slug_for_row(row),
         title=row.episode_title,
         feed_id=row.feed_id,
+        language=row.episode_language,
         podcast_title=row.feed_title,
         publish_date=row.publish_date,
         duration_seconds=row.duration_seconds,

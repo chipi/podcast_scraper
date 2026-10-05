@@ -93,6 +93,125 @@ belongs in `tests/e2e/` with `@pytest.mark.e2e` and `@pytest.mark.ml_models`.
 Integration tests verify how *our* components wire together. The ML/AI boundary is
 always a mock or stub at this layer.
 
+## Search and the vector store {#search-and-the-vector-store}
+
+> This section was written on 2026-10-03, after eight tests were filed as unit tests, passed on a
+> developer machine, and failed in CI. The guides predated LanceDB search and said nothing about
+> it, so the rule below is derived from what the suite already does rather than invented.
+
+**The vector STORE is integration-legal. The EMBEDDER is not.** They arrive together in the
+`[search]` extra, which is why they get conflated:
+
+| Dependency | What it is | Where a test using it belongs |
+| ---------- | ---------- | ----------------------------- |
+| `lancedb`, `pyarrow` | storage and serialisation — a database in a temp directory | **integration**, behind `pytest.importorskip("lancedb")` |
+| `sentence-transformers`, `torch` | a real ML model that computes embeddings | integration **only** with `@requires("sentence_transformers")` per test; otherwise **E2E** |
+
+The distinction is not a loophole. "ML/AI models and APIs are always mocked" exists because loading
+a model is slow, non-deterministic and needs weights; a LanceDB table in `tmp_path` is none of
+those — it is the **real filesystem**, which this layer already specifies as real. `pyproject`
+agrees and says so explicitly: `lancedb` is deliberately **not** in `[ml]` — *"it is search-only
+(used solely under `search/` + the index-rebuild route + upgrade migration, never by transcription
+/ summarization / GI)"*.
+
+### What the suite actually does (measured 2026-10-03)
+
+| Layer | Files touching search | Instantiate a real `LanceDBBackend` | `importorskip` | `@requires` |
+| ----- | --------------------- | ----------------------------------- | -------------- | ----------- |
+| unit | 20 | **0** | **0** | **0** |
+| integration | 22 | 10 | 17 | 7 |
+| e2e | 1 | 0 | 1 | 1 |
+
+**Unit search tests touch no backend at all — not even a mocked one.** They cover what is
+expressible without the store: query parsing and language signals
+(`search/query_language.py`), chunk-id construction, tier routing decisions, offset arithmetic.
+If a unit test needs the store to be meaningful, it is not a unit test.
+
+### The trap, and how it was found
+
+CI's `test-unit` job installs **`.[dev]`** only — no `lancedb`, no `pyarrow`, no `torch`. The
+integration and E2E jobs install **`.[dev,ml,llm,search]`**. A development machine typically has
+the full set, so:
+
+- a unit test that imports `search.backends.lancedb_backend` for one helper **passes locally** and
+  **fails in CI**, because the backend imports `pyarrow`/`lancedb` lazily;
+- `make ci-fast` reported **13,353 passing** while CI's `test-unit` job failed **8** — the same
+  commit, the same tests, a different dependency set.
+
+Neither `check-test-policy` nor `check-unit-imports` catches that shape: rule U1 bans the
+import-or-skip helper and rule U2 bans `*_AVAILABLE` guards, but these tests used neither — they
+simply imported a module whose dependency was absent. `check-unit-imports` validates that *library*
+modules import without ML deps, not that the *tests* do.
+
+**To reproduce CI's unit environment locally,** use `make venv-dev-init` + `make
+test-unit-dev-venv`, which creates `.venv-dev` with `.[dev]` only — the same extras as the
+`test-unit` job.
+
+### Which layer, for a search change
+
+| You are testing | Layer | How |
+| --------------- | ----- | --- |
+| Query parsing, language signal, chunk ids, routing choice | unit | plain functions, no backend |
+| A schema's shape, a table's contents after a write, index/delete/reindex behaviour | integration | real store, `importorskip("lancedb")`, literal vectors |
+| Ranking, recall, anything where the EMBEDDING's value matters | integration + `@requires("sentence_transformers")`, or E2E | real model |
+| A full search request through the API over a built index | E2E | real stack |
+
+`@requires(...)` is per **test**, never module-level — see its docstring in
+`tests/integration/conftest.py`: a module-level guard "would have silenced about a hundred working
+integration tests to quiet a dozen failures."
+
+### The backend contract: one suite, both implementations {#search-backend-contract}
+
+A fake backend is the right tool at unit level — what is under test there is *our* logic consuming
+results, and a small real implementation of the port preserves that assertion where a `MagicMock`
+would not. The gap is that **nothing checked the fake behaved like LanceDB.** Seven unit files
+hand-roll their own (`_FakeBackend`, `_FakeHybridBackend`, `_B`, …), each covering whatever subset
+that file needs; a fake could drift indefinitely and the unit suite would keep passing, because it
+would be agreeing with itself.
+
+So the port has three parts now:
+
+| File | Role |
+| ---- | ---- |
+| `src/podcast_scraper/search/backend.py` | the `SearchBackend` **Protocol**, plus `SEGMENT_FIELDS` / `SEGMENT_NONEN_FIELDS` — stdlib-only, so unit tests read it freely |
+| `tests/_fake_search_backend.py` | one shared in-memory implementation. **Prefer it over a new hand-rolled fake** |
+| `tests/search_backend_contract.py` | the behaviour contract, run against **both** implementations |
+
+`tests/unit/search/test_fake_backend_contract.py` runs it against the fake (no `[search]` extra);
+`tests/integration/search/test_lancedb_backend_contract.py` runs the identical suite against the
+real backend. The only difference between those two files is which implementation is constructed,
+which is what makes a disagreement visible rather than theoretical.
+
+**What belongs in the contract:** a behaviour our code depends on where a fake could plausibly get
+it wrong — upsert-not-append, which signal can reach which tier, what survives a delete, what
+`health` accounts for. **What does not:** anything about the storage *format*. Field names and
+column types are the adapter's business, covered by the declaration in `backend.py` plus one
+conformance test.
+
+**The fake must model guarantees structurally, not by filtering.** A source-language row is
+unreachable by a dense signal because it *has no vector*, not because the fake filters on
+language. A fake that filtered would pass every assertion while modelling the opposite of the
+design.
+
+**`prepare_for_search()` is contract, not fixup.** LanceDB answers no full-text query until an
+INVERTED index exists (`create_indices()`, which the production indexer runs at the end of a
+build); the in-memory fake has no index concept. Omitting that step is how the first draft of this
+suite came to encode the fake rather than the contract — it passed against the fake and failed ten
+times against the real backend with "Cannot perform full text search unless an INVERTED index has
+been created". The hook makes the precondition explicit and per-implementation.
+
+**It found two real bugs on the day it was written (2026-10-03),** both the same blind spot and
+neither reachable by a hand-written fake:
+
+- `delete(tier="all")` resolved to `DENSE_TIERS` — `segment`, `insight`, `aux` — omitting
+  `segment_nonen`, so a source-language row survived a delete-all while the method's own docstring
+  promised "removes from every table". Withdrawal, reindex and episode removal all inherited it.
+- `health()` reported those same three tiers by name, so a corpus whose only indexed content was
+  non-English looked empty — in the one place an operator goes to check.
+
+Both now derive from the tier list rather than naming tiers, so the next tier is handled when it
+is added rather than when somebody notices.
+
 ## Test Patterns
 
 ### Component Workflow Test

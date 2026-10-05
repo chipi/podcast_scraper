@@ -1,0 +1,65 @@
+{
+  "callbacks": [
+    "\u00c9lodie Chevalier \u00e9tait l\u00e0 \u00e0 l'\u00e9pisode pr\u00e9c\u00e9dent et disait que la pression des pneus compte plus que les r\u00e9glages de suspension."
+  ],
+  "episode_id": "p12_e03",
+  "extra_alias_callbacks": [],
+  "failure_modes": [
+    "native_ad"
+  ],
+  "guest_accent": "fr-FR",
+  "host_accent": "fr-FR",
+  "host_canonical_name": "Camille Dubois",
+  "podcast_id": "p12",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p12:Mathieu",
+  "primary_guest_canonical_name": "Mathieu Lef\u00e8vre",
+  "primary_guest_surface_in_transcript": "Mathieu Lef\u00e8vre",
+  "primary_topic": "topic:drivetrain-mechanics",
+  "publish_date": "2026-06-29",
+  "publish_offset_days": 910,
+  "secondary_topics": [
+    "topic:maintenance",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Notion",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Linear",
+      "kind": "native_ad",
+      "line_index": 30,
+      "note": "Host-read native ad \u2014 no canonical 'brought to you by' marker."
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 34
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 67
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p12:Mathieu",
+      "kind": "canonical",
+      "surface": "Mathieu Lef\u00e8vre"
+    },
+    {
+      "canonical_id": "p12:\u00c9lodie",
+      "kind": "canonical",
+      "surface": "\u00c9lodie Chevalier"
+    },
+    {
+      "canonical_id": "p12:Julien",
+      "kind": "canonical",
+      "surface": "Julien Mercier"
+    }
+  ]
+}

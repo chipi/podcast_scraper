@@ -1,0 +1,345 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Giulia Ferrara",
+    "start": 0.0,
+    "text": "Bentornati a Sentieri d'Autore. Oggi parliamo di costruzione di sentieri, e con me c'\u00e8 Marco Bellini, costruttore di sentieri dell'Alleanza Cascadia. Marco Bellini, grazie di essere qui."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Marco Bellini",
+    "start": 6.0,
+    "text": "Grazie, Giulia. Con molto piacere \u2014 la costruzione di sentieri \u00e8 una cosa a cui ho pensato parecchio."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Giulia Ferrara",
+    "start": 12.0,
+    "text": "Questo episodio \u00e8 sponsorizzato da Strava. Strava \u00e8 la casa degli atleti. Inizia su strava.com/podcast."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Giulia Ferrara",
+    "start": 18.0,
+    "text": "Raccontami come hai preso la decisione. Come si inserisce RockShox in questo quadro?"
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Marco Bellini",
+    "start": 24.0,
+    "text": "Sinceramente, il drenaggio \u00e8 la decisione progettuale con pi\u00f9 impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano l'Alleanza Cascadia. Ho visto questo schema ripetersi in tre squadre diverse."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Giulia Ferrara",
+    "start": 30.0,
+    "text": "Raccontami come hai preso la decisione. Qual \u00e8 la versione della domanda che conta davvero?"
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Marco Bellini",
+    "start": 36.0,
+    "text": "S\u00ec, guarda \u2014 l'errore pi\u00f9 comune dei costruttori alle prime armi \u00e8 scavare con una pendenza troppo ripida. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Giulia Ferrara",
+    "start": 42.0,
+    "text": "Voglio approfondire. Dove si incrociano l'erosione del suolo e la costruzione di sentieri?"
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Marco Bellini",
+    "start": 48.0,
+    "text": "Certo. Le conversazioni sulla gestione del territorio devono avvenire prima del primo scavo. L'abbiamo visto in squadre che usano RockShox. Il quadro conta perch\u00e9 ti dice quali compromessi stai facendo."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Giulia Ferrara",
+    "start": 54.0,
+    "text": "Raccontami di pi\u00f9."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Marco Bellini",
+    "start": 60.0,
+    "text": "E quando le squadre adottano Spoke & Wrench in quel flusso, il compromesso diventa visibile \u2014 se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Giulia Ferrara",
+    "start": 66.0,
+    "text": "Raccontami come hai preso la decisione. Dove si incrociano l'erosione del suolo e la costruzione di sentieri?"
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Marco Bellini",
+    "start": 72.0,
+    "text": "Certo. I tagli a mezza costa sui pendii non sono facoltativi. La scorciatoia del primo giorno \u00e8 la frana del terzo anno. E l'effetto di secondo ordine \u00e8 la parte che quasi tutti trascurano."
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Giulia Ferrara",
+    "start": 78.0,
+    "text": "\u00c8 un quadro utile. Qual \u00e8 la versione della domanda che conta davvero?"
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Marco Bellini",
+    "start": 84.0,
+    "text": "S\u00ec, guarda \u2014 la struttura del suolo conta pi\u00f9 di quanto la gente creda. L'abbiamo visto in squadre che usano Spoke & Wrench. Ho visto questo schema ripetersi in tre squadre diverse."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Giulia Ferrara",
+    "start": 90.0,
+    "text": "Com'\u00e8 fatto il modo di guasto? Qual \u00e8 l'angolo strutturale a cui la maggior parte degli ascoltatori non ha accesso?"
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Marco Bellini",
+    "start": 96.0,
+    "text": "Lascia che ti dia la versione in cui credo davvero. Ho cambiato idea sui sentieri fatti a macchina rispetto a quelli fatti a mano. Ho visto questo schema ripetersi in tre squadre diverse."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Giulia Ferrara",
+    "start": 102.0,
+    "text": "Raccontami di pi\u00f9."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Marco Bellini",
+    "start": 108.0,
+    "text": "E quando le squadre adottano l'Alleanza Cascadia in quel flusso, il compromesso diventa visibile \u2014 se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Giulia Ferrara",
+    "start": 114.0,
+    "text": "Torniamo subito, dopo una breve pausa pubblicitaria."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Ad",
+    "start": 120.0,
+    "text": "L'episodio di oggi \u00e8 sponsorizzato da Stripe. Stripe semplifica i pagamenti, che tu gestisca un marketplace o un'attivit\u00e0 in abbonamento. Visita stripe.com/podcast per una prova gratuita."
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Giulia Ferrara",
+    "start": 126.0,
+    "text": "Bentornati alla trasmissione. Com'\u00e8 fatto il modo di guasto? Dove si incrociano l'erosione del suolo e la costruzione di sentieri?"
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Marco Bellini",
+    "start": 132.0,
+    "text": "Io la vedo cos\u00ec. Il drenaggio \u00e8 la decisione progettuale con pi\u00f9 impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano Shimano. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Giulia Ferrara",
+    "start": 138.0,
+    "text": "Raccontami come hai preso la decisione. Come si inserisce RockShox in questo quadro?"
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Marco Bellini",
+    "start": 144.0,
+    "text": "S\u00ec, guarda \u2014 l'errore pi\u00f9 comune dei costruttori alle prime armi \u00e8 scavare con una pendenza troppo ripida. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Giulia Ferrara",
+    "start": 150.0,
+    "text": "Metti in discussione la saggezza convenzionale per me. Cosa credevi su questo tema e hai poi rivisto?"
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Marco Bellini",
+    "start": 156.0,
+    "text": "Lascia che ti dia la versione in cui credo davvero. Le conversazioni sulla gestione del territorio devono avvenire prima del primo scavo. L'abbiamo visto in squadre che usano Spoke & Wrench. Ho visto questo schema ripetersi in tre squadre diverse."
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Giulia Ferrara",
+    "start": 162.0,
+    "text": "Quadra."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Marco Bellini",
+    "start": 168.0,
+    "text": "Fuori dagli strumenti del livello dell'Alleanza Cascadia, il modo di guasto \u00e8 pi\u00f9 difficile da individuare. E l'effetto di secondo ordine \u00e8 la parte che quasi tutti trascurano."
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Giulia Ferrara",
+    "start": 174.0,
+    "text": "Qual \u00e8 l'euristica a cui torni sempre? Qual \u00e8 la versione della domanda che conta davvero?"
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Marco Bellini",
+    "start": 180.0,
+    "text": "Si riduce a questo: i tagli a mezza costa sui pendii non sono facoltativi. La scorciatoia del primo giorno \u00e8 la frana del terzo anno. Ho visto questo schema ripetersi in tre squadre diverse."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Giulia Ferrara",
+    "start": 186.0,
+    "text": "Com'\u00e8 fatto il modo di guasto? Qual \u00e8 l'aspetto pi\u00f9 sottovalutato della costruzione di sentieri?"
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Marco Bellini",
+    "start": 192.0,
+    "text": "Lascia che ti dia la versione in cui credo davvero. La struttura del suolo conta pi\u00f9 di quanto la gente creda. L'abbiamo visto in squadre che usano l'Alleanza Cascadia. Ho visto questo schema ripetersi in tre squadre diverse."
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Giulia Ferrara",
+    "start": 198.0,
+    "text": "Voglio approfondire. Come si inserisce Shimano in questo quadro?"
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Marco Bellini",
+    "start": 204.0,
+    "text": "S\u00ec, guarda \u2014 ho cambiato idea sui sentieri fatti a macchina rispetto a quelli fatti a mano. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile."
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Giulia Ferrara",
+    "start": 210.0,
+    "text": "Dove smette di funzionare?"
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Marco Bellini",
+    "start": 216.0,
+    "text": "Fuori dagli strumenti del livello di RockShox, il modo di guasto \u00e8 pi\u00f9 difficile da individuare. Una volta interiorizzato quello, il resto delle decisioni diventa pi\u00f9 facile."
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Giulia Ferrara",
+    "start": 222.0,
+    "text": "Cambiamo argomento \u2014 voglio dedicare l'ultimo tratto alla gestione del territorio."
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Marco Bellini",
+    "start": 228.0,
+    "text": "\u00c8 l\u00ec che la conversazione si fa interessante, perch\u00e9 i compromessi attorno alla gestione del territorio attraversano tutto quello che abbiamo coperto."
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Giulia Ferrara",
+    "start": 234.0,
+    "text": "Voglio approfondire. Qual \u00e8 l'angolo contrario a cui la maggior parte degli ascoltatori non ha accesso?"
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Marco Bellini",
+    "start": 240.0,
+    "text": "Si riduce a questo: il drenaggio \u00e8 la decisione progettuale con pi\u00f9 impatto su qualsiasi sentiero. L'abbiamo visto in squadre che usano RockShox. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo."
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Giulia Ferrara",
+    "start": 246.0,
+    "text": "Com'\u00e8 fatto il modo di guasto? Qual \u00e8 l'aspetto pi\u00f9 sottovalutato della costruzione di sentieri?"
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Marco Bellini",
+    "start": 252.0,
+    "text": "Sinceramente, l'errore pi\u00f9 comune dei costruttori alle prime armi \u00e8 scavare con una pendenza troppo ripida. Il quadro conta perch\u00e9 ti dice quali compromessi stai facendo."
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Giulia Ferrara",
+    "start": 258.0,
+    "text": "Prima di chiudere, qual \u00e8 una cosa che gli ascoltatori possono provare questa settimana?"
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Marco Bellini",
+    "start": 264.0,
+    "text": "Scegli una delle idee che abbiamo coperto e applicala per due settimane. Il resto \u00e8 iterazione."
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Giulia Ferrara",
+    "start": 270.0,
+    "text": "E per finire, un grande ringraziamento ai nostri partner di Linear. Linear \u00e8 il gestore di ticket fatto per la velocit\u00e0 \u2014 pensato per la tastiera. Dai un'occhiata su linear.com."
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Giulia Ferrara",
+    "start": 276.0,
+    "text": "Marco Bellini, grazie per la conversazione."
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Marco Bellini",
+    "start": 282.0,
+    "text": "Grazie, Giulia."
+  },
+  {
+    "end": 294.0,
+    "id": 48,
+    "speaker_label": "Giulia Ferrara",
+    "start": 288.0,
+    "text": "\u00c8 tutto per l'episodio di oggi di Sentieri d'Autore. Ci vediamo la prossima volta."
+  }
+]

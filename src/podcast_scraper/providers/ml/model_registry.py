@@ -1966,6 +1966,11 @@ class ProfilePreset:
     # reprocess_dgx_* profiles declare reprocess/hold directly (they have no preset here).
     resilience_run_context: str = "serve"
     resilience_failure_strategy: str = "failover"
+    # Translation endpoint (#2169, Gate V). Governed because it is ROUTING -- which model answers
+    # a translation request -- and the registry owns routing. A second live vLLM, co-resident with
+    # the summary one on a different port, so it cannot share vllm_api_base.
+    translate_api_base: str = ""
+    translate_model: str = ""
     # ADR-123 (#1258) quality-gate transcription failover. Governed so a profile's coverage gate is
     # explicit + drift-checked. Any profile whose transcription primary is turbo turns the gate ON
     # (0.85 -> large-v3), because turbo silently drops speech on long episodes: the DGX serving
@@ -2191,6 +2196,11 @@ REGISTRY_GOVERNED_FIELDS: Tuple[str, ...] = (
     "resilience_run_context",
     "llm_pipeline_mode",
     "resilience_failure_strategy",
+    # Gate V (#2169): the translation endpoint + model. Governed for the same reason as every
+    # other *_model / *_api_base -- a profile that silently diverges here sends translation
+    # somewhere the registry did not sanction.
+    "translate_api_base",
+    "translate_model",
     # ADR-123 (#1258): quality-gate transcription failover — coverage floor + failover model.
     "transcription_coverage_min",
     "transcription_speech_coverage_min",
@@ -2423,6 +2433,21 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "prod_dgx_full": ProfilePreset(
         name="prod_dgx_full",
+        # S0.7 (#2178): HOLD, not failover. The local `whisper` tier in the fallback chain cannot
+        # transcribe a non-English episode -- normalize_whisper_model_name strips the `.en` and the
+        # chain runs ["base", "tiny"] -- so as a FALLBACK it converts a DGX outage into a silently
+        # bad transcript: a plausible transcript of the wrong words that summary, GI, KG and search
+        # all then trust. `hold` (ADR-122) backoff-retries the chosen model, trips after N, pauses
+        # and probes, then raises ResilienceFuseOpenError and HALTS the batch; it never switches
+        # backends, so the chain is never traversed. ADR-122's 2026-07-21 update makes this
+        # explicitly supported for a serve deployment. THE TRADE: a sustained DGX outage stops
+        # ingest instead of degrading -- a halted run is recoverable, a corpus of confidently wrong
+        # transcripts is not. The chain stays populated to satisfy ADR-096's non-DGX-escape-hatch
+        # validator; with `hold` it is inert.
+        resilience_failure_strategy="hold",
+        # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
+        translate_api_base="http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1",
+        translate_model="google/translategemma-12b-it",
         transcription="tailnet_dgx_whisper_turbo",  # 2026-07-22: turbo primary (ASR-5MODEL-BAKEOFF)
         # No coverage-gated ASR failover (2026-08-04): this is the Qwen / model-bake-off profile, so
         # ASR must be CONSTANT (always DGX whisper). A MOSS re-transcribe on a low-coverage episode
@@ -2483,6 +2508,21 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
     ),
     "eval_default": ProfilePreset(
         name="eval_default",
+        # S0.7 (#2178): HOLD, not failover. The local `whisper` tier in the fallback chain cannot
+        # transcribe a non-English episode -- normalize_whisper_model_name strips the `.en` and the
+        # chain runs ["base", "tiny"] -- so as a FALLBACK it converts a DGX outage into a silently
+        # bad transcript: a plausible transcript of the wrong words that summary, GI, KG and search
+        # all then trust. `hold` (ADR-122) backoff-retries the chosen model, trips after N, pauses
+        # and probes, then raises ResilienceFuseOpenError and HALTS the batch; it never switches
+        # backends, so the chain is never traversed. ADR-122's 2026-07-21 update makes this
+        # explicitly supported for a serve deployment. THE TRADE: a sustained DGX outage stops
+        # ingest instead of degrading -- a halted run is recoverable, a corpus of confidently wrong
+        # transcripts is not. The chain stays populated to satisfy ADR-096's non-DGX-escape-hatch
+        # validator; with `hold` it is inert.
+        resilience_failure_strategy="hold",
+        # Gate V (#2169): TranslateGemma-12B, co-resident with the summary model on :8005.
+        translate_api_base="http://${DGX_TAILNET_HOST:-dgx-llm-1}:8005/v1",
+        translate_model="google/translategemma-12b-it",
         transcription="tailnet_dgx_speaches_thread_b",
         # #1022 Cell F (supersedes Moonlight; same architecture + faster + GI winner)
         summary="vllm_qwen3_30b_a3b_nvfp4",
@@ -3042,6 +3082,33 @@ def _emit_speaker_model(ner: StageOption, settings: Dict[str, Any]) -> None:
         settings[f"{ns}_api_base"] = _endpoint_to_env_template(ner.endpoint)
 
 
+def _emit_translation_routing(
+    preset: "ProfilePreset", settings: Dict[str, Any], dgx_tailnet_host: Optional[str]
+) -> None:
+    """Gate V (#2169): route the translation endpoint + model from the preset into the settings.
+
+    A helper rather than two inline ``if``s for the reason the other ``_emit_*`` functions are
+    helpers — ``resolve_profile_to_settings`` sits at the complexity limit, and two branches took
+    it over (25 -> 27).
+
+    WHY IT HAD TO BE EMITTED AT ALL. Both fields were declared on ``ProfilePreset`` and listed in
+    ``REGISTRY_GOVERNED_FIELDS``, and neither was governed: this resolver never produced them, and
+    ``materialize_profiles.governed_settings`` narrows with ``if k in resolved``, so the drift
+    check skipped them. Measured 2026-09-30 — ``translate_model: totally/unsanctioned-model`` in
+    ``prod_dgx_full.yaml`` gave *"All 18 registry-governed profiles match the registry."* ADR-157
+    asserted the opposite as fact, on the strength of the declaration.
+
+    Emitted only when set, like every other optional field here: a cloud profile with no
+    translator should not grow two empty keys across 16 YAMLs.
+    """
+    if preset.translate_api_base:
+        settings["translate_api_base"] = resolve_endpoint(
+            preset.translate_api_base, dgx_tailnet_host
+        )
+    if preset.translate_model:
+        settings["translate_model"] = preset.translate_model
+
+
 def resolve_profile_to_settings(
     name: str,
     dgx_tailnet_host: Optional[str] = None,
@@ -3243,6 +3310,8 @@ def resolve_profile_to_settings(
             settings["deepgram_diarization_model"] = dia.model
         else:  # pyannote / local
             settings["diarization_model"] = dia.model
+
+    _emit_translation_routing(preset, settings, dgx_tailnet_host)
 
     settings["_profile_preset"] = preset.name
     settings["_transcription_research_ref"] = tx.research_ref

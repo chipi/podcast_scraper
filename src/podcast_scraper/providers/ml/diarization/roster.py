@@ -45,19 +45,26 @@ from ....graph_id_utils import (
     GENERATIONAL_SUFFIXES as _GENERATIONAL_SUFFIXES,
     is_bare_speaker_label,
 )
+from ....languages import TARGET_LANGUAGE
+from ....speaker_detectors import naming_vocabulary
 from ....speaker_detectors.hosts import (
+    _alt,
     _clean_stated_name as _clean_intro_name,
+    _CUE_FIRST_BODY_BY_LANGUAGE,
+    _CUE_FIRST_PAST_BODY_BY_LANGUAGE,
+    _GREETED_TAIL_BY_LANGUAGE,
     _GUEST_GREETED as _GUEST_GREETED_RE,
     _GUEST_INTRODUCED_BY_HOST as _GUEST_INTRODUCED_BY_HOST_RE,
     _GUEST_INTRODUCED_NAME_FIRST as _GUEST_INTRODUCED_NAME_FIRST_RE,
     _GUEST_SPEECH_ACTS,
     _HOST_SPEECH_ACTS,
+    _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE,
+    _NAME_FIRST_TAIL_BY_LANGUAGE,
     _NAME_RE as _INTRO_NAME_RE,
-    CUE_FIRST_BODY,
-    CUE_FIRST_PAST_BODY,
+    _STATED_UC,
+    _uc,
     distinct_self_introductions,
     extract_self_introduced_host,
-    GREETED_TAIL,
     guests_introduced_by_the_host,
     has_org_markers,
     HONORIFIC_TITLES,
@@ -65,8 +72,6 @@ from ....speaker_detectors.hosts import (
     is_plausible_mononym,
     is_publishable_speaker_name,
     looks_like_a_person_name,
-    NAME_FIRST_REPORT_TAIL,
-    NAME_FIRST_TAIL,
     names_the_show,
     performs_show_intro,
     roles_from_conversation,
@@ -848,7 +853,10 @@ def _edit_distance(a: str, b: str) -> int:
 
 
 # Generational suffixes that are not the surname ("Robert Pape Jr." -> surname "pape", not "jr").
-_NAME_SUFFIXES = frozenset({"jr", "sr", "ii", "iii", "iv", "v"})
+#: GENERATIONAL suffixes, not credentials — `naming_vocabulary.NAME_SUFFIXES` is the other
+#: set and has `md`/`phd`/`esq` but no `v`, so the two are not interchangeable.
+_NAME_SUFFIXES_BY_LANGUAGE = naming_vocabulary.GENERATIONAL_SUFFIXES
+_NAME_SUFFIXES = _NAME_SUFFIXES_BY_LANGUAGE[TARGET_LANGUAGE]
 
 # POST-NOMINAL CREDENTIALS ARE NOT THE SURNAME EITHER, and leaving them in broke a whole feed.
 # The Peter Attia Drive states its host as "Peter Attia, MD", so the surname read as "md" and:
@@ -875,6 +883,11 @@ def _core_name_tokens(name: str) -> List[str]:
     ``host.split()[-1]``, so the stated "Peter Attia, MD" surnamed to "attia" in one and "MD" in the
     other, and the ASR's "Peter Atiyah" could never snap onto it.
     """
+    # NO LANGUAGE PARAMETER, on purpose. Both sets it reads are ONE SHARED ROW across all six
+    # languages — generational suffixes are roman numerals plus the borrowed `jr`/`sr`, and the
+    # credential suffixes are `md`/`phd`/`esq`, which a Spanish or German bio trailing a name
+    # writes exactly the same way. A language argument here would be ceremony with no effect, and
+    # it has sixteen call sites that would each have to acquire one to deliver it.
     toks = [t.strip(".,'’") for t in (name or "").split()]
     return [
         t
@@ -1396,7 +1409,7 @@ def _looks_like_initials(name: str) -> bool:
     return bool(letters) and letters.isalpha() and letters.isupper() and len(letters) <= 3
 
 
-def _is_person_voice_label(name: Optional[str]) -> bool:
+def _is_person_voice_label(name: Optional[str], language: Optional[str] = TARGET_LANGUAGE) -> bool:
     """Is this transcript-supplied voice label a PERSON's name we may publish?
 
     Guards the one thing a publisher label must never do: turn a production credit or an
@@ -1410,7 +1423,9 @@ def _is_person_voice_label(name: Optional[str]) -> bool:
         return False
     if _looks_like_initials(cleaned):
         return False
-    return is_publishable_speaker_name(cleaned) and not is_bare_speaker_label(cleaned)
+    return is_publishable_speaker_name(cleaned, language=language) and not is_bare_speaker_label(
+        cleaned
+    )
 
 
 def _canonicalize_to_known_host(
@@ -1711,11 +1726,21 @@ def _vouched_by_metadata(candidate: str, metadata_named: Sequence[str]) -> Optio
 # The metadata dissolves the ambiguity. A "this is X" match binds ONLY when the episode metadata
 # states X as a person — whatever its token count, because "This is Latent Space Podcast" is three
 # tokens and no more a person than "Unhedged" is.
-_THIS_IS_INTRO = re.compile(r"\b[Tt]his is\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})")
+#: RAW text, so a non-English capital has to be the Unicode one: this scans a voice's own turns as
+#: transcribed, where "Élodie Chevalier" keeps its accent. English is main's ASCII text verbatim
+#: (`hosts._uc`; operator, 2026-10-05: English must not change).
+_THIS_IS_INTRO_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    # No IGNORECASE: the live pattern matched "This is"/"this is" and not "THIS IS", and a
+    # station ident is frequently all-caps in an ASR transcript.
+    lang: re.compile(rf"\b{_alt(cue)}\s+({_uc(lang)}[\w'’\-]+(?:\s+{_uc(lang)}[\w'’\-]+){{0,3}})")
+    for lang, cue in naming_vocabulary.THIS_IS_INTRO.items()
+}
+_THIS_IS_INTRO = _THIS_IS_INTRO_BY_LANGUAGE[TARGET_LANGUAGE]
 # ...and a stated person is still not the SPEAKER when the next sentence talks about them in the
 # third person: "This is Sid Sridhar. He helped sell an African fintech..." is the narrator of The
 # Flip presenting the guest, and reading it as a self-introduction barred the host's own voice from
 # every host seat (#2276; all 4 such openings in the gold sets are spoken by somebody else).
+# English pronouns, as main has them; applied in every language, where it simply never matches.
 _THIS_IS_THIRD_PERSON = re.compile(r"\s*[.,;]\s+(?:And\s+)?(?:He|She|They|His|Her|Their)\b")
 
 
@@ -1723,22 +1748,54 @@ _THIS_IS_THIRD_PERSON = re.compile(r"\s*[.,;]\s+(?:And\s+)?(?:He|She|They|His|He
 # hosts.py find nothing on lowercase turbo ASR; these match the SAME cue vocabulary (imported, so
 # they cannot drift) on the folded form and are anchored to the stated names — never used to
 # discover a name from raw text.
+#: ASCII-ONLY ON PURPOSE, and checked rather than assumed: the match form is produced by
+#: `normalize_for_match`, which STRIPS accents — "Lucía Herrera" folds to "lucia herrera",
+#: "Inês Carvalho" to "ines carvalho".  # codespell:ignore ines
+#: There is no accented character left for a widened class to match, so widening this one
+#: would be cargo-culting the sibling fix below.
 _NAME_WINDOW_MF = r"([a-z][a-z'\-]+(?:\s+[a-z][a-z'\-]+){0,3})"
 # "this is" is deliberately EXCLUDED here (unlike the vouched capitalized _THIS_IS_INTRO): on the
 # folded form it is a third-person / show-naming hazard — "this is sam altman's company" folds the
 # possessive to an edit-1 surname and would bind the WRONG person to the speaker, and "this is <full
 # name>" is how a host introduces a guest, not a self-intro. The capitalized self-intro sibling
 # (extract_self_introduced_host) is "I'm"-only for exactly this reason; the match form matches it.
-_SELF_INTRO_MATCHFORM = re.compile(rf"\b(?:i'm|i am|my name is)\s+{_NAME_WINDOW_MF}")
-_CUE_FIRST_MATCHFORM = re.compile(rf"\b(?:{CUE_FIRST_BODY})\s+(?:the\s+|our\s+)?{_NAME_WINDOW_MF}")
+#: The English entry is main's pattern verbatim — NOT built from `SELF_INTRO_WORDS["en"]`, which
+#: is wider than this site ever was ("im", "my name's"); English must not change.
+_SELF_INTRO_MATCHFORM_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    **{
+        lang: re.compile(rf"\b(?:{words})\s+{_NAME_WINDOW_MF}")
+        for lang, words in naming_vocabulary.SELF_INTRO_WORDS.items()
+    },
+    TARGET_LANGUAGE: re.compile(rf"\b(?:i'm|i am|my name is)\s+{_NAME_WINDOW_MF}"),
+}
+_SELF_INTRO_MATCHFORM = _SELF_INTRO_MATCHFORM_BY_LANGUAGE[TARGET_LANGUAGE]
+_CUE_FIRST_MATCHFORM_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(rf"\b(?:{body})\s+(?:the\s+|our\s+)?{_NAME_WINDOW_MF}")
+    for lang, body in _CUE_FIRST_BODY_BY_LANGUAGE.items()
+}
+_CUE_FIRST_MATCHFORM = _CUE_FIRST_MATCHFORM_BY_LANGUAGE[TARGET_LANGUAGE]
 # Past-tense cue — gated to head-of-episode + host turns in the loop (recap misattribution, F fix).
-_CUE_FIRST_PAST_MATCHFORM = re.compile(
-    rf"\b(?:{CUE_FIRST_PAST_BODY})\s+(?:the\s+|our\s+)?{_NAME_WINDOW_MF}"
-)
-_NAME_FIRST_MATCHFORM = re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{NAME_FIRST_TAIL})")
+_CUE_FIRST_PAST_MATCHFORM_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(rf"\b(?:{body})\s+(?:the\s+|our\s+)?{_NAME_WINDOW_MF}")
+    for lang, body in _CUE_FIRST_PAST_BODY_BY_LANGUAGE.items()
+}
+_CUE_FIRST_PAST_MATCHFORM = _CUE_FIRST_PAST_MATCHFORM_BY_LANGUAGE[TARGET_LANGUAGE]
+_NAME_FIRST_MATCHFORM_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{tail})")
+    for lang, tail in _NAME_FIRST_TAIL_BY_LANGUAGE.items()
+}
+_NAME_FIRST_MATCHFORM = _NAME_FIRST_MATCHFORM_BY_LANGUAGE[TARGET_LANGUAGE]
 # Report-verb tail — resolved against CORROBORATED refs only (see _voice_named_by_the_introduction).
-_NAME_FIRST_REPORT_MATCHFORM = re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{NAME_FIRST_REPORT_TAIL})")
-_GREETED_MATCHFORM = re.compile(rf"{_NAME_WINDOW_MF}\s*,\s*(?:{GREETED_TAIL})")
+_NAME_FIRST_REPORT_MATCHFORM_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{tail})")
+    for lang, tail in _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE.items()
+}
+_NAME_FIRST_REPORT_MATCHFORM = _NAME_FIRST_REPORT_MATCHFORM_BY_LANGUAGE[TARGET_LANGUAGE]
+_GREETED_MATCHFORM_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(rf"{_NAME_WINDOW_MF}\s*,\s*(?:{tail})")
+    for lang, tail in _GREETED_TAIL_BY_LANGUAGE.items()
+}
+_GREETED_MATCHFORM = _GREETED_MATCHFORM_BY_LANGUAGE[TARGET_LANGUAGE]
 # A self-introduction / hand-off is an opening act; the past-tense recap cue and the report-verb
 # tails only name the next voice within the first few merged turns of an episode (3rd advisor).
 _HEAD_INTRO_TURNS = 10
@@ -1746,10 +1803,10 @@ _HEAD_INTRO_TURNS = 10
 # that turn (a cold-open hand-off lives in the opening sentences), and rejects a match preceded by a
 # temporal recap marker ("last month we spoke with X" is a recap, not an intro). (4th advisor, 2c)
 _HEAD_INTRO_CHARS = 1500
-_RECAP_MARKER_RE = re.compile(
-    r"last\s+(?:week|month|year|night|time)|earlier|previously|recently|yesterday"
-    r"|back\s+then|a\s+while\s+ago|the\s+other\s+(?:day|week)"
-)
+_RECAP_MARKER_RE_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(p) for lang, p in naming_vocabulary.RECAP_MARKERS.items()
+}
+_RECAP_MARKER_RE = _RECAP_MARKER_RE_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 def _stated_tokens(metadata_named: Sequence[str]) -> List[Tuple[str, List[str]]]:
@@ -1769,43 +1826,13 @@ def _stated_tokens(metadata_named: Sequence[str]) -> List[Tuple[str, List[str]]]
 # function words so a genuine SHORT surname (Ng, Wu, Li, Xu — common on an AI-podcast corpus) is not
 # mistaken for one (second advisor review): mis-classification then errs toward abstain, not a
 # wrong name.
-_INTRO_AFFILIATION_TOKENS = frozenset(
-    {
-        "of",
-        "from",
-        "at",
-        "with",
-        "and",
-        "the",
-        "our",
-        "a",
-        "an",
-        "in",
-        "on",
-        "for",
-        "to",
-        "here",
-        "as",
-        "is",
-        "by",
-        "or",
-        "so",
-        "if",
-        "up",
-        "it",
-        "my",
-        "me",
-        "us",
-        "do",
-        "go",
-        "no",
-        "he",
-        "we",
-    }
-)
+_INTRO_AFFILIATION_TOKENS_BY_LANGUAGE = naming_vocabulary.INTRO_AFFILIATION_TOKENS
+_INTRO_AFFILIATION_TOKENS = _INTRO_AFFILIATION_TOKENS_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
-def _span_has_contradicting_surname(span: Sequence[str]) -> bool:
+def _span_has_contradicting_surname(
+    span: Sequence[str], language: Optional[str] = TARGET_LANGUAGE
+) -> bool:
     """True when the token right after the first name is a purported SURNAME (name-like, not an
     affiliation word). The surname-matching path already ran and matched nothing, so a real surname
     here means the span names a DIFFERENT person who merely shares the first name — "akshat
@@ -1814,7 +1841,13 @@ def _span_has_contradicting_surname(span: Sequence[str]) -> bool:
     or an affiliation form ("akshat of moto") carries no contradicting surname and still binds.
     A 2-letter token is checked too (Ng/Wu/Li), unless it is a function word. (F2, advisor review)
     """
-    return len(span) >= 2 and len(span[1]) >= 2 and span[1] not in _INTRO_AFFILIATION_TOKENS
+    # An UNSUPPORTED language gets the empty set, not English: with no function-word list for
+    # it, every two-letter token looks like a surname and the bare-first-name relaxation is
+    # refused everywhere. Abstaining from the relaxation is the safe direction.
+    affiliation = naming_vocabulary.vocabulary_row(
+        _INTRO_AFFILIATION_TOKENS_BY_LANGUAGE, language, default=frozenset()
+    )
+    return len(span) >= 2 and len(span[1]) >= 2 and span[1] not in affiliation
 
 
 def _match_stated_in_span(
@@ -1822,6 +1855,7 @@ def _match_stated_in_span(
     stated: Sequence[Tuple[str, List[str]]],
     *,
     allow_first_name_only: bool = False,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Optional[str]:
     """The stated name whose first name (nickname/initial-aware) matches ``span[0]`` AND whose
     surname (soundex or edit ≤ 1) matches a later span token; else ``None``. Reference-bounded and
@@ -1849,7 +1883,7 @@ def _match_stated_in_span(
         slast = toks[-1]
         if any(_soundex(t) == _soundex(slast) or _edit_distance(t, slast) <= 1 for t in span[1:]):
             return name
-    if allow_first_name_only and not _span_has_contradicting_surname(span):
+    if allow_first_name_only and not _span_has_contradicting_surname(span, language):
         first_hits = [name for name, toks in stated if first_names_match(toks[0], span[0])]
         if len(first_hits) == 1:
             return first_hits[0]
@@ -1857,7 +1891,9 @@ def _match_stated_in_span(
 
 
 def _metadata_anchored_self_intro(
-    voice_text: Optional[str], metadata_named: Sequence[str]
+    voice_text: Optional[str],
+    metadata_named: Sequence[str],
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Optional[str]:
     """A case-blind self-introduction bound to a STATED name (ADR-139).
 
@@ -1874,7 +1910,10 @@ def _metadata_anchored_self_intro(
     # a self-introduction is an opening act, so a late third-person mention deep in a long turn must
     # not masquerade as one.
     text = normalize_for_match((voice_text or "")[:5000])
-    for m in _SELF_INTRO_MATCHFORM.finditer(text):
+    self_intro = naming_vocabulary.vocabulary_row(_SELF_INTRO_MATCHFORM_BY_LANGUAGE, language)
+    if self_intro is None:
+        return None
+    for m in self_intro.finditer(text):
         # Drop possessive tokens ("altman's", and the s-ending "hastings'"): a trailing-possessive
         # word is a THIRD-PERSON reference — "i'm sam altman's biggest fan", "i'm reed hastings'
         # successor" — never the speaker's OWN surname, so it must not become a surname candidate
@@ -1884,21 +1923,44 @@ def _metadata_anchored_self_intro(
         window = " ".join(
             t for t in m.group(1).split() if not (t.endswith("'s") or t.endswith("'"))
         )
-        name = _match_stated_in_span(normalize_name_for_match(window).split(), stated)
+        name = _match_stated_in_span(
+            normalize_name_for_match(window).split(), stated, language=language
+        )
         if name:
             return name
     return None
 
 
-_SIGN_OFF = re.compile(
-    r"I['’]?m\s+((?-i:[A-Z][\w'’\-]+)(?:\s+(?-i:[A-Z][\w'’\-]+)){1,3})\s*[.,!]\s*"
-    r"(?=(?:And\s+)?(?:you\s+can\s+follow|follow\s+(?:me|us)|see\s+you|talk\s+(?:to\s+you\s+)?soon"
-    r"|thanks?\s+(?:you\s+)?for\s+listening|until\s+next))",
-    re.IGNORECASE,
-)
+#: The NAME SHAPE and the lookahead are structure; the self-introduction words and the sign-off
+#: cues they look ahead for are vocabulary, and both now come from `naming_vocabulary`.
+_SIGN_OFF_NAME = rf"(?-i:{_STATED_UC}[\w'’\-]+)(?:\s+(?-i:{_STATED_UC}[\w'’\-]+)){{1,3}}"
+#: The English entry is main's pattern verbatim: main's sign-off reader knew "I'm" ONLY, not the
+#: wider `SELF_INTRO_WORDS["en"]`, and English must not change.
+_SIGN_OFF_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    **{
+        lang: re.compile(
+            rf"\b(?:{naming_vocabulary.SELF_INTRO_WORDS[lang]})\s+({_SIGN_OFF_NAME})\s*[.,!]\s*"
+            rf"(?={cues})",
+            re.IGNORECASE,
+        )
+        for lang, cues in naming_vocabulary.SIGN_OFF_CUES.items()
+    },
+    TARGET_LANGUAGE: re.compile(
+        r"I['’]?m\s+((?-i:[A-Z][\w'’\-]+)(?:\s+(?-i:[A-Z][\w'’\-]+)){1,3})\s*[.,!]\s*"
+        r"(?=(?:And\s+)?(?:you\s+can\s+follow|follow\s+(?:me|us)|see\s+you"
+        r"|talk\s+(?:to\s+you\s+)?soon"
+        r"|thanks?\s+(?:you\s+)?for\s+listening|until\s+next))",
+        re.IGNORECASE,
+    ),
+}
+_SIGN_OFF = _SIGN_OFF_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
-def _sign_off_self_intro(text: Optional[str], vouchers: Sequence[str] = ()) -> Optional[str]:
+def _sign_off_self_intro(
+    text: Optional[str],
+    vouchers: Sequence[str] = (),
+    language: Optional[str] = TARGET_LANGUAGE,
+) -> Optional[str]:
     """A self-introduction in a voice's SIGN-OFF: "I'm Tracy Allaway. You can follow me at…".
 
     The self-introduction reader looks only at the start of each voice's text, which is right for
@@ -1916,7 +1978,10 @@ def _sign_off_self_intro(text: Optional[str], vouchers: Sequence[str] = ()) -> O
     The Economics Show's Soumaya Keynes) and cast her as a guest (advisor review, #2075).
     """
     tail = (text or "")[-3000:]
-    for m in _SIGN_OFF.finditer(tail):
+    sign_off = naming_vocabulary.vocabulary_row(_SIGN_OFF_BY_LANGUAGE, language)
+    if sign_off is None:
+        return None
+    for m in sign_off.finditer(tail):
         name = extract_self_introduced_host(f"I'm {m.group(1)}.")
         if not name:
             continue
@@ -1937,6 +2002,7 @@ def _self_intros_by_voice(
     metadata_named: Sequence[str] = (),
     *,
     case_blind: bool = True,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Dict[str, str]:
     """Per-voice self-introductions ``{voice: name}`` — a voice that says "I'm <First Last>"
     in its *own* turns IS that person. The most reliable per-voice signal, so it names the
@@ -1952,7 +2018,7 @@ def _self_intros_by_voice(
     for voice, text in (voice_texts or {}).items():
         head = (text or "")[:5000]
         name = extract_self_introduced_host(text, intro_chars=5000) or _sign_off_self_intro(
-            text, metadata_named
+            text, metadata_named, language
         )
         if name and len(name.split()) >= 2:
             out[voice] = name
@@ -1965,11 +2031,13 @@ def _self_intros_by_voice(
             continue
         # A bare first name we couldn't vouch, or a "this is <X>" — neither stands alone. Metadata.
         candidates = [name] if name else []
-        candidates += [
-            m.group(1).strip(" .,")
-            for m in _THIS_IS_INTRO.finditer(head)
-            if not _THIS_IS_THIRD_PERSON.match(head, m.end())
-        ]
+        this_is = naming_vocabulary.vocabulary_row(_THIS_IS_INTRO_BY_LANGUAGE, language)
+        if this_is is not None:
+            candidates += [
+                m.group(1).strip(" .,")
+                for m in this_is.finditer(head)
+                if not _THIS_IS_THIRD_PERSON.match(head, m.end())
+            ]
         for cand in candidates:
             stated = _vouched_by_metadata(cand, metadata_named)
             if stated:
@@ -1978,7 +2046,7 @@ def _self_intros_by_voice(
         # Case-blind fallback (ADR-139): the capitalization-based paths above find nothing on
         # lowercase turbo ASR. Match the self-intro on the folded form, anchored to a stated name.
         if case_blind and voice not in out:
-            stated = _metadata_anchored_self_intro(text, metadata_named)
+            stated = _metadata_anchored_self_intro(text, metadata_named, language)
             if stated:
                 out[voice] = stated
     return out
@@ -2006,7 +2074,9 @@ _GUEST_HOST_NAMED = re.compile(
 )
 
 
-def _guest_hosts_named(episode_text: Optional[str]) -> List[str]:
+def _guest_hosts_named(
+    episode_text: Optional[str], language: Optional[str] = TARGET_LANGUAGE
+) -> List[str]:
     """The people the episode's own title/description names as its guest host(s)."""
     out: List[str] = []
     for m in _GUEST_HOST_NAMED.finditer(episode_text or ""):
@@ -2014,7 +2084,7 @@ def _guest_hosts_named(episode_text: Optional[str]) -> List[str]:
         if (
             n
             and looks_like_a_person_name(n)
-            and is_publishable_speaker_name(n)
+            and is_publishable_speaker_name(n, language=language)
             and not is_network_or_org_author(n)
             and n.lower() not in {x.lower() for x in out}
         ):
@@ -2042,6 +2112,7 @@ def _name_host_voices(
     ignore_ownership: bool = False,
     feed_title: Optional[str] = None,
     trace: Optional[NamingTrace] = None,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Dict[str, SpeakerRole]:
     """Name host voices from EVIDENCE — a self-introduction, or a forced single answer.
 
@@ -2088,7 +2159,7 @@ def _name_host_voices(
     tr = or_null(trace)
     out: Dict[str, SpeakerRole] = {}
 
-    people = [(n, src) for n, src in host_pool if is_publishable_speaker_name(n)]
+    people = [(n, src) for n, src in host_pool if is_publishable_speaker_name(n, language=language)]
     # A NAME A SEAT IS ABOUT TO CLAIM BY SELF-INTRODUCTION IS NOT SPARE. `used_lower` only gains
     # those inside the loop below, so computing "unclaimed" against it alone counted a
     # self-introduced host as still going spare — which made a one-name-one-seat episode look like
@@ -2198,7 +2269,7 @@ def _name_host_voices(
         # `_talks_about` cannot either, because it matches the full name or the SURNAME and the
         # greeting uses the first name. Fixing it only in `resolve_voices_and_roles` would leave
         # every no-LLM profile wrong, which is why the veto is applied at both sites (#2078).
-        addressed = not performs_guest and _addressed_at_open(text, unclaimed[0][0])
+        addressed = not performs_guest and _addressed_at_open(text, unclaimed[0][0], language)
         rescued = False
         if not performs_guest and not addressed:
             forced_name = unclaimed[0]
@@ -2324,6 +2395,7 @@ def _guest_voice_by_host_elimination(
     *,
     min_share: float = HOST_ELIMINATION_MIN_SHARE,
     max_voices: int = HOST_ELIMINATION_MAX_VOICES,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Optional[str]:
     """The one substantial voice that is NOT a host, where every host is already accounted for.
 
@@ -2393,7 +2465,7 @@ def _guest_voice_by_host_elimination(
     spoken = (self_intros or {}).get(voice)
     if spoken and not _same_person(spoken, guest_name):
         return None
-    if refuted_by_third_person(texts[voice], guest_name):
+    if refuted_by_third_person(texts[voice], guest_name, language):
         return None
     return voice
 
@@ -2529,6 +2601,7 @@ def _name_guest_voices(
     known_hosts: Sequence[str] = (),
     refused_intro_voices: AbstractSet[str] = frozenset(),
     trace: Optional[NamingTrace] = None,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Dict[str, SpeakerRole]:
     """Name the remaining voices from EVIDENCE, never from position.
 
@@ -2644,7 +2717,11 @@ def _name_guest_voices(
     # accounted for" is the clause the whole rule rests on.
     if forced is None and len(spare) == 1:
         picked = _guest_voice_by_host_elimination(
-            voice_texts or {}, self_intros or {}, known_hosts, spare[0]
+            voice_texts or {},
+            self_intros or {},
+            known_hosts,
+            spare[0],
+            language=language,
         )
         if picked is not None and picked not in assigned and picked not in voice_intro:
             forced = spare[0]
@@ -2702,7 +2779,7 @@ def _name_guest_voices(
             # Every one is the guest's name painted onto the host's voice. Abstaining leaves a
             # SPEAKER_NN, which is the defect marker; binding leaves a real person credited with
             # someone else's words.
-            and not refuted_by_third_person((voice_texts or {}).get(v, ""), forced)
+            and not refuted_by_third_person((voice_texts or {}).get(v, ""), forced, language)
             # A voice whose introduced name we REFUSED is not an empty seat. We know who is on
             # it — the unbound stated person the host introduced — we simply could not spell it
             # from the ASR. Letting arithmetic fill that seat with some other harvested name is
@@ -2761,7 +2838,7 @@ def _name_guest_voices(
                 role=role,
                 intro_name_refused=_guest_intro_refusal(iname, used_lower, host_names_lower),
                 forced_name_refused=_forced_refusal(
-                    v, forced, unassigned, voice_texts or {}, refused_intro_voices
+                    v, forced, unassigned, voice_texts or {}, refused_intro_voices, language
                 ),
                 role_evidence=role_evidence,
             )
@@ -2785,11 +2862,17 @@ def _forced_refusal(
     unassigned: Sequence[str],
     voice_texts: Mapping[str, str],
     refused_intro_voices: AbstractSet[str],
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Optional[str]:
-    """Why the forced name did not land on the voice it was forced onto (#2276 trace only)."""
+    """Why the forced name did not land on the voice it was forced onto (#2276 trace only).
+
+    Takes the SAME language as the decision it explains: `_name_guest_voices` refutes the forced
+    name in the transcript's language, so an explainer checking the English row would report a
+    different reason than the one that actually decided, on every non-English episode.
+    """
     if forced is None or not unassigned or v != unassigned[0]:
         return None
-    if refuted_by_third_person(voice_texts.get(v, ""), forced):
+    if refuted_by_third_person(voice_texts.get(v, ""), forced, language):
         return "says_that_name_in_the_third_person"
     if v in refused_intro_voices:
         return "introduced_name_was_refused"
@@ -2876,7 +2959,10 @@ def _reclaim_greeting_turns(
 
 
 def _past_cue_head_name(
-    text: str, stated: Sequence[Tuple[str, List[str]]], first_name_only: bool
+    text: str,
+    stated: Sequence[Tuple[str, List[str]]],
+    first_name_only: bool,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Optional[str]:
     """The stated name a past-tense hand-off cue ("we spoke with X") introduces in the OPENING of a
     turn, else None. Text-head-bounded (a cold-open lives in the first sentences) and recap-marker
@@ -2884,13 +2970,23 @@ def _past_cue_head_name(
     2c) — the turn-index head bound alone is trivially met when a host monologue merges to turn 0.
     """
     head_mf = normalize_for_match((text or "")[:_HEAD_INTRO_CHARS])
-    for m in _CUE_FIRST_PAST_MATCHFORM.finditer(head_mf):
-        if _RECAP_MARKER_RE.search(head_mf[max(0, m.start() - 40) : m.start()]):
+    past_cue = naming_vocabulary.vocabulary_row(_CUE_FIRST_PAST_MATCHFORM_BY_LANGUAGE, language)
+    recap = naming_vocabulary.vocabulary_row(_RECAP_MARKER_RE_BY_LANGUAGE, language)
+    if past_cue is None:
+        return None
+    for m in past_cue.finditer(head_mf):
+        # NO RECAP ROW MEANS REFUSE, not "no recap here". The cue is a past tense: without the
+        # marker list to tell an intro from a recap, every recap would be read as an
+        # introduction and misattribute the named person to whatever voice speaks next.
+        if recap is None:
+            return None
+        if recap.search(head_mf[max(0, m.start() - 40) : m.start()]):
             continue
         nm = _match_stated_in_span(
             normalize_name_for_match(m.group(1)).split(),
             stated,
             allow_first_name_only=first_name_only,
+            language=language,
         )
         if nm:
             return nm
@@ -2909,6 +3005,7 @@ def _bind_introduced_name(
     *,
     host_name_requires_host_target: bool = False,
     turn_names: Optional[Dict[int, List[Tuple[str, str]]]] = None,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> None:
     """Bind an introduced name to whoever speaks NEXT, or to nobody.
 
@@ -2942,7 +3039,7 @@ def _bind_introduced_name(
         # IF YOU TALK ABOUT THEM IN THE THIRD PERSON, YOU ARE NOT THEM. Only the elimination path
         # checked this; the introduction reader could still hand a name to a voice whose own words
         # rule it out.
-        if refuted_by_third_person(voice_texts.get(nxt, ""), name):
+        if refuted_by_third_person(voice_texts.get(nxt, ""), name, language):
             continue
         # v1 (4th advisor): on the report-verb path a HOST name is usually a TOPICAL mention
         # ("kevin roose explains in his book") — bind it only to a host VOICE, never paint an
@@ -2989,6 +3086,7 @@ def _voice_named_by_the_introduction(
     corroborated_named: Sequence[str] = (),
     voice_texts: Optional[Mapping[str, str]] = None,
     ad_voices: AbstractSet[str] = frozenset(),
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Dict[str, str]:
     """``{voice: name}`` for a voice the HOST introduced by name — "and now, Bobby Allen".
 
@@ -3051,6 +3149,7 @@ def _voice_named_by_the_introduction(
             turn_text,
             host_name_requires_host_target=host_name_requires_host_target,
             turn_names=turn_names,
+            language=language,
         )
 
     stated = _stated_tokens(metadata_named)
@@ -3073,11 +3172,14 @@ def _voice_named_by_the_introduction(
         # lowercase turbo ASR, so match the SAME cue on the folded form and resolve the window to a
         # stated name. Reference-bounded — only ever assigns a name the metadata stated.
         refs = stated if stated_set is None else stated_set
+        if rx is None:
+            return
         for m in rx.finditer(mf_text):
             name = _match_stated_in_span(
                 normalize_name_for_match(m.group(1)).split(),
                 refs,
                 allow_first_name_only=allow_first_name_only,
+                language=language,
             )
             if name:
                 _assign(i, [name], host_name_requires_host_target=report_path)
@@ -3107,12 +3209,15 @@ def _voice_named_by_the_introduction(
             # random voice saying "…with rich investors" must not paint a stated Richard onto the
             # next speaker (F2, advisor review). Surname-anchored cue matches still run on any turn.
             _assign_matchform(
-                i, mf, _CUE_FIRST_MATCHFORM, allow_first_name_only=first_name_only and is_host_hint
+                i,
+                mf,
+                naming_vocabulary.vocabulary_row(_CUE_FIRST_MATCHFORM_BY_LANGUAGE, language),
+                allow_first_name_only=first_name_only and is_host_hint,
             )
             # Past-tense recap cue ("we spoke with X"): only a head-of-episode cold-open from a host
             # (fix 2 + 2c); the helper handles the text-head bound + recap-marker rejection.
             if is_host_hint and at_head:
-                past_nm = _past_cue_head_name(text, stated, first_name_only)
+                past_nm = _past_cue_head_name(text, stated, first_name_only, language)
                 if past_nm:
                     _assign(i, [past_nm])
         if is_host_hint:
@@ -3127,16 +3232,22 @@ def _voice_named_by_the_introduction(
                 _assign_matchform(
                     i,
                     mf,
-                    _GREETED_MATCHFORM,
+                    naming_vocabulary.vocabulary_row(_GREETED_MATCHFORM_BY_LANGUAGE, language),
                     allow_first_name_only=first_name_only and is_host_hint,
                 )
-                _assign_matchform(i, mf, _NAME_FIRST_MATCHFORM)
+                _assign_matchform(
+                    i,
+                    mf,
+                    naming_vocabulary.vocabulary_row(_NAME_FIRST_MATCHFORM_BY_LANGUAGE, language),
+                )
                 # Report-verb tails ("X explains/reports") resolve ONLY against corroborated refs,
                 # and a HOST name among them binds only a host voice (v1, 4th advisor).
                 _assign_matchform(
                     i,
                     mf,
-                    _NAME_FIRST_REPORT_MATCHFORM,
+                    naming_vocabulary.vocabulary_row(
+                        _NAME_FIRST_REPORT_MATCHFORM_BY_LANGUAGE, language
+                    ),
                     stated_set=corroborated_stated,
                     report_path=True,
                 )
@@ -3297,6 +3408,7 @@ def _self_intro_voice_names(
     conv_guests: AbstractSet[str] = frozenset(),
     strategy: Optional[DiarizationLabelingStrategy] = None,
     case_blind: bool = True,
+    language: Optional[str] = TARGET_LANGUAGE,
     suppress_merged: bool = True,
     cameo_max_talk_s: float = CAMEO_MAX_TALK_S,
 ) -> Dict[str, str]:
@@ -3322,7 +3434,9 @@ def _self_intro_voice_names(
             first_start[s.speaker] = s.start
         talk[s.speaker] = talk.get(s.speaker, 0.0) + (s.end - s.start)
     texts = voice_texts or {}
-    intros = _self_intros_by_voice(voice_texts, intro_sources, case_blind=case_blind)
+    intros = _self_intros_by_voice(
+        voice_texts, intro_sources, case_blind=case_blind, language=language
+    )
     # A SHORT cluster with 2+ self-intros is a cold-open montage clip (#1330). A LONG one with 2+
     # self-intros that map to DIFFERENT stated people is a diarization MERGE of multiple named
     # speakers (flightcast "I'm Lucas and I'm Axel" in the host cluster) — also suppressed, so the
@@ -3440,6 +3554,7 @@ def _intro_reader_voice_names(
     voice_texts: Optional[Mapping[str, str]] = None,
     refused_out: Optional[Set[str]] = None,
     trace: Optional[NamingTrace] = None,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Dict[str, str]:
     """``{voice: canonical name}`` for voices a host introduced by name — "and now, Bobby Allen" —
     since the person a host introduces is the one who speaks next. Complements the self-intro:
@@ -3468,6 +3583,7 @@ def _intro_reader_voice_names(
         corroborated_named=corroborated_persons if narrator_cue else (),
         voice_texts=voice_texts or {},
         ad_voices=ad_voices,
+        language=language,
     ).items():
         if v in ad_voices or v in voice_intro:
             tr.voice(
@@ -4622,12 +4738,16 @@ def _an_unseated_host_is_said_present(
 
 
 def _pool_with_episode_guest_hosts(
-    known_hosts: Optional[Sequence[str]], episode_text: Optional[str]
+    known_hosts: Optional[Sequence[str]],
+    episode_text: Optional[str],
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> List[str]:
     """The feed's hosts plus a guest host THIS episode's description names (`_GUEST_HOST_NAMED`)."""
     pool = list(known_hosts or ())
     known_lower = {h.lower() for h in pool}
-    return pool + [n for n in _guest_hosts_named(episode_text) if n.lower() not in known_lower]
+    return pool + [
+        n for n in _guest_hosts_named(episode_text, language) if n.lower() not in known_lower
+    ]
 
 
 def _stated_non_host_people(
@@ -4691,6 +4811,13 @@ def resolve_speaker_roster(
     # Pure observer (#2276): each stage records what it proposed / accepted / refused / overrode,
     # per voice and per name, for the diagnostics sidecar. Never changes a decision.
     trace: Optional[NamingTrace] = None,
+    # THE LANGUAGE OF THE TRANSCRIPT THIS READS — the feed's language, not the analysis language.
+    # Everything here runs on the ASR output, which is in whatever language was spoken, so the cue
+    # vocabulary has to be the SOURCE language. `transcription_language(cfg)` is the one reader
+    # (S0.6) and `pipeline.py` passes its answer. None = nothing resolved, which keeps the
+    # TARGET_LANGUAGE rows and so keeps exactly the behaviour this had before the parameter
+    # existed; a language that resolved but has no rows reads NOTHING rather than English.
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> SpeakerRoster:
     """Resolve every diarized voice to a ``SpeakerRole`` (see module docstring).
 
@@ -4725,7 +4852,7 @@ def resolve_speaker_roster(
     _hosts_in = list(known_hosts or ())
     # THE EPISODE MAY NAME ITS OWN HOST: a guest host the description states joins the pool for
     # this episode (see `_GUEST_HOST_NAMED`).
-    known_hosts = _pool_with_episode_guest_hosts(known_hosts, episode_text)
+    known_hosts = _pool_with_episode_guest_hosts(known_hosts, episode_text, language)
     tr.added_to_pool("guest_host_pool", _hosts_in, known_hosts)
 
     # One space between words, whoever built the text. Turns are joined with " " and ASR segments
@@ -4790,7 +4917,7 @@ def resolve_speaker_roster(
     # host-candidacy, and his ASR-mangled self-intro ("Kevin Russo") then never canonicalized to the
     # stated host ("Kevin Roose"). Self-identifying as a stated host is the stronger signal (#1169).
     _stated_host_set = set(known_hosts)
-    _names_self_intro = _self_intros_by_voice(voice_texts, intro_sources)
+    _names_self_intro = _self_intros_by_voice(voice_texts, intro_sources, language=language)
     conv_guests -= {
         v
         for v, n in _names_self_intro.items()
@@ -4822,7 +4949,7 @@ def resolve_speaker_roster(
     publisher_named: Set[str] = set()
     stated_seed: Dict[str, str] = {}
     for _v, _n in (stated_voice_names or {}).items():
-        if _v in ad_voices or not _is_person_voice_label(_n):
+        if _v in ad_voices or not _is_person_voice_label(_n, language):
             continue
         # Snap to the feed's spelling when it is plainly the same person ("Maya" -> "Maya Koster"),
         # the same bounded canonicalisation the self-intro path uses; verbatim when nothing states
@@ -4864,6 +4991,7 @@ def resolve_speaker_roster(
         case_blind=profile.case_blind_self_intro,
         suppress_merged=profile.suppress_merged_speaker_clusters,
         cameo_max_talk_s=profile.cameo_max_talk_s,
+        language=language,
     )
     # "I'm your host, Trivium co-founder Andrew Polk" reads as the mononym "Trivium" — the show's
     # name, which marked the real host a stated non-host and let the forced pool name land on the
@@ -4927,6 +5055,7 @@ def resolve_speaker_roster(
             corroborated_persons=list(detected_guests or ()) + list(known_hosts or ()),
             voice_texts=voice_texts or {},
             trace=tr,
+            language=language,
         )
     )
     tr.diff_names("intro_reader", _vi_before, voice_intro)
@@ -4995,7 +5124,7 @@ def resolve_speaker_roster(
     )
     ad_names_lower = {
         n.lower()
-        for v, n in _self_intros_by_voice(voice_texts, intro_sources).items()
+        for v, n in _self_intros_by_voice(voice_texts, intro_sources, language=language).items()
         if v in ad_voices and n
     }
 
@@ -5096,6 +5225,7 @@ def resolve_speaker_roster(
         introducer_voices=_introducer_voices,
         feed_title=feed_title,
         trace=tr,
+        language=language,
     )
 
     # The host also NAMES the guest out loud — "My guest today is Brian Chesky". That is a stated
@@ -5208,6 +5338,7 @@ def resolve_speaker_roster(
             known_hosts=known_hosts,
             refused_intro_voices=introduced_but_unspellable,
             trace=tr,
+            language=language,
         )
     )
     _bv_before = dict(by_voice)
@@ -5234,6 +5365,7 @@ def resolve_speaker_roster(
             introducer_voices=_introducer_voices,
             ignore_ownership=True,
             feed_title=feed_title,
+            language=language,
         ),
     )
     tr.diff_roles("talkative_host", _bv_before, by_voice)
@@ -5288,12 +5420,12 @@ def resolve_speaker_roster(
         if not _role.named:
             continue
         # Keep the person, drop the job or the show in front of them ("Your Host Luisa Leni").
-        _bare = strip_role_prefix(_role.name)
-        if _bare != _role.name and is_publishable_speaker_name(_bare):
+        _bare = strip_role_prefix(_role.name, language)
+        if _bare != _role.name and is_publishable_speaker_name(_bare, language=language):
             tr.voice(_v, "publish_gate", "prefix_stripped", name=_bare, previous=_role.name)
             _role = replace(_role, name=_bare)
             by_voice[_v] = _role
-        _publishable = is_publishable_speaker_name(_role.name)
+        _publishable = is_publishable_speaker_name(_role.name, language=language)
         if not _publishable or _is_show_mononym(_role.name, feed_title, known_hosts):
             tr.publish_refused(
                 _v, _role.name, "not_publishable" if not _publishable else "show_mononym"
@@ -5414,6 +5546,7 @@ def build_speaker_diagnostics(
     show_centric: bool = False,
     profile: LabelingProfile = DEFAULT_LABELING_PROFILE,
     detection_ran: Optional[bool] = None,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Dict[str, Any]:
     """Per-episode speaker-resolution diagnostics — *what we tried, what we resolved, and why
     each voice that stayed raw failed*. Written as a sidecar so an operator can see why a
@@ -5429,7 +5562,9 @@ def build_speaker_diagnostics(
     """
     talk = _talk_time(diarization)
     per_voice_intro = _self_intros_by_voice(
-        voice_texts, list(metadata_named or ()) + list(known_hosts or ()) + list(detected_guests)
+        voice_texts,
+        list(metadata_named or ()) + list(known_hosts or ()) + list(detected_guests),
+        language=language,
     )
     guests_available = bool(_clean_person_names(detected_guests))
     named = sum(1 for r in roster.by_voice.values() if r.named)

@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "episode_id": "p09_e04",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "summary": {
+    "bullets": [
+      "Risk is a systems property that lives in the couplings, not the components — a foundational insight that redefines how teams approach failure and resilience.",
+      "The most dangerous risks are slow, correlated, and predictable yet routinely discounted — naming them is the first step toward managing them effectively.",
+      "Systems thinking and risk management are not separate disciplines but one discipline expressed in two vocabularies — their convergence enables deeper insight into complex failures.",
+      "Teams using IPCC have repeatedly rebuilt solutions from scratch because they ignored the couplings — a sign that systems awareness is not optional but essential.",
+      "Reliability is not a component-level attribute but a property of interactions — trade-offs around reliability cross-cut every system design decision.",
+      "Framing matters because it reveals the hidden trade-offs embedded in any risk assessment — the right question determines the outcome.",
+      "Measuring the system directly confirms that risk emerges from couplings, not parts — this empirical validation shifts the focus from isolated failures to systemic behavior.",
+      "Try one idea from the conversation for two weeks; the rest is iteration — practical adoption begins with small, sustained experiments."
+    ],
+    "raw_text": "Risk is a systems property that lives in the couplings, not the components — a foundational insight that redefines how teams approach failure and resilience. The most dangerous risks are slow, correlated, and predictable yet routinely discounted — naming them is the first step toward managing them effectively.",
+    "title": "Risk Management and Systems Thinking: The Couplings That Matter"
+  }
+}

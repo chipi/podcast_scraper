@@ -888,6 +888,8 @@ class TestEnsureMLModelsCached(unittest.TestCase):
 
         import sys
 
+        import podcast_scraper
+
         original_cache = sys.modules.get("podcast_scraper.cache")
         try:
             if "podcast_scraper.cache" in sys.modules:
@@ -897,6 +899,21 @@ class TestEnsureMLModelsCached(unittest.TestCase):
         finally:
             if original_cache is not None:
                 sys.modules["podcast_scraper.cache"] = original_cache
+                # RESTORE THE PACKAGE ATTRIBUTE TOO, not just the sys.modules entry.
+                #
+                # `del sys.modules["podcast_scraper.cache"]` followed by a re-import builds a
+                # SECOND module object and rebinds `podcast_scraper.cache` to it. Putting only
+                # the sys.modules entry back leaves the two disagreeing for the rest of the
+                # session, and the victim is a later test in another file:
+                #
+                #   monkeypatch.setattr("podcast_scraper.cache.X", fake) -> sys.modules object
+                #   `from ...cache import X` in the code under test      -> package attribute
+                #
+                # Different objects, so the patch is invisible, the real function runs, and the
+                # assertion fails somewhere with no connection to this file. It cost
+                # TestHFSeq2SeqLoadBranches two tests in a full-suite run while both passed in
+                # isolation — order-dependent, so adding an unrelated test file exposed it.
+                podcast_scraper.cache = original_cache  # type: ignore[attr-defined]
 
     @patch("podcast_scraper.config._is_pytest_run")
     def test_ensure_ml_models_cached_handles_outer_exception(self, mock_is_test):

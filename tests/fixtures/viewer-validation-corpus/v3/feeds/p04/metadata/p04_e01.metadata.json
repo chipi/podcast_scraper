@@ -37,6 +37,8 @@
   },
   "episode": {
     "episode_id": "09ead36d-954f-5cbb-ae3f-6f0d5985233d",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2026-09-21",
     "title": "Frame & Light \u2014 Episode 1"
   },
@@ -45,6 +47,9 @@
   "feed": {
     "description": "Photography conversations: craft, storytelling, workflow, and making images under real constraints.",
     "feed_id": "sha256:bc193c384cef2911f2202fdb5f0d8f96abf7e2a26d957bac0ec0c1d13825f34d",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "title": "Frame & Light",
     "url": "http://localhost/"
   },

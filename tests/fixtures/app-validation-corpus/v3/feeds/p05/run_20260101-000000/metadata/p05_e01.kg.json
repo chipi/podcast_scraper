@@ -36,6 +36,56 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-bccfce5798a83a6e",
+      "target": "topic:behavioral-risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-bccfce5798a83a6e",
+      "target": "topic:decision-framing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-bccfce5798a83a6e",
+      "target": "topic:index-fund-strategy",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-bccfce5798a83a6e",
+      "target": "topic:low-cost-structure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-bccfce5798a83a6e",
+      "target": "topic:market-reaction-framing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-bccfce5798a83a6e",
+      "target": "topic:operational-iteration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-bccfce5798a83a6e",
+      "target": "topic:platform-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-bccfce5798a83a6e",
+      "target": "topic:reliability-intersection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-bccfce5798a83a6e",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-bccfce5798a83a6e",
+      "target": "topic:small-value-tilt",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-bccfce5798a83a6e",
       "to": "person:nora",
       "type": "MENTIONS"
@@ -115,6 +165,86 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:behavioral-risk-management",
+      "properties": {
+        "label": "behavioral risk management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:decision-framing",
+      "properties": {
+        "label": "decision framing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:index-fund-strategy",
+      "properties": {
+        "label": "index fund strategy",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:low-cost-structure",
+      "properties": {
+        "label": "low cost structure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:market-reaction-framing",
+      "properties": {
+        "label": "market reaction framing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:operational-iteration",
+      "properties": {
+        "label": "operational iteration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:platform-integration",
+      "properties": {
+        "label": "platform integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reliability-intersection",
+      "properties": {
+        "label": "reliability intersection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:small-value-tilt",
+      "properties": {
+        "label": "small value tilt",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },
