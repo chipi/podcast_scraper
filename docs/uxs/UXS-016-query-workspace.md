@@ -228,6 +228,23 @@ New visible labels and selectors require updates to [E2E surface map](https://gi
 
 Retired (was UXS-005 / VIEWER_IA §Left panel): `left-panel-enter-explore`, `left-panel-back-search`.
 
+**As built (checked against `web/gi-kg-viewer/src`, 2026-10-05).** The list above is the
+Draft's planned names; what shipped differs, and Playwright targets the shipped names:
+
+| Planned | Shipped |
+| --- | --- |
+| `workspace-root` | `search-workspace` |
+| `workspace-header` | no header testid; `search-query-type`, `search-filter-bar` and `search-chip-*` exist |
+| `search-op-cluster` / `-graph` / `-timeline` / `-compare` / `-consensus` | `operator-chip-cluster` / `-graph` / `-timeline` / `-compare` / `-consensus` inside `result-set-operator-bar`; panels `operator-<op>-panel`, failure `operator-error` |
+| `search-results` | `semantic-search-results-scroll` |
+| `search-cluster-group` | `operator-cluster-list` (empty: `operator-cluster-empty`) |
+| `workspace-sidebar-saved` / `-recent` (and §Left panel `left-panel-recent-queries`) | LeftPanel (§S4-shell): `left-panel-saved-queries`, `left-panel-saved-list`, `left-panel-recent-list`, empties `left-panel-saved-empty` / `left-panel-recent-empty` |
+| `workspace-save-button` / `workspace-save-dialog` | `search-save-query`; no save-dialog testid |
+| `rail-search-in-episode` | `episode-detail-search-in-episode` (opens Search with the `search-chip-episode` scope) |
+| `rail-search-in-topic` / `-person` / `-show` / `-selection` | **not built** (topic and person rails keep their older *prefill search* buttons, which are not scoped launchers) |
+| `episode-inline-search-field` / `-results` | **not built** |
+| `workspace-no-corpus` card | **not built as a card**: a muted line in `SearchPanel.vue` ("Set corpus path in the status bar to enable search."), no testid |
+
 Playwright coverage: per-surface Tier-1 mocked specs + Tier-2 production-shaped specs (RFC-107 §T1); Tier-3 real-corpus spec `web/gi-kg-viewer/e2e/validation/search-real-corpus.spec.ts`.
 
 ---

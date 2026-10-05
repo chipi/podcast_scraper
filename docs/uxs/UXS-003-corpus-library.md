@@ -37,37 +37,35 @@ rules for the Library tab and the shared Episode subject rail. All tokens refere
 - **Layout (desktop):** Library main column (`canvas` / `surface`) plus the right
   shell rail:
 
-1. **Filters** -- one collapsible titled **Filters**: **`?` HelpTip** immediately after the
-   section title (not separated to the far right; same control family as **Episodes**)
-   holds the narrowing blurb (publish date, title, summary topic, feed; same fields as
-   Search). **No** subtitle strip under the title row. **Left** stack (compact height): one
-   row for **Published on or after** (short date field) with preset chips (**All time** /
-   **7d** / …) **to the right** on the same row (single-row layout on desktop; horizontal
-   scroll if the viewport is too narrow); then a **three-column grid**: **Title** and
-   **Summary** inputs share the same middle column width (reference: title track); **Clear
-   all filters** and **Apply** sit in the third column (same compact control scale as **Clear
-   feed filter**: **`text-[10px]`**, **`px-2 py-0.5`**; column gap before inputs).
-   **Clear all filters** disabled when everything is already default; **Apply** reloads
-   using title/summary filters (same as **Enter** in those fields). **No** separate **Clear
-   text** button. On wide viewports, a **two-column** row
-   (~**60% / 40%**): **left** = that stack;    **right** =
-   **Feed** list: **all** catalog feeds in a short viewport (**~two row** height, **`overflow-y`**
-   scroll; **`data-testid="library-feed-list-scroll"`**). When the feed count exceeds the tunable threshold (default **15**),
-   a **`library-feed-filter-search`** input filters rows client-side by display title.
-   Stacks vertically on narrow widths.
-   With no row selected, episodes include **all** feeds; choosing a feed narrows the list.
-   **Clear feed filter** stays next to the **Feed** label at all times: **disabled** when
-   no feed is selected, **enabled** when a feed is selected; click restores the all-feeds
-   episode list.
-   Feed rows use display title when present (stable `feed_id`, plus RSS and description in
-   `title` hover when `GET /api/corpus/feeds` includes them), `border` dividers, and `overlay`
-   for the selected feed row.
+1. **Filters** -- one chip bar (`library-filter-bar`, #669; it replaced the earlier
+   **Filters** collapsible and grid form), in the same chip family as Digest and Search:
 
-   **Below** the **Filters** collapsible (always visible, not inside it): **Clustered episodes only**
-   (`library-topic-cluster-toggle`) reloads the list immediately (adds **`topic_cluster_only=true`**
-   to **`GET /api/corpus/episodes`** when checked). The API keeps episodes that appear on a cluster
-   member's **`episode_ids`** for a bridge topic (same semantics as before). A muted confirmation
-   line appears when the toggle is active.
+   `[Feed] [Date] [Clustered]` … `[× reset]`
+
+   - **Feed** (`library-chip-feed`) opens a popover (`library-popover-feed`) holding the
+     shared `CorpusFeedFilterPanel`: **all** catalog feeds in a short scrolling list. When the
+     feed count exceeds the tunable threshold (default **15**), a
+     **`library-feed-filter-search`** input filters rows client-side by display title. With no
+     feed selected, episodes include **all** feeds; choosing a feed narrows the list. **Clear**
+     sits inside the popover and renders only while a feed is selected; it restores the
+     all-feeds episode list. Feed rows use the display title when present (stable `feed_id`,
+     plus RSS and description in the `title` hover when `GET /api/corpus/feeds` includes them),
+     and `overlay` for the selected row.
+   - **Date** (`library-chip-date`, popover `library-popover-date`) is the shared `DateChip`
+     bound to the corpus lens `sinceYmd`, so Library, Digest and Search share one
+     **Published on or after** value and its presets.
+   - **Clustered** (`library-topic-cluster-toggle`) is a toggle chip with no popover: one click
+     flips it, `aria-pressed` carries the state, and the active chip reads **Clustered ✓** in
+     the filled style. It reloads the list immediately, adding **`topic_cluster_only=true`** to
+     **`GET /api/corpus/episodes`**. The API keeps episodes that appear on a cluster member's
+     **`episode_ids`** for a bridge topic. The filled chip is the confirmation; there is no
+     separate confirmation line.
+   - **× reset** (`library-chip-reset`, right-aligned) renders only while any chip is active
+     and resets all of them.
+
+   Under the chip bar, two search inputs share one row: **Title contains…**
+   (`library-filter-title`) and **Summary or bullets contain…** (`library-filter-summary`).
+   **Enter** in either applies the text filters.
 
 2. **Episode column** -- **`h2` Episodes** with a muted tabular count: **`(N)`** for the
    loaded page set, **`(N+)`** when **`next_cursor`** indicates more pages (native **`title`**
