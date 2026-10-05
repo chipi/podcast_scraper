@@ -158,7 +158,15 @@ test.describe('Search — command palette (#1233)', () => {
     await landOnDigestWithCorpus(page, 'palette-show-graph', testInfo)
     await openPalette(page)
     await queryPalette(page)
-    await page.getByTestId('command-palette-action-show-graph').first().click()
+    // The FIRST ENABLED action, not the first hit's: the button is disabled on hits with no graph
+    // node (transcript chunks), and which hit ranks first moves whenever the fixture grows — the
+    // p10-p14 `_e02`/`_e03` episodes put a transcript chunk on top. Still fails loudly when no
+    // hit in the top 8 is graph-resolvable.
+    const showGraph = page.locator(
+      '[data-testid="command-palette-action-show-graph"]:not([disabled])',
+    )
+    await expect(showGraph.first(), 'no graph-resolvable hit in the palette results').toBeVisible()
+    await showGraph.first().click()
     await expect(page.getByTestId('command-palette')).toHaveCount(0)
     await expect(page.getByTestId('graph-tab-panel')).toBeVisible({ timeout: 10_000 })
   })
