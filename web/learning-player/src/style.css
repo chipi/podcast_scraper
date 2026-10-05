@@ -113,14 +113,14 @@
     color: var(--lp-canvas-foreground);
   }
 
-  /* Search / filter field — ONE canonical width for every search or filter box in the app (Home
-     "ask", the Search page, in-episode search, and the list/collection filter toolbars). A search
-     field NEVER spans the full content width: it fills its row up to a fixed readable cap, so the
-     affordance is the same size on every surface instead of stretching to whatever the container
-     is. Apply to the field itself (or the field+adjacent-buttons row) — not to a whole section. */
+  /* Search / filter field — ONE rule for every search or filter box in the app (Home "ask", the
+     Search page, in-episode search, and the list/collection filter toolbars): it spans the width
+     of the list or results beneath it, so the row ends where the content it filters ends
+     (operator 2026-10-05). It used to stop at a 34rem cap, which on desktop left a filter row
+     ending 95–570px short of its list. Apply to the field itself (or the field+adjacent-buttons
+     row) — not to a whole section. */
   .lp-search {
     width: 100%;
-    max-width: 34rem;
   }
 
   /* Sheet — ONE canonical geometry for every panel that rises from the bottom of the screen

@@ -136,3 +136,32 @@ for (const viewport of [
     expect(Math.abs(right(all) - right(last))).toBeLessThanOrEqual(1)
   })
 }
+
+/**
+ * A filter or search row spans the width of the list under it (operator 2026-10-05). The shared
+ * `.lp-search` rule capped the field at 34rem, so on desktop the All-episodes filter row ended 441px
+ * short of its list and the Search row 570px short. The row's last control must end where its
+ * area ends — at the phone and the desktop width.
+ */
+for (const viewport of [
+  { width: 412, height: 915 },
+  { width: 1440, height: 900 },
+]) {
+  test(`filter and search rows end where their list ends at ${viewport.width}px`, async ({ page }, testInfo) => {
+    await signInIsolated(page, `filter-row-${viewport.width}`, testInfo)
+    await page.setViewportSize(viewport)
+    const right = (b: { x: number; width: number } | null) => Math.round((b?.x ?? 0) + (b?.width ?? 0))
+    for (const [url, placeholder, rowXpath] of [
+      ['/catalog', 'Filter this list…', 'xpath=..'],
+      ['/search?q=reliability', 'Search across every episode…', 'xpath=ancestor::form[1]'],
+    ] as const) {
+      await page.goto(url)
+      const input = page.getByPlaceholder(placeholder)
+      await expect(input).toBeVisible()
+      const row = input.locator(rowXpath)
+      const lastControl = await row.locator('xpath=./*[last()]').boundingBox()
+      const area = await row.locator('xpath=..').boundingBox()
+      expect(Math.abs(right(lastControl) - right(area)), url).toBeLessThanOrEqual(1)
+    }
+  })
+}
