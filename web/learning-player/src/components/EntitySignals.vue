@@ -22,7 +22,16 @@ import { personName, personNameFromId } from "../utils/personName"
 import { getEntitySignals } from "../services/api"
 import type { CorpusEnrichmentSignals } from "../services/types"
 
-const props = defineProps<{ kind: "person" | "topic"; id: string }>()
+const props = defineProps<{
+  kind: "person" | "topic"
+  id: string
+  /**
+   * Render one of the two sections only, so a host can put its own sections between them (the
+   * person page: "Often appears with", then related people and topics, then "Where they agree" —
+   * operator 2026-10-05). Two instances share ONE request: `getEntitySignals` caches by entity.
+   */
+  only?: "coappears" | "consensus"
+}>()
 const emit = defineEmits<{ (e: "open", payload: { kind: "person" | "topic"; id: string }): void }>()
 
 const { t } = useI18n()
@@ -133,13 +142,15 @@ const consensus = computed(() => {
 // rather than sitting mid-body under a "Momentum" heading. Similar-topics + discussed-alongside
 // were removed earlier for the same reason (the card owns those chips). So this block is now
 // PERSON-ONLY — co-appearance + consensus — and renders nothing for a topic.
-const hasAny = computed(() => Boolean(coappears.value.length || consensus.value.length))
+const showCoappears = computed(() => props.only !== "consensus" && coappears.value.length > 0)
+const showConsensus = computed(() => props.only !== "coappears" && consensus.value.length > 0)
+const hasAny = computed(() => showCoappears.value || showConsensus.value)
 </script>
 
 <template>
-  <div v-if="hasAny" data-testid="entity-signals">
+  <div v-if="hasAny" :data-testid="props.only ? `entity-signals-${props.only}` : 'entity-signals'">
     <!-- Person -->
-    <section v-if="coappears.length" class="mb-4" data-testid="es-coappears">
+    <section v-if="showCoappears" class="mb-4" data-testid="es-coappears">
       <CollapsibleSection :title="t('ec.sigCoappears')" section-key="signals-coappears" :level="3">
         <div class="flex flex-wrap gap-1.5">
           <button
@@ -155,7 +166,7 @@ const hasAny = computed(() => Boolean(coappears.value.length || consensus.value.
       </CollapsibleSection>
     </section>
 
-    <section v-if="consensus.length" class="mb-4" data-testid="es-consensus">
+    <section v-if="showConsensus" class="mb-4" data-testid="es-consensus">
       <CollapsibleSection :title="t('ec.sigConsensus')" section-key="signals-consensus" :level="3">
         <ul class="flex flex-col gap-2">
           <li

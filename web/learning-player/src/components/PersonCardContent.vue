@@ -18,8 +18,14 @@ import EntitySignals from "./EntitySignals.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import NoteComposer from "./NoteComposer.vue"
 import EntityEpisodeList from "./EntityEpisodeList.vue"
+import ThemeCard from "./ThemeCard.vue"
+import StorylineCard from "./StorylineCard.vue"
 
-const props = defineProps<{ person: PersonCard }>()
+const props = defineProps<{
+  person: PersonCard
+  /** This card's stack depth; a theme or storyline it opens sits one level deeper. */
+  depth?: number
+}>()
 const emit = defineEmits<{
   (e: "open", payload: { kind: "person" | "topic"; id: string }): void
   (e: "close"): void
@@ -93,6 +99,24 @@ function roleLabel(role: string | null | undefined): string {
   return key ? t(key) : role
 }
 const relatedTopics = computed<Topic[]>(() => props.person.related_topics ?? [])
+// The themes and storylines those topics belong to, each once, in the order first met. A storyline
+// opens from ANY member topic id (StorylineCard reconstructs it from one), so keep the first.
+const relatedThemes = computed(() => {
+  const seen = new Map<string, { id: string; label: string }>()
+  for (const tp of relatedTopics.value)
+    if (tp.cluster_id && tp.cluster_label && !seen.has(tp.cluster_id))
+      seen.set(tp.cluster_id, { id: tp.cluster_id, label: tp.cluster_label })
+  return [...seen.values()]
+})
+const relatedStorylines = computed(() => {
+  const seen = new Map<string, { id: string; label: string; topicId: string }>()
+  for (const tp of relatedTopics.value)
+    if (tp.storyline_id && tp.storyline_label && !seen.has(tp.storyline_id))
+      seen.set(tp.storyline_id, { id: tp.storyline_id, label: tp.storyline_label, topicId: tp.id })
+  return [...seen.values()]
+})
+const themeOpenId = ref<string | null>(null)
+const storylineOpenTopicId = ref<string | null>(null)
 
 function searchLibrary(): void {
   const term = label.value.trim()
@@ -205,10 +229,11 @@ function searchLibrary(): void {
   </p>
 
 
-  <!-- "Often appears with" + signals — our own derived data, so it follows the sourced block and
-       the shows rather than sitting between them. Rendered once for both the bio and bio-less
-       cases; it used to be duplicated across two branches. -->
-  <EntitySignals kind="person" :id="person.id" @open="(p) => emit('open', p)" />
+  <!-- ORDER (operator 2026-10-05): often appears with -> related people -> related topics (with
+       their themes and storylines) -> where they agree -> episodes -> notes. The signals are our own
+       derived data, so they follow the sourced block and the shows; they render in two halves so
+       related people and topics sit between them (one request — the signals call is cached). -->
+  <EntitySignals kind="person" :id="person.id" only="coappears" @open="(p) => emit('open', p)" />
 
 
   <section v-if="relatedPeople.length" class="mb-4">
@@ -247,10 +272,51 @@ function searchLibrary(): void {
     </CollapsibleSection>
   </section>
 
-  <!-- Search transcripts — placed BETWEEN related people and related topics so it separates the two
-       chip groups (operator 2026-09-17). They are both rows of pills and ran together visually;
-       the pill-shaped button breaks them apart while staying useful where it sits. Content-width,
-       never full-bleed. -->
+
+  <!-- Related topics, MIXED with the themes and storylines those topics belong to, each pill in its
+       kind's colour and naming its kind — the episode notes' convention for a mixed group (operator
+       2026-10-05). Moved up from the foot of the page to sit directly under related people. The
+       groupings come from the topics themselves (the server enriches each with its theme and
+       storyline), so no extra request. A theme or storyline opens ON TOP, as on the topic card. -->
+  <section v-if="relatedTopics.length" class="mb-4" data-testid="ec-person-related">
+    <CollapsibleSection :title="t('ec.relatedTopics')" section-key="person-related-topics" :level="3">
+      <div class="flex flex-wrap gap-1.5">
+        <button
+          v-for="th in relatedThemes"
+          :key="th.id"
+          type="button"
+          data-testid="ec-person-related-theme"
+          class="rounded-full bg-overlay px-2.5 py-1 text-xs font-semibold text-theme ring-1 ring-inset ring-theme/40 transition hover:bg-elevated"
+          @click="themeOpenId = th.id"
+        >
+          <span class="mr-1.5 font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.themeKind") }}</span>{{ th.label }}
+        </button>
+        <button
+          v-for="sl in relatedStorylines"
+          :key="sl.id"
+          type="button"
+          data-testid="ec-person-related-storyline"
+          class="lp-storyline-chip rounded-full px-2.5 py-1 text-xs font-semibold text-storyline transition"
+          @click="storylineOpenTopicId = sl.topicId"
+        >
+          <span class="mr-1.5 font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.storylineKind") }}</span>{{ sl.label }}
+        </button>
+        <button
+          v-for="tp in relatedTopics"
+          :key="tp.id"
+          type="button"
+          data-testid="ec-person-related-topic"
+          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+          @click="emit('open', { kind: 'topic', id: tp.id })"
+        >
+          <span class="mr-1.5 font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("notes.kind_topic") }}</span>{{ tp.label }}
+        </button>
+      </div>
+    </CollapsibleSection>
+  </section>
+
+  <!-- Search transcripts — after the related pills, before "Where they agree": a pill-shaped
+       button between chip groups and the agreement rows. Content-width, never full-bleed. -->
   <button
     type="button"
     class="mb-4 block w-fit max-w-full rounded-full border border-border px-4 py-2 text-left text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
@@ -260,21 +326,8 @@ function searchLibrary(): void {
     {{ t("ec.searchLibrary", { term: label }) }}
   </button>
 
-  <section v-if="relatedTopics.length" class="mb-4">
-    <CollapsibleSection :title="t('ec.relatedTopics')" section-key="person-related-topics" :level="3">
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          v-for="tp in relatedTopics"
-          :key="tp.id"
-          type="button"
-          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-          @click="emit('open', { kind: 'topic', id: tp.id })"
-        >
-          {{ tp.label }}
-        </button>
-      </div>
-    </CollapsibleSection>
-  </section>
+  <!-- "Where they agree" — the second half of the signals, after who this person is connected to. -->
+  <EntitySignals kind="person" :id="person.id" only="consensus" @open="(p) => emit('open', p)" />
 
   <!-- Episodes (newest-first, STATED not offered as a control — #2004 item 11). Host-show
        back-catalogue is dropped above, so this is "also appears in" when they host anything.
@@ -302,4 +355,15 @@ function searchLibrary(): void {
 
   <!-- Notes on this person (PD.4). -->
   <NoteComposer target="person" :target-id="person.id" />
+
+  <!-- A theme or storyline from the related pills, opened ON TOP (teleported sheet) rather than
+       navigating away — the topic card's rule, for the same reason (a route change under a top-layer
+       sheet reads as a dead tap). -->
+  <ThemeCard v-if="themeOpenId" :id="themeOpenId" :depth="(props.depth ?? 0) + 1" @close="themeOpenId = null" />
+  <StorylineCard
+    v-if="storylineOpenTopicId"
+    :id="storylineOpenTopicId"
+    :depth="(props.depth ?? 0) + 1"
+    @close="storylineOpenTopicId = null"
+  />
 </template>

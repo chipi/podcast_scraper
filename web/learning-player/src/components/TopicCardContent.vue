@@ -240,10 +240,12 @@ function searchLibrary(): void {
        marked. On the page that reasoning does not survive: the heading says "N similar topics" and
        the first thing under it is the topic whose page you are reading, which is not similar to
        itself. The count now counts what is actually listed. -->
-  <!-- Similar topics and Top voices side by side, half the width each, on the desktop page
-       (operator 2026-10-05); Top voices moved up from below the strongest shows. Stacked in a sheet,
-       the Knowledge Panel and on a phone. -->
-  <div :class="props.wide ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6' : ''" data-testid="ec-topic-people-pair">
+  <!-- Two columns on the desktop page (operator 2026-10-05): similar topics, "Part of a theme" and
+       "Part of a storyline" stacked on the left; Top voices alone on the right (moved up from below
+       the strongest shows). One column in a sheet, the Knowledge Panel and on a phone, where Top
+       voices follows the storyline link. -->
+  <div :class="props.wide ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6' : ''" data-testid="ec-topic-related">
+  <div data-testid="ec-topic-related-left">
   <section v-if="siblings.length" class="mb-4" data-testid="ec-similar-topics">
     <CollapsibleSection :title="t('ec.clusterMembers', siblings.length, { named: { count: siblings.length } })" section-key="topic-similar" :level="3">
       <div class="flex flex-wrap gap-1.5">
@@ -261,15 +263,10 @@ function searchLibrary(): void {
     </CollapsibleSection>
   </section>
 
-  <!-- Top voices (wave-G): the people who drive THIS topic. Shared with the storyline page. -->
-  <TopVoices class="mb-4" :people="topVoices" @open="(id) => openPerson(id)" />
-  </div>
-
   <!-- Part of a theme: the grouping this topic MEANS the same thing as. Sits directly above the
        storyline link so a reader meets the two groupings as a pair and can see they are different
        claims — "means the same thing" against "keeps coming up together" — rather than meeting one
        of them and inferring the other from a chip list. -->
-  <div :class="props.wide ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6' : ''" data-testid="ec-topic-group-pair">
   <section v-if="themeLabel && themeId" class="mb-4" data-testid="ec-theme">
     <CollapsibleSection :title="t('ec.themeHeading')" section-key="topic-theme" :level="3">
       <button
@@ -312,6 +309,10 @@ function searchLibrary(): void {
   <p v-else class="mb-4 text-xs text-muted" data-testid="ec-single-topic">
     {{ t("ec.singleTopic") }}
   </p>
+  </div>
+
+  <!-- Top voices (wave-G): the people who drive THIS topic. Shared with the storyline page. -->
+  <TopVoices class="mb-4" :people="topVoices" @open="(id) => openPerson(id)" />
   </div>
 
   <!-- The theme, opened ON TOP (teleported sheet) rather than navigating away. -->

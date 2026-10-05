@@ -317,6 +317,7 @@ const isTopic = computed(() => current.value.kind === "topic")
       <PersonCardContent
         v-else-if="person"
         :person="person"
+        :depth="depth"
         @open="(p) => open(p.kind, p.id)"
         @close="emit('close')"
       />

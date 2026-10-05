@@ -304,10 +304,16 @@ start. (A serif was tried and rejected during the earlier design phase.)
   from `.lp-focus`, and `.lp-prose` gives it to long text on a full-width page, starting at the
   page's left edge, never centred.
 - **Desktop entity pages pair sections**, half the width each, from `lg` (operator 2026-10-05).
-  Topic: "Discussed over time" beside "Conversation over time", similar topics beside Top voices,
-  "Part of a theme" beside "Part of a storyline". Theme and storyline: member topics beside Top
-  voices, then what's said, then the episode list at full width. Sheets, the Knowledge Panel and
-  phones stay one column. Page labels are singular: Topic, Person, Theme, Storyline.
+  Topic: "Discussed over time" beside "Conversation over time"; then similar topics, "Part of a
+  theme" and "Part of a storyline" stacked in the left column with Top voices alone on the right.
+  Theme and storyline: member topics beside Top voices, then what's said, then the episode list at
+  full width. Sheets, the Knowledge Panel and phones stay one column. Page labels are singular:
+  Topic, Person, Theme, Storyline.
+- **Person page order** (operator 2026-10-05): often appears with → related people → related topics
+  → where they agree → episodes → notes. Related topics is a MIXED group — the themes and
+  storylines those topics belong to (from the topics' own enrichment, each once), then the topics —
+  every pill in its kind's colour and naming its kind, as in the episode notes; a theme or storyline
+  opens on top as a sheet.
 - **Search and filter rows** span the width of the list or results under them (`.lp-search`, no
   cap): the row ends where its content ends.
 - The Player two-column splits transcript (≈60%) + Knowledge rail (≈40%).

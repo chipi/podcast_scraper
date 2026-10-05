@@ -107,10 +107,10 @@ test('the account pages behind the avatar are a centred column on desktop', asyn
 })
 
 /**
- * Desktop entity pages pair sections side by side, half the width each (operator 2026-10-05): on
- * the topic page similar topics beside Top voices and "Part of a theme" beside "Part of a
- * storyline"; on theme and storyline pages the member topics beside Top voices. On a phone they
- * stack.
+ * Desktop entity pages put sections side by side, half the width each (operator 2026-10-05): on
+ * the topic page similar topics, "Part of a theme" and "Part of a storyline" stack in the left
+ * column with Top voices alone on the right; on theme and storyline pages the member topics sit
+ * beside Top voices. On a phone everything stacks.
  */
 for (const viewport of [
   { width: 1440, height: 900, side: true },
@@ -149,7 +149,17 @@ for (const viewport of [
     }
     const topic = `/topic/${encodeURIComponent('topic:risk-management')}`
     await pair(topic, 'topic-view', 'ec-similar-topics', 'ec-top-voices')
-    await pair(topic, 'topic-view', 'ec-theme', 'ec-storyline')
+    // The storyline link stacks under the theme link at every width (both in the left column).
+    await page.goto(topic)
+    const tv = page.getByTestId('topic-view')
+    await expect(tv.getByTestId('ec-storyline')).toBeVisible()
+    const [th, sl] = await page.evaluate(() => {
+      const v = document.querySelector('[data-testid="topic-view"]')!
+      const r = (id: string) => v.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect()
+      const [a, b] = [r('ec-theme'), r('ec-storyline')]
+      return [{ y: a.y, height: a.height }, { y: b.y }]
+    })
+    expect(sl.y, 'storyline under theme').toBeGreaterThanOrEqual(th.y + th.height)
     await pair(`/theme/${encodeURIComponent('tc:safety-practices')}`, 'theme-view', 'theme-topics', 'ec-top-voices')
     await pair(`/storyline/${encodeURIComponent('topic:risk-management')}`, 'storyline-view', 'storyline-topics', 'ec-top-voices')
   })
