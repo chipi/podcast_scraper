@@ -30,6 +30,23 @@
                 <data android:scheme="closelistening" />
             </intent-filter>
 
+            <!-- App Links (operator 2026-10-05): a closelistening.app CONTENT link opens here when
+                 the app is installed, verified against /.well-known/assetlinks.json. Content paths
+                 only — the sign-in email's /api/app/auth/... link must keep opening in the browser,
+                 or the app would swallow it and email sign-in would break. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="closelistening.app" />
+                <data android:pathPrefix="/episode/" />
+                <data android:pathPrefix="/podcast/" />
+                <data android:pathPrefix="/topic/" />
+                <data android:pathPrefix="/person/" />
+                <data android:pathPrefix="/storyline/" />
+                <data android:pathPrefix="/theme/" />
+            </intent-filter>
+
         </activity>
 
         <!-- Background-audio keep-alive foreground service (#1310). -->

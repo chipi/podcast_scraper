@@ -1,0 +1,20 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "3P3PX275ZM.app.closelistening.player",
+          "3P3PX275ZM.app.closelistening.player.dev"
+        ],
+        "components": [
+          { "/": "/episode/*" },
+          { "/": "/podcast/*" },
+          { "/": "/topic/*" },
+          { "/": "/person/*" },
+          { "/": "/storyline/*" },
+          { "/": "/theme/*" }
+        ]
+      }
+    ]
+  }
+}
