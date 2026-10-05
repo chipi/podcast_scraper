@@ -171,6 +171,23 @@ describe('LibraryView', () => {
     expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/a')
   })
 
+  it("Saved puts a show row's controls UNDER its artwork, like the episode rows (operator 2026-10-05)", async () => {
+    // Shows and episodes share this page, so they share one place for controls: the row under the
+    // artwork that EpisodeCard uses — not the plated column over the artwork the show row
+    // defaults to.
+    vi.spyOn(api, 'getFavorites').mockResolvedValue({
+      episodes: [summary({ slug: 'a', title: 'Alpha Saved' })],
+      entities: [{ kind: 'show', ref: 'f1', label: 'Saved Show' }],
+    })
+    const w = mountKeptAlive()
+    await flushPromises()
+    const show = w.get('[data-testid="saved-shows-list"]')
+    expect(show.text()).toContain('Saved Show')
+    const below = show.get('[data-testid="show-row-actions"]')
+    expect(below.find('button').exists()).toBe(true)
+    expect(show.find('.absolute.right-1\\.5').exists()).toBe(false)
+  })
+
   it('pages a long Saved episodes list FIVE at a time (operator 2026-09-19)', async () => {
     // Was "show 6, then show all", then ten-and-ten, now five-and-five. A hundred saved episodes
     // revealed in one press is not a page — it is a scroll with no landmarks — and ten rows is
