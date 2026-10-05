@@ -39,7 +39,8 @@ import { usePlayed } from "../composables/usePlayed"
 import EntityCard from "../components/EntityCard.vue"
 import InterestsPicker from "../components/InterestsPicker.vue"
 import KeyVoicesRail from "../components/KeyVoicesRail.vue"
-import AskAndTrends from "../components/AskAndTrends.vue"
+import SearchSection from "../components/SearchSection.vue"
+import TrendsSection from "../components/TrendsSection.vue"
 import CollectionsTeaser from "../components/CollectionsTeaser.vue"
 import RevisitRail from "../components/RevisitRail.vue"
 import SectionHeading from "../components/SectionHeading.vue"
@@ -627,13 +628,14 @@ async function loadContinue(): Promise<void> {
 
          Half width from `lg`, matching Discover: a trend row is a short label against a sparkline +
          multiplier + follow, and across the full column those two clusters sit ~500px apart. -->
-    <!-- Search + Trends: the SAME block Discover renders (operator 2026-10-05 — Home and Discover are
-         one screen family and must look identical; see AskAndTrends). Left half on `lg`, with the
-         revisit rail and the boards teaser stacked in the right half that would otherwise be empty;
-         stacked on phones. -->
+    <!-- Search, then Trends — the same two sections, in the same order, that Discover renders
+         (operator 2026-10-05: Home and Discover are one screen family and must look identical; each
+         section owns its own spacing so neither page can wrap it differently). Left half on `lg`, with
+         the revisit rail and the boards teaser stacked in the right half; stacked on phones. -->
     <div class="lg:flex lg:items-start lg:gap-8">
       <div class="lg:w-1/2 lg:pr-4">
-        <AskAndTrends prefix="home" @open="onDiscoveryOpen" />
+        <SearchSection prefix="home" />
+        <TrendsSection prefix="home" @open="onDiscoveryOpen" />
       </div>
       <div class="lg:w-1/2">
         <RevisitRail />

@@ -263,13 +263,13 @@ describe("search survives the loss of its tab (#1588)", () => {
     expect(tabs, "the Discover (browse) tab is what makes search reachable on a phone").toContain(
       "'browse'",
     )
-    // The box lives in the block Home and Discover share (AskAndTrends, 2026-10-05); Discover
-    // renders it under its own `browse` ids.
+    // The box is the SearchSection Home and Discover share (2026-10-05); Discover renders it under
+    // its own `browse` ids.
     const browse = readFileSync(path.join(dir, "..", "views", "BrowseView.vue"), "utf8")
-    expect(browse, "Discovery must carry the shared search + trends block").toMatch(
-      /<AskAndTrends[^>]*prefix="browse"/,
+    expect(browse, "Discovery must carry the shared search section").toMatch(
+      /<SearchSection[^>]*prefix="browse"/,
     )
-    const block = readFileSync(path.join(dir, "..", "components", "AskAndTrends.vue"), "utf8")
+    const block = readFileSync(path.join(dir, "..", "components", "SearchSection.vue"), "utf8")
     expect(block, "the shared block must carry Discover's search input").toContain("'browse-search-input'")
   })
 

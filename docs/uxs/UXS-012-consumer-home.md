@@ -359,14 +359,16 @@ piece to its design home:
   a label, optional subtitle, trend-hued sparkline, a trailing metric that tracks the active sort,
   and a `discovery-follow` toggle. Sourced from `GET /api/app/trending` (EWMA velocity + volume).
   Replaced `MomentumRail`, `TrendingTopics`, and `Storylines` rails.
-- **`AskAndTrends`** — the block Home and Discover BOTH render (operator 2026-10-05: "Home and
-  Discover are the same screens … things have to be identical"): the "Find any moment you've heard"
-  search box with two trending-topic chips, then Trends. Sharing `DiscoveryExplorer` alone was not
-  enough — each page wrapped it differently (Discover added its own `px-4` gutter, spaced it `mt-4`
-  against Home's `mt-7`, put search above Trends where Home put it below, showed 10 rows against 3,
-  and gave only Home the chips) — so the wrapping is shared too: search first, then Trends, one
-  spacing, **3 rows on a phone and 5 on desktop**, more rows expanding in place from the header's
-  "all ›" on both. The page decides only what a tap opens (Home: overlay card; Discover: the page).
+- **`SearchSection`** and **`TrendsSection`** — two separate sections that Home and Discover BOTH
+  render, in that order (operator 2026-10-05: "Home and Discover are the same screens … things have
+  to be identical"; search and trends are unrelated, so they are two components, not one). Sharing
+  `DiscoveryExplorer` alone was not enough — each page wrapped it differently (Discover added its own
+  `px-4` gutter, spaced it `mt-4` against Home's `mt-7`, put search above Trends where Home put it
+  below, showed 10 rows against 3, and gave only Home the chips) — so each section owns its own
+  spacing. `SearchSection`: the "Find any moment you've heard" box and two trending-topic chips.
+  `TrendsSection`: Trends at **3 rows on a phone and 5 on desktop**, more rows expanding in place from
+  the header's "all ›" on both. The page decides only what a Trends tap opens (Home: overlay card;
+  Discover: the page).
 - **`DiscoveryExplorer`** — the shared section (`discovery-explorer`) wrapping the tabbed
   `DiscoveryList` (topics / themes / storylines / people — Themes added 2026-10-05, in the order
   every surface lists the kinds) with the Rising⇄Trending sort (`discovery-sort`) and
@@ -374,7 +376,7 @@ piece to its design home:
   both switches share one row down to a 375px phone, and Home and Discover render the section at
   the SAME inset and width — Discover's container no longer adds its own `px-4` on top of the app
   shell's gutter (`page-gutters.spec.ts`). A theme row opens the theme sheet on Home and the theme
-  page on Discover, by the theme's own `tc:` id. Used by BOTH Home and Discover through `AskAndTrends`
+  page on Discover, by the theme's own `tc:` id. Used by BOTH Home and Discover through `TrendsSection`
   (3 rows on a phone, 5 on desktop, expanding in place via `discovery-see-all`); `/browse?trends={kind}`
   selects that kind in this same explorer and scrolls it into view. Extracted from
   HomeView so Home and Discover cannot drift (operator 2026-09-14, replaced the top-3

@@ -18,7 +18,8 @@ import { track } from '../services/analytics'
 import { panelAttrs, type TabSpec } from '../components/tabs'
 import CatalogView from './CatalogView.vue'
 import ShowBrowseView from './ShowBrowseView.vue'
-import AskAndTrends from '../components/AskAndTrends.vue'
+import SearchSection from '../components/SearchSection.vue'
+import TrendsSection from '../components/TrendsSection.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
 import { getPodcasts } from '../services/api'
 import type { Podcast } from '../services/types'
@@ -92,16 +93,16 @@ const trendsKind = computed(() => {
  * chip tap from Home landed at the top of Browse with the change off-screen — indistinguishable
  * from the link not working, which is how it was reported (operator 2026-09-18).
  *
- * Declared AFTER `askTrends`/`trendsKind` deliberately: an `immediate` watch placed above the consts
+ * Declared AFTER `trends`/`trendsKind` deliberately: an `immediate` watch placed above the consts
  * it reads throws a TDZ ReferenceError at setup that neither the build nor the unit suite catches.
  */
-const askTrends = ref<{ trendsEl: HTMLElement | null } | null>(null)
+const trends = ref<{ trendsEl: HTMLElement | null } | null>(null)
 watch(
   trendsKind,
   (k) => {
     if (!k) return
     void nextTick(() =>
-      askTrends.value?.trendsEl?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }),
+      trends.value?.trendsEl?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }),
     )
   },
   { immediate: true },
@@ -147,12 +148,13 @@ watch(
       @see-all="onShowsSeeAll"
     />
 
-    <!-- Search + Trends: the SAME block Home renders (operator 2026-10-05; see AskAndTrends). Search
-         sits between trending shows and Trends, where the page turns from "what's popular" to "go
-         find something" (operator 2026-09-20). Half width from `lg` up; the right half stays empty
-         on purpose (operator 2026-09-17). -->
+    <!-- Search, then Trends — the same two sections, in the same order, that Home renders (operator
+         2026-10-05). Search sits between trending shows and Trends, where the page turns from
+         "what's popular" to "go find something" (operator 2026-09-20). Half width from `lg` up; the
+         right half stays empty on purpose (operator 2026-09-17). -->
     <div class="lg:w-1/2 lg:pr-4">
-      <AskAndTrends ref="askTrends" prefix="browse" :kind="trendsKind" @open="onEntityOpen" />
+      <SearchSection prefix="browse" />
+      <TrendsSection ref="trends" prefix="browse" :kind="trendsKind" @open="onEntityOpen" />
     </div>
 
     <!-- Content band below the dashboard: the things you actually play. Two tabs spread equally
