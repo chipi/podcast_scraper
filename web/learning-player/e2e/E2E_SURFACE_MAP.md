@@ -109,7 +109,7 @@ The phone bar ([BottomNav](../src/components/BottomNav.vue), `sm:hidden`) now ca
 | Route | Name | View | Auth | Notes |
 | ----- | ---- | ---- | ---- | ----- |
 | `/welcome` | `landing` | [LandingView](../src/views/LandingView.vue) | **public** | **Logged-out lure landing (RFC-120)** — hero + "Create your free account" CTA, read-only Featured teaser (4 distinct shows) + topic chips + how-it-works; every card/chip funnels to signup with `?redirect` threaded. The signed-out entry to the app (UXS-012 "Access model"). Testids: `landing-cta-primary`, `landing-cta-signin`, `landing-featured`, `landing-card`, `landing-chip` (+ `landing-cta-foot`). |
-| `/login` | `login` | [LoginView](../src/views/LoginView.vue) | **public** | Dev sign-in |
+| `/login` | `login` | [LoginView](../src/views/LoginView.vue) | **public** | Dev sign-in; `login-view` is a centred 448px column at every width, the one page that does not fill the page width (operator 2026-10-05; `page-gutters.spec.ts`) |
 | `/` | `home` | [HomeView](../src/views/HomeView.vue) | auth | Learning Hub — adaptive hero, discovery. **Authed-only under login-first (RFC-120)** — signed-out visitors get `/welcome`, not this |
 | `/catalog` | `catalog` | [CatalogView](../src/views/CatalogView.vue) | auth | "Browse" — episode catalog |
 | `/search` | `search` | [SearchView](../src/views/SearchView.vue) | auth | Corpus semantic search + KnowledgePanel |

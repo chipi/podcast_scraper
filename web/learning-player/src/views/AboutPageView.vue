@@ -41,7 +41,7 @@ function goBack(e: MouseEvent): void {
 </script>
 
 <template>
-  <section class="lp-page pb-8 pt-4" data-testid="about-page">
+  <section class="lp-page lp-focus pb-8 pt-4" data-testid="about-page">
     <RouterLink
       :to="{ name: 'settings' }"
       class="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted no-underline transition hover:text-canvas-foreground"

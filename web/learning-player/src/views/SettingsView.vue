@@ -166,7 +166,7 @@ async function openHelp(): Promise<void> {
 </script>
 
 <template>
-  <section class="lp-page pb-8 pt-4" data-testid="settings-view">
+  <section class="lp-page lp-focus pb-8 pt-4" data-testid="settings-view">
     <RouterLink
       :to="{ name: 'profile' }"
       class="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted no-underline transition hover:text-canvas-foreground"

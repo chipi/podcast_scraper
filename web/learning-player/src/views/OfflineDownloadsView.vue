@@ -62,7 +62,9 @@ const hasAny = computed(() => checked.value && found.value)
 </script>
 
 <template>
-  <main class="lp-page py-6" data-testid="offline-downloads">
+  <!-- A focused, centred column at every width, like sign-in (operator 2026-10-05): a short fallback
+       page, not a browsing surface. On a phone the column is wider than the screen and fills it. -->
+  <main class="lp-page mx-auto max-w-md py-6" data-testid="offline-downloads">
     <h1 class="font-display text-2xl font-extrabold tracking-tight text-canvas-foreground">
       {{ t('offlineDownloads.title') }}
     </h1>

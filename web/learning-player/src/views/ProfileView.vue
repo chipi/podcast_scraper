@@ -399,7 +399,7 @@ onActivated(() => {
 </script>
 
 <template>
-  <section class="lp-page">
+  <section class="lp-page lp-focus" data-testid="profile-view">
     <!-- Identity header: avatar + name + @handle + email, with the Settings gear on the right. -->
     <div class="mb-5 flex items-center justify-between gap-3">
       <div class="flex min-w-0 items-center gap-3">

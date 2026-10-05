@@ -295,9 +295,14 @@ start. (A serif was tried and rejected during the earlier design phase.)
   the page width at both, and every page fills it through `.lp-page` — no page narrows itself or
   adds a second gutter, so every page's content starts at the same left edge. Pages used to choose
   their own (768 centred, 672 centred, 672 left, 448 left, full), and no two lined up on desktop.
-- **Long reading text** (Privacy, Terms, Delete account) keeps a readable line length with
-  `.lp-prose` (42rem), starting at the page's left edge, never centred: at the full desktop width a
-  paragraph ran ~125 characters a line against ~80.
+- **Two exceptions, both centred at every width:** **sign-in / sign-up** is a focused 448px column
+  (`max-w-md mx-auto`), as on most sites — the Offline page uses the same column; and the **account pages** — everything behind the avatar:
+  Profile and its tabs, Settings, the About and legal pages, Delete account — are a 42rem column
+  (`.lp-focus`), because their label-and-switch rows lose their pairing across ~1100px. On a phone
+  both are wider than the screen, so they fill it like every page.
+- **Long reading text** keeps a readable line length (~80 characters, 42rem): the legal pages get it
+  from `.lp-focus`, and `.lp-prose` gives it to long text on a full-width page, starting at the
+  page's left edge, never centred.
 - **Search and filter rows** span the width of the list or results under them (`.lp-search`, no
   cap): the row ends where its content ends.
 - The Player two-column splits transcript (≈60%) + Knowledge rail (≈40%).

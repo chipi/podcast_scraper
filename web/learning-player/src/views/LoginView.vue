@@ -102,7 +102,12 @@ function signInCustom(): void {
 </script>
 
 <template>
-  <section class="lp-page">
+  <!-- The one page that does NOT fill the page width (operator 2026-10-05): sign-in is a focused,
+       centred column at every width, as on most sites — at the full desktop width the name field ran
+       ~1000px and the e-mail button edge to edge. `max-w-md` (448px) is wider than any phone, so on
+       a phone it still fills the screen. -->
+  <section class="lp-page mx-auto max-w-md sm:pt-8" data-testid="login-view">
+    <div class="text-center">
     <span class="lp-kicker">{{ t('app.tagline') }}</span>
     <h1 class="mb-2 mt-1 font-display text-3xl font-extrabold tracking-tight">
       {{ isSignup ? t('auth.signupTitle') : t('auth.loginTitle') }}
@@ -110,6 +115,7 @@ function signInCustom(): void {
     <p class="mb-6 text-sm text-muted">
       {{ isSignup ? t('auth.signupTagline') : t('auth.loginTagline') }}
     </p>
+    </div>
 
     <!-- Dev (mock provider): pick a predefined user, or type a custom one. -->
     <div v-if="devEnabled">
@@ -145,7 +151,7 @@ function signInCustom(): void {
           {{ t('auth.signIn') }}
         </button>
       </form>
-      <p class="mt-3 text-xs text-muted">Dev sign-in (mock OAuth) — picked users keep their role.</p>
+      <p class="mt-3 text-center text-xs text-muted">Dev sign-in (mock OAuth) — picked users keep their role.</p>
     </div>
 
     <!-- Real provider: Google. Built to Google's "Sign in with Google" branding guidelines, dark
@@ -162,7 +168,7 @@ function signInCustom(): void {
     <div
       v-else
       class="grid gap-3"
-      :class="appleEnabled ? 'grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]' : 'justify-start'"
+      :class="appleEnabled ? 'grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]' : 'justify-center'"
       data-testid="provider-buttons"
     >
     <button
@@ -257,7 +263,7 @@ function signInCustom(): void {
       </button>
     </div>
 
-    <p class="mt-5 text-sm text-muted">
+    <p class="mt-5 text-center text-sm text-muted">
       <template v-if="isSignup">
         {{ t('auth.haveAccount') }}
         <RouterLink :to="{ name: 'login' }" class="font-bold text-accent no-underline">
@@ -278,7 +284,7 @@ function signInCustom(): void {
     <i18n-t
       keypath="auth.legalConsent"
       tag="p"
-      class="mt-8 text-xs leading-relaxed text-muted"
+      class="mt-8 text-center text-xs leading-relaxed text-muted"
       data-testid="login-legal"
     >
       <template #terms>

@@ -78,3 +78,30 @@ test('the Trends kind pills clear the switches at 375px, on Home and Discover', 
     expect(scope.x + scope.width, `${url}: the scope switch leaves the screen`).toBeLessThanOrEqual(375)
   }
 })
+
+/**
+ * The two exceptions to the one page width (operator 2026-10-05), both centred at every width:
+ * sign-in (448px, like most sites — at the full width its name field ran ~1000px) and the account
+ * pages behind the avatar (42rem = 672px — settings rows put a label ~1100px from its switch).
+ */
+async function centred(page: Page, url: string, testid: string, max: number) {
+  await page.goto(url)
+  const box = (await page.getByTestId(testid).boundingBox())!
+  expect(box.width, url).toBeLessThanOrEqual(max)
+  expect(Math.abs(box.x - (1440 - (box.x + box.width))), `${url} centred`).toBeLessThanOrEqual(2)
+}
+
+test('sign-in is a centred column on desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await centred(page, '/login', 'login-view', 448)
+  await centred(page, '/login?mode=signup', 'login-view', 448)
+})
+
+test('the account pages behind the avatar are a centred column on desktop', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await signInIsolated(page, 'account-pages-centred', testInfo)
+  await centred(page, '/profile', 'profile-view', 672)
+  await centred(page, '/settings', 'settings-view', 672)
+  await centred(page, '/about/privacy', 'about-page', 672)
+  await centred(page, '/account/delete', 'delete-account-view', 672)
+})
