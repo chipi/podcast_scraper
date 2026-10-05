@@ -33,7 +33,9 @@ test('/terms is a short link to the Terms of use', async ({ page }) => {
 
 test('third-party software lists the packages this build ships, each with its licence', async ({ page }) => {
   await page.goto('/about/third-party')
-  await expect(page.getByTestId('third-party-count')).toContainText('packages')
+  await expect(page.getByTestId('third-party-count')).toContainText('libraries')
+  // Build-only tooling is not listed: the Capacitor CLI syncs the native projects and never ships.
+  await expect(page.getByTestId('third-party')).not.toContainText('@capacitor/cli')
   // `vue` is unscoped, so it is a row of its own (scoped packages sit inside their @scope group).
   // Top-level rows only: `@sentry/vue` also reads "vue", inside its (closed) @sentry group.
   const vue = page
@@ -47,4 +49,12 @@ test('third-party software lists the packages this build ships, each with its li
   const babel = page.getByTestId('third-party-group').filter({ hasText: '@babel' })
   await babel.locator('summary').first().click()
   await expect(babel.getByTestId('third-party-entry').first()).toBeVisible()
+
+  // Native libraries from the committed iOS / Android snapshot, badged with their platform.
+  const androidx = page.getByTestId('third-party-group').filter({ hasText: 'androidx.core' })
+  await expect(androidx.getByTestId('third-party-platform')).toHaveText('Android')
+  const sentryPod = page
+    .locator('[data-testid="third-party"] > ul > li > [data-testid="third-party-entry"]')
+    .filter({ has: page.getByText('Sentry', { exact: true }) })
+  await expect(sentryPod.getByTestId('third-party-platform')).toHaveText('iOS')
 })

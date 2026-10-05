@@ -73,7 +73,7 @@ describe('AboutPageView', () => {
       expect(rows[1].text()).toContain('MIT')
       expect(rows[1].find('pre').text()).toBe('MIT License …')
       expect(rows[0].text()).toContain('ships no licence file')
-      expect(w.get('[data-testid="third-party-count"]').text()).toContain('2 packages')
+      expect(w.get('[data-testid="third-party-count"]').text()).toContain('2 libraries')
     })
 
     it('groups scoped packages under their scope; an unscoped package is a row of its own', async () => {
@@ -88,9 +88,9 @@ describe('AboutPageView', () => {
       expect(groups).toHaveLength(2)
       const head = (i: number) => groups[i].find('summary').text()
       expect(head(0)).toContain('@babel')
-      expect(head(0)).toContain('2 packages')
+      expect(head(0)).toContain('2 libraries')
       expect(head(1)).toContain('@vue')
-      expect(head(1)).toContain('1 package')
+      expect(head(1)).toContain('1 library')
       // Members sit under their scope, named without the prefix.
       const members = groups[0].findAll('[data-testid="third-party-entry"] summary').map((m) => m.text())
       expect(members[0]).toMatch(/^›parser/)

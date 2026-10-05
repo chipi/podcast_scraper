@@ -3367,6 +3367,15 @@ test-app-e2e-docker:
 
 # Production app bundle: ``vue-tsc -b && vite build`` (catches strict-mode TS errors that
 # vitest/playwright skip). Run locally before push for app PRs (mirrors ``build-viewer``).
+# The native half of Settings › Third-party software (2026-10-05): the iOS pods and the Android
+# release classpath that do not come from npm, with their licences. Resolving them needs CocoaPods'
+# lockfile and Gradle, which the production web build (a Linux container) does not have — so this
+# runs on the Mac and writes a COMMITTED snapshot that `npm run build` merges in. Re-run it whenever
+# `src/__checks__/third-party-native.test.ts` says the native dependency files changed.
+third-party-native:
+	@echo "Native third-party snapshot (iOS pods + Android release classpath)..."
+	@cd $(APP_DIR) && ANDROID_HOME=$(ANDROID_SDK_DIR) JAVA_HOME=$(ANDROID_JAVA_HOME) node scripts/third-party-native.mjs
+
 build-app:
 	@echo "Production Learning Player bundle (vue-tsc -b && vite build)..."
 	@# `npm ci` for the reason recorded on `test-app`: `npm install` here rewrites package-lock.json
