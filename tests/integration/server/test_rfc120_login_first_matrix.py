@@ -66,6 +66,12 @@ _ANON_ALLOW = {
     # above leaks show membership the same way.
     "/api/app/persons/x/photo",
     "/api/app/organizations/x/logo",
+    # Native app-exit reasons (#2279), open BY DESIGN: a signed-out app is evicted by the OS just
+    # the same, and the reasons are forwarded on the next launch, possibly before sign-in. Counts
+    # and reasons only (no account id, no device id); the body is strictly validated and capped and
+    # the route always answers 204. #2279 opened the route and did not update this list -- the same
+    # miss as the avatar above, and the same consequence (this matrix red on main).
+    "/api/app/app-exits",
     "/api/app/mcp/oauth/register",
     "/api/app/mcp/oauth/token",
     "/.well-known/oauth-authorization-server",
