@@ -43,6 +43,7 @@ def _write_episode(
     published: str = "2024-03-10T00:00:00",
     media_url: str | None = None,
     with_gi: bool = False,
+    description: str | None = None,
 ) -> None:
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
@@ -57,6 +58,7 @@ def _write_episode(
             "title": f"Episode {episode_id}",
             "published_date": published,
             "duration_seconds": 1000,
+            **({"description": description} if description else {}),
         },
         "summary": {"title": "Sum", "bullets": ["a", "b"]},
         "content": content,
@@ -86,6 +88,7 @@ def _corpus(root: Path) -> None:
         published="2024-01-01T00:00:00",
         media_url="https://cdn.example/a.mp3",
         with_gi=True,
+        description="The publisher's own words about episode one.",
     )
     _write_episode(
         root,
@@ -290,6 +293,19 @@ def test_episode_detail_and_unknown_slug_404(tmp_path: Path) -> None:
     assert detail.status_code == 200, detail.text
     assert detail.json()["has_gi"] is True
     assert client.get("/api/app/episodes/no-such-slug").status_code == 404
+
+
+def test_episode_cards_carry_the_publishers_description(tmp_path: Path) -> None:
+    # Cards show the official description, not our summary (operator 2026-10-05) — so both the list
+    # and the detail shape carry it, and an episode without one carries null, never our summary.
+    _corpus(tmp_path)
+    client = _client(tmp_path)
+    items = {i["slug"]: i for i in client.get("/api/app/podcasts/myfeed/episodes").json()["items"]}
+    one, two = _slug(tmp_path, "ep1"), _slug(tmp_path, "ep2")
+    assert items[one]["description"] == "The publisher's own words about episode one."
+    assert items[two]["description"] is None
+    detail = client.get(f"/api/app/episodes/{one}").json()
+    assert detail["description"] == "The publisher's own words about episode one."
 
 
 def test_episode_entities_with_cluster_enrichment(tmp_path: Path) -> None:

@@ -144,6 +144,10 @@ class AppEpisodeDetail(BaseModel):
     summary_text: str | None = Field(
         default=None, description="Full summary paragraph when present."
     )
+    description: str | None = Field(
+        default=None,
+        description="The publisher's own episode description from the feed (not our summary).",
+    )
     has_transcript: bool = Field(description="Whether a transcript file is referenced.")
     has_summary: bool = Field(description="Whether any summary content is present.")
     has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
@@ -212,6 +216,11 @@ class AppEpisodeSummary(BaseModel):
     summary_text: str | None = Field(
         default=None,
         description="The full prose summary, for the card's hover/expand preview (null if absent).",
+    )
+    description: str | None = Field(
+        default=None,
+        description="The publisher's own episode description from the feed — what an episode "
+        "card shows (operator 2026-10-05: cards show the official description, not our summary).",
     )
     summary_bullets: list[str] = Field(
         default_factory=list,

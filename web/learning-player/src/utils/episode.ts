@@ -44,6 +44,7 @@ export function summaryFromDetail(d: EpisodeDetail): EpisodeSummary {
     // was about. `EpisodeDetail` already carries the title, so no extra fetch.
     summary_preview: d.summary_title,
     summary_text: d.summary_text,
+    description: d.description ?? null,
     summary_bullets: d.summary_bullets,
     topics: [],
     has_transcript: d.has_transcript,

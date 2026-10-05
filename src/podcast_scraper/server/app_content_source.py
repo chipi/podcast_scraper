@@ -153,6 +153,7 @@ def row_to_summary(corpus_root: Path, row: CatalogEpisodeRow) -> AppEpisodeSumma
         status="ready" if has_transcript else "pending",
         summary_preview=_card_lede(row),
         summary_text=(row.summary_text or "").strip() or None,
+        description=row.episode_description,
         summary_bullets=_card_bullets(row),
         summary_bullet_count=len(_clean_bullets(row)),
         topics=episode_list_topics(row.summary_bullets),

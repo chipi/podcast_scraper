@@ -239,6 +239,7 @@ def episode_detail(
         summary_title=row.summary_title,
         summary_bullets=list(row.summary_bullets),
         summary_text=row.summary_text,
+        description=row.episode_description,
         has_transcript=has_transcript,
         has_summary=has_summary,
         has_gi=row.has_gi,

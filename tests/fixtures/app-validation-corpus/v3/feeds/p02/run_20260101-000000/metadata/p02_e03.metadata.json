@@ -30,7 +30,8 @@
     "language": "en",
     "language_source": "rss",
     "published_date": "2024-08-26T00:00:00",
-    "title": "Frame the Decision: Pragmatic Threat Models"
+    "title": "Frame the Decision: Pragmatic Threat Models",
+    "description": "Threat modeling, secure defaults, secrets handling, supply chain risks, and what “shift left” should actually mean."
   },
   "feed": {
     "authors": [

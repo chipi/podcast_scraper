@@ -53,6 +53,7 @@ function makeEpisode(over: Partial<EpisodeSummary> = {}): EpisodeSummary {
     status: "ready",
     summary_preview: "A crisp recap.",
     summary_text: null,
+    description: "The show's own words about this episode.",
     summary_bullets: ["Sleep clears metabolic waste.", "Deep sleep consolidates memory."],
     topics: ["memory", "sleep"],
     has_transcript: true,
@@ -69,11 +70,11 @@ function mountCard(ep: EpisodeSummary) {
 }
 
 describe("EpisodeCard", () => {
-  it("renders title, podcast, clean lede and duration", () => {
+  it("renders title, podcast, the publisher's description and duration", () => {
     const w = mountCard(makeEpisode())
     expect(w.text()).toContain("A Great Episode")
     expect(w.text()).toContain("The Show")
-    expect(w.text()).toContain("A crisp recap.") // clean lede, not the bullets jammed together
+    expect(w.text()).toContain("The show's own words about this episode.")
     expect(w.text()).toContain("48 min")
   })
 
@@ -156,34 +157,45 @@ describe("EpisodeCard", () => {
     // when there IS prose to reveal, so a card with prose cannot answer this question. jsdom has no
     // layout, so the clamp holds its safe "might be clipped" default and any card with a summary
     // offers the toggle — correctly.
-    const w = mountCard(makeEpisode({ summary_text: null, summary_preview: null } as never))
+    const w = mountCard(makeEpisode({ description: null } as never))
     expect(cardOwnExpanders(w)).toHaveLength(0)
   })
 
-  it("renders the full summary clamped, expandable via Read more (BE.2)", () => {
-    // Superseding the old "never render summary_text" rule: the operator asked for the full summary
-    // on the card, read-more-expandable. Compact by default (CSS line-clamp keeps the row short),
-    // full on an explicit tap — so unbounded prose no longer slices a fixed-height box.
+  it("renders the full description clamped, expandable via Read more (BE.2)", () => {
+    // Compact by default (the artwork column sets the window), full on an explicit tap — so
+    // unbounded prose never slices a fixed-height box.
     const w = mountCard(
-      makeEpisode({ summary_text: "A very long unbounded editorial pull-quote.".repeat(20) })
+      makeEpisode({ description: "A very long unbounded publisher blurb.".repeat(20) })
     )
     const toggle = w.get('[data-testid="card-read-more"]')
     expect(toggle.text()).toBe("Read more")
-    expect(w.text()).toContain("A very long unbounded editorial pull-quote.") // present, clamped by CSS
+    expect(w.text()).toContain("A very long unbounded publisher blurb.") // present, clamped by CSS
   })
 
-  it("can offer Read more for a PREVIEW-only episode, not just one with summary_text", () => {
-    // The window renders `summary_text || summary_preview`, but the toggle used to be gated on
-    // `summary_text` alone — so a preview-only episode could render prose the window genuinely
-    // clipped with no toggle able to appear: text cut off and no way to reach it (operator
-    // 2026-09-17). The gate must read the same value as the element it governs.
+  it("shows the publisher's description, never our summary (operator 2026-10-05)", () => {
+    // A list card says what the episode IS in the show's words, as the show row does; our summary
+    // lives in the episode notes. With a description present, neither summary field appears.
+    const w = mountCard(
+      makeEpisode({ summary_text: "Our full summary prose.", summary_preview: "Our lede." })
+    )
+    expect(w.text()).toContain("The show's own words about this episode.")
+    expect(w.text()).not.toContain("Our full summary prose.")
+    expect(w.text()).not.toContain("Our lede.")
+  })
+
+  it("falls back to NOTHING, not our summary, when an episode has no description", () => {
+    // No fallback: the card's prose slot is the publisher's, so an episode without a description
+    // shows no prose — and therefore no Read more — rather than quietly showing ours instead.
     const w = mountCard(
       makeEpisode({
-        summary_text: null,
-        summary_preview: "A preview-only lede that is long enough to be cut off.".repeat(10),
+        description: null,
+        summary_text: "Our full summary prose.",
+        summary_preview: "Our lede.",
       } as never)
     )
-    expect(w.find('[data-testid="card-read-more"]').exists()).toBe(true)
+    expect(w.text()).not.toContain("Our full summary prose.")
+    expect(w.text()).not.toContain("Our lede.")
+    expect(w.find('[data-testid="card-read-more"]').exists()).toBe(false)
   })
 
   it("has no hover-triggered reveal anywhere on the card", () => {
@@ -199,8 +211,7 @@ describe("EpisodeCard", () => {
       makeEpisode({
         summary_bullets: [],
         has_gi: false,
-        summary_text: null,
-        summary_preview: null,
+        description: null,
       } as never)
     )
     expect(cardOwnExpanders(w)).toHaveLength(0)
@@ -257,15 +268,13 @@ describe("the two columns are rebalanced (#2004 items 4/7)", () => {
   })
 })
 
-describe("the card shows the summary title, not the bullets (#2004 follow-up)", () => {
-  it("renders summary_preview and NO bullet list", async () => {
-    // Marko: "just use summary title there and remove summary bullets". The bullets made one row
-    // fill the screen — Browse became a scroll rather than a scan. The big summary stays on the
-    // episode detail surface, which is where he asked for it.
+describe("the card carries no summary bullets (#2004 follow-up)", () => {
+  it("renders NO bullet list", async () => {
+    // Marko: "remove summary bullets". The bullets made one row fill the screen — Browse became a
+    // scroll rather than a scan. The summary lives on the episode detail surface.
     const w = mountCard(makeEpisode())
     expect(w.find('[data-testid="card-bullets"]').exists()).toBe(false)
     expect(w.text()).not.toContain("Deep sleep consolidates memory.")
-    expect(w.text()).toContain("A crisp recap.")
   })
 
   it("carries no key-points badge at ANY viewport", () => {
@@ -343,7 +352,7 @@ describe("Read more on a compact card", () => {
     // the rest (operator 2026-09-23). `summaryClipped` defaults true before layout, which is the
     // state a jsdom mount is in, so the toggle must be present here.
     const w = mount(EpisodeCard, {
-      props: { episode: makeEpisode({ summary_text: "A long summary. ".repeat(40) }), compact: true },
+      props: { episode: makeEpisode({ description: "A long description. ".repeat(40) }), compact: true },
       global: { plugins: [i18n, router] },
     })
     expect(w.find('[data-testid="card-read-more"]').exists()).toBe(true)

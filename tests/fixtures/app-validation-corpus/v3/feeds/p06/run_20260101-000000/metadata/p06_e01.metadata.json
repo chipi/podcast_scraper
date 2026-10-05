@@ -30,7 +30,8 @@
     "language": "en",
     "language_source": "rss",
     "published_date": "2024-11-07T00:00:00",
-    "title": "On Drifting (a meandering conversation)"
+    "title": "On Drifting (a meandering conversation)",
+    "description": "Testing special characters: < > \" & ' / \\ ? * |"
   },
   "feed": {
     "authors": [

@@ -664,6 +664,28 @@ def _measured_duration_for(ep_label: str, rss_dir: Path) -> int | None:
     return None
 
 
+def _feed_description_for(ep_label: str, rss_dir: Path) -> str | None:
+    """The episode's own description from the corpus feed, cleaned the way ingest cleans it.
+
+    Production metadata carries ``episode.description`` (the publisher's blurb, HTML stripped by
+    ``rss.parser.extract_episode_description``) and the app's episode cards show it (operator
+    2026-10-05). This corpus never wrote it, so every e2e card had no prose. The feed items carry
+    one each, keyed by ``<guid>`` = the episode label; the pipeline's own extractor reads it, so
+    the fixture cannot drift from what ingest would store.
+    """
+    import xml.etree.ElementTree as ET
+
+    from podcast_scraper.rss.parser import extract_episode_description
+
+    feed = rss_dir / f"{ep_label.split('_')[0]}_corpus.xml"
+    if not feed.is_file():
+        return None
+    for item in ET.parse(feed).getroot().iter("item"):
+        if (item.findtext("guid") or "").strip() == ep_label:
+            return extract_episode_description(item)
+    return None
+
+
 def _load_pipeline_outputs(run_root: Path) -> dict[str, dict[str, Any]]:
     """Episode guid -> the REAL pipeline's summary + measured duration, from a pipeline run tree.
 
@@ -2297,6 +2319,8 @@ def main() -> int:
                     # shape. No episode-level language existed anywhere before #2172.
                     "language": normalize_language_tag(feed_meta.get("language")),
                     "language_source": "rss" if feed_meta.get("language") else None,
+                    # The publisher's blurb, as ingest stores it — what the app's cards show.
+                    "description": _feed_description_for(ep_label, args.rss_dir),
                 },
                 "summary": {
                     "title": summary_title,

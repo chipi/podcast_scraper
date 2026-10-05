@@ -29,7 +29,8 @@
  *
  * ## Read more (BE.2) — an explicit toggle, NOT the removed hover overlay
  *
- * The card now shows the full `summary_text`, CSS-clamped to a few lines, with a "Read more" toggle
+ * The card now shows the episode's full `description` (the publisher's, not our summary — operator
+ * 2026-10-05), clamped to the artwork's height, with a "Read more" toggle
  * that expands it in place. This is not a return of the hover overlay: it is a tap (works on touch),
  * it clamps with `line-clamp` (no fixed-height `overflow-hidden` slicing), it never fades the card's
  * identity to `opacity-0`, and the text is always in the a11y tree. The rule of thumb is refined: a
@@ -107,9 +108,10 @@ const summaryExpanded = ref(false)
 // jsdom and before first paint both heights read 0, and treating that as "fits" would HIDE a
 // "Read more" the text needs.
 const summaryEl = ref<HTMLElement | null>(null)
-const summaryFull = computed(
-  () => props.episode.summary_text?.trim() || props.episode.summary_preview || ""
-)
+// The publisher's OWN description, never our summary (operator 2026-10-05): a list card says what
+// the episode is in the show's words, like the show row does; our summary lives in the episode
+// notes. No fallback to the summary — an episode without a description shows no prose.
+const summaryFull = computed(() => props.episode.description?.trim() || "")
 
 // The measurement lives in `useClampedProse` — shared with ShowRow, PersonCardContent and
 // PodcastView, which all had hand-copied versions that drifted apart (see the composable).
@@ -254,10 +256,9 @@ const canExpandSummary = computed(
         <slot name="meta" />
       </div>
 
-      <!-- Summary: the full prose, clipped to whatever the artwork column leaves and expanded in
-           place by "Read more" (BE.2). The window (`lp-media-clip`) is what constrains it — see
-           style.css; the <p> alone could only ever grow the row. Falls back to the one-line lede
-           when there's no full summary. -->
+      <!-- Description: the publisher's full prose, clipped to whatever the artwork column leaves
+           and expanded in place by "Read more" (BE.2). The window (`lp-media-clip`) is what
+           constrains it — see style.css; the <p> alone could only ever grow the row. -->
       <div
         v-if="summaryFull"
         ref="summaryEl"
