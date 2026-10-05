@@ -800,6 +800,29 @@ describe('a downloaded episode paints from disk, not from the network', () => {
       expect(Math.round(player.el?.currentTime ?? 0)).toBe(30)
     })
 
+    it('▶ Play from a link to the episode ALREADY OPEN still seeks and plays (operator 2026-10-05)', async () => {
+      /*
+       * The start position applies once per episode, on load. A link to the SAME episode reuses this
+       * view, so nothing re-applied it: on the player page, a topic card's "▶ Play from 0:30" for
+       * this very episode left it at 0:42, paused. Found by probing, not by a report.
+       */
+      const { player, play } = await mountWithQuery({})
+      play.mockClear()
+      await router.push({ name: 'player', params: { slug: SLUG }, query: { t: '30', play: '1' } })
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? -1), 'the moment was not applied').toBe(30)
+      expect(play, '▶ Play from left the episode paused').toHaveBeenCalledTimes(1)
+    })
+
+    it('a same-episode link WITHOUT ?play=1 seeks but does not start audio', async () => {
+      const { player, play } = await mountWithQuery({})
+      play.mockClear()
+      await router.push({ name: 'player', params: { slug: SLUG }, query: { t: '30' } })
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? -1)).toBe(30)
+      expect(play).not.toHaveBeenCalled()
+    })
+
     it('plays from the resumed position, not from zero', async () => {
       // Playing before the seek is audible — a second or two of 0:00 before it jumps.
       const { player, play } = await mountWithQuery({ play: '1' })

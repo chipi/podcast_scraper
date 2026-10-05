@@ -1086,6 +1086,20 @@ watch(
   { immediate: true },
 )
 
+// A `?t=` / `?play=1` arriving while THIS episode is already open (operator 2026-10-05). The start
+// position above applies once per episode, on load; a link to the same episode reuses this view, so
+// it never re-ran — "▶ Play from 0:30" in a topic card on this episode's own page did nothing. Only
+// after the start was applied, so the first load still goes through `applyStartPosition` alone.
+watch(
+  () => [route.query.t, route.query.play] as const,
+  ([t, play]) => {
+    if (startApplied !== props.slug || player.currentSlug !== props.slug) return
+    const seconds = Number(t)
+    if (Number.isFinite(seconds) && seconds > 0) seekContent(seconds)
+    if (play) player.play()
+  },
+)
+
 // Transcript is OPTIONAL and closed by default (mobile): pressing play should NOT jump the
 // listener into the transcript. A Show/Hide toggle reveals it; opening scrolls it into view.
 // (Desktop keeps the transcript visible as the side column — see the template's lg: classes.)
