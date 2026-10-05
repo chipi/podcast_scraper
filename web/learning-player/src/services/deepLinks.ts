@@ -24,8 +24,10 @@
 export interface DeepLinkTarget {
   name: 'player' | 'podcast' | 'topic' | 'person' | 'storyline' | 'theme'
   params: Record<string, string>
-  /** `?t=<seconds>` passed through, so a link can name a MOMENT and not just an episode; and
-   *  `?revisit=<highlight id>`, which the digest email's revisit links carry (#35). */
+  /** `?t=<seconds>` passed through, so a link can name a MOMENT and not just an episode;
+   *  `?revisit=<highlight id>`, which the digest email's revisit links carry (#35); and the email
+   *  tags (`utm_*`), so a click from an email that opens the INSTALLED app is counted like one
+   *  that opens the browser (services/inboundLink). */
   query?: Record<string, string>
 }
 
@@ -86,7 +88,7 @@ export function routeForDeepLink(raw: string): DeepLinkTarget | null {
     if (!target || !id) continue
     const decoded = safeDecode(id)
     if (!decoded || !ID_PATTERN.test(decoded)) return null
-    const query = { ...startTimeOf(url), ...revisitOf(url) }
+    const query = { ...startTimeOf(url), ...revisitOf(url), ...emailTagsOf(url) }
     return {
       name: target.name,
       params: { [target.param]: decoded },
@@ -119,6 +121,17 @@ function startTimeOf(url: URL): Record<string, string> {
 function revisitOf(url: URL): Record<string, string> {
   const raw = url.searchParams.get('revisit')
   return raw && ID_PATTERN.test(raw) ? { revisit: raw } : {}
+}
+
+/** The email tags, each a short lowercase token — the enum check happens where they are read. */
+const TAG_VALUE = /^[a-z][a-z0-9_]{0,39}$/
+function emailTagsOf(url: URL): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const key of ['utm_source', 'utm_campaign', 'utm_content']) {
+    const raw = url.searchParams.get(key)
+    if (raw && TAG_VALUE.test(raw)) out[key] = raw
+  }
+  return out
 }
 
 /** A malformed percent-escape throws; an unusable id is not a reason to crash the handler. */

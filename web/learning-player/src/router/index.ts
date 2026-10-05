@@ -14,6 +14,7 @@ import {
 import { i18n } from '../i18n'
 import { track } from '../services/analytics'
 import { noteNavigation } from '../services/provenance'
+import { emailLinkOf, firstSighting } from '../services/inboundLink'
 import { useAuthStore } from '../stores/auth'
 import {
   holdScroll,
@@ -318,11 +319,30 @@ router.beforeEach(async (to) => {
     }
     return true
   }
+  reportEmailClick(to, signedIn)
   if (!signedIn) {
     return { name: 'landing', query: { redirect: to.fullPath } }
   }
   return true
 })
+
+const EMAIL_TARGETS = new Set(['player', 'podcast', 'topic', 'person', 'storyline', 'theme'])
+
+/**
+ * `email_link_opened` (operator 2026-10-05, services/inboundLink): a click on a link in one of our
+ * emails. Here, in the gate, because only the gate knows BOTH where the link points and whether the
+ * person is signed in — a signed-out click is reported before it is sent to sign in.
+ */
+function reportEmailClick(to: RouteLocationNormalized, signedIn: boolean): void {
+  const link = emailLinkOf(to.query)
+  if (!link || !firstSighting(to.fullPath, signedIn)) return
+  const name = typeof to.name === 'string' ? to.name : ''
+  track('email_link_opened', {
+    ...link,
+    target: EMAIL_TARGETS.has(name) ? (name as 'player') : 'other',
+    signed_in: signedIn,
+  })
+}
 
 /**
  * The browser tab title, per route (operator 2026-09-18).

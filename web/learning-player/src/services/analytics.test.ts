@@ -112,11 +112,12 @@ describe('registry guard', () => {
     ).toEqual([])
   })
 
-  it('holds all 41 catalog events, with no duplicates', () => {
-    // 39 from #2267 (`show_missing` excluded: it needs an affordance that does not exist) plus
-    // `app_launch` and `app_resume` from #2277. If this number changes, the catalog changed —
-    // update the issue that changed it, do not just bump it.
-    expect(EVENT_NAMES).toHaveLength(41)
+  it('holds all 42 catalog events, with no duplicates', () => {
+    // 39 from #2267 (`show_missing` excluded: it needs an affordance that does not exist), plus
+    // `app_launch` and `app_resume` from #2277, plus `email_link_opened` (operator 2026-10-05:
+    // which links people click in the emails we send — services/inboundLink). If this number
+    // changes, the catalog changed — record where, do not just bump it.
+    expect(EVENT_NAMES).toHaveLength(42)
     expect(new Set(EVENT_NAMES).size).toBe(EVENT_NAMES.length)
   })
 

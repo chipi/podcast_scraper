@@ -148,6 +148,18 @@ describe('routeForDeepLink — shared and emailed links', () => {
     ).toBeUndefined()
   })
 
+  it('keeps an email link\'s tags, so a click that opens the INSTALLED app is counted too', () => {
+    expect(
+      routeForDeepLink(
+        'https://closelistening.app/episode/x?utm_source=email&utm_campaign=daily_recap&utm_content=episode',
+      )?.query,
+    ).toEqual({ utm_source: 'email', utm_campaign: 'daily_recap', utm_content: 'episode' })
+    // Anything that is not a short lowercase token is dropped, not passed to the router.
+    expect(
+      routeForDeepLink('https://closelistening.app/episode/x?utm_source=email&utm_campaign=%3Cscript%3E')?.query,
+    ).toEqual({ utm_source: 'email' })
+  })
+
   it('still refuses an id that could carry a path or a query', () => {
     expect(routeForDeepLink('https://closelistening.app/topic/a%2Fb')).toBeNull()
     expect(routeForDeepLink('https://closelistening.app/topic/a%3Fb')).toBeNull()
