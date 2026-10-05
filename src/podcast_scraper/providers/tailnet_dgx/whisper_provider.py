@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, cast, List, Optional
 
 from ... import config
+from ...transcription import punctuation
 from ...utils.log_redaction import format_exception_for_log
 from .. import guardrails, resilience
 from ..resilience import CircuitBreaker, hardened_http_client, TimeoutLike
@@ -111,6 +112,10 @@ class TailnetDgxWhisperTranscriptionProvider:
             name="dgx-whisper",
         )
         self._initialized = False
+        # #2284: when the punctuation prompt is sent (see Config.dgx_whisper_punctuation_prompt)
+        # and what the last call on THIS thread did about it -- read by transcribe_with_segments.
+        self._punctuation_mode = str(getattr(cfg, "dgx_whisper_punctuation_prompt", "on_retry"))
+        self._local = threading.local()
 
     def initialize(self) -> None:
         """Mark the DGX Whisper tier ready.
@@ -197,6 +202,8 @@ class TailnetDgxWhisperTranscriptionProvider:
                 "language": language or "en",
                 "model_requested": (model_override or self._model),
                 "model_used": actual_model,
+                # #2284: whether the transcript came back unpunctuated and what was done about it.
+                "punctuation": getattr(self._local, "punctuation", None),
             },
             duration,
         )
@@ -217,6 +224,8 @@ class TailnetDgxWhisperTranscriptionProvider:
     ) -> tuple[str, list[dict[str, object]], float, str]:
         last_err: Optional[Exception] = None
         timed_out = False
+        self._local.punctuation = None
+        first_prompt = self._first_request_prompt(language)
         # Effective model for THIS call — the override wins when present, else
         # the provider's configured default. The health-check substring is
         # derived from the effective model so we probe for the right loaded
@@ -239,6 +248,7 @@ class TailnetDgxWhisperTranscriptionProvider:
                 health_substring=health_substring,
                 effective_model=effective_model,
                 model_override=model_override,
+                first_prompt=first_prompt,
             )
 
         # ---- serve mode (unchanged from today; RFC-106/#1198) ----
@@ -267,6 +277,7 @@ class TailnetDgxWhisperTranscriptionProvider:
                                     language,
                                     timeout_sec,
                                     model_override=model_override,
+                                    prompt=first_prompt,
                                 ),
                                 timeout_sec + resilience.WATCHDOG_GRACE_SEC,
                                 label="dgx-whisper",
@@ -274,7 +285,14 @@ class TailnetDgxWhisperTranscriptionProvider:
                             _whisper_breaker.record_success()
                             # DGX path won: the model that actually ran IS
                             # the effective_model (override-or-default).
-                            text_dgx, segments_dgx, duration_dgx = result_dgx
+                            text_dgx, segments_dgx, duration_dgx = self._ensure_punctuated(
+                                result_dgx,
+                                audio_path,
+                                language,
+                                timeout_sec,
+                                model_override=model_override,
+                                prompted=first_prompt is not None,
+                            )
                             return (text_dgx, segments_dgx, duration_dgx, effective_model)
                     except TimeoutLike as exc:
                         # The GPU is busy/contended and the (generous, duration-scaled)
@@ -346,6 +364,7 @@ class TailnetDgxWhisperTranscriptionProvider:
         health_substring: str,
         effective_model: str,
         model_override: str | None,
+        first_prompt: str | None = None,
     ) -> tuple[str, list[dict[str, object]], float, str]:
         """ADR-122 reprocess-mode path: backoff-retry the chosen model, trip the fuse only
         after the policy threshold, and hold-and-probe (never fall over) on a blown fuse.
@@ -368,11 +387,20 @@ class TailnetDgxWhisperTranscriptionProvider:
                 language,
                 timeout_sec,
                 model_override=model_override,
+                prompt=first_prompt,
             )
 
         try:
             with _dgx_single_flight:
-                text, segments, duration = self._policy.run(_attempt, timeout_sec=timeout_sec)
+                first = self._policy.run(_attempt, timeout_sec=timeout_sec)
+                text, segments, duration = self._ensure_punctuated(
+                    first,
+                    audio_path,
+                    language,
+                    timeout_sec,
+                    model_override=model_override,
+                    prompted=first_prompt is not None,
+                )
         except ResilienceFuseOpenError as exc:
             emit_dgx_fallback_breadcrumb(
                 stage="transcription",
@@ -392,6 +420,103 @@ class TailnetDgxWhisperTranscriptionProvider:
         """No owned resources to release (the chain owns the fallback tiers)."""
         return None
 
+    def _first_request_prompt(self, language: str | None) -> str | None:
+        """The prompt for the first request: only in 'always' mode, and only for English."""
+        if self._punctuation_mode == "always" and punctuation.prompt_suits_language(language):
+            return punctuation.PUNCTUATION_PROMPT
+        return None
+
+    def _ensure_punctuated(
+        self,
+        first: tuple[str, list[dict[str, object]], float],
+        audio_path: str,
+        language: str | None,
+        timeout_sec: float,
+        *,
+        model_override: str | None,
+        prompted: bool,
+    ) -> tuple[str, list[dict[str, object]], float]:
+        """Return ``first``, or a prompted re-transcription when ``first`` is unpunctuated (#2284).
+
+        At most ONE extra request, never a loop: the same audio at temperature 0 gives the same
+        text, so only a CHANGED request (the prompt) can change the outcome. The retry runs under
+        the caller's single-flight lock and its own watchdog; whatever happens to it -- an
+        error, a timeout, a guardrail, a still-unpunctuated or prompt-echoing result -- the first
+        transcript is kept, and the circuit breaker is not touched (the endpoint answered; the
+        content is the problem). An episode is never failed or dropped for punctuation: an
+        unpunctuated result is recorded (``punctuation`` on the result, an ``asr_unpunctuated``
+        manifest flag) and logged, so it is visible and countable.
+        """
+        text = first[0]
+        outcome: dict[str, object] = {
+            "mode": self._punctuation_mode,
+            "prompted_first": prompted,
+            "retried": False,
+            "unpunctuated": False,
+            "sentence_ends_per_1000_words": round(
+                punctuation.sentence_ends_per_1000_words(text), 1
+            ),
+        }
+        self._local.punctuation = outcome
+        if not punctuation.is_unpunctuated(text):
+            return first
+        outcome["unpunctuated"] = True
+        if prompted or self._punctuation_mode != "on_retry":
+            reason = "already prompted" if prompted else f"mode={self._punctuation_mode}"
+            logger.warning("DGX Whisper transcript is unpunctuated (%s); kept as is", reason)
+            return first
+        if not punctuation.prompt_suits_language(language):
+            outcome["skipped"] = f"language={language}"
+            logger.warning(
+                "DGX Whisper transcript is unpunctuated; no retry: the prompt is English and the "
+                "episode language is %s",
+                language,
+            )
+            return first
+
+        outcome["retried"] = True
+        try:
+            second = resilience.run_with_watchdog(
+                lambda: self._transcribe_dgx(
+                    audio_path,
+                    language,
+                    timeout_sec,
+                    model_override=model_override,
+                    prompt=punctuation.PUNCTUATION_PROMPT,
+                ),
+                timeout_sec + resilience.WATCHDOG_GRACE_SEC,
+                label="dgx-whisper-punctuation",
+            )
+        except Exception as exc:  # noqa: BLE001 - a failed retry must never cost the transcript
+            outcome["retry_error"] = format_exception_for_log(exc)
+            logger.warning(
+                "DGX Whisper punctuation retry failed (%s); keeping the unpunctuated transcript",
+                format_exception_for_log(exc),
+            )
+            return first
+
+        second_text = second[0]
+        second_ends = punctuation.sentence_ends_per_1000_words(second_text)
+        outcome["retry_sentence_ends_per_1000_words"] = round(second_ends, 1)
+        if punctuation.echoes_prompt(second_text):
+            outcome["retry_rejected"] = "echoed the prompt"
+        elif punctuation.is_unpunctuated(second_text):
+            outcome["retry_rejected"] = "still unpunctuated"
+        else:
+            outcome["unpunctuated"] = False
+            logger.info(
+                "DGX Whisper transcript was unpunctuated; the prompted retry restored it "
+                "(%.0f sentence ends per 1,000 words)",
+                second_ends,
+            )
+            return second
+        logger.warning(
+            "DGX Whisper transcript is unpunctuated and the prompted retry did not fix it (%s); "
+            "keeping the first transcript",
+            outcome["retry_rejected"],
+        )
+        return first
+
     def _transcribe_dgx(
         self,
         audio_path: str,
@@ -400,6 +525,8 @@ class TailnetDgxWhisperTranscriptionProvider:
         # #1046 — per-call model override (e.g. sniff-pass uses ``small.en``).
         # None preserves the configured default.
         model_override: str | None = None,
+        # #2284 — Whisper's initial prompt; sets a punctuated, capitalised output style.
+        prompt: str | None = None,
     ) -> tuple[str, list[dict[str, object]], float]:
         """Call faster-whisper-server's OpenAI-compatible transcribe endpoint.
 
@@ -428,6 +555,8 @@ class TailnetDgxWhisperTranscriptionProvider:
             }
             if language:
                 data["language"] = language
+            if prompt:
+                data["prompt"] = prompt
             with hardened_http_client(
                 timeout_sec or self._timeout_sec, subsystem="dgx_whisper"
             ) as client:
