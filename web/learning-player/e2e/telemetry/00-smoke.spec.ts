@@ -33,13 +33,20 @@ test('the beacon is installed, reaches the DEV Umami site, and is accepted', asy
   // 3. Umami ACCEPTED it. A 200 is not enough: the collector answers 200 with {"beep":"boop"} when
   //    it drops a request as a bot, and 200 with {"error":{"message":"Website not found."}} for an
   //    unknown website id. Both are how dev analytics managed to look healthy while storing nothing.
-  const resp = await page.request.post('http://127.0.0.1:3001/api/send', {
+  //
+  //    The collector is whatever the app is CONFIGURED to report to — read off the script tag it
+  //    installed (VITE_UMAMI_SRC), not a hard-coded 127.0.0.1:3001 that stops being true the moment
+  //    the dev Umami lives somewhere else (operator 2026-10-05).
+  const scriptSrc = await tag.getAttribute('src')
+  expect(scriptSrc, 'the beacon script has no src').toBeTruthy()
+  const collector = new URL('/api/send', new URL(scriptSrc!, page.url())).toString()
+  const resp = await page.request.post(collector, {
     headers: { 'Content-Type': 'application/json' },
     data: {
       type: 'event',
       payload: {
         website: DEV_UMAMI_WEBSITE_ID,
-        hostname: '127.0.0.1',
+        hostname: new URL(page.url()).hostname,
         url: '/__harness__',
         name: 'harness_probe',
         language: 'en-US',

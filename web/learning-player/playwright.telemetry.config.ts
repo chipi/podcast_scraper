@@ -22,7 +22,7 @@ import { defineConfig, devices } from '@playwright/test'
  *
  * WHAT IT TALKS TO
  * ────────────────
- * Umami  → the DEV website `3ccaa1bc-…` ("Player (dev)") on 127.0.0.1:3001.
+ * Umami  → the DEV website `3ccaa1bc-…` ("Player (dev)"), at whatever VITE_UMAMI_SRC points to.
  * GlitchTip → the DEV project `player-dev` (id 20) on 127.0.0.1:8090.
  *
  * Neither is the deployed target. Prod Umami site `cd384a3e-…` holds 562 real events and prod
