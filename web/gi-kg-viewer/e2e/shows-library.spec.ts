@@ -150,9 +150,7 @@ test.describe('Operator Shows Library (shows-first browse)', () => {
     await expect(page.getByTestId('shows-grid')).toBeVisible()
   })
 
-  test('mode is remembered: Episodes remains the default until Shows is chosen', async ({
-    page,
-  }) => {
+  test('Episodes is the default mode until Shows is chosen', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
@@ -160,5 +158,21 @@ test.describe('Operator Shows Library (shows-first browse)', () => {
     // Default = Episodes → the flat LibraryView is shown, not the shows grid.
     await expect(page.getByTestId('library-root')).toBeVisible()
     await expect(page.getByTestId('shows-grid')).toHaveCount(0)
+    await expect(page.getByTestId('library-mode-episodes')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('mode is remembered: Shows chosen once is still Shows after a reload', async ({ page }) => {
+    await openShowsMode(page)
+    await expect(page.getByTestId('library-mode-shows')).toHaveAttribute('aria-pressed', 'true')
+
+    await page.reload()
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    if (!(await statusBarCorpusPathInput(page).inputValue()).trim()) {
+      await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
+    }
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await expect(page.getByTestId('library-mode-shows')).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByTestId('shows-grid')).toBeVisible()
+    await expect(page.getByTestId('library-root')).toHaveCount(0)
   })
 })
