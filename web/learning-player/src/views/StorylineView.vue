@@ -336,6 +336,10 @@ function goBack(): void {
         @open="openPerspective"
       />
 
+      <!-- Desktop page (operator 2026-10-05): the episode list and Top voices — the two closing
+           sections, already adjacent — sit side by side, half the width each, from `lg`. The topics →
+           what's said → episodes order is untouched. Phones and the sheet stay one column. -->
+      <div :class="embedded ? '' : 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'" data-testid="storyline-closing-pair">
       <!-- Top episodes for the storyline (SL.2). Standalone page only — see the note above. -->
       <section v-if="episodes.length" class="mt-6">
           <!-- Says "newest first" like the topic, person and org lists do (operator 2026-09-19).
@@ -360,6 +364,7 @@ function goBack(): void {
         :route-for="(id) => ({ name: 'person', params: { id } })"
         @open="(id, e) => openEntity('person', id, e)"
       />
+      </div>
 
       <!-- In the OVERLAY the episodes + people below just re-present the topic card sitting beneath
            it, so the sheet stays a compact preview (members + momentum + follow) and links out to

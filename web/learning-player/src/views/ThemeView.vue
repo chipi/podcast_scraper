@@ -303,7 +303,11 @@ function goBack(): void {
       <!-- The MERGED list: every episode discussing any member, de-duplicated. This is the page's
            reason to exist — a reader on one member's topic page sees only that member's episodes,
            and a similarity grouping exists precisely because that misses the rest. -->
-      <section v-if="episodes.length" class="mt-6">
+      <!-- Desktop page (operator 2026-10-05): the episode list and Top voices — the two closing
+           sections, already adjacent — sit side by side, half the width each, from `lg`. The topics →
+           what's said → episodes order is untouched. Phones and the sheet stay one column. -->
+      <div :class="embedded ? '' : 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'" data-testid="theme-closing-pair">
+      <section v-if="episodes.length" class="mt-6" data-testid="theme-episodes">
         <CollapsibleSection section-key="theme-episodes" :level="2">
           <template #title>
             <span>{{
@@ -324,6 +328,7 @@ function goBack(): void {
         :route-for="(pid) => ({ name: 'person', params: { id: pid } })"
         @open="(pid, e) => openEntity('person', pid, e)"
       />
+      </div>
 
 
       <!-- Notes, like the storyline and topic pages. Keyed by the theme's own id. -->

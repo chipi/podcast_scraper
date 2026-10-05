@@ -334,6 +334,7 @@ const isTopic = computed(() => current.value.kind === "topic")
         :topic="topic"
         :can-layer="canLayer ?? dismissAtRoot"
         :depth="depth"
+        :wide="props.flush"
         @open="(p) => open(p.kind, p.id)"
         @close="emit('close')"
       />

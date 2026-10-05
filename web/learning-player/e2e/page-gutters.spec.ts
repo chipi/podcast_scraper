@@ -105,3 +105,36 @@ test('the account pages behind the avatar are a centred column on desktop', asyn
   await centred(page, '/about/privacy', 'about-page', 672)
   await centred(page, '/account/delete', 'delete-account-view', 672)
 })
+
+/**
+ * Desktop entity pages pair sections that answer one question, half the width each (operator
+ * 2026-10-05): on the topic page "Part of a theme" beside "Part of a storyline"; on theme and
+ * storyline pages the episode list beside Top voices. On a phone they stack.
+ */
+for (const viewport of [
+  { width: 1440, height: 900, side: true },
+  { width: 412, height: 915, side: false },
+]) {
+  test(`entity sections pair up only on desktop (${viewport.width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport)
+    await signInIsolated(page, `entity-pairs-${viewport.width}`, testInfo)
+    // Scoped to the page being measured: right after a navigation the page being left can still be
+    // on screen in its exit transition, carrying its own copy of a section (Top voices).
+    const pair = async (url: string, view: string, a: string, b: string) => {
+      await page.goto(url)
+      const v = page.getByTestId(view)
+      const [ba, bb] = [v.getByTestId(a).first(), v.getByTestId(b).first()]
+      await expect(ba).toBeVisible()
+      await expect(bb).toBeVisible()
+      const [ra, rb] = [(await ba.boundingBox())!, (await bb.boundingBox())!]
+      if (viewport.side) {
+        expect(Math.abs(ra.y - rb.y), `${url}: ${a} and ${b} share a row`).toBeLessThanOrEqual(2)
+        expect(rb.x, `${url}: ${b} sits to the right`).toBeGreaterThan(ra.x + ra.width)
+      } else {
+        expect(rb.y, `${url}: ${b} stacks below ${a}`).toBeGreaterThanOrEqual(ra.y + ra.height)
+      }
+    }
+    await pair(`/topic/${encodeURIComponent('topic:risk-management')}`, 'topic-view', 'ec-theme', 'ec-storyline')
+    await pair(`/theme/${encodeURIComponent('tc:safety-practices')}`, 'theme-view', 'theme-episodes', 'ec-top-voices')
+  })
+}

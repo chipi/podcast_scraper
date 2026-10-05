@@ -51,8 +51,14 @@ const props = withDefaults(
     canLayer?: boolean
     /** This card's own stack depth; anything it opens sits one level deeper. */
     depth?: number
+    /**
+     * The card is the whole page at desktop width (the standalone /topic route): pairs that answer
+     * one question sit side by side, half the width each, from `lg` (operator 2026-10-05). In a
+     * sheet or the Knowledge Panel the card is narrow, so it stays one column.
+     */
+    wide?: boolean
   }>(),
-  { canLayer: true, depth: 0 }
+  { canLayer: true, depth: 0, wide: false }
 )
 const emit = defineEmits<{
   (e: "open", payload: { kind: "person" | "topic"; id: string }): void
@@ -203,6 +209,7 @@ function searchLibrary(): void {
        2. A universal "discussed over time" activity line — on EVERY topic, from any entry point
           (operator 2026-09-14), derived from the topic's own episodes. The pill renders `hide-spark`
           so it does not draw a second, redundant chart above this one. -->
+  <div :class="props.wide ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6' : ''" data-testid="ec-topic-time-pair">
   <div v-if="topicMomentum || activitySeries.length" class="mb-4">
     <TrendMomentum
       v-if="topicMomentum"
@@ -223,6 +230,7 @@ function searchLibrary(): void {
        this topic at opposite ends of a long scroll. They answer the same question at different
        resolutions — how much, and how it changed — so they read as a pair or not at all. -->
   <TopicConversationArc :id="topic.id" :known-weeks="topic.conversation_arc_weeks" />
+  </div>
 
   <!-- Semantically SIMILAR topics. Distinct from the storyline below, which is co-occurrence
        (#1603). Chips drill in place via the back stack.
@@ -253,6 +261,7 @@ function searchLibrary(): void {
        storyline link so a reader meets the two groupings as a pair and can see they are different
        claims — "means the same thing" against "keeps coming up together" — rather than meeting one
        of them and inferring the other from a chip list. -->
+  <div :class="props.wide ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6' : ''" data-testid="ec-topic-group-pair">
   <section v-if="themeLabel && themeId" class="mb-4" data-testid="ec-theme">
     <CollapsibleSection :title="t('ec.themeHeading')" section-key="topic-theme" :level="3">
       <button
@@ -295,6 +304,7 @@ function searchLibrary(): void {
   <p v-else class="mb-4 text-xs text-muted" data-testid="ec-single-topic">
     {{ t("ec.singleTopic") }}
   </p>
+  </div>
 
   <!-- The theme, opened ON TOP (teleported sheet) rather than navigating away. -->
   <ThemeCard
