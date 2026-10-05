@@ -303,11 +303,11 @@ start. (A serif was tried and rejected during the earlier design phase.)
 - **Long reading text** keeps a readable line length (~80 characters, 42rem): the legal pages get it
   from `.lp-focus`, and `.lp-prose` gives it to long text on a full-width page, starting at the
   page's left edge, never centred.
-- **Desktop entity pages pair sections** that answer one question, half the width each, from `lg`
-  (operator 2026-10-05): on the topic page "Discussed over time" beside "Conversation over time",
-  and "Part of a theme" beside "Part of a storyline"; on theme and storyline pages the episode list
-  beside Top voices (topics → what's said → episodes order unchanged). Sheets, the Knowledge Panel
-  and phones stay one column.
+- **Desktop entity pages pair sections**, half the width each, from `lg` (operator 2026-10-05).
+  Topic: "Discussed over time" beside "Conversation over time", similar topics beside Top voices,
+  "Part of a theme" beside "Part of a storyline". Theme and storyline: member topics beside Top
+  voices, then what's said, then the episode list at full width. Sheets, the Knowledge Panel and
+  phones stay one column. Page labels are singular: Topic, Person, Theme, Storyline.
 - **Search and filter rows** span the width of the list or results under them (`.lp-search`, no
   cap): the row ends where its content ends.
 - The Player two-column splits transcript (≈60%) + Knowledge rail (≈40%).

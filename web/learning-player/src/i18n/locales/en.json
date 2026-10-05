@@ -578,6 +578,8 @@
     "storylineHeading": "Part of a storyline",
     "person": "Person",
     "topic": "Topic",
+    "theme": "Theme",
+    "storyline": "Storyline",
     "organization": "Organization",
     "relatedOrgs": "Related organizations",
     "orgEpisodes": "Mentioned in {count} episode | Mentioned in {count} episodes",

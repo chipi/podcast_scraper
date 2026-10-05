@@ -196,7 +196,7 @@ function goBack(): void {
          their OWN row after the title (operator: the kicker+actions row was too cramped). -->
     <div :class="embedded ? '' : 'mt-3'">
       <div class="flex items-start justify-between gap-3">
-        <span class="lp-kicker min-w-0 text-storyline">{{ t("home.storylines") }}</span>
+        <span class="lp-kicker min-w-0 text-storyline">{{ t("ec.storyline") }}</span>
         <!-- Close ✕ — embedded only; standalone uses the Back row above. -->
         <button
           v-if="embedded"
@@ -251,17 +251,13 @@ function goBack(): void {
 
     <template v-else>
       <!-- Member topics, an ordered list (SL.1). -->
-      <!-- ORDER (operator 2026-10-01): members -> what they SAID -> episodes -> voices.
-           The quotes used to sit at the foot, under the episode list, where nobody reaching the
-           page ever saw them — the episode list is long, so the one section that explains what the
-           grouping is about sat below ~4,000px of it. They now answer "what is this?" before the
-           page offers "here is everything in it".
-
-           The quotes go DIRECTLY between the member list and the episode list, with nothing in
-           between: "between topics, list of topics, and the list of episodes ... on all three
-           surfaces". Top voices moves below the episodes rather than staying beside the quotes —
-           pairing the faces with what they argued was my addition, not the request. -->
-      <section class="mt-6">
+      <!-- ORDER (operator 2026-10-05): members + top voices -> what they SAID -> episodes.
+           Top voices moved up beside the member list — side by side, half the width each, on the
+           desktop page; stacked on a phone and in the sheet. The episode list closes the page at
+           full width. (2026-10-01 had members -> said -> episodes -> voices: the quotes moved up
+           from the foot, where the long episode list hid them; that part stands.) -->
+      <div :class="embedded ? '' : 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'" data-testid="storyline-opening-pair">
+      <section class="mt-6" data-testid="storyline-topics">
         <CollapsibleSection :title="t('home.storylineTopicsHeading')" section-key="storyline-topics" :level="2">
           <!-- WHY these topics are one storyline, stated as a fact rather than asserted by the
                heading. One line, under the heading, so it reads as the section's subtitle. -->
@@ -323,6 +319,18 @@ function goBack(): void {
         </CollapsibleSection>
       </section>
 
+      <!-- Top voices (SL.2) — the SAME grid the topic card shows (operator 2026-09-30): it was
+           "Related people" as plain chips here, the same people from the same `related_people`
+           drawn a second way. Standalone page only (redundant with the topic card in overlay). -->
+      <TopVoices
+        class="mt-6"
+        :people="people"
+        :heading-level="2"
+        :route-for="(id) => ({ name: 'person', params: { id } })"
+        @open="(id, e) => openEntity('person', id, e)"
+      />
+      </div>
+
       <!-- What is SAID across the storyline — its members' insights, grouped by speaker, each with
            a jump-to-moment link. Until this, nothing on the page was a sentence anybody actually
            uttered: it listed member topics and episodes and left the reader to infer what the
@@ -336,12 +344,8 @@ function goBack(): void {
         @open="openPerspective"
       />
 
-      <!-- Desktop page (operator 2026-10-05): the episode list and Top voices — the two closing
-           sections, already adjacent — sit side by side, half the width each, from `lg`. The topics →
-           what's said → episodes order is untouched. Phones and the sheet stay one column. -->
-      <div :class="embedded ? '' : 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'" data-testid="storyline-closing-pair">
-      <!-- Top episodes for the storyline (SL.2). Standalone page only — see the note above. -->
-      <section v-if="episodes.length" class="mt-6">
+      <!-- Top episodes for the storyline (SL.2), the full width at the foot of the page. -->
+      <section v-if="episodes.length" class="mt-6" data-testid="storyline-episodes">
           <!-- Says "newest first" like the topic, person and org lists do (operator 2026-09-19).
                This was the one of the four that never did, which is the drift the shared
                `EntityEpisodeList` exists to stop repeating. -->
@@ -353,18 +357,6 @@ function goBack(): void {
           <EntityEpisodeList :episodes="episodes" />
         </CollapsibleSection>
       </section>
-
-      <!-- Top voices (SL.2) — the SAME grid the topic card shows (operator 2026-09-30): it was
-           "Related people" as plain chips here, the same people from the same `related_people`
-           drawn a second way. Standalone page only (redundant with the topic card in overlay). -->
-      <TopVoices
-        class="mt-6"
-        :people="people"
-        :heading-level="2"
-        :route-for="(id) => ({ name: 'person', params: { id } })"
-        @open="(id, e) => openEntity('person', id, e)"
-      />
-      </div>
 
       <!-- In the OVERLAY the episodes + people below just re-present the topic card sitting beneath
            it, so the sheet stays a compact preview (members + momentum + follow) and links out to

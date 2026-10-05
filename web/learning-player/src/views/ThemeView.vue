@@ -192,7 +192,7 @@ function goBack(): void {
          row, then actions on theirs. -->
     <div :class="embedded ? '' : 'mt-3'">
       <div class="flex items-start justify-between gap-3">
-        <span class="lp-kicker min-w-0 text-theme">{{ t("home.themes") }}</span>
+        <span class="lp-kicker min-w-0 text-theme">{{ t("ec.theme") }}</span>
         <!-- Close ✕ — embedded only; standalone uses the Back row above. -->
         <button
           v-if="embedded"
@@ -247,17 +247,13 @@ function goBack(): void {
       <!-- The members, ranked by how much of the corpus each carries, so the first row is the one a
            reader is most likely to recognise. The heading is the product distinction: these mean
            the same thing, as against a storyline's "discussed together". -->
-      <!-- ORDER (operator 2026-10-01): members -> what they SAID -> episodes -> voices.
-           The quotes used to sit at the foot, under the episode list, where nobody reaching the
-           page ever saw them — the episode list is long, so the one section that explains what the
-           grouping is about sat below ~4,000px of it. They now answer "what is this?" before the
-           page offers "here is everything in it".
-
-           The quotes go DIRECTLY between the member list and the episode list, with nothing in
-           between: "between topics, list of topics, and the list of episodes ... on all three
-           surfaces". Top voices moves below the episodes rather than staying beside the quotes —
-           pairing the faces with what they argued was my addition, not the request. -->
-      <section class="mt-6">
+      <!-- ORDER (operator 2026-10-05): members + top voices -> what they SAID -> episodes.
+           Top voices moved up beside the member list — side by side, half the width each, on the
+           desktop page; stacked on a phone and in the sheet. The episode list closes the page at
+           full width. (2026-10-01 had members -> said -> episodes -> voices: the quotes moved up
+           from the foot, where the long episode list hid them; that part stands.) -->
+      <div :class="embedded ? '' : 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'" data-testid="theme-opening-pair">
+      <section class="mt-6" data-testid="theme-topics">
         <CollapsibleSection :title="t('home.themeTopicsHeading')" section-key="theme-topics" :level="2">
           <ol class="flex flex-col">
             <li v-for="(tp, i) in topics" :key="tp.id">
@@ -287,6 +283,17 @@ function goBack(): void {
         </CollapsibleSection>
       </section>
 
+      <!-- Counted across the whole union, so these are the voices that recur across the theme
+           rather than inside one member. -->
+      <TopVoices
+        class="mt-6"
+        :people="people"
+        :heading-level="2"
+        :route-for="(pid) => ({ name: 'person', params: { id: pid } })"
+        @open="(pid, e) => openEntity('person', pid, e)"
+      />
+      </div>
+
       <!-- What is SAID across the grouping — its members' insights, grouped by speaker, each with
            a jump-to-moment link. Until this, nothing on either grouping page was a sentence anybody
            actually uttered: the pages listed member topics and episodes and left the reader to
@@ -303,10 +310,6 @@ function goBack(): void {
       <!-- The MERGED list: every episode discussing any member, de-duplicated. This is the page's
            reason to exist — a reader on one member's topic page sees only that member's episodes,
            and a similarity grouping exists precisely because that misses the rest. -->
-      <!-- Desktop page (operator 2026-10-05): the episode list and Top voices — the two closing
-           sections, already adjacent — sit side by side, half the width each, from `lg`. The topics →
-           what's said → episodes order is untouched. Phones and the sheet stay one column. -->
-      <div :class="embedded ? '' : 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'" data-testid="theme-closing-pair">
       <section v-if="episodes.length" class="mt-6" data-testid="theme-episodes">
         <CollapsibleSection section-key="theme-episodes" :level="2">
           <template #title>
@@ -318,17 +321,6 @@ function goBack(): void {
           <EntityEpisodeList :episodes="episodes" />
         </CollapsibleSection>
       </section>
-
-      <!-- Counted across the whole union, so these are the voices that recur across the theme
-           rather than inside one member. -->
-      <TopVoices
-        class="mt-6"
-        :people="people"
-        :heading-level="2"
-        :route-for="(pid) => ({ name: 'person', params: { id: pid } })"
-        @open="(pid, e) => openEntity('person', pid, e)"
-      />
-      </div>
 
 
       <!-- Notes, like the storyline and topic pages. Keyed by the theme's own id. -->

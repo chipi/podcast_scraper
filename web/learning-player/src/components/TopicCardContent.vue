@@ -240,6 +240,10 @@ function searchLibrary(): void {
        marked. On the page that reasoning does not survive: the heading says "N similar topics" and
        the first thing under it is the topic whose page you are reading, which is not similar to
        itself. The count now counts what is actually listed. -->
+  <!-- Similar topics and Top voices side by side, half the width each, on the desktop page
+       (operator 2026-10-05); Top voices moved up from below the strongest shows. Stacked in a sheet,
+       the Knowledge Panel and on a phone. -->
+  <div :class="props.wide ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6' : ''" data-testid="ec-topic-people-pair">
   <section v-if="siblings.length" class="mb-4" data-testid="ec-similar-topics">
     <CollapsibleSection :title="t('ec.clusterMembers', siblings.length, { named: { count: siblings.length } })" section-key="topic-similar" :level="3">
       <div class="flex flex-wrap gap-1.5">
@@ -256,6 +260,10 @@ function searchLibrary(): void {
       </div>
     </CollapsibleSection>
   </section>
+
+  <!-- Top voices (wave-G): the people who drive THIS topic. Shared with the storyline page. -->
+  <TopVoices class="mb-4" :people="topVoices" @open="(id) => openPerson(id)" />
+  </div>
 
   <!-- Part of a theme: the grouping this topic MEANS the same thing as. Sits directly above the
        storyline link so a reader meets the two groupings as a pair and can see they are different
@@ -366,9 +374,6 @@ function searchLibrary(): void {
     </CollapsibleSection>
   </section>
 
-  <!-- Top voices (wave-G): the people who drive THIS topic. Shared with the storyline page. -->
-  <TopVoices class="mb-4" :people="topVoices" @open="(id) => openPerson(id)" />
-
   <!-- Search transcripts — between the strongest shows and the episode list (operator review). -->
   <button
     type="button"
@@ -386,9 +391,6 @@ function searchLibrary(): void {
        it names those same people); the across-all-three consistency won.
        The order asked for, in the operator's words: "between topics, list of topics, and the list
        of episodes ... on all three surfaces". -->
-  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none.
-       Directly under Top voices (operator 2026-09-19) — it names the same people and says what they
-       actually argued, so it belongs beside the faces rather than at the foot of the page. -->
   <TopicPerspectives
     :id="topic.id"
     @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"

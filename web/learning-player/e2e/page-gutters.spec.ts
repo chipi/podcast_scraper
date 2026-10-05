@@ -107,9 +107,10 @@ test('the account pages behind the avatar are a centred column on desktop', asyn
 })
 
 /**
- * Desktop entity pages pair sections that answer one question, half the width each (operator
- * 2026-10-05): on the topic page "Part of a theme" beside "Part of a storyline"; on theme and
- * storyline pages the episode list beside Top voices. On a phone they stack.
+ * Desktop entity pages pair sections side by side, half the width each (operator 2026-10-05): on
+ * the topic page similar topics beside Top voices and "Part of a theme" beside "Part of a
+ * storyline"; on theme and storyline pages the member topics beside Top voices. On a phone they
+ * stack.
  */
 for (const viewport of [
   { width: 1440, height: 900, side: true },
@@ -126,7 +127,19 @@ for (const viewport of [
       const [ba, bb] = [v.getByTestId(a).first(), v.getByTestId(b).first()]
       await expect(ba).toBeVisible()
       await expect(bb).toBeVisible()
-      const [ra, rb] = [(await ba.boundingBox())!, (await bb.boundingBox())!]
+      // Both boxes from ONE layout: measured one after the other, a section above them that settles
+      // in between (async content) moves the second box against the first and fakes an overlap.
+      const [ra, rb] = await page.evaluate(
+        ([view, a, b]) => {
+          const v = document.querySelector(`[data-testid="${view}"]`)!
+          const box = (id: string) => {
+            const r = v.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect()
+            return { x: r.x, y: r.y, width: r.width, height: r.height }
+          }
+          return [box(a), box(b)]
+        },
+        [view, a, b] as const,
+      )
       if (viewport.side) {
         expect(Math.abs(ra.y - rb.y), `${url}: ${a} and ${b} share a row`).toBeLessThanOrEqual(2)
         expect(rb.x, `${url}: ${b} sits to the right`).toBeGreaterThan(ra.x + ra.width)
@@ -134,7 +147,10 @@ for (const viewport of [
         expect(rb.y, `${url}: ${b} stacks below ${a}`).toBeGreaterThanOrEqual(ra.y + ra.height)
       }
     }
-    await pair(`/topic/${encodeURIComponent('topic:risk-management')}`, 'topic-view', 'ec-theme', 'ec-storyline')
-    await pair(`/theme/${encodeURIComponent('tc:safety-practices')}`, 'theme-view', 'theme-episodes', 'ec-top-voices')
+    const topic = `/topic/${encodeURIComponent('topic:risk-management')}`
+    await pair(topic, 'topic-view', 'ec-similar-topics', 'ec-top-voices')
+    await pair(topic, 'topic-view', 'ec-theme', 'ec-storyline')
+    await pair(`/theme/${encodeURIComponent('tc:safety-practices')}`, 'theme-view', 'theme-topics', 'ec-top-voices')
+    await pair(`/storyline/${encodeURIComponent('topic:risk-management')}`, 'storyline-view', 'storyline-topics', 'ec-top-voices')
   })
 }
