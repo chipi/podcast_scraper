@@ -25,7 +25,19 @@ from __future__ import annotations
 import difflib
 import re
 from dataclasses import dataclass, replace
-from typing import AbstractSet, Any, Callable, Dict, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import (
+    AbstractSet,
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+)
 
 from ....graph_id_utils import (
     canonical_person_name,
@@ -1070,6 +1082,28 @@ def _tidy_published_name(name: str) -> str:
     return canonical_person_name(name)
 
 
+#: Two voices are two people when they alternate at least this often and each holds this share of
+#: the talk (`_one_name_per_person`). A split fragment is small or never trades turns with itself.
+_CONVERSING_MIN_ALTERNATIONS = 10
+_CONVERSING_MIN_SHARE = 0.05
+#: How directly a voice's name came from the voice: its own words or an introduction of it, then
+#: the LLM's match, then arithmetic.
+_NAME_EVIDENCE_RANK = {"self_intro": 3, "publisher_transcript": 3, "llm_resolution": 2}
+
+
+def _alternations(diarization: DiarizationResult) -> Dict[FrozenSet[str], int]:
+    """How many times each pair of voices hands the floor to the other."""
+    order: List[str] = []
+    for seg in sorted(diarization.segments, key=lambda x: x.start):
+        if not order or order[-1] != seg.speaker:
+            order.append(seg.speaker)
+    out: Dict[FrozenSet[str], int] = {}
+    for a, b in zip(order, order[1:]):
+        k = frozenset((a, b))
+        out[k] = out.get(k, 0) + 1
+    return out
+
+
 def _one_name_per_person(
     by_voice: Dict[str, SpeakerRole],
     talk: Dict[str, float],
@@ -1077,6 +1111,7 @@ def _one_name_per_person(
     known_hosts: Sequence[str],
     episode_text: Optional[str] = None,
     evidence_hosts: AbstractSet[str] = frozenset(),
+    alternations: Optional[Mapping[FrozenSet[str], int]] = None,
     trace: Optional[NamingTrace] = None,
 ) -> Dict[str, SpeakerRole]:
     """Give every voice of one person the SAME name and the SAME role (#2075).
@@ -1206,6 +1241,48 @@ def _one_name_per_person(
                 decision="kept_apart",
                 reason="two_spellings_vouched_for",
                 names={v: out[v].name for v in g},
+            )
+            continue
+
+        # TWO VOICES THAT TALK TO EACH OTHER ARE TWO PEOPLE. A diarizer split leaves a fragment;
+        # it does not hold a conversation with itself. Hard Fork's Kevin (self-introduced) and the
+        # voice the LLM also called Kevin traded 68 turns; DeepMind's host and her 84% guest, 67
+        # (#2276). The name stays with the voice whose OWN words gave it; the other is unnamed.
+        # Equal evidence: kept apart as they are.
+        talk_total = sum(talk.values()) or 1.0
+        conversing = [
+            (a, b)
+            for i_, a in enumerate(g)
+            for b in g[i_ + 1 :]
+            if (alternations or {}).get(frozenset((a, b)), 0) >= _CONVERSING_MIN_ALTERNATIONS
+            and talk.get(a, 0.0) / talk_total >= _CONVERSING_MIN_SHARE
+            and talk.get(b, 0.0) / talk_total >= _CONVERSING_MIN_SHARE
+        ]
+        if conversing:
+            rank = {v: _NAME_EVIDENCE_RANK.get(out[v].source, 0) for v in g}
+            best = max(rank.values())
+            top = [v for v in g if rank[v] == best]
+            unnamed = (
+                sorted({x for pair in conversing for x in pair if x != top[0]})
+                if len(top) == 1
+                else []
+            )
+            if len(top) == 1:
+                # The keeper still takes the person's canonical spelling, as a unified group does
+                # (stated, else fullest): "Kevin Roose", not its own "Kevin".
+                spelled = [w for w in g if _is_stated(out[w].name)] or g
+                best_name = out[
+                    max(spelled, key=lambda w: (len(_strip_titles(out[w].name)), talk.get(w, 0.0)))
+                ].name
+                out[top[0]] = replace(out[top[0]], name=best_name)
+            for v in unnamed:
+                out[v] = replace(out[v], name=v, named=False, source="raw", forced=False)
+            tr.note(
+                "one_name_per_person",
+                decision="kept_apart",
+                reason="they_talk_to_each_other",
+                names={v: by_voice[v].name for v in g},
+                unnamed=unnamed,
             )
             continue
 
@@ -2823,6 +2900,7 @@ def _bind_introduced_name(
     voice_texts: Mapping[str, str],
     *,
     host_name_requires_host_target: bool = False,
+    turn_names: Optional[Dict[int, List[Tuple[str, str]]]] = None,
 ) -> None:
     """Bind an introduced name to whoever speaks NEXT, or to nobody.
 
@@ -2868,7 +2946,29 @@ def _bind_introduced_name(
             return
         out[nxt] = name
         taken.add(name.lower())
+        if turn_names is not None:
+            turn_names.setdefault(i, []).append((name, nxt))
         return
+
+
+def _one_voice_per_introduction(
+    turn_names: Mapping[int, Sequence[Tuple[str, str]]],
+    out: Dict[str, str],
+    turn_text: Mapping[str, str],
+) -> None:
+    """ONE INTRODUCTION, TWO VOICES. The capitalized pass reads the spoken "Brendan Futi", the
+    case-blind pass the stated "Brendan Foody" in the SAME sentence; as two strings each bound a
+    voice, the second walking on past the first. The person introduced is the one who then talks:
+    keep the voice that says most, drop the other (No Priors: the co-host after the guest; Latent
+    Space: the co-host BEFORE the guest -- whichever reading came first was a coin flip, #2276)."""
+    for bound in turn_names.values():
+        voices = [v for _n, v in bound]
+        if len(voices) < 2 or not all(_loosely_same_person(bound[0][0], n) for n, _v in bound[1:]):
+            continue
+        keep = max(voices, key=lambda v: len(turn_text.get(v, "")))
+        for v in voices:
+            if v != keep:
+                out.pop(v, None)
 
 
 def _voice_named_by_the_introduction(
@@ -2929,6 +3029,8 @@ def _voice_named_by_the_introduction(
     for _sp, _tx in ordered_turns:
         turn_text[_sp] = (turn_text.get(_sp, "") + " " + (_tx or "")).strip()
 
+    turn_names: Dict[int, List[Tuple[str, str]]] = {}
+
     def _assign(i: int, names: List[str], *, host_name_requires_host_target: bool = False) -> None:
         _bind_introduced_name(
             ordered_turns,
@@ -2940,6 +3042,7 @@ def _voice_named_by_the_introduction(
             known_hosts_lower,
             turn_text,
             host_name_requires_host_target=host_name_requires_host_target,
+            turn_names=turn_names,
         )
 
     stated = _stated_tokens(metadata_named)
@@ -3032,6 +3135,7 @@ def _voice_named_by_the_introduction(
 
     for _i, (_speaker, _text) in enumerate(ordered_turns):
         _scan_turn(_i, _speaker, _text or "")
+    _one_voice_per_introduction(turn_names, out, turn_text)
     return out
 
 
@@ -3707,9 +3811,27 @@ def _speaks_of_by_first_name(text: str, host: str, feed_title: Optional[str] = N
 def _talks_to_the_cohost(text: str, host: str, pool: Sequence[str]) -> bool:
     """Does this voice address another stated host by given name at least twice, and ``host``
     never? Then it behaves as ``host`` does on a two-host show."""
-    if _vocative_count(text, host):
+    if _vocative_count(text, host) or _thanked_by_name(text, host):
         return False
-    return any(_vocative_count(text, h) >= 2 for h in pool if h.lower() != host.lower())
+    return any(
+        _vocative_count(text, h) >= 2 or _thanked_by_name(text, h)
+        for h in pool
+        if h.lower() != host.lower()
+    )
+
+
+def _thanked_by_name(text: str, host: str) -> bool:
+    """ "thank you very much indeed, Alistair" / "thank you Alistair" -- an address even where
+    word-level ASR segments carry no punctuation for `_vocative_count` to anchor on (The Rest Is
+    Politics: Rory's sign-off to Alastair, #2276)."""
+    forms = _first_name_forms(host, text) if text else ""
+    return bool(forms) and bool(
+        re.search(
+            rf"\bthank(?:s| you)(?: (?:so|very) much)?(?: indeed)?,? (?:{forms})\b",
+            text,
+            re.IGNORECASE,
+        )
+    )
 
 
 def _vocative_count(text: str, host: str) -> int:
@@ -5179,6 +5301,7 @@ def resolve_speaker_roster(
         known_hosts,
         episode_text=episode_text,
         evidence_hosts={v for v in host_voices if v in presenter_voices},
+        alternations=_alternations(diarization),
         trace=tr,
     )
     tr.diff_roles("one_name_per_person", _bv_before, by_voice)

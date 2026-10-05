@@ -776,3 +776,74 @@ def test_a_self_introduced_spelling_takes_back_a_name_that_was_forced_onto_anoth
     _recover_stated_names(by_voice, ["Kashmir Hill"])
     assert by_voice["A"].name == "Kashmir Hill"
     assert not by_voice["B"].named
+
+
+def test_one_introduction_read_twice_names_one_voice() -> None:
+    """The capitalized pass binds the spoken "Brendan Futi"; the case-blind pass resolves the same
+    sentence to the stated "Brendan Foody". The co-host who speaks after the guest must not get it.
+    """
+    from podcast_scraper.providers.ml.diarization.roster import _voice_named_by_the_introduction
+
+    turns = [
+        ("HOST", "Welcome back. Today we're chatting with Brendan Futi, cofounder of a company."),
+        ("GUEST", "Thanks. So at a high level we train models that predict performance."),
+        ("COHOST", "I think it's very funny when the proofs come out."),
+    ]
+    out = _voice_named_by_the_introduction(
+        turns, {"HOST"}, None, frozenset(), metadata_named=["Brendan Foody"]
+    )
+    assert "COHOST" not in out
+    assert out.get("GUEST") in ("Brendan Futi", "Brendan Foody")
+
+
+def test_two_voices_that_talk_to_each_other_are_not_unified_into_one_person() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _one_name_per_person, SpeakerRole
+
+    by_voice = {
+        "A": SpeakerRole(name="Kevin Roose", role="host", named=True, source="self_intro"),
+        "B": SpeakerRole(name="Kevin Rose", role="host", named=True, source="llm_resolution"),
+    }
+    talk = {"A": 400.0, "B": 350.0}
+    out = _one_name_per_person(
+        by_voice, talk, [], ["Kevin Roose"], alternations={frozenset(("A", "B")): 30}
+    )
+    assert out["A"].name == "Kevin Roose" and out["A"].named
+    assert not out["B"].named
+    # The keeper takes the stated spelling even when its own is the bare given name.
+    # (the LLM only matches stated names, so the other voice carries the stated spelling)
+    bare = {
+        "A": SpeakerRole(name="Kevin", role="host", named=True, source="self_intro"),
+        "B": SpeakerRole(name="Kevin Roose", role="host", named=True, source="llm_resolution"),
+    }
+    kept = _one_name_per_person(
+        bare, talk, [], ["Kevin Roose"], alternations={frozenset(("A", "B")): 30}
+    )
+    assert kept["A"].name == "Kevin Roose" and not kept["B"].named
+    # Control: a fragment that never converses is still unified (a diarizer split).
+    split = _one_name_per_person(by_voice, {"A": 400.0, "B": 8.0}, [], ["Kevin Roose"])
+    assert split["B"].name == "Kevin Roose"
+
+
+def test_a_thank_you_by_name_is_an_address_without_punctuation() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _thanked_by_name
+
+    assert _thanked_by_name("so thank you very much indeed thank you Greta see you soon", HOST_B)
+    assert not _thanked_by_name("Greta thanked everyone at the end", HOST_B)
+
+
+def test_one_introduction_read_twice_keeps_the_voice_that_then_talks() -> None:
+    """Latent Space: the co-host interjects right after the introduction, the guest answers at
+    length. Whichever reading bound first, the guest keeps the name."""
+    from podcast_scraper.providers.ml.diarization.roster import _voice_named_by_the_introduction
+
+    long_answer = "Yes, so the database work started years ago and it grew from there. " * 8
+    turns = [
+        ("HOST", "Today we're chatting with Brendan Futi, cofounder of a company."),
+        ("COHOST", "Great to have you."),
+        ("GUEST", long_answer),
+    ]
+    out = _voice_named_by_the_introduction(
+        turns, {"HOST"}, None, frozenset(), metadata_named=["Brendan Foody"]
+    )
+    assert "COHOST" not in out
+    assert out.get("GUEST") in ("Brendan Futi", "Brendan Foody")
