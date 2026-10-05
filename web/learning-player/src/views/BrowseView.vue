@@ -128,10 +128,10 @@ watch(
 </script>
 
 <template>
-  <!-- No gutter of its own (2026-10-05): the app shell's `px-5` is Home's gutter, and Discover added
-       `px-4` on top, so the SAME Trends component was 32px narrower here than on Home and its four
-       kind pills no longer fit the row. Home and Discover are one screen family; they size alike. -->
-  <section class="mx-auto max-w-3xl pb-8" data-testid="browse-view">
+  <!-- The one page width (`lp-page`, operator 2026-10-05): no gutter or column of its own. Discover
+       once added `px-4` and a 768px column on top of the shell, so the SAME Trends component was
+       narrower here than on Home. Home and Discover are one screen family; they size alike. -->
+  <section class="lp-page pb-8" data-testid="browse-view">
     <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">
       {{ t('browse.hubTitle') }}
     </h1>
@@ -150,11 +150,16 @@ watch(
 
     <!-- Search, then Trends — the same two sections, in the same order, that Home renders (operator
          2026-10-05). Search sits between trending shows and Trends, where the page turns from
-         "what's popular" to "go find something" (operator 2026-09-20). Half width from `lg` up; the
-         right half stays empty on purpose (operator 2026-09-17). -->
-    <div class="lg:w-1/2 lg:pr-4">
-      <SearchSection prefix="browse" />
-      <TrendsSection ref="trends" prefix="browse" :kind="trendsKind" @open="onEntityOpen" />
+         "what's popular" to "go find something" (operator 2026-09-20). Left half from `lg` up, in the
+         SAME two-column row Home uses (`lg:flex lg:gap-8`, two halves), so the column is the same
+         width on both pages by construction. Discover's right half is empty for now: what goes there
+         is an open design question (operator 2026-10-05). -->
+    <div class="lg:flex lg:items-start lg:gap-8">
+      <div class="lg:w-1/2 lg:pr-4">
+        <SearchSection prefix="browse" />
+        <TrendsSection ref="trends" prefix="browse" :kind="trendsKind" @open="onEntityOpen" />
+      </div>
+      <div class="hidden lg:block lg:w-1/2" aria-hidden="true" />
     </div>
 
     <!-- Content band below the dashboard: the things you actually play. Two tabs spread equally

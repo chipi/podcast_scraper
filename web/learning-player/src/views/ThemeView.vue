@@ -173,7 +173,7 @@ function goBack(): void {
 
 <template>
   <section
-    :class="embedded ? '' : 'mx-auto max-w-3xl px-4 pb-8 pt-4'"
+    :class="embedded ? '' : 'lp-page pb-8 pt-4'"
     data-testid="theme-view"
   >
     <!-- Back on its own row. Suppressed when embedded — the sheet closes with its own ✕. -->

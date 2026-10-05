@@ -10,6 +10,10 @@ import { signInIsolated } from './helpers'
  * storyline page's 16px. PersonView had the same double gutter.
  *
  * Measured, not eyeballed: the title's inset from the page container must be the same on all three.
+ *
+ * Since 2026-10-05 that inset is ZERO (operator: one page width, nothing narrows a page further).
+ * The app shell's gutter is the only gutter; the card renders `flush` on these routes, so a topic,
+ * person or storyline title starts at the same left edge as Home's.
  */
 async function titleInset(page: Page, container: string, title: string): Promise<number> {
   const c = page.getByTestId(container)
@@ -31,12 +35,12 @@ test('topic, person and storyline pages inset their content by the same gutter',
   await page.goto(`/topic/${encodeURIComponent('topic:risk-management')}`)
   const topic = await titleInset(page, 'topic-view', 'h2')
 
-  await page.goto(`/person/${encodeURIComponent('person:jack-clark')}`)
+  await page.goto(`/person/${encodeURIComponent('person:nora')}`)
   const person = await titleInset(page, 'person-view', 'h2')
 
-  // One page gutter (px-4). Within 2px, because a heading's box can sit a pixel inside its padding
-  // edge; the defect this guards was a 16px difference.
-  expect(Math.abs(storyline - 16), `storyline page gutter ${storyline}`).toBeLessThanOrEqual(2)
+  // No gutter inside the page. Within 2px, because a heading's box can sit a pixel inside its
+  // padding edge; the defects this guards were 16px differences.
+  expect(Math.abs(storyline), `storyline page gutter ${storyline}`).toBeLessThanOrEqual(2)
   expect(Math.abs(topic - storyline), `topic page gutter ${topic} vs ${storyline} (was 32)`).toBeLessThanOrEqual(2)
   expect(Math.abs(person - storyline), `person page gutter ${person} vs ${storyline} (was 32)`).toBeLessThanOrEqual(2)
 })

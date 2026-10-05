@@ -113,6 +113,22 @@
     color: var(--lp-canvas-foreground);
   }
 
+  /* Page width — ONE width for every page (operator 2026-10-05). Two layouts only: mobile
+     (< 1024px: phones and tablets held upright) and desktop (>= 1024px: computers and tablets held
+     sideways). The app shell (`App.vue`, `max-w-6xl px-5`) IS the page width at both; a page fills
+     it and never narrows itself further or adds a second gutter. Pages used to pick their own
+     (768 centred, 672 centred, 672 left, 448 left, full), so no two pages lined up on desktop. */
+  .lp-page {
+    width: 100%;
+  }
+
+  /* Long reading text (Privacy, Terms, Delete account) keeps a readable line length inside the
+     page width: capped, but starting at the same left edge as every page, never centred. At the
+     full desktop width a paragraph ran ~125 characters a line against ~80 here. */
+  .lp-prose {
+    max-width: 42rem;
+  }
+
   /* Search / filter field — ONE rule for every search or filter box in the app (Home "ask", the
      Search page, in-episode search, and the list/collection filter toolbars): it spans the width
      of the list or results beneath it, so the row ends where the content it filters ends

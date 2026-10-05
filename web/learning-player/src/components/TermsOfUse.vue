@@ -21,7 +21,7 @@ const UPDATED = '5 October 2026'
 </script>
 
 <template>
-  <article class="space-y-5 text-sm leading-relaxed" data-testid="terms-of-use">
+  <article class="lp-prose space-y-5 text-sm leading-relaxed" data-testid="terms-of-use">
     <div
       v-if="DRAFT_OPEN.length"
       class="rounded-2xl border border-border p-4"

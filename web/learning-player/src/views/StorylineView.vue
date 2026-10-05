@@ -177,7 +177,7 @@ function goBack(): void {
 </script>
 
 <template>
-  <section :class="embedded ? '' : 'mx-auto max-w-3xl px-4 pb-8 pt-4'" data-testid="storyline-view">
+  <section :class="embedded ? '' : 'lp-page pb-8 pt-4'" data-testid="storyline-view">
     <!-- Back on its own row, then kicker → title (UXS-014 header order). Suppressed when embedded
          in the overlay sheet — the sheet carries its own ✕ close. -->
     <button

@@ -399,7 +399,7 @@ onActivated(() => {
 </script>
 
 <template>
-  <section class="max-w-2xl">
+  <section class="lp-page">
     <!-- Identity header: avatar + name + @handle + email, with the Settings gear on the right. -->
     <div class="mb-5 flex items-center justify-between gap-3">
       <div class="flex min-w-0 items-center gap-3">

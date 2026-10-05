@@ -289,8 +289,18 @@ start. (A serif was tried and rejected during the earlier design phase.)
 
 - **Base unit:** 4px (`space-1`); the editorial rhythm leans on `space-4`/`space-5` gutters
   (16/20px) for breathing room.
-- **Max content width:** 1200px on `lg`; the Player two-column splits transcript (≈60%) + Knowledge
-  rail (≈40%).
+- **Two layouts, one page width (operator 2026-10-05):** **mobile** below 1024px (phones, and
+  tablets held upright) and **desktop** from 1024px (computers, and tablets held sideways); no third
+  layout in between. The app shell (`App.vue`, `max-w-6xl` = 1152px with a 20px `px-5` gutter) is
+  the page width at both, and every page fills it through `.lp-page` — no page narrows itself or
+  adds a second gutter, so every page's content starts at the same left edge. Pages used to choose
+  their own (768 centred, 672 centred, 672 left, 448 left, full), and no two lined up on desktop.
+- **Long reading text** (Privacy, Terms, Delete account) keeps a readable line length with
+  `.lp-prose` (42rem), starting at the page's left edge, never centred: at the full desktop width a
+  paragraph ran ~125 characters a line against ~80.
+- **Search and filter rows** span the width of the list or results under them (`.lp-search`, no
+  cap): the row ends where its content ends.
+- The Player two-column splits transcript (≈60%) + Knowledge rail (≈40%).
 - **Major regions (Player):** masthead → intelligence artwork zone → scrubber + controls → synced
   transcript list → knowledge dock. On `lg` the artwork zone + controls sit in the left rail head and
   the transcript scrolls beside the Knowledge Panel.

@@ -62,7 +62,7 @@ const hasAny = computed(() => checked.value && found.value)
 </script>
 
 <template>
-  <main class="mx-auto max-w-3xl px-4 py-6" data-testid="offline-downloads">
+  <main class="lp-page py-6" data-testid="offline-downloads">
     <h1 class="font-display text-2xl font-extrabold tracking-tight text-canvas-foreground">
       {{ t('offlineDownloads.title') }}
     </h1>

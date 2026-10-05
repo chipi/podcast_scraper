@@ -102,7 +102,7 @@ function signInCustom(): void {
 </script>
 
 <template>
-  <section class="max-w-md">
+  <section class="lp-page">
     <span class="lp-kicker">{{ t('app.tagline') }}</span>
     <h1 class="mb-2 mt-1 font-display text-3xl font-extrabold tracking-tight">
       {{ isSignup ? t('auth.signupTitle') : t('auth.loginTitle') }}
