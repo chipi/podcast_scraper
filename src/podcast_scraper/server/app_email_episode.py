@@ -31,6 +31,7 @@ SUMMARY_CHARS = 240
 
 
 def short_text(text: str | None, limit: int = SUMMARY_CHARS) -> str | None:
+    """Whitespace-collapsed ``text`` cut at a word to ``limit`` chars with an ellipsis, or None."""
     t = " ".join((text or "").split())
     if len(t) <= limit:
         return t or None
@@ -79,6 +80,8 @@ class Groupings:
         self._storylines = {c["id"]: c for c in top_storylines_by_member_count(root, top_n=1000)}
 
     def for_topics(self, topic_ids: Iterable[str]) -> dict[str, list[dict[str, str]]]:
+        """``{"themes": [...], "storylines": [...]}`` for these topics, each list capped; an empty
+        kind is left out."""
         themes: list[dict[str, str]] = []
         storylines: list[dict[str, str]] = []
         seen_t: set[str] = set()
