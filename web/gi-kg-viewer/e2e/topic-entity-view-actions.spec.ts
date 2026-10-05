@@ -6,6 +6,7 @@ import {
   SHELL_HEADING_RE,
   statusBarCorpusPathInput,
 } from './helpers'
+import { readFsmEventLog, resetFsmEventLog } from './handoff/_handoff-helpers'
 
 /**
  * UXS-007 "Action buttons": the topic view offers **View in graph** (Graph tab, topic node
@@ -68,7 +69,18 @@ test.describe('Topic Entity View actions (UXS-007)', () => {
     page,
   }) => {
     const topic = await openTopicRailOnDigest(page)
+    await resetFsmEventLog(page)
     await page.getByTestId('node-detail-topic-view-in-graph').click({ timeout: 10_000 })
+    // The Graph is asked for THIS topic (a topic handoff carrying its id) — which is what brings a
+    // topic outside the default time window onto the canvas. A bare tab switch also selects the
+    // topic when it happens to be in the default slice, so the selection below cannot prove this.
+    await expect
+      .poll(async () =>
+        (await readFsmEventLog(page)).some(
+          (e) => e.type === 'handoffRequested' && e.envelope?.kind === 'topic' && e.envelope?.cyId === topic.topic_id,
+        ),
+      )
+      .toBe(true)
     await expect(page.getByTestId('graph-tab-panel')).toBeVisible()
     // The canvas id carries its layer prefix (`g:topic:X` / `k:topic:X`), which the handoff helpers
     // normalise to `topic:X` the same way (`handoff/_handoff-helpers.ts`).
