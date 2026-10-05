@@ -1564,7 +1564,21 @@ def _recover_stated_names(
             continue
         if canon.lower() in known_hosts_lower and role.role != "host":
             continue
-        if canon.lower() in claimed:
+        forced_holders = [
+            hv
+            for hv, r in by_voice.items()
+            if hv != v and r.named and r.forced and r.name.lower() == canon.lower()
+        ]
+        if canon.lower() in claimed and forced_holders and not role.forced:
+            # A FORCED name was arithmetic on the premise that the name was spare. A voice that
+            # introduced itself with it ("Kashmir" for the stated Kashmir Hill) shows the premise
+            # false: the voice's own word wins and the forced holder is unnamed (#2276, The Daily:
+            # the founder's tape had been forced to "Kashmir Hill").
+            for hv in forced_holders:
+                by_voice[hv] = replace(
+                    by_voice[hv], name=hv, named=False, source="raw", forced=False
+                )
+        elif canon.lower() in claimed:
             # one-name-one-voice — unless the current holder is the SAME person (its own name also
             # canonicalizes to this stated ref), i.e. a diarization over-split. Then both clusters
             # get the canonical spelling; distinct people are never merged.
@@ -3458,8 +3472,10 @@ _COHOST_PRESENT = (
 #: me in the studio is the head of the FT's Lex column" (the name bled into the guest's cluster),
 #: "joined at Unhedged world headquarters today by my fearless lieutenant Hak Kyung Kim". The cue
 #: says a person besides the stated hosts is in the room; who they are is a separate question.
+#: "Thank you for joining us" THANKS somebody already introduced; it is not a cue (The Rest Is
+#: Politics: "So, Rob, ... thank you for joining us" refused Rory Stewart's seat, #2276).
 _INTRODUCTION_CUE = re.compile(
-    r"\b(?:joined\b[^.?!]{0,80}?\bby\b|joining (?:me|us)\b"
+    r"\b(?:joined\b[^.?!]{0,80}?\bby\b|(?<!\bfor )joining (?:me|us)\b"
     r"|(?:my|our) guests? (?:today )?(?:is|are)\b"
     r"|here with (?:me|us) (?:is|are)\b"
     r"|(?:i'?m|i am|we'?re|we are) (?:here )?"

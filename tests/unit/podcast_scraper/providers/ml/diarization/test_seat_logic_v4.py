@@ -751,3 +751,28 @@ def test_a_seat_that_keeps_addressing_the_cohost_keeps_its_forced_name() -> None
     bled = "Tobias, will you read this for me? To say nothing of Greta's website. Well, Tobias, go."
     turns = [(v, bled if v == "SPEAKER_01" else t, d) for v, t, d in _span_turns([(850.0, 100.0)])]
     assert _seated_as_b(_roster(turns), "SPEAKER_01")
+
+
+def test_thanking_a_guest_for_joining_is_not_an_introduction_cue() -> None:
+    from podcast_scraper.providers.ml.diarization.roster import _INTRODUCTION_CUE
+
+    assert not _INTRODUCTION_CUE.search(
+        "So, Rob, so much to talk about, but thank you for joining us."
+    )
+    assert _INTRODUCTION_CUE.search("Joining us today is the head of the Lex column.")
+
+
+def test_a_self_introduced_spelling_takes_back_a_name_that_was_forced_onto_another_voice() -> None:
+    """The guest said only "Kashmir"; the forced one-name rule had painted "Kashmir Hill" on a
+    tape insert. Recovering the guest's spelling unnames the forced voice (#2276, The Daily)."""
+    from podcast_scraper.providers.ml.diarization.roster import _recover_stated_names, SpeakerRole
+
+    by_voice = {
+        "A": SpeakerRole(name="Kashmir", role="guest", named=True, source="self_intro"),
+        "B": SpeakerRole(
+            name="Kashmir Hill", role="guest", named=True, source="forced", forced=True
+        ),
+    }
+    _recover_stated_names(by_voice, ["Kashmir Hill"])
+    assert by_voice["A"].name == "Kashmir Hill"
+    assert not by_voice["B"].named
