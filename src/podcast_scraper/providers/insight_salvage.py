@@ -100,7 +100,12 @@ def record_overgeneration(pipeline_metrics: Any, produced: int, ceiling: int) ->
     """
     if produced <= ceiling:
         return
-    logger.warning(
+    # Counted below on every call; logged at WARNING only when it is a runaway (>= 5x the
+    # ceiling). The routine case was 19% of all pipeline warnings (2026-10-05) and is read from
+    # the counters, not the log.
+    severe = produced >= 5 * max(1, ceiling)
+    logger.log(
+        logging.WARNING if severe else logging.INFO,
         "generate_insights: model returned %d insights for a ceiling of %d; keeping %d spread "
         "across the episode. The prompt is not constraining the count.",
         produced,
@@ -109,7 +114,7 @@ def record_overgeneration(pipeline_metrics: Any, produced: int, ceiling: int) ->
     )
     _bump(pipeline_metrics, "gi_insight_overgeneration_events")
     _bump(pipeline_metrics, "gi_insight_overgenerated_total", produced - ceiling)
-    if produced >= 5 * max(1, ceiling):
+    if severe:
         _bump(pipeline_metrics, "gi_insight_overgeneration_severe_events")
 
 

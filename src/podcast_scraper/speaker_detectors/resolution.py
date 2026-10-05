@@ -710,15 +710,17 @@ def resolve_voices_and_roles(
                 other,
             )
 
+    # INFO, not WARNING: both are the guards working; every refusal is recorded per voice in the
+    # resolution report (``invented`` / ``third_person`` outcomes).
     if invented:
-        logger.warning(
+        logger.info(
             "speaker resolution proposed %d name(s) the metadata never stated (%s) — DISCARDED. "
             "The model may identify a voice, never author a name.",
             len(invented),
             ", ".join(sorted(set(invented))),
         )
     if refuted:
-        logger.warning(
+        logger.info(
             "speaker resolution assigned %d name(s) to a voice that TALKS ABOUT that person in the "
             "third person and never introduces itself as them (%s) — DISCARDED. Saying somebody's "
             "name does not make you them.",

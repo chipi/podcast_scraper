@@ -74,8 +74,11 @@ def corroborate_guests(
             if rejected_out is not None:
                 rejected_out.append({"name": clean, "reason": "no_interview_cue"})
 
+    # INFO, not WARNING: this is the gate deciding as designed on most episodes (~30% of all
+    # pipeline warnings, 2026-10-05). Each refusal is kept in the detection report
+    # (``rejected_out`` -> ``corroboration_rejected``), which is where it is read.
     if rejected:
-        logger.warning(
+        logger.info(
             "  → Rejected %d uncorroborated speaker(s): %s. The episode text names them but never "
             "introduces them as speaking. A wrong name on a voice is worse than no name.",
             len(rejected),

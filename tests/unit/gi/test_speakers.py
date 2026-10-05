@@ -225,11 +225,17 @@ def test_add_spoken_by_skips_misaligned_char_start(caplog):
         ],
         "edges": [],
     }
-    with caplog.at_level(logging.WARNING):
-        added = add_spoken_by_edges(art_bad, transcript, hosts=["Maya"], guests=["Priya Sharma"])
+    stats: dict = {}
+    with caplog.at_level(logging.INFO):
+        added = add_spoken_by_edges(
+            art_bad, transcript, hosts=["Maya"], guests=["Priya Sharma"], stats=stats
+        )
     assert added == 0
     assert not [e for e in art_bad["edges"] if e.get("type") == "SPOKEN_BY"]
     assert "not aligned" in caplog.text
+    # Counted for the corpus pass's single summary line, not warned per episode on every run.
+    assert stats == {"misaligned": 1, "reanchored": 0, "episodes": 1}
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
 
 
 def test_add_spoken_by_reanchors_a_misaligned_quote_onto_its_real_speaker():
@@ -253,3 +259,19 @@ def test_add_spoken_by_reanchors_a_misaligned_quote_onto_its_real_speaker():
     targets = {e.get("to") for e in art["edges"] if e.get("type") == "SPOKEN_BY"}
     assert targets == {person_id("Priya Sharma")}
     assert art["nodes"][0]["properties"]["char_start"] == transcript.index(quote_text)
+
+
+def test_enrich_edges_reports_misaligned_quotes_once_for_the_whole_pass(caplog):
+    """The corpus pass revisits every episode on every run; the misaligned quotes are one summary
+    WARNING, not one per episode per run (#2276: the same 11 episodes re-warned in every job)."""
+    import logging
+
+    from podcast_scraper.search.cli_handlers import _log_quote_alignment
+
+    log = logging.getLogger("enrich-edges-test")
+    with caplog.at_level(logging.INFO, logger="enrich-edges-test"):
+        _log_quote_alignment({"misaligned": 24, "reanchored": 5, "episodes": 11}, log)
+        _log_quote_alignment({}, log)
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert "24 quote(s) in 11 episode(s)" in warnings[0].getMessage()

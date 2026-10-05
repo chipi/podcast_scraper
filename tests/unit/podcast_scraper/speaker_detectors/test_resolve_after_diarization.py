@@ -93,7 +93,7 @@ class TestTheModelMayOnlyChooseFromTheStatedNames:
         The model is an identifier, not an author. If it returns a name the metadata never stated,
         the answer is thrown away — that is the entire safety property of this design.
         """
-        with caplog.at_level("WARNING"):
+        with caplog.at_level("INFO"):
             got = resolve_voices_from_conversation(
                 ["Noah Kravitz", "Jia Li"],
                 VOICES,
