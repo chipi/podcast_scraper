@@ -478,6 +478,7 @@
     "exportPdfShort": "PDF",
     "exportNotesMarkdown": "Download these episode notes as Markdown",
     "exportNotesPdf": "Print or save these episode notes as PDF",
+    "exportNotesOpen": "Open these episode notes to download or share them",
     "exportClose": "Close notes",
     "exportShare": "Print or share",
     "exportFailed": "Couldn't open the notes.",

@@ -44,7 +44,7 @@ import ProfileAvatar from "./ProfileAvatar.vue"
 import StorylineCard from "./StorylineCard.vue"
 import ThemeCard from "./ThemeCard.vue"
 import EpisodeDensity from "./EpisodeDensity.vue"
-import { isNative, openExternal, saveAndShareText } from "../services/native"
+import { isNative, saveAndShareText } from "../services/native"
 import { exportFilename } from "../utils/exportFilename"
 
 const props = withDefaults(
@@ -112,12 +112,14 @@ function notesUrl(ext: 'md' | 'html'): string {
  * token) and then displayed from memory. There is no second request, so there is nothing to
  * authenticate twice.
  *
- * Sharing stays one tap away INSIDE the viewer, because the share sheet is the route to iOS's
- * Print -> Save as PDF, and that is the real print-to-PDF path on the platform. Bundling a PDF
- * library to re-implement a renderer the OS already has would still be the wrong trade.
+ * The viewer carries the formats in its top-right corner — Markdown, and "Print or share" — so the
+ * panel needs ONE link (operator 2026-10-05). Sharing is whatever the platform does with a
+ * document: the share sheet on native (iOS offers Print there, whose preview saves a PDF), file
+ * share or the print dialog on the web, where Save as PDF is a destination. No PDF library: the
+ * operator chose to leave PDF to each platform rather than add one.
  *
- * Web keeps opening a tab: the cookie travels there, and a browser tab is already the thing the
- * native side is approximating.
+ * The web uses the same viewer rather than a tab. In a tab, "download" saved the HTML page, which is
+ * not the PDF the reader asked for.
  */
 const printingNotes = ref(false)
 const notesHtml = ref<string | null>(null)
@@ -133,10 +135,8 @@ const notesError = ref(false)
 const notesTeleportTarget = ref<HTMLElement | string>('body')
 
 async function openPrintableNotes(): Promise<void> {
-  if (!isNative()) {
-    await openExternal(notesUrl('html'))
-    return
-  }
+  // The same in-app viewer on the web too (operator 2026-10-05: ONE link that opens the notes, with
+  // Markdown and Share inside). It used to open a tab, where "download" saved HTML — not a PDF.
   if (printingNotes.value) return
   printingNotes.value = true
   notesError.value = false
@@ -152,14 +152,33 @@ async function openPrintableNotes(): Promise<void> {
   }
 }
 
-/** Hand the already-fetched document to the share sheet — the way to iOS Print -> Save as PDF. */
+const notesFrame = ref<HTMLIFrameElement | null>(null)
+
+/**
+ * "Print or share" — whatever the platform does with a document (operator 2026-10-05: "it is at
+ * the end on the user's surfaces to deal with share").
+ *
+ * Native: the share sheet, with the page as a file (iOS offers Print there, and its preview saves a
+ * PDF). Web: the browser's own share where it can share files (phones), else its print dialog,
+ * where "Save as PDF" is a destination — the real PDF path on a desktop.
+ */
 async function shareOpenNotes(): Promise<void> {
   if (!notesHtml.value) return
-  await saveAndShareText(
-    exportFilename(`${props.episode.title} notes`, 'html', 'episode-notes'),
-    notesHtml.value,
-    'text/html',
-  )
+  const name = exportFilename(`${props.episode.title} notes`, 'html', 'episode-notes')
+  if (isNative()) {
+    await saveAndShareText(name, notesHtml.value, 'text/html')
+    return
+  }
+  const file = new File([notesHtml.value], name, { type: 'text/html' })
+  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: props.episode.title })
+      return
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return // the reader closed the sheet — done
+    }
+  }
+  notesFrame.value?.contentWindow?.print()
 }
 
 /**
@@ -710,34 +729,18 @@ watch(() => auth.isAuthenticated, loadCaptures)
              export belongs here rather than in the Library, which exports captures across every
              episode. Two formats, matching the Library's chips: Markdown to keep, and a
              print-styled page the browser saves as PDF. -->
-        <div class="mb-5 flex items-center gap-2" data-testid="episode-notes-export">
-          <span class="text-xs text-muted">{{ t("kp.exportKicker") }}</span>
-          <!-- Native shell: fetch + share sheet (WKWebView ignores `<a download>`, so this chip
-               did nothing at all on the phone); web: plain download link. Mirrors the Library's
-               highlights export, which already had the native branch this one was missing. -->
-          <button
-            v-if="isNative()"
-            type="button"
-            :disabled="savingNotes"
-            :aria-label="t('kp.exportNotesMarkdown')"
-            class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
-            @click="saveNotesNative"
-          >{{ t("kp.exportMarkdownShort") }}</button>
-          <a
-            v-else
-            :href="notesUrl('md')"
-            :download="`${episode.slug}-notes.md`"
-            :aria-label="t('kp.exportNotesMarkdown')"
-            class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent no-underline transition hover:bg-overlay"
-          >{{ t("kp.exportMarkdownShort") }}</a>
+        <!-- ONE link (operator 2026-10-05): it opens the notes, and the viewer carries the formats —
+             Markdown to keep, and Print or share for the rest (PDF included, where the platform
+             offers it). Two chips side by side read as two different documents. -->
+        <div class="mb-5 flex items-center gap-2">
           <button
             type="button"
             :disabled="printingNotes"
-            :aria-label="t('kp.exportNotesPdf')"
-            data-testid="episode-notes-pdf"
+            :aria-label="t('kp.exportNotesOpen')"
+            data-testid="episode-notes-export"
             class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
             @click="openPrintableNotes"
-          >{{ t("kp.exportPdfShort") }}</button>
+          >{{ t("kp.exportKicker") }}</button>
           <!-- The export can fail (offline, a dead session), and it used to fail in silence. -->
           <span v-if="notesError" class="text-xs text-danger" data-testid="episode-notes-error">
             {{ t("kp.exportFailed") }}
@@ -772,8 +775,10 @@ watch(() => auth.isAuthenticated, loadCaptures)
           no URL for SFSafariViewController to re-request without a cookie, which is exactly how
           the previous attempt at "open it" ended up on the sign-in gate.
 
-          `sandbox` with nothing granted: the document is ours, but it is assembled from episode
-          content, and a viewer has no reason to run script or navigate anywhere.
+          `sandbox` grants no scripts and no navigation: the document is ours, but it is assembled
+          from episode content. It does grant `allow-same-origin` + `allow-modals`, so the PARENT can
+          call the frame's `print()` — the web's route to Save as PDF. Without `allow-scripts`,
+          same-origin lets nothing inside the frame run.
         -->
         <Teleport :to="notesTeleportTarget">
           <div
@@ -795,20 +800,43 @@ watch(() => auth.isAuthenticated, loadCaptures)
               >
                 {{ t("kp.exportClose") }}
               </button>
-              <!-- The share sheet is still here, because it is the route to Print -> Save as PDF.
-                   It is an action WITHIN the document now, not the whole answer to opening it. -->
-              <button
-                type="button"
-                class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent transition hover:bg-overlay"
-                data-testid="episode-notes-viewer-share"
-                @click="shareOpenNotes"
-              >
-                {{ t("kp.exportShare") }}
-              </button>
+              <!-- Top right, the formats (operator 2026-10-05): Markdown to keep, and Print or share
+                   for everything else. Native: Markdown goes to the share sheet as a file, because
+                   WKWebView ignores `<a download>`; web: a plain download link. -->
+              <div class="flex items-center gap-2">
+                <button
+                  v-if="isNative()"
+                  type="button"
+                  :disabled="savingNotes"
+                  :aria-label="t('kp.exportNotesMarkdown')"
+                  class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
+                  data-testid="episode-notes-viewer-md"
+                  @click="saveNotesNative"
+                >
+                  {{ t("kp.exportMarkdownShort") }}
+                </button>
+                <a
+                  v-else
+                  :href="notesUrl('md')"
+                  :download="exportFilename(`${episode.title} notes`, 'md', 'episode-notes')"
+                  :aria-label="t('kp.exportNotesMarkdown')"
+                  class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent no-underline transition hover:bg-overlay"
+                  data-testid="episode-notes-viewer-md"
+                >{{ t("kp.exportMarkdownShort") }}</a>
+                <button
+                  type="button"
+                  class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent transition hover:bg-overlay"
+                  data-testid="episode-notes-viewer-share"
+                  @click="shareOpenNotes"
+                >
+                  {{ t("kp.exportShare") }}
+                </button>
+              </div>
             </div>
             <iframe
+              ref="notesFrame"
               :srcdoc="notesHtml"
-              sandbox=""
+              sandbox="allow-same-origin allow-modals"
               class="min-h-0 flex-1 w-full border-0 bg-white"
               :title="t('kp.exportNotesPdf')"
               data-testid="episode-notes-frame"

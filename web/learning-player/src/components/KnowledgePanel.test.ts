@@ -838,64 +838,49 @@ describe("episode-scoped people (#1685 / #2062)", () => {
    * `native-delivery.test.ts` greps the SOURCE for the right pattern, so it passes on a dead call
    * site or a wrong URL. These exercise the calls (operator review 2026-09-18).
    */
-  it("offers both export formats on the episode", async () => {
+  it("offers ONE notes link, not a chip per format (operator 2026-10-05)", async () => {
+    // Markdown and PDF side by side read as two documents; the formats live in the viewer now.
     const w = mountPanel()
     await flushPromises()
-    expect(w.find('[data-testid="episode-notes-export"]').exists()).toBe(true)
-    expect(w.find('[data-testid="episode-notes-pdf"]').exists()).toBe(true)
+    const open = w.get('[data-testid="episode-notes-export"]')
+    expect(open.text()).toBe("Download notes")
+    expect(w.find('[data-testid="episode-notes-pdf"]').exists()).toBe(false)
+    expect(w.find("a[download]").exists()).toBe(false)
   })
 
-  it("PDF opens the print route EXTERNALLY, for this episode", async () => {
-    const open = vi.spyOn(native, "openExternal").mockResolvedValue(undefined)
-    const w = mountPanel()
-    await flushPromises()
+  it.each([true, false])(
+    "the link OPENS the notes in the app (native=%s) — never an external tab or a save dialog",
+    async (isNat) => {
+      /*
+       * Native: the external browser does not share the cookie jar and lands on the sign-in gate;
+       * the share sheet is a SAVE dialog. Web: a tab, where "download" saved HTML, not a PDF
+       * (operator 2026-10-05). Both now fetch with the app's own credentials and show the bytes.
+       */
+      vi.spyOn(native, "isNative").mockReturnValue(isNat)
+      const external = vi.spyOn(native, "openExternal").mockResolvedValue(undefined)
+      const share = vi.spyOn(native, "saveAndShareText").mockResolvedValue(undefined)
+      const fetch = vi
+        .spyOn(api, "fetchEpisodeNotes")
+        .mockResolvedValue("<html><body>NOTES BODY</body></html>")
 
-    await w.get('[data-testid="episode-notes-pdf"]').trigger("click")
-    await flushPromises()
+      const w = mountPanel()
+      await flushPromises()
+      await w.get('[data-testid="episode-notes-export"]').trigger("click")
+      await flushPromises()
 
-    expect(open).toHaveBeenCalledTimes(1)
-    const url = open.mock.calls[0][0]
-    expect(url).toContain("/notes.html")
-    // The URL must name THIS episode — a route that always exports the same one is worse than none.
-    expect(url).toContain(episode().slug)
-  })
-
-  it("on NATIVE, PDF OPENS the notes in the app instead of handing them to a save dialog", async () => {
-    /*
-     * The share sheet is a SAVE dialog, and it was the whole answer to a control the reader takes
-     * to mean "show me the document" (operator 2026-09-27: "he offers me to download HTML rather
-     * than opening me PDF in a new browser window").
-     *
-     * `openExternal` is spied too, because the obvious way to "open" this is the one already tried
-     * and failed: SFSafariViewController does not share the cookie jar, so the export arrives
-     * unauthenticated and renders the sign-in gate. The document must come from the FETCH — which
-     * carries the shell's bearer token — and be displayed from memory.
-     */
-    vi.spyOn(native, "isNative").mockReturnValue(true)
-    const external = vi.spyOn(native, "openExternal").mockResolvedValue(undefined)
-    const share = vi.spyOn(native, "saveAndShareText").mockResolvedValue(undefined)
-    vi.spyOn(api, "fetchEpisodeNotes").mockResolvedValue("<html><body>NOTES BODY</body></html>")
-
-    const w = mountPanel()
-    await flushPromises()
-    await w.get('[data-testid="episode-notes-pdf"]').trigger("click")
-    await flushPromises()
-
-    const frame = document.querySelector('[data-testid="episode-notes-frame"]')
-    expect(frame, "the notes must be ON SCREEN, not handed to a save dialog").toBeTruthy()
-    // `srcdoc`, not `src`: the bytes already fetched, so there is no second, cookie-less request.
-    expect(frame?.getAttribute("srcdoc")).toContain("NOTES BODY")
-    expect(frame?.hasAttribute("src")).toBe(false)
-
-    expect(
-      external,
-      "the external browser is the route that lands on the sign-in gate",
-    ).not.toHaveBeenCalled()
-    expect(
-      share,
-      "sharing is an action inside the viewer, not the act of opening it",
-    ).not.toHaveBeenCalled()
-  })
+      expect(fetch).toHaveBeenCalledWith(episode().slug, "html") // THIS episode
+      const frame = document.querySelector('[data-testid="episode-notes-frame"]')
+      expect(frame, "the notes must be ON SCREEN").toBeTruthy()
+      // `srcdoc`, not `src`: the bytes already fetched, so there is no second, cookie-less request.
+      expect(frame?.getAttribute("srcdoc")).toContain("NOTES BODY")
+      expect(frame?.hasAttribute("src")).toBe(false)
+      // No scripts inside, ever; same-origin + modals only so the parent can print it.
+      expect(frame?.getAttribute("sandbox")).toBe("allow-same-origin allow-modals")
+      expect(external).not.toHaveBeenCalled()
+      expect(share).not.toHaveBeenCalled()
+      document.querySelector<HTMLElement>('[data-testid="episode-notes-viewer-close"]')?.click()
+    },
+  )
 
   it("search collapses identical hits and drops the keyboard", async () => {
     /*
@@ -959,7 +944,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
 
     const w = mountPanel()
     await flushPromises()
-    await w.get('[data-testid="episode-notes-pdf"]').trigger("click")
+    await w.get('[data-testid="episode-notes-export"]').trigger("click")
     await flushPromises()
 
     const frame = document.querySelector('[data-testid="episode-notes-frame"]')
@@ -978,7 +963,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
 
     const w = mountPanel()
     await flushPromises()
-    await w.get('[data-testid="episode-notes-pdf"]').trigger("click")
+    await w.get('[data-testid="episode-notes-export"]').trigger("click")
     await flushPromises()
 
     const shareBtn = document.querySelector<HTMLElement>(
@@ -998,42 +983,98 @@ describe("episode-scoped people (#1685 / #2062)", () => {
 
     const w = mountPanel()
     await flushPromises()
-    await w.get('[data-testid="episode-notes-pdf"]').trigger("click")
+    await w.get('[data-testid="episode-notes-export"]').trigger("click")
     await flushPromises()
 
     expect(w.find('[data-testid="episode-notes-error"]').exists()).toBe(true)
     expect(document.querySelector('[data-testid="episode-notes-frame"]')).toBeNull()
   })
 
-  it("on the web the Markdown chip is a download link, not a share", async () => {
-    vi.spyOn(native, "isNative").mockReturnValue(false)
+  async function openViewer() {
+    vi.spyOn(api, "fetchEpisodeNotes").mockImplementation(async (_slug, ext) =>
+      ext === "html" ? "<html><body>NOTES BODY</body></html>" : "# Notes\n\nbody",
+    )
     const w = mountPanel()
     await flushPromises()
-    const a = w.find('[data-testid="episode-notes-export"] a[download]')
-    expect(a.exists()).toBe(true)
-    expect(a.attributes("href")).toContain("/notes.md")
+    await w.get('[data-testid="episode-notes-export"]').trigger("click")
+    await flushPromises()
+    return w
+  }
+  const inViewer = <T extends HTMLElement>(id: string) =>
+    document.querySelector<T>(`[data-testid="episode-notes-viewer"] [data-testid="${id}"]`)
+
+  it("on the web the viewer's Markdown is a download link named from the title", async () => {
+    vi.spyOn(native, "isNative").mockReturnValue(false)
+    await openViewer()
+    const a = inViewer<HTMLAnchorElement>("episode-notes-viewer-md")
+    expect(a?.tagName).toBe("A")
+    expect(a?.getAttribute("href")).toContain("/notes.md")
+    expect(a?.getAttribute("download")).toBe("ep-notes.md")
+    inViewer("episode-notes-viewer-close")?.click()
   })
 
-  it("on NATIVE the Markdown chip shares a file instead — <a download> saves nothing in WKWebView", async () => {
+  it("on NATIVE the viewer's Markdown shares a file — <a download> saves nothing in WKWebView", async () => {
     vi.spyOn(native, "isNative").mockReturnValue(true)
     const share = vi.spyOn(native, "saveAndShareText").mockResolvedValue(undefined)
-    vi.spyOn(api, "fetchEpisodeNotes").mockResolvedValue("# Notes\n\nbody")
-    const w = mountPanel()
+    await openViewer()
+    const btn = inViewer("episode-notes-viewer-md")
+    expect(btn?.tagName).toBe("BUTTON")
+    btn!.click()
     await flushPromises()
-
-    // No download link on native; a button that fetches and hands the bytes to the OS.
-    expect(w.find('[data-testid="episode-notes-export"] a[download]').exists()).toBe(false)
-    await w.get('[data-testid="episode-notes-export"] button').trigger("click")
-    await flushPromises()
-
     expect(share).toHaveBeenCalledTimes(1)
     const [filename, body] = share.mock.calls[0]
-    // Named from the TITLE, not the slug. The slug is `{feed_slug}-{sha256hex}`, so this used to
-    // save as `long-horizon-notes-9f2c4a1b…-notes.md` — "some crazy name" (operator 2026-09-19).
-    // The `-notes` suffix stays: the same episode can also export highlights.
+    // Named from the TITLE, not the slug (`{feed_slug}-{sha256hex}` was "some crazy name",
+    // operator 2026-09-19).
     expect(filename).toBe("ep-notes.md")
     expect(filename).not.toMatch(/[0-9a-f]{8}/)
     expect(body).toContain("# Notes")
+    inViewer("episode-notes-viewer-close")?.click()
+  })
+
+  it("on NATIVE Print or share hands the page to the share sheet", async () => {
+    vi.spyOn(native, "isNative").mockReturnValue(true)
+    const share = vi.spyOn(native, "saveAndShareText").mockResolvedValue(undefined)
+    await openViewer()
+    inViewer("episode-notes-viewer-share")!.click()
+    await flushPromises()
+    expect(share).toHaveBeenCalledTimes(1)
+    expect(share.mock.calls[0][0]).toBe("ep-notes.html")
+    expect(share.mock.calls[0][2]).toBe("text/html")
+    inViewer("episode-notes-viewer-close")?.click()
+  })
+
+  it("on the WEB Print or share uses the browser's file share where it can", async () => {
+    vi.spyOn(native, "isNative").mockReturnValue(false)
+    const shareFn = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal("navigator", { ...navigator, canShare: () => true, share: shareFn })
+    try {
+      await openViewer()
+      inViewer("episode-notes-viewer-share")!.click()
+      await flushPromises()
+      expect(shareFn).toHaveBeenCalledTimes(1)
+      const files = shareFn.mock.calls[0][0].files as File[]
+      expect(files[0].name).toBe("ep-notes.html")
+      inViewer("episode-notes-viewer-close")?.click()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it("on the WEB without file share, Print or share opens the print dialog — Save as PDF lives there", async () => {
+    vi.spyOn(native, "isNative").mockReturnValue(false)
+    vi.stubGlobal("navigator", { ...navigator, canShare: undefined, share: undefined })
+    try {
+      await openViewer()
+      const frame = inViewer<HTMLIFrameElement>("episode-notes-frame")!
+      const print = vi.fn()
+      Object.defineProperty(frame, "contentWindow", { value: { print }, configurable: true })
+      inViewer("episode-notes-viewer-share")!.click()
+      await flushPromises()
+      expect(print).toHaveBeenCalledTimes(1)
+      inViewer("episode-notes-viewer-close")?.click()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   /**
