@@ -555,9 +555,9 @@ public class AppJourneyTests extends UITestCase {
         Journey.tap(topicNames, true, 15_000);
         Journey.sleep(4_000);
 
-        // The topic card inside the panel offers its storyline. "Part of a storyline" is the
-        // section heading (ec.storylineHeading); scroll to it then open the storyline row.
-        Journey.scrollTo("Part of a storyline", false);
+        // The topic card inside the panel offers its storyline: a link card with no heading since
+        // 2026-10-05 ("Part of a storyline" is gone) — scroll to the storyline's own name, then open it.
+        Journey.scrollTo("Managing risk across domains", true);
         boolean storylineTapped = Journey.tap(
                 Arrays.asList("Managing risk across domains"), true, 12_000);
         if (!storylineTapped) {
@@ -568,7 +568,7 @@ public class AppJourneyTests extends UITestCase {
 
         // Assert on something ONLY a storyline renders. The first version checked for
         // "Managing risk across domains" and passed while nothing had opened — that string is the
-        // label of the "Part of a storyline" ROW inside the topic card itself.
+        // label of the storyline link card inside the topic card itself.
         // ec.followStoryline = 'Follow storyline' / ec.followingStoryline = 'Following storyline'
         UiObject2 followBtn = Journey.find(
                 Arrays.asList("Follow storyline", "Following storyline"), true, 12_000);

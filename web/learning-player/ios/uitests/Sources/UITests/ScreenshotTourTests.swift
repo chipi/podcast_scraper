@@ -240,7 +240,7 @@ final class ScreenshotTourTests: UITestCase {
     Journey.dismissSheets(app)
 
     if openTopicSheet() {
-      _ = Journey.scrollTo(app, labels: ["Part of a storyline"], maxSwipes: 6)
+      _ = Journey.scrollTo(app, labels: ["Managing risk across domains"], maxSwipes: 6)
       if Journey.tap(app, labels: ["Managing risk across domains"], contains: true, timeout: 10) {
         sleep(5)
         frame("t22c-storyline-over-topic")

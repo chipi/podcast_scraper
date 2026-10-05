@@ -459,8 +459,9 @@ final class AppJourneyTests: UITestCase {
     sleep(4)
     Journey.shot(self, "11-a-topic-in-panel")
 
-    // The topic card inside the panel offers its storyline. Tapping it must NAVIGATE.
-    guard let storyline = Journey.scrollTo(app, labels: ["Part of a storyline"], maxSwipes: 8) else {
+    // The topic card inside the panel offers its storyline. Tapping it must NAVIGATE. The link card
+    // has no "Part of a storyline" heading since 2026-10-05 — scroll to the storyline's own name.
+    guard let storyline = Journey.scrollTo(app, labels: ["Managing risk across domains"], maxSwipes: 8) else {
       Journey.inventory(app, "panel-topic-no-storyline")
       Journey.shot(self, "11-b-no-storyline-link")
       XCTFail("the in-panel topic card offered no storyline"); return
@@ -476,7 +477,7 @@ final class AppJourneyTests: UITestCase {
 
     // Assert on something ONLY a storyline renders. The first version of this checked for
     // "Managing risk across domains" and passed while nothing had opened at all — that string is
-    // the label of the "Part of a storyline" ROW inside the topic card itself. `chromeReachable`
+    // the label of the storyline link card inside the topic card itself. `chromeReachable`
     // was no better: the panel covers the tab bar whether or not a sheet is above it. Two checks,
     // neither of which could distinguish the outcomes (2026-09-16).
     XCTAssertNotNil(
