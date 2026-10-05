@@ -3097,8 +3097,16 @@ ios-journey-signin:
 	done; \
 	[ -n "$$tok" ] || { echo "FAIL: could not mint a native session token"; exit 1; }; \
 	xcrun simctl terminate booted $(IOS_BUNDLE_ID) >/dev/null 2>&1 || true; \
-	xcrun simctl spawn booted defaults write $(IOS_BUNDLE_ID) CapacitorStorage.lp_native_token -string "$$tok"; \
+	cont=$$(xcrun simctl get_app_container booted $(IOS_BUNDLE_ID) data 2>/dev/null); \
+	[ -n "$$cont" ] || { echo "FAIL: app not installed on the booted simulator (run ios-app-install)"; exit 1; }; \
+	xcrun simctl spawn booted defaults write "$$cont/Library/Preferences/$(IOS_BUNDLE_ID)" CapacitorStorage.lp_native_token -string "$$tok"; \
 	echo "✓ native session seeded for the journey suite"
+	@# The domain is the app CONTAINER's preferences, by path — still through the daemon, so its
+	@# cache stays coherent. `defaults write $(IOS_BUNDLE_ID)` (the bundle id alone) updated a domain
+	@# the sandboxed app never reads (2026-10-05): it worked only while the app already held the
+	@# simtest token from an earlier step, and after any per-suite sign-in the app stayed on THAT
+	@# account (ServerDegradedTests.test11a: "not signed in", the masthead showing the last suite's
+	@# avatar; the container plist still held its token).
 
 # The 2026-09-16 production incident, reproduced end to end: a reboot lost the signing secret, so
 # the server stayed UP and answered while being unable to authenticate anyone. Simulated by
@@ -3128,7 +3136,10 @@ test-app-ios-server-degraded:
 		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
 			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
 			-only-testing:OfflineSpikeUITests/ServerDegradedTests/test11aWarmTheCacheWhileHealthy \
-			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -5
+			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO | tail -5; \
+		rc=$${PIPESTATUS[0]}; echo "IOS_DEGRADED_WARM_EXIT=$$rc"; exit $$rc
+	@# The status is xcodebuild's, not tail's: piped bare, a failed warm-up (2026-10-05: test11a
+	@# "not signed in") exited 0, and phase 6 then asserted against a cache nobody had warmed.
 	@echo "--> 2/3 restarting the api with NO signing secret, same data (the reboot)"
 	@# THE INCIDENT IS A *LOST* SECRET, NOT A ROTATED ONE (rewritten 2026-09-25).
 	@#
