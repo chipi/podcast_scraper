@@ -41,7 +41,10 @@ signs it with. Without the check, any app could claim our links (including sign-
    **Identifiers**.
 2. Open **app.closelistening.player** → **Capabilities** → tick **Associated Domains** → **Save**
    (confirm the dialog about invalidating profiles).
-3. Do the same for **app.closelistening.player.dev** (internal/device builds).
+3. Do the same for **app.closelistening.player.dev** (internal/device builds). The dev build does
+   NOT open links — the website file names only the shipped app (operator 2026-10-05: links open
+   in the production app only) — but it carries the same entitlements file, so without the
+   capability a dev DEVICE build fails to sign.
 4. **Profiles** → **Close Listening Player AppStore** → it now shows *Invalid* → **Edit** →
    **Save/Generate** → **Download**, and double-click it (or let me regenerate it via the App Store
    Connect API key). Release builds sign MANUALLY with this profile; without regenerating it the

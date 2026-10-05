@@ -17,13 +17,13 @@ const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
 const CONTENT = ['episode', 'podcast', 'topic', 'person', 'storyline', 'theme']
 
 describe('app links agree across iOS, Android, the parser and the share links', () => {
-  it('iOS: the association file claims exactly the content paths, for both bundle ids', () => {
+  it('iOS: the association file claims exactly the content paths, for the SHIPPED app only', () => {
+    // Production links open the production app (operator 2026-10-05). The dev build
+    // (`app.closelistening.player.dev`) is deliberately absent: on a developer's phone it would
+    // otherwise open production email links and report them into the DEV analytics site.
     const aasa = JSON.parse(read('public/.well-known/apple-app-site-association'))
     const detail = aasa.applinks.details[0]
-    expect(detail.appIDs).toEqual([
-      '3P3PX275ZM.app.closelistening.player',
-      '3P3PX275ZM.app.closelistening.player.dev',
-    ])
+    expect(detail.appIDs).toEqual(['3P3PX275ZM.app.closelistening.player'])
     expect(detail.components.map((c: Record<string, string>) => c['/'])).toEqual(
       CONTENT.map((k) => `/${k}/*`),
     )
