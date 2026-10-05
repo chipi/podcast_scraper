@@ -113,3 +113,26 @@ test('the catalogue groups by time, and stops when time is not the order', async
     ).toHaveCount(0)
   }
 })
+
+/**
+ * Discover's trending-shows header is as wide as its tiles (operator 2026-10-05): "all ›" ends where
+ * the last tile ends. With fewer shows than a full row (2 in this corpus), a full-width header put
+ * it at the far edge of an empty half-row. Checked at the phone and the desktop tile counts.
+ */
+for (const viewport of [
+  { width: 412, height: 915 },
+  { width: 1440, height: 900 },
+]) {
+  test(`the trending-shows "all ›" ends where the last tile ends at ${viewport.width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport)
+    await signInIsolated(page, `trending-header-${viewport.width}`, testInfo)
+    await page.goto('/browse')
+    const rail = page.getByTestId('trending-shows-rail')
+    const tiles = rail.getByTestId('trending-show-card')
+    await expect(tiles.first()).toBeVisible()
+    const all = await rail.getByTestId('trending-shows-seeall').boundingBox()
+    const last = await tiles.last().boundingBox()
+    const right = (b: { x: number; width: number } | null) => Math.round((b?.x ?? 0) + (b?.width ?? 0))
+    expect(Math.abs(right(all) - right(last))).toBeLessThanOrEqual(1)
+  })
+}
