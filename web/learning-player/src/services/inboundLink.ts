@@ -33,6 +33,7 @@ export const EMAIL_LINK_ELEMENTS = [
   'person',
   'storyline',
   'theme',
+  'profile', // the footer's "Manage notifications"
   'other',
 ] as const
 export type EmailLinkElement = (typeof EMAIL_LINK_ELEMENTS)[number]
