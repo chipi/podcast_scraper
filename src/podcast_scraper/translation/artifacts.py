@@ -32,6 +32,7 @@ import tempfile
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
+from ..languages import primary_language
 from ..providers.ml.diarization.formatting import format_diarized_screenplay_with_offsets
 from .units import pack_stats, TranslationUnit
 
@@ -276,7 +277,7 @@ def source_text_relpath(rel_transcript_path: str, language: str) -> str:
     English one — and generating `<base>.en.txt` here would reintroduce exactly the suffix this
     scheme exists to remove.
     """
-    normalized = (language or "").strip().lower().split("-")[0]
+    normalized = primary_language(language)
     if not normalized or normalized == "en":
         raise ValueError(
             f"source_text_relpath is for a NON-English source language, got {language!r}: "
@@ -477,7 +478,7 @@ def _swap_in_translation(
 
     Returns the canonical relpath on success, ``None`` on failure with the episode untouched.
     """
-    normalized = (source_language or "").strip().lower().split("-")[0]
+    normalized = primary_language(source_language)
     if not normalized or normalized == "en":
         logger.warning(
             "translation: refusing to swap for source_language=%r — English needs no swap, and a "
@@ -694,7 +695,7 @@ def translation_swap_happened(
     needed because a partial write could leave some present and some not. The swap removes that
     class of bug rather than checking for it.
     """
-    if not language or language.strip().lower().split("-")[0] == "en":
+    if not language or primary_language(language) == "en":
         # An English episode needs no swap; its canonical body is already English.
         return True
     rel = source_text_relpath(rel_transcript_path, language)

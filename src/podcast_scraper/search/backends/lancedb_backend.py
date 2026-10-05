@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
+from ...languages import primary_language
 from ...utils.path_validation import (
     normpath_if_under_root,
     safe_relpath_under_corpus_root,
@@ -564,11 +565,11 @@ class LanceDBBackend:
         for doc in docs:
             row = dataclasses.asdict(doc)
             language = (row.pop("language", None) or "").strip().lower()
-            if not language or language.split("-")[0] == "en":
+            if not language or primary_language(language) == "en":
                 english.append(row)
                 continue
             row.pop("embedding", None)
-            row["language"] = language.split("-")[0]
+            row["language"] = primary_language(language)
             non_english.append(row)
         return english, non_english
 

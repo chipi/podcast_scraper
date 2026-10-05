@@ -7,7 +7,7 @@ import re
 from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
 
 from ..kg.speaker_coherence import same_person
-from ..languages import normalize_language_tag, TARGET_LANGUAGE
+from ..languages import primary_language, TARGET_LANGUAGE
 from . import naming_vocabulary
 from .entities import extract_person_entities as _extract_person_entities_direct
 from .entity_kind_votes import KindVotes
@@ -1559,10 +1559,7 @@ def _primary_subtag(language: Optional[str]) -> str:
     language gate accepts got no host-statement patterns at all, where main always read English.
     A tag the normaliser cannot place keeps the old split.
     """
-    normalized = normalize_language_tag(language)
-    if normalized:
-        return normalized
-    return (language or "").strip().lower().split("-")[0]
+    return primary_language(language)
 
 
 def _reject_vocab(which: str, language: Optional[str]) -> FrozenSet[str]:

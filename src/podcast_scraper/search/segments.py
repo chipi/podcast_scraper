@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from ..languages import primary_language
 from .backend import SegmentDocument
 from .chunker import chunk_transcript
 
@@ -82,9 +83,7 @@ def link_insights_to_segments(
     # pre-language corpus and routes English everywhere else too (see
     # `_split_segments_by_language`).
     linkable = [
-        seg
-        for seg in segments
-        if (str(getattr(seg, "language", None) or "en").strip().lower().split("-")[0]) == "en"
+        seg for seg in segments if primary_language(getattr(seg, "language", None) or "en") == "en"
     ]
     for insight_id, quote_start, quote_end in insight_quotes:
         if quote_start is None:

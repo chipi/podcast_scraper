@@ -8,12 +8,40 @@ import pytest
 
 from podcast_scraper.languages import (
     normalize_language_tag,
+    primary_language,
     resolve_language,
     SOURCE_NONE,
     SOURCE_RSS,
 )
 
 pytestmark = pytest.mark.unit
+
+
+class TestPrimaryLanguage:
+    """The one reduction every language comparison goes through (audit 2026-10-05).
+
+    It replaced thirteen ``.strip().lower().split("-")[0]`` copies, which turned ``en_US`` into
+    ``"en_us"`` and so read an English episode as non-English wherever they compared to ``"en"``.
+    """
+
+    @pytest.mark.parametrize(
+        "tag", ["en", "EN", "en-US", "en_US", "en_GB", "English", "english", "eng", " en-gb "]
+    )
+    def test_every_spelling_of_english_is_en(self, tag: str) -> None:
+        assert primary_language(tag) == "en"
+
+    @pytest.mark.parametrize("tag,code", [("es-ES", "es"), ("pt_BR", "pt"), ("Deutsch", "de")])
+    def test_other_languages_normalise_the_same_way(self, tag: str, code: str) -> None:
+        assert primary_language(tag) == code
+
+    @pytest.mark.parametrize("tag,old", [("xx-YY", "xx"), ("Klingon", "klingon")])
+    def test_an_unplaceable_tag_keeps_the_old_reduction(self, tag: str, old: str) -> None:
+        """So a caller that branched on an unknown code keeps branching exactly as before."""
+        assert primary_language(tag) == old
+
+    @pytest.mark.parametrize("tag", [None, "", "   "])
+    def test_nothing_is_the_empty_string(self, tag) -> None:
+        assert primary_language(tag) == ""
 
 
 class TestNormalizeLanguageTag:

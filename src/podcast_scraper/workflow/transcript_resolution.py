@@ -38,6 +38,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
 
+from ..languages import primary_language
+
 logger = logging.getLogger(__name__)
 
 ADFREE_SUFFIX = ".adfree"
@@ -214,7 +216,7 @@ def source_language_relpath_candidates(transcript_relpath: str, language: str) -
     Empty for English: there is no separate source body to find.
     """
     rel = _canonical_relpath(transcript_relpath)
-    normalized = (language or "").strip().lower().split("-")[0]
+    normalized = primary_language(language)
     if not rel or not normalized or normalized == "en":
         return []
     base, ext = os.path.splitext(rel)

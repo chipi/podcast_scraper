@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, TYPE_CHECKIN
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
+from ..languages import primary_language
 
 if TYPE_CHECKING:
     from ..models import Episode, TranscriptionJob
@@ -1307,7 +1308,7 @@ def _invalidate_translation(
         source_text_relpath,
     )
 
-    normalized = (language or "").strip().lower().split("-")[0]
+    normalized = primary_language(language)
     if not normalized or normalized == "en":
         return
 

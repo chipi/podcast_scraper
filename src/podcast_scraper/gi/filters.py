@@ -22,7 +22,7 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from ..languages import TARGET_LANGUAGE
+from ..languages import primary_language, TARGET_LANGUAGE
 
 # ---------------------------------------------------------------------------
 # Ad filter (Finding 14-lite)
@@ -267,7 +267,7 @@ def ad_patterns_for(language: Optional[str]) -> Tuple[re.Pattern[str], ...]:
     """
     if not language:
         return ()
-    return AD_PATTERNS_BY_LANGUAGE.get(language.strip().lower().split("-")[0], ())
+    return AD_PATTERNS_BY_LANGUAGE.get(primary_language(language), ())
 
 
 #: The languages whose ad vocabulary exists at all. A caller deciding whether ad excision is

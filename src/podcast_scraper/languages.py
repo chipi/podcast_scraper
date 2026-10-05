@@ -113,6 +113,22 @@ def normalize_language_tag(raw: Optional[str]) -> Optional[str]:
 TARGET_LANGUAGE = "en"
 
 
+def primary_language(tag: Any) -> str:
+    """The language code a stored or declared *tag* names, for comparing and keying.
+
+    ``normalize_language_tag`` first, so every spelling of a language reads the same: ``en_US``,
+    ``English`` and ``eng`` are ``"en"``. A tag it cannot place falls back to the old
+    lower-cased primary subtag (``"xx-YY"`` -> ``"xx"``), and ``None`` / blank to ``""`` — so a
+    caller that branched on those keeps branching the same way.
+
+    Replaces thirteen hand-written ``.strip().lower().split("-")[0]`` reductions, which turned
+    ``en_US`` into ``"en_us"`` and therefore read an English episode as non-English wherever they
+    compared against ``"en"`` (English-path audit, 2026-10-05).
+    """
+    text = "" if tag is None else str(tag)
+    return normalize_language_tag(text) or text.strip().lower().split("-")[0]
+
+
 #: Marker field: this episode cannot be served, and the reason why.
 #:
 #: Written on ``episode`` so it travels with the artifact rather than living in a side table that a

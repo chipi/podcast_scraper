@@ -51,7 +51,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
-from ..languages import resolve_config_language
+from ..languages import primary_language, resolve_config_language
 from ..translation.factory import is_translation_configured
 
 logger = logging.getLogger(__name__)
@@ -365,7 +365,7 @@ def _load_source_transcript(
     """
     base, _ = os.path.splitext(transcript_relpath)
     rel = transcript_relpath
-    normalized = (language or "").strip().lower().split("-")[0]
+    normalized = primary_language(language)
     if normalized and normalized != "en":
         from ..translation.artifacts import source_text_relpath
 

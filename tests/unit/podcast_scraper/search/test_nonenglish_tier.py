@@ -188,7 +188,12 @@ class TestTheRouter:
         _en, non_english = LanceDBBackend._split_segments_by_language([self._doc("es-ES")])
         assert non_english[0]["language"] == "es"
 
-    @pytest.mark.parametrize("language", [None, "", "   ", "EN", "en-US"])
+    @pytest.mark.parametrize(
+        # en_US / English / eng were routed NON-English (no embedding, out of semantic search) by
+        # the `split("-")` reduction this used before `primary_language` (audit 2026-10-05).
+        "language",
+        [None, "", "   ", "EN", "en-US", "en_US", "en_GB", "English", "eng"],
+    )
     def test_unknown_or_english_routes_ENGLISH(self, language: Optional[str]) -> None:
         """A row with no language routes English deliberately. Most of the corpus predates
         language resolution, and sending those to a keyword-only tier would silently remove

@@ -22,6 +22,8 @@ from podcast_scraper.workflow.transcript_resolution import (
     TranscriptPurpose,
 )
 
+from ..languages import primary_language
+
 logger = logging.getLogger(__name__)
 
 EPISODE_FINGERPRINTS_FILE = "episode_fingerprints.json"
@@ -301,7 +303,7 @@ def _indexed_text_language(
     ep = doc.get("episode") or {}
     feed = doc.get("feed") or {}
     language = ep.get("language") or feed.get("language")
-    normalized = str(language or "").strip().lower().split("-")[0] or None
+    normalized = primary_language(language) or None
     # `None` STAYS `None`: most of the corpus predates language resolution, and claiming the target
     # language for an episode nobody resolved asserts something unmeasured — the distinction
     # `language_source` exists to keep. The router already treats an unlabelled row as English, so
@@ -370,7 +372,7 @@ def _source_layer_body(
     ep = doc.get("episode") or {}
     feed = doc.get("feed") or {}
     raw = ep.get("language") or feed.get("language")
-    source_language = str(raw or "").strip().lower().split("-")[0]
+    source_language = primary_language(raw)
     if not source_language or source_language == "en":
         return None
 
