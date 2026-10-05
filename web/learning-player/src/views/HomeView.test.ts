@@ -184,6 +184,50 @@ describe('HomeView (discover state, signed out)', () => {
     expect(w.find('img[src="https://x/row.png"]').exists()).toBe(true)
   })
 
+  it("What's new: every position carries ♡ ▶ queue ⋯ — #01 in a row, 02+ stacked (operator 2026-10-05)", async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep'), ep('a-3', 'Third Ep')],
+      page: 1, page_size: 8, total: 3, has_more: false,
+    })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+
+    const w = mountKeptAlive()
+    await flushPromises()
+    const rows = w.findAll('[data-testid="episode-actions"]')
+    expect(rows).toHaveLength(3) // #01 + two ranked rows
+    // Each control by its test id, or its accessible name where it has none (the queue toggle).
+    const order = (el: (typeof rows)[number]) =>
+      el.findAll('button').map((b) => b.attributes('data-testid') ?? b.attributes('aria-label'))
+    for (const r of rows) {
+      const got = order(r)
+      expect(got).toHaveLength(4)
+      expect(got[0]).toBe('favorite-button')
+      expect(got[1]).toBe('play-now')
+      expect(got[2]).toMatch(/queue/i)
+      expect(got[3]).toBe('overflow-trigger')
+    }
+    expect(rows[0].classes()).not.toContain('flex-col') // the #01 card: one row, top right
+    expect(rows[1].classes()).toContain('flex-col') // 02+: one column, top to bottom
+    expect(rows[2].classes()).toContain('flex-col')
+    // The ▶ that used to sit INSIDE the row's link (opening, not playing) is gone.
+    expect(w.findAll('a[href^="/episode/"] [aria-hidden="true"]').some((s) => s.text() === '▶')).toBe(false)
+  })
+
+  it("What's new ▶ STARTS the episode — opens the player with ?play=1", async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep')], page: 1, page_size: 8, total: 2, has_more: false,
+    })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    const push = vi.spyOn(router, 'push')
+
+    const w = mountKeptAlive()
+    await flushPromises()
+    await w.findAll('[data-testid="play-now"]')[1].trigger('click')
+    expect(push).toHaveBeenCalledWith({ name: 'player', params: { slug: 'a-2' }, query: { play: '1' } })
+  })
+
   it('folds Rising/Trending/Storylines into one tabbed area, Rising default (#4)', async () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({
       items: [ep('a-1', 'First Ep')], page: 1, page_size: 8, total: 1, has_more: false,

@@ -45,7 +45,6 @@ import SectionHeading from "../components/SectionHeading.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
 import CardRail from "../components/CardRail.vue"
-import QueueButton from "../components/QueueButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import StorylineCard from "../components/StorylineCard.vue"
 import ThemeCard from "../components/ThemeCard.vue"
@@ -610,7 +609,14 @@ async function loadContinue(): Promise<void> {
           <!-- Shared EpisodeActions row (favourite/queue/download/collect) in the artwork's upper-right;
            sibling of the link, not nested in the <a>. The featured card is wide (max-w-3xl) so the
            four icons fit without wrapping. -->
-          <EpisodeActions :slug="wnFeatured.slug" overlay class="absolute right-3 top-3 z-30" />
+          <!-- ▶ between the heart and the queue (operator 2026-10-05): start it now, from here. -->
+          <EpisodeActions
+            :slug="wnFeatured.slug"
+            overlay
+            show-play
+            class="absolute right-3 top-3 z-30"
+            @play="recordDiscoverClick(wnFeatured.slug, 0)"
+          />
           <RouterLink
             :to="{ name: 'player', params: { slug: wnFeatured.slug } }"
             class="relative block overflow-hidden rounded-2xl border border-border no-underline text-canvas-foreground"
@@ -647,17 +653,16 @@ async function loadContinue(): Promise<void> {
           </RouterLink>
         </div>
 
-        <!-- Ranked rows 02–06 (operator 2026-09-14): the numbered chart look restored, same capped
-             column as the featured card so they line up. The per-row EpisodeActions cluster that
-             crushed the title into one-word-per-line on a phone is DROPPED — the "package it" trade
-             (favourite/queue/download/collect live on the player and the #01 hero, not on every row).
-             The wrapping <li> keeps the discover-position telemetry (fires only for the episode's
-             own links, not a stray bubbled click). -->
+        <!-- Ranked rows 02–06 (operator 2026-09-14): the numbered chart look, same capped column as
+             the featured card so they line up. Each row carries the #01 card's actions, stacked in a
+             column (operator 2026-10-05) — the side-by-side cluster is what once crushed the title.
+             The wrapping <li> keeps the discover-position telemetry for the title link; ▶ reports
+             its own. -->
         <ul class="mt-2 max-w-3xl">
           <li
             v-for="(ep, i) in wnRows"
             :key="ep.slug"
-            class="flex items-center gap-1"
+            class="flex items-center gap-1 border-b border-border py-3 last:border-b-0"
             @click="onWnRowClick($event, ep.slug, i + 1)"
           >
             <RouterLink
@@ -681,20 +686,19 @@ async function loadContinue(): Promise<void> {
                 <span class="block font-bold leading-tight">{{ ep.title }}</span>
                 <span class="lp-kicker lp-show-name mt-0.5" :title="ep.podcast_title ?? undefined">{{ ep.podcast_title }}</span>
               </span>
-              <span
-                class="shrink-0 text-muted transition group-hover:text-accent"
-                aria-hidden="true"
-                >▶</span
-              >
             </RouterLink>
-            <!-- Queue sits OUTSIDE the link — never an interactive inside an interactive (the same
-                 rule EpisodeRow's `#trailing` slot follows). It is the one action worth carrying on
-                 a row you are only scanning, because it is the only one you would take WITHOUT
-                 opening the episode, which is what a "what's new" list is for. The rest (favourite /
-                 download / collect) still live on the player and the #01 hero, where you have
-                 already committed to the episode — so this narrows the earlier "no actions on every
-                 row" decision rather than undoing it (operator 2026-09-16). -->
-            <QueueButton :slug="ep.slug" class="shrink-0" />
+            <!-- The row's actions, STACKED in one column on the right (operator 2026-10-05): heart,
+                 play, queue, ⋯ — the #01 card's set, top to bottom, so every position acts alike.
+                 Outside the link — never an interactive inside an interactive. A vertical stack
+                 costs height, not width, so the title keeps the row's width; side by side, a cluster
+                 like this once crushed it to one word per line (operator 2026-09-14). ▶ here STARTS
+                 the episode; the row's title still opens it to look. -->
+            <EpisodeActions
+              :slug="ep.slug"
+              show-play
+              class="shrink-0 flex-col"
+              @play="recordDiscoverClick(ep.slug, i + 1)"
+            />
           </li>
         </ul>
       </template>

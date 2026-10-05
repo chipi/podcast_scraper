@@ -10,6 +10,7 @@ import { expectSignedIn } from '../helpers'
  *   1. Library › Saved — a saved show above a saved episode (show controls moved under the art).
  *   2. Search — a query that matches a show by title AND its episodes by content.
  *   3. Discover › Shows in LIST view — the Episodes tab next door puts controls under the art.
+ *   4. Home › What's new — the same four actions on every position, stacked on 02+.
  *
  * Asserted before every capture, so an empty section FAILS instead of producing a PNG of nothing.
  *
@@ -59,6 +60,15 @@ test('shows and episodes on one page share one place for controls', async ({ pag
   await expect(page.getByTestId('overflow-menu').getByTestId('follow-show')).toBeVisible()
   await page.screenshot({ path: shot('search-show-menu'), fullPage: false })
   await page.keyboard.press('Escape')
+
+  // 4. Home › What's new — ♡ ▶ queue ⋯ on every position: a row on #01, a column on 02+.
+  await page.goto('/')
+  await settle(page)
+  const playNow = page.getByTestId('play-now')
+  await expect(playNow.nth(1)).toBeVisible()
+  // The #01 card at the TOP of the screen, so its row and the 02+ columns below are both in shot.
+  await playNow.first().evaluate((el) => el.closest('section')?.scrollIntoView({ block: 'start' }))
+  await page.screenshot({ path: shot('home-whats-new'), fullPage: false })
 
   // 3. Discover › Shows, list view
   await page.goto('/browse?tab=shows')

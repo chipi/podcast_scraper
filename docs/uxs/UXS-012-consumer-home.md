@@ -89,6 +89,11 @@ Region order, top to bottom:
    a featured **#01** hero (artwork + gradient + oversized faint numeral) over compact numbered rows
    (02–06, each with artwork), all on screen; "Browse all →" now opens the **Browse hub**
    (`/browse?tab=episodes`, UXS-011), not the standalone catalog.
+   **Every position carries the same actions (operator 2026-10-05):** heart, ▶ (`PlayNowButton` —
+   opens the player with `?play=1`, so it starts listening rather than opening the page), queue, ⋯.
+   On #01 they sit in a row in the artwork's top-right corner; on 02+ they are **stacked in one
+   column** on the right — a vertical stack costs the row height, not width, so the title keeps the
+   row's width (the side-by-side cluster once crushed it to one word per line).
 5. **Discover — tabbed (#4)** — **Rising now** (momentum) / **Trending** / **Storylines** were three
    stacked rails that made Home very tall; they fold into ONE tabbed switcher (`home-discovery`,
    `discovery-tab-{key}`, `rising` default). The **active tab's label IS the section heading** — the
