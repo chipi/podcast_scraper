@@ -29,6 +29,10 @@
               { "id": "topic:scaling-laws", "kind": "topic", "label": "Scaling Laws" }
             ],
             "deep_link": "/episode/acquired-nvidia-the-machine-that-makes-the-machine?t=3921",
+            "podcast_title": "Acquired",
+            "artwork_url": "/api/app/artwork?ref=acquired%2Fnvidia.jpg&size=thumb",
+            "duration_seconds": 13140,
+            "publish_date": "2026-09-21",
             "source": "user"
           },
           {
