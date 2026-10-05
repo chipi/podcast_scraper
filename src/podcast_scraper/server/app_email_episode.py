@@ -30,7 +30,7 @@ from podcast_scraper.server.app_slugs import resolve_slug
 SUMMARY_CHARS = 240
 
 
-def _short(text: str | None, limit: int = SUMMARY_CHARS) -> str | None:
+def short_text(text: str | None, limit: int = SUMMARY_CHARS) -> str | None:
     t = " ".join((text or "").split())
     if len(t) <= limit:
         return t or None
@@ -52,8 +52,8 @@ def episode_display(root: Path, slug: str) -> dict[str, Any]:
         "publish_date": s.publish_date,
         # The publisher's own blurb, and OUR summary — both shown, ours labelled "Summary", so a
         # reader can tell which is which (operator 2026-10-05).
-        "description": _short(row.episode_description),
-        "summary": _short(s.summary_text or s.summary_preview),
+        "description": short_text(row.episode_description),
+        "summary": short_text(s.summary_text or s.summary_preview),
     }
     return {k: v for k, v in facts.items() if v not in (None, "")}
 

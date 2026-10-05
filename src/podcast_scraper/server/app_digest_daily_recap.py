@@ -76,7 +76,9 @@ def _finished_today(data_dir: Path, user_id: str, now: int, tz: str | None = Non
 
 
 def _recap_email_item(
-    recap: AppEpisodeRecap, groupings: app_email_episode.Groupings | None = None
+    recap: AppEpisodeRecap,
+    groupings: app_email_episode.Groupings | None = None,
+    description: str | None = None,
 ) -> dict[str, Any]:
     """Project a recap model to the email item shape (the worker renders it adaptively).
 
@@ -89,6 +91,8 @@ def _recap_email_item(
         "title": recap.title,
         "podcast_title": recap.podcast_title,
         "artwork_url": recap.artwork_url,
+        # The publisher's description, as every email episode carries (operator 2026-10-05).
+        "description": app_email_episode.short_text(description),
         "key_points": list(recap.key_points[:3]),
         "signature_quote": ({"text": quote.text, "speaker": quote.speaker} if quote else None),
         "insights": [ins.text for ins in recap.insights[:3]],
@@ -127,7 +131,7 @@ def assemble_daily_recap_payload(
         if row is None:
             continue  # the episode left the corpus since it was heard — skip, don't fail
         recap = app_recap_view.build_episode_recap(root, row, slug, limit=3)
-        episodes.append(_recap_email_item(recap, groupings))
+        episodes.append(_recap_email_item(recap, groupings, row.episode_description))
     if not episodes:
         return None
     return {"day": _local_day(now, tz), "count": len(episodes), "episodes": episodes}

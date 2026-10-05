@@ -63,14 +63,14 @@ def test_a_topic_link_is_not_dressed_as_its_representative_episode() -> None:
 
 
 def test_summary_is_cut_at_a_word_to_about_three_lines() -> None:
-    from podcast_scraper.server.app_email_episode import _short, SUMMARY_CHARS
+    from podcast_scraper.server.app_email_episode import short_text, SUMMARY_CHARS
 
     long = "word " * 200
-    out = _short(long)
+    out = short_text(long)
     assert out is not None and out.endswith("…") and len(out) <= SUMMARY_CHARS + 1
     assert not out[:-1].endswith(" ")
-    assert _short("  short   text ") == "short text"
-    assert _short(None) is None and _short("") is None
+    assert short_text("  short   text ") == "short text"
+    assert short_text(None) is None and short_text("") is None
 
 
 def test_an_episode_carries_the_themes_and_storylines_of_its_topics() -> None:
