@@ -32,11 +32,13 @@
     "privacy": "Privacy policy",
     "terms": "Terms of use",
     "placeholder": "This page is coming soon.",
-    "thirdPartyIntro": "Close Listening is built on open-source software. These are the packages the app ships, with their licences. Tap one to read its licence.",
+    "thirdPartyIntro": "Close Listening is built on open-source software. These are the packages the app ships, with their licences — grouped by publisher where a name starts with one ({'@'}babel, {'@'}vue …). Tap a row to open it.",
     "thirdPartyLoading": "Loading…",
     "thirdPartyFailed": "Couldn't load the list — it needs a connection.",
     "thirdPartyCount": "{count} packages · generated {date}",
-    "thirdPartyNoText": "Licensed under {license}; the package ships no licence file."
+    "thirdPartyNoText": "Licensed under {license}; the package ships no licence file.",
+    "thirdPartyGroupCount": "{count} package | {count} packages",
+    "thirdPartyLicenceText": "Licence text"
   },
   "nav": {
     "catalog": "Catalog",

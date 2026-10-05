@@ -67,12 +67,37 @@ describe('AboutPageView', () => {
       const w = mountAbout('third-party')
       await flushPromises()
       const rows = w.findAll('[data-testid="third-party-entry"]')
+      // Alphabetical: the font, then vue.
       expect(rows).toHaveLength(2)
-      expect(rows[0].text()).toContain('vue')
-      expect(rows[0].text()).toContain('MIT')
-      expect(rows[0].find('pre').text()).toBe('MIT License …')
-      expect(rows[1].text()).toContain('ships no licence file')
+      expect(rows[1].text()).toContain('vue')
+      expect(rows[1].text()).toContain('MIT')
+      expect(rows[1].find('pre').text()).toBe('MIT License …')
+      expect(rows[0].text()).toContain('ships no licence file')
       expect(w.get('[data-testid="third-party-count"]').text()).toContain('2 packages')
+    })
+
+    it('groups scoped packages under their scope; an unscoped package is a row of its own', async () => {
+      const pkg = (name: string) => ({ name, version: '1.0.0', license: 'MIT', url: 'https://x', text: 'MIT' })
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+        generated: '2026-10-05T08:00:00Z',
+        packages: [pkg('@babel/parser'), pkg('@babel/types'), pkg('pinia'), pkg('@vue/shared')],
+      }))))
+      const w = mountAbout('third-party')
+      await flushPromises()
+      const groups = w.findAll('[data-testid="third-party-group"]')
+      expect(groups).toHaveLength(2)
+      const head = (i: number) => groups[i].find('summary').text()
+      expect(head(0)).toContain('@babel')
+      expect(head(0)).toContain('2 packages')
+      expect(head(1)).toContain('@vue')
+      expect(head(1)).toContain('1 package')
+      // Members sit under their scope, named without the prefix.
+      const members = groups[0].findAll('[data-testid="third-party-entry"] summary').map((m) => m.text())
+      expect(members[0]).toMatch(/^›parser/)
+      expect(members[1]).toMatch(/^›types/)
+      // Order across groups and singles is alphabetical: @babel, @vue, pinia.
+      const top = w.findAll('[data-testid="third-party"] > ul > li').map((li) => li.find('summary').text())
+      expect(top.map((x) => x.replace(/^›/, '').match(/^[@a-z]+/)?.[0])).toEqual(['@babel', '@vue', 'pinia'])
     })
 
     it('says so when the list cannot be loaded, rather than showing an empty page', async () => {

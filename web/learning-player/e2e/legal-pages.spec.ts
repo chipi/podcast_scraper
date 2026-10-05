@@ -34,8 +34,17 @@ test('/terms is a short link to the Terms of use', async ({ page }) => {
 test('third-party software lists the packages this build ships, each with its licence', async ({ page }) => {
   await page.goto('/about/third-party')
   await expect(page.getByTestId('third-party-count')).toContainText('packages')
-  const vue = page.getByTestId('third-party-entry').filter({ hasText: /^vue\b/ }).first()
+  // `vue` is unscoped, so it is a row of its own (scoped packages sit inside their @scope group).
+  // Top-level rows only: `@sentry/vue` also reads "vue", inside its (closed) @sentry group.
+  const vue = page
+    .locator('[data-testid="third-party"] > ul > li > [data-testid="third-party-entry"]')
+    .filter({ has: page.getByText('vue', { exact: true }) })
   await expect(vue).toBeVisible()
   await vue.locator('summary').click()
   await expect(vue.locator('pre')).toContainText('MIT License')
+
+  // Scoped packages are grouped: @babel opens to its members.
+  const babel = page.getByTestId('third-party-group').filter({ hasText: '@babel' })
+  await babel.locator('summary').first().click()
+  await expect(babel.getByTestId('third-party-entry').first()).toBeVisible()
 })
