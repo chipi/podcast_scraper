@@ -317,9 +317,16 @@ start. (A serif was tried and rejected during the earlier design phase.)
 - **Entity sheets** (topic, person, theme, storyline) are 512px (`max-w-lg`) below `lg` and 768px
   (`lg:max-w-3xl`) on desktop, where the narrow sheet left most of the screen unused (operator
   2026-10-05).
-- **Long lists page five at a time** — the perspectives (topic, theme, storyline) and "Who agrees
-  with …" (person): the first five, "Show N more" for each next five, "Show less" once all show
-  (`usePaged`). "Who agrees" was hard-capped at eight with no way to reach the rest.
+- **Long lists page** (operator 2026-10-05), all on the app's one section cap —
+  `useCappedSections(cap, step)` + `ShowAllToggle` ("Show more (N hidden)" / "Show less"):
+  five at a time for perspectives, "Often appears with", "Who agrees with …", theme/storyline member
+  topics, notes (newest first, every notes box and a highlight's notes), Search's "Your notes",
+  and Library's saved topics / themes / storylines / people; ten at a time for followed interests
+  per kind and an open board's items. Entity episode lists page ten (`EntityEpisodeList`). All
+  episodes keeps "Load more" (20, or 10 in Discover) while a search, sort or filter is active.
+  Left unpaged on purpose: the queue (drag-reordered), notifications (newest 50; older ones need a
+  server change), the "add to board" pickers (menus), and the small fixed caps (related lists 12,
+  show signals 10, search 12, recently played 30).
 - **Search and filter rows** span the width of the list or results under them (`.lp-search`, no
   cap): the row ends where its content ends.
 - The Player two-column splits transcript (≈60%) + Knowledge rail (≈40%).

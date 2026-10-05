@@ -156,10 +156,29 @@ const visible = computed<EpisodeSummary[]>(() => {
  * describe the content either way, which is the whole point of preferring them to an every-Nth
  * divider.
  */
+/**
+ * What is RENDERED. Unfiltered, the server pages the list (Load more fetches the next page). Once
+ * a control is active every page is fetched, because a search, sort or filter is only right over
+ * the whole list — but showing all of it at once dumped the whole catalogue on the page with no
+ * Load more (operator 2026-10-05). So the matches are revealed a page at a time too.
+ */
+const displayCount = ref(PAGE_SIZE)
+watch([search, sort, filter, show], () => {
+  displayCount.value = PAGE_SIZE
+})
+const shown = computed<EpisodeSummary[]>(() =>
+  controlsActive.value ? visible.value.slice(0, displayCount.value) : visible.value
+)
+const moreMatches = computed(() => controlsActive.value && visible.value.length > displayCount.value)
+function onLoadMore(): void {
+  if (controlsActive.value) displayCount.value += PAGE_SIZE
+  else void loadMore()
+}
+
 const grouped = computed<Array<{ key: string; label: string; items: EpisodeSummary[] }>>(() => {
   const timeOrdered = sort.value === "newest" || sort.value === "oldest"
   if (!timeOrdered || search.value.trim()) {
-    return [{ key: "all", label: "", items: visible.value }]
+    return [{ key: "all", label: "", items: shown.value }]
   }
   const now = Date.now()
   const DAY = 86_400_000
@@ -180,7 +199,7 @@ const grouped = computed<Array<{ key: string; label: string; items: EpisodeSumma
     undated: t("catalog.groupUndated"),
   }
   const out: Array<{ key: string; label: string; items: EpisodeSummary[] }> = []
-  for (const ep of visible.value) {
+  for (const ep of shown.value) {
     const k = band(ep)
     const last = out[out.length - 1]
     if (last && last.key === k) last.items.push(ep)
@@ -261,7 +280,7 @@ onMounted(async () => {
       <!-- 3 columns on a phone, 4 from `sm` — the same shape the Shows grid and Library already use
            (operator 2026-09-17). Episodes were 2/3, so switching tabs changed the column count. -->
       <ul v-else class="grid grid-cols-3 gap-3 sm:grid-cols-4" data-testid="episode-grid">
-        <li v-for="ep in visible" :key="ep.slug"><EpisodeTile :episode="ep" /></li>
+        <li v-for="ep in shown" :key="ep.slug"><EpisodeTile :episode="ep" /></li>
       </ul>
 
       <!-- Same treatment as the Shows list's load-more (operator 2026-09-19): the two sit on the
@@ -269,13 +288,13 @@ onMounted(async () => {
            full-width bar wins — it reads as the end of the list rather than as a stray control. -->
       <div class="mt-2">
         <button
-          v-if="hasMore && !controlsActive"
+          v-if="(hasMore && !controlsActive) || (moreMatches && !loading)"
           type="button"
           :disabled="loading"
           :aria-busy="loading"
           class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
           data-testid="catalog-load-more"
-          @click="loadMore"
+          @click="onLoadMore"
         >
           {{ loading ? t("catalog.loading") : t("catalog.loadMore") }}
         </button>

@@ -20,7 +20,8 @@ import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { personName, personNameFromId } from "../utils/personName"
 import { getEntitySignals } from "../services/api"
-import { usePaged } from "../composables/usePaged"
+import { useCappedSections } from "../composables/useCappedSections"
+import ShowAllToggle from "./ShowAllToggle.vue"
 import type { CorpusEnrichmentSignals } from "../services/types"
 
 const props = defineProps<{
@@ -58,7 +59,6 @@ watch(
   { immediate: true }
 )
 
-const MAX = 8
 const norm = (id: string): string => id.replace(/^(?:g:|k:|kg:)+/, "")
 const self = computed(() => norm(props.id))
 function shortId(id: string): string {
@@ -102,7 +102,7 @@ const coappears = computed(() => {
         count: p.episode_count,
       })
   }
-  return out.sort((a, b) => b.count - a.count).slice(0, MAX)
+  return out.sort((a, b) => b.count - a.count)
 })
 // Cross-person corroboration on a topic (topic_consensus, ADR-108): who else makes
 // the same point as this person, oriented so the focused person's claim is "self".
@@ -139,16 +139,11 @@ const consensus = computed(() => {
   }
   return out
 })
-// Agreements are PAGED, five at a time (operator 2026-10-05), instead of the old hard cap of 8 —
-// which hid every agreement past the eighth with no way to reach it.
-const {
-  visible: shownConsensus,
-  hidden: hiddenConsensus,
-  nextCount: nextConsensus,
-  canFold: canFoldConsensus,
-  more: moreConsensus,
-  reset: foldConsensus,
-} = usePaged(consensus, 5)
+// Both lists page five at a time with the app's section cap (operator 2026-10-05). Each was a hard
+// cap of 8 that hid the rest with no way to reach them.
+const caps = useCappedSections(5, 5)
+const shownCoappears = computed(() => caps.visible("coappears", coappears.value))
+const shownConsensus = computed(() => caps.visible("consensus", consensus.value))
 
 // Topic momentum moved OUT of here to the top of the entity card, under the title (operator
 // review): a topic's "↑ Rising" badge now leads the card, the same idiom as the storyline sheet,
@@ -167,7 +162,7 @@ const hasAny = computed(() => showCoappears.value || showConsensus.value)
       <CollapsibleSection :title="t('ec.sigCoappears')" section-key="signals-coappears" :level="3">
         <div class="flex flex-wrap gap-1.5">
           <button
-            v-for="p in coappears"
+            v-for="p in shownCoappears"
             :key="p.id"
             type="button"
             class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
@@ -176,6 +171,14 @@ const hasAny = computed(() => showCoappears.value || showConsensus.value)
             {{ p.name }} <span class="text-muted">· {{ p.count }}</span>
           </button>
         </div>
+        <ShowAllToggle
+          v-if="caps.overflows(coappears.length, false, 'coappears')"
+          :expanded="caps.remaining('coappears', coappears.length) === 0"
+          :count="coappears.length"
+          :remaining="caps.remaining('coappears', coappears.length)"
+          data-testid="es-coappears-more"
+          @toggle="caps.toggle('coappears', coappears.length)"
+        />
       </CollapsibleSection>
     </section>
 
@@ -212,15 +215,14 @@ const hasAny = computed(() => showCoappears.value || showConsensus.value)
             </p>
           </li>
         </ul>
-        <button
-          v-if="hiddenConsensus > 0 || canFoldConsensus"
-          type="button"
-          class="mt-2 text-xs font-semibold text-accent hover:underline"
+        <ShowAllToggle
+          v-if="caps.overflows(consensus.length, false, 'consensus')"
+          :expanded="caps.remaining('consensus', consensus.length) === 0"
+          :count="consensus.length"
+          :remaining="caps.remaining('consensus', consensus.length)"
           data-testid="es-consensus-more"
-          @click="hiddenConsensus > 0 ? moreConsensus() : foldConsensus()"
-        >
-          {{ hiddenConsensus > 0 ? t("ec.moreAgreements", { count: nextConsensus }) : t("ec.perspectiveLess") }}
-        </button>
+          @toggle="caps.toggle('consensus', consensus.length)"
+        />
       </CollapsibleSection>
     </section>
   </div>

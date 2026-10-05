@@ -16,6 +16,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "v
 import { useI18n } from "vue-i18n"
 import CheckIcon from "./CheckIcon.vue"
 import CloseIcon from "./CloseIcon.vue"
+import ShowAllToggle from "./ShowAllToggle.vue"
+import { useCappedSections } from "../composables/useCappedSections"
 import { getStorylines, getTopClusters, getTrending, searchInterests } from "../services/api"
 import type { InterestHit, TrendingEntity } from "../services/types"
 import { dedupeByLabel, interestKind, interestLabel, type InterestKind } from "../utils/interests"
@@ -153,6 +155,8 @@ async function runSearch(kind: InterestKind, q: string): Promise<void> {
  * closes this one and drops its query, so there is never more than one search on screen.
  */
 const openKind = ref<InterestKind | null>(null)
+// Ten followed chips per kind, then ten more (operator 2026-10-05).
+const followCaps = useCappedSections(10, 10)
 const inputs = new Map<InterestKind, HTMLInputElement>()
 
 function setInput(kind: InterestKind, el: unknown): void {
@@ -261,8 +265,10 @@ function kindPill(kind: InterestKind): string {
       <!-- Following, then "+ Add" at the end of the same row: tap a label to open it (Profile),
            × to stop following, + Add to search and see suggestions for this kind. -->
       <div class="flex flex-wrap items-center gap-1.5">
+        <!-- Followed chips page ten at a time per kind (operator 2026-10-05): nothing caps how much a
+             listener can follow. Lifted while this kind's search is open, so a match is not hidden. -->
         <span
-          v-for="id in following[kind]"
+          v-for="id in followCaps.visible(kind, following[kind], openKind === kind)"
           :key="id"
           class="inline-flex items-center rounded-full text-xs"
           :class="kindPill(kind)"
@@ -289,6 +295,15 @@ function kindPill(kind: InterestKind): string {
             <CloseIcon :size="12" />
           </button>
         </span>
+        <ShowAllToggle
+          v-if="followCaps.overflows(following[kind].length, openKind === kind, kind)"
+          class="!mt-0 mr-1"
+          :expanded="followCaps.remaining(kind, following[kind].length) === 0"
+          :count="following[kind].length"
+          :remaining="followCaps.remaining(kind, following[kind].length)"
+          :data-testid="`interest-following-more-${kind}`"
+          @toggle="followCaps.toggle(kind, following[kind].length)"
+        />
         <span v-if="!following[kind].length" class="mr-1 text-sm text-muted" data-testid="interest-none">
           {{ t(`interestSections.none_${kind}`) }}
         </span>

@@ -18,6 +18,8 @@ import { useVoiceInput } from '../composables/useVoiceInput'
 import { useDictation } from '../composables/useDictation'
 import { formatPublishDate } from '../utils/format'
 import type { NoteTarget } from '../services/types'
+import { useCappedSections } from '../composables/useCappedSections'
+import ShowAllToggle from './ShowAllToggle.vue'
 
 const props = defineProps<{ target: NoteTarget; targetId: string }>()
 const { t, locale } = useI18n()
@@ -25,7 +27,15 @@ const capture = useCaptureStore()
 const { isGated, gated } = useSignInGate()
 const { enabled: voiceEnabled } = useVoiceInput()
 
-const notes = computed(() => capture.notesFor(props.target, props.targetId))
+// Newest first, five at a time (operator 2026-10-05). The store appends, so its order is oldest
+// first — paging that would have put a note you just wrote behind "Show more".
+const notes = computed(() =>
+  [...capture.notesFor(props.target, props.targetId)].sort((a, b) =>
+    (b.created_at ?? 0) - (a.created_at ?? 0)
+  )
+)
+const noteCaps = useCappedSections(5, 5)
+const shownNotes = computed(() => noteCaps.visible('notes', notes.value))
 const draft = ref('')
 
 // Self-hydrate so the note list works on surfaces that don't already load captures (entity cards,
@@ -87,7 +97,7 @@ function onMicClick(): void {
 
     <ul v-if="notes.length" class="mb-3 flex flex-col gap-2">
       <li
-        v-for="n in notes"
+        v-for="n in shownNotes"
         :key="n.id"
         class="rounded-lg border border-border p-3"
         data-testid="note-item"
@@ -107,6 +117,15 @@ function onMicClick(): void {
         </div>
       </li>
     </ul>
+    <ShowAllToggle
+      v-if="noteCaps.overflows(notes.length, false, 'notes')"
+      :expanded="noteCaps.remaining('notes', notes.length) === 0"
+      :count="notes.length"
+      :remaining="noteCaps.remaining('notes', notes.length)"
+      class="mb-3"
+      data-testid="notes-more"
+      @toggle="noteCaps.toggle('notes', notes.length)"
+    />
 
     <!-- Textarea on its OWN full-width row; the mic + Add ride a row BENEATH it. The mic used to sit
          inline beside the field and stole its width, shrinking the note (operator). -->

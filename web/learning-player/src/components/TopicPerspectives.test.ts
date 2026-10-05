@@ -65,7 +65,7 @@ describe('TopicPerspectives', () => {
     await flushPromises()
     const cards = () => w.findAll('[data-testid="topic-perspective"]').length
     const more = () => w.get('[data-testid="perspectives-more-speakers"]')
-    expect([cards(), more().text()]).toEqual([5, 'Show 2 more voices'])
+    expect([cards(), more().text()]).toEqual([5, 'Show more (2)'])
     await more().trigger('click')
     expect([cards(), more().text()]).toEqual([7, 'Show less'])
     await more().trigger('click')

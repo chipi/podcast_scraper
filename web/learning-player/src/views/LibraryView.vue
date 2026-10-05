@@ -733,8 +733,9 @@ onMounted(async () => {
               <span class="lp-kicker ml-1 font-normal">{{ grp.items.length }}</span>
             </h2>
             <ul class="flex flex-col">
+              <!-- Capped like saved episodes and shows (operator 2026-10-05): five, then five more. -->
               <li
-                v-for="e in grp.items"
+                v-for="e in savedCaps.visible(grp.kind, grp.items, savedSearchActive)"
                 :key="e.kind + ':' + e.ref"
                 class="flex items-center gap-2 border-b border-border py-2"
                 data-testid="saved-entity"
@@ -749,6 +750,13 @@ onMounted(async () => {
                 <FavoriteButton :item="{ kind: e.kind, ref: e.ref, label: e.label }" />
               </li>
             </ul>
+            <ShowAllToggle
+              v-if="savedCaps.overflows(grp.items.length, savedSearchActive, grp.kind)"
+              :expanded="savedCaps.remaining(grp.kind, grp.items.length) === 0"
+              :count="grp.items.length"
+              :remaining="savedCaps.remaining(grp.kind, grp.items.length)"
+              @toggle="savedCaps.toggle(grp.kind, grp.items.length)"
+            />
           </section>
         </template>
         <!-- Insights are NOT favorites — they save via the highlights path and render in the

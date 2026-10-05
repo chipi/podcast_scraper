@@ -70,6 +70,26 @@ describe('CatalogView', () => {
     expect(w.text()).not.toContain('Load more')
   })
 
+  it('reveals matches a page at a time while a search is active, instead of dumping every page', async () => {
+    // Operator 2026-10-05: a control loads every page (a search is only right over the whole list)
+    // but rendered all of it with no Load more. Now 20 matches, then 20 more per press.
+    const many = Array.from({ length: 45 }, (_, i) => ep(`m-${i}`, `Match ${i}`))
+    vi.spyOn(api, 'listEpisodes').mockResolvedValue({ items: many, page: 1, page_size: 45, total: 45, has_more: false })
+    const w = mountView()
+    await flushPromises()
+    await w.get('input').setValue('Match')
+    await flushPromises()
+    const loadMore = () => w.findAll('button').find((b) => b.text() === 'Load more')
+    expect(w.text()).toContain('Match 19')
+    expect(w.text()).not.toContain('Match 20')
+    await loadMore()!.trigger('click')
+    expect(w.text()).toContain('Match 39')
+    expect(w.text()).not.toContain('Match 40')
+    await loadMore()!.trigger('click')
+    expect(w.text()).toContain('Match 44')
+    expect(loadMore()).toBeUndefined()
+  })
+
   it('shows Load more and appends the next page', async () => {
     const spy = vi.spyOn(api, 'listEpisodes')
     spy.mockResolvedValueOnce({ items: [ep('a-1', 'First')], page: 1, page_size: 20, total: 2, has_more: true })

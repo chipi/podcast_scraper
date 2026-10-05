@@ -32,6 +32,8 @@ import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
 import FollowButton from "../components/FollowButton.vue"
 import NoteComposer from "../components/NoteComposer.vue"
+import ShowAllToggle from "../components/ShowAllToggle.vue"
+import { useCappedSections } from "../composables/useCappedSections"
 import TopicPerspectives from "../components/TopicPerspectives.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import TopVoices from "../components/TopVoices.vue"
@@ -94,6 +96,9 @@ const loading = ref(true)
 const failed = ref(false)
 const label = ref("")
 const topics = ref<Member[]>([])
+// Member topics page five at a time (operator 2026-10-05): the server sends the whole grouping.
+const memberCaps = useCappedSections(5, 5)
+const pagedTopics = computed(() => memberCaps.visible("members", topics.value))
 const people = ref<Entity[]>([])
 const episodes = ref<EpisodeSummary[]>([])
 
@@ -256,7 +261,7 @@ function goBack(): void {
       <section class="mt-6" data-testid="theme-topics">
         <CollapsibleSection :title="t('home.themeTopicsHeading')" section-key="theme-topics" :level="2">
           <ol class="flex flex-col">
-            <li v-for="(tp, i) in topics" :key="tp.id">
+            <li v-for="(tp, i) in pagedTopics" :key="tp.id">
               <RouterLink
                 :to="{ name: 'topic', params: { id: tp.id } }"
                 class="flex items-center gap-3 border-b border-border py-2 text-canvas-foreground no-underline hover:bg-overlay"
@@ -280,6 +285,14 @@ function goBack(): void {
               </RouterLink>
             </li>
           </ol>
+          <ShowAllToggle
+            v-if="memberCaps.overflows(topics.length, false, 'members')"
+            :expanded="memberCaps.remaining('members', topics.length) === 0"
+            :count="topics.length"
+            :remaining="memberCaps.remaining('members', topics.length)"
+            data-testid="members-more"
+            @toggle="memberCaps.toggle('members', topics.length)"
+          />
         </CollapsibleSection>
       </section>
 

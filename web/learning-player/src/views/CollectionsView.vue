@@ -248,6 +248,8 @@ const visibleNotes = computed(() => {
 // never hidden behind "Show all") — the same rule the Library Saved sections use.
 const caps = useCappedSections()
 const searchActive = computed(() => search.value.trim() !== "")
+// An open board's items: ten, then ten more (operator 2026-10-05) — a board holds up to 1,000.
+const itemCaps = useCappedSections(10, 10)
 
 /**
  * Display data for the items the server does not resolve.
@@ -795,7 +797,7 @@ onMounted(() => {
             thing telling a topic from a search from a link at a glance.
           -->
             <li
-              v-for="it in open.items"
+              v-for="it in itemCaps.visible(open.collection.id, open.items)"
               :key="itemKey(it)"
               class="flex items-center gap-3 rounded-xl border border-border p-3"
               data-testid="collection-item"
@@ -850,6 +852,14 @@ onMounted(() => {
               </button>
             </li>
           </ul>
+          <ShowAllToggle
+            v-if="itemCaps.overflows(open.items.length, false, open.collection.id)"
+            :expanded="itemCaps.remaining(open.collection.id, open.items.length) === 0"
+            :count="open.items.length"
+            :remaining="itemCaps.remaining(open.collection.id, open.items.length)"
+            data-testid="collection-items-more"
+            @toggle="itemCaps.toggle(open.collection.id, open.items.length)"
+          />
 
           <!-- Pin an external link (an article / blog post found while researching) — URL only (RFC-119). -->
           <form class="mt-3 flex gap-1 border-t border-border pt-3" @submit.prevent="addLink">

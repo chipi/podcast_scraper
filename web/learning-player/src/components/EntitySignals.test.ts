@@ -150,9 +150,11 @@ describe("EntitySignals — person", () => {
     await flushPromises()
     const rows = () => w.findAll('[data-testid="es-consensus-row"]').length
     const more = () => w.get('[data-testid="es-consensus-more"]')
-    expect([rows(), more().text()]).toEqual([5, "Show 5 more"])
+    // The app's section cap and its control (useCappedSections + ShowAllToggle): the count is what
+    // is still hidden.
+    expect([rows(), more().text()]).toEqual([5, "Show more (7)"])
     await more().trigger("click")
-    expect([rows(), more().text()]).toEqual([10, "Show 2 more"])
+    expect([rows(), more().text()]).toEqual([10, "Show more (2)"])
     await more().trigger("click")
     expect([rows(), more().text()]).toEqual([12, "Show less"])
     await more().trigger("click")

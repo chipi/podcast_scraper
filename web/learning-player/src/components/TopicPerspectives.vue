@@ -14,7 +14,8 @@ import { RouterLink } from "vue-router"
 import SectionStatus from "./SectionStatus.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import { useSectionState } from "../composables/useSectionState"
-import { usePaged } from "../composables/usePaged"
+import { useCappedSections } from "../composables/useCappedSections"
+import ShowAllToggle from "./ShowAllToggle.vue"
 import {
   ApiError,
   getStorylinePerspectives,
@@ -145,14 +146,8 @@ const PREVIEW = 3
  * 11 speakers, which unfolded took the page from ~2,200px to 11,185px — and a topic reached 10.
  * Speakers arrive ranked most-takes-first, so each page is the next-most-engaged five.
  */
-const {
-  visible,
-  hidden: hiddenSpeakers,
-  nextCount,
-  canFold,
-  more: moreSpeakers,
-  reset: foldSpeakers,
-} = usePaged(perspectives, 5)
+const caps = useCappedSections(5, 5)
+const visible = computed(() => caps.visible("speakers", perspectives.value))
 const expanded = ref<Set<string>>(new Set())
 function toggle(personId: string): void {
   const next = new Set(expanded.value)
@@ -261,19 +256,14 @@ function toggle(personId: string): void {
       </ul>
       <!-- One control for the whole section, under the list — a grouping's speaker count is the thing
            being folded, not any one speaker's takes (those have their own per-speaker toggle). -->
-      <button
-        v-if="hiddenSpeakers > 0 || canFold"
-        type="button"
-        class="mt-2 text-xs font-semibold text-accent hover:underline"
+      <ShowAllToggle
+        v-if="caps.overflows(perspectives.length, false, 'speakers')"
+        :expanded="caps.remaining('speakers', perspectives.length) === 0"
+        :count="perspectives.length"
+        :remaining="caps.remaining('speakers', perspectives.length)"
         data-testid="perspectives-more-speakers"
-        @click="hiddenSpeakers > 0 ? moreSpeakers() : foldSpeakers()"
-      >
-        {{
-          hiddenSpeakers > 0
-            ? t("ec.moreSpeakers", { count: nextCount })
-            : t("ec.perspectiveLess")
-        }}
-      </button>
+        @toggle="caps.toggle('speakers', perspectives.length)"
+      />
     </CollapsibleSection>
   </section>
 </template>
