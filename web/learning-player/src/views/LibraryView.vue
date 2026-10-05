@@ -479,12 +479,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- Same container as Discover — `mx-auto max-w-3xl px-4 pb-8` (operator 2026-09-17). Library was
+  <!-- Same container as Discover — `mx-auto max-w-3xl pb-8` (operator 2026-09-17; the extra `px-4`
+       dropped 2026-10-05 so the tab screens share Home's gutter, the app shell's `px-5`). Library was
        a bare <section> inheriting the app shell's wider `max-w-6xl px-5`, so the SAME tile markup
        rendered at 270px here and 176px on Browse, and 118px against 108px on a phone. The column
        count was never the cause; the container was. Discover sets the standard, so Library adopts
        it and the grids agree by construction instead of by compensating arithmetic. -->
-  <section class="mx-auto max-w-3xl px-4 pb-8">
+  <section class="mx-auto max-w-3xl pb-8">
     <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">{{ t('library.title') }}</h1>
 
     <!-- Standalone, never chained into a neighbouring v-if. -->

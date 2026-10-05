@@ -64,8 +64,14 @@ const props = withDefaults(
     pattern?: 'tabs' | 'radio'
     /** `true` stretches each tab to an equal share of the row (LibraryView's five-up strip). */
     equalWidth?: boolean
+    /**
+     * Pill only: tighter padding and gap, for a strip that has to share a phone row with other
+     * controls — Trends' four kind pills beside its sort and scope switches fit a 375px phone only
+     * at this density (2026-10-05).
+     */
+    dense?: boolean
   }>(),
-  { variant: 'underline', equalWidth: false, pattern: 'tabs' },
+  { variant: 'underline', equalWidth: false, pattern: 'tabs', dense: false },
 )
 
 const model = defineModel<K>({ required: true })
@@ -75,7 +81,7 @@ const listEl = ref<HTMLElement | null>(null)
 const listClass = computed(() => {
   if (props.variant === 'segment') return 'lp-segment'
   if (props.variant === 'pill')
-    return 'inline-flex gap-1 rounded-full border border-border bg-surface p-1'
+    return `inline-flex ${props.dense ? 'gap-0.5' : 'gap-1'} rounded-full border border-border bg-surface p-1`
   return 'flex flex-wrap gap-1 border-b border-border'
 })
 
@@ -84,7 +90,7 @@ function tabClass(key: K): string {
   if (props.variant === 'segment') return 'lp-segment-option'
   if (props.variant === 'pill')
     return [
-      'rounded-full px-3 py-1 text-xs font-bold transition',
+      `rounded-full ${props.dense ? 'px-2' : 'px-3'} py-1 text-xs font-bold transition`,
       on ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground',
     ].join(' ')
   return [

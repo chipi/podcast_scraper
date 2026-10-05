@@ -40,3 +40,37 @@ test('topic, person and storyline pages inset their content by the same gutter',
   expect(Math.abs(topic - storyline), `topic page gutter ${topic} vs ${storyline} (was 32)`).toBeLessThanOrEqual(2)
   expect(Math.abs(person - storyline), `person page gutter ${person} vs ${storyline} (was 32)`).toBeLessThanOrEqual(2)
 })
+
+/**
+ * Home and Discover render the SAME Trends component, so it must sit at the same place and width
+ * on both (operator 2026-10-05). Discover wrapped it in an extra `px-4`, which made it 32px
+ * narrower than on Home — enough that the fourth kind pill (Themes) collided with the sort switch.
+ */
+test('Trends sits at the same inset and width on Home and Discover', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'trends-gutter', testInfo)
+  const box = async (url: string) => {
+    await page.goto(url)
+    const el = page.getByTestId('discovery-explorer')
+    await expect(el).toBeVisible()
+    return (await el.boundingBox())!
+  }
+  const home = await box('/')
+  const discover = await box('/browse')
+  expect(Math.round(discover.x)).toBe(Math.round(home.x))
+  expect(Math.round(discover.width)).toBe(Math.round(home.width))
+})
+
+/** Four kind pills and the two switches share one row, down to a 375px phone, on both screens. */
+test('the Trends kind pills clear the switches at 375px, on Home and Discover', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chrome', 'a phone-width layout')
+  await page.setViewportSize({ width: 375, height: 800 })
+  await signInIsolated(page, 'trends-375', testInfo)
+  for (const url of ['/', '/browse']) {
+    await page.goto(url)
+    const people = (await page.getByTestId('discovery-tab-person').boundingBox())!
+    const sort = (await page.getByTestId('discovery-sort').boundingBox())!
+    const scope = (await page.getByTestId('home-trending-scope').boundingBox())!
+    expect(people.x + people.width, `${url}: People runs into the sort switch`).toBeLessThanOrEqual(sort.x)
+    expect(scope.x + scope.width, `${url}: the scope switch leaves the screen`).toBeLessThanOrEqual(375)
+  }
+})

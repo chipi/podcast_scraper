@@ -126,8 +126,9 @@ describe('registry guard', () => {
     expect(EVENT_NAMES as readonly string[]).toContain('empty_state_shown')
   })
 
-  it('holds all 20 source values, with no duplicates', () => {
-    expect(SOURCES).toHaveLength(20)
+  it('holds all 21 source values, with no duplicates', () => {
+    // 21 since 2026-10-05: `home_themes`, for the Themes tab added to Home's trends.
+    expect(SOURCES).toHaveLength(21)
     expect(new Set(SOURCES).size).toBe(SOURCES.length)
   })
 })

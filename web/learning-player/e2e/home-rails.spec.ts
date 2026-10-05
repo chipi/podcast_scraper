@@ -79,14 +79,44 @@ test('the storylines tab renders rows and follows one', async ({ page }, testInf
   await expect(page.getByTestId('discovery-row').first()).toBeVisible()
 })
 
-test('the discovery tabs switch between topics, storylines and people', async ({
+test('the themes tab lists themes, and a theme opens its card on top of Home', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'home-themes', testInfo)
+  await page.goto('/')
+  // Topics, Themes, Storylines, People — the order every surface lists the kinds in (2026-10-05).
+  await expect(page.locator('[data-testid^="discovery-tab-"]')).toHaveText(['Topics', 'Themes', 'Storylines', 'People'])
+  // All four kind pills fit the phone row beside the two switches — none clipped off the edge.
+  const vw = page.viewportSize()!.width
+  for (const tab of await page.locator('[data-testid^="discovery-tab-"]').all()) {
+    const box = await tab.boundingBox()
+    expect(box && box.x >= 0 && box.x + box.width <= vw).toBe(true)
+  }
+  await page.getByTestId('discovery-tab-theme').click()
+  const list = page.getByTestId('discovery-list-theme')
+  await expect(list).toBeVisible()
+  const row = list.getByTestId('discovery-row').first()
+  await expect(row).toBeVisible()
+  await row.locator('button').first().click()
+  await expect(page.getByTestId('theme-card')).toBeVisible()
+})
+
+test('Discover lists themes too, and a theme opens its page', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'browse-themes', testInfo)
+  await page.goto('/browse?trends=theme')
+  const list = page.getByTestId('discovery-list-theme')
+  await expect(list).toBeVisible()
+  await list.getByTestId('discovery-row').first().locator('button').first().click()
+  await expect(page).toHaveURL(/\/theme\//)
+  await expect(page.getByTestId('theme-view')).toBeVisible()
+})
+
+test('the discovery tabs switch between topics, themes, storylines and people', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'home-discovery', testInfo)
   await page.goto('/')
 
   await expect(page.getByTestId('home-discovery')).toBeVisible()
-  for (const tab of ['discovery-tab-topic', 'discovery-tab-storyline', 'discovery-tab-person']) {
+  for (const tab of ['discovery-tab-topic', 'discovery-tab-theme', 'discovery-tab-storyline', 'discovery-tab-person']) {
     await page.getByTestId(tab).click()
     // Whatever the tab shows, the section must not be left empty-but-present.
     await expect(page.getByTestId('home-discovery')).toBeVisible()
