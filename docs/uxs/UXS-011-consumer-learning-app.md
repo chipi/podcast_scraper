@@ -1110,7 +1110,10 @@ most of what it listed.
     that kind** (`GET /api/app/interests/search` — a substring match over labels, best placed and
     most-covered first; two characters minimum, because one matches most of the corpus) and
     **Suggested** — what is trending in that kind, minus what is already followed. While there is a
-    query the results replace the suggestions. **Done** or Esc closes it.
+    query the results replace the suggestions. **Done** or Esc closes it. Opening it scrolls the
+    search box to the top of the screen (again once the keyboard has resized the page): on Android
+    the keyboard shrinks the page and the mini-player and bottom nav ride up on top of it, which
+    otherwise hid the box and every suggestion behind them.
   - **One Add open at a time.** Opening another section's Add closes this one and drops its query:
     four always-open search boxes made the tab a wall of inputs (beta feedback, same day).
 - **Edits are immediate on Profile.** Each tap goes through the interests store, the same toggle an

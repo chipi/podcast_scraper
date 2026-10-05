@@ -19,6 +19,7 @@ import CloseIcon from "./CloseIcon.vue"
 import { getStorylines, getTopClusters, getTrending, searchInterests } from "../services/api"
 import type { InterestHit, TrendingEntity } from "../services/types"
 import { dedupeByLabel, interestKind, interestLabel, type InterestKind } from "../utils/interests"
+import { scrollBehavior } from "../utils/motion"
 
 const props = withDefaults(
   defineProps<{
@@ -159,11 +160,33 @@ function setInput(kind: InterestKind, el: unknown): void {
   else inputs.delete(kind)
 }
 
+/**
+ * Lift the open search box to just under the masthead (operator 2026-10-05).
+ *
+ * On Android the keyboard SHRINKS the page and the mini-player and bottom nav ride up on top of
+ * it, so a section opened anywhere below the top third had its search box and every suggestion
+ * hidden behind them (measured on the emulator: the nav's Home tab sat over "Follow edge cases").
+ * With the box scrolled to the top, the space between the masthead and the keyboard holds the box
+ * and the suggestions under it. `scroll-mt-28` on the input keeps it clear of the masthead.
+ */
+function liftSearch(kind: InterestKind): void {
+  inputs.get(kind)?.scrollIntoView({ behavior: scrollBehavior(), block: "start" })
+}
+
 async function openAdd(kind: InterestKind): Promise<void> {
   if (openKind.value && openKind.value !== kind) onQuery(openKind.value, "")
   openKind.value = kind
   await nextTick()
-  inputs.get(kind)?.focus()
+  inputs.get(kind)?.focus({ preventScroll: true })
+  liftSearch(kind)
+  // The keyboard arrives a beat after focus and resizes the viewport; lift again once it has, so
+  // the shrink does not leave the box below the fold. One resize only, and not forever.
+  const vv = typeof window !== "undefined" ? window.visualViewport : null
+  if (vv) {
+    const again = (): void => liftSearch(kind)
+    vv.addEventListener("resize", again, { once: true })
+    setTimeout(() => vv.removeEventListener("resize", again), 1500)
+  }
 }
 
 function closeAdd(): void {
@@ -292,7 +315,7 @@ function kindPill(kind: InterestKind): string {
             :placeholder="t(`interestSections.search_${kind}`)"
             :aria-label="t(`interestSections.search_${kind}`)"
             :data-testid="`interest-search-${kind}`"
-            class="lp-search min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
+            class="lp-search min-w-0 flex-1 scroll-mt-28 rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
             @input="onQuery(kind, ($event.target as HTMLInputElement).value)"
             @keydown.esc="closeAdd()"
           />

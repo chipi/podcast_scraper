@@ -156,6 +156,27 @@ describe('InterestSections', () => {
       expect((section(w, 'topic').get('input').element as HTMLInputElement).value).toBe('')
     })
 
+    it('lifts the opened search box to the top of the screen, clear of an Android keyboard', async () => {
+      // On Android the keyboard shrinks the page and the bottom nav rides up over the lower half;
+      // the box is scrolled to the top so it and its suggestions stay above them.
+      const lifted: Element[] = []
+      const proto = window.HTMLElement.prototype as unknown as { scrollIntoView?: (o?: unknown) => void }
+      const original = proto.scrollIntoView
+      proto.scrollIntoView = function (this: Element, opts?: unknown) {
+        lifted.push(this)
+        expect((opts as { block?: string })?.block).toBe('start')
+      }
+      try {
+        const w = mountSections([])
+        await flushPromises()
+        await openAdd(w, 'storyline')
+        const input = section(w, 'storyline').get('[data-testid="interest-search-storyline"]').element
+        expect(lifted).toContain(input)
+      } finally {
+        proto.scrollIntoView = original
+      }
+    })
+
     it('Done closes it', async () => {
       const w = mountSections([])
       await flushPromises()
