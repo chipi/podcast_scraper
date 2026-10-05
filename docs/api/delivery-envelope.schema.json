@@ -343,6 +343,20 @@
             "null"
           ],
           "description": "Publication date (YYYY-MM-DD), for the duration and date line."
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The episode's summary, cut at a word to about three lines (the app's episode card)."
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The episode's own description from its feed (the publisher's blurb), cut at a word."
         }
       }
     },
@@ -475,6 +489,20 @@
             "null"
           ],
           "description": "Publication date (YYYY-MM-DD), for the duration and date line."
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The episode's summary, cut at a word to about three lines (the app's episode card)."
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The episode's own description from its feed (the publisher's blurb), cut at a word."
         }
       }
     },

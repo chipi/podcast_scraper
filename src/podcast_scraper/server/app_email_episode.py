@@ -2,7 +2,8 @@
 
 The digest, recommendations, revisit-nudge and new-episode emails carried a slug, a deep link and
 graph refs — enough to link, not enough to look like the app. The app's episode header shows the
-artwork, the show's name above the title, and a duration · date line; the emails now can too.
+artwork, the show's name above the title, a duration · date line and the episode's summary; the
+emails now can too.
 
 Filled at payload assembly from the catalog — one lookup per distinct slug — so every producer gets
 it without each one re-deriving it, and a field the producer already set is never overwritten.
@@ -19,6 +20,18 @@ from typing import Any, Iterable
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_slugs import resolve_slug
 
+#: Email clients cannot clamp by line, so the summary is cut server-side, at a word, to roughly
+#: the three lines the app's episode card shows before "Show more".
+SUMMARY_CHARS = 240
+
+
+def _short(text: str | None, limit: int = SUMMARY_CHARS) -> str | None:
+    t = " ".join((text or "").split())
+    if len(t) <= limit:
+        return t or None
+    cut = t[:limit].rsplit(" ", 1)[0].rstrip(",;:—-")
+    return f"{cut}…"
+
 
 def episode_display(root: Path, slug: str) -> dict[str, Any]:
     """Display facts for one episode, or {} when the slug no longer resolves."""
@@ -32,6 +45,10 @@ def episode_display(root: Path, slug: str) -> dict[str, Any]:
         "artwork_url": s.artwork_url or s.episode_image_url or s.feed_image_url,
         "duration_seconds": s.duration_seconds,
         "publish_date": s.publish_date,
+        # The publisher's own blurb, and OUR summary — both shown, ours labelled "Summary", so a
+        # reader can tell which is which (operator 2026-10-05).
+        "description": _short(row.episode_description),
+        "summary": _short(s.summary_text or s.summary_preview),
     }
     return {k: v for k, v in facts.items() if v not in (None, "")}
 
