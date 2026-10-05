@@ -173,7 +173,7 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 | `grounded`                 | `#9FB8A4`         | "N% grounded" badge, grounded-quote affordances         |
 | `topic`                    | `#B98CFF`         | Topic pills — violet, everywhere a topic is a pill      |
 | `person`                   | `#FF9F5A`         | Person pills / speaker emphasis — orange                |
-| `storyline`                | `#5CE1E6`         | **Storyline** pills — cyan; topics that recur *together* |
+| `storyline`                | `#5CE1E6`         | **Storyline** pills — cyan; topics recurring *together* |
 | `theme`                    | `#99B9F4`         | **Theme** pills — blue; topics that *mean* the same     |
 | `insight-claim`            | `var(--topic)`    | Insight type mark: claim                                |
 | `insight-observation`      | `var(--grounded)` | Insight type mark: observation                          |

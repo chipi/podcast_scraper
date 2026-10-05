@@ -47,11 +47,14 @@ export function hashInputs(base = root) {
   return h
 }
 
-function licenseTextIn(dir) {
+function fileTextIn(dir, pattern) {
   if (!existsSync(dir)) return null
-  const file = readdirSync(dir).find((f) => /^(licen[cs]e|copying)(\.|$|-)/i.test(f))
+  const file = readdirSync(dir).find((f) => pattern.test(f))
   return file ? readFileSync(path.join(dir, file), 'utf8').trim() : null
 }
+const isArchive = (f) => /\.(aar|jar)$/.test(f) && !/-(sources|javadoc)\.jar$/.test(f)
+const LICENCE_FILE =/^(licen[cs]e|copying)(\.|$|-)/i
+const NOTICE_FILE = /^notice(\.|$)/i
 
 function guessSpdx(text) {
   if (!text) return 'UNKNOWN'
@@ -79,18 +82,22 @@ function iosPods() {
   return pods
     .filter(([, name]) => !fromNodeModules.has(name))
     .map(([, name, version]) => {
-      const text = licenseTextIn(path.join(root, 'ios/App/Pods', name))
+      const dir = path.join(root, 'ios/App/Pods', name)
+      const text = fileTextIn(dir, LICENCE_FILE)
       return {
         name,
         version,
         license: guessSpdx(text),
         url: `https://cocoapods.org/pods/${name}`,
         text,
-        notice: null,
+        notice: fileTextIn(dir, NOTICE_FILE),
         platform: 'ios',
       }
     })
 }
+
+/** Android libraries whose archive was not in the Gradle cache, reported so a gap is never silent. */
+const unopened = []
 
 function androidArtifacts() {
   const env = {
@@ -135,7 +142,8 @@ function androidArtifacts() {
     if (!existsSync(dir)) return null
     for (const h of readdirSync(dir)) {
       for (const f of readdirSync(path.join(dir, h))) {
-        if (!/\.(aar|jar)$/.test(f) || /sources|javadoc/.test(f)) continue
+        // `-sources`/`-javadoc` as a SUFFIX: a bare /sources/ also matched `appcompat-resources`.
+        if (!isArchive(f)) continue
         const archive = path.join(dir, h, f)
         const entry = execSync(`unzip -Z1 "${archive}"`, { encoding: 'utf8' })
           .split('\n')
@@ -145,7 +153,34 @@ function androidArtifacts() {
     }
     return null
   }
-  return [...coords.values()].map(({ group, artifact, version }) => {
+  const filesOf = (g, a, v) => {
+    const dir = path.join(cache, g, a, v)
+    if (!existsSync(dir)) return []
+    return readdirSync(dir).flatMap((h) => readdirSync(path.join(dir, h)).map((f) => path.join(dir, h, f)))
+  }
+  const hasArchive = (g, a, v) => filesOf(g, a, v).some((f) => isArchive(path.basename(f)))
+  /**
+   * A Kotlin Multiplatform "umbrella" coordinate (`androidx.annotation:annotation`) publishes only a
+   * POM and a Gradle `.module` whose runtime variant redirects (`available-at`) to the platform
+   * build that actually ships (`annotation-jvm`), and the report lists that one too. A BOM pins
+   * versions and ships nothing. Neither is a library in the APK, so neither is a row.
+   */
+  const shipsNothing = (g, a, v) => {
+    if (hasArchive(g, a, v)) return false
+    const mod = filesOf(g, a, v).find((f) => f.endsWith('.module'))
+    if (mod) {
+      const variants = JSON.parse(readFileSync(mod, 'utf8')).variants ?? []
+      return variants.some((x) => {
+        const at = x['available-at']
+        return at && x.attributes?.['org.gradle.usage'] === 'java-runtime' && coords.has(`${at.group}:${at.module}`)
+      })
+    }
+    return /<packaging>pom<\/packaging>/.test(findPom(g, a, v) ?? '')
+  }
+  const shipped = [...coords.values()].filter(({ group, artifact, version }) => !shipsNothing(group, artifact, version))
+  // Anything left without an archive in the cache could not be searched for a licence or NOTICE.
+  unopened.push(...shipped.filter((c) => !hasArchive(c.group, c.artifact, c.version)).map((c) => `${c.group}:${c.artifact}`))
+  return shipped.map(({ group, artifact, version }) => {
     const pom = findPom(group, artifact, version)
     const lic = licenceFrom(pom)
     const site = pom?.match(/<project[\s\S]*?<url>([^<]+)<\/url>/)?.[1]?.trim()
@@ -171,6 +206,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log(
     `third-party-native: ${packages.length} entries (${packages.filter((p) => p.platform === 'ios').length} iOS, ` +
       `${packages.filter((p) => p.platform === 'android').length} Android) → ${path.relative(root, out)}` +
-      (unknown.length ? `\n  licence not found for: ${unknown.join(', ')}` : ''),
+      (unknown.length ? `\n  licence not found for: ${unknown.join(', ')}` : '') +
+      (unopened.length ? `\n  archive not in the Gradle cache, so not searched for a licence or NOTICE: ${unopened.join(', ')}` : ''),
   )
 }
