@@ -186,7 +186,7 @@ describe('TopicPerspectives', () => {
     expect(link.props('to')).toEqual({
       name: 'player',
       params: { slug: 'ep-a' },
-      query: { t: '90' },
+      query: { t: '90', play: '1' }, // an explicit ▶ plays (operator 2026-10-05)
     })
   })
 })

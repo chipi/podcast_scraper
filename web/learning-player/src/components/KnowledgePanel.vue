@@ -64,6 +64,8 @@ const props = withDefaults(
 )
 const emit = defineEmits<{
   (e: "seek", seconds: number): void
+  /** "▶ Play from" — seek AND play: an explicit ▶ starts playback (operator 2026-10-05). */
+  (e: "play-from", seconds: number): void
   (e: "close"): void
   /**
    * Announce a capture outcome through the parent's live region (S8).
@@ -767,7 +769,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 v-if="hitStartSeconds(hit) != null"
                 class="mt-1 inline-block"
                 :seconds="hitStartSeconds(hit)"
-                @click="emit('seek', hitStartSeconds(hit) as number)"
+                @click="emit('play-from', hitStartSeconds(hit) as number)"
               />
             </li>
           </ul>
@@ -1015,7 +1017,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
                     :seconds="insightStartSeconds(ins)"
                     :aria-label="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
                     :title="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
-                    @click="emit('seek', insightStartSeconds(ins) as number)"
+                    @click="emit('play-from', insightStartSeconds(ins) as number)"
                   />
                   <!-- Save this insight — a BOOKMARK, like every other highlight (operator
                        2026-09-27).

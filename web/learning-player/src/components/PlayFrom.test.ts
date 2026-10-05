@@ -15,10 +15,14 @@ describe('PlayFrom', () => {
     expect(mountIt({ seconds: 65 }).text()).toBe('▶ Play from 1:05')
   })
 
-  it('is a link when given a destination', () => {
+  it('is a link when given a destination — one that PLAYS (?play=1)', () => {
+    // An explicit ▶ starts playback (operator 2026-10-05); the moment's own query is kept.
     const to = { name: 'player', params: { slug: 'ep' }, query: { t: '65' } }
     const w = mountIt({ seconds: 65, to })
-    expect(w.getComponent(RouterLinkStub).props('to')).toEqual(to)
+    expect(w.getComponent(RouterLinkStub).props('to')).toEqual({
+      ...to,
+      query: { t: '65', play: '1' },
+    })
     expect(w.find('button').exists()).toBe(false)
   })
 

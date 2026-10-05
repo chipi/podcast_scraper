@@ -787,6 +787,19 @@ describe('a downloaded episode paints from disk, not from the network', () => {
       expect(play, 'opening an episode started audio unprompted').not.toHaveBeenCalled()
     })
 
+    it("the notes panel's ▶ Play from seeks AND plays — an explicit ▶ starts audio (operator 2026-10-05)", async () => {
+      const { player, play } = await mountWithQuery({})
+      const panel = (mountedPlayers.at(-1) as ReturnType<typeof mount>).findComponent({
+        name: 'KnowledgePanel',
+      })
+      expect(panel.exists(), 'the notes panel is not mounted on the player page').toBe(true)
+      play.mockClear()
+      panel.vm.$emit('play-from', 30)
+      await flushPromises()
+      expect(play, '▶ Play from left the episode paused').toHaveBeenCalled()
+      expect(Math.round(player.el?.currentTime ?? 0)).toBe(30)
+    })
+
     it('plays from the resumed position, not from zero', async () => {
       // Playing before the seek is audible — a second or two of 0:00 before it jumps.
       const { player, play } = await mountWithQuery({ play: '1' })

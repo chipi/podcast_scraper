@@ -545,10 +545,11 @@ function openEpisode(slug: string | null, hit?: SearchHit, rank?: number): void 
   // work; if taps are spread down the list, people are hunting.
   track("search_result_click", { result_kind: "episode", rank: toRankBucket(rank ?? 1) })
   const s = hit ? hitStartSeconds(hit) : null
+  // Reached only from "▶ Play from", and an explicit ▶ PLAYS (operator 2026-10-05).
   void router.push({
     name: "player",
     params: { slug },
-    query: s != null ? { t: String(Math.floor(s)) } : {},
+    query: s != null ? { t: String(Math.floor(s)), play: "1" } : { play: "1" },
   })
 }
 

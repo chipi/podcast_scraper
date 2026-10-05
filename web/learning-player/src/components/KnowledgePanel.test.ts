@@ -123,7 +123,8 @@ describe("KnowledgePanel", () => {
     const btn = w.findAll("button").find((b) => b.text().includes("0:12"))
     expect(btn).toBeTruthy()
     await btn!.trigger("click")
-    expect(w.emitted("seek")?.[0]).toEqual([12])
+    // "▶ Play from" seeks AND plays (operator 2026-10-05) — its own event, so the player plays.
+    expect(w.emitted("play-from")?.[0]).toEqual([12])
   })
 
   it("tapping a person chip opens its entity card (PRD-043)", async () => {
@@ -323,7 +324,7 @@ describe("KnowledgePanel", () => {
     expect(w.text()).toContain("A grounded passage about memory.")
     const jump = w.findAll("button").find((b) => b.text().includes("0:20"))
     await jump!.trigger("click")
-    expect(w.emitted("seek")?.at(-1)).toEqual([20])
+    expect(w.emitted("play-from")?.at(-1)).toEqual([20])
   })
 
   it('renders "More like this" peers with links to the player', async () => {

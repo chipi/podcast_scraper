@@ -121,7 +121,7 @@ describe("SearchView", () => {
     expect(push).toHaveBeenCalledWith({
       name: "player",
       params: { slug: "show-x" },
-      query: { t: "20" },
+      query: { t: "20", play: "1" }, // an explicit ▶ plays (operator 2026-10-05)
     })
     // #2 — each episode result carries its actions, as ONE ⋯ (operator 2026-10-05: the three
     // circles under the artwork were most of the header's height). Favourite and queue are inside it.

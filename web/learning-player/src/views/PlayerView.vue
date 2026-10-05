@@ -1106,6 +1106,11 @@ function toggleTranscript(): void {
 function seekContent(contentSeconds: number): void {
   player.seek(contentSeconds + syncOffset.value)
 }
+/** "▶ Play from" in the episode notes: an explicit ▶ seeks AND plays (operator 2026-10-05). */
+function playFromContent(contentSeconds: number): void {
+  seekContent(contentSeconds)
+  player.play()
+}
 
 // --- capture (P2, PRD-040): mark a moment, save a transcript paragraph/phrase ---
 // A paragraph's save control reads as "saved" when any of its segments is covered by a saved span.
@@ -1982,6 +1987,7 @@ onBeforeUnmount(() => {
           :focus-insight-id="focusInsightId"
           :focus-notes="focusNotes"
           @seek="seekContent"
+          @play-from="playFromContent"
           @announce="announceCapture"
           @close="panelOpen = false"
         />
