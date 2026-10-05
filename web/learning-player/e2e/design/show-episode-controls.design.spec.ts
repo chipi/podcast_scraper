@@ -54,6 +54,11 @@ test('shows and episodes on one page share one place for controls', async ({ pag
   await settle(page)
   await expect(page.getByTestId('search-shows')).toBeVisible({ timeout: 30_000 })
   await page.screenshot({ path: shot('search'), fullPage: true })
+  // ...and the show's ⋯ open, so the menu's contents are on record too.
+  await page.getByTestId('search-shows').getByTestId('show-row-menu').getByTestId('overflow-trigger').click()
+  await expect(page.getByTestId('overflow-menu').getByTestId('follow-show')).toBeVisible()
+  await page.screenshot({ path: shot('search-show-menu'), fullPage: false })
+  await page.keyboard.press('Escape')
 
   // 3. Discover › Shows, list view
   await page.goto('/browse?tab=shows')

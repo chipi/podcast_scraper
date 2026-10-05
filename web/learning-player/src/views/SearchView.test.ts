@@ -18,6 +18,8 @@ function makeRouter() {
     routes: [
       { path: "/search", name: "search", component: SearchView },
       { path: "/episode/:slug", name: "player", component: { template: "<div/>" } },
+      // Show rows link here; without it RouterLink throws mid-render and drops the whole view.
+      { path: "/podcast/:feedId", name: "podcast", component: { template: "<div/>" } },
       // Gated controls route here when signed out (#1590).
       { path: "/login", name: "login", component: { template: "<div/>" } },
       // #1261-9: EntityCardBody now renders an "Open in page" RouterLink to
@@ -231,6 +233,32 @@ describe("SearchView", () => {
 
     expect(w.text()).toContain("BBB result")
     expect(w.text()).not.toContain("AAA result")
+  })
+
+  it("puts every show action behind ONE ⋯ right of the name, like the episodes (operator 2026-10-05)", async () => {
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "singletrack", error: null, results: [] })
+    vi.spyOn(api, "getPodcasts").mockResolvedValue([
+      {
+        feed_id: "p01",
+        title: "Singletrack Sessions",
+        artwork_url: null,
+        image_url: null,
+        description: "Mountain biking talk.",
+        episode_count: 4,
+      },
+    ])
+    const { w } = await mountAt("singletrack")
+    const row = w.get('[data-testid="search-shows"]')
+    // Nothing on or under the artwork — the ⋯ beside the name is the row's only control.
+    expect(row.find('[data-testid="show-row-actions"]').exists()).toBe(false)
+    const menu = row.get('[data-testid="show-row-menu"]')
+    await menu.get('[data-testid="overflow-trigger"]').trigger("click")
+    await flushPromises()
+    const items = w.get('[data-testid="overflow-menu"]')
+    // Signed out here, so Follow says where it leads (#1590) rather than toggling.
+    expect(items.get('[data-testid="follow-show"]').text()).toContain("Sign in to follow")
+    expect(items.find('[data-testid="favorite-button"]').exists()).toBe(true)
+    expect(items.findAll('[role="menuitem"]').length).toBe(3) // follow · save · add to board
   })
 
   it("shows no-results when empty without error", async () => {

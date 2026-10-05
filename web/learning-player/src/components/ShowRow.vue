@@ -138,12 +138,20 @@ const canExpand = computed(() => !!description.value && (descClipped.value || de
     <div class="lp-media-body">
       <!-- The name WRAPS (UXS-014:70) — the width is elastic here, so there is no reserved-height
            row for a clamp to protect. The stretched ::after makes the whole row open the show. -->
-      <RouterLink
-        :to="{ name: 'podcast', params: { feedId: show.feed_id } }"
-        class="lp-show-name lp-show-name--3 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline after:absolute after:inset-0 sm:text-xl"
-        :title="title"
-        >{{ title }}</RouterLink
-      >
+      <!-- `#menu`: a ⋯ to the RIGHT of the name, where Search's episode cards put theirs (operator
+           2026-10-05), so shows and episodes on one page carry their actions in the same place.
+           `relative z-30` keeps it above the name's stretched link. -->
+      <div class="flex items-start gap-2">
+        <RouterLink
+          :to="{ name: 'podcast', params: { feedId: show.feed_id } }"
+          class="lp-show-name lp-show-name--3 min-w-0 flex-1 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline after:absolute after:inset-0 sm:text-xl"
+          :title="title"
+          >{{ title }}</RouterLink
+        >
+        <div v-if="$slots.menu" class="relative z-30 shrink-0" data-testid="show-row-menu">
+          <slot name="menu" />
+        </div>
+      </div>
       <!-- Who makes it and what it is filed under, between the title and the description: it belongs
            to the show's identity, so it reads above the blurb it introduces rather than below it
            (operator 2026-09-17). Joined, so separators fall only between values actually PRESENT —

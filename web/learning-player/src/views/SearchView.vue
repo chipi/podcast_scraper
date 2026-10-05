@@ -40,6 +40,7 @@ import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import TypeFilterBar from "../components/TypeFilterBar.vue"
 import ShowRow from "../components/ShowRow.vue"
+import ShowMenu from "../components/ShowMenu.vue"
 import { matchesAllWords } from "../utils/textMatch"
 
 const { t, locale } = useI18n()
@@ -851,7 +852,11 @@ const showEmpty = computed(
         {{ t("search.showsSummary", { count: showMatches.length }, showMatches.length) }}
       </p>
       <ul class="flex flex-col gap-2" data-testid="search-shows">
-        <li v-for="p in showMatches" :key="p.feed_id"><ShowRow :show="p" /></li>
+        <!-- Every show action behind one ⋯ right of the name — where the episode cards below put
+             theirs (operator 2026-10-05). -->
+        <li v-for="p in showMatches" :key="p.feed_id">
+          <ShowRow :show="p"><template #menu><ShowMenu :show="p" /></template></ShowRow>
+        </li>
       </ul>
     </template>
 

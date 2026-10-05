@@ -259,6 +259,14 @@ expanding RELEASES the clamp, or "Read more" would open onto text still cut at t
   show row: Discover → Shows (list view) and Library → Saved both render it, differing only through
   its `#actions` slot.
 
+  **Where shows and episodes share a page, they share one place for controls** (operator
+  2026-10-05). Library → Saved and Discover → Shows (list) put the show's controls in a row UNDER the
+  artwork (`actionsBelow`), exactly where `EpisodeCard` puts its own. Search, whose episode cards
+  carry a single `⋯` right of the title, gives each show row the same: a `⋯` right of the name
+  (`#menu`) holding **`ShowMenu`** — Follow, Save, Add to board. Library → Following, which lists no
+  episodes, keeps the plated column over the artwork. The Follow pill reads just "Follow" /
+  "Following" — no "+" and no "show" — so it fits beside the heart in the 128px column.
+
   **A show and an episode are the same kind of thing to a reader** — cover art, a name, a line about
   it, something to open — so a list of shows must not read as a different species from the list of
   episodes one tab across. It did: Discover used a 44px thumbnail with a title and a count, Library
