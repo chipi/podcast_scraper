@@ -50,6 +50,9 @@ beforeEach(async () => {
   // Default: no storylines. Unmocked, the onMounted fetch rejects into an unhandled rejection that
   // Vitest reports across the whole run.
   vi.spyOn(api, "getStorylines").mockResolvedValue([])
+  // Default: an empty catalogue for the show matches. Unmocked, it resolved to `undefined` and the
+  // show-match computed threw into Vue's flush — an unhandled error across the whole run.
+  vi.spyOn(api, "getPodcasts").mockResolvedValue([])
   // Default: an EMPTY capture. Unmocked, `ensureLoaded()` fails against no server and the store then
   // RECOVERS FROM CACHE — so notes seeded by one test were served to every later test whose fetch
   // failed, which is most of them. A succeeding empty fetch overwrites instead, and tests that want
