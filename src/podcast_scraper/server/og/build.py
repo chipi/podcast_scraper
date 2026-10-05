@@ -520,6 +520,63 @@ def _episode(root: Path, ident: str, with_art: bool = True) -> OgCardModel | Non
     )
 
 
+#: A highlight's quote is the card's hero, so it gets far more room than an entity card's lede.
+_MAX_HIGHLIGHT_QUOTE = 320
+
+
+def build_highlight_card(
+    root: Path, highlight: dict[str, object], *, with_art: bool = True
+) -> OgCardModel | None:
+    """The card for ONE of a user's highlights — the quote card (operator 2026-10-05).
+
+    Drawn by the same renderer as every other card, so a shared highlight looks like the rest: the
+    episode's artwork full-bleed behind it, the show in the kicker, the episode as a short title,
+    the QUOTE as the hero, who said it and when, and the topics / people it is about. A moment saved
+    before its words were captured carries no quote; the card still names the episode and the time.
+
+    Not an OG card: a highlight is private, so this is served signed-in, never unfurled. ``None``
+    when the episode has left the corpus.
+    """
+    from podcast_scraper.server.app_slugs import resolve_slug
+
+    row = resolve_slug(root, str(highlight.get("episode_slug") or ""))
+    if row is None:
+        return None
+    quote = _clip(str(highlight.get("quote_text") or "") or None, _MAX_HIGHLIGHT_QUOTE)
+    start_ms = highlight.get("start_ms")
+    at = None
+    if isinstance(start_ms, (int, float)) and start_ms >= 0:
+        secs = int(start_ms) // 1000
+        h, rem = divmod(secs, 3600)
+        at = f"{h}:{rem // 60:02d}:{rem % 60:02d}" if h else f"{rem // 60}:{rem % 60:02d}"
+    speaker = str(highlight.get("speaker") or "").strip() or None
+    byline_parts = [f"— {speaker}" if speaker else None, f"at {at}" if at else None]
+    byline = " · ".join(p for p in byline_parts if p) or None
+    refs = highlight.get("graph_refs") or []
+    labels = [str(r.get("label")) for r in refs if isinstance(r, dict) and r.get("label")][:3]
+    mins = round(row.duration_seconds / 60) if row.duration_seconds else None
+    meta = [f"{mins} min" if mins else None, _published(row.publish_date)]
+    art = (
+        _artwork_bytes(root, row.episode_image_local_relpath or row.feed_image_local_relpath)
+        if with_art
+        else None
+    )
+    return OgCardModel(
+        kicker=f"Highlight · {row.feed_title}" if row.feed_title else "Highlight",
+        title=row.episode_title or "Untitled episode",
+        quote=quote,
+        byline=byline,
+        stats=" · ".join(m for m in meta if m) or None,
+        tags=" · ".join(labels) or None,
+        accent=accent_for_kind("episode"),
+        artwork=art,
+        background=True,
+        title_lines=2,
+        quote_lines=7,
+        veil_mid=210,  # the quote runs through the middle — keep the art a texture, not a fight
+    )
+
+
 def _published(publish_date: str | None) -> str | None:
     """A compact 'Mon YYYY' for the footer, or None when the date isn't parseable."""
     if not publish_date or len(publish_date) < 7:

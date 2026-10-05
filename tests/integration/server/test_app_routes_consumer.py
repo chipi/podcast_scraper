@@ -584,6 +584,67 @@ def test_highlight_capture_persists_graph_refs(tmp_path: Path) -> None:
     assert listed["graph_refs"] == refs
 
 
+def test_highlight_card_is_the_server_card_for_its_owner_only(tmp_path: Path) -> None:
+    # The quote card (operator 2026-10-05): drawn by the same server renderer as every share card,
+    # served signed-in for the highlight's OWNER — a highlight is private, never an unfurl.
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    hid = client.post(
+        "/api/app/highlights",
+        json={"episode_slug": slug, "kind": "span", "start_ms": 65000, "quote_text": "a line"},
+    ).json()["id"]
+
+    card = client.get(f"/api/app/highlights/{hid}/card.png")
+    assert card.status_code == 200, card.text
+    assert card.headers["content-type"] == "image/png"
+    assert card.content[:8] == b"\x89PNG\r\n\x1a\n"
+    assert card.headers["cache-control"].startswith("private")
+
+    assert client.get("/api/app/highlights/ghost/card.png").status_code == 404
+    # Someone else's highlight is not theirs to render — 404, not the card.
+    from podcast_scraper.server import app_sessions
+    from podcast_scraper.server.app_user_store import get_or_create_user
+
+    other = get_or_create_user(
+        tmp_path / "appdata", provider="stub", subject="other", email="o@x.com", name="O"
+    )
+    token = app_sessions.sign({"user_id": other.user_id, "iat": int(time.time())}, "test-secret")
+    client.cookies.set(app_sessions.SESSION_COOKIE, token)
+    assert client.get(f"/api/app/highlights/{hid}/card.png").status_code == 404
+    # And signed out, nothing at all.
+    client.cookies.clear()
+    assert client.get(f"/api/app/highlights/{hid}/card.png").status_code == 401
+
+
+def test_highlight_card_model_leads_with_the_quote(tmp_path: Path) -> None:
+    from podcast_scraper.server.og.build import build_highlight_card
+
+    _corpus(tmp_path)
+    slug = _slug(tmp_path, "ep1")
+    m = build_highlight_card(
+        tmp_path,
+        {
+            "episode_slug": slug,
+            "quote_text": "x " * 120,
+            "speaker": "Jane Doe",
+            "start_ms": 3_725_000,
+            "graph_refs": [{"label": "AI"}, {"label": "Jane Doe"}],
+        },
+    )
+    assert m is not None
+    assert m.kicker == "Highlight · My Show"
+    assert m.byline == "— Jane Doe · at 1:02:05"
+    assert m.tags == "AI · Jane Doe"
+    # The quote is the hero: room for it, a short title, and a darker veil behind the text.
+    assert m.quote_lines > m.title_lines and m.veil_mid > 120
+    assert m.quote is not None and len(m.quote) <= 320
+    # A moment saved before its words were captured still names who/when, with no quote.
+    bare = build_highlight_card(tmp_path, {"episode_slug": slug, "start_ms": 1000})
+    assert bare is not None and bare.quote is None and bare.byline == "at 0:01"
+    assert build_highlight_card(tmp_path, {"episode_slug": "gone"}) is None
+
+
 def test_note_create_list_patch_delete(tmp_path: Path) -> None:
     client = _authed(tmp_path)
     created = client.post(
