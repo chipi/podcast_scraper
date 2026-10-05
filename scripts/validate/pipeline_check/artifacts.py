@@ -16,7 +16,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-_TS = re.compile(r"_\d{8}-\d{6}_")
+#: The run timestamp the pipeline puts in every file name, before `_<hash>` or the extension.
+_TS = re.compile(r"_\d{8}-\d{6}(?=[_.])")
 _RUN = re.compile(r"run_[^/]+")
 VOLATILE = re.compile(
     r"(time|_at$|date|duration|elapsed|run_id|^run$|trace|path|dir$|release|sha|started|finished|"
@@ -108,16 +109,30 @@ def _diff(a: Any, b: Any, path: str, skip: List[str], out: List[str]) -> None:
         out.append(f"~ {path}: {json.dumps(a)[:80]} -> {json.dumps(b)[:80]}")
 
 
+def diff_key(line: str) -> str:
+    """The field a difference line is about, without its values: ``<episode>: ~ <path>``.
+
+    Two runs that differ on the same field produce the same key, which is what lets a field the
+    base disagrees with itself on be recognised as noise.
+    """
+    parts = line.split(": ", 2)
+    return f"{parts[0]}: {parts[1]}" if len(parts) == 3 else line
+
+
 def compare_deterministic(
     base: Dict[str, Any], cand: Dict[str, Any], allowed: Dict[str, Any], llm_fields: List[str]
 ) -> List[str]:
     """Differences in what should not move, apart from the allowed list."""
     out: List[str] = []
     new_globs = allowed.get("new_files", [])
-    for f in sorted(set(cand["files"]) - set(base["files"])):
+    # Normalised again here, not only at collection: results saved by an older run (--reuse) carry
+    # names normalised by whatever rule that run had.
+    cand_files = {_norm(f) for f in cand["files"]}
+    base_files = {_norm(f) for f in base["files"]}
+    for f in sorted(cand_files - base_files):
         if not any(fnmatch.fnmatch(Path(f).name, g) for g in new_globs):
             out.append(f"new file: {f}")
-    for f in sorted(set(base["files"]) - set(cand["files"])):
+    for f in sorted(base_files - cand_files):
         out.append(f"missing file: {f}")
     for key in sorted(set(base["episodes"]) | set(cand["episodes"])):
         b, c = base["episodes"].get(key), cand["episodes"].get(key)

@@ -1619,7 +1619,7 @@ pipeline-check:
 	  $(if $(PROFILE),--profile "$(PROFILE)") \
 	  $(if $(OVERRIDES),--overrides '$(OVERRIDES)') \
 	  $(if $(CORPUS),--corpus "$(CORPUS)") \
-	  $(if $(REAL),--real --feed "$(FEED)" $(if $(MAX_EPISODES),--max-episodes $(MAX_EPISODES))); \
+	  $(if $(REAL),--real --feed "$(FEED)" $(if $(MAX_EPISODES),--max-episodes $(MAX_EPISODES)) $(if $(REUSE),--reuse)); \
 	  status=$$?; echo "PIPELINE_CHECK_EXIT=$$status"; exit $$status
 
 # Corpus upgrade-path framework (#862). Managed, idempotent migrations for moving a

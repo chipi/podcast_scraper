@@ -136,16 +136,41 @@ export VLLM_API_KEY=EMPTY   # the DGX vLLM endpoints' key (infra/vllm/*/docker-c
 make pipeline-check REAL=1 BASE=origin/main FEED=<rss url> PROFILE=prod_dgx_full MAX_EPISODES=1
 ```
 
-- The base runs **twice**, the candidate once. The two base runs define the noise band.
-- All runs share one transcript cache, so Whisper runs once per episode and every side reads the
-  same transcript: ASR non-determinism is removed, not measured.
-- `vector_search` is off in real mode (local embeddings need an ML stack not every machine has).
-- **Deterministic artifacts** (file set, `metadata.json` minus the LLM's own fields, the processing
-  manifest) must equal the base apart from `allowed_artifact_differences`.
+The runs, in order (each in `.test_outputs/pipeline-check/real/<run>/`, log in `pipeline.log`):
+
+1. **`warmup`** (base code) — the only run that transcribes and diarizes; it fills a transcript
+   cache shared by every run. **Never compared**: a cache miss and a cache hit take different code
+   paths and record different stages, so mixing them would make the base differ from itself.
+2. **`warmup-candidate`** — the cache KEY includes the transcription provider's name, which two
+   refs may spell differently (a failover wrapper on one, the bare provider on the other). The
+   candidate warms up under its own key, then every entry for the same audio is given the base's
+   transcript, so both sides read byte-identical text.
+3. **`base-1`, `base-2`, `candidate`** — all cache hits on that one transcript. The two base runs
+   define the noise; the candidate is compared against them.
+
+What is compared:
+
+- **Decisions** — the candidate's, against `real.decisions_resolve_to` in `expectations.yaml`.
+  The cache-hit runs skip ASR, diarization and naming, so those decisions come from
+  `warmup-candidate` (its `worker.json`); its speaker record can be compared with `warmup`'s.
+- **Deterministic artifacts** — file set, `metadata.json` (minus the LLM's own fields), processing
+  manifest — must equal `base-1` apart from `allowed_artifact_differences`, **and apart from
+  observed noise**: any field on which `base-1` and `base-2` already disagree (an LLM count, the
+  run's own path) cannot tell the candidate apart, so it is excluded — and listed in the report
+  under "Excluded as noise". Read that list: a field you expected to be deterministic showing up
+  there is a finding about the base, not a pass.
 - **LLM output** — insights, grounded share, quotes, summary bullets, and word/name overlap of the
-  summary and KG — is compared against the band: `max(base-vs-base spread, 10% of the value,
-  floor)`; overlaps must be within 0.1 of the base's own overlap. Outside the band is flagged
-  `LOOK AT THIS`; it does not fail the verdict by itself.
+  summary and KG — against a band: `max(base-vs-base spread, 10% of the value, floor)`; overlaps
+  must be within 0.1 of the base's own overlap. Outside the band is flagged `LOOK AT THIS`, not
+  failed: two base runs are a rough estimate of the noise. Follow a flag up by checking that the
+  stage's INPUT was identical (e.g. `transcripts/*.adfree.txt` hashes) — then it is the model.
+
+Safety: real mode forces `audio_storage_backend: local` (a profile may point at prod's audio
+archive; a check must never upload) and `vector_search: false`.
+
+`REUSE=1` re-runs only the comparison on the saved `worker.json` files — use it after changing
+the tool or the expectations, instead of spending the DGX again. Delete a run's directory to
+re-run just that run.
 
 **Only run real mode when the DGX is quiet** — it shares the GPU with production, and a busy GPU
 makes a 30-minute episode take an hour in the Whisper queue. Check the GPU first:
@@ -155,7 +180,8 @@ curl -s http://homelab:8428/api/v1/query --data-urlencode \
   'query=avg_over_time(DCGM_FI_DEV_GPU_UTIL[10m])' | grep -o '"value":\[[^]]*\]'
 ```
 
-Cost per run: ASR once per episode (shared), plus three full LLM passes (two base, one candidate).
+Cost: ASR twice per episode (the two warm-ups), plus five LLM passes. On a quiet DGX one
+35-minute episode took about 45 minutes in total (2026-10-06).
 
 ## Limits
 

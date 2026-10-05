@@ -18,7 +18,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "validate"))
 
-from pipeline_check import artifacts  # noqa: E402
+from pipeline_check import artifacts, cli  # noqa: E402
 
 pytestmark = pytest.mark.unit
 
@@ -104,3 +104,39 @@ def test_llm_counts_inside_the_base_spread_are_ok_and_outside_are_flagged(tmp_pa
 
     assert ok(near) is True
     assert ok(far) is False
+
+
+# --- what the first real run taught (2026-10-06) -------------------------------------------------
+
+
+def test_run_timestamps_are_normalised_before_an_extension_too(tmp_path: Path) -> None:
+    """The pipeline ends names with `_YYYYMMDD-HHMMSS.mp3`; matching only `…_` left every file
+    looking new on one side and missing on the other."""
+    a = {"files": ["run_X/media/0001 - Show_20261006-004514.mp3"], "episodes": {}}
+    b = {"files": ["run_X/media/0001 - Show_20261006-010149.mp3"], "episodes": {}}
+    assert artifacts.compare_deterministic(a, b, {}, []) == []
+
+
+def test_a_field_differs_the_same_way_whatever_its_values(tmp_path: Path) -> None:
+    """The noise rule matches a field the base disagreed with itself on, not its values."""
+    one = artifacts.diff_key("ep1: ~ grounded_insights.insight_count: 41 -> 38")
+    two = artifacts.diff_key("ep1: ~ grounded_insights.insight_count: 41 -> 45")
+    assert one == two == "ep1: ~ grounded_insights.insight_count"
+    assert artifacts.diff_key("new file: run_X/x.json") == "new file: run_X/x.json"
+
+
+def test_every_cache_entry_of_one_audio_gets_the_bases_transcript(tmp_path: Path) -> None:
+    """Two refs may key the same audio differently (a FallbackChain wrapper vs the bare
+    provider); both entries must then hold the base's transcript, each keeping its own key."""
+    base = {"cached_at": "2026-10-06T00:52", "provider": "fallback_chain", "text": "base words"}
+    cand = {"cached_at": "2026-10-06T01:07", "provider": "tailnetdgx", "text": "other words"}
+    (tmp_path / "abc_f5c30805.json").write_text(json.dumps(base), encoding="utf-8")
+    (tmp_path / "abc_7bf00dbe.json").write_text(json.dumps(cand), encoding="utf-8")
+    (tmp_path / "zzz_11111111.json").write_text(json.dumps(cand), encoding="utf-8")
+
+    assert cli.unify_transcript_cache(tmp_path) == ["abc_7bf00dbe.json"]
+    got = json.loads((tmp_path / "abc_7bf00dbe.json").read_text(encoding="utf-8"))
+    assert got["text"] == "base words"
+    assert got["provider"] == "tailnetdgx", "each entry keeps its own key"
+    unrelated = json.loads((tmp_path / "zzz_11111111.json").read_text(encoding="utf-8"))
+    assert unrelated["text"] == "other words", "a different audio file is left alone"

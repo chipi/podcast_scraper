@@ -23,7 +23,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from . import compare, report
 
@@ -110,8 +110,16 @@ def run_worker(
 def run_real_worker(
     src: Path, args: argparse.Namespace, run_dir: Path, cache: Path
 ) -> Dict[str, Any]:
-    """One real pipeline run of *src* in its own process; logs to ``run_dir/pipeline.log``."""
+    """One real pipeline run of *src* in its own process; logs to ``run_dir/pipeline.log``.
+
+    With ``--reuse`` an existing ``worker.json`` is read instead of running again: the comparison
+    can be re-done (after a tool fix, say) without spending the DGX twice.
+    """
     out = run_dir / "worker.json"
+    if args.reuse and out.exists():
+        print(f"reusing {out}")
+        reused: Dict[str, Any] = json.loads(out.read_text(encoding="utf-8"))
+        return reused
     cmd = [
         sys.executable,
         "-m",
@@ -143,6 +151,31 @@ def run_real_worker(
     return data
 
 
+def unify_transcript_cache(cache: Path) -> List[str]:
+    """Give every cache entry of one audio file the content of the OLDEST entry (the base's).
+
+    Entries are ``<audio_hash>_<fingerprint>.json``; only the transcript content is copied — each
+    file keeps its own ``provider`` field, so each ref still finds the entry under its own key.
+    Returns the files rewritten.
+    """
+    rewritten: List[str] = []
+    groups: Dict[str, List[Path]] = {}
+    for path in sorted(cache.glob("*.json")):
+        groups.setdefault(path.name.split("_", 1)[0], []).append(path)
+    for paths in groups.values():
+        if len(paths) < 2:
+            continue
+        docs = {p: json.loads(p.read_text(encoding="utf-8")) for p in paths}
+        source = min(paths, key=lambda p: str(docs[p].get("cached_at", "")))
+        for path in paths:
+            if path == source:
+                continue
+            merged = {**docs[source], "provider": docs[path].get("provider")}
+            path.write_text(json.dumps(merged), encoding="utf-8")
+            rewritten.append(path.name)
+    return rewritten
+
+
 def main_real(
     args: argparse.Namespace, spec: Dict[str, Any], candidate_src: Path, base_src: Optional[Path]
 ) -> int:
@@ -154,6 +187,20 @@ def main_real(
     root = args.out / "real"
     cache = root / "transcript-cache"
     real_spec = spec.get("real", {})
+    # WARM-UP, NEVER COMPARED. The first run transcribes and diarizes; every later run reads the
+    # shared cache and takes the cache-hit path, which records different stages and files. Mixing
+    # the two made the first base differ from everything else on stages.asr / stages.naming /
+    # content.speakers — and the noise rule then excluded exactly the speaker fields the check is
+    # for. So the cache is filled by a run of its own, and every compared run is a cache hit.
+    run_real_worker(base_src or candidate_src, args, root / "warmup", cache)
+    # The cache KEY includes the transcription provider's name, which two refs may spell
+    # differently (a FallbackChain wrapper on one, the bare provider on the other) — then the
+    # candidate never hits the base's entry and transcribes again, and Whisper's noise is back.
+    # So the candidate warms up too, and every entry for the same audio is then given the base's
+    # transcript: both sides read byte-identical text.
+    if base_src:
+        run_real_worker(candidate_src, args, root / "warmup-candidate", cache)
+        unify_transcript_cache(cache)
     bases = (
         [
             run_real_worker(base_src, args, root / f"base-{i + 1}", cache)
@@ -179,13 +226,30 @@ def main_real(
                 )
             )
     llm = None
+    noise_fields: List[str] = []
     if bases:
-        diffs = artifacts.compare_deterministic(
-            bases[0]["real"]["artifacts"],
-            cand["real"]["artifacts"],
-            spec.get("allowed_artifact_differences", {}),
-            real_spec.get("llm_fields", []),
-        )
+        allowed = spec.get("allowed_artifact_differences", {})
+        llm_fields = real_spec.get("llm_fields", [])
+        first = bases[0]["real"]["artifacts"]
+        # NOISE BY OBSERVATION: a field the base disagrees with ITSELF on (two runs of the same
+        # code, same transcript) is produced by something non-deterministic — an LLM count, a
+        # run path. It cannot tell the candidate apart from the base, so it is excluded, and
+        # reported, rather than guessed at with a hand list.
+        noise: Set[str] = set()
+        for other in bases[1:]:
+            noise |= {
+                artifacts.diff_key(d)
+                for d in artifacts.compare_deterministic(
+                    first, other["real"]["artifacts"], allowed, llm_fields
+                )
+            }
+        diffs = [
+            d
+            for d in artifacts.compare_deterministic(
+                first, cand["real"]["artifacts"], allowed, llm_fields
+            )
+            if artifacts.diff_key(d) not in noise
+        ]
         for d in diffs:
             res.findings.append(
                 compare.Finding("base", "Real run artifacts", "base vs candidate", d)
@@ -193,14 +257,15 @@ def main_real(
         res.stage_status["Real run"] = (
             f"{len(diffs)} unexpected artifact difference(s)"
             if diffs
-            else "artifacts identical to base (allowed list excepted)"
+            else "artifacts identical to base (allowed list and observed noise excepted)"
         )
+        noise_fields = sorted(noise)
         llm = {
             "rows": artifacts.llm_rows(
                 [b["real"]["artifacts"] for b in bases], cand["real"]["artifacts"]
             )
         }
-    res.coverage = compare.coverage(cand)
+    res.coverage = {**compare.coverage(cand), "noise_fields": noise_fields}
 
     page = report.render(
         [res],
@@ -244,6 +309,7 @@ def main(argv: List[str]) -> int:
     ap.add_argument(
         "--base-runs", type=int, default=2, help="base runs in --real (2 = a noise band)"
     )
+    ap.add_argument("--reuse", action="store_true", help="--real: reuse existing runs' results")
     args = ap.parse_args(argv)
 
     spec = _load_expectations(args.expectations)

@@ -59,9 +59,13 @@ def render(
         for f in r.findings:
             if f.kind == "hole":
                 holes_by_area[f.area] = holes_by_area.get(f.area, 0) + 1
+        known = [a for a in AREAS.values()]
+        extra = sorted(
+            (set(r.decisions_per_area) | set(holes_by_area) | set(r.stage_status)) - set(known)
+        )
         shown = [
             a
-            for a in AREAS.values()
+            for a in known + extra
             if a in r.decisions_per_area or a in holes_by_area or a in r.stage_status
         ]
         for area in shown:
@@ -96,6 +100,14 @@ def render(
             ),
             "",
         ]
+        if cov.get("noise_fields"):
+            lines += [
+                f"**Excluded as noise** ({len(cov['noise_fields'])}) — the base runs disagreed "
+                "with each other on these, so they cannot tell the candidate apart:",
+                "",
+                *[f"- `{n}`" for n in cov["noise_fields"]],
+                "",
+            ]
 
     lines += ["## LLM variation (informative)", ""]
     if not llm:

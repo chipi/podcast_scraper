@@ -89,6 +89,9 @@ def run_real(args: argparse.Namespace, rec: recorder.Recorder) -> Dict[str, Any]
         "transcript_cache_enabled": True,
         "transcript_cache_dir": str(args.transcript_cache),
         "vector_search": False,
+        # Never write to a real audio archive: the profile under test may point at prod's rclone
+        # remote, and a check must not upload anything anywhere.
+        "audio_storage_backend": "local",
         **json.loads(args.overrides),
     }
     cfg_path = run_dir / "config.yaml"
