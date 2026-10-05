@@ -19,12 +19,12 @@ test('the episode action row favourites and queues an episode against the real A
   await expect(row).toBeVisible()
 
   // Favourite: toggle on, confirm the label flips to "Remove", then toggle back off.
-  const favAdd = row.getByRole('button', { name: 'Save to favorites' })
+  const favAdd = row.getByRole('button', { name: 'Save', exact: true })
   await expect(favAdd).toBeVisible()
   await favAdd.click()
-  await expect(row.getByRole('button', { name: 'Remove from favorites' })).toBeVisible()
-  await row.getByRole('button', { name: 'Remove from favorites' }).click()
-  await expect(row.getByRole('button', { name: 'Save to favorites' })).toBeVisible()
+  await expect(row.getByRole('button', { name: 'Remove from Saved' })).toBeVisible()
+  await row.getByRole('button', { name: 'Remove from Saved' }).click()
+  await expect(row.getByRole('button', { name: 'Save', exact: true })).toBeVisible()
 
   // Queue: same round-trip.
   //

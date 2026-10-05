@@ -9,7 +9,7 @@ import XCTest
  *   02  episode → insights
  *   03  topic page → storyline page
  *   04  person page, reached from an episode's entities
- *   05  collections: create, then "Add to collection" lists them
+ *   05  collections: create, then "Add to board" lists them
  *   06  share popover renders its options
  *   07  saved-item colour picker popover renders and a colour can be chosen
  *
@@ -264,10 +264,10 @@ final class AppJourneyTests: UITestCase {
     Journey.shot(self, "05-collections-after")
     Journey.inventory(app, "collections-after")
 
-    // Now the "Add to collection" sheet on an episode must LIST those collections.
+    // Now the "Add to board" sheet on an episode must LIST those collections.
     AppSession.openEpisode(app, slug: episodeSlug)
     sleep(6)
-    if Journey.tap(app, labels: ["Add to collection"], contains: true, timeout: 15) {
+    if Journey.tap(app, labels: ["Add to board"], contains: true, timeout: 15) {
       sleep(3)
       Journey.inventory(app, "add-to-collection")
       Journey.shot(self, "05-add-to-collection")
@@ -278,7 +278,7 @@ final class AppJourneyTests: UITestCase {
     } else {
       Journey.inventory(app, "episode-no-addto")
       Journey.shot(self, "05-add-to-collection-MISS")
-      XCTFail("'Add to collection' not reachable from the episode")
+      XCTFail("'Add to board' not reachable from the episode")
     }
   }
 
@@ -323,8 +323,8 @@ final class AppJourneyTests: UITestCase {
     for seed in colourSeeds.dropFirst() {
       AppSession.openEpisode(app, slug: seed.slug)
       sleep(5)
-      if Journey.find(app, labels: ["Save to favorites"], contains: true, timeout: 8) != nil {
-        _ = Journey.tap(app, labels: ["Save to favorites"], contains: true, timeout: 8)
+      if Journey.find(app, labels: ["Save"], contains: false, timeout: 8) != nil {
+        _ = Journey.tap(app, labels: ["Save"], contains: false, timeout: 8)
         sleep(3)
       }
       Journey.openTab(app, "Library")
@@ -347,12 +347,12 @@ final class AppJourneyTests: UITestCase {
     // Favourite only if it is not ALREADY favourited. A blind tap toggles, so running after a test
     // that favourited this episode un-favourited it and left Saved empty — the colour control then
     // "could not be reached" because there was nothing to colour (2026-09-16).
-    if Journey.find(app, labels: ["Save to favorites"], contains: true, timeout: 8) != nil {
-      _ = Journey.tap(app, labels: ["Save to favorites"], contains: true, timeout: 8)
+    if Journey.find(app, labels: ["Save"], contains: false, timeout: 8) != nil {
+      _ = Journey.tap(app, labels: ["Save"], contains: false, timeout: 8)
       sleep(3)
     }
     XCTAssertNotNil(
-      Journey.find(app, labels: ["Remove from favorites"], contains: true, timeout: 10),
+      Journey.find(app, labels: ["Remove from Saved"], contains: true, timeout: 10),
       "the episode is not favourited, so Saved would be empty"
     )
 

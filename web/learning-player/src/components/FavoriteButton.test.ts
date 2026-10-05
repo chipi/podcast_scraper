@@ -36,11 +36,11 @@ describe('FavoriteButton', () => {
     // (2026-09-25, found by the Android device tier). Asserting both halves keeps the state
     // check and adds the one that was missing.
     expect(w.find('[aria-hidden="true"]').text()).toBe('♡') // not yet saved
-    expect(w.find('.sr-only').text()).toBe('Save to favorites')
+    expect(w.find('.sr-only').text()).toBe('Save')
     await w.find('button').trigger('click')
     await flushPromises()
     expect(add).toHaveBeenCalledWith(item)
     expect(w.find('[aria-hidden="true"]').text()).toBe('♥') // store now reports it saved
-    expect(w.find('.sr-only').text()).toBe('Remove from favorites')
+    expect(w.find('.sr-only').text()).toBe('Remove from Saved')
   })
 })
