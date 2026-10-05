@@ -221,8 +221,18 @@ function searchLibrary(): void {
       class="mb-2 hidden items-baseline justify-between gap-2 lg:flex"
       data-testid="ec-topic-activity-head"
     >
-      <h3 class="lp-section">{{ t("ec.discussedOverTime") }}</h3>
-      <TrendMomentum v-if="topicMomentum" variant="badge" hide-spark :velocity="topicMomentum.v" />
+      <h3 class="lp-section whitespace-nowrap">{{ t("ec.discussedOverTime") }}</h3>
+      <!-- `!w-auto shrink-0`: the badge variant is a full-width column by default; in this row that
+           claimed the free space, squeezed the title onto two lines and pushed the chart 25px below
+           the arc's (measured 2026-10-05). -->
+      <TrendMomentum
+        v-if="topicMomentum"
+        variant="badge"
+        hide-spark
+        :velocity="topicMomentum.v"
+        class="!w-auto shrink-0"
+        data-testid="ec-topic-momentum-head"
+      />
     </div>
     <TrendMomentum
       v-if="topicMomentum"
@@ -260,21 +270,24 @@ function searchLibrary(): void {
        voices follows the storyline link. -->
   <div :class="props.wide ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6' : ''" data-testid="ec-topic-related">
   <div data-testid="ec-topic-related-left">
+  <!-- No section heading (operator 2026-10-05): the count rides IN the pill row as a small kicker
+       label — the label-then-pills style of the show page's "What this show's about" groups. -->
   <section v-if="siblings.length" class="mb-4" data-testid="ec-similar-topics">
-    <CollapsibleSection :title="t('ec.clusterMembers', siblings.length, { named: { count: siblings.length } })" section-key="topic-similar" :level="3">
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          v-for="s in siblings"
-          :key="s.id"
-          type="button"
-          data-testid="ec-similar-topic"
-          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-          @click="emit('open', { kind: 'topic', id: s.id })"
-        >
-          {{ s.label }}
-        </button>
-      </div>
-    </CollapsibleSection>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <span class="lp-kicker mr-1" data-testid="ec-similar-label">{{
+        t("ec.clusterMembers", siblings.length, { named: { count: siblings.length } })
+      }}</span>
+      <button
+        v-for="s in siblings"
+        :key="s.id"
+        type="button"
+        data-testid="ec-similar-topic"
+        class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+        @click="emit('open', { kind: 'topic', id: s.id })"
+      >
+        {{ s.label }}
+      </button>
+    </div>
   </section>
 
   <!-- Part of a theme: the grouping this topic MEANS the same thing as. Sits directly above the

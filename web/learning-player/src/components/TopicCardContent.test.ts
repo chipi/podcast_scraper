@@ -202,6 +202,10 @@ describe("the theme a topic belongs to", () => {
     expect(section.text()).not.toContain("Part of a theme")
     expect(w.get('[data-testid="ec-theme-kind"]').text()).toBe("Theme · 5 topics")
     expect(section.text()).toContain("Diving")
+    // Similar topics: no section heading — the count is an inline label at the start of the pill row.
+    const similar = w.get('[data-testid="ec-similar-topics"]')
+    expect(similar.find("h3").exists()).toBe(false)
+    expect(similar.get('[data-testid="ec-similar-label"]').text()).toBe("1 similar topic")
     // The count is the whole cluster, not the siblings (which exclude the topic you are on).
     expect(section.text()).toContain("5")
   })

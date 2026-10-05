@@ -52,7 +52,8 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   // has since required these cards to stack, so drilling into a topic never throws it away. The
   // check that matters is now that BOTH are on screen — person on top, topic still underneath.
   await section.getByRole('button', { name: 'Daniel Cho' }).click()
-  await expect(page.getByRole('heading', { name: 'Daniel Cho' })).toBeVisible()
+  // exact: the person card also carries "Who agrees with Daniel Cho" (2026-10-05).
+  await expect(page.getByRole('heading', { name: 'Daniel Cho', exact: true })).toBeVisible()
   await expect(page.getByTestId('topic-perspectives')).toHaveCount(1)
 })
 
