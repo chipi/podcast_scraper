@@ -357,6 +357,48 @@
             "null"
           ],
           "description": "The episode's own description from its feed (the publisher's blurb), cut at a word."
+        },
+        "themes": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Themes the episode's topics belong to: chips to /theme/<tc: id>."
+        },
+        "storylines": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Storylines the episode's topics belong to: chips to /storyline/<anchor topic id>."
         }
       }
     },
@@ -503,6 +545,48 @@
             "null"
           ],
           "description": "The episode's own description from its feed (the publisher's blurb), cut at a word."
+        },
+        "themes": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Themes the episode's topics belong to: chips to /theme/<tc: id>."
+        },
+        "storylines": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Storylines the episode's topics belong to: chips to /storyline/<anchor topic id>."
         }
       }
     },

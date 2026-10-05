@@ -17,6 +17,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Iterable
 
+from podcast_scraper.search.storylines import (
+    storyline_map_by_topic,
+    top_storylines_by_member_count,
+)
+from podcast_scraper.search.topic_clusters import theme_map_by_topic
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_slugs import resolve_slug
 
@@ -53,6 +58,51 @@ def episode_display(root: Path, slug: str) -> dict[str, Any]:
     return {k: v for k, v in facts.items() if v not in (None, "")}
 
 
+#: Chips per kind under an email episode — the app's chip rows are short too.
+GROUPING_CHIPS = 2
+
+
+class Groupings:
+    """The themes and storylines an episode's topics belong to (operator 2026-10-05: topic, theme
+    and storyline chips wherever an email shows an episode). The two corpus maps load ONCE per
+    email batch, not per item.
+
+    A theme is addressed by its own ``tc:`` id (the /theme/:id route); a storyline by its ANCHOR
+    topic id (the /storyline/:id route) — and only storylines that clear the corpus surfacing floor
+    have an anchor, so every chip opens a real page (the rule app_recap_view.episode_storylines
+    applies).
+    """
+
+    def __init__(self, root: Path) -> None:
+        self._themes = theme_map_by_topic(root)
+        self._storyline_of = storyline_map_by_topic(root)
+        self._storylines = {c["id"]: c for c in top_storylines_by_member_count(root, top_n=1000)}
+
+    def for_topics(self, topic_ids: Iterable[str]) -> dict[str, list[dict[str, str]]]:
+        themes: list[dict[str, str]] = []
+        storylines: list[dict[str, str]] = []
+        seen_t: set[str] = set()
+        seen_s: set[str] = set()
+        for tid in topic_ids:
+            th = self._themes.get(tid)
+            if th and th["cluster_id"] not in seen_t and len(themes) < GROUPING_CHIPS:
+                seen_t.add(th["cluster_id"])
+                themes.append({"id": th["cluster_id"], "label": str(th["cluster_label"])})
+            info = self._storyline_of.get(tid)
+            summary = self._storylines.get(info.get("storyline_id")) if info else None
+            if summary and len(storylines) < GROUPING_CHIPS:
+                anchor = str(summary["anchor_topic_id"])
+                if anchor not in seen_s:
+                    seen_s.add(anchor)
+                    storylines.append({"id": anchor, "label": str(summary["label"])})
+        out: dict[str, list[dict[str, str]]] = {}
+        if themes:
+            out["themes"] = themes
+        if storylines:
+            out["storylines"] = storylines
+        return out
+
+
 def enrich_items(root: Path, items: Iterable[dict[str, Any]]) -> None:
     """Fill display facts into each item IN PLACE; never overwrite what a producer already set.
 
@@ -60,6 +110,7 @@ def enrich_items(root: Path, items: Iterable[dict[str, Any]]) -> None:
     but links to the TOPIC, and that episode's title and artwork would mislabel the link.
     """
     cache: dict[str, dict[str, Any]] = {}
+    groupings: Groupings | None = None
     for item in items:
         if not str(item.get("deep_link") or "").startswith("/episode/"):
             continue
@@ -71,3 +122,12 @@ def enrich_items(root: Path, items: Iterable[dict[str, Any]]) -> None:
         for key, value in cache[slug].items():
             if not item.get(key):
                 item[key] = value
+        topic_ids = [
+            r["id"]
+            for r in item.get("graph_refs") or []
+            if r.get("kind") == "topic" and r.get("id")
+        ]
+        if topic_ids:
+            groupings = groupings or Groupings(root)
+            for key, value in groupings.for_topics(topic_ids).items():
+                item.setdefault(key, value)

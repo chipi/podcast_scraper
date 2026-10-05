@@ -33,6 +33,8 @@
             "artwork_url": "/api/app/artwork?ref=acquired%2Fnvidia.jpg&size=thumb",
             "duration_seconds": 13140,
             "publish_date": "2026-09-21",
+            "themes": [{ "id": "tc:compute-economics", "label": "Compute economics" }],
+            "storylines": [{ "id": "topic:semiconductors", "label": "The semiconductor supply chain" }],
             "description": "Ben and David tell the story of how NVIDIA built the full stack — chips, systems and the software developers already used.",
             "summary": "Why owning the toolchain, not the fastest chip, became the moat — and what it cost to throw away a working model.",
             "source": "user"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -70,3 +71,22 @@ def test_summary_is_cut_at_a_word_to_about_three_lines() -> None:
     assert not out[:-1].endswith(" ")
     assert _short("  short   text ") == "short text"
     assert _short(None) is None and _short("") is None
+
+
+def test_an_episode_carries_the_themes_and_storylines_of_its_topics() -> None:
+    # operator 2026-10-05: topic, theme and storyline chips wherever an email shows an episode.
+    from podcast_scraper.search.topic_clusters import theme_map_by_topic
+
+    themes = theme_map_by_topic(_CORPUS)
+    topic = next(iter(themes))
+    slug = _a_slug()
+    item: dict[str, Any] = {
+        "episode_slug": slug,
+        "deep_link": f"/episode/{slug}",
+        "graph_refs": [{"id": topic, "kind": "topic", "label": topic}],
+    }
+    enrich_items(_CORPUS, [item])
+    assert item["themes"][0]["id"] == themes[topic]["cluster_id"]
+    assert item["themes"][0]["id"].startswith("tc:")
+    for s in item.get("storylines", []):
+        assert s["id"].startswith("topic:")  # the storyline route takes the anchor topic id

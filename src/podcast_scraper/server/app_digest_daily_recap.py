@@ -28,7 +28,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.server import app_comms_store, app_outbox_store, app_recap_view, app_user_state
+from podcast_scraper.server import (
+    app_comms_store,
+    app_email_episode,
+    app_outbox_store,
+    app_recap_view,
+    app_user_state,
+)
 from podcast_scraper.server.app_digest_common import (
     email_verified as _email_verified,
     iso as _iso,
@@ -69,7 +75,9 @@ def _finished_today(data_dir: Path, user_id: str, now: int, tz: str | None = Non
     return [slug for slug, _ in todays[:MAX_RECAP_EPISODES]]
 
 
-def _recap_email_item(recap: AppEpisodeRecap) -> dict[str, Any]:
+def _recap_email_item(
+    recap: AppEpisodeRecap, groupings: app_email_episode.Groupings | None = None
+) -> dict[str, Any]:
     """Project a recap model to the email item shape (the worker renders it adaptively).
 
     Carries every field the template needs for BOTH layouts (full for one episode, compact for
@@ -86,6 +94,10 @@ def _recap_email_item(recap: AppEpisodeRecap) -> dict[str, Any]:
         "insights": [ins.text for ins in recap.insights[:3]],
         "topics": [{"id": t.id, "label": t.label} for t in recap.topics[:4]],
         "storylines": [{"id": s.id, "label": s.label} for s in recap.storylines[:2]],
+        # Theme chips too, wherever an email shows an episode (operator 2026-10-05).
+        "themes": (
+            groupings.for_topics(t.id for t in recap.topics).get("themes", []) if groupings else []
+        ),
         "deep_link": f"/episode/{recap.slug}",
     }
 
@@ -109,12 +121,13 @@ def assemble_daily_recap_payload(
     if not slugs:
         return None
     episodes: list[dict[str, Any]] = []
+    groupings = app_email_episode.Groupings(root)
     for slug in slugs:
         row = resolve_slug(root, slug)
         if row is None:
             continue  # the episode left the corpus since it was heard — skip, don't fail
         recap = app_recap_view.build_episode_recap(root, row, slug, limit=3)
-        episodes.append(_recap_email_item(recap))
+        episodes.append(_recap_email_item(recap, groupings))
     if not episodes:
         return None
     return {"day": _local_day(now, tz), "count": len(episodes), "episodes": episodes}
