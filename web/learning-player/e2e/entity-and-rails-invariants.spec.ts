@@ -100,7 +100,8 @@ test("a storyline follow on the entity card writes an interest", async ({ page }
 
 test("the trending-shows rail is never an empty shell", async ({ page }, testInfo) => {
   await signInIsolated(page, "trending-shows", testInfo)
-  await page.goto("/")
+  // Discover — the rail's only home since it left Home (operator 2026-10-05).
+  await page.goto("/browse")
 
   const rail = page.getByTestId("trending-shows-rail")
 

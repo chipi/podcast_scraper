@@ -41,7 +41,15 @@ import PlayedBadge from './PlayedBadge.vue'
 import type { EpisodeSummary } from '../services/types'
 import { episodeArtwork } from '../utils/episode'
 
-const props = defineProps<{ episode: EpisodeSummary }>()
+const props = defineProps<{
+  /** Only what the tile draws — Jump back in hands it an EpisodeDetail, rails an EpisodeSummary. */
+  episode: Pick<
+    EpisodeSummary,
+    'slug' | 'title' | 'podcast_title' | 'artwork_url' | 'episode_image_url' | 'feed_image_url'
+  >
+  /** 0..1 — how far the listener got. Drawn under the artwork (Jump back in). */
+  progress?: number
+}>()
 
 // Absolutised via the shared helper — a raw relative URL 404s against `capacitor://localhost`.
 const artwork = computed(() => episodeArtwork(props.episode))
@@ -69,6 +77,9 @@ const artwork = computed(() => episodeArtwork(props.episode))
         class="aspect-square w-full rounded-xl bg-elevated object-cover"
       />
       <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
+      <div v-if="progress != null" class="mt-2 h-1 rounded bg-overlay" data-testid="episode-tile-progress">
+        <div class="h-1 rounded bg-accent" :style="{ width: Math.min(100, Math.max(0, progress * 100)) + '%' }" />
+      </div>
     </RouterLink>
 
     <RouterLink
@@ -80,13 +91,13 @@ const artwork = computed(() => episodeArtwork(props.episode))
            would sit at a different height on every tile in the row. -->
       <PlayedBadge :slug="episode.slug" class="mt-1" />
       <!--
-        The title gets the tile's FULL width and up to three lines. It was getting ~100px beside the
-        artwork, which is what turned one long name into eight lines. Clamped rather than truncated
-        at one line: three lines is enough for almost every real title, and the rail needs its slots
-        to stay the same height.
+        The title gets the tile's FULL width and three lines, RESERVED (`lp-tile-title`, the one rule
+        every tile shares). It was getting ~100px beside the artwork, which is what turned one long
+        name into eight lines.
       -->
       <span
-        class="mt-0.5 line-clamp-3 block font-display text-sm font-bold leading-snug text-canvas-foreground"
+        class="lp-tile-title mt-0.5 font-display text-sm font-bold text-canvas-foreground"
+        :title="episode.title"
       >{{ episode.title }}</span>
     </RouterLink>
 

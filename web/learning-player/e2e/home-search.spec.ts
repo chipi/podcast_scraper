@@ -23,10 +23,10 @@ test('Home shows sections; search routes to /search and returns grounded results
 
   // "Your shows" is per-user (#1585): it lists the shows you FOLLOW, not the whole corpus. A fresh
   // account with no follows may show a first-run hint or nothing — it must NOT list corpus shows
-  // in bulk. The trending-shows rail below is the corpus-wide shows surface.
+  // in bulk.
 
-  // Show names still reach Home via the trending-shows rail, which is corpus-wide.
-  await expect(page.getByTestId('trending-shows-rail')).toBeVisible()
+  // Trending shows is NOT on Home (operator 2026-10-05) — it lives on Discover.
+  await expect(page.getByTestId('trending-shows-rail')).toHaveCount(0)
 
   const homeAxe = await new AxeBuilder({ page }).analyze()
   expect(homeAxe.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious')).toEqual(

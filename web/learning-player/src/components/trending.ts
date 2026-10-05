@@ -57,15 +57,6 @@ export function trendColor(v: number): string {
       : "var(--lp-trend-steady)"
 }
 
-/** Trend colour for text and strokes that sit on a dark scrim OVER ARTWORK (the trending-shows
- *  rail), not on a direction's ground — so it must not follow a light direction's darker set.
- *  These are the dark-ground values `--lp-trend-*` ship with. Cooling is red-400 (#f87171), not
- *  red-500: the darker red failed AA (4.49:1) as small bold text over scrims; this clears ~6:1. */
-export function trendColorOnArtwork(v: number): string {
-  const d = trendDirection(v)
-  return d === "up" ? "#22c55e" : d === "down" ? "#f87171" : "#f59e0b"
-}
-
 /** ↑ rising / ↓ cooling / → steady — pairs with {@link trendColor}. */
 export function trendArrow(v: number): string {
   const d = trendDirection(v)

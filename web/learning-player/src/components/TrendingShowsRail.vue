@@ -1,29 +1,22 @@
 <script setup lang="ts">
 /**
- * Trending shows (RFC-103 §show) — a stack of full-width artwork "slices", composed as LAYERS:
- *   1. background: a horizontal band cut from the show's cover art,
- *   2. a legibility scrim,
- *   3. the cadence sparkline drawn as a full-width glowing "horizon" (gradient area + soft glow)
- *      woven across the whole slice in the trend colour — a graphic layer, not a chart in a column,
- *   4. the show name spanning the whole width on top (truncates only at the edge),
- *   5. a small velocity chip tucked in the corner.
+ * Trending shows (RFC-103 §show) — the standard rail of standard `ShowTile`s, top N by velocity.
  *
- * Cover art joins from the loaded podcasts list by feed_id (trending show entity_id == feed_id) —
- * no back-end change. Each band links to the show page.
+ * It used to have a second shape: full-width artwork "slices" with a sparkline horizon, used only on
+ * Home. Every rail is one shape now — `CardRail`, one slot width, three reserved title lines — and
+ * Home no longer carries trending shows (operator 2026-10-05), so the slices went with it.
+ *
+ * A trending show's entity_id IS its feed_id; artwork joins from the catalogue the caller passes.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import { getTrending } from '../services/api'
 import type { Podcast, TrendingEntity } from '../services/types'
-import { showArtwork } from '../utils/episode'
+import CardRail from './CardRail.vue'
+import SectionHeading from './SectionHeading.vue'
 import ShowTile from './ShowTile.vue'
-import FollowButton from './FollowButton.vue'
-import FavoriteButton from './FavoriteButton.vue'
-import { useLibraryStore } from '../stores/library'
-import { useSignInGate } from '../composables/useSignInGate'
-import { trendArrow, trendColorOnArtwork, trendDirection } from './trending'
 
 const props = withDefaults(
   defineProps<{
@@ -32,14 +25,10 @@ const props = withDefaults(
     scope?: 'corpus' | 'mine'
     top?: number
     // Discover surfaces this rail above the dashboard with a "See all →" into the Shows tab (operator
-    // 2026-09-14). Home does not — the default is off, so Home's rail is unchanged.
-    seeAll?: boolean
-    // Presentation. Home keeps the full-width artwork "slices" (`slices`, default). Discover uses the
-    // standard `ShowTile` in a horizontal row — same show tile as Browse (`tiles`, operator
     // 2026-09-14).
-    variant?: 'slices' | 'tiles'
+    seeAll?: boolean
   }>(),
-  { scope: 'corpus', top: 5, seeAll: false, variant: 'slices' },
+  { scope: 'corpus', top: 5, seeAll: false },
 )
 const emit = defineEmits<{ (e: 'see-all'): void }>()
 const { t } = useI18n()
@@ -56,30 +45,8 @@ watch(() => props.scope, load)
 const shown = computed(() => section.data.value.slice(0, props.top))
 const hasAny = computed(() => shown.value.length > 0)
 
-// Follow from a SLICE row (operator 2026-09-17). The `tiles` variant gets this from ShowTile; the
-// slices had no action at all, so Home's trending shows were the one show surface you could only
-// look at. A trending show's entity_id IS its feed_id.
-const library = useLibraryStore()
-const { isGated, gated } = useSignInGate()
-const busyFollow = ref<string | null>(null)
-
-// `gated()` wraps a ZERO-argument action, so the row is closed over per call rather than passed in.
-// Gated because the store reverts optimistically: an ungated signed-out click flips the pill, fires
-// a 401 and flips back.
-function toggleFollow(e: TrendingEntity): void {
-  gated(async () => {
-    busyFollow.value = e.entity_id
-    try {
-      await library.toggle(e.entity_id, { title: e.label })
-    } finally {
-      busyFollow.value = null
-    }
-  })()
-}
-
-// The `tiles` variant renders the standard ShowTile, which needs a full Podcast. A trending show's
-// entity_id IS its feed_id, so resolve it from the catalogue; a show that has left the catalogue
-// still renders from its trending label rather than vanishing.
+// The standard ShowTile needs a full Podcast, so resolve each from the catalogue; a show that has
+// left the catalogue still renders from its trending label rather than vanishing.
 const shownPodcasts = computed<Podcast[]>(() => {
   const byId = new Map(props.podcasts.map((p) => [p.feed_id, p]))
   return shown.value.map(
@@ -95,192 +62,46 @@ const shownPodcasts = computed<Podcast[]>(() => {
   )
 })
 
-/** Tiles per row: 3 on a phone, 4 from `sm` — the same counts as the `li` width formula below. */
+/**
+ * The header is exactly as wide as the tiles below it, so "all ›" ends where the last tile ends —
+ * with two shows it sat at the far edge of an empty half-row (operator 2026-10-05). The counts match
+ * `.lp-rail-item`: 3 to a row on a phone, 4 from `sm`; a full row is the full width.
+ */
 const tileHeader = computed<Record<string, string> | null>(() => {
   const n = shownPodcasts.value.length
-  if (props.variant !== 'tiles' || n === 0) return null
+  if (n === 0) return null
   return { '--n3': String(Math.min(n, 3)), '--n4': String(Math.min(n, 4)) }
 })
-
-const artById = computed<Record<string, string | null>>(() => {
-  const out: Record<string, string | null> = {}
-  for (const p of props.podcasts) out[p.feed_id] = showArtwork(p)
-  return out
-})
-function artFor(id: string): string | null {
-  return artById.value[id] ?? null
-}
-// A different horizontal band of each cover per row, so stacked slices vary.
-function slicePos(i: number): string {
-  return `50% ${20 + i * 15}%`
-}
-function fallbackBg(i: number): string {
-  const h = (i * 61) % 360
-  return `linear-gradient(120deg, hsl(${h},60%,32%), hsl(${(h + 40) % 360},60%,18%))`
-}
-function vFmt(v: number): number {
-  return Math.round(v * 10) / 10
-}
-function titleOf(e: TrendingEntity): string {
-  const dir = trendDirection(e.velocity)
-  const word = dir === 'up' ? 'rising' : dir === 'down' ? 'cooling' : 'steady'
-  return `${e.label} — ${vFmt(e.velocity)}× (${word})`
-}
-
-// Full-width sparkline "horizon": the line lives in the lower band of the slice; the area fills
-// beneath it. Drawn in a 100×100 viewBox stretched across the slice (preserveAspectRatio none).
-function spark(series: number[]): { line: string; area: string } {
-  const vals = series.length ? series : [0]
-  const max = Math.max(1, ...vals)
-  const n = vals.length
-  const pts = vals.map((v, i) => {
-    const x = n > 1 ? (i / (n - 1)) * 100 : 50
-    // Lower ~45% of the slice: peak value → y=52, trough → y=96.
-    const y = 52 + (1 - v / max) * 44
-    return [x, y] as const
-  })
-  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
-  return { line, area: `${line} L100,100 L0,100 Z` }
-}
 </script>
 
 <template>
   <section v-if="hasAny || !section.isReady.value" class="mt-7" data-testid="trending-shows-rail">
-    <!-- Tiles: the header is exactly as wide as the tiles below it (the tile formula times the
-         count, plus the gaps), so "all ›" ends where the last tile ends. Full width once the row is
-         full; with two shows it sat at the far edge of an empty half-row (operator 2026-10-05). -->
     <div
-      class="mb-3 flex items-center justify-between gap-2"
       :class="tileHeader ? 'w-[calc(var(--n3)*(100%_-_1.5rem)/3_+_(var(--n3)_-_1)*0.75rem)] sm:w-[calc(var(--n4)*(100%_-_2.25rem)/4_+_(var(--n4)_-_1)*0.75rem)]' : ''"
       :style="tileHeader ?? undefined"
       data-testid="trending-shows-header"
     >
-      <h2 class="lp-section">{{ title }}</h2>
-      <button
-        v-if="seeAll"
-        type="button"
-        class="shrink-0 whitespace-nowrap text-sm font-bold text-accent"
-        data-testid="trending-shows-seeall"
-        @click="emit('see-all')"
-      >
-        {{ t('home.seeAll') }} ›
-      </button>
+      <SectionHeading :title="title">
+        <template v-if="seeAll" #action>
+          <button
+            type="button"
+            class="whitespace-nowrap text-sm font-bold text-accent"
+            data-testid="trending-shows-seeall"
+            @click="emit('see-all')"
+          >
+            {{ t('home.seeAll') }} ›
+          </button>
+        </template>
+      </SectionHeading>
     </div>
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
 
-    <!-- TILES variant (Discover): the standard ShowTile in a horizontal row — same tile as Browse
-         (operator 2026-09-14). `followable`, so the rail carries the identical Follow + save pair as
-         the Shows tab's grid rather than being the one show surface you cannot act on
-         (operator 2026-09-17). Tap → the show page. -->
-    <!-- Slot width mirrors the Shows-tab GRID's own formula, so a rail tile and a grid tile are the
-         same size at every viewport (operator 2026-09-17). Fixed `w-28 sm:w-32` was 128px against
-         the grid's 176px on desktop — the same component at two sizes on one page. The grid is
-         3 columns with `gap-3` (2 gaps = 1.5rem), 4 from `sm` (3 gaps = 2.25rem); this rail shares
-         that gap, so the same arithmetic gives the same result. -->
-    <ul v-if="hasAny && variant === 'tiles'" class="flex gap-3 overflow-x-auto pb-1">
-      <li
-        v-for="p in shownPodcasts"
-        :key="p.feed_id"
-        class="w-[calc((100%-1.5rem)/3)] shrink-0 sm:w-[calc((100%-2.25rem)/4)]"
-      >
+    <!-- `followable`, so the rail carries the identical Follow + save pair as the Shows tab's grid
+         rather than being the one show surface you cannot act on (operator 2026-09-17). -->
+    <CardRail v-if="hasAny">
+      <li v-for="p in shownPodcasts" :key="p.feed_id" class="lp-rail-item">
         <ShowTile :show="p" followable data-testid="trending-show-card" />
       </li>
-    </ul>
-
-    <!-- SLICES variant (Home, default): full-width artwork bands with a sparkline horizon woven in.
-
-         Each band is a ROW wrapping the link, not the link itself: Follow and the heart have to live
-         OUTSIDE the <a> — never an interactive inside an interactive, the same rule the What's new
-         rows and EpisodeRow's trailing slot follow (operator 2026-09-17). -->
-    <div v-else-if="hasAny" class="overflow-hidden rounded-2xl border border-border">
-      <div
-        v-for="(e, i) in shown"
-        :key="e.entity_id"
-        class="relative [&:not(:first-child)]:border-t [&:not(:first-child)]:border-black/40"
-        data-testid="trending-show-row"
-      >
-      <RouterLink
-        :to="{ name: 'podcast', params: { feedId: e.entity_id } }"
-        class="group relative block h-14 overflow-hidden no-underline"
-        :title="titleOf(e)"
-        data-testid="trending-show-card"
-      >
-        <!-- 1. Art slice (or colourful fallback). -->
-        <img
-          v-if="artFor(e.entity_id)"
-          :src="artFor(e.entity_id)!"
-          alt=""
-          class="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
-          :style="{ objectPosition: slicePos(i) }"
-        />
-        <div v-else class="absolute inset-0" :style="{ background: fallbackBg(i) }" />
-        <!-- 2. Scrim: dark on the left (name), fading right; plus a floor darken. -->
-        <div class="absolute inset-0 bg-gradient-to-r from-black/85 via-black/60 to-black/35" />
-        <!-- 3. Sparkline HORIZON layer — gradient area + glowing line, full width. -->
-        <svg
-          class="absolute inset-0 h-full w-full"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-          :style="{ color: trendColorOnArtwork(e.velocity), filter: `drop-shadow(0 0 3px ${trendColorOnArtwork(e.velocity)})` }"
-        >
-          <defs>
-            <linearGradient :id="`sg-${e.entity_id}`" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="currentColor" stop-opacity="0.5" />
-              <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
-            </linearGradient>
-          </defs>
-          <path :d="spark(e.series).area" :fill="`url(#sg-${e.entity_id})`" />
-          <path
-            :d="spark(e.series).line"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-opacity="0.95"
-            stroke-linejoin="round"
-            stroke-linecap="round"
-            vector-effect="non-scaling-stroke"
-          />
-        </svg>
-        <!-- 4. Name. `pr-[11.5rem]` reserves the right cluster (velocity + Follow + heart) so a long
-             name truncates before it reaches them instead of running underneath. -->
-        <div class="relative flex h-full items-center gap-2.5 px-4">
-          <span class="shrink-0 text-sm font-bold tabular-nums text-white/55">{{ i + 1 }}</span>
-          <span
-            class="min-w-0 flex-1 truncate pr-[11.5rem] font-display text-lg font-extrabold tracking-tight text-white [text-shadow:0_1px_8px_rgba(0,0,0,0.85)]"
-            >{{ e.label }}</span
-          >
-        </div>
-      </RouterLink>
-      <!-- 5. Velocity + the two actions as ONE right-aligned cluster, outside the link.
-           The velocity chip used to float alone at top-right; with Follow and the heart arriving at
-           the same edge, three separately-placed things at one corner reads as clutter, so they
-           become a single group. Vertically centred — the band is only 56px, so there is no room to
-           stack. -->
-      <div class="absolute right-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2">
-        <!-- black/70, not /50: the row scrim is only 35% black at this edge, so over BRIGHT artwork
-             the /50 chip measured 2.78–3.58:1 for the trend figure. /70 clears 4.5:1 for all three
-             directions (cooling, the tightest, at 4.64:1 over pure white art). -->
-        <span
-          class="rounded-full bg-black/70 px-1.5 py-0.5 text-[0.7rem] font-bold tabular-nums backdrop-blur"
-          :style="{ color: trendColorOnArtwork(e.velocity) }"
-          >{{ trendArrow(e.velocity) }} {{ vFmt(e.velocity) }}×</span
-        >
-        <FollowButton
-          variant="overlay"
-          :following="library.has(e.entity_id)"
-          :busy="busyFollow === e.entity_id"
-          :gated="isGated"
-          @toggle="toggleFollow(e)"
-        />
-        <span
-          class="[&>button]:h-7 [&>button]:w-7 [&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:text-sm [&>button]:shadow-lg [&>button]:backdrop-blur-sm"
-          @click.prevent.stop
-        >
-          <FavoriteButton :item="{ kind: 'show', ref: e.entity_id, label: e.label }" />
-        </span>
-      </div>
-      </div>
-    </div>
+    </CardRail>
   </section>
 </template>

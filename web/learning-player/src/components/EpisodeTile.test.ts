@@ -60,8 +60,23 @@ describe('EpisodeTile', () => {
     const w = tile()
     const title = w.findAll('span').find((s) => s.text().includes('Harrison Chase'))
     expect(title, 'the title did not render').toBeTruthy()
-    expect(title!.classes(), 'the title is not clamped').toContain('line-clamp-3')
-    expect(title!.classes(), 'the title is not a full-width block').toContain('block')
+    // `lp-tile-title` is the one tile-title rule (style.css): a block box, three lines, all three
+    // reserved — so every tile in a rail is the same height (operator 2026-10-05).
+    expect(title!.classes(), 'the title is not on the shared tile-title rule').toContain('lp-tile-title')
+    expect(title!.attributes('title'), 'a clamped title needs its full text on hover').toContain(
+      'Harrison Chase',
+    )
+  })
+
+  it('draws listening progress under the artwork only when given one (Jump back in)', () => {
+    expect(tile().find('[data-testid="episode-tile-progress"]').exists()).toBe(false)
+    setActivePinia(createPinia())
+    const w = mount(EpisodeTile, {
+      props: { episode: episode(), progress: 0.4 },
+      global: { plugins: [i18n, router, createPinia()] },
+    })
+    const fill = w.get('[data-testid="episode-tile-progress"] > div')
+    expect(fill.attributes('style')).toContain('width: 40%')
   })
 
   it('overlays the actions on the artwork, width-capped so they wrap instead of spilling', () => {

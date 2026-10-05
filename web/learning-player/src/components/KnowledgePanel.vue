@@ -24,14 +24,14 @@ import type {
 import { formatTime } from "../player/transcriptSync"
 import { hitStartSeconds, insightStartSeconds } from "../player/insights"
 import { speakerLabel } from "../utils/format"
-import EpisodeRow from "./EpisodeRow.vue"
+import CardRail from "./CardRail.vue"
+import EpisodeTile from "./EpisodeTile.vue"
 import { useAuthStore } from "../stores/auth"
 import { sheetTeleportTarget } from "../composables/sheetStack"
 import { useSignInGate } from "../composables/useSignInGate"
 import { scrollBehavior } from "../utils/motion"
 import { holdScroll, offsetWithin, restoreScroll, waitForSettledElement } from "../utils/scrollRestore"
 import { NOTES_ANCHOR } from "../composables/noteTarget"
-import { useQueueStore } from "../stores/queue"
 import { useCaptureStore } from "../stores/capture"
 import CollapsibleSection from "./CollapsibleSection.vue"
 import HighlightToggle from "./HighlightToggle.vue"
@@ -570,15 +570,7 @@ const captureInsight = (ins: Insight) =>
 // --- related ("more like this") ---
 const auth = useAuthStore()
 const { isGated, gated } = useSignInGate()
-const queue = useQueueStore()
 
-// Queue a peer episode to play right after the current one (RFC-099 §4 "Play next").
-/** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
-const playNext = (slug: string) =>
-  gated(async () => {
-    // The action reports whether the write survived (#1906); the gate's handler type is void.
-    await queue.playNext(slug, props.slug)
-  })()
 const related = ref<EpisodeSummary[]>([])
 async function loadRelated(slug: string): Promise<void> {
   try {
@@ -1193,29 +1185,14 @@ watch(() => auth.isAuthenticated, loadCaptures)
           section-key="related"
           class="mt-5"
         >
-          <ul class="flex flex-col">
-            <li v-for="r in related" :key="r.slug">
-              <EpisodeRow :episode="r">
-                <template #trailing>
-                  <!-- Play next: queue this peer right after the current episode (RFC-099 §4).
-                     Renders signed-out and routes to sign-in (#1590). -->
-                  <button
-                    type="button"
-                    class="mt-1 shrink-0 rounded-full p-1.5 transition hover:bg-overlay hover:text-accent"
-                    :class="queue.has(r.slug) ? 'text-canvas-foreground' : 'text-muted'"
-                    :aria-label="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
-                    :title="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
-                    @click="playNext(r.slug)"
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">
-                      <path d="M5 5l9 7-9 7V5z" />
-                      <rect x="16" y="5" width="2.4" height="14" rx="1" />
-                    </svg>
-                  </button>
-                </template>
-              </EpisodeRow>
+          <!-- The same rail and tile as the player page's "More like this" (operator 2026-10-05: same
+               section name, same shape everywhere). It was a text list here, with a Play-next
+               button the tile's shared action row does not carry. -->
+          <CardRail>
+            <li v-for="r in related" :key="r.slug" class="lp-rail-item">
+              <EpisodeTile :episode="r" />
             </li>
-          </ul>
+          </CardRail>
         </CollapsibleSection>
 
         <!-- Your notes on this episode (NT.1) — episode-target notes, timestamped, dictation where

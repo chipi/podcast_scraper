@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { trendArrow, trendColor, trendColorOnArtwork, trendDirection } from './trending'
+import { trendArrow, trendColor, trendDirection } from './trending'
 
 describe('trend direction thresholds', () => {
   it('classifies clearly rising / cooling / steady', () => {
@@ -17,12 +17,6 @@ describe('trendColor', () => {
     expect(trendColor(2.0)).toBe('var(--lp-trend-rising)')
     expect(trendColor(0.5)).toBe('var(--lp-trend-cooling)')
     expect(trendColor(1.0)).toBe('var(--lp-trend-steady)')
-  })
-
-  it('on artwork, keeps the fixed dark-ground values whatever the direction', () => {
-    expect(trendColorOnArtwork(2.0)).toBe('#22c55e')
-    expect(trendColorOnArtwork(0.5)).toBe('#f87171') // red-400 (AA-legible on dark; was red-500 #ef4444)
-    expect(trendColorOnArtwork(1.0)).toBe('#f59e0b')
   })
 })
 

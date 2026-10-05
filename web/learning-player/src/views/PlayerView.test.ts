@@ -355,8 +355,12 @@ describe('PlayerView', () => {
       has_more: false,
     })
     const w = await mountPlayer('ep-1')
-    expect(w.find('[data-testid="related-episodes-rail"]').exists()).toBe(true)
-    expect(w.text()).toContain('More like this')
+    const rail = w.get('[data-testid="related-episodes-rail"]')
+    // Scoped to the rail: the Knowledge Panel carries its own "More like this", so a page-wide text
+    // match passed while this heading rendered as an unresolved <sectionheading> with no text.
+    expect(rail.get('[data-testid="section-title"]').text()).toBe('More like this')
+    // The standard rail slot (operator 2026-10-05), not a width of its own.
+    expect(rail.get('li').classes()).toContain('lp-rail-item')
     expect(w.text()).toContain('Peer Episode One')
     expect(api.getRelated).toHaveBeenCalledWith('ep-1', 6)
   })

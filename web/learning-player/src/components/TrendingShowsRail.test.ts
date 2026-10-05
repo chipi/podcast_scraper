@@ -19,8 +19,8 @@ const podcasts: Podcast[] = [
   { feed_id: 'f1', title: 'The Daily', artwork_url: null, image_url: 'https://img/f1.jpg', description: null, episode_count: 20 },
 ]
 
-// Pinia + a router: the slice rows carry Follow and the heart now, which read the library and
-// favourites stores and route signed-out taps to sign-in.
+// Pinia + a router: ShowTile carries Follow and the heart, which read the library and favourites
+// stores and route signed-out taps to sign-in.
 const routes = [
   { path: '/', name: 'home', component: { template: '<div/>' } },
   { path: '/login', name: 'login', component: { template: '<div/>' } },
@@ -42,7 +42,7 @@ const mountIt = (items = rows) => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('TrendingShowsRail', () => {
-  it('renders a cover-art card per trending show, linking to the show page', async () => {
+  it('renders the standard ShowTile per trending show, linking to the show page', async () => {
     const w = mountIt()
     await flushPromises()
     const cards = w.findAll('[data-testid="trending-show-card"]')
@@ -53,26 +53,29 @@ describe('TrendingShowsRail', () => {
       params: { feedId: 'f0' },
     })
     expect(cards[0].text()).toContain('Latent Space')
-    // Velocity lives on the ROW, beside Follow and the heart — not inside the link. Follow and the
-    // heart are <button>s and cannot be nested in an <a>, so the whole cluster sits outside it.
-    expect(w.findAll('[data-testid="trending-show-row"]')[0].text()).toContain('1.7×')
   })
 
-  it('carries Follow and save on every row, outside the link', async () => {
-    // Home's trending shows were the one show surface with no action on it at all (operator
-    // 2026-09-17). Outside the link matters: an interactive inside an interactive is the bug this
-    // shape avoids.
+  it('is the standard rail: CardRail, one slot width, three reserved title lines', async () => {
+    // Every rail looks the same on every page (operator 2026-10-05). This rail had a second shape —
+    // full-width cover bands with a sparkline — that no other rail shared.
     const w = mountIt()
     await flushPromises()
-    const row = w.findAll('[data-testid="trending-show-row"]')[0]
-    const follow = row.find('[data-testid="follow-show"]')
-    const heart = row.find('[data-testid="favorite-button"]')
-    expect(follow.exists(), 'the row lost Follow').toBe(true)
-    expect(heart.exists(), 'the row lost the heart').toBe(true)
-    const link = row.get('[data-testid="trending-show-card"]')
-    expect(link.find('[data-testid="follow-show"]').exists(), 'Follow is nested in the <a>').toBe(
-      false,
-    )
+    expect(w.find('ul.lp-rail').exists(), 'not in CardRail').toBe(true)
+    const slots = w.findAll('ul.lp-rail > li')
+    expect(slots).toHaveLength(2)
+    for (const li of slots) expect(li.classes()).toContain('lp-rail-item')
+    expect(w.findAll('[data-testid="trending-show-card"] .lp-tile-title')).toHaveLength(2)
+    expect(w.find('svg path').exists(), 'the sparkline band is back').toBe(false)
+  })
+
+  it('carries Follow and save on every tile, outside the link', async () => {
+    const w = mountIt()
+    await flushPromises()
+    const card = w.findAll('[data-testid="trending-show-card"]')[0]
+    expect(card.find('[data-testid="follow-show"]').exists(), 'the tile lost Follow').toBe(true)
+    expect(card.find('[data-testid="favorite-button"]').exists(), 'the tile lost the heart').toBe(true)
+    const link = card.getComponent(RouterLinkStub)
+    expect(link.find('[data-testid="follow-show"]').exists(), 'Follow is nested in the <a>').toBe(false)
     expect(link.find('[data-testid="favorite-button"]').exists(), 'the heart is nested in the <a>').toBe(
       false,
     )
@@ -86,10 +89,10 @@ describe('TrendingShowsRail', () => {
     expect(imgs[1].attributes('src')).toBe('https://img/f1.jpg') // falls back to image_url
   })
 
-  it('renders each show its weekly-cadence sparkline (svg)', async () => {
-    const w = mountIt()
+  it('a show missing from the catalogue still renders from its trending label', async () => {
+    const w = mountIt([{ ...rows[0], entity_id: 'gone', label: 'Left The Corpus' }])
     await flushPromises()
-    expect(w.findAll('[data-testid="trending-show-card"] svg').length).toBe(2)
+    expect(w.get('[data-testid="trending-show-card"]').text()).toContain('Left The Corpus')
   })
 
   it('hides entirely when nothing is trending', async () => {

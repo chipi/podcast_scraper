@@ -28,6 +28,7 @@ import RouteButton from '../components/RouteButton.vue'
 import { usePlayed } from '../composables/usePlayed'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import CardRail from '../components/CardRail.vue'
+import SectionHeading from '../components/SectionHeading.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
@@ -1904,21 +1905,16 @@ onBeforeUnmount(() => {
           data-testid="related-episodes-rail"
           :aria-label="t('player.relatedEpisodes')"
         >
-          <h2 class="mb-3 font-display text-lg font-bold text-canvas-foreground">
-            {{ t('player.relatedEpisodes') }}
-          </h2>
+          <SectionHeading :title="t('player.relatedEpisodes')" />
           <!--
             A TILE, not the horizontal card. `EpisodeCard` puts its text in a column beside the
             artwork, which in a rail slot left the title ~100px: one real title wrapped to eight
             lines, the slot grew to roughly 800px tall, and the action row floated over the artwork.
-            Slots are narrower too — the old 224px made a 224px square of artwork dominate the rail.
+            Slot width is the standard `lp-rail-item`, the same as every other rail (operator
+            2026-10-05).
           -->
           <CardRail v-if="relatedEpisodes.length">
-            <li
-              v-for="ep in relatedEpisodes"
-              :key="ep.slug"
-              class="w-44 shrink-0 sm:w-48"
-            >
+            <li v-for="ep in relatedEpisodes" :key="ep.slug" class="lp-rail-item">
               <EpisodeTile :episode="ep" />
             </li>
           </CardRail>
@@ -1929,7 +1925,7 @@ onBeforeUnmount(() => {
                reserve the space and name what will fill it, so the page stops shifting when the
                answer lands. Same tile geometry as the real rail, or the layout jumps anyway. -->
           <CardRail v-else>
-            <li v-for="n in 4" :key="`sk-${n}`" class="w-44 shrink-0 sm:w-48" aria-hidden="true">
+            <li v-for="n in 4" :key="`sk-${n}`" class="lp-rail-item" aria-hidden="true">
               <div class="aspect-square w-full animate-pulse rounded-xl bg-elevated" />
               <div class="mt-2 h-3 w-4/5 animate-pulse rounded bg-elevated" />
               <div class="mt-1.5 h-3 w-3/5 animate-pulse rounded bg-elevated" />

@@ -68,8 +68,7 @@ describe('UXS-014 pattern rules that can be executed', () => {
     //
     // These are the tiles. Everything else must let a show name wrap.
     const FIXED_WIDTH_TILES = [
-      'components/ShowTile.vue', // reserved 2-line box + title attribute
-      'components/TrendingShowsRail.vue', // rail slice; its comment notes "truncates only at the edge"
+      'components/ShowTile.vue', // reserved 3-line box + title attribute
       'components/EntityCardBody.vue', // "Host of" chips
       'views/HomeView.vue', // Recommended grid kicker — clamped for the same reserved-height reason
       // EpisodeCard's show name is a one-line KICKER above the episode title, not the row's own

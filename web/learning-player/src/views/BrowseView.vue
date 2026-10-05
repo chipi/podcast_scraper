@@ -136,13 +136,11 @@ watch(
       {{ t('browse.hubTitle') }}
     </h1>
 
-    <!-- Trending shows, above the entity dashboard (operator 2026-09-14): the standard ShowTile in a
-         horizontal row, top 5 (the `tiles` variant — Home keeps the full-width slices). Each links to
-         its show; "See all →" opens the Shows tab below. -->
+    <!-- Trending shows, above the entity dashboard (operator 2026-09-14): the standard rail of
+         standard ShowTiles, top 5. Each links to its show; "See all →" opens the Shows tab below. -->
     <TrendingShowsRail
       :title="t('home.trendingShows')"
       :podcasts="catalogue"
-      variant="tiles"
       :top="5"
       see-all
       @see-all="onShowsSeeAll"
