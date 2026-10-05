@@ -130,9 +130,6 @@ Fixed before deploy (in PR #2260):
 - **Every language-tag reduction goes through `languages.primary_language`** (bd817a3d4,
   d63db3c4d) — `en_US` / `English` / `eng` read as English everywhere.
 
-Still open:
-
-- **On a corpus with non-English content, keyword search also reads the `segments_nonen` table**
-  (the original-language text), so English result order can move once the first non-English
-  episode is indexed. The index searched never depends on the query's language — nothing detects
-  it. English-only corpora are unaffected. Decision pending with the operator.
+Decided, no change: keyword search reads the original-language text (`segments_nonen`) as well
+as the English layer. A query's language cannot be known ("AI" is the same word in many
+languages), so searching every language is the intended behaviour (operator, 2026-10-05).
