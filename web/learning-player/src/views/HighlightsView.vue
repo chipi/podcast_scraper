@@ -19,10 +19,11 @@ import {
   getCollections,
   getEpisode,
   highlightsExportUrl,
-  highlightsPrintUrl,
 } from '../services/api'
 import type { Collection } from '../services/types'
-import { deliverFile, isNative, openExternal, saveAndShareText } from '../services/native'
+import { deliverFile, isNative } from '../services/native'
+import ExportViewer from '../components/ExportViewer.vue'
+import { sheetTeleportTarget } from '../composables/sheetStack'
 import type { EpisodeDetail, EpisodeSummary, Highlight } from '../services/types'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
@@ -234,27 +235,6 @@ async function save(): Promise<void> {
   cancel()
 }
 
-// Native export: `<a download>` can't save in the iOS/Android WebView, so fetch the Markdown and
-// hand it to the OS share sheet instead (#1310). Web keeps the plain download link.
-const exporting = ref(false)
-async function exportHighlightsNative(): Promise<void> {
-  if (exporting.value) return
-  // #2267. The FORMAT is the useful half: markdown through the OS share sheet and an Obsidian
-  // vault export are different intentions about where the notes end up, and the spec asks which
-  // people actually use.
-  track('highlights_export', { format: 'markdown' })
-  exporting.value = true
-  try {
-    const md = await fetchHighlightsExport(props.filterColor, {
-      mutedOnly: props.mutedOnly,
-      q: props.search,
-    })
-    await saveAndShareText('my-highlights.md', md)
-  } finally {
-    exporting.value = false
-  }
-}
-
 // Collections a highlight can be filed into (#1417). Loaded lazily; the per-highlight
 // "Add to…" select adds on change then resets to its placeholder.
 const collections = ref<Collection[]>([])
@@ -271,36 +251,33 @@ async function addHighlightTo(highlightId: string, collectionId: string): Promis
 // Share a highlight as a text/quote card (#1418) — no audio (bridge-only).
 /** Undo a retire. Only reachable from a row that IS retired, so there is no toggle to reason about. */
 /**
- * The print-styled export, for the browser's Save-as-PDF.
+ * ONE export link that OPENS the highlights (operator 2026-10-05), with Markdown and Print or share
+ * in the viewer's top right — the same `ExportViewer` the episode notes use. Markdown and PDF chips
+ * side by side read as two documents, and PDF's "download" saved HTML, not a PDF.
  *
- * Carries the SAME filters as the other formats — it is the same document, one route along.
- *
- * On NATIVE it fetches the document and shares the file rather than handing the URL to a browser.
- * `openExternal` opens SFSafariViewController, which does not carry the app's session cookie, so
- * the export route arrived unauthenticated and rendered the sign-in gate (operator 2026-09-19).
- * Sharing `.html` lets iOS preview it and offer Print -> Save as PDF, which is the platform's own
- * print-to-PDF path. Web keeps the tab, where the cookie travels.
+ * Carries the SAME filters as every format — it is the same document. Fetched with the app's own
+ * credentials and shown from memory, on the web too (a tab's "download" saved HTML).
  */
-const printing = ref(false)
-async function openPrintable(): Promise<void> {
-  // #2267. Reported here rather than on the button so BOTH branches below count: web opens the
-  // printable in a new tab, native fetches the HTML and hands it to the share sheet. A PDF export
-  // was previously not counted at all on either platform.
-  track('highlights_export', { format: 'pdf' })
-  const opts = { mutedOnly: props.mutedOnly, q: props.search }
-  if (!isNative()) {
-    await openExternal(highlightsPrintUrl(props.filterColor, opts))
-    return
-  }
-  if (printing.value) return
-  printing.value = true
+const exportOpts = computed(() => ({ mutedOnly: props.mutedOnly, q: props.search }))
+const exportHtml = ref<string | null>(null)
+const exportOpening = ref(false)
+const exportError = ref(false)
+const exportTarget = ref<HTMLElement | string>('body')
+async function openExport(): Promise<void> {
+  if (exportOpening.value) return
+  exportOpening.value = true
+  exportError.value = false
+  exportTarget.value = sheetTeleportTarget()
   try {
-    const html = await fetchHighlightsExport(props.filterColor, opts, 'html')
-    await saveAndShareText('my-highlights.html', html, 'text/html')
+    exportHtml.value = await fetchHighlightsExport(props.filterColor, exportOpts.value, 'html')
+  } catch {
+    exportError.value = true // a failed export SAYS so; silence reads as a dead control
   } finally {
-    printing.value = false
+    exportOpening.value = false
   }
 }
+const fetchExportMarkdown = (): Promise<string> =>
+  fetchHighlightsExport(props.filterColor, exportOpts.value)
 
 async function resume(id: string): Promise<void> {
   await capture.unretire(id)
@@ -388,38 +365,17 @@ onMounted(async () => {
            two lines the way "Export to Obsidian" did on a phone. -->
       <div class="flex shrink-0 items-center gap-2">
         <span class="text-xs text-muted">{{ t('highlights.exportKicker') }}</span>
-        <!-- Native shell: write+share (WKWebView can't `<a download>`); web: plain download link (#1310). -->
+        <!-- ONE link for the document (operator 2026-10-05): it opens the highlights, and the viewer
+             carries Markdown + Print or share. Obsidian stays its own chip — a vault zip is a
+             different thing, not another format of this page. -->
         <button
-          v-if="isNative()"
           type="button"
-          :disabled="exporting"
-          :aria-label="t('highlights.export')"
+          :disabled="exportOpening"
+          :aria-label="t('highlights.exportOpen')"
+          data-testid="export-open"
           class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
-          @click="exportHighlightsNative"
-        >{{ t('highlights.exportMarkdownShort') }}</button>
-        <a
-          v-else
-          :href="highlightsExportUrl(filterColor, { mutedOnly, q: search })"
-          download="my-highlights.md"
-          @click="track('highlights_export', { format: 'markdown' })"
-          :aria-label="t('highlights.export')"
-          class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent no-underline transition hover:bg-overlay"
-        >{{ t('highlights.exportMarkdownShort') }}</a>
-        <!-- PDF, via the browser's own print-to-PDF (operator 2026-09-18). No PDF library: the
-             renderer is already in the browser, and "Print -> Save as PDF" is native everywhere we
-             ship, including the iOS share sheet. The server returns the SAME export document with a
-             print stylesheet (`export.html`) and the browser converts it.
-
-             Opened in a new tab rather than printed from a hidden iframe: the user needs to SEE
-             what they are about to print, and a print dialog fired from an invisible frame with no
-             preview is indistinguishable from the app having hijacked the printer. -->
-        <button
-          type="button"
-          :aria-label="t('highlights.exportPdf')"
-          data-testid="export-pdf"
-          class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay"
-          @click="openPrintable"
-        >{{ t('highlights.exportPdfShort') }}</button>
+          @click="openExport"
+        >{{ t('highlights.exportOpenShort') }}</button>
         <!-- Graph-aware Obsidian export (#1472). Was `v-if="!isNative()"` — the zip reached the
              device through `<a download>`, which WKWebView ignores, so rather than fix the delivery
              the button was hidden and the feature just disappeared on the phone (operator
@@ -433,6 +389,22 @@ onMounted(async () => {
         >{{ t('highlights.exportObsidianShort') }}</button>
       </div>
     </div>
+    <p v-if="exportError" class="mb-1 text-xs text-danger" data-testid="export-error">
+      {{ t('highlights.exportFailed') }}
+    </p>
+    <ExportViewer
+      v-if="exportHtml"
+      :html="exportHtml"
+      :to="exportTarget"
+      :title="t('highlights.exportPdf')"
+      html-filename="my-highlights.html"
+      md-filename="my-highlights.md"
+      :md-url="highlightsExportUrl(filterColor, exportOpts)"
+      :fetch-markdown="fetchExportMarkdown"
+      @markdown="track('highlights_export', { format: 'markdown' })"
+      @share="track('highlights_export', { format: 'pdf' })"
+      @close="exportHtml = null"
+    />
     <p v-if="obsidianMsg" class="mb-1 text-xs text-muted">{{ obsidianMsg }}</p>
     <!--
       Obsidian has no import format to target — a vault IS a folder of Markdown files, so the only

@@ -157,8 +157,8 @@ describe('LibraryView', () => {
     // Highlights lives in the default Saved tab now — no tab switch needed.
     expect(w.text()).toContain('a captured line')
     expect(w.text()).toContain('1:05') // 65_000ms jump link
-    const exportLink = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('export.md'))
-    expect(exportLink).toBeTruthy()
+    // ONE export link that opens the document (operator 2026-10-05).
+    expect(w.find('[data-testid="export-open"]').exists()).toBe(true)
   })
 
   it('Saved lists favorited episodes via EpisodeCard', async () => {

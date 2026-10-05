@@ -3,6 +3,7 @@ import apiSrc from '../services/api.ts?raw'
 import playerStoreSrc from '../stores/player.ts?raw'
 import playerViewSrc from '../views/PlayerView.vue?raw'
 import highlightsViewSrc from '../views/HighlightsView.vue?raw'
+import exportViewerSrc from '../components/ExportViewer.vue?raw'
 import mainSrc from '../main.ts?raw'
 import analyticsSrc from '../services/analytics.ts?raw'
 import authStoreSrc from '../stores/auth.ts?raw'
@@ -94,10 +95,13 @@ describe('mobile invariants (guardrail #1311)', () => {
 
 describe('native-shell invariants (guardrail #1310)', () => {
   it('highlights export has a native (write+share) path — <a download> cannot save in WKWebView', () => {
-    expect(highlightsViewSrc, 'HighlightsView must branch on isNative() for export').toMatch(
+    // The export's formats live in the shared ExportViewer now (operator 2026-10-05), so the
+    // native branch is asserted THERE, and HighlightsView must actually route through it.
+    expect(highlightsViewSrc, 'HighlightsView must export through ExportViewer').toMatch(/<ExportViewer/)
+    expect(exportViewerSrc, 'ExportViewer must branch on isNative() for export').toMatch(
       /isNative\(\)/,
     )
-    expect(highlightsViewSrc).toMatch(/saveAndShareText/)
+    expect(exportViewerSrc).toMatch(/saveAndShareText/)
   })
 
   it('telemetry tags the platform (web|ios|android) so native builds stay separable', () => {

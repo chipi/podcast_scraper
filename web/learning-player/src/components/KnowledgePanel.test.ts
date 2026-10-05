@@ -869,7 +869,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
       await flushPromises()
 
       expect(fetch).toHaveBeenCalledWith(episode().slug, "html") // THIS episode
-      const frame = document.querySelector('[data-testid="episode-notes-frame"]')
+      const frame = document.querySelector('[data-testid="export-viewer-frame"]')
       expect(frame, "the notes must be ON SCREEN").toBeTruthy()
       // `srcdoc`, not `src`: the bytes already fetched, so there is no second, cookie-less request.
       expect(frame?.getAttribute("srcdoc")).toContain("NOTES BODY")
@@ -878,7 +878,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
       expect(frame?.getAttribute("sandbox")).toBe("allow-same-origin allow-modals")
       expect(external).not.toHaveBeenCalled()
       expect(share).not.toHaveBeenCalled()
-      document.querySelector<HTMLElement>('[data-testid="episode-notes-viewer-close"]')?.click()
+      document.querySelector<HTMLElement>('[data-testid="export-viewer-close"]')?.click()
     },
   )
 
@@ -947,7 +947,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     await w.get('[data-testid="episode-notes-export"]').trigger("click")
     await flushPromises()
 
-    const frame = document.querySelector('[data-testid="episode-notes-frame"]')
+    const frame = document.querySelector('[data-testid="export-viewer-frame"]')
     expect(frame, "the viewer did not render at all").toBeTruthy()
     expect(
       dialog.contains(frame),
@@ -967,7 +967,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     await flushPromises()
 
     const shareBtn = document.querySelector<HTMLElement>(
-      '[data-testid="episode-notes-viewer-share"]',
+      '[data-testid="export-viewer-share"]',
     )
     expect(shareBtn).toBeTruthy()
     shareBtn!.click()
@@ -987,7 +987,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     await flushPromises()
 
     expect(w.find('[data-testid="episode-notes-error"]').exists()).toBe(true)
-    expect(document.querySelector('[data-testid="episode-notes-frame"]')).toBeNull()
+    expect(document.querySelector('[data-testid="export-viewer-frame"]')).toBeNull()
   })
 
   async function openViewer() {
@@ -1001,23 +1001,23 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     return w
   }
   const inViewer = <T extends HTMLElement>(id: string) =>
-    document.querySelector<T>(`[data-testid="episode-notes-viewer"] [data-testid="${id}"]`)
+    document.querySelector<T>(`[data-testid="export-viewer"] [data-testid="${id}"]`)
 
   it("on the web the viewer's Markdown is a download link named from the title", async () => {
     vi.spyOn(native, "isNative").mockReturnValue(false)
     await openViewer()
-    const a = inViewer<HTMLAnchorElement>("episode-notes-viewer-md")
+    const a = inViewer<HTMLAnchorElement>("export-viewer-md")
     expect(a?.tagName).toBe("A")
     expect(a?.getAttribute("href")).toContain("/notes.md")
     expect(a?.getAttribute("download")).toBe("ep-notes.md")
-    inViewer("episode-notes-viewer-close")?.click()
+    inViewer("export-viewer-close")?.click()
   })
 
   it("on NATIVE the viewer's Markdown shares a file — <a download> saves nothing in WKWebView", async () => {
     vi.spyOn(native, "isNative").mockReturnValue(true)
     const share = vi.spyOn(native, "saveAndShareText").mockResolvedValue(undefined)
     await openViewer()
-    const btn = inViewer("episode-notes-viewer-md")
+    const btn = inViewer("export-viewer-md")
     expect(btn?.tagName).toBe("BUTTON")
     btn!.click()
     await flushPromises()
@@ -1028,19 +1028,19 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     expect(filename).toBe("ep-notes.md")
     expect(filename).not.toMatch(/[0-9a-f]{8}/)
     expect(body).toContain("# Notes")
-    inViewer("episode-notes-viewer-close")?.click()
+    inViewer("export-viewer-close")?.click()
   })
 
   it("on NATIVE Print or share hands the page to the share sheet", async () => {
     vi.spyOn(native, "isNative").mockReturnValue(true)
     const share = vi.spyOn(native, "saveAndShareText").mockResolvedValue(undefined)
     await openViewer()
-    inViewer("episode-notes-viewer-share")!.click()
+    inViewer("export-viewer-share")!.click()
     await flushPromises()
     expect(share).toHaveBeenCalledTimes(1)
     expect(share.mock.calls[0][0]).toBe("ep-notes.html")
     expect(share.mock.calls[0][2]).toBe("text/html")
-    inViewer("episode-notes-viewer-close")?.click()
+    inViewer("export-viewer-close")?.click()
   })
 
   it("on the WEB Print or share uses the browser's file share where it can", async () => {
@@ -1049,12 +1049,12 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     vi.stubGlobal("navigator", { ...navigator, canShare: () => true, share: shareFn })
     try {
       await openViewer()
-      inViewer("episode-notes-viewer-share")!.click()
+      inViewer("export-viewer-share")!.click()
       await flushPromises()
       expect(shareFn).toHaveBeenCalledTimes(1)
       const files = shareFn.mock.calls[0][0].files as File[]
       expect(files[0].name).toBe("ep-notes.html")
-      inViewer("episode-notes-viewer-close")?.click()
+      inViewer("export-viewer-close")?.click()
     } finally {
       vi.unstubAllGlobals()
     }
@@ -1065,13 +1065,13 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     vi.stubGlobal("navigator", { ...navigator, canShare: undefined, share: undefined })
     try {
       await openViewer()
-      const frame = inViewer<HTMLIFrameElement>("episode-notes-frame")!
+      const frame = inViewer<HTMLIFrameElement>("export-viewer-frame")!
       const print = vi.fn()
       Object.defineProperty(frame, "contentWindow", { value: { print }, configurable: true })
-      inViewer("episode-notes-viewer-share")!.click()
+      inViewer("export-viewer-share")!.click()
       await flushPromises()
       expect(print).toHaveBeenCalledTimes(1)
-      inViewer("episode-notes-viewer-close")?.click()
+      inViewer("export-viewer-close")?.click()
     } finally {
       vi.unstubAllGlobals()
     }

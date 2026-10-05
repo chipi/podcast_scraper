@@ -936,6 +936,9 @@
     "exportKicker": "Export",
     "exportMarkdownShort": "Markdown",
     "exportObsidianShort": "Obsidian",
+    "exportOpen": "Open your highlights to download or share them",
+    "exportOpenShort": "Download",
+    "exportFailed": "Couldn't open your highlights.",
     "exportPdf": "Print or save as PDF",
     "exportPdfShort": "PDF",
     "obsidianFull": "Exported {written} notes to a vault zip.",
@@ -1086,5 +1089,11 @@
     "cancel": "Cancel",
     "moreActions": "More actions",
     "retry": "Try again"
+  },
+  "export": {
+    "close": "Close",
+    "markdown": "Markdown",
+    "markdownLabel": "Download as Markdown",
+    "share": "Print or share"
   }
 }

@@ -44,7 +44,7 @@ import ProfileAvatar from "./ProfileAvatar.vue"
 import StorylineCard from "./StorylineCard.vue"
 import ThemeCard from "./ThemeCard.vue"
 import EpisodeDensity from "./EpisodeDensity.vue"
-import { isNative, saveAndShareText } from "../services/native"
+import ExportViewer from "./ExportViewer.vue"
 import { exportFilename } from "../utils/exportFilename"
 
 const props = withDefaults(
@@ -152,53 +152,8 @@ async function openPrintableNotes(): Promise<void> {
   }
 }
 
-const notesFrame = ref<HTMLIFrameElement | null>(null)
-
-/**
- * "Print or share" — whatever the platform does with a document (operator 2026-10-05: "it is at
- * the end on the user's surfaces to deal with share").
- *
- * Native: the share sheet, with the page as a file (iOS offers Print there, and its preview saves a
- * PDF). Web: the browser's own share where it can share files (phones), else its print dialog,
- * where "Save as PDF" is a destination — the real PDF path on a desktop.
- */
-async function shareOpenNotes(): Promise<void> {
-  if (!notesHtml.value) return
-  const name = exportFilename(`${props.episode.title} notes`, 'html', 'episode-notes')
-  if (isNative()) {
-    await saveAndShareText(name, notesHtml.value, 'text/html')
-    return
-  }
-  const file = new File([notesHtml.value], name, { type: 'text/html' })
-  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: props.episode.title })
-      return
-    } catch (e) {
-      if ((e as Error)?.name === 'AbortError') return // the reader closed the sheet — done
-    }
-  }
-  notesFrame.value?.contentWindow?.print()
-}
-
-/**
- * Markdown notes on native: fetch and hand to the share sheet.
- *
- * The template's `<a download>` is ignored by WKWebView, so tapping "Markdown" on the phone
- * produced nothing — found alongside the PDF defect above. Both formats of the episode-notes export
- * were unreachable on the only build the operator actually uses.
- */
-const savingNotes = ref(false)
-async function saveNotesNative(): Promise<void> {
-  if (savingNotes.value) return
-  savingNotes.value = true
-  try {
-    const md = await fetchEpisodeNotes(props.episode.slug)
-    await saveAndShareText(exportFilename(`${props.episode.title} notes`, 'md', 'episode-notes'), md)
-  } finally {
-    savingNotes.value = false
-  }
-}
+/** The Markdown, for the viewer's native share (it shows the web a plain download link). */
+const fetchNotesMarkdown = (): Promise<string> => fetchEpisodeNotes(props.episode.slug)
 
 const summary = computed(() => props.episode.summary_text || null)
 
@@ -747,102 +702,19 @@ watch(() => auth.isAuthenticated, loadCaptures)
           </span>
         </div>
 
-        <!--
-          The notes, OPEN, on native (operator 2026-09-27).
-
-          TELEPORTED INTO THE OPEN DIALOG, NOT INTO `body`. This panel is a `<dialog>` opened with
-          `showModal()` on mobile (`PlayerView.vue`), which puts it in the TOP LAYER — and the top
-          layer paints above the whole normal layer no matter what z-index anything there carries.
-          The first version of this teleported to `body` with `z-[60]`; the notes fetched, the
-          overlay rendered, and it sat invisible BEHIND the panel. The operator's report was "on
-          last deploy nothing happens when I click PDF on insights", and nothing is exactly what it
-          looked like. My own comment here named the hazard and then did the opposite of what it
-          said.
-
-          `sheetTeleportTarget()` is the existing answer to this — it returns `dialog[open]` when
-          there is one and `body` otherwise, and `EntityCard` already uses it for the same reason.
-          Resolved per open, because whether a dialog is up depends on how you got here.
-
-          None of my three tests caught it: jsdom implements neither the top layer nor `showModal`
-          stacking, so an element hidden behind a modal is indistinguishable there from one on top
-          of it. The device tier is the only place this is observable, and it does not run in CI.
-
-          An `<iframe srcdoc>` is what makes this work without a second request. The export is a
-          COMPLETE standalone document — its own `<html>`, its own print stylesheet — so injecting
-          it into this page would both break the page's styling and lose the print styling that is
-          the entire point of the .html format. An iframe gives it its own document, and `srcdoc`
-          means the bytes we already fetched with the shell's bearer token are the bytes rendered:
-          no URL for SFSafariViewController to re-request without a cookie, which is exactly how
-          the previous attempt at "open it" ended up on the sign-in gate.
-
-          `sandbox` grants no scripts and no navigation: the document is ours, but it is assembled
-          from episode content. It does grant `allow-same-origin` + `allow-modals`, so the PARENT can
-          call the frame's `print()` — the web's route to Save as PDF. Without `allow-scripts`,
-          same-origin lets nothing inside the frame run.
-        -->
-        <Teleport :to="notesTeleportTarget">
-          <div
-            v-if="notesHtml"
-            class="fixed inset-0 z-[60] flex flex-col bg-canvas"
-            role="dialog"
-            aria-modal="true"
-            :aria-label="t('kp.exportNotesPdf')"
-            data-testid="episode-notes-viewer"
-          >
-            <div
-              class="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]"
-            >
-              <button
-                type="button"
-                class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
-                data-testid="episode-notes-viewer-close"
-                @click="notesHtml = null"
-              >
-                {{ t("kp.exportClose") }}
-              </button>
-              <!-- Top right, the formats (operator 2026-10-05): Markdown to keep, and Print or share
-                   for everything else. Native: Markdown goes to the share sheet as a file, because
-                   WKWebView ignores `<a download>`; web: a plain download link. -->
-              <div class="flex items-center gap-2">
-                <button
-                  v-if="isNative()"
-                  type="button"
-                  :disabled="savingNotes"
-                  :aria-label="t('kp.exportNotesMarkdown')"
-                  class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
-                  data-testid="episode-notes-viewer-md"
-                  @click="saveNotesNative"
-                >
-                  {{ t("kp.exportMarkdownShort") }}
-                </button>
-                <a
-                  v-else
-                  :href="notesUrl('md')"
-                  :download="exportFilename(`${episode.title} notes`, 'md', 'episode-notes')"
-                  :aria-label="t('kp.exportNotesMarkdown')"
-                  class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent no-underline transition hover:bg-overlay"
-                  data-testid="episode-notes-viewer-md"
-                >{{ t("kp.exportMarkdownShort") }}</a>
-                <button
-                  type="button"
-                  class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent transition hover:bg-overlay"
-                  data-testid="episode-notes-viewer-share"
-                  @click="shareOpenNotes"
-                >
-                  {{ t("kp.exportShare") }}
-                </button>
-              </div>
-            </div>
-            <iframe
-              ref="notesFrame"
-              :srcdoc="notesHtml"
-              sandbox="allow-same-origin allow-modals"
-              class="min-h-0 flex-1 w-full border-0 bg-white"
-              :title="t('kp.exportNotesPdf')"
-              data-testid="episode-notes-frame"
-            />
-          </div>
-        </Teleport>
+        <!-- The notes, OPEN, with Markdown + Print or share top right — the shared viewer, which
+             also documents why it is an iframe and why it teleports into the open dialog. -->
+        <ExportViewer
+          v-if="notesHtml"
+          :html="notesHtml"
+          :to="notesTeleportTarget"
+          :title="t('kp.exportNotesPdf')"
+          :html-filename="exportFilename(`${episode.title} notes`, 'html', 'episode-notes')"
+          :md-filename="exportFilename(`${episode.title} notes`, 'md', 'episode-notes')"
+          :md-url="notesUrl('md')"
+          :fetch-markdown="fetchNotesMarkdown"
+          @close="notesHtml = null"
+        />
 
         <!--
           SEARCH, not "Ask" (operator 2026-09-27: "Ask episode doesn't feel right here").

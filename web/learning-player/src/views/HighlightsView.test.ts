@@ -67,7 +67,7 @@ describe('HighlightsView', () => {
     expect(w.text()).toContain('No highlights yet')
   })
 
-  it('groups by episode (title hydrated), renders the jump link, and the export link', async () => {
+  it('groups by episode (title hydrated), renders the jump link, and ONE export link', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'How Sleep Works'))
     const w = mountView()
@@ -75,8 +75,10 @@ describe('HighlightsView', () => {
     expect(w.text()).toContain('How Sleep Works') // group heading from hydrated title
     expect(w.text()).toContain('a captured line')
     expect(w.text()).toContain('1:05') // 65_000ms
-    const exportLink = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('export.md'))
-    expect(exportLink?.attributes('download')).toBe('my-highlights.md')
+    // ONE link that opens the document; the formats live in the viewer (operator 2026-10-05).
+    expect(w.get('[data-testid="export-open"]').text()).toBe('Download')
+    expect(w.find('[data-testid="export-pdf"]').exists()).toBe(false)
+    expect(w.find('a[download]').exists()).toBe(false)
   })
 
   it('shares a highlight as a card (#1418)', async () => {
@@ -241,13 +243,68 @@ describe('HighlightsView', () => {
     expect(patch).toHaveBeenCalledWith('h1', { color: 'amber' })
   })
 
-  it('the export link obeys the colour filter (#2042)', async () => {
-    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ color: 'amber' })])
+  /** Open the export viewer with the given view props; returns the fetch spy. */
+  async function openExport(props: Record<string, unknown>, isNat = false) {
+    vi.spyOn(native, 'isNative').mockReturnValue(isNat)
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ color: 'amber', retired: true } as Partial<Highlight>)])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
-    const w = mountView({ filterColor: 'amber' })
+    const fetch = vi
+      .spyOn(api, 'fetchHighlightsExport')
+      .mockImplementation(async (_c, _o, format) =>
+        format === 'html' ? '<html><body>HIGHLIGHTS DOC</body></html>' : '# Highlights',
+      )
+    const w = mountView(props)
     await flushPromises()
-    const href = w.find('a[download="my-highlights.md"]').attributes('href')
-    expect(href).toBe('/api/app/highlights/export.md?color=amber')
+    await w.get('[data-testid="export-open"]').trigger('click')
+    await flushPromises()
+    return { w, fetch }
+  }
+  // Teleport is stubbed in this file, so the viewer renders INSIDE the wrapper.
+  const inViewer = (w: ReturnType<typeof mountView>, id: string) =>
+    w.get(`[data-testid="export-viewer"] [data-testid="${id}"]`)
+
+  it('the export OPENS the document in the app, with the active filters (#2042)', async () => {
+    // On the web it used to open a tab, where "download" saved HTML, not a PDF (operator 2026-10-05).
+    const external = vi.spyOn(native, 'openExternal').mockResolvedValue(undefined)
+    const { w, fetch } = await openExport({ filterColor: 'amber', mutedOnly: true, search: 'line' })
+    expect(fetch).toHaveBeenCalledWith('amber', { mutedOnly: true, q: 'line' }, 'html')
+    expect(inViewer(w, 'export-viewer-frame').attributes('srcdoc')).toContain('HIGHLIGHTS DOC')
+    expect(external).not.toHaveBeenCalled()
+  })
+
+  it("the viewer's Markdown link carries the same filters, so what you filtered is what you get", async () => {
+    const { w } = await openExport({ filterColor: 'amber', mutedOnly: true })
+    const a = inViewer(w, 'export-viewer-md')
+    expect(a.element.tagName).toBe('A')
+    expect(a.attributes('download')).toBe('my-highlights.md')
+    const href = a.attributes('href') ?? ''
+    expect(href).toContain('/api/app/highlights/export.md?')
+    expect(href).toContain('color=amber')
+    expect(href).toContain('muted_only=true')
+  })
+
+  it('on NATIVE Print or share hands the page to the share sheet', async () => {
+    const share = vi.spyOn(native, 'saveAndShareText').mockResolvedValue(undefined)
+    const { w } = await openExport({}, true)
+    await inViewer(w, 'export-viewer-share').trigger('click')
+    await flushPromises()
+    expect(share).toHaveBeenCalledWith(
+      'my-highlights.html',
+      '<html><body>HIGHLIGHTS DOC</body></html>',
+      'text/html',
+    )
+  })
+
+  it('a failed export SAYS so rather than doing nothing', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+    vi.spyOn(api, 'fetchHighlightsExport').mockRejectedValue(new Error('offline'))
+    const w = mountView()
+    await flushPromises()
+    await w.get('[data-testid="export-open"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="export-error"]').exists()).toBe(true)
+    expect(w.find('[data-testid="export-viewer"]').exists()).toBe(false)
   })
 
   it('honours the filterColor prop (the filter is lifted to the Saved bar)', async () => {
@@ -331,36 +388,6 @@ describe('HighlightsView', () => {
     // pass while the filter did nothing at all.
     expect(on.text()).toContain('stopped asking')
     expect(on.text()).not.toContain('still resurfacing')
-  })
-
-  it('the Markdown export link carries the muted filter, so what you filtered is what you get', async () => {
-    vi.spyOn(api, 'getHighlights').mockResolvedValue([
-      hl({ id: 'gone', retired: true } as Partial<Highlight>),
-    ])
-    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
-    const w = mountView({ mutedOnly: true })
-    await flushPromises()
-    const href = w.get('a[download]').attributes('href') ?? ''
-    expect(href).toContain('muted_only=true')
-  })
-
-  it('the PDF button opens the print route externally, with the active filters', async () => {
-    // `openExternal`, not `window.open` — the latter is a silent no-op in WKWebView, which is how
-    // this button did nothing at all on the operator's phone.
-    const open = vi.spyOn(native, 'openExternal').mockResolvedValue(undefined)
-    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
-    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
-    const w = mountView({ filterColor: 'amber', mutedOnly: true })
-    await flushPromises()
-
-    await w.get('[data-testid="export-pdf"]').trigger('click')
-    await flushPromises()
-
-    expect(open).toHaveBeenCalledTimes(1)
-    const url = open.mock.calls[0][0]
-    expect(url).toContain('export.html')
-    expect(url).toContain('color=amber')
-    expect(url).toContain('muted_only=true')
   })
 
   it('a failed collections load SAYS so — it does not read as "you have no boards"', async () => {
