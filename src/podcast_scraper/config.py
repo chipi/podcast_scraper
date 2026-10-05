@@ -1532,6 +1532,18 @@ class Config(BaseModel):
             "faster-whisper-server which takes HF repo IDs."
         ),
     )
+    dgx_whisper_punctuation_prompt: Literal["on_retry", "always", "off"] = Field(
+        default="on_retry",
+        alias="dgx_whisper_punctuation_prompt",
+        description=(
+            "#2284 -- when DGX Whisper is sent a punctuated initial prompt. The server decodes "
+            "each window conditioned on the previous one's text, so a lowercase first window can "
+            "leave a whole transcript without punctuation or capitals (6.8% of its prod output). "
+            "'on_retry' (default): transcribe as usual and, only if the result is unpunctuated, "
+            "transcribe once more with the prompt, keeping the better of the two. 'always': send "
+            "the prompt on every request. 'off': never send it (detection and flagging still run)."
+        ),
+    )
     dgx_whisper_sniff_model: str = Field(
         default="",
         alias="dgx_whisper_sniff_model",

@@ -894,7 +894,8 @@ def _save_asr_provenance_file(
     cov = result.get("asr_speech_coverage")
     failover = result.get("speech_coverage_failover")
     sar = result.get("speech_audio_ratio")
-    if cov is None and not failover and sar is None:
+    punct = result.get("punctuation")
+    if cov is None and not failover and sar is None and not punct:
         return
     provenance: Dict[str, Any] = {
         "model": (
@@ -909,6 +910,9 @@ def _save_asr_provenance_file(
     }
     if failover:
         provenance["speech_coverage_failover"] = failover
+    if punct:
+        # #2284: was the transcript unpunctuated, and was a prompted retry made / did it help.
+        provenance["punctuation"] = punct
     full_path = os.path.join(effective_output_dir, rel_transcript_path)
     base, _ = os.path.splitext(full_path)
     asr_path = base + ".asr.json"
@@ -976,6 +980,10 @@ def _write_processing_manifest(
         thresh = getattr(cfg, "transcription_speech_coverage_min", None)
         if cov is not None and thresh and cov < thresh:
             asr_flags.append("asr_speech_coverage_low")
+        _punct = result.get("punctuation")
+        if isinstance(_punct, dict) and _punct.get("unpunctuated"):
+            # #2284: kept, never dropped -- but countable, and downstream knows.
+            asr_flags.append("asr_unpunctuated")
         # Total ASR cost = primary call + any failover re-transcription (both 0 for local models;
         # a cloud ASR that failed over billed twice — RFC-109).
         _primary_cost = getattr(asr_call_metrics, "estimated_cost", None)
@@ -4275,6 +4283,30 @@ def _write_transcript_file(
 #: turns. Distinct from a failed download: the caller falls through to ASR + diarization instead of
 #: reporting the episode as unprocessable.
 TRANSCRIPT_LACKS_SPEAKERS = "rejected_no_speaker_turns"
+#: ...and when it was refused for carrying no punctuation (#2284): a transcript with no sentence
+#: ends and no capitals degrades everything that needs sentences, and our own transcription of the
+#: audio does better. Same fall-through.
+TRANSCRIPT_UNPUNCTUATED = "rejected_unpunctuated"
+#: Every refusal, and the reason recorded for it in the show events.
+_REFUSED_TRANSCRIPT_REASONS = {
+    TRANSCRIPT_LACKS_SPEAKERS: "no_speaker_turns",
+    TRANSCRIPT_UNPUNCTUATED: "unpunctuated",
+}
+
+
+def _refuse_unpunctuated(episode: Any, text: str, fmt: str) -> bool:
+    """True (and logged) when a publisher transcript carries no punctuation (#2284)."""
+    from ..transcription.punctuation import is_unpunctuated
+
+    if not is_unpunctuated(text):
+        return False
+    logger.warning(
+        "[%s] publisher transcript (%s) carries no punctuation or capitals; transcribing "
+        "instead (#2284)",
+        episode.idx,
+        fmt,
+    )
+    return True
 
 
 def process_transcript_download(
@@ -4433,6 +4465,8 @@ def process_transcript_download(
             plain, segments = parse_webvtt(body)
         else:
             plain, segments = parse_srt(body)
+        if _refuse_unpunctuated(episode, plain, ext):
+            return False, None, TRANSCRIPT_UNPUNCTUATED, bytes_downloaded
         # A TRANSCRIPT WITH NO TURNS IS WORSE THAN NO TRANSCRIPT, when the operator says so.
         #
         # Taking the transcript skips ASR *and* diarization together — they are one decision in
@@ -4599,6 +4633,9 @@ def process_transcript_download(
         )
         return False, None, None, bytes_downloaded
 
+    if _refuse_unpunctuated(episode, data.decode("utf-8", errors="replace"), ext or "plain text"):
+        return False, None, TRANSCRIPT_UNPUNCTUATED, bytes_downloaded
+
     # PLAIN TEXT SEPARATES NO TURNS — BY CONSTRUCTION. Only `.vtt`/`.srt` are parsed into
     # segments; everything reaching here is stored as raw bytes with no speaker structure at all,
     # so under `require_transcript_speakers` it fails the same test the cue branch applies, for the
@@ -4717,7 +4754,7 @@ def process_episode_download(
         # separating no turns, the others have not been looked at, and spending ASR on an episode
         # whose sibling VTT was one fetch away is the wrong trade. Try each remaining candidate in
         # preference order, stopping at the first that survives the gate.
-        if transcript_source == TRANSCRIPT_LACKS_SPEAKERS:
+        if transcript_source in _REFUSED_TRANSCRIPT_REASONS:
             for alt_url, alt_type in episode.transcript_urls or []:
                 if alt_url == t_url:
                     continue
@@ -4746,11 +4783,12 @@ def process_episode_download(
                     pipeline_metrics=pipeline_metrics,
                 )
                 bytes_downloaded += alt_bytes
-                if alt_source != TRANSCRIPT_LACKS_SPEAKERS and alt_ok:
+                if alt_source not in _REFUSED_TRANSCRIPT_REASONS and alt_ok:
                     success, transcript_path, transcript_source = alt_ok, alt_path, alt_source
                     break
 
-        if transcript_source == TRANSCRIPT_LACKS_SPEAKERS:
+        if transcript_source in _REFUSED_TRANSCRIPT_REASONS:
+            refusal_reason = _REFUSED_TRANSCRIPT_REASONS[transcript_source]
             # Not a failure — a deliberate refusal. Fall through to the transcription path below
             # so the audio is fetched, transcribed and DIARIZED, which is the whole point of
             # refusing. Every other outcome, success or genuine download failure, returns as before.
@@ -4761,9 +4799,10 @@ def process_episode_download(
             # invisible to whoever turned it on.
             refused_transcript_bytes += bytes_downloaded
             logger.info(
-                "[%s] falling through to transcription: the transcript separates no turns "
-                "(%d bytes already fetched)",
+                "[%s] falling through to transcription: the transcript was refused (%s; "
+                "%d bytes already fetched)",
                 episode.idx,
+                refusal_reason,
                 refused_transcript_bytes,
             )
             from .show_events import record_show_event
@@ -4771,7 +4810,7 @@ def process_episode_download(
             record_show_event(
                 "transcript_refused",
                 episode_title=getattr(episode, "title", None),
-                reason="no_speaker_turns",
+                reason=refusal_reason,
                 offered_types=sorted({str(t) for _u, t in (episode.transcript_urls or [])}),
             )
         else:
