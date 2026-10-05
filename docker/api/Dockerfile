@@ -118,6 +118,13 @@ ENV OTEL_TRACES_EXPORTER=none \
 ENV HF_HOME=/opt/podcast_hf
 RUN mkdir -p "$HF_HOME" \
     && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+# ...and from here on the container never asks the Hub. The model above is the only HF model this
+# image loads (search, and the pipeline jobs that run inside it), and it is baked; without this,
+# sentence-transformers still made an UNAUTHENTICATED metadata call to the Hub on every load
+# ("You are sending unauthenticated requests to the HF Hub", once per prod job). A model that is
+# NOT baked now fails loudly at load instead of being fetched behind our back -- bake it above.
+ENV HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
 
 # Ship packaged pipeline profiles so the operator-config endpoint can
 # enumerate them via ``GET /api/operator-config``. Profiles live
