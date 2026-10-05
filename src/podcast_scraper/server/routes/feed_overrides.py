@@ -28,7 +28,7 @@ from pydantic import ValidationError
 from podcast_scraper import overrides
 from podcast_scraper.server.app_audit import append_audit
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
-from podcast_scraper.utils.path_validation import safe_resolve_directory
+from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_resolve_directory
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +38,21 @@ _PATH_DOC = "Corpus root directory (resolved under server anchor), as for /api/f
 
 
 def _root(request: Request, path: str) -> Path:
-    """The corpus root *path* names, resolved under the server's anchor exactly as /api/feeds."""
-    root = safe_resolve_directory(
-        resolve_corpus_path_param(path, getattr(request.app.state, "output_dir", None))
-    )
-    if root is None:
+    """The corpus root *path* names, resolved under the server's anchor exactly as /api/feeds.
+
+    The result is passed through :func:`normpath_if_under_root` against the ANCHOR and only that
+    returned value is used for file access — the sanitizer shape CodeQL's ``py/path-injection``
+    recognises (it flagged every overrides read/write when the route only resolved the directory).
+    """
+    anchor = getattr(request.app.state, "output_dir", None)
+    root = safe_resolve_directory(resolve_corpus_path_param(path, anchor))
+    if root is None or anchor is None:
         raise HTTPException(status_code=400, detail="Invalid corpus path.")
-    return Path(os.path.normpath(str(root.resolve())))
+    anchor_s = os.path.normpath(str(Path(anchor).resolve()))
+    safe = normpath_if_under_root(os.path.normpath(str(root.resolve())), anchor_s)
+    if safe is None:
+        raise HTTPException(status_code=400, detail="Invalid corpus path.")
+    return Path(safe)
 
 
 def _audit(request: Request, **record: object) -> None:
