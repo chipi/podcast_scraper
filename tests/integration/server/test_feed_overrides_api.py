@@ -195,6 +195,18 @@ def test_a_path_outside_the_anchor_is_refused(tmp_path: Path) -> None:
     assert not (outside / overrides.OVERRIDES_BASENAME).exists()
 
 
+def test_a_subdirectory_of_the_corpus_is_refused_too(tmp_path: Path) -> None:
+    """Overrides live at the corpus root the pipeline reads, never under a request-chosen path."""
+    sub = tmp_path / "feeds"
+    sub.mkdir()
+    r = _keyed(_app(tmp_path)).put(
+        f"{BASE}/feed", params={"path": str(sub), "url": FEED}, json={"language": "en"}
+    )
+    assert r.status_code == 400
+    assert not (sub / overrides.OVERRIDES_BASENAME).exists()
+    assert not overrides.overrides_path(tmp_path).exists()
+
+
 def test_deleting_a_feed_removes_its_episodes_too(tmp_path: Path) -> None:
     client = _keyed(_app(tmp_path))
     client.put(f"{BASE}/feed", params=_p(tmp_path, url=FEED), json={"language": "en"})

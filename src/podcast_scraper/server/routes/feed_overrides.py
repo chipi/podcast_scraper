@@ -28,7 +28,6 @@ from pydantic import ValidationError
 from podcast_scraper import overrides
 from podcast_scraper.server.app_audit import append_audit
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
-from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_resolve_directory
 
 logger = logging.getLogger(__name__)
 
@@ -38,21 +37,26 @@ _PATH_DOC = "Corpus root directory (resolved under server anchor), as for /api/f
 
 
 def _root(request: Request, path: str) -> Path:
-    """The corpus root *path* names, resolved under the server's anchor exactly as /api/feeds.
+    """The corpus root, which must be the server's own anchor; *path* only has to name it.
 
-    The result is passed through :func:`normpath_if_under_root` against the ANCHOR and only that
-    returned value is used for file access — the sanitizer shape CodeQL's ``py/path-injection``
-    recognises (it flagged every overrides read/write when the route only resolved the directory).
+    THE FILE LOCATION NEVER COMES FROM THE REQUEST. Overrides live at the corpus root the pipeline
+    reads (``app.state.output_dir``, ``/app/output`` on the control plane), so the request's
+    ``path`` is validated against the anchor (``resolve_corpus_path_param`` refuses anything
+    outside it) and compared as a string; the path returned is built from the server's own
+    setting. CodeQL's ``py/path-injection`` flagged every overrides read/write while the location
+    was derived from the request, including through a normpath/startswith sanitizer.
     """
     anchor = getattr(request.app.state, "output_dir", None)
-    root = safe_resolve_directory(resolve_corpus_path_param(path, anchor))
-    if root is None or anchor is None:
-        raise HTTPException(status_code=400, detail="Invalid corpus path.")
-    anchor_s = os.path.normpath(str(Path(anchor).resolve()))
-    safe = normpath_if_under_root(os.path.normpath(str(root.resolve())), anchor_s)
-    if safe is None:
-        raise HTTPException(status_code=400, detail="Invalid corpus path.")
-    return Path(safe)
+    if anchor is None:
+        raise HTTPException(status_code=400, detail="No corpus anchor configured.")
+    anchor_s = os.path.normpath(str(Path(anchor).expanduser().resolve()))
+    requested = os.path.normpath(str(resolve_corpus_path_param(path, anchor)))
+    if requested != anchor_s:
+        raise HTTPException(
+            status_code=400,
+            detail="Overrides live at the corpus root; path must name it.",
+        )
+    return Path(anchor_s)
 
 
 def _audit(request: Request, **record: object) -> None:
