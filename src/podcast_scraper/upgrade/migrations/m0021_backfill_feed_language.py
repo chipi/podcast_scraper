@@ -54,6 +54,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from ... import overrides as ov
 from ...languages import normalize_language_tag, SOURCE_OVERRIDE, SOURCE_RSS
 from ...rss.parser import _channel_language
 from ..corpus_selection import select_served_artifacts
@@ -171,6 +172,50 @@ def _plan_for_episode(payload: Dict[str, Any], raw: str, normalized: str) -> Dic
     return {k: v for k, v in wanted.items() if current.get(k) != v}
 
 
+def _plan_for_override(payload: Dict[str, Any], language: str) -> Dict[Any, Any]:
+    """The writes that put an operator's feed-level language override on this episode.
+
+    ``language_raw`` is left as it is: it records what the publisher declared, and the override is
+    the operator saying that declaration is wrong — not that it was never made.
+    """
+    feed = _block(payload, "feed")
+    episode = _block(payload, "episode")
+    wanted = {
+        ("feed", "language"): language,
+        ("feed", "language_source"): SOURCE_OVERRIDE,
+        ("episode", "language"): language,
+        ("episode", "language_source"): SOURCE_OVERRIDE,
+    }
+    current = {
+        ("feed", "language"): feed.get("language"),
+        ("feed", "language_source"): feed.get("language_source"),
+        ("episode", "language"): episode.get("language"),
+        ("episode", "language_source"): episode.get("language_source"),
+    }
+    return {k: v for k, v in wanted.items() if current.get(k) != v}
+
+
+def _feed_language_overrides(root: Path) -> Dict[str, str]:
+    """``{feed url: ISO code}`` for every feed whose ``overrides.json`` entry sets a language.
+
+    THE OPERATOR'S CORRECTION OUTRANKS THE PUBLISHER, here as in the pipeline. Without this the
+    migration fetched every show's ``<language>`` and stamped it onto every existing episode even
+    when an operator had overridden that show precisely because its tag is wrong (English-path
+    audit, 2026-10-05). A broken ``overrides.json`` RAISES (``load_overrides``): applying the
+    publisher's tag because the corrections could not be read would be the same failure.
+
+    Feed level only. ``metadata.json`` records no ``<guid>``, so an episode-level override cannot
+    be matched to its artifact here; the pipeline applies those on the episode's next run.
+    """
+    doc = ov.load_overrides(root)
+    out: Dict[str, str] = {}
+    for url, entry in doc.feeds.items():
+        language = entry.fields.language
+        if language:
+            out[ov.feed_key(url)] = language
+    return out
+
+
 def _apply_plan(payload: Dict[str, Any], plan: Dict[Any, Any]) -> None:
     for (block, field), value in plan.items():
         target = payload.setdefault(block, {})
@@ -230,6 +275,8 @@ class BackfillFeedLanguageMigration(Migration):
         updated = 0
         already = 0
         overridden = 0
+        feed_overrides = _feed_language_overrides(root)
+        from_override: List[str] = []
 
         for feed_id in sorted(episodes):
             url = urls.get(feed_id)
@@ -239,26 +286,47 @@ class BackfillFeedLanguageMigration(Migration):
                 ctx.log(f"  {feed_id}: SKIPPED — corpus has no feed.url for this show")
                 continue
 
-            raw, err = _fetch_language(url, timeout)
-            if err:
-                fetch_failed[feed_id] = err
-                ctx.log(f"  {feed_id}: FETCH FAILED ({err}) — will retry on the next upgrade")
-                continue
-            if not raw:
-                no_language.append(feed_id)
-                ctx.log(f"  {feed_id}: declares no <language> — left as it is")
-                continue
-            normalized = normalize_language_tag(raw)
-            if not normalized:
-                no_language.append(feed_id)
-                ctx.log(f"  {feed_id}: declares {raw!r}, which is not a usable tag — left as it is")
-                continue
+            override_language = feed_overrides.get(ov.feed_key(url))
+            if override_language:
+                # The operator's language for this show; the publisher's tag is not even fetched.
+                raw: Optional[str] = None
+                normalized: Optional[str] = override_language
+                from_override.append(feed_id)
+            else:
+                raw, err = _fetch_language(url, timeout)
+                if err:
+                    fetch_failed[feed_id] = err
+                    ctx.log(f"  {feed_id}: FETCH FAILED ({err}) — will retry on the next upgrade")
+                    continue
+                if not raw:
+                    no_language.append(feed_id)
+                    ctx.log(f"  {feed_id}: declares no <language> — left as it is")
+                    continue
+                normalized = normalize_language_tag(raw)
+                if not normalized:
+                    no_language.append(feed_id)
+                    ctx.log(
+                        f"  {feed_id}: declares {raw!r}, which is not a usable tag — left as it is"
+                    )
+                    continue
 
             counts: Dict[str, int] = {"updated": 0, "already": 0, "overridden": 0}
             for path in episodes[feed_id]:
                 payload, err2 = _load_json(path)
                 if payload is None:
                     unparsable.append(f"{path.name}: {err2}")
+                    continue
+                if override_language:
+                    plan = _plan_for_override(payload, override_language)
+                    if not plan:
+                        counts["already"] += 1
+                        already += 1
+                        continue
+                    counts["updated"] += 1
+                    updated += 1
+                    if not ctx.dry_run:
+                        _apply_plan(payload, plan)
+                        receipts.append(write_with_backup(root, BACKUP_TAG, path, payload))
                     continue
                 if _is_operator_override(payload):
                     # Per EPISODE, not per show: the override is recorded on the artifact, so
@@ -267,6 +335,7 @@ class BackfillFeedLanguageMigration(Migration):
                     counts["overridden"] += 1
                     overridden += 1
                     continue
+                assert raw is not None and normalized is not None  # the fetch branch set both
                 plan = _plan_for_episode(payload, raw, normalized)
                 if not plan:
                     counts["already"] += 1
@@ -296,9 +365,15 @@ class BackfillFeedLanguageMigration(Migration):
                 )
                 files_written += len(receipts)
                 receipts = []
-            per_feed[feed_id] = {**counts, "language": normalized, "raw": raw}
+            per_feed[feed_id] = {
+                **counts,
+                "language": normalized,
+                "raw": raw,
+                "source": SOURCE_OVERRIDE if override_language else SOURCE_RSS,
+            }
+            declared = "operator override" if override_language else repr(raw)
             ctx.log(
-                f"  {feed_id}: {raw!r} -> {normalized!r} — {counts['updated']} updated, "
+                f"  {feed_id}: {declared} -> {normalized!r} — {counts['updated']} updated, "
                 f"{counts['already']} already correct, "
                 f"{counts['overridden']} left to the operator override"
             )
@@ -309,7 +384,8 @@ class BackfillFeedLanguageMigration(Migration):
         message = (
             f"{len(served)} episode(s) across {len(episodes)} show(s): "
             f"{updated} updated, {already} already correct, "
-            f"{overridden} override(s) left alone; "
+            f"{overridden} override(s) left alone, {len(from_override)} show(s) set from "
+            f"overrides.json; "
             f"{len(no_url)} show(s) with no url, {len(no_language)} declaring no language, "
             f"{len(fetch_failed)} fetch failure(s), {len(unparsable)} unparsable"
         )

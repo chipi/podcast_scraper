@@ -549,3 +549,92 @@ class TestEveryWriteIsBackedUpAndUndoable:
         assert res.details["overridden"] == 1
         assert res.details["files_written"] == 0
         assert not (tmp_path / m0021.RECEIPTS_FILE).exists()
+
+
+class TestOverridesJsonOutranksThePublisher:
+    """A feed-level language in ``overrides.json`` (#2283) wins over the fetched ``<language>``.
+
+    Before this, m0021 read only the ``language_source`` already on each artifact, so an override
+    set through the API — the remedy for a publisher's WRONG tag — did not stop the migration from
+    stamping that wrong tag onto every existing episode (English-path audit, 2026-10-05).
+    """
+
+    def _override(self, root: Path, url: str, language: str) -> None:
+        from podcast_scraper import overrides as ov
+
+        ov.set_feed_fields(root, url, ov.FeedFields(language=language))
+
+    def test_the_override_is_written_and_the_publisher_is_never_fetched(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        path = _episode(tmp_path, "p01", "p01_e01")
+        self._override(tmp_path, "https://example.com/p01.xml", "en")
+
+        def explode(url: str, timeout: float) -> Tuple[Optional[str], str]:
+            raise AssertionError(f"fetched {url} although overrides.json sets its language")
+
+        monkeypatch.setattr(m0021, "_fetch_language", explode)
+
+        res = BackfillFeedLanguageMigration().apply(_ctx(tmp_path))
+
+        payload = _load(path)
+        assert payload["feed"]["language"] == "en"
+        assert payload["feed"]["language_source"] == "override"
+        assert payload["episode"]["language"] == "en"
+        assert payload["episode"]["language_source"] == "override"
+        assert res.applied is True
+        assert res.details["per_feed"]["p01"]["source"] == "override"
+
+    def test_a_wrong_publisher_tag_never_reaches_an_overridden_show(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """The case the gap was about: the RSS says Spanish, the operator says English."""
+        overridden = _episode(tmp_path, "p01", "p01_e01")
+        untouched = _episode(tmp_path, "p02", "p02_e01")
+        self._override(tmp_path, "https://example.com/p01.xml", "en")
+        _stub_fetch(
+            monkeypatch,
+            {"https://example.com/p01.xml": "es-ES", "https://example.com/p02.xml": "es-ES"},
+        )
+
+        BackfillFeedLanguageMigration().apply(_ctx(tmp_path))
+
+        assert _load(overridden)["episode"]["language"] == "en"
+        assert _load(untouched)["episode"]["language"] == "es", "other shows still backfill"
+
+    def test_an_override_write_is_undoable_like_any_other(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        path = _episode(tmp_path, "p01", "p01_e01")
+        before = path.read_text(encoding="utf-8")
+        self._override(tmp_path, "https://example.com/p01.xml", "en")
+        monkeypatch.setattr(m0021, "_fetch_language", lambda url, timeout: (None, "unused"))
+
+        BackfillFeedLanguageMigration().apply(_ctx(tmp_path))
+        restored, refused = m0021.undo(tmp_path)
+
+        assert (restored, refused) == (1, [])
+        assert path.read_text(encoding="utf-8") == before
+
+    def test_a_dry_run_reports_the_override_and_writes_nothing(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        path = _episode(tmp_path, "p01", "p01_e01")
+        before = path.read_text(encoding="utf-8")
+        self._override(tmp_path, "https://example.com/p01.xml", "en")
+
+        res = BackfillFeedLanguageMigration().apply(_ctx(tmp_path, dry_run=True))
+
+        assert res.details["updated"] == 1
+        assert "1 show(s) set from overrides.json" in res.message
+        assert path.read_text(encoding="utf-8") == before
+
+    def test_a_broken_overrides_file_stops_the_migration(self, tmp_path: Path, monkeypatch) -> None:
+        """Fail hard: applying the publisher's tag because the corrections were unreadable is the
+        very failure this class exists to prevent."""
+        _episode(tmp_path, "p01", "p01_e01")
+        (tmp_path / "overrides.json").write_text("{not json", encoding="utf-8")
+        _stub_fetch(monkeypatch, {"https://example.com/p01.xml": "es-ES"})
+
+        with pytest.raises(ValueError):
+            BackfillFeedLanguageMigration().apply(_ctx(tmp_path))
