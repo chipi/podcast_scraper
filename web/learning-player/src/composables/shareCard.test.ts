@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import * as api from '../services/api'
 import * as native from '../services/native'
-import { shareCard } from './shareCard'
+import { shareCard, shareHighlightCard } from './shareCard'
 
 const PNG = new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: 'image/png' })
 
@@ -60,6 +60,15 @@ describe('shareCard — the server card, shared as an IMAGE (operator 2026-10-05
     vi.stubGlobal('navigator', { ...navigator, canShare: () => true, share: vi.fn().mockRejectedValue(abort) })
     await shareCard('topic', 'topic:risk', 'Risk')
     expect(deliver).not.toHaveBeenCalled()
+  })
+
+  it("a highlight shares ITS server card, named after the episode", async () => {
+    const fetch = vi.spyOn(api, 'fetchHighlightCard').mockResolvedValue(PNG)
+    vi.spyOn(native, 'isNative').mockReturnValue(true)
+    const deliver = vi.spyOn(native, 'deliverFile').mockResolvedValue(undefined)
+    await shareHighlightCard({ id: 'h1' } as never, 'NVIDIA')
+    expect(fetch).toHaveBeenCalledWith('h1')
+    expect(deliver).toHaveBeenCalledWith('nvidia-highlight.png', PNG)
   })
 
   it('a failed fetch rejects, so the menu can say so', async () => {

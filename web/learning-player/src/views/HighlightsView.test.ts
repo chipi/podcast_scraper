@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
-import * as shareCard from '../composables/useShareCard'
+import * as shareCard from '../composables/shareCard'
 import * as native from '../services/native'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, Highlight, Note } from '../services/types'
@@ -89,6 +89,19 @@ describe('HighlightsView', () => {
     await flushPromises()
     await w.find('[aria-label="Share as card"]').trigger('click')
     expect(share).toHaveBeenCalledWith(expect.objectContaining({ id: 'h1' }), 'NVIDIA')
+  })
+
+  it('says so beside the highlight when its card could not be made', async () => {
+    vi.spyOn(shareCard, 'shareHighlightCard').mockRejectedValue(new Error('offline'))
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'NVIDIA'))
+    const w = mountView()
+    await flushPromises()
+    await w.find('[aria-label="Share as card"]').trigger('click')
+    await flushPromises()
+    expect(w.get('[data-testid="highlight-share-error"]').text()).toBe(
+      "Couldn't make the card — try again",
+    )
   })
 
   it('flags a drifted anchor', async () => {

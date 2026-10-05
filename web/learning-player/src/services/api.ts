@@ -1363,6 +1363,18 @@ export async function fetchShareCard(kind: ShareCardKind, id: string): Promise<B
   return resp.blob()
 }
 
+/**
+ * One of the user's highlights as a quote card — the same server renderer as every other card,
+ * served signed-in because a highlight is private (`/api/app/highlights/{id}/card.png`).
+ */
+export async function fetchHighlightCard(id: string): Promise<Blob> {
+  const resp = await apiFetch(`${BASE}/highlights/${encodeURIComponent(id)}/card.png`, {
+    credentials: "include",
+  })
+  if (!resp.ok) throw new ApiError(resp.status, `GET /highlights/{id}/card.png → ${resp.status}`)
+  return resp.blob()
+}
+
 /** The same export, print-styled, for the browser's Save-as-PDF (operator 2026-09-18). */
 export function highlightsPrintUrl(
   color?: string | null,

@@ -13,8 +13,10 @@ Share menu's **Share card** and for the `og:image` a shared link unfurls as (ope
 There used to be a second, client-side canvas card (`entityShareCard.ts`) kept in step "by eye"; it
 was not — the server card got artwork, topics and per-kind layouts while the button kept sharing a
 black page with a title — so it was deleted, and `__checks__/share-card-single-source.test.ts` keeps
-a second card from growing back. The highlight quote card (`useShareCard`) is still client-side; it
-has no server twin yet.
+a second card from growing back. The **highlight quote card** moved to the same renderer the same
+day: `build_highlight_card`, served signed-in at `/api/app/highlights/{id}/card.png` (a highlight is
+private — never an unfurl) — the quote as the hero (up to 7 lines), `— speaker · at 1:05`, the
+episode as a title of up to three lines, its topic/person refs, the episode art full-bleed under a darker veil.
 
 ## Use case
 

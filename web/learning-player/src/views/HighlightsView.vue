@@ -37,7 +37,7 @@ import { borderClass } from '../utils/highlightColors'
 import { summaryFromDetail } from '../utils/episode'
 import { matchesQuery } from '../utils/textFilter'
 import { useCappedSections } from '../composables/useCappedSections'
-import { shareHighlightCard } from '../composables/useShareCard'
+import { shareHighlightCard } from '../composables/shareCard'
 
 const { t, locale } = useI18n()
 const capture = useCaptureStore()
@@ -283,8 +283,15 @@ async function resume(id: string): Promise<void> {
   await capture.unretire(id)
 }
 
+/** Which highlight's card could not be made — shown beside it, rather than failing in silence. */
+const shareFailed = ref<string | null>(null)
 async function share(h: Highlight): Promise<void> {
-  await shareHighlightCard(h, titleFor(h.episode_slug))
+  shareFailed.value = null
+  try {
+    await shareHighlightCard(h, titleFor(h.episode_slug))
+  } catch {
+    shareFailed.value = h.id
+  }
 }
 
 // Graph-aware Obsidian export (#1472). Incremental: the last-applied revision is remembered in
@@ -607,6 +614,9 @@ onMounted(async () => {
                 >↗</button>
               </div>
             </div>
+            <p v-if="shareFailed === h.id" class="mt-1 text-xs text-danger" data-testid="highlight-share-error">
+              {{ t('share.cardFailed') }}
+            </p>
 
           <!-- Notes attached to this highlight -->
           <ul v-if="capture.notesFor('highlight', h.id).length" class="mt-2 flex flex-col gap-1">

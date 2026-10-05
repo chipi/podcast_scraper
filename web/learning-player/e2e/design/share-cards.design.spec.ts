@@ -2,7 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { expectSignedIn } from '../helpers'
 
 /**
- * Every kind's Share card, as the app's own "Share card" button produces it (operator 2026-10-05).
+ * Every kind's Share card — and a highlight's quote card — as the app's own buttons produce them
+ * (operator 2026-10-05).
  *
  * The card is the SERVER's (`server/og/card.py`) — one design for every kind. On a desktop browser
  * there is no file share, so the card arrives as a PNG DOWNLOAD: exactly the image a phone would
@@ -51,3 +52,31 @@ for (const [name, path] of [
     await saveCard(page, name)
   })
 }
+
+test('highlight', async ({ page }) => {
+  // A real capture on a real episode, then the Saved row's own "Share as card" button.
+  const eps = await (await page.request.get('/api/app/podcasts/p05/episodes')).json()
+  const ep = (eps as { items: { slug: string; title: string }[] }).items.find((e) =>
+    e.title.startsWith('Index Investing'),
+  )!
+  const created = await page.request.post('/api/app/highlights', {
+    data: {
+      episode_slug: ep.slug,
+      kind: 'span',
+      start_ms: 65_000,
+      quote_text:
+        "Index funds are not a strategy — they're the absence of one. You stop asking what you're " +
+        'trying to achieve and start optimising fees on a goal you never named.',
+      speaker: 'Daniel Cho',
+    },
+  })
+  expect(created.ok()).toBe(true)
+  await page.goto('/library?tab=saved')
+  await page.waitForLoadState('networkidle')
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Share as card' }).first().click(),
+  ])
+  await download.saveAs(out('highlight'))
+})
+

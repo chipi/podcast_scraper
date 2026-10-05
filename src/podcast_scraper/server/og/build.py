@@ -571,7 +571,7 @@ def build_highlight_card(
         accent=accent_for_kind("episode"),
         artwork=art,
         background=True,
-        title_lines=2,
+        title_lines=3,  # room for a full episode title; the quote still has 7 lines below it
         quote_lines=7,
         veil_mid=210,  # the quote runs through the middle — keep the art a texture, not a fight
     )

@@ -22,8 +22,6 @@ const sources = import.meta.glob(['../**/*.ts', '../**/*.vue', '!../**/*.test.ts
 const CANVAS_ALLOWED: Record<string, string> = {
   '../components/AvatarCropModal.vue': 'crops a profile photo — not a card',
   '../theme/accent.ts': 'samples a colour — not a card',
-  '../composables/useShareCard.ts':
-    'the HIGHLIGHT quote card — no server twin yet; moving it is an open operator decision',
 }
 
 describe('share card — one design, the server\'s', () => {
@@ -40,9 +38,10 @@ describe('share card — one design, the server\'s', () => {
     expect(drawing, 'a new canvas renderer — is this a second share card?').toEqual([])
   })
 
-  it('the in-app card renderer stays deleted', () => {
+  it('the in-app card renderers stay deleted', () => {
+    // Both: the entity card (entityShareCard) and the highlight card (useShareCard).
     const importers = Object.entries(sources)
-      .filter(([, src]) => /entityShareCard/.test(src))
+      .filter(([, src]) => /entityShareCard|useShareCard/.test(src))
       .map(([path]) => path)
     expect(importers).toEqual([])
   })
