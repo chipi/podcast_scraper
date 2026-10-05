@@ -24,6 +24,8 @@ const router = createRouter({
     // leaves the card stuck on "Loading…".
     { path: "/topic/:id", name: "topic", component: { template: "<div/>" }, props: true },
     { path: "/person/:id", name: "person", component: { template: "<div/>" }, props: true },
+    // A host's shows link to their show pages.
+    { path: "/podcast/:feedId", name: "podcast", component: { template: "<div/>" } },
   ],
 })
 
@@ -246,6 +248,18 @@ describe("EntityCard", () => {
     expect(themes.map((b) => b.text())).toEqual(["Themerisk"])
     expect(storylines.map((b) => b.text())).toEqual(["StorylineMarkets"])
     expect(topics.map((b) => b.text())).toEqual(["TopicAlpha", "TopicBeta"])
+  })
+
+  it("joins hosted shows with real spaces: 'A, B and C'", async () => {
+    // Rendered "Singletrack SessionsandThe Drift" (2026-10-05): the spaces around the joiner sat
+    // OUTSIDE the interpolation, where the template compiler dropped them.
+    const show = (n: string) => ({ feed_id: `f-${n}`, title: n, role: "host", episode_count: 1 })
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(
+      personCard({ shows: [show("Alpha"), show("Beta"), show("Gamma")] }),
+    )
+    const w = mountCard({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    expect(w.get('[data-testid="ec-host-shows"]').text()).toBe("Host of Alpha, Beta and Gamma")
   })
 
   it("emits close on the dimmed backdrop and the ✕ button", async () => {

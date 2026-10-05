@@ -63,18 +63,19 @@ const hasAny = computed(() => checked.value && found.value)
 
 <template>
   <!-- A focused, centred column at every width, like sign-in (operator 2026-10-05): a short fallback
-       page, not a browsing surface. On a phone the column is wider than the screen and fills it. -->
+       page, not a browsing surface. Its title and messages are centred like sign-in's; the list of
+       downloads stays left-aligned. On a phone the column is wider than the screen and fills it. -->
   <main class="lp-page mx-auto max-w-md py-6" data-testid="offline-downloads">
-    <h1 class="font-display text-2xl font-extrabold tracking-tight text-canvas-foreground">
+    <h1 class="text-center font-display text-2xl font-extrabold tracking-tight text-canvas-foreground">
       {{ t('offlineDownloads.title') }}
     </h1>
     <!-- Says WHY this page looks different from the app, so it reads as a deliberate fallback
          rather than as the app having lost everything. -->
-    <p class="mt-1 text-sm text-muted">{{ t('offlineDownloads.subtitle') }}</p>
+    <p class="mt-1 text-center text-sm text-muted">{{ t('offlineDownloads.subtitle') }}</p>
 
-    <div v-if="!checked" class="mt-6 text-sm text-muted">{{ t('catalog.loading') }}</div>
+    <div v-if="!checked" class="mt-6 text-center text-sm text-muted">{{ t('catalog.loading') }}</div>
     <DownloadedList v-else-if="hasAny" class="mt-6" />
-    <p v-else class="mt-6 text-sm text-muted" data-testid="offline-downloads-empty">
+    <p v-else class="mt-6 text-center text-sm text-muted" data-testid="offline-downloads-empty">
       {{ t('offlineDownloads.empty') }}
     </p>
   </main>

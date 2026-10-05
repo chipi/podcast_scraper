@@ -156,7 +156,7 @@ function searchLibrary(): void {
               @click="emit('close')"
               >{{ s.title }}</RouterLink
             ><span v-if="i < hostShows.length - 2">, </span
-            ><span v-else-if="i === hostShows.length - 2"> {{ t("ec.andJoin") }} </span>
+            ><span v-else-if="i === hostShows.length - 2">{{ ` ${t("ec.andJoin")} ` }}</span>
           </template>
         </p>
         <!-- Attribution, under the hosted shows in the photo's column (operator 2026-09-17).
@@ -224,7 +224,7 @@ function searchLibrary(): void {
         @click="emit('close')"
         >{{ s.title }}</RouterLink
       ><span v-if="i < hostShows.length - 2">, </span
-      ><span v-else-if="i === hostShows.length - 2"> {{ t("ec.andJoin") }} </span>
+      ><span v-else-if="i === hostShows.length - 2">{{ ` ${t("ec.andJoin")} ` }}</span>
     </template>
   </p>
 
