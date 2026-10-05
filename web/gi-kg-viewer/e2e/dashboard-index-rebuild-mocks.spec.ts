@@ -138,4 +138,50 @@ test.describe('Index rebuild via Configuration Vector index dialog (mocked API)'
     const req = await reqPromise
     expect(new URL(req.url()).searchParams.get('rebuild')).toBe('true')
   })
+
+  test('a stale index lights the status-bar Index indicator and the briefing item; both open the Index section', async ({
+    page,
+  }) => {
+    await page.route('**/api/index/stats**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...INDEX_STATS_ENVELOPE,
+          reindex_recommended: true,
+          reindex_reasons: ['artifacts_newer_than_index'],
+        }),
+      }),
+    )
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+
+    const indicator = page.getByTestId('status-bar-rebuild-indicator')
+    await expect(indicator).toHaveText('Index')
+    await expect(indicator).toHaveAttribute('title', 'Index refresh recommended')
+    await indicator.click()
+    await expect(page.getByTestId('status-bar-sources-dialog')).toBeVisible()
+    await expect(page.getByTestId('sources-dialog-index-panel')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('status-bar-sources-dialog')).toBeHidden()
+
+    // UXS-006 §3.5: last_updated 2024-01-01 + reindex_recommended → "Index last rebuilt N days ago".
+    await openCorpusDataWorkspace(page)
+    const item = page
+      .getByTestId('briefing-action-item')
+      .filter({ hasText: /Index last rebuilt \d+ days ago/ })
+    await expect(item).toHaveCount(1)
+    await item.getByRole('button', { name: 'Open index controls' }).click()
+    await expect(page.getByTestId('sources-dialog-index-panel')).toBeVisible()
+  })
+
+  test('a current index shows no status-bar Index indicator', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
+    await openCorpusDataWorkspace(page)
+    await expect(page.getByTestId('index-status-card')).toBeVisible()
+    await expect(page.getByTestId('status-bar-rebuild-indicator')).toHaveCount(0)
+  })
 })

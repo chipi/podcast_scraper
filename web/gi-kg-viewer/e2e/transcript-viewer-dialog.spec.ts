@@ -184,6 +184,20 @@ test.describe('Transcript viewer dialog (mocked API)', () => {
     await dlg.getByText('Timeline (2 segments)', { exact: false }).click()
     await expect(dlg.getByTestId('transcript-viewer-timeline')).toBeVisible()
     await expect(dlg.getByText('0.0s – 1.2s', { exact: false })).toBeVisible()
+
+    // "Open raw transcript in new tab" opens the same transcript file in a new tab.
+    const raw = dlg.getByTestId('transcript-viewer-open-raw')
+    await expect(raw).toHaveText('Open raw transcript in new tab')
+    await expect(raw).toHaveAttribute('target', '_blank')
+    const popupP = page.waitForEvent('popup')
+    await raw.click()
+    const popup = await popupP
+    const opened = new URL(popup.url())
+    expect(opened.pathname).toBe('/api/corpus/text-file')
+    // The quote's own transcript_ref (`transcript.txt` in the CI sample) in the current corpus.
+    expect(opened.searchParams.get('relpath')).toBe('transcript.txt')
+    expect(opened.searchParams.get('path')).toBe('/mock/corpus')
+    await popup.close()
   })
 })
 
