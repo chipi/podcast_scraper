@@ -127,6 +127,20 @@ describe("EntitySignals — person", () => {
     // Focused = person_a → self claim is insight_a_text; counterpart's is insight_b_text.
     expect(row.text()).toContain("AI needs guardrails to be safe.")
     expect(row.text()).toContain("Sensible AI rules protect users.")
+    // The counterpart is named ONCE, on the agreeing line (operator 2026-10-05).
+    expect(row.text().split("Bob Lee").length - 1).toBe(1)
+    expect(row.get('[data-testid="es-consensus-other"]').text()).toBe("Bob Lee agrees: “Sensible AI rules protect users.”")
+  })
+
+  it("names the person in the agreement heading, so 'they' is never unexplained", async () => {
+    vi.spyOn(api, "getEntitySignals").mockResolvedValue(SIGNALS)
+    const w = mount(EntitySignals, {
+      props: { kind: "person", id: "person:jane-doe", name: "Jane Doe", only: "consensus" },
+      global: { plugins: [i18n] },
+    })
+    await flushPromises()
+    expect(w.get('[data-testid="es-consensus"]').text()).toContain("Who agrees with Jane Doe")
+    expect(w.find('[data-testid="es-coappears"]').exists()).toBe(false)
   })
 
   it("emits open when a co-appears chip is clicked", async () => {

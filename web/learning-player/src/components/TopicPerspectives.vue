@@ -33,6 +33,8 @@ const props = withDefaults(
      * share this component rather than growing two near-copies that drift.
      */
     kind?: "topic" | "theme" | "storyline"
+    /** The topic's name: a topic's heading says what the perspectives are ON (operator 2026-10-05). */
+    label?: string
   }>(),
   { kind: "topic" }
 )
@@ -123,9 +125,13 @@ const headingTitle = computed(() =>
 )
 const heading = computed(() =>
   props.kind === "topic"
-    ? t("ec.perspectives", perspectives.value.length, {
-        named: { count: perspectives.value.length },
-      })
+    ? props.label
+      ? t("ec.perspectivesOn", perspectives.value.length, {
+          named: { count: perspectives.value.length, topic: props.label },
+        })
+      : t("ec.perspectives", perspectives.value.length, {
+          named: { count: perspectives.value.length },
+        })
     : headingTitle.value
 )
 

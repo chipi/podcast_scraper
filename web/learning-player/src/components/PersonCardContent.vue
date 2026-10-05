@@ -327,7 +327,7 @@ function searchLibrary(): void {
   </button>
 
   <!-- "Where they agree" — the second half of the signals, after who this person is connected to. -->
-  <EntitySignals kind="person" :id="person.id" only="consensus" @open="(p) => emit('open', p)" />
+  <EntitySignals kind="person" :id="person.id" :name="label" only="consensus" @open="(p) => emit('open', p)" />
 
   <!-- Episodes (newest-first, STATED not offered as a control — #2004 item 11). Host-show
        back-catalogue is dropped above, so this is "also appears in" when they host anything.

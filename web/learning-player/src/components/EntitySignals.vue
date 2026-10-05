@@ -31,6 +31,8 @@ const props = defineProps<{
    * operator 2026-10-05). Two instances share ONE request: `getEntitySignals` caches by entity.
    */
   only?: "coappears" | "consensus"
+  /** The person's display name, so the agreement heading says WHO "they" are. */
+  name?: string
 }>()
 const emit = defineEmits<{ (e: "open", payload: { kind: "person" | "topic"; id: string }): void }>()
 
@@ -167,7 +169,16 @@ const hasAny = computed(() => showCoappears.value || showConsensus.value)
     </section>
 
     <section v-if="showConsensus" class="mb-4" data-testid="es-consensus">
-      <CollapsibleSection :title="t('ec.sigConsensus')" section-key="signals-consensus" :level="3">
+      <!-- Each row names the other person ONCE (operator 2026-10-05). It used to open "Bob on ai
+           regulation", show this person's claim unattributed, then repeat "Bob: …" — "Where they agree"
+           never said who "they" were, and the name appeared twice. Now: the heading names this
+           person, the topic is the row's kicker, this person's claim is the quote (it is their page),
+           and the other person is named once, on their agreeing line. -->
+      <CollapsibleSection
+        :title="props.name ? t('ec.sigConsensusWith', { name: props.name }) : t('ec.sigConsensus')"
+        section-key="signals-consensus"
+        :level="3"
+      >
         <ul class="flex flex-col gap-2">
           <li
             v-for="(c, i) in consensus"
@@ -175,7 +186,9 @@ const hasAny = computed(() => showCoappears.value || showConsensus.value)
             class="rounded-md bg-overlay px-3 py-2"
             data-testid="es-consensus-row"
           >
-            <p class="text-xs">
+            <p class="lp-kicker" data-testid="es-consensus-topic">{{ c.topic }}</p>
+            <p v-if="c.selfText" class="mt-1 text-xs text-canvas-foreground">“{{ c.selfText }}”</p>
+            <p class="mt-1 text-xs text-muted" data-testid="es-consensus-other">
               <button
                 type="button"
                 class="font-semibold text-person hover:underline"
@@ -183,13 +196,8 @@ const hasAny = computed(() => showCoappears.value || showConsensus.value)
               >
                 {{ c.otherName }}
               </button>
-              <span class="text-muted">{{ " " + t("ec.sigOn", { topic: c.topic }) }}</span>
-            </p>
-            <p v-if="c.selfText" class="mt-1 text-xs text-muted">
-              <span class="text-canvas-foreground">“{{ c.selfText }}”</span>
-            </p>
-            <p v-if="c.otherText" class="mt-0.5 text-xs text-muted">
-              {{ c.otherName }}: “{{ c.otherText }}”
+              <span>{{ " " + t("ec.sigAgrees") + (c.otherText ? ": " : "") }}</span
+              ><span v-if="c.otherText">“{{ c.otherText }}”</span>
             </p>
           </li>
         </ul>

@@ -87,6 +87,31 @@ const mountIt = (t: TopicCard) =>
     global: { plugins: [i18n, router], stubs: childStubs },
   })
 
+describe("TopicCardContent — the desktop page mirrors the conversation arc (operator 2026-10-05)", () => {
+  it("gives the activity chart a title row carrying the momentum badge, and hides the caption on lg", async () => {
+    vi.spyOn(api, "getTrending").mockResolvedValue([
+      { entity_id: "t1", velocity: 3, series: [1, 2, 3] },
+    ] as unknown as Awaited<ReturnType<typeof api.getTrending>>)
+    const w = mount(TopicCardContent, {
+      props: { topic: topic({ episodes: [ep("a", "2026-01-10"), ep("b", "2026-02-14")] }), wide: true },
+      global: { plugins: [i18n, router], stubs: childStubs },
+    })
+    await flushPromises()
+    const head = w.get('[data-testid="ec-topic-activity-head"]')
+    expect(head.text()).toContain("Discussed over time")
+    expect(head.findComponent({ name: "TrendMomentum" }).exists()).toBe(true)
+    // The badge above the chart and the caption below it are the phone/sheet layout: hidden on lg.
+    expect(w.get('[data-testid="ec-topic-momentum"]').classes()).toContain("lg:hidden")
+    expect(w.get('[data-testid="ec-topic-activity"] figcaption').classes()).toContain("lg:hidden")
+  })
+
+  it("keeps the phone/sheet layout when the card is not the page", () => {
+    const w = mountIt(topic({ episodes: [ep("a", "2026-01-10"), ep("b", "2026-02-14")] }))
+    expect(w.find('[data-testid="ec-topic-activity-head"]').exists()).toBe(false)
+    expect(w.get('[data-testid="ec-topic-activity"] figcaption').classes()).not.toContain("lg:hidden")
+  })
+})
+
 describe("TopicCardContent — universal activity sparkline (operator 2026-09-14)", () => {
   it("shows a 'discussed over time' sparkline for a NON-trending topic, from its own episodes", () => {
     const w = mountIt(
@@ -173,7 +198,9 @@ describe("the theme a topic belongs to", () => {
     await flushPromises()
     const section = w.find('[data-testid="ec-theme"]')
     expect(section.exists()).toBe(true)
-    expect(section.text()).toContain("Part of a theme")
+    // No "Part of a theme" heading (operator 2026-10-05): the card names its kind in its caption.
+    expect(section.text()).not.toContain("Part of a theme")
+    expect(w.get('[data-testid="ec-theme-kind"]').text()).toBe("Theme · 5 topics")
     expect(section.text()).toContain("Diving")
     // The count is the whole cluster, not the siblings (which exclude the topic you are on).
     expect(section.text()).toContain("5")

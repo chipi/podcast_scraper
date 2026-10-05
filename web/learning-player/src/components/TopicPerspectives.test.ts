@@ -48,6 +48,13 @@ const RESP: TopicPerspectivesResponse = {
 afterEach(() => vi.restoreAllMocks())
 
 describe('TopicPerspectives', () => {
+  it("names the topic in its heading: '2 perspectives on AI'", async () => {
+    vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue(RESP)
+    const w = mount(TopicPerspectives, { props: { id: 'topic:ai', label: 'AI' }, global: { plugins: [i18n] } })
+    await flushPromises()
+    expect(w.get('[data-testid="topic-perspectives"]').text()).toContain('2 perspectives on AI')
+  })
+
   it('renders each speaker with a capped preview of their insights', async () => {
     vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue(RESP)
     const w = mountIt('topic:ai')

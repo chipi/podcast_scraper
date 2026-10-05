@@ -211,17 +211,31 @@ function searchLibrary(): void {
           so it does not draw a second, redundant chart above this one. -->
   <div :class="props.wide ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6' : ''" data-testid="ec-topic-time-pair">
   <div v-if="topicMomentum || activitySeries.length" class="mb-4">
+    <!-- On the desktop page this chart stands beside the conversation arc, so it MIRRORS it (operator
+         2026-10-05): the same title row — "Discussed over time", with the momentum badge where the
+         arc puts its insight count — and the same 64px chart height, so the two read as one row.
+         Phones and sheets keep the badge above and the caption below. The badge renders twice at
+         complementary breakpoints, as the masthead capture control does. -->
+    <div
+      v-if="props.wide"
+      class="mb-2 hidden items-baseline justify-between gap-2 lg:flex"
+      data-testid="ec-topic-activity-head"
+    >
+      <h3 class="lp-section">{{ t("ec.discussedOverTime") }}</h3>
+      <TrendMomentum v-if="topicMomentum" variant="badge" hide-spark :velocity="topicMomentum.v" />
+    </div>
     <TrendMomentum
       v-if="topicMomentum"
       variant="badge"
       hide-spark
       :velocity="topicMomentum.v"
       class="mb-2"
+      :class="props.wide ? 'lg:hidden' : ''"
       data-testid="ec-topic-momentum"
     />
     <figure v-if="activitySeries.length > 1" data-testid="ec-topic-activity">
-      <Sparkline :values="activitySeries" class="h-8 w-full text-topic" />
-      <figcaption class="lp-kicker mt-1">{{ t("ec.discussedOverTime") }}</figcaption>
+      <Sparkline :values="activitySeries" class="h-8 w-full text-topic" :class="props.wide ? 'lg:h-16' : ''" />
+      <figcaption class="lp-kicker mt-1" :class="props.wide ? 'lg:hidden' : ''">{{ t("ec.discussedOverTime") }}</figcaption>
     </figure>
   </div>
 
@@ -267,8 +281,10 @@ function searchLibrary(): void {
        storyline link so a reader meets the two groupings as a pair and can see they are different
        claims — "means the same thing" against "keeps coming up together" — rather than meeting one
        of them and inferring the other from a chip list. -->
+  <!-- No "Part of a theme" / "Part of a storyline" heading over these two (operator 2026-10-05): the
+       link card IS the section. Its caption names the kind — "THEME · 3 TOPICS" — so the two are not
+       told apart by colour alone. -->
   <section v-if="themeLabel && themeId" class="mb-4" data-testid="ec-theme">
-    <CollapsibleSection :title="t('ec.themeHeading')" section-key="topic-theme" :level="3">
       <button
         type="button"
         data-testid="ec-theme-link"
@@ -277,19 +293,18 @@ function searchLibrary(): void {
       >
         <span class="min-w-0 flex-1">
           <span class="block text-sm font-bold text-theme">{{ themeLabel }}</span>
-          <span v-if="themeSize" class="lp-kicker">{{
-            t("ec.clusterSize", themeSize, { named: { count: themeSize } })
-          }}</span>
+          <span class="lp-kicker" data-testid="ec-theme-kind">{{ t("ec.theme")
+            }}<template v-if="themeSize"> · {{
+              t("ec.clusterSize", themeSize, { named: { count: themeSize } })
+            }}</template></span>
         </span>
         <span class="shrink-0 text-muted" aria-hidden="true">›</span>
       </button>
-    </CollapsibleSection>
   </section>
 
   <!-- Part of a storyline: ONE link that opens the whole storyline ON TOP (StorylineCard overlay).
        A topic with no cluster says so, quietly. -->
   <section v-if="storylineLabel" class="mb-4" data-testid="ec-storyline">
-    <CollapsibleSection :title="t('ec.storylineHeading')" section-key="topic-storyline" :level="3">
       <button
         type="button"
         data-testid="ec-storyline-link"
@@ -298,13 +313,13 @@ function searchLibrary(): void {
       >
         <span class="min-w-0 flex-1">
           <span class="block text-sm font-bold text-storyline">{{ storylineLabel }}</span>
-          <span v-if="storylineSize" class="lp-kicker">{{
-            t("ec.clusterSize", storylineSize, { named: { count: storylineSize } })
-          }}</span>
+          <span class="lp-kicker" data-testid="ec-storyline-kind">{{ t("ec.storyline")
+            }}<template v-if="storylineSize"> · {{
+              t("ec.clusterSize", storylineSize, { named: { count: storylineSize } })
+            }}</template></span>
         </span>
         <span class="shrink-0 text-muted" aria-hidden="true">›</span>
       </button>
-    </CollapsibleSection>
   </section>
   <p v-else class="mb-4 text-xs text-muted" data-testid="ec-single-topic">
     {{ t("ec.singleTopic") }}
@@ -394,6 +409,7 @@ function searchLibrary(): void {
        of episodes ... on all three surfaces". -->
   <TopicPerspectives
     :id="topic.id"
+    :label="label"
     @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"
   />
 
