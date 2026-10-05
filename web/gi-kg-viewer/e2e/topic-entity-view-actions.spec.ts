@@ -70,15 +70,17 @@ test.describe('Topic Entity View actions (UXS-007)', () => {
     const topic = await openTopicRailOnDigest(page)
     await page.getByTestId('node-detail-topic-view-in-graph').click({ timeout: 10_000 })
     await expect(page.getByTestId('graph-tab-panel')).toBeVisible()
+    // The canvas id carries its layer prefix (`g:topic:X` / `k:topic:X`), which the handoff helpers
+    // normalise to `topic:X` the same way (`handoff/_handoff-helpers.ts`).
     await page.waitForFunction(
       (id) => {
         const cy = (
           window as unknown as {
-            __GIKG_CY_DEV__?: { $id: (i: string) => { nonempty: () => boolean; selected: () => boolean } }
+            __GIKG_CY_DEV__?: { nodes: (s: string) => { map: (f: (n: { id: () => string }) => string) => string[] } }
           }
         ).__GIKG_CY_DEV__
-        const n = cy?.$id(id)
-        return Boolean(n?.nonempty() && n.selected())
+        const selected = cy?.nodes(':selected').map((n) => n.id().replace(/^[gk]:/, '')) ?? []
+        return selected.includes(id)
       },
       topic.topic_id,
       { timeout: 15_000 },

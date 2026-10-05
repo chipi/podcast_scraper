@@ -265,6 +265,8 @@ describe('StatusBar', () => {
       await flushPromises()
       expect(artifacts.manualGraphSelection).toBe(true)
       expect(artifacts.selectedRelPaths).toEqual(['feeds/a/metadata/e1.gi.json'])
+      // Focused, too: the sibling-cluster merge skips external loads, so the pick stays the pick.
+      expect(artifacts.currentLoadSource).toBe('subject-external')
     } finally {
       vi.unstubAllGlobals()
     }

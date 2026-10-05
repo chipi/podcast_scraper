@@ -22,7 +22,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
+import { dismissGraphGestureOverlayIfPresent, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   assertFsmEventEnvelope,
   assertHandoffApplied,
@@ -406,6 +406,9 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
     await page.getByRole('button', { name: 'Open in graph' }).click()
     await page.waitForTimeout(1500)
+    // The first-run gesture dialog is modal and takes Escape first (it closes); dismiss it so the
+    // Escape below reaches the shell's graph handler.
+    await dismissGraphGestureOverlayIfPresent(page)
 
     const before = await readFsmState(page)
     expect(before).not.toBeNull()

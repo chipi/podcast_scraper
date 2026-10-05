@@ -347,6 +347,8 @@ describe('ShowRailPanel — episode rows, sort, graph', () => {
     await w.get('[data-testid="show-rail-open-graph"]').trigger('click')
     await flushPromises()
     expect(order).toEqual(['baseline', 'append-show'])
+    // ...and the pick is MANUAL, so a later corpus sync (lens auto-widen) cannot replace it.
+    expect(artifacts.manualGraphSelection).toBe(true)
   })
 
   /**

@@ -347,8 +347,12 @@ async function onListArtifactsClick(): Promise<void> {
 }
 
 async function onLoadIntoGraphFromDialog(): Promise<void> {
-  // A pick from this dialog is a MANUAL selection (like a Library load): plain loadSelected()
-  // left the flag unset, and the first Graph visit's corpus sync replaced the pick.
+  // A pick from this dialog is a MANUAL, FOCUSED selection — like a Library load, on both counts:
+  // - manual: plain loadSelected() left the flag unset, and the first Graph visit's corpus sync
+  //   replaced the pick;
+  // - focused: an external load source keeps the topic-cluster sibling merge from appending a
+  //   dozen other episodes to the one the operator chose.
+  artifacts.setLoadSource('subject-external')
   await artifacts.loadRelativeArtifacts([...artifacts.selectedRelPaths])
   if (artifacts.displayArtifact) {
     emit('go-graph')

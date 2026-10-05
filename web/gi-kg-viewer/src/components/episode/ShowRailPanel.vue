@@ -214,6 +214,9 @@ async function openShowInGraph(): Promise<void> {
     // Land the first-visit baseline BEFORE adding the show, as the episode panel and Library do;
     // appended first, the show was replaced by that baseline (1 of p01's 4 episodes drawn).
     await ensureDefaultCorpusGraphIfNeeded()
+    // ...and keep it: a later corpus sync (the lens auto-widen re-runs it) replaced a selection
+    // that was not marked manual, show and all.
+    artifacts.markManualGraphSelection()
     await artifacts.appendRelativeArtifacts(paths)
   } catch (e) {
     graphError.value = e instanceof Error ? e.message : 'Could not load the show graph.'

@@ -110,9 +110,11 @@ const EVIDENCE_OPTIONS: { value: EvidenceFilter; label: string }[] = [
   { value: 'both', label: 'Both' },
 ]
 
+// From ``filteredResults``, not ``results``: the Min confidence chip is a client-side filter and
+// this list is where it shows. Read from ``results`` it filtered nothing.
 const visibleResults = computed((): SearchHit[] => {
-  if (evidenceFilter.value === 'both') return search.results
-  return search.results.filter(
+  if (evidenceFilter.value === 'both') return search.filteredResults
+  return search.filteredResults.filter(
     (h) => (h.source_tier ?? 'aux') === evidenceFilter.value,
   )
 })

@@ -453,7 +453,8 @@ watch(
 
 const corpusGraphSyncGate = new StaleGeneration()
 
-let corpusGraphSyncRunning = false
+/** The running sync chain (one body, plus any rerun queued while it ran); null when idle. */
+let corpusGraphSyncInFlight: Promise<void> | null = null
 let corpusGraphSyncQueued = false
 
 /**
@@ -538,21 +539,29 @@ async function runCorpusGraphSyncBody(): Promise<void> {
   })
 }
 
-async function syncMergedGraphFromCorpusApi(): Promise<void> {
-  if (corpusGraphSyncRunning) {
+/**
+ * Run the corpus graph sync; a call made while one runs queues ONE rerun. Either way the returned
+ * promise settles only when the whole chain has finished, so a caller that awaits it can trust the
+ * baseline has landed. It used to return at once when a sync was already running — and the Open in
+ * graph callers that await the baseline before appending then appended into a load that replaced
+ * them (a show's four episodes lost to the first-visit lens auto-load).
+ */
+function syncMergedGraphFromCorpusApi(): Promise<void> {
+  if (corpusGraphSyncInFlight) {
     corpusGraphSyncQueued = true
-    return
+    return corpusGraphSyncInFlight
   }
-  corpusGraphSyncRunning = true
-  try {
-    await runCorpusGraphSyncBody()
-  } finally {
-    corpusGraphSyncRunning = false
-    if (corpusGraphSyncQueued) {
-      corpusGraphSyncQueued = false
-      void syncMergedGraphFromCorpusApi()
+  corpusGraphSyncInFlight = (async () => {
+    try {
+      do {
+        corpusGraphSyncQueued = false
+        await runCorpusGraphSyncBody()
+      } while (corpusGraphSyncQueued)
+    } finally {
+      corpusGraphSyncInFlight = null
     }
-  }
+  })()
+  return corpusGraphSyncInFlight
 }
 
 /**
