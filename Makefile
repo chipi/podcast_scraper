@@ -882,8 +882,36 @@ serve-ui:
 # Consumer Learning Player dev server (Vite). Proxies /api → 127.0.0.1:8000; run the API
 # separately (``serve-api`` now defaults the local mock OAuth provider, so sign-in works), or use
 # ``serve-app-dev`` to bring up both in one command.
-serve-app:
-	@cd $(APP_DIR) && npm run dev
+serve-app: serve-app-tailnet
+	@# --host 127.0.0.1: Vite's default `localhost` binds IPv6 [::1] only on current Node, and the
+	@# Tailscale forward below targets 127.0.0.1 — it answered 502 until the two agreed. A browser on
+	@# http://localhost:5174 still works (it falls back to IPv4).
+	@cd $(APP_DIR) && npm run dev -- --host 127.0.0.1
+
+# Expose the player dev server on this machine's Tailscale name, so the DEV emails' links open it
+# from any tailnet device (operator 2026-10-05): https://<this-machine>.ts.net:$(APP_TAILNET_PORT)
+# -> the Vite dev server on :5174. The homelab `podcast-dev` sender points its links here
+# (PODCAST_DEV_APP_ORIGIN, set by `dev-outbox laptop`), so a dev email's click lands in the dev app
+# and is counted in the dev Umami site, never production.
+#
+# Idempotent and additive: `tailscale serve --https=<port>` adds this one port and leaves every other
+# Serve mapping (e.g. `/` on 443) alone. Best-effort: no Tailscale CLI, or not connected, prints a
+# note and the dev server still starts. Opt out with APP_TAILNET=0.
+APP_TAILNET ?= 1
+APP_TAILNET_PORT ?= 8443
+TAILSCALE ?= $(shell command -v tailscale 2>/dev/null || echo /Applications/Tailscale.app/Contents/MacOS/Tailscale)
+serve-app-tailnet:
+	@if [ "$(APP_TAILNET)" != "1" ]; then exit 0; fi; \
+	if [ ! -x "$(TAILSCALE)" ]; then \
+		echo "[tailnet] no Tailscale CLI — the dev server is local-only (dev email links will not open it)."; exit 0; fi; \
+	host=$$("$(TAILSCALE)" status --self --json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null); \
+	if [ -z "$$host" ]; then \
+		echo "[tailnet] Tailscale not connected — the dev server is local-only."; exit 0; fi; \
+	if "$(TAILSCALE)" serve --bg --https=$(APP_TAILNET_PORT) http://127.0.0.1:5174 >/dev/null 2>&1; then \
+		echo "[tailnet] dev app on https://$$host:$(APP_TAILNET_PORT)  (dev email links open here)"; \
+	else \
+		echo "[tailnet] could not publish :$(APP_TAILNET_PORT) — run: $(TAILSCALE) serve --bg --https=$(APP_TAILNET_PORT) http://127.0.0.1:5174"; \
+	fi
 
 # One-command local app environment: the consumer API + the Learning Player app, in parallel
 # (Ctrl+C stops both). The dev mock OAuth provider, session secret, admin bootstrap
