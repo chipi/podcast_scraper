@@ -25,6 +25,12 @@ vi.mock('virtual:pwa-register/vue', () => ({
   },
 }))
 
+const native = vi.hoisted(() => ({ value: false }))
+vi.mock('../services/native', async (orig) => ({
+  ...(await orig<typeof import('../services/native')>()),
+  isNative: () => native.value,
+}))
+
 // Import AFTER the mock is registered.
 import { usePwaUpdate } from './usePwaUpdate'
 
@@ -49,6 +55,7 @@ function mountHost() {
 
 describe('usePwaUpdate', () => {
   beforeEach(() => {
+    native.value = false
     updateServiceWorker.mockClear()
     needRefresh.value = false
     offlineReady.value = false
@@ -160,5 +167,33 @@ describe('usePwaUpdate', () => {
     await nextTick()
     expect(reg.update).not.toHaveBeenCalled()
     ;(globalThis.navigator as unknown as { serviceWorker: unknown }).serviceWorker = originalSW
+  })
+
+  // The native app ships its code in the build, but the service worker still serves the PREVIOUS
+  // build's cached shell until a new worker takes over — so the first launch after every store
+  // update ran the old version (measured 2026-10-05: installed 21:53:52Z, first launch ran 21:25:15Z).
+  // No prompt on native: activate the waiting worker and reload at once.
+  it('on native, activates a waiting worker at once (no prompt)', async () => {
+    native.value = true
+    mountHost()
+    expect(updateServiceWorker).not.toHaveBeenCalled()
+    needRefresh.value = true
+    await nextTick()
+    expect(updateServiceWorker).toHaveBeenCalledTimes(1)
+    expect(updateServiceWorker).toHaveBeenCalledWith(true)
+  })
+
+  it('on native, activates a worker that was already waiting at mount', () => {
+    native.value = true
+    needRefresh.value = true
+    mountHost()
+    expect(updateServiceWorker).toHaveBeenCalledWith(true)
+  })
+
+  it('on the web, a waiting worker waits for the reader (the toast asks)', async () => {
+    mountHost()
+    needRefresh.value = true
+    await nextTick()
+    expect(updateServiceWorker).not.toHaveBeenCalled()
   })
 })

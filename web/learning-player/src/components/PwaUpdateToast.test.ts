@@ -84,7 +84,7 @@ describe('PwaUpdateToast', () => {
   // A fresh app update leaves a new service worker waiting, so the toast appeared on the FIRST
   // launch after every install, pinned bottom-right over the tab bar: a tap on Library landed on
   // the toast and did nothing (Android AppJourneyTests#test05, 2026-10-05). Native updates arrive
-  // with the store build and have their own banner; the waiting worker takes over next launch.
+  // with the store build and have their own banner; usePwaUpdate activates the worker there.
   it('never renders in the native app', () => {
     native.value = true
     needRefresh.value = true

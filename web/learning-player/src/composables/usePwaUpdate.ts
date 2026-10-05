@@ -16,8 +16,9 @@
  * needing a hard reload.
  */
 
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
+import { isNative } from '../services/native'
 
 export interface PwaUpdateApi {
   /** True when a new service worker has installed and is waiting to take over. */
@@ -59,6 +60,20 @@ export function usePwaUpdate(): PwaUpdateApi {
       console.warn('[pwa] service-worker registration failed:', err)
     },
   })
+
+  // NATIVE: no prompt — take the new worker at once. The app's code ships in the store build, but
+  // the worker kept serving the PREVIOUS build's cached shell until a new one took over, so the
+  // first launch after every update ran the old version (measured 2026-10-05: installed 21:53:52Z,
+  // the first launch ran 21:25:15Z). One quick reload on that launch is the price.
+  if (isNative()) {
+    watch(
+      needRefresh,
+      (waiting) => {
+        if (waiting) void updateServiceWorker(true)
+      },
+      { immediate: true },
+    )
+  }
 
   function onVisibilityChange(): void {
     if (document.hidden) return
