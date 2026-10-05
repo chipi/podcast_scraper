@@ -819,6 +819,14 @@ def test_two_voices_that_talk_to_each_other_are_not_unified_into_one_person() ->
         bare, talk, [], ["Kevin Roose"], alternations={frozenset(("A", "B")): 30}
     )
     assert kept["A"].name == "Kevin Roose" and not kept["B"].named
+    # A known host keeps the HOST role even when its own voice had been typed a guest.
+    as_guest = dict(
+        bare, A=SpeakerRole(name="Kevin", role="guest", named=True, source="self_intro")
+    )
+    hosted = _one_name_per_person(
+        as_guest, talk, [], ["Kevin Roose"], alternations={frozenset(("A", "B")): 30}
+    )
+    assert hosted["A"].role == "host"
     # Control: a fragment that never converses is still unified (a diarizer split).
     split = _one_name_per_person(by_voice, {"A": 400.0, "B": 8.0}, [], ["Kevin Roose"])
     assert split["B"].name == "Kevin Roose"

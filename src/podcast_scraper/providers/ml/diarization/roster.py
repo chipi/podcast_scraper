@@ -1274,7 +1274,15 @@ def _one_name_per_person(
                 best_name = out[
                     max(spelled, key=lambda w: (len(_strip_titles(out[w].name)), talk.get(w, 0.0)))
                 ].name
-                out[top[0]] = replace(out[top[0]], name=best_name)
+                # ...and the role the unified path would give it: a known host, or a voice that
+                # presented the show, is a host (Hard Fork's Kevin Roose, DeepMind's Hannah Fry).
+                keeper_role = (
+                    "host"
+                    if any(_same_person_on_one_episode(best_name, h) for h in known_hosts)
+                    or top[0] in evidence_hosts
+                    else out[top[0]].role
+                )
+                out[top[0]] = replace(out[top[0]], name=best_name, role=keeper_role)
             for v in unnamed:
                 out[v] = replace(out[v], name=v, named=False, source="raw", forced=False)
             tr.note(
