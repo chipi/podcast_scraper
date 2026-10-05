@@ -46,19 +46,14 @@ test.describe('Status bar artifact list → Load into graph (UXS-001)', () => {
   })
 
   /**
-   * REAL BUG — kept asserting the correct behaviour, marked `test.fail()`.
-   *
-   * `StatusBar.onLoadIntoGraphFromDialog` calls `artifacts.loadSelected()`, which (unlike
-   * `loadRelativeArtifacts` / `loadFromLocalFiles`) never sets `manualGraphSelection`. It then
-   * emits `go-graph`; when that is the session's FIRST Graph visit, App's corpus graph sync runs,
-   * sees no manual selection, and replaces the user's pick with the lens auto-load (measured: one
-   * gi artifact picked, 11 episodes drawn). The next test proves the pick is honoured once the
-   * Graph tab has already been opened, which isolates the first-visit sync as the cause.
+   * The pick must survive the session's FIRST Graph visit, whose corpus auto-load would otherwise
+   * replace it (2026-10-05: one gi artifact picked, 11 episodes drawn — `StatusBar`'s Load calls
+   * `artifacts.loadSelected()`, which never sets `manualGraphSelection`, so App's corpus graph
+   * sync runs over it). The next test is the control: with Graph already opened, the pick holds.
    */
   test('Load into graph on the first Graph visit draws only the picked artifact', async ({
     page,
   }) => {
-    test.fail()
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))

@@ -291,9 +291,9 @@ test.describe('Dashboard Coverage tab (UXS-006 §4.1–4.3)', () => {
   })
 
   /**
-   * The chart buckets `shell.artifactList`, which the Dashboard never fetches itself (see the
-   * live test below). Listing artifacts from the status bar first is a real user path that fills
-   * it, so these two exercise the bucketing + insight copy rather than an always-empty list.
+   * Lists artifacts from the status bar before opening the Dashboard, so these two exercise the
+   * bucketing + insight copy independently of how the Dashboard loads the list (the live test
+   * below covers that).
    */
   async function listArtifactsThenOpenDashboard(page: Page): Promise<void> {
     await page.goto('/')
@@ -352,21 +352,14 @@ test.describe('Dashboard Coverage tab — live corpus', () => {
   })
 
   /**
-   * REAL BUG — kept asserting the correct behaviour, marked `test.fail()`.
-   *
-   * UXS-006 §4.3: the chart's source is `GET /api/artifacts` mtimes. But `ArtifactActivityChart`
-   * renders `shell.artifactList`, and nothing on the Dashboard path fetches it — only the Graph
-   * tab's corpus sync, the status-bar **List** button and the search "On graph" handoff call
-   * `shell.fetchArtifactList()`. Open the Dashboard first (the operator's normal landing) on a
-   * corpus whose artifacts were all written today and the card reads
-   * "No new artifacts in 14 days — pipeline may not be running": a false alarm, on the panel
-   * whose stated job is making silence visible. Remove `test.fail()` once the Dashboard loads
-   * the artifact list itself.
+   * UXS-006 §4.3: the chart's source is `GET /api/artifacts` mtimes. The Dashboard is the
+   * operator's normal landing, so it must load that list itself — when it did not, a corpus whose
+   * artifacts were all written today read "No new artifacts in 14 days — pipeline may not be
+   * running" unless Graph or List had been visited first.
    */
   test('artifact activity reflects the corpus artifacts when the Dashboard is opened first', async ({
     page,
   }) => {
-    test.fail()
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     const root = await liveCorpusRoot(page)

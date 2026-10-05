@@ -60,22 +60,20 @@ test.describe('Topic Entity View actions (UXS-007)', () => {
   })
 
   /**
-   * REAL BUG — kept asserting the correct behaviour, marked `test.fail()`.
-   *
-   * `TopicEntityView`'s action row (`topic-entity-view-go-graph` / `-prefill-search`) is
-   * `v-if="!embedded"`, and since the node-view unification its ONLY mount is
-   * `NodeDetail.vue`'s `<TopicEntityView embedded …>` — so that row can never render. NodeDetail
-   * replaces "Search this topic" (`node-detail-topic-prefill-search`, covered above) but offers
-   * no "View in graph": a topic opened from Digest / Dashboard / a person's ranked topics has no
-   * way onto the Graph from its own rail (probed live: the rail's buttons are "Prefill semantic
-   * search" and "Set Search topic filter" only).
+   * Located by role + name, not testid, so it holds whichever component ends up owning the button.
+   * On 2026-10-05 nothing renders it: `TopicEntityView`'s action row (`topic-entity-view-go-graph`
+   * / `-prefill-search`) is `v-if="!embedded"`, and its only mount is NodeDetail's embedded one;
+   * NodeDetail supplies "Prefill semantic search" (covered above) but no "View in graph" — probed
+   * live, the rail's buttons are "Prefill semantic search" and "Set Search topic filter" only.
    */
   test('View in graph: the topic rail opens the Graph with that topic selected', async ({
     page,
   }) => {
-    test.fail()
     const topic = await openTopicRailOnDigest(page)
-    await page.getByTestId('topic-entity-view-go-graph').click({ timeout: 10_000 })
+    await page
+      .getByTestId('graph-node-detail-rail')
+      .getByRole('button', { name: /^(View|Open) in graph$/ })
+      .click({ timeout: 10_000 })
     await expect(page.getByTestId('graph-tab-panel')).toBeVisible()
     await page.waitForFunction(
       (id) => {
