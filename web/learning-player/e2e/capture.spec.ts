@@ -82,8 +82,13 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
   const highlightsAxe = await new AxeBuilder({ page }).analyze()
   expect(serious(highlightsAxe.violations)).toEqual([])
 
-  // The Markdown export link points at the real export route.
-  const exportLink = page.getByRole('link', { name: 'Export Markdown' })
+  // ONE "Download" link opens the highlights in the in-app viewer, which carries the formats
+  // (operator 2026-10-05) — its Markdown link points at the real export route.
+  await page.getByTestId('export-open').click()
+  const viewer = page.getByTestId('export-viewer')
+  await expect(viewer).toBeVisible()
+  await expect(viewer.getByTestId('export-viewer-share')).toHaveText('Print or share')
+  const exportLink = viewer.getByTestId('export-viewer-md')
   await expect(exportLink).toHaveAttribute('href', /\/api\/app\/highlights\/export\.md/)
 
   // ...and FETCHING it returns a document that matches the screen (operator 2026-09-18).
@@ -113,6 +118,9 @@ test('sign in → mark a moment + save a line → review in Library Highlights +
     await filtered.text(),
     'a filtered export ignored the filter and returned captures anyway',
   ).not.toMatch(/- \*\*(Quote|Marked moment|Insight)\*\*/)
+  // The viewer closes back onto Saved.
+  await viewer.getByTestId('export-viewer-close').click()
+  await expect(viewer).toHaveCount(0)
 
   // Attach a note to the first highlight and confirm it persists in the view.
   const noteText = `e2e note ${Date.now()}`

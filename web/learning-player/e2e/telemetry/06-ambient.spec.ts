@@ -54,34 +54,37 @@ test.describe('highlights export', () => {
   test('every export destination is counted, including the web Markdown link', async ({ page }) => {
     const sink = attachSink(page)
     await signIn(page, 'telemetry-export')
-    await page.goto('/highlights')
+    // There is no /highlights route — the catch-all sent this to Home, where no export control
+    // exists, and the old isVisible() guards turned that into a silent pass. Highlights live in
+    // Library › Saved, and the export chip appears once there is something to export.
+    const eps = await (await page.request.get('/api/app/podcasts/p05/episodes')).json()
+    const slug = (eps as { items: { slug: string }[] }).items[0].slug
+    await page.request.post('/api/app/highlights', {
+      data: { episode_slug: slug, kind: 'span', start_ms: 5000, quote_text: 'telemetry export' },
+    })
+    await page.goto('/library?tab=saved')
 
-    // THE WEB MARKDOWN LINK WAS NOT COUNTED AT ALL (#2267, fixed 2026-10-03). The native button
-    // calls `exportHighlightsNative()` which reports; the web branch is a plain
-    // `<a :href download="my-highlights.md">`, and it had no handler. So "which export format do
-    // people use" would have reported zero Markdown exports on the web — where essentially every
-    // beta tester is. Same silent-zero shape as a dead website id: the metric exists, computes, and
-    // describes a world in which a working feature is never used.
-    const mdLink = page.locator('a[download="my-highlights.md"]')
-    if (await mdLink.isVisible().catch(() => false)) {
-      // `download` on an anchor: let the click happen but do not let the navigation/save proceed.
-      await mdLink.click({ modifiers: [] })
-      const md = await sink.waitForEvent('highlights_export', 20_000)
-      expect(md.data).toMatchObject({ format: 'markdown' })
-    }
+    // The formats live in the export VIEWER now (operator 2026-10-05): one "Download" chip opens
+    // it, and Markdown / Print or share each report their format. Both used to sit behind
+    // `isVisible()` guards on the old chips, so when the chips were replaced this test went on
+    // passing while measuring nothing — asserted outright now.
+    //
+    // THE WEB MARKDOWN LINK WAS NOT COUNTED AT ALL once (#2267): a plain `<a download>` with no
+    // handler, so "which export format do people use" reported zero web Markdown exports.
+    await page.getByTestId('export-open').click()
+    const viewer = page.getByTestId('export-viewer')
+    await expect(viewer).toBeVisible()
+    await viewer.getByTestId('export-viewer-md').click()
+    const md = await sink.waitForEvent('highlights_export', 20_000)
+    expect(md.data).toMatchObject({ format: 'markdown' })
 
-    // PDF was not counted on EITHER platform. Reported inside `openPrintable` rather than on the
-    // button so both its branches (web: open printable; native: share sheet) count.
-    const pdf = page.getByTestId('export-pdf')
-    if (await pdf.isVisible().catch(() => false)) {
-      const before = sink.byName('highlights_export').length
-      await pdf.click()
-      await expect
-        .poll(() => sink.byName('highlights_export').length, { timeout: 20_000 })
-        .toBeGreaterThan(before)
-      const formats = sink.byName('highlights_export').map((b) => String(b.data?.format))
-      expect(formats).toContain('pdf')
-    }
+    // Print or share — the PDF path — was not counted on EITHER platform once.
+    const before = sink.byName('highlights_export').length
+    await viewer.getByTestId('export-viewer-share').click()
+    await expect
+      .poll(() => sink.byName('highlights_export').length, { timeout: 20_000 })
+      .toBeGreaterThan(before)
+    expect(sink.byName('highlights_export').map((b) => String(b.data?.format))).toContain('pdf')
 
     // Every format that reached the wire must be in the registry's union. The property used to be
     // typed as a bare `string`, which opted this one event out of the compile-time guarantee the rest

@@ -98,6 +98,32 @@ describe('NoteComposer', () => {
     expect(item.find('.lp-kicker').exists()).toBe(true)
   })
 
+  it('deleting a note ASKS first: Cancel keeps it, confirming deletes it (UXS-014)', async () => {
+    const note: Note = {
+      id: 'n1', target: 'episode', target_id: 'ep1', text: 'Keep me?',
+      created_at: 1_700_000_000, updated_at: 1_700_000_000,
+    }
+    vi.spyOn(api, 'getNotes').mockResolvedValue([note])
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    const del = vi.spyOn(api, 'deleteNote').mockResolvedValue([])
+    const w = mountComposer()
+    await flushPromises()
+
+    await w.get('[data-testid="note-delete"]').trigger('click')
+    await flushPromises()
+    expect(del, 'one tap deleted the note without asking').not.toHaveBeenCalled()
+    await w.get('[data-testid="confirm-cancel"]').trigger('click')
+    await flushPromises()
+    expect(del).not.toHaveBeenCalled()
+    expect(w.text()).toContain('Keep me?')
+
+    await w.get('[data-testid="note-delete"]').trigger('click')
+    await flushPromises()
+    await w.get('[data-testid="confirm-accept"]').trigger('click')
+    await flushPromises()
+    expect(del).toHaveBeenCalledWith('n1')
+  })
+
   it('does not save an empty note', async () => {
     const create = vi.spyOn(api, 'createNote')
     const w = mountComposer()

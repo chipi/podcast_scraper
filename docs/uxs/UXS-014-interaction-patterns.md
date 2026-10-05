@@ -310,8 +310,9 @@ player. This section is the single contract; components conform, they do not re-
 - **Favorite = save to Library.** ONE affordance, the `.lp-fav` heart, everywhere an item can be
   saved (episode, and any saveable entity). Never a pill, never a second glyph. All saves land in
   Library › Saved.
-- **Follow = subscribe to a *show* (or interest token).** The follow **pill** (`+ Follow` /
-  `✓ Following`), rendered/behaving identically wherever it appears. It is not a save; the two are
+- **Follow = subscribe to a *show* (or interest token).** The follow **pill** (`Follow` /
+  `Following` — no glyph, no "show", operator 2026-10-05), rendered/behaving identically wherever
+  it appears. It is not a save; the two are
   never merged and the episode heart is never swapped for a follow pill.
 
 ### One glyph per concept (operator 2026-09-27)
@@ -736,7 +737,7 @@ rendered piece to its design home:
   every surface (see "Saving"); visible signed-out (#1590), routing a tap to sign-in.
 - **`AddToCollectionButton`** — the compact "pin into a collection" control with inline
   create-new-collection (RFC-119); a detail-surface action, never part of the minimum row.
-- **`FollowButton`** — the ONE follow pill/glyph (`+ Follow` / `✓ Following`) for every surface
+- **`FollowButton`** — the ONE follow pill/glyph (`Follow` / `Following`; the glyph-only `icon` variant keeps `+` / `✓`) for every surface
   where something can be followed: show-page header (`inline`), `ShowTile` artwork overlay
   (`overlay`), action rows (`icon`), entity cards (`ec`, testid `ec-follow`), storyline pages
   (`storyline`, testid `storyline-follow`), discovery list rows (`discovery`, testid

@@ -17,6 +17,7 @@ import { useSignInGate } from '../composables/useSignInGate'
 import { useVoiceInput } from '../composables/useVoiceInput'
 import { useDictation } from '../composables/useDictation'
 import { formatPublishDate } from '../utils/format'
+import ConfirmDialog from './ConfirmDialog.vue'
 import type { NoteTarget } from '../services/types'
 import { useCappedSections } from '../composables/useCappedSections'
 import { newestFirst } from '../utils/newestFirst'
@@ -49,10 +50,17 @@ const save = gated(async () => {
   await capture.addNote(props.target, props.targetId, text)
 })
 
-/** Deleting a note is a per-user write — gate it like `save` (#1590). Per-item id, so wrap and
- * invoke a zero-arg gated closure rather than passing an arg `gated()` does not accept. */
-function removeNote(id: string): void {
-  void gated(() => capture.removeNote(id))()
+/**
+ * Deleting a note ASKS first (UXS-014 §Destructive, operator 2026-10-05): a note is the reader's
+ * own words and cannot be got back — the rule a note on a highlight already followed (#1594), and
+ * this composer did not. It is also a per-user write, gated like `save` (#1590); the gated closure
+ * is zero-arg, so the id rides `pendingNote`.
+ */
+const pendingNote = ref<string | null>(null)
+function confirmRemoveNote(): void {
+  const id = pendingNote.value
+  pendingNote.value = null
+  if (id) void gated(() => capture.removeNote(id))()
 }
 
 function noteDate(unixSeconds: number): string {
@@ -108,7 +116,7 @@ function onMicClick(): void {
             class="text-xs font-semibold text-muted transition hover:text-danger"
             :aria-label="t('notes.remove')"
             data-testid="note-delete"
-            @click="removeNote(n.id)"
+            @click="pendingNote = n.id"
           >
             {{ t('notes.remove') }}
           </button>
@@ -178,5 +186,14 @@ function onMicClick(): void {
         {{ t('notes.dictateError') }}
       </p>
     </div>
+    <ConfirmDialog
+      :open="pendingNote !== null"
+      :title="t('highlights.confirmDeleteNoteTitle')"
+      :body="t('highlights.confirmDeleteNoteBody')"
+      :confirm-label="t('highlights.confirmDeleteNote')"
+      data-testid="note-delete-confirm"
+      @confirm="confirmRemoveNote"
+      @cancel="pendingNote = null"
+    />
   </section>
 </template>
