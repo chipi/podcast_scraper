@@ -49,7 +49,7 @@ const stackBase = teleportTarget === "body" ? undefined : "96dvh"
       <div
         ref="dialogEl"
         tabindex="-1"
-        class="lp-sheet relative w-full max-w-lg overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
+        class="lp-sheet relative w-full max-w-lg lg:max-w-3xl overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
         :class="depth > 0 ? 'lp-sheet--stacked' : undefined"
         :style="{ '--lp-depth': depth, '--lp-stack-base': stackBase }"
         data-testid="theme-card"

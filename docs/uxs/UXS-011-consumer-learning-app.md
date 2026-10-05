@@ -314,6 +314,12 @@ start. (A serif was tried and rejected during the earlier design phase.)
   storylines those topics belong to (from the topics' own enrichment, each once), then the topics —
   every pill in its kind's colour and naming its kind, as in the episode notes; a theme or storyline
   opens on top as a sheet.
+- **Entity sheets** (topic, person, theme, storyline) are 512px (`max-w-lg`) below `lg` and 768px
+  (`lg:max-w-3xl`) on desktop, where the narrow sheet left most of the screen unused (operator
+  2026-10-05).
+- **Long lists page five at a time** — the perspectives (topic, theme, storyline) and "Who agrees
+  with …" (person): the first five, "Show N more" for each next five, "Show less" once all show
+  (`usePaged`). "Who agrees" was hard-capped at eight with no way to reach the rest.
 - **Search and filter rows** span the width of the list or results under them (`.lp-search`, no
   cap): the row ends where its content ends.
 - The Player two-column splits transcript (≈60%) + Knowledge rail (≈40%).

@@ -640,6 +640,7 @@
     "sigConsensus": "Where they agree",
     "sigConsensusWith": "Who agrees with {name}",
     "sigAgrees": "agrees",
+    "moreAgreements": "Show {count} more",
     "sigMomentum": "Momentum",
     "sig_rising": "Rising",
     "sig_cooling": "Cooling",

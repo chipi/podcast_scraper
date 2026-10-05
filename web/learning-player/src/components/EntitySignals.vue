@@ -20,6 +20,7 @@ import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { personName, personNameFromId } from "../utils/personName"
 import { getEntitySignals } from "../services/api"
+import { usePaged } from "../composables/usePaged"
 import type { CorpusEnrichmentSignals } from "../services/types"
 
 const props = defineProps<{
@@ -136,8 +137,18 @@ const consensus = computed(() => {
         otherText: c.insight_a_text ?? "",
       })
   }
-  return out.slice(0, MAX)
+  return out
 })
+// Agreements are PAGED, five at a time (operator 2026-10-05), instead of the old hard cap of 8 —
+// which hid every agreement past the eighth with no way to reach it.
+const {
+  visible: shownConsensus,
+  hidden: hiddenConsensus,
+  nextCount: nextConsensus,
+  canFold: canFoldConsensus,
+  more: moreConsensus,
+  reset: foldConsensus,
+} = usePaged(consensus, 5)
 
 // Topic momentum moved OUT of here to the top of the entity card, under the title (operator
 // review): a topic's "↑ Rising" badge now leads the card, the same idiom as the storyline sheet,
@@ -181,7 +192,7 @@ const hasAny = computed(() => showCoappears.value || showConsensus.value)
       >
         <ul class="flex flex-col gap-2">
           <li
-            v-for="(c, i) in consensus"
+            v-for="(c, i) in shownConsensus"
             :key="i"
             class="rounded-md bg-overlay px-3 py-2"
             data-testid="es-consensus-row"
@@ -201,6 +212,15 @@ const hasAny = computed(() => showCoappears.value || showConsensus.value)
             </p>
           </li>
         </ul>
+        <button
+          v-if="hiddenConsensus > 0 || canFoldConsensus"
+          type="button"
+          class="mt-2 text-xs font-semibold text-accent hover:underline"
+          data-testid="es-consensus-more"
+          @click="hiddenConsensus > 0 ? moreConsensus() : foldConsensus()"
+        >
+          {{ hiddenConsensus > 0 ? t("ec.moreAgreements", { count: nextConsensus }) : t("ec.perspectiveLess") }}
+        </button>
       </CollapsibleSection>
     </section>
   </div>

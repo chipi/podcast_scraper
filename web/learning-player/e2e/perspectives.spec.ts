@@ -38,6 +38,9 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   // The heading names the topic (operator 2026-10-05).
   await expect(section.getByText('10 perspectives on risk management', { exact: true })).toBeVisible()
   await expect(section.getByRole('button', { name: 'Daniel Cho' })).toBeVisible()
+  // Speakers are paged five at a time (operator 2026-10-05): Scott Bessent ranks 9th of 10.
+  await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
+  await section.getByTestId('perspectives-more-speakers').click()
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toBeVisible()
   // The engineered opposition surfaces verbatim as a grounded claim.
   await expect(

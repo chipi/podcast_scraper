@@ -14,6 +14,7 @@ import { RouterLink } from "vue-router"
 import SectionStatus from "./SectionStatus.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import { useSectionState } from "../composables/useSectionState"
+import { usePaged } from "../composables/usePaged"
 import {
   ApiError,
   getStorylinePerspectives,
@@ -139,22 +140,19 @@ const heading = computed(() =>
 const PREVIEW = 3
 
 /**
- * How many SPEAKERS a grouping shows before the fold.
- *
- * A topic has a handful of speakers and lists them all. A grouping is the union over its members,
- * so it has as many speakers as all of them combined — the storyline fixture returns 11, and
- * rendering them took the page from ~2,200px to 11,185px. That is not a section any more, it is the
- * page. Speakers arrive ranked most-takes-first, so the first few are the ones most engaged with
- * the grouping and the cut falls in a sensible place.
+ * Speakers are PAGED, five at a time, on every surface (operator 2026-10-05: "page those with show
+ * more in chunks of 5"). A grouping is the union over its members — the storyline fixture returns
+ * 11 speakers, which unfolded took the page from ~2,200px to 11,185px — and a topic reached 10.
+ * Speakers arrive ranked most-takes-first, so each page is the next-most-engaged five.
  */
-const SPEAKER_FOLD = 4
-const allSpeakers = ref(false)
-const visible = computed(() =>
-  props.kind === "topic" || allSpeakers.value
-    ? perspectives.value
-    : perspectives.value.slice(0, SPEAKER_FOLD)
-)
-const hiddenSpeakers = computed(() => perspectives.value.length - visible.value.length)
+const {
+  visible,
+  hidden: hiddenSpeakers,
+  nextCount,
+  canFold,
+  more: moreSpeakers,
+  reset: foldSpeakers,
+} = usePaged(perspectives, 5)
 const expanded = ref<Set<string>>(new Set())
 function toggle(personId: string): void {
   const next = new Set(expanded.value)
@@ -264,16 +262,16 @@ function toggle(personId: string): void {
       <!-- One control for the whole section, under the list — a grouping's speaker count is the thing
            being folded, not any one speaker's takes (those have their own per-speaker toggle). -->
       <button
-        v-if="hiddenSpeakers > 0 || allSpeakers"
+        v-if="hiddenSpeakers > 0 || canFold"
         type="button"
         class="mt-2 text-xs font-semibold text-accent hover:underline"
         data-testid="perspectives-more-speakers"
-        @click="allSpeakers = !allSpeakers"
+        @click="hiddenSpeakers > 0 ? moreSpeakers() : foldSpeakers()"
       >
         {{
-          allSpeakers
-            ? t("ec.perspectiveLess")
-            : t("ec.moreSpeakers", { count: hiddenSpeakers })
+          hiddenSpeakers > 0
+            ? t("ec.moreSpeakers", { count: nextCount })
+            : t("ec.perspectiveLess")
         }}
       </button>
     </CollapsibleSection>

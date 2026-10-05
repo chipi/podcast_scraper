@@ -132,6 +132,33 @@ describe("EntitySignals — person", () => {
     expect(row.get('[data-testid="es-consensus-other"]').text()).toBe("Bob Lee agrees: “Sensible AI rules protect users.”")
   })
 
+  it("pages agreements five at a time, then folds back", async () => {
+    const row = (i: number) => ({
+      topic_id: `topic:t${i}`,
+      person_a_id: "person:jane-doe",
+      person_a_name: "Jane Doe",
+      person_b_id: `person:p${i}`,
+      person_b_name: `Person ${i}`,
+      insight_a_text: `claim ${i}`,
+      insight_b_text: `agree ${i}`,
+    })
+    vi.spyOn(api, "getEntitySignals").mockResolvedValue({
+      ...SIGNALS,
+      topic_consensus: { consensus: Array.from({ length: 12 }, (_, i) => row(i)) },
+    } as CorpusEnrichmentSignals)
+    const w = mountSignals("person", "person:jane-doe")
+    await flushPromises()
+    const rows = () => w.findAll('[data-testid="es-consensus-row"]').length
+    const more = () => w.get('[data-testid="es-consensus-more"]')
+    expect([rows(), more().text()]).toEqual([5, "Show 5 more"])
+    await more().trigger("click")
+    expect([rows(), more().text()]).toEqual([10, "Show 2 more"])
+    await more().trigger("click")
+    expect([rows(), more().text()]).toEqual([12, "Show less"])
+    await more().trigger("click")
+    expect(rows()).toBe(5)
+  })
+
   it("names the person in the agreement heading, so 'they' is never unexplained", async () => {
     vi.spyOn(api, "getEntitySignals").mockResolvedValue(SIGNALS)
     const w = mount(EntitySignals, {
