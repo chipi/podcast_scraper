@@ -29,6 +29,7 @@ from podcast_scraper.server import (
     app_auto_picks,
     app_comms_store,
     app_digest_sections,
+    app_email_episode,
     app_graph_refs,
     app_outbox_store,
     app_push_store,
@@ -171,6 +172,7 @@ def assemble_digest_payload(
     sections = _dedupe_sections_by_slug(sections)
     if not sections:
         return None
+    app_email_episode.enrich_items(root, (i for s in sections for i in s["items"]))
     return {"sections": sections}
 
 

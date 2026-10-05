@@ -46,6 +46,7 @@ from typing import Any
 from podcast_scraper.server import (
     app_comms_store,
     app_digest_sections,
+    app_email_episode,
     app_outbox_store,
     app_push_store,
 )
@@ -178,6 +179,7 @@ def assemble_new_episodes_payload(
 
     if not fresh:
         return None
+    app_email_episode.enrich_items(root, fresh)
     return {
         "count": len(fresh),
         "episodes": fresh,

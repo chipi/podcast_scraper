@@ -27,6 +27,7 @@ from podcast_scraper.server import (
     app_comms_store,
     app_digest_personal,
     app_digest_sections,
+    app_email_episode,
     app_outbox_store,
 )
 from podcast_scraper.server.app_digest_common import email_verified, iso
@@ -65,6 +66,7 @@ def assemble_recommendations_payload(
         sections.append({"kind": "new_in_interests", "items": new_in_interests})
     if not sections:
         return None
+    app_email_episode.enrich_items(root, (i for s in sections for i in s["items"]))
     return {"sections": sections}
 
 
