@@ -113,3 +113,43 @@ describe('a moment in an episode', () => {
     })
   })
 })
+
+/**
+ * The links the share menu and the emails produce (operator 2026-10-05): one https URL per thing,
+ * graph ids percent-encoded, and every one of them must open the same screen in the app.
+ */
+describe('routeForDeepLink — shared and emailed links', () => {
+  it('opens storylines and themes, which used to fall through to Home', () => {
+    expect(routeForDeepLink('https://closelistening.app/storyline/topic%3Arisk-management')).toEqual({
+      name: 'storyline',
+      params: { id: 'topic:risk-management' },
+    })
+    expect(routeForDeepLink('https://closelistening.app/theme/tc%3Aab12')).toEqual({
+      name: 'theme',
+      params: { id: 'tc:ab12' },
+    })
+  })
+
+  it('accepts a graph id with its colon — the form the topic and person pages need', () => {
+    expect(routeForDeepLink('https://closelistening.app/topic/topic%3Areliability')?.params.id).toBe(
+      'topic:reliability',
+    )
+    expect(routeForDeepLink('https://closelistening.app/person/person:nora')?.params.id).toBe(
+      'person:nora',
+    )
+  })
+
+  it('carries the digest\'s revisit marker through, validated', () => {
+    expect(
+      routeForDeepLink('https://closelistening.app/episode/x?t=65&revisit=h_123')?.query,
+    ).toEqual({ t: '65', revisit: 'h_123' })
+    expect(
+      routeForDeepLink('https://closelistening.app/episode/x?revisit=..%2Fadmin')?.query,
+    ).toBeUndefined()
+  })
+
+  it('still refuses an id that could carry a path or a query', () => {
+    expect(routeForDeepLink('https://closelistening.app/topic/a%2Fb')).toBeNull()
+    expect(routeForDeepLink('https://closelistening.app/topic/a%3Fb')).toBeNull()
+  })
+})

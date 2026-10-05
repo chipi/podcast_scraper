@@ -132,10 +132,15 @@ One **Share** affordance (`ShareMenu`), a menu of three modes, never a single ac
   own type), rendered client-side (`entityShareCard`) and shared via Web Share → download. The card
   is the "short, beautiful overview"; it carries transcript-derived text + KG metadata only, never
   audio (bridge-only).
-- **Share link** — the entity's canonical URL (Web Share → clipboard copy). It unfurls *as* the card
-  via a **server-rendered `og:image`** (below), so a pasted link previews as the card even with no
-  Share menu involved.
-- **Share text** — the caption fallback (name + stat line + wordmark).
+- **Copy link** — copies the entity's public URL, `https://closelistening.app/<kind>/<id>` (2026-10-05:
+  it was "Share link" and opened the same OS sheet as Share card, so testers could not tell them
+  apart). One link for everything: inside the native apps it is the public site, never the
+  WebView's own origin; the recipient's phone opens it in the app when installed (Universal Links /
+  App Links), the browser otherwise, and a signed-out visitor goes through sign-in and back to it.
+  It unfurls *as* the card via a **server-rendered `og:image`** (below).
+- **Copy text** — copies one line a person would paste into a message: the name, what it is (the
+  show an episode is from, a person's one-line descriptor), then the link. It was "Share text",
+  which handed the OS sheet a .txt file on native.
 
 Closes on ESC / outside-click. Wired on the **entity card** (topic/person/org), the **episode**
 (PlayerView), the **show** (PodcastView) and the **storyline** (StorylineView).

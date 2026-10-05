@@ -44,9 +44,9 @@ test.describe('share', () => {
 
     const sh = await sink.waitForEvent('share', 20_000)
     expect(sh.data?.target_kind).toBe('episode')
-    // `method` separates the OS sheet from a copied link. They are different intentions — one leaves
-    // the app, one stays in it — and only one of them is attributable later.
-    expect(['native_sheet', 'copy_link']).toContain(String(sh.data?.method))
+    // Copy link COPIES now (operator 2026-10-05) — it no longer opens the OS sheet — so the method
+    // is exactly that. The sheet is the share CARD's path.
+    expect(sh.data?.method).toBe('copy_link')
   })
 })
 

@@ -75,7 +75,8 @@ Generous negative space is deliberate — the empty middle is the "editorial" re
   engine's `DEFAULT_ACCENT` — a token mirror — applies).
 - **Bridge-only:** the card carries transcript-derived text + KG metadata only, never audio.
 - **Share menu** (`components/ShareMenu.vue`): one affordance → **Share card** (PNG via Web Share →
-  download), **Share link** (URL via Web Share → clipboard), **Share text** (caption fallback).
+  download), **Copy link** (the public URL, to the clipboard) and **Copy text** (name — what it is,
+  then the link, to the clipboard) — see UXS-014 for the 2026-10-05 change.
 
 ## Built (`feat/player-improvements`)
 

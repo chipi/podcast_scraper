@@ -566,10 +566,10 @@
   "share": {
     "open": "Share",
     "card": "Share card",
-    "link": "Share link",
-    "text": "Share text",
+    "link": "Copy link",
+    "text": "Copy text",
     "linkCopied": "Link copied",
-    "textCopied": "Copied",
+    "textCopied": "Text copied",
     "kickerShow": "Show",
     "kickerTheme": "Theme",
     "kickerStoryline": "Storyline"

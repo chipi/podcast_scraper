@@ -4,8 +4,8 @@ import {
   type EntityCardModel,
   accentForKind,
   entityCardText,
+  entityCopyText,
   renderEntityCard,
-  shareEntityLink,
 } from './entityShareCard'
 
 vi.mock('../services/native', () => ({
@@ -46,22 +46,20 @@ describe('entityShareCard (#2036)', () => {
     await expect(renderEntityCard(TOPIC)).resolves.toBeNull()
   })
 
-  it('shareEntityLink: Web Share when available', async () => {
-    const share = vi.fn().mockResolvedValue(undefined)
-    vi.stubGlobal('navigator', { share } as unknown as Navigator)
-    expect(await shareEntityLink(TOPIC)).toBe('shared')
-    expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: TOPIC.url }))
+  it('Copy text: the name, what it is, then the link (operator 2026-10-05)', () => {
+    expect(
+      entityCopyText({
+        kicker: 'Person',
+        title: 'Grady Booch',
+        context: 'American software engineer',
+        url: 'https://closelistening.app/person/person%3Agrady-booch',
+      }),
+    ).toBe('Grady Booch — American software engineer\nhttps://closelistening.app/person/person%3Agrady-booch')
   })
 
-  it('shareEntityLink: clipboard copy when Web Share absent', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    vi.stubGlobal('navigator', { clipboard: { writeText } } as unknown as Navigator)
-    expect(await shareEntityLink(TOPIC)).toBe('copied')
-    expect(writeText).toHaveBeenCalledWith(TOPIC.url)
-  })
-
-  it('shareEntityLink: none when there is no url', async () => {
-    expect(await shareEntityLink({ kicker: 'Topic', title: 'X' })).toBe('none')
+  it('Copy text: no context, no dash; no link, no trailing line', () => {
+    expect(entityCopyText({ kicker: 'Topic', title: 'Risk', url: 'https://x/topic/risk' })).toBe('Risk\nhttps://x/topic/risk')
+    expect(entityCopyText({ kicker: 'Organization', title: 'The Fed' })).toBe('The Fed')
   })
 
   it('accentForKind: each kind has a distinct colour; show/episode/unknown fall back to cyan', () => {

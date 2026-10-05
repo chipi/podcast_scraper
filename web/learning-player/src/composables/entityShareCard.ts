@@ -52,7 +52,20 @@ export interface EntityCardModel {
   stats?: string | null // "28 episodes · 10 voices"
   hot?: string | null // the one accent-coloured stat, e.g. "↑ 2.3× rising"
   accent?: string | null // per-kind accent hex; falls back to the brand cyan
-  url?: string | null // canonical link for "Share link"
+  url?: string | null // canonical link for "Copy link"
+  /** What it is, in a few words, for "Copy text": the show an episode is from, the one-line
+   *  descriptor of a person or organization. Absent → the title stands alone. */
+  context?: string | null
+}
+
+/**
+ * "Copy text" (operator 2026-10-05): what someone pastes into a message — the name, what it is,
+ * and the link, so the message leads back. Not the share CARD's caption, which was a poster laid
+ * out as lines of text ("PERSON / GRADY BOOCH / … / closelistening.app").
+ */
+export function entityCopyText(m: EntityCardModel): string {
+  const head = m.context ? `${m.title} — ${m.context}` : m.title
+  return [head, m.url].filter(Boolean).join('\n')
 }
 
 /** The card's text — the Web-Share `text`, the alt text, and the native/text-share fallback. */
@@ -228,27 +241,4 @@ export async function shareEntityCard(m: EntityCardModel): Promise<void> {
     a.click()
     URL.revokeObjectURL(url)
   }
-}
-
-/** Share the entity's link: Web Share (url) → clipboard copy. Returns 'shared' | 'copied' | 'none'. */
-export async function shareEntityLink(m: EntityCardModel): Promise<'shared' | 'copied' | 'none'> {
-  const url = m.url
-  if (!url) return 'none'
-  if (typeof navigator !== 'undefined' && 'share' in navigator) {
-    try {
-      await navigator.share({ title: m.title, text: m.title, url })
-      return 'shared'
-    } catch {
-      /* cancelled/unsupported → try clipboard */
-    }
-  }
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(url)
-      return 'copied'
-    } catch {
-      return 'none'
-    }
-  }
-  return 'none'
 }

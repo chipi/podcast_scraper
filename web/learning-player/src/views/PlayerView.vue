@@ -37,6 +37,7 @@ import CaptureMoment from '../components/CaptureMoment.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import OverflowMenu from '../components/OverflowMenu.vue'
 import ShareMenu from '../components/ShareMenu.vue'
+import { shareUrl } from '../utils/shareLink'
 import type { EntityCardModel } from '../composables/entityShareCard'
 import PlayerSkeleton from '../components/PlayerSkeleton.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
@@ -186,14 +187,14 @@ watch(
 const shareModel = computed<EntityCardModel>(() => {
   const e = episode.value
   const secs = e?.duration_seconds ?? null
-  const origin = typeof window !== 'undefined' ? window.location.origin : ''
   const topInsight = insights.value.find((i) => i.text?.trim())?.text ?? null
   return {
     kicker: e?.podcast_title ? `Episode · ${e.podcast_title}` : 'Episode',
     title: e?.title ?? props.slug,
     quote: topInsight,
     byline: secs ? `${Math.max(1, Math.round(secs / 60))} min` : null,
-    url: origin ? `${origin}/episode/${props.slug}` : null,
+    url: shareUrl('episode', props.slug),
+    context: e?.podcast_title ?? null,
   }
 })
 const segments = ref<Segment[]>([])

@@ -26,6 +26,7 @@ import PersonCardContent from "./PersonCardContent.vue"
 import TopicCardContent from "./TopicCardContent.vue"
 import OrgCardContent from "./OrgCardContent.vue"
 import ShareMenu from "./ShareMenu.vue"
+import { shareUrl } from "../utils/shareLink"
 import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
@@ -231,13 +232,9 @@ const shareModel = computed<EntityCardModel>(() => {
     kind === "person" ? t("ec.person") : kind === "organization" ? t("ec.organization") : t("ec.topic")
   const card = person.value ?? topic.value ?? org.value
   const eps = card?.episode_count ?? 0
-  const origin = typeof window !== "undefined" ? window.location.origin : ""
-  const path =
-    kind === "topic"
-      ? `/topic/${current.value.id}`
-      : kind === "person"
-        ? `/person/${current.value.id}`
-        : "" // org has no standalone page yet
+  // Org has no standalone page yet, so no link.
+  const url =
+    kind === "topic" || kind === "person" ? shareUrl(kind, current.value.id) : null
   return {
     kicker,
     title: label.value || current.value.id,
@@ -248,7 +245,8 @@ const shareModel = computed<EntityCardModel>(() => {
     // Per-kind accent (topic cyan / person gold / else brand cyan) — resolved token→hex in the .ts
     // so the literal never lands in this component (no-hex-in-`.vue` guard).
     accent: accentForKind(kind),
-    url: path && origin ? origin + path : null,
+    url,
+    context: person.value?.web?.description ?? org.value?.web?.description ?? null,
   }
 })
 

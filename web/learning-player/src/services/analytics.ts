@@ -323,7 +323,7 @@ export type EventProps = {
      * organizations invisible while inflating topics.
      */
     target_kind: 'episode' | 'moment' | 'topic' | 'person' | 'storyline' | 'organization'
-    method: 'native_sheet' | 'copy_link'
+    method: 'native_sheet' | 'copy_link' | 'copy_text'
   }
   /**
    * No `destination`, and that is a correction to the spec rather than an omission.

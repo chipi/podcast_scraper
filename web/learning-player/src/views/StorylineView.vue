@@ -33,6 +33,7 @@ import FavoriteButton from "../components/FavoriteButton.vue"
 import FollowButton from "../components/FollowButton.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
 import ShareMenu from "../components/ShareMenu.vue"
+import { shareUrl } from "../utils/shareLink"
 import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
 import type { ClusterMember, ClusterPair, Entity, EpisodeSummary } from "../services/types"
 
@@ -172,7 +173,7 @@ const shareModel = computed<EntityCardModel>(() => {
     title: label.value || props.id,
     stats: parts.join(" · "),
     accent: accentForKind("storyline"),
-    url: typeof window !== "undefined" ? `${window.location.origin}/storyline/${props.id}` : null,
+    url: shareUrl("storyline", props.id),
   }
 })
 

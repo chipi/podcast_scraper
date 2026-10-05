@@ -20,6 +20,7 @@ import NoteComposer from '../components/NoteComposer.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import FollowButton from '../components/FollowButton.vue'
 import ShareMenu from '../components/ShareMenu.vue'
+import { shareUrl } from '../utils/shareLink'
 import { accentForKind, type EntityCardModel } from '../composables/entityShareCard'
 import { formatPublishDate } from '../utils/format'
 import { scrollBehavior } from '../utils/motion'
@@ -203,8 +204,7 @@ const shareModel = computed<EntityCardModel>(() => ({
     ? t('podcast.episodeCount', { count: total.value }, total.value)
     : null,
   accent: accentForKind('show'),
-  url:
-    typeof window !== 'undefined' ? `${window.location.origin}/podcast/${props.feedId}` : null,
+  url: shareUrl('podcast', props.feedId),
 }))
 
 const showArt = showArtwork

@@ -1,21 +1,20 @@
 <script setup lang="ts">
 /**
- * Share menu (#2036) — one affordance, three modes: **Share card** (the editorial PNG),
- * **Share link** (the canonical URL), **Share text** (the caption). Given an {@link EntityCardModel}
- * it drives `entityShareCard`; the card is the star, the link unfurls AS the card once OG-images
- * land, and text is the graceful fallback.
+ * Share menu (#2036) — **Share card** (the editorial PNG, through the platform share sheet),
+ * **Copy link** and **Copy text** (operator 2026-10-05).
+ *
+ * The last two were "Share link" and "Share text", and beta testers could not tell them apart from
+ * the first: on a phone all three opened the same system sheet, and "Share text" handed it a .txt
+ * FILE. Now they do what they say — put the link, or a line of text ending in the link, on the
+ * clipboard — and confirm it. The link is the public https URL (utils/shareLink), so whoever opens
+ * it lands on the same thing, in the app when they have it.
  */
 import { ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { track } from "../services/analytics"
 
-import {
-  type EntityCardModel,
-  entityCardText,
-  shareEntityCard,
-  shareEntityLink,
-} from "../composables/entityShareCard"
-import { isNative, saveAndShareText } from "../services/native"
+import { type EntityCardModel, entityCopyText, shareEntityCard } from "../composables/entityShareCard"
+import { copyText } from "../utils/clipboard"
 import { useAnchoredMenu } from "../composables/useAnchoredMenu"
 
 /**
@@ -47,40 +46,16 @@ async function onCard(): Promise<void> {
   await shareEntityCard(props.model)
 }
 async function onLink(): Promise<void> {
-  const r = await shareEntityLink(props.model)
   close()
-  // Reported from the RESULT, not the intent: the same tap reaches the native sheet on a phone and
-  // falls back to the clipboard on a desktop, and the spec asks which actually happened. `none`
-  // means neither worked, so nothing is reported — a failed share is not a share.
-  if (r === "shared") track('share', { target_kind: props.targetKind, method: 'native_sheet' })
-  if (r === "copied") {
-    track('share', { target_kind: props.targetKind, method: 'copy_link' })
-    flash(t("share.linkCopied"))
-  }
+  if (!props.model.url || !(await copyText(props.model.url))) return
+  track('share', { target_kind: props.targetKind, method: 'copy_link' })
+  flash(t("share.linkCopied"))
 }
 async function onText(): Promise<void> {
   close()
-  const text = entityCardText(props.model)
-  if (typeof navigator !== "undefined" && "share" in navigator) {
-    try {
-      await navigator.share({ text })
-      return
-    } catch {
-      /* fall through */
-    }
-  }
-  if (isNative()) {
-    await saveAndShareText("closelistening.txt", text, "text/plain")
-    return
-  }
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text)
-      flash(t("share.textCopied"))
-    } catch {
-      /* clipboard permission denied — nothing copied, no crash */
-    }
-  }
+  if (!(await copyText(entityCopyText(props.model)))) return
+  track('share', { target_kind: props.targetKind, method: 'copy_text' })
+  flash(t("share.textCopied"))
 }
 
 let flashTimer: ReturnType<typeof setTimeout> | undefined

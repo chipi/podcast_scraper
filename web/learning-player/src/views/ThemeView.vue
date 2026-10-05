@@ -37,6 +37,7 @@ import ShowAllToggle from "../components/ShowAllToggle.vue"
 import { useCappedSections } from "../composables/useCappedSections"
 import TopicPerspectives from "../components/TopicPerspectives.vue"
 import ShareMenu from "../components/ShareMenu.vue"
+import { shareUrl } from "../utils/shareLink"
 import TopVoices from "../components/TopVoices.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
 import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
@@ -167,7 +168,7 @@ const shareModel = computed<EntityCardModel>(() => {
     // the whole rule — which made the two share cards indistinguishable, the same collision the
     // page eyebrows had. Both are still groupings; the colour now says WHICH.
     accent: accentForKind("theme"),
-    url: typeof window !== "undefined" ? `${window.location.origin}/theme/${props.id}` : null,
+    url: shareUrl("theme", props.id),
   }
 })
 
