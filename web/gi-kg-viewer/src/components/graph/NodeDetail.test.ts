@@ -203,6 +203,21 @@ describe('NodeDetail', () => {
     ])
   })
 
+  it('offers "View in graph" on a topic only when asked (off the Graph tab) and emits the node id', async () => {
+    // UXS-007: a topic opened in the rail from Digest / Dashboard must have a way onto the Graph.
+    const art = artifactOf([
+      { id: 'topic:ai', type: 'Topic', properties: { label: 'AI' } },
+    ])
+    const shell = useShellStore()
+    shell.healthStatus = 'ok'
+    const onGraph = mountDetail({ viewArtifact: art, nodeId: 'topic:ai' })
+    expect(onGraph.find('[data-testid="node-detail-topic-view-in-graph"]').exists()).toBe(false)
+
+    const offGraph = mountDetail({ viewArtifact: art, nodeId: 'topic:ai', showViewInGraph: true })
+    await offGraph.get('[data-testid="node-detail-topic-view-in-graph"]').trigger('click')
+    expect(offGraph.emitted('view-in-graph')![0]).toEqual(['topic:ai'])
+  })
+
   it('renders embedded TopicEntityView instead of "Open full Topic profile" button for topic nodes', () => {
     const art = artifactOf([
       { id: 'topic:ai', type: 'Topic', properties: { label: 'AI' } },

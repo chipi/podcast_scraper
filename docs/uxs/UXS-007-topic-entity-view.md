@@ -192,6 +192,14 @@ Below the header, a row of two equal-width buttons:
 - **Search this topic** -- prefills the semantic search panel with the topic label.
   Uses `primary` token. Consistent with existing "Search topic" affordance in Digest.
 
+**As built (2026-10-05).** Since the node-view unification the topic view renders inside the
+rail's `NodeDetail`, and these actions live in its topic shortcut row:
+**Prefill semantic search** (`node-detail-topic-prefill-search`), **Set Search topic filter**
+(`node-detail-topic-explore-filter`) and, only when the Graph tab is not showing, **View in
+graph** (`node-detail-topic-view-in-graph`), which opens the Graph with the topic focused. The
+standalone view's own row (`topic-entity-view-go-graph` / `-prefill-search`) renders only
+outside `NodeDetail`, which no surface uses today.
+
 ---
 
 ## Graceful degradation

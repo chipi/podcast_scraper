@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -42,6 +42,7 @@ vi.mock('../../api/indexStatsApi', () => ({
 
 import StatusBar from './StatusBar.vue'
 import { useShellStore } from '../../stores/shell'
+import { useArtifactsStore } from '../../stores/artifacts'
 import { useIndexStatsStore } from '../../stores/indexStats'
 import type { IndexStatsEnvelope } from '../../api/indexStatsApi'
 
@@ -228,6 +229,45 @@ describe('StatusBar', () => {
     expect((w.get('[data-testid="artifact-list-dialog"]').element as HTMLDialogElement).open).toBe(
       true,
     )
+  })
+
+  it('Load into graph marks the pick as a manual selection, so the first Graph visit keeps it', async () => {
+    // Without the manual flag, App's first-visit corpus sync replaced the operator's pick with
+    // the time-lens auto-load (one artifact picked, eleven episodes drawn).
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}', { status: 500 }))))
+    try {
+      const w = mountBar()
+      const shell = useShellStore()
+      const artifacts = useArtifactsStore()
+      shell.healthStatus = 'ok'
+      shell.corpusPath = '/corpus'
+      await w.vm.$nextTick()
+      vi.spyOn(shell, 'fetchArtifactList').mockResolvedValue()
+      await w.get(LIST_BTN).trigger('click')
+      shell.artifactList = [
+        {
+          name: 'e1.gi.json',
+          relative_path: 'feeds/a/metadata/e1.gi.json',
+          kind: 'gi',
+          size_bytes: 10,
+          mtime_utc: '2026-10-05T00:00:00Z',
+          publish_date: '2026-10-01',
+        },
+      ]
+      artifacts.selectedRelPaths = ['feeds/a/metadata/e1.gi.json']
+      await w.vm.$nextTick()
+      expect(artifacts.manualGraphSelection).toBe(false)
+      const load = w
+        .get('[data-testid="artifact-list-dialog"]')
+        .findAll('button')
+        .find((b) => b.text() === 'Load into graph')!
+      await load.trigger('click')
+      await flushPromises()
+      expect(artifacts.manualGraphSelection).toBe(true)
+      expect(artifacts.selectedRelPaths).toEqual(['feeds/a/metadata/e1.gi.json'])
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   // ── Health trigger opens the sources dialog on the Health tab ───────────────

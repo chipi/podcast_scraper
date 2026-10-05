@@ -1187,6 +1187,7 @@ watch(
             :main-tab="mainTab"
             @close-subject="onCloseSubjectRail"
             @go-graph="activateGraphTab(undefined, undefined, 'subject-rail')"
+            @view-in-graph="(id: string) => activateGraphTab(id, undefined, 'subject-rail')"
             @focus-search-handoff="onLibraryFocusSearch"
             @open-search-in-episode="onOpenSearchInEpisode"
             @prefill-semantic-search="onGraphNodeTopicPrefillSearch"

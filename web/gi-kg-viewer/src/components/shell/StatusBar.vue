@@ -347,7 +347,9 @@ async function onListArtifactsClick(): Promise<void> {
 }
 
 async function onLoadIntoGraphFromDialog(): Promise<void> {
-  await artifacts.loadSelected()
+  // A pick from this dialog is a MANUAL selection (like a Library load): plain loadSelected()
+  // left the flag unset, and the first Graph visit's corpus sync replaced the pick.
+  await artifacts.loadRelativeArtifacts([...artifacts.selectedRelPaths])
   if (artifacts.displayArtifact) {
     emit('go-graph')
     artifactListDialogOpen.value = false
