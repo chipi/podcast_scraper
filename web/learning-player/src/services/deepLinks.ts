@@ -88,7 +88,7 @@ export function routeForDeepLink(raw: string): DeepLinkTarget | null {
     if (!target || !id) continue
     const decoded = safeDecode(id)
     if (!decoded || !ID_PATTERN.test(decoded)) return null
-    const query = { ...startTimeOf(url), ...revisitOf(url), ...emailTagsOf(url) }
+    const query = { ...startTimeOf(url), ...revisitOf(url), ...panelOf(url), ...emailTagsOf(url) }
     return {
       name: target.name,
       params: { [target.param]: decoded },
@@ -121,6 +121,11 @@ function startTimeOf(url: URL): Record<string, string> {
 function revisitOf(url: URL): Record<string, string> {
   const raw = url.searchParams.get('revisit')
   return raw && ID_PATTERN.test(raw) ? { revisit: raw } : {}
+}
+
+/** `?panel=notes` — open the episode-notes panel (the daily recap's "Open episode notes"). */
+function panelOf(url: URL): Record<string, string> {
+  return url.searchParams.get('panel') === 'notes' ? { panel: 'notes' } : {}
 }
 
 /** The email tags, each a short lowercase token — the enum check happens where they are read. */

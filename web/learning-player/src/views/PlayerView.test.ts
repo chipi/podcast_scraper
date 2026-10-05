@@ -1022,3 +1022,34 @@ describe('S3.1 transcript language control', () => {
     expect(w.find('[data-testid="transcript-lang-en"]').attributes('aria-pressed')).toBe('false')
   })
 })
+
+describe('opening the episode notes from a link', () => {
+  // The opener renders only once the episode HAS insights — without them both cases would show no
+  // opener, and the first test would pass for the wrong reason.
+  beforeEach(() => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue({
+      episode_slug: 'ep-1',
+      insights: [
+        { id: 'i0', text: 'insight', grounded: true, insight_type: null, confidence: null, position_hint: null, quotes: [] },
+      ],
+    })
+  })
+
+  it('?panel=notes opens the episode-notes panel (the daily recap email, operator 2026-10-05)', async () => {
+    setActivePinia(createPinia())
+    await router.push({ name: 'player', params: { slug: 'ep-1' }, query: { panel: 'notes' } })
+    const w = mount(PlayerView, {
+      props: { slug: 'ep-1' },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    mountedPlayers.push(w)
+    await flushPromises()
+    // The opener exists only while the panel is shut.
+    expect(w.find('[data-testid="player-open-insights"]').exists()).toBe(false)
+  })
+
+  it('without it the panel stays shut', async () => {
+    const w = await mountPlayer('ep-1')
+    expect(w.find('[data-testid="player-open-insights"]').exists()).toBe(true)
+  })
+})

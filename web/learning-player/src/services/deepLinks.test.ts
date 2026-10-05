@@ -160,6 +160,13 @@ describe('routeForDeepLink — shared and emailed links', () => {
     ).toEqual({ utm_source: 'email' })
   })
 
+  it('opens the episode-notes panel for the recap email, and nothing else under that key', () => {
+    expect(routeForDeepLink('https://closelistening.app/episode/x?panel=notes')?.query).toEqual({
+      panel: 'notes',
+    })
+    expect(routeForDeepLink('https://closelistening.app/episode/x?panel=admin')?.query).toBeUndefined()
+  })
+
   it('still refuses an id that could carry a path or a query', () => {
     expect(routeForDeepLink('https://closelistening.app/topic/a%2Fb')).toBeNull()
     expect(routeForDeepLink('https://closelistening.app/topic/a%3Fb')).toBeNull()

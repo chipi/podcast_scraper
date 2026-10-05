@@ -361,6 +361,10 @@ function openInsight(insightId: string): void {
 // episode-notes panel, so open it and let it scroll to them (operator 2026-10-04).
 const focusNotes = computed(() => route.query.notes === '1')
 watch(focusNotes, (on) => { if (on) panelOpen.value = true }, { immediate: true })
+// `?panel=notes` opens the same panel at its TOP — the summary and key points — rather than at the
+// reader's own notes: the daily recap email's "Open episode notes" (operator 2026-10-05).
+const openPanelFromLink = computed(() => route.query.panel === 'notes')
+watch(openPanelFromLink, (on) => { if (on) panelOpen.value = true }, { immediate: true })
 
 // Playback state + transport live in the player store (single source of truth for the UI,
 // MediaSession, and native controls — #1307). What is left here is genuinely view-shaped:
