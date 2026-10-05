@@ -2,7 +2,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import en from '../i18n/locales/en.json'
+import { usePlayerStore } from '../stores/player'
 
 // Mock the composable so we can drive needRefresh + the click handlers directly.
 const needRefresh = ref(false)
@@ -18,6 +20,12 @@ vi.mock('../composables/usePwaUpdate', () => ({
   }),
 }))
 
+const native = vi.hoisted(() => ({ value: false }))
+vi.mock('../services/native', async (orig) => ({
+  ...(await orig<typeof import('../services/native')>()),
+  isNative: () => native.value,
+}))
+
 import PwaUpdateToast from './PwaUpdateToast.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -28,6 +36,8 @@ function mountToast() {
 
 describe('PwaUpdateToast', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
+    native.value = false
     needRefresh.value = false
     applyUpdate.mockClear()
     dismissUpdate.mockClear()
@@ -69,5 +79,28 @@ describe('PwaUpdateToast', () => {
     const toast = wrapper.find('[data-testid="pwa-update-toast"]')
     expect(toast.attributes('role')).toBe('status')
     expect(toast.attributes('aria-live')).toBe('polite')
+  })
+
+  // A fresh app update leaves a new service worker waiting, so the toast appeared on the FIRST
+  // launch after every install, pinned bottom-right over the tab bar: a tap on Library landed on
+  // the toast and did nothing (Android AppJourneyTests#test05, 2026-10-05). Native updates arrive
+  // with the store build and have their own banner; the waiting worker takes over next launch.
+  it('never renders in the native app', () => {
+    native.value = true
+    needRefresh.value = true
+    const wrapper = mountToast()
+    expect(wrapper.find('[data-testid="pwa-update-toast"]').exists()).toBe(false)
+  })
+
+  it('sits above the tab bar on a phone, and above the mini-player too when one is loaded', async () => {
+    needRefresh.value = true
+    const wrapper = mountToast()
+    const cls = () => wrapper.find('[data-testid="pwa-update-toast"]').classes()
+    expect(cls()).toContain('bottom-[calc(4.25rem+env(safe-area-inset-bottom))]')
+    expect(cls()).toContain('sm:bottom-4')
+    usePlayerStore().currentSlug = 'some-episode'
+    await wrapper.vm.$nextTick()
+    expect(cls()).toContain('bottom-[calc(8.25rem+env(safe-area-inset-bottom))]')
+    expect(cls()).toContain('sm:bottom-[calc(6rem+env(safe-area-inset-bottom))]')
   })
 })
