@@ -139,6 +139,16 @@ describe('routeForDeepLink — shared and emailed links', () => {
     )
   })
 
+  it('carries ?play=1 on an episode — an emailed "▶ Play from" starts playback (operator 2026-10-05)', () => {
+    expect(routeForDeepLink('https://closelistening.app/episode/x?t=65&play=1')?.query).toEqual({
+      t: '65',
+      play: '1',
+    })
+    // Only the exact value, and only where it means something.
+    expect(routeForDeepLink('https://closelistening.app/episode/x?play=yes')?.query).toBeUndefined()
+    expect(routeForDeepLink('https://closelistening.app/topic/topic:ai?play=1')?.query).toBeUndefined()
+  })
+
   it('carries the digest\'s revisit marker through, validated', () => {
     expect(
       routeForDeepLink('https://closelistening.app/episode/x?t=65&revisit=h_123')?.query,

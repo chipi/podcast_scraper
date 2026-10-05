@@ -25,6 +25,7 @@ export interface DeepLinkTarget {
   name: 'player' | 'podcast' | 'topic' | 'person' | 'storyline' | 'theme'
   params: Record<string, string>
   /** `?t=<seconds>` passed through, so a link can name a MOMENT and not just an episode;
+   *  `?play=1` on an episode, so an emailed "▶ Play from" starts playback in the app too;
    *  `?revisit=<highlight id>`, which the digest email's revisit links carry (#35); and the email
    *  tags (`utm_*`), so a click from an email that opens the INSTALLED app is counted like one
    *  that opens the browser (services/inboundLink). */
@@ -88,7 +89,13 @@ export function routeForDeepLink(raw: string): DeepLinkTarget | null {
     if (!target || !id) continue
     const decoded = safeDecode(id)
     if (!decoded || !ID_PATTERN.test(decoded)) return null
-    const query = { ...startTimeOf(url), ...revisitOf(url), ...panelOf(url), ...emailTagsOf(url) }
+    const query = {
+      ...startTimeOf(url),
+      ...(target.name === 'player' ? playOf(url) : {}),
+      ...revisitOf(url),
+      ...panelOf(url),
+      ...emailTagsOf(url),
+    }
     return {
       name: target.name,
       params: { [target.param]: decoded },
@@ -121,6 +128,14 @@ function startTimeOf(url: URL): Record<string, string> {
 function revisitOf(url: URL): Record<string, string> {
   const raw = url.searchParams.get('revisit')
   return raw && ID_PATTERN.test(raw) ? { revisit: raw } : {}
+}
+
+/**
+ * `?play=1` — START playing on arrival: an email's "▶ Play from 1:05" means play, as the same
+ * control does in the app (operator 2026-10-05). Only the exact value, only on an episode.
+ */
+function playOf(url: URL): Record<string, string> {
+  return url.searchParams.get('play') === '1' ? { play: '1' } : {}
 }
 
 /** `?panel=notes` — open the episode-notes panel (the daily recap's "Open episode notes"). */
