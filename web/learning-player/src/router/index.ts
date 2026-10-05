@@ -162,6 +162,7 @@ const routes: RouteRecordRaw[] = [
   },
   // The address store listings give for the privacy policy (#2210).
   { path: '/privacy', redirect: { name: 'about-page', params: { page: 'privacy' } } },
+  { path: '/terms', redirect: { name: 'about-page', params: { page: 'terms' } } },
   /**
    * Browse is ONE surface with tabs — these paths are aliases into it (#2004 follow-up).
    *

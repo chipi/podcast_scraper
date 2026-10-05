@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "build": "node scripts/third-party.mjs && vue-tsc -b && vite build",
     "type-check:test": "vue-tsc --noEmit -p tsconfig.test.json",
     "preview": "vite preview",
     "test:unit": "vitest run",

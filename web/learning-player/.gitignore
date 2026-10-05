@@ -33,3 +33,6 @@ e2e/telemetry/.diag/
 
 # ML model caches (whisper/transformers) pulled by any local pipeline run — never commit
 .cache/
+
+# Generated on every build by scripts/third-party.mjs (Settings › Third-party software).
+public/third-party.json

@@ -31,7 +31,12 @@
     "thirdParty": "Third-party software",
     "privacy": "Privacy policy",
     "terms": "Terms of use",
-    "placeholder": "This page is coming soon."
+    "placeholder": "This page is coming soon.",
+    "thirdPartyIntro": "Close Listening is built on open-source software. These are the packages the app ships, with their licences. Tap one to read its licence.",
+    "thirdPartyLoading": "Loading…",
+    "thirdPartyFailed": "Couldn't load the list — it needs a connection.",
+    "thirdPartyCount": "{count} packages · generated {date}",
+    "thirdPartyNoText": "Licensed under {license}; the package ships no licence file."
   },
   "nav": {
     "catalog": "Catalog",
@@ -322,7 +327,8 @@
     "magicLinkSentBody": "If {email} can sign in here, a link is on its way. It works once and expires in 15 minutes.",
     "magicLinkUseAnother": "Use a different address",
     "magicLinkHint": "No password. We'll email you a link that signs you in.",
-    "magicLinkError": "Couldn't send just now — check your connection and try again."
+    "magicLinkError": "Couldn't send just now — check your connection and try again.",
+    "legalConsent": "By continuing, you agree to our {terms} and acknowledge our {privacy}."
   },
   "landing": {
     "heroTitle": "Understand any podcast in minutes.",

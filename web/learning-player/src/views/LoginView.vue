@@ -271,6 +271,27 @@ function signInCustom(): void {
         </RouterLink>
       </template>
     </p>
+
+    <!-- What you agree to by continuing (2026-10-05), at the foot of the page where the choice to
+         sign up is made — the same two pages, under the same names, that Settings › About & legal
+         links. Both routes are public, so they open before you have an account. -->
+    <i18n-t
+      keypath="auth.legalConsent"
+      tag="p"
+      class="mt-8 text-xs leading-relaxed text-muted"
+      data-testid="login-legal"
+    >
+      <template #terms>
+        <RouterLink :to="{ name: 'about-page', params: { page: 'terms' } }" class="underline" data-testid="login-terms">{{
+          t('about.terms')
+        }}</RouterLink>
+      </template>
+      <template #privacy>
+        <RouterLink :to="{ name: 'about-page', params: { page: 'privacy' } }" class="underline" data-testid="login-privacy">{{
+          t('about.privacy')
+        }}</RouterLink>
+      </template>
+    </i18n-t>
   </section>
 </template>
 
