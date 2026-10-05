@@ -17,7 +17,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { track } from '../services/analytics'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import PlayFrom from './PlayFrom.vue'
 import { getRecap } from '../services/api'
 import type { RecapResponse, RecapRecurring, RecapWindow } from '../services/types'
 import { trendLabel } from '../utils/recapTrend'
@@ -192,11 +192,15 @@ const lineTarget = computed(() => {
     <figure v-if="recap!.best_line" class="mt-3 rounded-xl bg-overlay p-4">
       <h3 class="lp-kicker mb-2">{{ t('recap.line') }}</h3>
       <blockquote class="text-sm italic">“{{ recap!.best_line.quote_text }}”</blockquote>
-      <RouterLink
+      <!-- The shared jump control (operator 2026-10-05): "▶ Play from 3:12", or the old "Open
+           line" wording when the line has no time to name. -->
+      <PlayFrom
         v-if="lineTarget"
+        class="mt-2 inline-block"
+        :seconds="recap!.best_line.start_ms != null ? recap!.best_line.start_ms / 1000 : null"
+        :fallback="t('recap.openLine')"
         :to="lineTarget"
-        class="mt-2 inline-block text-xs font-medium text-accent"
-      >{{ t('recap.openLine') }}</RouterLink>
+      />
     </figure>
   </section>
 </template>

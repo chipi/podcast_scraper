@@ -113,6 +113,8 @@ describe('ListeningRecap', () => {
     expect(w.text()).toContain('the stable anchor is the timestamp')
     // Opening at the beginning would lose the reason the line was worth showing.
     expect(w.find('a[href*="/episode/p06-721"]').attributes('href')).toContain('t=42')
+    // The shared jump control, worded like every other one (operator 2026-10-05).
+    expect(w.get('[data-testid="play-from"]').text()).toBe('▶ Play from 0:42')
   })
 
   it('renders NOTHING when there is nothing recorded — an empty recap is worse than none', async () => {

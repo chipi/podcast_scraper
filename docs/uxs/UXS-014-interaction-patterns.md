@@ -663,8 +663,8 @@ gives back ~70pt and puts the whole transport on screen. Desktop has the height 
 - **The items inside share one card shape (2026-10-05).** The **kind** on the left of the top line
   and **`PlayFrom`** — "▶ Play from 1:05", the ONE jump-to-a-moment control — hard right; the content
   under it; the bottom row carries the date or the editing controls on the left and the card's icon
-  actions on the right. `PlayFrom` is also the jump in the episode-notes panel and topic
-  perspectives: before it, Search said "Play from 0:20" and every other surface a bare "▶ 1:05".
+  actions on the right. `PlayFrom` is also the jump in the episode-notes panel, topic
+  perspectives and the listening recap's best line: before it, Search said "Play from 0:20" and every other surface a bare "▶ 1:05".
 - **One kind-filter strip, everywhere (2026-09-17).** Filtering a list by the KIND of thing in it is
   one pattern, so it is one component: **`TypeFilterBar`** — a multi-select chip strip led by an
   explicit **All** chip (so clearing is one tap), where no selection means all, and a chip renders

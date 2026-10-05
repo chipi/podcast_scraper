@@ -3,7 +3,8 @@
  * "▶ Play from 1:05" — the ONE jump-to-a-moment control (operator 2026-10-05).
  *
  * Search said "▶ Play from 0:20"; Saved, Revisit, the episode-notes panel and topic perspectives said
- * a bare "▶ 1:05". Same action, two spellings, five hand-rolled copies. This is the one.
+ * a bare "▶ 1:05", and the listening recap said "Open line". Same action, three spellings, seven
+ * hand-rolled copies. This is the one.
  *
  * A link when it is given `to` (navigating to the player at the moment), a button otherwise (the
  * host seeks or routes itself on `click`). A moment with no timestamp shows `fallback` instead of a
