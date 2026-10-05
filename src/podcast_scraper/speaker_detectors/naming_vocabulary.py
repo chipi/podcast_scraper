@@ -38,7 +38,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, FrozenSet, Optional, Tuple
 
-from ..languages import TARGET_LANGUAGE
+from ..languages import primary_language, TARGET_LANGUAGE
 
 #: Tier-1: the five enabled non-English languages plus the analysis language. Every map below
 #: carries a row for each, and `hosts.NAMING_VOCABULARY_LANGUAGES` derives the advertised set as
@@ -53,7 +53,7 @@ def primary_subtag(language: Optional[str]) -> str:
     forgot the split would silently receive the English row for a Spanish feed, which is the exact
     failure this module exists to close — so the split happens once, on the way in.
     """
-    return (language or "").strip().lower().split("-")[0]
+    return primary_language(language)
 
 
 def vocabulary_row(rows: Dict[str, Any], language: Optional[str], *, default: Any = None) -> Any:

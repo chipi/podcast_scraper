@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-from ..languages import TARGET_LANGUAGE
+from ..languages import primary_language, TARGET_LANGUAGE
 
 # Default speaker names when detection fails (Issue #428: use typed placeholder, not "Guest")
 DEFAULT_SPEAKER_NAMES = ["Host", "unknown_guest_1"]
@@ -381,7 +381,7 @@ def interview_cue_patterns_for(language: Optional[str]) -> Optional[SpeakerCuePa
     """
     if not language:
         return None
-    code = language.strip().lower().split("-")[0]
+    code = primary_language(language)
     if code not in SPEAKER_CUE_LANGUAGES:
         return None
     return SpeakerCuePatterns(

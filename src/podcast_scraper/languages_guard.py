@@ -51,6 +51,8 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
+from .languages import primary_language
+
 logger = logging.getLogger(__name__)
 
 #: Recorded on the stage that declined, so an audit can GROUP BY it.
@@ -77,7 +79,7 @@ def is_target_language(language: Optional[str]) -> bool:
     normalized = str(language or "").strip().lower()
     if not normalized:
         return True
-    return normalized.split("-")[0] == "en"
+    return primary_language(normalized) == "en"
 
 
 def refuse_unsupported_language(stage: str, language: Optional[str]) -> Optional[str]:

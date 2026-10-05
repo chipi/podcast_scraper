@@ -121,9 +121,10 @@ def primary_language(tag: Any) -> str:
     lower-cased primary subtag (``"xx-YY"`` -> ``"xx"``), and ``None`` / blank to ``""`` — so a
     caller that branched on those keeps branching the same way.
 
-    Replaces thirteen hand-written ``.strip().lower().split("-")[0]`` reductions, which turned
-    ``en_US`` into ``"en_us"`` and therefore read an English episode as non-English wherever they
-    compared against ``"en"`` (English-path audit, 2026-10-05).
+    Replaces the hand-written ``.strip().lower().split("-")[0]`` reductions that were spread over
+    the search, translation, workflow, GI and naming modules, which turned ``en_US`` into
+    ``"en_us"`` and therefore read an English episode as non-English wherever they compared
+    against ``"en"`` (English-path audit, 2026-10-05). New code reduces a tag through this.
     """
     text = "" if tag is None else str(tag)
     return normalize_language_tag(text) or text.strip().lower().split("-")[0]

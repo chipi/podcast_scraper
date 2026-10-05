@@ -25,7 +25,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from ..languages import TARGET_LANGUAGE
+from ..languages import primary_language, TARGET_LANGUAGE
 from . import naming_vocabulary
 from .hosts import _STATED_LC_CHARS, _STATED_UC
 
@@ -96,7 +96,7 @@ _SPOKEN_FULL_NAME_UNICODE = re.compile(
 
 def _spoken_full_name(language: Optional[str]) -> "re.Pattern[str]":
     """main's ASCII scanner for English, unset or unsupported; the Unicode one for the rest."""
-    lang = (language or "").strip().lower().split("-")[0]
+    lang = primary_language(language)
     supported = lang in naming_vocabulary.SELF_INTRO_WORDS
     if not lang or lang == TARGET_LANGUAGE or not supported:
         return _SPOKEN_FULL_NAME
