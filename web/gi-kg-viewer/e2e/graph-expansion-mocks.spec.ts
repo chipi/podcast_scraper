@@ -960,3 +960,150 @@ test.describe('Graph expansion (mocked API)', () => {
     ).toBeLessThanOrEqual(BASELINE_MAX)
   })
 })
+
+/**
+ * NodeDetail rows the UXS-004 audit found with no browser coverage (2026-10-05). One constructed
+ * fixture: the CI sample plus topic aliases, an insight with seven supporting quotes (the list
+ * collapses after five), and a host Person. Opened through the DEV `focusEntity` hook, which is the
+ * generic node view — persons and quotes are hidden on the canvas by default, so a click cannot
+ * reach them.
+ */
+function giJsonForNodeRailRows(): string {
+  const j = JSON.parse(readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')) as {
+    nodes: { id: string; type: string; properties?: Record<string, unknown> }[]
+    edges: { type: string; from: string; to: string }[]
+  }
+  const topic = j.nodes.find((n) => n.id === 'topic:ci-policy')!
+  topic.properties = { ...(topic.properties ?? {}), aliases: ['climate regulation', ' ', 'carbon policy'] }
+  for (let i = 1; i <= 5; i += 1) {
+    j.nodes.push({
+      id: `quote:rail-extra-${i}`,
+      type: 'Quote',
+      properties: { text: `Extra supporting line ${i}.`, episode_id: 'ci-fixture', speaker_id: null, char_start: 100 + i * 30, char_end: 120 + i * 30, timestamp_start_ms: 0, timestamp_end_ms: 0, transcript_ref: 'transcript.txt' },
+    })
+    j.edges.push({ type: 'SUPPORTED_BY', from: 'insight:b72dafa3f874480d', to: `quote:rail-extra-${i}` })
+  }
+  j.nodes.push({ id: 'person:nora', type: 'Person', properties: { name: 'Nora', role: 'host' } })
+  return JSON.stringify(j)
+}
+
+async function openNodeInRail(page: Page, id: string): Promise<void> {
+  await page.evaluate((nodeId) => {
+    ;(window as unknown as { __GIKG_SUBJECT__: { focusEntity: (i: string) => void } }).__GIKG_SUBJECT__.focusEntity(nodeId)
+  }, id)
+  await expect(page.getByTestId('graph-node-detail-rail')).toBeVisible({ timeout: 15_000 })
+}
+
+test.describe('Graph node rail rows (UXS-004, fixture-driven)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSignIn(page, 'creator')
+    await mockGraphExpansionBaseline(page, giJsonForNodeRailRows())
+    await gotoGraphWithMockCorpus(page)
+  })
+  test.describe.configure({ mode: 'serial' })
+
+  test('a topic lists its aliases, blanks dropped', async ({ page }) => {
+    await openNodeInRail(page, 'topic:ci-policy')
+    await expect(page.getByTestId('node-detail-topic-aliases')).toHaveText(
+      /Aliases:\s*climate regulation, carbon policy$/,
+    )
+  })
+
+  test('"Set Search topic filter" opens Search with the topic chip set to this topic', async ({ page }) => {
+    await openNodeInRail(page, 'topic:ci-policy')
+    await page.getByTestId('node-detail-topic-explore-filter').click()
+    await expect(page.getByTestId('search-workspace')).toBeVisible()
+    await expect(page.getByTestId('search-chip-topic-contains')).toHaveText('Topic: Climate policy ▾')
+  })
+
+  test('an insight shows five supporting quotes, then all seven, then five again', async ({ page }) => {
+    await openNodeInRail(page, 'insight:b72dafa3f874480d')
+    const section = page.getByTestId('node-detail-insight-supporting-quotes')
+    const rows = section.locator('ul > li')
+    await expect(rows).toHaveCount(5)
+    const toggle = page.getByTestId('node-detail-insight-supporting-quotes-toggle-expand')
+    await expect(toggle).toHaveText('Show all 7')
+    await toggle.click()
+    await expect(rows).toHaveCount(7)
+    await expect(toggle).toHaveText('Show fewer quotes')
+    await toggle.click()
+    await expect(rows).toHaveCount(5)
+  })
+
+  test('a person: the rail heading names the type, and the role reads Host', async ({ page }) => {
+    await openNodeInRail(page, 'person:nora')
+    // In the rail the type is the panel heading; NodeDetail's own kind row is for the un-embedded
+    // view only (`!embedInRail`), which no surface mounts today.
+    await expect(page.getByTestId('graph-node-detail-rail').getByRole('heading').first()).toHaveText('Person')
+    await expect(page.getByTestId('node-detail-kind-row')).toHaveCount(0)
+    await expect(page.getByTestId('node-detail-person-entity-role')).toContainText('Host')
+  })
+
+  test('a node outside the loaded graph says its neighbourhood is unavailable', async ({ page }) => {
+    await openNodeInRail(page, 'person:not-in-this-graph')
+    await page.getByTestId('node-detail-rail-tab-neighbourhood').click()
+    await expect(page.getByTestId('node-detail-rail-neighbourhood-unavailable')).toBeVisible()
+  })
+})
+
+test.describe('Graph node rail: topic cluster members (UXS-004, fixture-driven)', () => {
+  test('members show as chips; Advanced flags the one not in the graph and Load asks the catalog for its episodes', async ({
+    page,
+  }) => {
+    await mockSignIn(page, 'creator')
+    await mockGraphExpansionBaseline(page, giJsonForNodeRailRows())
+    // Registered after the baseline, so it wins: one cluster, one member drawn, one not.
+    await page.route('**/api/corpus/topic-clusters**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          schema_version: '2',
+          clusters: [
+            {
+              graph_compound_parent_id: 'tc:ci-climate',
+              canonical_label: 'Climate',
+              members: [
+                { topic_id: 'topic:ci-policy', label: 'Climate policy', episode_ids: ['ci-fixture'] },
+                { topic_id: 'topic:ci-tariffs', label: 'Carbon tariffs', episode_ids: ['ep-tariffs'] },
+              ],
+            },
+          ],
+          topic_count: 2,
+          cluster_count: 1,
+          singletons: 0,
+        }),
+      })
+    })
+    const resolveBodies: unknown[] = []
+    await page.route('**/api/corpus/resolve-episode-artifacts**', async (route) => {
+      resolveBodies.push(route.request().postDataJSON())
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ path: '/mock/corpus', resolved: [], missing_episode_ids: ['ep-tariffs'] }),
+      })
+    })
+    await gotoGraphWithMockCorpus(page)
+    await openNodeInRail(page, 'topic:ci-policy')
+
+    const members = page.getByTestId('node-detail-topic-cluster-members')
+    await expect(members).toContainText('Cluster · Climate')
+    await expect(members.getByTestId('node-detail-cluster-member-chips').getByRole('button')).toHaveText([
+      'Climate policy',
+      'Carbon tariffs',
+    ])
+
+    await members.getByTestId('node-detail-cluster-advanced-toggle').click()
+    await expect(members).toContainText('Not in this graph view')
+    const load = members.getByTestId('node-detail-cluster-member-load')
+    await expect(load).toHaveCount(1) // only the member that is not drawn
+    const before = resolveBodies.length
+    await load.click()
+    await expect(members.getByTestId('node-detail-cluster-member-load-message')).toHaveText(
+      'Catalog had no GI paths for 1 episode id(s).',
+    )
+    const sent = resolveBodies.slice(before) as { episode_ids?: string[] }[]
+    expect(sent.map((b) => b.episode_ids)).toContainEqual(['ep-tariffs'])
+  })
+})

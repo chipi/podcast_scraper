@@ -262,6 +262,54 @@ test.describe('Operator profile dropdown — filter + default preselect (#692)',
     expect(optionTexts).toEqual(['None', 'airgapped_thin', 'cloud_balanced', 'cloud_thin'])
   })
 
+  test('Profile pane: picking a profile shows what it brings (top-level settings only) and its YAML', async ({
+    page,
+  }) => {
+    await stubMinimalCorpusApis(page)
+    await stubOperatorConfig(page, {
+      content: '',
+      available_profiles: ['cloud_balanced', 'cloud_thin'],
+      default_profile: null,
+    })
+    // Registered after stubOperatorConfig, so it wins: a body with the shapes the pane must skip
+    // (comments, nested keys, list items, the `profile:` line itself, trailing comments).
+    await page.route(matchExactApiPath('/api/operator-config/profiles'), async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          profiles: [
+            {
+              name: 'cloud_balanced',
+              content:
+                '# balanced cloud preset\nprofile: cloud_balanced\nsummary_provider: openai  # cheap\nmax_episodes: 5\nenrichers:\n  - topic_similarity\nwhisper:\n  model: small\n',
+            },
+            { name: 'cloud_thin', content: 'profile: cloud_thin\nsummary_provider: gemini\n' },
+          ],
+        }),
+      })
+    })
+
+    await openProfileTab(page)
+    const pane = page.getByTestId('sources-dialog-profile-content')
+    await expect(pane).toContainText('Select a profile to see what it configures.')
+
+    await page.getByTestId(PROFILE_SELECT).selectOption('cloud_balanced')
+    await expect(pane).toContainText('What “cloud_balanced” brings')
+    const settings = page.getByTestId('sources-dialog-profile-settings').locator('li')
+    await expect(settings).toHaveText([/summary_provider:\s*openai$/, /max_episodes:\s*5$/])
+    // The full YAML is one disclosure away, verbatim (comments included).
+    await pane.getByText('Full profile YAML').click()
+    await expect(pane.locator('pre')).toContainText('# balanced cloud preset')
+    await expect(pane.locator('pre')).toContainText('model: small')
+
+    // Switching profile replaces the pane; back to None clears it.
+    await page.getByTestId(PROFILE_SELECT).selectOption('cloud_thin')
+    await expect(settings).toHaveText([/summary_provider:\s*gemini$/])
+    await page.getByTestId(PROFILE_SELECT).selectOption('')
+    await expect(pane).toContainText('Select a profile to see what it configures.')
+  })
+
   test('preprod with empty allowlist: dropdown shows only "None"', async ({ page }) => {
     await stubMinimalCorpusApis(page)
     // Misconfig: env says allowlist=[some-typo], no on-disk match.

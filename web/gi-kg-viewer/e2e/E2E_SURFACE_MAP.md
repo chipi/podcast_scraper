@@ -805,6 +805,18 @@ default project but were never linked here.
 | `e2e/validation/` | 6 Tier-3 real-corpus specs | `playwright.validation.config.ts` | Needs a separately-booted stack + `CORPUS_PATH`. Never mentioned here. |
 | `e2e/live/` | `smoke.live.spec.ts` | `playwright.live.config.ts` | Post-deploy smoke vs the live origin. Never mentioned here. |
 
+## Gaps closed 2026-10-05
+
+Rows that sat in **Coverage gaps** below until the UXS audit pass covered them:
+
+| Surface | Owning spec |
+| ------- | ----------- |
+| **Configuration — feed list row edit / delete** (`sources-dialog-feeds-row-edit-{i}`, `-edit-input-{i}`, `-save-{i}`, `-cancel-{i}`, `-delete-{i}`) | `feeds-list-crud.spec.ts` — edit, cancel, duplicate refused, delete; each read back off the server |
+| **Configuration — Operator → Profile sub-tab content** (`sources-dialog-profile-content`, `sources-dialog-profile-settings`) | `operator-profile-filter-mocks.spec.ts` — "Profile pane" test: top-level settings only, full YAML, switch and clear |
+| **Scheduled jobs — invalid cron badge** (`scheduled-jobs-invalid-cron`, next-run cell, cron title preview) | `scheduled-jobs-mocks.spec.ts` |
+| **Graph node rail details** (`node-detail-topic-aliases`, `node-detail-topic-explore-filter`, `node-detail-topic-cluster-members`, `node-detail-cluster-member-chips`, `node-detail-cluster-advanced-toggle`, `node-detail-cluster-member-load`, `node-detail-cluster-member-load-message`, `node-detail-insight-supporting-quotes-toggle-expand`, `node-detail-person-entity-role`, `node-detail-rail-tab-neighbourhood`, `node-detail-rail-neighbourhood-unavailable`) | `graph-expansion-mocks.spec.ts` — "Graph node rail rows" and "topic cluster members" (fixture-driven). `node-detail-kind-row` renders only un-embedded and every mount is the rail: asserted absent. |
+| **Search FR1.5 — lifted topic link** (`search-result-lifted-topic-link`) | `search-fr1.spec.ts` — click opens the rail on that topic id |
+
 ## Coverage gaps
 
 Surfaces that render but have **no owning spec**. This file previously had no gaps section at all,
@@ -816,10 +828,6 @@ so its silence read as "covered" — which is worse than an admitted gap.
 | **Admin — user management** | `users-admin`, `create-user-button`, `active-toggle-*`, `delete-user-*`, `user-row-{email}` | Tab visibility + self-lockout only. **User creation, deletion and activation are untested** — the highest-privilege, account-mutating surface in the product. |
 | **Admin — ranking config** | `RankingConfigAdminView` | No spec. |
 | **Admin — graph analytics** | `GraphAnalyticsAdminView` | No spec. |
-| **Configuration — feed list row edit / delete** | `sources-dialog-feeds-row-edit-{i}`, `-edit-input-{i}`, `-save-{i}`, `-cancel-{i}`, `-delete-{i}` | No spec references these (checked 2026-10-05); only **Configure** (`-configure-{i}`) is driven. |
-| **Configuration — Operator → Profile sub-tab content** | `sources-dialog-operator-subtab-profile`, `sources-dialog-profile-select` | `operator-profile-filter-mocks.spec.ts` covers the select's options; the sub-tab's own content is not asserted. |
-| **Scheduled jobs — invalid cron badge** | `scheduled-jobs-invalid-cron` | `cron-preview-mocks.spec.ts` covers the YAML-editor preview's invalid rows, not this badge in the jobs list. |
-| **Graph node rail details** | `node-detail-topic-aliases`, `node-detail-topic-explore-filter`, `node-detail-topic-cluster-members`, `node-detail-cluster-member-load`, `node-detail-insight-supporting-quotes-toggle-expand`, `node-detail-person-entity-role`, `node-detail-rail-neighbourhood-unavailable` | No spec references these testids (checked 2026-10-05). |
 
 Whether these should remain gaps is a deliberate decision, not an accident — flagged here so it can
 be made. Tracked in [#1617](https://github.com/chipi/podcast_scraper/issues/1617).

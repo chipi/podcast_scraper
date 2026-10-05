@@ -96,4 +96,43 @@ test.describe('Scheduled jobs section (#709)', () => {
     // weekly is untouched by the toggle — the rewrite must not drop sibling entries.
     expect(await readOperatorConfig(page, corpusPath)).toContain('name: weekly')
   })
+
+  test('an unparsable cron is flagged on its row; a valid one previews its next three runs', async ({
+    page,
+  }, testInfo) => {
+    requireSerialCorpusAccess(testInfo)
+    await signInAsAdmin(page)
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor({ timeout: 60_000 })
+    const corpusPath = await liveCorpusRoot(page)
+    const resp = await page.request.put(`/api/operator-config?path=${encodeURIComponent(corpusPath)}`, {
+      data: {
+        content: `scheduled_jobs:
+  - name: nightly
+    cron: "0 2 * * *"
+    enabled: true
+  - name: broken
+    cron: "every tuesday"
+    enabled: true
+`,
+      },
+    })
+    // The YAML is stored as written; the cron is judged by the viewer, which is what this asserts.
+    expect(resp.ok(), `PUT /api/operator-config returned ${resp.status()}`).toBe(true)
+    await statusBarCorpusPathInput(page).fill(corpusPath)
+    await statusBarCorpusPathInput(page).press('Enter')
+    await page.getByTestId('status-bar-sources-trigger').click()
+    await page.getByTestId('sources-dialog-tab-scheduled').click()
+
+    const broken = page.getByTestId('scheduled-jobs-row-1')
+    await expect(broken).toContainText('broken')
+    await expect(broken.getByTestId('scheduled-jobs-invalid-cron')).toHaveText('invalid cron')
+    await expect(page.getByTestId('scheduled-jobs-next-1')).toHaveText('invalid cron')
+    await expect(page.getByTestId('scheduled-jobs-row-0').getByTestId('scheduled-jobs-invalid-cron')).toHaveCount(0)
+
+    // Hovering a valid cron previews the next three runs in the scheduler's timezone.
+    const title = (await page.getByTestId('scheduled-jobs-row-0').locator('code').getAttribute('title')) ?? ''
+    expect(title).toMatch(/^Next runs \(/)
+    expect(title.split('\n').filter(Boolean)).toHaveLength(4)
+  })
 })

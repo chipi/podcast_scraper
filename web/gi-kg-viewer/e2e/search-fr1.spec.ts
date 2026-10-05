@@ -206,4 +206,20 @@ test.describe('Search FR1 — compound/lifted surfaces (stubbed: corpus produces
       page.getByTestId('search-workspace').locator('article[aria-label="Open Person panel"]'),
     ).toHaveCount(1)
   })
+
+  test('FR1.5: the lifted TOPIC link opens that topic in the rail', async ({ page }) => {
+    await runStubbedSearch(page)
+    await page.getByTestId('search-result-lifted-topic-link').click()
+    const rail = page.getByTestId('graph-node-detail-rail')
+    await expect(rail).toBeVisible()
+    await expect(rail.getByRole('heading').first()).toHaveText('Topic')
+    // The rail is on THAT topic — the lifted block's id, not merely some topic.
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as unknown as { __GIKG_SUBJECT__: { graphNodeCyId: string | null } }).__GIKG_SUBJECT__.graphNodeCyId,
+        ),
+      )
+      .toBe('topic:climate')
+  })
 })
