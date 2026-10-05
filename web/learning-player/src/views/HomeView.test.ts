@@ -209,7 +209,7 @@ describe('HomeView (discover state, signed out)', () => {
     expect(rows[2].classes()).toContain('flex-col')
   })
 
-  it("What's new: tapping the card or a row PLAYS it — ?play=1, no separate ▶ (operator 2026-10-05)", async () => {
+  it("What's new: the card and rows OPEN the episode — only Resume plays (operator 2026-10-05)", async () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({
       items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep')], page: 1, page_size: 8, total: 2, has_more: false,
     })
@@ -219,10 +219,10 @@ describe('HomeView (discover state, signed out)', () => {
     const w = mountKeptAlive()
     await flushPromises()
     const hrefs = w.findAll('a').map((a) => a.attributes('href') ?? '')
-    expect(hrefs).toContain('/episode/a-1?play=1') // the #01 card
-    expect(hrefs).toContain('/episode/a-2?play=1') // a ranked row
-    expect(w.find('[data-testid="play-now"]').exists()).toBe(false)
-    // The ▶ that once sat INSIDE the row's link (opening, not playing) stays gone too.
+    expect(hrefs).toContain('/episode/a-1') // the #01 card
+    expect(hrefs).toContain('/episode/a-2') // a ranked row
+    expect(hrefs.some((h) => h.includes('play=1'))).toBe(false)
+    // No separate ▶, inside the link or out.
     expect(w.findAll('a[href^="/episode/"] [aria-hidden="true"]').some((s) => s.text() === '▶')).toBe(false)
   })
 

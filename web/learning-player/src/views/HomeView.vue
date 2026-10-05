@@ -610,10 +610,10 @@ async function loadContinue(): Promise<void> {
            sibling of the link, not nested in the <a>. The featured card is wide (max-w-3xl) so the
            four icons fit without wrapping. -->
           <EpisodeActions :slug="wnFeatured.slug" overlay class="absolute right-3 top-3 z-30" />
-          <!-- Tapping the card PLAYS it (`?play=1`, operator 2026-10-05): What's new is a list you
-               pick something to listen to from, so the whole card is the play control. -->
+          <!-- Tapping the card OPENS the episode, paused, like every episode card. Only Resume starts
+               playback (operator 2026-10-05). -->
           <RouterLink
-            :to="{ name: 'player', params: { slug: wnFeatured.slug }, query: { play: '1' } }"
+            :to="{ name: 'player', params: { slug: wnFeatured.slug } }"
             class="relative block overflow-hidden rounded-2xl border border-border no-underline text-canvas-foreground"
             @click="recordDiscoverClick(wnFeatured.slug, 0)"
           >
@@ -651,7 +651,7 @@ async function loadContinue(): Promise<void> {
         <!-- Ranked rows 02–06 (operator 2026-09-14): the numbered chart look, same capped column as
              the featured card so they line up. Each row carries the #01 card's actions, stacked in a
              column (operator 2026-10-05) — the side-by-side cluster is what once crushed the title.
-             Tapping a row plays it. The wrapping <li> keeps the discover-position telemetry. -->
+             Tapping a row opens it. The wrapping <li> keeps the discover-position telemetry. -->
         <ul class="mt-2 max-w-3xl">
           <li
             v-for="(ep, i) in wnRows"
@@ -660,7 +660,7 @@ async function loadContinue(): Promise<void> {
             @click="onWnRowClick($event, ep.slug, i + 1)"
           >
             <RouterLink
-              :to="{ name: 'player', params: { slug: ep.slug }, query: { play: '1' } }"
+              :to="{ name: 'player', params: { slug: ep.slug } }"
               class="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2.5 no-underline text-canvas-foreground hover:bg-overlay"
             >
               <span
@@ -682,8 +682,8 @@ async function loadContinue(): Promise<void> {
               </span>
             </RouterLink>
             <!-- The row's actions, STACKED in one column on the right (operator 2026-10-05): heart,
-                 queue, ⋯ — the #01 card's set, so every position acts alike. The ROW itself plays
-                 (`?play=1` on its link). Outside the link — never an interactive inside an
+                 queue, ⋯ — the #01 card's set, so every position acts alike. The row opens the episode
+                 (paused, like every card — only Resume plays). Outside the link — never an interactive inside an
                  interactive. A vertical stack costs height, not width, so the title keeps the row's
                  width; side by side, a cluster like this once crushed it to one word per line. -->
             <EpisodeActions :slug="ep.slug" class="shrink-0 flex-col" />

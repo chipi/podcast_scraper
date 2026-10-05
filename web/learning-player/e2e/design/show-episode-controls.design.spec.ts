@@ -64,7 +64,7 @@ test('shows and episodes on one page share one place for controls', async ({ pag
   // 4. Home › What's new — ♡ queue ⋯ on every position: a row on #01, a column on 02+.
   await page.goto('/')
   await settle(page)
-  const actions = page.locator('a[href*="?play=1"]')
+  const actions = page.locator('[data-testid="episode-actions"].flex-col')
   await expect(actions.nth(1)).toBeVisible()
   // The #01 card at the TOP of the screen, so its row and the 02+ columns below are both in shot.
   await actions.first().evaluate((el) => el.closest('section')?.scrollIntoView({ block: 'start' }))
