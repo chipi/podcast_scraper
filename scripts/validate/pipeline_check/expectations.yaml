@@ -1,0 +1,66 @@
+# pipeline-check expectations (#2287).
+#
+# One named CHECK per question. An intended behaviour change is an edit to this file, and the
+# edit is what a reviewer sees. Field paths are `<stage>.<field>` over the drivers' records
+# (scripts/validate/pipeline_check/drivers.py: STAGES).
+
+defaults:
+  corpus: tests/fixtures/app-validation-corpus/v3
+
+checks:
+  # The English path must choose exactly what it always chose, under every spelling of the tag.
+  english:
+    feeds: [p01, p02, p03, p04, p05, p06, p07, p08, p09]
+    locales: ["en", "en-US", "en_GB", "English", "eng", "override:en"]
+    # Every keyed lookup asks for this key, and every language argument normalises to it (or is
+    # unset, which the pipeline reads as this language).
+    decisions_resolve_to: en
+    # Every locale above must produce the same stage records and the same decisions.
+    variants_identical: true
+    # Fields that legitimately carry the variant itself.
+    variants_identical_ignore: [language.raw, language.source]
+    # Against BASE: these stages must match exactly, episode by episode.
+    base_identical_stages: [hosts, naming, ad_regions, transcript]
+    # Stages that may not exist on BASE; their values are pinned here instead.
+    expect_values:
+      gate.refused: false
+      language.language: en
+      language.transcription_language: en
+      translation.translated: false
+      translation.analysis_blocked: null
+      search_routing.tier: segments
+
+  # A feed that declares no language is refused before download (#2283) — an intended change.
+  no-language:
+    feeds: [p01]
+    locales: [""]
+    expect_values:
+      gate.refused: true
+
+  # How the pipeline treats two spellings of one language. No expectation: reported only.
+  portuguese-variants:
+    feeds: [p14]
+    locales: ["pt", "pt-BR", "pt-PT"]
+    report_only: true
+
+# Real-episode mode (REAL=1 FEED=<rss>). The decisions rule applies to the real run as it does to
+# fixtures; `llm_fields` are the metadata.json parts the LLM writes — compared as metrics within
+# the base's own noise band, never byte for byte.
+real:
+  decisions_resolve_to: en
+  llm_fields: [summary]
+
+# Real-episode mode: differences between BASE and candidate artifacts that are expected.
+# Anything else in metadata.json / the processing manifest is reported as a difference.
+allowed_artifact_differences:
+  metadata.json:
+    - feed.language_raw
+    - feed.language_source
+    - episode.language
+    - episode.language_source
+  manifest.json:
+    - stages.translation
+    - stages.turns
+    - pipeline_composition_version
+  new_files: ["*.turns.json", "*.adfree.turns.json", "*.anon.txt"]
+  metrics: ["llm_translation_*"]

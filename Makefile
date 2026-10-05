@@ -1600,6 +1600,28 @@ migrate-diarization:
 	echo "Re-deriving relational edges (corpus-wide SPOKEN_BY)..."; \
 	$(PYTHON) -m podcast_scraper.cli enrich-edges --output-dir "$${CORPUS_DIR}"
 
+# pipeline-check (#2287): run the pipeline under variants (locale, profile, overrides), record every
+# decision it makes, and compare runs — code vs code (BASE=<ref>) and variant vs variant (LOCALES).
+# Runbook: docs/guides/PIPELINE_CHECK.md. All variables are optional:
+#   make pipeline-check                                  # this checkout, every check in expectations.yaml
+#   make pipeline-check BASE=origin/main                 # this checkout vs main (fetch first)
+#   make pipeline-check CHECK=english BASE=origin/main LOCALES="en en-US"
+#   make pipeline-check CANDIDATE=feat/x BASE=origin/main CORPUS=<fixture corpus>
+# Exit 0 = every check passed; the report is .test_outputs/pipeline-check/report.md.
+.PHONY: pipeline-check
+pipeline-check:
+	@PYTHONPATH=scripts/validate $(PYTHON) -m pipeline_check.cli \
+	  $(foreach c,$(CHECK),--check $(c)) \
+	  $(if $(BASE),--base "$(BASE)") \
+	  $(if $(CANDIDATE),--candidate "$(CANDIDATE)") \
+	  $(if $(LOCALES),--locales "$(LOCALES)") \
+	  $(if $(FEEDS),--feeds "$(FEEDS)") \
+	  $(if $(PROFILE),--profile "$(PROFILE)") \
+	  $(if $(OVERRIDES),--overrides '$(OVERRIDES)') \
+	  $(if $(CORPUS),--corpus "$(CORPUS)") \
+	  $(if $(REAL),--real --feed "$(FEED)" $(if $(MAX_EPISODES),--max-episodes $(MAX_EPISODES))); \
+	  status=$$?; echo "PIPELINE_CHECK_EXIT=$$status"; exit $$status
+
 # Corpus upgrade-path framework (#862). Managed, idempotent migrations for moving a
 # deployed corpus across releases (2.6 → 2.7 FAISS→LanceDB is step 0001). CORPUS_DIR
 # selects the corpus parent. `upgrade-check` exits 2 when migrations are pending —
