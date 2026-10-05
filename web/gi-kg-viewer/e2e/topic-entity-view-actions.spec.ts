@@ -60,20 +60,15 @@ test.describe('Topic Entity View actions (UXS-007)', () => {
   })
 
   /**
-   * Located by role + name, not testid, so it holds whichever component ends up owning the button.
-   * On 2026-10-05 nothing renders it: `TopicEntityView`'s action row (`topic-entity-view-go-graph`
-   * / `-prefill-search`) is `v-if="!embedded"`, and its only mount is NodeDetail's embedded one;
-   * NodeDetail supplies "Prefill semantic search" (covered above) but no "View in graph" — probed
-   * live, the rail's buttons are "Prefill semantic search" and "Set Search topic filter" only.
+   * NodeDetail's topic shortcut row owns "View in graph" (`node-detail-topic-view-in-graph`, shown
+   * only off the Graph tab). `TopicEntityView`'s own action row (`topic-entity-view-go-graph`) is
+   * `v-if="!embedded"` and its only mount is embedded, so that testid never renders.
    */
   test('View in graph: the topic rail opens the Graph with that topic selected', async ({
     page,
   }) => {
     const topic = await openTopicRailOnDigest(page)
-    await page
-      .getByTestId('graph-node-detail-rail')
-      .getByRole('button', { name: /^(View|Open) in graph$/ })
-      .click({ timeout: 10_000 })
+    await page.getByTestId('node-detail-topic-view-in-graph').click({ timeout: 10_000 })
     await expect(page.getByTestId('graph-tab-panel')).toBeVisible()
     await page.waitForFunction(
       (id) => {
