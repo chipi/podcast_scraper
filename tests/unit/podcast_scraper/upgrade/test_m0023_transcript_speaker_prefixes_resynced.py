@@ -88,7 +88,7 @@ def _corpus(root: Path, *, corrupt: bool = False, both: bool = True) -> Dict[str
     # The transcripts as the pipeline wrote them BEFORE the repair: with the org label.
     old_txt, old_emitted = format_diarized_screenplay_with_offsets(_rows(labelled=True, both=both))
     if corrupt:
-        old_txt = old_txt.replace("Welcome, Will.", "Welcome, Will. [music]")
+        old_txt += "[music]\n"  # not from any segment: the file is not a pure render
     for key in ("txt", "atxt"):
         p[key].parent.mkdir(parents=True, exist_ok=True)
         p[key].write_text(old_txt, encoding="utf-8")
@@ -101,6 +101,12 @@ def _corpus(root: Path, *, corrupt: bool = False, both: bool = True) -> Dict[str
             {**r, "char_start": e["char_start"], "char_end": e["char_end"]}
             for r, e in zip(_rows(labelled=False, both=both), old_emitted)
         ],
+    )
+    # The roster's record of who it named: the repair left this alone too.
+    named = ["SPEAKER_00", "SPEAKER_02"] if both else ["SPEAKER_00"]
+    _w(
+        run / "transcripts" / "ep.speakers.diagnostics.json",
+        {"voices": [{"voice": v, "resolved_name": ORG, "named": True} for v in named]},
     )
     quote = "Google fails deep topics."
     start = old_txt.index(quote)
@@ -217,3 +223,26 @@ def test_an_absolute_transcript_ref_is_moved_too(tmp_path: Path) -> None:
     q = _r(p["gi"])["nodes"][0]["properties"]
     atxt = p["atxt"].read_text(encoding="utf-8")
     assert atxt[q["char_start"] : q["char_end"]] == q["text"]
+
+
+def test_a_non_render_transcript_is_renamed_in_place_with_offsets_shifted(tmp_path: Path) -> None:
+    # Not a clean render (extra "[music]"), so it cannot be re-rendered; the removed name sat on
+    # ONE voice, so its prefix is renamed where it stands and every offset after it shifted.
+    p = _corpus(tmp_path, corrupt=True, both=False)
+    result = TranscriptSpeakerPrefixesResyncedMigration().apply(
+        MigrationContext(corpus_root=tmp_path)
+    )
+    assert result.details["totals"].get("in_place_episodes") == 1
+    atxt = p["atxt"].read_text(encoding="utf-8")
+    assert ORG not in atxt and atxt.endswith("[music]\n") and atxt.startswith("SPEAKER_00: ")
+    q = _r(p["gi"])["nodes"][0]["properties"]
+    assert atxt[q["char_start"] : q["char_end"]] == q["text"]
+    for row in _r(p["aseg"]):
+        assert atxt[row["char_start"] : row["char_end"]] == row["text"]
+
+
+def test_a_non_render_transcript_with_a_shared_name_is_left(tmp_path: Path) -> None:
+    p = _corpus(tmp_path, corrupt=True, both=True)
+    before = {k: v.read_bytes() for k, v in p.items()}
+    TranscriptSpeakerPrefixesResyncedMigration().apply(MigrationContext(corpus_root=tmp_path))
+    assert {k: v.read_bytes() for k, v in p.items()} == before

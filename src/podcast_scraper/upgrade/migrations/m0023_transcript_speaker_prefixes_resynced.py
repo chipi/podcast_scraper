@@ -131,8 +131,9 @@ class _OffsetMap:
 class _Episode:
     """One episode's transcripts, GI quotes and ad-free segment offsets, rewritten in memory."""
 
-    def __init__(self, meta: Path) -> None:
+    def __init__(self, meta: Path, root: Optional[Path] = None) -> None:
         self.meta = meta
+        self.root = root
         self.json_files: Dict[Path, Any] = {}
         self.text_files: Dict[Path, str] = {}
         self.counts: Dict[str, int] = {}
@@ -145,13 +146,127 @@ class _Episode:
         rel = str(((meta or {}).get("content") or {}).get("transcript_file_path") or "")
         if not rel.endswith(".txt"):
             return False
+        run = self.meta.parent.parent
         try:
-            self._plan(self.meta.parent.parent, rel)
+            self._plan(run, rel)
         except Refused as exc:
             self.json_files, self.text_files = {}, {}
             self.counts = {"refused": 1, f"refused: {exc}": 1}
-            return False
+            # Not a render of its segments, so it cannot be re-rendered — but a removed name that
+            # belonged to ONE voice can still be renamed where it stands, every offset shifted by
+            # the exact length change. Same guard: every quote/segment slices to the same text.
+            try:
+                self._in_place(run, rel)
+            except Refused as exc2:
+                self.json_files, self.text_files = {}, {}
+                self._bump(f"in_place refused: {exc2}")
         return bool(self.json_files or self.text_files)
+
+    def _old_names(self, run: Path, rel: str) -> Dict[str, str]:
+        """``{removed name: what its ONE voice is now called}``, from the diagnostics as the roster
+        wrote them (m0022's backup when m0022 has since rewritten them)."""
+        dpath = run / rel.replace(".txt", ".speakers.diagnostics.json")
+        diag = _load(dpath)
+        if self.root is not None:
+            try:
+                rel_d = Path(os.path.relpath(dpath, self.root))
+                backup = _load(backup_dir(self.root, "0022") / rel_d)
+                diag = backup if isinstance(backup, dict) else diag
+            except ValueError:
+                pass
+        labels: Dict[str, Set[str]] = {}
+        for row in _rows(_load(run / rel.replace(".txt", ".segments.json"))):
+            voice = row.get("speaker")
+            if isinstance(voice, str) and voice:
+                labels.setdefault(voice, set()).add(str(row.get("speaker_label") or voice))
+        current = {lab for labs in labels.values() for lab in labs}
+        voices_by_name: Dict[str, Set[str]] = {}
+        for v in (diag or {}).get("voices") or []:
+            if isinstance(v, dict) and v.get("named") and v.get("resolved_name") and v.get("voice"):
+                voices_by_name.setdefault(str(v["resolved_name"]), set()).add(str(v["voice"]))
+        out: Dict[str, str] = {}
+        for name, voices in voices_by_name.items():
+            if name in current or len(voices) != 1:
+                continue
+            labs = labels.get(next(iter(voices)), set())
+            if len(labs) == 1:
+                out[name] = next(iter(labs))
+        return out
+
+    def _in_place(self, run: Path, rel: str) -> None:
+        renames = self._old_names(run, rel)
+        if not renames:
+            return
+        rx = re.compile(
+            r"(?m)^("
+            + "|".join(re.escape(n) for n in sorted(renames, key=len, reverse=True))
+            + r"): "
+        )
+        gi_path = Path(str(self.meta)[: -len(".metadata.json")] + ".gi.json")
+        gi = _load(gi_path)
+        quotes_moved = 0
+        for suffix in (".txt", ".adfree.txt", ".cleaned.txt"):
+            path = run / rel.replace(".txt", suffix)
+            if not path.is_file():
+                continue
+            old = path.read_text(encoding="utf-8")
+            shifts: List[Tuple[int, int]] = []
+            parts: List[str] = []
+            last = 0
+            for m in rx.finditer(old):
+                parts += [old[last : m.start()], renames[m.group(1)] + ": "]
+                shifts.append((m.start(), len(renames[m.group(1)]) - len(m.group(1))))
+                last = m.end()
+            if not shifts:
+                continue
+            new = "".join(parts) + old[last:]
+            starts = [q for q, _d in shifts]
+            cum = [0]
+            for _q, d in shifts:
+                cum.append(cum[-1] + d)
+
+            def moved(pos: int) -> int:
+                return pos + cum[bisect.bisect_right(starts, pos - 1)]
+
+            for q in (gi or {}).get("nodes") or []:
+                props = (q.get("properties") or {}) if isinstance(q, dict) else {}
+                ref = props.get("transcript_ref")
+                if q.get("type") != "Quote" or not isinstance(ref, str):
+                    continue
+                if Path(ref).name != path.name:
+                    continue
+                cs, ce = props.get("char_start"), props.get("char_end")
+                if not isinstance(cs, int) or not isinstance(ce, int):
+                    continue
+                ncs, nce = moved(cs), moved(ce)
+                if new[ncs:nce] != old[cs:ce]:
+                    raise Refused("a quote would not slice to its text")
+                if (ncs, nce) != (cs, ce):
+                    props["char_start"], props["char_end"] = ncs, nce
+                    quotes_moved += 1
+            if suffix == ".adfree.txt":
+                seg_path = run / rel.replace(".txt", ".adfree.segments.json")
+                seg_payload = _load(seg_path)
+                touched = False
+                for row in _rows(seg_payload):
+                    cs, ce = row.get("char_start"), row.get("char_end")
+                    if not isinstance(cs, int) or not isinstance(ce, int):
+                        continue
+                    ncs, nce = moved(cs), moved(ce)
+                    if new[ncs:nce] != old[cs:ce]:
+                        raise Refused("a segment would not slice to its text")
+                    if (ncs, nce) != (cs, ce):
+                        row["char_start"], row["char_end"] = ncs, nce
+                        touched = True
+                if touched:
+                    self.json_files[seg_path] = seg_payload
+            self.text_files[path] = new
+            self._bump("in_place_lines", len(shifts))
+        if quotes_moved:
+            self.json_files[gi_path] = gi
+            self._bump("quotes_moved", quotes_moved)
+        if self.text_files:
+            self._bump("in_place_episodes")
 
     def _plan(self, run: Path, rel: str) -> None:
         gi_path = Path(str(self.meta)[: -len(".metadata.json")] + ".gi.json")
@@ -275,7 +390,7 @@ class TranscriptSpeakerPrefixesResyncedMigration(Migration):
         eps: List[_Episode] = []
         totals: Dict[str, int] = {}
         for meta in select_served_artifacts(root, ".metadata.json")[0]:
-            ep = _Episode(meta)
+            ep = _Episode(meta, root)
             changed = ep.plan()
             for k, v in ep.counts.items():
                 totals[k] = totals.get(k, 0) + v
