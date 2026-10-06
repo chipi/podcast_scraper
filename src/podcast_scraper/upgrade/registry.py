@@ -38,6 +38,9 @@ from .migrations.m0021_backfill_feed_language import BackfillFeedLanguageMigrati
 from .migrations.m0022_derived_speaker_surfaces_resynced import (
     DerivedSpeakerSurfacesResyncedMigration,
 )
+from .migrations.m0023_transcript_speaker_prefixes_resynced import (
+    TranscriptSpeakerPrefixesResyncedMigration,
+)
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -88,6 +91,8 @@ _MIGRATIONS: List[Migration] = [
     BackfillFeedLanguageMigration(),
     # 0022 makes context.json and the speaker diagnostics follow what 0012-0019 rewrote.
     DerivedSpeakerSurfacesResyncedMigration(),
+    # 0023 re-renders the text transcripts from the repaired segments, offsets carried across.
+    TranscriptSpeakerPrefixesResyncedMigration(),
 ]
 
 
