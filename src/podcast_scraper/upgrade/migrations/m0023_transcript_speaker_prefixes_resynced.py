@@ -120,7 +120,9 @@ def _speech(text: str) -> str:
     return " ".join(_LABEL_IN_TEXT.sub(" ", text).split())
 
 
-def _move_quote(props: Dict[str, Any], old: str, new: str, ncs: int, nce: int) -> Tuple[bool, bool]:
+def _move_quote(
+    props: Dict[str, Any], old: str, new: str, new_start: int, new_end: int
+) -> Tuple[bool, bool]:
     """Point *props* at the same speech in *new*. ``(moved, retexted)``; raises :class:`Refused`.
 
     Exact when the moved span slices to the same characters. Otherwise the speech must be the same
@@ -131,28 +133,38 @@ def _move_quote(props: Dict[str, Any], old: str, new: str, ncs: int, nce: int) -
     quote's ``text`` becomes exactly that slice.
     """
     cs, ce = int(props["char_start"]), int(props["char_end"])
-    if new[ncs:nce] == old[cs:ce]:
-        moved = (ncs, nce) != (cs, ce)
+    if new[new_start:new_end] == old[cs:ce]:
+        moved = (new_start, new_end) != (cs, ce)
         if moved:
-            props["char_start"], props["char_end"] = ncs, nce
+            props["char_start"], props["char_end"] = new_start, new_end
         return moved, False
     if props.get("text") != old[cs:ce]:
         raise Refused("a quote's text is not its slice")
-    lead = _LABEL_IN_TEXT.match(new, ncs) if (ncs == 0 or new[ncs - 1] == "\n") else None
-    if lead is not None and lead.start() == ncs:
-        ncs = lead.end()
-    while ncs < nce and new[ncs].isspace():
-        ncs += 1
-    while nce > ncs and new[nce - 1].isspace():
-        nce -= 1
-    if not _speech(new[ncs:nce]) or _speech(new[ncs:nce]) != _speech(old[cs:ce]):
+    lead = (
+        _LABEL_IN_TEXT.match(new, new_start)
+        if (new_start == 0 or new[new_start - 1] == "\n")
+        else None
+    )
+    if lead is not None and lead.start() == new_start:
+        new_start = lead.end()
+    while new_start < new_end and new[new_start].isspace():
+        new_start += 1
+    while new_end > new_start and new[new_end - 1].isspace():
+        new_end -= 1
+    if not _speech(new[new_start:new_end]) or _speech(new[new_start:new_end]) != _speech(
+        old[cs:ce]
+    ):
         raise Refused("a quote would not slice to its text")
     # Never GAIN a speaker label inside a quote: a quote over two voices that shared one line would
     # read "…gateway.\nSPEAKER_02: Welcome…" — worse than what it showed. Swapping a label it
     # already carried (its span already crossed a line) is no worse than before.
-    if new[ncs:nce].count("\n") > old[cs:ce].count("\n"):
+    if new[new_start:new_end].count("\n") > old[cs:ce].count("\n"):
         raise Refused("a quote would gain a speaker label")
-    props["char_start"], props["char_end"], props["text"] = ncs, nce, new[ncs:nce]
+    props["char_start"], props["char_end"], props["text"] = (
+        new_start,
+        new_end,
+        new[new_start:new_end],
+    )
     return True, True
 
 
@@ -297,11 +309,11 @@ class _Episode:
                     cs, ce = row.get("char_start"), row.get("char_end")
                     if not isinstance(cs, int) or not isinstance(ce, int):
                         continue
-                    ncs, nce = moved(cs), moved(ce)
-                    if new[ncs:nce] != old[cs:ce]:
+                    new_start, new_end = moved(cs), moved(ce)
+                    if new[new_start:new_end] != old[cs:ce]:
                         raise Refused("a segment would not slice to its text")
-                    if (ncs, nce) != (cs, ce):
-                        row["char_start"], row["char_end"] = ncs, nce
+                    if (new_start, new_end) != (cs, ce):
+                        row["char_start"], row["char_end"] = new_start, new_end
                         touched = True
                 if touched:
                     self.json_files[seg_path] = seg_payload
