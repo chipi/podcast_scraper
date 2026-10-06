@@ -128,7 +128,12 @@ jobs:
     outputs:
       docs-only: ${{ steps.filter.outputs.docs }}
       code: ${{ steps.filter.outputs.code }}
-      python: ${{ steps.filter.outputs.python }}
+      # PR: `python-pr` — workflow files OTHER than this one are left out (operator 2026-10-06): an
+      # ops/deploy/drill/backup workflow cannot break a Python test, and on a PR it cost ~45
+      # job-minutes of suites that tested nothing about it. MAIN keeps `python`, which still counts
+      # every workflow file. A filter result is the STRING 'true'/'false', and both are truthy in an
+      # expression, so `pr && a || b` yields `a` on a PR — 'false' included — and `b` otherwise.
+      python: ${{ github.event_name == 'pull_request' && steps.filter.outputs.python-pr || steps.filter.outputs.python }}
       viewer: ${{ steps.filter.outputs.viewer }}
       viewer-e2e: ${{ steps.filter.outputs.viewer-e2e }}
       app: ${{ steps.filter.outputs.app }}
@@ -167,6 +172,19 @@ jobs:
             - 'docker/api/**'
             - '.dockerignore'
             - '.github/workflows/**'
+            - 'config/acceptance/**'
+            - 'config/profiles/**'
+            - 'compose/**'
+          python-pr:
+            - '**.py'
+            - '**.j2'
+            - 'tests/**'
+            - 'pyproject.toml'
+            - 'Makefile'
+            - 'docker/pipeline/Dockerfile'
+            - 'docker/api/**'
+            - '.dockerignore'
+            - '.github/workflows/python-app.yml'
             - 'config/acceptance/**'
             - 'config/profiles/**'
             - 'compose/**'
