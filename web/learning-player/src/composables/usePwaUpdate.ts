@@ -14,9 +14,18 @@
  * Also proactively calls `registration.update()` on visibility restore
  * (tab refocus) so a returning user quickly sees fresh SW state without
  * needing a hard reload.
+ *
+ * WEB ONLY. The native app runs the code it was installed with, and nothing else (operator
+ * 2026-10-06): its pages and logic change only through a store release; the server supplies the API
+ * and media. A service worker there could only ever be BEHIND the install — its scope is the app's
+ * own origin, so it cached the previous install's code and served it on the first launch after every
+ * update (measured: installed 21:53:52Z, the first launch ran 21:25:15Z). It never brought anything
+ * from the web deploy. So native registers none, and removes any worker and caches an earlier
+ * version left behind. Offline data on native lives in `contentCache` (Filesystem) and downloaded
+ * artwork in the downloads store, neither of which is the worker's.
  */
 
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 import { isNative } from '../services/native'
 
@@ -31,7 +40,31 @@ export interface PwaUpdateApi {
   dismissUpdate: () => void
 }
 
+/** Unregister every service worker and delete every Cache Storage cache this origin holds. */
+async function removeServiceWorkers(): Promise<void> {
+  try {
+    const regs = (await navigator.serviceWorker?.getRegistrations()) ?? []
+    await Promise.all(regs.map((r) => r.unregister()))
+    if (typeof caches !== 'undefined') {
+      const keys = await caches.keys()
+      await Promise.all(keys.map((k) => caches.delete(k)))
+    }
+  } catch (err) {
+    console.warn('[pwa] removing the native service worker failed:', err)
+  }
+}
+
 export function usePwaUpdate(): PwaUpdateApi {
+  if (isNative()) {
+    void removeServiceWorkers()
+    return {
+      needRefresh: ref(false),
+      offlineReady: ref(false),
+      applyUpdate: async () => {},
+      dismissUpdate: () => {},
+    }
+  }
+
   // Give the browser a friendly period to auto-check for updates without
   // waiting for navigation. 15 min is arbitrary but matches typical
   // "long-listening-session" cadence.
@@ -60,20 +93,6 @@ export function usePwaUpdate(): PwaUpdateApi {
       console.warn('[pwa] service-worker registration failed:', err)
     },
   })
-
-  // NATIVE: no prompt — take the new worker at once. The app's code ships in the store build, but
-  // the worker kept serving the PREVIOUS build's cached shell until a new one took over, so the
-  // first launch after every update ran the old version (measured 2026-10-05: installed 21:53:52Z,
-  // the first launch ran 21:25:15Z). One quick reload on that launch is the price.
-  if (isNative()) {
-    watch(
-      needRefresh,
-      (waiting) => {
-        if (waiting) void updateServiceWorker(true)
-      },
-      { immediate: true },
-    )
-  }
 
   function onVisibilityChange(): void {
     if (document.hidden) return

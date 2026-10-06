@@ -14,8 +14,10 @@ let capturedHandlers: {
   onRegisterError?: (err: unknown) => void
 } = {}
 
+let registerCalls = 0
 vi.mock('virtual:pwa-register/vue', () => ({
   useRegisterSW: (opts: typeof capturedHandlers = {}) => {
+    registerCalls += 1
     capturedHandlers = opts
     return {
       needRefresh,
@@ -56,6 +58,7 @@ function mountHost() {
 describe('usePwaUpdate', () => {
   beforeEach(() => {
     native.value = false
+    registerCalls = 0
     updateServiceWorker.mockClear()
     needRefresh.value = false
     offlineReady.value = false
@@ -169,29 +172,60 @@ describe('usePwaUpdate', () => {
     ;(globalThis.navigator as unknown as { serviceWorker: unknown }).serviceWorker = originalSW
   })
 
-  // The native app ships its code in the build, but the service worker still serves the PREVIOUS
-  // build's cached shell until a new worker takes over — so the first launch after every store
-  // update ran the old version (measured 2026-10-05: installed 21:53:52Z, first launch ran 21:25:15Z).
-  // No prompt on native: activate the waiting worker and reload at once.
-  it('on native, activates a waiting worker at once (no prompt)', async () => {
-    native.value = true
-    mountHost()
-    expect(updateServiceWorker).not.toHaveBeenCalled()
-    needRefresh.value = true
-    await nextTick()
-    expect(updateServiceWorker).toHaveBeenCalledTimes(1)
-    expect(updateServiceWorker).toHaveBeenCalledWith(true)
+  // The native app runs the code it was installed with — no service worker there (operator
+  // 2026-10-06). The website's worker, registered inside the app, cached the PREVIOUS install's
+  // code and served it on the first launch after every update (measured: installed 21:53:52Z, the
+  // first launch ran 21:25:15Z). It never brought anything from the web deploy: its scope is the
+  // app's own origin.
+  describe('in the native app', () => {
+    const unregister = vi.fn().mockResolvedValue(true)
+    const deleteCache = vi.fn().mockResolvedValue(true)
+    let originalSW: unknown
+    let originalCaches: unknown
+
+    beforeEach(() => {
+      native.value = true
+      unregister.mockClear()
+      deleteCache.mockClear()
+      originalSW = (globalThis.navigator as unknown as { serviceWorker: unknown }).serviceWorker
+      originalCaches = (globalThis as unknown as { caches: unknown }).caches
+      ;(globalThis.navigator as unknown as { serviceWorker: unknown }).serviceWorker = {
+        getRegistrations: vi.fn().mockResolvedValue([{ unregister }, { unregister }]),
+        getRegistration: vi.fn().mockResolvedValue(undefined),
+      }
+      ;(globalThis as unknown as { caches: unknown }).caches = {
+        keys: vi.fn().mockResolvedValue(['workbox-precache-v2', 'app-artwork', 'api-app']),
+        delete: deleteCache,
+      }
+    })
+    afterEach(() => {
+      ;(globalThis.navigator as unknown as { serviceWorker: unknown }).serviceWorker = originalSW
+      ;(globalThis as unknown as { caches: unknown }).caches = originalCaches
+    })
+
+    it('never registers a service worker', () => {
+      mountHost()
+      expect(registerCalls).toBe(0)
+    })
+
+    it('removes the workers and caches an earlier version left behind', async () => {
+      mountHost()
+      await vi.waitFor(() => expect(deleteCache).toHaveBeenCalledTimes(3))
+      expect(unregister).toHaveBeenCalledTimes(2)
+      expect(deleteCache.mock.calls.map((c) => c[0])).toEqual(['workbox-precache-v2', 'app-artwork', 'api-app'])
+    })
+
+    it('never asks to reload, and applying an update is a no-op', async () => {
+      const { api } = mountHost()
+      expect(api.value?.needRefresh.value).toBe(false)
+      await api.value?.applyUpdate()
+      expect(updateServiceWorker).not.toHaveBeenCalled()
+    })
   })
 
-  it('on native, activates a worker that was already waiting at mount', () => {
-    native.value = true
-    needRefresh.value = true
+  it('on the web, registers the worker and leaves a waiting one to the reader (the toast asks)', async () => {
     mountHost()
-    expect(updateServiceWorker).toHaveBeenCalledWith(true)
-  })
-
-  it('on the web, a waiting worker waits for the reader (the toast asks)', async () => {
-    mountHost()
+    expect(registerCalls).toBe(1)
     needRefresh.value = true
     await nextTick()
     expect(updateServiceWorker).not.toHaveBeenCalled()

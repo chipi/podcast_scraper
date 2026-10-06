@@ -5,8 +5,8 @@
  *
  * WEB ONLY. In the native app a store update leaves a new worker waiting too, so this showed on the
  * first launch after every install — over the tab bar, where a tap on Library landed on the toast
- * and did nothing (2026-10-05). Native updates arrive with the build and have `AppUpdateBanner`;
- * there `usePwaUpdate` activates the waiting worker itself, with no prompt.
+ * and did nothing (2026-10-05). Native updates arrive with the store build and have
+ * `AppUpdateBanner`; the native app registers no service worker at all (`usePwaUpdate`).
  *
  * Lifted clear of the tab bar (phones) and the mini-player (when one is loaded) — the same numbers
  * App.vue reserves as the page's bottom padding — so it never sits on a control.
