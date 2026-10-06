@@ -816,18 +816,19 @@ Rows that sat in **Coverage gaps** below until the UXS audit pass covered them:
 | **Scheduled jobs — invalid cron badge** (`scheduled-jobs-invalid-cron`, next-run cell, cron title preview) | `scheduled-jobs-mocks.spec.ts` |
 | **Graph node rail details** (`node-detail-topic-aliases`, `node-detail-topic-explore-filter`, `node-detail-topic-cluster-members`, `node-detail-cluster-member-chips`, `node-detail-cluster-advanced-toggle`, `node-detail-cluster-member-load`, `node-detail-cluster-member-load-message`, `node-detail-insight-supporting-quotes-toggle-expand`, `node-detail-person-entity-role`, `node-detail-rail-tab-neighbourhood`, `node-detail-rail-neighbourhood-unavailable`) | `graph-expansion-mocks.spec.ts` — "Graph node rail rows" and "topic cluster members" (fixture-driven). `node-detail-kind-row` renders only un-embedded and every mount is the rail: asserted absent. |
 | **Search FR1.5 — lifted topic link** (`search-result-lifted-topic-link`) | `search-fr1.spec.ts` — click opens the rail on that topic id |
+| **Ops tab** (`ops-view`, `ops-source-*`, `ops-status-*`, `llm-gateway-*`, `llm-key-*`, `resilience-*`, `usage-*`) | `ops-and-admin.spec.ts` (mocked: the e2e API's Ops data is live production telemetry) — source order and buckets, summary lines, gateway spend and the 90% burn, not-configured, breakers + Reset, usage group-by, "unknown, not zero". Spec: [UXS-018](../../../docs/uxs/UXS-018-operator-ops-and-admin.md) |
+| **Admin — user management** (`users-admin`, `new-user-email`, `create-user-button`, `user-row-*`, `role-select-*`, `active-toggle-*`, `delete-user-*`, `users-admin-error`) | `ops-and-admin.spec.ts` (live API) — self-lockout, create, role change, deactivate/reactivate, failed change, delete with confirm (dismiss and accept); each read back off the server |
+| **Admin — discovery ranking** (`ranking-config-*`, `ranking-signal-*`, `ranking-enabled-*`, `ranking-weight-*`, `ranking-param-*`) | `ops-and-admin.spec.ts` (live API, restored after) — toggle, weight and numeric param saved; Saved cleared by an edit |
+| **Admin — graph analytics** (`graph-analytics-admin`, `ga-*`) | `ops-and-admin.spec.ts` (mocked: a fresh corpus has no events) — totals, size table, sorted lists, breakage, session timeline in words, Replay into the Graph tab, empty states |
 
 ## Coverage gaps
 
 Surfaces that render but have **no owning spec**. This file previously had no gaps section at all,
 so its silence read as "covered" — which is worse than an admitted gap.
 
-| Surface | Selectors that exist | Note |
-| ------- | -------------------- | ---- |
-| **Ops tab contents** | `ops-view`, `ops-refresh`, `llm-gateway-panel`, `llm-key-*`, `resilience-panel`, … (~26 testids) | Only the `auth-roles` tab-**visibility** smoke. The panels themselves are untested. |
-| **Admin — user management** | `users-admin`, `create-user-button`, `active-toggle-*`, `delete-user-*`, `user-row-{email}` | Tab visibility + self-lockout only. **User creation, deletion and activation are untested** — the highest-privilege, account-mutating surface in the product. |
-| **Admin — ranking config** | `RankingConfigAdminView` | No spec. |
-| **Admin — graph analytics** | `GraphAnalyticsAdminView` | No spec. |
+**None known as of 2026-10-05** — the last rows (Ops, Admin, Configuration, node-rail details) were
+closed by the UXS audit pass; see **Gaps closed 2026-10-05** above. A surface added without a spec
+goes back in a table here.
 
 Whether these should remain gaps is a deliberate decision, not an accident — flagged here so it can
 be made. Tracked in [#1617](https://github.com/chipi/podcast_scraper/issues/1617).
