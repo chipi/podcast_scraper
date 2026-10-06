@@ -64,20 +64,45 @@ test('Trends sits at the same inset and width on Home and Discover', async ({ pa
   expect(Math.round(discover.width)).toBe(Math.round(home.width))
 })
 
-/** Four kind pills and the two switches share one row, down to a 375px phone, on both screens. */
-test('the Trends kind pills clear the switches at 375px, on Home and Discover', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile-chrome', 'a phone-width layout')
-  await page.setViewportSize({ width: 375, height: 800 })
-  await signInIsolated(page, 'trends-375', testInfo)
-  for (const url of ['/', '/browse']) {
-    await page.goto(url)
-    const people = (await page.getByTestId('discovery-tab-person').boundingBox())!
-    const sort = (await page.getByTestId('discovery-sort').boundingBox())!
-    const scope = (await page.getByTestId('home-trending-scope').boundingBox())!
-    expect(people.x + people.width, `${url}: People runs into the sort switch`).toBeLessThanOrEqual(sort.x)
-    expect(scope.x + scope.width, `${url}: the scope switch leaves the screen`).toBeLessThanOrEqual(375)
-  }
-})
+/**
+ * Four kind pills and the two switches share one row on a phone, on both screens — and never
+ * overlap. The pills render in the device's system font, so their width is the OS's: macOS left 6px
+ * of slack at 375px while CI's Linux font ran People 13px into the sort switch (2026-10-06). When
+ * the pills do not fit, the strip stops at the switches and scrolls; 360px is a common Android width.
+ */
+for (const width of [360, 375]) {
+  test(`the Trends kind pills stop at the switches at ${width}px, on Home and Discover`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile-chrome', 'a phone-width layout')
+    await page.setViewportSize({ width, height: 800 })
+    await signInIsolated(page, `trends-${width}`, testInfo)
+    for (const url of ['/', '/browse']) {
+      await page.goto(url)
+      await expect(page.getByTestId('discovery-tab-person')).toBeVisible()
+      // One read of every box, so nothing reflows between them. A pill past the sort switch is
+      // only acceptable inside a strip that clips and scrolls — never drawn over the switch.
+      const m = await page.evaluate(`(() => {
+        const r = (id) => document.querySelector('[data-testid="' + id + '"]').getBoundingClientRect()
+        const strip = document.querySelector('[data-testid="discovery-tab-person"]').parentElement
+        const sortX = r('discovery-sort').left
+        const pills = Array.prototype.slice.call(strip.children)
+        const pastSwitch = pills.filter((el) => el.getBoundingClientRect().right > sortX).length
+        return {
+          pastSwitch,
+          stripClips: getComputedStyle(strip).overflowX !== 'visible',
+          stripRight: strip.getBoundingClientRect().right,
+          sortX,
+          scopeRight: r('home-trending-scope').right,
+        }
+      })()`) as { pastSwitch: number; stripClips: boolean; stripRight: number; sortX: number; scopeRight: number }
+      expect(m.stripRight, `${url}: the kind strip runs into the sort switch`).toBeLessThanOrEqual(m.sortX)
+      if (m.pastSwitch > 0) expect(m.stripClips, `${url}: ${m.pastSwitch} pill(s) drawn over the sort switch`).toBe(true)
+      expect(m.scopeRight, `${url}: the scope switch leaves the screen`).toBeLessThanOrEqual(width)
+      // Every kind stays reachable — People is the last pill, the one a narrow row hides.
+      await page.getByTestId('discovery-tab-person').click()
+      await expect(page.getByTestId('discovery-tab-person')).toHaveAttribute('aria-selected', 'true')
+    }
+  })
+}
 
 /**
  * The two exceptions to the one page width (operator 2026-10-05), both centred at every width:

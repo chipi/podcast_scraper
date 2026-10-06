@@ -373,7 +373,9 @@ piece to its design home:
   `DiscoveryList` (topics / themes / storylines / people — Themes added 2026-10-05, in the order
   every surface lists the kinds) with the Rising⇄Trending sort (`discovery-sort`) and
   Corpus⇄Mine scope (`home-trending-scope`) switches. The kind pills are `dense` so all four and
-  both switches share one row down to a 375px phone, and Home and Discover render the section at
+  both switches share one row on a phone. The pills render in the device's system font, so whether
+  all four fit is the OS's call; where they do not (a 360px Android phone, a wider font), the pill
+  strip stops at the switches and scrolls sideways, never drawn over them. Home and Discover render the section at
   the SAME inset and width — Discover's container no longer adds its own `px-4` on top of the app
   shell's gutter (`page-gutters.spec.ts`). A theme row shows how many topics the theme holds
   ("(N)"), can be followed with the row's + (a `tc:` interest token), and opens the theme sheet on
