@@ -562,6 +562,11 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     manualGraphSelection.value = false
   }
 
+  /** The operator chose what the graph shows (e.g. a show's "Open in graph"): corpus syncs keep it. */
+  function markManualGraphSelection(): void {
+    manualGraphSelection.value = true
+  }
+
   /** Uncheck all listed files (does not clear the graph until you load again). */
   function deselectAllListed(): void {
     selectedRelPaths.value = []
@@ -888,6 +893,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     toggleSelection,
     clearSelection,
     clearManualGraphSelection,
+    markManualGraphSelection,
     selectAllListed,
     deselectAllListed,
     syncTopicClustersForCurrentCorpus,

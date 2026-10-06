@@ -581,6 +581,10 @@ search input spec.
 
 #### 3.3 Topic cluster filter — rename and elevate
 
+> **Superseded by #669.** The checkbox and its confirmation line below were later replaced
+> by the **Clustered** toggle chip in the Library chip bar; the current contract is
+> [UXS-003 — Filters](UXS-003-corpus-library.md). Kept as the record of the change.
+
 **Problem:**
 "Episodes with topic cluster (CIL)" checkbox is buried inside the
 collapsible Filters section with a technical name. Topic cluster browsing

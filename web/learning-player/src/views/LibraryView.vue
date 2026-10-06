@@ -670,8 +670,9 @@ onMounted(async () => {
               :key="show.feed_id"
               data-testid="saved-entity"
             >
-              <ShowRow :show="show">
-                <!-- Bare controls: ShowRow stacks and plates them over the artwork. -->
+              <!-- Controls UNDER the artwork, like the episode rows below them (operator
+                   2026-10-05): shows and episodes share this page, so they share a control row. -->
+              <ShowRow :show="show" actions-below>
                 <template #actions>
                   <SavedColorControl
                     :color="entity.color"

@@ -8,6 +8,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useClampedProse } from '../composables/useClampedProse'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import BackIcon from '../components/BackIcon.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
 import EntityCard from '../components/EntityCard.vue'
@@ -19,7 +20,6 @@ import NoteComposer from '../components/NoteComposer.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import FollowButton from '../components/FollowButton.vue'
 import ShareMenu from '../components/ShareMenu.vue'
-import { accentForKind, type EntityCardModel } from '../composables/entityShareCard'
 import { formatPublishDate } from '../utils/format'
 import { scrollBehavior } from '../utils/motion'
 import { getPodcasts, listPodcastEpisodes } from '../services/api'
@@ -192,19 +192,6 @@ const metaLine = computed<string[]>(() => {
 
 const cardTarget = ref<{ kind: 'person' | 'topic' | 'storyline'; id: string } | null>(null)
 
-// #2036 — the shareable card for this show: title + episode count + a canonical link. Clean (no
-// quote/byline) — the feed description is marketing copy, not a signature take. Brand-cyan accent
-// (shows own no theme token).
-const shareModel = computed<EntityCardModel>(() => ({
-  kicker: t('share.kickerShow'),
-  title: showTitle.value || props.feedId,
-  stats: total.value
-    ? t('podcast.episodeCount', { count: total.value }, total.value)
-    : null,
-  accent: accentForKind('show'),
-  url:
-    typeof window !== 'undefined' ? `${window.location.origin}/podcast/${props.feedId}` : null,
-}))
 
 const showArt = showArtwork
 /**
@@ -299,7 +286,7 @@ watch(() => props.feedId, reset)
 
 <template>
   <section>
-    <button type="button" class="lp-nav" @click="goBack">‹ {{ t('nav.back') }}</button>
+    <button type="button" class="lp-nav" @click="goBack"><BackIcon /> {{ t('nav.back') }}</button>
 
     <header class="mb-6 mt-2 flex gap-4 sm:gap-5">
       <!--
@@ -371,7 +358,7 @@ watch(() => props.feedId, reset)
             <!-- Pin this show into a collection (RFC-119). -->
             <AddToCollectionButton :item="{ kind: 'show', ref: feedId }" />
             <!-- Share (card / link / text) — #2036. -->
-            <ShareMenu :model="shareModel" target-kind="episode" />
+            <ShareMenu kind="show" :id="feedId" :title="showTitle || feedId" target-kind="episode" />
           </div>
         </div>
       </div>

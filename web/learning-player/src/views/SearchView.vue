@@ -12,11 +12,12 @@ import { useI18n } from "vue-i18n"
 import { noteRoute as resolveNoteRoute, noteTargetLabel } from "../composables/noteTarget"
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
-import { resolveEntity, searchCorpus } from "../services/api"
+import { getPodcasts, resolveEntity, searchCorpus } from "../services/api"
 import { resolveMediaUrl } from "../services/tier"
-import type { EntityRef, EpisodeSummary, Note, SearchHit } from "../services/types"
+import type { EntityRef, EpisodeSummary, Note, Podcast, SearchHit } from "../services/types"
 import { hitStartSeconds } from "../player/insights"
 import { formatTime } from "../player/transcriptSync"
+import { formatPublishDate } from "../utils/format"
 import { aggregateRelatedTopics } from "../utils/relatedTopics"
 import {
   collapseFoldableHits,
@@ -34,11 +35,15 @@ import ShowAllToggle from "../components/ShowAllToggle.vue"
 import { newestFirst } from "../utils/newestFirst"
 import { useCappedSections } from "../composables/useCappedSections"
 import EpisodeGroupCard from "../components/EpisodeGroupCard.vue"
+import PlayFrom from "../components/PlayFrom.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import TypeFilterBar from "../components/TypeFilterBar.vue"
+import ShowRow from "../components/ShowRow.vue"
+import ShowMenu from "../components/ShowMenu.vue"
+import { matchesAllWords } from "../utils/textMatch"
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { isGated, gated } = useSignInGate()
@@ -80,11 +85,34 @@ const noteMatches = computed<Note[]>(() => {
   // `?? []`: the async ensureLoaded() from onMounted can resolve after the store is disposed (test
   // teardown), re-running this computed against a torn-down store whose `notes` is undefined. A
   // computed must be total, so read defensively rather than throw into Vue's flush.
-  return newestFirst((capture.notes ?? []).filter((n) => n.text.toLowerCase().includes(q)))
+  return newestFirst((capture.notes ?? []).filter((n) => matchesAllWords(n.text, q)))
 })
 // Newest first, five at a time (operator 2026-10-05).
 const noteCaps = useCappedSections(5, 5)
 const shownNoteMatches = computed(() => noteCaps.visible("notes", noteMatches.value))
+/** The term the results on screen were found for — the box can be edited without re-running. */
+const ranTerm = ref("")
+
+/**
+ * SHOWS matching the search (operator 2026-10-04: search should include shows wherever there is a
+ * search). The corpus search returns passages, never a show, so "pragmatic engineer" found the
+ * show's episodes but not the show — while Library's own filter did find it. Matched client-side
+ * over the catalogue, by title and host names (every word, any order — utils/textMatch). Not by
+ * description: a word like "engineer" is in many shows' blurbs, and that would bury the one show
+ * the listener named.
+ */
+const catalogue = ref<Podcast[]>([])
+onMounted(() => {
+  void getPodcasts()
+    .then((rows) => (catalogue.value = rows))
+    .catch(() => (catalogue.value = []))
+})
+const showMatches = computed<Podcast[]>(() => {
+  const q = ranTerm.value
+  if (!ran.value || !q) return []
+  return catalogue.value.filter((p) => matchesAllWords([p.title ?? "", ...(p.authors ?? [])].join(" "), q))
+})
+
 // USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
 // watch reacts when the payload arrives so the Save button flips to
 // "Saved ✓" if the current query was already persisted. No per-view
@@ -383,6 +411,7 @@ async function run(q: string): Promise<void> {
     entity.value = null
     ran.value = false
     lastRunSig.value = ""
+    ranTerm.value = ""
     return
   }
   // Already showing these exact results (e.g. this kept-alive view was re-activated on a tab
@@ -393,6 +422,7 @@ async function run(q: string): Promise<void> {
   recordRecent(term)
   inFlightSig = sig
   lastRunTerm = term
+  ranTerm.value = term
   // Generation token: two different queries can be in flight at once (no request cancellation), and
   // without this the slower-OLDER response wins — "cats" landing after "dogs" would paint cat
   // results over the dogs query. Every mutation below is gated on still being the current run.
@@ -515,10 +545,11 @@ function openEpisode(slug: string | null, hit?: SearchHit, rank?: number): void 
   // work; if taps are spread down the list, people are hunting.
   track("search_result_click", { result_kind: "episode", rank: toRankBucket(rank ?? 1) })
   const s = hit ? hitStartSeconds(hit) : null
+  // Reached only from "▶ Play from", and an explicit ▶ PLAYS (operator 2026-10-05).
   void router.push({
     name: "player",
     params: { slug },
-    query: s != null ? { t: String(Math.floor(s)) } : {},
+    query: s != null ? { t: String(Math.floor(s)), play: "1" } : { play: "1" },
   })
 }
 
@@ -542,6 +573,10 @@ watch(
       })
       return
     }
+    // The box follows the URL (operator 2026-10-04). This view is kept alive, so the box was filled
+    // from `?q` ONCE, at setup; a later search from Home or Discover ran the new term while the box
+    // still showed the old one.
+    if (qs) query.value = qs
     void run(qs)
   },
   { immediate: true }
@@ -590,6 +625,7 @@ const availableResultTypes = computed(() => {
   // Index-found storylines get the chip even when the resolver returned nothing (a partial match).
   if (storylineResults.value.length && entityKey.value !== "storylines")
     out.push({ key: "storylines", label: t("search.type_storylines") })
+  if (showMatches.value.length) out.push({ key: "shows", label: t("search.type_shows") })
   if (noteMatches.value.length) out.push({ key: "notes", label: t("notes.title") })
   if (yearSections.value.length) out.push({ key: "episodes", label: t("search.typeEpisodes") })
   return out
@@ -808,6 +844,23 @@ const showEmpty = computed(
       </ul>
     </template>
 
+    <!-- SHOWS — matched by title / host, every word in any order (see `showMatches`). -->
+    <template v-if="showMatches.length && !searching && typeVisible('shows')">
+      <h2 class="lp-section mb-1 mt-4" data-testid="search-section-shows">
+        {{ t("search.type_shows") }}
+      </h2>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        {{ t("search.showsSummary", { count: showMatches.length }, showMatches.length) }}
+      </p>
+      <ul class="flex flex-col gap-2" data-testid="search-shows">
+        <!-- Every show action behind one ⋯ right of the name — where the episode cards below put
+             theirs (operator 2026-10-05). -->
+        <li v-for="p in showMatches" :key="p.feed_id">
+          <ShowRow :show="p"><template #menu><ShowMenu :show="p" /></template></ShowRow>
+        </li>
+      </ul>
+    </template>
+
     <!-- SR.1: the listener's OWN notes matching the query, as their own section above the corpus
          passages (a note is not a transcript hit). Independent of the results chain below, so notes
          and corpus hits can both show. Client-side text match on the capture store. -->
@@ -885,7 +938,9 @@ const showEmpty = computed(
         {{ t("search.typeEpisodes") }}
       </h2>
       <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-        {{ t("search.summary", { passages: passageResults.length, episodes: groups.length }) }}
+        <!-- The term is confirmed IN the count row (operator 2026-10-04) — the box can be edited after
+             a search, so the results needed to say what they are results for. -->
+        {{ t("search.summaryFor", { passages: passageResults.length, episodes: groups.length, term: ranTerm }) }}
       </p>
 
       <!-- #1261-2: related-topic chip row above the episode groups. Silent
@@ -923,26 +978,25 @@ const showEmpty = computed(
             · {{ t("search.yearEpisodes", section.groups.length) }}
           </span>
         </h2>
-        <ul class="mt-3 flex flex-col gap-3">
-          <!-- The SHARED episode-group block (`EpisodeGroupCard`), also used by Revisit: the real
-               EpisodeCard as the header — the same one Discover and Library render — with the rows
-               collapsible beneath it (operator 2026-09-17). Search's own content rides the card's
-               slots: the match count under the artwork, the matched-field breakdown between title
-               and summary. The passage list stays a sibling BELOW the card, since it is per-match
-               rather than part of the episode. -->
+        <ul class="mt-3 flex flex-col gap-6">
+          <!-- The SHARED episode-group header (`EpisodeGroupCard`), also used by Saved and Revisit
+               (operator 2026-10-05): artwork, show, title, one meta line, the fold as a chevron.
+               Search's own content rides its slots — when + how many in `#meta`, the matched-field
+               breakdown under the title in `#extra` — and the passages are the body. -->
           <EpisodeGroupCard
             v-for="(g, gi) in section.groups"
             :key="g.slug ?? g.title"
             :episode="groupAsEpisode(g)"
-            :noun="t('search.groupNoun')"
             :item-count="g.rows.length"
           >
-            <template #aside>{{ t("search.matchCount", g.hits.length) }}</template>
+            <template #meta>
+              <template v-if="formatPublishDate(g.date, locale)">{{ formatPublishDate(g.date, locale) }} · </template>{{ t("search.matchCount", g.hits.length) }}
+            </template>
             <!-- #1261-5: matched-field breakdown ("Matched: Title · Summary ×2 · Transcript") —
                  so the listener knows WHY this episode surfaced without tapping through. Hidden
                  when nothing resolved to an episode-level field. -->
-            <template v-if="matchedFieldChips(g.hits).length" #meta>
-              <span class="lp-kicker block" data-testid="matched-fields">
+            <template v-if="matchedFieldChips(g.hits).length" #extra>
+              <span class="lp-kicker mt-1 block" data-testid="matched-fields">
                 {{ t("search.matchedPrefix") }}
                 <template v-for="(m, mi) in matchedFieldChips(g.hits)" :key="m.label">
                   <template v-if="mi > 0"> · </template>
@@ -955,14 +1009,14 @@ const showEmpty = computed(
 
             <!-- Matching passages (#1261-3: foldable rows collapse to one
                expandable summary per (episode, source-kind)). -->
-            <ul class="mt-3 flex flex-col">
+            <ul class="flex flex-col">
               <template v-for="(row, i) in g.rows" :key="rowKey(row, i)">
                 <!-- FoldedHitCluster: N hits of the same foldable kind (transcript /
                    title / description / summary) collapsed into one expandable row. -->
-                <li v-if="isFoldedCluster(row)" class="border-t border-border">
+                <li v-if="isFoldedCluster(row)" class="border-b border-border">
                   <button
                     type="button"
-                    class="flex w-full items-center gap-2 px-4 py-3 text-left"
+                    class="flex w-full items-center gap-2 py-3 text-left"
                     :aria-expanded="isClusterOpen(g.slug, row)"
                     :aria-label="
                       t('search.expandCluster', {
@@ -989,13 +1043,13 @@ const showEmpty = computed(
                     <li
                       v-for="(m, mi) in row.members"
                       :key="m.doc_id + mi"
-                      class="border-t border-border px-6 py-2"
+                      class="border-t border-border py-2 pl-4"
                     >
                       <div class="flex items-center gap-2">
-                        <button
+                        <PlayFrom
                           v-if="hitStartSeconds(m) != null && g.slug"
-                          type="button"
-                          class="ml-auto font-mono text-xs font-bold text-accent"
+                          class="ml-auto"
+                          :seconds="hitStartSeconds(m)"
                           :aria-label="
                             t('search.jumpTo', {
                               time: formatTime(hitStartSeconds(m) ?? 0),
@@ -1003,10 +1057,7 @@ const showEmpty = computed(
                             })
                           "
                           @click="openEpisode(g.slug, m, gi + 1)"
-                        >
-                          ▶
-                          {{ t("search.playHere", { time: formatTime(hitStartSeconds(m) ?? 0) }) }}
-                        </button>
+                        />
                       </div>
                       <p class="mt-1 line-clamp-2 text-sm leading-relaxed text-surface-foreground">
                         {{ m.text }}
@@ -1015,7 +1066,7 @@ const showEmpty = computed(
                   </ul>
                 </li>
                 <!-- Plain hit (insight / kg_topic / kg_entity / lifted transcript). -->
-                <li v-else class="border-t border-border px-4 py-3">
+                <li v-else class="border-b border-border py-3">
                   <div class="flex items-center gap-2">
                     <span
                       class="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
@@ -1028,10 +1079,10 @@ const showEmpty = computed(
                     >
                       {{ t(`search.kind.${hitKind(row)}`) }}
                     </span>
-                    <button
+                    <PlayFrom
                       v-if="hitStartSeconds(row) != null && g.slug"
-                      type="button"
-                      class="ml-auto font-mono text-xs font-bold text-accent"
+                      class="ml-auto"
+                      :seconds="hitStartSeconds(row)"
                       :aria-label="
                         t('search.jumpTo', {
                           time: formatTime(hitStartSeconds(row) ?? 0),
@@ -1039,9 +1090,7 @@ const showEmpty = computed(
                         })
                       "
                       @click="openEpisode(g.slug, row, gi + 1)"
-                    >
-                      ▶ {{ t("search.playHere", { time: formatTime(hitStartSeconds(row) ?? 0) }) }}
-                    </button>
+                    />
                   </div>
                   <p
                     class="mt-1.5 line-clamp-2 text-sm leading-relaxed"

@@ -30,6 +30,8 @@ def ids() -> dict[str, str]:
         "person": next(iter(idx.person_to_eps)),
         "show": row.feed_id,
         "episode": slug_for_row(row),
+        # A theme (`tc:`) — a first-class kind like the chips (operator 2026-10-05).
+        "theme": "tc:broadcast-format",
     }
 
 
@@ -49,7 +51,7 @@ def client(tmp_path_factory: pytest.TempPathFactory) -> TestClient:
     return TestClient(app)
 
 
-@pytest.mark.parametrize("kind", ["topic", "person", "show", "episode"])
+@pytest.mark.parametrize("kind", ["topic", "person", "show", "episode", "theme"])
 def test_og_route_renders_a_png_per_kind(
     client: TestClient, ids: dict[str, str], kind: str
 ) -> None:
@@ -142,6 +144,13 @@ def test_entity_document_injects_og_tags(client: TestClient, ids: dict[str, str]
     assert "/og/topic/" in body and ".png" in body
 
 
+def test_theme_document_injects_its_own_card(client: TestClient, ids: dict[str, str]) -> None:
+    # A shared theme link unfurls as the THEME card — not a topic's, not the generic site card.
+    r = client.get(f"/theme/{ids['theme']}")
+    assert r.status_code == 200
+    assert "/og/theme/tc%3Abroadcast-format.png" in r.text
+
+
 def test_non_entity_route_falls_back_to_index_without_injection(client: TestClient) -> None:
     r = client.get("/catalog")
     assert r.status_code == 200
@@ -184,6 +193,34 @@ def test_storyline_model_explains_itself(ids: dict[str, str]) -> None:
     assert m.byline == "Topics discussed together"
     assert m.blurb and "·" in m.blurb
     assert "topic" in (m.stats or "")
+
+
+def test_theme_model_explains_itself(ids: dict[str, str]) -> None:
+    from podcast_scraper.server.og.build import build_og_model
+    from podcast_scraper.server.og.card import accent_for_kind
+
+    m = build_og_model(_CORPUS, "theme", ids["theme"])
+    assert m is not None
+    assert m.kicker == "Theme" and m.title == "broadcast format"
+    assert m.byline == "Topics that mean the same thing"
+    assert m.blurb and "public radio" in m.blurb  # WHICH topics
+    assert m.stats == "2 topics · 4 episodes"
+    assert m.accent == accent_for_kind("theme")
+
+
+@pytest.mark.parametrize("kind", ["topic", "storyline", "theme"])
+def test_a_grouping_without_a_rising_trend_shows_its_shows(ids: dict[str, str], kind: str) -> None:
+    # Without a trend the middle of the card was empty; it now shows the shows that discuss it
+    # (operator 2026-10-05). The fixture has no rising trend for these, so the gallery must appear.
+    from podcast_scraper.server.og.build import build_og_model
+
+    ident = ids["theme"] if kind == "theme" else "topic:risk-management"
+    m = build_og_model(_CORPUS, kind, ident)
+    assert m is not None and m.sparkline is None
+    assert m.gallery, f"{kind} card has neither a trend nor any show artwork"
+    # The text-only path (document head) never reads image bytes.
+    text_only = build_og_model(_CORPUS, kind, ident, with_art=False)
+    assert text_only is not None and text_only.gallery == ()
 
 
 def test_show_and_episode_models_carry_artwork_when_present(ids: dict[str, str]) -> None:

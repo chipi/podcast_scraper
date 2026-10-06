@@ -13,6 +13,7 @@
     "episodes": [
       {
         "deep_link": "/episode/fa-02d98a79c7",
+        "duration_seconds": 1000,
         "episode_slug": "fa-02d98a79c7",
         "episode_title": "Episode e2",
         "graph_refs": [
@@ -21,10 +22,14 @@
             "kind": "topic",
             "label": "Memory"
           }
-        ]
+        ],
+        "podcast_title": "Show fa",
+        "publish_date": "2026-09-12",
+        "summary": "S"
       },
       {
         "deep_link": "/episode/fa-90893549e1",
+        "duration_seconds": 1000,
         "episode_slug": "fa-90893549e1",
         "episode_title": "Episode e1",
         "graph_refs": [
@@ -33,7 +38,10 @@
             "kind": "topic",
             "label": "AI safety"
           }
-        ]
+        ],
+        "podcast_title": "Show fa",
+        "publish_date": "2026-09-11",
+        "summary": "S"
       }
     ],
     "slugs": [

@@ -19,7 +19,16 @@ export interface NoteRoute {
   name: string
   params: Record<string, string>
   query?: Record<string, string>
+  hash?: string
 }
+
+/**
+ * Opening a note lands on the page's NOTES section, not its top (operator 2026-10-04) — the note
+ * is what you came for. Pages carry it as an anchor on `NoteComposer`; an episode's notes live in
+ * the episode-notes panel, which has to be opened first, so the player takes `?notes=1` instead.
+ */
+export const NOTES_ANCHOR = "#notes"
+const toNotes = { hash: NOTES_ANCHOR }
 
 /**
  * The route for a note, or null when the target cannot be opened.
@@ -36,19 +45,19 @@ export function noteRoute(
   if (!id) return null
   switch (target) {
     case "episode":
-      return { name: "player", params: { slug: id } }
+      return { name: "player", params: { slug: id }, query: { notes: "1" } }
     case "topic":
-      return { name: "topic", params: { id } }
+      return { name: "topic", params: { id }, ...toNotes }
     case "person":
-      return { name: "person", params: { id } }
+      return { name: "person", params: { id }, ...toNotes }
     case "show":
-      return { name: "podcast", params: { feedId: id } }
+      return { name: "podcast", params: { feedId: id }, ...toNotes }
     case "storyline":
-      return { name: "storyline", params: { id } }
+      return { name: "storyline", params: { id }, ...toNotes }
     // A theme's note carries the theme's own `tc:` id, which IS the route param — no anchor-topic
     // indirection, unlike the storyline above.
     case "theme":
-      return { name: "theme", params: { id } }
+      return { name: "theme", params: { id }, ...toNotes }
     case "highlight":
     case "insight": {
       // Both hang off an episode rather than having a page. Resolve through the highlight so the

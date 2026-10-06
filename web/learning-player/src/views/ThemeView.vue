@@ -25,6 +25,7 @@ import { computed, defineAsyncComponent, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
 
+import BackIcon from "../components/BackIcon.vue"
 import CloseIcon from "../components/CloseIcon.vue"
 import EntityEpisodeList from "../components/EntityEpisodeList.vue"
 import MemberTrendBadge from "../components/MemberTrendBadge.vue"
@@ -38,7 +39,6 @@ import TopicPerspectives from "../components/TopicPerspectives.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import TopVoices from "../components/TopVoices.vue"
 import TrendMomentum from "../components/TrendMomentum.vue"
-import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
 import { useTrendingIndex } from "../composables/useTrendingIndex"
 import { getThemeCard } from "../services/api"
 import type { ClusterMember, Entity, EpisodeSummary } from "../services/types"
@@ -153,22 +153,6 @@ function toggleFollow(): void {
   void interests.toggle(props.id)
 }
 
-const shareModel = computed<EntityCardModel>(() => {
-  const parts = [`${topics.value.length} ${topics.value.length === 1 ? "topic" : "topics"}`]
-  if (episodes.value.length) {
-    parts.push(`${episodes.value.length} ${episodes.value.length === 1 ? "episode" : "episodes"}`)
-  }
-  return {
-    kicker: t("share.kickerTheme"),
-    title: label.value || props.id,
-    stats: parts.join(" · "),
-    // A theme owns its hue now. It shared the storyline's violet while "both are groupings" was
-    // the whole rule — which made the two share cards indistinguishable, the same collision the
-    // page eyebrows had. Both are still groupings; the colour now says WHICH.
-    accent: accentForKind("theme"),
-    url: typeof window !== "undefined" ? `${window.location.origin}/theme/${props.id}` : null,
-  }
-})
 
 function goBack(): void {
   if (window.history.length > 1) router.back()
@@ -189,7 +173,7 @@ function goBack(): void {
       :aria-label="t('nav.back')"
       @click="goBack"
     >
-      <span aria-hidden="true" class="text-base leading-none">‹</span>
+      <BackIcon />
       <span>{{ t("nav.back") }}</span>
     </button>
 
@@ -222,7 +206,9 @@ function goBack(): void {
       <div class="mt-3 flex flex-wrap items-center gap-2">
         <FavoriteButton :item="{ kind: 'theme', ref: id, label: label || id }" />
         <AddToCollectionButton :item="{ kind: 'theme', ref: id }" variant="pill" />
-        <ShareMenu :model="shareModel" target-kind="topic" />
+        <!-- Shares as a THEME — its own server card and link (operator 2026-10-05); it used to share
+             as a topic. Analytics has no theme bucket, so `target-kind` stays topic. -->
+        <ShareMenu kind="theme" :id="id" :title="label || id" target-kind="topic" />
         <FollowButton
           v-if="auth.isAuthenticated"
           variant="theme"

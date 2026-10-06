@@ -3,12 +3,18 @@ import apiSrc from '../services/api.ts?raw'
 import playerStoreSrc from '../stores/player.ts?raw'
 import playerViewSrc from '../views/PlayerView.vue?raw'
 import highlightsViewSrc from '../views/HighlightsView.vue?raw'
+import exportViewerSrc from '../components/ExportViewer.vue?raw'
 import mainSrc from '../main.ts?raw'
 import analyticsSrc from '../services/analytics.ts?raw'
 import authStoreSrc from '../stores/auth.ts?raw'
 import nativeSrc from '../services/native.ts?raw'
 import tierSrc from '../services/tier.ts?raw'
 import indexHtml from '../../index.html?raw'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+// Read from disk: a `?raw` import of a .css file comes back EMPTY under vitest, which does not
+// process CSS — a check against it would match nothing and pass on a deleted rule.
+const styleSrc = readFileSync(resolve(__dirname, '..', 'style.css'), 'utf8')
 import capacitorConfigSrc from '../../capacitor.config.ts?raw'
 import iosInfoPlist from '../../ios/App/App/Info.plist?raw'
 import iosAppDelegate from '../../ios/App/App/AppDelegate.swift?raw'
@@ -94,10 +100,13 @@ describe('mobile invariants (guardrail #1311)', () => {
 
 describe('native-shell invariants (guardrail #1310)', () => {
   it('highlights export has a native (write+share) path — <a download> cannot save in WKWebView', () => {
-    expect(highlightsViewSrc, 'HighlightsView must branch on isNative() for export').toMatch(
+    // The export's formats live in the shared ExportViewer now (operator 2026-10-05), so the
+    // native branch is asserted THERE, and HighlightsView must actually route through it.
+    expect(highlightsViewSrc, 'HighlightsView must export through ExportViewer').toMatch(/<ExportViewer/)
+    expect(exportViewerSrc, 'ExportViewer must branch on isNative() for export').toMatch(
       /isNative\(\)/,
     )
-    expect(highlightsViewSrc).toMatch(/saveAndShareText/)
+    expect(exportViewerSrc).toMatch(/saveAndShareText/)
   })
 
   it('telemetry tags the platform (web|ios|android) so native builds stay separable', () => {
@@ -212,6 +221,37 @@ describe('native-shell invariants (guardrail #1310)', () => {
     expect(mainSrc).toMatch(/beforeBreadcrumb:\s*scrubNavigationBreadcrumb/)
     expect(mainSrc).toMatch(/beforeSend:\s*scrubEventRequestUrl/)
     expect(mainSrc).toMatch(/from '\.\/services\/telemetryScrub'/)
+  })
+
+  it('every surface pinned to the bottom edge reserves the bottom inset (operator 2026-10-05)', () => {
+    /*
+     * Android 15+ draws the app edge-to-edge, UNDER its navigation bar — three buttons on a
+     * transparent strip. A beta tester scrolled an entity card to its end and could see the note's
+     * Save button through the bar but not press it: the shared sheet reserved nothing at the bottom.
+     * The iPhone home indicator covers the same strip.
+     *
+     * The rule: anything that reaches the bottom of the screen reserves `safe-area-inset-bottom`
+     * (the device's own height for that bar), or is named here with the reason it need not.
+     */
+    const EXEMPT: Record<string, string> = {
+      '../components/AppSplash.vue': 'a full-screen image with no controls; it reserves its own text line',
+      '../components/AvatarCropModal.vue': 'a CENTRED dialog with padding — it never touches the edge',
+    }
+    const pinned = Object.entries(components).filter(([, src]) =>
+      /class="[^"]*\bfixed\b[^"]*\b(inset-0|bottom-0)\b/.test(src),
+    )
+    expect(pinned.length, 'the scan found nothing — the pattern is broken').toBeGreaterThan(3)
+    const missing = pinned
+      .filter(([path, src]) => !(path in EXEMPT) && !src.includes('safe-area-inset-bottom'))
+      .map(([path]) => path)
+    expect(missing, 'pinned to the bottom edge with no bottom inset').toEqual([])
+
+    // The shared bottom SHEET (topic / person / storyline / theme cards) is styled in CSS, not in a
+    // class list, so it is checked where it is defined: the phone rule pads, the centred one does not.
+    const sheet = styleSrc.match(/\.lp-sheet \{[^}]*\}/)?.[0] ?? ''
+    expect(sheet, 'the phone .lp-sheet rule must reserve the bottom inset').toMatch(
+      /padding-bottom:\s*env\(safe-area-inset-bottom\)/,
+    )
   })
 
   it('the bottom nav clears the home indicator and does not trap page content (#1594)', () => {

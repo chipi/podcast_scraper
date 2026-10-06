@@ -360,11 +360,10 @@ def _current_vault(root: Path, data_dir: Path, user_id: str) -> dict[str, str]:
             h, episode_titles[slug], notes_by_target.get(str(h.get("id") or ""))
         )
         for ref in _usable_refs(h.get("graph_refs")):
-            if True:
-                # Last-write-wins on a repeated id with a different (stale) label. Deterministic:
-                # highlights are read in a stable order, so the entity note and an older link's
-                # display text can disagree, but they disagree the same way on every export.
-                entity_refs[str(ref["id"])] = ref
+            # Last-write-wins on a repeated id with a different (stale) label. Deterministic:
+            # highlights are read in a stable order, so the entity note and an older link's
+            # display text can disagree, but they disagree the same way on every export.
+            entity_refs[str(ref["id"])] = ref
 
     for ref in entity_refs.values():
         path = f"{_ROOT}/{_entity_dir(str(ref['kind']))}/{_entity_stem(str(ref['id']))}.md"

@@ -631,8 +631,8 @@ already travelled; **search** and the **muted** toggle did not, so narrowing the
 Export handed back a file that disagreed with the screen that produced it. All three are query
 parameters on `/highlights/export.md` now.
 
-**Episode notes (operator 2026-09-18).** The Episode notes panel carries its own export — a
-"Download notes" row with Markdown and PDF chips — of the WHOLE EPISODE: title, summary, key points, topics and people, everything the episode
+**Episode notes (operator 2026-09-18).** The Episode notes panel carries its own export — one
+"Download notes" link — of the WHOLE EPISODE: title, summary, key points, topics and people, everything the episode
 said with a jump link on every supporting quote, then the user's own captures and notes on it. It
 is deliberately a different artifact from the Library export: that one answers "what did I save,
 across everything", this one answers "what was this episode, and what did I take from it". Printed
@@ -643,13 +643,18 @@ is a teaser. (Measured on the live corpus: an 80-minute interview yields 77 grou
 20-minute news episode 40. The redundancy behind those counts is #2117, a pipeline question, not a
 rendering one — the export is a useful lens on it precisely because it prints everything.)
 
-A third chip, **PDF**, opens the same document print-styled (`export.html`) and lets the browser
-save it — no PDF library in the API image, and "Print → Save as PDF" is native on every platform we
-ship, including the iOS share sheet. It opens a visible tab rather than printing from a hidden
-frame: a print dialog fired from an invisible frame with no preview is indistinguishable from the
-app having hijacked the printer. The print stylesheet keeps an episode heading from being stranded
-at the foot of a page, stops a capture splitting across two, and spells out link URLs, which paper
-otherwise loses.
+**One link, formats inside (operator 2026-10-05).** Both exports — episode notes and Library
+highlights — used to offer Markdown and PDF chips side by side. PDF opened the print-styled document
+(`export.html`) in a tab, and its "download" saved HTML, not a PDF; two chips also read as two
+different documents. Now ONE link opens the document in the app's own viewer (`ExportViewer`), with
+the formats in its top-right corner: **Markdown**, and **Print or share** — the share sheet on
+native (iOS offers Print, whose preview saves a PDF), and on the web the browser's file share or its
+print dialog, where Save as PDF is a destination. There is still no PDF library in the API image: the
+operator chose to leave PDF to each platform. The viewer shows the document before anything is
+printed, so a print dialog never fires from an invisible frame. The print stylesheet keeps an
+episode heading from being stranded at the foot of a page, stops a capture splitting across two,
+and spells out link URLs, which paper otherwise loses. Obsidian stays its own chip beside the
+highlights link — a vault zip is a different thing, not another format of this page.
 
 The **Obsidian** export stays deliberately unfiltered. It is a *sync*, not a report: incremental,
 cursor-based, and a full export sets `replace_namespace: true`. A colour filter there would not

@@ -8,6 +8,9 @@ import { chartAxisBorderColor, chartGridColor, chartTickColor, chartTicks, rgbaF
 
 const props = defineProps<{
   artifactItems: { kind: string; mtime_utc: string }[]
+  /** The list was fetched successfully. Until then an empty list means "unknown", and reading
+   *  it as 14 silent days is a false alarm on an active corpus. */
+  loaded: boolean
 }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -19,7 +22,7 @@ const buckets = computed((): DayGiKgBucket[] =>
 
 const insight = computed(() => {
   const b = buckets.value
-  if (b.length === 0) {
+  if (!props.loaded || b.length === 0) {
     return undefined
   }
   let streak = 0

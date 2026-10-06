@@ -95,6 +95,41 @@
     line-clamp: 4;
   }
 
+  /* TILE TITLES — one rule for every tile, in every rail and tile grid (operator 2026-10-05): three
+     lines, and the three lines are RESERVED. Unreserved, the row was as tall as its longest name, so
+     one long show name opened a gap under every other tile in the rail — including tiles scrolled
+     out of view. Shows and episodes alike; the full name is on the page the tile opens and in the
+     tooltip. Line height is set here so the reservation is exact. */
+  .lp-tile-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+    min-height: 3.75em;
+  }
+
+  /* RAIL SLOT — one width for every horizontal rail of tiles: three to a phone screen, four from
+     `sm`, the same tile size as the Discover grids (operator 2026-10-05). Rails used five different
+     widths (w-20 … w-60).
+
+     The floor is the phone tile (~111px at 390px), just under it: in a narrow column — the
+     Knowledge Panel on desktop is ~300px — a quarter-width slot made ~70px tiles whose action icons
+     spilled off the artwork over the title. There the rail shows fewer, phone-sized tiles and
+     scrolls. */
+  .lp-rail-item {
+    flex-shrink: 0;
+    width: calc((100% - 1.5rem) / 3);
+    min-width: 6.75rem;
+  }
+  @media (min-width: 640px) {
+    .lp-rail-item {
+      width: calc((100% - 2.25rem) / 4);
+    }
+  }
+
   /* `.lp-kicker--muted` was RETIRED in #2013 and deliberately not replaced.
      It existed (#1963) to mute the kicker in dense repeating lists, because an accent kicker on
      every row "stops being emphasis and becomes the background colour of the page". That diagnosis
@@ -174,12 +209,24 @@
     flex-direction: column;
     min-height: 70dvh;
     max-height: 92dvh;
+    /* The BOTTOM INSET, on phones, where the sheet is anchored to the screen edge (operator
+       2026-10-05). Android 15+ draws the app edge-to-edge, under its navigation bar — three buttons
+       on a transparent strip — so a sheet scrolled to its end put its last control BEHIND the bar:
+       visible, not tappable. A beta tester could not press a note's Save on an entity card. The
+       iPhone home indicator covers the same strip.
+
+       The sheet's own background still runs to the edge (the padding is painted), so it reads as
+       one surface; only its CONTENT stops above the bar. The inset is the device's own number —
+       the 3-button bar, a gesture pill or the home indicator — never a guessed constant. */
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   @media (min-width: 640px) {
     .lp-sheet {
       min-height: 0;
       max-height: 85dvh;
+      /* Centred dialog from `sm:` up — it does not touch the bottom edge. */
+      padding-bottom: 0;
     }
   }
 

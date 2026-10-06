@@ -10,7 +10,7 @@ silently if you bypass them; the other three wrap browser APIs.
 | [`useSignInGate.ts`](useSignInGate.ts) | Signed-out users see gated controls as **teasers** that route to sign-in | 7 files | A 401 the store swallows — the control flips, then silently reverts |
 | [`useSectionState.ts`](useSectionState.ts) | `loading` / `ready` / `error` for a data-backed section | 7 files | An outage renders as an empty state — "you follow nothing" to someone with 30 follows |
 | [`usePwaUpdate.ts`](usePwaUpdate.ts) | Service-worker update prompt | 1 | — |
-| [`useShareCard.ts`](useShareCard.ts) | Renders a highlight to a shareable card (PRD-046 FR5) | 1 | — |
+| [`shareCard.ts`](shareCard.ts) | Shares the SERVER's card (entity or highlight) as an image (PRD-046 FR5) | 2 | A second, drifting card design — guarded by `__checks__/share-card-single-source` |
 | [`usePushSubscription.ts`](usePushSubscription.ts) | Web Push subscribe/unsubscribe (PRD-046 FR1) | 1 | — |
 
 ## `useSignInGate` — the rule, not just the helper

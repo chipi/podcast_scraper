@@ -101,7 +101,7 @@ test('search results render the "Matched:" kicker on the episode header', async 
 })
 
 test('an episode group starts expanded and collapses its matches', async ({ page }, testInfo) => {
-  // The episode-group block is shared with Library → Revisit (`EpisodeGroupCard`). Expanded by
+  // The episode-group header is shared with Library → Saved and Revisit (`EpisodeGroupCard`). Expanded by
   // default: a listener who just searched must not have to open every group to read the results
   // they asked for. Collapse is `v-show`, so the rows stay in the DOM but stop being visible —
   // asserted through visibility rather than through counting nodes, which is what a listener
@@ -116,16 +116,16 @@ test('an episode group starts expanded and collapses its matches', async ({ page
   const body = group.getByTestId('episode-group-body')
 
   await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-  await expect(toggle).toContainText('Hide matches')
+  await expect(toggle).toHaveAttribute('aria-label', /^Collapse /)
   await expect(body).toBeVisible()
 
   await toggle.click()
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-  await expect(toggle).toContainText('Show matches')
+  await expect(toggle).toHaveAttribute('aria-label', /^Expand /)
   await expect(body).toBeHidden()
 
   // The episode itself stays — collapsing hides the matches, not the result.
-  await expect(group.getByTestId('episode-card')).toBeVisible()
+  await expect(group.getByTestId('episode-group-title')).toBeVisible()
 
   await toggle.click()
   await expect(body).toBeVisible()
@@ -139,7 +139,13 @@ test('save-query button toggles Save/Saved-✓ on click', async ({ page }, testI
   const saveBtn = page.getByTestId('save-query-button')
   await expect(saveBtn).toBeVisible()
   await expect(saveBtn).toHaveText('Save')
+  // The SERVER must accept the save, not just the button flip. Every player preference write used
+  // to 422 (wrong body shape) while the UI looked right off its local copy (2026-10-04).
+  const persisted = page.waitForResponse(
+    (r) => r.url().includes('/api/app/preferences') && r.request().method() === 'PATCH',
+  )
   await saveBtn.click()
+  expect((await persisted).status(), 'the server rejected the saved search').toBe(200)
   await expect(saveBtn).toHaveText('Saved ✓')
   // Toggle-off round-trip.
   await saveBtn.click()

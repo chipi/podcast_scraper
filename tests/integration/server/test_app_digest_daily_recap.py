@@ -38,7 +38,12 @@ def _write_corpus(root: Path, *, stem: str = "0001-hello", ep_id: str = "ep1") -
     (root / "transcripts").mkdir(parents=True, exist_ok=True)
     doc = {
         "feed": {"feed_id": "myfeed", "title": "My Show", "url": "https://pod.example/f.xml"},
-        "episode": {"episode_id": ep_id, "title": "Hello", "published_date": "2024-03-10T00:00:00"},
+        "episode": {
+            "episode_id": ep_id,
+            "title": "Hello",
+            "published_date": "2024-03-10T00:00:00",
+            "description": "The publisher's own words about this episode.",
+        },
         "summary": {"title": "Sum", "bullets": ["First point", "Second point"]},
         "content": {"transcript_file_path": f"transcripts/{stem}.txt"},
     }
@@ -98,6 +103,8 @@ def test_assemble_recaps_todays_finished_episode(tmp_path: Path) -> None:
     assert ep["signature_quote"] == {"text": "a memorable line", "speaker": "Jane Doe"}
     assert ep["deep_link"] == f"/episode/{slug}"
     assert {"id": "topic:ai", "label": "AI"} in ep["topics"]
+    # The publisher's description, as every other email episode carries (operator 2026-10-05).
+    assert ep["description"] == "The publisher's own words about this episode."
 
 
 def test_assemble_returns_none_when_nothing_finished_today(tmp_path: Path) -> None:

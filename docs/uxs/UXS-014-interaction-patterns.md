@@ -99,6 +99,11 @@ still clamp; show names do not.)
 
 - Drilling deeper is **replace-in-place with a `‹ Back` stack**; closing returns to the prior view
   in the **same** surface (no layer added or removed).
+- **Back returns to where the reader was, not the top** (operator 2026-10-04). Opening a person from
+  the people row halfway down an episode's notes, then Back, lands on that row. This holds for every
+  back: a route (the router restores the browser's saved position), the entity card's own stack,
+  and the Knowledge Panel's replace-in-panel card. The restore waits for re-fetched content to make
+  the page tall enough, or it is clamped to the loading state — `utils/scrollRestore`.
 - The shared body (e.g. `EntityCardBody`) is rendered **inline** in a panel and **wrapped in the
   modal** from a page — one component, two presentations (`variant`), so they cannot drift.
 
@@ -112,33 +117,46 @@ still clamp; show names do not.)
   not typed**: it used to be the character `✕` (U+2715), which is absent from the iOS UI font and
   rendered as a tofu box on device, so every dismiss control read as "?" (2026-09-16). Adding
   emoji/symbol faces to the font stacks did not fix it. The rule this sets: **an icon that carries
-  meaning is an SVG, never a codepoint** — the back chevron `‹` (U+2039) stays a character only
-  because it is verified to render. Same conclusion as the profile edit badge and the streak mark.
+  meaning is an SVG, never a codepoint**. Same conclusion as the profile edit badge and the streak
+  mark.
+- Back is **`BackIcon`**, the ✕'s twin: same 16px box, same 2.5 stroke. The chevron used to be the
+  character `‹` (U+2039), kept because it rendered — but it rendered as a sliver beside the drawn ✕,
+  so the two dismiss controls looked unrelated (operator 2026-10-04). Every `lp-nav` back control
+  uses it; the visible "Back" labels beside it are unchanged.
 
 ## Sharing (#2036)
 
 One **Share** affordance (`ShareMenu`), a menu of three modes, never a single action:
 
-- **Share card** — an editorial PNG of the entity (quote-led, mono + one accent, square, the app's
-  own type), rendered client-side (`entityShareCard`) and shared via Web Share → download. The card
-  is the "short, beautiful overview"; it carries transcript-derived text + KG metadata only, never
-  audio (bridge-only).
-- **Share link** — the entity's canonical URL (Web Share → clipboard copy). It unfurls *as* the card
-  via a **server-rendered `og:image`** (below), so a pasted link previews as the card even with no
-  Share menu involved.
-- **Share text** — the caption fallback (name + stat line + wordmark).
+- **Share card** — the entity's card as a PNG, drawn by the **server** (`GET /og/{kind}/{id}.png`,
+  below) and handed to the platform: the native share sheet as a file on the phones, the browser's
+  file share or a download on the web (`composables/shareCard`). It is the SAME image a shared link
+  unfurls as — one card design, the server's (operator 2026-10-05; the app's own plainer canvas card
+  is gone). The card is the "short, beautiful overview"; it carries transcript-derived text + KG
+  metadata + artwork only, never audio (bridge-only).
+- **Copy link** — copies the entity's public URL, `https://closelistening.app/<kind>/<id>` (2026-10-05:
+  it was "Share link" and opened the same OS sheet as Share card, so testers could not tell them
+  apart). One link for everything: inside the native apps it is the public site, never the
+  WebView's own origin; the recipient's phone opens it in the app when installed (Universal Links /
+  App Links), the browser otherwise, and a signed-out visitor goes through sign-in and back to it.
+  It unfurls *as* the card via a **server-rendered `og:image`** (below).
+- **Copy text** — copies one line a person would paste into a message: the name, what it is (the
+  show an episode is from, a person's one-line descriptor), then the link. It was "Share text",
+  which handed the OS sheet a .txt file on native.
 
 Closes on ESC / outside-click. Wired on the **entity card** (topic/person/org), the **episode**
-(PlayerView), the **show** (PodcastView) and the **storyline** (StorylineView).
+(PlayerView), the **show** (PodcastView), the **storyline** (StorylineView) and the **theme**
+(ThemeView, which shares as a theme). The menu is given only WHAT to share (`kind` + `id`) and its
+name.
 
 **Server OG-image (link unfurl).** `GET /og/{kind}/{id}.png` (`routes/app_og.py`) renders the same
 card server-side with Pillow (`server/og/`), and `server/spa.py` (`SpaStaticFiles`) injects
 `og:image`/`og:title`/`twitter:*` into each entity document's head. The route is **unauthenticated**
 (unfurl bots carry no session) and lives outside `/api/app`; the `.png` suffix lets the edge's
 static rule reach the backend without the coming-soon gate. Kinds: topic, person, organization,
-episode, show, storyline. The server card layouts (full-bleed episode background, framed square,
-guest gallery, KPI trend tile) are richer than the client canvas card — kept in step by eye; the
-SSOT is `docs/uxs/UXS-017-share-cards.md`.
+episode, show, storyline, theme. Layouts: full-bleed episode background, framed square, guest
+gallery, KPI trend tile — and a gallery of the shows that discuss a topic / storyline / theme when
+it has no rising trend. The SSOT is `docs/uxs/UXS-017-share-cards.md`.
 
 ## Tab strips and option groups (#1594 item 7)
 
@@ -245,6 +263,14 @@ expanding RELEASES the clamp, or "Read more" would open onto text still cut at t
   show row: Discover → Shows (list view) and Library → Saved both render it, differing only through
   its `#actions` slot.
 
+  **Where shows and episodes share a page, they share one place for controls** (operator
+  2026-10-05). Library → Saved and Discover → Shows (list) put the show's controls in a row UNDER the
+  artwork (`actionsBelow`), exactly where `EpisodeCard` puts its own. Search, whose episode cards
+  carry a single `⋯` right of the title, gives each show row the same: a `⋯` right of the name
+  (`#menu`) holding **`ShowMenu`** — Follow, Save, Add to board. Library → Following, which lists no
+  episodes, keeps the plated column over the artwork. The Follow pill reads just "Follow" /
+  "Following" — no "+" and no "show" — so it fits beside the heart in the 128px column.
+
   **A show and an episode are the same kind of thing to a reader** — cover art, a name, a line about
   it, something to open — so a list of shows must not read as a different species from the list of
   episodes one tab across. It did: Discover used a 44px thumbnail with a title and a count, Library
@@ -284,8 +310,9 @@ player. This section is the single contract; components conform, they do not re-
 - **Favorite = save to Library.** ONE affordance, the `.lp-fav` heart, everywhere an item can be
   saved (episode, and any saveable entity). Never a pill, never a second glyph. All saves land in
   Library › Saved.
-- **Follow = subscribe to a *show* (or interest token).** The follow **pill** (`+ Follow` /
-  `✓ Following`), rendered/behaving identically wherever it appears. It is not a save; the two are
+- **Follow = subscribe to a *show* (or interest token).** The follow **pill** (`Follow` /
+  `Following` — no glyph, no "show", operator 2026-10-05), rendered/behaving identically wherever
+  it appears. It is not a save; the two are
   never merged and the episode heart is never swapped for a follow pill.
 
 ### One glyph per concept (operator 2026-09-27)
@@ -629,30 +656,33 @@ gives back ~70pt and puts the whole transport on screen. Desktop has the height 
   `SavedFilterBar` search input, reused on Following) filters every section by label; a non-empty
   query lifts every cap so a match is never hidden. Following reuses the same bar minus colour, with a
   **recent / A–Z** sort; each section heading carries its count.
-- **Grouping by episode: two weights, one idea (2026-09-17, revised 2026-09-18).** Where a surface
-  groups by **episode**, the group is headed by the real episode — never a bare line of text — and
-  its rows **collapse**, starting expanded, because folding is an affordance for a long page rather
-  than a default that hides what the reader came for. Collapse is `v-show`, so anything expanded
-  *inside* a group (Search's folded transcript clusters) survives a fold and re-open.
+- **Grouping by episode: one header (2026-09-17, revised 2026-09-18, unified 2026-10-05).** Where a
+  surface groups by **episode** — **Search**, **Library → Saved**, **Library → Revisit** — the group
+  is headed by **`EpisodeGroupCard`**, the same header on all three:
 
-  Which weight depends on what the group IS:
+  - **80px artwork** — the height of the text beside it, so neither column leaves a gap;
+  - the **show name above the title, one line**, and the **title at most three lines** (the cap every
+    rail uses);
+  - **one muted meta line** under it: date · N matches (Search), date · N items (Saved), Listened
+    {date} · N moments (Revisit — the listened part omitted, not guessed, with no playback history);
+  - **one ⋯** carrying the episode's actions, and the **fold as a chevron** in the header;
+  - **no frame** — a divider ends the header and the items follow.
 
-  - **Results** → **`EpisodeGroupCard`**: the full `EpisodeCard` as a bordered block, count under
-    the artwork (`#aside`), "Hide / Show {noun}" beneath. **Search** uses this — the episode is the
-    result, and something you act on.
-  - **Your own captures** → the flat idiom: **`EpisodeRow`** as the heading (40px artwork, title,
-    show name), the fold control in its `#trailing` slot, and the capture cards as a plain list.
-    **Library → Saved** and **Library → Revisit** use this.
+  Groups start **expanded**: folding is an affordance for a long page, not a default that hides what
+  the reader came for. Collapse is `v-show`, so anything expanded *inside* a group (Search's folded
+  transcript clusters) survives a fold and re-open.
 
-  Revisit moved from the first to the second on 2026-09-18 (operator): it is the **same captures as
-  Saved**, surfaced because they are due rather than because you went looking, so it reads the same
-  way and only the framing differs — a reflection prompt per card, "Mark reviewed" in place of the
-  edit controls. Its previous form nested a bordered container, a toggle row, and a bordered box per
-  moment: three frames to say "these four moments are from this episode", where a heading and a list
-  say it with one. Cards keep their **colour stripe** across both surfaces, so a moment filed under
-  amber is still amber when it comes back to you. Revisit's heading also carries **when the episode
-  was listened to** ("Listened {date}", from the listener's playback positions) and the due count —
-  one muted line under the row. The listened line is omitted, not guessed, with no playback history.
+  It replaced two weights that had drifted to opposite failures (operator 2026-10-05): Search used
+  the full `EpisodeCard` — 128px artwork with the date, count and three action circles stacked under
+  it, then a full-width "Hide matches" row, ~300px before the first match — while Saved and Revisit
+  used `EpisodeRow`, a 40px thumbnail beside a title that ran five lines. Capture cards keep their
+  **colour stripe** across Saved and Revisit, so a moment filed under amber is still amber when it
+  comes back to you.
+- **The items inside share one card shape (2026-10-05).** The **kind** on the left of the top line
+  and **`PlayFrom`** — "▶ Play from 1:05", the ONE jump-to-a-moment control — hard right; the content
+  under it; the bottom row carries the date or the editing controls on the left and the card's icon
+  actions on the right. `PlayFrom` is also the jump in the episode-notes panel, topic
+  perspectives and the listening recap's best line: before it, Search said "Play from 0:20" and every other surface a bare "▶ 1:05".
 - **One kind-filter strip, everywhere (2026-09-17).** Filtering a list by the KIND of thing in it is
   one pattern, so it is one component: **`TypeFilterBar`** — a multi-select chip strip led by an
   explicit **All** chip (so clearing is one tap), where no selection means all, and a chip renders
@@ -707,7 +737,7 @@ rendered piece to its design home:
   every surface (see "Saving"); visible signed-out (#1590), routing a tap to sign-in.
 - **`AddToCollectionButton`** — the compact "pin into a collection" control with inline
   create-new-collection (RFC-119); a detail-surface action, never part of the minimum row.
-- **`FollowButton`** — the ONE follow pill/glyph (`+ Follow` / `✓ Following`) for every surface
+- **`FollowButton`** — the ONE follow pill/glyph (`Follow` / `Following`; the glyph-only `icon` variant keeps `+` / `✓`) for every surface
   where something can be followed: show-page header (`inline`), `ShowTile` artwork overlay
   (`overlay`), action rows (`icon`), entity cards (`ec`, testid `ec-follow`), storyline pages
   (`storyline`, testid `storyline-follow`), discovery list rows (`discovery`, testid
@@ -908,7 +938,7 @@ when native is merely nicer.** Each entry below names the promise it is protecti
 | **Downloads** (`DownloadButton`, `DownloadedList`, `downloads`/`downloadScheduler`) | Audio is BRIDGED, never rehosted, and the service worker deliberately does not cache it. There is no web mechanism that stores an episode for a flight without breaking that rule. | The control self-hides. Not disabled — an affordance that cannot work is worse than an absent one. |
 | **"On this device"** (`/offline`, `OfflineDownloadsView`) | It lists the download registry, which only exists on a device. | Route resolves, list is empty by construction. |
 | **Device settings** (`DeviceSettings`, network policy) | Governs Wi-Fi-vs-cellular for downloads; meaningless without downloads. | Hidden. |
-| **Share as an image card** (`ShareMenu`, `useShareCard`, `entityShareCard`) | The native share sheet takes a FILE; the Web Share API's file support is uneven and silently degrades. | Falls back to link/text sharing. |
+| **Share as an image card** (`ShareMenu`, `composables/shareCard` — entities and highlights) | The native share sheet takes a FILE; the Web Share API's file support is uneven and silently degrades. | Falls back to link/text sharing. |
 | **Push** (`usePushSubscription`) | APNs/FCM registration is a shell capability. | Web push where the browser supports it; otherwise absent. |
 | **App update prompt** (`useAppUpdate`) | The shell knows about a downloaded binary; a web page knows about a service worker. | The PWA update toast instead — a different mechanism for the same intent. |
 | **Session auth** (`stores/auth`, `services/native`) | The shell authenticates with a BEARER TOKEN; the web uses the session cookie. Same accounts, different credential. | Cookie session. |

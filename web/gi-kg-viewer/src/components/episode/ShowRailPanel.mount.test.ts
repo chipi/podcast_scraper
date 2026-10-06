@@ -7,6 +7,7 @@ import ShowRailPanel from './ShowRailPanel.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useShellStore } from '../../stores/shell'
 import { useSubjectStore } from '../../stores/subject'
+import { corpusGraphBaselineLoaderKey } from '../../corpusGraphBaseline'
 
 /**
  * UXS-015 / RFC-104 — the Show rail panel. Reads subject.feedId (set by focusShow),
@@ -321,8 +322,33 @@ describe('ShowRailPanel — episode rows, sort, graph', () => {
     await flushPromises()
 
     await w.get('[data-testid="show-rail-open-graph"]').trigger('click')
+    await flushPromises()
     expect(w.emitted('switch-main-tab')![0]).toEqual(['graph'])
     expect(spy).toHaveBeenCalledWith(['metadata/a1.kg.json'])
+  })
+
+  it('on the first Graph visit the baseline loads BEFORE the show is added, so it is not replaced', async () => {
+    // Appended first, the show's graphs were then replaced by the first-visit baseline load:
+    // one of a show's four episodes drawn among the 32 auto-loaded (viewer e2e audit 2026-10-05).
+    stubApi()
+    const artifacts = useArtifactsStore()
+    const order: string[] = []
+    vi.spyOn(artifacts, 'appendRelativeArtifacts').mockImplementation(async () => {
+      order.push('append-show')
+    })
+    const baseline = vi.fn(async () => {
+      order.push('baseline')
+    })
+    const w = mount(ShowRailPanel, {
+      global: { provide: { [corpusGraphBaselineLoaderKey as symbol]: baseline } },
+    })
+    await flushPromises()
+
+    await w.get('[data-testid="show-rail-open-graph"]').trigger('click')
+    await flushPromises()
+    expect(order).toEqual(['baseline', 'append-show'])
+    // ...and the pick is MANUAL, so a later corpus sync (lens auto-widen) cannot replace it.
+    expect(artifacts.manualGraphSelection).toBe(true)
   })
 
   /**

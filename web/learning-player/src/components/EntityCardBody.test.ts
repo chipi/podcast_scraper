@@ -8,6 +8,7 @@ import en from "../i18n/locales/en.json"
 import type { EpisodeSummary, PersonCard, TopicCard } from "../services/types"
 import { useAuthStore } from "../stores/auth"
 import EntityCardBody from "./EntityCardBody.vue"
+import PersonCardContent from "./PersonCardContent.vue"
 import StorylineCard from "./StorylineCard.vue"
 import ShareMenu from "./ShareMenu.vue"
 
@@ -97,6 +98,45 @@ beforeEach(() => {
   vi.spyOn(api, "getEntitySignals").mockResolvedValue({})
 })
 afterEach(() => vi.restoreAllMocks())
+
+describe("EntityCardBody — Back (operator 2026-10-04)", () => {
+  it("draws the back chevron, the same kind of icon as the close ✕, not the ‹ character", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    setActivePinia(createPinia())
+    // `inline` with no rootControl is a drill-down inside a panel: its control is Back.
+    const w = mount(EntityCardBody, {
+      props: { kind: "person", id: "person:jane-doe", variant: "inline" },
+      global: { plugins: [i18n, router] },
+    })
+    await flushPromises()
+    const dismiss = w.find('[data-testid="ec-dismiss"]')
+    expect(dismiss.attributes("aria-label")).toBe("Back")
+    expect(dismiss.find("svg").exists()).toBe(true)
+    expect(dismiss.text()).not.toContain("‹")
+  })
+
+  it("stepping back from a drilled-in entity returns to where the reader was on the first one", async () => {
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
+    vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
+    vi.spyOn(api, "getTopicPerspectives").mockResolvedValue({ perspectives: [] } as never)
+    const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    const body = w.find(".overflow-y-auto").element as HTMLElement
+    // jsdom lays nothing out; give the body room to scroll.
+    Object.defineProperty(body, "scrollHeight", { value: 3000, configurable: true })
+    body.scrollTop = 480 // down in the person's related topics
+
+    w.findComponent(PersonCardContent).vm.$emit("open", { kind: "topic", id: "topic:ai" })
+    await flushPromises()
+    expect(w.text()).toContain("AI")
+    expect(body.scrollTop, "the topic opened at the person's offset, not its own top").toBe(0)
+
+    await w.find('[data-testid="ec-dismiss"]').trigger("click")
+    await flushPromises()
+    expect(w.text()).toContain("Jane Doe")
+    expect(body.scrollTop).toBe(480)
+  })
+})
 
 describe("EntityCardBody — person web bio + photo credit (wave-G)", () => {
   it("renders the hosted photo and strips HTML from the image-artist credit", async () => {
@@ -489,40 +529,23 @@ describe("EntityCardBody — person bio (wave-G person_web)", () => {
 describe("EntityCardBody — shareable card (#2036)", () => {
   beforeEach(() => vi.spyOn(api, "getUserInterests").mockResolvedValue([]))
 
-  it("gives a topic card a signature quote from the leading voice's strongest take", async () => {
+  // The card itself is the SERVER's (operator 2026-10-05): the menu is told WHAT to share, never
+  // handed a card model to draw.
+  it("shares a topic as itself, by id and name", async () => {
     vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
-    vi.spyOn(api, "getTopicPerspectives").mockResolvedValue({
-      topic_id: "topic:ai",
-      topic_label: "AI",
-      perspective_count: 1,
-      perspectives: [
-        {
-          person_id: "person:jane",
-          person_name: "Jane",
-          insight_count: 1,
-          episode_count: 1,
-          insights: [{ text: "Alignment is the hard part." }],
-        },
-      ],
-    } as never)
     const w = mountAuthed({ kind: "topic", id: "topic:ai" })
     await flushPromises()
     const share = w.findComponent(ShareMenu)
-    expect(share.exists()).toBe(true)
-    // Topic accent (cyan) + the leading voice's take as the card's signature quote.
-    expect(share.props("model")).toMatchObject({
-      quote: "Alignment is the hard part.",
-      accent: "#8ad2e5",
-    })
+    expect(share.props()).toMatchObject({ kind: "topic", id: "topic:ai", targetKind: "topic" })
+    expect(share.props("title")).toBeTruthy()
+    expect(share.props("model" as never)).toBeUndefined()
   })
 
-  it("shares a person card with the person accent (gold) and no quote", async () => {
+  it("shares a person as a person", async () => {
     vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
     const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
-    const share = w.findComponent(ShareMenu)
-    expect(share.props("model").accent).toBe("#e0b354")
-    expect(share.props("model").quote ?? null).toBeNull()
+    expect(w.findComponent(ShareMenu).props()).toMatchObject({ kind: "person", id: "person:jane-doe" })
   })
 })
 

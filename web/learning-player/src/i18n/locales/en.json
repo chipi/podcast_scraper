@@ -179,9 +179,11 @@
     "type_topics": "Topics",
     "type_storylines": "Storylines",
     "type_themes": "Themes",
+    "type_shows": "Shows",
     "entitySummary": "Matched by name",
     "storylineSize": "1 topic | {count} topics",
     "storylinesSummary": "1 storyline matches | {count} storylines match",
+    "showsSummary": "1 show matches | {count} shows match",
     "notesSummary": "1 of your notes mentions this | {count} of your notes mention this",
     "typeEpisodes": "Episodes",
     "noResults": "No matches found.",
@@ -193,6 +195,7 @@
     "error": "Search is temporarily unavailable — try again in a moment.",
     "jumpTo": "Play from {time} in {episode}",
     "summary": "{passages} passages across {episodes} episodes",
+    "summaryFor": "{passages} passages across {episodes} episodes for “{term}”",
     "playHere": "Play from {time}",
     "viewEntity": "View",
     "matchCount": "1 match | {count} matches",
@@ -401,7 +404,7 @@
     },
     "showMore": "Show more",
     "showLess": "Show less",
-    "follow": "Follow show",
+    "follow": "Follow",
     "following": "Following",
     "followHint": "New episodes from shows you follow appear in Your Week",
     "about": "What this show’s about",
@@ -475,6 +478,7 @@
     "exportPdfShort": "PDF",
     "exportNotesMarkdown": "Download these episode notes as Markdown",
     "exportNotesPdf": "Print or save these episode notes as PDF",
+    "exportNotesOpen": "Open these episode notes to download or share them",
     "exportClose": "Close notes",
     "exportShare": "Print or share",
     "exportFailed": "Couldn't open the notes.",
@@ -563,10 +567,11 @@
   "share": {
     "open": "Share",
     "card": "Share card",
-    "link": "Share link",
-    "text": "Share text",
+    "link": "Copy link",
+    "text": "Copy text",
     "linkCopied": "Link copied",
-    "textCopied": "Copied",
+    "textCopied": "Text copied",
+    "cardFailed": "Couldn't make the card — try again",
     "kickerShow": "Show",
     "kickerTheme": "Theme",
     "kickerStoryline": "Storyline"
@@ -695,7 +700,7 @@
     "remove": "Delete collection",
     "moment": "Moment",
     "alreadyIn": "Added",
-    "addTo": "Add to collection",
+    "addTo": "Add to board",
     "pill": "Collection",
     "confirmDeleteTitle": "Delete this collection?",
     "confirmDeleteBody": "The collection and everything you put in it will be gone. The episodes and highlights themselves stay — only this board goes.",
@@ -739,8 +744,8 @@
     "removed": "Removed from highlights"
   },
   "fav": {
-    "add": "Save to favorites",
-    "remove": "Remove from favorites"
+    "add": "Save",
+    "remove": "Remove from Saved"
   },
   "deleteAccount": {
     "link": "Delete account…",
@@ -932,6 +937,9 @@
     "exportKicker": "Export",
     "exportMarkdownShort": "Markdown",
     "exportObsidianShort": "Obsidian",
+    "exportOpen": "Open your highlights to download or share them",
+    "exportOpenShort": "Download",
+    "exportFailed": "Couldn't open your highlights.",
     "exportPdf": "Print or save as PDF",
     "exportPdfShort": "PDF",
     "obsidianFull": "Exported {written} notes to a vault zip.",
@@ -1082,5 +1090,11 @@
     "cancel": "Cancel",
     "moreActions": "More actions",
     "retry": "Try again"
+  },
+  "export": {
+    "close": "Close",
+    "markdown": "Markdown",
+    "markdownLabel": "Download as Markdown",
+    "share": "Print or share"
   }
 }

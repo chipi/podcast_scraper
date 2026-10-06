@@ -151,7 +151,7 @@ def test_trending_section(tmp_path: Path) -> None:
     assert payload is not None
     trend = _sections(payload)["trending_in_your_corpus"]
     assert trend[0]["graph_refs"] == [{"id": "topic:ai", "kind": "topic", "label": "AI"}]
-    assert trend[0]["deep_link"] == "/topic/ai?scope=mine"
+    assert trend[0]["deep_link"] == "/topic/topic%3Aai"
 
 
 def test_full_envelope_matches_schema(tmp_path: Path) -> None:

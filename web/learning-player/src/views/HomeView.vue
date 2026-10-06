@@ -14,11 +14,10 @@ import {
   getDiscover,
   getEpisode,
   getPlaybackList,
-  getPodcasts,
   getRelated,
   recordDiscoverClick,
 } from "../services/api"
-import type { EpisodeDetail, EpisodeSummary, Podcast } from "../services/types"
+import type { EpisodeDetail, EpisodeSummary } from "../services/types"
 import { formatTime } from "../player/transcriptSync"
 import { formatDuration } from "../utils/format"
 import { formatPublishDate } from '../utils/format'
@@ -30,7 +29,6 @@ import { allPositions } from "../services/playbackPositions"
 import { localArtworkFor, localKnowledgeFor } from "../services/downloads"
 import { useDownloadsStore } from "../stores/downloads"
 import { anyStale, useSectionState } from "../composables/useSectionState"
-import { useTrendingScope } from "../composables/useTrendingScope"
 import StaleNotice from "../components/StaleNotice.vue"
 import { useUserPreferencesStore } from "../stores/userPreferences"
 import { useInterestsStore } from "../stores/interests"
@@ -44,10 +42,9 @@ import TrendsSection from "../components/TrendsSection.vue"
 import CollectionsTeaser from "../components/CollectionsTeaser.vue"
 import RevisitRail from "../components/RevisitRail.vue"
 import SectionHeading from "../components/SectionHeading.vue"
-import TrendingShowsRail from "../components/TrendingShowsRail.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
-import QueueButton from "../components/QueueButton.vue"
+import CardRail from "../components/CardRail.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import StorylineCard from "../components/StorylineCard.vue"
 import ThemeCard from "../components/ThemeCard.vue"
@@ -64,11 +61,6 @@ const interests = useInterestsStore()
 const completed = useCompletedStore()
 const { isPlayed } = usePlayed()
 
-// #2030 — the app-level trending lens (Corpus ⇄ My listening). Home owns the toggle; every
-// trending surface reads the same stored preference, so one choice governs the rails and the
-// topic/storyline card momentum badges. Auth-gated: signed out, it is forced to corpus.
-const { scope: trendingScope } = useTrendingScope()
-
 // USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
 // localStorage remains the fast-path fallback until the server responds.
 const INTERESTS_DISMISSED_PREF_KEY = "lp.interests.dismissed"
@@ -76,18 +68,10 @@ const INTERESTS_DISMISSED_PREF_KEY = "lp.interests.dismissed"
 const whatsNew = useSectionState<EpisodeSummary[]>([], { cacheKey: "home.whatsnew" })
 const latest = computed(() => whatsNew.data.value)
 /**
- * Following and Continue get the same contract as every other section (#1591, S7).
- *
- * These two were the last holdouts on `.catch(() => [])`, and they are the two most personal
- * sections on the page — so a library outage rendered "follow something to get started" to a user
- * who follows thirty shows, and a playback outage silently swapped the resume hero for the discover
- * hero. An outage that looks like a new account is the exact defect #1591 exists to kill; I fixed
- * it in the sections around these and not in these.
+ * Continue gets the same contract as every other section (#1591, S7): a playback outage must not
+ * silently swap the resume hero for the discover hero. An outage that looks like a new account is
+ * the exact defect #1591 exists to kill.
  */
-// Was `useSectionState<null>` with the catalogue assigned as a side effect, which put the one
-// thing worth caching outside the section that fetched it — so offline this rail had nothing to
-// hydrate from and rendered an error card over follows the library store already had (#1909).
-const followsSection = useSectionState<Podcast[]>([], { cacheKey: "home.catalogue" })
 const continueSection = useSectionState<{ detail: EpisodeDetail; position: number }[]>([], {
   cacheKey: "home.continue",
 })
@@ -232,8 +216,6 @@ function loadRecommended(): Promise<void> {
   return recSection.load(async () => (await getRelated(top.detail.slug, RECOMMENDED_FETCH)).items)
 }
 
-const catalogue = computed<Podcast[]>(() => followsSection.data.value)
-
 /**
  * Refresh everything the notice is speaking for.
  *
@@ -248,7 +230,7 @@ async function retryStale(): Promise<void> {
   retrying.value = true
   railKey.value += 1
   try {
-    await Promise.all([loadWhatsNew(), loadFollowedShows(), loadContinue()])
+    await Promise.all([loadWhatsNew(), loadContinue()])
     if (continueItems.value[0]) await loadRecommended()
   } finally {
     retrying.value = false
@@ -256,8 +238,7 @@ async function retryStale(): Promise<void> {
 }
 const resumeState = computed(() => auth.isAuthenticated && continueItems.value.length > 0)
 // "What's new": a featured #01 hero, then rows 02–05 as a numbered chart (operator 2026-09-14).
-// Five items, not six — the chart ends at 05 (operator 2026-09-17). The section now shares a
-// desktop row with Trending shows, and a top five is a rounder thing to end on than a top six.
+// Five items, not six — the chart ends at 05 (operator 2026-09-17).
 const wnFeatured = computed(() => latest.value[0] ?? null)
 /**
  * "Since <date>" for What's new — the publish date of the newest episode ALREADY on screen.
@@ -288,38 +269,6 @@ const resumeTop = computed(() => continueItems.value[0] ?? null)
 // episodes are all reachable (cap a handful for the rail).
 const jumpBackIn = computed(() => continueItems.value.slice(1, 8))
 const resumeArt = episodeArtwork
-/**
- * Resolve the user's followed shows into full `Podcast` records.
- *
- * The library API returns subscriptions (feed_id + title + added_at), not catalogue metadata, so
- * artwork and episode counts are joined from the public catalogue. A followed feed that isn't in
- * the corpus still renders — from its stored title — rather than vanishing.
- */
-async function loadFollowedShows(): Promise<void> {
-  // The catalogue loads for EVERYONE, not just signed-in users. It is public corpus metadata, and
-  // more than one surface joins against it — most importantly TrendingShowsRail, which resolves the
-  // artwork for trending shows the user does not follow. #1585 narrowed `shows` from "the whole
-  // catalogue" to "shows you follow" without re-auditing the rail still reading it, so every
-  // signed-out visitor, and every unfollowed show, silently lost its cover art to the generated
-  // gradient fallback. Nothing failed, because the fallback is a valid render.
-  await followsSection.load(async () => {
-    // Both halves must succeed for "you follow nothing" to be a truthful render: the catalogue
-    // supplies artwork, the library supplies the follows themselves.
-    const [cat] = await Promise.all([
-      getPodcasts(),
-      auth.isAuthenticated ? library.ensureLoaded() : Promise.resolve(),
-    ])
-    return cat
-  })
-}
-
-/**
- * Derived, not assigned, so following a show from the empty state moves it into the grid instantly
- * — the action completes where it was offered, with no reload and no navigation.
- *
- * A followed feed that has left the corpus still renders from its stored title rather than
- * silently vanishing.
- */
 const epArt = episodeArtwork
 
 onMounted(async () => {
@@ -340,11 +289,8 @@ onMounted(async () => {
   // Completed set drives the Continue filter (PL.6); fire-and-forget so it doesn't gate first paint.
   if (auth.isAuthenticated) void completed.ensureLoaded()
   await loadWhatsNew()
-  // "Your shows" means the shows you follow. UXS-014:102 decided this ("we don't show the whole
-  // corpus as 'your shows'") and gated it on subscriptions being user-curated — which they now are,
-  // since follow-show shipped. The corpus catalogue lives in Browse. Artwork/titles still come from
-  // the public catalogue, since the library rows carry only feed_id + title (#1585).
-  void loadFollowedShows()
+  // Follow / favourite state on the tiles reads the library store.
+  if (auth.isAuthenticated) void library.ensureLoaded()
 })
 
 // Continue-listening + its recommendations are VOLATILE — they change the moment you play something.
@@ -582,36 +528,17 @@ async function loadContinue(): Promise<void> {
         :title="t('home.jumpBackIn')"
         :kicker="t('home.jumpBackInCount', jumpBackIn.length, { named: { count: jumpBackIn.length } })"
       />
-      <ul class="flex gap-3 overflow-x-auto pb-1">
-        <li v-for="it in jumpBackIn" :key="it.detail.slug" class="w-40 shrink-0">
-          <RouterLink
-            :to="{ name: 'player', params: { slug: it.detail.slug } }"
-            class="block no-underline text-canvas-foreground"
-          >
-            <img
-              v-if="resumeArt(it.detail)"
-              :src="resumeArt(it.detail)!"
-              alt=""
-              loading="lazy"
-              class="aspect-square w-full rounded-xl bg-elevated object-cover"
-            />
-            <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
-            <div class="mt-2 h-1 rounded bg-overlay">
-              <div
-                class="h-1 rounded bg-accent"
-                :style="{
-                  width:
-                    Math.min(100, (it.position / (it.detail.duration_seconds || 1)) * 100) + '%',
-                }"
-              />
-            </div>
-            <div class="mt-1 line-clamp-2 text-sm font-bold leading-tight">
-              {{ it.detail.title }}
-            </div>
-            <div class="lp-kicker lp-show-name mt-0.5" :title="it.detail.podcast_title ?? undefined">{{ it.detail.podcast_title }}</div>
-          </RouterLink>
+      <!-- The standard rail and the standard episode tile (operator 2026-10-05: every rail looks the
+           same on every page). This was the one episode rail that hand-rolled its tile — square art,
+           2-line title, show name UNDER the title, no actions — and drifted from every other rail. -->
+      <CardRail>
+        <li v-for="it in jumpBackIn" :key="it.detail.slug" class="lp-rail-item">
+          <EpisodeTile
+            :episode="it.detail"
+            :progress="it.position / (it.detail.duration_seconds || 1)"
+          />
         </li>
-      </ul>
+      </CardRail>
     </section>
 
     <!-- Your Week — the personal digest LEADS the content, right under Continue / Jump-back-in
@@ -647,10 +574,9 @@ async function loadContinue(): Promise<void> {
          nothing to look back on. -->
     <RecapPrompt />
 
-    <!-- What's new and Trending shows SHARE a desktop row, half each (operator 2026-09-17). Both are
-         narrow-by-nature lists — a ranked chart and a stack of show bands — that were each stretched
-         across the full column, so the page became a single tall stack of half-empty rows. On a phone
-         they go back to one over the other, unchanged.
+    <!-- What's new keeps HALF the desktop row (operator 2026-09-17): a ranked chart stretched across
+         the full column read as a half-empty row. It shared the row with Trending shows until that
+         left Home (2026-10-05); the half width stays because the chart is still narrow by nature.
 
          `items-start` so the shorter of the two does not stretch to match the taller. -->
     <div class="lg:flex lg:items-start lg:gap-6">
@@ -684,6 +610,8 @@ async function loadContinue(): Promise<void> {
            sibling of the link, not nested in the <a>. The featured card is wide (max-w-3xl) so the
            four icons fit without wrapping. -->
           <EpisodeActions :slug="wnFeatured.slug" overlay class="absolute right-3 top-3 z-30" />
+          <!-- Tapping the card OPENS the episode, paused, like every episode card. Only Resume starts
+               playback (operator 2026-10-05). -->
           <RouterLink
             :to="{ name: 'player', params: { slug: wnFeatured.slug } }"
             class="relative block overflow-hidden rounded-2xl border border-border no-underline text-canvas-foreground"
@@ -720,17 +648,15 @@ async function loadContinue(): Promise<void> {
           </RouterLink>
         </div>
 
-        <!-- Ranked rows 02–06 (operator 2026-09-14): the numbered chart look restored, same capped
-             column as the featured card so they line up. The per-row EpisodeActions cluster that
-             crushed the title into one-word-per-line on a phone is DROPPED — the "package it" trade
-             (favourite/queue/download/collect live on the player and the #01 hero, not on every row).
-             The wrapping <li> keeps the discover-position telemetry (fires only for the episode's
-             own links, not a stray bubbled click). -->
+        <!-- Ranked rows 02–06 (operator 2026-09-14): the numbered chart look, same capped column as
+             the featured card so they line up. Each row carries the #01 card's actions, stacked in a
+             column (operator 2026-10-05) — the side-by-side cluster is what once crushed the title.
+             Tapping a row opens it. The wrapping <li> keeps the discover-position telemetry. -->
         <ul class="mt-2 max-w-3xl">
           <li
             v-for="(ep, i) in wnRows"
             :key="ep.slug"
-            class="flex items-center gap-1"
+            class="flex items-center gap-1 border-b border-border py-3 last:border-b-0"
             @click="onWnRowClick($event, ep.slug, i + 1)"
           >
             <RouterLink
@@ -754,39 +680,21 @@ async function loadContinue(): Promise<void> {
                 <span class="block font-bold leading-tight">{{ ep.title }}</span>
                 <span class="lp-kicker lp-show-name mt-0.5" :title="ep.podcast_title ?? undefined">{{ ep.podcast_title }}</span>
               </span>
-              <span
-                class="shrink-0 text-muted transition group-hover:text-accent"
-                aria-hidden="true"
-                >▶</span
-              >
             </RouterLink>
-            <!-- Queue sits OUTSIDE the link — never an interactive inside an interactive (the same
-                 rule EpisodeRow's `#trailing` slot follows). It is the one action worth carrying on
-                 a row you are only scanning, because it is the only one you would take WITHOUT
-                 opening the episode, which is what a "what's new" list is for. The rest (favourite /
-                 download / collect) still live on the player and the #01 hero, where you have
-                 already committed to the episode — so this narrows the earlier "no actions on every
-                 row" decision rather than undoing it (operator 2026-09-16). -->
-            <QueueButton :slug="ep.slug" class="shrink-0" />
+            <!-- The row's actions, STACKED in one column on the right (operator 2026-10-05): heart,
+                 queue, ⋯ — the #01 card's set, so every position acts alike. The row opens the episode
+                 (paused, like every card — only Resume plays). Outside the link — never an interactive inside an
+                 interactive. A vertical stack costs height, not width, so the title keeps the row's
+                 width; side by side, a cluster like this once crushed it to one word per line. -->
+            <EpisodeActions :slug="ep.slug" class="shrink-0 flex-col" />
           </li>
         </ul>
       </template>
       </section>
 
-      <!-- Trending shows (RFC-103 §show): cover-art bands with the cadence sparkline woven over the
-           art; each links to the show page. Artwork is joined from the loaded podcasts list by
-           feed_id.
-
-           The CATALOGUE, not `shows`: this rail shows what is trending across the corpus, which is
-           mostly shows the user does not follow. `shows` would resolve almost none of their art. -->
-      <div class="min-w-0 lg:w-1/2">
-        <TrendingShowsRail
-          :key="railKey"
-          :title="t('home.trendingShows')"
-          :podcasts="catalogue"
-          :scope="trendingScope"
-        />
-      </div>
+      <!-- Trending shows is NOT on Home (operator 2026-10-05): it lives on Discover, as the same
+           tile rail as every other. Home's version was a different shape — full-width cover bands with
+           a sparkline — for a section with the same name. -->
     </div>
 
     <!-- Discover entry points (operator 2026-09-14): a compact one-line strip — a "Discover" lead-in

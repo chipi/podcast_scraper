@@ -108,6 +108,9 @@ export default defineConfig({
         // (CI log: /home/runner/.cache/huggingface/hub). Exactly the learning-player e2e pattern.
         HF_HOME: process.env.HF_HOME || `${process.env.HOME}/.cache/huggingface`,
         HF_HUB_CACHE: process.env.HF_HUB_CACHE || `${process.env.HOME}/.cache/huggingface/hub`,
+        // Never the dev observability config (`.env.obs.dev`): a test server must not read
+        // production telemetry or report into the homelab (operator, 2026-10-06).
+        PODCAST_DEV_OBS_ENV: '0',
         APP_OAUTH_PROVIDER: 'mock',
         APP_SESSION_SECRET: 'e2e-secret',
         APP_SIGNUP_MODE: 'open',

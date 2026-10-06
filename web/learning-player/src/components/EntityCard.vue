@@ -38,7 +38,7 @@
  */
 import { onUnmounted, ref } from "vue"
 import EntityCardBody from "./EntityCardBody.vue"
-import { useModalSheet } from "../composables/useModalSheet"
+import { useModalSheet, type SheetHistoryKey } from "../composables/useModalSheet"
 import { registerStackedSheet, sheetTeleportTarget } from "../composables/sheetStack"
 
 const props = withDefaults(
@@ -54,7 +54,7 @@ const props = withDefaults(
      * already layers over an entity sheet and uses `storyline` for precisely this reason; a second
      * ENTITY sheet needs its own key too (2026-09-16).
      */
-    historyKey?: string
+    historyKey?: SheetHistoryKey
     /**
      * How many sheets this one is stacked ON TOP of. 0 = the bottom card.
      *

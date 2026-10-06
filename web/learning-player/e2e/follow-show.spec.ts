@@ -63,7 +63,7 @@ test('following a show from the show page lands in the library and surfaces Your
 
   await follow.click()
   await expect(follow).toHaveAttribute('aria-pressed', 'true')
-  await expect(follow).toContainText('Following')
+  await expect(follow).toHaveText('Following')
 
   // The server took it — not just an optimistic flip.
   await expect
@@ -93,10 +93,10 @@ test('clicking Following unfollows the show', async ({ page }, testInfo) => {
   await page.goto(`/podcast/${encodeURIComponent(feedId)}`)
   const follow = page.getByTestId('follow-show')
   await follow.click()
-  await expect(follow).toContainText('Following')
+  await expect(follow).toHaveText('Following')
 
   await follow.click()
-  await expect(follow).toContainText('Follow show')
+  await expect(follow).toHaveText('Follow')
   await expect
     .poll(async () => {
       const lib = await page.request.get('/api/app/library')

@@ -132,6 +132,19 @@ def _feed_description(doc: dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _episode_description(doc: dict[str, Any]) -> Optional[str]:
+    """The episode's own description from its feed item (already HTML-stripped at ingest), or None.
+
+    Distinct from ``summary_*``: this is the publisher's blurb; the summary is ours. The emails
+    show both, the summary labelled as such (operator 2026-10-05)."""
+    ep = doc.get("episode")
+    if isinstance(ep, dict):
+        d = ep.get("description")
+        if isinstance(d, str) and d.strip():
+            return d.strip()
+    return None
+
+
 def _feed_category(doc: dict[str, Any]) -> Optional[str]:
     """The podcast category from the metadata feed block (BS.1), or None."""
     feed = doc.get("feed")
@@ -327,6 +340,7 @@ class CatalogEpisodeRow:
     episode_image_local_relpath: Optional[str] = None
     feed_rss_url: Optional[str] = None
     feed_description: Optional[str] = None
+    episode_description: Optional[str] = None
     feed_category: Optional[str] = None
     feed_authors: tuple[str, ...] = ()
     feed_language: Optional[str] = None
@@ -445,6 +459,7 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 episode_image_local_relpath=e_loc,
                 feed_rss_url=feed_url,
                 feed_description=feed_desc,
+                episode_description=_episode_description(doc),
                 feed_category=feed_cat,
                 feed_authors=feed_authors,
                 feed_language=feed_lang,
@@ -551,6 +566,7 @@ def build_catalog_rows_cumulative(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 episode_image_local_relpath=e_loc,
                 feed_rss_url=feed_url,
                 feed_description=feed_desc,
+                episode_description=_episode_description(doc),
                 feed_category=feed_cat,
                 feed_authors=feed_authors,
                 feed_language=feed_lang,
@@ -663,6 +679,7 @@ def catalog_row_for_metadata_path(
         episode_image_local_relpath=e_loc,
         feed_rss_url=feed_url,
         feed_description=feed_desc,
+        episode_description=_episode_description(doc),
         feed_category=feed_cat,
         feed_authors=feed_authors,
         feed_language=feed_lang,

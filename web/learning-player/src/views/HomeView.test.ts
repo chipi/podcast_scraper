@@ -184,6 +184,48 @@ describe('HomeView (discover state, signed out)', () => {
     expect(w.find('img[src="https://x/row.png"]').exists()).toBe(true)
   })
 
+  it("What's new: every position carries ♡ queue ⋯ — #01 in a row, 02+ stacked (operator 2026-10-05)", async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep'), ep('a-3', 'Third Ep')],
+      page: 1, page_size: 8, total: 3, has_more: false,
+    })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+
+    const w = mountKeptAlive()
+    await flushPromises()
+    const rows = w.findAll('[data-testid="episode-actions"]')
+    expect(rows).toHaveLength(3) // #01 + two ranked rows
+    // Each control by its test id, or its accessible name where it has none (the queue toggle).
+    for (const r of rows) {
+      const got = r.findAll('button').map((b) => b.attributes('data-testid') ?? b.attributes('aria-label'))
+      expect(got).toHaveLength(3)
+      expect(got[0]).toBe('favorite-button')
+      expect(got[1]).toMatch(/queue/i)
+      expect(got[2]).toBe('overflow-trigger')
+    }
+    expect(rows[0].classes()).not.toContain('flex-col') // the #01 card: one row, top right
+    expect(rows[1].classes()).toContain('flex-col') // 02+: one column, top to bottom
+    expect(rows[2].classes()).toContain('flex-col')
+  })
+
+  it("What's new: the card and rows OPEN the episode — only Resume plays (operator 2026-10-05)", async () => {
+    vi.spyOn(api, 'getDiscover').mockResolvedValue({
+      items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep')], page: 1, page_size: 8, total: 2, has_more: false,
+    })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+
+    const w = mountKeptAlive()
+    await flushPromises()
+    const hrefs = w.findAll('a').map((a) => a.attributes('href') ?? '')
+    expect(hrefs).toContain('/episode/a-1') // the #01 card
+    expect(hrefs).toContain('/episode/a-2') // a ranked row
+    expect(hrefs.some((h) => h.includes('play=1'))).toBe(false)
+    // No separate ▶, inside the link or out.
+    expect(w.findAll('a[href^="/episode/"] [aria-hidden="true"]').some((s) => s.text() === '▶')).toBe(false)
+  })
+
   it('folds Rising/Trending/Storylines into one tabbed area, Rising default (#4)', async () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({
       items: [ep('a-1', 'First Ep')], page: 1, page_size: 8, total: 1, has_more: false,
@@ -375,63 +417,25 @@ describe('HomeView interests card (3.5)', () => {
     expect(nav.text()).toContain('Discover')
   })
 
-  it('resolves trending-show artwork from the catalogue, not from your follows (#1585 regression)', async () => {
+  it('carries no Trending shows section — it lives on Discover (operator 2026-10-05)', async () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({
       items: [], page: 1, page_size: 8, total: 0, has_more: false,
     })
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
-    // #1585 repurposed `shows` from "the whole catalogue" to "shows you follow" and left the
-    // trending rail reading it. Trending shows are mostly ones you DON'T follow, so their artwork
-    // silently fell back to a generated gradient — a valid render, so no test noticed.
-    vi.spyOn(api, 'getPodcasts').mockResolvedValue([
-      { feed_id: 'p01', title: 'Acquired', artwork_url: 'https://x/art.png', image_url: null, description: null, episode_count: 3 },
-    ])
-    // The rail joins artwork by entity_id → feed_id against the catalogue it is handed.
-    vi.spyOn(api, 'getTrending').mockResolvedValue([
-      {
-        entity_id: 'p01',
-        kind: 'show',
-        label: 'Acquired',
-        velocity: 2,
-        volume: 5,
-        heating_up: true,
-        total: 5,
-        series: [1, 2, 3],
-      },
-    ])
-
+    const trending = vi.spyOn(api, 'getTrending')
+    const catalogue = vi.spyOn(api, 'getPodcasts')
     const w = mountKeptAlive()
     await flushPromises()
-
-    // Signed out, with zero follows: the art must still resolve.
-    expect(w.html()).toContain('https://x/art.png')
+    expect(w.find('[data-testid="trending-shows-rail"]').exists()).toBe(false)
+    // The catalogue fetch existed only to give that rail its artwork.
+    expect(catalogue).not.toHaveBeenCalled()
+    expect(trending.mock.calls.some((c) => c[0] === 'show')).toBe(false)
   })
 
   // --- an outage must not look like a new account (#1591, S7) ---
   //
-  // These were the last two sections on `.catch(() => [])`, and the two most personal on the page.
-  // #1591 fixed the sections around them and missed these.
-
-  it('a library outage says so instead of claiming you follow nothing', async () => {
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({
-      items: [], page: 1, page_size: 8, total: 0, has_more: false,
-    })
-    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
-    // The library itself succeeds and is EMPTY — so the only thing standing between the user and
-    // the "follow something" prompt is the catalogue fetch. Without this the test passes on an
-    // unmocked getLibrary rejecting, which is not the failure being described.
-    vi.spyOn(api, 'getLibrary').mockResolvedValue([])
-    vi.spyOn(api, 'getPodcasts').mockRejectedValue(new Error('502'))
-    signIn()
-
-    const w = mountKeptAlive()
-    await flushPromises()
-
-    // The "follow something to get started" prompt would be a lie to someone with 30 follows.
-    expect(w.text()).not.toContain('Follow a show')
-    expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
-    expect(w.find('[data-testid="section-retry"]').exists()).toBe(true)
-  })
+  // Continue was one of the last sections on `.catch(() => [])` (#1591). Its twin, the follows
+  // catalogue, left Home with Trending shows (2026-10-05).
 
   it('a playback outage does not silently swap the resume hero for the discover hero', async () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({
@@ -525,8 +529,7 @@ describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () =
     // here against clamped there. One component now owns the shape (operator 2026-09-17), so this
     // asserts the delegation rather than re-pinning a second copy's classes.
     expect(homeViewSource).toMatch(/<EpisodeTile\s+:episode="ep"/)
-    // Scoped to the Recommended section: "Jump back in" is a rail of its own shape (fixed-width
-    // slots, a progress bar) and legitimately builds its own artwork block.
+    // Scoped to the Recommended section, which is a GRID; the rails are asserted below.
     // Anchored to the HEADING, not to the bare key — `cacheKey: "home.recommended"` sits up in the
     // script block, so starting there swept in every rail between it and the template.
     // Either quote style: the heading moved into `<SectionHeading :title="t('home.recommended')" />`,
@@ -542,6 +545,19 @@ describe('cards align by the tile, not by cutting text (#2004 items 3/3b)', () =
     expect(recommendedAnchor, 'the Recommended heading anchor vanished').toBeGreaterThan(-1)
     expect(recommendedSection.length, 'could not isolate the Recommended section').toBeGreaterThan(0)
     expect(recommendedSection, 'the grid rebuilt its own tile again').not.toMatch(/aspect-square/)
+  })
+
+  it('Jump back in is the standard rail of the standard tile (operator 2026-10-05)', () => {
+    // It hand-rolled its own tile — 2-line title, show name UNDER the title, no actions — and was
+    // the one episode rail that looked different from every other.
+    const jump = homeViewSource.slice(
+      homeViewSource.indexOf("t('home.jumpBackIn')"),
+      homeViewSource.indexOf('</section>', homeViewSource.indexOf("t('home.jumpBackIn')")),
+    )
+    expect(jump).toMatch(/<CardRail>/)
+    expect(jump).toMatch(/class="lp-rail-item"/)
+    expect(jump).toMatch(/<EpisodeTile[\s\S]*:progress=/)
+    expect(jump, 'Jump back in rebuilt its own tile').not.toMatch(/aspect-square/)
   })
 
   it('keeps the grid even — the cell-filling requirement moved to the tile, it did not lapse', () => {

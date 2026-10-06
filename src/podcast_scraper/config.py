@@ -148,6 +148,30 @@ def _diarize_lax_env_enabled() -> bool:
 # ONLY to gate .env loading — NOT for any kind of default-flipping.
 from .utils.runtime_env import is_pytest_run as _is_pytest_run  # noqa: E402
 
+
+def _load_dev_obs_env() -> bool:
+    """Load the gitignored ``.env.obs.dev`` (homelab push URLs, GlitchTip/Langfuse/OTEL) if present.
+
+    Makes a bare ``python -m ...cli`` dev run ship its signals without a make target or a manual
+    ``source``; the prod image has no such file, so it no-ops there. ``override=False`` so an
+    explicit shell env still wins. ``PODCAST_DEV_OBS_ENV=0`` turns it off: test servers run from a
+    checkout that has the file, and must never read production telemetry or report into the
+    homelab (operator, 2026-10-06). Returns whether the file was loaded.
+    """
+    if os.environ.get("PODCAST_DEV_OBS_ENV", "").strip() == "0":
+        return False
+    try:
+        from .cache import get_project_root as _gpr
+
+        obs_env_path = _gpr() / ".env.obs.dev"
+        if obs_env_path.exists():
+            load_dotenv(obs_env_path, override=False)
+            return True
+    except Exception:  # pragma: no cover - dev convenience only, never fail config import
+        pass
+    return False
+
+
 # Skip .env loading under pytest — tests must be hermetic to shell secrets.
 # Tests should use Config objects with explicit values or pin via the
 # test_default profile.
@@ -183,18 +207,7 @@ if not _is_pytest_run():
             # If loading fails, continue without .env file
             pass
 
-    # Dev observability: also load `.env.obs.dev` if present (gitignored; homelab push URLs +
-    # GlitchTip/Langfuse/OTEL). Makes a bare `python -m ...cli` dev run ship the five signals to
-    # VictoriaLogs/Metrics/Traces without a make target or a manual `source` — the prod Docker image
-    # has no such file, so this no-ops there. override=False so an explicit shell env still wins.
-    try:
-        from .cache import get_project_root as _gpr
-
-        _obs_env_path = _gpr() / ".env.obs.dev"
-        if _obs_env_path.exists():
-            load_dotenv(_obs_env_path, override=False)
-    except Exception:  # pragma: no cover - dev convenience only, never fail config import
-        pass
+    _load_dev_obs_env()  # dev observability env; see the function for the test-server switch
 
 # Import constants from config_constants.py to avoid duplication
 # These are re-exported here for backward compatibility

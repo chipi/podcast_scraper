@@ -86,6 +86,8 @@ import {
 const emit = defineEmits<{
   close: []
   "go-graph": []
+  /** Off the Graph tab: open the Graph with this node focused (UXS-007 "View in graph"). */
+  "view-in-graph": [string]
   "prefill-semantic-search": [{ query: string }]
   "open-search-topic-filter": [{ topic: string }]
   "open-search-speaker-filter": [{ speaker: string }]
@@ -100,6 +102,8 @@ const props = defineProps<{
   embedInRail?: boolean
   /** bridge.json (optional) for cross-layer diagnostics. */
   bridgeDocument?: BridgeDocument | null
+  /** Offer "View in graph" on a topic — only meaningful when the Graph tab is not showing. */
+  showViewInGraph?: boolean
 }>()
 
 const shell = useShellStore()
@@ -1965,6 +1969,15 @@ const graphConnectionsCenterInView = computed((): boolean => {
               @click="emitTopicExploreFilter"
             >
               Set Search topic filter
+            </button>
+            <button
+              v-if="showViewInGraph && nodeId?.trim()"
+              type="button"
+              class="min-w-0 flex-1 rounded border border-border px-2 py-1.5 text-center text-xs font-medium leading-snug text-surface-foreground hover:bg-overlay"
+              data-testid="node-detail-topic-view-in-graph"
+              @click="emit('view-in-graph', nodeId!.trim())"
+            >
+              View in graph
             </button>
             <HelpTip
               class="shrink-0 self-center"

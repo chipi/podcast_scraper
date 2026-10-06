@@ -135,7 +135,7 @@ final class ScreenshotTourTests: UITestCase {
       sleep(3); frame("t17-share-popover")
       _ = Journey.tap(app, labels: ["Close", "Cancel"], contains: true, timeout: 4)
     }
-    if Journey.tap(app, labels: ["Add to collection", "Add"], contains: true, timeout: 10) {
+    if Journey.tap(app, labels: ["Add to board", "Add"], contains: true, timeout: 10) {
       sleep(3); frame("t18-add-to-collection")
       _ = Journey.tap(app, labels: ["Close", "Cancel"], contains: true, timeout: 4)
     }

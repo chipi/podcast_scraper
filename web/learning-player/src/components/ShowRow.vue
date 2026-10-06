@@ -28,7 +28,16 @@ import type { Podcast } from '../services/types'
 import { showArtwork } from '../utils/episode'
 import { formatPublishDate } from '../utils/format'
 
-const props = defineProps<{ show: Podcast }>()
+const props = defineProps<{
+  show: Podcast
+  /**
+   * Put the `#actions` controls in a row UNDER the artwork, where {@link EpisodeCard} puts its own,
+   * instead of over it. For surfaces that list shows and episodes together (Library › Saved): one
+   * page, one place for controls (operator 2026-10-05). The overlay stays the default where a show
+   * list stands alone and carries a labelled Follow, which does not fit beside a heart at 128px.
+   */
+  actionsBelow?: boolean
+}>()
 const { t, locale } = useI18n()
 
 const art = computed(() => showArtwork(props.show))
@@ -91,7 +100,7 @@ const canExpand = computed(() => !!description.value && (descClipped.value || de
              happens to be underneath. `z-30` keeps them above the title's stretched card-link
              overlay; `.prevent.stop` so acting never also opens the show. -->
         <div
-          v-if="$slots.actions"
+          v-if="$slots.actions && !actionsBelow"
           class="absolute right-1.5 top-1.5 z-30 flex flex-col items-end gap-1.5 [&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:shadow-lg [&>button]:backdrop-blur-sm"
           @click.prevent.stop
         >
@@ -107,6 +116,18 @@ const canExpand = computed(() => !!description.value && (descClipped.value || de
         </div>
         <div v-if="updated">{{ t('podcast.updated', { date: updated }) }}</div>
       </div>
+      <!-- The controls UNDER the artwork (`actionsBelow`): the episode card's row — same width as
+           the artwork, same gap, unplated — so a show and an episode on one page act alike.
+           `relative z-30` keeps them above the title's stretched link; `.prevent.stop` so acting
+           never also opens the show. -->
+      <div
+        v-if="$slots.actions && actionsBelow"
+        class="relative z-30 flex w-32 flex-wrap items-center gap-[12px]"
+        data-testid="show-row-actions"
+        @click.prevent.stop
+      >
+        <slot name="actions" />
+      </div>
       <!-- Surface-specific INFORMATION under the artwork (Discover's trending sparkline), kept apart
            from `#actions` so a readout never lands in the overlay's control column. -->
       <div v-if="$slots.meta" class="relative z-30">
@@ -117,12 +138,20 @@ const canExpand = computed(() => !!description.value && (descClipped.value || de
     <div class="lp-media-body">
       <!-- The name WRAPS (UXS-014:70) — the width is elastic here, so there is no reserved-height
            row for a clamp to protect. The stretched ::after makes the whole row open the show. -->
-      <RouterLink
-        :to="{ name: 'podcast', params: { feedId: show.feed_id } }"
-        class="lp-show-name lp-show-name--3 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline after:absolute after:inset-0 sm:text-xl"
-        :title="title"
-        >{{ title }}</RouterLink
-      >
+      <!-- `#menu`: a ⋯ to the RIGHT of the name, where Search's episode cards put theirs (operator
+           2026-10-05), so shows and episodes on one page carry their actions in the same place.
+           `relative z-30` keeps it above the name's stretched link. -->
+      <div class="flex items-start gap-2">
+        <RouterLink
+          :to="{ name: 'podcast', params: { feedId: show.feed_id } }"
+          class="lp-show-name lp-show-name--3 min-w-0 flex-1 font-display text-lg font-bold leading-snug text-canvas-foreground no-underline after:absolute after:inset-0 sm:text-xl"
+          :title="title"
+          >{{ title }}</RouterLink
+        >
+        <div v-if="$slots.menu" class="relative z-30 shrink-0" data-testid="show-row-menu">
+          <slot name="menu" />
+        </div>
+      </div>
       <!-- Who makes it and what it is filed under, between the title and the description: it belongs
            to the show's identity, so it reads above the blurb it introduces rather than below it
            (operator 2026-09-17). Joined, so separators fall only between values actually PRESENT —

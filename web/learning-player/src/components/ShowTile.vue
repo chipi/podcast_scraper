@@ -24,7 +24,6 @@ import { useSignInGate } from '../composables/useSignInGate'
 const props = withDefaults(
   defineProps<{
     show: Podcast
-    /** Lines the label box reserves. 2 suits the grid; 1 suits a dense rail. */
     /**
      * Render a follow toggle over the artwork. Used where following IS the point of showing the
      * tile — e.g. the empty "Your shows" state, where the user must be able to complete the action
@@ -136,20 +135,18 @@ const art = (): string | null => showArtwork(props.show)
       />
     </div>
     <!--
-      The NAME IS NOT CLIPPED (#2004 items 3/3c).
+      THREE LINES, RESERVED (`lp-tile-title`, operator 2026-10-05) — the one title rule every tile
+      shares, episodes and shows alike.
 
-      This clamped at two lines with a reserved `min-h`, so any show whose name runs longer lost the
-      end of it — visible across Browse → Shows, both Home rails and Library, since they all render
-      this tile. The clamp was there to keep grid rows even (#1584), which is a real requirement:
-      a one-line name beside a two-line one leaves the row ragged.
-
-      Rows are now even because the TILE is even, not because the text is cut. The tile is a flex
-      column that fills its grid cell (`h-full`), the artwork is fixed, and the name takes the
-      remaining space and wraps as far as it needs. Alignment is paid for by the layout instead of
-      by the content.
+      History: #2004 un-clipped names (two lines with a reserved `min-h` cut long names) and let the
+      tile stretch instead. That kept GRIDS even, but in a horizontal rail a stretched row is as tall
+      as its longest name, so one long show name — even on a tile scrolled out of view — opened a
+      gap under every other tile. Three reserved lines is the trade the operator chose: almost no
+      real name is cut, every row is the same height, and the full name is in the tooltip and on
+      the show page.
     -->
-    <div class="mt-1 flex-1 text-xs font-bold leading-tight">
-      <span class="lp-show-name lp-show-name--4" :title="show.title ?? show.feed_id">{{
+    <div class="mt-1 flex-1 text-xs font-bold">
+      <span class="lp-tile-title" :title="show.title ?? show.feed_id">{{
         show.title ?? show.feed_id
       }}</span>
     </div>

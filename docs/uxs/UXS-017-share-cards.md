@@ -8,10 +8,15 @@
 Design record for the shareable "collectible" card. Captures the aesthetic decision, the one that
 was rejected and *why*, the exact tokens, the layout, and what is built versus left.
 
-**Two renderers must stay in step.** `entityShareCard.ts` draws the client canvas card;
-`src/podcast_scraper/server/og/card.py` is a Pillow port of the same design, used for `og:image`
-so a shared link unfurls. They are kept in lock-step **by eye** — nothing tests one against the
-other, so a change here means changing both.
+**One renderer: the server's.** `src/podcast_scraper/server/og/card.py` draws every card, for the
+Share menu's **Share card** and for the `og:image` a shared link unfurls as (operator 2026-10-05).
+There used to be a second, client-side canvas card (`entityShareCard.ts`) kept in step "by eye"; it
+was not — the server card got artwork, topics and per-kind layouts while the button kept sharing a
+black page with a title — so it was deleted, and `__checks__/share-card-single-source.test.ts` keeps
+a second card from growing back. The **highlight quote card** moved to the same renderer the same
+day: `build_highlight_card`, served signed-in at `/api/app/highlights/{id}/card.png` (a highlight is
+private — never an unfurl) — the quote as the hero (up to 7 lines), `— speaker · at 1:05`, the
+episode as a title of up to three lines, its topic/person refs, the episode art full-bleed under a darker veil.
 
 ## Use case
 
@@ -69,19 +74,24 @@ Generous negative space is deliberate — the empty middle is the "editorial" re
 
 ## Mechanism
 
-- **Render:** client `<canvas>` (`composables/entityShareCard.ts`), generalized from the highlight
-  card (`useShareCard`). **No new dependency.** The literal hexes live in the `.ts` (canvas needs
-  literals; the no-hex-in-components guard only scans `.vue`, and the component omits accent so the
-  engine's `DEFAULT_ACCENT` — a token mirror — applies).
+- **Render:** the server (`server/og/card.py`, Pillow, bundled fonts). The app fetches
+  `/og/{kind}/{id}.png` (`fetchShareCard`) and shares the PNG (`composables/shareCard`): the native
+  share sheet as a file on the phones, the browser's file share or a download on the web. Needs the
+  network — no card offline, and the menu says so when it cannot make one.
 - **Bridge-only:** the card carries transcript-derived text + KG metadata only, never audio.
 - **Share menu** (`components/ShareMenu.vue`): one affordance → **Share card** (PNG via Web Share →
-  download), **Share link** (URL via Web Share → clipboard), **Share text** (caption fallback).
+  download), **Copy link** (the public URL, to the clipboard) and **Copy text** (name — what it is,
+  then the link, to the clipboard) — see UXS-014 for the 2026-10-05 change.
 
 ## Built (`feat/player-improvements`)
 
-- **Client engine + Share menu** (`composables/entityShareCard.ts`, `components/ShareMenu.vue`);
-  wired on the **entity card** (topic / person / org), the **episode** (PlayerView), the **show**
-  (PodcastView) and the **storyline** (StorylineView) — a card model per surface.
+- **Share menu** (`components/ShareMenu.vue`) wired on the **entity card** (topic / person / org),
+  the **episode** (PlayerView), the **show** (PodcastView), the **storyline** (StorylineView) and the
+  **theme** (ThemeView) — each passes only `kind` + `id` + its name.
+- **Theme card** (2026-10-05): member topics, "Topics that mean the same thing", N topics · N
+  episodes, the 12-month trend when rising, periwinkle accent; `/theme/:id` unfurls as it.
+- **Groupings without a trend** (topic / storyline / theme): the middle shows the artwork of the
+  shows that discuss them (up to four), where it used to be empty.
 - **Per-kind accent** (`accentForKind`): topic cyan, person gold, every other kind the brand cyan
   (holds "few colours"). Token→hex in the `.ts` so no literal hex lands in a `.vue`.
 - **Signature quote on the topic entity card:** the leading voice's strongest take

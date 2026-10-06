@@ -15,7 +15,9 @@ import { RouterLink } from "vue-router"
 import { getKeyVoices } from "../services/api"
 import type { KeyVoice } from "../services/types"
 import { personName } from "../utils/personName"
+import CardRail from "./CardRail.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
+import SectionHeading from "./SectionHeading.vue"
 
 const { t } = useI18n()
 const voices = ref<KeyVoice[]>([])
@@ -32,9 +34,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section v-if="voices.length" class="mt-6" data-testid="key-voices-rail">
-    <h2 class="lp-section mb-2">{{ t("keyVoices.title") }}</h2>
-    <ul class="flex gap-3 overflow-x-auto pb-1">
+  <!-- The standard rail (operator 2026-10-05: every rail looks the same on every page) — CardRail,
+       SectionHeading, the section spacing every Home rail uses. The tile stays an avatar: a person
+       is not a show, and a square-artwork slot around a 48px face would be mostly empty. -->
+  <section v-if="voices.length" class="mt-7" data-testid="key-voices-rail">
+    <SectionHeading :title="t('keyVoices.title')" />
+    <CardRail>
       <li v-for="v in voices" :key="v.id" class="shrink-0">
         <RouterLink
           :to="{ name: 'person', params: { id: v.id } }"
@@ -43,11 +48,11 @@ onMounted(async () => {
           data-testid="key-voice"
         >
           <ProfileAvatar :name="v.label" :src="v.image_url" :size="48" />
-          <span class="line-clamp-2 text-center text-xs font-medium text-canvas-foreground">
+          <span class="lp-tile-title text-center text-xs font-medium text-canvas-foreground">
             {{ v.label }}
           </span>
         </RouterLink>
       </li>
-    </ul>
+    </CardRail>
   </section>
 </template>

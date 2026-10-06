@@ -11,10 +11,13 @@
  *   • `inline`  — replaces a panel's content with a ‹ Back (Insights → entity); no new layer.
  *   • `overlay` — wrapped in EntityCard's modal (Search → entity, a page-level surface).
  */
-import { computed, ref, watch } from "vue"
+import { computed, nextTick, ref, watch } from "vue"
+import BackIcon from "./BackIcon.vue"
 import CloseIcon from "./CloseIcon.vue"
+import { anchorWithin, restoreAnchorWithin, type ClickAnchor } from "../utils/backAnchor"
+import { restoreScroll } from "../utils/scrollRestore"
 import { useI18n } from "vue-i18n"
-import { getOrgCard, getPersonCard, getTopicCard, getTopicPerspectives } from "../services/api"
+import { getOrgCard, getPersonCard, getTopicCard } from "../services/api"
 import type { OrgCard, PersonCard, TopicCard } from "../services/types"
 import AddToCollectionButton from "./AddToCollectionButton.vue"
 import FavoriteButton from "./FavoriteButton.vue"
@@ -23,13 +26,23 @@ import PersonCardContent from "./PersonCardContent.vue"
 import TopicCardContent from "./TopicCardContent.vue"
 import OrgCardContent from "./OrgCardContent.vue"
 import ShareMenu from "./ShareMenu.vue"
-import { accentForKind, type EntityCardModel } from "../composables/entityShareCard"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
 import { useFavoritesStore } from "../stores/favorites"
 
 type EntityKind = "person" | "topic" | "organization"
-type Target = { kind: EntityKind; id: string }
+/**
+ * `scroll` is where the reader was on this entity when they walked on to the next one, so Back can
+ * return them there. Two offsets because the card scrolls in its own body inside a sheet or panel,
+ * but the PAGE scrolls on the standalone /person and /topic routes, where the body is unbounded.
+ */
+type Target = {
+  kind: EntityKind
+  id: string
+  scroll?: { body: number; page: number }
+  /** The control the reader tapped to walk on — Back puts THAT back where it sat (backAnchor). */
+  anchor?: ClickAnchor | null
+}
 
 const props = withDefaults(
   defineProps<{
@@ -139,68 +152,52 @@ watch(
 )
 watch(current, (target) => void load(target), { immediate: true })
 
-// #2036 fast-follow — the topic card's shareable "signature quote": the leading voice's strongest
-// take on this topic. Perspectives are salience-sorted, so perspectives[0].insights[0] IS the take.
-// Topic-only (person/org have no perspective endpoint) and best-effort — the card is clean without
-// it. The `current`-guarded resolve keeps a slow fetch from stamping a quote after the user has
-// walked on to another entity in the same panel.
-const signatureQuote = ref<string | null>(null)
-watch(
-  current,
-  (target) => {
-    signatureQuote.value = null
-    if (target.kind !== "topic") return
-    const { id } = target
-    void getTopicPerspectives(id)
-      .then((r) => {
-        if (current.value.kind === "topic" && current.value.id === id) {
-          signatureQuote.value = r.perspectives?.[0]?.insights?.[0]?.text ?? null
-        }
-      })
-      .catch(() => {})
-  },
-  { immediate: true }
-)
+const bodyEl = ref<HTMLElement | null>(null)
+// Set by Back, applied once the entity it returned to has loaded (operator 2026-10-04).
+let pendingScroll: Target["scroll"] | null = null
+let pendingAnchor: ClickAnchor | null = null
+// The standalone /person and /topic routes, where the card IS the page and the page is what
+// scrolls. Anywhere else (a panel, a sheet) the page behind belongs to someone else — on desktop
+// the episode-notes rail sits beside the episode — and the card must not move it.
+const cardIsPage = computed(() => props.variant === "inline" && props.rootControl === "close")
 
 function open(kind: EntityKind, id: string): void {
-  stack.value = [...stack.value, { kind, id }]
+  const here = stack.value.slice(0, -1)
+  const leaving: Target = {
+    ...current.value,
+    scroll: { body: bodyEl.value?.scrollTop ?? 0, page: cardIsPage.value ? window.scrollY : 0 },
+    anchor: bodyEl.value ? anchorWithin(bodyEl.value) : null,
+  }
+  stack.value = [...here, leaving, { kind, id }]
+  // A new entity starts at its top, not at the offset the reader had reached on the last one.
+  if (bodyEl.value) bodyEl.value.scrollTop = 0
+  if (cardIsPage.value) window.scrollTo({ top: 0 })
 }
 // Left control: pop the stack if deeper, else dismiss the whole card (back to panel / close modal).
 function onBack(): void {
-  if (stack.value.length > 1) stack.value = stack.value.slice(0, -1)
-  else emit("close")
+  if (stack.value.length > 1) {
+    stack.value = stack.value.slice(0, -1)
+    pendingScroll = current.value.scroll ?? null
+    pendingAnchor = current.value.anchor ?? null
+  } else emit("close")
 }
+watch(loading, (isLoading) => {
+  if (isLoading || !pendingScroll) return
+  const { body, page } = pendingScroll
+  const anchor = pendingAnchor
+  pendingScroll = null
+  pendingAnchor = null
+  void nextTick(async () => {
+    // The tapped control, back where it sat — robust to sections above it loading at a different
+    // pace than last time. The offsets are the fallback when it cannot be found again.
+    const body_ = bodyEl.value
+    if (anchor && body_ && (await restoreAnchorWithin(body_, anchor))) return
+    void restoreScroll(body_, body)
+    if (cardIsPage.value) void restoreScroll(null, page)
+  })
+})
 
 const label = computed(() => person.value?.label ?? topic.value?.label ?? org.value?.label ?? "")
-
-// #2036 — the shareable card model for the current entity. Lean v1: kicker + title + an
-// episode-count stat + canonical link (person/topic have pages; org is overlay-only → no link).
-const shareModel = computed<EntityCardModel>(() => {
-  const kind = current.value.kind
-  const kicker =
-    kind === "person" ? t("ec.person") : kind === "organization" ? t("ec.organization") : t("ec.topic")
-  const card = person.value ?? topic.value ?? org.value
-  const eps = card?.episode_count ?? 0
-  const origin = typeof window !== "undefined" ? window.location.origin : ""
-  const path =
-    kind === "topic"
-      ? `/topic/${current.value.id}`
-      : kind === "person"
-        ? `/person/${current.value.id}`
-        : "" // org has no standalone page yet
-  return {
-    kicker,
-    title: label.value || current.value.id,
-    // Topic cards carry the leading voice's take as the card's signature quote (fast-follow); the
-    // engine renders nothing when it's null, so person/org stay clean.
-    quote: signatureQuote.value,
-    stats: eps ? `${eps} ${eps === 1 ? "episode" : "episodes"}` : null,
-    // Per-kind accent (topic cyan / person gold / else brand cyan) — resolved token→hex in the .ts
-    // so the literal never lands in this component (no-hex-in-`.vue` guard).
-    accent: accentForKind(kind),
-    url: path && origin ? origin + path : null,
-  }
-})
 
 // Speaker role badge (host / guest / mentioned) — KG-grounded from the person node's aggregate
 // role. Empty for topics / unknown role.
@@ -257,10 +254,10 @@ const isTopic = computed(() => current.value.kind === "topic")
           data-testid="ec-dismiss"
           @click="onBack"
         >
-          <!-- ✕ is drawn, not typed: U+2715 is a tofu box in the iOS UI font (see CloseIcon).
-               ‹ (U+2039) does render, so the back chevron stays a character. -->
+          <!-- Both drawn, same box and stroke: ✕ because U+2715 is a tofu box in the iOS UI font
+               (see CloseIcon), ‹ because as a character it was a sliver beside that ✕ (BackIcon). -->
           <CloseIcon v-if="dismissAtRoot" />
-          <span v-else aria-hidden="true" class="text-base leading-none">‹</span>
+          <BackIcon v-else />
         </button>
       </div>
 
@@ -295,7 +292,14 @@ const isTopic = computed(() => current.value.kind === "topic")
           <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
         </template>
         <!-- Share (card / link / text) — #2036. -->
-        <ShareMenu :model="shareModel" :target-kind="current.kind" />
+        <!-- The server's card for this entity (operator 2026-10-05) — the menu needs only what it is. -->
+        <ShareMenu
+          :kind="current.kind"
+          :id="current.id"
+          :title="label || current.id"
+          :context="person?.web?.description ?? org?.web?.description ?? null"
+          :target-kind="current.kind"
+        />
       </div>
 
       <!-- REMOVED (operator 2026-09-16): the "Open in page ›" escape hatch (#1261-9).
@@ -308,7 +312,7 @@ const isTopic = computed(() => current.value.kind === "topic")
            where it actually bit (tapping an episode landed on Home). -->
     </header>
 
-    <div class="min-h-0 flex-1 overflow-y-auto py-4" :class="props.flush ? '' : 'px-4'">
+    <div ref="bodyEl" class="min-h-0 flex-1 overflow-y-auto py-4" :class="props.flush ? '' : 'px-4'">
       <p v-if="loading" class="text-sm text-muted">{{ t("ec.loading") }}</p>
       <p v-else-if="failed || (!person && !topic && !org)" class="text-sm text-muted">
         {{ t("ec.notFound") }}

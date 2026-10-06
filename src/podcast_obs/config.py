@@ -128,7 +128,9 @@ class ObservabilityConfig:
         # Auto-discovery is a dev-machine convenience; skip under pytest so the env-path tests stay
         # hermetic (they run from the repo cwd, where the committed YAML would otherwise be found) —
         # same rationale as ``_load_obs_dev_env``; ``_discover_default_config`` stays testable.
-        if not path and not os.environ.get("PYTEST_CURRENT_TEST"):
+        # ``PODCAST_DEV_OBS_ENV=0`` (test servers) skips it too: the committed homelab YAML would
+        # point a test run at production telemetry (operator, 2026-10-06).
+        if not path and not os.environ.get("PYTEST_CURRENT_TEST") and not _dev_obs_disabled():
             path = _discover_default_config()
         if path:
             return cls.from_yaml(path)
@@ -257,6 +259,13 @@ def _discover_default_config() -> Optional[str]:
     return None
 
 
+def _dev_obs_disabled() -> bool:
+    """``PODCAST_DEV_OBS_ENV=0``: no dev observability at all — neither ``.env.obs.dev`` nor the
+    auto-discovered homelab YAML. Set by the e2e test servers, which must never read production
+    telemetry (operator, 2026-10-06). Same switch as ``podcast_scraper.config``."""
+    return os.environ.get("PODCAST_DEV_OBS_ENV", "").strip() == "0"
+
+
 def _load_obs_dev_env() -> None:
     """Dev convenience: auto-load ``.env.obs.dev`` so ``podcast_obs serve`` in a worktree is
     zero-config. An agent's MCP client spawns the server with a CLEAN env, so without this every
@@ -265,6 +274,8 @@ def _load_obs_dev_env() -> None:
     explicit shell env still wins. Self-contained — podcast_obs stays light-dep (no app import).
     """
     if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    if _dev_obs_disabled():
         return
     try:
         from dotenv import load_dotenv

@@ -30,7 +30,8 @@
     "language": "en",
     "language_source": "rss",
     "published_date": "2024-03-04T00:00:00",
-    "title": "On-Call That Doesn't Break People"
+    "title": "On-Call That Doesn't Break People",
+    "description": "SRE Priya Nair explains alert hygiene, error budgets, and how to make incidents boring."
   },
   "feed": {
     "authors": [

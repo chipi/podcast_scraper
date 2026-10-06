@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
  * Indonesia, Vietnam, Philippines, Thailand & Malaysia Startups, Founders & Venture Capital VC
  * (English)" ran eleven lines down the player and the show page. The fix is a safety net, not a
  * shortened name: every place a show name is interpolated sits inside an element that caps it —
- * `.lp-show-name` (two lines, or `--3` / `--4`), or an existing `truncate` / `line-clamp-*`.
+ * `.lp-show-name` (two lines, or `--3` / `--4`), `.lp-tile-title` (three, on tiles), or an existing `truncate` / `line-clamp-*`.
  *
  * This finds every template interpolation of a show-name expression and checks the nearest opening
  * tags around it. A new surface that prints a show name uncapped fails here, naming the file.
@@ -23,7 +23,7 @@ const components = import.meta.glob('../**/*.vue', {
 const SHOW_NAME = /\{\{[^}]*\b(podcast_title|showTitle|currentShowTitle|show\.title|show\?\.title)\b[^}]*\}\}/g
 // `sr-only` text is never painted, so it cannot break a layout — and screen readers must get the
 // FULL name, so capping it would be wrong.
-const CAPPED = /\blp-show-name\b|\btruncate\b|\bline-clamp-\d|\bsr-only\b/
+const CAPPED = /\blp-show-name\b|\blp-tile-title\b|\btruncate\b|\bline-clamp-\d|\bsr-only\b/
 
 function template(src: string): string {
   const m = src.match(/<template>([\s\S]*)<\/template>\s*(<style|$)/)

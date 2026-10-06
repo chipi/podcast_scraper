@@ -39,7 +39,8 @@ import java.util.List;
  *   runs in a separate process (com.android.intentresolver or similar), so we use
  *   {@link androidx.test.uiautomator.UiDevice#wait} without a package filter — exactly the pattern
  *   Journey.java uses for the OAuth consent dialog. The content assertion changes accordingly: the
- *   sheet must carry the text "closelistening" (the file name our share path writes).
+ *   sheet must say it is sharing an IMAGE ("Sharing image" / its preview thumbnail) — the card is a
+ *   PNG file.
  *
  * - **N3 (push):** The WebKit / iOS flow calls APNs; the Capacitor Android flow calls FCM via
  *   @capacitor/push-notifications. The assertion is the same: the app stays in the foreground, and
@@ -314,8 +315,9 @@ public class NativeCapabilityTests extends UITestCase {
     // ------------------------------------------------------------------ N2 native share sheet
 
     /**
-     * Picking "Share text" from the in-app share popover hands a file named "closelistening.txt"
-     * to the OS share sheet, and that sheet becomes visible with our content name in it.
+     * Picking "Share card" from the in-app share popover hands the SERVER's card PNG to the OS
+     * share sheet as a file (operator 2026-10-05), and that sheet becomes visible with it. "Copy
+     * link" / "Copy text" write the clipboard and open no sheet.
      *
      * ANDROID DIFFERENCE: the OS share sheet runs in a separate package (com.android.intentresolver
      * or the OEM equivalent). The iOS twin queried Springboard and com.apple.ShareSheetUI in
@@ -323,8 +325,8 @@ public class NativeCapabilityTests extends UITestCase {
      * filter — exactly the same approach Journey.java uses for the OAuth consent dialog, which
      * faces the same cross-package problem (AppSession.java, signIn()).
      *
-     * The content assertion checks for "closelistening" as a substring: the share sheet titles
-     * the shared item by its filename, which starts with "closelistening".
+     * The content assertion checks the chooser says "Sharing image" (or previews one): an image,
+     * not the text file the old canvas cards fell back to.
      */
     @Test
     public void testN2NativeShareSheetOpens() {
@@ -342,13 +344,13 @@ public class NativeCapabilityTests extends UITestCase {
         }
         Journey.sleep(2_000);
 
-        // The in-app popover: share.text = 'Share text'. On native it writes closelistening.txt
-        // and hands that file to the OS sheet, so the sheet displays the item name — a marker
-        // that OUR payload got there (operator 2026-09-16: asserting only "a sheet appeared"
-        // would pass if the app shared the wrong thing).
-        boolean shareTextTapped = Journey.tap("Share text", true, 8_000);
-        if (!shareTextTapped) {
-            fail("share popover offered no 'Share text' option. On screen: "
+        // The in-app popover: share.card = 'Share card'. On native it hands the card PNG to the
+        // OS sheet as a file, so the sheet displays the item name — a marker that OUR payload got
+        // there (operator 2026-09-16: asserting only "a sheet appeared" would pass if the app
+        // shared the wrong thing).
+        boolean shareCardTapped = Journey.tap("Share card", false, 8_000);
+        if (!shareCardTapped) {
+            fail("share popover offered no 'Share card' option. On screen: "
                     + Journey.labelledInventory(80));
         }
         Journey.sleep(5_000);
@@ -357,18 +359,32 @@ public class NativeCapabilityTests extends UITestCase {
         boolean sheetUp        = false;
         boolean carriedContent = false;
 
-        // Common anchors for the Android share sheet across AOSP + OEM skins.
-        UiObject2 copyBtn = Journey.device().wait(
-                Until.findObject(By.text("Copy")), 4_000);
-        if (copyBtn == null) {
-            copyBtn = Journey.device().wait(
-                    Until.findObject(By.textContains("Copy to clipboard")), 2_000);
+        // The sheet itself. An IMAGE share has no "Copy" action — that anchor only exists for text,
+        // and waiting for it is what failed here once the card became a PNG (2026-10-05). Measured
+        // on Pixel_8 / API 35 (`uiautomator dump`): the chooser is `com.android.intentresolver` with
+        // a "Sharing image" headline, an "Image preview thumbnail", then targets (Print, Drive…).
+        // Older AOSP chooses through the `android` package's ResolverActivity; "Copy" stays as the
+        // OEM fallback.
+        UiObject2 sheet = Journey.device().wait(
+                Until.findObject(By.pkg("com.android.intentresolver")), 4_000);
+        if (sheet == null) {
+            sheet = Journey.device().wait(Until.findObject(By.text("Copy")), 2_000);
         }
-        if (copyBtn != null) sheetUp = true;
+        if (sheet != null) sheetUp = true;
 
-        // Without a package filter: the filename the share path writes.
+        // OUR payload, as an image: the chooser says so and previews it. A text share (what the old
+        // canvas cards fell back to) reads "Sharing text" with no image preview, so this cannot pass
+        // for the wrong payload. The filename is the fallback for skins that show it instead.
         UiObject2 contentLabel = Journey.device().wait(
-                Until.findObject(By.textContains("closelistening")), 4_000);
+                Until.findObject(By.text("Sharing image")), 4_000);
+        if (contentLabel == null) {
+            contentLabel = Journey.device().wait(
+                    Until.findObject(By.desc("Image preview thumbnail")), 2_000);
+        }
+        if (contentLabel == null) {
+            contentLabel = Journey.device().wait(
+                    Until.findObject(By.textContains(".png")), 2_000);
+        }
         if (contentLabel != null) carriedContent = true;
 
         System.out.println("=====SHARE_SHEET up=" + sheetUp
@@ -382,8 +398,8 @@ public class NativeCapabilityTests extends UITestCase {
                         + Journey.labelledInventory(16),
                 sheetUp);
         assertTrue(
-                "share sheet opened but showed no sign of OUR payload (expected the item "
-                        + "named closelistening…). On screen: " + Journey.labelledInventory(16),
+                "share sheet opened but showed no sign of OUR payload (expected \"Sharing image\" / "
+                        + "an image preview). On screen: " + Journey.labelledInventory(16),
                 carriedContent);
 
         // Dismiss — the Back button works across packages.

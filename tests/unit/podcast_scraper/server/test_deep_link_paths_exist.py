@@ -110,3 +110,34 @@ def test_the_delivery_golden_fixtures_use_real_routes() -> None:
         "Delivery goldens name paths the app does not define. These are the contract another repo "
         "renders emails from:\n  " + "\n  ".join(offenders) + f"\n\nReal routes: {sorted(roots)}"
     )
+
+
+#: `/topic/<id>` or `/person/<id>` in a producer or a golden: the id that follows the route.
+_ENTITY_LINK = re.compile(r"/(topic|person)/([^\"'?#)\s]+)")
+
+
+def test_topic_and_person_links_carry_the_full_graph_id() -> None:
+    """A real route is not enough: the id has to be one the page can RESOLVE.
+
+    The digest's trending section and the email chips stripped the prefix — ``/topic/ai`` for
+    ``topic:ai`` — and the topic card answers a bare ``ai`` with nothing, so every one of those
+    links opened an empty page (operator 2026-10-05). The full id, percent-encoded, is the link the
+    share menu builds too. Checked on the goldens (the contract the homelab templates render
+    against) and on the server's string literals.
+    """
+    from urllib.parse import unquote
+
+    fixtures = sorted((_REPO / "tests" / "fixtures" / "delivery").glob("*.golden.json"))
+    offenders: list[str] = []
+    for path in [*fixtures, *sorted(_SERVER.rglob("*.py"))]:
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "deep_link" not in line:
+                continue
+            for kind, raw in _ENTITY_LINK.findall(line):
+                if raw.startswith(("{", "…")):
+                    continue  # an f-string placeholder; the value is checked at runtime by the e2e
+                if not unquote(raw).startswith(f"{kind}:"):
+                    offenders.append(f"{path.relative_to(_REPO)}:{lineno} -> /{kind}/{raw}")
+    assert (
+        not offenders
+    ), "Topic/person links with a stripped id open an empty page:\n  " + "\n  ".join(offenders)

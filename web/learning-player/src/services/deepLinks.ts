@@ -22,14 +22,21 @@
 
 /** A router target, deliberately not a raw path string. */
 export interface DeepLinkTarget {
-  name: 'player' | 'podcast' | 'topic' | 'person'
+  name: 'player' | 'podcast' | 'topic' | 'person' | 'storyline' | 'theme'
   params: Record<string, string>
-  /** `?t=<seconds>` passed through, so a link can name a MOMENT and not just an episode. */
+  /** `?t=<seconds>` passed through, so a link can name a MOMENT and not just an episode;
+   *  `?play=1` on an episode, so an emailed "▶ Play from" starts playback in the app too;
+   *  `?revisit=<highlight id>`, which the digest email's revisit links carry (#35); and the email
+   *  tags (`utm_*`), so a click from an email that opens the INSTALLED app is counted like one
+   *  that opens the browser (services/inboundLink). */
   query?: Record<string, string>
 }
 
-/** Ids we mint are slugs and feed ids; anything else is not ours. */
-const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/
+/**
+ * Ids we mint: slugs, feed ids, and graph ids (`topic:risk`, `person:nora`, `tc:…`), which carry a
+ * colon. Still no `/`, `?`, `#` or whitespace — an id can never smuggle in a path or a query.
+ */
+const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
 
 /**
  * `<host>` → the route it means. Both the singular and plural host are accepted because links get
@@ -43,6 +50,10 @@ const TARGETS: Record<string, { name: DeepLinkTarget['name']; param: string }> =
   show: { name: 'podcast', param: 'feedId' },
   topic: { name: 'topic', param: 'id' },
   person: { name: 'person', param: 'id' },
+  // The share menu and the emails link these too (operator 2026-10-05); before, a storyline or
+  // theme link that reached the app was dropped and the app opened on Home.
+  storyline: { name: 'storyline', param: 'id' },
+  theme: { name: 'theme', param: 'id' },
 }
 
 export const APP_SCHEME = 'closelistening'
@@ -78,13 +89,24 @@ export function routeForDeepLink(raw: string): DeepLinkTarget | null {
     if (!target || !id) continue
     const decoded = safeDecode(id)
     if (!decoded || !ID_PATTERN.test(decoded)) return null
-    return { name: target.name, params: { [target.param]: decoded }, ...startTimeOf(url) }
+    const query = {
+      ...startTimeOf(url),
+      ...(target.name === 'player' ? playOf(url) : {}),
+      ...revisitOf(url),
+      ...panelOf(url),
+      ...emailTagsOf(url),
+    }
+    return {
+      name: target.name,
+      params: { [target.param]: decoded },
+      ...(Object.keys(query).length ? { query } : {}),
+    }
   }
   return null
 }
 
 /**
- * `{ query: { t } }` when the link named a usable start time, otherwise nothing.
+ * `{ t }` when the link named a usable start time, otherwise nothing.
  *
  * Written as an explicit null/empty check rather than `Number(...)` alone, because `Number(null)`
  * and `Number('')` are both **0** — so an absent `t` silently became "start at zero" and every
@@ -94,12 +116,42 @@ export function routeForDeepLink(raw: string): DeepLinkTarget | null {
  * reaching `el.currentTime` throws. An unusable value is dropped rather than refusing the link —
  * losing the moment is a shame, losing the episode is a broken link.
  */
-function startTimeOf(url: URL): { query: Record<string, string> } | Record<string, never> {
+function startTimeOf(url: URL): Record<string, string> {
   const raw = url.searchParams.get('t')
   if (raw === null || raw.trim() === '') return {}
   const seconds = Number(raw)
   if (!Number.isFinite(seconds) || seconds < 0) return {}
-  return { query: { t: String(Math.floor(seconds)) } }
+  return { t: String(Math.floor(seconds)) }
+}
+
+/** `{ revisit }` when the link names a highlight to advance on arrival (#35); validated like an id. */
+function revisitOf(url: URL): Record<string, string> {
+  const raw = url.searchParams.get('revisit')
+  return raw && ID_PATTERN.test(raw) ? { revisit: raw } : {}
+}
+
+/**
+ * `?play=1` — START playing on arrival: an email's "▶ Play from 1:05" means play, as the same
+ * control does in the app (operator 2026-10-05). Only the exact value, only on an episode.
+ */
+function playOf(url: URL): Record<string, string> {
+  return url.searchParams.get('play') === '1' ? { play: '1' } : {}
+}
+
+/** `?panel=notes` — open the episode-notes panel (the daily recap's "Open episode notes"). */
+function panelOf(url: URL): Record<string, string> {
+  return url.searchParams.get('panel') === 'notes' ? { panel: 'notes' } : {}
+}
+
+/** The email tags, each a short lowercase token — the enum check happens where they are read. */
+const TAG_VALUE = /^[a-z][a-z0-9_]{0,39}$/
+function emailTagsOf(url: URL): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const key of ['utm_source', 'utm_campaign', 'utm_content']) {
+    const raw = url.searchParams.get(key)
+    if (raw && TAG_VALUE.test(raw)) out[key] = raw
+  }
+  return out
 }
 
 /** A malformed percent-escape throws; an unusable id is not a reason to crash the handler. */

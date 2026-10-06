@@ -16,9 +16,11 @@ import SubjectRail from './SubjectRail.vue'
 
 const GraphNodeRailPanelStub = {
   name: 'GraphNodeRailPanel',
+  props: ['showViewInGraph'],
   template: `
-    <div data-testid="stub-graph-node-rail">
+    <div data-testid="stub-graph-node-rail" :data-view-in-graph="String(showViewInGraph)">
       <button data-testid="emit-go-graph" @click="$emit('go-graph')" />
+      <button data-testid="emit-view-in-graph" @click="$emit('view-in-graph', 'topic:ai')" />
       <button
         data-testid="emit-prefill"
         @click="$emit('prefill-semantic-search', { query: 'q' })"
@@ -165,6 +167,22 @@ describe('SubjectRail', () => {
     expect(subject.kind).toBe('graph-node')
     expect(subject.graphNodeCyId).toBe('topic:ai')
     expect(w.find('[data-testid="stub-graph-node-rail"]').exists()).toBe(true)
+  })
+
+  it('offers "View in graph" off the Graph tab only, and bubbles the node id', async () => {
+    const off = mountRail({ mainTab: 'digest' })
+    useSubjectStore().focusTopic('topic:ai')
+    await off.vm.$nextTick()
+    const rail = off.get('[data-testid="stub-graph-node-rail"]')
+    expect(rail.attributes('data-view-in-graph')).toBe('true')
+    await off.get('[data-testid="emit-view-in-graph"]').trigger('click')
+    expect(off.emitted('viewInGraph')![0]).toEqual(['topic:ai'])
+
+    const on = mountRail({ mainTab: 'graph' })
+    await on.vm.$nextTick()
+    expect(on.get('[data-testid="stub-graph-node-rail"]').attributes('data-view-in-graph')).toBe(
+      'false',
+    )
   })
 
   // --- person branch ---------------------------------------------------------

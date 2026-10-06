@@ -23,10 +23,12 @@ import { useSignInGate } from '../composables/useSignInGate'
 import { scrollBehavior } from '../utils/motion'
 import { useCaptureStore } from '../stores/capture'
 import { useCompletedStore } from '../stores/completed'
+import BackIcon from '../components/BackIcon.vue'
 import RouteButton from '../components/RouteButton.vue'
 import { usePlayed } from '../composables/usePlayed'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import CardRail from '../components/CardRail.vue'
+import SectionHeading from '../components/SectionHeading.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
@@ -35,7 +37,6 @@ import CaptureMoment from '../components/CaptureMoment.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import OverflowMenu from '../components/OverflowMenu.vue'
 import ShareMenu from '../components/ShareMenu.vue'
-import type { EntityCardModel } from '../composables/entityShareCard'
 import PlayerSkeleton from '../components/PlayerSkeleton.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import TranscriptList from '../components/TranscriptList.vue'
@@ -181,19 +182,6 @@ watch(
 
 // #2036 — shareable card model for this episode: title + show, a signature insight as the quote,
 // duration byline, canonical link. The insights are salience-sorted, so the first is the strongest.
-const shareModel = computed<EntityCardModel>(() => {
-  const e = episode.value
-  const secs = e?.duration_seconds ?? null
-  const origin = typeof window !== 'undefined' ? window.location.origin : ''
-  const topInsight = insights.value.find((i) => i.text?.trim())?.text ?? null
-  return {
-    kicker: e?.podcast_title ? `Episode · ${e.podcast_title}` : 'Episode',
-    title: e?.title ?? props.slug,
-    quote: topInsight,
-    byline: secs ? `${Math.max(1, Math.round(secs / 60))} min` : null,
-    url: origin ? `${origin}/episode/${props.slug}` : null,
-  }
-})
 const segments = ref<Segment[]>([])
 // S3.1 — the transcript language control (D-25).
 //
@@ -260,7 +248,9 @@ function syncPanelDialog(): void {
   else d.showModal()
 }
 
-watch([panelOpen, isDesktop], () => void nextTick(syncPanelDialog))
+// `panelDialog` too: the dialog renders only once the episode has loaded, so a panel opened before
+// that (a note's Open arrives with `?notes=1`) found no dialog to show and stayed shut.
+watch([panelOpen, isDesktop, panelDialog], () => void nextTick(syncPanelDialog))
 
 /**
  * `knowledge_panel_open` (#2267) — part of "learning actions per active day".
@@ -351,6 +341,15 @@ function openInsight(insightId: string): void {
     focusInsightId.value = insightId
   })
 }
+
+// A note's "Open" (composables/noteTarget) arrives with `?notes=1`: the episode's notes live in the
+// episode-notes panel, so open it and let it scroll to them (operator 2026-10-04).
+const focusNotes = computed(() => route.query.notes === '1')
+watch(focusNotes, (on) => { if (on) panelOpen.value = true }, { immediate: true })
+// `?panel=notes` opens the same panel at its TOP — the summary and key points — rather than at the
+// reader's own notes: the daily recap email's "Open episode notes" (operator 2026-10-05).
+const openPanelFromLink = computed(() => route.query.panel === 'notes')
+watch(openPanelFromLink, (on) => { if (on) panelOpen.value = true }, { immediate: true })
 
 // Playback state + transport live in the player store (single source of truth for the UI,
 // MediaSession, and native controls — #1307). What is left here is genuinely view-shaped:
@@ -1072,6 +1071,20 @@ watch(
   { immediate: true },
 )
 
+// A `?t=` / `?play=1` arriving while THIS episode is already open (operator 2026-10-05). The start
+// position above applies once per episode, on load; a link to the same episode reuses this view, so
+// it never re-ran — "▶ Play from 0:30" in a topic card on this episode's own page did nothing. Only
+// after the start was applied, so the first load still goes through `applyStartPosition` alone.
+watch(
+  () => [route.query.t, route.query.play] as const,
+  ([t, play]) => {
+    if (startApplied !== props.slug || player.currentSlug !== props.slug) return
+    const seconds = Number(t)
+    if (Number.isFinite(seconds) && seconds > 0) seekContent(seconds)
+    if (play) player.play()
+  },
+)
+
 // Transcript is OPTIONAL and closed by default (mobile): pressing play should NOT jump the
 // listener into the transcript. A Show/Hide toggle reveals it; opening scrolls it into view.
 // (Desktop keeps the transcript visible as the side column — see the template's lg: classes.)
@@ -1091,6 +1104,11 @@ function toggleTranscript(): void {
 // (toggle / seek / skip / cycleRate now live in the player store.)
 function seekContent(contentSeconds: number): void {
   player.seek(contentSeconds + syncOffset.value)
+}
+/** "▶ Play from" in the episode notes: an explicit ▶ seeks AND plays (operator 2026-10-05). */
+function playFromContent(contentSeconds: number): void {
+  seekContent(contentSeconds)
+  player.play()
 }
 
 // --- capture (P2, PRD-040): mark a moment, save a transcript paragraph/phrase ---
@@ -1329,7 +1347,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section>
-    <button type="button" class="lp-nav" @click="goBack">‹ {{ t('player.back') }}</button>
+    <button type="button" class="lp-nav" @click="goBack"><BackIcon /> {{ t('player.back') }}</button>
     <!-- Polite SR confirmation for captures (mark-moment / save line or phrase). -->
     <p aria-live="polite" class="sr-only">{{ captureAnnounce }}</p>
 
@@ -1417,7 +1435,13 @@ onBeforeUnmount(() => {
             -->
             <AddToCollectionButton :item="{ kind: 'episode', ref: props.slug }" />
             <!-- Share this episode as a card / link / text (#2036). -->
-            <ShareMenu :model="shareModel" target-kind="episode" />
+            <ShareMenu
+              kind="episode"
+              :id="slug"
+              :title="episode?.title ?? slug"
+              :context="episode?.podcast_title ?? null"
+              target-kind="episode"
+            />
             <!-- Secondary actions overflow (UXS-014). Mark-as-played lives here — it's a rare,
                  deliberate action, not a primary transport control (PL.6). -->
             <OverflowMenu :label="t('player.moreActions')">
@@ -1557,7 +1581,12 @@ onBeforeUnmount(() => {
                     class="flex items-center gap-1 text-canvas-foreground"
                     :aria-label="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
                     :title="t('stats.opens', stats.opens, { named: { count: stats.opens } })"
-                  >▶ {{ compact(stats.opens) }}</span>
+                  >
+                    <!-- A count, so a bar-chart glyph — not ▶, which read as a play control on a
+                         chip that is not one (operator 2026-10-05). -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-3 w-3" aria-hidden="true" data-testid="player-reach-opens-icon"><path d="M6 20V12M12 20V4M18 20v-6"/></svg>
+                    {{ compact(stats.opens) }}
+                  </span>
                 </div>
                 <Sparkline
                   v-if="stats && statsSeries.some((n) => n > 0)"
@@ -1896,21 +1925,16 @@ onBeforeUnmount(() => {
           data-testid="related-episodes-rail"
           :aria-label="t('player.relatedEpisodes')"
         >
-          <h2 class="mb-3 font-display text-lg font-bold text-canvas-foreground">
-            {{ t('player.relatedEpisodes') }}
-          </h2>
+          <SectionHeading :title="t('player.relatedEpisodes')" />
           <!--
             A TILE, not the horizontal card. `EpisodeCard` puts its text in a column beside the
             artwork, which in a rail slot left the title ~100px: one real title wrapped to eight
             lines, the slot grew to roughly 800px tall, and the action row floated over the artwork.
-            Slots are narrower too — the old 224px made a 224px square of artwork dominate the rail.
+            Slot width is the standard `lp-rail-item`, the same as every other rail (operator
+            2026-10-05).
           -->
           <CardRail v-if="relatedEpisodes.length">
-            <li
-              v-for="ep in relatedEpisodes"
-              :key="ep.slug"
-              class="w-44 shrink-0 sm:w-48"
-            >
+            <li v-for="ep in relatedEpisodes" :key="ep.slug" class="lp-rail-item">
               <EpisodeTile :episode="ep" />
             </li>
           </CardRail>
@@ -1921,7 +1945,7 @@ onBeforeUnmount(() => {
                reserve the space and name what will fill it, so the page stops shifting when the
                answer lands. Same tile geometry as the real rail, or the layout jumps anyway. -->
           <CardRail v-else>
-            <li v-for="n in 4" :key="`sk-${n}`" class="w-44 shrink-0 sm:w-48" aria-hidden="true">
+            <li v-for="n in 4" :key="`sk-${n}`" class="lp-rail-item" aria-hidden="true">
               <div class="aspect-square w-full animate-pulse rounded-xl bg-elevated" />
               <div class="mt-2 h-3 w-4/5 animate-pulse rounded bg-elevated" />
               <div class="mt-1.5 h-3 w-3/5 animate-pulse rounded bg-elevated" />
@@ -1971,7 +1995,9 @@ onBeforeUnmount(() => {
           :slug="slug"
           :active-insight-id="activeInsight?.id ?? null"
           :focus-insight-id="focusInsightId"
+          :focus-notes="focusNotes"
           @seek="seekContent"
+          @play-from="playFromContent"
           @announce="announceCapture"
           @close="panelOpen = false"
         />

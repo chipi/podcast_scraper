@@ -26,7 +26,15 @@ function speedLabel(rate: number): '1' | '1.25' | '1.5' | '1.75' | '2+' {
   if (rate >= 1.25) return '1.25'
   return '1'
 }
-import { startBackgroundAudio, stopBackgroundAudio } from '../services/native'
+import {
+  canShowOutputSwitcher,
+  onNativeMediaAction,
+  pauseBackgroundAudio,
+  showOutputSwitcher,
+  startBackgroundAudio,
+  stopBackgroundAudio,
+  updateNativeMedia,
+} from '../services/native'
 import { logPlaybackProgress } from '../services/api'
 import { track } from '../services/analytics'
 import { queueProgress } from '../services/listenLog'
@@ -103,6 +111,8 @@ export const usePlayerStore = defineStore('player', () => {
    * list is Spotify Connect — their own protocol, their own servers — not system audio routes.)
    */
   const routeAvailable = ref(false)
+  /** Android 14+: the route button opens the native output switcher rather than a web API. */
+  let androidSwitcher = false
   const playingRemotely = ref(false)
   const currentArtwork = ref<string | null>(null)
   /**
@@ -217,16 +227,26 @@ export const usePlayerStore = defineStore('player', () => {
    *    hide the control. `webkitCurrentPlaybackTargetIsWireless` says whether audio is leaving the
    *    phone right now. Capacitor already sets `allowsAirPlayForMediaPlayback = true`, so no native
    *    change was needed.
-   *  - **Android / Chromium** — the Remote Playback API: `remote.watchAvailability()` and
-   *    `remote.prompt()`. MDN marks it "limited availability", and does not say whether the Android
-   *    System WebView carries it as opposed to Chrome — hence feature detection rather than a
-   *    platform check. Android users have a second route regardless: the system output switcher on
-   *    the media notification, which MediaSession already populates.
+   *  - **Chromium** — the Remote Playback API: `remote.watchAvailability()` and `remote.prompt()`.
+   *    Feature-detected; the Android System WebView does not answer it.
+   *  - **Android app** — the system output switcher, opened natively on Android 14+ (see below). The
+   *    WebView's MediaSession never reached the OS either, so the notification, lock screen and
+   *    switcher are fed by a native session (NowPlaying.java) — operator 2026-10-05.
    *
    * Everything is wrapped: these are optional APIs on a detached element, and a throw here would
    * cost the listener their player over a control they may not even be able to use.
    */
   function wireRouteAvailability(audio: HTMLMediaElement): void {
+    // ANDROID: the WebView carries neither route API, so the button never appeared there. Android 14+
+    // has a system output switcher (speaker / Bluetooth / Cast) — the same job as the AirPlay sheet —
+    // opened natively (BackgroundAudioPlugin). Below 14 the switcher still sits on the media
+    // notification, which the native session now provides.
+    void canShowOutputSwitcher().then((available) => {
+      if (available) {
+        androidSwitcher = true
+        routeAvailable.value = true
+      }
+    })
     const wk = audio as WebKitRoutableMedia
     try {
       if (typeof wk.webkitShowPlaybackTargetPicker === 'function') {
@@ -267,6 +287,11 @@ export const usePlayerStore = defineStore('player', () => {
    * hand-rolled device list is exactly the thing a reader of this file might reach for next.
    */
   function showRoutePicker(): void {
+    if (androidSwitcher) {
+      track('route_output')
+      void showOutputSwitcher()
+      return
+    }
     const audio = el.value as WebKitRoutableMedia | null
     if (!audio) return
     // #2267, and NO `destination` — see the registry note. The choice happens inside the platform's
@@ -292,6 +317,32 @@ export const usePlayerStore = defineStore('player', () => {
   function load(opts: NextUp): void {
     const audio = ensureElement()
     if (currentSlug.value === opts.slug && audio.src) {
+      // ...unless a LOCAL copy has become known since this episode was loaded. The cold-launch
+      // restore (#2278) loads the last episode on the first navigation — before the shell injects
+      // the local resolver and before the downloads registry is read — so it is pinned to the
+      // origin URL. Without this switch, opening the downloaded copy offline kept that dead URL and
+      // showed "Couldn't load the audio from the source" (test-ios phase 2, 2026-10-04). Position and
+      // play state carry over: this is the same episode, only from a better source.
+      const local = sourceResolvers.local?.(opts.slug)
+      if (local && audio.src !== local) {
+        const at = audio.currentTime
+        const wasPlaying = !audio.paused
+        // The dead origin URL has usually already ERRORED by now (offline), and audioError is only
+        // cleared by resetForLoad(). Left set, the view keeps "Couldn't load the audio" and hides
+        // Play over a perfectly good local file — the second half of the same device failure.
+        audioError.value = false
+        audio.src = local
+        if (at > 0) {
+          audio.addEventListener(
+            'loadedmetadata',
+            () => {
+              audio.currentTime = at
+            },
+            { once: true },
+          )
+        }
+        if (wasPlaying) void audio.play().catch(() => {})
+      }
       currentTitle.value = opts.title ?? currentTitle.value
       currentShowTitle.value = opts.showTitle ?? currentShowTitle.value
       currentArtwork.value = opts.artwork ?? currentArtwork.value
@@ -394,7 +445,9 @@ export const usePlayerStore = defineStore('player', () => {
   function onPause(): void {
     playing.value = false
     setPlaybackState('paused')
-    void stopBackgroundAudio()
+    // PAUSE, not stop: the Android media notification stays with a Play button, so the lock screen
+    // can resume. Stopping here took the controls away the moment the listener paused.
+    void pauseBackgroundAudio()
     // Pausing is the clearest "I am done for now" signal there is; not flushing here meant losing
     // up to the whole throttle window at the exact moment the position matters most.
     savePosition()
@@ -714,7 +767,29 @@ export const usePlayerStore = defineStore('player', () => {
   function setPlaybackState(state: MediaSessionPlaybackState): void {
     if (hasMediaSession()) navigator.mediaSession.playbackState = state
   }
+  /**
+   * Position into the ANDROID session. The OS extrapolates between updates from position + rate, so
+   * once a second is plenty — except after a seek or a rate change, which must land at once or the
+   * lock-screen scrubber shows the old place until the next tick.
+   */
+  let nativePushedAt = 0
+  let nativePushedPos = 0
+  let nativePushedRate = 1
+  function syncNativePosition(): void {
+    const d = duration.value
+    const pos = currentTime.value
+    const r = rate.value || 1
+    const now = Date.now()
+    const expected = nativePushedPos + (playing.value ? ((now - nativePushedAt) / 1000) * r : 0)
+    const jumped = Math.abs(pos - expected) > 2 || r !== nativePushedRate
+    if (!jumped && now - nativePushedAt < 1000) return
+    nativePushedAt = now
+    nativePushedPos = pos
+    nativePushedRate = r
+    void updateNativeMedia({ position: pos, duration: d || undefined, rate: r, playing: playing.value })
+  }
   function syncPositionState(): void {
+    syncNativePosition()
     if (!hasMediaSession() || typeof navigator.mediaSession.setPositionState !== 'function') return
     const d = duration.value
     if (!d || !Number.isFinite(d)) return
@@ -728,7 +803,33 @@ export const usePlayerStore = defineStore('player', () => {
       /* some engines throw on out-of-range while seeking — ignore */
     }
   }
+  /**
+   * ONE set of handlers for both platforms: the web MediaSession (iOS, browsers) and the Android
+   * native session, whose actions arrive under the same names (NowPlaying.java).
+   */
+  const mediaActions: Record<string, (d: { seekOffset?: number; seekTime?: number }) => void> = {
+    play: () => {
+      if (el.value?.paused) toggle()
+    },
+    pause: () => {
+      if (el.value && !el.value.paused) toggle()
+    },
+    seekbackward: (d) => skip(-(d.seekOffset ?? 15)),
+    seekforward: (d) => skip(d.seekOffset ?? 30),
+    seekto: (d) => {
+      if (typeof d.seekTime === 'number') seek(d.seekTime)
+    },
+    previoustrack: () => skipHandlers.prev?.(),
+    nexttrack: () => skipHandlers.next?.(),
+  }
+  let nativeActionsWired = false
+  function wireNativeActions(): void {
+    if (nativeActionsWired) return
+    nativeActionsWired = true
+    onNativeMediaAction((a) => mediaActions[a.action]?.({ seekTime: a.seekTime }))
+  }
   function wireMediaHandlers(): void {
+    wireNativeActions()
     if (handlersWired || !hasMediaSession()) return
     handlersWired = true
     const ms = navigator.mediaSession
@@ -739,22 +840,19 @@ export const usePlayerStore = defineStore('player', () => {
         /* action unsupported on this engine — skip */
       }
     }
-    set('play', () => {
-      if (el.value?.paused) toggle()
-    })
-    set('pause', () => {
-      if (el.value && !el.value.paused) toggle()
-    })
-    set('seekbackward', (d) => skip(-(d.seekOffset ?? 15)))
-    set('seekforward', (d) => skip(d.seekOffset ?? 30))
-    set('seekto', (d) => {
-      if (typeof d.seekTime === 'number') seek(d.seekTime)
-    })
-    set('previoustrack', () => skipHandlers.prev?.())
-    set('nexttrack', () => skipHandlers.next?.())
+    for (const [action, handler] of Object.entries(mediaActions)) {
+      set(action as MediaSessionAction, (d) => handler(d))
+    }
   }
   /** Lock-screen metadata for the current episode (view calls this on load). */
   function setMetadata(m: { title: string; artist?: string; album?: string; artworkUrl?: string }): void {
+    void updateNativeMedia({
+      title: m.title,
+      artist: m.artist ?? '',
+      album: m.album ?? '',
+      artworkUrl: m.artworkUrl,
+    })
+    wireNativeActions()
     if (!hasMediaSession() || typeof MediaMetadata === 'undefined') return
     navigator.mediaSession.metadata = new MediaMetadata({
       title: m.title,

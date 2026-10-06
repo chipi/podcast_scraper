@@ -160,7 +160,7 @@ public class ScreenshotTourTests extends UITestCase {
             frame("t17-share-popover");
             Journey.tap(Arrays.asList("Close", "Cancel"), true, 4_000);
         }
-        if (Journey.tap(Arrays.asList("Add to collection", "Add"), true, 10_000)) {
+        if (Journey.tap(Arrays.asList("Add to board", "Add"), true, 10_000)) {
             settle(3_000);
             frame("t18-add-to-collection");
             Journey.tap(Arrays.asList("Close", "Cancel"), true, 4_000);

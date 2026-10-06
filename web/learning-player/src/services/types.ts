@@ -89,6 +89,8 @@ export interface EpisodeSummary {
   summary_preview: string | null
   /** Full prose summary, for the card's hover/expand preview (null when absent). */
   summary_text: string | null
+  /** The publisher's own episode description from the feed — what the episode card shows. */
+  description?: string | null
   /** Summary bullets for the card (capped for size); count is `summary_bullet_count`. */
   summary_bullets: string[]
   /** TRUE key-point count, uncapped — `summary_bullets` is a capped preview, so its length pins
@@ -129,6 +131,8 @@ export interface EpisodeDetail {
   summary_title: string | null
   summary_bullets: string[]
   summary_text: string | null
+  /** The publisher's own episode description from the feed (not our summary). */
+  description?: string | null
   has_transcript: boolean
   has_summary: boolean
   has_gi: boolean

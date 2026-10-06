@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { signInIsolated } from './helpers'
+import { signInIsolated, tapAndRecordTop } from './helpers'
 
 /**
  * Episode notes panel — the people in the room lead the panel, with their photos.
@@ -82,4 +82,41 @@ test('Episode notes: one labelled entry, its own title, and the notes-first orde
     order,
     'expected episode (title + people) → Summary → Download notes → Search → Key points, top to bottom',
   ).toEqual([...order].sort((a, b) => a - b))
+})
+
+/**
+ * Back from a person or topic opened in the notes returns to the row it was opened from
+ * (operator 2026-10-04). The card REPLACES the panel body, so the panel used to rebuild at the top.
+ */
+test('closing a card opened from the notes chips returns the panel to those chips', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 760 })
+  await signInIsolated(page, 'episode-notes-back-scroll', testInfo)
+  await page.goto('/')
+  await page.goto('/podcast/p05')
+  await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
+  await page.getByTestId('player-open-insights').click()
+
+  const chip = page.getByTestId('kp-topic-chip').last()
+  await chip.scrollIntoViewIfNeeded()
+  // The panel body is its own scroller (the page behind the sheet does not move).
+  const panelScroll = () =>
+    chip.evaluate((el) => {
+      let n: HTMLElement | null = el.parentElement
+      while (n && getComputedStyle(n).overflowY !== 'auto') n = n.parentElement
+      return n?.scrollTop ?? -1
+    })
+  const before = await panelScroll()
+  expect(before, 'the chips are not below the fold, so this proves nothing').toBeGreaterThan(100)
+
+  const seenAt = await tapAndRecordTop(chip)
+  await expect(page.getByTestId('kp-episode-dossier')).toHaveCount(0)
+  await page.getByTestId('ec-dismiss').click()
+  await expect(chip).toBeInViewport({ ratio: 1 })
+  await expect
+    .poll(async () => Math.round(Math.abs((await chip.boundingBox())!.y - seenAt)), {
+      message: 'the chip is not back at the spot on screen it was tapped at',
+    })
+    .toBeLessThan(12)
 })

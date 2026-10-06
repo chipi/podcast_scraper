@@ -31,6 +31,7 @@
 
 import { Capacitor } from '@capacitor/core'
 import { resolveChannel, type Channel } from './channel'
+import type { EmailCampaign, EmailLinkElement } from './inboundLink'
 
 // ── Session properties ───────────────────────────────────────────────────────
 
@@ -208,6 +209,8 @@ export const EVENT_NAMES = [
   // notifications
   'push_permission',
   'notification_open',
+  // a click on a link in one of our emails (operator 2026-10-05, services/inboundLink)
+  'email_link_opened',
 ] as const
 
 export type EventName = (typeof EVENT_NAMES)[number]
@@ -323,7 +326,7 @@ export type EventProps = {
      * organizations invisible while inflating topics.
      */
     target_kind: 'episode' | 'moment' | 'topic' | 'person' | 'storyline' | 'organization'
-    method: 'native_sheet' | 'copy_link'
+    method: 'native_sheet' | 'copy_link' | 'copy_text'
   }
   /**
    * No `destination`, and that is a correction to the spec rather than an omission.
@@ -367,6 +370,19 @@ export type EventProps = {
 
   push_permission: { result: 'granted' | 'denied' | 'deferred' }
   notification_open: { type: string; channel: 'push' | 'bell' }
+  /**
+   * A link in one of OUR emails was clicked (operator 2026-10-05) — services/inboundLink. Which
+   * email, what kind of page the link pointed at, where it landed, and whether the person was
+   * signed in. A signed-out click is reported at the sign-in gate and again, signed in, when the
+   * gate sends them on to the page — so the pair is the email → sign-in funnel; count clicks with
+   * `signed_in: false` plus the signed-in ones that have no signed-out twin, or simply by campaign.
+   */
+  email_link_opened: {
+    campaign: EmailCampaign
+    element: EmailLinkElement
+    target: 'player' | 'podcast' | 'topic' | 'person' | 'storyline' | 'theme' | 'other'
+    signed_in: boolean
+  }
 }
 
 // ── Enablement ───────────────────────────────────────────────────────────────

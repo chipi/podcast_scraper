@@ -24,7 +24,7 @@ from podcast_scraper.server.og.card import accent_for_kind, OgCardModel
 logger = logging.getLogger(__name__)
 
 # The shareable entity kinds — mirrors the player's share surfaces + router names.
-OG_KINDS = frozenset({"topic", "person", "organization", "episode", "show", "storyline"})
+OG_KINDS = frozenset({"topic", "person", "organization", "episode", "show", "storyline", "theme"})
 
 _MAX_QUOTE = 200  # trim a runaway insight so the card stays a card, not a paragraph
 _MAX_BLURB = 160
@@ -65,6 +65,7 @@ def build_og_model(
             "person": _person,
             "organization": _org,
             "storyline": _storyline,
+            "theme": _theme,
             "episode": _episode,
             "show": _show,
         }[kind]
@@ -227,6 +228,7 @@ def _topic(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
         stats += f" · {voices} {'voice' if voices == 1 else 'voices'}"
     hot, spark, mult = _trend(root, "topic", card.id)
     return OgCardModel(
+        gallery=_show_tiles(root, card) if (with_art and spark is None) else (),
         kicker="Topic",
         title=card.label,
         quote=quote,
@@ -301,7 +303,7 @@ def _person(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None
                 "Photo", getattr(web, "image_artist", None), getattr(web, "image_license", None)
             )
         elif role == "guest":
-            gallery = _guest_show_tiles(root, card)
+            gallery = _show_tiles(root, card)
         elif role == "host" and host_show:
             artwork = _feed_artwork(root, host_show.feed_id)  # show cover art — promotional
 
@@ -334,9 +336,11 @@ def _feed_artwork(root: Path, feed_id: str) -> bytes | None:
     return _artwork_bytes(root, feed.get("image_local_relpath")) if feed else None
 
 
-def _guest_show_tiles(root: Path, card: object) -> tuple[bytes, ...]:
-    """One artwork tile per distinct show a guest appears on (latest episode first), each the
-    episode's OWN art with a fall-back to the show art. Capped at four."""
+def _show_tiles(root: Path, card: object) -> tuple[bytes, ...]:
+    """One artwork tile per distinct show among a card's episodes (latest episode first), each the
+    episode's OWN art with a fall-back to the show art. Capped at four. A guest's shows; and the
+    shows a topic / storyline / theme is discussed on when it has no rising trend to draw — the
+    middle of the card was otherwise empty (operator 2026-10-05)."""
     from typing import Any
 
     from podcast_scraper.server.app_slugs import resolve_slug
@@ -416,6 +420,7 @@ def _storyline(root: Path, ident: str, with_art: bool = True) -> OgCardModel | N
     tcid = card.storyline_id
     hot, spark, mult = _trend(root, "storyline", tcid) if tcid else (None, None, None)
     return OgCardModel(
+        gallery=_show_tiles(root, card) if (with_art and spark is None) else (),
         kicker="Storyline",
         title=card.storyline_label or card.label,
         blurb=_clip(" · ".join(members), _MAX_BLURB),
@@ -425,6 +430,35 @@ def _storyline(root: Path, ident: str, with_art: bool = True) -> OgCardModel | N
         sparkline=spark,
         trend_multiplier=mult,
         accent=accent_for_kind("storyline"),
+    )
+
+
+def _theme(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
+    # A theme (`tc:`) groups topics that MEAN the same thing (operator 2026-10-05: a first-class
+    # kind like the chips, so it shares as itself, not as a topic). Same KPI-tile layout as a
+    # storyline: which topics (blurb), how big (stats), and the trend when it is rising.
+    from podcast_scraper.server.app_relational_view import build_theme_card
+
+    card = build_theme_card(root, ident)
+    if card is None:
+        return None
+    members = [m.label for m in (card.member_topics or []) if m.label]
+    n_topics = len(members)
+    stats = f"{n_topics} {'topic' if n_topics == 1 else 'topics'}"
+    if card.episode_count:
+        stats += f" · {_eps(card.episode_count)}"
+    hot, spark, mult = _trend(root, "theme", card.id)
+    return OgCardModel(
+        gallery=_show_tiles(root, card) if (with_art and spark is None) else (),
+        kicker="Theme",
+        title=card.label,
+        blurb=_clip(" · ".join(members), _MAX_BLURB),
+        byline="Topics that mean the same thing",
+        stats=stats,
+        hot=hot,
+        sparkline=spark,
+        trend_multiplier=mult,
+        accent=accent_for_kind("theme"),
     )
 
 
@@ -483,6 +517,63 @@ def _episode(root: Path, ident: str, with_art: bool = True) -> OgCardModel | Non
         accent=accent_for_kind("episode"),
         artwork=art,
         background=True,  # episode uses its art as the full-bleed backdrop (summary-length-proof)
+    )
+
+
+#: A highlight's quote is the card's hero, so it gets far more room than an entity card's lede.
+_MAX_HIGHLIGHT_QUOTE = 320
+
+
+def build_highlight_card(
+    root: Path, highlight: dict[str, object], *, with_art: bool = True
+) -> OgCardModel | None:
+    """The card for ONE of a user's highlights — the quote card (operator 2026-10-05).
+
+    Drawn by the same renderer as every other card, so a shared highlight looks like the rest: the
+    episode's artwork full-bleed behind it, the show in the kicker, the episode as a short title,
+    the QUOTE as the hero, who said it and when, and the topics / people it is about. A moment saved
+    before its words were captured carries no quote; the card still names the episode and the time.
+
+    Not an OG card: a highlight is private, so this is served signed-in, never unfurled. ``None``
+    when the episode has left the corpus.
+    """
+    from podcast_scraper.server.app_slugs import resolve_slug
+
+    row = resolve_slug(root, str(highlight.get("episode_slug") or ""))
+    if row is None:
+        return None
+    quote = _clip(str(highlight.get("quote_text") or "") or None, _MAX_HIGHLIGHT_QUOTE)
+    start_ms = highlight.get("start_ms")
+    at = None
+    if isinstance(start_ms, (int, float)) and start_ms >= 0:
+        secs = int(start_ms) // 1000
+        h, rem = divmod(secs, 3600)
+        at = f"{h}:{rem // 60:02d}:{rem % 60:02d}" if h else f"{rem // 60}:{rem % 60:02d}"
+    speaker = str(highlight.get("speaker") or "").strip() or None
+    byline_parts = [f"— {speaker}" if speaker else None, f"at {at}" if at else None]
+    byline = " · ".join(p for p in byline_parts if p) or None
+    refs = highlight.get("graph_refs") or []
+    labels = [str(r.get("label")) for r in refs if isinstance(r, dict) and r.get("label")][:3]
+    mins = round(row.duration_seconds / 60) if row.duration_seconds else None
+    meta = [f"{mins} min" if mins else None, _published(row.publish_date)]
+    art = (
+        _artwork_bytes(root, row.episode_image_local_relpath or row.feed_image_local_relpath)
+        if with_art
+        else None
+    )
+    return OgCardModel(
+        kicker=f"Highlight · {row.feed_title}" if row.feed_title else "Highlight",
+        title=row.episode_title or "Untitled episode",
+        quote=quote,
+        byline=byline,
+        stats=" · ".join(m for m in meta if m) or None,
+        tags=" · ".join(labels) or None,
+        accent=accent_for_kind("episode"),
+        artwork=art,
+        background=True,
+        title_lines=3,  # room for a full episode title; the quote still has 7 lines below it
+        quote_lines=7,
+        veil_mid=210,  # the quote runs through the middle — keep the art a texture, not a fight
     )
 
 

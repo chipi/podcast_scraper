@@ -144,6 +144,9 @@ async function refreshDashboard(): Promise<void> {
   }
   try {
     void indexStats.refreshIndexStats()
+    // Artifact activity (§4.3) reads the shell's artifact list; only the Graph sync and the
+    // status-bar List fetched it, so a Dashboard opened first showed a false 14-day alarm.
+    void shell.fetchArtifactList()
     const sum = await fetchCorpusRunsSummary(root)
     if (dashGate.isStale(seq)) {
       return
@@ -375,7 +378,10 @@ function openLibraryFailures(): void {
         :feeds-indexed="indexStats.indexEnvelope?.stats?.feeds_indexed ?? []"
         @select-feed="onSelectFeed"
       />
-      <ArtifactActivityChart :artifact-items="shell.artifactList" />
+      <ArtifactActivityChart
+        :artifact-items="shell.artifactList"
+        :loaded="shell.artifactCount !== null"
+      />
       <IndexStatusCard />
       <CostRollupCard />
     </div>

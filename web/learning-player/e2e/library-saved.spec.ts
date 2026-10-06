@@ -41,9 +41,9 @@ test('favouriting an episode + an insight fills the Saved per-kind sections', as
   await page.getByText('Index Investing Without the Myths').first().click()
   await openTranscript(page) // transcript is opt-in on mobile — reveal it (no-op on desktop)
   await expect(page.getByText(/Index funds are not a strategy/).first()).toBeVisible()
-  const epFav = page.getByRole('button', { name: 'Save to favorites' }).first()
+  const epFav = page.getByRole('button', { name: 'Save', exact: true }).first()
   if (await epFav.isVisible().catch(() => false)) await epFav.click()
-  await expect(page.getByRole('button', { name: 'Remove from favorites' }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Remove from Saved' }).first()).toBeVisible()
 
   // #1593 + F2.1 — an insight has exactly ONE save, the shared "Save to favorites" heart (F2.1
   // unified the save wording to "favorite"). It still routes to HIGHLIGHTS, not the /favorites list:

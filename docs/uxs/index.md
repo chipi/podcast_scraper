@@ -120,6 +120,8 @@ Authoritative specs; current implementations should conform
 | [UXS-013](UXS-013-knowledge-clusters.md) | Knowledge clusters & entity cards (consumer) | PRD-043; RFC-102 | Cluster-first Topics & People (dominant-cluster standout + theme); person/topic entity cards; entities in search. Inherits UXS-011/012. |
 | [UXS-014](UXS-014-interaction-patterns.md) | Interaction patterns (consumer) | PRD-043; RFC-102 | **Foundational** cross-surface contract: surface types, never-stack-two-backdrops / replace-in-panel, shared `.lp-nav` / `.lp-fav` classes, header order, modal a11y, player hero, Library/Saved. Inherits UXS-011/012/013. |
 | [UXS-015](UXS-015-operator-shows-library.md) | Operator Shows Library (shows-first browse) | PRD-044; RFC-104 | Shows-first browse in the operator Library tab: shows grid → show detail → cross-linked episode list (covers + descriptions). Reuses `PodcastCover` + `focusEpisode`; no backend change. Inherits UXS-001; episode row from UXS-003. |
+| [UXS-017](UXS-017-share-cards.md) | Shareable cards | — | The one server-rendered card (`server/og/card.py`) for every shared kind and the highlight quote card; OG unfurls and the app's Share card use the same image. |
+| [UXS-018](UXS-018-operator-ops-and-admin.md) | Operator Ops and Admin tabs | #1128; ADR-113, ADR-142 | Ops (source cards, LLM gateway, resilience + reset, token/cost usage) and Admin (users, discovery ranking, graph analytics + replay). Admin-only, server-enforced. Inherits UXS-001. |
 
 **Across the two systems:** [Token vocabulary cross-map](TOKEN-VOCABULARY-CROSSMAP.md) — the
 token names the operator viewer (`--ps-*`) and the consumer app (`--lp-*`) share, what each means

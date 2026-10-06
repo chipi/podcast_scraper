@@ -46,6 +46,21 @@ describe('learning-player useUserPreferencesStore (USERPREFS-1 gh #1213)', () =>
     expect(store.get<string>('other')).toBe('x')
   })
 
+  it('a hydrate that resolves AFTER a local write keeps the write — a stale snapshot does not undo it', async () => {
+    // Save, un-Save, and a GET that was already in flight returns a snapshot taken between the two:
+    // replacing wholesale put the query back and the button read "Saved ✓" (e2e flake 2026-10-04).
+    let resolveGet!: (r: Response) => void
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((r) => (resolveGet = r)))
+    fetchMock.mockResolvedValue(makeResponse({}, 200)) // the PATCHes
+    const store = useUserPreferencesStore()
+    const hydrating = store.hydrate()
+    await store.set('lp.savedQueries', []) // un-saved while the GET is still out
+    resolveGet(makeResponse({ preferences: { 'lp.savedQueries': [{ q: 'risk' }], other: 'x' } }))
+    await hydrating
+    expect(store.get('lp.savedQueries')).toEqual([]) // the user's last word stands
+    expect(store.get('other')).toBe('x') // and the rest of the snapshot still arrives
+  })
+
   it('hydrate() silently marks unavailable on non-2xx response', async () => {
     fetchMock.mockResolvedValueOnce(makeResponse(null, 401))
     const store = useUserPreferencesStore()
@@ -93,8 +108,10 @@ describe('learning-player useUserPreferencesStore (USERPREFS-1 gh #1213)', () =>
     const [url, init] = fetchMock.mock.calls[1]
     expect(url).toBe('/api/app/preferences')
     expect((init as RequestInit).method).toBe('PATCH')
+    // The server's contract (UserPreferencesPatch): the keys go under `preferences`. This test used
+    // to pin the bare `{ key: value }` shape — the bug — so it passed while every real write 422'd.
     expect(JSON.parse((init as RequestInit).body as string)).toEqual({
-      'lp.interests.dismissed': true,
+      preferences: { 'lp.interests.dismissed': true },
     })
   })
 

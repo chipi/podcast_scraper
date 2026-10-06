@@ -24,7 +24,7 @@
             "graph_refs": [
               { "id": "topic:ai-safety", "kind": "topic", "label": "AI Safety" }
             ],
-            "deep_link": "/topic/ai-safety?scope=mine"
+            "deep_link": "/topic/topic%3Aai-safety"
           }
         ]
       },

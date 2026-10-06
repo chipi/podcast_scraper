@@ -24,12 +24,15 @@ import type {
 import { formatTime } from "../player/transcriptSync"
 import { hitStartSeconds, insightStartSeconds } from "../player/insights"
 import { speakerLabel } from "../utils/format"
-import EpisodeRow from "./EpisodeRow.vue"
+import CardRail from "./CardRail.vue"
+import EpisodeTile from "./EpisodeTile.vue"
+import PlayFrom from "./PlayFrom.vue"
 import { useAuthStore } from "../stores/auth"
 import { sheetTeleportTarget } from "../composables/sheetStack"
 import { useSignInGate } from "../composables/useSignInGate"
 import { scrollBehavior } from "../utils/motion"
-import { useQueueStore } from "../stores/queue"
+import { holdScroll, offsetWithin, restoreScroll, waitForSettledElement } from "../utils/scrollRestore"
+import { NOTES_ANCHOR } from "../composables/noteTarget"
 import { useCaptureStore } from "../stores/capture"
 import CollapsibleSection from "./CollapsibleSection.vue"
 import HighlightToggle from "./HighlightToggle.vue"
@@ -41,7 +44,7 @@ import ProfileAvatar from "./ProfileAvatar.vue"
 import StorylineCard from "./StorylineCard.vue"
 import ThemeCard from "./ThemeCard.vue"
 import EpisodeDensity from "./EpisodeDensity.vue"
-import { isNative, openExternal, saveAndShareText } from "../services/native"
+import ExportViewer from "./ExportViewer.vue"
 import { exportFilename } from "../utils/exportFilename"
 
 const props = withDefaults(
@@ -54,11 +57,15 @@ const props = withDefaults(
     activeInsightId: string | null
     /** An insight tapped from the transcript — scroll it into view + highlight it. */
     focusInsightId?: string | null
+    /** Opened from a note's "Open" (operator 2026-10-04) — land on the notes, not the panel top. */
+    focusNotes?: boolean
   }>(),
-  { focusInsightId: null }
+  { focusInsightId: null, focusNotes: false }
 )
 const emit = defineEmits<{
   (e: "seek", seconds: number): void
+  /** "▶ Play from" — seek AND play: an explicit ▶ starts playback (operator 2026-10-05). */
+  (e: "play-from", seconds: number): void
   (e: "close"): void
   /**
    * Announce a capture outcome through the parent's live region (S8).
@@ -107,12 +114,14 @@ function notesUrl(ext: 'md' | 'html'): string {
  * token) and then displayed from memory. There is no second request, so there is nothing to
  * authenticate twice.
  *
- * Sharing stays one tap away INSIDE the viewer, because the share sheet is the route to iOS's
- * Print -> Save as PDF, and that is the real print-to-PDF path on the platform. Bundling a PDF
- * library to re-implement a renderer the OS already has would still be the wrong trade.
+ * The viewer carries the formats in its top-right corner — Markdown, and "Print or share" — so the
+ * panel needs ONE link (operator 2026-10-05). Sharing is whatever the platform does with a
+ * document: the share sheet on native (iOS offers Print there, whose preview saves a PDF), file
+ * share or the print dialog on the web, where Save as PDF is a destination. No PDF library: the
+ * operator chose to leave PDF to each platform rather than add one.
  *
- * Web keeps opening a tab: the cookie travels there, and a browser tab is already the thing the
- * native side is approximating.
+ * The web uses the same viewer rather than a tab. In a tab, "download" saved the HTML page, which is
+ * not the PDF the reader asked for.
  */
 const printingNotes = ref(false)
 const notesHtml = ref<string | null>(null)
@@ -128,10 +137,8 @@ const notesError = ref(false)
 const notesTeleportTarget = ref<HTMLElement | string>('body')
 
 async function openPrintableNotes(): Promise<void> {
-  if (!isNative()) {
-    await openExternal(notesUrl('html'))
-    return
-  }
+  // The same in-app viewer on the web too (operator 2026-10-05: ONE link that opens the notes, with
+  // Markdown and Share inside). It used to open a tab, where "download" saved HTML — not a PDF.
   if (printingNotes.value) return
   printingNotes.value = true
   notesError.value = false
@@ -147,34 +154,8 @@ async function openPrintableNotes(): Promise<void> {
   }
 }
 
-/** Hand the already-fetched document to the share sheet — the way to iOS Print -> Save as PDF. */
-async function shareOpenNotes(): Promise<void> {
-  if (!notesHtml.value) return
-  await saveAndShareText(
-    exportFilename(`${props.episode.title} notes`, 'html', 'episode-notes'),
-    notesHtml.value,
-    'text/html',
-  )
-}
-
-/**
- * Markdown notes on native: fetch and hand to the share sheet.
- *
- * The template's `<a download>` is ignored by WKWebView, so tapping "Markdown" on the phone
- * produced nothing — found alongside the PDF defect above. Both formats of the episode-notes export
- * were unreachable on the only build the operator actually uses.
- */
-const savingNotes = ref(false)
-async function saveNotesNative(): Promise<void> {
-  if (savingNotes.value) return
-  savingNotes.value = true
-  try {
-    const md = await fetchEpisodeNotes(props.episode.slug)
-    await saveAndShareText(exportFilename(`${props.episode.title} notes`, 'md', 'episode-notes'), md)
-  } finally {
-    savingNotes.value = false
-  }
-}
+/** The Markdown, for the viewer's native share (it shows the web a plain download link). */
+const fetchNotesMarkdown = (): Promise<string> => fetchEpisodeNotes(props.episode.slug)
 
 const summary = computed(() => props.episode.summary_text || null)
 
@@ -214,8 +195,21 @@ type Tag = {
 
 // Tapping a chip opens its entity card (PRD-043; library search now lives inside the card).
 const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
+// The card REPLACES the panel body, so closing it rebuilt the panel at the top — far from the
+// people or topics row the card was opened from. Remember the offset; put it back on close
+// (operator 2026-10-04).
+const panelBodyEl = ref<HTMLElement | null>(null)
+let panelScrollBeforeCard = 0
+function showCard(kind: "person" | "topic", id: string): void {
+  panelScrollBeforeCard = panelBodyEl.value?.scrollTop ?? 0
+  cardTarget.value = { kind, id }
+}
 function openCard(tag: Tag): void {
-  cardTarget.value = { kind: tag.kind, id: tag.key }
+  showCard(tag.kind, tag.key)
+}
+function closeCard(): void {
+  cardTarget.value = null
+  void nextTick(() => restoreScroll(panelBodyEl.value, panelScrollBeforeCard))
 }
 
 // How many of THIS episode's topics fall in each corpus cluster (intra-episode dominance).
@@ -454,6 +448,25 @@ watch(
   }
 )
 
+// The notes sit at the very bottom of the panel, below every rail; scroll the panel's own body to
+// them once they are rendered.
+watch(
+  () => props.focusNotes,
+  async (on) => {
+    if (!on) return
+    await nextTick()
+    const notes = await waitForSettledElement(NOTES_ANCHOR)
+    if (!notes) return
+    // Instant, then held: rails above the notes can still arrive and push them down, and a smooth
+    // scroll would animate toward where they WERE (see the router's anchor branch).
+    const body = panelBodyEl.value
+    if (!body) return notes.scrollIntoView({ block: "start" })
+    body.scrollTop = offsetWithin(body, notes)
+    holdScroll(body, () => offsetWithin(body, notes))
+  },
+  { immediate: true }
+)
+
 // --- ask (extractive grounded search) ---
 const q = ref("")
 const results = ref<SearchHit[]>([])
@@ -534,15 +547,7 @@ const captureInsight = (ins: Insight) =>
 // --- related ("more like this") ---
 const auth = useAuthStore()
 const { isGated, gated } = useSignInGate()
-const queue = useQueueStore()
 
-// Queue a peer episode to play right after the current one (RFC-099 §4 "Play next").
-/** Auth-gated: a signed-out tap routes to sign-in rather than POSTing a 401 (#1590). */
-const playNext = (slug: string) =>
-  gated(async () => {
-    // The action reports whether the write survived (#1906); the gate's handler type is void.
-    await queue.playNext(slug, props.slug)
-  })()
 const related = ref<EpisodeSummary[]>([])
 async function loadRelated(slug: string): Promise<void> {
   try {
@@ -598,7 +603,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
       can-layer
       :kind="cardTarget.kind"
       :id="cardTarget.id"
-      @close="cardTarget = null"
+      @close="closeCard"
     />
     <template v-else>
       <header class="flex items-center justify-between border-b border-border px-4 py-3">
@@ -615,7 +620,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
         </button>
       </header>
 
-      <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <div ref="panelBodyEl" class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <!-- WHICH EPISODE THIS IS (operator 2026-09-19).
 
              The panel carries the summary, the topics, the people and every insight — it is the
@@ -649,7 +654,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 class="flex items-center gap-2 text-left"
                 :aria-label="p.episode_scoped ? undefined : t('kp.openEntity', { term: personName(p.name) })"
                 data-testid="kp-dossier-person"
-                @click="p.episode_scoped ? undefined : (cardTarget = { kind: 'person', id: p.id })"
+                @click="p.episode_scoped ? undefined : showCard('person', p.id)"
               >
                 <ProfileAvatar :name="personName(p.name)" :src="p.image_url" :size="32" />
                 <span class="flex flex-col leading-tight">
@@ -681,111 +686,37 @@ watch(() => auth.isAuthenticated, loadCaptures)
              export belongs here rather than in the Library, which exports captures across every
              episode. Two formats, matching the Library's chips: Markdown to keep, and a
              print-styled page the browser saves as PDF. -->
-        <div class="mb-5 flex items-center gap-2" data-testid="episode-notes-export">
-          <span class="text-xs text-muted">{{ t("kp.exportKicker") }}</span>
-          <!-- Native shell: fetch + share sheet (WKWebView ignores `<a download>`, so this chip
-               did nothing at all on the phone); web: plain download link. Mirrors the Library's
-               highlights export, which already had the native branch this one was missing. -->
-          <button
-            v-if="isNative()"
-            type="button"
-            :disabled="savingNotes"
-            :aria-label="t('kp.exportNotesMarkdown')"
-            class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
-            @click="saveNotesNative"
-          >{{ t("kp.exportMarkdownShort") }}</button>
-          <a
-            v-else
-            :href="notesUrl('md')"
-            :download="`${episode.slug}-notes.md`"
-            :aria-label="t('kp.exportNotesMarkdown')"
-            class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent no-underline transition hover:bg-overlay"
-          >{{ t("kp.exportMarkdownShort") }}</a>
+        <!-- ONE link (operator 2026-10-05): it opens the notes, and the viewer carries the formats —
+             Markdown to keep, and Print or share for the rest (PDF included, where the platform
+             offers it). Two chips side by side read as two different documents. -->
+        <div class="mb-5 flex items-center gap-2">
           <button
             type="button"
             :disabled="printingNotes"
-            :aria-label="t('kp.exportNotesPdf')"
-            data-testid="episode-notes-pdf"
+            :aria-label="t('kp.exportNotesOpen')"
+            data-testid="episode-notes-export"
             class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
             @click="openPrintableNotes"
-          >{{ t("kp.exportPdfShort") }}</button>
+          >{{ t("kp.exportKicker") }}</button>
           <!-- The export can fail (offline, a dead session), and it used to fail in silence. -->
           <span v-if="notesError" class="text-xs text-danger" data-testid="episode-notes-error">
             {{ t("kp.exportFailed") }}
           </span>
         </div>
 
-        <!--
-          The notes, OPEN, on native (operator 2026-09-27).
-
-          TELEPORTED INTO THE OPEN DIALOG, NOT INTO `body`. This panel is a `<dialog>` opened with
-          `showModal()` on mobile (`PlayerView.vue`), which puts it in the TOP LAYER — and the top
-          layer paints above the whole normal layer no matter what z-index anything there carries.
-          The first version of this teleported to `body` with `z-[60]`; the notes fetched, the
-          overlay rendered, and it sat invisible BEHIND the panel. The operator's report was "on
-          last deploy nothing happens when I click PDF on insights", and nothing is exactly what it
-          looked like. My own comment here named the hazard and then did the opposite of what it
-          said.
-
-          `sheetTeleportTarget()` is the existing answer to this — it returns `dialog[open]` when
-          there is one and `body` otherwise, and `EntityCard` already uses it for the same reason.
-          Resolved per open, because whether a dialog is up depends on how you got here.
-
-          None of my three tests caught it: jsdom implements neither the top layer nor `showModal`
-          stacking, so an element hidden behind a modal is indistinguishable there from one on top
-          of it. The device tier is the only place this is observable, and it does not run in CI.
-
-          An `<iframe srcdoc>` is what makes this work without a second request. The export is a
-          COMPLETE standalone document — its own `<html>`, its own print stylesheet — so injecting
-          it into this page would both break the page's styling and lose the print styling that is
-          the entire point of the .html format. An iframe gives it its own document, and `srcdoc`
-          means the bytes we already fetched with the shell's bearer token are the bytes rendered:
-          no URL for SFSafariViewController to re-request without a cookie, which is exactly how
-          the previous attempt at "open it" ended up on the sign-in gate.
-
-          `sandbox` with nothing granted: the document is ours, but it is assembled from episode
-          content, and a viewer has no reason to run script or navigate anywhere.
-        -->
-        <Teleport :to="notesTeleportTarget">
-          <div
-            v-if="notesHtml"
-            class="fixed inset-0 z-[60] flex flex-col bg-canvas"
-            role="dialog"
-            aria-modal="true"
-            :aria-label="t('kp.exportNotesPdf')"
-            data-testid="episode-notes-viewer"
-          >
-            <div
-              class="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]"
-            >
-              <button
-                type="button"
-                class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
-                data-testid="episode-notes-viewer-close"
-                @click="notesHtml = null"
-              >
-                {{ t("kp.exportClose") }}
-              </button>
-              <!-- The share sheet is still here, because it is the route to Print -> Save as PDF.
-                   It is an action WITHIN the document now, not the whole answer to opening it. -->
-              <button
-                type="button"
-                class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent transition hover:bg-overlay"
-                data-testid="episode-notes-viewer-share"
-                @click="shareOpenNotes"
-              >
-                {{ t("kp.exportShare") }}
-              </button>
-            </div>
-            <iframe
-              :srcdoc="notesHtml"
-              sandbox=""
-              class="min-h-0 flex-1 w-full border-0 bg-white"
-              :title="t('kp.exportNotesPdf')"
-              data-testid="episode-notes-frame"
-            />
-          </div>
-        </Teleport>
+        <!-- The notes, OPEN, with Markdown + Print or share top right — the shared viewer, which
+             also documents why it is an iframe and why it teleports into the open dialog. -->
+        <ExportViewer
+          v-if="notesHtml"
+          :html="notesHtml"
+          :to="notesTeleportTarget"
+          :title="t('kp.exportNotesPdf')"
+          :html-filename="exportFilename(`${episode.title} notes`, 'html', 'episode-notes')"
+          :md-filename="exportFilename(`${episode.title} notes`, 'md', 'episode-notes')"
+          :md-url="notesUrl('md')"
+          :fetch-markdown="fetchNotesMarkdown"
+          @close="notesHtml = null"
+        />
 
         <!--
           SEARCH, not "Ask" (operator 2026-09-27: "Ask episode doesn't feel right here").
@@ -834,14 +765,12 @@ watch(() => auth.isAuthenticated, loadCaptures)
               class="rounded-xl border border-border p-3"
             >
               <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
-              <button
+              <PlayFrom
                 v-if="hitStartSeconds(hit) != null"
-                type="button"
-                class="mt-1 font-mono text-xs text-accent"
-                @click="emit('seek', hitStartSeconds(hit) as number)"
-              >
-                ▶ {{ formatTime(hitStartSeconds(hit) as number) }}
-              </button>
+                class="mt-1 inline-block"
+                :seconds="hitStartSeconds(hit)"
+                @click="emit('play-from', hitStartSeconds(hit) as number)"
+              />
             </li>
           </ul>
           <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">
@@ -1083,16 +1012,13 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 <span class="flex items-center gap-2">
                   <!-- The mm:ss is WHERE in the episode this insight was said — tapping jumps there.
                      Labelled so it isn't read as a bare, unexplained number (IN.4). -->
-                  <button
+                  <PlayFrom
                     v-if="insightStartSeconds(ins) != null"
-                    type="button"
-                    class="font-mono text-xs text-accent"
+                    :seconds="insightStartSeconds(ins)"
                     :aria-label="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
                     :title="t('kp.jumpToMoment', { time: formatTime(insightStartSeconds(ins) as number) })"
-                    @click="emit('seek', insightStartSeconds(ins) as number)"
-                  >
-                    ▶ {{ formatTime(insightStartSeconds(ins) as number) }}
-                  </button>
+                    @click="emit('play-from', insightStartSeconds(ins) as number)"
+                  />
                   <!-- Save this insight — a BOOKMARK, like every other highlight (operator
                        2026-09-27).
 
@@ -1157,29 +1083,14 @@ watch(() => auth.isAuthenticated, loadCaptures)
           section-key="related"
           class="mt-5"
         >
-          <ul class="flex flex-col">
-            <li v-for="r in related" :key="r.slug">
-              <EpisodeRow :episode="r">
-                <template #trailing>
-                  <!-- Play next: queue this peer right after the current episode (RFC-099 §4).
-                     Renders signed-out and routes to sign-in (#1590). -->
-                  <button
-                    type="button"
-                    class="mt-1 shrink-0 rounded-full p-1.5 transition hover:bg-overlay hover:text-accent"
-                    :class="queue.has(r.slug) ? 'text-canvas-foreground' : 'text-muted'"
-                    :aria-label="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
-                    :title="isGated ? t('auth.signInToQueue') : t('queue.playNext')"
-                    @click="playNext(r.slug)"
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4" aria-hidden="true">
-                      <path d="M5 5l9 7-9 7V5z" />
-                      <rect x="16" y="5" width="2.4" height="14" rx="1" />
-                    </svg>
-                  </button>
-                </template>
-              </EpisodeRow>
+          <!-- The same rail and tile as the player page's "More like this" (operator 2026-10-05: same
+               section name, same shape everywhere). It was a text list here, with a Play-next
+               button the tile's shared action row does not carry. -->
+          <CardRail>
+            <li v-for="r in related" :key="r.slug" class="lp-rail-item">
+              <EpisodeTile :episode="r" />
             </li>
-          </ul>
+          </CardRail>
         </CollapsibleSection>
 
         <!-- Your notes on this episode (NT.1) — episode-target notes, timestamped, dictation where

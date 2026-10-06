@@ -38,6 +38,7 @@ _PATH_KIND = {
     "episode": "episode",
     "podcast": "show",
     "storyline": "storyline",
+    "theme": "theme",
 }
 
 

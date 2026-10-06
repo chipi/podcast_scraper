@@ -30,7 +30,8 @@
     "language": "en",
     "language_source": "rss",
     "published_date": "2025-03-17T00:00:00",
-    "title": "More Drift, Less Signal"
+    "title": "More Drift, Less Signal",
+    "description": "Testing Unicode: 你好世界 🌍 Café résumé naïve ñoño"
   },
   "feed": {
     "authors": [

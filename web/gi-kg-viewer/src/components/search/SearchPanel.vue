@@ -110,9 +110,11 @@ const EVIDENCE_OPTIONS: { value: EvidenceFilter; label: string }[] = [
   { value: 'both', label: 'Both' },
 ]
 
+// From ``filteredResults``, not ``results``: the Min confidence chip is a client-side filter and
+// this list is where it shows. Read from ``results`` it filtered nothing.
 const visibleResults = computed((): SearchHit[] => {
-  if (evidenceFilter.value === 'both') return search.results
-  return search.results.filter(
+  if (evidenceFilter.value === 'both') return search.filteredResults
+  return search.filteredResults.filter(
     (h) => (h.source_tier ?? 'aux') === evidenceFilter.value,
   )
 })
@@ -602,15 +604,17 @@ const advancedFeedCombinedTitle = computed(() =>
       >
         {{ search.apiError }}
       </p>
+      <!-- Search v3 §S5 — EnrichedAnswerHero sits ABOVE the operator bar
+           and the hit cards. Renders nothing when enrichment is off or
+           no decorated hits came back; renders skeleton on loading;
+           renders muted error on non-fatal chain failure. Mounted OUTSIDE
+           the results block: a search clears `results` before it loads, so
+           inside it the loading skeleton could never render. -->
+      <EnrichedAnswerHero class="mt-3" />
       <div
         v-if="search.results.length"
         class="mt-3 space-y-2"
       >
-        <!-- Search v3 §S5 — EnrichedAnswerHero sits ABOVE the operator bar
-             and the hit cards. Renders nothing when enrichment is off or
-             no decorated hits came back; renders skeleton on loading;
-             renders muted error on non-fatal chain failure. -->
-        <EnrichedAnswerHero />
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
           <p class="text-xs font-medium text-muted">
             {{ visibleResults.length }}

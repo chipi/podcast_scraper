@@ -23,7 +23,7 @@ import java.util.List;
  *   02  episode → insights
  *   03  topic page → storyline page
  *   04  person page, reached from an episode's entities
- *   05  collections: create, then "Add to collection" lists them
+ *   05  collections: create, then "Add to board" lists them
  *   06  share popover renders its options
  *   07  saved-item colour picker popover renders and a colour can be chosen
  *   11  storyline from the Insights panel stacks over the topic (canLayer=false path)
@@ -336,12 +336,12 @@ public class AppJourneyTests extends UITestCase {
             Journey.sleep(3_000);
         }
 
-        // Now the "Add to collection" sheet on an episode must LIST those collections.
+        // Now the "Add to board" sheet on an episode must LIST those collections.
         AppSession.openEpisode(EPISODE_SLUG);
         Journey.sleep(6_000);
 
-        // collections.addTo = 'Add to collection'
-        boolean addTapped = Journey.tap("Add to collection", true, 15_000);
+        // collections.addTo = 'Add to board'
+        boolean addTapped = Journey.tap("Add to board", true, 15_000);
         if (addTapped) {
             Journey.sleep(3_000);
             assertNotNull(
@@ -349,7 +349,7 @@ public class AppJourneyTests extends UITestCase {
                             + "On screen: " + Journey.labelledInventory(80),
                     Journey.find("Test Board A", true, 10_000));
         } else {
-            fail("'Add to collection' not reachable from the episode. On screen: "
+            fail("'Add to board' not reachable from the episode. On screen: "
                     + Journey.labelledInventory(80));
         }
     }
@@ -400,9 +400,9 @@ public class AppJourneyTests extends UITestCase {
 
             AppSession.openEpisode(slug);
             Journey.sleep(5_000);
-            // fav.add = 'Save to favorites'
-            if (Journey.find("Save to favorites", true, 8_000) != null) {
-                Journey.tap("Save to favorites", true, 8_000);
+            // fav.add = 'Save' — EXACT: a substring match also hits the bookmark ("Save line")
+            if (Journey.find("Save", false, 8_000) != null) {
+                Journey.tap("Save", false, 8_000);
                 Journey.sleep(3_000);
             }
             assertTrue("Library tab did not open (seeding " + colour + ")",
@@ -433,15 +433,15 @@ public class AppJourneyTests extends UITestCase {
         Journey.sleep(6_000);
         // Favourite only if not ALREADY favourited — a blind tap toggles and would leave Saved
         // empty (iOS 2026-09-16).
-        if (Journey.find("Save to favorites", true, 8_000) != null) {
-            Journey.tap("Save to favorites", true, 8_000);
+        if (Journey.find("Save", false, 8_000) != null) {
+            Journey.tap("Save", false, 8_000);
             Journey.sleep(3_000);
         }
-        // fav.remove = 'Remove from favorites'
+        // fav.remove = 'Remove from Saved'
         assertNotNull(
                 "the episode is not favourited, so Saved would be empty. On screen: "
                         + Journey.labelledInventory(16),
-                Journey.find("Remove from favorites", true, 10_000));
+                Journey.find("Remove from Saved", true, 10_000));
 
         assertTrue("Library tab did not open", Journey.openTab("Library"));
         Journey.sleep(4_000);

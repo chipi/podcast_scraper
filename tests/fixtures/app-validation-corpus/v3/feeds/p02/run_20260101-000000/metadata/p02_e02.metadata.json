@@ -30,7 +30,8 @@
     "language": "en",
     "language_source": "rss",
     "published_date": "2024-04-18T00:00:00",
-    "title": "Staff-Engineer Communication Patterns"
+    "title": "Staff-Engineer Communication Patterns",
+    "description": "How to write RFCs, run reviews, and align teams without turning everything into meetings."
   },
   "feed": {
     "authors": [

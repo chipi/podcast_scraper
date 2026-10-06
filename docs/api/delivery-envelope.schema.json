@@ -315,6 +315,90 @@
             "auto"
           ],
           "description": "'user' = the user captured it; 'auto' = GI editor's-pick (FR3). Renderers MUST distinguish them."
+        },
+        "podcast_title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The show's display title (operator 2026-10-05: shown above the episode title, as the app does)."
+        },
+        "artwork_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Episode artwork: app-relative (/api/app/artwork?..., the renderer makes it absolute) or a feed-hosted https URL."
+        },
+        "duration_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Episode length, for the duration and date line."
+        },
+        "publish_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Publication date (YYYY-MM-DD), for the duration and date line."
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The episode's summary, cut at a word to about three lines (the app's episode card)."
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The episode's own description from its feed (the publisher's blurb), cut at a word."
+        },
+        "themes": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Themes the episode's topics belong to: chips to /theme/<tc: id>."
+        },
+        "storylines": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Storylines the episode's topics belong to: chips to /storyline/<anchor topic id>."
         }
       }
     },
@@ -426,6 +510,83 @@
         "podcast_title": {
           "type": "string",
           "description": "OPTIONAL. The app does not send it today; the template shows a show name above the episode only when present. Its absence once blocked every email for 33 h (2026-10-02/03) when a template treated it as required."
+        },
+        "artwork_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Episode artwork: app-relative (/api/app/artwork?..., the renderer makes it absolute) or a feed-hosted https URL."
+        },
+        "duration_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Episode length, for the duration and date line."
+        },
+        "publish_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Publication date (YYYY-MM-DD), for the duration and date line."
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The episode's summary, cut at a word to about three lines (the app's episode card)."
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The episode's own description from its feed (the publisher's blurb), cut at a word."
+        },
+        "themes": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Themes the episode's topics belong to: chips to /theme/<tc: id>."
+        },
+        "storylines": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Storylines the episode's topics belong to: chips to /storyline/<anchor topic id>."
         }
       }
     },

@@ -13,7 +13,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { loadGraphViaFilePicker, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
+import { dismissGraphGestureOverlayIfPresent, loadGraphViaFilePicker, mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } from '../helpers'
 import {
   readFsmEventLog,
   readFsmState,
@@ -94,6 +94,9 @@ test.describe('Handoff contracts § T3 architectural invariants', () => {
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
+    // The first-run gesture dialog is modal and takes Escape first (it closes); dismiss it so the
+    // Escape below reaches the shell's graph handler.
+    await dismissGraphGestureOverlayIfPresent(page)
 
     await resetFsmEventLog(page)
     await page.keyboard.press('Escape')

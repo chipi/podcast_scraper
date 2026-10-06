@@ -157,8 +157,8 @@ describe('LibraryView', () => {
     // Highlights lives in the default Saved tab now — no tab switch needed.
     expect(w.text()).toContain('a captured line')
     expect(w.text()).toContain('1:05') // 65_000ms jump link
-    const exportLink = w.findAll('a').find((a) => (a.attributes('href') ?? '').includes('export.md'))
-    expect(exportLink).toBeTruthy()
+    // ONE export link that opens the document (operator 2026-10-05).
+    expect(w.find('[data-testid="export-open"]').exists()).toBe(true)
   })
 
   it('Saved lists favorited episodes via EpisodeCard', async () => {
@@ -169,6 +169,23 @@ describe('LibraryView', () => {
     await flushPromises()
     expect(w.text()).toContain('Alpha Saved')
     expect(w.findAll('a').map((a) => a.attributes('href'))).toContain('/episode/a')
+  })
+
+  it("Saved puts a show row's controls UNDER its artwork, like the episode rows (operator 2026-10-05)", async () => {
+    // Shows and episodes share this page, so they share one place for controls: the row under the
+    // artwork that EpisodeCard uses — not the plated column over the artwork the show row
+    // defaults to.
+    vi.spyOn(api, 'getFavorites').mockResolvedValue({
+      episodes: [summary({ slug: 'a', title: 'Alpha Saved' })],
+      entities: [{ kind: 'show', ref: 'f1', label: 'Saved Show' }],
+    })
+    const w = mountKeptAlive()
+    await flushPromises()
+    const show = w.get('[data-testid="saved-shows-list"]')
+    expect(show.text()).toContain('Saved Show')
+    const below = show.get('[data-testid="show-row-actions"]')
+    expect(below.find('button').exists()).toBe(true)
+    expect(show.find('.absolute.right-1\\.5').exists()).toBe(false)
   })
 
   it('pages a long Saved episodes list FIVE at a time (operator 2026-09-19)', async () => {

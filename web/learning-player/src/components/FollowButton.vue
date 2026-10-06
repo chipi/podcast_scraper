@@ -70,6 +70,7 @@ const props = withDefaults(
       | "theme"
       | "discovery"
       | "trend-spark"
+      | "menuitem"
   }>(),
   { busy: false, gated: false, variant: "inline" }
 )
@@ -113,7 +114,10 @@ function srLabel(followKey: string, followingKey: string): string {
     :disabled="busy"
     @click.prevent.stop="$emit('toggle')"
   >
-    <span aria-hidden="true">{{ following ? "✓" : "+" }}</span>
+    <!-- The glyph only where it is the whole visible control (`icon`). The labelled variants read
+         just "Follow" / "Following" (operator 2026-10-05): a "+" and "show" made the pill too wide
+         to sit beside the heart under a 128px artwork; the filled accent already marks Following. -->
+    <span v-if="variant === 'icon'" aria-hidden="true">{{ following ? "✓" : "+" }}</span>
     <!-- The label is the whole control in the labelled variants. -->
     <template v-if="variant !== 'icon'">{{
       following ? t("podcast.following") : t("podcast.follow")
@@ -125,6 +129,26 @@ function srLabel(followKey: string, followingKey: string): string {
          real text inside the control produces a usable name. Fourteen instances of this one
          component were in the first audit run; see `AccessibleNameAuditTests`. -->
     <span v-else class="sr-only">{{
+      gated ? t("auth.signInToFollow") : following ? t("podcast.following") : t("podcast.follow")
+    }}</span>
+  </button>
+
+  <!-- ── a row inside a ⋯ menu (`menuitem`) ────────────────────────────────── -->
+  <!-- Same row shape as FavoriteButton's and AddToCollectionButton's menu items, so a show's ⋯
+       reads as one list (operator 2026-10-05: Search puts every show action behind the ⋯, like its
+       episodes). The text is the NAME — the glyph is aria-hidden decoration. -->
+  <button
+    v-else-if="variant === 'menuitem'"
+    type="button"
+    data-testid="follow-show"
+    data-menuitem=""
+    role="menuitem"
+    class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-canvas-foreground transition hover:bg-overlay disabled:opacity-50"
+    :disabled="busy"
+    @click.prevent.stop="$emit('toggle')"
+  >
+    <span class="w-4 shrink-0 text-center text-base" aria-hidden="true">{{ following ? "✓" : "+" }}</span>
+    <span>{{
       gated ? t("auth.signInToFollow") : following ? t("podcast.following") : t("podcast.follow")
     }}</span>
   </button>

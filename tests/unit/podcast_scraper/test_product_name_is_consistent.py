@@ -127,9 +127,11 @@ def test_the_playback_notification_reads_the_resource() -> None:
     while the notification kept showing the old name.
     """
     svc = _read("android/app/src/main/java/app/closelistening/player/PlaybackService.java")
-    assert (
-        "setContentTitle(getString(R.string.app_name))" in svc
-    ), "PlaybackService must build its title from R.string.app_name, not a literal"
+    # Since the lock-screen controls (2caa54f39) the title is the EPISODE playing; the product name
+    # is the fallback when there is none — and that fallback must still come from the resource.
+    assert re.search(
+        r"setContentTitle\([^;]*getString\(R\.string\.app_name\)", svc
+    ), "PlaybackService must fall back to R.string.app_name for its title, not a literal"
     assert not re.search(
         r'setContentTitle\("', svc
     ), "PlaybackService hardcodes a notification title — use R.string.app_name"

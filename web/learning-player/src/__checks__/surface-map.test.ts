@@ -151,6 +151,10 @@ function componentTestids(): { exact: Set<string>; prefixes: string[] } {
   for (const m of allComponentSrc.matchAll(/:data-testid\s*=\s*"([^"]+)"/g)) {
     for (const lit of m[1].matchAll(/'([a-z0-9-]+)'/g)) raw.add(lit[1])
   }
+  // Testids FORWARDED through a component prop — `<EpisodeGroupCard testid="revisit-group"
+  // toggle-testid="revisit-group-collapse">` — render as `data-testid` inside the child. Static
+  // values only: the leading space keeps `:testid` bindings and `data-testid` (read above) out.
+  for (const m of allComponentSrc.matchAll(/\s(?:[a-z]+-)?testid\s*=\s*"([a-z0-9-]+)"/g)) raw.add(m[1])
 
   const exact = new Set<string>()
   const prefixes: string[] = []

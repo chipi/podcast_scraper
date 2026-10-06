@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -87,6 +87,17 @@ describe('GraphGestureOverlay', () => {
 
     expect(w.find(OVERLAY).exists()).toBe(false)
     expect(localStorage.getItem(STORAGE_KEY)).toBe('1')
+    expect(w.emitted('dismissed')).toHaveLength(1)
+  })
+
+  it('Escape dismisses the overlay', async () => {
+    // The Escape listener bails when its overlay-root ref is null — and no element carried that
+    // ref, so Escape never closed the overlay (viewer e2e audit 2026-10-05).
+    const w = await mountOverlay(true)
+    await flushPromises()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await w.vm.$nextTick()
+    expect(w.find(OVERLAY).exists()).toBe(false)
     expect(w.emitted('dismissed')).toHaveLength(1)
   })
 

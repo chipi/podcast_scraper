@@ -128,8 +128,9 @@ describe('ResurfacingInbox', () => {
     await flushPromises()
     const groups = w.findAll('[data-testid="revisit-group"]')
     expect(groups).toHaveLength(2) // two episodes, not three cards
-    // The heading is the shared EpisodeRow (artwork + title + show), the same row Saved uses.
-    const headings = groups.map((g) => g.get('[data-testid="episode-row"]').text())
+    // The heading is the shared episode-group header (artwork + show + title), the same one Saved
+    // and Search use (operator 2026-10-05).
+    const headings = groups.map((g) => g.get('[data-testid="episode-group-title"]').text())
     expect(headings[0]).toContain('Risk as a system')
     expect(headings[1]).toContain('Pacing')
     expect(groups[0].findAll('[data-testid="revisit-item"]')).toHaveLength(2)
@@ -143,7 +144,7 @@ describe('ResurfacingInbox', () => {
     const w = mountInbox()
     await flushPromises()
     const group = w.get('[data-testid="revisit-group"]')
-    expect(group.get('[data-testid="episode-row"]').text()).toContain('show-ep01')
+    expect(group.get('[data-testid="episode-group-title"]').text()).toContain('show-ep01')
     expect(group.findAll('[data-testid="revisit-item"]')).toHaveLength(1)
   })
 
@@ -155,11 +156,11 @@ describe('ResurfacingInbox', () => {
     vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'show-ep01', title: 'Risk' } as never)
     const w = mountInbox()
     await flushPromises()
-    // Same fold control as Library -> Saved: it rides EpisodeRow's `#trailing` slot and hides the
-    // list with `v-show`, so the moments stay in the DOM and re-opening keeps their state.
+    // Same fold control as Library -> Saved and Search: a chevron in the shared header that hides the
+    // body with `v-show`, so the moments stay in the DOM and re-opening keeps their state.
     const toggle = w.get('[data-testid="revisit-group-collapse"]')
     expect(toggle.attributes('aria-expanded')).toBe('true')
-    const list = () => w.get('[data-testid="revisit-group"]').find('ul')
+    const list = () => w.get('[data-testid="revisit-group"] [data-testid="episode-group-body"]')
     expect(list().attributes('style') ?? '').not.toContain('display: none')
     await toggle.trigger('click')
     expect(toggle.attributes('aria-expanded')).toBe('false')

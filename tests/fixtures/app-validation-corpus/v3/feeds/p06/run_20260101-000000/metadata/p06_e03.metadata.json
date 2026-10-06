@@ -30,7 +30,8 @@
     "language": "en",
     "language_source": "rss",
     "published_date": "2025-07-05T00:00:00",
-    "title": "The Conversation About Conversations"
+    "title": "The Conversation About Conversations",
+    "description": "Testing very long episode title handling."
   },
   "feed": {
     "authors": [

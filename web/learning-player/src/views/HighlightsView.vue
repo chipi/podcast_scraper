@@ -19,25 +19,27 @@ import {
   getCollections,
   getEpisode,
   highlightsExportUrl,
-  highlightsPrintUrl,
 } from '../services/api'
 import type { Collection } from '../services/types'
-import { deliverFile, isNative, openExternal, saveAndShareText } from '../services/native'
+import { deliverFile, isNative } from '../services/native'
+import ExportViewer from '../components/ExportViewer.vue'
+import { sheetTeleportTarget } from '../composables/sheetStack'
 import type { EpisodeDetail, EpisodeSummary, Highlight } from '../services/types'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
-import EpisodeRow from '../components/EpisodeRow.vue'
+import EpisodeGroupCard from '../components/EpisodeGroupCard.vue'
+import PlayFrom from '../components/PlayFrom.vue'
+import { formatPublishDate } from '../utils/format'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { newestFirst } from '../utils/newestFirst'
 import { useCaptureStore } from '../stores/capture'
-import { formatTime } from '../player/transcriptSync'
 import { borderClass } from '../utils/highlightColors'
 import { summaryFromDetail } from '../utils/episode'
 import { matchesQuery } from '../utils/textFilter'
 import { useCappedSections } from '../composables/useCappedSections'
-import { shareHighlightCard } from '../composables/useShareCard'
+import { shareHighlightCard } from '../composables/shareCard'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const capture = useCaptureStore()
 
 // A highlight's notes: newest first, five at a time (operator 2026-10-05), keyed per highlight —
@@ -94,7 +96,7 @@ const details = ref<Record<string, EpisodeDetail>>({})
 const titleFor = (slug: string): string => details.value[slug]?.title ?? slug
 
 /**
- * The group heading's episode, in the shape `EpisodeRow` takes.
+ * The group heading's episode, in the shape `EpisodeGroupCard` takes.
  *
  * Through `summaryFromDetail` — the one adapter Queue, Recent and Revisit use — so the heading
  * cannot drift from the rows it is modelled on. Unresolved episodes still render a row, titled by
@@ -233,27 +235,6 @@ async function save(): Promise<void> {
   cancel()
 }
 
-// Native export: `<a download>` can't save in the iOS/Android WebView, so fetch the Markdown and
-// hand it to the OS share sheet instead (#1310). Web keeps the plain download link.
-const exporting = ref(false)
-async function exportHighlightsNative(): Promise<void> {
-  if (exporting.value) return
-  // #2267. The FORMAT is the useful half: markdown through the OS share sheet and an Obsidian
-  // vault export are different intentions about where the notes end up, and the spec asks which
-  // people actually use.
-  track('highlights_export', { format: 'markdown' })
-  exporting.value = true
-  try {
-    const md = await fetchHighlightsExport(props.filterColor, {
-      mutedOnly: props.mutedOnly,
-      q: props.search,
-    })
-    await saveAndShareText('my-highlights.md', md)
-  } finally {
-    exporting.value = false
-  }
-}
-
 // Collections a highlight can be filed into (#1417). Loaded lazily; the per-highlight
 // "Add to…" select adds on change then resets to its placeholder.
 const collections = ref<Collection[]>([])
@@ -270,43 +251,47 @@ async function addHighlightTo(highlightId: string, collectionId: string): Promis
 // Share a highlight as a text/quote card (#1418) — no audio (bridge-only).
 /** Undo a retire. Only reachable from a row that IS retired, so there is no toggle to reason about. */
 /**
- * The print-styled export, for the browser's Save-as-PDF.
+ * ONE export link that OPENS the highlights (operator 2026-10-05), with Markdown and Print or share
+ * in the viewer's top right — the same `ExportViewer` the episode notes use. Markdown and PDF chips
+ * side by side read as two documents, and PDF's "download" saved HTML, not a PDF.
  *
- * Carries the SAME filters as the other formats — it is the same document, one route along.
- *
- * On NATIVE it fetches the document and shares the file rather than handing the URL to a browser.
- * `openExternal` opens SFSafariViewController, which does not carry the app's session cookie, so
- * the export route arrived unauthenticated and rendered the sign-in gate (operator 2026-09-19).
- * Sharing `.html` lets iOS preview it and offer Print -> Save as PDF, which is the platform's own
- * print-to-PDF path. Web keeps the tab, where the cookie travels.
+ * Carries the SAME filters as every format — it is the same document. Fetched with the app's own
+ * credentials and shown from memory, on the web too (a tab's "download" saved HTML).
  */
-const printing = ref(false)
-async function openPrintable(): Promise<void> {
-  // #2267. Reported here rather than on the button so BOTH branches below count: web opens the
-  // printable in a new tab, native fetches the HTML and hands it to the share sheet. A PDF export
-  // was previously not counted at all on either platform.
-  track('highlights_export', { format: 'pdf' })
-  const opts = { mutedOnly: props.mutedOnly, q: props.search }
-  if (!isNative()) {
-    await openExternal(highlightsPrintUrl(props.filterColor, opts))
-    return
-  }
-  if (printing.value) return
-  printing.value = true
+const exportOpts = computed(() => ({ mutedOnly: props.mutedOnly, q: props.search }))
+const exportHtml = ref<string | null>(null)
+const exportOpening = ref(false)
+const exportError = ref(false)
+const exportTarget = ref<HTMLElement | string>('body')
+async function openExport(): Promise<void> {
+  if (exportOpening.value) return
+  exportOpening.value = true
+  exportError.value = false
+  exportTarget.value = sheetTeleportTarget()
   try {
-    const html = await fetchHighlightsExport(props.filterColor, opts, 'html')
-    await saveAndShareText('my-highlights.html', html, 'text/html')
+    exportHtml.value = await fetchHighlightsExport(props.filterColor, exportOpts.value, 'html')
+  } catch {
+    exportError.value = true // a failed export SAYS so; silence reads as a dead control
   } finally {
-    printing.value = false
+    exportOpening.value = false
   }
 }
+const fetchExportMarkdown = (): Promise<string> =>
+  fetchHighlightsExport(props.filterColor, exportOpts.value)
 
 async function resume(id: string): Promise<void> {
   await capture.unretire(id)
 }
 
+/** Which highlight's card could not be made — shown beside it, rather than failing in silence. */
+const shareFailed = ref<string | null>(null)
 async function share(h: Highlight): Promise<void> {
-  await shareHighlightCard(h, titleFor(h.episode_slug))
+  shareFailed.value = null
+  try {
+    await shareHighlightCard(h, titleFor(h.episode_slug))
+  } catch {
+    shareFailed.value = h.id
+  }
 }
 
 // Graph-aware Obsidian export (#1472). Incremental: the last-applied revision is remembered in
@@ -387,38 +372,17 @@ onMounted(async () => {
            two lines the way "Export to Obsidian" did on a phone. -->
       <div class="flex shrink-0 items-center gap-2">
         <span class="text-xs text-muted">{{ t('highlights.exportKicker') }}</span>
-        <!-- Native shell: write+share (WKWebView can't `<a download>`); web: plain download link (#1310). -->
+        <!-- ONE link for the document (operator 2026-10-05): it opens the highlights, and the viewer
+             carries Markdown + Print or share. Obsidian stays its own chip — a vault zip is a
+             different thing, not another format of this page. -->
         <button
-          v-if="isNative()"
           type="button"
-          :disabled="exporting"
-          :aria-label="t('highlights.export')"
+          :disabled="exportOpening"
+          :aria-label="t('highlights.exportOpen')"
+          data-testid="export-open"
           class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay disabled:opacity-50"
-          @click="exportHighlightsNative"
-        >{{ t('highlights.exportMarkdownShort') }}</button>
-        <a
-          v-else
-          :href="highlightsExportUrl(filterColor, { mutedOnly, q: search })"
-          download="my-highlights.md"
-          @click="track('highlights_export', { format: 'markdown' })"
-          :aria-label="t('highlights.export')"
-          class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent no-underline transition hover:bg-overlay"
-        >{{ t('highlights.exportMarkdownShort') }}</a>
-        <!-- PDF, via the browser's own print-to-PDF (operator 2026-09-18). No PDF library: the
-             renderer is already in the browser, and "Print -> Save as PDF" is native everywhere we
-             ship, including the iOS share sheet. The server returns the SAME export document with a
-             print stylesheet (`export.html`) and the browser converts it.
-
-             Opened in a new tab rather than printed from a hidden iframe: the user needs to SEE
-             what they are about to print, and a print dialog fired from an invisible frame with no
-             preview is indistinguishable from the app having hijacked the printer. -->
-        <button
-          type="button"
-          :aria-label="t('highlights.exportPdf')"
-          data-testid="export-pdf"
-          class="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-overlay"
-          @click="openPrintable"
-        >{{ t('highlights.exportPdfShort') }}</button>
+          @click="openExport"
+        >{{ t('highlights.exportOpenShort') }}</button>
         <!-- Graph-aware Obsidian export (#1472). Was `v-if="!isNative()"` — the zip reached the
              device through `<a download>`, which WKWebView ignores, so rather than fix the delivery
              the button was hidden and the feature just disappeared on the phone (operator
@@ -432,6 +396,22 @@ onMounted(async () => {
         >{{ t('highlights.exportObsidianShort') }}</button>
       </div>
     </div>
+    <p v-if="exportError" class="mb-1 text-xs text-danger" data-testid="export-error">
+      {{ t('highlights.exportFailed') }}
+    </p>
+    <ExportViewer
+      v-if="exportHtml"
+      :html="exportHtml"
+      :to="exportTarget"
+      :title="t('highlights.exportPdf')"
+      html-filename="my-highlights.html"
+      md-filename="my-highlights.md"
+      :md-url="highlightsExportUrl(filterColor, exportOpts)"
+      :fetch-markdown="fetchExportMarkdown"
+      @markdown="track('highlights_export', { format: 'markdown' })"
+      @share="track('highlights_export', { format: 'pdf' })"
+      @close="exportHtml = null"
+    />
     <p v-if="obsidianMsg" class="mb-1 text-xs text-muted">{{ obsidianMsg }}</p>
     <!--
       Obsidian has no import format to target — a vault IS a folder of Markdown files, so the only
@@ -471,46 +451,33 @@ onMounted(async () => {
       </RouterLink>
     </div>
 
-    <section v-for="g in visibleGroups" :key="g.slug" class="mb-6">
-      <!-- The episode heads its own group as the SHARED compact row (operator 2026-09-18) — the
-           same `EpisodeRow` Home's What's New 2-5, the entity cards and the storyline sheet use.
-           It already is the standard small view: 40px artwork, title, and the show name under it,
-           which is the part a text-only heading was missing. Hand-rolling an img + title here was
-           a fourth near-copy of a row that already exists.
-
-           Before the episode resolves, the row still renders with the slug as its title rather
-           than the group disappearing or reserving a grey box for something that may not arrive. -->
-      <div class="mb-2" data-testid="highlight-group-heading">
-        <EpisodeRow :episode="headingEpisode(g.slug)">
-          <!-- Collapse the episode (operator 2026-09-18), in the row's own `#trailing` slot so the
-               control is a SIBLING of the link rather than nested inside it — an interactive inside
-               an interactive is the thing EpisodeRow's slot exists to avoid. Groups start open:
-               collapsing is for tidying a long Saved list, not a default that hides your captures. -->
-          <template #trailing>
-            <!-- `self-center`: EpisodeRow's row is `items-start` (correct for artwork beside two
-                 lines of text), which pinned this control to the top corner. It acts on the whole
-                 row, so it centres against it. -->
-            <button
-              type="button"
-              class="lp-tap shrink-0 self-center rounded-full px-2 py-1 text-xs font-bold text-accent"
-              :aria-expanded="!collapsed.has(g.slug)"
-              :aria-label="
-                collapsed.has(g.slug)
-                  ? t('highlights.expandGroup', { title: g.title })
-                  : t('highlights.collapseGroup', { title: g.title })
-              "
-              data-testid="highlight-group-collapse"
-              @click="toggleGroup(g.slug)"
-            >{{ collapsed.has(g.slug) ? '▼' : '▲' }}</button>
-          </template>
-        </EpisodeRow>
-      </div>
-      <ul v-show="!collapsed.has(g.slug)" class="flex flex-col gap-3">
+    <!-- The SHARED episode-group header (operator 2026-10-05) — the same one Search and Revisit use:
+         artwork, show, title, one meta line, the fold as a chevron. Before the episode resolves the
+         header still renders, titled by slug, rather than the group popping in later. Groups start
+         open: collapsing tidies a long Saved list, it is not a default that hides your captures. -->
+    <ul class="flex flex-col gap-6">
+    <EpisodeGroupCard
+      v-for="g in visibleGroups"
+      :key="g.slug"
+      :episode="headingEpisode(g.slug)"
+      :item-count="g.highlights.length"
+      :expanded="!collapsed.has(g.slug)"
+      testid="highlight-group"
+      toggle-testid="highlight-group-collapse"
+      @update:expanded="toggleGroup(g.slug)"
+    >
+      <template #meta>
+        <template v-if="formatPublishDate(headingEpisode(g.slug).publish_date, locale)">{{
+          formatPublishDate(headingEpisode(g.slug).publish_date, locale)
+        }} · </template>{{ t('collections.count', g.highlights.length) }}
+      </template>
+      <ul class="flex flex-col gap-3">
         <li
           v-for="h in itemCaps.visible(g.slug, g.highlights, searchActive)"
           :key="h.id"
           class="rounded-xl border border-l-4 border-border p-3"
           :class="borderClass(h.color)"
+          data-testid="highlight-card"
         >
           <!-- Content is full-width; the controls sit in their own row BELOW it, not in a
                shrink-0 column beside it that squeezed the quote to ~half the row. -->
@@ -518,11 +485,10 @@ onMounted(async () => {
               <!-- TITLE — what kind of capture this is. A moment says so too now: it used to be
                    the only kind with no kicker, because the words "Marked moment" were standing in
                    as the body text (operator 2026-09-17). -->
-              <!-- The kicker and the per-card icon actions share ONE line, actions hard right
-                   (operator 2026-09-18). They used to wrap onto a second row beneath the controls,
-                   giving every card a trailing strip of three lonely glyphs and making a two-line
-                   capture three lines tall. The kicker line was half empty; this is space the card
-                   already had. -->
+              <!-- The kicker line: what kind of capture this is, and Play hard right (operator
+                   2026-10-05). The icon actions that sat here moved to the bottom row, beside Add
+                   note — the kind, Play and four icons do not fit one phone line, and the bottom
+                   row is no longer three lonely glyphs (the 2026-09-18 reason they came up here). -->
               <div class="flex items-start justify-between gap-2">
                 <span class="flex min-w-0 flex-wrap items-center gap-2">
                   <span class="lp-kicker">{{
@@ -542,59 +508,13 @@ onMounted(async () => {
                     data-testid="highlight-drifted"
                   >⚠ {{ t('highlights.drifted') }}</span>
                 </span>
-                <div class="-mt-1 flex shrink-0 items-center gap-1">
-                  <!-- ORDER: colour first, share last (operator 2026-09-18). Colour is what
-                       this capture IS, so it leads; share sends it somewhere else, so it
-                       trails. The state and unsave controls sit between, bell before
-                       bookmark — the same order as the Revisit card. -->
-                  <!-- Colour: the shared collapsed control (one current-colour dot that expands the
-                       palette on tap) — identical on every saved surface (#2042). -->
-                  <SavedColorControl :color="h.color" @pick="capture.setColor(h.id, $event)" />
-                  <!-- RETIRED: shown ONLY when it is (operator 2026-09-18) — "by default, things
-                       are not quiet", so a not-retired capture carries no badge and the row is
-                       unchanged for the overwhelming majority.
-
-                       This exists because retiring was otherwise a one-way door. Stopping a
-                       capture resurfacing removes it from Revisit, which makes Revisit the one
-                       place the undo CANNOT live; Saved is the only surface listing every capture,
-                       so it is where the state has to be visible and reversible. The icon is the
-                       same bell-with-slash pressed on the Revisit card — pressing it again undoes
-                       exactly what that press did. -->
-                  <button
-                    v-if="h.retired"
-                    type="button"
-                    class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent text-accent transition hover:bg-accent/10"
-                    :aria-label="t('highlights.resumeResurfacing')"
-                    :title="t('highlights.resumeResurfacing')"
-                    data-testid="highlight-retired"
-                    @click="resume(h.id)"
-                  ><BellOffIcon /></button>
-                  <!-- The FILLED bookmark, not a ✕ (operator 2026-09-18) — the same control, and the
-                       same reasoning, as the Revisit card's third outcome. This action UNSAVES, so
-                       it shows the glyph that did the saving, filled: tapping it reads as undoing
-                       the save rather than as a generic destroy.
-
-                       Identical here and on Revisit deliberately. These are the two surfaces that
-                       list the same objects, so an unsave that looked like ✕ on one and a bookmark
-                       on the other would be two controls for one action. Accent at rest (the saved
-                       state it shows), danger on hover (what pressing it does), and still
-                       confirm-gated (#1594) — the capture and its notes do not come back. -->
-                  <button
-                    type="button"
-                    class="lp-tap rounded-full p-1 text-accent transition hover:text-danger"
-                    :aria-label="t('highlights.unsave')"
-                    :title="t('highlights.unsave')"
-                    data-testid="highlight-delete"
-                    @click="pendingHighlight = h.id"
-                  ><BookmarkIcon filled /></button>
-                  <button
-                    type="button"
-                    class="rounded-full p-1 text-muted transition hover:text-accent"
-                    :aria-label="t('highlights.share')"
-                    :title="t('highlights.share')"
-                    @click="share(h)"
-                  >↗</button>
-                </div>
+                <!-- Play leads the kind's line, hard right — the same place Search and Revisit
+                     put it (operator 2026-10-05). -->
+                <PlayFrom
+                  v-if="h.start_ms != null"
+                  :seconds="h.start_ms / 1000"
+                  :to="{ name: 'player', params: { slug: h.episode_slug }, query: jumpQuery(h) }"
+                />
               </div>
               <!-- The QUOTE — the spoken line that was captured, under the title and above the
                    speaker who said it. Set as a quotation rather than a heading: these are somebody
@@ -615,11 +535,6 @@ onMounted(async () => {
                    already says while pushing the text itself down. -->
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-2">
-              <RouterLink
-                v-if="h.start_ms != null"
-                :to="{ name: 'player', params: { slug: h.episode_slug }, query: jumpQuery(h) }"
-                class="font-mono text-xs text-accent no-underline"
-              >▶ {{ formatTime(h.start_ms / 1000) }}</RouterLink>
               <!-- The failed-load case is SAID, not implied by an absent control. Hiding the
                    select on error reads as "you have no collections", which is the exact reading
                    the ref was added to prevent — and then it was never rendered (review
@@ -647,7 +562,61 @@ onMounted(async () => {
                 data-testid="highlight-add-note"
                 @click="startAdd(h.id)"
               >+ {{ t('highlights.addNote') }}</button>
+              <div class="ms-auto flex shrink-0 items-center gap-1">
+                <!-- ORDER: colour first, share last (operator 2026-09-18). Colour is what
+                     this capture IS, so it leads; share sends it somewhere else, so it
+                     trails. The state and unsave controls sit between, bell before
+                     bookmark — the same order as the Revisit card. -->
+                <!-- Colour: the shared collapsed control (one current-colour dot that expands the
+                     palette on tap) — identical on every saved surface (#2042). -->
+                <SavedColorControl :color="h.color" @pick="capture.setColor(h.id, $event)" />
+                <!-- RETIRED: shown ONLY when it is (operator 2026-09-18) — "by default, things
+                     are not quiet", so a not-retired capture carries no badge and the row is
+                     unchanged for the overwhelming majority.
+                     This exists because retiring was otherwise a one-way door. Stopping a
+                     capture resurfacing removes it from Revisit, which makes Revisit the one
+                     place the undo CANNOT live; Saved is the only surface listing every capture,
+                     so it is where the state has to be visible and reversible. The icon is the
+                     same bell-with-slash pressed on the Revisit card — pressing it again undoes
+                     exactly what that press did. -->
+                <button
+                  v-if="h.retired"
+                  type="button"
+                  class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-accent text-accent transition hover:bg-accent/10"
+                  :aria-label="t('highlights.resumeResurfacing')"
+                  :title="t('highlights.resumeResurfacing')"
+                  data-testid="highlight-retired"
+                  @click="resume(h.id)"
+                ><BellOffIcon /></button>
+                <!-- The FILLED bookmark, not a ✕ (operator 2026-09-18) — the same control, and the
+                     same reasoning, as the Revisit card's third outcome. This action UNSAVES, so
+                     it shows the glyph that did the saving, filled: tapping it reads as undoing
+                     the save rather than as a generic destroy.
+                     Identical here and on Revisit deliberately. These are the two surfaces that
+                     list the same objects, so an unsave that looked like ✕ on one and a bookmark
+                     on the other would be two controls for one action. Accent at rest (the saved
+                     state it shows), danger on hover (what pressing it does), and still
+                     confirm-gated (#1594) — the capture and its notes do not come back. -->
+                <button
+                  type="button"
+                  class="lp-tap rounded-full p-1 text-accent transition hover:text-danger"
+                  :aria-label="t('highlights.unsave')"
+                  :title="t('highlights.unsave')"
+                  data-testid="highlight-delete"
+                  @click="pendingHighlight = h.id"
+                ><BookmarkIcon filled /></button>
+                <button
+                  type="button"
+                  class="rounded-full p-1 text-muted transition hover:text-accent"
+                  :aria-label="t('highlights.share')"
+                  :title="t('highlights.share')"
+                  @click="share(h)"
+                >↗</button>
+              </div>
             </div>
+            <p v-if="shareFailed === h.id" class="mt-1 text-xs text-danger" data-testid="highlight-share-error">
+              {{ t('share.cardFailed') }}
+            </p>
 
           <!-- Notes attached to this highlight -->
           <ul v-if="capture.notesFor('highlight', h.id).length" class="mt-2 flex flex-col gap-1">
@@ -718,7 +687,8 @@ onMounted(async () => {
         :remaining="itemCaps.remaining(g.slug, g.highlights.length)"
         @toggle="itemCaps.toggle(g.slug, g.highlights.length)"
       />
-    </section>
+    </EpisodeGroupCard>
+    </ul>
 
     <!-- Episode groups page 10 at a time; a search lifts it (#2042 follow-up). -->
     <ShowAllToggle

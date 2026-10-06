@@ -26,6 +26,8 @@ type FocusSearchPayload = {
 const emit = defineEmits<{
   closeSubject: []
   goGraph: []
+  /** Open the Graph focused on this node (topic rail "View in graph"). */
+  viewInGraph: [string]
   focusSearchHandoff: [FocusSearchPayload]
   /** Search v3 §S6 — episode-scoped rail launcher from EpisodeDetailPanel. */
   openSearchInEpisode: [{ episodeId: string; query?: string }]
@@ -89,7 +91,9 @@ const emptyHint =
     <template v-else>
       <template v-if="subject.kind === 'graph-node' && subject.graphNodeCyId?.trim()">
         <GraphNodeRailPanel
+          :show-view-in-graph="mainTab !== 'graph'"
           @go-graph="emit('goGraph')"
+          @view-in-graph="emit('viewInGraph', $event)"
           @prefill-semantic-search="emit('prefillSemanticSearch', $event)"
           @open-search-topic-filter="emit('openSearchTopicFilter', $event)"
           @open-search-speaker-filter="emit('openSearchSpeakerFilter', $event)"

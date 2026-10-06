@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { signInIsolated, tapAndRecordTop } from './helpers'
 
 /**
  * StorylineView (F4.5) — the storyline overlay (StorylineCard), reached from the Home
@@ -191,4 +191,42 @@ test('the storyline PAGE shows its people as Top voices — the topic card\'s gr
   // On a page each voice is a real link to the person.
   await expect(voices.getByTestId('ec-top-voice').first()).toHaveAttribute('href', /\/person\//)
   await expect(view.getByText('Related people')).toHaveCount(0)
+})
+
+test('Back from a person opened in Top voices returns to Top voices, not the top of the page', async ({
+  page,
+}, testInfo) => {
+  // Operator 2026-10-04: Back landed at the top of the page the person was opened from, so the
+  // reader had to find their place again. Top voices sits beside the topics, inside the first screen
+  // on a phone, so the reader scrolls it up near the top first: Back must restore that offset.
+  await page.setViewportSize({ width: 390, height: 760 })
+  await signInIsolated(page, 'storyline-back-scroll', testInfo)
+  await page.goto('/')
+  await page.getByTestId('discovery-tab-storyline').click()
+  const row = await firstOpenableStorylineRow(page)
+  await row.click()
+  await expect(page).toHaveURL(/[?&]storyline=/)
+  const anchor = new URL(page.url()).searchParams.get('storyline')
+  expect(anchor, 'no ?storyline= anchor in the URL').toBeTruthy()
+
+  await page.goto(`/storyline/${encodeURIComponent(anchor!)}`)
+  const voice = page.getByTestId('storyline-view').getByTestId('ec-top-voice').first()
+  await voice.scrollIntoViewIfNeeded()
+  const voiceTop = (await voice.boundingBox())!.y
+  await page.evaluate((y) => window.scrollBy(0, y), voiceTop - 120)
+  const before = await page.evaluate(() => window.scrollY)
+  expect(before, 'the page did not scroll, so this proves nothing').toBeGreaterThan(200)
+
+  const seenAt = await tapAndRecordTop(voice)
+  await expect(page).toHaveURL(/\/person\//)
+  await page.getByTestId('ec-dismiss').click() // the person page's ✕ — a history Back
+  await expect(page).toHaveURL(/\/storyline\//)
+  // The voice tapped is back on screen, whole — not an exact offset: rails above it can finish
+  // loading after the restore, and scroll anchoring then shifts the offset to keep it in view.
+  await expect(voice).toBeInViewport({ ratio: 1 })
+  await expect
+    .poll(async () => Math.round(Math.abs((await voice.boundingBox())!.y - seenAt)), {
+      message: 'the voice is not back at the spot on screen it was tapped at',
+    })
+    .toBeLessThan(12)
 })

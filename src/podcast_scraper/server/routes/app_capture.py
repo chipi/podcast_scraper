@@ -220,6 +220,43 @@ def patch_highlight(
     return Highlight(**updated)
 
 
+@router.get(
+    "/highlights/{highlight_id}/card.png",
+    responses={200: {"content": {"image/png": {}}, "description": "The highlight's share card."}},
+)
+def highlight_card(
+    request: Request, highlight_id: str, user: User = Depends(get_current_user)
+) -> Response:
+    """The share card for one of the user's highlights — the quote card (operator 2026-10-05).
+
+    Drawn by the same server renderer as every other card (``server/og/card.py``), so a shared
+    highlight looks like a shared episode or topic. Signed-in and per-user: a highlight is private,
+    so unlike ``/og/{kind}/{id}.png`` this is never public and never unfurled. 404 for a highlight
+    that is not yours or whose episode has left the corpus; 503 when the renderer is unavailable.
+    """
+    from podcast_scraper.server.og.build import build_highlight_card
+    from podcast_scraper.server.og.card import render_card_png
+
+    rows = app_user_state.get_highlights(_data_dir(request), user.user_id, None)
+    row = next((r for r in rows if str(r.get("id")) == highlight_id), None)
+    root = _corpus_root_opt(request)
+    if row is None or root is None:
+        raise HTTPException(status_code=404, detail="highlight not found")
+    model = build_highlight_card(root, row)
+    if model is None:
+        raise HTTPException(status_code=404, detail="episode not in the corpus")
+    try:
+        png = render_card_png(model)
+    except Exception as exc:  # noqa: BLE001 - Pillow missing / font failure → degrade, not 500
+        raise HTTPException(status_code=503, detail="Card renderer unavailable.") from exc
+    return Response(
+        content=png,
+        media_type="image/png",
+        # Private: it is this user's highlight. Short-lived, since the highlight can be edited.
+        headers={"Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff"},
+    )
+
+
 @router.delete("/highlights/{highlight_id}", response_model=HighlightsResponse)
 def delete_highlight(
     request: Request, highlight_id: str, user: User = Depends(get_current_user)

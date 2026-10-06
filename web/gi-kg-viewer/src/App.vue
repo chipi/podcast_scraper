@@ -41,6 +41,10 @@ import {
   selectRelPathsForGraphLoad,
 } from './utils/graphEpisodeSelection'
 import { localYmdDaysAgo } from './utils/localCalendarDate'
+import { findRawNodeInArtifactByIdOrPrefixed } from './utils/parsing'
+import { topicEpisodeIdsFromClusters, topicHandoffArtifactPaths } from './utils/topicHandoffEpisodes'
+import { fetchTopicTimeline } from './api/cilApi'
+import { fetchResolveEpisodeArtifacts } from './api/corpusLibraryApi'
 import { corpusGraphBaselineLoaderKey } from './corpusGraphBaseline'
 import { StaleGeneration } from './utils/staleGeneration'
 
@@ -287,19 +291,14 @@ async function activateGraphTab(
   mainTab.value = 'graph'
   const target = targetNodeId?.trim()
   const fbTrim = focusFallbackId?.trim()
+  // A topic is handed off only once the graph holds it (see handOffTopic), so it is not requested here.
+  const topicTarget = target?.startsWith('topic:') ? target : null
   if (target) {
     // Both CIL corpus ids (`topic:…`) and graph cy ids (`tc:…`, `g:…`, compound
     // slugs from topic_clusters.json) now open the unified NodeDetail rail — the
     // topic:/cy-id split below only controls how the graph itself bootstraps + focuses.
-    if (target.startsWith('topic:')) {
-      subject.focusTopic(target)
-      graphHandoff.handoffRequested({
-        kind: 'topic',
-        cyId: target,
-        source,
-        loadSource: 'subject-external',
-        camera: { kind: 'center-on-target' },
-      })
+    if (topicTarget) {
+      subject.focusTopic(topicTarget)
     } else {
       subject.focusGraphNode(target)
       graphHandoff.handoffRequested({
@@ -309,14 +308,16 @@ async function activateGraphTab(
         loadSource: source === 'node-detail' ? 'graph-internal' : 'subject-external',
         camera: { kind: 'center-on-target' },
       })
+      graphNav.requestFocusNode(target, fbTrim || null)
     }
-    graphNav.requestFocusNode(target, fbTrim || null)
   }
   const root = shell.corpusPath.trim()
   if (!root || !shell.healthStatus) {
+    if (topicTarget) await handOffTopic(topicTarget, fbTrim, source)
     return
   }
   if (artifacts.manualGraphSelection) {
+    if (topicTarget) await handOffTopic(topicTarget, fbTrim, source)
     return
   }
 
@@ -343,6 +344,52 @@ async function activateGraphTab(
       await artifacts.ensureTopicClusterCompoundVisible(target)
     }
     graphNav.requestFocusNode(target, fbTrim || null)
+  }
+  if (topicTarget) await handOffTopic(topicTarget, fbTrim, source)
+}
+
+/**
+ * Hand a topic to the Graph, first loading its newest episodes when it is not on the canvas.
+ *
+ * The default slice is a time window, so an older topic had no node: the handoff then failed with
+ * "no graph node for focus target" and the error strip. Loading happens BEFORE the handoff and the
+ * focus request, so nothing can fail it while the topic's episodes are still arriving.
+ */
+async function handOffTopic(
+  topicId: string,
+  focusFallbackId: string | undefined,
+  source: EnvelopeSource,
+): Promise<void> {
+  await loadTopicEpisodesIfAbsent(topicId)
+  if (subject.graphNodeCyId && subject.graphNodeCyId !== topicId) return // another subject was picked meanwhile
+  graphHandoff.handoffRequested({
+    kind: 'topic',
+    cyId: topicId,
+    source,
+    loadSource: 'subject-external',
+    camera: { kind: 'center-on-target' },
+  })
+  graphNav.requestFocusNode(topicId, focusFallbackId || null)
+}
+
+async function loadTopicEpisodesIfAbsent(topicId: string): Promise<void> {
+  const root = shell.corpusPath.trim()
+  if (!root || !shell.healthStatus) return
+  if (findRawNodeInArtifactByIdOrPrefixed(artifacts.displayArtifact, topicId)) return
+  // The cluster document names a topic's episodes; the timeline only knows topics an insight is
+  // about, so it is the fallback for topics outside any cluster.
+  let ids = topicEpisodeIdsFromClusters(artifacts.topicClustersDoc, topicId)
+  try {
+    if (ids.length === 0) ids = (await fetchTopicTimeline(root, topicId)).episodes.map((e) => e.episode_id)
+    if (ids.length === 0) return
+    const paths = topicHandoffArtifactPaths((await fetchResolveEpisodeArtifacts(root, ids)).resolved)
+    if (paths.length === 0) return
+    // Kept as the user's selection, so the corpus-graph sync does not replace it with the default slice.
+    artifacts.markManualGraphSelection()
+    artifacts.setLoadSource('subject-external')
+    await artifacts.appendRelativeArtifacts(paths)
+  } catch {
+    // The handoff then fails visibly (error strip), as it did before this load existed.
   }
 }
 
@@ -453,7 +500,8 @@ watch(
 
 const corpusGraphSyncGate = new StaleGeneration()
 
-let corpusGraphSyncRunning = false
+/** The running sync chain (one body, plus any rerun queued while it ran); null when idle. */
+let corpusGraphSyncInFlight: Promise<void> | null = null
 let corpusGraphSyncQueued = false
 
 /**
@@ -538,21 +586,29 @@ async function runCorpusGraphSyncBody(): Promise<void> {
   })
 }
 
-async function syncMergedGraphFromCorpusApi(): Promise<void> {
-  if (corpusGraphSyncRunning) {
+/**
+ * Run the corpus graph sync; a call made while one runs queues ONE rerun. Either way the returned
+ * promise settles only when the whole chain has finished, so a caller that awaits it can trust the
+ * baseline has landed. It used to return at once when a sync was already running — and the Open in
+ * graph callers that await the baseline before appending then appended into a load that replaced
+ * them (a show's four episodes lost to the first-visit lens auto-load).
+ */
+function syncMergedGraphFromCorpusApi(): Promise<void> {
+  if (corpusGraphSyncInFlight) {
     corpusGraphSyncQueued = true
-    return
+    return corpusGraphSyncInFlight
   }
-  corpusGraphSyncRunning = true
-  try {
-    await runCorpusGraphSyncBody()
-  } finally {
-    corpusGraphSyncRunning = false
-    if (corpusGraphSyncQueued) {
-      corpusGraphSyncQueued = false
-      void syncMergedGraphFromCorpusApi()
+  corpusGraphSyncInFlight = (async () => {
+    try {
+      do {
+        corpusGraphSyncQueued = false
+        await runCorpusGraphSyncBody()
+      } while (corpusGraphSyncQueued)
+    } finally {
+      corpusGraphSyncInFlight = null
     }
-  }
+  })()
+  return corpusGraphSyncInFlight
 }
 
 /**
@@ -1187,6 +1243,7 @@ watch(
             :main-tab="mainTab"
             @close-subject="onCloseSubjectRail"
             @go-graph="activateGraphTab(undefined, undefined, 'subject-rail')"
+            @view-in-graph="(id: string) => activateGraphTab(id, undefined, 'subject-rail')"
             @focus-search-handoff="onLibraryFocusSearch"
             @open-search-in-episode="onOpenSearchInEpisode"
             @prefill-semantic-search="onGraphNodeTopicPrefillSearch"

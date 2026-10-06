@@ -11,6 +11,7 @@
 import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
+import BackIcon from "../components/BackIcon.vue"
 import TrendingSparkChips from "../components/TrendingSparkChips.vue"
 import { personName } from "../utils/personName"
 import TrendWindowTabs from "../components/TrendWindowTabs.vue"
@@ -112,7 +113,7 @@ onMounted(async () => {
       class="mb-4 inline-flex items-center gap-1 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-canvas-foreground transition hover:bg-overlay"
       data-testid="browse-back-home"
     >
-      ‹ {{ t("browse.backHome") }}
+      <BackIcon /> {{ t("browse.backHome") }}
     </RouterLink>
     <h1 v-if="!embedded" class="mb-4 font-display text-3xl font-extrabold tracking-tight">
       {{ t("browse.peopleTitle") }}

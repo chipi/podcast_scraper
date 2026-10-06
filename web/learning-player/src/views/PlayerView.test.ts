@@ -171,6 +171,13 @@ describe('PlayerView', () => {
     expect(w.get('[data-testid="player-open-insights"]').text()).not.toMatch(/\d/)
   })
 
+  it('marks the open count with a chart glyph, not ▶ — the chip is not a play control (operator 2026-10-05)', async () => {
+    const w = await mountPlayer('ep-1')
+    const reach = w.get('[data-testid="player-reach"]')
+    expect(reach.find('[data-testid="player-reach-opens-icon"]').exists()).toBe(true)
+    expect(reach.text()).not.toContain('▶')
+  })
+
   it('compacts large counts without a decimal at/above 10k', async () => {
     vi.spyOn(api, 'getEpisodeStats').mockResolvedValue(epStats({ opens: 12000, listeners: 50 }))
     const w = await mountPlayer('ep-1')
@@ -355,8 +362,12 @@ describe('PlayerView', () => {
       has_more: false,
     })
     const w = await mountPlayer('ep-1')
-    expect(w.find('[data-testid="related-episodes-rail"]').exists()).toBe(true)
-    expect(w.text()).toContain('More like this')
+    const rail = w.get('[data-testid="related-episodes-rail"]')
+    // Scoped to the rail: the Knowledge Panel carries its own "More like this", so a page-wide text
+    // match passed while this heading rendered as an unresolved <sectionheading> with no text.
+    expect(rail.get('[data-testid="section-title"]').text()).toBe('More like this')
+    // The standard rail slot (operator 2026-10-05), not a width of its own.
+    expect(rail.get('li').classes()).toContain('lp-rail-item')
     expect(w.text()).toContain('Peer Episode One')
     expect(api.getRelated).toHaveBeenCalledWith('ep-1', 6)
   })
@@ -783,6 +794,42 @@ describe('a downloaded episode paints from disk, not from the network', () => {
       expect(play, 'opening an episode started audio unprompted').not.toHaveBeenCalled()
     })
 
+    it("the notes panel's ▶ Play from seeks AND plays — an explicit ▶ starts audio (operator 2026-10-05)", async () => {
+      const { player, play } = await mountWithQuery({})
+      const panel = (mountedPlayers.at(-1) as ReturnType<typeof mount>).findComponent({
+        name: 'KnowledgePanel',
+      })
+      expect(panel.exists(), 'the notes panel is not mounted on the player page').toBe(true)
+      play.mockClear()
+      panel.vm.$emit('play-from', 30)
+      await flushPromises()
+      expect(play, '▶ Play from left the episode paused').toHaveBeenCalled()
+      expect(Math.round(player.el?.currentTime ?? 0)).toBe(30)
+    })
+
+    it('▶ Play from a link to the episode ALREADY OPEN still seeks and plays (operator 2026-10-05)', async () => {
+      /*
+       * The start position applies once per episode, on load. A link to the SAME episode reuses this
+       * view, so nothing re-applied it: on the player page, a topic card's "▶ Play from 0:30" for
+       * this very episode left it at 0:42, paused. Found by probing, not by a report.
+       */
+      const { player, play } = await mountWithQuery({})
+      play.mockClear()
+      await router.push({ name: 'player', params: { slug: SLUG }, query: { t: '30', play: '1' } })
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? -1), 'the moment was not applied').toBe(30)
+      expect(play, '▶ Play from left the episode paused').toHaveBeenCalledTimes(1)
+    })
+
+    it('a same-episode link WITHOUT ?play=1 seeks but does not start audio', async () => {
+      const { player, play } = await mountWithQuery({})
+      play.mockClear()
+      await router.push({ name: 'player', params: { slug: SLUG }, query: { t: '30' } })
+      await flushPromises()
+      expect(Math.round(player.el?.currentTime ?? -1)).toBe(30)
+      expect(play).not.toHaveBeenCalled()
+    })
+
     it('plays from the resumed position, not from zero', async () => {
       // Playing before the seek is audible — a second or two of 0:00 before it jumps.
       const { player, play } = await mountWithQuery({ play: '1' })
@@ -1016,5 +1063,36 @@ describe('S3.1 transcript language control', () => {
     const w = await mountPlayer()
     expect(w.find('[data-testid="transcript-lang-source"]').attributes('aria-pressed')).toBe('true')
     expect(w.find('[data-testid="transcript-lang-en"]').attributes('aria-pressed')).toBe('false')
+  })
+})
+
+describe('opening the episode notes from a link', () => {
+  // The opener renders only once the episode HAS insights — without them both cases would show no
+  // opener, and the first test would pass for the wrong reason.
+  beforeEach(() => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue({
+      episode_slug: 'ep-1',
+      insights: [
+        { id: 'i0', text: 'insight', grounded: true, insight_type: null, confidence: null, position_hint: null, quotes: [] },
+      ],
+    })
+  })
+
+  it('?panel=notes opens the episode-notes panel (the daily recap email, operator 2026-10-05)', async () => {
+    setActivePinia(createPinia())
+    await router.push({ name: 'player', params: { slug: 'ep-1' }, query: { panel: 'notes' } })
+    const w = mount(PlayerView, {
+      props: { slug: 'ep-1' },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+    })
+    mountedPlayers.push(w)
+    await flushPromises()
+    // The opener exists only while the panel is shut.
+    expect(w.find('[data-testid="player-open-insights"]').exists()).toBe(false)
+  })
+
+  it('without it the panel stays shut', async () => {
+    const w = await mountPlayer('ep-1')
+    expect(w.find('[data-testid="player-open-insights"]').exists()).toBe(true)
   })
 })

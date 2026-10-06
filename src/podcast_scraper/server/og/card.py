@@ -1,9 +1,9 @@
-"""The OG card renderer — a Pillow port of ``entityShareCard.ts``'s canvas draw.
+"""The share card renderer — the ONE card, for the player's Share menu and for ``og:image``.
 
-Same design as the client card (design note ``docs/uxs/UXS-017-share-cards.md``):
-near-black canvas, serif display, mono kickers/stats, ONE accent, square, lots of air. Kept in
-lock-step with the TS renderer by eye — this is the server twin used for ``og:image`` so a shared
-link unfurls as the card.
+Design note ``docs/uxs/UXS-017-share-cards.md``: near-black canvas, serif display, mono
+kickers/stats, ONE accent, square, lots of air. It began as a Pillow port of a client-side canvas
+card; since 2026-10-05 it is the only renderer (the client one was deleted), so there is nothing to
+keep in step with.
 
 Fonts are bundled (``og/fonts/*.ttf``, DejaVu) rather than taken from the OS so the render is
 identical on any host and needs no system fonts. Pillow is imported lazily inside the render so
@@ -82,6 +82,15 @@ class OgCardModel:
     # centred framed square in the lower section
     sparkline: tuple[float, ...] | None = None  # trend series (weekly) — drawn in the lower section
     trend_multiplier: float | None = None  # the single score (e.g. 2.6 → "↑2.6×") for the KPI tile
+    # Line caps for the two header blocks. An entity card leads with its NAME (4 title lines, a
+    # 3-line lede); a highlight card leads with the QUOTE, so it shrinks the title, lets the quote
+    # run — cut at three lines, the quote that is the whole point of the card was lost.
+    title_lines: int = 4
+    quote_lines: int = 3
+    # How much of the backdrop art shows through the MIDDLE of the veil (0 = none, 255 = all
+    # canvas). The episode card's short summary sits above the art; a quote card's text runs through
+    # the middle, so it veils the art far more or the quote stops being readable.
+    veil_mid: int = 120
 
 
 @lru_cache(maxsize=16)
@@ -204,7 +213,7 @@ def _cover(data: bytes, w: int, h: int) -> "Image.Image | None":
     return scaled.crop((left, top, left + w, top + h))
 
 
-def _paste_background(img: "Image.Image", data: bytes) -> bool:
+def _paste_background(img: "Image.Image", data: bytes, mid_alpha: int = 120) -> bool:
     """Paste ``data`` as a full-bleed cover background under a canvas gradient veil (dark at the top
     and bottom where the text lives, letting the art show through the middle). Returns False when
     the bytes don't decode (caller falls back to the plain canvas). Summary/quote length no longer
@@ -218,7 +227,11 @@ def _paste_background(img: "Image.Image", data: bytes) -> bool:
     vd = ImageDraw.Draw(veil)
     cr, cg, cb = (int(_CANVAS.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
     mid = int(_H * 0.60)
-    top_a, mid_a, bot_a = 240, 120, 236  # near-opaque top/bottom, art peeks through the middle
+    top_a, mid_a, bot_a = (
+        240,
+        mid_alpha,
+        236,
+    )  # near-opaque top/bottom, art peeks through the middle
     for yy in range(_H):
         if yy <= mid:
             a = top_a + (mid_a - top_a) * (yy / mid)
@@ -313,7 +326,7 @@ def render_card_png(model: OgCardModel) -> bytes:
     # Full-bleed artwork background (EPISODE only, model.background) under a gradient veil — the art
     # sits BEHIND the text, so a long summary can't push it around. Falls back to plain canvas.
     if model.artwork and model.background:
-        _paste_background(img, model.artwork)
+        _paste_background(img, model.artwork, model.veil_mid)
     draw = ImageDraw.Draw(img)
     # Hairline frame (drawn over the background so it always reads).
     draw.rectangle((1, 1, _W - 2, _H - 2), outline=_BORDER, width=2)
@@ -330,7 +343,7 @@ def render_card_png(model: OgCardModel) -> bytes:
     # Title (bold serif, wrapped, large) — capped to 4 lines so a very long title can't swallow the
     # whole card and push the lower section off the bottom.
     title_font = _font(str(_SERIF_BOLD), 88)
-    for line in _cap_lines(_wrap(draw, model.title, title_font, max_w), 4):
+    for line in _cap_lines(_wrap(draw, model.title, title_font, max_w), model.title_lines):
         draw.text((_PAD, y), line, font=title_font, fill=_FG)
         y += 104
 
@@ -344,7 +357,9 @@ def render_card_png(model: OgCardModel) -> bytes:
     if model.quote:
         quote_font = _font(str(_SERIF_ITALIC), 46)
         y += 40
-        for line in _cap_lines(_wrap(draw, f"“{model.quote}”", quote_font, max_w), 3):
+        for line in _cap_lines(
+            _wrap(draw, f"“{model.quote}”", quote_font, max_w), model.quote_lines
+        ):
             draw.text((_PAD, y), line, font=quote_font, fill=_FG)
             y += 62
     elif model.blurb:

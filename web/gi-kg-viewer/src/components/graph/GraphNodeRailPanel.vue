@@ -16,8 +16,14 @@ const nav = useGraphNavigationStore()
 const subject = useSubjectStore()
 const artifacts = useArtifactsStore()
 
+defineProps<{
+  /** Pass-through to ``NodeDetail``: offer "View in graph" (the rail is not on the Graph tab). */
+  showViewInGraph?: boolean
+}>()
+
 const emit = defineEmits<{
   'go-graph': []
+  'view-in-graph': [string]
   'prefill-semantic-search': [{ query: string }]
   'open-search-topic-filter': [{ topic: string }]
   'open-search-speaker-filter': [{ speaker: string }]
@@ -138,8 +144,10 @@ function onClose(): void {
       :view-artifact="viewArtifact"
       :node-id="nodeId"
       :bridge-document="artifacts.bridgeDocument"
+      :show-view-in-graph="showViewInGraph"
       @close="onClose"
       @go-graph="emit('go-graph')"
+      @view-in-graph="emit('view-in-graph', $event)"
       @prefill-semantic-search="emit('prefill-semantic-search', $event)"
       @open-search-topic-filter="emit('open-search-topic-filter', $event)"
       @open-search-speaker-filter="emit('open-search-speaker-filter', $event)"

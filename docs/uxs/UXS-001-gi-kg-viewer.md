@@ -323,7 +323,12 @@ duration) belongs in RFC-062.
 
 ### InsightCard (shared component) {#insightcard-shared-component}
 
-The **InsightCard** is a reusable card component used across multiple feature UXSs
+**Status: specified, not built.** No `InsightCard` component exists in
+`web/gi-kg-viewer/src` (checked 2026-10-05); the feature UXSs that cite it (UXS-007,
+UXS-009, UXS-010) are Draft. This subsection is the contract for when it is built, so
+there is nothing for an e2e test to assert yet.
+
+The **InsightCard** is a reusable card component for multiple feature UXSs
 (UXS-007, UXS-009, UXS-010) to display a GIL Insight with consistent visual
 treatment. Feature UXSs declare which slots they use; the component renders only
 populated slots.
@@ -424,13 +429,18 @@ Modal **`data-testid="status-bar-sources-dialog"`** (title **Configuration**). O
 
 Implemented in `useViewerKeyboard.ts` (global handlers, not per-component ad hoc):
 
-- **Slash** — When focus is not in an editable control: expand the left query column if
-  needed, switch to **Search** mode, then focus `#search-q`.
+- **Cmd-K / Ctrl-K** (Search v3 §S3, RFC-107 §4) — Opens the shell-wide **command palette**
+  from any tab, including while focus is in an editable control (it is a summon shortcut).
+- **Slash** — When focus is not in an editable control: opens the **command palette** (the
+  compact launcher it once focused is retired by UXS-016 §S4-shell). In an editable control,
+  `/` is a normal character.
 - **Escape** — On the **Graph** main tab, when focus is not in an editable control: clear
-  graph interaction / transient selection state.
-- **1 / 2 / 3 / 4** (#674 item 5) — When focus is not in an editable control: switch the
-  main tab to **Digest** / **Library** / **Graph** / **Dashboard** respectively. Editable-target
-  guard prevents firing while typing in any text input / textarea / contenteditable.
+  graph interaction / transient selection state. The palette handles its own Escape.
+- **1 / 2 / 3 / 4 / 5** (#674 item 5, RFC-107 §1 tab order) — When focus is not in an
+  editable control: switch the main tab to **Digest** / **Library** / **Search** / **Graph** /
+  **Dashboard** respectively. Matched on `key`, not `Digit*`, so non-QWERTY layouts work.
+  Editable-target guard prevents firing while typing in any text input / textarea / select /
+  contenteditable.
 - **G** / **L** on semantic search hits + Library episode rows (#674 item 2) — Bound as **click
   targets on each row** (Show on graph / open episode in subject panel; Library row also has an
   **S** prefill-search button), **not** as document-level shortcuts, so they do not fight the
