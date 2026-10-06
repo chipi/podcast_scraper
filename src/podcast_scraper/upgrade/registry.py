@@ -35,6 +35,9 @@ from .migrations.m0019_descriptor_speaker_names_removed import (
 )
 from .migrations.m0020_titled_person_ids_remerged import TitledPersonIdsRemergedMigration
 from .migrations.m0021_backfill_feed_language import BackfillFeedLanguageMigration
+from .migrations.m0022_derived_speaker_surfaces_resynced import (
+    DerivedSpeakerSurfacesResyncedMigration,
+)
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -83,6 +86,8 @@ _MIGRATIONS: List[Migration] = [
     # must re-check the number at every merge; this one has never run in production, which is the
     # only reason renumbering is free.
     BackfillFeedLanguageMigration(),
+    # 0022 makes context.json and the speaker diagnostics follow what 0012-0019 rewrote.
+    DerivedSpeakerSurfacesResyncedMigration(),
 ]
 
 
