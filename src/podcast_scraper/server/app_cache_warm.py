@@ -35,6 +35,25 @@ def _warm_entity_id_map(root: Path) -> None:
     cached_entity_id_map(root)
 
 
+def _warm_corpus_digest(root: Path) -> None:
+    """Build ``GET /api/corpus/digest?window=all`` into its caches (catalog rows + topic bands),
+    through the route itself so the warmed keys are exactly the ones a request reads."""
+    from types import SimpleNamespace
+
+    from .routes.corpus_digest import corpus_digest
+
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(output_dir=root)))
+    corpus_digest(
+        request,  # type: ignore[arg-type]
+        path=None,
+        window="all",
+        since=None,
+        compact=False,
+        include_topics=True,
+        max_rows=None,
+    )
+
+
 def warm_caches(root: Path) -> None:
     """Populate the consumer read caches for ``root`` (catalog, slug index, KG index).
 
@@ -48,6 +67,11 @@ def warm_caches(root: Path) -> None:
 
     steps = (
         ("catalog", lambda: cached_catalog(root)),
+        # BEFORE entity_id_map. Alone the cold digest takes ~20 s; built while the entity id map
+        # builds in this same process it took ~200 s (measured on prod 2026-10-06: 19.9 s vs
+        # 202.4 s -- the two compete for the GIL). After the 2026-10-05 deploy every digest request
+        # waited 110-215 s and the post-deploy smoke, which probes the digest, failed on it twice.
+        ("corpus_digest", lambda: _warm_corpus_digest(root)),
         # resolve_slug builds + caches the slug index on any non-empty query (then misses harmless).
         ("slug_index", lambda: resolve_slug(root, "\x00warm")),
         # BEFORE kg_index, which consumes it. The entity id map is the most expensive thing the

@@ -82,3 +82,43 @@ def test_warm_caches_is_best_effort_one_failure_does_not_skip_the_rest(
     # Must not raise even though the catalog step throws, and later steps still run.
     app_cache_warm.warm_caches(tmp_path)
     assert kg_calls == [1], "a failing warm step aborted the rest"
+
+
+def test_the_digest_is_warmed_before_the_entity_id_map(monkeypatch, tmp_path) -> None:
+    """The digest is what a deploy's smoke and a viewer's first screen request. Built while the
+    entity id map builds in the same process it took ~10x longer (prod, 2026-10-06), so it is
+    warmed first."""
+    order: list[str] = []
+    monkeypatch.setattr(app_cache_warm, "_warm_corpus_digest", lambda root: order.append("digest"))
+    monkeypatch.setattr(app_cache_warm, "_warm_entity_id_map", lambda root: order.append("entity"))
+    app_cache_warm.warm_caches(tmp_path)
+    assert order == ["digest", "entity"]
+
+
+def test_a_failing_digest_warm_does_not_skip_the_rest(monkeypatch, tmp_path) -> None:
+    entity: list[int] = []
+    monkeypatch.setattr(
+        app_cache_warm,
+        "_warm_corpus_digest",
+        lambda root: (_ for _ in ()).throw(RuntimeError("no index")),
+    )
+    monkeypatch.setattr(app_cache_warm, "_warm_entity_id_map", lambda root: entity.append(1))
+    app_cache_warm.warm_caches(tmp_path)
+    assert entity == [1]
+
+
+def test_the_digest_warm_fills_the_cache_a_request_reads(monkeypatch, tmp_path) -> None:
+    """Through the real route: after a warm, the same request is served from the catalog-rows
+    cache (the builder runs once, not twice)."""
+    from podcast_scraper.server.routes import corpus_digest as route
+
+    builds: list[int] = []
+
+    def _rows(root):
+        builds.append(1)
+        return []
+
+    monkeypatch.setattr(route, "build_catalog_rows", _rows)
+    app_cache_warm._warm_corpus_digest(tmp_path)
+    app_cache_warm._warm_corpus_digest(tmp_path)
+    assert builds == [1]
