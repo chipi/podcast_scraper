@@ -197,7 +197,8 @@ test('Back from a person opened in Top voices returns to Top voices, not the top
   page,
 }, testInfo) => {
   // Operator 2026-10-04: Back landed at the top of the page the person was opened from, so the
-  // reader had to find their place again. Phone-sized, so Top voices sits below the fold.
+  // reader had to find their place again. Top voices sits beside the topics, inside the first screen
+  // on a phone, so the reader scrolls it up near the top first: Back must restore that offset.
   await page.setViewportSize({ width: 390, height: 760 })
   await signInIsolated(page, 'storyline-back-scroll', testInfo)
   await page.goto('/')
@@ -211,8 +212,10 @@ test('Back from a person opened in Top voices returns to Top voices, not the top
   await page.goto(`/storyline/${encodeURIComponent(anchor!)}`)
   const voice = page.getByTestId('storyline-view').getByTestId('ec-top-voice').first()
   await voice.scrollIntoViewIfNeeded()
+  const voiceTop = (await voice.boundingBox())!.y
+  await page.evaluate((y) => window.scrollBy(0, y), voiceTop - 120)
   const before = await page.evaluate(() => window.scrollY)
-  expect(before, 'Top voices is not below the fold, so this proves nothing').toBeGreaterThan(200)
+  expect(before, 'the page did not scroll, so this proves nothing').toBeGreaterThan(200)
 
   const seenAt = await tapAndRecordTop(voice)
   await expect(page).toHaveURL(/\/person\//)
