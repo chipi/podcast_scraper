@@ -22,6 +22,10 @@ THE TWO NON-OBVIOUS REQUIREMENTS
    so a power loss leaves an intact directory entry pointing at unwritten blocks — the same
    truncated file, arrived at by a different route.
 
+PERMISSIONS
+The written file gets the destination's existing mode, or ``0o666 & ~umask`` for a new file --
+what ``open()`` would have produced -- not ``mkstemp``'s private 0600.
+
 WHAT THIS DOES NOT PROMISE
 Durability of the *directory entry* itself (that needs an fsync on the parent directory) and
 protection against two processes writing the same path concurrently — the last replace wins,
@@ -36,6 +40,30 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any
+
+
+def _read_umask() -> int:
+    """The process umask. ``os.umask`` can only be read by setting it, so read it ONCE at import,
+    before any writer thread exists: re-reading it later would briefly zero it for every thread."""
+    current = os.umask(0)
+    os.umask(current)
+    return current
+
+
+_UMASK = _read_umask()
+
+
+def _mode_for(path: Path) -> int:
+    """The permission bits *path* should end up with.
+
+    An existing destination keeps its mode, so an operator's deliberate ``chmod`` survives a
+    rewrite. A new file gets what a plain ``open()`` would have given it: ``0o666`` minus the
+    umask (``0o644`` under the usual ``022``).
+    """
+    try:
+        return path.stat().st_mode & 0o777
+    except OSError:
+        return 0o666 & ~_UMASK
 
 
 def write_json_atomic(path: Path, payload: Any, **json_kwargs: Any) -> None:
@@ -71,6 +99,11 @@ def write_json_atomic(path: Path, payload: Any, **json_kwargs: Any) -> None:
             json.dump(payload, handle, **json_kwargs)
             handle.flush()
             os.fsync(handle.fileno())
+        # ``mkstemp`` creates its file 0600 and ``os.replace`` keeps the temp file's mode, so
+        # without this every artifact written here ended up owner-only. On prod 2026-10-06 one
+        # job's finalize left 2,447 gi.json (plus kg.json) at 0600 while the rest of the corpus
+        # was 0644 -- readable only by the writing uid.
+        os.chmod(tmp_path, _mode_for(path))
         os.replace(tmp_path, path)
     except BaseException:
         # BaseException, not Exception: a KeyboardInterrupt during a long corpus repair is the

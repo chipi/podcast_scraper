@@ -36,13 +36,12 @@ from __future__ import annotations
 import argparse
 import copy
 import json
-import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from ..identity.bare_name_scope import is_bare_person_id, scoped_person_id
+from ..utils.atomic_io import write_json_atomic
 from .corpus_selection import select_served_artifacts
 
 _PERSON = "person:"
@@ -151,15 +150,9 @@ def apply_to_payload(payload: dict, mapping: Dict[str, str]) -> Tuple[dict, int]
 
 
 def _write_atomic(path: Path, payload: dict) -> None:
-    """tmp + os.replace, so a crash cannot leave a truncated bridge."""
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, ensure_ascii=False, indent=2)
-        os.replace(tmp, path)
-    except BaseException:
-        Path(tmp).unlink(missing_ok=True)
-        raise
+    """tmp + os.replace, so a crash cannot leave a truncated bridge (the shared writer, which
+    also keeps the file's permissions rather than ``mkstemp``'s 0600)."""
+    write_json_atomic(path, payload, ensure_ascii=False, indent=2)
 
 
 def run(root: Path, *, dry_run: bool) -> Dict[str, object]:

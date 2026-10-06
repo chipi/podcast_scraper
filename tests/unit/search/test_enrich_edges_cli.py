@@ -376,3 +376,25 @@ class TestRetroAuditCLI:
         art = json.loads((tmp_path / "ep1.gi.json").read_text())
         assert "_retro_audit" not in art
         assert not list(tmp_path.glob("_retro_audit_*.json"))
+
+
+def test_a_second_pass_that_changes_nothing_rewrites_nothing(tmp_path):
+    """A no-op pass must not rewrite gi.json or bump the cache stamp.
+
+    It rewrote every gi.json in the corpus on every run: a 1-episode job's finalize rewrote 2,447
+    on prod (2026-10-06), resetting each file's mode, and the stamp made every api rebuild its
+    caches. An atomic replace always makes a new inode, so an unchanged inode means no rewrite.
+    """
+    import os
+
+    _build_corpus(tmp_path)
+    assert run_enrich_edges_cli(parse_enrich_edges_argv(["--output-dir", str(tmp_path)]), _LOG) == 0
+    gi = tmp_path / "ep1.gi.json"
+    stamp = tmp_path / "corpus_edges_stamp.json"
+    assert stamp.is_file(), "the first pass added edges, so it must stamp"
+    gi_before, stamp_before = os.stat(gi), os.stat(stamp)
+
+    assert run_enrich_edges_cli(parse_enrich_edges_argv(["--output-dir", str(tmp_path)]), _LOG) == 0
+
+    assert os.stat(gi).st_ino == gi_before.st_ino, "an unchanged gi.json was rewritten"
+    assert os.stat(stamp).st_mtime_ns == stamp_before.st_mtime_ns, "a no-op pass bumped the stamp"

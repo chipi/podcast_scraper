@@ -1760,6 +1760,30 @@ def _log_quote_alignment(stats: Dict[str, int], logger: logging.Logger) -> None:
         )
 
 
+def _write_edges_stamp(corpus: Path, totals: Dict[str, int], logger: logging.Logger) -> None:
+    """BUMP THE CACHE TOKEN after enrich-edges rewrote artifacts.
+
+    This command rewrites gi.json -- including SPOKEN_BY, which insight attribution and
+    ``get_corpus_graph(derive_speaker_links=True)`` read -- but it is neither an ingest nor a
+    migration, so it touches none of the files ``perf_cache.corpus_mtime`` watches. Without this
+    stamp the API keeps serving the OLD edges until the next ingest or a process restart. Called
+    last, so the stamp cannot claim work that did not finish.
+
+    Only when something was actually rewritten: a no-op pass that bumped the token anyway made
+    every api rebuild its projections (the cache warmer's minutes-long entity-map build) for
+    nothing.
+    """
+    if not (totals.get("gi_rewritten") or totals.get("kg_scoped")):
+        return
+    try:
+        (corpus / "corpus_edges_stamp.json").write_text(
+            json.dumps({"applied_at": datetime.now(timezone.utc).isoformat(), **totals}) + "\n",
+            encoding="utf-8",
+        )
+    except OSError as exc:  # a stamp we cannot write must not fail the enrichment itself
+        logger.warning("enrich-edges: could not write the cache-invalidation stamp: %s", exc)
+
+
 def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     """Derive relational edges into each gi.json (#874): Podcast→HAS_EPISODE→Episode,
     Insight→MENTIONS→Entity, and (unless --no-speaker) Quote→SPOKEN_BY→Person.
@@ -1843,6 +1867,7 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
         "scoped": 0,
         "kg_scoped": 0,
         "kg_write_failed": 0,
+        "gi_rewritten": 0,
     }
     # One summary for the whole pass instead of one warning per episode on every run (#2276).
     quote_alignment: Dict[str, int] = {}
@@ -1859,6 +1884,11 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
         except (OSError, ValueError) as exc:
             logger.warning("enrich-edges: skip %s (%s)", gi_path, format_exception_for_log(exc))
             continue
+        # Write the gi.json back only when this pass CHANGED it. It used to rewrite every episode
+        # in the corpus on every run -- a 1-episode job's finalize rewrote 2,447 gi.json on prod
+        # (2026-10-06), and each rewrite also reset the file's mode. The kg.json side already
+        # compared before/after (`_persist_scoped_kg`); this is the same rule for gi.json.
+        _gi_before = _stable_json(artifact)
         episode_id_for_scope = (
             artifact.get("episode_id") or (doc.get("episode") or {}).get("episode_id") or ""
         )
@@ -1941,7 +1971,9 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
         _scoped = _apply_bare_name_scope(artifact, kg_artifact_for_scope, str(episode_id_for_scope))
         if _scoped:
             totals["scoped"] += _scoped
-        write_artifact(gi_path, artifact, validate=True)
+        if _stable_json(artifact) != _gi_before:
+            write_artifact(gi_path, artifact, validate=True)
+            totals["gi_rewritten"] += 1
         _persist_scoped_kg(
             kg_path,
             kg_artifact_for_scope,
@@ -1955,27 +1987,15 @@ def run_enrich_edges_cli(args: Namespace, logger: logging.Logger) -> int:
     msg = (
         f"enrich-edges: episodes={totals['episodes']} HAS_EPISODE={totals['has_episode']} "
         f"MENTIONS={totals['mentions']} SPOKEN_BY={totals['spoken_by']} "
-        f"scoped_bare_names={totals['scoped']} kg_rewritten={totals['kg_scoped']} "
+        f"scoped_bare_names={totals['scoped']} gi_rewritten={totals['gi_rewritten']} "
+        f"kg_rewritten={totals['kg_scoped']} "
         f"kg_write_failed={totals['kg_write_failed']}"
     )
     logger.info(msg)
     _log_quote_alignment(quote_alignment, logger)
     print(msg)
 
-    # BUMP THE CACHE TOKEN. This command rewrote gi.json — including SPOKEN_BY, which is what
-    # insight attribution and `get_corpus_graph(derive_speaker_links=True)` read — but it is
-    # neither an ingest nor a migration, so it touched none of the files `perf_cache.corpus_mtime`
-    # watches. Without this stamp the API keeps serving the OLD edges until the next ingest or a
-    # process restart, and the operator sees a command report thousands of new edges while the app
-    # shows none of them. Written last, so the stamp cannot claim work that did not finish.
-    if totals["episodes"]:
-        try:
-            (corpus / "corpus_edges_stamp.json").write_text(
-                json.dumps({"applied_at": datetime.now(timezone.utc).isoformat(), **totals}) + "\n",
-                encoding="utf-8",
-            )
-        except OSError as exc:  # a stamp we cannot write must not fail the enrichment itself
-            logger.warning("enrich-edges: could not write the cache-invalidation stamp: %s", exc)
+    _write_edges_stamp(corpus, totals, logger)
 
     if retro_audit and retro_rows:
         if retro_summary_path_arg:
