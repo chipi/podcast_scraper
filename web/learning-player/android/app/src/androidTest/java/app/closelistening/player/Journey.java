@@ -765,6 +765,29 @@ final class Journey {
             // of y=133, then y=1960, then y=249 on three consecutive visits, because where a web
             // page sits when you arrive is not stable. A coordinate is a guess about scroll
             // position; an accessibility action addresses the element itself.
+            // WAIT FOR THE PAGE TO STOP MOVING. `UiObject2.click()` taps the centre of the bounds it
+            // last read, and a scroll still settling moves the switch after that read. Measured
+            // 2026-10-07: bounds read at y=2100..2155, the screen captured at the tap showed the
+            // switch at y~888 — the tap landed in "Help & support", three rounds running, and the
+            // app never went offline. Re-find until two reads 300ms apart agree.
+            Rect settled = null;
+            for (int i = 0; i < 10; i++) {
+                Rect before = attr(box, UiObject2::getVisibleBounds);
+                sleep(300);
+                UiObject2 again = find(Arrays.asList(OFFLINE_ROW), false, 2_000);
+                UiObject2 againBox = again == null ? null : nearestCheckable(again);
+                if (againBox == null) break;
+                box = againBox;
+                row = again;
+                Rect after = attr(box, UiObject2::getVisibleBounds);
+                if (before != null && before.equals(after)) {
+                    settled = after;
+                    break;
+                }
+            }
+            if (settled == null) {
+                mark("=====OFFLINE_SET the switch never stopped moving=====");
+            }
             mark("=====OFFLINE_SET clicking box bounds=" + attr(box, UiObject2::getVisibleBounds)
                     + " rowBounds=" + attr(row, UiObject2::getVisibleBounds)
                     + " rowName='" + nameOf(row) + "'"
