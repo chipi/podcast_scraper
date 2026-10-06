@@ -56,7 +56,14 @@ if (!existsSync(source)) {
 
 rmSync(workdir, { recursive: true, force: true })
 mkdirSync(workdir, { recursive: true })
-cpSync(source, corpus, { recursive: true })
+// The search index under `search/` is gitignored and BUILT, never committed. A copy left in the
+// fixture by an earlier local build used to ride along here, and the setup that builds the index
+// "if it is absent" then kept it: measured 2026-10-06, an index from before the p10–p14 feeds
+// existed, so the Spanish show was unsearchable and only local runs failed. Never copy it.
+const STALE_INDEX = new Set(
+  ["lance_index", "metadata.json", "episode_fingerprints.json"].map((f) => join(source, "search", f)),
+)
+cpSync(source, corpus, { recursive: true, filter: (src) => !STALE_INDEX.has(src) })
 console.log(`[prepare-corpus] seeded a disposable corpus copy at ${corpus}`)
 
 // 3. (was: re-date the query log.) GONE, with the committed log it existed to rescue.
