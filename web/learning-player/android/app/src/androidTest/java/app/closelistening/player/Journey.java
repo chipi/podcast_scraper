@@ -122,6 +122,19 @@ final class Journey {
      * no accessible name is invisible both here and to {@link #find}, so dropping it would let
      * "absent from the inventory" read as "absent from the tree" — two bugs with opposite fixes.
      */
+    /** Any labelled node of the PAGE — not the WebView container, which is labelled by the title. */
+    static boolean hasLabelledWebContent() {
+        try {
+            for (UiObject2 o : device().findObjects(By.pkg(PKG))) {
+                if (nameOf(o).isEmpty()) continue;
+                if ("android.webkit.WebView".equals(attr(o, UiObject2::getClassName))) continue;
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
     static String labelledInventory(int limit) {
         List<String> out = new ArrayList<>();
         try {
