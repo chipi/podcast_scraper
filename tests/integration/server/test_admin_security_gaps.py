@@ -231,6 +231,44 @@ def test_a_bearer_or_key_client_without_the_cookie_is_not_checked(tmp_path: Path
     assert r.status_code != 403
 
 
+@pytest.mark.parametrize(
+    "native_origin", ["capacitor://localhost", "https://localhost", "http://localhost"]
+)
+def test_a_native_bearer_write_without_the_cookie_passes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_origin: str
+) -> None:
+    """The native shell (iOS capacitor://localhost, Android https/http://localhost) authenticates
+    with the session token as a Bearer header and never holds the cookie: the sign-in callbacks
+    hand the token back through the deep link and set no session cookie. Its writes must pass the
+    cross-site check under prod's config, where the native origins are CORS-allowed but NOT among
+    the origins trusted with the cookie."""
+    monkeypatch.setenv("PODCAST_ENV", "prod")
+    monkeypatch.setenv("PODCAST_SERVE_CORS_ORIGINS", "https://closelistening.app")
+    app = _app(tmp_path)
+    assert native_origin not in app.state.trusted_origins
+    user = create_user(
+        app.state.app_data_dir,
+        provider="apple",
+        subject="native",
+        email="native@x.io",
+        name="native",
+        role="listener",
+    )
+    token = app_sessions.sign(
+        {"user_id": user.user_id, "iat": int(time.time())}, app.state.session_secret
+    )
+    client = TestClient(app)
+    r = client.patch(
+        "/api/app/preferences",
+        json={"preferences": {"autoplay": True}},
+        headers={"Origin": native_origin, "Authorization": f"Bearer {token}"},
+    )
+    assert app_sessions.SESSION_COOKIE not in client.cookies
+    assert r.status_code == 200, r.text
+    assert r.json()["preferences"]["autoplay"] is True
+    assert not any(x.get("action") == "cross_site_write_refused" for x in _audit(tmp_path))
+
+
 def test_the_same_host_on_another_port_passes(tmp_path: Path) -> None:
     """nginx's $host drops the port: behind it on :8081, Origin has the port and Host does not."""
     app = _app(tmp_path)
