@@ -8,8 +8,6 @@ that wrote this (no prod SSH there); check them first rather than trusting them.
 
 - **A feed with no usable `<language>` is refused before download.** It stops ingesting until an
   operator override sets its language. Nothing already published is touched.
-- **`operator.closelistening.app` serves only a coming-soon page.** Operator work happens on the
-  control-plane viewer over the tailnet (MagicDNS host).
 - **Operator overrides** are written through `/api/feeds/overrides` on the control plane only,
   stored in `<corpus>/overrides.json` beside `feeds.spec.yaml`.
 - **The player API trusts only `https://closelistening.app`** for cookie writes and CORS
@@ -21,12 +19,11 @@ that wrote this (no prod SSH there); check them first rather than trusting them.
 
 ## Security changes in this PR
 
-The admin and operator surfaces are reachable over the tailnet only, and every operator write
-records who made it. In detail:
+The operator host (`operator.closelistening.app`) is unchanged: same gated vhost, same deploy,
+same smoke as on main. The changes below harden the player and the operator API. In detail:
 
 | change | where | effect on prod |
 | --- | --- | --- |
-| **The operator host is closed.** `operator.closelistening.app` proxies nothing to the app: every path, with or without the old `/preview` basic-auth or preview cookie, returns the coming-soon page. The operator-public compose still runs on loopback `127.0.0.1:8093`, unreachable from outside the box. | `infra/caddy/operator.caddy` (installed by `deploy-config`) | Operator work happens only on the control-plane viewer over MagicDNS. Re-opening the host is a deliberate decision that must re-review admin routes, sign-in and CSRF. |
 | **Admin routes are never served on the public player host.** The player nginx returns 404 for `/api/app/admin/*` (user management, access policy), `/api/app/ranking-config` and the `/api/app/graph-events/*` admin readout. `POST /api/app/graph-events` itself (the player's event ingestion) stays open. | `web/learning-player/nginx.conf` | An admin account may exist on the player, but its surface is reached over the tailnet only. |
 | **Production trusts only its real domain.** Credentialed CORS and the cross-site write check trust `PODCAST_SERVE_CORS_ORIGINS`, pinned to `https://closelistening.app` in the player compose. A deployed api (`PODCAST_ENV` prod/preprod) without the pin trusts no other page; it no longer falls back to the localhost dev servers. Native-app origins stay CORS-allowed (the app uses a Bearer token). | `server/app.py` (`web_origins`, `cors_allowed_origins`), `compose/docker-compose.player-public.yml` | `www.closelistening.app` 301s to the apex, so it needs no entry. |
 | **Cross-site writes with the session cookie are refused (CSRF).** A POST/PUT/PATCH/DELETE that carries the session cookie and states a foreign `Origin` (or `Referer`) gets 403 "Cross-site request refused.". Before this, the only defence was the cookie's `SameSite=Lax`. A request with no `Origin` passes (non-browser clients). The Sign in with Apple callback is exempt (Apple posts it cross-site by design). | `server/app_csrf.py` | Shows up as a 403 in the player `account.live` smoke if the origin pin is wrong. |
@@ -37,8 +34,8 @@ records who made it. In detail:
 
 Pinned by tests: `tests/integration/server/test_admin_security_gaps.py`,
 `tests/integration/server/test_app_cors.py`, `tests/integration/server/test_player_nginx_runtime.py`,
-`tests/unit/podcast_scraper/server/test_player_nginx_admin_is_tailnet_only.py`. The live smokes
-check the operator host is closed and the player's cookie writes work (Step 3).
+`tests/unit/podcast_scraper/server/test_player_nginx_admin_is_tailnet_only.py`. The player live smoke
+checks the player's cookie writes work (Step 3).
 
 **Not covered:** whether prod's control plane has `APP_OPERATOR_API_KEY` set (not verified, see
 Step 5); the audit write is best-effort, and the overrides store uses a per-process lock, which is
@@ -105,13 +102,11 @@ Code: `src/podcast_scraper/overrides.py` (store, validation),
 ## Order of operations
 
 1. **Merge PR #2260 to main.** Images publish only from `main`; one tag pins all three services.
-2. **`deploy-config`** (Caddy + Alloy). This installs the closed `operator.caddy`. It is NOT part
-   of `deploy-all-prod`, and it must run before the operator deploy: the operator live smoke now
-   asserts the host is closed and fails against the old gated vhost.
+2. **`deploy-config`** (Caddy + Alloy) — not needed for this PR: no Caddy or Alloy file changed.
 3. **`deploy-all-prod`** (control plane, player, operator). Its smokes cover:
    - player `account.live` — includes cookie writes, so a CSRF/origin regression shows up here
      as a 403 "Cross-site request refused.";
-   - operator smoke — every path on the operator host returns coming-soon.
+   - operator smoke — unchanged from main (the gated operator host).
 4. **Migrations — dry run first, then decide** (below). Deploy does not run them.
 5. **Overrides for feeds with no language** — before the first scheduled ingest after deploy,
    or those feeds silently stop getting new episodes (the refusal is logged, not alerted).
@@ -183,7 +178,6 @@ Reference count, NOT prod's: of the 72 feeds in `config/corpus-expansion.feeds.y
 | --- | --- | --- |
 | no-language refusals are the ones you expect | pipeline logs: `no language:` / `refused:` | only feeds without an override |
 | English episodes still ingest | next run's `result: episodes=… ok=… failed=…` | no new failures |
-| operator host closed | `curl -s https://operator.closelistening.app/api/health` | coming-soon HTML, not JSON |
 | player cookie writes | player `account.live` smoke | green |
 | GI/KG hard failures | logs: `TranscriptBodyMissingError` | none, or each one is a real missing transcript to fix |
 

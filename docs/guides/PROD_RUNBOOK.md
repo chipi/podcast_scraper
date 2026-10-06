@@ -41,18 +41,11 @@ CMS: a private **authoring/control** env and a public **read-only consumption** 
                     |  corpus_data volume  (pipeline WRITES; publics READ ro)
                     +-------------------------------------------------+
    ┌───────────────────────────────┐            reads (ro) ----------+
-   │ PLAYER — PUBLIC surface        │  operator -> operator.closelistening.app (CLOSED)
+   │ PLAYER — PUBLIC surface        │  operator -> operator.closelistening.app
    │ project: -p player             │  player   -> closelistening.app
    │ workflow: deploy-player.yml    │
    └───────────────────────────────┘
 ```
-
-**The public operator host is closed (operator decision 2026-10-05).** The operator surface is
-tailnet-only: `infra/caddy/operator.caddy` answers every path on `operator.closelistening.app`
-with the coming-soon page and proxies nothing to the app, and the post-deploy smoke asserts it.
-Operator work — feeds, overrides (`/api/feeds/overrides`), jobs — happens on the CONTROL plane's
-viewer over MagicDNS. The `-p operator` plane still deploys and runs on loopback only. Reopening
-the host is a deliberate decision that re-reviews its security first.
 
 **Which workflow deploys what** (the Actions UI display names now say this; the *file* names
 are legacy — see ADR-141):
@@ -60,7 +53,7 @@ are legacy — see ADR-141):
 | Workflow file | Actions UI name | Project | Deploys | Exposure |
 | --- | --- | --- | --- | --- |
 | `deploy-prod.yml` (!) | Deploy operator — CONTROL plane | `-p compose` | full api (**sock + keys**) + viewer + **pipeline** (owns corpus) | tailnet |
-| `deploy-operator.yml` | Deploy operator — PUBLIC surface | `-p operator` | app-only api + viewer (read-only) | **closed** (coming-soon only, 2026-10-05) |
+| `deploy-operator.yml` | Deploy operator — PUBLIC surface | `-p operator` | app-only api + viewer (read-only) | public |
 | `deploy-player.yml` | Deploy player — PUBLIC surface | `-p player` | app-only api + learning-app | public |
 
 **Coupling rules:**

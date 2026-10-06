@@ -57,9 +57,9 @@ chmod 600 "$OPERATOR_ENV"
 
 : "${OPERATOR_DOMAIN:?OPERATOR_DOMAIN missing from .env.operator and env}"
 : "${PODCAST_CORPUS_VOLUME:?PODCAST_CORPUS_VOLUME missing from .env.operator and env}"
-# Coming-soon gate cookie secret. The closed operator.caddy (2026-10-05) carries no gate, so it
-# is not substituted into anything today; it stays REQUIRED so that re-opening the gated vhost
-# can never ship an empty value (`cl_op_preview=` is guessable → the gate opens for anyone).
+# Coming-soon gate cookie secret — substituted into operator.caddy below. REQUIRED: an empty
+# value would ship `cl_op_preview=` as the gate, which is guessable → the gate opens for
+# anyone. Fail loudly rather than deploy a broken gate.
 : "${OPERATOR_PREVIEW_COOKIE:?OPERATOR_PREVIEW_COOKIE missing from .env.operator and env (coming-soon gate cookie secret)}"
 
 # OTEL traces (ADR-119) reach the homelab VictoriaTraces OTLP ingest via the Tailscale
@@ -135,8 +135,8 @@ echo "[$(date -u +%FT%TZ)] building + starting operator-public..."
 # (ADR-114 validate-before-reload contract).
 # operator.caddy hardcodes `operator.closelistening.app` (the real domain), so the domain
 # sed is a no-op unless OPERATOR_DOMAIN differs — kept for parity with the player pattern.
-# The __OPERATOR_PREVIEW_COOKIE__ substitution is a no-op since the host closed (2026-10-05):
-# operator.caddy carries no placeholder. Kept so a re-opened gated vhost works unchanged.
+# The __OPERATOR_PREVIEW_COOKIE__ substitution IS required: the caddy file carries the
+# placeholder that must be swapped for the live gate secret.
 echo "[$(date -u +%FT%TZ)] installing operator Caddy vhost for ${OPERATOR_DOMAIN}..."
 sed -e "s/operator\.example\.com/${OPERATOR_DOMAIN}/g" \
     -e "s|__OPERATOR_PREVIEW_COOKIE__|${OPERATOR_PREVIEW_COOKIE}|g" \

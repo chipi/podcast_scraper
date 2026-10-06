@@ -1,67 +1,77 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * Post-deploy smoke vs the LIVE operator host: it is CLOSED (operator decision 2026-10-05 — the
- * operator surface is tailnet-only; infra/caddy/operator.caddy proxies nothing to the app).
+ * Post-deploy smoke vs the LIVE operator viewer (#43). Validates the deployed
+ * operator.closelistening.app: the coming-soon gate holds for the public, preview users reach
+ * the viewer (which is a login wall), the Google sign-in entrypoint is wired end-to-end with
+ * the correct HTTPS callback, and the backend is healthy.
  *
- * What a pass proves: DNS + Cloudflare + TLS + the edge serve operator.closelistening.app, and NO
- * path reaches the operator app — not the SPA, not the sign-in, not the backend, not the admin
- * routes — with or without the old /preview basic-auth or preview cookie. A reopened doorman, a
- * stray reverse_proxy, or a vhost that fell back to another site fails here.
+ * Runs under playwright.live.config.ts (baseURL = the live origin; preview basic-auth via
+ * httpCredentials). The gated specs skip when no preview password is set.
  *
- * Needs no secrets: the closed site ignores credentials, so the spec sends a made-up Basic header
- * and a made-up preview cookie to prove they open nothing.
+ * SCOPE LIMIT (see the config header): the operator viewer renders nothing until a ≥creator
+ * Google session exists, and prod runs the real provider (the mock ?as= login can never ship —
+ * app_oauth.py). So we assert the sign-in REDIRECT, not a completed login. The authed viewer +
+ * corpus flow is covered by stack-test under the mock provider.
  */
 
-const CLOSED_PATHS = [
-  '/',
-  '/preview',
-  '/index.html',
-  '/api/health',
-  '/api/app/auth/login',
-  '/api/app/me',
-  '/api/app/admin/users',
-  '/api/feeds',
-  '/api/feeds/overrides',
-]
+const gated = Boolean(process.env.OPERATOR_PREVIEW_PASS || process.env.PLAYER_PREVIEW_PASS)
 
-const OLD_KEYS = {
-  Authorization: `Basic ${Buffer.from('marko:not-a-real-password').toString('base64')}`,
-  Cookie: 'cl_op_preview=not-a-real-cookie',
-}
-
-for (const path of CLOSED_PATHS) {
-  test(`${path} answers the coming-soon page, with or without the old gate keys`, async ({
-    playwright,
-    baseURL,
-  }) => {
-    for (const headers of [{}, OLD_KEYS]) {
-      const ctx = await playwright.request.newContext({ baseURL, extraHTTPHeaders: headers })
-      try {
-        const resp = await ctx.get(path, { maxRedirects: 0 })
-        // 200 + the page: never a 401 challenge (the doorman), a 302 (its redirect), a 307 (the
-        // OAuth hand-off), or JSON from the backend.
-        expect(resp.status(), `${path} ${JSON.stringify(Object.keys(headers))}`).toBe(200)
-        expect(resp.headers()['content-type'] ?? '').toContain('text/html')
-        const body = await resp.text()
-        expect(body).toContain('Coming soon')
-        expect(body).not.toContain('<div id="app">')
-      } finally {
-        await ctx.dispose()
-      }
-    }
-  })
-}
-
-test('the browser sees coming-soon and no sign-in', async ({ browser }) => {
-  const ctx = await browser.newContext({ serviceWorkers: 'block' })
+test('coming-soon gate holds for the public (no preview creds)', async ({ browser }) => {
+  // A fresh context WITHOUT credentials must see the marketing gate, never the viewer.
+  const ctx = await browser.newContext({ httpCredentials: undefined, serviceWorkers: 'block' })
   try {
     const page = await ctx.newPage()
     const resp = await page.goto('/')
     expect(resp?.status()).toBe(200)
     await expect(page.getByText('Coming soon')).toBeVisible()
+    // The viewer's sign-in button must NOT be reachable without the gate.
     await expect(page.getByTestId('login-button')).toHaveCount(0)
   } finally {
     await ctx.close()
   }
+})
+
+test.describe('preview surface', () => {
+  test.skip(!gated, 'set OPERATOR_PREVIEW_PASS (or PLAYER_PREVIEW_PASS) to run the gated live specs')
+
+  test('preview users reach the viewer login wall', async ({ page }) => {
+    // /preview issues the basic-auth challenge (satisfied by httpCredentials), sets the preview
+    // cookie, and 302s to /. Going straight to / would only get the coming-soon page (200, no
+    // 401 → httpCredentials never fires). Past the gate the SPA boots, sees no ≥creator session,
+    // and renders the LoginView — the real-provider "Sign in" button, not the mock picker.
+    await page.goto('/preview')
+    await expect(page.getByText('Sign in to explore the knowledge graph')).toBeVisible()
+    await expect(page.getByTestId('login-button')).toBeVisible()
+  })
+
+  test('sign-in entrypoint 307s to Google OAuth with the HTTPS operator callback', async ({
+    page,
+  }) => {
+    // Through /preview first (sets the cookie + lands on the app), so the login wall renders.
+    await page.goto('/preview')
+    // Clicking sign-in calls auth.login() -> location.assign('/api/app/auth/login?grant=creator'),
+    // which the backend 307s to Google's consent screen. Assert that redirect directly — the
+    // exact chain the redirect_uri_mismatch broke — rather than loading Google's heavy page.
+    const respPromise = page.waitForResponse((r) => r.url().includes('/api/app/auth/login'), {
+      timeout: 25_000,
+    })
+    // dispatchEvent fires the native click WITHOUT Playwright waiting for the cross-origin
+    // Google navigation to settle.
+    await page.getByTestId('login-button').dispatchEvent('click')
+    const resp = await respPromise
+    expect(resp.status()).toBe(307)
+    const location = (await resp.headerValue('location')) ?? ''
+    expect(location).toContain('accounts.google.com')
+    // Regression guard for 2026-07-25: the callback must be HTTPS on the operator host. The
+    // whole encoded scheme+host+path is asserted, so an http:// redirect (the bug) fails here.
+    expect(location).toContain(
+      'redirect_uri=https%3A%2F%2Foperator.closelistening.app%2Fapi%2Fapp%2Fauth%2Fcallback',
+    )
+  })
+
+  test('backend health is green', async ({ request }) => {
+    const resp = await request.get('/api/health')
+    expect(resp.status()).toBe(200)
+  })
 })
