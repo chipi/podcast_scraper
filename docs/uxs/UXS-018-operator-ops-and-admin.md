@@ -137,12 +137,11 @@ Three sections stacked in one scroll column (`space-y-8`): Users, Discovery rank
 - **User deletion keeps the browser's native `window.confirm`** (operator, 2026-10-06). The consumer
   app uses an in-app dialog with Cancel focused first (UXS-014). The operator viewer deliberately
   does not need to match it.
-
-## Open questions (shipped behaviour that may not be intended)
-
-- **Ops reads live production data in every environment the API is configured for.** The e2e API
-  inherits the dev observability config and returns real gateway spend. The Playwright specs mock
-  these routes so they do not depend on it.
+- **Test runs never see production data** (operator, 2026-10-06). Both e2e API servers set
+  `PODCAST_DEV_OBS_ENV=0`. That skips the dev observability env file (`.env.obs.dev`) and the
+  auto-discovered `config/observability.homelab.yaml`, so Ops in a test run reads
+  `target: default` with every external source unconfigured. It used to return live production
+  gateway spend.
 
 ## Testing
 
@@ -150,7 +149,7 @@ Three sections stacked in one scroll column (`space-y-8`): Users, Discovery rank
 
 - **Users and Discovery ranking** run against the live e2e API, with unique identities per run.
   Ranking is restored after its test.
-- **Ops and graph analytics** are mocked. Their live data is either production telemetry (Ops) or
-  empty in a fresh corpus (analytics).
+- **Ops and graph analytics** are mocked. A test server has no telemetry sources (see **Decided**),
+  and a fresh corpus has no analytics events.
 
 `auth-roles.spec.ts` keeps the role matrix.
