@@ -55,6 +55,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from ... import overrides as ov
+from ...config_constants import DEFAULT_USER_AGENT
 from ...languages import normalize_language_tag, SOURCE_OVERRIDE, SOURCE_RSS
 from ...rss.parser import _channel_language
 from ..corpus_selection import select_served_artifacts
@@ -116,11 +117,21 @@ def _shows_and_episodes(
 
 
 def _fetch_language(url: str, timeout: float) -> Tuple[Optional[str], str]:
-    """``(language_raw, error)`` — the channel ``<language>`` as the publisher declared it."""
+    """``(language_raw, error)`` — the channel ``<language>`` as the publisher declared it.
+
+    Sends the pipeline's own User-Agent, the one every RSS fetch uses. httpx's default
+    (``python-httpx/x.y``) is refused by some hosts: on prod 2026-10-06 rss.buzzsprout.com
+    answered it 403 for 3 shows (86 episodes) and 200 to the same request with a User-Agent, so
+    the migration could never complete.
+    """
     try:
         import httpx
 
-        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+        with httpx.Client(
+            timeout=timeout,
+            follow_redirects=True,
+            headers={"User-Agent": DEFAULT_USER_AGENT},
+        ) as client:
             resp = client.get(url)
             resp.raise_for_status()
             body = resp.content

@@ -638,3 +638,34 @@ class TestOverridesJsonOutranksThePublisher:
 
         with pytest.raises(ValueError):
             BackfillFeedLanguageMigration().apply(_ctx(tmp_path))
+
+
+class TestTheFetchItself:
+    """Not stubbed: the real ``_fetch_language`` against a host that refuses httpx's default UA."""
+
+    def test_it_sends_a_user_agent_a_picky_host_accepts(self, monkeypatch) -> None:
+        import httpx
+
+        seen = []
+
+        def buzzsprout_like(request: httpx.Request) -> httpx.Response:
+            ua = request.headers.get("user-agent", "")
+            seen.append(ua)
+            if ua.startswith("python-httpx"):
+                return httpx.Response(403)
+            return httpx.Response(
+                200,
+                content=b"<rss><channel><language>en-gb</language></channel></rss>",
+            )
+
+        real_client = httpx.Client
+
+        def client_with_mock_transport(*args, **kwargs):
+            return real_client(*args, transport=httpx.MockTransport(buzzsprout_like), **kwargs)
+
+        monkeypatch.setattr(httpx, "Client", client_with_mock_transport)
+
+        raw, err = m0021._fetch_language("https://rss.example.com/1.rss", 5.0)
+
+        assert (raw, err) == ("en-gb", "")
+        assert seen and not seen[0].startswith("python-httpx")
