@@ -55,7 +55,7 @@ async function onDelete(): Promise<void> {
 </script>
 
 <template>
-  <section class="max-w-md" data-testid="delete-account-view">
+  <section class="lp-page lp-focus" data-testid="delete-account-view">
     <h1 class="mb-3 font-display text-3xl font-extrabold tracking-tight">
       {{ t('deleteAccount.title') }}
     </h1>

@@ -24,6 +24,8 @@ const router = createRouter({
     // leaves the card stuck on "Loading…".
     { path: "/topic/:id", name: "topic", component: { template: "<div/>" }, props: true },
     { path: "/person/:id", name: "person", component: { template: "<div/>" }, props: true },
+    // A host's shows link to their show pages.
+    { path: "/podcast/:feedId", name: "podcast", component: { template: "<div/>" } },
   ],
 })
 
@@ -206,10 +208,11 @@ describe("EntityCard", () => {
     const getTopic = vi.spyOn(api, "getTopicCard").mockResolvedValue(topicCard())
     const w = mountCard({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
-    // Tap the related AI topic chip → loads the topic card in place.
+    // Tap the related AI topic chip → loads the topic card in place. The pill names its kind
+    // ("Topic") since the related group mixes topics with their themes and storylines.
     await w
-      .findAll("button")
-      .find((b) => b.text() === "AI")!
+      .findAll('[data-testid="ec-person-related-topic"]')
+      .find((b) => b.text().endsWith("AI"))!
       .trigger("click")
     await flushPromises()
     expect(getTopic).toHaveBeenCalledWith("topic:ai")
@@ -219,6 +222,44 @@ describe("EntityCard", () => {
     await flushPromises()
     expect(getPerson).toHaveBeenCalledTimes(2) // reloaded on return
     expect(w.text()).toContain("In 2 episodes")
+  })
+
+  it("mixes a person's related topics with their themes and storylines, each once, kind named", async () => {
+    // Operator 2026-10-05: the related group shows the groupings the topics belong to, like the
+    // episode notes — every pill names its kind because the group is mixed.
+    const topic = (id: string, label: string) => ({
+      id,
+      label,
+      cluster_id: "tc:risk",
+      cluster_label: "risk",
+      cluster_size: 2,
+      storyline_id: "thc:markets",
+      storyline_label: "Markets",
+      storyline_size: 2,
+    })
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(
+      personCard({ related_topics: [topic("topic:a", "Alpha"), topic("topic:b", "Beta")] }),
+    )
+    const w = mountCard({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    const themes = w.findAll('[data-testid="ec-person-related-theme"]')
+    const storylines = w.findAll('[data-testid="ec-person-related-storyline"]')
+    const topics = w.findAll('[data-testid="ec-person-related-topic"]')
+    expect(themes.map((b) => b.text())).toEqual(["Themerisk"])
+    expect(storylines.map((b) => b.text())).toEqual(["StorylineMarkets"])
+    expect(topics.map((b) => b.text())).toEqual(["TopicAlpha", "TopicBeta"])
+  })
+
+  it("joins hosted shows with real spaces: 'A, B and C'", async () => {
+    // Rendered "Singletrack SessionsandThe Drift" (2026-10-05): the spaces around the joiner sat
+    // OUTSIDE the interpolation, where the template compiler dropped them.
+    const show = (n: string) => ({ feed_id: `f-${n}`, title: n, role: "host", episode_count: 1 })
+    vi.spyOn(api, "getPersonCard").mockResolvedValue(
+      personCard({ shows: [show("Alpha"), show("Beta"), show("Gamma")] }),
+    )
+    const w = mountCard({ kind: "person", id: "person:jane-doe" })
+    await flushPromises()
+    expect(w.get('[data-testid="ec-host-shows"]').text()).toBe("Host of Alpha, Beta and Gamma")
   })
 
   it("emits close on the dimmed backdrop and the ✕ button", async () => {

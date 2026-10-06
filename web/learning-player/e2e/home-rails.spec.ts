@@ -79,14 +79,44 @@ test('the storylines tab renders rows and follows one', async ({ page }, testInf
   await expect(page.getByTestId('discovery-row').first()).toBeVisible()
 })
 
-test('the discovery tabs switch between topics, storylines and people', async ({
+test('the themes tab lists themes, and a theme opens its card on top of Home', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'home-themes', testInfo)
+  await page.goto('/')
+  // Topics, Themes, Storylines, People — the order every surface lists the kinds in (2026-10-05).
+  await expect(page.locator('[data-testid^="discovery-tab-"]')).toHaveText(['Topics', 'Themes', 'Storylines', 'People'])
+  // All four kind pills fit the phone row beside the two switches — none clipped off the edge.
+  const vw = page.viewportSize()!.width
+  for (const tab of await page.locator('[data-testid^="discovery-tab-"]').all()) {
+    const box = await tab.boundingBox()
+    expect(box && box.x >= 0 && box.x + box.width <= vw).toBe(true)
+  }
+  await page.getByTestId('discovery-tab-theme').click()
+  const list = page.getByTestId('discovery-list-theme')
+  await expect(list).toBeVisible()
+  const row = list.getByTestId('discovery-row').first()
+  await expect(row).toBeVisible()
+  await row.locator('button').first().click()
+  await expect(page.getByTestId('theme-card')).toBeVisible()
+})
+
+test('Discover lists themes too, and a theme opens its page', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'browse-themes', testInfo)
+  await page.goto('/browse?trends=theme')
+  const list = page.getByTestId('discovery-list-theme')
+  await expect(list).toBeVisible()
+  await list.getByTestId('discovery-row').first().locator('button').first().click()
+  await expect(page).toHaveURL(/\/theme\//)
+  await expect(page.getByTestId('theme-view')).toBeVisible()
+})
+
+test('the discovery tabs switch between topics, themes, storylines and people', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'home-discovery', testInfo)
   await page.goto('/')
 
   await expect(page.getByTestId('home-discovery')).toBeVisible()
-  for (const tab of ['discovery-tab-topic', 'discovery-tab-storyline', 'discovery-tab-person']) {
+  for (const tab of ['discovery-tab-topic', 'discovery-tab-theme', 'discovery-tab-storyline', 'discovery-tab-person']) {
     await page.getByTestId(tab).click()
     // Whatever the tab shows, the section must not be left empty-but-present.
     await expect(page.getByTestId('home-discovery')).toBeVisible()
@@ -149,3 +179,51 @@ test('closing the card with Escape does not leave a dead Back press behind', asy
   expect(new URL(page.url()).pathname, 'a stale history entry absorbed the Back press').not.toBe('/')
 })
 
+
+test('a theme row says how many topics it holds, and can be followed', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'trends-theme-row', testInfo)
+  await page.goto('/')
+  await page.getByTestId('discovery-tab-theme').click()
+  const row = page.getByTestId('discovery-list-theme').getByTestId('discovery-row').first()
+  await expect(row).toBeVisible()
+  await expect(row.locator('button').first()).toHaveAttribute('aria-label', /\(\d+\)/)
+  const follow = row.getByTestId('discovery-follow')
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/api/app/interests') && r.request().method() !== 'GET'),
+    follow.click(),
+  ])
+})
+
+/**
+ * Home and Discover render ONE search + Trends block (operator 2026-10-05): search before Trends on
+ * both, the two trending-topic chips under the search on both, 3 Trends rows on a phone and 5 on
+ * desktop, and "all ›" expanding in place on both (Home used to link out).
+ */
+for (const viewport of [
+  { width: 412, height: 915, rows: 3 },
+  { width: 1440, height: 900, rows: 5 },
+]) {
+  test(`Home and Discover share the search + Trends block (${viewport.width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport)
+    await signInIsolated(page, `trends-block-${viewport.width}`, testInfo)
+    for (const [url, search, trends] of [
+      ['/', 'home-search-section', 'home-discovery'],
+      ['/browse', 'browse-search-section', 'browse-discovery'],
+    ] as const) {
+      await page.goto(url)
+      const block = page.getByTestId(trends)
+      const rows = block.getByTestId('discovery-list-topic').getByTestId('discovery-row')
+      await expect(rows).toHaveCount(viewport.rows)
+      await expect(page.getByTestId(search).getByTestId('home-topic-chip')).toHaveCount(2)
+      const [s, t] = await page.evaluate(
+        ([a, b]) => [a, b].map((id) => document.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect().top),
+        [search, trends],
+      )
+      expect(t, `${url}: Trends below the search`).toBeGreaterThan(s)
+      // "all ›" expands in place: more rows, same page.
+      await block.getByTestId('discovery-see-all').click()
+      await expect(page).toHaveURL(new RegExp(url === '/' ? '/$|/\\?' : '/browse'))
+      expect(await rows.count()).toBeGreaterThan(viewport.rows)
+    }
+  })
+}

@@ -33,8 +33,10 @@
 import { ref, watch } from 'vue'
 
 const props = defineProps<{
-  /** Visible heading. */
-  title: string
+  /** Visible heading. A `#title` slot replaces it when the heading carries more than text. */
+  title?: string
+  /** Heading level: 3 inside a card or panel, 2 for a page's own sections. */
+  level?: 2 | 3
   /** Shown beside the title, so a folded section still says what it holds. Omit when not a count. */
   count?: number
   /**
@@ -93,9 +95,9 @@ watch(open, (isOpen) => {
       >
         <path d="m9 6 6 6-6 6" />
       </svg>
-      <h3 class="lp-section">
-        {{ title }}<template v-if="count !== undefined"> · {{ count }}</template>
-      </h3>
+      <component :is="level === 2 ? 'h2' : 'h3'" class="lp-section flex flex-wrap items-baseline gap-x-2">
+        <slot name="title">{{ title }}</slot><template v-if="count !== undefined"> · {{ count }}</template>
+      </component>
     </summary>
     <div class="pt-1">
       <slot />

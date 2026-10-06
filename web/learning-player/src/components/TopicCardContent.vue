@@ -12,6 +12,7 @@
  * with the transcript search, the episode list and two analysis panels buried the people at the
  * very bottom, where a reader had already decided whether the topic was worth their time.
  */
+import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed, defineAsyncComponent, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
@@ -50,8 +51,14 @@ const props = withDefaults(
     canLayer?: boolean
     /** This card's own stack depth; anything it opens sits one level deeper. */
     depth?: number
+    /**
+     * The card is the whole page at desktop width (the standalone /topic route): pairs that answer
+     * one question sit side by side, half the width each, from `lg` (operator 2026-10-05). In a
+     * sheet or the Knowledge Panel the card is narrow, so it stays one column.
+     */
+    wide?: boolean
   }>(),
-  { canLayer: true, depth: 0 }
+  { canLayer: true, depth: 0, wide: false }
 )
 const emit = defineEmits<{
   (e: "open", payload: { kind: "person" | "topic"; id: string }): void
@@ -202,18 +209,43 @@ function searchLibrary(): void {
        2. A universal "discussed over time" activity line — on EVERY topic, from any entry point
           (operator 2026-09-14), derived from the topic's own episodes. The pill renders `hide-spark`
           so it does not draw a second, redundant chart above this one. -->
+  <div :class="props.wide ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6' : ''" data-testid="ec-topic-time-pair">
   <div v-if="topicMomentum || activitySeries.length" class="mb-4">
+    <!-- On the desktop page this chart stands beside the conversation arc, so it MIRRORS it (operator
+         2026-10-05): the same title row — "Discussed over time", with the momentum badge where the
+         arc puts its insight count — and the same 64px chart height, so the two read as one row.
+         Phones and sheets keep the badge above and the caption below. The badge renders twice at
+         complementary breakpoints, as the masthead capture control does. -->
+    <div
+      v-if="props.wide"
+      class="mb-2 hidden items-baseline justify-between gap-2 lg:flex"
+      data-testid="ec-topic-activity-head"
+    >
+      <h3 class="lp-section whitespace-nowrap">{{ t("ec.discussedOverTime") }}</h3>
+      <!-- `!w-auto shrink-0`: the badge variant is a full-width column by default; in this row that
+           claimed the free space, squeezed the title onto two lines and pushed the chart 25px below
+           the arc's (measured 2026-10-05). -->
+      <TrendMomentum
+        v-if="topicMomentum"
+        variant="badge"
+        hide-spark
+        :velocity="topicMomentum.v"
+        class="!w-auto shrink-0"
+        data-testid="ec-topic-momentum-head"
+      />
+    </div>
     <TrendMomentum
       v-if="topicMomentum"
       variant="badge"
       hide-spark
       :velocity="topicMomentum.v"
       class="mb-2"
+      :class="props.wide ? 'lg:hidden' : ''"
       data-testid="ec-topic-momentum"
     />
     <figure v-if="activitySeries.length > 1" data-testid="ec-topic-activity">
-      <Sparkline :values="activitySeries" class="h-8 w-full text-topic" />
-      <figcaption class="lp-kicker mt-1">{{ t("ec.discussedOverTime") }}</figcaption>
+      <Sparkline :values="activitySeries" class="h-8 w-full text-topic" :class="props.wide ? 'lg:h-16' : ''" />
+      <figcaption class="lp-kicker mt-1" :class="props.wide ? 'lg:hidden' : ''">{{ t("ec.discussedOverTime") }}</figcaption>
     </figure>
   </div>
 
@@ -222,6 +254,7 @@ function searchLibrary(): void {
        this topic at opposite ends of a long scroll. They answer the same question at different
        resolutions — how much, and how it changed — so they read as a pair or not at all. -->
   <TopicConversationArc :id="topic.id" :known-weeks="topic.conversation_arc_weeks" />
+  </div>
 
   <!-- Semantically SIMILAR topics. Distinct from the storyline below, which is co-occurrence
        (#1603). Chips drill in place via the back stack.
@@ -231,11 +264,19 @@ function searchLibrary(): void {
        marked. On the page that reasoning does not survive: the heading says "N similar topics" and
        the first thing under it is the topic whose page you are reading, which is not similar to
        itself. The count now counts what is actually listed. -->
+  <!-- Two columns on the desktop page (operator 2026-10-05): similar topics, "Part of a theme" and
+       "Part of a storyline" stacked on the left; Top voices alone on the right (moved up from below
+       the strongest shows). One column in a sheet, the Knowledge Panel and on a phone, where Top
+       voices follows the storyline link. -->
+  <div :class="props.wide ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6' : ''" data-testid="ec-topic-related">
+  <div data-testid="ec-topic-related-left">
+  <!-- No section heading (operator 2026-10-05): the count rides IN the pill row as a small kicker
+       label — the label-then-pills style of the show page's "What this show's about" groups. -->
   <section v-if="siblings.length" class="mb-4" data-testid="ec-similar-topics">
-    <h3 class="lp-section mb-2">
-      {{ t("ec.clusterMembers", siblings.length, { named: { count: siblings.length } }) }}
-    </h3>
-    <div class="flex flex-wrap gap-1.5">
+    <div class="flex flex-wrap items-center gap-1.5">
+      <span class="lp-kicker mr-1" data-testid="ec-similar-label">{{
+        t("ec.clusterMembers", siblings.length, { named: { count: siblings.length } })
+      }}</span>
       <button
         v-for="s in siblings"
         :key="s.id"
@@ -253,46 +294,54 @@ function searchLibrary(): void {
        storyline link so a reader meets the two groupings as a pair and can see they are different
        claims — "means the same thing" against "keeps coming up together" — rather than meeting one
        of them and inferring the other from a chip list. -->
+  <!-- No "Part of a theme" / "Part of a storyline" heading over these two (operator 2026-10-05): the
+       link card IS the section. Its caption names the kind — "THEME · 3 TOPICS" — so the two are not
+       told apart by colour alone. -->
   <section v-if="themeLabel && themeId" class="mb-4" data-testid="ec-theme">
-    <h3 class="lp-section mb-2">{{ t("ec.themeHeading") }}</h3>
-    <button
-      type="button"
-      data-testid="ec-theme-link"
-      class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
-      @click="openTheme"
-    >
-      <span class="min-w-0 flex-1">
-        <span class="block text-sm font-bold text-theme">{{ themeLabel }}</span>
-        <span v-if="themeSize" class="lp-kicker">{{
-          t("ec.clusterSize", themeSize, { named: { count: themeSize } })
-        }}</span>
-      </span>
-      <span class="shrink-0 text-muted" aria-hidden="true">›</span>
-    </button>
+      <button
+        type="button"
+        data-testid="ec-theme-link"
+        class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
+        @click="openTheme"
+      >
+        <span class="min-w-0 flex-1">
+          <span class="block text-sm font-bold text-theme">{{ themeLabel }}</span>
+          <span class="lp-kicker" data-testid="ec-theme-kind">{{ t("ec.theme")
+            }}<template v-if="themeSize"> · {{
+              t("ec.clusterSize", themeSize, { named: { count: themeSize } })
+            }}</template></span>
+        </span>
+        <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+      </button>
   </section>
 
   <!-- Part of a storyline: ONE link that opens the whole storyline ON TOP (StorylineCard overlay).
        A topic with no cluster says so, quietly. -->
   <section v-if="storylineLabel" class="mb-4" data-testid="ec-storyline">
-    <h3 class="lp-section mb-2">{{ t("ec.storylineHeading") }}</h3>
-    <button
-      type="button"
-      data-testid="ec-storyline-link"
-      class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
-      @click="openStoryline"
-    >
-      <span class="min-w-0 flex-1">
-        <span class="block text-sm font-bold text-accent">{{ storylineLabel }}</span>
-        <span v-if="storylineSize" class="lp-kicker">{{
-          t("ec.clusterSize", storylineSize, { named: { count: storylineSize } })
-        }}</span>
-      </span>
-      <span class="shrink-0 text-muted" aria-hidden="true">›</span>
-    </button>
+      <button
+        type="button"
+        data-testid="ec-storyline-link"
+        class="flex w-full items-center gap-2 rounded-xl border border-border bg-overlay px-3 py-2.5 text-left transition hover:bg-elevated"
+        @click="openStoryline"
+      >
+        <span class="min-w-0 flex-1">
+          <span class="block text-sm font-bold text-storyline">{{ storylineLabel }}</span>
+          <span class="lp-kicker" data-testid="ec-storyline-kind">{{ t("ec.storyline")
+            }}<template v-if="storylineSize"> · {{
+              t("ec.clusterSize", storylineSize, { named: { count: storylineSize } })
+            }}</template></span>
+        </span>
+        <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+      </button>
   </section>
   <p v-else class="mb-4 text-xs text-muted" data-testid="ec-single-topic">
     {{ t("ec.singleTopic") }}
   </p>
+  </div>
+
+  <!-- Top voices (wave-G): the people who drive THIS topic. Shared with the storyline page. -->
+  <TopVoices class="mb-4" :people="topVoices" @open="(id) => openPerson(id)" />
+  </div>
 
   <!-- The theme, opened ON TOP (teleported sheet) rather than navigating away. -->
   <ThemeCard
@@ -323,38 +372,36 @@ function searchLibrary(): void {
 
   <!-- Strongest shows on this topic — only when it spans more than one show. -->
   <section v-if="topShows.length > 1" class="mb-4" data-testid="ec-top-shows">
-    <h3 class="lp-section mb-2">{{ t("ec.topShows") }}</h3>
-    <!-- Artwork, then the name, then the tally — the compact row `EpisodeRow` uses, at its 40px
-         thumbnail (operator 2026-09-19). It was a bare line of text with a number on the right,
-         which is the one way a show does NOT get recognised: cover art is how you know a podcast at
-         a glance, and every other list of shows in the app shows it. Deliberately NOT the full
-         `ShowRow` (128px artwork + description) — this sits inside a card as a short aside, not as
-         the page's subject. -->
-    <ul class="flex flex-col">
-      <li v-for="s in topShows" :key="s.feed_id">
-        <RouterLink
-          :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
-          class="flex items-center gap-2.5 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
-        >
-          <img
-            v-if="s.art"
-            :src="s.art"
-            alt=""
-            loading="lazy"
-            class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
-          />
-          <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" aria-hidden="true" />
-          <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ s.title }}</span>
-          <span class="shrink-0 text-xs text-muted">{{
-            t("ec.topShowCount", s.count, { named: { count: s.count } })
-          }}</span>
-        </RouterLink>
-      </li>
-    </ul>
+    <CollapsibleSection :title="t('ec.topShows')" section-key="topic-top-shows" :level="3">
+      <!-- Artwork, then the name, then the tally — the compact row `EpisodeRow` uses, at its 40px
+           thumbnail (operator 2026-09-19). It was a bare line of text with a number on the right,
+           which is the one way a show does NOT get recognised: cover art is how you know a podcast at
+           a glance, and every other list of shows in the app shows it. Deliberately NOT the full
+           `ShowRow` (128px artwork + description) — this sits inside a card as a short aside, not as
+           the page's subject. -->
+      <ul class="flex flex-col">
+        <li v-for="s in topShows" :key="s.feed_id">
+          <RouterLink
+            :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
+            class="flex items-center gap-2.5 border-b border-border py-2 no-underline text-canvas-foreground hover:bg-overlay"
+          >
+            <img
+              v-if="s.art"
+              :src="s.art"
+              alt=""
+              loading="lazy"
+              class="h-10 w-10 shrink-0 rounded-md bg-elevated object-cover"
+            />
+            <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" aria-hidden="true" />
+            <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ s.title }}</span>
+            <span class="shrink-0 text-xs text-muted">{{
+              t("ec.topShowCount", s.count, { named: { count: s.count } })
+            }}</span>
+          </RouterLink>
+        </li>
+      </ul>
+    </CollapsibleSection>
   </section>
-
-  <!-- Top voices (wave-G): the people who drive THIS topic. Shared with the storyline page. -->
-  <TopVoices class="mb-4" :people="topVoices" @open="(id) => openPerson(id)" />
 
   <!-- Search transcripts — between the strongest shows and the episode list (operator review). -->
   <button
@@ -373,21 +420,21 @@ function searchLibrary(): void {
        it names those same people); the across-all-three consistency won.
        The order asked for, in the operator's words: "between topics, list of topics, and the list
        of episodes ... on all three surfaces". -->
-  <!-- Multi-perspective synthesis (#1146): each guest's take on this topic; hides when none.
-       Directly under Top voices (operator 2026-09-19) — it names the same people and says what they
-       actually argued, so it belongs beside the faces rather than at the foot of the page. -->
   <TopicPerspectives
     :id="topic.id"
+    :label="label"
     @open="(p) => (p.kind === 'person' ? openPerson(p.id) : emit('open', p))"
   />
 
   <!-- Episodes (newest-first, STATED not offered as a control — #2004 item 11). -->
   <section v-if="episodes.length" class="mb-4">
-    <h3 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
-      <span>{{ t("ec.topicEpisodes", episodeCount, { named: { count: episodeCount } }) }}</span>
-      <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
-    </h3>
-    <EntityEpisodeList :episodes="episodes" />
+    <CollapsibleSection section-key="topic-episodes" :level="3">
+      <template #title>
+        <span>{{ t("ec.topicEpisodes", episodeCount, { named: { count: episodeCount } }) }}</span>
+        <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
+      </template>
+      <EntityEpisodeList :episodes="episodes" />
+    </CollapsibleSection>
   </section>
 
   <!-- Notes on this topic (TD.7). -->

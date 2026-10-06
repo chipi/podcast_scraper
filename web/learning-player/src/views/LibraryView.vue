@@ -479,12 +479,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- Same container as Discover — `mx-auto max-w-3xl px-4 pb-8` (operator 2026-09-17). Library was
-       a bare <section> inheriting the app shell's wider `max-w-6xl px-5`, so the SAME tile markup
-       rendered at 270px here and 176px on Browse, and 118px against 108px on a phone. The column
-       count was never the cause; the container was. Discover sets the standard, so Library adopts
-       it and the grids agree by construction instead of by compensating arithmetic. -->
-  <section class="mx-auto max-w-3xl px-4 pb-8">
+  <!-- The one page width (`lp-page`, operator 2026-10-05), the same as Discover and every other
+       page. Library once inherited the shell's width while Discover sat in a narrower column, so the
+       SAME tile markup rendered at 270px here and 176px on Browse; one width for all pages keeps the
+       grids in agreement by construction instead of by compensating arithmetic. -->
+  <section class="lp-page pb-8">
     <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">{{ t('library.title') }}</h1>
 
     <!-- Standalone, never chained into a neighbouring v-if. -->
@@ -734,8 +733,9 @@ onMounted(async () => {
               <span class="lp-kicker ml-1 font-normal">{{ grp.items.length }}</span>
             </h2>
             <ul class="flex flex-col">
+              <!-- Capped like saved episodes and shows (operator 2026-10-05): five, then five more. -->
               <li
-                v-for="e in grp.items"
+                v-for="e in savedCaps.visible(grp.kind, grp.items, savedSearchActive)"
                 :key="e.kind + ':' + e.ref"
                 class="flex items-center gap-2 border-b border-border py-2"
                 data-testid="saved-entity"
@@ -750,6 +750,13 @@ onMounted(async () => {
                 <FavoriteButton :item="{ kind: e.kind, ref: e.ref, label: e.label }" />
               </li>
             </ul>
+            <ShowAllToggle
+              v-if="savedCaps.overflows(grp.items.length, savedSearchActive, grp.kind)"
+              :expanded="savedCaps.remaining(grp.kind, grp.items.length) === 0"
+              :count="grp.items.length"
+              :remaining="savedCaps.remaining(grp.kind, grp.items.length)"
+              @toggle="savedCaps.toggle(grp.kind, grp.items.length)"
+            />
           </section>
         </template>
         <!-- Insights are NOT favorites — they save via the highlights path and render in the

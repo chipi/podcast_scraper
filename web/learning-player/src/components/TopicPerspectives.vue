@@ -6,6 +6,7 @@
  * none. Speaker names tap through to their person card (the same `open` contract
  * the card's other people rows use).
  */
+import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
@@ -13,6 +14,8 @@ import { RouterLink } from "vue-router"
 import SectionStatus from "./SectionStatus.vue"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import { useSectionState } from "../composables/useSectionState"
+import { useCappedSections } from "../composables/useCappedSections"
+import ShowAllToggle from "./ShowAllToggle.vue"
 import {
   ApiError,
   getStorylinePerspectives,
@@ -32,6 +35,8 @@ const props = withDefaults(
      * share this component rather than growing two near-copies that drift.
      */
     kind?: "topic" | "theme" | "storyline"
+    /** The topic's name: a topic's heading says what the perspectives are ON (operator 2026-10-05). */
+    label?: string
   }>(),
   { kind: "topic" }
 )
@@ -122,9 +127,13 @@ const headingTitle = computed(() =>
 )
 const heading = computed(() =>
   props.kind === "topic"
-    ? t("ec.perspectives", perspectives.value.length, {
-        named: { count: perspectives.value.length },
-      })
+    ? props.label
+      ? t("ec.perspectivesOn", perspectives.value.length, {
+          named: { count: perspectives.value.length, topic: props.label },
+        })
+      : t("ec.perspectives", perspectives.value.length, {
+          named: { count: perspectives.value.length },
+        })
     : headingTitle.value
 )
 
@@ -132,22 +141,13 @@ const heading = computed(() =>
 const PREVIEW = 3
 
 /**
- * How many SPEAKERS a grouping shows before the fold.
- *
- * A topic has a handful of speakers and lists them all. A grouping is the union over its members,
- * so it has as many speakers as all of them combined — the storyline fixture returns 11, and
- * rendering them took the page from ~2,200px to 11,185px. That is not a section any more, it is the
- * page. Speakers arrive ranked most-takes-first, so the first few are the ones most engaged with
- * the grouping and the cut falls in a sensible place.
+ * Speakers are PAGED, five at a time, on every surface (operator 2026-10-05: "page those with show
+ * more in chunks of 5"). A grouping is the union over its members — the storyline fixture returns
+ * 11 speakers, which unfolded took the page from ~2,200px to 11,185px — and a topic reached 10.
+ * Speakers arrive ranked most-takes-first, so each page is the next-most-engaged five.
  */
-const SPEAKER_FOLD = 4
-const allSpeakers = ref(false)
-const visible = computed(() =>
-  props.kind === "topic" || allSpeakers.value
-    ? perspectives.value
-    : perspectives.value.slice(0, SPEAKER_FOLD)
-)
-const hiddenSpeakers = computed(() => perspectives.value.length - visible.value.length)
+const caps = useCappedSections(5, 5)
+const visible = computed(() => caps.visible("speakers", perspectives.value))
 const expanded = ref<Set<string>>(new Set())
 function toggle(personId: string): void {
   const next = new Set(expanded.value)
@@ -180,94 +180,90 @@ function toggle(personId: string): void {
 
   <section v-else-if="perspectives.length" class="mb-4" data-testid="topic-perspectives"
     :data-kind="kind">
-    <h3 class="lp-section mb-2">{{ heading }}</h3>
-    <ul class="flex flex-col gap-2.5">
-      <li
-        v-for="p in visible"
-        :key="p.person_id"
-        class="rounded-lg border border-border bg-overlay p-3"
-        data-testid="topic-perspective"
-      >
-        <!-- Avatar in its own left column; everything else (name + count, then the insights and the
-             show-more) lives in the right column so it all aligns to where the NAME starts and
-             nothing tucks under the avatar. -->
-        <div class="flex gap-2.5">
-          <ProfileAvatar
-            :name="p.person_name"
-            :src="p.image_url"
-            :size="24"
-            class="mt-0.5 shrink-0"
-          />
-          <div class="min-w-0 flex-1">
-            <!-- Name + count share ONE baseline. -->
-            <div class="flex flex-wrap items-baseline gap-x-2">
-              <button
-                type="button"
-                class="text-sm font-bold text-person hover:underline"
-                @click="emit('open', { kind: 'person', id: p.person_id })"
-              >
-                {{ p.person_name }}
-              </button>
-              <span class="lp-kicker">{{
-                t("ec.perspectiveInsights", p.insight_count, { named: { count: p.insight_count } })
-              }}</span>
-            </div>
-            <ul class="mt-1 flex flex-col gap-1">
-              <li
-                v-for="ins in expanded.has(p.person_id) ? p.insights : p.insights.slice(0, PREVIEW)"
-                :key="ins.id"
-                class="flex items-baseline gap-1.5 text-sm text-canvas-foreground"
-              >
-                <span aria-hidden="true" class="text-muted">•</span>
-                <span class="min-w-0 flex-1">{{ ins.text }}</span>
-                <!-- #2032: topic → insight → episode-moment. Grounded insights carry their source
-                     episode + the supporting quote's start, so the take jumps into the player AT
-                     the moment. Ungrounded/quote-less insights render with no ▶ (stays honest). -->
-                <RouterLink
-                  v-if="ins.episode_slug && ins.start_ms != null"
-                  :to="{
-                    name: 'player',
-                    params: { slug: ins.episode_slug },
-                    query: { t: String(Math.floor(ins.start_ms / 1000)) },
-                  }"
-                  class="shrink-0 font-mono text-xs font-bold text-accent no-underline"
-                  data-testid="perspective-jump"
-                  :aria-label="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
-                  :title="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
-                  >▶ {{ formatTime(ins.start_ms / 1000) }}</RouterLink
+    <CollapsibleSection :title="heading" section-key="perspectives" :level="3">
+      <ul class="flex flex-col gap-2.5">
+        <li
+          v-for="p in visible"
+          :key="p.person_id"
+          class="rounded-lg border border-border bg-overlay p-3"
+          data-testid="topic-perspective"
+        >
+          <!-- Avatar in its own left column; everything else (name + count, then the insights and the
+               show-more) lives in the right column so it all aligns to where the NAME starts and
+               nothing tucks under the avatar. -->
+          <div class="flex gap-2.5">
+            <ProfileAvatar
+              :name="p.person_name"
+              :src="p.image_url"
+              :size="24"
+              class="mt-0.5 shrink-0"
+            />
+            <div class="min-w-0 flex-1">
+              <!-- Name + count share ONE baseline. -->
+              <div class="flex flex-wrap items-baseline gap-x-2">
+                <button
+                  type="button"
+                  class="text-sm font-bold text-person hover:underline"
+                  @click="emit('open', { kind: 'person', id: p.person_id })"
                 >
-              </li>
-            </ul>
-            <button
-              v-if="p.insights.length > PREVIEW"
-              type="button"
-              class="mt-1 text-xs font-semibold text-accent hover:underline"
-              @click="toggle(p.person_id)"
-            >
-              {{
-                expanded.has(p.person_id)
-                  ? t("ec.perspectiveLess")
-                  : t("ec.perspectiveMore", { count: p.insights.length - PREVIEW })
-              }}
-            </button>
+                  {{ p.person_name }}
+                </button>
+                <span class="lp-kicker">{{
+                  t("ec.perspectiveInsights", p.insight_count, { named: { count: p.insight_count } })
+                }}</span>
+              </div>
+              <ul class="mt-1 flex flex-col gap-1">
+                <li
+                  v-for="ins in expanded.has(p.person_id) ? p.insights : p.insights.slice(0, PREVIEW)"
+                  :key="ins.id"
+                  class="flex items-baseline gap-1.5 text-sm text-canvas-foreground"
+                >
+                  <span aria-hidden="true" class="text-muted">•</span>
+                  <span class="min-w-0 flex-1">{{ ins.text }}</span>
+                  <!-- #2032: topic → insight → episode-moment. Grounded insights carry their source
+                       episode + the supporting quote's start, so the take jumps into the player AT
+                       the moment. Ungrounded/quote-less insights render with no ▶ (stays honest). -->
+                  <RouterLink
+                    v-if="ins.episode_slug && ins.start_ms != null"
+                    :to="{
+                      name: 'player',
+                      params: { slug: ins.episode_slug },
+                      query: { t: String(Math.floor(ins.start_ms / 1000)) },
+                    }"
+                    class="shrink-0 font-mono text-xs font-bold text-accent no-underline"
+                    data-testid="perspective-jump"
+                    :aria-label="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
+                    :title="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
+                    >▶ {{ formatTime(ins.start_ms / 1000) }}</RouterLink
+                  >
+                </li>
+              </ul>
+              <button
+                v-if="p.insights.length > PREVIEW"
+                type="button"
+                class="mt-1 text-xs font-semibold text-accent hover:underline"
+                @click="toggle(p.person_id)"
+              >
+                {{
+                  expanded.has(p.person_id)
+                    ? t("ec.perspectiveLess")
+                    : t("ec.perspectiveMore", { count: p.insights.length - PREVIEW })
+                }}
+              </button>
+            </div>
           </div>
-        </div>
-      </li>
-    </ul>
-    <!-- One control for the whole section, under the list — a grouping's speaker count is the thing
-         being folded, not any one speaker's takes (those have their own per-speaker toggle). -->
-    <button
-      v-if="hiddenSpeakers > 0 || allSpeakers"
-      type="button"
-      class="mt-2 text-xs font-semibold text-accent hover:underline"
-      data-testid="perspectives-more-speakers"
-      @click="allSpeakers = !allSpeakers"
-    >
-      {{
-        allSpeakers
-          ? t("ec.perspectiveLess")
-          : t("ec.moreSpeakers", { count: hiddenSpeakers })
-      }}
-    </button>
+        </li>
+      </ul>
+      <!-- One control for the whole section, under the list — a grouping's speaker count is the thing
+           being folded, not any one speaker's takes (those have their own per-speaker toggle). -->
+      <ShowAllToggle
+        v-if="caps.overflows(perspectives.length, false, 'speakers')"
+        :expanded="caps.remaining('speakers', perspectives.length) === 0"
+        :count="perspectives.length"
+        :remaining="caps.remaining('speakers', perspectives.length)"
+        data-testid="perspectives-more-speakers"
+        @toggle="caps.toggle('speakers', perspectives.length)"
+      />
+    </CollapsibleSection>
   </section>
 </template>

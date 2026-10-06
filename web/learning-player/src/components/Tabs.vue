@@ -64,8 +64,14 @@ const props = withDefaults(
     pattern?: 'tabs' | 'radio'
     /** `true` stretches each tab to an equal share of the row (LibraryView's five-up strip). */
     equalWidth?: boolean
+    /**
+     * Pill only: tighter padding and gap, for a strip that has to share a phone row with other
+     * controls — Trends' four kind pills beside its sort and scope switches fit a 375px phone only
+     * at this density (2026-10-05).
+     */
+    dense?: boolean
   }>(),
-  { variant: 'underline', equalWidth: false, pattern: 'tabs' },
+  { variant: 'underline', equalWidth: false, pattern: 'tabs', dense: false },
 )
 
 const model = defineModel<K>({ required: true })
@@ -74,6 +80,12 @@ const listEl = ref<HTMLElement | null>(null)
 
 const listClass = computed(() => {
   if (props.variant === 'segment') return 'lp-segment'
+  // Dense: the strip shares a phone row, and its pills render in the device's SYSTEM font, so how
+  // wide they are is the OS's call — macOS fit Trends at 375px with 6px to spare, Linux ran People
+  // 13px into the sort switch, and 360px Android phones are common. When they do not fit, the strip
+  // stops at its neighbours and scrolls (the SavedFilterBar treatment) instead of drawing over them.
+  if (props.variant === 'pill' && props.dense)
+    return 'flex min-w-0 gap-0.5 overflow-x-auto rounded-full border border-border bg-surface p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
   if (props.variant === 'pill')
     return 'inline-flex gap-1 rounded-full border border-border bg-surface p-1'
   return 'flex flex-wrap gap-1 border-b border-border'
@@ -84,7 +96,7 @@ function tabClass(key: K): string {
   if (props.variant === 'segment') return 'lp-segment-option'
   if (props.variant === 'pill')
     return [
-      'rounded-full px-3 py-1 text-xs font-bold transition',
+      `rounded-full ${props.dense ? 'shrink-0 whitespace-nowrap px-2' : 'px-3'} py-1 text-xs font-bold transition`,
       on ? 'bg-accent text-accent-foreground' : 'text-muted hover:text-canvas-foreground',
     ].join(' ')
   return [

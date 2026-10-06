@@ -1,18 +1,23 @@
 <script setup lang="ts">
 /**
- * Interests picker (PRD-043 FR4 / 3.5) — a dismissible modal to choose interest *clusters*
- * (the top corpus themes by prevalence). Saved per-user; the discovery feed re-ranks Home by
- * these when the personalization flag is on. Pure overlay: backdrop / ESC / ✕ dismiss, focus
- * trap, restore focus on close.
+ * Interests picker (PRD-043 FR4 / 3.5) — the onboarding sheet for choosing what shapes Home.
+ *
+ * The same four sections as the Profile Interests tab (`InterestSections`), so a listener meets one
+ * way of choosing interests rather than two (beta feedback 2026-10-04). It used to offer only the
+ * top 12 themes and storylines, with everything else the user followed in an "Also following" row
+ * that could only be removed from.
+ *
+ * Unlike Profile, it keeps a LOCAL selection and writes once on Save: this is a step in a funnel,
+ * and Cancel has to mean nothing changed. Pure overlay: backdrop / ESC / ✕ dismiss, focus trap,
+ * restore focus on close.
  */
-import { computed, onMounted, ref } from "vue"
+import { onMounted, ref } from "vue"
 import { toCountBucket, track } from "../services/analytics"
 import CloseIcon from "./CloseIcon.vue"
+import InterestSections from "./InterestSections.vue"
 import { useI18n } from "vue-i18n"
-import { getStorylines, getTopClusters, getUserInterests, putUserInterests } from "../services/api"
-import type { InterestCluster, Storyline } from "../services/types"
+import { getUserInterests, putUserInterests } from "../services/api"
 import { useModalSheet } from "../composables/useModalSheet"
-import { dedupeByLabel, interestKind, interestLabel } from "../utils/interests"
 import { useInterestsStore } from "../stores/interests"
 
 /**
@@ -31,12 +36,8 @@ const { t } = useI18n()
 // authoritative set was never written back here — see `replaceAll`.
 const interests = useInterestsStore()
 
-const clusters = ref<InterestCluster[]>([])
-const storylines = ref<Storyline[]>([])
-// The interests the user had when the picker opened — carried through save so follows the picker
-// doesn't offer (topic:/person: from entity cards, or clusters not shown) survive the PUT replace.
-const initialInterests = ref<string[]>([])
-const selected = ref<Set<string>>(new Set())
+/** Ordered, so Save sends follows in the order they were made — the store's own order. */
+const selected = ref<string[]>([])
 /**
  * Whether a save completed, so closing afterwards is not ALSO reported as a dismissal (#2267).
  *
@@ -47,54 +48,23 @@ const selected = ref<Set<string>>(new Set())
 let didSave = false
 const loading = ref(true)
 const saving = ref(false)
-
-const hasClusters = computed(() => clusters.value.length > 0)
-const hasStorylines = computed(() => storylines.value.length > 0)
-const isEmpty = computed(() => !hasClusters.value && !hasStorylines.value)
+/**
+ * The current interests could not be read. Save is a whole-set REPLACE, so saving an unloaded
+ * selection would wipe every follow the user has — the sheet says so and offers nothing to save.
+ */
+const loadFailed = ref(false)
 
 function toggle(id: string): void {
-  const next = new Set(selected.value)
-  if (next.has(id)) next.delete(id)
-  else next.add(id)
-  selected.value = next
+  selected.value = selected.value.includes(id)
+    ? selected.value.filter((t) => t !== id)
+    : [...selected.value, id]
 }
-
-/**
- * Follows the picker does NOT offer, shown so they can be seen and removed (operator 2026-09-18).
- *
- * The picker lists the top interest clusters and the storylines — but a user also follows people
- * and topics straight from entity cards, and clusters outside the top set. Those were saved,
- * rendered on the profile, and INVISIBLE here: the screen that edits interests showed five while
- * the profile showed twenty-five, and the difference was unexplained and unremovable.
- *
- * They were never at risk (`save` preserves un-offered ids, below) — they were just unreachable.
- */
-const alsoFollowing = computed(() => {
-  const offered = new Set<string>([
-    ...clusters.value.map((c) => c.id),
-    ...storylines.value.map((st) => st.id),
-  ])
-  const known = new Map<string, string>([
-    ...clusters.value.map((c) => [c.id, c.label] as const),
-    ...storylines.value.map((st) => [st.id, st.label] as const),
-  ])
-  return dedupeByLabel(
-    initialInterests.value.filter((id) => !offered.has(id) && selected.value.has(id)),
-    known,
-  ).map((id) => ({ id, kind: interestKind(id), label: interestLabel(id, known) }))
-})
 
 async function save(): Promise<void> {
   saving.value = true
   try {
-    // Everything the picker offers this session; the selected subset replaces the offered part.
-    const offered = new Set<string>([
-      ...clusters.value.map((c) => c.id),
-      ...storylines.value.map((s) => s.id),
-    ])
-    const preserved = initialInterests.value.filter((id) => !offered.has(id))
-    const chosen = [...offered].filter((id) => selected.value.has(id))
-    const stored = await putUserInterests([...preserved, ...chosen])
+    // Every kind is listed now, so the selection IS the whole set — nothing outside it to preserve.
+    const stored = await putUserInterests(selected.value)
     // BEFORE the emit: every surface reading the store must be correct by the time a parent's
     // `saved` handler runs (HomeView's re-pulls discovery).
     // Bucketed, never the exact count and never the chosen ids: the spec's no-free-text rule, and
@@ -120,19 +90,14 @@ function closeSheet(): void {
 }
 
 onMounted(async () => {
-  // Before the fetch, like landing_view: a listener whose clusters never load still opened the
+  // Before the fetch, like landing_view: a listener whose interests never load still opened the
   // picker, and the funnel must not under-count the people whose network failed them.
   track("interests_picker_shown", { trigger: props.trigger })
-
-  const [tops, tales, current] = await Promise.all([
-    getTopClusters(12).catch(() => [] as InterestCluster[]),
-    getStorylines(12).catch(() => [] as Storyline[]),
-    getUserInterests().catch(() => [] as string[]),
-  ])
-  clusters.value = tops
-  storylines.value = tales
-  initialInterests.value = current
-  selected.value = new Set(current)
+  try {
+    selected.value = await getUserInterests()
+  } catch {
+    loadFailed.value = true
+  }
   loading.value = false
 })
 </script>
@@ -169,75 +134,10 @@ onMounted(async () => {
 
         <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
           <p v-if="loading" class="text-sm text-muted">{{ t("interests.loading") }}</p>
-          <p v-else-if="isEmpty" class="text-sm text-muted">{{ t("interests.empty") }}</p>
-          <template v-else>
-            <!-- Topics (semantic clusters) -->
-            <section v-if="hasClusters" data-testid="interests-topics">
-              <h3 class="lp-section mb-2">{{ t("interests.topicsHeading") }}</h3>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="c in clusters"
-                  :key="c.id"
-                  type="button"
-                  :aria-pressed="selected.has(c.id)"
-                  class="rounded-full border px-3 py-1.5 text-sm transition"
-                  :class="
-                    selected.has(c.id)
-                      ? 'border-accent bg-accent text-accent-foreground'
-                      : 'border-border bg-overlay text-topic hover:bg-elevated'
-                  "
-                  @click="toggle(c.id)"
-                >
-                  {{ c.label }}
-                </button>
-              </div>
-            </section>
-
-            <!-- Storylines (theme clusters — topics discussed together) -->
-            <section v-if="hasStorylines" class="mt-5" data-testid="interests-storylines">
-              <h3 class="lp-section mb-1">{{ t("interests.storylinesHeading") }}</h3>
-              <p class="mb-2 text-xs text-muted">{{ t("interests.storylinesHint") }}</p>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="s in storylines"
-                  :key="s.id"
-                  type="button"
-                  :aria-pressed="selected.has(s.id)"
-                  class="rounded-full border px-3 py-1.5 text-sm transition"
-                  :class="
-                    selected.has(s.id)
-                      ? 'border-accent bg-accent text-accent-foreground'
-                      : 'border-storyline lp-storyline-chip text-surface-foreground'
-                  "
-                  @click="toggle(s.id)"
-                >
-                  {{ s.label }}
-                </button>
-              </div>
-            </section>
-
-            <!-- Everything else the user follows. Tapping removes it: this is the only place these
-                 can be un-followed, since the sections above never list them. -->
-            <section v-if="alsoFollowing.length" class="mt-5" data-testid="interests-also-following">
-              <h3 class="lp-section mb-1">{{ t("interests.alsoHeading") }}</h3>
-              <p class="mb-2 text-xs text-muted">{{ t("interests.alsoHint") }}</p>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="f in alsoFollowing"
-                  :key="f.id"
-                  type="button"
-                  :aria-pressed="true"
-                  :aria-label="t('interests.alsoRemove', { name: f.label })"
-                  class="flex items-center gap-1.5 rounded-full border border-accent bg-accent px-3 py-1.5 text-sm text-accent-foreground transition hover:opacity-90"
-                  data-testid="interests-also-chip"
-                  @click="toggle(f.id)"
-                >
-                  {{ f.label }}
-                  <CloseIcon :size="12" />
-                </button>
-              </div>
-            </section>
-          </template>
+          <p v-else-if="loadFailed" class="text-sm text-muted" data-testid="interests-load-failed">
+            {{ t("profile.unavailable") }}
+          </p>
+          <InterestSections v-else :selected="selected" @toggle="toggle" />
         </div>
 
         <footer class="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
@@ -251,7 +151,7 @@ onMounted(async () => {
           </button>
           <button
             type="button"
-            :disabled="saving || loading"
+            :disabled="saving || loading || loadFailed"
             class="rounded-full bg-accent px-5 py-2 text-sm font-bold text-accent-foreground disabled:opacity-50"
             data-testid="interests-save"
             @click="save"

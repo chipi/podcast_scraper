@@ -50,7 +50,7 @@ import java.util.List;
 public class MagicLinkJourneyTests extends UITestCase {
 
     /** No other page shows all three together. */
-    private static final List<String> PROFILE_TABS = Arrays.asList("Account", "Topics", "Stats");
+    private static final List<String> PROFILE_TABS = Arrays.asList("Account", "Interests", "Stats");
 
     private static String arg(String name) {
         Bundle args = InstrumentationRegistry.getArguments();

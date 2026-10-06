@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * The discovery section shared by Home and Discover (operator 2026-09-14): ONE tabbed `DiscoveryList`
- * over three entity KINDS (Topics / Storylines / People) with two little switches — sort
+ * over four entity KINDS (Topics / Themes / Storylines / People — Themes added 2026-10-05) with two little switches — sort
  * (Rising = velocity, Trending = volume) and scope (Corpus ⇄ Mine). Extracted from HomeView so the
  * two surfaces cannot drift.
  *
@@ -18,7 +18,7 @@ import DiscoveryList from "./DiscoveryList.vue"
 import { useAuthStore } from "../stores/auth"
 import { useTrendingScope } from "../composables/useTrendingScope"
 
-type Kind = "topic" | "storyline" | "person"
+type Kind = "topic" | "theme" | "storyline" | "person"
 
 const props = withDefaults(
   defineProps<{
@@ -46,6 +46,10 @@ const { scope: trendingScope, setScope: setTrendingScope } = useTrendingScope()
 
 const DISCOVERY_TABS = [
   { key: "topic", labelKey: "home.tabTopics" },
+  // Themes — topics that MEAN the same thing — were the one grouping missing from Trends
+  // (operator 2026-10-05). Ordered as everywhere else the kinds are listed: Topics, Themes,
+  // Storylines, People (Profile › Interests, the palette in tokens.css).
+  { key: "theme", labelKey: "home.themes" },
   { key: "storyline", labelKey: "home.storylines" },
   { key: "person", labelKey: "home.tabPeople" },
 ] as const
@@ -114,6 +118,7 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
         :label="t('home.discoveryTabs')"
         id-prefix="discovery"
         variant="pill"
+        dense
         class="min-w-0"
       />
       <div class="ml-auto flex shrink-0 items-center gap-1.5">

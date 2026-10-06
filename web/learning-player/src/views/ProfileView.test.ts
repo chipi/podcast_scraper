@@ -153,6 +153,7 @@ beforeEach(() => {
     // that goes nowhere, which is the bug this whole round began with.
     { id: "thc:orphan", label: "Orphan storyline", size: 4, anchor_topic_id: "" },
   ])
+  vi.spyOn(api, "getTrending").mockResolvedValue([])
   vi.spyOn(api, "getMyStats").mockResolvedValue(stats())
   vi.spyOn(api, "getComms").mockResolvedValue(comms())
 })
@@ -282,129 +283,104 @@ describe("ProfileView — Your Week layout", () => {
   })
 })
 
-describe("ProfileView — interest chips", () => {
-  it("renders chips hued by kind: person → text-person, topic/cluster → text-topic", async () => {
+describe("ProfileView — Interests tab (beta feedback 2026-10-04)", () => {
+  it("the tab is called Interests, and an old ?tab=topics link still lands on it", async () => {
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
+    await router.push("/profile?tab=topics")
+    const w = mountProfile()
+    await flushPromises()
+    const tab = w.findAll('[role="tab"]').find((b) => b.text() === "Interests")
+    expect(tab, "no Interests tab").toBeTruthy()
+    expect(tab!.attributes("aria-selected")).toBe("true")
+    expect(w.findAll('[role="tab"]').some((b) => b.text() === "Topics")).toBe(false)
+    await router.push("/profile")
+  })
+
+  it("the personalization note sits above the first section, not inside one", async () => {
+    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
+    const w = mountProfile()
+    await flushPromises()
+    const help = w.get('[data-testid="interests-help"]')
+    expect(help.text()).toBe("These shape what surfaces on your Home when personalization is on.")
+    const html = w.html()
+    expect(html.indexOf('data-testid="interests-help"')).toBeLessThan(
+      html.indexOf('data-testid="interests-section-topic"')
+    )
+  })
+
+  it("splits follows into Topics, People, Themes and Storylines, each with its own label", async () => {
     vi.spyOn(api, "getUserInterests").mockResolvedValue([
       "tc:ai",
       "topic:personal-growth",
       "person:brian-chesky",
+      "thc:ai-safety",
     ])
     const w = mountProfile()
     await flushPromises()
-
-    // By testid, not by tag: a pill is a `<button>` when it opens something and a `<span>` when it
-    // does not, so a tag-based selector silently stops seeing the openable ones.
-    const chips = w.findAll('[data-testid^="profile-interest-"]')
-    const personChip = chips.find((c) => c.classes().includes("text-person"))!
-    const topicChips = chips.filter((c) => c.classes().includes("text-topic"))
-
-    // Each pill now NAMES its kind in a mono kicker as well as carrying its hue, so `.text()` is
-    // "Person brian chesky" rather than the bare label (operator 2026-09-19). Hue alone could not
-    // carry the distinction — these three colours sit close in value by design, and it carried
-    // nothing at all for a colour-blind reader.
-    expect(personChip.classes()).toContain("text-person")
-    expect(personChip.text()).toBe("Person brian chesky")
-
-    // topic:personal-growth → topic hue, de-slugged, kind named
-    expect(topicChips.some((c) => c.text() === "Topic personal growth")).toBe(true)
+    const inSection = (kind: string) =>
+      w.findAll(`[data-testid="interests-section-${kind}"] [data-testid="interest-following-${kind}"]`)
+        .map((c) => c.text())
+    expect(inSection("topic")).toEqual(["personal growth"])
+    expect(inSection("person")).toEqual(["brian chesky"])
+    // Real labels from the cluster and storyline lists, not the de-slugged ids.
+    expect(inSection("theme")).toEqual(["AI"])
+    expect(inSection("storyline")).toEqual(["AI safety"])
   })
 
-  it("a THEME is its own kind, not a storyline", async () => {
-    // `tc:` was classed as `storyline`, which was invisible while the kind only picked a hue and
-    // became a false claim the moment each pill named itself. They are different objects and have
-    // different product names: `thc:` is a STORYLINE (topics that keep coming up together), `tc:`
-    // is a THEME (topics that mean similar things) — note the wire prefixes are inverted against
-    // the reader-facing words, which is exactly why this is pinned.
-    vi.spyOn(api, "getUserInterests").mockResolvedValue(["tc:ai", "thc:ai-safety"])
+  it("does not claim you follow nothing while your follows are still loading", async () => {
+    let release: (ids: string[]) => void = () => {}
+    vi.spyOn(api, "getUserInterests").mockImplementation(() => new Promise((r) => (release = r)))
     const w = mountProfile()
     await flushPromises()
-
-    const theme = w.find('[data-testid="profile-interest-theme"]')
-    expect(theme.exists()).toBe(true)
-    // Resolves to its cluster label via the clusters map, not the de-slugged "ai".
-    expect(theme.text()).toBe("Theme AI")
-    expect(theme.classes()).toContain("text-theme")
-
-    // And it is not wearing the storyline treatment.
-    expect(theme.classes()).not.toContain("text-accent")
-    expect(w.find('[data-testid="profile-interest-storyline"]').classes()).toContain("text-accent")
+    expect(w.find('[data-testid="interests-loading"]').exists()).toBe(true)
+    expect(w.text()).not.toContain("You're not following any topics yet.")
+    release(["topic:sleep"])
+    await flushPromises()
+    expect(w.find('[data-testid="interests-loading"]').exists()).toBe(false)
+    expect(w.findAll('[data-testid="interest-following-topic"]')).toHaveLength(1)
   })
 
-  it("a storyline pill opens on its ANCHOR topic, never on the thc: id", async () => {
-    // The trap this round started with: `StorylineCard` takes the anchor topic id, so wiring the
-    // pill to its own `thc:` id would resolve nothing and produce a dead tap in a new place.
+  it("× stops following straight away — no Save step on Profile", async () => {
+    vi.spyOn(api, "getUserInterests").mockResolvedValue(["topic:sleep"])
+    const remove = vi.spyOn(api, "removeInterest").mockResolvedValue([])
+    const w = mountProfile()
+    await flushPromises()
+    await w.get('[data-testid="interest-following-topic"] [data-testid="interest-remove"]').trigger("click")
+    await flushPromises()
+    expect(remove).toHaveBeenCalledWith("topic:sleep")
+    expect(w.findAll('[data-testid="interest-following-topic"]')).toHaveLength(0)
+  })
+
+  it("a storyline opens on its ANCHOR topic, never on the thc: id", async () => {
     vi.spyOn(api, "getUserInterests").mockResolvedValue(["thc:ai-safety"])
     const w = mountProfile()
     await flushPromises()
-
-    const pill = w.find('[data-testid="profile-interest-storyline"]')
-    expect(pill.element.tagName).toBe("BUTTON")
-    await pill.trigger("click")
+    await w.get('[data-testid="interest-following-storyline"] [data-testid="interest-open"]').trigger("click")
     await flushPromises()
-
-    const overlay = w.find('[data-testid="stub-storyline-card"]')
-    expect(overlay.exists(), "the storyline overlay never opened").toBe(true)
-    expect(overlay.text()).toBe("topic:ai")
+    expect(w.get('[data-testid="stub-storyline-card"]').text()).toBe("topic:ai")
   })
 
-  it("an interest with nowhere to go is inert ON SIGHT, not a button that does nothing", async () => {
-    // A `tc:` theme has no destination yet (#1603), and a storyline whose anchor did not resolve
-    // cannot be opened. Both must read as non-interactive before they are tapped — the lesson
-    // from the trend rows, where dimming only on tap was not a fix.
+  it("a topic and a person open their own entity card", async () => {
+    vi.spyOn(api, "getUserInterests").mockResolvedValue(["topic:sleep"])
+    const w = mountProfile()
+    await flushPromises()
+    const open = w.get('[data-testid="interest-following-topic"] [data-testid="interest-open"]')
+    expect(open.attributes("aria-label")).toBe("Open sleep")
+    await open.trigger("click")
+    await flushPromises()
+    expect(w.get('[data-testid="stub-entity-card"]').text()).toBe("topic:topic:sleep")
+  })
+
+  it("a theme, and a storyline with no anchor, are not offered as something to open", async () => {
     vi.spyOn(api, "getUserInterests").mockResolvedValue(["tc:ai", "thc:orphan"])
     const w = mountProfile()
     await flushPromises()
-
     for (const kind of ["theme", "storyline"]) {
-      const pill = w.find(`[data-testid="profile-interest-${kind}"]`)
-      expect(pill.exists(), kind).toBe(true)
-      expect(pill.element.tagName, `${kind} looks tappable`).toBe("SPAN")
-      expect(pill.classes(), kind).toContain("opacity-60")
-      expect(pill.classes(), kind).toContain("cursor-default")
+      const chip = w.get(`[data-testid="interest-following-${kind}"]`)
+      expect(chip.find('[data-testid="interest-open"]').exists(), kind).toBe(false)
+      // Still removable: having nowhere to go is no reason to be stuck following it.
+      expect(chip.find('[data-testid="interest-remove"]').exists(), kind).toBe(true)
     }
-  })
-
-  it("a topic and a person pill open their own entity card", async () => {
-    vi.spyOn(api, "getUserInterests").mockResolvedValue(["topic:sleep", "person:jane"])
-    const w = mountProfile()
-    await flushPromises()
-
-    const topic = w.find('[data-testid="profile-interest-topic"]')
-    expect(topic.element.tagName).toBe("BUTTON")
-    expect(topic.attributes("aria-label")).toContain("Open")
-
-    await topic.trigger("click")
-    await flushPromises()
-    const card = w.find('[data-testid="stub-entity-card"]')
-    expect(card.exists(), "the entity card never opened").toBe(true)
-    expect(card.text()).toBe("topic:topic:sleep")
-  })
-
-  it("a followed STORYLINE is visibly not a topic", async () => {
-    // The whole point of the kicker: "it's hard to see what's a storyline and what's a topic"
-    // (operator 2026-09-19). A `thc:` token takes the accent treatment the topic card's storyline
-    // pill uses, so the same object looks the same wherever it appears.
-    vi.spyOn(api, "getUserInterests").mockResolvedValue(["thc:ai-safety", "topic:sleep"])
-    const w = mountProfile()
-    await flushPromises()
-
-    const storyline = w.find('[data-testid="profile-interest-storyline"]')
-    const topic = w.find('[data-testid="profile-interest-topic"]')
-    expect(storyline.exists()).toBe(true)
-    expect(topic.exists()).toBe(true)
-
-    expect(storyline.text()).toContain("Storyline")
-    expect(storyline.classes()).toContain("text-accent")
-    // Not merely a different word — a different treatment, so they do not read as one family.
-    expect(topic.classes()).not.toContain("text-accent")
-    expect(topic.text()).toContain("Topic")
-  })
-
-  it("shows the no-interests message when the list is empty", async () => {
-    vi.spyOn(api, "getUserInterests").mockResolvedValue([])
-    const w = mountProfile()
-    await flushPromises()
-    expect(w.text()).toContain("No interests chosen yet.")
   })
 })
 
@@ -685,7 +661,7 @@ describe("ProfileView — notifications", () => {
     const w = await mountProfile()
     await flushPromises()
     expect(w.find('[data-testid="interests-unavailable"]').exists()).toBe(false)
-    expect(w.text()).toContain("No interests chosen yet")
+    expect(w.text()).toContain("You're not following any topics yet.")
   })
 })
 
@@ -712,7 +688,7 @@ describe("ProfileView — a failed load is not an empty account", () => {
       w.find('[data-testid="interests-unavailable"]').exists(),
       "interests claimed emptiness"
     ).toBe(true)
-    expect(w.text()).not.toContain("No interests chosen yet")
+    expect(w.text()).not.toContain("You're not following any topics yet.")
   })
 
   it("a genuinely empty interests list still reads as empty", async () => {
@@ -722,7 +698,7 @@ describe("ProfileView — a failed load is not an empty account", () => {
     await flushPromises()
 
     expect(w.find('[data-testid="interests-unavailable"]').exists()).toBe(false)
-    expect(w.text()).toContain("No interests chosen yet")
+    expect(w.text()).toContain("You're not following any topics yet.")
   })
 })
 

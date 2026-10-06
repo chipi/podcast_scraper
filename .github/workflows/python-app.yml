@@ -128,9 +128,16 @@ jobs:
     outputs:
       docs-only: ${{ steps.filter.outputs.docs }}
       code: ${{ steps.filter.outputs.code }}
-      python: ${{ steps.filter.outputs.python }}
+      # PR: `python-pr` — workflow files OTHER than this one are left out (operator 2026-10-06): an
+      # ops/deploy/drill/backup workflow cannot break a Python test, and on a PR it cost ~45
+      # job-minutes of suites that tested nothing about it. MAIN keeps `python`, which still counts
+      # every workflow file. A filter result is the STRING 'true'/'false', and both are truthy in an
+      # expression, so `pr && a || b` yields `a` on a PR — 'false' included — and `b` otherwise.
+      python: ${{ github.event_name == 'pull_request' && steps.filter.outputs.python-pr || steps.filter.outputs.python }}
       viewer: ${{ steps.filter.outputs.viewer }}
+      viewer-e2e: ${{ steps.filter.outputs.viewer-e2e }}
       app: ${{ steps.filter.outputs.app }}
+      app-e2e: ${{ steps.filter.outputs.app-e2e }}
       stack-profiles: ${{ steps.filter.outputs.stack-profiles }}
       stack-compose: ${{ steps.filter.outputs.stack-compose }}
       acceptance: ${{ steps.filter.outputs.acceptance }}
@@ -168,12 +175,50 @@ jobs:
             - 'config/acceptance/**'
             - 'config/profiles/**'
             - 'compose/**'
+          python-pr:
+            - '**.py'
+            - '**.j2'
+            - 'tests/**'
+            - 'pyproject.toml'
+            - 'Makefile'
+            - 'docker/pipeline/Dockerfile'
+            - 'docker/api/**'
+            - '.dockerignore'
+            - '.github/workflows/python-app.yml'
+            - 'config/acceptance/**'
+            - 'config/profiles/**'
+            - 'compose/**'
+          # The two web apps, gated the same way (operator 2026-10-06). On a PULL REQUEST each app's
+          # unit tests run when its own tree changes, and its e2e when anything it runs against
+          # changes; on MAIN every one of them runs, always (see each job's `if`). The e2e suites
+          # boot the REAL api (`podcast_scraper.cli serve`) over a disposable copy of the committed
+          # app corpus, so the server and that corpus are dependencies of both. Python-only PRs
+          # used to skip the player's e2e entirely (#2285, #2286, #2288).
           viewer:
             - 'web/gi-kg-viewer/**'
             - 'docker/viewer/**'
+            - '.github/workflows/python-app.yml'
+          viewer-e2e:
+            - 'web/gi-kg-viewer/**'
+            - 'docker/viewer/**'
+            - '.github/workflows/python-app.yml'
+            - 'src/podcast_scraper/server/**'
+            # The viewer e2e builds and queries the two-tier search index.
+            - 'src/podcast_scraper/search/**'
+            - 'tests/fixtures/app-validation-corpus/**'
+            - 'scripts/build_app_validation_corpus.py'
           app:
             - 'web/learning-player/**'
             - '.github/workflows/python-app.yml'
+          app-e2e:
+            - 'web/learning-player/**'
+            - '.github/workflows/python-app.yml'
+            - 'src/podcast_scraper/server/**'
+            - 'tests/fixtures/app-validation-corpus/**'
+            - 'scripts/build_app_validation_corpus.py'
+            # A mock host serves the corpus's episode audio from the fixture tree.
+            - 'tests/fixtures/audio/**'
+            - 'scripts/tools/run_e2e_mock_server.py'
           stack-profiles:
             - 'config/profiles/**'
             - 'compose/**'
@@ -219,11 +264,14 @@ jobs:
     # real-backend e2e jobs; it is headroom, not a hiding place for a hang.
     timeout-minutes: 45
     needs: [lint, build, viewer-unit, detect-changes]
+    # PR: when the viewer or anything it runs against changes. Main: always. viewer-unit may be
+    # SKIPPED on a PR that only touches the server, and that must not block this job.
     if: |
       always() &&
+      (github.event_name != 'pull_request' || needs.detect-changes.outputs.viewer-e2e == 'true') &&
       needs.lint.result == 'success' &&
       needs.build.result == 'success' &&
-      needs.viewer-unit.result == 'success'
+      (needs.viewer-unit.result == 'success' || needs.viewer-unit.result == 'skipped')
     steps:
     - uses: actions/checkout@v7
     # The viewer suite talks to a REAL API since #1619 moved it off route-fulfilled mocks.
@@ -598,7 +646,9 @@ jobs:
     runs-on: ubuntu-latest
     # Same 5-minute cliff as app-unit above — see the note there for the measured durations.
     timeout-minutes: 12
-    needs: [lint, build]
+    needs: [lint, build, detect-changes]
+    # PR: only when the viewer changes. Main: always.
+    if: github.event_name != 'pull_request' || needs.detect-changes.outputs.viewer == 'true'
     steps:
     - uses: actions/checkout@v7
     - uses: actions/setup-node@v7
@@ -645,7 +695,8 @@ jobs:
     # while still catching a true hang.
     timeout-minutes: 12
     needs: [lint, build, detect-changes]
-    if: needs.detect-changes.outputs.app == 'true'
+    # PR: only when the player changes. Main: always.
+    if: github.event_name != 'pull_request' || needs.detect-changes.outputs.app == 'true'
     steps:
     - uses: actions/checkout@v7
     - uses: actions/setup-node@v7
@@ -681,12 +732,14 @@ jobs:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     needs: [lint, build, app-unit, detect-changes]
+    # PR: when the player or anything it runs against changes. Main: always. app-unit may be
+    # SKIPPED on a PR that only touches the server, and that must not block this job.
     if: |
       always() &&
-      needs.detect-changes.outputs.app == 'true' &&
+      (github.event_name != 'pull_request' || needs.detect-changes.outputs.app-e2e == 'true') &&
       needs.lint.result == 'success' &&
       needs.build.result == 'success' &&
-      needs.app-unit.result == 'success'
+      (needs.app-unit.result == 'success' || needs.app-unit.result == 'skipped')
     steps:
     - uses: actions/checkout@v7
     - name: Set up Python 3.11 (for the real API server the app e2e boots)
@@ -749,9 +802,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [app-unit, detect-changes]
+    # PR: only when the player changes. Main: always.
     if: |
       always() &&
-      needs.detect-changes.outputs.app == 'true' &&
+      (github.event_name != 'pull_request' || needs.detect-changes.outputs.app == 'true') &&
       needs.app-unit.result == 'success'
     steps:
     - uses: actions/checkout@v7
@@ -1495,11 +1549,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: [coverage-unified, viewer-unit, viewer-e2e]  # Docs after coverage + viewer tests
     # Path-A: on viewer-only PRs ``coverage-unified`` is skipped; allow docs
-    # to still run as long as viewer-unit + viewer-e2e succeeded.
+    # to still run as long as viewer-unit + viewer-e2e succeeded. On a PR that does not touch the
+    # viewer they are SKIPPED (they run only on what they depend on there), which must not skip
+    # the docs build: it needs nothing from them, only that they did not fail.
     if: |
       always() &&
-      needs.viewer-unit.result == 'success' &&
-      needs.viewer-e2e.result == 'success' &&
+      (needs.viewer-unit.result == 'success' || needs.viewer-unit.result == 'skipped') &&
+      (needs.viewer-e2e.result == 'success' || needs.viewer-e2e.result == 'skipped') &&
       (needs.coverage-unified.result == 'success' || needs.coverage-unified.result == 'skipped')
     steps:
     - uses: actions/checkout@v7

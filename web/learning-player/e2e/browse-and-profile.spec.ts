@@ -61,24 +61,20 @@ test('the interests picker opens as a modal and "Not now" is as reachable as Sav
   page,
 }, testInfo) => {
   await signInIsolated(page, 'interests-picker', testInfo)
-  await page.goto('/profile')
+  await page.goto('/')
 
-  // The picker is reached from Profile; e2e previously drove the interests API and never the modal.
-  //
-  // This used to locate the entry point by /interest|personalize/i and skip when it found
-  // nothing. The button's label is "Edit" (i18n `profile.editInterests`), so the locator NEVER
-  // matched and this spec skipped on every single run — it has never once opened the picker.
-  // A skip that cannot fail is not coverage. Targeted by testid now, and asserted: the button
-  // is rendered unconditionally in ProfileView, so its absence is a regression, not a corpus
-  // property.
-  // Interests moved into the Topics tab (Profile is tabbed now).
-  await page.getByRole('tab', { name: 'Topics' }).click()
-  const open = page.getByTestId('profile-edit-interests')
+  // The picker is the onboarding sheet, reached from Home's "Personalize your Home" card — a fresh
+  // account follows nothing, so the card is there. Profile edits interests inline since 2026-10-04
+  // and no longer opens it. Targeted by its label and asserted, never skipped: a skip that cannot
+  // fail is not coverage (this spec once skipped on every run for exactly that reason).
+  const open = page.getByRole('button', { name: 'Choose interests' })
   await expect(open).toBeVisible()
   await open.click()
 
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
+  // The same four sections the Profile Interests tab shows.
+  await expect(dialog.getByTestId('interests-section-person')).toBeVisible()
   // UXS-013: dismissal must be as easy as committing. A picker that traps someone into choosing is
   // one they dismiss by leaving the app.
   await expect(dialog.getByRole('button', { name: /not now|cancel|close/i }).first()).toBeVisible()

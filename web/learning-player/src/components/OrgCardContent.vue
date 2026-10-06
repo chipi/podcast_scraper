@@ -7,6 +7,7 @@
  * the back-stack, header and load; this renders the loaded `OrgCard`. Graph navigation (tapping a
  * chip) emits `open`; `close` dismisses the whole card.
  */
+import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
@@ -114,58 +115,63 @@ function searchLibrary(): void {
 
   <!-- Episodes mentioning this org (newest-first). -->
   <section v-if="episodes.length" class="mb-4">
-    <h3 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
-      <span>{{ t("ec.orgEpisodes", episodes.length, { named: { count: episodes.length } }) }}</span>
-      <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
-    </h3>
-    <EntityEpisodeList :episodes="episodes" />
+    <CollapsibleSection section-key="org-episodes" :level="3">
+      <template #title>
+        <span>{{ t("ec.orgEpisodes", episodes.length, { named: { count: episodes.length } }) }}</span>
+        <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
+      </template>
+      <EntityEpisodeList :episodes="episodes" />
+    </CollapsibleSection>
   </section>
 
   <section v-if="relatedPeople.length" class="mb-4">
-    <h3 class="lp-section mb-2">{{ t("ec.relatedPeople") }}</h3>
-    <div class="flex flex-wrap gap-1.5">
-      <button
-        v-for="p in relatedPeople"
-        :key="p.id"
-        type="button"
-        class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
-        @click="emit('open', { kind: 'person', id: p.id })"
-      >
-        {{ personName(p.name) }}
-      </button>
-    </div>
+    <CollapsibleSection :title="t('ec.relatedPeople')" section-key="org-related-people" :level="3">
+      <div class="flex flex-wrap gap-1.5">
+        <button
+          v-for="p in relatedPeople"
+          :key="p.id"
+          type="button"
+          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
+          @click="emit('open', { kind: 'person', id: p.id })"
+        >
+          {{ personName(p.name) }}
+        </button>
+      </div>
+    </CollapsibleSection>
   </section>
 
   <!-- Other organizations mentioned alongside this one — the org↔org co-occurrence the person card
        has no analog for; each chip drills into that org's card in place. -->
   <section v-if="relatedOrgs.length" class="mb-4" data-testid="ec-related-orgs">
-    <h3 class="lp-section mb-2">{{ t("ec.relatedOrgs") }}</h3>
-    <div class="flex flex-wrap gap-1.5">
-      <button
-        v-for="o in relatedOrgs"
-        :key="o.id"
-        type="button"
-        class="rounded-full bg-overlay px-2.5 py-1 text-xs text-canvas-foreground transition hover:bg-elevated"
-        data-testid="ec-related-org"
-        @click="emit('open', { kind: 'organization', id: o.id })"
-      >
-        {{ o.name }}
-      </button>
-    </div>
+    <CollapsibleSection :title="t('ec.relatedOrgs')" section-key="org-related-orgs" :level="3">
+      <div class="flex flex-wrap gap-1.5">
+        <button
+          v-for="o in relatedOrgs"
+          :key="o.id"
+          type="button"
+          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-canvas-foreground transition hover:bg-elevated"
+          data-testid="ec-related-org"
+          @click="emit('open', { kind: 'organization', id: o.id })"
+        >
+          {{ o.name }}
+        </button>
+      </div>
+    </CollapsibleSection>
   </section>
 
   <section v-if="relatedTopics.length">
-    <h3 class="lp-section mb-2">{{ t("ec.relatedTopics") }}</h3>
-    <div class="flex flex-wrap gap-1.5">
-      <button
-        v-for="tp in relatedTopics"
-        :key="tp.id"
-        type="button"
-        class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-        @click="emit('open', { kind: 'topic', id: tp.id })"
-      >
-        {{ tp.label }}
-      </button>
-    </div>
+    <CollapsibleSection :title="t('ec.relatedTopics')" section-key="org-related-topics" :level="3">
+      <div class="flex flex-wrap gap-1.5">
+        <button
+          v-for="tp in relatedTopics"
+          :key="tp.id"
+          type="button"
+          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+          @click="emit('open', { kind: 'topic', id: tp.id })"
+        >
+          {{ tp.label }}
+        </button>
+      </div>
+    </CollapsibleSection>
   </section>
 </template>

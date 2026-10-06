@@ -22,6 +22,9 @@ const router = createRouter({
 
 const emptyPage = { items: [], page: 1, page_size: 6, total: 0, has_more: false }
 
+/** A chip's NAME, without the kind label every chip in the mixed group now leads with. */
+const chipName = (b: { text(): string }): string => b.text().replace(/^(Topic|Person)/, "").trim()
+
 beforeEach(() => {
   setActivePinia(createPinia()) // FavoriteButton (on insights) resolves the favorites/auth stores
   // Default: no related peers (index unavailable) so the section hides.
@@ -135,7 +138,7 @@ describe("KnowledgePanel", () => {
     const w = mountPanel()
     await w
       .findAll("button")
-      .find((b) => b.text() === "Matthew Walker")!
+      .find((b) => chipName(b) === "Matthew Walker")!
       .trigger("click")
     await flushPromises()
     // Replace-in-panel (UXS-014): the card renders INLINE in the panel (no overlay), with a ‹ Back
@@ -161,7 +164,7 @@ describe("KnowledgePanel", () => {
     const w = mountPanel()
     await w
       .findAll("button")
-      .find((b) => b.text() === "memory")!
+      .find((b) => chipName(b) === "memory")!
       .trigger("click")
     await flushPromises()
     expect(getTopic).toHaveBeenCalledWith("topic:memory")
@@ -187,17 +190,20 @@ describe("KnowledgePanel", () => {
       },
     ]
     const w = mountPanel({ topics, persons: [] })
-    // The dominant SEMANTIC cluster is no longer surfaced here at all (operator 2026-09-19): it had
-    // no card and no route, so the line impersonated a link and went nowhere. The entity card still
-    // carries the concept as "N similar topics", beside a count rather than where a link belongs.
+    // The dominant THEME is named again, as a THEME pill beside the storyline (operator
+    // 2026-10-04). It was removed on 2026-09-19 because a theme then had no card and the line went
+    // nowhere; it has one now (ThemeCard, opened by the theme's own `tc:` id), so it is a real pill.
     expect(w.text()).not.toContain("Similar ·")
-    expect(w.text()).not.toContain("machine learning")
+    const theme = w.get('[data-testid="kp-theme-link"]')
+    expect(theme.text()).toBe("Theme machine learning")
+    expect(theme.classes()).toContain("text-theme")
     // Dominant-cluster topics lead (ai, ml), the singleton (zulu) trails.
-    const chips = w.findAll("button").filter((b) => ["ai", "ml", "zulu"].includes(b.text()))
-    expect(chips.map((c) => c.text())).toEqual(["ai", "ml", "zulu"])
-    // Dominant chips carry the standout ring; the singleton does not.
-    expect(chips[0].classes()).toContain("ring-topic")
-    expect(chips[2].classes()).not.toContain("ring-topic")
+    const chips = w.findAll("button").filter((b) => ["ai", "ml", "zulu"].includes(chipName(b)))
+    expect(chips.map((c) => chipName(c))).toEqual(["ai", "ml", "zulu"])
+    // The theme's member topics carry a ring in the THEME colour, tying them to the pill above;
+    // the singleton does not.
+    expect(chips[0].classes()).toContain("ring-theme/60")
+    expect(chips[2].classes()).not.toContain("ring-theme/60")
   })
 
   it('marks co-occurrence topics with a "Storyline ·" lead-in and theme ring', () => {
@@ -233,8 +239,8 @@ describe("KnowledgePanel", () => {
     expect(pill.text()).toContain("Storyline")
     expect(pill.text()).toContain("sanctions")
     // Theme-member chips carry the teal fill (lp-storyline-chip); the non-member does not.
-    const oil = w.findAll("button").find((b) => b.text() === "oil")!
-    const zulu = w.findAll("button").find((b) => b.text() === "zulu")!
+    const oil = w.findAll("button").find((b) => chipName(b) === "oil")!
+    const zulu = w.findAll("button").find((b) => chipName(b) === "zulu")!
     expect(oil.classes()).toContain("lp-storyline-chip")
     expect(zulu.classes()).not.toContain("lp-storyline-chip")
   })
@@ -740,6 +746,12 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     const w = mountPanel({ persons: [host, twiggy] })
     const labels = w.findAll('[data-testid="kp-person-chip"]').map((c) => c.text())
     expect(labels.some((t) => t.includes("Twiggy"))).toBe(true)
+  })
+
+  it("every chip in the mixed group names its kind, like the storyline pill does", () => {
+    const w = mountPanel({ persons: [host, twiggy] })
+    const kinds = w.findAll('[data-testid="kp-person-chip"]').map((c) => c.get('[data-testid="kp-chip-kind"]').text())
+    expect(kinds).toEqual(["Person", "Person"])
   })
 
   it("keeps her role badge", () => {

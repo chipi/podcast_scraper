@@ -171,10 +171,10 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 | Token                      | Dark              | Usage                                                   |
 | -------------------------- | ----------------- | ------------------------------------------------------- |
 | `grounded`                 | `#9FB8A4`         | "N% grounded" badge, grounded-quote affordances         |
-| `topic`                    | `#A8B0C6`         | KG topic chips                                          |
-| `person`                   | `#CCC7BB`         | Person chips / speaker emphasis                         |
-| `storyline`                | `#98A0AE`         | **Storyline** chips — topics that recur *together*      |
-| `theme`                    | `#A9A3C6`         | **Theme** chips — topics that *mean* the same thing     |
+| `topic`                    | `#B98CFF`         | Topic pills — violet, everywhere a topic is a pill      |
+| `person`                   | `#FF9F5A`         | Person pills / speaker emphasis — orange                |
+| `storyline`                | `#5CE1E6`         | **Storyline** pills — cyan; topics recurring *together* |
+| `theme`                    | `#99B9F4`         | **Theme** pills — blue; topics that *mean* the same     |
 | `insight-claim`            | `var(--topic)`    | Insight type mark: claim                                |
 | `insight-observation`      | `var(--grounded)` | Insight type mark: observation                          |
 | `insight-recommendation`   | `var(--warning)`  | Insight type mark: recommendation                       |
@@ -191,8 +191,22 @@ KG / grounding semantics visually consistent with the operator stack's meaning w
 > to paint storylines (co-occurrence), which was the pipeline's `tc:`/`thc:` naming leaking into
 > the design layer. It was renamed `storyline` with its value unchanged, and `theme` became a new
 > hue for real themes (similarity), set between the topic and storyline hues. Neither takes the
-> accent — storyline pills are `--lp-storyline` (`style.css` `.lp-storyline-chip`). Colour is the
-> second channel for all three; every pill also names its kind in text. See UXS-013 §Vocabulary;
+> accent — storyline pills are `--lp-storyline` (`style.css` `.lp-storyline-chip`).
+>
+> **Each kind has its own hue (operator, 2026-10-04).** Topic, person and theme were three
+> near-identical greys and only the storyline stood out, which testers read as random. They now
+> carry the Signal direction's set — topic violet, person orange, theme blue, storyline cyan — on
+> every surface that renders one of these kinds as a pill. Shape and the kind's name still carry it
+> for a colour-blind reader; colour is the channel a sighted reader learns once and reuses.
+>
+> **A pill names its kind only where kinds are mixed (operator, same day).** In a group that holds
+> more than one kind — the episode Knowledge Panel's tags: a THEME and a STORYLINE pill above TOPIC
+> and PERSON pills — every pill carries its kind label, not just some. Under a heading that already
+> names the kind (Profile › Interests sections, Library › Following, a show's Topics / Key people)
+> pills carry none. The panel's topics in the dominant theme wear a ring in the theme colour; those
+> in the storyline wear the storyline tint, tying each to the pill that names it. The THEME pill
+> opens that theme as a sheet on top of the panel, as the STORYLINE pill opens its storyline. The
+> person page's related topics are mixed the same way (see Entity pages). See UXS-013 §Vocabulary;
 > the backend still calls a storyline a "theme cluster" on the wire.
 
 ### Categorical tokens (Discover sparklines)
@@ -277,12 +291,86 @@ start. (A serif was tried and rejected during the earlier design phase.)
 
 - **Base unit:** 4px (`space-1`); the editorial rhythm leans on `space-4`/`space-5` gutters
   (16/20px) for breathing room.
-- **Max content width:** 1200px on `lg`; the Player two-column splits transcript (≈60%) + Knowledge
-  rail (≈40%).
+- **Two layouts, one page width (operator 2026-10-05):** **mobile** below 1024px (phones, and
+  tablets held upright) and **desktop** from 1024px (computers, and tablets held sideways); no third
+  layout in between. The app shell (`App.vue`, `max-w-6xl` = 1152px with a 20px `px-5` gutter) is
+  the page width at both, and every page fills it through `.lp-page` — no page narrows itself or
+  adds a second gutter, so every page's content starts at the same left edge. Pages used to choose
+  their own (768 centred, 672 centred, 672 left, 448 left, full), and no two lined up on desktop.
+- **Two exceptions, both centred at every width:** **sign-in / sign-up** is a focused 448px column
+  (`max-w-md mx-auto`), as on most sites, with its title, provider buttons, "New here?" line and
+  legal footer centred inside it; the **Offline** page ("On this device") uses the same column, its
+  title and messages centred, its downloads list left-aligned. The **account pages** — everything
+  behind the avatar: Profile and its tabs, Settings, the About and legal pages, Delete account — are
+  a centred 42rem column (`.lp-focus`), because their label-and-switch rows lose their pairing
+  across ~1100px. On a phone both columns are wider than the screen, so they fill it like every page.
+- **Long reading text** keeps a readable line length (~80 characters, 42rem): the legal pages get it
+  from `.lp-focus`, and `.lp-prose` gives it to long text on a full-width page, starting at the
+  page's left edge, never centred.
+- **Search and filter rows** span the width of the list or results under them (`.lp-search`, no
+  cap): the row ends where its content ends — list filters, Search, the Home / Discover search, the
+  episode panel's search, Interests, Library's saved filter and the Boards filter.
+- **A header's "all ›" ends where its content ends.** Discover's Trending shows header is as wide
+  as its tiles (the tile formula times the shown count), so with fewer shows than a full row the
+  link sits at the last tile, not at the far edge of an empty half-row.
+
+- The Player two-column splits transcript (≈60%) + Knowledge rail (≈40%).
 - **Major regions (Player):** masthead → intelligence artwork zone → scrubber + controls → synced
   transcript list → knowledge dock. On `lg` the artwork zone + controls sit in the left rail head and
   the transcript scrolls beside the Knowledge Panel.
 - **Hairline rules** (`border`) separate regions instead of heavy cards — part of the editorial feel.
+
+### Entity pages (topic, person, theme, storyline) — operator 2026-10-05
+
+- **Desktop layout**, from `lg`, on the standalone page only (the topic and person cards render
+  `flush` there, starting at the page's left edge; sheets, the Knowledge Panel and phones stay one
+  column):
+  - **Topic:** a top row of two charts — "Discussed over time" beside "Conversation over time". The
+    activity chart mirrors the arc: the same title row (its momentum badge, when the topic is rising,
+    sits where the arc puts its insight count, at its natural width) and the same 64px chart
+    height, so both charts start on one line. Below it, two columns: on the left similar topics,
+    then the theme link, then the storyline link; on the right Top voices alone. On a phone or in a
+    sheet the badge sits above the chart and "Discussed over time" is its caption, and Top voices
+    follows the storyline link.
+  - **Theme and storyline:** member topics beside Top voices, then what's said, then "Discussed in
+    N episodes" at full width, then notes.
+- **Topic page sections:**
+  - **Similar topics** have no section heading: "N similar topics" is a small kicker label at the
+    start of the pill row (the label-then-pills style of the show page's topic groups).
+  - **Theme and storyline links** have no "Part of a theme / storyline" heading — the link card is
+    the section, and its caption names the kind ("THEME · 3 TOPICS", "STORYLINE · 4 TOPICS") so the
+    two are not told apart by colour alone. "Not part of a storyline yet" when there is none.
+  - **Perspectives** are titled "N perspectives on {topic}".
+- **Page labels are singular:** TOPIC, PERSON, THEME, STORYLINE.
+- **Person page order:** bio and hosted shows → often appears with → related people → related
+  topics → search transcripts → "Who agrees with {name}" → episodes → notes.
+  - **Hosted shows** read "Host of A, B and C".
+  - **Related topics** is a MIXED group: the themes and storylines those topics belong to (from
+    the topics' own enrichment, each once, themes first), then the topics — every pill in its
+    kind's colour and naming its kind ("THEME", "STORYLINE", "TOPIC"), as in the episode notes. A
+    theme or storyline opens on top as a sheet.
+  - **"Who agrees with {name}"** (it was "Where they agree", which never said who "they" were):
+    each row is the topic as a kicker, this person's claim as the quote, then "{Other} agrees: …" —
+    the other person named once.
+- **Entity sheets** (topic, person, theme, storyline) are 512px (`max-w-lg`) below `lg` and 768px
+  (`lg:max-w-3xl`) on desktop, where the narrow sheet left most of the screen unused.
+
+### Long lists page — operator 2026-10-05
+
+All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggle`, whose label is
+"Show more (N)" — N is how many are still hidden — then "Show less" once everything is out:
+
+- **Five at a time:** perspectives (topic, theme, storyline), "Often appears with", "Who agrees with
+  …", theme / storyline member topics, notes (newest first, in every notes box and under a
+  highlight), Search's "Your notes", and Library's saved topics / themes / storylines / people.
+- **Ten at a time:** followed interests per kind (the cap lifts while that kind's search is open),
+  an open board's items, and entity episode lists (`EntityEpisodeList`, "Show 10 more").
+- **All episodes** keeps "Load more" (20, or 10 in Discover) while a search, sort or filter is
+  active: every page is fetched — the filter needs the whole list — but the matches are revealed a
+  page at a time.
+- **Left unpaged on purpose:** the queue (drag-reordered), notifications (the newest 50; older ones
+  need a server change), the "add to board" pickers (menus), and the small fixed caps (related lists
+  12, show signals 10, search 12, recently played 30).
 
 ## Key states
 
@@ -1080,6 +1168,69 @@ draft notice, never as silent placeholder text.
 launch returns to the screen the person was on, with the loaded episode back in the mini-player,
 paused at its position — within 12 hours, for the same account. Public routes are never restored.
 
+### Interests (2026-10-04)
+
+Beta feedback: the Profile tab then called **Topics** showed every follow in one mixed strip, and
+its **Edit** sheet offered only the top 12 themes and storylines — so people and plain topics could
+be followed from an entity card and nowhere else, and the screen that edits interests could not add
+most of what it listed.
+
+- **The tab is called Interests.** `?tab=topics` links written before the rename still land on it.
+- **The note comes first.** "These shape what surfaces on your Home when personalization is on."
+  sits above the first section, not inside one, because it is about all four.
+- **One section per kind — Topics, People, Themes, Storylines** (`InterestSections`). The heading and its one-line explanation share a row (truncated, never wrapped). Closed, a
+  section is only its heading, a one-line hint and its pills:
+  - **what is followed** — tap the label to open its card (a storyline opens on its anchor topic;
+    a theme has no card destination yet, so it is text), **×** to stop following;
+  - **+ Add** at the end of the same row. It opens, in place, **a search box over every item of
+    that kind** (`GET /api/app/interests/search` — a substring match over labels, best placed and
+    most-covered first; two characters minimum, because one matches most of the corpus) and
+    **Suggested** — what is trending in that kind, minus what is already followed. While there is a
+    query the results replace the suggestions. **Done** or Esc closes it. Opening it scrolls the
+    search box to the top of the screen (again once the keyboard has resized the page): on Android
+    the keyboard shrinks the page and the mini-player and bottom nav ride up on top of it, which
+    otherwise hid the box and every suggestion behind them.
+  - **One Add open at a time.** Opening another section's Add closes this one and drops its query:
+    four always-open search boxes made the tab a wall of inputs (beta feedback, same day).
+- **Edits are immediate on Profile.** Each tap goes through the interests store, the same toggle an
+  entity card's Follow uses; there is no Save step to forget.
+- **The onboarding sheet is the same four sections** (`InterestsPicker`, opened from Home's
+  "Personalize your Home" card), but keeps a local selection and writes once on **Save**, because it
+  is a funnel step and Cancel has to mean nothing changed. If the current interests cannot be read,
+  Save is disabled: it replaces the whole set, so saving an unloaded selection would wipe it.
+- **Each kind wears its own colour** — topic violet, person orange, theme blue, storyline cyan (the
+  kind tokens, see Colour) — never the accent. Followed, suggested and found items all wear their
+  kind's pill, so the colour teaches the kind; what differs between them is the mark — ×, + or ✓.
+  (2026-10-04 kept the old Profile strip's storyline-in-the-accent; the kind tokens replaced it the
+  same week.)
+- **States.** + Add puts the cursor in its search box. While the followed set loads, the tab shows
+  a loading state rather than claiming nothing is followed; nothing followed reads "You're not
+  following any topics yet." (people: "anyone"); a search with no hits reads "Nothing matches
+  “{q}”."; a search that fails reads "Search isn't available right now." rather than showing no
+  results.
+- **Followed chips page ten at a time per kind** ("Show more (N)"), the cap lifting while that
+  kind's search is open so a match is never hidden.
+
+### Foldable sections and the show activity chart (2026-10-04)
+
+- **Every section on an entity surface folds**, the way the episode Knowledge Panel's do: the show
+  page's "What this show's about"; the person, topic and organisation cards' related people /
+  topics / organisations, episodes, signals and perspectives; the theme and storyline pages' topics,
+  episodes and top voices. (Exceptions since 2026-10-05: the topic page's similar topics and its
+  theme / storyline links have no heading, so nothing to fold — see Entity pages.) One component (`CollapsibleSection`): open by default, and the choice is
+  remembered per listener for that section everywhere it appears, because "I don't need this" is a
+  preference about the page, not about one show or person.
+- **The show activity chart says what it shows.** "Episodes per month" beside the heading, the month
+  under each bar (the year at the first bar and at each January; every third month past 12 bars),
+  and the count above each bar. Its bars are neutral — data, not a kind, so neither the accent nor
+  the topic violet. Each bar is named for a screen reader ("March 2026: 3 episodes").
+- **A bar is a way into the list.** A month with episodes is a button: it scrolls to that month's
+  first episode below and flashes it. If "Hide played" is hiding every episode of that month, the
+  filter is lifted first, so the tap always lands. Empty months are not buttons. The scroll is
+  instant, not smooth, when the listener has asked for reduced motion.
+- **Known limit:** the chart is built from the episodes loaded on the page (the first page of 20),
+  so a long-running show's chart covers its recent months, not its whole history.
+
 ### Where each surface is verified
 
 | Surface | Spec |
@@ -1094,6 +1245,8 @@ paused at its position — within 12 hours, for the same account. Public routes 
 | Welcome card + display name (#2272) | Browser: `magic-link-welcome.spec.ts` (card pre-filled → save → gone, survives reload → header rename). Device: M2 lands on Profile. Server: `test_app_profile.py` (`POST /profile/name`: trim, refusals, auth, a later sign-in never undoes a rename). Unit: `ProfileView.test.ts` (save, Not now, refused name keeps the card, header rename) |
 | Android: link sign-in | Device, emulator, real mailbox (2026-10-03): `android/…/MagicLinkJourneyTests.java` M1 (request from `/login`) and M2 (link through Chrome → intent filter → app; new account on Profile with the welcome card; sign out; request again) — both `OK (1 test)`. The CLOSED-app case cannot run inside instrumentation (it shares the app's process), so it is `android/scripts/magic-link-cold-launch.sh`: force-stop → link through Chrome → the link launches the app → signed in on Home, token still stored afterwards → `COLD_LAUNCH=PASS`. Chrome showed no "open in app?" prompt |
 | Sign-in buttons (Google naming, Apple when configured) | `sign-in-providers.spec.ts` (labels per framing · Apple absent unless `/health` lists it · equal height and width · the Apple button starts `?provider=apple`). Server: `test_app_auth_apple.py`, `test_app_oauth_apple.py` |
+| Profile › Interests | `interests-sections.spec.ts` (tab name + note above four sections · one + Add open at a time, focus, Esc · a suggestion follows and survives a reload · search finds a person the suggestions do not show · × unfollows). Onboarding sheet: `browse-and-profile.spec.ts` (from Home's card, four sections, dismissible). Server: `test_app_relational.py` (`/interests/search`: substring, ranking, theme `tc:` and storyline `thc:` tokens, bad kind). Unit: `InterestSections.test.ts`, `InterestsPicker.test.ts`, `ProfileView.test.ts`. Device: `PersonalisationTests` test10 (iOS + Android) |
+| Foldable sections · show activity chart | `knowledge-bands.spec.ts` ("Episodes per month" · a bar jumps to that month's episode). Unit: `ShowActivityChart.test.ts` (labels, counts, buttons only for months with episodes, no kind colour), `KnowledgePanel.test.ts` (sections fold) |
 | Clear listening history | `delete-account.spec.ts` (confirm → cleared → still signed in). Server: `test_app_account_deletion.py` (what goes, what stays). Unit: `ProfileView.test.ts` |
 | Delete account | `delete-account.spec.ts` (Profile → typed DELETE → landing notice → session 401 · the page signed out). Server: `test_app_account_deletion.py` (the full purge, Apple revocation, no resurrection, retention). Unit: `DeleteAccountView.test.ts` |
 | Privacy policy | `delete-account.spec.ts` (readable signed out at `/privacy`). Unit: `AboutPageView.test.ts` (the declared claims are on the page; the draft notice names the open items) |
@@ -1145,15 +1298,17 @@ review or rebuild it.
 
 | View | What it is for | The rule that governs it |
 | ---- | -------------- | ------------------------ |
-| `LoginView` | The sign-in surface: "Sign in with Google", "Sign in with Apple" when the server offers it (#2275), the email magic link (#2272) on both the sign-up and sign-in framings, and the dev identity picker | Signing in must return the visitor **where they were**, never to Home — a gated tap is deferred, not restarted (#1590). The email form answers "check your email" for ANY address: it must never reveal whether an address has an account |
+| `LoginView` | The sign-in surface: "Sign in with Google", "Sign in with Apple" when the server offers it (#2275), the email magic link (#2272) on both the sign-up and sign-in framings, the dev identity picker, and a footer "By continuing, you agree to our Terms of use and acknowledge our Privacy policy" linking both public pages under the names Settings uses (2026-10-05) | Signing in must return the visitor **where they were**, never to Home — a gated tap is deferred, not restarted (#1590). The email form answers "check your email" for ANY address: it must never reveal whether an address has an account |
 | `CatalogView` (Browse) | The corpus by show / topic / person | It is a HUB, not a list: it routes onward and holds no state of its own |
 | `PodcastView` | One show: its episodes, its signals band, follow | Following is the primary action and must respond instantly (optimistic), reverting only on a server REFUSAL |
 | `TopicView` | One topic: perspectives, arc, episodes | Every claim carries its source; ungrounded content is omitted, not shown greyed |
 | `PersonView` | One person: positions, topics, episodes | Same grounding rule as `TopicView` |
 | `ShowBrowseView` · `TopicBrowseView` · `PersonBrowseView` | The three browse indexes behind Catalog | Consistent card + heading treatment across all three; they differ in content, never in shape |
-| `ProfileView` | Identity (name — editable by every account — photo, handle, email), activity, interests, connected agents, device settings; Account ends with Sign out, Clear listening history… and Delete account… (#2273) | Ordered account-first, device-LAST: device settings belong to the phone and are shared by everyone who signs in on it. A NEW account arriving with `?welcome=1` is asked ONE question — its name, pre-filled, skippable — and either answer drops `welcome` so the page never asks twice |
+| `ProfileView` | Identity (name — editable by every account — photo, handle, email), activity, interests (edited in place, one section per kind), connected agents, device settings; Account ends with Sign out, Clear listening history… and Delete account… (#2273) | Ordered account-first, device-LAST: device settings belong to the phone and are shared by everyone who signs in on it. A NEW account arriving with `?welcome=1` is asked ONE question — its name, pre-filled, skippable — and either answer drops `welcome` so the page never asks twice |
 | `DeleteAccountView` | Delete account (#2273, App Store 5.1.1(v), Play data deletion): reached from Profile › Account, under Sign out; public at `/account/delete` | Says WHICH account goes — one address can hold separate Google, Apple and email accounts and only the signed-in one is deleted. States what is removed (everything that is theirs, immediately) and what is not (unlinkable usage statistics, the invite-list entry, other accounts). Never one tap: the button stays disabled until the person types `DELETE`. Afterwards the landing says the account was deleted. Signed out, the same page explains how — it is the link the Play listing points at |
 | `PrivacyPolicy` | The privacy policy (#2210), on the About › Privacy page; public, and `/privacy` redirects there | Written from what the app actually collects and must agree with the store declarations (Play Data safety): if the code starts collecting something new, this page changes in the same change. Anything not yet decided is shown in a visible draft notice, never left as silent placeholder text. English only: a legal text no one reviewed in a language is not a policy in that language |
+| `TermsOfUse` | The terms of use, first version (2026-10-05), on the About › Terms page; public, and `/terms` redirects there | Written from what the app actually does — beta, 16+, podcasts belong to their creators, automatically generated content can be wrong and is not professional advice, your notes stay yours, connected agents act on your behalf, fair use, deletion. Same visible draft notice as the privacy policy for what is not decided (the company, the governing law, legal review). English only, for the same reason |
+| `ThirdPartySoftware` | The third-party software list, on the About › Third-party page | NOT hand-written: `scripts/third-party.mjs` regenerates `public/third-party.json` from npm's production dependency tree (direct and transitive) on every `npm run build`, minus build-only tooling (`@capacitor/cli`, which never ships), plus the native iOS pods and Android release-classpath libraries from the committed snapshot `scripts/third-party-native.json` (regenerated on the Mac with `make third-party-native`; `src/__checks__/third-party-native.test.ts` fails when the native dependency files change without a regenerate), plus the self-hosted Google Sans font, so it cannot drift from what ships. Fetched when the page opens, not bundled. Grouped by name prefix (operator 2026-10-05): a scope or Maven-group row (`@vue`, `androidx.core` …) expands to its members, named without the prefix; an unscoped package is its own row; native rows carry an iOS / Android badge. Every row carries a ▸/▾ chevron and opens in place to the project link, a labelled "Licence text" box, and a "Notice" box when the library ships a NOTICE file (Apache-2.0). The copy counts "libraries" (npm packages, pods and Maven artifacts alike). Android lists what the release APK links: Kotlin Multiplatform "umbrella" coordinates (a POM + a `.module` redirecting to the `-jvm` / `-android` build, which is listed) and BOMs ship no code, so they are not rows; every listed archive is searched for a LICENSE / NOTICE, and the generator names any whose archive is not in the Gradle cache. If the list cannot be fetched (offline) the page says so ("Couldn't load the list — it needs a connection.") |
 | `CollectionsView` | User-made collections of episodes | Per-item additive; a collection can never destroy the queue or another collection |
 | `HighlightsView` | Everything captured, with export | The listener's own words — export must be lossless and must never require a network round trip to read |
 
@@ -1165,9 +1320,13 @@ review or rebuild it.
 - **`QueueButton`** — the ONE add/remove-to-queue control, everywhere. Renders for signed-out
   visitors (#1590). Since the 2026-09 offline arc it stays ENABLED with no connection: adding and
   removing are item-level and replay safely; only reordering needs a live list.
-- **`InterestsPicker`** — the modal over the corpus's top clusters. Modal a11y matches the entity
-  card exactly; "Not now" must be as easy to reach as "Save", because a picker that traps someone
-  into choosing is a picker they will dismiss by leaving.
+- **`InterestsPicker`** — the onboarding sheet: the same four `InterestSections` as Profile ›
+  Interests, saved once on Save. Modal a11y matches the entity card exactly; "Not now" must be as
+  easy to reach as "Save", because a picker that traps someone into choosing is a picker they will
+  dismiss by leaving.
+- **`InterestSections`** — Topics, People, Themes and Storylines, each: followed (×), search all,
+  suggested (+). Reports taps and never writes; the parent decides what a tap means (see
+  "Interests (2026-10-04)").
 - **`PwaUpdateToast`** — announces a new build is available. It **offers**, never forces: a reload
   mid-listen would cost the listener their place, so the toast waits for a deliberate tap.
 
@@ -1251,9 +1410,10 @@ design home:
   agents to the corpus over MCP via a connector URL and personal-access tokens.
 - **`TierSwitch`** — the dev↔prod target pill, internal builds only (`tierSwitchEnabled()`), never
   rendered on the web PWA; repoints the API base and reloads.
-- **`AboutPageView`** — the placeholder About/legal pages (Third-party software, Privacy policy,
-  Terms of use) linked from Settings › About & legal; empty content for now, back-nav to Settings.
-  Support is a link (external), not one of these pages.
+- **`AboutPageView`** — the About/legal pages (Third-party software, Privacy policy, Terms of use),
+  linked from Settings › About & legal and from the sign-in footer; readable signed out. Its back
+  link returns to wherever the page was opened from (sign-in, Settings), falling back to Settings
+  when there is no history. Support is a link (external), not one of these pages.
 
 ## Revision history
 

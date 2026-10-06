@@ -28,6 +28,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
 import EpisodeRow from '../components/EpisodeRow.vue'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
+import { newestFirst } from '../utils/newestFirst'
 import { useCaptureStore } from '../stores/capture'
 import { formatTime } from '../player/transcriptSync'
 import { borderClass } from '../utils/highlightColors'
@@ -38,6 +39,13 @@ import { shareHighlightCard } from '../composables/useShareCard'
 
 const { t } = useI18n()
 const capture = useCaptureStore()
+
+// A highlight's notes: newest first, five at a time (operator 2026-10-05), keyed per highlight —
+// the same section cap as the highlights themselves (`itemCaps`).
+const noteCaps = useCappedSections(5, 5)
+function hlNotes(id: string) {
+  return newestFirst(capture.notesFor('highlight', id))
+}
 
 /**
  * The colour filter and sort are owned by the Saved tab's filter bar now (RFC-121 ph. 3) and passed
@@ -644,9 +652,10 @@ onMounted(async () => {
           <!-- Notes attached to this highlight -->
           <ul v-if="capture.notesFor('highlight', h.id).length" class="mt-2 flex flex-col gap-1">
             <li
-              v-for="n in capture.notesFor('highlight', h.id)"
+              v-for="n in noteCaps.visible(h.id, hlNotes(h.id))"
               :key="n.id"
               class="border-l-2 border-border pl-2 text-sm text-muted"
+              data-testid="highlight-note"
             >
               <div v-if="editing === n.id">
                 <textarea
@@ -675,6 +684,14 @@ onMounted(async () => {
               </div>
             </li>
           </ul>
+          <ShowAllToggle
+            v-if="noteCaps.overflows(hlNotes(h.id).length, false, h.id)"
+            :expanded="noteCaps.remaining(h.id, hlNotes(h.id).length) === 0"
+            :count="hlNotes(h.id).length"
+            :remaining="noteCaps.remaining(h.id, hlNotes(h.id).length)"
+            data-testid="highlight-notes-more"
+            @toggle="noteCaps.toggle(h.id, hlNotes(h.id).length)"
+          />
 
           <!-- Add a new note -->
           <div v-if="editing === `new:${h.id}`" class="mt-2">

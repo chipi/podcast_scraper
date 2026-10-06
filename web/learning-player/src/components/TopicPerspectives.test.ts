@@ -48,6 +48,37 @@ const RESP: TopicPerspectivesResponse = {
 afterEach(() => vi.restoreAllMocks())
 
 describe('TopicPerspectives', () => {
+  it('pages speakers five at a time on a topic too, then folds back', async () => {
+    const speaker = (i: number) => ({
+      person_id: `person:p${i}`,
+      person_name: `Person ${i}`,
+      insight_count: 1,
+      episode_count: 1,
+      insights: [insight(`x${i}`, `take ${i}`)],
+    })
+    vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue({
+      ...RESP,
+      perspective_count: 7,
+      perspectives: Array.from({ length: 7 }, (_, i) => speaker(i)),
+    })
+    const w = mountIt('topic:ai')
+    await flushPromises()
+    const cards = () => w.findAll('[data-testid="topic-perspective"]').length
+    const more = () => w.get('[data-testid="perspectives-more-speakers"]')
+    expect([cards(), more().text()]).toEqual([5, 'Show more (2)'])
+    await more().trigger('click')
+    expect([cards(), more().text()]).toEqual([7, 'Show less'])
+    await more().trigger('click')
+    expect(cards()).toBe(5)
+  })
+
+  it("names the topic in its heading: '2 perspectives on AI'", async () => {
+    vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue(RESP)
+    const w = mount(TopicPerspectives, { props: { id: 'topic:ai', label: 'AI' }, global: { plugins: [i18n] } })
+    await flushPromises()
+    expect(w.get('[data-testid="topic-perspectives"]').text()).toContain('2 perspectives on AI')
+  })
+
   it('renders each speaker with a capped preview of their insights', async () => {
     vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue(RESP)
     const w = mountIt('topic:ai')

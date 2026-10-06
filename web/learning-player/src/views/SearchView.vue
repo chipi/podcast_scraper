@@ -30,6 +30,9 @@ import { useSignInGate } from "../composables/useSignInGate"
 import { useSavedQueriesStore } from "../stores/savedQueries"
 import { useCaptureStore } from "../stores/capture"
 import EntityCard from "../components/EntityCard.vue"
+import ShowAllToggle from "../components/ShowAllToggle.vue"
+import { newestFirst } from "../utils/newestFirst"
+import { useCappedSections } from "../composables/useCappedSections"
 import EpisodeGroupCard from "../components/EpisodeGroupCard.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
@@ -77,10 +80,11 @@ const noteMatches = computed<Note[]>(() => {
   // `?? []`: the async ensureLoaded() from onMounted can resolve after the store is disposed (test
   // teardown), re-running this computed against a torn-down store whose `notes` is undefined. A
   // computed must be total, so read defensively rather than throw into Vue's flush.
-  return (capture.notes ?? [])
-    .filter((n) => n.text.toLowerCase().includes(q))
-    .sort((a, b) => b.created_at - a.created_at)
+  return newestFirst((capture.notes ?? []).filter((n) => n.text.toLowerCase().includes(q)))
 })
+// Newest first, five at a time (operator 2026-10-05).
+const noteCaps = useCappedSections(5, 5)
+const shownNoteMatches = computed(() => noteCaps.visible("notes", noteMatches.value))
 // USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
 // watch reacts when the payload arrives so the Save button flips to
 // "Saved ✓" if the current query was already persisted. No per-view
@@ -818,7 +822,7 @@ const showEmpty = computed(
       </p>
       <ul class="flex flex-col gap-2">
         <li
-          v-for="n in noteMatches"
+          v-for="n in shownNoteMatches"
           :key="n.id"
           class="rounded-xl border border-border p-3"
           data-testid="search-note"
@@ -847,6 +851,14 @@ const showEmpty = computed(
           </div>
         </li>
       </ul>
+      <ShowAllToggle
+        v-if="noteCaps.overflows(noteMatches.length, false, 'notes')"
+        :expanded="noteCaps.remaining('notes', noteMatches.length) === 0"
+        :count="noteMatches.length"
+        :remaining="noteCaps.remaining('notes', noteMatches.length)"
+        data-testid="search-notes-more"
+        @toggle="noteCaps.toggle('notes', noteMatches.length)"
+      />
     </section>
 
     <!-- F1.3/F1.4: reserve the results shape while searching (no jump when they land) and offer a

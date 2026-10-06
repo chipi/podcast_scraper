@@ -95,6 +95,13 @@ const shownPodcasts = computed<Podcast[]>(() => {
   )
 })
 
+/** Tiles per row: 3 on a phone, 4 from `sm` — the same counts as the `li` width formula below. */
+const tileHeader = computed<Record<string, string> | null>(() => {
+  const n = shownPodcasts.value.length
+  if (props.variant !== 'tiles' || n === 0) return null
+  return { '--n3': String(Math.min(n, 3)), '--n4': String(Math.min(n, 4)) }
+})
+
 const artById = computed<Record<string, string | null>>(() => {
   const out: Record<string, string | null> = {}
   for (const p of props.podcasts) out[p.feed_id] = showArtwork(p)
@@ -139,7 +146,15 @@ function spark(series: number[]): { line: string; area: string } {
 
 <template>
   <section v-if="hasAny || !section.isReady.value" class="mt-7" data-testid="trending-shows-rail">
-    <div class="mb-3 flex items-center justify-between gap-2">
+    <!-- Tiles: the header is exactly as wide as the tiles below it (the tile formula times the
+         count, plus the gaps), so "all ›" ends where the last tile ends. Full width once the row is
+         full; with two shows it sat at the far edge of an empty half-row (operator 2026-10-05). -->
+    <div
+      class="mb-3 flex items-center justify-between gap-2"
+      :class="tileHeader ? 'w-[calc(var(--n3)*(100%_-_1.5rem)/3_+_(var(--n3)_-_1)*0.75rem)] sm:w-[calc(var(--n4)*(100%_-_2.25rem)/4_+_(var(--n4)_-_1)*0.75rem)]' : ''"
+      :style="tileHeader ?? undefined"
+      data-testid="trending-shows-header"
+    >
       <h2 class="lp-section">{{ title }}</h2>
       <button
         v-if="seeAll"

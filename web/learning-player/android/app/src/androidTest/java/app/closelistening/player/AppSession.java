@@ -671,11 +671,20 @@ final class AppSession {
         Journey.device().wait(Until.hasObject(By.pkg(Journey.PKG).depth(0)), 15_000);
     }
 
-    /** True as soon as the WebView's accessibility tree holds anything labelled; false at the deadline. */
+    /**
+     * True as soon as the page's CONTENT is in the accessibility tree; false at the deadline.
+     *
+     * The WebView container itself is not content. It carries the document title as its own label
+     * ("Profile · Close Listening"), and the router sets that title before Chromium has exposed a
+     * single node of the page. Counting it ended this wait with nothing readable on screen: the
+     * full tier of 2026-10-06 failed `NativeCapabilityTests#testN4AvatarUploadAndCrop` at sign-in
+     * with an inventory of exactly `Profile · Close Listening[WebView]`. So a labelled node other
+     * than the WebView is required.
+     */
     private static boolean awaitPainted(long timeoutMs) {
         long deadline = System.currentTimeMillis() + timeoutMs;
         do {
-            if (!Journey.labelledInventory(1).startsWith("<nothing labelled")) return true;
+            if (Journey.hasLabelledWebContent()) return true;
             Journey.sleep(500);
         } while (System.currentTimeMillis() < deadline);
         return false;

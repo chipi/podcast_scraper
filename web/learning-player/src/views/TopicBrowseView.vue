@@ -124,7 +124,7 @@ onMounted(async () => {
 
 <template>
   <section
-    :class="embedded ? '' : 'mx-auto max-w-3xl px-4 pb-8 pt-4'"
+    :class="embedded ? '' : 'lp-page pb-8 pt-4'"
     data-testid="topic-browse-view"
   >
     <RouterLink

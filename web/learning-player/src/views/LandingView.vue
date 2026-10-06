@@ -82,7 +82,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="mx-auto max-w-5xl px-1">
+  <div class="lp-page">
     <!-- After account deletion (#2273): say it happened, rather than dropping the person on a
          sign-up page with no word about the account they just removed. -->
     <p

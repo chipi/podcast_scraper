@@ -40,13 +40,17 @@ re-entrant back stack; the kind-specific body is delegated to `PersonCardContent
 `TopicCardContent`, and `OrgCardContent` (#2031), so the one stack can carry a mixed
 person↔topic↔organization walk in a single panel:
 
-- **Person card:** a "Person" kicker + name, an "In {n} episodes" list (artwork + title), related
-  people/topics chips, and a "Search the library for {name}" action. No avatar/role/bio — the
-  consumer scope is lean. Data: KG co-occurrence via `GET /api/app/persons/{id}`.
-- **Topic card:** a "Topic" kicker + label, a **"Part of a storyline"** row linking the
-  co-occurrence cluster, **"{n} similar topics"** chips (the semantic siblings — and NOT the topic
-  you are reading, which is not similar to itself), a "Discussed in {n} episodes" list capped at 10,
-  and related people. Data: `GET /api/app/topics/{id}`.
+- **Person card:** a "Person" kicker (with a role badge) + name, the bio and photo block, "Host of …",
+  "Often appears with", related people, related topics MIXED with their themes and storylines,
+  a "Search transcripts for {name}" action, "Who agrees with {name}", an episode list and notes.
+  Data: KG co-occurrence via `GET /api/app/persons/{id}`. Order and treatment: UXS-011 §Entity
+  pages (2026-10-05).
+- **Topic card:** a "Topic" kicker + label; "{n} similar topics" as a kicker label at the start of
+  the sibling pill row (the semantic siblings — NOT the topic you are reading, which is not similar
+  to itself); the theme and storyline as link cards whose caption names the kind ("THEME · 3
+  TOPICS", "STORYLINE · 4 TOPICS"), with no section heading over them; Top voices; "{n}
+  perspectives on {topic}"; a "Discussed in {n} episodes" list paged by 10. Data: `GET
+  /api/app/topics/{id}`. Desktop page layout: UXS-011 §Entity pages.
 - **Organization card (#2031):** an "Organization" kicker + name, a "Mentioned in {n} episodes"
   list, and co-occurring people / **other organizations** / topics chips. Leaner still than the
   person card — no follow-adjacent save/collection — but it DOES carry a lean web block

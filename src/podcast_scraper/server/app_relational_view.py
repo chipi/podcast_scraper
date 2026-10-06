@@ -48,6 +48,7 @@ from podcast_scraper.server.schemas import (
     AppEntityRef,
     AppEpisodeSummary,
     AppInsight,
+    AppInterestHit,
     AppOrgCard,
     AppOrgWeb,
     AppPersonCard,
@@ -331,6 +332,72 @@ def _storyline_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
         if norm:
             out.setdefault(norm, AppEntityRef(id=anchor, kind="storyline", label=label))
     return out
+
+
+InterestKind = Literal["topic", "person", "theme", "storyline"]
+
+
+def _match_rank(norm_label: str, norm_query: str) -> int | None:
+    """0 = label starts with the query, 1 = a later word does, 2 = mid-word; else None."""
+    if norm_label.startswith(norm_query):
+        return 0
+    if f" {norm_query}" in norm_label:
+        return 1
+    if norm_query in norm_label:
+        return 2
+    return None
+
+
+def search_interests(
+    root: Path, kind: InterestKind, query: str, limit: int = 20
+) -> list[AppInterestHit]:
+    """Followables of ``kind`` whose label contains ``query`` — the Interests search box.
+
+    ``resolve_entity`` answers "does this name ONE entity"; this answers "what could I follow", so
+    it substring-matches and returns many. Ranked by where the query lands in the label, then by
+    how much of the corpus the entity covers (episodes for topics and people, members for themes and
+    storylines), so a common name beats an obscure one that merely starts the same way.
+
+    Ids are interest TOKENS, which is why a storyline returns its ``thc:`` id here while
+    ``_storyline_ref_by_norm`` returns its anchor topic: this result is followed, that one opened.
+    """
+    norm_query = normalize_label(query)
+    if not norm_query:
+        return []
+    scored: list[tuple[int, int, str, AppInterestHit]] = []
+    if kind in ("topic", "person"):
+        index = get_kg_index(root)
+        refs = index.topic_ref_by_norm if kind == "topic" else index.person_ref_by_norm
+        eps = index.topic_to_eps if kind == "topic" else index.person_to_eps
+        # Two spellings of one canonical person share an id; keep whichever matches better.
+        best: dict[str, tuple[int, int, str, AppInterestHit]] = {}
+        for norm, ref in refs.items():
+            rank = _match_rank(norm, norm_query)
+            if rank is None:
+                continue
+            weight = -len(eps.get(ref.id, ()))
+            if ref.id not in best or (rank, weight, norm) < best[ref.id][:3]:
+                hit = AppInterestHit(id=ref.id, kind=kind, label=ref.label)
+                best[ref.id] = (rank, weight, norm, hit)
+        scored = list(best.values())
+    else:
+        rows = (
+            top_themes_by_member_count(root, _STORYLINE_INDEX_CAP)
+            if kind == "theme"
+            else top_storylines_by_member_count(root, _STORYLINE_INDEX_CAP, min_members=1)
+        )
+        for row in rows:
+            label = str(row.get("label") or "").strip()
+            token = str(row.get("id") or "").strip()
+            norm = normalize_label(label)
+            rank = _match_rank(norm, norm_query) if norm else None
+            if rank is None or not token:
+                continue
+            anchor = str(row.get("anchor_topic_id") or "").strip() or None
+            hit = AppInterestHit(id=token, kind=kind, label=label, anchor_topic_id=anchor)
+            scored.append((rank, -int(row.get("size") or 0), norm, hit))
+    scored.sort(key=lambda s: (s[0], s[1], s[2]))
+    return [s[3] for s in scored[: max(limit, 0)]]
 
 
 def _enrich_topic(

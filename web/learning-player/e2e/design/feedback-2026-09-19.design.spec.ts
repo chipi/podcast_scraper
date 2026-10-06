@@ -347,10 +347,18 @@ test('profile: topic, theme, storyline and person pills are told apart', async (
   await signIn(page)
   await page.goto('/')
   await seedFollowsAndSaves(page)
-  await page.goto('/profile?tab=topics')
-  const pills = page.locator('[data-testid^="profile-interest-"]')
+  await page.goto('/profile?tab=interests')
+  // One section per kind since 2026-10-04, each pill in its episode-panel colour.
+  // Counted only once the sections have LOADED: `count()` does not wait, and counting straight after
+  // navigation found nothing and skipped on every run while the seeded follows were still in flight.
+  await expect(page.getByTestId('interests-section-topic')).toBeVisible()
+  await settle(page)
+  const pills = page.locator('[data-testid^="interest-following-"]')
   if (!(await pills.count())) test.skip(true, 'this account follows nothing yet')
-  await shootNear(page, pills.first().locator('xpath=..'), 'profile-interest-kinds')
+  // All four sections in one frame: the shot is about telling the kinds apart, so they must be
+  // side by side rather than one section cropped alone. An ELEMENT shot of the panel, because the
+  // four sections are taller than a phone viewport and `shootSpan` clips to the viewport.
+  await page.getByTestId('interests-help').locator('xpath=..').screenshot({ path: dir('profile-interest-kinds') })
 })
 
 // --- Player --------------------------------------------------------------------------------- //

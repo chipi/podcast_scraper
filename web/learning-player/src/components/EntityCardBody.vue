@@ -60,8 +60,15 @@ const props = withDefaults(
      * requirement is topic in the background, storyline on it, person on that).
      */
     canLayer?: boolean
+    /**
+     * The card IS the page (the standalone /topic and /person routes): no side padding of its own,
+     * so its content starts at the page's left edge like every other page (operator 2026-10-05,
+     * one page width). In a sheet or a panel the card keeps `px-4`, because there the card's
+     * padding is the only gutter.
+     */
+    flush?: boolean
   }>(),
-  { variant: "overlay", rootControl: undefined, depth: 0, canLayer: undefined }
+  { variant: "overlay", rootControl: undefined, depth: 0, canLayer: undefined, flush: false }
 )
 const emit = defineEmits<{ (e: "close"): void }>()
 
@@ -220,7 +227,7 @@ const isTopic = computed(() => current.value.kind === "topic")
     <!-- Header (UXS-014, unified across topic / person / storyline): the actions ride the top row
          WITH the kicker, so the TITLE owns its own full-width row and can run to two lines instead
          of being crushed to "agent in…" beside the icons. Same structure in StorylineView. -->
-    <header class="border-b border-border px-4 py-3">
+    <header class="border-b border-border py-3" :class="props.flush ? '' : 'px-4'">
       <div class="flex items-start justify-between gap-3">
         <span class="flex min-w-0 flex-wrap items-center gap-2">
           <span class="lp-kicker">{{
@@ -301,7 +308,7 @@ const isTopic = computed(() => current.value.kind === "topic")
            where it actually bit (tapping an episode landed on Home). -->
     </header>
 
-    <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+    <div class="min-h-0 flex-1 overflow-y-auto py-4" :class="props.flush ? '' : 'px-4'">
       <p v-if="loading" class="text-sm text-muted">{{ t("ec.loading") }}</p>
       <p v-else-if="failed || (!person && !topic && !org)" class="text-sm text-muted">
         {{ t("ec.notFound") }}
@@ -310,6 +317,7 @@ const isTopic = computed(() => current.value.kind === "topic")
       <PersonCardContent
         v-else-if="person"
         :person="person"
+        :depth="depth"
         @open="(p) => open(p.kind, p.id)"
         @close="emit('close')"
       />
@@ -327,6 +335,7 @@ const isTopic = computed(() => current.value.kind === "topic")
         :topic="topic"
         :can-layer="canLayer ?? dismissAtRoot"
         :depth="depth"
+        :wide="props.flush"
         @open="(p) => open(p.kind, p.id)"
         @close="emit('close')"
       />

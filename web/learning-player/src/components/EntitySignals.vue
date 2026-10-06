@@ -15,13 +15,27 @@
  *   Topic  → momentum (velocity). (Similar / discussed-alongside topics are shown once, on the
  *            card itself, to avoid four near-identical related-topic chip rows.)
  */
+import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { personName, personNameFromId } from "../utils/personName"
 import { getEntitySignals } from "../services/api"
+import { useCappedSections } from "../composables/useCappedSections"
+import ShowAllToggle from "./ShowAllToggle.vue"
 import type { CorpusEnrichmentSignals } from "../services/types"
 
-const props = defineProps<{ kind: "person" | "topic"; id: string }>()
+const props = defineProps<{
+  kind: "person" | "topic"
+  id: string
+  /**
+   * Render one of the two sections only, so a host can put its own sections between them (the
+   * person page: "Often appears with", then related people and topics, then "Where they agree" —
+   * operator 2026-10-05). Two instances share ONE request: `getEntitySignals` caches by entity.
+   */
+  only?: "coappears" | "consensus"
+  /** The person's display name, so the agreement heading says WHO "they" are. */
+  name?: string
+}>()
 const emit = defineEmits<{ (e: "open", payload: { kind: "person" | "topic"; id: string }): void }>()
 
 const { t } = useI18n()
@@ -45,7 +59,6 @@ watch(
   { immediate: true }
 )
 
-const MAX = 8
 const norm = (id: string): string => id.replace(/^(?:g:|k:|kg:)+/, "")
 const self = computed(() => norm(props.id))
 function shortId(id: string): string {
@@ -89,7 +102,7 @@ const coappears = computed(() => {
         count: p.episode_count,
       })
   }
-  return out.sort((a, b) => b.count - a.count).slice(0, MAX)
+  return out.sort((a, b) => b.count - a.count)
 })
 // Cross-person corroboration on a topic (topic_consensus, ADR-108): who else makes
 // the same point as this person, oriented so the focused person's claim is "self".
@@ -124,62 +137,93 @@ const consensus = computed(() => {
         otherText: c.insight_a_text ?? "",
       })
   }
-  return out.slice(0, MAX)
+  return out
 })
+// Both lists page five at a time with the app's section cap (operator 2026-10-05). Each was a hard
+// cap of 8 that hid the rest with no way to reach them.
+const caps = useCappedSections(5, 5)
+const shownCoappears = computed(() => caps.visible("coappears", coappears.value))
+const shownConsensus = computed(() => caps.visible("consensus", consensus.value))
 
 // Topic momentum moved OUT of here to the top of the entity card, under the title (operator
 // review): a topic's "↑ Rising" badge now leads the card, the same idiom as the storyline sheet,
 // rather than sitting mid-body under a "Momentum" heading. Similar-topics + discussed-alongside
 // were removed earlier for the same reason (the card owns those chips). So this block is now
 // PERSON-ONLY — co-appearance + consensus — and renders nothing for a topic.
-const hasAny = computed(() => Boolean(coappears.value.length || consensus.value.length))
+const showCoappears = computed(() => props.only !== "consensus" && coappears.value.length > 0)
+const showConsensus = computed(() => props.only !== "coappears" && consensus.value.length > 0)
+const hasAny = computed(() => showCoappears.value || showConsensus.value)
 </script>
 
 <template>
-  <div v-if="hasAny" data-testid="entity-signals">
+  <div v-if="hasAny" :data-testid="props.only ? `entity-signals-${props.only}` : 'entity-signals'">
     <!-- Person -->
-    <section v-if="coappears.length" class="mb-4" data-testid="es-coappears">
-      <h3 class="lp-section mb-2">{{ t("ec.sigCoappears") }}</h3>
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          v-for="p in coappears"
-          :key="p.id"
-          type="button"
-          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
-          @click="emit('open', { kind: 'person', id: p.id })"
-        >
-          {{ p.name }} <span class="text-muted">· {{ p.count }}</span>
-        </button>
-      </div>
+    <section v-if="showCoappears" class="mb-4" data-testid="es-coappears">
+      <CollapsibleSection :title="t('ec.sigCoappears')" section-key="signals-coappears" :level="3">
+        <div class="flex flex-wrap gap-1.5">
+          <button
+            v-for="p in shownCoappears"
+            :key="p.id"
+            type="button"
+            class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
+            @click="emit('open', { kind: 'person', id: p.id })"
+          >
+            {{ p.name }} <span class="text-muted">· {{ p.count }}</span>
+          </button>
+        </div>
+        <ShowAllToggle
+          v-if="caps.overflows(coappears.length, false, 'coappears')"
+          :expanded="caps.remaining('coappears', coappears.length) === 0"
+          :count="coappears.length"
+          :remaining="caps.remaining('coappears', coappears.length)"
+          data-testid="es-coappears-more"
+          @toggle="caps.toggle('coappears', coappears.length)"
+        />
+      </CollapsibleSection>
     </section>
 
-    <section v-if="consensus.length" class="mb-4" data-testid="es-consensus">
-      <h3 class="lp-section mb-2">{{ t("ec.sigConsensus") }}</h3>
-      <ul class="flex flex-col gap-2">
-        <li
-          v-for="(c, i) in consensus"
-          :key="i"
-          class="rounded-md bg-overlay px-3 py-2"
-          data-testid="es-consensus-row"
-        >
-          <p class="text-xs">
-            <button
-              type="button"
-              class="font-semibold text-person hover:underline"
-              @click="emit('open', { kind: 'person', id: c.otherId })"
-            >
-              {{ c.otherName }}
-            </button>
-            <span class="text-muted">{{ " " + t("ec.sigOn", { topic: c.topic }) }}</span>
-          </p>
-          <p v-if="c.selfText" class="mt-1 text-xs text-muted">
-            <span class="text-canvas-foreground">“{{ c.selfText }}”</span>
-          </p>
-          <p v-if="c.otherText" class="mt-0.5 text-xs text-muted">
-            {{ c.otherName }}: “{{ c.otherText }}”
-          </p>
-        </li>
-      </ul>
+    <section v-if="showConsensus" class="mb-4" data-testid="es-consensus">
+      <!-- Each row names the other person ONCE (operator 2026-10-05). It used to open "Bob on ai
+           regulation", show this person's claim unattributed, then repeat "Bob: …" — "Where they agree"
+           never said who "they" were, and the name appeared twice. Now: the heading names this
+           person, the topic is the row's kicker, this person's claim is the quote (it is their page),
+           and the other person is named once, on their agreeing line. -->
+      <CollapsibleSection
+        :title="props.name ? t('ec.sigConsensusWith', { name: props.name }) : t('ec.sigConsensus')"
+        section-key="signals-consensus"
+        :level="3"
+      >
+        <ul class="flex flex-col gap-2">
+          <li
+            v-for="(c, i) in shownConsensus"
+            :key="i"
+            class="rounded-md bg-overlay px-3 py-2"
+            data-testid="es-consensus-row"
+          >
+            <p class="lp-kicker" data-testid="es-consensus-topic">{{ c.topic }}</p>
+            <p v-if="c.selfText" class="mt-1 text-xs text-canvas-foreground">“{{ c.selfText }}”</p>
+            <p class="mt-1 text-xs text-muted" data-testid="es-consensus-other">
+              <button
+                type="button"
+                class="font-semibold text-person hover:underline"
+                @click="emit('open', { kind: 'person', id: c.otherId })"
+              >
+                {{ c.otherName }}
+              </button>
+              <span>{{ " " + t("ec.sigAgrees") + (c.otherText ? ": " : "") }}</span
+              ><span v-if="c.otherText">“{{ c.otherText }}”</span>
+            </p>
+          </li>
+        </ul>
+        <ShowAllToggle
+          v-if="caps.overflows(consensus.length, false, 'consensus')"
+          :expanded="caps.remaining('consensus', consensus.length) === 0"
+          :count="consensus.length"
+          :remaining="caps.remaining('consensus', consensus.length)"
+          data-testid="es-consensus-more"
+          @toggle="caps.toggle('consensus', consensus.length)"
+        />
+      </CollapsibleSection>
     </section>
   </div>
 </template>

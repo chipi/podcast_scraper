@@ -197,13 +197,13 @@ function openStoryline(id: string): void {
         <li
           v-for="id in caps.visible('themes', themeTokens, searchActive)"
           :key="id"
-          class="inline-flex items-center rounded-full bg-overlay"
+          class="inline-flex items-center rounded-full bg-overlay ring-1 ring-inset ring-theme/30"
         >
           <!-- Straight to the theme page: a theme's id IS its route param, so there is no anchor
                lookup to fail the way the storyline one can. -->
           <button
             type="button"
-            class="max-w-[14rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-canvas-foreground transition hover:opacity-80"
+            class="max-w-[14rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-theme transition hover:opacity-80"
             @click="router.push({ name: 'theme', params: { id } })"
           >
             {{ labelOf(id) }}
@@ -230,11 +230,11 @@ function openStoryline(id: string): void {
         <li
           v-for="id in caps.visible('storylines', storylineTokens, searchActive)"
           :key="id"
-          class="inline-flex items-center rounded-full bg-overlay"
+          class="lp-storyline-chip inline-flex items-center rounded-full"
         >
           <button
             type="button"
-            class="max-w-[14rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-canvas-foreground transition hover:opacity-80"
+            class="max-w-[14rem] truncate py-1 pl-3 pr-1.5 text-sm font-semibold text-storyline transition hover:opacity-80"
             @click="openStoryline(id)"
           >
             {{ labelOf(id) }}

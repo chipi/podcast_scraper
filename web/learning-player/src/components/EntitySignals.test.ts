@@ -127,6 +127,49 @@ describe("EntitySignals — person", () => {
     // Focused = person_a → self claim is insight_a_text; counterpart's is insight_b_text.
     expect(row.text()).toContain("AI needs guardrails to be safe.")
     expect(row.text()).toContain("Sensible AI rules protect users.")
+    // The counterpart is named ONCE, on the agreeing line (operator 2026-10-05).
+    expect(row.text().split("Bob Lee").length - 1).toBe(1)
+    expect(row.get('[data-testid="es-consensus-other"]').text()).toBe("Bob Lee agrees: “Sensible AI rules protect users.”")
+  })
+
+  it("pages agreements five at a time, then folds back", async () => {
+    const row = (i: number) => ({
+      topic_id: `topic:t${i}`,
+      person_a_id: "person:jane-doe",
+      person_a_name: "Jane Doe",
+      person_b_id: `person:p${i}`,
+      person_b_name: `Person ${i}`,
+      insight_a_text: `claim ${i}`,
+      insight_b_text: `agree ${i}`,
+    })
+    vi.spyOn(api, "getEntitySignals").mockResolvedValue({
+      ...SIGNALS,
+      topic_consensus: { consensus: Array.from({ length: 12 }, (_, i) => row(i)) },
+    } as CorpusEnrichmentSignals)
+    const w = mountSignals("person", "person:jane-doe")
+    await flushPromises()
+    const rows = () => w.findAll('[data-testid="es-consensus-row"]').length
+    const more = () => w.get('[data-testid="es-consensus-more"]')
+    // The app's section cap and its control (useCappedSections + ShowAllToggle): the count is what
+    // is still hidden.
+    expect([rows(), more().text()]).toEqual([5, "Show more (7)"])
+    await more().trigger("click")
+    expect([rows(), more().text()]).toEqual([10, "Show more (2)"])
+    await more().trigger("click")
+    expect([rows(), more().text()]).toEqual([12, "Show less"])
+    await more().trigger("click")
+    expect(rows()).toBe(5)
+  })
+
+  it("names the person in the agreement heading, so 'they' is never unexplained", async () => {
+    vi.spyOn(api, "getEntitySignals").mockResolvedValue(SIGNALS)
+    const w = mount(EntitySignals, {
+      props: { kind: "person", id: "person:jane-doe", name: "Jane Doe", only: "consensus" },
+      global: { plugins: [i18n] },
+    })
+    await flushPromises()
+    expect(w.get('[data-testid="es-consensus"]').text()).toContain("Who agrees with Jane Doe")
+    expect(w.find('[data-testid="es-coappears"]').exists()).toBe(false)
   })
 
   it("emits open when a co-appears chip is clicked", async () => {

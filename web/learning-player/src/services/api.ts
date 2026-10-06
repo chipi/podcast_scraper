@@ -34,6 +34,7 @@ import type {
   HighlightUpdate,
   InsightsResponse,
   InterestCluster,
+  InterestHit,
   LibraryItem,
   ListEpisodesParams,
   McpConnection,
@@ -601,6 +602,16 @@ export function recordDiscoverClick(slug: string, position: number): void {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ slug, position }),
   }).catch(() => {})
+}
+
+/** Followables of one kind whose label contains `q`, best match first — an Interests section's
+ *  search box. Substring, not exact: `resolveEntity` answers "does this name one thing". */
+export async function searchInterests(
+  kind: InterestHit["kind"],
+  q: string,
+  limit = 20
+): Promise<InterestHit[]> {
+  return (await getJSON<{ items: InterestHit[] }>("/interests/search", { kind, q, limit })).items
 }
 
 /** Top interest clusters for the picker, by corpus prevalence. */

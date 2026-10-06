@@ -7,7 +7,7 @@ import XCTest
  * first journey pass produced two empty panels and proved nothing:
  *
  *   - Stats said "Start listening to build your stats." because nothing had ever been played.
- *   - Topics said "No interests chosen yet." because no interests had ever been picked.
+ *   - Interests (then Topics) said "No interests chosen yet." because none had been picked.
  *
  * An empty panel is only meaningful once the thing that fills it has happened. So these tests
  * PERFORM the action first (play episodes / choose interests) and then assert the panel changed —
@@ -65,8 +65,14 @@ final class PersonalisationTests: UITestCase {
     )
   }
 
-  // MARK: - 10 interests → chips + Home
+  // MARK: - 10 interests → follows + Home
 
+  /// Profile › Interests edits in place (2026-10-04): each section offers "Follow X" suggestions
+  /// behind its "+ Add", a
+  /// tap follows at once and moves the item to the section's followed row, whose control is "Stop
+  /// following X". No picker, no Save. Suggestions never include what is already followed, so every
+  /// "Follow …" control is safe to tap — the selected-state guessing the old toggle picker forced
+  /// on this test has nothing left to guess about.
   func test10InterestsRenderAndFeedHome() {
     let app = Journey.launch()
     guard startClean(app) else {
@@ -75,104 +81,60 @@ final class PersonalisationTests: UITestCase {
     }
     Journey.openProfile(app, labels: profileLabels)
     sleep(3)
-    guard Journey.tap(app, labels: ["Topics"], timeout: 12) else {
-      XCTFail("no Topics tab on Profile"); return
+    guard Journey.tap(app, labels: ["Interests"], timeout: 12) else {
+      XCTFail("no Interests tab on Profile"); return
     }
-    sleep(3)
+    // Suggestions live behind the Topics section's "+ Add" (one open at a time, 2026-10-04).
+    // i18n: interestSections.add_topic = "Add a topic".
+    guard Journey.tap(app, labels: ["Add a topic"], timeout: 12) else {
+      Journey.inventory(app, "interests-no-add")
+      XCTFail("no Add control on the Topics section"); return
+    }
+    // WAIT for the sections' suggestions — they are fetched, and a snapshot taken while they load
+    // finds nothing to tap. i18n: interestSections.suggested = "Suggested".
+    let ready = Journey.find(app, labels: ["Suggested"], contains: false, timeout: 20) != nil
+    XCTAssertTrue(ready, "the Interests tab never finished loading its suggestions")
+    sleep(2)
     Journey.shot(self, "10-interests-before")
 
-    guard Journey.tap(app, labels: ["Edit"], contains: true, timeout: 12) else {
-      Journey.inventory(app, "interests-no-edit")
-      XCTFail("no Edit control on the interests card"); return
+    // i18n: interestSections.follow = "Follow {name}", interestSections.remove = "Stop following {name}"
+    var followed: [String] = []
+    for _ in 0..<3 {
+      guard let control = app.buttons.allElementsBoundByIndex.first(where: {
+        $0.label.hasPrefix("Follow ") && !$0.label.hasPrefix("Follow show") && $0.isHittable
+      }) else { break }
+      let label = String(control.label.dropFirst("Follow ".count))
+      control.tap()
+      followed.append(label)
+      sleep(2)
     }
-    sleep(4)
-    Journey.inventory(app, "interests-picker")
-    Journey.shot(self, "10-interests-picker")
-
-    // Tap whatever the picker ACTUALLY offers, rather than guessing labels. The chips are named
-    // after semantic CLUSTERS, not after the topic names on the trending rail — so the earlier
-    // ["systems thinking", …] taps all missed, no interest was ever chosen, and the assertion below
-    // then "failed" about a state the test had never created (2026-09-16).
-    // WAIT for the picker's content. It fetches clusters, so the first snapshot of the button
-    // array caught the sheet still on "Loading topics…" and came back empty — the same
-    // snapshot-before-layout trap that cost a diagnosis on the notifications matrix.
-    let ready = Journey.find(app, labels: ["Choose your interests"], contains: true, timeout: 20) != nil
-    XCTAssertTrue(ready, "the interests picker never finished loading its topics")
-    sleep(2)
-    Journey.inventory(app, "interests-picker-loaded")
-
-    let chrome: Set<String> = ["Close", "Cancel", "Save", "Done", "Skip", "Topics", "Storylines"]
-    // Chips carry `aria-pressed`, which WebKit surfaces as a TOGGLE, not a button — so scanning
-    // `app.buttons` found only the sheet's Cancel/Save and reported "nothing tappable" for a picker
-    // full of chips. Exactly the push-matrix lesson: never assume the element type (2026-09-16).
-    let chips = (app.switches.allElementsBoundByIndex
-      + app.checkBoxes.allElementsBoundByIndex
-      + app.buttons.allElementsBoundByIndex).filter {
-      let l = $0.label.trimmingCharacters(in: .whitespacesAndNewlines)
-      return !l.isEmpty && !chrome.contains(l) && $0.isHittable
+    print("=====INTERESTS_FOLLOWED \(followed)=====")
+    XCTAssertFalse(followed.isEmpty, "no Follow suggestion could be tapped on the Interests tab")
+    for label in followed {
+      XCTAssertNotNil(
+        Journey.scrollTo(app, labels: ["Stop following \(label)"]),
+        "'\(label)' was tapped but is not shown as followed"
+      )
     }
-    print("=====INTERESTS_CHIPS \(chips.prefix(8).map { $0.label })=====")
-    // Tap only chips that are NOT already selected. These are toggles, so tapping a selected chip
-    // DESELECTS it — running after an earlier pass left three already chosen, this turned them all
-    // off, the account ended with zero interests, and Home rightly went on prompting. The test then
-    // blamed the app for its own side effect (2026-09-16).
-    var picked = 0
-    var chosen: [String] = []
-    for chip in chips {
-      if picked == 3 { break }
-      let selected = String(describing: chip.value).contains("1") || chip.isSelected
-      if selected {
-        chosen.append(chip.label) // already an interest — still expect it to render
-        picked += 1
-        continue
-      }
-      chosen.append(chip.label)
-      chip.tap()
-      picked += 1
-      sleep(1)
-    }
-    print("=====INTERESTS_PICKED \(picked) \(chosen)=====")
-    XCTAssertGreaterThan(picked, 0, "the interests picker offered nothing tappable")
-
-    // Persist — the control is a Save/Done depending on the picker's state.
-    _ = Journey.tap(app, labels: ["Save", "Done", "Save interests"], contains: true, timeout: 10)
-    sleep(4)
-    Journey.inventory(app, "interests-after")
     Journey.shot(self, "10-interests-after")
 
-    XCTAssertNil(
-      Journey.find(app, labels: ["No interests chosen yet"], contains: true, timeout: 5),
-      "interests card still shows its empty state after choosing interests"
-    )
-
-    // Interests feed Home's recommendations, so Home must REFLECT them — the first cut of this test
-    // only screenshotted Home afterwards, which proves nothing. Two observable consequences:
-    // the "personalize your Home" prompt stops asking, and a chosen interest appears in the feed.
+    // Interests feed Home's recommendations, so Home must REFLECT them: it stops asking.
     Journey.openTab(app, "Home")
     sleep(6)
-    Journey.inventory(app, "home-after-interests")
     Journey.shot(self, "10-home-after-interests")
-
     XCTAssertNil(
       Journey.find(app, labels: ["Choose interests"], contains: true, timeout: 5),
       "Home is still prompting to choose interests after interests were chosen"
     )
-    // NOT asserted: that a chosen label appears verbatim on Home. Interests are semantic CLUSTERS
-    // ("Show Themes"), while the Home rails list the TOPICS inside them ("systems thinking") — so
-    // matching the cluster label on Home tests a relationship the product does not claim. The
-    // honest Home-side consequence is the one asserted above: it stops asking you to choose.
-    //
-    // Where they DO render verbatim is the Profile Topics tab, which is what "see if they render"
-    // means — so that is checked at the source.
+
+    // And they were WRITTEN, not just flipped on screen: back on Profile they are still there.
     Journey.openProfile(app, labels: profileLabels)
     sleep(3)
-    _ = Journey.tap(app, labels: ["Topics"], timeout: 10)
+    _ = Journey.tap(app, labels: ["Interests"], timeout: 10)
     sleep(3)
-    Journey.inventory(app, "profile-topics-after-pick")
-    Journey.shot(self, "10-profile-topics-after-pick")
     XCTAssertNotNil(
-      Journey.scrollTo(app, labels: chosen),
-      "none of the interests just chosen (\(chosen)) render on the Profile Topics tab"
+      Journey.scrollTo(app, labels: followed.map { "Stop following \($0)" }),
+      "none of the interests just followed (\(followed)) are on the Profile Interests tab after leaving it"
     )
   }
 }

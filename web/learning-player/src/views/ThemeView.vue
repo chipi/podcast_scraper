@@ -20,6 +20,7 @@
  * anchor's card carries the cluster. A theme has a real id and a real endpoint, so it uses them: a
  * theme link stays valid even when its biggest member changes, which an anchor-topic link does not.
  */
+import CollapsibleSection from "../components/CollapsibleSection.vue"
 import { computed, defineAsyncComponent, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
@@ -31,6 +32,8 @@ import AddToCollectionButton from "../components/AddToCollectionButton.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
 import FollowButton from "../components/FollowButton.vue"
 import NoteComposer from "../components/NoteComposer.vue"
+import ShowAllToggle from "../components/ShowAllToggle.vue"
+import { useCappedSections } from "../composables/useCappedSections"
 import TopicPerspectives from "../components/TopicPerspectives.vue"
 import ShareMenu from "../components/ShareMenu.vue"
 import TopVoices from "../components/TopVoices.vue"
@@ -93,6 +96,9 @@ const loading = ref(true)
 const failed = ref(false)
 const label = ref("")
 const topics = ref<Member[]>([])
+// Member topics page five at a time (operator 2026-10-05): the server sends the whole grouping.
+const memberCaps = useCappedSections(5, 5)
+const pagedTopics = computed(() => memberCaps.visible("members", topics.value))
 const people = ref<Entity[]>([])
 const episodes = ref<EpisodeSummary[]>([])
 
@@ -172,7 +178,7 @@ function goBack(): void {
 
 <template>
   <section
-    :class="embedded ? '' : 'mx-auto max-w-3xl px-4 pb-8 pt-4'"
+    :class="embedded ? '' : 'lp-page pb-8 pt-4'"
     data-testid="theme-view"
   >
     <!-- Back on its own row. Suppressed when embedded — the sheet closes with its own ✕. -->
@@ -191,7 +197,7 @@ function goBack(): void {
          row, then actions on theirs. -->
     <div :class="embedded ? '' : 'mt-3'">
       <div class="flex items-start justify-between gap-3">
-        <span class="lp-kicker min-w-0 text-theme">{{ t("home.themes") }}</span>
+        <span class="lp-kicker min-w-0 text-theme">{{ t("ec.theme") }}</span>
         <!-- Close ✕ — embedded only; standalone uses the Back row above. -->
         <button
           v-if="embedded"
@@ -246,44 +252,60 @@ function goBack(): void {
       <!-- The members, ranked by how much of the corpus each carries, so the first row is the one a
            reader is most likely to recognise. The heading is the product distinction: these mean
            the same thing, as against a storyline's "discussed together". -->
-      <!-- ORDER (operator 2026-10-01): members -> what they SAID -> episodes -> voices.
-           The quotes used to sit at the foot, under the episode list, where nobody reaching the
-           page ever saw them — the episode list is long, so the one section that explains what the
-           grouping is about sat below ~4,000px of it. They now answer "what is this?" before the
-           page offers "here is everything in it".
-
-           The quotes go DIRECTLY between the member list and the episode list, with nothing in
-           between: "between topics, list of topics, and the list of episodes ... on all three
-           surfaces". Top voices moves below the episodes rather than staying beside the quotes —
-           pairing the faces with what they argued was my addition, not the request. -->
-      <section class="mt-6">
-        <h2 class="lp-section mb-2">{{ t("home.themeTopicsHeading") }}</h2>
-        <ol class="flex flex-col">
-          <li v-for="(tp, i) in topics" :key="tp.id">
-            <RouterLink
-              :to="{ name: 'topic', params: { id: tp.id } }"
-              class="flex items-center gap-3 border-b border-border py-2 text-canvas-foreground no-underline hover:bg-overlay"
-              @click="openEntity('topic', tp.id, $event)"
-            >
-              <span class="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-muted">{{
-                i + 1
-              }}</span>
-              <span class="min-w-0 flex-1 truncate text-sm font-semibold text-topic">{{
-                tp.label
-              }}</span>
-              <MemberTrendBadge
-                :trend="tp.trend"
-                :first-seen="tp.firstSeen"
-                :last-seen="tp.lastSeen"
-              />
-              <span class="shrink-0 text-xs tabular-nums text-muted" data-testid="member-episodes">{{
-                t("home.memberEpisodes", tp.episodeCount, { named: { n: tp.episodeCount } })
-              }}</span>
-              <span class="shrink-0 text-muted" aria-hidden="true">›</span>
-            </RouterLink>
-          </li>
-        </ol>
+      <!-- ORDER (operator 2026-10-05): members + top voices -> what they SAID -> episodes.
+           Top voices moved up beside the member list — side by side, half the width each, on the
+           desktop page; stacked on a phone and in the sheet. The episode list closes the page at
+           full width. (2026-10-01 had members -> said -> episodes -> voices: the quotes moved up
+           from the foot, where the long episode list hid them; that part stands.) -->
+      <div :class="embedded ? '' : 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-6'" data-testid="theme-opening-pair">
+      <section class="mt-6" data-testid="theme-topics">
+        <CollapsibleSection :title="t('home.themeTopicsHeading')" section-key="theme-topics" :level="2">
+          <ol class="flex flex-col">
+            <li v-for="(tp, i) in pagedTopics" :key="tp.id">
+              <RouterLink
+                :to="{ name: 'topic', params: { id: tp.id } }"
+                class="flex items-center gap-3 border-b border-border py-2 text-canvas-foreground no-underline hover:bg-overlay"
+                @click="openEntity('topic', tp.id, $event)"
+              >
+                <span class="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-muted">{{
+                  i + 1
+                }}</span>
+                <span class="min-w-0 flex-1 truncate text-sm font-semibold text-topic">{{
+                  tp.label
+                }}</span>
+                <MemberTrendBadge
+                  :trend="tp.trend"
+                  :first-seen="tp.firstSeen"
+                  :last-seen="tp.lastSeen"
+                />
+                <span class="shrink-0 text-xs tabular-nums text-muted" data-testid="member-episodes">{{
+                  t("home.memberEpisodes", tp.episodeCount, { named: { n: tp.episodeCount } })
+                }}</span>
+                <span class="shrink-0 text-muted" aria-hidden="true">›</span>
+              </RouterLink>
+            </li>
+          </ol>
+          <ShowAllToggle
+            v-if="memberCaps.overflows(topics.length, false, 'members')"
+            :expanded="memberCaps.remaining('members', topics.length) === 0"
+            :count="topics.length"
+            :remaining="memberCaps.remaining('members', topics.length)"
+            data-testid="members-more"
+            @toggle="memberCaps.toggle('members', topics.length)"
+          />
+        </CollapsibleSection>
       </section>
+
+      <!-- Counted across the whole union, so these are the voices that recur across the theme
+           rather than inside one member. -->
+      <TopVoices
+        class="mt-6"
+        :people="people"
+        :heading-level="2"
+        :route-for="(pid) => ({ name: 'person', params: { id: pid } })"
+        @open="(pid, e) => openEntity('person', pid, e)"
+      />
+      </div>
 
       <!-- What is SAID across the grouping — its members' insights, grouped by speaker, each with
            a jump-to-moment link. Until this, nothing on either grouping page was a sentence anybody
@@ -301,25 +323,17 @@ function goBack(): void {
       <!-- The MERGED list: every episode discussing any member, de-duplicated. This is the page's
            reason to exist — a reader on one member's topic page sees only that member's episodes,
            and a similarity grouping exists precisely because that misses the rest. -->
-      <section v-if="episodes.length" class="mt-6">
-        <h2 class="lp-section mb-2 flex flex-wrap items-baseline gap-x-2">
-          <span>{{
-            t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } })
-          }}</span>
-          <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
-        </h2>
-        <EntityEpisodeList :episodes="episodes" />
+      <section v-if="episodes.length" class="mt-6" data-testid="theme-episodes">
+        <CollapsibleSection section-key="theme-episodes" :level="2">
+          <template #title>
+            <span>{{
+              t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } })
+            }}</span>
+            <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
+          </template>
+          <EntityEpisodeList :episodes="episodes" />
+        </CollapsibleSection>
       </section>
-
-      <!-- Counted across the whole union, so these are the voices that recur across the theme
-           rather than inside one member. -->
-      <TopVoices
-        class="mt-6"
-        :people="people"
-        :heading-level="2"
-        :route-for="(pid) => ({ name: 'person', params: { id: pid } })"
-        @open="(pid, e) => openEntity('person', pid, e)"
-      />
 
 
       <!-- Notes, like the storyline and topic pages. Keyed by the theme's own id. -->

@@ -20,15 +20,15 @@ function onClose(): void {
 </script>
 
 <template>
-  <!-- NO horizontal padding here (operator 2026-09-30). The card inside (EntityCardBody) pads its
-       own header and body with `px-4`, so a `px-4` on this wrapper too put 32px of gutter on each
-       side — visibly narrower than the storyline page, whose single `px-4` is the app's page gutter.
-       The card's padding IS the gutter; this wrapper only centres and caps the width. -->
+  <!-- The one page width (`lp-page`) and the app shell's gutter, nothing more (operator 2026-10-05).
+       The card is `flush` here: on this route it IS the page, so its content starts at the same left
+       edge as every other page. It once padded itself `px-4` inside a centred 768px column, and a
+       `px-4` on this wrapper too had made it 32px a side (2026-09-30). -->
   <section
-    class="mx-auto max-w-3xl pb-8 pt-4"
+    class="lp-page pb-8 pt-4"
     data-testid="person-view"
     :aria-label="t('browse.personPage')"
   >
-    <EntityCardBody kind="person" :id="props.id" variant="inline" root-control="close" @close="onClose" />
+    <EntityCardBody kind="person" :id="props.id" variant="inline" root-control="close" flush @close="onClose" />
   </section>
 </template>

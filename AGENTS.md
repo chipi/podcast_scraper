@@ -855,8 +855,12 @@ can hide a drift-induced native crash that only surfaces in CI.
 
 ### CI gating: run the right validation, not always the heaviest
 
-- Default: `make ci-fast` before committing.
-- Viewer-heavy diff: `make ci-ui-fast` (Playwright instead of Python e2e).
+- Backend diff (pipeline, providers, data, server): `make ci-fast` — static checks, fast Python
+  tiers incl. the fast Python e2e, docs, build. It runs NO viewer or player tests or builds.
+- UI diff (`web/gi-kg-viewer/`, `web/learning-player/`), or a backend change the apps depend on:
+  `make ci-ui-fast` — the same static checks, fast Python tiers without Python e2e, and both apps'
+  unit tests, Playwright e2e and builds.
+- `make ci` runs everything (the `main` equivalent).
 - Skip a duplicate full run when the same target already passed in this
   session and no substantive edits were made after.
 - **No redundant ci-fast runs** to verify a small fix. Run the subtarget

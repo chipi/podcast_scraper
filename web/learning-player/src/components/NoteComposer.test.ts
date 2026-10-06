@@ -56,6 +56,23 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('NoteComposer', () => {
+  it('lists notes newest first, five at a time', async () => {
+    // Operator 2026-10-05: notes page in fives; the store's order is oldest-first, so without the
+    // sort the newest note would be the one behind "Show more".
+    const note = (i: number): Note => ({
+      id: `n${i}`, target: 'episode', target_id: 'ep1', text: `note ${i}`, created_at: 1000 + i, updated_at: 1000 + i,
+    } as Note)
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([])
+    vi.spyOn(api, 'getNotes').mockResolvedValue(Array.from({ length: 7 }, (_, i) => note(i)))
+    const w = mountComposer()
+    await flushPromises()
+    const texts = () => w.findAll('[data-testid="note-item"]').map((li) => li.find('p').text())
+    expect(texts()).toEqual(['note 6', 'note 5', 'note 4', 'note 3', 'note 2'])
+    await w.get('[data-testid="notes-more"]').trigger('click')
+    expect(texts()).toHaveLength(7)
+    expect(texts().at(-1)).toBe('note 0')
+  })
+
   it('adds a note for the target and shows it with a timestamp', async () => {
     const created: Note = {
       id: 'n1',

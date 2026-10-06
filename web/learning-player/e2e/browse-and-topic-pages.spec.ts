@@ -113,3 +113,97 @@ test('the catalogue groups by time, and stops when time is not the order', async
     ).toHaveCount(0)
   }
 })
+
+/**
+ * Discover's trending-shows header is as wide as its tiles (operator 2026-10-05): "all ›" ends where
+ * the last tile ends. With fewer shows than a full row (2 in this corpus), a full-width header put
+ * it at the far edge of an empty half-row. Checked at the phone and the desktop tile counts.
+ */
+for (const viewport of [
+  { width: 412, height: 915 },
+  { width: 1440, height: 900 },
+]) {
+  test(`the trending-shows "all ›" ends where the last tile ends at ${viewport.width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport)
+    await signInIsolated(page, `trending-header-${viewport.width}`, testInfo)
+    await page.goto('/browse')
+    const rail = page.getByTestId('trending-shows-rail')
+    const tiles = rail.getByTestId('trending-show-card')
+    await expect(tiles.first()).toBeVisible()
+    const all = await rail.getByTestId('trending-shows-seeall').boundingBox()
+    const last = await tiles.last().boundingBox()
+    const right = (b: { x: number; width: number } | null) => Math.round((b?.x ?? 0) + (b?.width ?? 0))
+    expect(Math.abs(right(all) - right(last))).toBeLessThanOrEqual(1)
+  })
+}
+
+/**
+ * A filter or search row spans the width of the list under it (operator 2026-10-05). The shared
+ * `.lp-search` rule capped the field at 34rem, so on desktop the All-episodes filter row ended 441px
+ * short of its list and the Search row 570px short. The row's last control must end where its
+ * area ends — at the phone and the desktop width.
+ */
+for (const viewport of [
+  { width: 412, height: 915 },
+  { width: 1440, height: 900 },
+]) {
+  test(`filter and search rows end where their list ends at ${viewport.width}px`, async ({ page }, testInfo) => {
+    await signInIsolated(page, `filter-row-${viewport.width}`, testInfo)
+    await page.setViewportSize(viewport)
+    const right = (b: { x: number; width: number } | null) => Math.round((b?.x ?? 0) + (b?.width ?? 0))
+    for (const [url, placeholder, rowXpath] of [
+      ['/catalog', 'Filter this list…', 'xpath=..'],
+      ['/search?q=reliability', 'Search across every episode…', 'xpath=ancestor::form[1]'],
+    ] as const) {
+      await page.goto(url)
+      const input = page.getByPlaceholder(placeholder)
+      await expect(input).toBeVisible()
+      const row = input.locator(rowXpath)
+      const lastControl = await row.locator('xpath=./*[last()]').boundingBox()
+      const area = await row.locator('xpath=..').boundingBox()
+      expect(Math.abs(right(lastControl) - right(area)), url).toBeLessThanOrEqual(1)
+    }
+  })
+}
+
+/**
+ * The other five search / filter rows on the shared `.lp-search` rule end where the content under
+ * them ends too (operator 2026-10-05). Measured from the field outward: the outermost flex row it
+ * sits in must end at its container's right edge.
+ */
+test('every other search / filter row ends where its area ends', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await signInIsolated(page, 'filter-rows-all', testInfo)
+  // Library's saved filter needs something saved; the Boards filter needs a board.
+  const eps = (await (await page.request.get('/api/app/episodes?page_size=1')).json()) as { items: { slug: string; title: string }[] }
+  expect((await page.request.put('/api/app/favorites', { data: { kind: 'episode', ref: eps.items[0].slug, label: eps.items[0].title } })).ok()).toBeTruthy()
+  expect((await page.request.post('/api/app/collections', { data: { name: 'Filter row board' } })).ok()).toBeTruthy()
+  const gap = (selector: string) =>
+    page.evaluate((sel) => {
+      const field = document.querySelector(sel)!
+      let row: Element = field
+      while (row.parentElement && getComputedStyle(row.parentElement).display === 'flex') row = row.parentElement
+      if (row === field) row = field.parentElement!
+      const kids = Array.from(row.children).filter((c) => c.getBoundingClientRect().width > 0)
+      const end = Math.max(...kids.map((k) => k.getBoundingClientRect().right))
+      return Math.round(row.parentElement!.getBoundingClientRect().right - end)
+    }, selector)
+  const cases: [string, string, () => Promise<void>][] = [
+    ['/', '[data-testid="home-search-input"]', async () => {}],
+    ['/library?tab=saved', '[data-testid="saved-search"]', async () => {}],
+    ['/library?tab=collections', 'input.lp-search', async () => {}],
+    ['/profile?tab=interests', '[data-testid="interest-search-topic"]', async () => {
+      await page.getByTestId('interest-add-topic').click()
+    }],
+    ['/podcast/p05', '#kp-ask', async () => {
+      await page.getByText('Index Investing Without the Myths').first().click()
+      await page.getByTestId('player-open-insights').click()
+    }],
+  ]
+  for (const [url, selector, open] of cases) {
+    await page.goto(url)
+    await open()
+    await page.locator(selector).first().waitFor()
+    expect(Math.abs(await gap(selector)), `${url} ${selector}`).toBeLessThanOrEqual(1)
+  }
+})

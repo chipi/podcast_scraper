@@ -20,7 +20,7 @@ const UPDATED = '4 October 2026'
 </script>
 
 <template>
-  <article class="space-y-5 text-sm leading-relaxed" data-testid="privacy-policy">
+  <article class="lp-prose space-y-5 text-sm leading-relaxed" data-testid="privacy-policy">
     <div
       v-if="DRAFT_OPEN.length"
       class="rounded-2xl border border-border p-4"

@@ -78,6 +78,7 @@ export const SOURCES = [
   'home_key_voices',
   'home_momentum',
   'home_trending_topics',
+  'home_themes',
   'home_trending_shows',
   'home_storylines',
   'browse',
@@ -212,7 +213,7 @@ export const EVENT_NAMES = [
 export type EventName = (typeof EVENT_NAMES)[number]
 
 /** Kinds of thing a user can follow, open or capture against. */
-export type EntityKind = 'topic' | 'person' | 'show' | 'storyline'
+export type EntityKind = 'topic' | 'person' | 'show' | 'storyline' | 'theme'
 
 /**
  * The props each event carries. `undefined` means the event takes none.
@@ -255,6 +256,7 @@ export type EventProps = {
       | 'key_voices'
       | 'momentum'
       | 'trending_topics'
+      | 'themes'
       | 'trending_shows'
       | 'storylines'
     rank: RankBucket

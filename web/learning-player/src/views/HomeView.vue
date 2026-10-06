@@ -9,14 +9,13 @@
 import { computed, onActivated, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 defineOptions({ name: "HomeView" }) // stable name for <keep-alive :include> (App.vue)
-import { RouterLink, useRouter } from "vue-router"
+import { RouterLink } from "vue-router"
 import {
   getDiscover,
   getEpisode,
   getPlaybackList,
   getPodcasts,
   getRelated,
-  getTrendingTopics,
   recordDiscoverClick,
 } from "../services/api"
 import type { EpisodeDetail, EpisodeSummary, Podcast } from "../services/types"
@@ -40,25 +39,24 @@ import { usePlayed } from "../composables/usePlayed"
 import EntityCard from "../components/EntityCard.vue"
 import InterestsPicker from "../components/InterestsPicker.vue"
 import KeyVoicesRail from "../components/KeyVoicesRail.vue"
-import DiscoveryExplorer from "../components/DiscoveryExplorer.vue"
+import SearchSection from "../components/SearchSection.vue"
+import TrendsSection from "../components/TrendsSection.vue"
 import CollectionsTeaser from "../components/CollectionsTeaser.vue"
 import RevisitRail from "../components/RevisitRail.vue"
 import SectionHeading from "../components/SectionHeading.vue"
-import { useIsDesktop } from "../composables/useMediaQuery"
 import TrendingShowsRail from "../components/TrendingShowsRail.vue"
 import EpisodeActions from "../components/EpisodeActions.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
 import QueueButton from "../components/QueueButton.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import StorylineCard from "../components/StorylineCard.vue"
+import ThemeCard from "../components/ThemeCard.vue"
 import RecapPrompt from "../components/RecapPrompt.vue"
 import YourWeek from "../components/YourWeek.vue"
 
 const INTERESTS_DISMISSED_KEY = "lp.interests.dismissed"
 
 const { t, locale } = useI18n()
-const isDesktop = useIsDesktop()
-const router = useRouter()
 const auth = useAuthStore()
 const library = useLibraryStore()
 const userPrefs = useUserPreferencesStore()
@@ -115,7 +113,6 @@ watch(recommended, () => {
 const continueItems = computed(() =>
   continueSection.data.value.filter((x) => !isPlayed(x.detail.slug))
 )
-const query = ref("")
 
 // Trending-topic chip → open the topic entity card (overlay), same surface as Search.
 const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
@@ -136,6 +133,7 @@ const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
  */
 const DISCOVERY_SOURCE = {
   topic: "home_trending_topics",
+  theme: "home_themes",
   person: "home_key_voices",
   storyline: "home_storylines",
 } as const
@@ -143,12 +141,13 @@ const DISCOVERY_SOURCE = {
 /** The rail name `home_rail_click` reports, for the same three kinds. */
 const DISCOVERY_RAIL = {
   topic: "trending_topics",
+  theme: "themes",
   person: "key_voices",
   storyline: "storylines",
 } as const
 
 function onDiscoveryOpen(p: {
-  kind: "topic" | "storyline" | "person"
+  kind: "topic" | "theme" | "storyline" | "person"
   id: string
   rank: number
 }): void {
@@ -162,6 +161,7 @@ function onDiscoveryOpen(p: {
     source: DISCOVERY_SOURCE[p.kind],
   })
   if (p.kind === "storyline") storylineTarget.value = p.id
+  else if (p.kind === "theme") themeTarget.value = p.id
   else cardTarget.value = { kind: p.kind, id: p.id }
 }
 // #9 / F4.5 — a tapped storyline opens as a dismissible OVERLAY card (StorylineCard), the same
@@ -169,6 +169,8 @@ function onDiscoveryOpen(p: {
 // 2026-09-14: the two must feel the same). The `/storyline/:id` route stays for deep-links/sharing;
 // StorylineCard adds a `?storyline=` history entry so hardware Back closes the card, not the page.
 const storylineTarget = ref<string | null>(null)
+// A tapped theme opens ON TOP the same way (ThemeCard, by the theme's own `tc:` id).
+const themeTarget = ref<string | null>(null)
 
 // First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
 const interestsDismissed = ref(false)
@@ -320,39 +322,7 @@ async function loadFollowedShows(): Promise<void> {
  */
 const epArt = episodeArtwork
 
-/**
- * Topic chips under the hero search field (#1964 follow-up, UXS-012 §103).
- *
- * The hero's kicker is `topic`-toned by spec, but it was the only topic-coloured thing on the
- * screen — so the colour read as decoration rather than as "this is topic territory". These chips
- * give it siblings AND make the hero answerable: it says "ask across every episode" and then
- * offered an empty box you had to already know what to type into.
- *
- * Reuses `getTrendingTopics()`, which is memoised and already fetched for the momentum rail, so
- * this costs no extra request. Silent on failure — a hero that renders without chips is fine; one
- * that renders an error where its examples should be is not.
- */
-const heroTopics = ref<Array<{ id: string; label: string }>>([])
-
-async function loadHeroTopics(): Promise<void> {
-  try {
-    const res = await getTrendingTopics()
-    heroTopics.value = (res.topics ?? [])
-      .slice(0, 4)
-      .map((t) => ({ id: t.topic_id, label: t.topic_label || t.topic_id.split(":").pop() || "" }))
-      .filter((t) => t.label)
-  } catch {
-    heroTopics.value = []
-  }
-}
-
-function goSearch(q: string): void {
-  const term = q.trim()
-  if (term) void router.push({ name: "search", query: { q: term } })
-}
-
 onMounted(async () => {
-  void loadHeroTopics()
   try {
     interestsDismissed.value = localStorage.getItem(INTERESTS_DISMISSED_KEY) === "1"
   } catch {
@@ -382,10 +352,6 @@ onMounted(async () => {
 // (App.vue), unlike onMounted which runs once. So returning to Home refreshes the resume hero without
 // factory-refreshing the whole page (#1 — the rest stays cached).
 onActivated(async () => {
-  // The Ask box is kept-alive too, so it held whatever you last typed. Returning to Home and
-  // finding a stale query in it reads as the app remembering something you did not ask it to —
-  // the same clear Discovery's box does.
-  query.value = ""
   if (!(auth.isAuthenticated || !auth.loaded)) {
     continueSection.phase.value = "ready" // signed out: nothing to resume is the truth, not a gap
     return
@@ -662,88 +628,24 @@ async function loadContinue(): Promise<void> {
 
          Half width from `lg`, matching Discover: a trend row is a short label against a sparkline +
          multiplier + follow, and across the full column those two clusters sit ~500px apart. -->
-    <!-- Discovery and Revisit share the row on `lg` (operator 2026-09-18). Discovery has been
-         half-width since it was titled, which left the right half of the column EMPTY on desktop —
-         this is the gap the rail was asked to fill, so the two sit side by side rather than the
-         rail pushing everything below it down a screen. Stacked on phones, where there is one
-         column and no gap to fill. -->
+    <!-- Search, then Trends — the same two sections, in the same order, that Discover renders
+         (operator 2026-10-05: Home and Discover are one screen family and must look identical; each
+         section owns its own spacing so neither page can wrap it differently). Left half on `lg`, with
+         the revisit rail and the boards teaser stacked in the right half; stacked on phones. -->
     <div class="lg:flex lg:items-start lg:gap-8">
-      <section class="mt-7 lg:w-1/2 lg:pr-4" data-testid="home-discovery">
-        <!-- Five rows on desktop, three on a phone (operator 2026-09-18). Trends sits beside the
-             revisit rail, which is taller, so at three rows the column ended ~110px short and left
-             a hole under it. A prop cannot be set by a media query in CSS, hence `useIsDesktop`. -->
-        <DiscoveryExplorer
-          :collapsed="isDesktop ? 5 : 3"
-          :title="t('browse.trendsTitle')"
-          @open="onDiscoveryOpen"
-        />
-      </section>
+      <div class="lg:w-1/2 lg:pr-4">
+        <SearchSection prefix="home" />
+        <TrendsSection prefix="home" @open="onDiscoveryOpen" />
+      </div>
       <div class="lg:w-1/2">
         <RevisitRail />
-      </div>
-    </div>
-
-    <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Placed under Your Week so
-         the forward-looking digest ("what to play") comes first and this is the quieter follow-up.
-         Self-hides when there is nothing to look back on. -->
-    <RecapPrompt />
-
-    <!-- Search (H.3): the "Ask across every episode" title + box moved DOWN here together from under
-         the hero, so the top of Home leads with the resume hero + the trending rails. Topic chips are
-         the tappable entry points. testids unchanged across the move. -->
-    <!-- The ask box and the boards teaser share the row on `lg` (operator 2026-09-18). The ask box
-         is deliberately capped (a full-bleed input flung the Search button to the far right), so
-         the right of this row was empty on desktop — the same gap the revisit rail filled beside
-         Trends. Stacked on phones. -->
-    <div class="lg:flex lg:items-start lg:gap-8">
-    <section class="mt-7 lg:w-1/2" data-testid="home-search-section">
-      <!-- The same heading tier as every other section. It was `font-display text-2xl` — a third
-           title size on one page — and its kicker ("Ask across every episode") restated the title
-           beneath it. No kicker: the pattern is a count or a date, and this section has neither. -->
-      <SectionHeading :title="t('ask.title')" />
-      <!-- Cap the ask box: full-bleed on a wide desktop flung the Search button to the far right
-           with an oversized input between (mobile-first layout, unbounded wide). -->
-      <form class="lp-search mt-3 flex gap-2" @submit.prevent="goSearch(query)">
-        <label class="sr-only" for="home-search">{{ t("ask.kicker") }}</label>
-        <input
-          id="home-search"
-          v-model="query"
-          type="search"
-          :placeholder="t('ask.placeholder')"
-          data-testid="home-search-input"
-          class="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm"
-        />
-        <button
-          type="submit"
-          data-testid="home-search-submit"
-          class="h-11 shrink-0 rounded-full bg-accent px-5 font-bold text-accent-foreground"
-        >
-          {{ t("search.title") }}
-        </button>
-      </form>
-      <!-- Just TWO examples (operator): a single row that always fits, rather than scrolling a
-           longer list that got visibly clipped at the screen edge. -->
-      <div
-        v-if="heroTopics.length"
-        data-testid="home-topic-chips"
-        class="mt-3 flex flex-wrap gap-2"
-      >
-        <button
-          v-for="tp in heroTopics.slice(0, 2)"
-          :key="tp.id"
-          type="button"
-          data-testid="home-topic-chip"
-          class="rounded-full border border-topic/40 px-3 py-1.5 text-sm font-semibold text-topic transition hover:bg-overlay"
-          @click="goSearch(tp.label)"
-        >
-          {{ tp.label }}
-        </button>
-      </div>
-    </section>
-      <div class="lg:w-1/2">
         <CollectionsTeaser />
       </div>
     </div>
+
+    <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Self-hides when there is
+         nothing to look back on. -->
+    <RecapPrompt />
 
     <!-- What's new and Trending shows SHARE a desktop row, half each (operator 2026-09-17). Both are
          narrow-by-nature lists — a ranked chart and a stack of show bands — that were each stretched
@@ -983,5 +885,6 @@ async function loadContinue(): Promise<void> {
       :id="storylineTarget"
       @close="storylineTarget = null"
     />
+    <ThemeCard v-if="themeTarget" :id="themeTarget" @close="themeTarget = null" />
   </section>
 </template>

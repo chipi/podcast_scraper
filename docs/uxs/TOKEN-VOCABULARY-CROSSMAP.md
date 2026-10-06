@@ -18,11 +18,11 @@ theme; the consumer app repaints through visual directions (`src/theme/direction
 | Concept | Operator viewer (`--ps-*`) | Consumer app (`--lp-*`) |
 | --- | --- | --- |
 | `accent` | **Alias of `primary`** (`#4c90f0`), used freely across shell chrome — `tailwind.config.js` maps both names to `--ps-primary`. | **Per-show adaptive**, derived from the artwork and contrast-clamped, default `#efa843`. Spent **only** on things a finger can act on: focus rings, `aria-selected` state, `.lp-fav` hover/pressed (#2013). Enforced by `accent-discipline.test.ts`. |
-| `topic` | Teal `#7cd0d4` — a KG identity hue. | Cool grey `#a8b0c6` — deliberately quiet; knowledge hues separate by temperature and value, not saturation. |
-| `person` | Peach `#ffb37a`. | Warm grey `#ccc7bb`. |
+| `topic` | Teal `#7cd0d4` — a KG identity hue. | Violet `#b98cff`. Until 2026-10-04 a cool grey (`#a8b0c6`); each knowledge kind now has its own hue (UXS-011). |
+| `person` | Peach `#ffb37a`. | Orange `#ff9f5a` (was warm grey `#ccc7bb`). |
 | `grounded` | **Alias of `gi`** (`#7dd3a0`) — grounding is the GI layer's colour. | Its own sage `#9fb8a4`; no `gi`/`kg` tokens exist in the consumer app. |
 | `warning` | Orange `#ec9a3c`. | Amber `#efa843` — the same value as the brand default, so a warning and the default accent share a hue; meaning is carried by placement and text. |
-| `theme` | **Topics discussed together** (co-occurrence) — teal `#7dd3c0`. | **Topics that mean the same thing** (similarity) — lilac `#a9a3c6`. **Same word, different data** — see *Topic groupings* below. |
+| `theme` | **Topics discussed together** (co-occurrence) — teal `#7dd3c0`. | **Topics that mean the same thing** (similarity) — blue `#99b9f4` (was lilac `#a9a3c6`); storylines are cyan `#5ce1e6`. **Same word, different data** — see *Topic groupings* below. |
 
 ## Topic groupings — the same word means different data
 

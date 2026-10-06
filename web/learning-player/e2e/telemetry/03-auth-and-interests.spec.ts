@@ -121,19 +121,17 @@ test.describe('interests picker', () => {
     await page.goto('/api/app/auth/login?as=telemetry-interests')
     await page.waitForLoadState('networkidle')
 
-    await page.goto('/profile')
-    // Interests live under the Topics tab.
-    const edit = page.getByTestId('profile-edit-interests')
-    if (!(await edit.isVisible().catch(() => false))) {
-      await page.getByRole('tab', { name: /topics/i }).click().catch(() => {})
-    }
-    await edit.click()
+    // The picker is the onboarding sheet, opened from Home's "Personalize your Home" card; Profile
+    // edits interests in place since 2026-10-04 and no longer opens it.
+    await page.goto('/')
+    const open = page.getByRole('button', { name: 'Choose interests' })
+    await open.click()
 
     const shown = await sink.waitForEvent('interests_picker_shown')
     expect(
       shown.data,
-      'the trigger separates the home prompt from a deliberate profile edit — two very different intents',
-    ).toMatchObject({ trigger: 'profile' })
+      'the trigger separates the home prompt from other entry points — different intents',
+    ).toMatchObject({ trigger: 'home_prompt' })
 
     // Dismiss without saving → dismissed, NOT saved.
     await page.getByTestId('interests-cancel').click()
@@ -144,8 +142,9 @@ test.describe('interests picker', () => {
     ).toHaveLength(0)
 
     // Now actually save something.
-    await page.getByTestId('profile-edit-interests').click()
-    const chip = page.locator('[data-testid="interests-topics"] button').first()
+    await open.click()
+    await page.getByTestId('interest-add-topic').click()
+    const chip = page.getByTestId('interest-suggestion').first()
     await expect(chip, 'the picker needs real clusters to have something to choose').toBeVisible()
     await chip.click()
     // `interests-save`, not `interests-close`: close and cancel both route through `closeSheet()`,

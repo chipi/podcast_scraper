@@ -11,6 +11,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import CollapsibleSection from './CollapsibleSection.vue'
 import SectionStatus from './SectionStatus.vue'
 import { useSectionState } from '../composables/useSectionState'
 import { getPodcastSignals } from '../services/api'
@@ -139,109 +140,112 @@ const hasAny = computed(
     class="mb-6 rounded-2xl border border-border bg-surface p-4"
     data-testid="podcast-signals"
   >
-    <h2 class="lp-section mb-3">{{ t('podcast.about') }}</h2>
-
-    <div v-if="themes.length" class="mb-3">
-      <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigStorylines') }}</h3>
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          v-for="th in themes"
-          :key="th.storyline_id"
-          type="button"
-          data-testid="ps-theme"
-          class="lp-storyline-chip rounded-full px-2.5 py-1 text-xs font-semibold text-surface-foreground transition disabled:opacity-60"
-          :disabled="!th.anchor_topic_id"
-          @click="th.anchor_topic_id && emit('open', { kind: 'storyline', id: th.anchor_topic_id })"
-        >
-          {{ th.label }} <span class="opacity-70">· {{ th.topic_count }}</span>
-        </button>
-      </div>
-    </div>
-
-    <!--
-      What sets this show apart, ahead of what it merely covers. These chips are exactly as
-      clickable as the "other topics" ones below (both open the topic card) — the distinction is
-      informational, not an affordance, so font-weight carries it instead of the accent (#2013).
-    -->
-    <div v-if="distinctiveTopics.length" class="mb-3">
-      <h3 class="lp-kicker mb-1.5" data-testid="ps-distinctive-heading">
-        {{ t('podcast.sigDistinctive') }}
-      </h3>
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          v-for="tp in distinctiveTopics"
-          :key="tp.topic_id"
-          type="button"
-          data-testid="ps-distinctive-topic"
-          :title="t('podcast.sigDistinctiveHint', { factor: formatLift(tp.lift) })"
-          class="rounded-full border border-border bg-overlay px-2.5 py-1 text-xs font-semibold text-surface-foreground transition hover:bg-elevated"
-          @click="emit('open', { kind: 'topic', id: tp.topic_id })"
-        >
-          {{ tp.label }}
-        </button>
-      </div>
-    </div>
-
-    <div v-if="otherTopics.length" class="mb-3">
-      <!-- Plain "Topics" — the section pairs with "Distinctive to this show" above (operator: the
-           coverage-claim variants + a separate Trending row read as clutter). -->
-      <h3 class="lp-kicker mb-1.5" data-testid="ps-topics-heading">{{ t('podcast.sigTopics') }}</h3>
-      <div class="flex flex-wrap gap-1.5">
-        <button
-          v-for="tp in otherTopics"
-          :key="tp.topic_id"
-          type="button"
-          data-testid="ps-topic"
-          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
-          @click="emit('open', { kind: 'topic', id: tp.topic_id })"
-        >
-          {{ tp.label }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Corpus-wide "Trending here" row removed from the show page (operator): its velocity is
-         corpus-wide, not this-show-specific, so it read as clutter beside the distinctive/topics. -->
-
-    <div v-if="people.length">
-      <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigPeople') }}</h3>
-      <div class="flex flex-wrap gap-1.5">
-        <!--
-          Role badge + role ORDER (operator 2026-09-27): mark people host/guest/mentioned in the
-          same style as the episode Insights panel, and order by it too.
-
-          Same markup and the same i18n keys as `kp-person-role` (`ec.roleHost` / `ec.roleGuest` /
-          `ec.roleMentioned`), so one idea has one appearance across the two surfaces that list
-          people.
-
-          The ORDER is server-side, in `feed_signals.key_people` — host > guest > mentioned, then
-          footprint, then name. It has to be there rather than here, because `top_k` truncates:
-          sorting on the client would only rearrange whichever names survived a count-based cut, and
-          a show's own host could be missing from the list altogether. So this renders the array as
-          given.
-
-          A roleless person (older KGs carry none) renders unbadged rather than being labelled
-          "mentioned" — the badge reports what the KG knows, and an absent role is not a claim.
-        -->
-        <button
-          v-for="p in people"
-          :key="p.person_id"
-          type="button"
-          data-testid="ps-person"
-          :data-role="p.role?.toLowerCase()"
-          class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
-          @click="emit('open', { kind: 'person', id: p.person_id })"
-        >
-          {{ p.name
-          }}<span
-            v-if="roleLabel(p.role)"
-            data-testid="ps-person-role"
-            class="ml-1 rounded-full bg-canvas/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
-            >{{ roleLabel(p.role) }}</span
+    <!-- Foldable like the episode panel's sections (operator 2026-10-04): open by default, and the
+         choice is remembered per listener across every show — "I don't need this band" is a
+         preference about the page, not about one show. -->
+    <CollapsibleSection :title="t('podcast.about')" section-key="show-about">
+      <div v-if="themes.length" class="mb-3">
+        <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigStorylines') }}</h3>
+        <div class="flex flex-wrap gap-1.5">
+          <button
+            v-for="th in themes"
+            :key="th.storyline_id"
+            type="button"
+            data-testid="ps-theme"
+            class="lp-storyline-chip rounded-full px-2.5 py-1 text-xs font-semibold text-storyline transition disabled:opacity-60"
+            :disabled="!th.anchor_topic_id"
+            @click="th.anchor_topic_id && emit('open', { kind: 'storyline', id: th.anchor_topic_id })"
           >
-          <span class="text-muted">· {{ p.episode_count }}</span>
-        </button>
+            {{ th.label }} <span class="opacity-70">· {{ th.topic_count }}</span>
+          </button>
+        </div>
       </div>
-    </div>
+
+      <!--
+        What sets this show apart, ahead of what it merely covers. These chips are exactly as
+        clickable as the "other topics" ones below (both open the topic card) — the distinction is
+        informational, not an affordance, so font-weight carries it instead of the accent (#2013).
+      -->
+      <div v-if="distinctiveTopics.length" class="mb-3">
+        <h3 class="lp-kicker mb-1.5" data-testid="ps-distinctive-heading">
+          {{ t('podcast.sigDistinctive') }}
+        </h3>
+        <div class="flex flex-wrap gap-1.5">
+          <button
+            v-for="tp in distinctiveTopics"
+            :key="tp.topic_id"
+            type="button"
+            data-testid="ps-distinctive-topic"
+            :title="t('podcast.sigDistinctiveHint', { factor: formatLift(tp.lift) })"
+            class="rounded-full border border-border bg-overlay px-2.5 py-1 text-xs font-semibold text-topic transition hover:bg-elevated"
+            @click="emit('open', { kind: 'topic', id: tp.topic_id })"
+          >
+            {{ tp.label }}
+          </button>
+        </div>
+      </div>
+
+      <div v-if="otherTopics.length" class="mb-3">
+        <!-- Plain "Topics" — the section pairs with "Distinctive to this show" above (operator: the
+             coverage-claim variants + a separate Trending row read as clutter). -->
+        <h3 class="lp-kicker mb-1.5" data-testid="ps-topics-heading">{{ t('podcast.sigTopics') }}</h3>
+        <div class="flex flex-wrap gap-1.5">
+          <button
+            v-for="tp in otherTopics"
+            :key="tp.topic_id"
+            type="button"
+            data-testid="ps-topic"
+            class="rounded-full bg-overlay px-2.5 py-1 text-xs text-topic transition hover:bg-elevated"
+            @click="emit('open', { kind: 'topic', id: tp.topic_id })"
+          >
+            {{ tp.label }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Corpus-wide "Trending here" row removed from the show page (operator): its velocity is
+           corpus-wide, not this-show-specific, so it read as clutter beside the distinctive/topics. -->
+
+      <div v-if="people.length">
+        <h3 class="lp-kicker mb-1.5">{{ t('podcast.sigPeople') }}</h3>
+        <div class="flex flex-wrap gap-1.5">
+          <!--
+            Role badge + role ORDER (operator 2026-09-27): mark people host/guest/mentioned in the
+            same style as the episode Insights panel, and order by it too.
+
+            Same markup and the same i18n keys as `kp-person-role` (`ec.roleHost` / `ec.roleGuest` /
+            `ec.roleMentioned`), so one idea has one appearance across the two surfaces that list
+            people.
+
+            The ORDER is server-side, in `feed_signals.key_people` — host > guest > mentioned, then
+            footprint, then name. It has to be there rather than here, because `top_k` truncates:
+            sorting on the client would only rearrange whichever names survived a count-based cut, and
+            a show's own host could be missing from the list altogether. So this renders the array as
+            given.
+
+            A roleless person (older KGs carry none) renders unbadged rather than being labelled
+            "mentioned" — the badge reports what the KG knows, and an absent role is not a claim.
+          -->
+          <button
+            v-for="p in people"
+            :key="p.person_id"
+            type="button"
+            data-testid="ps-person"
+            :data-role="p.role?.toLowerCase()"
+            class="rounded-full bg-overlay px-2.5 py-1 text-xs text-person transition hover:bg-elevated"
+            @click="emit('open', { kind: 'person', id: p.person_id })"
+          >
+            {{ p.name
+            }}<span
+              v-if="roleLabel(p.role)"
+              data-testid="ps-person-role"
+              class="ml-1 rounded-full bg-canvas/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
+              >{{ roleLabel(p.role) }}</span
+            >
+            <span class="text-muted">· {{ p.episode_count }}</span>
+          </button>
+        </div>
+      </div>
+    </CollapsibleSection>
   </section>
 </template>

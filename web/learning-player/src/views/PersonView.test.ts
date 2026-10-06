@@ -98,7 +98,9 @@ describe("PersonView (#1261-6)", () => {
       related_people: [],
     })
     const { w } = await mountPerson()
-    const topicChip = w.findAll("button").find((b) => b.text() === "AI")
+    // The pill names its kind ("Topic") — the related group mixes topics with their themes and
+    // storylines (2026-10-05).
+    const topicChip = w.findAll('[data-testid="ec-person-related-topic"]').find((b) => b.text().endsWith("AI"))
     expect(topicChip).toBeTruthy()
     await topicChip!.trigger("click")
     await flushPromises()

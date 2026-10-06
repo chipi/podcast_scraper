@@ -35,8 +35,12 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   // The Perspectives section renders the real, corpus-derived speakers.
   const section = page.getByTestId('topic-perspectives')
   await expect(section).toBeVisible()
-  await expect(section.getByText('10 perspectives', { exact: true })).toBeVisible()
+  // The heading names the topic (operator 2026-10-05).
+  await expect(section.getByText('10 perspectives on risk management', { exact: true })).toBeVisible()
   await expect(section.getByRole('button', { name: 'Daniel Cho' })).toBeVisible()
+  // Speakers are paged five at a time (operator 2026-10-05): Scott Bessent ranks 9th of 10.
+  await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
+  await section.getByTestId('perspectives-more-speakers').click()
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toBeVisible()
   // The engineered opposition surfaces verbatim as a grounded claim.
   await expect(
@@ -51,7 +55,8 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   // has since required these cards to stack, so drilling into a topic never throws it away. The
   // check that matters is now that BOTH are on screen — person on top, topic still underneath.
   await section.getByRole('button', { name: 'Daniel Cho' }).click()
-  await expect(page.getByRole('heading', { name: 'Daniel Cho' })).toBeVisible()
+  // exact: the person card also carries "Who agrees with Daniel Cho" (2026-10-05).
+  await expect(page.getByRole('heading', { name: 'Daniel Cho', exact: true })).toBeVisible()
   await expect(page.getByTestId('topic-perspectives')).toHaveCount(1)
 })
 

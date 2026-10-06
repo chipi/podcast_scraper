@@ -19,7 +19,7 @@
 import { computed, ref, watch } from "vue"
 import { storeToRefs } from "pinia"
 import { useI18n } from "vue-i18n"
-import { getStorylines, getTrending, type TrendWindow } from "../services/api"
+import { getStorylines, getTopClusters, getTrending, type TrendWindow } from "../services/api"
 import type { Storyline } from "../services/types"
 import { useAuthStore } from "../stores/auth"
 import { useInterestsStore } from "../stores/interests"
@@ -32,7 +32,7 @@ import TrendWindowTabs from "./TrendWindowTabs.vue"
 import { trendArrow, trendColor } from "./trending"
 import FollowButton from "./FollowButton.vue"
 
-type Kind = "topic" | "storyline" | "person"
+type Kind = "topic" | "theme" | "storyline" | "person"
 type Sort = "rising" | "trending"
 interface Row {
   id: string // entity id (topic:/thc:/person:) — the follow token
@@ -89,6 +89,22 @@ const onFollow = (id: string): void => void interests.toggle(id)
 const section = useSectionState<Row[]>([])
 async function fetchRows(): Promise<Row[]> {
   const trending = await getTrending(props.kind, props.scope, props.limit, window.value)
+  if (props.kind === "theme") {
+    // A theme opens by its OWN `tc:` id — it has a card and a page of its own, unlike a storyline,
+    // which is read through an anchor topic. Its size rides at the end as "(N)", the same
+    // decoration a storyline row carries; a miss in the top-themes list just renders no count.
+    const themes = await getTopClusters(50).catch(() => [])
+    const sizeById = new Map(themes.map((c) => [c.id, c.size]))
+    return trending.map((e) => ({
+      id: e.entity_id,
+      openId: e.entity_id,
+      label: e.label,
+      count: sizeById.get(e.entity_id),
+      velocity: e.velocity,
+      volume: e.volume,
+      series: e.series,
+    }))
+  }
   if (props.kind !== "storyline") {
     return trending.map((e) => ({
       id: e.entity_id,

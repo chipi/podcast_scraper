@@ -92,8 +92,8 @@ public class StackDepthProbeTests extends UITestCase {
         System.out.println("=====STACK_L1_TOPIC :: " + Journey.labelledInventory(12) + "=====");
 
         // L2 — its storyline, stacked on the topic.
-        // ec.storylineHeading = 'Part of a storyline' (section heading inside the topic card).
-        Journey.scrollTo("Part of a storyline", false);
+        // The storyline link card inside the topic card (no heading since 2026-10-05).
+        Journey.scrollTo("Managing risk across domains", true);
         // kp.openStoryline = 'Open the {label} storyline' — contains match on the storyline name.
         boolean storylineTapped = Journey.tap(
                 Arrays.asList("Managing risk across domains"), true, 12_000);

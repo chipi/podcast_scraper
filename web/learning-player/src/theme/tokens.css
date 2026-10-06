@@ -72,33 +72,32 @@
   --lp-insight-observation: var(--lp-grounded);
   --lp-insight-recommendation: var(--lp-warning);
   --lp-insight-question: var(--lp-person);
-  --lp-topic: #a8b0c6;
-  --lp-person: #ccc7bb;
-  /* The two GROUPINGS over topics, each with its own hue.
+  /* THE FOUR KNOWLEDGE KINDS — topic, person, theme, storyline — each with its OWN hue (operator,
+     2026-10-04, from the Signal direction's set).
 
-     STORYLINE — topics that keep coming up TOGETHER (co-occurrence). This token was called
-     `--lp-theme` until 2026-10-01, which was simply wrong: all three things it paints are
-     storylines (`lp-storyline-chip` in KnowledgePanel, PodcastSignalsBand, InterestsPicker), and
-     its own comment described co-occurrence. The name was the last `tc:`/`thc:` inversion still
-     leaking out of the pipeline and into the design layer. Value unchanged by the rename.
+     Until this date topic, person and theme were three near-identical greys (#a8b0c6, #ccc7bb,
+     #a9a3c6) — "deliberately quiet", separated only by a kind label inside each pill — and the
+     storyline borrowed the amber accent wherever it needed to stand out. In front of beta testers
+     that read as one grey family plus one odd orange: the operator's question was "why is only the
+     storyline a different colour". So each kind now carries a hue a reader can learn once and
+     recognise everywhere — an episode's Knowledge Panel, a show page, a card, Profile › Interests:
 
-     THEME — topics that MEAN the same thing (similarity). New, because a theme had no colour: it
-     borrowed `--lp-theme` in ProfileView, so the one surface that rendered a real theme painted it
-     in the storyline's hue, and both grouping PAGES fell back to the app accent, which is why a
-     theme and a storyline were the same orange (operator 2026-10-01).
+       topic     violet   #b98cff   7.6:1 on canvas
+       person    orange   #ff9f5a   9.6:1
+       theme     blue     #99b9f4   9.8:1
+       storyline cyan     #5ce1e6  12.3:1
 
-     Why this hue. It sits between the two it separates: 27 deg from the topic blue-grey, 33 deg
-     from the storyline, leaning toward the violet that `entityShareCard` already gives a storyline
-     — so it reads as "a set of topics" rather than as a topic. Saturation stays at the topic's
-     0.21-0.23 and contrast is 8.3:1 on canvas, because the knowledge hues are deliberately quiet:
-     they separate by temperature and value as much as by hue, since loud category colours were
-     what made the old accent meaningless.
+     Person's orange sits near the amber accent; kept on the operator's call. The accent itself
+     still means "you can act on this" and is never a kind colour — a storyline pill is tinted in
+     `--lp-storyline`, not in the accent.
 
-     Colour is the SECOND channel here, never the only one. These three sit close in value by
-     design and carry nothing for a colour-blind reader, which is why every pill that renders them
-     also names its kind in a mono kicker (ProfileView) or a heading (InterestsPicker). */
-  --lp-storyline: #98a0ae;
-  --lp-theme: #a9a3c6;
+     Colour is still not the only channel: shape (filled / outlined / tinted) and the section or
+     kicker that names the kind carry it for a colour-blind reader. `paper` overrides all four with
+     darker members of the same families. The insight marks above inherit topic and person. */
+  --lp-topic: #b98cff;
+  --lp-person: #ff9f5a;
+  --lp-storyline: #5ce1e6;
+  --lp-theme: #99b9f4;
 
   /* Typography */
   --lp-font-display: system-ui, -apple-system, 'Segoe UI Variable', 'Segoe UI', sans-serif;

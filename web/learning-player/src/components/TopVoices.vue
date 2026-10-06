@@ -14,6 +14,7 @@
  * layers the person over or replaces in place. Either way the tap is emitted, so the caller decides
  * — a page's handler may let the link navigate, a sheet's prevents it.
  */
+import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, type RouteLocationRaw } from "vue-router"
@@ -44,28 +45,27 @@ const shown = computed(() =>
 
 <template>
   <section v-if="shown.length" data-testid="ec-top-voices">
-    <component :is="headingLevel === 2 ? 'h2' : 'h3'" class="lp-section mb-2">
-      {{ t("ec.topVoices") }}
-    </component>
-    <!-- A 4-column grid that fills the row width (operator 2026-09-15): the old flex-wrap left a
-         dead gap on the right of each row; the grid spreads the avatars evenly and lets a partial
-         last row sit left with empty space below rather than an uneven ragged edge. -->
-    <div class="grid grid-cols-4 gap-3">
-      <component
-        :is="routeFor ? RouterLink : 'button'"
-        v-for="p in shown"
-        :key="p.id"
-        v-bind="routeFor ? { to: routeFor(p.id) } : { type: 'button' }"
-        class="flex flex-col items-center gap-1 no-underline"
-        :aria-label="p.name"
-        data-testid="ec-top-voice"
-        @click="(e: MouseEvent) => emit('open', p.id, e)"
-      >
-        <ProfileAvatar :name="p.name" :src="p.image_url" :size="44" />
-        <span class="line-clamp-2 text-center text-xs font-medium text-canvas-foreground">
-          {{ p.name }}
-        </span>
-      </component>
-    </div>
+    <CollapsibleSection :title="t('ec.topVoices')" section-key="top-voices" :level="headingLevel">
+      <!-- A 4-column grid that fills the row width (operator 2026-09-15): the old flex-wrap left a
+           dead gap on the right of each row; the grid spreads the avatars evenly and lets a partial
+           last row sit left with empty space below rather than an uneven ragged edge. -->
+      <div class="grid grid-cols-4 gap-3">
+        <component
+          :is="routeFor ? RouterLink : 'button'"
+          v-for="p in shown"
+          :key="p.id"
+          v-bind="routeFor ? { to: routeFor(p.id) } : { type: 'button' }"
+          class="flex flex-col items-center gap-1 no-underline"
+          :aria-label="p.name"
+          data-testid="ec-top-voice"
+          @click="(e: MouseEvent) => emit('open', p.id, e)"
+        >
+          <ProfileAvatar :name="p.name" :src="p.image_url" :size="44" />
+          <span class="line-clamp-2 text-center text-xs font-medium text-canvas-foreground">
+            {{ p.name }}
+          </span>
+        </component>
+      </div>
+    </CollapsibleSection>
   </section>
 </template>

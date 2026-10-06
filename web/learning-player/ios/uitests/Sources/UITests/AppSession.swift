@@ -309,8 +309,24 @@ enum AppSession {
       // with the account LAST. The masthead entry measures at y≈64 (`PROFILE_CTL … frame=(349.0,
       // 64.0, …)`), so the top band is what separates chrome from content.
       let band = app.frame.height * 0.15
+      // ONE SNAPSHOT, read in memory (2026-10-04). Iterating `app.links.allElementsBoundByIndex`
+      // resolved each element's frame with a FRESH query, so a page still settling after sign-in
+      // could drop a link between enumerating and reading it — XCTest then fails the TEST outright
+      // ("Failed to get matching snapshot: No matches found for Element at index 25"), which a
+      // suite run hit and a lone rerun did not. A snapshot is a single consistent tree and throws
+      // instead of failing, so a page mid-render costs a retry here rather than the test.
+      var linkSnaps: [XCUIElementSnapshot] = []
+      for _ in 0..<3 {
+        guard let root = try? app.snapshot() else { sleep(1); continue }
+        var stack: [XCUIElementSnapshot] = [root]
+        while let node = stack.popLast() {
+          if node.elementType == .link { linkSnaps.append(node) }
+          stack.append(contentsOf: node.children)
+        }
+        break
+      }
       let candidates =
-        app.links.allElementsBoundByIndex
+        linkSnaps
         .filter { $0.frame.minY >= 0 && $0.frame.minY < band }
         .map { $0.label.trimmingCharacters(in: .whitespacesAndNewlines) }
         .filter { !$0.isEmpty && !$0.hasPrefix("Close Listening") && !$0.hasPrefix("Queue (") }

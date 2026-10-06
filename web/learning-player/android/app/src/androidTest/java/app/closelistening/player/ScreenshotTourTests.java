@@ -128,7 +128,7 @@ public class ScreenshotTourTests extends UITestCase {
         if (Journey.openProfile(profileLabels())) {
             settle(4_000);
             frame("t08-profile-account");
-            if (Journey.tap("Topics", false, 10_000)) { settle(3_000); frame("t09-profile-topics"); }
+            if (Journey.tap("Interests", false, 10_000)) { settle(3_000); frame("t09-profile-interests"); }
             if (Journey.tap("Stats", false, 10_000)) { settle(3_000); frame("t10-profile-stats"); }
         }
         if (Journey.openSettings(profileLabels())) {

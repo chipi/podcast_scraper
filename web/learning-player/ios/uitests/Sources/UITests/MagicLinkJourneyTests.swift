@@ -32,7 +32,7 @@ final class MagicLinkJourneyTests: UITestCase {
 
   /// The three Profile tabs. Their presence together is what "landed on Profile" means — no other
   /// page shows all three.
-  private static let profileTabs = ["Account", "Topics", "Stats"]
+  private static let profileTabs = ["Account", "Interests", "Stats"]
 
   private func onProfile(_ app: XCUIApplication, timeout: TimeInterval) -> Bool {
     Self.profileTabs.allSatisfy { Journey.find(app, labels: [$0], timeout: timeout) != nil }

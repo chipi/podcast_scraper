@@ -82,7 +82,7 @@ PYTEST_WORKERS ?= 2
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-bundle android-device-install android-fastlane-install android-play-preflight android-play
 .PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
-.PHONY: withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-telemetry test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-telemetry test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -450,6 +450,19 @@ type:
 	@export PYTHONPATH="$$PYTHONPATH:$(PWD)" && PYTHONUNBUFFERED=1 $(PYTHON) -m mypy --config-file pyproject.toml .
 
 security: security-bandit security-audit
+
+# The fast gates' security step (operator 2026-10-06): bandit always; pip-audit only when
+# pyproject.toml differs from where this branch left origin/main, committed or not. pip-audit reads
+# the dependency set, so a branch that did not touch it gains nothing from a run — the same bet the
+# PR's Snyk makes. `ci` and `security` still audit every time. No merge-base (no origin/main fetched,
+# a detached tree) audits anyway, so a missing ref never reads as "unchanged".
+security-fast: security-bandit
+	@base=$$(git merge-base HEAD origin/main 2>/dev/null); \
+	if [ -n "$$base" ] && git diff --quiet "$$base" -- pyproject.toml; then \
+		echo "pip-audit skipped: pyproject.toml unchanged since $$(git rev-parse --short $$base) (origin/main merge-base); make security-audit runs it."; \
+	else \
+		$(MAKE) security-audit; \
+	fi
 
 security-bandit:
 	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./infra/dgx/converge/.venv --skip B113,B108,B110,B310 --severity-level medium
@@ -3367,6 +3380,15 @@ test-app-e2e-docker:
 
 # Production app bundle: ``vue-tsc -b && vite build`` (catches strict-mode TS errors that
 # vitest/playwright skip). Run locally before push for app PRs (mirrors ``build-viewer``).
+# The native half of Settings › Third-party software (2026-10-05): the iOS pods and the Android
+# release classpath that do not come from npm, with their licences. Resolving them needs CocoaPods'
+# lockfile and Gradle, which the production web build (a Linux container) does not have — so this
+# runs on the Mac and writes a COMMITTED snapshot that `npm run build` merges in. Re-run it whenever
+# `src/__checks__/third-party-native.test.ts` says the native dependency files changed.
+third-party-native:
+	@echo "Native third-party snapshot (iOS pods + Android release classpath)..."
+	@cd $(APP_DIR) && ANDROID_HOME=$(ANDROID_SDK_DIR) JAVA_HOME=$(ANDROID_JAVA_HOME) node scripts/third-party-native.mjs
+
 build-app:
 	@echo "Production Learning Player bundle (vue-tsc -b && vite build)..."
 	@# `npm ci` for the reason recorded on `test-app`: `npm install` here rewrites package-lock.json
@@ -4845,6 +4867,8 @@ _ci_body: format-check lint lint-markdown check-doc-structure type security comp
 	# ``ci`` does not include it for the same reason locally.
 
 # Sequential sub-makes + banners so long-quiet steps (especially mypy) never look like a hang.
+# BACKEND gate (operator 2026-10-06): pipeline, providers, data work. No viewer or player tests or
+# builds at all — those live in `ci-ui-fast`. `ci` runs everything.
 ci-fast:
 	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright). For viewer work use ci-ui-fast.
 	@set -e; \
@@ -4855,7 +4879,7 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint-markdown ==="; $(MAKE) lint-markdown; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-doc-structure ==="; $(MAKE) check-doc-structure; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] type (mypy) ==="; $(MAKE) type; \
-	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security; \
+	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security-fast; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] complexity ==="; $(MAKE) complexity; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] deadcode ==="; $(MAKE) deadcode; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] docstrings ==="; $(MAKE) docstrings; \
@@ -4865,15 +4889,13 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] profile-drift-check ==="; $(MAKE) profile-drift-check; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-fast (pytest) ==="; $(MAKE) test-fast; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] corpus-snapshot-selftest ==="; $(MAKE) corpus-snapshot-selftest; \
-	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui ==="; $(MAKE) test-ui; \
-	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build-viewer ==="; $(MAKE) build-viewer; \
-	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-app ==="; $(MAKE) test-app; \
-	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build-app ==="; $(MAKE) build-app; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
 	echo ""; echo "=== ci-fast DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
 
-# Viewer-heavy gate: like ci-fast but skips Python tests/e2e and runs Playwright (longer than Vitest alone).
+# UI gate (operator 2026-10-06): the viewer and the player — unit tests, Playwright e2e, builds — plus
+# the same static checks as ci-fast and the fast Python tiers without Python e2e. The ONLY local
+# gate with app tests: ci-fast is backend-only. Longer than Vitest alone (Playwright).
 ci-ui-fast:
 	# Note: ci-ui-fast skips coverage-enforce and Python tests/e2e; Playwright still needs browsers installed.
 	@set -e; \
@@ -4882,14 +4904,16 @@ ci-ui-fast:
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] format-check ==="; $(MAKE) format-check; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint ==="; $(MAKE) lint; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] lint-markdown ==="; $(MAKE) lint-markdown; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-doc-structure ==="; $(MAKE) check-doc-structure; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] type (mypy) ==="; $(MAKE) type; \
-	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] security ==="; $(MAKE) security-fast; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] complexity ==="; $(MAKE) complexity; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] deadcode ==="; $(MAKE) deadcode; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] docstrings ==="; $(MAKE) docstrings; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] spelling ==="; $(MAKE) spelling; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] check-test-policy ==="; $(MAKE) check-test-policy; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] quality-metrics-ci ==="; $(MAKE) quality-metrics-ci; \
+	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] profile-drift-check ==="; $(MAKE) profile-drift-check; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-fast-no-py-e2e ==="; $(MAKE) test-fast-no-py-e2e; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui ==="; $(MAKE) test-ui; \
 	echo ""; echo "=== ci-ui-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-ui-e2e ==="; $(MAKE) test-ui-e2e; \
