@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -193,6 +194,7 @@ def _advance_through_a_failing_primary() -> None:
         def __init__(self) -> None:
             self._names = ["tailnet_dgx_whisper", "deepgram"]
             self._tiers = {0: _Boom(), 1: _Wins()}
+            self._winner = threading.local()
 
         def _ensure_tier(self, i: int):  # type: ignore[override]
             return self._tiers[i]

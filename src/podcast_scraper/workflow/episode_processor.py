@@ -1584,13 +1584,7 @@ def _check_transcript_cache(
 
     cache_dir = cfg.transcript_cache_dir or transcript_cache.TRANSCRIPT_CACHE_DIR
     audio_hash = transcript_cache.get_audio_hash(temp_media)
-    provider_name = None
-    if transcription_provider:
-        provider_name = (
-            getattr(transcription_provider, "name", None)
-            or type(transcription_provider).__name__.replace("Provider", "").lower()
-        )
-    model = _get_provider_model_name(transcription_provider, cfg)
+    provider_name, model = _transcript_cache_identity(transcription_provider, cfg, produced=False)
     cached_entry = transcript_cache.get_cached_transcript_entry(
         audio_hash,
         cache_dir,
@@ -2165,6 +2159,37 @@ def _preprocess_audio_if_needed(
     return media_for_transcription
 
 
+def _transcript_cache_identity(
+    transcription_provider: Any, cfg: config.Config, *, produced: bool
+) -> Tuple[Optional[str], Optional[str]]:
+    """``(provider_name, model)`` the transcript cache is keyed on: the FACTUAL provider.
+
+    Never the resilience wrapper. A failover chain names itself ``fallback_chain`` whatever tier
+    ran, so the key used to depend on the strategy (``failover`` wraps the provider, ``hold`` does
+    not) and on nothing about who transcribed — the same DGX transcript got two keys, and a
+    fallback-tier transcript shared a key with DGX ones. Operator (2026-10-06): the key is the
+    provider actually applied; the strategy has no effect on it.
+
+    * ``produced=False`` (lookup): the provider that would transcribe FIRST — the chain's primary.
+    * ``produced=True`` (save): the tier that DID produce this transcript. A transcript from a
+      fallback tier is stored under that tier's key, so a later run with a healthy primary misses
+      it and transcribes again with the primary.
+    """
+    from ..providers.resilience.fallback import FallbackChainTranscriptionProvider
+
+    provider = transcription_provider
+    # isinstance, not duck typing: a test double answers to any attribute name.
+    if isinstance(provider, FallbackChainTranscriptionProvider):
+        actual = provider.last_provider() if produced else None
+        provider = actual if actual is not None else provider.primary_provider()
+    if provider is None:
+        return None, None
+    name = (
+        getattr(provider, "name", None) or type(provider).__name__.replace("Provider", "").lower()
+    )
+    return name, _get_provider_model_name(provider, cfg)
+
+
 def _get_provider_model_name(transcription_provider: Any, cfg: config.Config) -> Optional[str]:
     """Extract model name from transcription provider for cache metadata.
 
@@ -2295,14 +2320,7 @@ def _save_transcript_to_cache_if_needed(
 
     cache_dir = cfg.transcript_cache_dir or transcript_cache.TRANSCRIPT_CACHE_DIR
     audio_hash = transcript_cache.get_audio_hash(temp_media)
-    # Get provider name and model for metadata
-    provider_name = None
-    if transcription_provider:
-        provider_name = (
-            getattr(transcription_provider, "name", None)
-            or type(transcription_provider).__name__.replace("Provider", "").lower()
-        )
-    model = _get_provider_model_name(transcription_provider, cfg)
+    provider_name, model = _transcript_cache_identity(transcription_provider, cfg, produced=True)
     try:
         transcript_cache.save_transcript_to_cache(
             audio_hash,

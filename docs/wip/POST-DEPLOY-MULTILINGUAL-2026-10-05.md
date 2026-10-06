@@ -106,6 +106,13 @@ Reference count, NOT prod's: of the 72 feeds in `config/corpus-expansion.feeds.y
 
 ## Things that look like regressions but are expected
 
+- **Transcript-cache entries written before this deploy miss once.** The cache is now keyed by
+  the provider that actually transcribed (e.g. `tailnet_dgx_whisper` + model), never by the
+  failover wrapper; old entries are keyed `fallback_chain`, which does not say whether DGX or a
+  fallback tier made them, so they cannot be re-keyed safely. Re-running `prod_dgx_full` over an
+  already-transcribed episode transcribes it once more; every entry written after the deploy is
+  stable whatever the resilience strategy. New episodes and the reprocess profiles (cache off) are
+  unaffected.
 - **`pipeline_composition_version` changes once for every new episode**, English included (a
   `translation` stage was added). A reprocess query keyed on the old hash must be reissued.
 - **New sidecars per diarized episode:** `<base>.turns.json`, `<base>.adfree.turns.json`,
