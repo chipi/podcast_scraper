@@ -106,13 +106,7 @@ Reference count, NOT prod's: of the 72 feeds in `config/corpus-expansion.feeds.y
 
 ## Things that look like regressions but are expected
 
-- **Transcript-cache entries written before this deploy miss once.** The cache is now keyed by
-  the provider that actually transcribed (e.g. `tailnet_dgx_whisper` + model), never by the
-  failover wrapper; old entries are keyed `fallback_chain`, which does not say whether DGX or a
-  fallback tier made them, so they cannot be re-keyed safely. Re-running `prod_dgx_full` over an
-  already-transcribed episode transcribes it once more; every entry written after the deploy is
-  stable whatever the resilience strategy. New episodes and the reprocess profiles (cache off) are
-  unaffected.
+- **Every transcript-cache entry written before this deploy misses once.** See the next section.
 - **`pipeline_composition_version` changes once for every new episode**, English included (a
   `translation` stage was added). A reprocess query keyed on the old hash must be reissued.
 - **New sidecars per diarized episode:** `<base>.turns.json`, `<base>.adfree.turns.json`,
@@ -121,6 +115,64 @@ Reference count, NOT prod's: of the 72 feeds in `config/corpus-expansion.feeds.y
   `episode.language`, `episode.language_source`.
 - **The manifest gains `translation` (`ran=false` for English) and `turns` blocks.**
 - **Run metrics gain `llm_translation_*` counters, all zero for English.**
+
+## The transcript-cache key changes once
+
+The transcript cache is keyed by the audio hash plus the provider name and model. On main, the
+DGX profiles wrap Whisper in a failover chain, and every entry is stored under the wrapper's name,
+`fallback_chain`, whichever tier actually transcribed. This PR (ccb75ad3e) keys on the provider
+that produced the transcript: a lookup uses the primary tier (DGX Whisper, key name
+`tailnetdgxwhispertranscription` plus its model), and a save uses the tier that ran. The
+resilience strategy (`hold` or `failover`) no longer affects the key. As a result, none of prod's
+existing entries match after the deploy. Re-running `prod_dgx_full` over an episode that was
+already transcribed transcribes it once more on the DGX and stores it under the new key; every
+run after that hits the cache. The output is the same transcript, not a different one: the real
+A/B below found the DGX transcript byte-identical between main and this branch. The old entries
+are not re-keyed because `fallback_chain` does not record whether DGX or a fallback tier made
+them, and re-keying could serve a fallback transcript as a DGX one. For the same reason, a
+transcript produced by a fallback tier is now stored under that tier's name and is never served
+to a DGX lookup, so the next run with a healthy DGX transcribes it again. New episodes are
+unaffected (they have no entry yet), and so are profiles that run with the transcript cache off.
+
+## How this PR was tested before deploy
+
+The question was whether English behaves exactly as on main. Language now flows through the whole
+pipeline, so a language tag that one stage resolves differently would change English output
+silently. That was checked with a tool built for it, not by reading LLM output.
+
+**The tool:** `make pipeline-check`, code in `scripts/validate/pipeline_check/`, runbook
+`docs/guides/PIPELINE_CHECK.md`, issue #2287. It lives in **PR #2288 (branch
+`feat/pipeline-check`), which is not merged**: to re-run it, check out that branch. It runs two
+code refs (each in its own worktree) over the same input. It records every decision the pipeline
+makes on language (every lookup in a language-keyed map and every call to a function that takes a
+language, with file and line). It reports a **hole** whenever an English variant (`en-US`,
+`en_GB`, `English`, `eng`, an override) resolves to something other than plain `en`, and it
+compares each deterministic stage's output against the base ref.
+
+**Results** (full tables:
+[#2287 comment](https://github.com/chipi/podcast_scraper/issues/2287#issuecomment-6005493868)),
+candidate 1a8a493f0 vs `origin/main` 712ff7ebb:
+
+| run | what it covered | result |
+| --- | --- | --- |
+| fixture mode (no DGX) | 40 English fixture episodes × 6 tag forms | 71,664 decisions, **0 holes**; hosts, speaker naming, ad removal and transcript selection identical to main in 240 of 240 cases |
+| mutation check | the same check against 05ab3c8a5, before a real `en_US` host bug was fixed | **24 holes** reported in host detection (`hosts.py:851`), while that stage's output still matched main, so the tool catches what an output diff misses |
+| real mode (DGX, `prod_dgx_full`) | one Japan Memo episode, full pipeline, main and branch | transcript and speaker records **byte-identical**; 4,551 decisions, **0 holes**; artifacts identical apart from the expected list below |
+| LLM variation (same run) | main run twice, branch once, on one identical transcript | summaries, insights, quotes, bullets inside the band (main's own run-to-run spread, at least 10%); KG entity names differed more, and the KG input text was byte-identical on all three runs, so that variation comes from the model |
+| PR CI on 1a8a493f0 | the repo's CI | 31 success, 4 skipped, 0 failed |
+
+**What this does NOT cover:**
+
+- **The cache-key change (ccb75ad3e) came after these runs.** It is covered by unit tests
+  (`tests/unit/podcast_scraper/workflow/test_transcript_cache_key_is_the_factual_provider.py`), not
+  by an A/B run. It changes which cache entry is read, not how a transcript is made.
+- **One real episode only**, from one English feed. Feeds with other tag forms were exercised in
+  fixture mode only.
+- **LLM output quality** is not judged: only its variation against main's own run-to-run spread.
+- **Search ranking** on the prod corpus was not measured (it needs the ML stack or a prod snapshot).
+- **Decision points that the driven stages never reach** are counted and listed in the JSON
+  report, but not checked.
+- **Non-English output** was not compared: the checks guard English against main.
 
 ## Not this agent's to start (operator schedules)
 
