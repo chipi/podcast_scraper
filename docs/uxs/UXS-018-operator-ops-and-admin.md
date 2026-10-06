@@ -132,11 +132,14 @@ Three sections stacked in one scroll column (`space-y-8`): Users, Discovery rank
 - Disabled self-row controls use the native `disabled` attribute, so assistive tech announces them
   as unavailable.
 
+## Decided
+
+- **User deletion keeps the browser's native `window.confirm`** (operator, 2026-10-06). The consumer
+  app uses an in-app dialog with Cancel focused first (UXS-014). The operator viewer deliberately
+  does not need to match it.
+
 ## Open questions (shipped behaviour that may not be intended)
 
-- **User deletion uses the browser's native `window.confirm`.** It is the viewer's only destructive
-  confirmation. The consumer app's equivalent is an in-app dialog with Cancel focused first
-  (UXS-014). Whether the operator viewer should match is undecided.
 - **Ops reads live production data in every environment the API is configured for.** The e2e API
   inherits the dev observability config and returns real gateway spend. The Playwright specs mock
   these routes so they do not depend on it.
