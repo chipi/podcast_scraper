@@ -31,7 +31,12 @@ def _stub_backend(monkeypatch, *, answer_top1_return=None, answer_top_k_return=N
         self.tokenizer = mock.Mock(name=f"tokenizer[{self.resolved_id}]")
 
     monkeypatch.setattr(QAEvidenceBackend, "_load", fake_load)
-    QAEvidenceBackend.clear_cache()
+    # A per-test cache, not clear_cache(): the fakes this test loads must not outlive it.
+    # clear_cache() only emptied the class-wide cache BEFORE the test, so the fakes stayed
+    # cached after monkeypatch restored the real _load, and a later test on the same worker
+    # got one back ("'object' object has no attribute 'encode'" in the search tests).
+    # monkeypatch restores the original dict, which never saw a fake.
+    monkeypatch.setattr(QAEvidenceBackend, "_instances", {})
 
     if answer_top1_return is not None:
         monkeypatch.setattr(

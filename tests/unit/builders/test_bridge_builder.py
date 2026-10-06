@@ -123,7 +123,12 @@ def test_fuzzy_reconcile_reuses_process_embedding_cache(monkeypatch: pytest.Monk
         self.model = FakeEmbedder()
 
     monkeypatch.setattr(EmbeddingEvidenceBackend, "_load", fake_backend_load)
-    EmbeddingEvidenceBackend.clear_cache()
+    # A per-test cache, not clear_cache(): the fakes this test loads must not outlive it.
+    # clear_cache() only emptied the class-wide cache BEFORE the test, so the fakes stayed
+    # cached after monkeypatch restored the real _load, and a later test on the same worker
+    # got one back ("'object' object has no attribute 'encode'" in the search tests).
+    # monkeypatch restores the original dict, which never saw a fake.
+    monkeypatch.setattr(EmbeddingEvidenceBackend, "_instances", {})
 
     gi = {
         "nodes": [

@@ -34,7 +34,12 @@ def _install_fake_backend_load(monkeypatch):
         self.tokenizer = mock.Mock(name=f"tokenizer[{self.resolved_id}]")
 
     monkeypatch.setattr(QAEvidenceBackend, "_load", fake_load)
-    QAEvidenceBackend.clear_cache()
+    # A per-test cache, not clear_cache(): the fakes this test loads must not outlive it.
+    # clear_cache() only emptied the class-wide cache BEFORE the test, so the fakes stayed
+    # cached after monkeypatch restored the real _load, and a later test on the same worker
+    # got one back ("'object' object has no attribute 'encode'" in the search tests).
+    # monkeypatch restores the original dict, which never saw a fake.
+    monkeypatch.setattr(QAEvidenceBackend, "_instances", {})
 
 
 class TestExtractiveQAIntegration:
@@ -90,7 +95,12 @@ class TestExtractiveQAIntegration:
             self.tokenizer = mock.Mock()
 
         monkeypatch.setattr(QAEvidenceBackend, "_load", fake_load)
-        QAEvidenceBackend.clear_cache()
+        # A per-test cache, not clear_cache(): the fakes this test loads must not outlive it.
+        # clear_cache() only emptied the class-wide cache BEFORE the test, so the fakes stayed
+        # cached after monkeypatch restored the real _load, and a later test on the same worker
+        # got one back ("'object' object has no attribute 'encode'" in the search tests).
+        # monkeypatch restores the original dict, which never saw a fake.
+        monkeypatch.setattr(QAEvidenceBackend, "_instances", {})
 
         a = extractive_qa.get_qa_model("roberta-squad2", device="cpu")
         b = extractive_qa.get_qa_model("roberta-squad2", device="cpu")

@@ -206,7 +206,12 @@ class TestEncodeMocked:
             self.model = FakeModel()
 
         monkeypatch.setattr(EmbeddingEvidenceBackend, "_load", fake_load)
-        EmbeddingEvidenceBackend.clear_cache()
+        # A per-test cache, not clear_cache(): the fakes this test loads must not outlive it.
+        # clear_cache() only emptied the class-wide cache BEFORE the test, so the fakes stayed
+        # cached after monkeypatch restored the real _load, and a later test on the same worker
+        # got one back ("'object' object has no attribute 'encode'" in the search tests).
+        # monkeypatch restores the original dict, which never saw a fake.
+        monkeypatch.setattr(EmbeddingEvidenceBackend, "_instances", {})
 
         m1 = embedding_loader.get_embedding_model("minilm-l6")
         m2 = embedding_loader.get_embedding_model("minilm-l6")
@@ -229,7 +234,12 @@ class TestEncodeMocked:
             self.model = object()
 
         monkeypatch.setattr(EmbeddingEvidenceBackend, "_load", fake_load)
-        EmbeddingEvidenceBackend.clear_cache()
+        # A per-test cache, not clear_cache(): the fakes this test loads must not outlive it.
+        # clear_cache() only emptied the class-wide cache BEFORE the test, so the fakes stayed
+        # cached after monkeypatch restored the real _load, and a later test on the same worker
+        # got one back ("'object' object has no attribute 'encode'" in the search tests).
+        # monkeypatch restores the original dict, which never saw a fake.
+        monkeypatch.setattr(EmbeddingEvidenceBackend, "_instances", {})
 
         a = embedding_loader.get_embedding_model("minilm-l6", device="cpu", allow_download=False)
         b = embedding_loader.get_embedding_model("minilm-l6", device="cuda", allow_download=False)
