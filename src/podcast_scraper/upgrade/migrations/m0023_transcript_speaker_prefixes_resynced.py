@@ -111,6 +111,51 @@ def _align(old: str, rows: List[dict]) -> Tuple[List[Tuple[int, int]], List[Opti
     return spans, labels
 
 
+#: A speaker prefix at the start of the text or of a line — what a quote must not carry as speech.
+_LABEL_IN_TEXT = re.compile(r"(?:\A|\n)[^\n:]{1,200}: ")
+
+
+def _speech(text: str) -> str:
+    """The spoken words only: speaker prefixes out, whitespace normalised."""
+    return " ".join(_LABEL_IN_TEXT.sub(" ", text).split())
+
+
+def _move_quote(props: Dict[str, Any], old: str, new: str, ncs: int, nce: int) -> Tuple[bool, bool]:
+    """Point *props* at the same speech in *new*. ``(moved, retexted)``; raises :class:`Refused`.
+
+    Exact when the moved span slices to the same characters. Otherwise the speech must be the same
+    words and only labels/separators differ — the quote ended on the space that joined two voices'
+    turns on one shared line (now a newline and a prefix), or STARTED with the removed name's
+    prefix ("Americas Online: just imagine…", the name published inside the quote). The span is
+    then settled on the speech itself — leading prefix skipped, edge whitespace trimmed — and the
+    quote's ``text`` becomes exactly that slice.
+    """
+    cs, ce = int(props["char_start"]), int(props["char_end"])
+    if new[ncs:nce] == old[cs:ce]:
+        moved = (ncs, nce) != (cs, ce)
+        if moved:
+            props["char_start"], props["char_end"] = ncs, nce
+        return moved, False
+    if props.get("text") != old[cs:ce]:
+        raise Refused("a quote's text is not its slice")
+    lead = _LABEL_IN_TEXT.match(new, ncs) if (ncs == 0 or new[ncs - 1] == "\n") else None
+    if lead is not None and lead.start() == ncs:
+        ncs = lead.end()
+    while ncs < nce and new[ncs].isspace():
+        ncs += 1
+    while nce > ncs and new[nce - 1].isspace():
+        nce -= 1
+    if not _speech(new[ncs:nce]) or _speech(new[ncs:nce]) != _speech(old[cs:ce]):
+        raise Refused("a quote would not slice to its text")
+    # Never GAIN a speaker label inside a quote: a quote over two voices that shared one line would
+    # read "…gateway.\nSPEAKER_02: Welcome…" — worse than what it showed. Swapping a label it
+    # already carried (its span already crossed a line) is no worse than before.
+    if new[ncs:nce].count("\n") > old[cs:ce].count("\n"):
+        raise Refused("a quote would gain a speaker label")
+    props["char_start"], props["char_end"], props["text"] = ncs, nce, new[ncs:nce]
+    return True, True
+
+
 class _OffsetMap:
     """Old character offset -> new, through the aligned segment spans."""
 
@@ -119,7 +164,9 @@ class _OffsetMap:
         self.starts = [s for s, _e in old]
 
     def __call__(self, pos: int, *, is_end: bool) -> int:
-        i = bisect.bisect_right(self.starts, pos) - 1
+        # An END at exactly a segment's start belongs to the segment BEFORE it (the span stops
+        # there); mapped into the next one it would jump past the new line's speaker prefix.
+        i = (bisect.bisect_left if is_end else bisect.bisect_right)(self.starts, pos) - 1
         if i >= 0 and pos <= self.old[i][1]:
             return self.new[i][0] + (pos - self.old[i][0])
         # Between segments (a separator): a start moves to the next text, an end to the last.
@@ -238,12 +285,10 @@ class _Episode:
                 cs, ce = props.get("char_start"), props.get("char_end")
                 if not isinstance(cs, int) or not isinstance(ce, int):
                     continue
-                ncs, nce = moved(cs), moved(ce)
-                if new[ncs:nce] != old[cs:ce]:
-                    raise Refused("a quote would not slice to its text")
-                if (ncs, nce) != (cs, ce):
-                    props["char_start"], props["char_end"] = ncs, nce
-                    quotes_moved += 1
+                did_move, retexted = _move_quote(props, old, new, moved(cs), moved(ce))
+                quotes_moved += did_move
+                if retexted:
+                    self._bump("quotes_retexted")
             if suffix == ".adfree.txt":
                 seg_path = run / rel.replace(".txt", ".adfree.segments.json")
                 seg_payload = _load(seg_path)
@@ -313,12 +358,12 @@ class _Episode:
                 cs, ce = props.get("char_start"), props.get("char_end")
                 if not isinstance(cs, int) or not isinstance(ce, int):
                     continue
-                ncs, nce = fmap(cs, is_end=False), fmap(ce, is_end=True)
-                if new[ncs:nce] != old[cs:ce]:
-                    raise Refused("a quote would not slice to its text")
-                if (ncs, nce) != (cs, ce):
-                    props["char_start"], props["char_end"] = ncs, nce
-                    quotes_moved += 1
+                did_move, retexted = _move_quote(
+                    props, old, new, fmap(cs, is_end=False), fmap(ce, is_end=True)
+                )
+                quotes_moved += did_move
+                if retexted:
+                    self._bump("quotes_retexted")
             if seg_suffix == ".adfree.segments.json":
                 for row, (span_start, span_end) in zip(rows, new_spans):
                     if "char_start" in row or "char_end" in row:

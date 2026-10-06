@@ -207,7 +207,7 @@ def test_a_quote_across_the_split_line_refuses_the_episode(tmp_path: Path) -> No
     result = TranscriptSpeakerPrefixesResyncedMigration().apply(
         MigrationContext(corpus_root=tmp_path)
     )
-    assert result.details["totals"].get("refused: a quote would not slice to its text") == 1
+    assert result.details["totals"].get("refused: a quote would gain a speaker label") == 1
     assert {k: v.read_bytes() for k, v in p.items()} == before
 
 
@@ -246,3 +246,39 @@ def test_a_non_render_transcript_with_a_shared_name_is_left(tmp_path: Path) -> N
     before = {k: v.read_bytes() for k, v in p.items()}
     TranscriptSpeakerPrefixesResyncedMigration().apply(MigrationContext(corpus_root=tmp_path))
     assert {k: v.read_bytes() for k, v in p.items()} == before
+
+
+def test_a_quote_on_the_shared_line_separator_and_one_that_starts_with_the_prefix(
+    tmp_path: Path,
+) -> None:
+    # Prod shapes: a quote ending on the space that joined two voices on one shared line, and a
+    # quote whose text STARTS with the removed name ("Americas Online: just imagine…"). Same
+    # speech after the split; each settles on the speech itself, and the name leaves the quote.
+    p = _corpus(tmp_path)
+    gi = _r(p["gi"])
+    old = p["atxt"].read_text(encoding="utf-8")
+    trailing = "Search is the gateway. "
+    led = f"{ORG}: Search is the gateway."
+    gi["nodes"] = [
+        {
+            "id": f"quote:{i}",
+            "type": "Quote",
+            "properties": {
+                "text": t,
+                "char_start": old.index(t),
+                "char_end": old.index(t) + len(t),
+                "transcript_ref": ADFREE_REF,
+            },
+        }
+        for i, t in enumerate((trailing, led))
+    ]
+    _w(p["gi"], gi)
+    result = TranscriptSpeakerPrefixesResyncedMigration().apply(
+        MigrationContext(corpus_root=tmp_path)
+    )
+    assert result.details["totals"].get("quotes_retexted") == 2
+    atxt = p["atxt"].read_text(encoding="utf-8")
+    for node in _r(p["gi"])["nodes"]:
+        q = node["properties"]
+        assert q["text"] == "Search is the gateway."
+        assert atxt[q["char_start"] : q["char_end"]] == q["text"]
