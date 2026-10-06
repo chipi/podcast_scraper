@@ -417,6 +417,49 @@ def test_interest_search_ranks_a_prefix_first_then_by_coverage(tmp_path: Path) -
     assert ids == ["topic:ai-safety", "topic:ai", "topic:open-ai"]
 
 
+def test_interest_search_lists_a_person_once_under_their_best_matching_name(tmp_path: Path) -> None:
+    """One person spelled three ways is ONE result, labelled by the spelling that matches best.
+
+    Every spelling is registered for search, so "jane" reaches the person through all three: a
+    later word ("Dr Jane Doe"), the start ("Jane Doe"), mid-word ("Majane Doe"). The start wins
+    whichever order the episodes load in, so both a better and a worse later match are exercised.
+    """
+    for n, label in enumerate(["Dr Jane Doe", "Jane Doe", "Majane Doe"], start=1):
+        _write_episode(
+            tmp_path,
+            stem=f"000{n}-x",
+            episode_id=f"ep{n}",
+            persons=[("person:jane-doe", label)],
+            topics=[],
+            published=f"2024-0{n}-01T00:00:00",
+        )
+    items = _search(_client(tmp_path), "person", "jane")
+    assert [(i["id"], i["label"]) for i in items] == [("person:jane-doe", "Jane Doe")]
+
+
+def test_interest_search_skips_groupings_that_do_not_match_or_have_no_label(tmp_path: Path) -> None:
+    _two_episode_corpus(tmp_path)
+    (tmp_path / "search").mkdir(parents=True, exist_ok=True)
+    clusters = [
+        ("tc:ai", "Artificial Intelligence", "topic:ai"),
+        ("tc:food", "Cooking", "topic:ml"),
+        ("tc:blank", "", "topic:ai"),
+    ]
+    payload = {
+        "clusters": [
+            {
+                "graph_compound_parent_id": cid,
+                "canonical_label": label,
+                "members": [{"topic_id": tid, "label": "x"}],
+            }
+            for cid, label, tid in clusters
+        ]
+    }
+    (tmp_path / "search" / "topic_clusters.json").write_text(json.dumps(payload), encoding="utf-8")
+    items = _search(_client(tmp_path), "theme", "intelligence")
+    assert [i["id"] for i in items] == ["tc:ai"]
+
+
 def test_interest_search_themes_return_their_tc_token(tmp_path: Path) -> None:
     _two_episode_corpus(tmp_path)
     _write_clusters(tmp_path)
