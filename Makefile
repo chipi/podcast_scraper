@@ -500,14 +500,35 @@ security-bandit:
 # Override either way:
 #   SECURITY_AUDIT_STRICT=1     fail even locally (check before you push)
 #   SECURITY_AUDIT_ADVISORY=1   report-only even on CI (do not)
+#
+# On a local x86_64 macOS run (never on CI, never with SECURITY_AUDIT_STRICT) the advisories of
+# the three packages pinned by that torch ceiling are also ignored, so the audit can pass there and
+# a NEW finding in any other package stands out. The set that works on that platform is torch
+# 2.2.2, transformers 4.57.6, sentence-transformers 3.4.1; the fixed versions need torch >= 2.5
+# (sentence-transformers 5.x imports and then dies with "name 'nn' is not defined"). CI installs
+# the pyproject floors (torch >= 2.11, transformers >= 5, sentence-transformers >= 5.6) and audits
+# them in full. Drop an id here once it stops appearing in a local run.
+SECURITY_AUDIT_X86_MAC_IGNORES := \
+	PYSEC-2024-259 PYSEC-2025-189 PYSEC-2025-190 PYSEC-2025-191 PYSEC-2025-192 PYSEC-2025-193 \
+	PYSEC-2025-195 PYSEC-2025-198 PYSEC-2025-203 PYSEC-2025-204 PYSEC-2025-205 PYSEC-2025-206 \
+	PYSEC-2025-207 PYSEC-2025-208 PYSEC-2025-209 PYSEC-2025-41 PYSEC-2026-139 PYSEC-2026-1970 \
+	PYSEC-2026-2286 \
+	PYSEC-2025-217 PYSEC-2026-2288 PYSEC-2026-2289 PYSEC-2026-2290 PYSEC-2026-3929 PYSEC-2026-4174 \
+	PYSEC-2026-4164
 security-audit:
 	@$(PYTHON) -m pip install --quiet --upgrade pip setuptools
-	@$(PYTHON) -m pip_audit --progress-spinner off \
+	@platform_ignores=""; \
+	if [ -z "$${CI:-}" ] && [ -z "$${SECURITY_AUDIT_STRICT:-}" ] && [ "$$(uname -sm)" = "Darwin x86_64" ]; then \
+		for v in $(SECURITY_AUDIT_X86_MAC_IGNORES); do platform_ignores="$$platform_ignores --ignore-vuln $$v"; done; \
+		echo "x86_64 macOS local run: ignoring the torch/transformers/sentence-transformers advisories (see Makefile)"; \
+	fi; \
+	$(PYTHON) -m pip_audit --progress-spinner off \
 		--ignore-vuln PYSEC-2026-3740 \
 		--ignore-vuln CVE-2026-69112 \
 		--ignore-vuln PYSEC-2026-2447 \
 		--ignore-vuln PYSEC-2026-3624 \
-		--ignore-vuln PYSEC-2025-194; \
+		--ignore-vuln PYSEC-2025-194 \
+		$$platform_ignores; \
 	rc=$$?; \
 	[ $$rc -eq 0 ] && exit 0; \
 	blocking=1; \
