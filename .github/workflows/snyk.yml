@@ -15,6 +15,16 @@ on:
       - 'docker/pipeline/Dockerfile'
       - '.dockerignore'
       - '.github/workflows/snyk.yml'
+      # The web apps' npm trees (the player's includes every @capacitor/* package) and the
+      # player's native builds: the iOS pods and the Android Gradle build.
+      - 'web/learning-player/package.json'
+      - 'web/learning-player/package-lock.json'
+      - 'web/gi-kg-viewer/package.json'
+      - 'web/gi-kg-viewer/package-lock.json'
+      - 'web/learning-player/ios/App/Podfile'
+      - 'web/learning-player/ios/App/Podfile.lock'
+      - 'web/learning-player/android/**/*.gradle'
+      - 'web/learning-player/android/gradle/wrapper/gradle-wrapper.properties'
   schedule:
     # Run weekly on Mondays at 00:00 UTC
     - cron: '0 0 * * 1'
@@ -231,3 +241,140 @@ jobs:
         with:
           command: monitor
           args: --file=pyproject.toml --package-manager=pip --remote-repo-url=${{ github.server_url }}/${{ github.repository }}
+
+  # ---------------------------------------------------------------------------------------------
+  # The web apps and the player's native builds (operator 2026-10-06). The jobs above scan only the
+  # Python manifest and the pipeline image; these cover what the web apps and the phone apps ship.
+  # On a PULL REQUEST each scan runs only when its own manifests change; on main, the weekly
+  # schedule and a manual run, every scan runs. Failures are VISIBLE (no continue-on-error): a scan
+  # that cannot run must not read as a clean one. The CI Gate already treats Snyk as non-blocking.
+  # ---------------------------------------------------------------------------------------------
+  snyk-changes:
+    name: Snyk - apps changed
+    runs-on: ubuntu-latest
+    outputs:
+      npm: ${{ steps.filter.outputs.npm }}
+      ios: ${{ steps.filter.outputs.ios }}
+      android: ${{ steps.filter.outputs.android }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            npm:
+              - 'web/learning-player/package.json'
+              - 'web/learning-player/package-lock.json'
+              - 'web/gi-kg-viewer/package.json'
+              - 'web/gi-kg-viewer/package-lock.json'
+              - '.github/workflows/snyk.yml'
+            ios:
+              - 'web/learning-player/ios/App/Podfile'
+              - 'web/learning-player/ios/App/Podfile.lock'
+              - '.github/workflows/snyk.yml'
+            android:
+              - 'web/learning-player/android/**/*.gradle'
+              - 'web/learning-player/android/gradle/wrapper/gradle-wrapper.properties'
+              # Capacitor's Android modules are npm packages (capacitor.settings.gradle points into
+              # node_modules), so a package bump changes the Android build too.
+              - 'web/learning-player/package.json'
+              - 'web/learning-player/package-lock.json'
+              - '.github/workflows/snyk.yml'
+
+  snyk-npm:
+    name: Snyk - npm (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    needs: snyk-changes
+    if: github.event_name != 'pull_request' || needs.snyk-changes.outputs.npm == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [learning-player, gi-kg-viewer]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: snyk/actions/setup@master
+      # The lockfile is the dependency tree; Snyk reads it without an install.
+      - name: Run Snyk on the ${{ matrix.app }} npm tree
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: >-
+          snyk test --file=web/${{ matrix.app }}/package-lock.json --severity-threshold=high
+          --sarif-file-output=snyk-npm-${{ matrix.app }}.sarif
+          --remote-repo-url=${{ github.server_url }}/${{ github.repository }}
+      - name: Upload Snyk results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles(format('snyk-npm-{0}.sarif', matrix.app)) != ''
+        with:
+          sarif_file: snyk-npm-${{ matrix.app }}.sarif
+          category: snyk-npm-${{ matrix.app }}
+        continue-on-error: true
+
+  snyk-ios:
+    name: Snyk - iOS pods
+    runs-on: ubuntu-latest
+    needs: snyk-changes
+    if: github.event_name != 'pull_request' || needs.snyk-changes.outputs.ios == 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: snyk/actions/setup@master
+      # Podfile.lock pins every pod; the Capacitor pods in it are local paths into node_modules,
+      # which the npm scan covers.
+      - name: Run Snyk on the iOS pods
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: >-
+          snyk test --file=web/learning-player/ios/App/Podfile.lock --severity-threshold=high
+          --sarif-file-output=snyk-ios.sarif
+          --remote-repo-url=${{ github.server_url }}/${{ github.repository }}
+      - name: Upload Snyk results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('snyk-ios.sarif') != ''
+        with:
+          sarif_file: snyk-ios.sarif
+          category: snyk-ios
+        continue-on-error: true
+
+  snyk-android:
+    name: Snyk - Android Gradle
+    runs-on: ubuntu-latest
+    needs: snyk-changes
+    if: github.event_name != 'pull_request' || needs.snyk-changes.outputs.android == 'true'
+    steps:
+      - uses: actions/checkout@v7
+      # JDK 21 is what the app compiles with (capacitor.build.gradle); the runner's preinstalled
+      # Android SDK (ANDROID_HOME) is what the Android Gradle plugin needs to configure.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/learning-player/package-lock.json
+      # capacitor.settings.gradle includes Capacitor's Android modules from node_modules, and
+      # `cap update` generates the capacitor-cordova-android-plugins project settings.gradle names
+      # (it is not committed). Unlike `cap sync`, it needs no web build.
+      - name: Install the player's npm tree and generate the Capacitor Android projects
+        working-directory: web/learning-player
+        run: |
+          npm ci --no-audit --no-fund
+          npx cap update android
+      - uses: snyk/actions/setup@master
+      # releaseRuntimeClasspath is exactly what the release APK links — the same configuration the
+      # third-party list resolves (scripts/third-party-native.mjs).
+      - name: Run Snyk on the Android release classpath
+        working-directory: web/learning-player/android
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: >-
+          snyk test --file=app/build.gradle --configuration-matching='^releaseRuntimeClasspath$'
+          --severity-threshold=high --sarif-file-output=snyk-android.sarif
+          --remote-repo-url=${{ github.server_url }}/${{ github.repository }}
+      - name: Upload Snyk results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('web/learning-player/android/snyk-android.sarif') != ''
+        with:
+          sarif_file: web/learning-player/android/snyk-android.sarif
+          category: snyk-android
+        continue-on-error: true
