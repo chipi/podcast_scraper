@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p05_e02",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:decision-making-under-uncertainty",
+      "label": "decision-making under uncertainty"
+    },
+    {
+      "id": "topic:forward-guidance-effectiveness",
+      "label": "forward guidance effectiveness"
+    },
+    {
+      "id": "topic:institutional-credibility",
+      "label": "institutional credibility"
+    },
+    {
+      "id": "topic:market-belief-in-policy",
+      "label": "market belief in policy"
+    },
+    {
+      "id": "topic:operational-decision-making",
+      "label": "operational decision-making"
+    },
+    {
+      "id": "topic:platforms-in-policy-analysis",
+      "label": "platforms in policy analysis"
+    },
+    {
+      "id": "topic:policy-signal-reliability",
+      "label": "policy signal reliability"
+    },
+    {
+      "id": "topic:risk-management-at-central-banks",
+      "label": "risk management at central banks"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:trade-off-transparency",
+      "label": "trade-off transparency"
+    }
+  ]
+}

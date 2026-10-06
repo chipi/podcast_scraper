@@ -23,10 +23,8 @@ from podcast_scraper.gi.speakers import add_spoken_by_edges
 from podcast_scraper.providers.ml.diarization.formatting import (
     format_diarized_screenplay_with_offsets,
 )
-from podcast_scraper.workflow.adfree_transcript import (
-    load_processing_transcript,
-    produce_adfree_transcript,
-)
+from podcast_scraper.workflow.adfree_transcript import produce_adfree_transcript
+from podcast_scraper.workflow.transcript_resolution import load_processing_transcript
 
 pytestmark = pytest.mark.integration
 

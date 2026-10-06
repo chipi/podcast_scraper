@@ -234,7 +234,7 @@ describe('a dead credential takes the TOKEN with it (2026-09-24)', () => {
     const getMe = vi
       .spyOn(api, 'getMe')
       .mockImplementationOnce(async () => {
-        token = 'fresh-from-the-link' // arrives while this request is in flight
+        token = 'from-the-link' // arrives while this request is in flight
         return null
       })
       .mockResolvedValueOnce(ME)
@@ -254,7 +254,7 @@ describe('a dead credential takes the TOKEN with it (2026-09-24)', () => {
     let token: string | null = null
     vi.spyOn(api, 'getAuthToken').mockImplementation(() => token)
     vi.spyOn(api, 'getHealth').mockImplementation(async () => {
-      token = 'fresh-from-the-link' // arrives during the health check
+      token = 'from-the-link' // arrives during the health check
       return { auth_ready: true } as never
     })
     const getMe = vi.spyOn(api, 'getMe').mockResolvedValueOnce(null).mockResolvedValueOnce(ME)

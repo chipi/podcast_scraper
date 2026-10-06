@@ -1,0 +1,35 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p06_e03",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:cultural-drift",
+      "label": "cultural drift"
+    },
+    {
+      "id": "topic:dialogue-resolution",
+      "label": "dialogue resolution"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "label": "iteration practice"
+    },
+    {
+      "id": "topic:long-form-conversation",
+      "label": "long form conversation"
+    },
+    {
+      "id": "topic:meaning-drift",
+      "label": "meaning drift"
+    },
+    {
+      "id": "topic:operational-insight",
+      "label": "operational insight"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    }
+  ]
+}

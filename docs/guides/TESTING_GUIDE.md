@@ -737,6 +737,130 @@ For detailed implementation patterns:
 
 - **[Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md#testing-your-provider)** - Provider testing
   across all tiers (unit, integration, E2E), E2E server mock endpoints, testing checklist
+- **[Multi-language behaviour and the language registry](#multi-language)** - deriving the language
+  set from `config/languages.yaml`, the per-language vocabulary maps, the scenario registry, and
+  the D-44 canonical-vs-source trap
+- **[Search and the vector store](INTEGRATION_TESTING_GUIDE.md#search-and-the-vector-store)** - why
+  LanceDB is integration-legal while the embedder is not, and which layer a search change belongs in
+
+## Multi-language behaviour and the language registry {#multi-language}
+
+Added 2026-10-03 with the multilingual arc (epic #2169). Two things make language different from
+every other axis the suite tests: the set of languages is **configuration**, and almost everything
+language-specific is **data** rather than code.
+
+### The registry is the source of truth, and tests must derive from it
+
+`config/languages.yaml` declares every language the pipeline knows, each with `enabled`, a tier,
+and a WER figure. Read it through `podcast_scraper.languages`:
+
+| Helper | Use |
+| ------ | --- |
+| `language_registry()` | every **described** language code |
+| `is_language_enabled(code)` | whether it is ingested |
+| `normalize_language_tag(raw)` | `es-ES` → `es`; the primary-subtag step is load-bearing |
+| `TARGET_LANGUAGE` | the **analysis** language (`"en"`) — the language our prompts, NER and ad patterns are written in, which is NOT the same question as "what language is this episode" |
+
+**Never hardcode the language list in a test.** Derive it:
+
+```python
+TIER_1 = sorted(c for c in language_registry() if is_language_enabled(c))
+```
+
+A written-down list goes stale silently: the test keeps passing while a newly enabled language is
+simply never exercised, which looks identical to coverage. Deriving it makes the suite **fail
+closed** — enabling a sixth language breaks the tests until its data exists. There are two copies
+of the YAML (`config/` and the wheel-bundled `src/podcast_scraper/data/`) and
+`test_packaged_data_files_present.py` enforces that they match, because that pair had already
+drifted once.
+
+`enabled` gates **ingest only** (D-43). Turning it off stops new episodes arriving and leaves
+published ones served and searchable; withdrawal is a separate operator command. A test asserting
+that no read path consults `is_language_enabled` lives in
+`tests/unit/podcast_scraper/test_language_withdrawal.py` and is the guard on that decision.
+
+### Language-specific data is a MAP, never a list
+
+Detector vocabularies are keyed by language —
+`gi.filters.AD_PATTERNS_BY_LANGUAGE`, `speaker_detectors.constants.INTERVIEW_*_BY_LANGUAGE`,
+`speaker_detectors.hosts._{HOST,GUEST}_SPEECH_ACTS_BY_LANGUAGE` — because a flat list is a list in
+one language wearing no label. Read against another language it matches nothing, and **zero hits
+is indistinguishable from "this episode has no ads / no guest"**: a confident wrong answer rather
+than a missing one. Lookups return empty/`None` for an unknown language rather than falling back to
+English, so a caller can tell the two apart.
+
+**The English rows are measured; the others are translations.** Only English has numbers behind it
+(ad patterns hit 11/100 episodes of a real corpus; cue precision 82.6/77.1/75.5% over 1,400
+ground-truth episodes). The five tier-1 rows were authored from the English categories and have
+never met real non-English speech — tracked per language in #2255–#2259, all blocked on #2187, the
+first non-English ASR run of any kind. `TestWhatIsNotMeasured` pins the provenance notes so this
+cannot be quietly upgraded to "validated".
+
+### The scenario registry: one row per language, replayed by every test
+
+`tests/_detector_scenarios.py` is the test-side mirror of those maps. One frozen dataclass per
+language carries the content each detector needs — a sponsor read, a clean-content counterexample,
+a host opening, a guest reply, a guest introduction, a mentioned-only distractor, name particles —
+and each test is **one body replayed over the rows**:
+
+```python
+@pytest.mark.parametrize("language", TIER_1)
+def test_the_sponsor_read_reaches_the_threshold(self, language: str) -> None:
+    scenario = scenario_for(language)
+    hits = sum(1 for p in ad_patterns_for(language) if p.search(scenario.ad_read))
+    assert hits >= _AD_HITS_THRESHOLD
+```
+
+Adding a language means adding a row there and a row in each vocabulary map — **no new test code,
+and no language named inside a test function**. `scenario_for()` raises on an unknown language
+rather than defaulting to English, for the same reason the source-side lookups do.
+
+Rows pair a RECALL half with a GUARD half. Cues without the mentioned-only guard is how a person
+an episode is merely *about* becomes a diarized voice's name (#876), so `SPEAKER_CUE_LANGUAGES` is
+an **intersection** of all four cue maps: a language half-added is simply not advertised, and a
+test asserts the intersection equals each individual key set so the half-add is loud.
+
+### Which layer tests what
+
+| You are testing | Layer |
+| --------------- | ----- |
+| A vocabulary row is well-formed; the registry covers every enabled language; name cleanup keeps particles | **unit** — `test_detector_vocabulary_is_language_keyed.py` |
+| The committed fixtures actually trigger each detector per language | **unit** — `test_fixture_corpus_exercises_detectors.py` (reads authored transcripts, not the built corpus) |
+| Translation, the atomic swap, the completeness gate, the two index tiers | **integration** — `tests/integration/translation/`, `tests/integration/search/` |
+| Non-English **ASR** | **E2E** — and it has never run (#2187) |
+
+### The D-44 trap, which has cost real time twice
+
+A translated episode's canonical `<base>.txt` holds the **analysis language** (English); the source
+survives at `<base>.<lang>.txt`. So **matching source-language patterns against the canonical body
+returns zero, always** — for a reason that has nothing to do with the fixtures. Both times this was
+mistaken for a finding ("no non-English fixture triggers any detector"). When a language-specific
+scan reports zero, check which body it read before believing it. The same applies to the transcript
+path in corpus metadata: it is relative to the **run** directory, not the corpus root.
+
+### Fixture corpus
+
+`p10`–`p14` are deliberate counterparts of `p01` — the same trail-building conversation in es / it
+/ fr / de / pt — so a translation can be compared across five languages against one known meaning.
+Three episodes each, every one a hand-authored translation of its `p01` counterpart (`e01` of
+`p01_e01`, `e02` of `p01_e02`, `e03` of `p01_e03`) — so each language's three episodes carry the
+same three conversations, and the ad reads and interview cues are whatever a faithful translation
+of the English produces rather than phrases chosen to fire a regex. Because they share `p01`'s authored topics, adding them
+shifts corpus-wide topic statistics — expect fixture-pinned numbers in the capability audit and
+relational view to move.
+
+`e02`/`e03` joined `app-validation-corpus/v3` on 2026-10-03, which took it from 45 episodes to 55.
+They were absent until then for a reason worth knowing, because it is the rule that still applies
+to the next language: D-44 requires every non-English corpus episode to have been SWAPPED, the
+English body is replayed from a captured translation run, and until that capture exists
+`_drop_untranslated_non_english` excludes the episode rather than put source-language text where
+every reader is promised English. The builder says so loudly and the audit then refuses the build,
+because a feed advertising an episode the corpus lacks is itself a defect.
+
+Two consequences of them landing, both visible in the capability audit: the thinnest feed in the
+corpus went from 1 episode to 3, and the recency window (`DEFAULT_FEED_LIMIT * 4` = 48) no longer
+swallows the corpus — so the relevance leg of pool reachability is exercised by the fixture for the
+first time, which three earlier audit findings had been written around.
 
 ## References
 

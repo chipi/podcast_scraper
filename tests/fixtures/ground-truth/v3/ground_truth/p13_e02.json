@@ -1,0 +1,58 @@
+{
+  "callbacks": [
+    "Stefan Brandt war in der Sendung und hat erz\u00e4hlt, dass Entw\u00e4sserung die Designentscheidung mit der gr\u00f6\u00dften Wirkung ist."
+  ],
+  "episode_id": "p13_e02",
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "de-DE",
+  "host_accent": "de-DE",
+  "host_canonical_name": "Katrin Vogel",
+  "podcast_id": "p13",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p13:Lena",
+  "primary_guest_canonical_name": "Lena Hofmann",
+  "primary_guest_surface_in_transcript": "Lena Hofmann",
+  "primary_topic": "topic:enduro-racing",
+  "publish_date": "2026-03-01",
+  "publish_offset_days": 790,
+  "secondary_topics": [
+    "topic:soil-erosion",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Linear",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Strava",
+      "kind": "native_ad",
+      "line_index": 29,
+      "note": "Host-read native ad \u2014 no canonical 'brought to you by' marker."
+    },
+    {
+      "brand": "Notion",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Vanta",
+      "kind": "template_closing",
+      "line_index": 66
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p13:Lena",
+      "kind": "canonical",
+      "surface": "Lena Hofmann"
+    },
+    {
+      "canonical_id": "p13:Stefan",
+      "kind": "canonical",
+      "surface": "Stefan Brandt"
+    }
+  ]
+}

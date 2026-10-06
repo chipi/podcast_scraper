@@ -4,45 +4,77 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
 
 from ..kg.speaker_coherence import same_person
+from ..languages import primary_language, TARGET_LANGUAGE
+from . import naming_vocabulary
 from .entities import extract_person_entities as _extract_person_entities_direct
 from .entity_kind_votes import KindVotes
 
 logger = logging.getLogger(__name__)
 
+#: A STATED name — the feed's prose, which a publisher wrote down. Wider than `_NAME` on purpose
+#: and used ONLY by the feed-statement patterns: a middle initial ("Stephen J. Dubner"), an accented
+#: capital ("Dara Ó Briain") and a lowercase particle ("Cobus van Staden") are parts of a written
+#: name. `_NAME` (the intro reader's run over ASR text) is untouched: there a lone capital is a
+#: sentence opener the ASR capitalised.
+_STATED_UC = r"[A-ZÀ-ÖØ-Þ]"
+#: Its lowercase counterpart, and the reason it has to exist: three regexes below spelled a name
+#: as `[A-Z][a-z]+`, which is ASCII-only, and the corpus now holds `Lucía`, `Élodie`, `Inês`,
+#: `Solís` and `Lefèvre`. Measured on the fifteen-episode cast: `Lucía Herrera` yielded the first
+#: name "Luc", `Inês Carvalho` yielded "In", and `Élodie Chevalier` yielded "Chevalier" — her
+#: given name skipped entirely and the SURNAME returned in its place. The ranges mirror
+#: `_STATED_UC`'s: `ß-ö` then `ø-ÿ`, stepping over ÷ exactly as that one steps over ×.
+_STATED_LC_CHARS = r"a-zß-öø-ÿ"
+_STATED_LC = rf"[{_STATED_LC_CHARS}]"
+
+#: ENGLISH IS MAIN'S PATTERN TEXT, BYTE FOR BYTE (operator, 2026-10-05: English must not change).
+#: The Unicode classes above serve the five non-English rows; every English pattern built in this
+#: module reproduces main's text exactly, pinned by `test_english_patterns_are_mains.py`.
+_ASCII_UC = r"[A-Z]"
+_ASCII_LC = r"[a-z]"
+
+
+def _uc(language: str) -> str:
+    """The capital class for *language*: main's ASCII for English, Unicode for the rest."""
+    return _ASCII_UC if language == TARGET_LANGUAGE else _STATED_UC
+
+
+def _lc(language: str) -> str:
+    """The lowercase class for *language*: main's ASCII for English, Unicode for the rest."""
+    return _ASCII_LC if language == TARGET_LANGUAGE else _STATED_LC
+
+
+def _alt(words: str) -> str:
+    """*words* as a regex alternative: bare when it is one word, grouped when it has a ``|``.
+
+    A single word needs no group, and leaving it bare is what keeps English byte-identical to
+    main (`\\band\\b`, not `\\b(?:and)\\b`); a row with alternatives ("y|e") must be grouped.
+    """
+    return f"(?:{words})" if "|" in words else words
+
+
 # RSS author tags are often the network/publisher, not the host — e.g. "Colossus",
 # "Colossus | Investing & Business Podcasts", "NPR". Real hosts are personal "First Last"
 # names. Reject org/network-looking tags so host detection falls through to transcript-intro
 # NER / config ``known_hosts`` instead of mislabelling the host on every episode (#876).
-_NONPERSON_AUTHOR_MARKERS = re.compile(
-    r"[|/&@]|\d|"
-    r"\b(?:podcasts?|media|networks?|productions?|studios?|radio|fm|news|inc|llc|ltd|"
-    r"co|company|corp|shows?|entertainment|audio|broadcasting|group|labs?|"
-    # News-outlet suffixes — a publisher, not a person ("The New York Times", "Financial
-    # Times", "Wall Street Journal", "Chicago Tribune"). Standalone-surname words (Post, Press)
-    # are left out here and caught by KNOWN_NETWORKS to avoid flagging people like "Emily Post".
-    r"times|journal|tribune|gazette|herald|chronicle|magazine|quarterly|newspaper|gmbh|plc|"
-    # INSTITUTIONS. A think tank, university or committee is not a person, and none of the
-    # commercial markers above catch one: "Mercatus Center at George Mason University" has no
-    # pipe, no digit, no "Media"/"Network". It was therefore eligible to be a HOST — 41 Person
-    # nodes on the production snapshot carry it with role="host", and the feed host detector
-    # still emits it for *Conversations with Tyler* today, so a `relabel_only` repair would swap
-    # the show's name for this one rather than for a person.
-    #
-    # Measured before adding, because a rule invented from one example is how this arc kept
-    # going wrong: across 4,307 roster entries and 13,642 Person nodes, these tokens match 5
-    # distinct names — Mercatus Center…, Rindman University, Alexander Committee, PC Alexander
-    # Committee, Boston College — and every one is an organisation. No real person is caught.
-    r"centers?|centres?|universit(?:y|ies)|colleges?|institutes?|foundations?|"
-    r"committees?|councils?|associations?|societies|society|museums?|librar(?:y|ies)|"
-    # A BROADCAST BRAND suffix ("China Plus", the author of Biz Talk and Round Table China). Across
-    # 17,949 person names on the production snapshot (kg Person nodes + rosters) the only name
-    # carrying the token is `China Plus` itself.
-    r"plus)\b",
-    re.IGNORECASE,
-)
+# The marker WORDS live in `naming_vocabulary.NONPERSON_AUTHOR_WORDS`, where each row is the
+# measured English base plus that market's own outlet words. The three measurements behind the
+# base are recorded there: the news-outlet suffixes (standalone-surname words like Post and Press
+# left out, caught by KNOWN_NETWORKS instead, so "Emily Post" is not flagged); the INSTITUTION
+# tokens, added only after measuring across 4,307 roster entries and 13,642 Person nodes, where
+# they match 5 distinct names and every one is an organisation ("Mercatus Center at George Mason
+# University" has no pipe, no digit and no "Media"/"Network", so it was eligible to be a HOST and
+# carries role="host" on 41 Person nodes today); and `plus`, a broadcast-brand suffix whose only
+# carrier across 17,949 person names is "China Plus" itself.
+#
+# The pipe/slash/ampersand/at and the digit class stay HERE: punctuation is not vocabulary.
+_NONPERSON_AUTHOR_MARKERS_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(r"[|/&@]|\d|" + r"\b(?:" + "|".join(words) + r")\b", re.IGNORECASE)
+    for lang, words in naming_vocabulary.NONPERSON_AUTHOR_WORDS.items()
+}
+_NONPERSON_AUTHOR_MARKERS = _NONPERSON_AUTHOR_MARKERS_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 # Known podcast networks / publishers that appear as a spoken bumper ("This is Unhedged,
@@ -51,58 +83,8 @@ _NONPERSON_AUTHOR_MARKERS = re.compile(
 # Oprah, Sting), so host-intro extraction needs this explicit list to skip the network
 # bumper and fall through to the actual host. Lowercased; matched against the whole name
 # and its first token. (#876 — "Pushkin" leaked as the Unhedged host.)
-KNOWN_NETWORKS: frozenset[str] = frozenset(
-    {
-        "pushkin",
-        "wondery",
-        "gimlet",
-        "npr",
-        "iheart",
-        "iheartradio",
-        "spotify",
-        "audible",
-        "stitcher",
-        "radiotopia",
-        "earwolf",
-        "headgum",
-        "ringer",
-        "the ringer",
-        "vox",
-        "crooked media",
-        "maximum fun",
-        "maximumfun",
-        "barstool",
-        "cadence13",
-        "megaphone",
-        "acast",
-        "patreon",
-        "substack",
-        "bloomberg",
-        "kaleidoscope",
-        # Multi-token news publishers not caught by the org-marker suffixes (Post/Guardian/etc.).
-        "the new york times",
-        "new york times",
-        "the washington post",
-        "washington post",
-        "the guardian",
-        "the economist",
-        "the atlantic",
-        "reuters",
-        "associated press",
-        "the wall street journal",
-        "financial times",
-        "pushkin industries",
-        # Firms that publish a show under their own brand. Same shape as the news publishers
-        # above — two real-looking tokens, no generic org marker — so nothing else catches
-        # them. Added from OBSERVED corpus damage (#1652), not speculation:
-        # ``person:andreessen-horowitz`` was the corpus's TOP-RANKED Person (54 episodes,
-        # 723 insights), and on one a16z episode it was the only "person" present while the
-        # actual speakers went unresolved. Whole-name match only — the first-token check
-        # cannot fire on "andreessen", so a real person like Marc Andreessen is untouched.
-        "andreessen horowitz",
-        "a16z",
-    }
-)
+_KNOWN_NETWORKS_BY_LANGUAGE = naming_vocabulary.KNOWN_NETWORKS
+KNOWN_NETWORKS = _KNOWN_NETWORKS_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 def is_known_network(name: str) -> bool:
@@ -164,13 +146,18 @@ def is_network_or_org_author(name: str) -> bool:
 
 # Name suffixes that legitimately follow a comma. Without these, "Martin Luther King, Jr."
 # splits into a person and the orphan token "Jr.".
-_NAME_SUFFIXES = frozenset(
-    {"jr", "jr.", "sr", "sr.", "ii", "iii", "iv", "phd", "ph.d.", "md", "m.d.", "esq", "esq."}
-)
+_NAME_SUFFIXES_BY_LANGUAGE = naming_vocabulary.NAME_SUFFIXES
+_NAME_SUFFIXES = _NAME_SUFFIXES_BY_LANGUAGE[TARGET_LANGUAGE]
 
 # Comma, semicolon, ampersand, or a standalone "and" — the separators RSS author tags actually
 # use. Word-bounded so "Alexander" is not cut at its "and".
-_AUTHOR_SEPARATORS = re.compile(r"\s*(?:,|;|&|\band\b)\s*", re.IGNORECASE)
+#: The conjunction is the only language-dependent part; the comma, semicolon and ampersand
+#: are punctuation. Word-bounded so "Alexander" is not cut at its "and".
+_AUTHOR_SEPARATORS_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(rf"\s*(?:,|;|&|\b{_alt(conj)}\b)\s*", re.IGNORECASE)
+    for lang, conj in naming_vocabulary.NAME_LIST_CONJUNCTION.items()
+}
+_AUTHOR_SEPARATORS = _AUTHOR_SEPARATORS_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 def split_author_names(author: str) -> list[str]:
@@ -210,13 +197,19 @@ def split_author_names(author: str) -> list[str]:
 #: A trailing "with <Name>" in a TITLE names the host, not the show — "Invest Like the Best with
 #: Patrick O'Shaughnessy". Stripped before comparing a candidate against the show's name, or the
 #: host would look like part of it.
-_TITLE_WITH_SUFFIX = re.compile(r"\s+with\s+.+$", re.IGNORECASE)
+_TITLE_WITH_SUFFIX_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(p, re.IGNORECASE) for lang, p in naming_vocabulary.TITLE_WITH_SUFFIX.items()
+}
+_TITLE_WITH_SUFFIX = _TITLE_WITH_SUFFIX_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 #: A leading article is not part of a show's name for comparison purposes. Without dropping it,
 #: "Trivium China" was not recognised as the prefix of "The Trivium China Podcast" and the show
 #: seated itself as its own host.
-_LEADING_ARTICLE = re.compile(r"^(?:the|a|an)\s+")
+_LEADING_ARTICLE_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(p) for lang, p in naming_vocabulary.LEADING_ARTICLE.items()
+}
+_LEADING_ARTICLE = _LEADING_ARTICLE_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 def _fold_title(text: Optional[str]) -> str:
@@ -371,11 +364,17 @@ def looks_like_publisher(name: str) -> bool:
 # "my name's" is "my name is" (Past Present Future opens "Hello, my name's David Runciman" on every
 # episode, and its host was unnamed on all of them), and "your host for today, <Name>" is "your
 # host, <Name>" (#2224 follow-up). Both widen the FORM; the guards below are unchanged.
-_HOST_SELF_INTRO = re.compile(
-    r"\b(?:I'?m|I am|[Mm]y name is|[Mm]y name['’]s)\s+"
-    r"(?:(?:your|the)\s+(?:co-?)?host(?:\s+(?:for\s+)?today)?,?\s+)?"
-    r"([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,3})"
-)
+#: The NAME SHAPE stays here — how many tokens of evidence a self-introduction needs is not a
+#: language question. Only the cue words come from `naming_vocabulary`.
+def _self_intro_name(lang: str) -> str:
+    return rf"{_uc(lang)}[\w'’\-]+(?:\s+{_uc(lang)}[\w'’\-]+){{0,3}}"
+
+
+_HOST_SELF_INTRO_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(t % {"names": _self_intro_name(lang)})
+    for lang, t in naming_vocabulary.HOST_SELF_INTRO.items()
+}
+_HOST_SELF_INTRO = _HOST_SELF_INTRO_BY_LANGUAGE[TARGET_LANGUAGE]
 
 # "it's <Full Name> with <Show>" — the branded open. Ground Truths: "Hello, it's Eric Topol with
 # Ground Truths."
@@ -396,10 +395,19 @@ _HOST_SELF_INTRO = re.compile(
 # most-trusted signal the easiest to poison. Eric Topol fronts "Ground Truths" and that IS the
 # show; Michael Sullivan fronts Wirecutter and that is not. With no feed title there is no way to
 # tell them apart, so with no feed title this form does not fire at all.
-_HOST_BRANDED_INTRO = re.compile(
-    r"\b[Ii]t'?s\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){1,2})\s+(?:with|from|for)\s+"
-    r"([A-Z][\w'’\-]*(?:\s+[A-Z][\w'’\-]*){0,3})"
-)
+#: FIRST-LAST required (a mononym is the weakest evidence in the weakest form), and the show is
+#: captured so the caller can check it IS this show. Both bounds are structural.
+_HOST_BRANDED_INTRO_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(
+        t
+        % {
+            "names": rf"{_uc(lang)}[\w'’\-]+(?:\s+{_uc(lang)}[\w'’\-]+){{1,2}}",
+            "show": rf"{_uc(lang)}[\w'’\-]*(?:\s+{_uc(lang)}[\w'’\-]*){{0,3}}",
+        }
+    )
+    for lang, t in naming_vocabulary.HOST_BRANDED_INTRO.items()
+}
+_HOST_BRANDED_INTRO = _HOST_BRANDED_INTRO_BY_LANGUAGE[TARGET_LANGUAGE]
 
 # "with me, <Name>" / "and me, <Name>" — the British broadcast idiom for naming ONESELF.
 # "Welcome to The Rest Is Politics: Leading with me, Alastair Campbell" is spoken BY Campbell.
@@ -408,29 +416,29 @@ _HOST_BRANDED_INTRO = re.compile(
 # THE COMMA IS REQUIRED AND "joining me" IS EXCLUDED, deliberately: "joining me, <Name>" introduces
 # somebody ELSE, and admitting it would paint a guest's name onto the host's voice — the exact
 # direction of error this module exists to prevent.
-_HOST_WITH_ME_INTRO = re.compile(
-    r"\b(?:with|and)\s+me,\s+([A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){0,2})"
-)
+_HOST_WITH_ME_INTRO_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(t % {"names": rf"{_uc(lang)}[\w'’\-]+(?:\s+{_uc(lang)}[\w'’\-]+){{0,2}}"})
+    for lang, t in naming_vocabulary.HOST_WITH_ME_INTRO.items()
+}
+_HOST_WITH_ME_INTRO = _HOST_WITH_ME_INTRO_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 # "Let's say I'm Cass Sunstein" is a hypothetical, not a self-introduction: the host was posing a
 # scenario and got named after a past guest (#2224). Checked against the few words BEFORE the match.
-_HYPOTHETICAL_LEAD = re.compile(
-    r"(?:\blet'?s\s+say|\blet\s+us\s+say|\bsuppose|\bsupposing|\bimagine|\bpretend|\bif)"
-    r"(?:\s+that)?,?\s*$",
-    re.IGNORECASE,
-)
+_HYPOTHETICAL_LEAD_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(p, re.IGNORECASE) for lang, p in naming_vocabulary.HYPOTHETICAL_LEAD.items()
+}
+_HYPOTHETICAL_LEAD = _HYPOTHETICAL_LEAD_BY_LANGUAGE[TARGET_LANGUAGE]
 
 # "someone beside me said, hello. My name's Greg." is REPORTED speech — the narrator quoting
 # somebody else (Planet Money), and "he says, I'm Anthony Aguirre" put a caller's name on the
 # guest (MLST).
 # But only somebody ELSE's: "So I said, I'm Jose Pereira" and "As you rightly said, my name is
 # Joshua Chimakula Ngoma" are the speaker naming himself, and stay self-introductions.
-_REPORTED_LEAD = re.compile(
-    r"(?P<who>\b\w+)(?:\s+\w+ly)?\s+(?:said|says|told\s+(?:me|us|him|her)|asked)\b,?\s*[\"“]?\s*"
-    r"(?:(?:hello|hi|hey)\W{0,2})?\s*$",
-    re.IGNORECASE,
-)
+_REPORTED_LEAD_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(p, re.IGNORECASE) for lang, p in naming_vocabulary.REPORTED_LEAD.items()
+}
+_REPORTED_LEAD = _REPORTED_LEAD_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 def _is_hypothetical(head: str, match: "re.Match[str]") -> bool:
@@ -580,9 +588,22 @@ def detect_hosts_from_transcript_intro(
     nlp: Optional[Any] = None,
     intro_duration_seconds: int = 120,
     words_per_second: float = 2.5,
+    text_language: Optional[str] = None,
 ) -> Set[str]:
-    """Detect host names from transcript intro patterns (first 60-120 seconds)."""
+    """Detect host names from transcript intro patterns (first 60-120 seconds).
+
+    ``text_language`` is the S2.14 guard: the cue regexes below are English (``I'm X``,
+    ``Welcome to … I'm X``) and the NER model is ``en_core_web_sm``, so on non-English prose
+    this does not find nothing — measured on the V.6a Spanish fixture, recall held at 2/2 while
+    precision fell from 67% to 18%. A missing name is visible; a wrong one becomes a person.
+    Left ``None`` the guard does not engage, which is the pre-existing behaviour for every
+    caller that has no language to offer.
+    """
     if not transcript_text or not nlp:
+        return set()
+    from ..languages_guard import refuse_unsupported_language
+
+    if refuse_unsupported_language("transcript-intro host detection", text_language):
         return set()
 
     intro_word_count = int(intro_duration_seconds * words_per_second)
@@ -640,55 +661,78 @@ def detect_hosts_from_transcript_intro(
 # every consumer (_NAMES sites, _NAME_RE) linear with identical matches on real intros.
 _NAME = r"(?-i:[A-Z][\w'’\-]+(?:\s+[A-Z][\w'’\-]+){1,5})"
 _NAMES = rf"{_NAME}(?:\s*(?:,|and|&)\s*{_NAME}){{0,9}}"
-# Presenting verbs — what a show's own description says its hosts DO. `interview` was deliberately
-# absent while a stated name could crown "South Africa" ("...Cobus van Staden in South Africa for
-# insightful interviews", #2101); every stated name now passes the person check on its own
-# (`_PLACE_TAIL_TOKENS` refuses it), so the verb is back, with `uncover` (Freakonomics Radio:
-# "Stephen J. Dubner uncovers") and `tackle` (Curious Cases: "Hannah Fry and Dara Ó Briain tackle").
-_PRESENTS = (
-    r"(?:explore|explain|discuss|talk|cover|host|present|bring|engage|interview|uncover|tackle)s?\b"
-)
-#: A STATED name — the feed's prose, which a publisher wrote down. Wider than `_NAME` on purpose
-#: and used ONLY by the feed-statement patterns: a middle initial ("Stephen J. Dubner"), an accented
-#: capital ("Dara Ó Briain") and a lowercase particle ("Cobus van Staden") are parts of a written
-#: name. `_NAME` (the intro reader's run over ASR text) is untouched: there a lone capital is a
-#: sentence opener the ASR capitalised.
-_STATED_UC = r"[A-ZÀ-ÖØ-Þ]"
-_STATED_PARTICLE = r"(?:van|von|de|da|del|della|di|du|la|le|der|den|ter|ten|al|bin|ibn|dos|das|el)"
-_STATED_NAME = (
-    rf"(?-i:{_STATED_UC}[\w'’\-]+(?:\s+(?:[A-Z]\.|{_STATED_PARTICLE}\s+{_STATED_UC}[\w'’\-]+"
-    rf"|{_STATED_UC}[\w'’\-]*)){{1,5}})"
-)
+_PRESENTS_BY_LANGUAGE = naming_vocabulary.PRESENTS
+_PRESENTS = _PRESENTS_BY_LANGUAGE[TARGET_LANGUAGE]
+_STATED_PARTICLES_BY_LANGUAGE = naming_vocabulary.STATED_PARTICLES
+_STATED_PARTICLE_BY_LANGUAGE: Dict[str, str] = {
+    lang: "(?:" + "|".join(parts) + ")" for lang, parts in _STATED_PARTICLES_BY_LANGUAGE.items()
+}
+_STATED_PARTICLE = _STATED_PARTICLE_BY_LANGUAGE[TARGET_LANGUAGE]
+
+
+def _stated_name(language: str) -> str:
+    """The written-name shape for *language*.
+
+    Only the PARTICLE varies; the capital/lowercase classes are structural (a Unicode capital is
+    a Unicode capital in every language) and the bounds are the catastrophic-backtracking fix
+    documented above `_NAME`, which is not a language question either.
+    """
+    particle = _STATED_PARTICLE_BY_LANGUAGE.get(language, _STATED_PARTICLE)
+    # The INITIAL ("Stephen J. Dubner") is `_uc(language)`: main spelled it `[A-Z]`, and English
+    # keeps main's text; the name's own capitals were already Unicode on main.
+    return (
+        rf"(?-i:{_STATED_UC}[\w'’\-]+(?:\s+(?:{_uc(language)}\.|{particle}\s+{_STATED_UC}[\w'’\-]+"
+        rf"|{_STATED_UC}[\w'’\-]*)){{1,5}})"
+    )
+
+
+_STATED_NAME = _stated_name(TARGET_LANGUAGE)
 #: A list of stated names. Between two names the feed may put an Oxford comma ("Alexandra Karppi,
 #: and Nina Panikova"), a role ("and co-host Shalma Wegsman", "and science creator Michael Stevens"
 #: — up to three lowercase words), or a place after a name ("Eric Olander in Vietnam and Cobus van
 #: Staden in South Africa"). Filler and place are matched case-SENSITIVELY, like the names, and the
 #: place is extracted as a name of its own only to be refused by the person check.
+#:
+#: The CONJUNCTION and the place PREPOSITION are the language-dependent parts — "and"/"in" strip
+#: nothing from "Marta Solís y Diego Ferrer en Madrid" — and come from `naming_vocabulary`. The
+#: comma, the ampersand and the bounds are punctuation and structure, and stay here.
+
+
+def _stated_names(language: str) -> str:
+    """A list of written names for *language*, with its own conjunction and place preposition."""
+    name = _stated_name(language)
+    conj = naming_vocabulary.NAME_LIST_CONJUNCTION.get(language) or (
+        naming_vocabulary.NAME_LIST_CONJUNCTION[TARGET_LANGUAGE]
+    )
+    prep = naming_vocabulary.PLACE_PREPOSITION_IN.get(language) or (
+        naming_vocabulary.PLACE_PREPOSITION_IN[TARGET_LANGUAGE]
+    )
+    place = rf"(?-i:(?:\s+{_alt(prep)}\s+{_STATED_UC}[\w\-]+(?:\s+{_STATED_UC}[\w\-]+)?)?)"
+    return (
+        rf"{name}{place}"
+        rf"(?:\s*(?:,\s*{_alt(conj)}|,|{_alt(conj)}|&)\s*(?-i:(?:[a-z][\w\-]*\s+){{0,3}}?)"
+        rf"{name}{place})"
+        rf"{{0,9}}"
+    )
+
+
 _STATED_PLACE = rf"(?-i:(?:\s+in\s+{_STATED_UC}[\w\-]+(?:\s+{_STATED_UC}[\w\-]+)?)?)"
-_STATED_NAMES = (
-    rf"{_STATED_NAME}{_STATED_PLACE}"
-    rf"(?:\s*(?:,\s*and|,|and|&)\s*(?-i:(?:[a-z][\w\-]*\s+){{0,3}}?){_STATED_NAME}{_STATED_PLACE})"
-    rf"{{0,9}}"
-)
+_STATED_NAMES = _stated_names(TARGET_LANGUAGE)
 #: Words a feed puts between the cue and the name: "hosted by Johannesburg-based entrepreneur and
 #: American expat Justin Norman", "Join mathematician Professor Hannah Fry". Non-greedy and
 #: bounded, so a name right after the cue is taken as is.
 _STATED_LEAD = r"(?:[\w\-]+\s+){0,6}?"
-#: Patterns safe to run over a TITLE as well as a description.
-_HOST_PHRASES = [
-    re.compile(p, re.IGNORECASE)
-    for p in (
-        rf"\bhosted\s+by\s+{_STATED_LEAD}(?P<names>{_STATED_NAMES})",
-        rf"\b(?:run|presented)\s+by\s+(?P<names>{_STATED_NAMES})",
-        rf"\b(?:co-?)?hosts?\s+(?P<names>{_STATED_NAMES})",
-        rf"\bjoin\s+{_STATED_LEAD}(?P<names>{_STATED_NAMES})",
-        rf"\bjournalists?\s+(?P<names>{_STATED_NAMES})",
-        # The show title: "... with Patrick O'Shaughnessy", "... with Brené Brown and Adam Grant",
-        # "AI 4 UX with John Whalen, PhD", "Complex Systems with Patrick McKenzie (patio11)".
-        rf"\bwith\s+(?P<names>{_STATED_NAMES})(?:,\s*(?:PhD|Ph\.D\.?|MD|M\.D\.?))?"
-        r"(?:\s*\([^)]*\))?\s*$",
-    )
-]
+#: Patterns safe to run over a TITLE as well as a description. One compiled list per language,
+#: from `naming_vocabulary.HOST_PHRASE_TEMPLATES` — `%`-interpolated, not `.format`-ed, because
+#: the templates carry regex quantifiers like `{0,6}` that `format` would read as fields.
+_HOST_PHRASES_BY_LANGUAGE: Dict[str, List["re.Pattern[str]"]] = {
+    lang: [
+        re.compile(t % {"lead": _STATED_LEAD, "names": _stated_names(lang)}, re.IGNORECASE)
+        for t in templates
+    ]
+    for lang, templates in naming_vocabulary.HOST_PHRASE_TEMPLATES.items()
+}
+_HOST_PHRASES = _HOST_PHRASES_BY_LANGUAGE[TARGET_LANGUAGE]
 
 #: DESCRIPTION-ONLY. "Joe Weisenthal and Tracy Alloway explore..." / "Katie Martin, Robert Armstrong
 #: and other markets nerds at the Financial Times explain..." — names, then a presenting verb, with
@@ -699,51 +743,87 @@ _HOST_PHRASES = [
 #: names "Machine Learning Street" followed by the verb "Talk", and the show became the host of
 #: itself on 6 production episodes. The host does appear in a title, but in a different shape:
 #: "... with Patrick O'Shaughnessy", which the `with` pattern above already reads.
-_HOST_PHRASES_DESCRIPTION_ONLY = [
-    re.compile(rf"(?P<names>{_STATED_NAMES})[\w\s,'’\-]{{0,60}}?\s+{_PRESENTS}", re.IGNORECASE)
-]
+_HOST_PHRASES_DESCRIPTION_ONLY_BY_LANGUAGE: Dict[str, List["re.Pattern[str]"]] = {
+    lang: [
+        re.compile(
+            rf"(?P<names>{_stated_names(lang)})[\w\s,'’\-]{{0,60}}?\s+{verb}",
+            re.IGNORECASE,
+        )
+    ]
+    for lang, verb in _PRESENTS_BY_LANGUAGE.items()
+}
+_HOST_PHRASES_DESCRIPTION_ONLY = _HOST_PHRASES_DESCRIPTION_ONLY_BY_LANGUAGE[TARGET_LANGUAGE]
 _NAME_RE = re.compile(_NAME)
-_STATED_NAME_RE = re.compile(_STATED_NAME)
+_STATED_NAME_RE_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(_stated_name(lang)) for lang in _STATED_PARTICLE_BY_LANGUAGE
+}
+_STATED_NAME_RE = _STATED_NAME_RE_BY_LANGUAGE[TARGET_LANGUAGE]
 #: DESCRIPTION-ONLY. The hosts by FIRST NAME, presenting: "Tom and Dominic bring the past to life"
 #: (The Rest Is History), "guests join Rory and Alastair to discuss" (The Rest Is Politics:
 #: Leading). Two or more given names, each resolved against a full name the same description
 #: states ("with Tom Holland & Dominic Sandbrook"); a given name with no full form adds nobody.
-_FIRST_NAME_PRESENTERS = re.compile(
-    rf"(?P<names>(?-i:[A-Z][a-z]+(?:\s*(?:,\s*and|,|and|&)\s*[A-Z][a-z]+){{1,3}}))"
-    rf"[\w\s,'’\-]{{0,40}}?\s+{_PRESENTS}",
-    re.IGNORECASE,
-)
-_FIRST_NAME_RE = re.compile(r"(?-i:[A-Z][a-z]+)")
+_FIRST_NAME_PRESENTERS_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(
+        rf"(?P<names>(?-i:{_uc(lang)}{_lc(lang)}+"
+        rf"(?:\s*(?:,\s*{_alt(naming_vocabulary.NAME_LIST_CONJUNCTION[lang])}|,"
+        rf"|{_alt(naming_vocabulary.NAME_LIST_CONJUNCTION[lang])}|&)\s*"
+        rf"{_uc(lang)}{_lc(lang)}+){{1,3}}))"
+        rf"[\w\s,'’\-]{{0,40}}?\s+{verb}",
+        re.IGNORECASE,
+    )
+    for lang, verb in _PRESENTS_BY_LANGUAGE.items()
+}
+_FIRST_NAME_PRESENTERS = _FIRST_NAME_PRESENTERS_BY_LANGUAGE[TARGET_LANGUAGE]
+#: PAIRED WITH `_STATED_NAME_RE`, and that is why the character class matters. `_STATED_NAME_RE`
+#: has always been Unicode-aware, so `_first_name_presenters` built its `full_by_first` lookup with
+#: the key `"lucía"` while this regex produced `"luc"` to look up — the two could never meet for an
+#: accented name, and the failure was a silent MISS rather than a wrong answer.
+_FIRST_NAME_RE_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(rf"(?-i:{_uc(lang)}{_lc(lang)}+)") for lang in _PRESENTS_BY_LANGUAGE
+}
+_FIRST_NAME_RE = _FIRST_NAME_RE_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
-_ARTICLE_BEFORE = re.compile(r"\b(?:the|of)\s+$", re.IGNORECASE)
-_PLACE_PREPOSITION = re.compile(r"(?:At|From|In|On)\s+", re.IGNORECASE)
+_ARTICLE_BEFORE_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(p, re.IGNORECASE) for lang, p in naming_vocabulary.ARTICLE_BEFORE.items()
+}
+_ARTICLE_BEFORE = _ARTICLE_BEFORE_BY_LANGUAGE[TARGET_LANGUAGE]
+_PLACE_PREPOSITION_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(p, re.IGNORECASE) for lang, p in naming_vocabulary.PLACE_PREPOSITION.items()
+}
+_PLACE_PREPOSITION = _PLACE_PREPOSITION_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 def hosts_from_feed_statement(
-    feed_title: Optional[str], feed_description: Optional[str]
+    feed_title: Optional[str],
+    feed_description: Optional[str],
+    language: str = TARGET_LANGUAGE,
 ) -> Set[str]:
     """Hosts the feed EXPLICITLY names ("Hosted by X and Y"), rather than every person it mentions.
 
     This is the authoritative source: the show says who presents it. Only used for the names inside
     the host phrase, so a description that also lists past guests cannot smuggle them in.
     """
-    return _feed_statement(feed_title, feed_description)[0]
+    return _feed_statement(feed_title, feed_description, language)[0]
 
 
 def refused_feed_statement_names(
-    feed_title: Optional[str], feed_description: Optional[str]
+    feed_title: Optional[str],
+    feed_description: Optional[str],
+    language: str = TARGET_LANGUAGE,
 ) -> List[str]:
     """What a host phrase named that the person check refused ("Two Carnegie Mellon"), in order.
 
     Never a host; kept so the show metadata can show what the statement said and why it was not
     used.
     """
-    return _feed_statement(feed_title, feed_description)[1]
+    return _feed_statement(feed_title, feed_description, language)[1]
 
 
 def _feed_statement(
-    feed_title: Optional[str], feed_description: Optional[str]
+    feed_title: Optional[str],
+    feed_description: Optional[str],
+    language: str = TARGET_LANGUAGE,
 ) -> Tuple[Set[str], List[str]]:
     """``(hosts, refused)`` — every person a host phrase names, and what a phrase also named that
     is not a person.
@@ -762,17 +842,31 @@ def _feed_statement(
     """
     out: Set[str] = set()
     refused: List[str] = []
+    # EVERY pattern below is the FEED's language, not the analysis language. Nothing translates
+    # feed metadata (D-44 moves the transcript, never the description), so a Spanish show's
+    # "...es presentado por la anfitriona Lucía Herrera" has to be read in Spanish or the show
+    # names nobody at all. Before these rows existed it named nobody: all five non-English feeds
+    # returned an empty host set from a description that states its host in the first sentence.
+    lang = _primary_subtag(language) or TARGET_LANGUAGE
+    host_phrases = _HOST_PHRASES_BY_LANGUAGE.get(lang, [])
+    description_only = _HOST_PHRASES_DESCRIPTION_ONLY_BY_LANGUAGE.get(lang, [])
+    stated_name_re = _STATED_NAME_RE_BY_LANGUAGE.get(lang, _STATED_NAME_RE)
+    article_before = _ARTICLE_BEFORE_BY_LANGUAGE.get(lang)
+    place_preposition = _PLACE_PREPOSITION_BY_LANGUAGE.get(lang)
+    not_a_mononym = _NOT_A_MONONYM_BY_LANGUAGE.get(lang, frozenset())
     for is_title, text in ((True, feed_title or ""), (False, feed_description or "")):
         if not text.strip():
             continue
-        patterns = _HOST_PHRASES if is_title else _HOST_PHRASES + _HOST_PHRASES_DESCRIPTION_ONLY
+        patterns = host_phrases if is_title else host_phrases + description_only
         for pat in patterns:
             for m in pat.finditer(text):
                 # A person's name does not follow "the" or "of": "…Council of the Americas Online
                 # team brings…" made `Americas Online` the host of Latin America in Focus.
-                after_article = bool(_ARTICLE_BEFORE.search(text[: m.start("names")]))
-                for raw in _STATED_NAME_RE.findall(m.group("names")):
-                    clean = _clean_stated_name(raw)
+                after_article = article_before is not None and bool(
+                    article_before.search(text[: m.start("names")])
+                )
+                for raw in stated_name_re.findall(m.group("names")):
+                    clean = _clean_stated_name(raw, language)
                     if len(clean.split()) < 2 or has_org_markers(clean):
                         continue
                     # A publisher/platform is never the host, even inside a host phrase (#1652
@@ -804,30 +898,39 @@ def _feed_statement(
                     # Conquest", "Timmerman Report", "South Africa").
                     if (
                         after_article
-                        or _PLACE_PREPOSITION.match(raw.strip())
-                        or clean.split()[-1].lower().strip(".,'’") in _NOT_A_MONONYM
-                        or not is_publishable_speaker_name(clean)
+                        or (place_preposition is not None and place_preposition.match(raw.strip()))
+                        or clean.split()[-1].lower().strip(".,'’") in not_a_mononym
+                        or not is_publishable_speaker_name(clean, language=language)
                     ):
                         if clean not in refused:
                             refused.append(clean)
                         continue
                     out.add(clean)
         if not is_title:
-            out |= _first_name_presenters(text)
+            out |= _first_name_presenters(text, language)
     return out, refused
 
 
-def _first_name_presenters(description: str) -> Set[str]:
-    """Full names for the given names a description shows presenting ("Tom and Dominic bring")."""
+def _first_name_presenters(description: str, language: str = TARGET_LANGUAGE) -> Set[str]:
+    """Full names for the given names a description shows presenting ("Tom and Dominic bring").
+
+    ``language`` is the FEED's language, not the analysis language, and the difference is the
+    whole point: nothing translates feed metadata, so this reads Spanish in a Spanish show's
+    description even when its transcript has been translated to English.
+    """
     full_by_first: Dict[str, str] = {}
-    for raw in _STATED_NAME_RE.findall(description):
-        clean = _clean_stated_name(raw)
+    lang = _primary_subtag(language) or TARGET_LANGUAGE
+    stated_name_re = _STATED_NAME_RE_BY_LANGUAGE.get(lang, _STATED_NAME_RE)
+    for raw in stated_name_re.findall(description):
+        clean = _clean_stated_name(raw, language)
         toks = clean.split()
-        if len(toks) >= 2 and is_publishable_speaker_name(clean):
+        if len(toks) >= 2 and is_publishable_speaker_name(clean, language=language):
             full_by_first.setdefault(toks[0].lower(), clean)
     out: Set[str] = set()
-    for m in _FIRST_NAME_PRESENTERS.finditer(description):
-        firsts = [f for f in _FIRST_NAME_RE.findall(m.group("names")) if f.lower() != "and"]
+    presenters = _FIRST_NAME_PRESENTERS_BY_LANGUAGE.get(lang, _FIRST_NAME_PRESENTERS)
+    for m in presenters.finditer(description):
+        first_name_re = _FIRST_NAME_RE_BY_LANGUAGE.get(lang, _FIRST_NAME_RE)
+        firsts = [f for f in first_name_re.findall(m.group("names")) if f.lower() != "and"]
         if any(f.lower() in _NOT_A_NAME_TOKEN or f.lower() in _NOT_A_MONONYM for f in firsts):
             continue
         for f in firsts:
@@ -847,37 +950,103 @@ def _echoes_the_title(candidate: str, feed_title: Optional[str]) -> bool:
 
 # A capitalised run is not automatically a name: it can start with a preposition ("At Planet
 # Money"), or be prefixed by the publisher's possessive ("Bloomberg's Joe Weisenthal").
-_LEADING_JUNK = re.compile(r"^(?:At|In|On|By|With|From|The)\s+", re.IGNORECASE)
+#
+# KEYED BY LANGUAGE, because both halves are grammar. Under D-44 the canonical body is always the
+# analysis language, so `_LEADING_JUNK` / `_POSSESSIVE_PREFIX` below resolve to the English rows
+# and behave exactly as they shipped; the map is what makes another analysis language a data edit.
+#
+# NAME PARTICLES ARE DELIBERATELY ABSENT from every non-English row, and that is the one real
+# decision here. English can strip a leading "The"/"From" safely because English names do not
+# begin with them. Spanish, Italian, French, German and Portuguese names DO begin with exactly the
+# words a naive translation would add: "de la Fuente", "Da Vinci", "De Gaulle", "Le Pen", "von
+# Neumann", "da Silva", "dos Santos". Stripping those corrupts the name instead of cleaning it, so
+# `de/di/da/do/dos/das/du/le/la/les/von/zu` appear in NO row — the junk list stays short rather
+# than becoming symmetric with English.
+_LEADING_JUNK_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    "en": re.compile(r"^(?:At|In|On|By|With|From|The)\s+", re.IGNORECASE),
+    "es": re.compile(r"^(?:En|Al|Con|Desde|Para|Sobre|El|La|Los|Las)\s+", re.IGNORECASE),
+    "it": re.compile(r"^(?:A|In|Su|Con|Per|Il|Lo|La|Gli|Le)\s+", re.IGNORECASE),
+    "fr": re.compile(r"^(?:(?:À|A)|En|Sur|Avec|Dans|Chez|Pour)\s+", re.IGNORECASE),
+    "de": re.compile(r"^(?:Bei|In|An|Auf|Mit|Aus|F(?:ü|u)r|Der|Die|Das)\s+", re.IGNORECASE),
+    "pt": re.compile(r"^(?:Em|No|Na|Com|Desde|Para|Sobre|Os|As)\s+", re.IGNORECASE),
+}
+
 # "Bloomberg's Joe Weisenthal", "Red Hat's Chris Wright" — the employer, then the person. Non-greedy
 # so it strips through the FIRST possessive only, leaving "Patrick O'Shaughnessy" (no "'s ") alone.
-#: ...and a plural possessive: "The Rest Is Politics' Alastair Campbell". "O'Shaughnessy" is safe —
-#: the apostrophe is not followed by whitespace. ITS OWN NAME: a second `_POSSESSIVE_PREFIX` is
-#: defined further down for `strip_role_prefix`, and because a module global is read at call time
-#: the stated-name cleaner had silently been using THAT one (which demands "'s").
-_STATED_POSSESSIVE_PREFIX = re.compile(r"^.*?['’]s?\s+")
-#: Job words that END a stated name ("Celestin Ntawirema CEO and founder of...").
-_TRAILING_JOB_TOKENS = frozenset({"ceo", "cto", "coo", "cfo", "founder", "cofounder", "co-founder"})
+#
+# `None` FOR FIVE LANGUAGES IS THE ANSWER, NOT A HOLE I DID NOT FILL. The construction this strips
+# is PREFIX possession, and Spanish, Italian, French and Portuguese do not have it: they postpose
+# the employer ("Joe Weisenthal de Bloomberg"), so there is nothing in front of the name to remove
+# and any pattern here would only be able to damage one.
+#
+# GERMAN IS A GENUINE UNCOVERED CASE, recorded as `None` rather than guessed. German does front the
+# genitive — "Bloombergs Joe Weisenthal" — but with a bare `s` and no apostrophe, so the English
+# shape has no anchor to match on. `^\w+s\s+` would strip the first word of every name whose first
+# token happens to end in s ("Hans Zimmer" -> "Zimmer"), which is worse than not cleaning. A safe
+# pattern needs a capitalisation or NER anchor this stage does not have.
+_POSSESSIVE_PREFIX_BY_LANGUAGE: Dict[str, Optional["re.Pattern[str]"]] = {
+    # `s?`, not `s`: a PLURAL possessive has no trailing s — "The Rest Is Politics'
+    # Alastair Campbell" (main, 2026-10-03). "O'Shaughnessy" stays safe because the
+    # apostrophe there is not followed by whitespace.
+    "en": re.compile(r"^.*?['’]s?\s+"),
+    "es": None,
+    "it": None,
+    "fr": None,
+    "de": None,
+    "pt": None,
+}
+
+_LEADING_JUNK = _LEADING_JUNK_BY_LANGUAGE[TARGET_LANGUAGE]
+_TRAILING_JOB_TOKENS_BY_LANGUAGE = naming_vocabulary.TRAILING_JOB_TOKENS
+_TRAILING_JOB_TOKENS = _TRAILING_JOB_TOKENS_BY_LANGUAGE[TARGET_LANGUAGE]
+
+# NO `_POSSESSIVE_PREFIX` ALIAS HERE, DELIBERATELY. One used to sit on this line and it was
+# DEAD: a second `_POSSESSIVE_PREFIX` is defined much further down for `strip_role_prefix`,
+# and the later module-level assignment wins — so the alias resolved to the ROLE-prefix
+# pattern, not the stated-name one. `main` met the same bug from the other side and fixed it
+# by naming its pattern `_STATED_POSSESSIVE_PREFIX`; reading the by-language map directly
+# leaves no name to collide with. `.get(language)` below therefore has NO fallback: an
+# unknown language gets no possessive stripping, which fails closed instead of applying a
+# role-prefix pattern to a stated name.
 
 
-def _clean_stated_name(name: str) -> str:
+def _clean_stated_name(name: str, language: str = TARGET_LANGUAGE) -> str:
     """The person inside a stated capitalised run.
 
     "Bloomberg's Joe Weisenthal" -> "Joe Weisenthal"; "At Planet Money" -> "Planet Money" (then
     refused as the show); "Professor Hannah Fry" -> "Hannah Fry" (a title is how someone is
-    addressed; the roster snaps a self-introduction onto the pool by first name, and "Professor" is
-    not one); "Senior User Experience Specialist Therese Fessenden" -> "Therese Fessenden" (the
-    words after the last job word); "Celestin Ntawirema CEO" -> "Celestin Ntawirema".
+    addressed; the roster snaps a self-introduction onto the pool by first name, and "Professor"
+    is not one); "Senior User Experience Specialist Therese Fessenden" -> "Therese Fessenden";
+    "Celestin Ntawirema CEO" -> "Celestin Ntawirema".
+
+    ``language`` selects EVERY row this function reads: the possessive, the leading junk, the
+    honorifics and both job-token passes. The earlier version keyed only the first two and said so
+    — "the day a language needs them the fix is a row, not a rewrite". That day came: with English
+    honorifics on a Spanish name, "Anfitrión Miguel" survived every pass and was publishable, while
+    "Host Mike" was correctly refused. The rows exist now, so the passes read them.
+
+    A language with no row strips NOTHING rather than stripping wrongly — `.get` with no English
+    fallback, the same fail-closed rule as the rest of this module. "Cannot read this language"
+    and "this language says nothing here" stay distinguishable.
     """
     clean = (name or "").strip()
-    clean = _STATED_POSSESSIVE_PREFIX.sub("", clean)
-    clean = _LEADING_JUNK.sub("", clean)
+    lang = _primary_subtag(language) or TARGET_LANGUAGE
+    possessive = _POSSESSIVE_PREFIX_BY_LANGUAGE.get(lang)
+    if possessive is not None:
+        clean = possessive.sub("", clean)
+    junk = _LEADING_JUNK_BY_LANGUAGE.get(lang)
+    if junk is not None:
+        clean = junk.sub("", clean)
+    honorifics = _HONORIFIC_TITLES_BY_LANGUAGE.get(lang, frozenset())
+    job_titles = _JOB_TITLE_TOKENS_BY_LANGUAGE.get(lang, frozenset())
+    trailing_jobs = _TRAILING_JOB_TOKENS_BY_LANGUAGE.get(lang, frozenset())
     toks = clean.split()
-    while len(toks) > 2 and toks[0].lower().strip(".,") in HONORIFIC_TITLES:
+    while len(toks) > 2 and toks[0].lower().strip(".,") in honorifics:
         toks = toks[1:]
-    job = [i for i, t in enumerate(toks[:-2]) if t.lower().strip(".,") in _JOB_TITLE_TOKENS]
+    job = [i for i, tok in enumerate(toks[:-2]) if tok.lower().strip(".,") in job_titles]
     if job:
         toks = toks[job[-1] + 1 :]
-    while len(toks) > 2 and toks[-1].lower().strip(".,") in _TRAILING_JOB_TOKENS:
+    while len(toks) > 2 and toks[-1].lower().strip(".,") in trailing_jobs:
         toks = toks[:-1]
     return " ".join(toks).strip()
 
@@ -896,23 +1065,85 @@ def _clean_stated_name(name: str) -> str:
 #
 # The host usually announces himself and names his guest in one breath, which yields both roles and
 # both names from a single utterance.
-_HOST_SPEECH_ACTS = [
-    re.compile(p, re.IGNORECASE)
-    for p in (
-        r"\bwelcome (?:back )?to (?:the |my |our )?\w+",
-        r"\bi'?m your host\b",
-        r"\b(?:my|our) guests? (?:today )?(?:is|are)\b",
-        r"\b(?:joining|with) (?:me|us) (?:today|now|this week)\b",
-        r"\bthanks? (?:so much )?for (?:coming on|joining me|joining us|being here)\b",
-        # Thanking SEVERAL people for coming is the presenter's line ("Thank you both very much for
-        # coming", The a16z Show). The singular form is left alone: "Boris, thank you so much for
-        # being here" bleeds from the host's close into the guest's cluster (Lenny's Podcast,
-        # corpus replay 2026-10-03) and would hand the guest the only seat.
-        r"\bthanks?(?: you)? (?:both|all)(?: (?:so|very) much)? for "
-        r"(?:coming(?: on)?|joining (?:me|us)|being here)\b",
-        r"\bthis week on (?:the )?\w+",
-    )
-]
+#: KEYED BY LANGUAGE for the reason the ad and cue vocabularies are: these are phrases, and a flat
+#: list is a list in English wearing no label. Non-English rows are TRANSLATIONS of the English
+#: categories — the English row is the measured one, and the three feeds quoted above are what
+#: measured it. No non-English conversation has been run against these.
+_HOST_SPEECH_ACTS_BY_LANGUAGE: Dict[str, Tuple["re.Pattern[str]", ...]] = {
+    lang: tuple(re.compile(p, re.IGNORECASE) for p in patterns)
+    for lang, patterns in {
+        "en": (
+            r"\bwelcome (?:back )?to (?:the |my |our )?\w+",
+            r"\bi'?m your host\b",
+            r"\b(?:my|our) guests? (?:today )?(?:is|are)\b",
+            r"\b(?:joining|with) (?:me|us) (?:today|now|this week)\b",
+            r"\bthanks? (?:so much )?for (?:coming on|joining me|joining us|being here)\b",
+            # Thanking SEVERAL people for coming is the presenter's line ("Thank you
+            # both very much for coming", The a16z Show). The singular form is left
+            # alone: "Boris, thank you so much for being here" bleeds from the host's
+            # close into the guest's cluster (Lenny's Podcast, corpus replay
+            # 2026-10-03) and would hand the guest the only seat. NOT translated into
+            # the five rows below, which is a judgement rather than an omission: the
+            # both/all distinction is what makes the English pattern safe, and the
+            # non-English rows already use number-agnostic phrasing ("gracias por
+            # venir" covers one guest and several), so there is no singular form there
+            # for it to separate from.
+            r"\bthanks?(?: you)? (?:both|all)(?: (?:so|very) much)? for "
+            r"(?:coming(?: on)?|joining (?:me|us)|being here)\b",
+            r"\bthis week on (?:the )?\w+",
+        ),
+        "es": (
+            r"\bbienvenid[oa]s? (?:de nuevo )?a (?:la |el |mi |nuestro )?\w+",
+            r"\bsoy (?:tu|su|vuestro) (?:anfitri(?:ó|o)n|presentador[a]?)\b",
+            r"\b(?:mi|nuestro|nuestra)s? invitad[oa]s? (?:de hoy )?(?:es|son)\b",
+            r"\b(?:me|nos) acompa(?:ñ|n)a (?:hoy|ahora|esta semana)\b",
+            r"\bgracias por (?:venir|acompa(?:ñ|n)arnos|estar aqu(?:í|i))\b",
+            r"\besta semana en (?:la |el )?\w+",
+        ),
+        "it": (
+            r"\bben(?:venut|tornat)[oiae]+ (?:di nuovo )?(?:a|su|nel|nella) "
+            r"(?:il |la |mio |nostro )?\w+",
+            r"\bsono il (?:vostro|tuo) (?:conduttore|host)\b",
+            r"\b(?:il mio|il nostro|i nostri) ospit[ei] (?:di oggi )?(?:(?:è|e'|e)|sono)\b",
+            r"\bcon (?:me|noi) (?:oggi|ora|questa settimana)\b",
+            r"\bgrazie per (?:essere qui|essere venut[oa]|esserci)\b",
+            r"\bquesta settimana (?:a|su|in) (?:il |la )?\w+",
+        ),
+        "fr": (
+            r"\bbienvenue (?:(?:à|a) nouveau )?(?:dans|(?:à|a)|sur) (?:le |la |mon |notre )?\w+",
+            r"\bje suis votre (?:h(?:ô|o)te"  # codespell:ignore te
+            r"|animat(?:eur|rice)|pr(?:é|e)sentat(?:eur|rice))\b",
+            r"\b(?:mon|notre|nos) invit(?:é|e)e?s? (?:du jour )?(?:est|sont)\b",
+            r"\bavec (?:moi|nous) (?:aujourd'hui|maintenant|cette semaine)\b",
+            r"\bmerci (?:d'(?:ê|e)tre "  # codespell:ignore tre
+            r"(?:l(?:à|a)|ici|venu[e]?)|de venir)\b",
+            r"\bcette semaine (?:dans|sur) (?:le |la )?\w+",
+        ),
+        "de": (
+            r"\bwillkommen (?:zur(?:ü|u)ck )?(?:bei|zu|in|im) "
+            r"(?:der |die |das |meinem |unserem )?\w+",
+            r"\bich bin (?:euer|ihr|dein) (?:gastgeber(?:in)?|moderator(?:in)?)\b",
+            r"\b(?:mein|unser)(?:e)? "  # codespell:ignore unser
+            r"g(?:ä|a)st(?:e|in)? (?:heute )?(?:ist|sind)\b",
+            r"\bbei (?:mir|uns) (?:heute|jetzt|diese woche)\b",
+            r"\bdanke,? dass (?:du|sie|ihr) "  # codespell:ignore sie
+            r"(?:hier|da|dabei) (?:bist|sind|seid)\b",
+            r"\bdiese woche (?:bei|in|im) (?:der |die )?\w+",
+        ),
+        "pt": (
+            r"\bbem-vind[oa]s? (?:de volta )?(?:ao|(?:à|a)|para o|para a) "
+            r"(?:o |a |meu |nosso )?\w+",  # codespell:ignore meu
+            r"\beu sou (?:o|a) (?:seu|sua) (?:anfitri(?:ã|a)o|apresentador[a]?)\b",
+            r"\b(?:meu|minha|nosso|nossa)s? "  # codespell:ignore meu
+            r"convidad[oa]s? (?:de hoje )?(?:(?:é|e)|s(?:ã|a)o)\b",
+            r"\b(?:comigo|conosco) (?:hoje|agora|esta semana)\b",
+            r"\bobrigad[oa] por (?:vir|estar aqui|nos acompanhar)\b",
+            r"\besta semana (?:no|na|em) (?:o |a )?\w+",
+        ),
+    }.items()
+}
+
+_HOST_SPEECH_ACTS = _HOST_SPEECH_ACTS_BY_LANGUAGE[TARGET_LANGUAGE]
 # NOTE (#1228) — a "floor-managing" host act (a co-host who only self-introduces on a no-host feed
 # but directs the show, "Let's get into this week's news") was TRIED as a recall lever and REVERTED.
 # On the prod-v2 corpus (90 eps, `relabel_corpus.py --llm none`) the tightened, nameability-gated
@@ -922,36 +1153,59 @@ _HOST_SPEECH_ACTS = [
 # clusters). Inert on real data + precision-dangerous ⇒ not worth the code path (#876). The
 # co-host-on-a-no-host-feed case stays the documented precision boundary (roster leaves the role
 # unknown rather than risk a wrong name); revisit only with the #1189 human-GT fixtures.
-_GUEST_SPEECH_ACTS = [
-    re.compile(p, re.IGNORECASE)
-    for p in (
-        # "thanks/thank you [so much | very much] for having me" — the intensifier is optional AND
-        # may be "very much", not only "so much". "Thank you very much for having me" (The Daily's
-        # guest Robert Pape) matched NEITHER old fixed pattern, so the dominant guest was never
-        # flagged and community-1's clustering then crowned him a host (#1169).
-        r"\b(?:thanks?|thank you)(?:\s+(?:so|very)\s+much)? for having me\b",
-        r"\b(?:glad|happy|great|good) to be (?:here|on|back)\b",
-    )
-]
-#: A presenting formula that names THE SHOW: "This is Roundtable", "You're listening to Why This
-#: Universe", "today on Unbelievable", "welcome to the Africa Tech Summit podcast", "Hello, Turkey
-#: Book Talk episode 276". A guest never presents the show by name, and a promo for ANOTHER show
-#: names that show -- so the cue is only evidence together with THIS show's name
-#: (:func:`show_name_pattern`). "welcome to" without the show's name stays the ordinary host act
-#: above. NOT "this episode of <show>": that is the credits ("This episode of Planet Money was
-#: produced by...") and the guest's plug ("you should listen to this episode of MLST") -- measured
-#: on the corpus replay, 2026-10-02.
-_SHOW_INTRO_CUE = (
-    r"(?:this is|you'?re listening to|you are listening to"
-    r"|welcome(?: back)? to(?: (?:another|this|today'?s) (?:episode|edition) of)?"
-    r"|(?:today|tonight|this week|this time|this season|this month|next (?:few )?\w+) on"
-    r"|here on|(?:hello|hi)(?:,?\s+(?:everyone|everybody|there|folks|all))?,?)"
-)
+#: The guest's half, keyed the same way. Gendered participles are spelled out in the rows that
+#: have them (``obrigad[oa]``, ``encantad[oa]``, ``ravi(?:e)?``) — a row that only matched the
+#: masculine form would see half the guests.
+_GUEST_SPEECH_ACTS_BY_LANGUAGE: Dict[str, Tuple["re.Pattern[str]", ...]] = {
+    lang: tuple(re.compile(p, re.IGNORECASE) for p in patterns)
+    for lang, patterns in {
+        "en": (
+            # "thanks/thank you [so much | very much] for having me" — the intensifier is optional
+            # AND may be "very much", not only "so much". "Thank you very much for having me" (The
+            # Daily's guest Robert Pape) matched NEITHER old fixed pattern, so the dominant guest
+            # was never flagged and community-1's clustering then crowned him a host (#1169).
+            r"\b(?:thanks?|thank you)(?:\s+(?:so|very)\s+much)? for having me\b",
+            r"\b(?:glad|happy|great|good) to be (?:here|on|back)\b",
+        ),
+        "es": (
+            r"\bgracias(?:\s+(?:mil|muchas))? por (?:invitarme|recibirme|tenerme)\b",
+            r"\b(?:encantad[oa]|content[oa]|feli(?:z|ces)) de estar (?:aqu(?:í|i)|de vuelta)\b",
+            r"\bun placer estar (?:aqu(?:í|i)|contigo|con ustedes)\b",
+        ),
+        "it": (
+            r"\bgrazie(?:\s+mille)? per (?:avermi invitato|l'invito|avermi qui)\b",
+            r"\b(?:felice|content[oa]|un piacere) di essere (?:qui|qua|di nuovo qui)\b",
+            r"\b(?:è|e'|e) un piacere essere (?:qui|qua)\b",
+        ),
+        "fr": (
+            r"\bmerci(?:\s+beaucoup)? de m'(?:avoir invit(?:é|e)e?|accueillir|recevoir)\b",
+            r"\b(?:ravi(?:e)?|content(?:e)?|heureu(?:x|se)) d'(?:ê|e)tre "  # codespell:ignore tre
+            r"(?:l(?:à|a)|ici|de retour)\b",
+            r"\bc'est un plaisir d'(?:ê|e)tre (?:l(?:à|a)|ici)\b",  # codespell:ignore tre
+        ),
+        "de": (
+            r"\b(?:vielen |herzlichen )?dank f(?:ü|u)r die einladung\b",
+            r"\b(?:freut mich|sch(?:ö|o)n|toll),? (?:hier|dabei|wieder hier) zu sein\b",
+            r"\bich freue mich,? hier zu sein\b",
+        ),
+        "pt": (
+            r"\bobrigad[oa](?:\s+(?:muito|demais))? por me (?:receber|convidar|ter aqui)\b",
+            r"\b(?:feli(?:z|zes)|contente|um prazer) (?:de |em )?estar (?:aqui|de volta)\b",
+            r"\b(?:é|e) um prazer estar aqui\b",
+        ),
+    }.items()
+}
+
+_GUEST_SPEECH_ACTS = _GUEST_SPEECH_ACTS_BY_LANGUAGE[TARGET_LANGUAGE]
+
+_SHOW_INTRO_CUE_BY_LANGUAGE = naming_vocabulary.SHOW_INTRO_CUE
+_SHOW_INTRO_CUE = _SHOW_INTRO_CUE_BY_LANGUAGE[TARGET_LANGUAGE]
 #: A subtitle after the show's name ("No Priors: Artificial Intelligence | Technology").
 _SHOW_TITLE_SEPARATOR = re.compile(r"\s+[:|\u2013\u2014-]\s+|:\s+")
 #: A parenthesised tag after the name ("Machine Learning Street Talk (MLST)") is not said aloud.
 _SHOW_TITLE_PAREN = re.compile(r"\s*\([^)]*\)\s*$")
-_SHOW_TAIL_WORDS = frozenset({"podcast", "show"})
+_SHOW_TAIL_WORDS_BY_LANGUAGE = naming_vocabulary.SHOW_TAIL_WORDS
+_SHOW_TAIL_WORDS = _SHOW_TAIL_WORDS_BY_LANGUAGE[TARGET_LANGUAGE]
 #: A one-word title must be at least this long: "Today" or "Daily" after "this is" is ordinary
 #: speech; "Unbelievable", "Unhedged", "Decoder" are not.
 _SHOW_MIN_MONONYM_LEN = 6
@@ -1020,32 +1274,22 @@ def performs_show_intro(text: Optional[str], feed_title: Optional[str]) -> bool:
 # person — "today, my colleague Claire Cain Miller…". The possessive + "colleague" anchor keeps it
 # from a bare topical mention. Role-title hand-offs ("Pentagon reporter Eric Schmitt talks us
 # through…") are caught by the name-first verb tail, which is host-gated and safe to keep looser.
-CUE_FIRST_BODY = (
-    r"(?:my|our)\s+guests?\s+(?:today\s+)?(?:is|are)"
-    r"|joined\s+(?:today\s+)?by"
-    r"|joining\s+(?:me|us)(?:\s+(?:today|now|this\s+week))?\s+(?:is|are)"
-    r"|(?:i'?m|we'?re)\s+(?:here\s+)?(?:joined\s+)?with"
-    r"|(?:please\s+)?welcome\s+(?:back\s+)?"
-    r"|here\s+with\s+me\s+(?:is|are)"
-    r"|(?:my|our)\s+colleague"
-    # "I'm chatting with X" / "we're speaking with X". The form above only covers a bare
-    # "I'm with" / "I'm joined with"; the conversational verbs were absent, and they carry a
-    # measurable share of real introductions — 30 correct / 0 wrong over the decidable cases on
-    # the production snapshot (5th advisor review).
-    r"|(?:i'?m|we'?re)\s+(?:here\s+)?(?:chatting|talking|speaking|sitting\s+down)\s+(?:with|to)"
-    # "with us today is X" — the mirror of "here with me is X", which was covered while this was
-    # not. 3 correct / 1 wrong; small, and it costs nothing to read.
-    r"|with\s+us\s+(?:today\s+)?(?:is|are)"
-)
+_CUE_FIRST_BODY_BY_LANGUAGE = naming_vocabulary.CUE_FIRST_BODY
+CUE_FIRST_BODY = _CUE_FIRST_BODY_BY_LANGUAGE[TARGET_LANGUAGE]
 # Past-tense hand-off ("i sat down with X", "we spoke with X"). A real introduction ONLY as a
 # head-of-episode cold-open; mid-show it describes a PAST conversation and would misattribute the
 # named person to whatever voice happens to speak next (a recap is not an intro). Kept separate so
 # the roster can gate it to the first turns AND a host introducer (3rd advisor review).
-CUE_FIRST_PAST_BODY = r"(?:i|we)\s+(?:spoke|talked|sat\s+down)\s+with"
-_GUEST_INTRODUCED_BY_HOST = re.compile(
-    rf"\b(?:{CUE_FIRST_BODY})\s+(?:the\s+|our\s+)?(?P<names>{_NAMES})",
-    re.IGNORECASE,
-)
+_CUE_FIRST_PAST_BODY_BY_LANGUAGE = naming_vocabulary.CUE_FIRST_PAST_BODY
+CUE_FIRST_PAST_BODY = _CUE_FIRST_PAST_BODY_BY_LANGUAGE[TARGET_LANGUAGE]
+_GUEST_INTRODUCED_BY_HOST_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(
+        rf"\b(?:{body})\s+(?:the\s+|our\s+)?(?P<names>{_NAMES})",
+        re.IGNORECASE,
+    )
+    for lang, body in _CUE_FIRST_BODY_BY_LANGUAGE.items()
+}
+_GUEST_INTRODUCED_BY_HOST = _GUEST_INTRODUCED_BY_HOST_BY_LANGUAGE[TARGET_LANGUAGE]
 
 # ...and the same introduction with the NAME FIRST. Every cue above expects "cue, then name"
 # ("joined by Jia Li"), and hosts phrase it the other way round just as often:
@@ -1060,238 +1304,40 @@ _GUEST_INTRODUCED_BY_HOST = re.compile(
 # host-hint voice), so a topical "X explains that…" in a guest's own answer does not reclaim a name.
 # Intro tails ("Jia Li is with us", "…joins me"): a first-person address, safe to resolve against
 # the full stated set.
-NAME_FIRST_TAIL = (
-    r"(?:is|are)\s+(?:here\s+)?with\s+(?:me|us)"
-    r"|(?:is|are)\s+(?:my|our)\s+guests?"
-    r"|(?:is|are)\s+joining\s+(?:me|us)"
-    r"|joins?\s+(?:me|us)"
-    # "X is here to talk about …" — the host says why the guest came. Distinct from
-    # "is here with me": the purpose clause, not the presence clause. 12 correct / 1 wrong.
-    r"|(?:is|are)\s+here\s+to\b"
-)
+_NAME_FIRST_TAIL_BY_LANGUAGE = naming_vocabulary.NAME_FIRST_TAIL
+NAME_FIRST_TAIL = _NAME_FIRST_TAIL_BY_LANGUAGE[TARGET_LANGUAGE]
 # Narrated-desk REPORT verbs ("Farnaz Fassihi explains…", "Sydney Baloue reports…"). These ALSO
 # match a purely TOPICAL mention on a host's own sentence ("Sam Altman explains it best in his
 # blog"), so on the case-blind match-form path they are resolved only against CORROBORATED refs
 # (detected guests + known hosts) — never a bare metadata SUBJECT (3rd advisor review).
-NAME_FIRST_REPORT_TAIL = (
-    r"explains?|reports?|tells\s+us|walks\s+us\s+through|talks\s+us\s+through"
-    r"|takes\s+us\s+(?:through|inside)|breaks\s+(?:it\s+|this\s+)?down"
-)
-_GUEST_INTRODUCED_NAME_FIRST = re.compile(
+_NAME_FIRST_REPORT_TAIL_BY_LANGUAGE = naming_vocabulary.NAME_FIRST_REPORT_TAIL
+NAME_FIRST_REPORT_TAIL = _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE[TARGET_LANGUAGE]
+_GUEST_INTRODUCED_NAME_FIRST_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
     # Tolerate an ASR comma between the name and the verb ("Eric Schmitt, talks us through…").
-    rf"(?P<names>{_NAMES})\s*,?\s+(?:{NAME_FIRST_TAIL}|{NAME_FIRST_REPORT_TAIL})",
-    re.IGNORECASE,
-)
+    lang: re.compile(
+        rf"(?P<names>{_NAMES})\s*,?\s+" rf"(?:{tail}|{_NAME_FIRST_REPORT_TAIL_BY_LANGUAGE[lang]})",
+        re.IGNORECASE,
+    )
+    for lang, tail in _NAME_FIRST_TAIL_BY_LANGUAGE.items()
+}
+_GUEST_INTRODUCED_NAME_FIRST = _GUEST_INTRODUCED_NAME_FIRST_BY_LANGUAGE[TARGET_LANGUAGE]
 
 # The host greets a just-introduced guest BY NAME: "Jody Rosen, welcome to the show",
 # "Nic Harrigan, thanks so much for coming on". Name-then-greeting — the mirror of the cue-first
 # forms, and the ordering a narrated interview show (The Daily) actually uses to bring a guest in.
-GREETED_TAIL = (
-    r"welcome\b"
-    r"|thanks?(?:\s+so\s+much)?\s+for\s+(?:coming|joining|being)"
-    r"|thank\s+you(?:\s+so\s+much)?\s+for\s+(?:coming|joining|being)"
-)
-_GUEST_GREETED = re.compile(
-    rf"(?P<names>{_NAMES})\s*,\s*(?:{GREETED_TAIL})",
-    re.IGNORECASE,
-)
+_GREETED_TAIL_BY_LANGUAGE = naming_vocabulary.GREETED_TAIL
+GREETED_TAIL = _GREETED_TAIL_BY_LANGUAGE[TARGET_LANGUAGE]
+_GUEST_GREETED_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(rf"(?P<names>{_NAMES})\s*,\s*(?:{tail})", re.IGNORECASE)
+    for lang, tail in _GREETED_TAIL_BY_LANGUAGE.items()
+}
+_GUEST_GREETED = _GUEST_GREETED_BY_LANGUAGE[TARGET_LANGUAGE]
 
 # "I'm Coming Out", "I'm Not Sure" — the self-introduction regex matches any capitalised run, and
 # the ASR capitalises plenty of things that are not people. Found in The Daily, where a voice was
 # recorded as introducing itself as "Coming Out".
-_NOT_A_NAME_TOKEN = frozenset(
-    {
-        # FUNCTION WORDS — a closed class: pronouns, determiners, auxiliaries, prepositions. No
-        # person-name token is one of them, and an ASR stretch that capitalises every word turns
-        # prose into a "name" that contains one: `Super Willing To Be`, `One Factor That`, `México
-        # She`, `Karin Zesis This` (Latin America in Focus). Measured over the full roster on
-        # 4,543 production and validation episode files: the only other change is the show name
-        # `Conversations with Tyler` leaving a voice — no person's name is lost. Name particles
-        # (`van`, `de`, `al`, `bin`) and words that are also surnames (`do`, `an`) are left out.
-        "i",
-        "me",
-        "you",
-        "he",
-        "she",
-        "it",
-        "we",
-        "they",
-        "him",
-        "us",
-        "them",
-        "that",
-        "this",
-        "these",
-        "those",
-        "is",
-        "are",
-        "was",
-        "were",
-        "be",
-        "been",
-        "am",
-        "does",
-        "did",
-        "has",
-        "have",
-        "had",
-        "to",
-        "of",
-        "on",
-        "at",
-        "for",
-        "with",
-        "from",
-        "by",
-        "into",
-        "about",
-        "or",
-        "coming",
-        "going",
-        "not",
-        "sorry",
-        "sure",
-        "just",
-        "here",
-        "there",
-        "really",
-        "gonna",
-        "trying",
-        "talking",
-        "telling",
-        "saying",
-        "looking",
-        "thinking",
-        "working",
-        "wondering",
-        "curious",
-        "afraid",
-        "worried",
-        "excited",
-        "glad",
-        "happy",
-        "good",
-        "great",
-        "fine",
-        "okay",
-        "back",
-        "out",
-        "in",
-        "so",
-        "very",
-        "always",
-        "still",
-        "also",
-        "the",
-        "a",
-        "an",
-        # Sentence-opening discourse markers the ASR capitalises at a turn boundary and the greeting
-        # regexes then sweep into a 2-word "name" ("So Nick, welcome" -> "So Nick", "But Sun, thanks
-        # for coming" -> "But Sun"). They are ordinary English words, so they belong to this set by
-        # its own contract. Any-position match means a real surname colliding with one ("Andrew
-        # Look") is also dropped — accepted per "a wrong label is worse than an unnamed voice".
-        "but",
-        "and",
-        "well",
-        "now",
-        "then",
-        "because",
-        "plus",
-        "anyway",
-        "look",
-        "yeah",
-        # Found by sweeping every published 2+ token speaker name in the production snapshot for a
-        # leading ordinary word this set did not already hold. Exactly four occur, on 8 names:
-        # "As Peter" (4), "Before Gene" (2), "Their Erica" (1), "Your  Host  Luisa  Leni" (1).
-        # Measured rather than brainstormed, because a wordlist grown by imagination is the
-        # treadmill `names_the_show` was written to get off.
-        "as",
-        "before",
-        "after",
-        # POSSESSIVE DETERMINERS AS A CLOSED CLASS. "their"/"your" are the two that appear, and the
-        # rest of the class is listed with them because it IS a closed class — no possessive
-        # determiner is ever a given name, so this is a categorical statement rather than a guess
-        # about what might turn up next.
-        "my",
-        "our",
-        "your",
-        "his",
-        "her",
-        "their",
-        "its",
-        # Turn-opener contractions (BUG 5): the ASR capitalises the first word of a turn, and a
-        # screenplay-line speaker-label reader that just grabs whatever precedes the colon can pick
-        # up the contraction itself as the "speaker" ("I'm: You'll never find a harder worker...").
-        # Listed in both straight-quote and curly-quote (’) spellings since transcript punctuation
-        # restoration can emit either, and neither ``looks_like_a_person_name`` nor
-        # ``is_publishable_speaker_name`` normalises the apostrophe before this lookup (``.strip()``
-        # only trims the ends of the token, not an internal one).
-        "i'm",
-        "i’m",
-        "i've",
-        "i’ve",
-        "i'll",
-        "i’ll",
-        "i'd",
-        "i’d",
-        "you're",
-        "you’re",
-        "you'll",
-        "you’ll",
-        "you've",
-        "you’ve",
-        "you'd",
-        "you’d",
-        "we're",
-        "we’re",
-        "we've",
-        "we’ve",
-        "we'll",
-        "we’ll",
-        "they're",
-        "they’re",
-        "they've",
-        "they’ve",
-        "it's",
-        "it’s",
-        "that's",
-        "that’s",
-        "there's",
-        "there’s",
-        "here's",
-        "here’s",
-        "let's",
-        "let’s",
-        "don't",
-        "don’t",
-        "doesn't",
-        "doesn’t",
-        "didn't",
-        "didn’t",
-        "can't",
-        "can’t",
-        "won't",
-        "won’t",
-        "wouldn't",
-        "wouldn’t",
-        "shouldn't",
-        "shouldn’t",
-        "couldn't",
-        "couldn’t",
-        "isn't",
-        "isn’t",
-        "aren't",
-        "aren’t",
-        "wasn't",
-        "wasn’t",
-        "weren't",
-        "weren’t",
-        "haven't",
-        "haven’t",
-        "hasn't",
-        "hasn’t",
-    }
-)
+_NOT_A_NAME_TOKEN_BY_LANGUAGE = naming_vocabulary.NOT_A_NAME_TOKEN
+_NOT_A_NAME_TOKEN = _NOT_A_NAME_TOKEN_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 def looks_like_a_person_name(name: str) -> bool:
@@ -1308,94 +1354,15 @@ def looks_like_a_person_name(name: str) -> bool:
 # Capitalised single words that follow "I'm <Cap>" but are NOT names — the "I'm American" class.
 # The self-intro regex is case-SENSITIVE, so lowercase adjectives ("I'm ready") never reach here;
 # the residual risk is demonyms / religion / politics, which do get capitalised.
-_NOT_A_MONONYM = frozenset(
-    {
-        "american",
-        "british",
-        "canadian",
-        "australian",
-        "irish",
-        "scottish",
-        "english",
-        "welsh",
-        "german",
-        "french",
-        "italian",
-        "spanish",
-        "portuguese",
-        "chinese",
-        "japanese",
-        "korean",
-        "indian",
-        "russian",
-        "mexican",
-        "brazilian",
-        "dutch",
-        "swedish",
-        "norwegian",
-        "danish",
-        "european",
-        "african",
-        "asian",
-        "latino",
-        "latina",
-        "hispanic",
-        "jewish",
-        "christian",
-        "catholic",
-        "protestant",
-        "muslim",
-        "hindu",
-        "buddhist",
-        "atheist",
-        "republican",
-        "democrat",
-        "democratic",
-        "conservative",
-        "liberal",
-        "progressive",
-        "independent",
-    }
-)
+_NOT_A_MONONYM_BY_LANGUAGE = naming_vocabulary.NOT_A_MONONYM
+_NOT_A_MONONYM = _NOT_A_MONONYM_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 # Honorifics. The self-intro regex `\bI'?m\s+([A-Z][\w'’\-]+…)` stops at the period in "I'm Dr.
 # Jane Smith", capturing the bare title "Dr" — which must never become a speaker name, and must not
 # count as a distinct self-introduction (else "I'm Dr. X … I'm X" reads as a two-person montage).
-HONORIFIC_TITLES = frozenset(
-    {
-        "dr",
-        "doctor",
-        "mr",
-        "mrs",
-        "ms",
-        "miss",
-        "prof",
-        "professor",
-        "sir",
-        "dame",
-        "lord",
-        "lady",
-        "rev",
-        "reverend",
-        "fr",
-        "father",
-        "sen",
-        "senator",
-        "rep",
-        "gov",
-        "governor",
-        "pres",
-        "president",
-        "judge",
-        "justice",
-        "capt",
-        "captain",
-        "gen",
-        "sgt",
-        "col",
-    }
-)
+_HONORIFIC_TITLES_BY_LANGUAGE = naming_vocabulary.HONORIFIC_TITLES
+HONORIFIC_TITLES = _HONORIFIC_TITLES_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 def is_plausible_mononym(token: Optional[str]) -> bool:
@@ -1483,156 +1450,96 @@ def drop_non_person_names(
     return out
 
 
-# Words that are never a person's name on their own, and never part of one. Measured on the
-# published corpus 2026-10-02: "Host" on 20 voices of The Flip (the episode description says
-# "Host: ..." and the label was read as a name), "OK" x3, "Thank", "Right" from self-introductions.
-_ROLE_OR_FILLER_TOKENS = frozenset(
-    {
-        "host",
-        "hosts",
-        "cohost",
-        "co-host",
-        "guest",
-        "guests",
-        "speaker",
-        "narrator",
-        "announcer",
-        "moderator",
-        "interviewer",
-        "ok",
-        "okay",
-        "thank",
-        "thanks",
-        "right",
-        "yeah",
-        "yep",
-        "sure",
-        "hello",
-        "hi",
-        "sorry",
-    }
-)
-# A multi-word "name" ending in one of these is an organisation or a job: "House Select
-# Committee", "Treasury Foreign Exchange", "Meter Redwood Research", "Roblox CEO".
-_ORG_TAIL_TOKENS = frozenset(
-    {
-        "committee",
-        "research",
-        "project",
-        "exchange",
-        "context",
-        "ceo",
-        "institute",
-        "council",
-        "society",
-        "foundation",
-        "initiative",
-        "association",
-        "commission",
-        # Show and brand tails seen as published "hosts" (show sidecar census, 2026-10-02):
-        # "Timmerman Report", "Americas Online", "Africa Tech Summit", "Brilliant Experience",
-        # "Turkey Book", "Fable Tech", "Norman Conquest". ("street" is deliberately absent: a real
-        # surname, e.g. Picabo Street.)
-        "report",
-        "online",
-        "summit",
-        "experience",
-        "book",
-        "tech",
-        "conquest",
-        "media",
-        "studios",
-        "podcast",
-        "show",
-        "network",
-    }
-)
-#: A name whose LAST token is a country or region is a desk or an organisation ("Carnegie India",
-#: "Trivium China", "China Plus"-style feeds), not a person.
-_PLACE_TAIL_TOKENS = frozenset(
-    # Regions only: country words that are also surnames (Sam Brazil, Anatole France) are left out.
-    {"china", "india", "africa", "america", "americas", "asia", "europe"}
-)
-#: A name is never introduced by a count ("Two Carnegie Mellon faculty explore…").
-_NUMBER_WORDS = frozenset(
-    {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "both"}
-)
-#: Role words that, as the FIRST word of a two-word name, mean the role was captured with the
-#: name ("Host Mike", "Guest Host Tim", "Mister Rob"). Inside a longer real name they are not
-#: rejected ("Christopher Guest" ends with one, so it is unaffected).
-_LEADING_ROLE_WORDS = frozenset(
-    {
-        "host",
-        "co-host",
-        "cohost",
-        "guest",
-        "speaker",
-        "narrator",
-        "announcer",
-        "reporter",
-        "producer",
-        "mister",
-        "presenter",
-        "moderator",
-    }
-)
-#: Job and seniority words: a "name" of three or more words containing one is a title plus a
-#: name the prefix stripper did not cut ("Senior User Experience Specialist Therese Fessenden").
-_JOB_TITLE_TOKENS = frozenset(
-    {
-        "specialist",
-        "director",
-        "manager",
-        "president",
-        "chairman",
-        "columnist",
-        "correspondent",
-        "editor",
-        "founder",
-        "partner",
-        "analyst",
-        "senior",
-        "executive",
-    }
-)
+_ROLE_OR_FILLER_TOKENS_BY_LANGUAGE = naming_vocabulary.ROLE_OR_FILLER_TOKENS
+_ROLE_OR_FILLER_TOKENS = _ROLE_OR_FILLER_TOKENS_BY_LANGUAGE[TARGET_LANGUAGE]
+_ORG_TAIL_TOKENS_BY_LANGUAGE = naming_vocabulary.ORG_TAIL_TOKENS
+_ORG_TAIL_TOKENS = _ORG_TAIL_TOKENS_BY_LANGUAGE[TARGET_LANGUAGE]
+_PLACE_TAIL_TOKENS_BY_LANGUAGE = naming_vocabulary.PLACE_TAIL_TOKENS
+_PLACE_TAIL_TOKENS = _PLACE_TAIL_TOKENS_BY_LANGUAGE[TARGET_LANGUAGE]
+_NUMBER_WORDS_BY_LANGUAGE = naming_vocabulary.NUMBER_WORDS
+_NUMBER_WORDS = _NUMBER_WORDS_BY_LANGUAGE[TARGET_LANGUAGE]
+_LEADING_ROLE_WORDS_BY_LANGUAGE = naming_vocabulary.LEADING_ROLE_WORDS
+_LEADING_ROLE_WORDS = _LEADING_ROLE_WORDS_BY_LANGUAGE[TARGET_LANGUAGE]
+_JOB_TITLE_TOKENS_BY_LANGUAGE = naming_vocabulary.JOB_TITLE_TOKENS
+_JOB_TITLE_TOKENS = _JOB_TITLE_TOKENS_BY_LANGUAGE[TARGET_LANGUAGE]
 #: Products and companies that introduce themselves in ads ("I'm Gemini", "Hey, it's Claude").
-_BRAND_MONONYMS = frozenset(
-    {
-        "apple",
-        "google",
-        "meta",
-        "amazon",
-        "microsoft",
-        "openai",
-        "nvidia",
-        "gemini",
-        "claude",
-        "chatgpt",
-        "siri",
-        "alexa",
-        "copilot",
-    }
-)
+_BRAND_MONONYMS_BY_LANGUAGE = naming_vocabulary.BRAND_MONONYMS
+_BRAND_MONONYMS = _BRAND_MONONYMS_BY_LANGUAGE[TARGET_LANGUAGE]
 #: Stray brackets are an artefact the canonicaliser strips ("Aaron Levie)"), so they do not reject.
-_DESCRIPTOR_SUFFIX = re.compile(
-    r"\w-(?:winning|nominated|based|born|selling|renowned|acclaimed)\b", re.IGNORECASE
-)
+_DESCRIPTOR_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(pattern, re.IGNORECASE)
+    for lang, pattern in naming_vocabulary.DESCRIPTOR_PATTERNS.items()
+}
+_DESCRIPTOR_SUFFIX = _DESCRIPTOR_BY_LANGUAGE[TARGET_LANGUAGE]
 _NOT_IN_A_NAME = re.compile(r"[?{}<>!/@#|]")
-_ROLE_PREFIX = re.compile(
-    r"^(?:your\s+)?(?:(?:co-?)?host|(?:(?:deputy|senior|executive|managing|contributing)\s+)?"
-    r"editor|producer|correspondent|reporter)\s*,?\s+",
-    re.IGNORECASE,
-)
-_POSSESSIVE_PREFIX = re.compile(r"^(?:[A-Z][\w&.\-]*\s+){0,3}[A-Z][\w&.\-]*['’]s\s+")
+_ROLE_PREFIX_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    #: The job or role in FRONT of a self-introduction ("I'm deputy editor Eilish Hart"), which
+    #: `strip_role_prefix` removes. The English row keeps its optional "your"; the others take
+    #: the possessive that language actually uses in the formula ("su", "vostro", "votre",
+    #: "euer", "o seu").
+    "en": re.compile(
+        r"^(?:your\s+)?(?:(?:co-?)?host|(?:(?:deputy|senior|executive|managing|contributing)\s+)?"
+        r"editor|producer|correspondent|reporter)\s*,?\s+",
+        re.IGNORECASE,
+    ),
+    "es": re.compile(
+        r"^(?:(?:su|tu|vuestro)\s+)?(?:co)?(?:anfitri(?:ó|o)n|anfitriona|presentador[a]?"
+        r"|conductor[a]?|(?:(?:sub|jefe de)\s+)?redactor[a]?|editor[a]?|productor[a]?"
+        r"|corresponsal|reporter[oa])\s*,?\s+",
+        re.IGNORECASE,
+    ),
+    "it": re.compile(
+        r"^(?:(?:il|la)\s+(?:vostro|tuo)\s+)?(?:co)?(?:conduttore|conduttrice|presentatore"
+        r"|presentatrice|(?:vice\s+)?redattore|redattrice|produttore|produttrice"
+        r"|corrispondente|giornalista)\s*,?\s+",
+        re.IGNORECASE,
+    ),
+    "fr": re.compile(
+        r"^(?:votre\s+)?(?:co)?(?:animateur|animatrice|pr(?:é|e)sentateur|pr(?:é|e)sentatrice"
+        r"|(?:r(?:é|e)dacteur|r(?:é|e)dactrice)(?:\s+en\s+chef)?|producteur|productrice"
+        r"|correspondant[e]?|reporter)\s*,?\s+",  # codespell:ignore correspondant
+        re.IGNORECASE,
+    ),
+    "de": re.compile(
+        r"^(?:(?:euer|ihr|dein)\s+)?(?:ko)?(?:gastgeber(?:in)?|moderator(?:in)?"
+        r"|(?:chef)?redakteur(?:in)?|produzent(?:in)?|korrespondent(?:in)?|reporter(?:in)?)"
+        r"\s*,?\s+",
+        re.IGNORECASE,
+    ),
+    "pt": re.compile(
+        r"^(?:(?:o|a)\s+(?:seu|sua)\s+)?(?:co)?(?:anfitri(?:ã|a)o|anfitri(?:ã|a)"
+        r"|apresentador[a]?|(?:sub)?(?:editor[a]?|redator[a]?)|produtor[a]?|correspondente"
+        r"|rep(?:ó|o)rter)\s*,?\s+",
+        re.IGNORECASE,
+    ),
+}
+_ROLE_PREFIX = _ROLE_PREFIX_BY_LANGUAGE[TARGET_LANGUAGE]
+#: English is main's pattern verbatim (ASCII). The other languages get the accent-aware capital,
+#: so "Écran's Marie Dupont" (accented INITIAL) is stripped on a French feed — and on an English
+#: one, exactly as on main, it is not. ("Télérama's" is stripped by both: its initial is ASCII.)
+_POSSESSIVE_PREFIX_ROLE_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(rf"^(?:{_uc(lang)}[\w&.\-]*\s+){{0,3}}{_uc(lang)}[\w&.\-]*['’]s\s+")
+    for lang in _ROLE_PREFIX_BY_LANGUAGE
+}
+_POSSESSIVE_PREFIX = _POSSESSIVE_PREFIX_ROLE_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
-def strip_role_prefix(name: str) -> str:
+def strip_role_prefix(name: str, language: Optional[str] = TARGET_LANGUAGE) -> str:
     """``"Your Host Luisa Leni"`` -> ``"Luisa Leni"``; ``"Planet Money's Kenny Malone"`` ->
     ``"Kenny Malone"``. A self-introduction often carries the job or the show in front of the
     person ("I'm deputy editor Eilish Hart"), and the reader keeps it. Returns *name* unchanged when
-    nothing would remain."""
+    nothing would remain.
+
+    ENGLISH IS EXACTLY MAIN: with no language, an English one, or one without rows, only the two
+    English patterns run, as before. Another supported language runs its own two AFTER them — a
+    strip only removes a prefix, so adding a language's prefixes cannot strip less than English.
+    """
     out = (name or "").strip()
-    for pattern in (_POSSESSIVE_PREFIX, _ROLE_PREFIX):
+    patterns: List["re.Pattern[str]"] = [_POSSESSIVE_PREFIX, _ROLE_PREFIX]
+    lang = _primary_subtag(language)
+    if lang and lang != TARGET_LANGUAGE and lang in _ROLE_PREFIX_BY_LANGUAGE:
+        patterns += [_POSSESSIVE_PREFIX_ROLE_BY_LANGUAGE[lang], _ROLE_PREFIX_BY_LANGUAGE[lang]]
+    for pattern in patterns:
         stripped = pattern.sub("", out, count=1).strip()
         # A person survives the strip as at least two words; "Kay's Anatomy" -> "Anatomy" does not.
         if stripped and stripped != out and len(stripped.split()) >= 2:
@@ -1640,7 +1547,42 @@ def strip_role_prefix(name: str) -> str:
     return out
 
 
-def is_publishable_speaker_name(name: Optional[str], *, require_person_shape: bool = True) -> bool:
+def _primary_subtag(language: Optional[str]) -> str:
+    """``"es-ES"`` -> ``"es"``. NORMALISED HERE, not at each call site.
+
+    Feeds carry a full BCP-47 tag and these maps are keyed by the primary subtag, so every caller
+    would otherwise have to remember the split — and the one that forgot would silently get the
+    English row for a Spanish feed, which is the exact failure this threading exists to close.
+
+    Through ``normalize_language_tag`` first: callers pass the RAW feed tag, and splitting on
+    ``-`` alone turned ``en_US`` / ``English`` / ``eng`` into keys no map has — an English feed the
+    language gate accepts got no host-statement patterns at all, where main always read English.
+    A tag the normaliser cannot place keeps the old split.
+    """
+    return primary_language(language)
+
+
+def _reject_vocab(which: str, language: Optional[str]) -> FrozenSet[str]:
+    """The English row UNION the feed language's row, for a REJECT filter.
+
+    UNION, NOT REPLACEMENT, and the direction matters. This gate only ever says "no", so adding a
+    language's words can reject more junk and can never accept something English would have
+    refused — with ``language="en"`` it is byte-identical to the English row, which is why the
+    English path cannot move. Replacement would be the unsafe choice: a non-English feed's
+    description routinely carries an English show name beside its own role words
+    ("Sesiones de Sendero", "Tech Summit"), and dropping the English row would let those through.
+    """
+    base = _NAMING_VOCABULARY_MAPS.get(which, {}).get(TARGET_LANGUAGE) or frozenset()
+    row = _NAMING_VOCABULARY_MAPS.get(which, {}).get(_primary_subtag(language)) or frozenset()
+    return frozenset(base) | frozenset(row)
+
+
+def is_publishable_speaker_name(
+    name: Optional[str],
+    *,
+    require_person_shape: bool = True,
+    language: Optional[str] = TARGET_LANGUAGE,
+) -> bool:
     """Final reject filter for a name about to be painted on a diarized voice (ADR-134 shared core).
 
     Every extraction path (self-intro, host-pool, greeting reader, strategy snap, LLM, metadata)
@@ -1670,23 +1612,39 @@ def is_publishable_speaker_name(name: Optional[str], *, require_person_shape: bo
         return False
     # A hyphenated descriptor is a phrase about a person, not their name: "Pulitzer Prize-winning"
     # (Freakonomics, 2026-10-03 — the only such published name across the prod corpus).
-    if _DESCRIPTOR_SUFFIX.search(nm):
+    # English UNION the language's row, like every reject list here: a Spanish description still
+    # writes an English show's "Emmy-winning", and the Spanish row adds "galardonada".
+    lang_descriptor = _DESCRIPTOR_BY_LANGUAGE.get(_primary_subtag(language))
+    if _DESCRIPTOR_SUFFIX.search(nm) or (
+        lang_descriptor is not None and lang_descriptor.search(nm)
+    ):
         return False
     toks = nm.split()
     lowered = [t.lower().strip(".,'’") for t in toks]
+    # THE VOCABULARY IS PER-LANGUAGE (2026-10-03). Measured before it was: this gate rejected
+    # "Host Mike", "Host" and "Tech Summit" and ACCEPTED "Anfitrión Miguel", "Anfitrión" and
+    # "Cumbre Tecnología" — so a Spanish feed minted a person called "Anfitrión Miguel", and a
+    # bare role word became a person. That is §5.2's phantom-person failure reached through the
+    # DESCRIPTION, which is never translated.
+    role_filler = _reject_vocab("role_or_filler_tokens", language)
+    org_tail = _reject_vocab("org_tail_tokens", language)
+    place_tail = _reject_vocab("place_tail_tokens", language)
+    numbers = _reject_vocab("number_words", language)
+    leading_roles = _reject_vocab("leading_role_words", language)
+    job_titles = _reject_vocab("job_title_tokens", language)
     # Role and filler words disqualify a ONE-word name, or a name made of nothing else. Inside a
     # longer name they are real surnames and given names: Christopher Guest, Ok Taecyeon.
-    if lowered and all(t in _ROLE_OR_FILLER_TOKENS for t in lowered):
+    if lowered and all(t in role_filler for t in lowered):
         return False
     if len(toks) >= 2:
-        if lowered[-1] in _ORG_TAIL_TOKENS or any(t.endswith(("'s", "’s")) for t in toks):
+        if lowered[-1] in org_tail or any(t.endswith(("'s", "’s")) for t in toks):
             return False
-        if lowered[-1] in _PLACE_TAIL_TOKENS or lowered[0] in _NUMBER_WORDS:
+        if lowered[-1] in place_tail or lowered[0] in numbers:
             return False
         # "Host Mike", "Guest Host Tim": every word before the last is a role word.
-        if all(t in _LEADING_ROLE_WORDS for t in lowered[:-1]):
+        if all(t in leading_roles for t in lowered[:-1]):
             return False
-        if len(toks) >= 3 and any(t in _JOB_TITLE_TOKENS for t in lowered):
+        if len(toks) >= 3 and any(t in job_titles for t in lowered):
             return False
         if len(toks) >= 6:
             return False
@@ -1768,17 +1726,159 @@ def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[
 #: two-token form missed, so the extra token buys a defect class and nothing else. A genuine
 #: three-part name still reaches the roster through every other path; it just cannot be minted
 #: here, where there is no evidence for where the name begins.
-_EPISODE_HOST_CUE = re.compile(
-    r"\b([A-Z][a-z'\u2019\-]{2,}\s+[A-Z][a-z'\u2019.\-]{1,})"
-    r"(?:\s+and\s+([A-Z][a-z'\u2019\-]{2,}\s+[A-Z][a-z'\u2019.\-]{1,}))?"
-    r"\s+(?:(?:is|are)\s+joined\s+by|speaks?\s+with|sits?\s+down\s+with)\b"
-)
+#: The TWO-TOKEN capture is the measured structure (see above) and stays here; the hand-off verb
+#: and the "and" joining two hosts come from `naming_vocabulary`.
+def _episode_host_name(lang: str) -> str:
+    lc_chars = "a-z" if lang == TARGET_LANGUAGE else _STATED_LC_CHARS
+    return rf"{_uc(lang)}[{lc_chars}'\u2019\-]{{2,}}" rf"\s+{_uc(lang)}[{lc_chars}'\u2019.\-]{{1,}}"
+
+
+#: Each `EPISODE_HOST_CUE` row is already ONE `(?:...)` group, so it is not wrapped again \u2014
+#: which is also what keeps the English row byte-identical to main.
+_EPISODE_HOST_CUE_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(
+        rf"\b({_episode_host_name(lang)})"
+        rf"(?:\s+{_alt(naming_vocabulary.NAME_LIST_CONJUNCTION[lang])}\s+"
+        rf"({_episode_host_name(lang)}))?"
+        rf"\s+{tail}\b"
+    )
+    for lang, tail in naming_vocabulary.EPISODE_HOST_CUE.items()
+}
+_EPISODE_HOST_CUE = _EPISODE_HOST_CUE_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 #: A host role word immediately before a name in the episode's own prose.
-_HOST_ROLE_BEFORE_NAME = re.compile(
-    r"\b(?:(?:co-?|guest )?hosts?|presenters?)\s*,?\s*$", re.IGNORECASE
+_HOST_ROLE_BEFORE_NAME_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    #: The role word immediately BEFORE a name ("...with co-hosts Tom and Dominic"). Anchored to
+    #: the end of the preceding run, so only the word order changes between languages — Romance
+    #: and German both put the role in front of the name here, same as English.
+    "en": re.compile(r"\b(?:(?:co-?|guest )?hosts?|presenters?)\s*,?\s*$", re.IGNORECASE),
+    "es": re.compile(
+        r"\b(?:co)?(?:anfitri(?:ó|o)n(?:es|as)?|anfitriona|presentador(?:es|as|a)?"
+        r"|conductor(?:es|as|a)?)\s*,?\s*$",
+        re.IGNORECASE,
+    ),
+    "it": re.compile(
+        r"\b(?:co)?(?:conduttor(?:e|i|ice|ici)|presentator(?:e|i|ice|ici))\s*,?\s*$",
+        re.IGNORECASE,
+    ),
+    "fr": re.compile(
+        r"\b(?:co)?(?:animateur(?:s)?|animatrice(?:s)?|pr(?:é|e)sentateur(?:s)?"
+        r"|pr(?:é|e)sentatrice(?:s)?)\s*,?\s*$",
+        re.IGNORECASE,
+    ),
+    "de": re.compile(
+        r"\b(?:ko)?(?:gastgeber(?:in|innen)?|moderator(?:in|en|innen)?"
+        r"|pr(?:ä|a)sentator(?:in|en|innen)?)\s*,?\s*$",
+        re.IGNORECASE,
+    ),
+    "pt": re.compile(
+        r"\b(?:co)?(?:anfitri(?:ã|a)o(?:s)?|anfitri(?:ã|a)(?:s)?|apresentador(?:es|as|a)?)"
+        r"\s*,?\s*$",
+        re.IGNORECASE,
+    ),
+}
+_HOST_ROLE_BEFORE_NAME = _HOST_ROLE_BEFORE_NAME_BY_LANGUAGE[TARGET_LANGUAGE]
+
+
+#: Every per-language naming map, by the name callers use. One place to add a map, so the registry
+#: below cannot fall behind the data.
+_NAMING_VOCABULARY_MAPS: Dict[str, Dict[str, Any]] = {
+    "leading_role_words": _LEADING_ROLE_WORDS_BY_LANGUAGE,
+    "show_tail_words": _SHOW_TAIL_WORDS_BY_LANGUAGE,
+    "job_title_tokens": _JOB_TITLE_TOKENS_BY_LANGUAGE,
+    "trailing_job_tokens": _TRAILING_JOB_TOKENS_BY_LANGUAGE,
+    "number_words": _NUMBER_WORDS_BY_LANGUAGE,
+    "role_or_filler_tokens": _ROLE_OR_FILLER_TOKENS_BY_LANGUAGE,
+    "org_tail_tokens": _ORG_TAIL_TOKENS_BY_LANGUAGE,
+    "place_tail_tokens": _PLACE_TAIL_TOKENS_BY_LANGUAGE,
+    "presents": _PRESENTS_BY_LANGUAGE,
+    "show_intro_cue": _SHOW_INTRO_CUE_BY_LANGUAGE,
+    "host_role_before_name": _HOST_ROLE_BEFORE_NAME_BY_LANGUAGE,
+    "role_prefix": _ROLE_PREFIX_BY_LANGUAGE,
+    "possessive_prefix": _POSSESSIVE_PREFIX_BY_LANGUAGE,
+    "leading_junk": _LEADING_JUNK_BY_LANGUAGE,
+    "host_speech_acts": _HOST_SPEECH_ACTS_BY_LANGUAGE,
+    "guest_speech_acts": _GUEST_SPEECH_ACTS_BY_LANGUAGE,
+    # Added 2026-10-03, when the remaining English-only collections were keyed. These are the
+    # RECALL side — what a feed or a host actually says — where the maps above are mostly the
+    # PRECISION side. Both halves have to move together: a language with reject rows but no cue
+    # rows reads nothing and refuses correctly, which looks like "this show names nobody".
+    "honorific_titles": _HONORIFIC_TITLES_BY_LANGUAGE,
+    "name_suffixes": _NAME_SUFFIXES_BY_LANGUAGE,
+    "not_a_name_words": _NOT_A_NAME_TOKEN_BY_LANGUAGE,
+    "not_a_mononym": _NOT_A_MONONYM_BY_LANGUAGE,
+    "brand_mononyms": _BRAND_MONONYMS_BY_LANGUAGE,
+    "known_networks": _KNOWN_NETWORKS_BY_LANGUAGE,
+    "host_phrases": _HOST_PHRASES_BY_LANGUAGE,
+    "host_phrases_description_only": _HOST_PHRASES_DESCRIPTION_ONLY_BY_LANGUAGE,
+    "first_name_presenters": _FIRST_NAME_PRESENTERS_BY_LANGUAGE,
+    "host_self_intro": _HOST_SELF_INTRO_BY_LANGUAGE,
+    "host_branded_intro": _HOST_BRANDED_INTRO_BY_LANGUAGE,
+    "host_with_me_intro": _HOST_WITH_ME_INTRO_BY_LANGUAGE,
+    "episode_host_cue": _EPISODE_HOST_CUE_BY_LANGUAGE,
+    "cue_first_body": _CUE_FIRST_BODY_BY_LANGUAGE,
+    "cue_first_past_body": _CUE_FIRST_PAST_BODY_BY_LANGUAGE,
+    "name_first_tail": _NAME_FIRST_TAIL_BY_LANGUAGE,
+    "name_first_report_tail": _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE,
+    "greeted_tail": _GREETED_TAIL_BY_LANGUAGE,
+    "guest_introduced_by_host": _GUEST_INTRODUCED_BY_HOST_BY_LANGUAGE,
+    "guest_introduced_name_first": _GUEST_INTRODUCED_NAME_FIRST_BY_LANGUAGE,
+    "guest_greeted": _GUEST_GREETED_BY_LANGUAGE,
+    "hypothetical_lead": _HYPOTHETICAL_LEAD_BY_LANGUAGE,
+    "reported_lead": _REPORTED_LEAD_BY_LANGUAGE,
+    "nonperson_author_markers": _NONPERSON_AUTHOR_MARKERS_BY_LANGUAGE,
+    "stated_particles": _STATED_PARTICLES_BY_LANGUAGE,
+    "name_list_conjunction": naming_vocabulary.NAME_LIST_CONJUNCTION,
+    "place_preposition_in": naming_vocabulary.PLACE_PREPOSITION_IN,
+    "leading_article": _LEADING_ARTICLE_BY_LANGUAGE,
+    "article_before": _ARTICLE_BEFORE_BY_LANGUAGE,
+    "place_preposition": _PLACE_PREPOSITION_BY_LANGUAGE,
+    "title_with_suffix": _TITLE_WITH_SUFFIX_BY_LANGUAGE,
+    "author_separators": _AUTHOR_SEPARATORS_BY_LANGUAGE,
+    # OWNED BY OTHER MODULES, registered here anyway. `roster.py`, `resolution.py` and
+    # `gi/speakers.py` read these, and none of them can be imported from here without a cycle —
+    # but the maps themselves are plain data in `naming_vocabulary`, so the INTERSECTION below can
+    # still see them. That is the point: a language added to the host maps and not to the roster
+    # ones would otherwise be advertised as complete while the diarizer reads nothing for it.
+    "self_intro_words": naming_vocabulary.SELF_INTRO_WORDS,
+    "this_is_intro": naming_vocabulary.THIS_IS_INTRO,
+    "recap_markers": naming_vocabulary.RECAP_MARKERS,
+    "descriptor_patterns": naming_vocabulary.DESCRIPTOR_PATTERNS,
+    "intro_affiliation_tokens": naming_vocabulary.INTRO_AFFILIATION_TOKENS,
+    "sign_off_cues": naming_vocabulary.SIGN_OFF_CUES,
+    "greeting_at_open": naming_vocabulary.GREETING_AT_OPEN,
+    "non_person_label_tokens": naming_vocabulary.NON_PERSON_LABEL_TOKENS,
+    "generational_suffixes": naming_vocabulary.GENERATIONAL_SUFFIXES,
+}
+
+#: The languages whose naming vocabulary is COMPLETE, as an INTERSECTION.
+#:
+#: Fails CLOSED, same as `SPEAKER_CUE_LANGUAGES`: a language added to some maps and not others is
+#: absent from this set rather than half-supported, because half-supported is the state that
+#: produces a confident wrong answer. `possessive_prefix` is excluded from the intersection on
+#: purpose — it is the one map whose correct value for four of the six languages is `None` (they
+#: postpose the employer), so requiring a truthy row there would refuse languages that are in fact
+#: complete.
+NAMING_VOCABULARY_LANGUAGES: FrozenSet[str] = frozenset(
+    set.intersection(
+        *(
+            {lang for lang, row in m.items() if row or name == "possessive_prefix"}
+            for name, m in _NAMING_VOCABULARY_MAPS.items()
+        )
+    )
 )
+
+
+def naming_vocabulary_for(name: str, language: str) -> Any:
+    """One language's row from one naming map, or ``None`` when it has none.
+
+    ``None`` RATHER THAN THE ENGLISH ROW, for the reason the ad and cue accessors give: falling
+    back to English makes "we cannot read this language" indistinguishable from "this language
+    says nothing here", and the second is a measurement while the first is a gap. A caller that
+    wants the analysis language should ask for it by name.
+    """
+    return (_NAMING_VOCABULARY_MAPS.get(name) or {}).get(_primary_subtag(language))
 
 
 def hosts_from_episode_description(
@@ -1788,6 +1888,7 @@ def hosts_from_episode_description(
     *,
     feed_hosts: Iterable[str] = (),
     participants: Iterable[str] = (),
+    language: str = TARGET_LANGUAGE,
 ) -> Set[str]:
     """Hosts named by the EPISODE's own description — the other side of the interview cue.
 
@@ -1895,6 +1996,7 @@ def compose_episode_hosts(
     feed_title: Optional[str] = None,
     more: Iterable[str] = (),
     episode_people: Iterable[str] = (),
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> List[str]:
     """The host pool of ONE episode, as a list the roster may paint names from.
 
@@ -1917,7 +2019,7 @@ def compose_episode_hosts(
         out: List[str] = []
         for raw in names or ():
             name = str(raw or "").strip()
-            if not name or not is_publishable_speaker_name(name):
+            if not name or not is_publishable_speaker_name(name, language=language):
                 continue
             if feed_title and names_the_show(name, feed_title):
                 continue
@@ -1932,6 +2034,7 @@ def compose_episode_hosts(
             feed_title,
             feed_hosts=feed_people,
             participants=list(episode_people or ()),
+            language=language or TARGET_LANGUAGE,
         )
     )
     pool = _merge_people(feed_people, people(more), described)
@@ -2067,6 +2170,7 @@ def detect_hosts_from_feed(
     feed_description: Optional[str],
     feed_authors: Optional[List[str]] = None,
     nlp: Optional[Any] = None,
+    language: str = TARGET_LANGUAGE,
 ) -> Set[str]:
     """Detect host names from feed-level metadata.
 
@@ -2081,7 +2185,7 @@ def detect_hosts_from_feed(
     from anyone else the description happens to mention — on Latent Space it returns a list of past
     guests, and on Planet Money it returns the word "Wanna".
     """
-    stated, _junk = _feed_statement(feed_title, feed_description)
+    stated, _junk = _feed_statement(feed_title, feed_description, language)
     if stated:
         logger.debug("Hosts stated by the feed: %s", sorted(stated))
 
@@ -2125,7 +2229,7 @@ def detect_hosts_from_feed(
                     # The shared person check, so an author tag that is a brand with no org marker
                     # ("Timmerman Report", "Premier Unbelievable?", "Brilliant Experience") does
                     # not become a seat the roster may fill.
-                    if not is_publishable_speaker_name(candidate):
+                    if not is_publishable_speaker_name(candidate, language=language):
                         logger.debug("RSS author '%s' is not a person's name", candidate)
                         continue
                     tag_hosts.append(candidate)

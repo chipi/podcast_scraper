@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p14-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p14_e01.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Beatriz Antunes",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Rafael Vasconcelos",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p14_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 443,
+    "episode_id": "ep-28614332add8c2ae",
+    "language": "pt",
+    "language_source": "rss",
+    "published_date": "2026-01-01T00:00:00",
+    "title": "Construir Trilhas Que Duram"
+  },
+  "feed": {
+    "authors": [
+      "Beatriz Antunes"
+    ],
+    "description": "Conversas sobre construção de trilhas: drenagem, traçado, e as pessoas que constroem o caminho. Contraparte portuguesa de Singletrack Sessions.",
+    "feed_id": "p14",
+    "language": "pt",
+    "language_raw": "pt-PT",
+    "language_source": "rss",
+    "last_updated": "2026-01-01T00:00:00",
+    "title": "Sessões de Trilha",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p14.svg",
+    "image_url": "http://localhost/images/p14.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Drainage is the design decision that has the biggest impact on any trail's longevity—ignoring it leads to reconstruction within a year.",
+      "Excavating with too steep a slope is the most common mistake new builders make, causing long-term erosion and structural failure.",
+      "Cuts in the benching (or berm) on slopes are not optional—shortcuts taken in the first year result in collapse by the third year.",
+      "Soil structure is more important than people realize, and its failure mode is often invisible until after the first rainy season.",
+      "Land management discussions must happen before the first excavation, as they define the commitments being made to the environment.",
+      "The structure of the team is more important than individuals, and teams using the Cascadia Alliance framework show repeatable success patterns.",
+      "Machine-made trails are not inherently worse than hand-made ones—understanding this shift enables better decision-making across all scales.",
+      "Outside of proven tools like RockShox or Spoke & Wrench, detecting failure modes becomes significantly harder, leading to costly rework."
+    ],
+    "raw_text": "Drainage is the design decision that has the biggest impact on any trail's longevity—ignoring it leads to reconstruction within a year. Excavating with too steep a slope is the most common mistake new builders make, causing long-term erosion and structural failure.",
+    "title": "Drainage and Soil Structure: The Hidden Drivers of Trail Longevity"
+  }
+}

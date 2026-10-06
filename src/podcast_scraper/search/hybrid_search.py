@@ -141,6 +141,20 @@ def _to_search_result(result: ScoredResult) -> SearchResult:
     # so ``grounded_only=true`` returned zero insights even though the index has 1000+ grounded.
     if result.source_tier == "insight":
         metadata["grounded"] = bool(payload.get("derived"))
+    # S2.9: which LANGUAGE and which LAYER this hit came from. Both layers of a translated
+    # episode are searchable, so a result set mixes English analysis chunks with source-language
+    # ones — and without these a client holding the result cannot tell which it has. The
+    # transcript language control reads them; "search in the original" is not usable if the
+    # answer comes back unlabelled.
+    #
+    # Carried only when the row has them, never defaulted: the English `segments` table stores
+    # no `language` column at all (that absence is what keeps existing corpora off a rebuild),
+    # and an absent `index_layer` already means "analysis" everywhere else. Writing `"en"` /
+    # `"analysis"` here would claim a provenance the index never recorded.
+    if payload.get("language"):
+        metadata["language"] = payload["language"]
+    if payload.get("index_layer"):
+        metadata["index_layer"] = payload["index_layer"]
     return SearchResult(doc_id=str(result.doc_id), score=float(result.score), metadata=metadata)
 
 

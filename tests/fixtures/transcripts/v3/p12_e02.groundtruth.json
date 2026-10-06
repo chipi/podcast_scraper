@@ -1,0 +1,27 @@
+{
+  "fixture": "p12_e02",
+  "podcast": "Sessions Sentier — Épisode",
+  "episode": "Le Pilotage Enduro Sans le Battage",
+  "type": "interview",
+  "speakers": [
+    "Camille Dubois",
+    "Élodie Chevalier"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Camille Dubois": "Amelie",
+    "Élodie Chevalier": "Thomas",
+    "Ad": "Zarvox"
+  },
+  "voice_pitch_shift": {},
+  "cameo": null,
+  "transcript_sha256": "1d58cf5cab901bbfe6f329c2c15a29da2fc5e249f30ec2dfb3bcc0c11e04af22",
+  "audio_sha256": "877d1e02389b57883fdfa34cf3c37507a7bb18f98ac13482094b6abaabf3b39e",
+  "rttm_sha256": "eeb1717ca085b667a0e1c0aadfef0d4c0b0fb119f6766895b59f5b05c7c74eb0"
+}

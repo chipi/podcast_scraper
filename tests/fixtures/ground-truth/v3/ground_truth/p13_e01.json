@@ -1,0 +1,45 @@
+{
+  "callbacks": [],
+  "episode_id": "p13_e01",
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "de-DE",
+  "host_accent": "de-DE",
+  "host_canonical_name": "Katrin Vogel",
+  "podcast_id": "p13",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p13:Stefan",
+  "primary_guest_canonical_name": "Stefan Brandt",
+  "primary_guest_surface_in_transcript": "Stefan Brandt",
+  "primary_topic": "topic:trail-building",
+  "publish_date": "2025-12-01",
+  "publish_offset_days": 700,
+  "secondary_topics": [
+    "topic:soil-erosion",
+    "topic:land-stewardship"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Strava",
+      "kind": "template_opening",
+      "line_index": 10
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 64
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p13:Stefan",
+      "kind": "canonical",
+      "surface": "Stefan Brandt"
+    }
+  ]
+}

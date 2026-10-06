@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p05_e04",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:account-data-analysis",
+      "label": "account data analysis"
+    },
+    {
+      "id": "topic:behavioral-risk",
+      "label": "behavioral risk"
+    },
+    {
+      "id": "topic:concentration-risk",
+      "label": "concentration risk"
+    },
+    {
+      "id": "topic:conviction-based-sizing",
+      "label": "conviction-based sizing"
+    },
+    {
+      "id": "topic:correlated-bets",
+      "label": "correlated bets"
+    },
+    {
+      "id": "topic:diversification-strategy",
+      "label": "diversification strategy"
+    },
+    {
+      "id": "topic:portfolio-construction",
+      "label": "portfolio construction"
+    },
+    {
+      "id": "topic:risk-control",
+      "label": "risk control"
+    },
+    {
+      "id": "topic:systematic-risk-management",
+      "label": "systematic risk management"
+    },
+    {
+      "id": "topic:understanding-vs-ignorance",
+      "label": "understanding vs ignorance"
+    }
+  ]
+}

@@ -37,6 +37,8 @@
   },
   "episode": {
     "episode_id": "d2fb36a0-6f97-55ee-a67a-e97dba3b7f27",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2026-09-19",
     "title": "Practical Systems \u2014 Episode 3"
   },
@@ -45,6 +47,9 @@
   "feed": {
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
     "feed_id": "sha256:992daa4ba82c0d8354ceb264bd87e0af53ac2631152da6de6550e74ad7125f04",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "title": "Practical Systems",
     "url": "http://localhost/"
   },

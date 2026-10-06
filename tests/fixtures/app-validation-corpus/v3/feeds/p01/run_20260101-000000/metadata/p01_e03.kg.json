@@ -31,6 +31,46 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:chain-wear",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:component-wear",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:maintenance-flow",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:mystery-creaks",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:predictable-bike-feel",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:service-intervals",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:spoke-wrench",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0d9100843ee555f8",
+      "target": "topic:suspension-service",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-0d9100843ee555f8",
       "to": "person:maya",
       "type": "MENTIONS"
@@ -102,6 +142,70 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:chain-wear",
+      "properties": {
+        "label": "chain wear",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:component-wear",
+      "properties": {
+        "label": "component wear",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance-flow",
+      "properties": {
+        "label": "maintenance flow",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:mystery-creaks",
+      "properties": {
+        "label": "mystery creaks",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:predictable-bike-feel",
+      "properties": {
+        "label": "predictable bike feel",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:service-intervals",
+      "properties": {
+        "label": "service intervals",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:spoke-wrench",
+      "properties": {
+        "label": "spoke wrench",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:suspension-service",
+      "properties": {
+        "label": "suspension service",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

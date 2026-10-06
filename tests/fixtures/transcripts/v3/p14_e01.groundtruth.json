@@ -1,0 +1,29 @@
+{
+  "fixture": "p14_e01",
+  "podcast": "Sessões de Trilha — Episódio",
+  "episode": "Construir Trilhas Que Duram",
+  "type": "interview",
+  "speakers": [
+    "Beatriz Antunes",
+    "Rafael Vasconcelos"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Beatriz Antunes": "Luciana",
+    "Rafael Vasconcelos": "Joana",
+    "Ad": "Zarvox"
+  },
+  "voice_pitch_shift": {
+    "Rafael Vasconcelos": 0.4
+  },
+  "cameo": null,
+  "transcript_sha256": "b59b8a6a768b475977dbe0813f84bc6f6d0bf0ce0ac5c5ef4111c5e27c8bd79f",
+  "audio_sha256": "fab77a595d04be5163bc8a54ce4a733c53ee55d07ec3d95c377efdf7d17e04fe",
+  "rttm_sha256": "b332f98e729cf8b50798ba117ca7ec44963c14ff56b6da0dcdb73b1cdd757863"
+}

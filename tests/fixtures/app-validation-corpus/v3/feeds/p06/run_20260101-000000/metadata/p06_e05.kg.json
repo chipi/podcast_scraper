@@ -31,6 +31,21 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-0c46a67a56b05689",
+      "target": "topic:edge-case-validation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0c46a67a56b05689",
+      "target": "topic:parser-robustness-testing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-0c46a67a56b05689",
+      "target": "topic:processor-reliability",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-0c46a67a56b05689",
       "to": "person:maya",
       "type": "MENTIONS"
@@ -97,6 +112,30 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:edge-case-validation",
+      "properties": {
+        "label": "edge case validation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:parser-robustness-testing",
+      "properties": {
+        "label": "parser robustness testing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:processor-reliability",
+      "properties": {
+        "label": "processor reliability",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

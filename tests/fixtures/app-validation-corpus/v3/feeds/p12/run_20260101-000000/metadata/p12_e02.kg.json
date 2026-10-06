@@ -1,0 +1,217 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16fcdef77d624069",
+      "target": "topic:braking-technique",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16fcdef77d624069",
+      "target": "topic:tire-pressure-selection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16fcdef77d624069",
+      "target": "topic:erosion-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16fcdef77d624069",
+      "target": "topic:setup-compromises",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16fcdef77d624069",
+      "target": "topic:reconnaissance-runs",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16fcdef77d624069",
+      "target": "topic:equipment-brand-impact",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16fcdef77d624069",
+      "target": "topic:secondary-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16fcdef77d624069",
+      "target": "topic:compliance-automation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-16fcdef77d624069",
+      "target": "topic:iterative-improvement",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-16fcdef77d624069",
+      "to": "person:elodie-chevalier",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-16fcdef77d624069",
+  "extraction": {
+    "extracted_at": "2025-12-25T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p12_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-16fcdef77d624069",
+      "properties": {
+        "podcast_id": "p12",
+        "publish_date": "2025-12-25T00:00:00",
+        "title": "Le Pilotage Enduro Sans le Battage"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:braking-technique",
+      "properties": {
+        "label": "braking technique",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tire-pressure-selection",
+      "properties": {
+        "label": "tire pressure selection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:erosion-patterns",
+      "properties": {
+        "label": "erosion patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:setup-compromises",
+      "properties": {
+        "label": "setup compromises",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:reconnaissance-runs",
+      "properties": {
+        "label": "reconnaissance runs",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:equipment-brand-impact",
+      "properties": {
+        "label": "equipment brand impact",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:secondary-effects",
+      "properties": {
+        "label": "secondary effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:compliance-automation",
+      "properties": {
+        "label": "compliance automation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iterative-improvement",
+      "properties": {
+        "label": "iterative improvement",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:camille-dubois",
+      "properties": {
+        "name": "Camille Dubois",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:elodie-chevalier",
+      "properties": {
+        "name": "\u00c9lodie Chevalier",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

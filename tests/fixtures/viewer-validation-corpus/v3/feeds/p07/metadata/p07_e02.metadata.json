@@ -37,6 +37,8 @@
   },
   "episode": {
     "episode_id": "54a47eac-cc89-5c87-b99d-7dbd1c77ce57",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2026-09-22",
     "title": "The Long View \u2014 Episode 2"
   },
@@ -45,6 +47,9 @@
   "feed": {
     "description": "Long-form conversations about sustainability, systems thinking, and the ideas shaping our shared future.",
     "feed_id": "sha256:5875c9486ca99c480727b8aafdc99c54b92a29d9d77cfec00f3f38303ea9d35d",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "title": "The Long View",
     "url": "http://localhost/"
   },

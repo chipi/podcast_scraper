@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from .... import config
+from ....languages import transcription_language
 from ....speaker_detectors.normalization import filter_default_speaker_names
 from .ad_signatures import load_near as load_ad_signatures_near
 from .alignment import align_segments_to_speakers
@@ -266,11 +267,29 @@ def _feed_recurring_text(cfg: config.Config) -> set:
     out_dir = str(getattr(cfg, "output_dir", "") or "")
     if not out_dir:
         return set()
-    paths = [
-        p
-        for p in Path(out_dir).glob("**/transcripts/*.txt")
-        if ".adfree" not in p.name and ".cleaned" not in p.name
-    ]
+    # DERIVED AND SOURCE-LANGUAGE TEXTS ARE NOT EPISODES. Both exclusions below were missing and
+    # both double-counted:
+    #
+    #   * `.anon` is a derived copy of the same transcript (`transcript_resolution.ANON_SUFFIX`),
+    #     written for every diarized episode. Counting it doubles each episode's weight in the
+    #     shingle tally and defeats the three-transcript abstention at two episodes.
+    #   * `<base>.<lang>.txt` is the SOURCE body a translated episode keeps beside its English
+    #     canonical one (D-44). Counting it reads one episode as two, in two different languages.
+    #
+    # The language case is matched against the registry, not a two-letter regex: only the registry
+    # knows which tokens are languages, and a base transcript ending in a dotted two-letter token
+    # would otherwise disappear from the detector entirely.
+    from ....languages import language_registry
+
+    _lang_suffixes = tuple(f".{code}." for code in language_registry())
+
+    def _is_episode_text(name: str) -> bool:
+        if ".adfree" in name or ".cleaned" in name or ".anon" in name:
+            return False
+        stem = name[: -len(".txt")] if name.endswith(".txt") else name
+        return not any(stem.endswith(s[:-1]) for s in _lang_suffixes)
+
+    paths = [p for p in Path(out_dir).glob("**/transcripts/*.txt") if _is_episode_text(p.name)]
     count = len(paths)
     cached = _recurring_cache.get(out_dir)
     if cached is not None and count <= cached[0]:
@@ -514,6 +533,7 @@ def _resolve_voices_via_llm(
             episode_description=episode_description,
             intro_block=intro_block,
             report=rep_,
+            language=transcription_language(cfg),
         )
         names = {v: lv.name for v, lv in resolved.items() if lv.name}
         roles = {v: lv.role for v, lv in resolved.items() if lv.role}
@@ -526,6 +546,25 @@ def _resolve_voices_via_llm(
         )
         rep_["error"] = f"{type(exc).__name__}: {exc}"
         return {}, {}
+
+
+def _apply_speaker_renames(roster: Any, renames: Optional[Mapping[str, str]]) -> Any:
+    """The roster with operator renames applied to its NAMED voices (#2283)."""
+    if not renames:
+        return roster
+    by_voice = {}
+    renamed = []
+    for voice, role in roster.by_voice.items():
+        new = renames.get(role.name) if getattr(role, "named", False) else None
+        if new and new != role.name:
+            by_voice[voice] = dataclasses.replace(role, name=new)
+            renamed.append(f"{voice}: {role.name} -> {new}")
+        else:
+            by_voice[voice] = role
+    if not renamed:
+        return roster
+    logger.info("operator speaker renames applied: %s", "; ".join(renamed))
+    return dataclasses.replace(roster, by_voice=by_voice)
 
 
 def apply_diarization_to_result(
@@ -544,8 +583,14 @@ def apply_diarization_to_result(
     episode_description: Optional[str] = None,
     detection_ran: Optional[bool] = None,
     detection_report: Optional[Mapping[str, Any]] = None,
+    speaker_renames: Optional[Mapping[str, str]] = None,
 ) -> dict:
     """Enrich transcription segments with diarized speaker labels.
+
+    ``speaker_renames`` (operator override, #2283) maps a resolved speaker name to the name to
+    publish instead. Applied to the FINAL roster, before the segments and the diagnostics are
+    built from it, so every reader downstream — segments, GI quotes, KG people, metadata — sees
+    the corrected name, and the naming decision itself is untouched.
 
     ``metadata_named`` is every name the episode metadata stated, *before* corroboration filtered
     it. It never names a voice — it only lets the roster tell our own failures apart from the
@@ -753,6 +798,11 @@ def apply_diarization_to_result(
             ).strip()
             or None,
             trace=trace,
+            # THE SOURCE LANGUAGE, because everything the roster reads is ASR output and the ASR
+            # output is in whatever was spoken. `transcription_language` is the one reader (S0.6)
+            # and returns None when nothing resolved, which the roster treats as "use the analysis
+            # language" — i.e. exactly what it did before it took this argument.
+            language=transcription_language(cfg),
         )
 
     # The per-voice decision trace of the SHIPPED pass (#2276): what each rung of the ladder
@@ -805,6 +855,7 @@ def apply_diarization_to_result(
                 ", ".join(restored_names),
             )
 
+    roster = _apply_speaker_renames(roster, speaker_renames)
     enriched_result = dict(result)
     enriched_result["segments"] = _enriched_segments(aligned, roster)
     # Diagnostics sidecar (what we tried / resolved / why each voice failed) — the caller
@@ -820,6 +871,7 @@ def apply_diarization_to_result(
         show_centric=bool(getattr(cfg, "show_centric", False)),
         profile=_labeling_profile,
         detection_ran=detection_ran,
+        language=transcription_language(cfg),
     )
     if resolution_attribution is not None:
         enriched_result["speaker_diagnostics"]["resolution_attribution"] = resolution_attribution

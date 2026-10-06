@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p03_e03",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:exit-planning",
+      "label": "exit planning"
+    },
+    {
+      "id": "topic:iterative-improvement",
+      "label": "iterative improvement"
+    },
+    {
+      "id": "topic:operational-dive-safety",
+      "label": "operational dive safety"
+    },
+    {
+      "id": "topic:planetary-scale",
+      "label": "planetary scale"
+    },
+    {
+      "id": "topic:reef-conservation-policy",
+      "label": "reef-conservation policy"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:systems-problem",
+      "label": "systems problem"
+    },
+    {
+      "id": "topic:tool-adoption",
+      "label": "tool adoption"
+    },
+    {
+      "id": "topic:trade-off-visibility",
+      "label": "trade-off visibility"
+    }
+  ]
+}

@@ -280,9 +280,10 @@ def build_show_metadata(feed_dir: Path) -> Optional[Dict[str, Any]]:
                 return
         sources[name] = [source]
 
-    for name in sorted(hosts_from_feed_statement(title, description)):
+    language = str(feed.get("language") or "")
+    for name in sorted(hosts_from_feed_statement(title, description, language)):
         _add(name, "feed_statement")
-    for name in refused_feed_statement_names(title, description):
+    for name in refused_feed_statement_names(title, description, language):
         _add(name, "feed_statement_refused")
     for tag in authors:
         for name in split_author_names(tag):

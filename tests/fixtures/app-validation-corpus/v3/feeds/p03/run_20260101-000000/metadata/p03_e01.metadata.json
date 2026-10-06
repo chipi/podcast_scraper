@@ -27,6 +27,8 @@
   "episode": {
     "duration_seconds": 332,
     "episode_id": "ep-2a703b6f57d9020f",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2024-05-05T00:00:00",
     "title": "Wreck Diving Fundamentals"
   },
@@ -36,25 +38,28 @@
     ],
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
     "feed_id": "p03",
-    "language": "en-us",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p03.webp",
+    "image_url": "http://localhost/images/p03.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "last_updated": "2025-07-09T00:00:00",
     "title": "Below the Surface",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p03.webp",
-    "image_url": "http://localhost/images/p03.webp"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Wreck penetration is a planning problem first, a buoyancy problem second — internalizing that ordering makes the downstream decisions easier.",
-      "Silt-out from poor finning technique kills more divers in wrecks than equipment failures, so technique deserves more attention than gear; the second-order effects of that risk are what most people miss.",
-      "Erosion on a wreck site changes the dive every season, meaning a site known one year cannot be assumed identical the next.",
-      "DAN's safety stops aren't suggestions — this is where dive planning and wreck diving intersect.",
-      "Framing determines which trade-offs a diver is actually making; decisions evaluated explicitly rather than by default avoid rebuilding the approach from scratch a year later.",
-      "Soil erosion cross-cuts every other wreck-diving consideration, affecting planning, site conditions, and risk together rather than acting as an isolated factor.",
-      "Running one idea for two weeks is the recommended starting point, with iteration rather than wholesale change driving improvement."
+      "Wreck penetration is a planning problem first, a buoyancy problem second — internalizing this shifts decision-making toward safer, more predictable outcomes.",
+      "Silt-out from poor finning technique kills more divers in wrecks than equipment failures, making technique a primary safety factor.",
+      "Erosion on a wreck site changes the dive every season, requiring updated planning and adaptation to avoid unexpected hazards.",
+      "Dive planning and wreck diving intersect through the framing of safety stops: DAN's safety stops aren't suggestions but critical tradeoffs in risk management.",
+      "GoPro adoption in team dives makes the trade-off between documentation and situational awareness visible — the framing reveals the underlying decisions.",
+      "Soil erosion and site changes create second-order effects that most divers overlook, yet they fundamentally alter dive dynamics and navigation.",
+      "The key to effective wreck diving lies in running one idea for two weeks — testing decisions in practice to refine them through iteration.",
+      "When teams use GoPro, the trade-off between recording and awareness becomes explicit — the framing determines which decisions are prioritized."
     ],
-    "raw_text": "Wreck penetration is a planning problem first, a buoyancy problem second — internalizing that ordering makes the downstream decisions easier. Silt-out from poor finning technique kills more divers in wrecks than equipment failures, so technique deserves more attention than gear; the second-order effects of that risk are what most people miss.",
-    "title": "Wreck Diving Fundamentals: Planning, Silt-Outs, and Shifting Sites"
+    "raw_text": "Wreck penetration is a planning problem first, a buoyancy problem second — internalizing this shifts decision-making toward safer, more predictable outcomes. Silt-out from poor finning technique kills more divers in wrecks than equipment failures, making technique a primary safety factor.",
+    "title": "Wreck Diving Fundamentals: Planning, Buoyancy, and Erosion"
   }
 }

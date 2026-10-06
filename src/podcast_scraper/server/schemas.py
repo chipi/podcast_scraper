@@ -22,11 +22,44 @@ class TranscriptSegment(BaseModel):
 
 
 class SegmentsResponse(BaseModel):
-    """Response for GET /api/app/episodes/{slug}/segments (the segments.json contract)."""
+    """Response for GET /api/app/episodes/{slug}/segments (the segments.json contract).
+
+    The three translation fields are ADDITIVE (S2.8) — an existing client that ignores them
+    sees exactly today's response, which is what lets a translated episode be served to the
+    current player without a coordinated release.
+
+    THESE ARE API SURFACE, NOT CHROME. There is no user-visible "translated from X" marker in
+    v1 (D-36); a client is free to render one, but nothing in v1 does. What these fields exist
+    for is that the decision is recorded and queryable rather than guessed from the text.
+    """
 
     version: str = Field(default="1.0", description="Segments contract version.")
     episode_slug: str = Field(description="Stable episode slug this transcript belongs to.")
     segments: list[TranscriptSegment] = Field(default_factory=list)
+    language: str | None = Field(
+        default=None,
+        description="Language of the text in `segments`, normalized (e.g. `en`, `es`). This is "
+        "the language ACTUALLY SERVED, which for a translated episode is `en` by default "
+        "(D-38) and the source language when `?lang=` asked for it.",
+    )
+    machine_translated: bool = Field(
+        default=False,
+        description="True when the served text came from the translation model rather than from "
+        "ASR. False for a native-English episode AND for a translated episode served in its "
+        "own source language — in both cases the text is what was actually spoken.",
+    )
+    translation_model: str | None = Field(
+        default=None,
+        description="The model that produced the served text, when `machine_translated`. Pinned "
+        "model id including its revision where recorded (ADR-155), so a client or an audit can "
+        "tell two translations of the same episode apart.",
+    )
+    source_language: str | None = Field(
+        default=None,
+        description="The episode's original language, whatever is being served. Present on a "
+        "translated episode even when `language` is `en`, so a client can offer `?lang=` "
+        "without a second request.",
+    )
 
 
 class AudioSourceResponse(BaseModel):
@@ -67,6 +100,27 @@ class AppEpisodeDetail(BaseModel):
     slug: str = Field(description="Stable episode slug.")
     title: str = Field(description="Episode title.")
     feed_id: str = Field(description="Owning feed id.")
+    language: str | None = Field(
+        default=None,
+        description=(
+            "Episode language as a normalized primary subtag ('en', 'es'); null when unknown "
+            "(#2176). Additive. Falls back to the feed's declared language for artifacts "
+            "written before per-episode language existed."
+        ),
+    )
+    translation_status: str | None = Field(
+        default=None,
+        description=(
+            "How translation went for this episode (S2.8). `null` for an episode with no "
+            "translation record — which is every English one and every artifact written before "
+            "the stage existed. Otherwise: `translated` (a complete English artifact set is on "
+            "disk and every analysis stage ran on it), `failed` (units did not translate, so "
+            "summary/GI/KG were SKIPPED and only the source transcript is served — RFC-124 "
+            "§5.3), `pending` (owed, not yet attempted), `skipped` (nothing to translate, or "
+            "the flag was off). A client needs this to explain why a non-English episode has no "
+            "insights without inferring it from their absence."
+        ),
+    )
     podcast_title: str | None = Field(default=None, description="Feed/show display title.")
     publish_date: str | None = Field(
         default=None, description="Publish date (YYYY-MM-DD) when known."
@@ -110,6 +164,14 @@ class AppEpisodeSummary(BaseModel):
     slug: str = Field(description="Stable episode slug.")
     title: str = Field(description="Episode title.")
     feed_id: str = Field(description="Owning feed id.")
+    language: str | None = Field(
+        default=None,
+        description=(
+            "Episode language as a normalized primary subtag ('en', 'es'); null when unknown "
+            "(#2176). Additive. Falls back to the feed's declared language for artifacts "
+            "written before per-episode language existed."
+        ),
+    )
     podcast_title: str | None = Field(default=None, description="Feed/show display title.")
     publish_date: str | None = Field(
         default=None, description="Publish date (YYYY-MM-DD) when known."
@@ -1936,7 +1998,12 @@ class AppPodcastItem(BaseModel):
         description="Feed-level author/host names from the RSS channel (#2043); empty when absent.",
     )
     language: str | None = Field(
-        default=None, description="Feed language tag (e.g. 'en') if known."
+        default=None,
+        description=(
+            "Feed language as a normalized primary subtag ('en'), or null. VALUE CHANGE in "
+            "#2176: this previously served the stored tag verbatim, which is 'en-us' for every "
+            "episode in app-validation-corpus/v3."
+        ),
     )
     last_updated: str | None = Field(
         default=None, description="Feed lastBuildDate / Atom updated (ISO) if known."
@@ -2918,6 +2985,13 @@ class CorpusFeedItem(BaseModel):
         description="Feed title from metadata when present.",
     )
     episode_count: int = Field(ge=0, description="Episodes under this feed id in the catalog scan.")
+    language: str | None = Field(
+        default=None,
+        description=(
+            "Feed language as a normalized primary subtag ('en'), or null (#2176). The operator "
+            "viewer's shows library consumes this row and had no language data at all before."
+        ),
+    )
     image_url: str | None = Field(
         default=None,
         description="Feed artwork URL from metadata when present (first non-empty seen).",

@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p07_e04",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:back-tested-calls",
+      "label": "back-tested calls"
+    },
+    {
+      "id": "topic:correlated-risk-systems",
+      "label": "correlated risk systems"
+    },
+    {
+      "id": "topic:economic-system-dynamics",
+      "label": "economic system dynamics"
+    },
+    {
+      "id": "topic:independent-risk-assumptions",
+      "label": "independent risk assumptions"
+    },
+    {
+      "id": "topic:institutional-data-infrastructure",
+      "label": "institutional data infrastructure"
+    },
+    {
+      "id": "topic:macro-as-risk-management",
+      "label": "macro as risk management"
+    },
+    {
+      "id": "topic:power-grid-analogy",
+      "label": "power grid analogy"
+    },
+    {
+      "id": "topic:regime-change-positioning",
+      "label": "regime change positioning"
+    },
+    {
+      "id": "topic:sustainability-discipline",
+      "label": "sustainability discipline"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "label": "systems thinking"
+    }
+  ]
+}

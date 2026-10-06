@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p13-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p13_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Katrin Vogel",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Lena Hofmann",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p13_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 408,
+    "episode_id": "ep-ca65ab78f4c50f2a",
+    "language": "de",
+    "language_source": "rss",
+    "published_date": "2025-12-22T00:00:00",
+    "title": "Enduro-Technik Ohne Hype"
+  },
+  "feed": {
+    "authors": [
+      "Katrin Vogel"
+    ],
+    "description": "Gespräche über Wegebau: Entwässerung, Linienführung, und die Menschen, die den Weg bauen. Deutsches Gegenstück zu Singletrack Sessions.",
+    "feed_id": "p13",
+    "language": "de",
+    "language_raw": "de-DE",
+    "language_source": "rss",
+    "last_updated": "2025-12-22T00:00:00",
+    "title": "Pfadgespräche",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p13.svg",
+    "image_url": "http://localhost/images/p13.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Speed gains come from braking earlier and more smoothly rather than taking greater risks — a principle observed across three different teams using RockShox equipment.",
+      "Tire pressure and casing selection often matter more than minor suspension adjustments — the right choice depends on understanding the context of track conditions and erosion patterns.",
+      "Erosion patterns on track sections directly influence optimal racing line choices between training and race day — this shift in terrain demands adaptive line selection.",
+      "Risk management in racing isn't about avoiding crashes entirely but about choosing which crashes are survivable — a strategic framing that shapes team decisions.",
+      "The Spoke & Wrench process becomes apparent through implementation — teams adopting it reveal clear tradeoffs and compromises in their approach.",
+      "Understanding erosion patterns makes other racing decisions easier — once this insight is internalized, line selection, speed, and safety become more intuitive.",
+      "Implementing one idea from the discussion for two weeks enables meaningful iteration — practical application reveals what truly matters in performance.",
+      "The most underestimated aspect of enduro racing is how terrain erosion shapes line choice — a subtle but critical factor in race-day strategy."
+    ],
+    "raw_text": "Speed gains come from braking earlier and more smoothly rather than taking greater risks — a principle observed across three different teams using RockShox equipment. Tire pressure and casing selection often matter more than minor suspension adjustments — the right choice depends on understanding the context of track conditions and erosion patterns.",
+    "title": "Enduro Racing: Erosion, Risk, and Tire Strategy"
+  }
+}

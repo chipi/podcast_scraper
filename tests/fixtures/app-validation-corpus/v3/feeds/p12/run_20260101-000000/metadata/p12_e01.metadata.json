@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p12-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p12_e01.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Camille Dubois",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Julien Mercier",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p12_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 401,
+    "episode_id": "ep-8dce4ec000757097",
+    "language": "fr",
+    "language_source": "rss",
+    "published_date": "2025-11-01T00:00:00",
+    "title": "Construire Des Sentiers Qui Durent"
+  },
+  "feed": {
+    "authors": [
+      "Camille Dubois"
+    ],
+    "description": "Conversations sur la construction de sentiers : drainage, tracé, et les personnes qui construisent le chemin. Contrepartie française de Singletrack Sessions.",
+    "feed_id": "p12",
+    "language": "fr",
+    "language_raw": "fr-FR",
+    "language_source": "rss",
+    "last_updated": "2025-12-25T00:00:00",
+    "title": "Sessions Sentier",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p12.svg",
+    "image_url": "http://localhost/images/p12.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Drainage is the most crucial design decision for any trail, as ignoring it leads to needing a complete rebuild within a year.",
+      "Beginner trail builders commonly make the mistake of digging with too steep a slope, which undermines trail longevity and stability.",
+      "Benches along the hillside are not optional — their absence results in erosion that turns the shortcut of year one into a ravine by year three.",
+      "Soil erosion and trail construction intersect fundamentally at the design phase, where land management discussions must occur before any ground is disturbed.",
+      "The structure of the soil is more important than people realize, and its properties directly influence trail durability and maintenance needs.",
+      "Teams using Spoke & Wrench or the Cascadia Alliance reveal trade-offs that are invisible without structured workflows and repeatable processes.",
+      "Machine-made trails are not inherently better than hand-built ones — the method matters less than the design integrity and adherence to ecological principles.",
+      "Failure modes are difficult to identify outside of established frameworks like the Cascadia Alliance, where structural aspects and second-order effects are often overlooked."
+    ],
+    "raw_text": "Drainage is the most crucial design decision for any trail, as ignoring it leads to needing a complete rebuild within a year. Beginner trail builders commonly make the mistake of digging with too steep a slope, which undermines trail longevity and stability.",
+    "title": "Trail Building: The Critical Role of Drainage and Soil Management"
+  }
+}

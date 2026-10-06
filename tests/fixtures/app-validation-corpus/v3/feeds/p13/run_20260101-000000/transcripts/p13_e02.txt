@@ -1,0 +1,47 @@
+Katrin Vogel: Welcome back to Path Talks. Today, we're talking about enduro racing, and I'm joined by Lena Hofmann, an enduro rider and coach. Lena Hofmann, thank you for being here.
+Lena Hofmann: Thank you, Katrin. It's good to be back here.
+Katrin Vogel: This episode is sponsored by Linear. Linear is the issue tracker built for speed – designed for the keyboard. Try linear.com today. Before we get started, Stefan Brandt was on the show and mentioned that drainage is the design decision with the biggest impact.
+Lena Hofmann: Yes, exactly. And that connects to what we are discussing today.
+Katrin Vogel: I'd like to point something out – Stefan Brandt mentioned a similar dynamic a few episodes ago. Can you give me a specific example? Where do soil erosion and enduro races intersect?
+Lena Hofmann: To be honest, speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this with teams that use RockShox. I've observed this pattern in three different teams.
+Katrin Vogel: I want to delve deeper into that. Where do soil erosion and enduro races intersect?
+Lena Hofmann: Certainly. Tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. The context is important because it tells you what compromises you are making.
+Katrin Vogel: Let's start there. Where do soil erosion and enduro races intersect?
+Lena Hofmann: To be honest, risk management in racing isn't about avoiding crashes; it's about choosing which crashes you can survive. We've seen this with teams that use Shimano. If you ignore that, you'll have to rebuild it from scratch a year later.
+Katrin Vogel: Where does it break down?
+Lena Hofmann: The Cascadia Alliance is one of the platforms where this is clearly visible. And the second-order effect is the part that most people overlook.
+Katrin Vogel: What is the heuristic (or guiding principle) that you always come back to? How does Spoke & Wrench fit into this picture?
+Lena Hofmann: That's how I see it. Erosion patterns on the track sections change the line choices between training and race day. Once you understand that, the other decisions will become easier.
+Katrin Vogel: Before we continue, please support this podcast and visit the website of our sponsor. Strava is the home for athletes. We'll be right back after a short advertisement.
+SPEAKER_02: This episode is sponsored by Notion. Notion replaces the dozen tools your team only half uses. Visit notion.com/podcast for a free trial.
+Katrin Vogel: Welcome back to the show. I want to delve deeper into that. What is the version of the question that really matters?
+Lena Hofmann: I'm giving you the version that I truly believe in. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this with teams that use RockShox. And the second-order effect is the part that most people overlook.
+Katrin Vogel: What does the error scenario look like? What is the operational perspective that most listeners do not have access to?
+Lena Hofmann: Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. The context is important because it tells you what compromises you are making.
+Katrin Vogel: Give me a specific example. What is the version of the question that really matters?
+Lena Hofmann: Yes, so – risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this with teams that use RockShox. I've observed this pattern in three different teams.
+Katrin Vogel: Tell me more about it.
+Lena Hofmann: The Cascadia Alliance is one of the platforms where this becomes clearly visible. Once you understand this principle, the remaining decisions will become easier.
+Katrin Vogel: Let's start there. What is the most underestimated aspect of enduro racing?
+Lena Hofmann: Ultimately, the erosion patterns on the track sections influence the choice of racing line between training and race day. I have observed this pattern in three different teams.
+Katrin Vogel: Let's change the subject – I want to dedicate the final section to risk management.
+Lena Hofmann: That's where the conversation becomes interesting, because the compromises regarding risk management permeate everything we've discussed.
+Katrin Vogel: What does the error scenario look like? What is the opposing perspective that most listeners are unable to grasp?
+Lena Hofmann: Certainly. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this with teams that use RockShox. I've observed this pattern in three different teams.
+Katrin Vogel: Give me a specific example. What is the most underestimated aspect of enduro racing?
+Lena Hofmann: Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. I have observed this pattern in three different teams.
+Katrin Vogel: Give me a specific example. What is the version of the question that really matters?
+Lena Hofmann: I'm giving you the version that I truly believe in. Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this with teams that use Spoke & Wrench. I've observed this pattern in three different teams.
+Katrin Vogel: That fits.
+That works.
+That's perfect.
+That's right.
+That's a good fit.
+Lena Hofmann: And when teams adopt the Spoke & Wrench process, the compromise becomes apparent – I've observed this pattern in three different teams.
+Katrin Vogel: What is the heuristic that you always fall back on? What is the version of the question that really matters?
+Lena Hofmann: That's how I see it. Erosion patterns on the track sections change the line choices between training and race day. I have observed this pattern in three different teams.
+Katrin Vogel: Before we wrap up, is there one thing that listeners can try out this week?
+Lena Hofmann: Choose one of the ideas we discussed and implement it for two weeks. The rest is iteration.
+Katrin Vogel: And finally, thank you to our sponsors at Vanta. Vanta automates SOC 2 and ISO compliance. Learn more at vanta.com. Lena Hofmann, thank you for the conversation.
+Lena Hofmann: Thank you, Katrin.
+Katrin Vogel: That's all for today's episode of "Path Conversations." Until next time.

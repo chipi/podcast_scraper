@@ -1,0 +1,39 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p03_e04",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:ascent-control",
+      "label": "ascent control"
+    },
+    {
+      "id": "topic:current-assessment",
+      "label": "current assessment"
+    },
+    {
+      "id": "topic:dive-planning",
+      "label": "dive planning"
+    },
+    {
+      "id": "topic:gas-management",
+      "label": "gas management"
+    },
+    {
+      "id": "topic:incident-prevention",
+      "label": "incident prevention"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:systemic-interaction",
+      "label": "systemic interaction"
+    },
+    {
+      "id": "topic:team-coordination",
+      "label": "team coordination"
+    }
+  ]
+}

@@ -1,0 +1,217 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7fd3ec879c8c2b44",
+      "target": "topic:braking-technique",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7fd3ec879c8c2b44",
+      "target": "topic:tire-pressure-selection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7fd3ec879c8c2b44",
+      "target": "topic:track-erosion-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7fd3ec879c8c2b44",
+      "target": "topic:equipment-performance",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7fd3ec879c8c2b44",
+      "target": "topic:frame-design-compromises",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7fd3ec879c8c2b44",
+      "target": "topic:team-performance-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7fd3ec879c8c2b44",
+      "target": "topic:compliance-automation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7fd3ec879c8c2b44",
+      "target": "topic:workflow-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7fd3ec879c8c2b44",
+      "target": "topic:performance-iteration",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "person:lucia-herrera",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7fd3ec879c8c2b44",
+      "to": "person:marta-solis",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-7fd3ec879c8c2b44",
+  "extraction": {
+    "extracted_at": "2025-12-31T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p10_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-7fd3ec879c8c2b44",
+      "properties": {
+        "podcast_id": "p10",
+        "publish_date": "2025-12-31T00:00:00",
+        "title": "Habilidades de Enduro Sin el Bombo"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:braking-technique",
+      "properties": {
+        "label": "braking technique",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tire-pressure-selection",
+      "properties": {
+        "label": "tire pressure selection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:track-erosion-patterns",
+      "properties": {
+        "label": "track erosion patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:equipment-performance",
+      "properties": {
+        "label": "equipment performance",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame-design-compromises",
+      "properties": {
+        "label": "frame design compromises",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:team-performance-patterns",
+      "properties": {
+        "label": "team performance patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:compliance-automation",
+      "properties": {
+        "label": "compliance automation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:workflow-integration",
+      "properties": {
+        "label": "workflow integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:performance-iteration",
+      "properties": {
+        "label": "performance iteration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:lucia-herrera",
+      "properties": {
+        "name": "Luc\u00eda Herrera",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:marta-solis",
+      "properties": {
+        "name": "Marta Sol\u00eds",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

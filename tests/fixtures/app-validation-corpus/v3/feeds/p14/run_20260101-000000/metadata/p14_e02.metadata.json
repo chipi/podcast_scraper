@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p14-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p14_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Beatriz Antunes",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Inês Carvalho",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p14_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 406,
+    "episode_id": "ep-88fec846e9003e86",
+    "language": "pt",
+    "language_source": "rss",
+    "published_date": "2025-12-19T00:00:00",
+    "title": "Técnica de Enduro Sem Exagero"
+  },
+  "feed": {
+    "authors": [
+      "Beatriz Antunes"
+    ],
+    "description": "Conversas sobre construção de trilhas: drenagem, traçado, e as pessoas que constroem o caminho. Contraparte portuguesa de Singletrack Sessions.",
+    "feed_id": "p14",
+    "language": "pt",
+    "language_raw": "pt-PT",
+    "language_source": "rss",
+    "last_updated": "2026-01-01T00:00:00",
+    "title": "Sessões de Trilha",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p14.svg",
+    "image_url": "http://localhost/images/p14.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Speed in enduro racing comes from braking earlier and more smoothly — a counterintuitive principle that outperforms aggressive risk-taking.",
+      "Tire pressure and tire casing selection often matter more than minor suspension adjustments, as they reveal the compromises inherent in any setup.",
+      "Soil erosion patterns on track sections directly influence the optimal racing line between practice and race day, making terrain dynamics a key strategic variable.",
+      "Risk management in racing is not about avoiding crashes entirely but about choosing which crashes are survivable — a mindset shift critical for performance.",
+      "The Cascadia Alliance exemplifies how second-order effects, like evolving track conditions, can override initial assumptions about race strategy.",
+      "The Spoke & Wrench methodology, when adopted systematically, enables teams to align technical decisions with long-term reliability across multiple events.",
+      "Teams using RockShox consistently demonstrate that disciplined setup and predictable handling outperform high-risk, high-speed experimentation.",
+      "Understanding erosion-driven trajectory changes allows riders to anticipate and adapt to evolving track conditions — a skill that transforms practice into race-day advantage."
+    ],
+    "raw_text": "Speed in enduro racing comes from braking earlier and more smoothly — a counterintuitive principle that outperforms aggressive risk-taking. Tire pressure and tire casing selection often matter more than minor suspension adjustments, as they reveal the compromises inherent in any setup.",
+    "title": "Enduro Racing: Risk, Erosion, and the Hidden Logic of Speed"
+  }
+}

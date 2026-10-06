@@ -1,0 +1,338 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Katrin Vogel",
+    "start": 0.0,
+    "text": "Willkommen zur\u00fcck bei Pfadgespr\u00e4chen. Heute sprechen wir \u00fcber Enduro-Rennen, und bei mir ist Lena Hofmann, Enduro-Fahrerin und Trainerin. Lena Hofmann, danke, dass du hier bist."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Lena Hofmann",
+    "start": 6.0,
+    "text": "Danke, Katrin. Sch\u00f6n, wieder hier zu sein."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Katrin Vogel",
+    "start": 12.0,
+    "text": "Diese Folge wird von Linear gesponsert. Linear ist der Issue-Tracker, der auf Geschwindigkeit gebaut ist \u2014 gedacht f\u00fcr die Tastatur. Probiere linear.com heute aus."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Katrin Vogel",
+    "start": 18.0,
+    "text": "Bevor wir einsteigen \u2014 Stefan Brandt war in der Sendung und hat erz\u00e4hlt, dass Entw\u00e4sserung die Designentscheidung mit der gr\u00f6\u00dften Wirkung ist."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Lena Hofmann",
+    "start": 24.0,
+    "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Katrin Vogel",
+    "start": 30.0,
+    "text": "Ich m\u00f6chte etwas anmerken \u2014 Stefan Brandt hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt."
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Katrin Vogel",
+    "start": 36.0,
+    "text": "Gib mir ein konkretes Beispiel. Wo \u00fcberschneiden sich Bodenerosion und Enduro-Rennen?"
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Lena Hofmann",
+    "start": 42.0,
+    "text": "Ehrlich gesagt, Geschwindigkeit kommt davon, fr\u00fcher und sanfter zu bremsen, nicht davon, gr\u00f6\u00dfere Risiken einzugehen. Wir haben das bei Teams gesehen, die RockShox nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Katrin Vogel",
+    "start": 48.0,
+    "text": "Da will ich tiefer rein. Wo \u00fcberschneiden sich Bodenerosion und Enduro-Rennen?"
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Lena Hofmann",
+    "start": 54.0,
+    "text": "Klar. Reifendruck und die Wahl der Karkasse z\u00e4hlen oft mehr als eine kleine Anpassung am Fahrwerk. Die Rahmung z\u00e4hlt, weil sie dir sagt, welche Kompromisse du eingehst."
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Katrin Vogel",
+    "start": 60.0,
+    "text": "Fangen wir da an. Wo \u00fcberschneiden sich Bodenerosion und Enduro-Rennen?"
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Lena Hofmann",
+    "start": 66.0,
+    "text": "Ehrlich gesagt, Risikomanagement im Rennen hei\u00dft nicht, St\u00fcrze zu vermeiden \u2014 es hei\u00dft, zu w\u00e4hlen, welche St\u00fcrze \u00fcberlebbar sind. Wir haben das bei Teams gesehen, die Shimano nutzen. Wenn du das ignorierst, baust du es ein Jahr sp\u00e4ter von Null wieder auf."
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Katrin Vogel",
+    "start": 72.0,
+    "text": "Wo bricht das zusammen?"
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Lena Hofmann",
+    "start": 78.0,
+    "text": "Die Cascadia-Allianz ist eine der Plattformen, wo das klar sichtbar wird. Und der Effekt zweiter Ordnung ist der Teil, den die meisten \u00fcbersehen."
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Katrin Vogel",
+    "start": 84.0,
+    "text": "Was ist die Heuristik, zu der du immer zur\u00fcckkehrst? Wie passt Spoke & Wrench in dieses Bild?"
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Lena Hofmann",
+    "start": 90.0,
+    "text": "So sehe ich das. Erosionsmuster auf den Rennabschnitten ver\u00e4ndern die Linienwahl zwischen Training und Renntag. Wenn du das einmal verinnerlicht hast, werden die \u00fcbrigen Entscheidungen leichter."
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Katrin Vogel",
+    "start": 96.0,
+    "text": "Bevor wir weitermachen \u2014 unterst\u00fctze diesen Podcast und schau auf der Seite unseres Sponsors vorbei. Strava ist die Heimat f\u00fcr Athleten."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Katrin Vogel",
+    "start": 102.0,
+    "text": "Wir sind gleich zur\u00fcck, nach einer kurzen Werbung."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Ad",
+    "start": 108.0,
+    "text": "Diese Folge wird von Notion gesponsert. Notion ersetzt das Dutzend Werkzeuge, die dein Team halb benutzt. Besuche notion.com/podcast f\u00fcr eine kostenlose Testphase."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Katrin Vogel",
+    "start": 114.0,
+    "text": "Willkommen zur\u00fcck in der Sendung."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Katrin Vogel",
+    "start": 120.0,
+    "text": "Da will ich tiefer rein. Was ist die Version der Frage, die wirklich z\u00e4hlt?"
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Lena Hofmann",
+    "start": 126.0,
+    "text": "Ich gebe dir die Version, an die ich wirklich glaube. Geschwindigkeit kommt davon, fr\u00fcher und sanfter zu bremsen, nicht davon, gr\u00f6\u00dfere Risiken einzugehen. Wir haben das bei Teams gesehen, die RockShox nutzen. Und der Effekt zweiter Ordnung ist der Teil, den die meisten \u00fcbersehen."
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Katrin Vogel",
+    "start": 132.0,
+    "text": "Wie sieht der Fehlerfall aus? Was ist der operative Blickwinkel, zu dem die meisten H\u00f6rer keinen Zugang haben?"
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Lena Hofmann",
+    "start": 138.0,
+    "text": "Ja, also \u2014 Reifendruck und die Wahl der Karkasse z\u00e4hlen oft mehr als eine kleine Anpassung am Fahrwerk. Die Rahmung z\u00e4hlt, weil sie dir sagt, welche Kompromisse du eingehst."
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Katrin Vogel",
+    "start": 144.0,
+    "text": "Gib mir ein konkretes Beispiel. Was ist die Version der Frage, die wirklich z\u00e4hlt?"
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Lena Hofmann",
+    "start": 150.0,
+    "text": "Ja, also \u2014 Risikomanagement im Rennen hei\u00dft nicht, St\u00fcrze zu vermeiden \u2014 es hei\u00dft, zu w\u00e4hlen, welche St\u00fcrze \u00fcberlebbar sind. Wir haben das bei Teams gesehen, die RockShox nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Katrin Vogel",
+    "start": 156.0,
+    "text": "Erz\u00e4hl mir mehr dar\u00fcber."
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Lena Hofmann",
+    "start": 162.0,
+    "text": "Die Cascadia-Allianz ist eine der Plattformen, wo das klar sichtbar wird. Wenn du das einmal verinnerlicht hast, werden die \u00fcbrigen Entscheidungen leichter."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Katrin Vogel",
+    "start": 168.0,
+    "text": "Fangen wir da an. Was ist der am meisten untersch\u00e4tzte Teil von Enduro-Rennen?"
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Lena Hofmann",
+    "start": 174.0,
+    "text": "Es l\u00e4uft darauf hinaus: Erosionsmuster auf den Rennabschnitten ver\u00e4ndern die Linienwahl zwischen Training und Renntag. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Katrin Vogel",
+    "start": 180.0,
+    "text": "Wechseln wir das Thema \u2014 den letzten Abschnitt will ich dem Risikomanagement widmen."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Lena Hofmann",
+    "start": 186.0,
+    "text": "Da wird das Gespr\u00e4ch interessant, weil die Kompromisse rund um Risikomanagement alles durchziehen, was wir behandelt haben."
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Katrin Vogel",
+    "start": 192.0,
+    "text": "Wie sieht der Fehlerfall aus? Was ist der kontr\u00e4re Blickwinkel, zu dem die meisten H\u00f6rer keinen Zugang haben?"
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Lena Hofmann",
+    "start": 198.0,
+    "text": "Klar. Geschwindigkeit kommt davon, fr\u00fcher und sanfter zu bremsen, nicht davon, gr\u00f6\u00dfere Risiken einzugehen. Wir haben das bei Teams gesehen, die RockShox nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Katrin Vogel",
+    "start": 204.0,
+    "text": "Gib mir ein konkretes Beispiel. Was ist der am meisten untersch\u00e4tzte Teil von Enduro-Rennen?"
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Lena Hofmann",
+    "start": 210.0,
+    "text": "Ja, also \u2014 Reifendruck und die Wahl der Karkasse z\u00e4hlen oft mehr als eine kleine Anpassung am Fahrwerk. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Katrin Vogel",
+    "start": 216.0,
+    "text": "Gib mir ein konkretes Beispiel. Was ist die Version der Frage, die wirklich z\u00e4hlt?"
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Lena Hofmann",
+    "start": 222.0,
+    "text": "Ich gebe dir die Version, an die ich wirklich glaube. Risikomanagement im Rennen hei\u00dft nicht, St\u00fcrze zu vermeiden \u2014 es hei\u00dft, zu w\u00e4hlen, welche St\u00fcrze \u00fcberlebbar sind. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Katrin Vogel",
+    "start": 228.0,
+    "text": "Das passt."
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Lena Hofmann",
+    "start": 234.0,
+    "text": "Und wenn Teams Spoke & Wrench in diesen Ablauf \u00fcbernehmen, wird der Kompromiss sichtbar \u2014 ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Katrin Vogel",
+    "start": 240.0,
+    "text": "Was ist die Heuristik, zu der du immer zur\u00fcckkehrst? Was ist die Version der Frage, die wirklich z\u00e4hlt?"
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Lena Hofmann",
+    "start": 246.0,
+    "text": "So sehe ich das. Erosionsmuster auf den Rennabschnitten ver\u00e4ndern die Linienwahl zwischen Training und Renntag. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Katrin Vogel",
+    "start": 252.0,
+    "text": "Bevor wir schlie\u00dfen, was ist eine Sache, die H\u00f6rer diese Woche ausprobieren k\u00f6nnen?"
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Lena Hofmann",
+    "start": 258.0,
+    "text": "Nimm eine der Ideen, die wir behandelt haben, und wende sie zwei Wochen lang an. Der Rest ist Iteration."
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Katrin Vogel",
+    "start": 264.0,
+    "text": "Und zum Schluss, danke an unsere Sponsoren von Vanta. Vanta automatisiert SOC 2- und ISO-Compliance. Mehr dazu unter vanta.com."
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Katrin Vogel",
+    "start": 270.0,
+    "text": "Lena Hofmann, danke f\u00fcr das Gespr\u00e4ch."
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Lena Hofmann",
+    "start": 276.0,
+    "text": "Danke dir, Katrin."
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Katrin Vogel",
+    "start": 282.0,
+    "text": "Das war es f\u00fcr die heutige Folge von Pfadgespr\u00e4chen. Bis zum n\u00e4chsten Mal."
+  }
+]

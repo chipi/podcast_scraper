@@ -14,6 +14,7 @@
   "voice_map": {
     "Maya": "Samantha"
   },
+  "voice_pitch_shift": {},
   "cameo": null,
   "transcript_sha256": "45fb4e30dda0b19466e4dbcf503c2cb2658a3bb36c81d76244094360266fef7b",
   "audio_sha256": "86027b92f62fad1d413a597d9d02dc471f7d2e9ebd15d3904c9c8b7d3ff6f7a0",

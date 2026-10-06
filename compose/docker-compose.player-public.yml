@@ -37,7 +37,9 @@ services:
       #   https://<player-domain>/api/app/auth/callback
       # The two SECRET values (session secret, Google client secret) are staged securely
       # at deploy (GH secret -> env now; ADR-115 sops file-mounts later). client_id is
-      # not secret. APP_ADMIN_EMAILS is unset — player users are listeners/creators.
+      # not secret. Admin accounts MAY exist here (APP_ADMIN_EMAILS below), but the admin
+      # SURFACE is tailnet-only: the player nginx never proxies /api/app/admin/*,
+      # /api/app/ranking-config or /api/app/graph-events/* (operator decision 2026-10-05).
       # Explicit provider switch (this is the prod player — always Google, never mock).
       APP_OAUTH_PROVIDER: google
       APP_OAUTH_GOOGLE_CLIENT_ID: ${APP_OAUTH_GOOGLE_CLIENT_ID:-}
@@ -72,6 +74,10 @@ services:
       # note in the user's vault the first time they exported from a different origin (the native
       # shell, a tunnel, localhost). Defaults to the public player domain when unset.
       APP_PUBLIC_ORIGIN: ${APP_PUBLIC_ORIGIN:-https://closelistening.app}
+      # The ONLY web page trusted with the session cookie (CORS + the cross-site write check).
+      # Unpinned, a deployed api trusts no other page (app.web_origins) — never the localhost dev
+      # servers it used to default to. www.closelistening.app 301s here, so it needs no entry.
+      PODCAST_SERVE_CORS_ORIGINS: ${PODCAST_SERVE_CORS_ORIGINS:-https://closelistening.app}
       PODCAST_SENTRY_DSN_API: ${PODCAST_SENTRY_DSN_API:-}
       # Tags backend Sentry events as prod (sentry_init reads PODCAST_ENV, default dev).
       # Must be listed here — the --env-file only feeds compose interpolation, not the

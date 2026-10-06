@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p10_e03",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from the run's <ep>.kg.json Topic nodes",
+  "topics": [
+    {
+      "id": "topic:bike-silence",
+      "label": "bike silence"
+    },
+    {
+      "id": "topic:maintenance-mechanics",
+      "label": "maintenance mechanics"
+    },
+    {
+      "id": "topic:chain-wear-indicator",
+      "label": "chain wear indicator"
+    },
+    {
+      "id": "topic:spoke-and-wrench-system",
+      "label": "spoke and wrench system"
+    },
+    {
+      "id": "topic:suspension-service-intervals",
+      "label": "suspension service intervals"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:frame-compromises",
+      "label": "frame compromises"
+    },
+    {
+      "id": "topic:transmission-mechanics",
+      "label": "transmission mechanics"
+    },
+    {
+      "id": "topic:early-failure-detection",
+      "label": "early failure detection"
+    }
+  ]
+}

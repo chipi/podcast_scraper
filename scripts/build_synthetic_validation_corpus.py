@@ -37,6 +37,7 @@ import json
 import pathlib
 import re
 import sys
+import unicodedata
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -49,7 +50,20 @@ import defusedxml.ElementTree as ET
 
 
 def slug(text: str, max_len: int = 40) -> str:
-    s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    """Fixture slugifier — must agree with `podcast_scraper.identity.slugify` on any name.
+
+    It did not. `[^a-z0-9]+` turns every non-ASCII character into a HYPHEN, so the corpus's first
+    accented person, `Lucía Herrera`, became `person:luc-a-herrera` while production's slugifier
+    (NFKD, then drop the combining marks) produces `person:lucia-herrera` for the same human. A
+    fixture that disagrees with production about an entity id is worse than no fixture: every
+    identity assertion built on it is testing the disagreement.
+
+    NFKD decomposes `í` into `i` + a combining acute; dropping non-ASCII then leaves the `i`
+    rather than a hole. Pure ASCII input is unaffected, so no existing id moves.
+    """
+    normalized = unicodedata.normalize("NFKD", text)
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    s = re.sub(r"[^a-z0-9]+", "-", normalized.lower()).strip("-")
     return s[:max_len] or "x"
 
 
@@ -91,6 +105,11 @@ DIGEST_HEADLINE_TOPICS: list[str] = [
 
 def stable_feed_id(rss_basename: str) -> str:
     return "sha256:" + hashlib.sha256(rss_basename.encode("utf-8")).hexdigest()
+
+
+# The fixture generators normalize exactly as the pipeline does, so a fixture cannot
+# disagree with production about what a tag means (#2185).
+from podcast_scraper.languages import normalize_language_tag  # noqa: E402
 
 
 def parse_rss_feed_metadata(rss_path: Path) -> dict[str, Any]:
@@ -316,7 +335,9 @@ def parse_diarized_segments(
             continue
         # Drop a leading [mm:ss] / mm:ss timestamp marker if present.
         line = re.sub(r"^\[?\d{1,2}:\d{2}\]?\s*", "", line)
-        m = re.match(r"^([A-Z][A-Za-z0-9 .'\-]{0,40}):\s+(.+)$", line)
+        # Unicode-aware — see transcripts_to_vtt.py: an accented speaker name silently
+        # stops being a speaker, which costs the episode its host rather than erroring.
+        m = re.match(r"^([A-ZÀ-ÖØ-Þ][\w .'\-]{0,40}):\s+(.+)$", line)
         if not m:
             continue
         speaker = m.group(1).strip()
@@ -1022,12 +1043,27 @@ def main() -> int:
                             "episode_id": ep_uuid,
                             "title": title,
                             "published_date": publish,
+                            # Per-episode language (#2185). Inherited from the feed here: these
+                            # fixtures have no per-feed override, and an episode in a different
+                            # language from its show is a Phase 2 shape, not a Phase 0 one.
+                            "language": normalize_language_tag(feed_meta.get("language")),
+                            "language_source": "rss" if feed_meta.get("language") else None,
                         },
                         "feed": {
                             "feed_id": podcast_id,
                             "title": feed_meta["display_title"],
                             "url": feed_meta["rss_url"],
                             "description": feed_meta["description"],
+                            # Language (#2185). The RSS parser above already extracted it; it
+                            # was simply never written, which is why every episode in this corpus
+                            # had NO feed.language at all and the S0.4 audit reported it as
+                            # "not enabled in the registry". `language` is the normalized primary
+                            # subtag, `language_raw` the publisher's original, and
+                            # `language_source` says which precedence level answered -- the field
+                            # that lets an audit tell a measured corpus from a defaulted one.
+                            "language": normalize_language_tag(feed_meta.get("language")),
+                            "language_raw": feed_meta.get("language") or None,
+                            "language_source": "rss" if feed_meta.get("language") else None,
                         },
                         # #876/#974 — content block carrying the diarized two-artifact
                         # transcript pointer + speaker roster, as a real corpus has.

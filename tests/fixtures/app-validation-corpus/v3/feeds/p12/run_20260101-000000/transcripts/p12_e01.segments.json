@@ -1,0 +1,1062 @@
+[
+  {
+    "start": 0.0,
+    "end": 2.52,
+    "speaker_label": "Camille Dubois",
+    "text": "Welcome back to Sessions Sentier.",
+    "char_start": 16,
+    "char_end": 49,
+    "unit_id": "t0000.u01",
+    "sent_id": "t0000.s01"
+  },
+  {
+    "start": 2.58,
+    "end": 10.44,
+    "speaker_label": "Camille Dubois",
+    "text": "Today, we're talking about trail building, and I'm joined by Julien Mercier, a trail builder from the Cascadia Alliance.",
+    "char_start": 50,
+    "char_end": 170,
+    "unit_id": "t0000.u01",
+    "sent_id": "t0000.s02"
+  },
+  {
+    "start": 10.5,
+    "end": 12.42,
+    "speaker_label": "Camille Dubois",
+    "text": "Julien Mercier, thank you for being here.",
+    "char_start": 171,
+    "char_end": 212,
+    "unit_id": "t0000.u01",
+    "sent_id": "t0000.s03"
+  },
+  {
+    "start": 12.42,
+    "end": 13.32,
+    "speaker_label": "Julien Mercier",
+    "text": "Thank you, Camille.",
+    "char_start": 229,
+    "char_end": 248,
+    "unit_id": "t0001.u01",
+    "sent_id": "t0001.s01"
+  },
+  {
+    "start": 13.38,
+    "end": 18.9,
+    "speaker_label": "Julien Mercier",
+    "text": "My pleasure – trail construction is a topic I've given a lot of thought to.",
+    "char_start": 249,
+    "char_end": 324,
+    "unit_id": "t0001.u01",
+    "sent_id": "t0001.s02"
+  },
+  {
+    "start": 18.9,
+    "end": 21.3,
+    "speaker_label": "Camille Dubois",
+    "text": "This episode is brought to you by Strava.",
+    "char_start": 341,
+    "char_end": 382,
+    "unit_id": "t0002.u01",
+    "sent_id": "t0002.s01"
+  },
+  {
+    "start": 21.36,
+    "end": 23.4,
+    "speaker_label": "Camille Dubois",
+    "text": "Strava is the home of athletes.",
+    "char_start": 383,
+    "char_end": 414,
+    "unit_id": "t0002.u01",
+    "sent_id": "t0002.s02"
+  },
+  {
+    "start": 23.46,
+    "end": 25.44,
+    "speaker_label": "Camille Dubois",
+    "text": "Start at strava.com/podcast.",
+    "char_start": 415,
+    "char_end": 443,
+    "unit_id": "t0002.u01",
+    "sent_id": "t0002.s03"
+  },
+  {
+    "start": 210.0,
+    "end": 212.58,
+    "speaker_label": "Camille Dubois",
+    "text": "Tell me about how you made that decision.",
+    "char_start": 444,
+    "char_end": 485,
+    "unit_id": "t0002.u01",
+    "sent_id": "t0002.s04"
+  },
+  {
+    "start": 212.64,
+    "end": 215.46,
+    "speaker_label": "Camille Dubois",
+    "text": "How does RockShox fit into this picture?",
+    "char_start": 486,
+    "char_end": 526,
+    "unit_id": "t0002.u01",
+    "sent_id": "t0002.s05"
+  },
+  {
+    "start": 215.46,
+    "end": 221.64,
+    "speaker_label": "Julien Mercier",
+    "text": "Honestly, drainage is the most crucial design decision for any trail.",
+    "char_start": 543,
+    "char_end": 612,
+    "unit_id": "t0003.u01",
+    "sent_id": "t0003.s01"
+  },
+  {
+    "start": 221.7,
+    "end": 225.36,
+    "speaker_label": "Julien Mercier",
+    "text": "We've seen this in teams that use the Alliance Cascadia.",
+    "char_start": 613,
+    "char_end": 669,
+    "unit_id": "t0003.u01",
+    "sent_id": "t0003.s02"
+  },
+  {
+    "start": 225.42,
+    "end": 229.02,
+    "speaker_label": "Julien Mercier",
+    "text": "I've observed this pattern repeating itself in three different teams.",
+    "char_start": 670,
+    "char_end": 739,
+    "unit_id": "t0003.u01",
+    "sent_id": "t0003.s03"
+  },
+  {
+    "start": 229.02,
+    "end": 231.6,
+    "speaker_label": "Camille Dubois",
+    "text": "Tell me how you came to that decision.",
+    "char_start": 756,
+    "char_end": 794,
+    "unit_id": "t0004.u01",
+    "sent_id": "t0004.s01"
+  },
+  {
+    "start": 231.66,
+    "end": 235.14,
+    "speaker_label": "Camille Dubois",
+    "text": "Which version of the question is truly important?",
+    "char_start": 795,
+    "char_end": 844,
+    "unit_id": "t0004.u01",
+    "sent_id": "t0004.s02"
+  },
+  {
+    "start": 235.14,
+    "end": 241.68,
+    "speaker_label": "Julien Mercier",
+    "text": "Yes, listen – the most common mistake that beginner builders make is digging with too steep a slope.",
+    "char_start": 861,
+    "char_end": 961,
+    "unit_id": "t0005.u01",
+    "sent_id": "t0005.s01"
+  },
+  {
+    "start": 241.74,
+    "end": 246.18,
+    "speaker_label": "Julien Mercier",
+    "text": "Once you understand that, the rest of the decisions become much easier.",
+    "char_start": 962,
+    "char_end": 1033,
+    "unit_id": "t0005.u01",
+    "sent_id": "t0005.s02"
+  },
+  {
+    "start": 246.18,
+    "end": 247.38,
+    "speaker_label": "Camille Dubois",
+    "text": "I want to delve deeper.",
+    "char_start": 1050,
+    "char_end": 1073,
+    "unit_id": "t0006.u01",
+    "sent_id": "t0006.s01"
+  },
+  {
+    "start": 247.44,
+    "end": 251.76,
+    "speaker_label": "Camille Dubois",
+    "text": "Where do soil erosion and trail construction intersect?",
+    "char_start": 1074,
+    "char_end": 1129,
+    "unit_id": "t0006.u01",
+    "sent_id": "t0006.s02"
+  },
+  {
+    "start": 251.76,
+    "end": 252.3,
+    "speaker_label": "Julien Mercier",
+    "text": "Of course.",
+    "char_start": 1146,
+    "char_end": 1156,
+    "unit_id": "t0007.u01",
+    "sent_id": "t0007.s01"
+  },
+  {
+    "start": 252.36,
+    "end": 258.18,
+    "speaker_label": "Julien Mercier",
+    "text": "Discussions about land management should take place before the first shovel hits the ground.",
+    "char_start": 1157,
+    "char_end": 1249,
+    "unit_id": "t0007.u01",
+    "sent_id": "t0007.s02"
+  },
+  {
+    "start": 258.24,
+    "end": 261.24,
+    "speaker_label": "Julien Mercier",
+    "text": "We've seen this in teams that use RockShox.",
+    "char_start": 1250,
+    "char_end": 1293,
+    "unit_id": "t0007.u01",
+    "sent_id": "t0007.s03"
+  },
+  {
+    "start": 261.3,
+    "end": 264.84,
+    "speaker_label": "Julien Mercier",
+    "text": "The frame matters because it tells you what compromises you're making.",
+    "char_start": 1294,
+    "char_end": 1364,
+    "unit_id": "t0007.u01",
+    "sent_id": "t0007.s04"
+  },
+  {
+    "start": 264.84,
+    "end": 266.34,
+    "speaker_label": "Camille Dubois",
+    "text": "Tell me more.",
+    "char_start": 1381,
+    "char_end": 1394,
+    "unit_id": "t0008.u01",
+    "sent_id": "t0008.s01"
+  },
+  {
+    "start": 266.34,
+    "end": 276.12,
+    "speaker_label": "Julien Mercier",
+    "text": "And when teams adopt Spoke & Wrench within this workflow, the trade-offs become apparent. If you ignore these trade-offs, you'll end up having to rebuild everything from scratch a year later.",
+    "char_start": 1411,
+    "char_end": 1602,
+    "unit_id": "t0009.u01",
+    "sent_id": "t0009.s01"
+  },
+  {
+    "start": 276.12,
+    "end": 278.7,
+    "speaker_label": "Camille Dubois",
+    "text": "Tell me how you came to that decision.",
+    "char_start": 1619,
+    "char_end": 1657,
+    "unit_id": "t0010.u01",
+    "sent_id": "t0010.s01"
+  },
+  {
+    "start": 278.76,
+    "end": 283.08,
+    "speaker_label": "Camille Dubois",
+    "text": "Where do soil erosion and trail construction intersect?",
+    "char_start": 1658,
+    "char_end": 1713,
+    "unit_id": "t0010.u01",
+    "sent_id": "t0010.s02"
+  },
+  {
+    "start": 283.08,
+    "end": 283.62,
+    "speaker_label": "Julien Mercier",
+    "text": "Of course.",
+    "char_start": 1730,
+    "char_end": 1740,
+    "unit_id": "t0011.u01",
+    "sent_id": "t0011.s01"
+  },
+  {
+    "start": 283.68,
+    "end": 287.16,
+    "speaker_label": "Julien Mercier",
+    "text": "The benches along the hillside are not optional.",
+    "char_start": 1741,
+    "char_end": 1789,
+    "unit_id": "t0011.u01",
+    "sent_id": "t0011.s02"
+  },
+  {
+    "start": 287.22,
+    "end": 291.36,
+    "speaker_label": "Julien Mercier",
+    "text": "The shortcut of the first year is the ravine of the third year.",
+    "char_start": 1790,
+    "char_end": 1853,
+    "unit_id": "t0011.u01",
+    "sent_id": "t0011.s03"
+  },
+  {
+    "start": 291.42,
+    "end": 295.92,
+    "speaker_label": "Julien Mercier",
+    "text": "And the second-order effect is the part that almost everyone overlooks.",
+    "char_start": 1854,
+    "char_end": 1925,
+    "unit_id": "t0011.u01",
+    "sent_id": "t0011.s04"
+  },
+  {
+    "start": 295.92,
+    "end": 297.18,
+    "speaker_label": "Camille Dubois",
+    "text": "This is a useful framework.",
+    "char_start": 1942,
+    "char_end": 1969,
+    "unit_id": "t0012.u01",
+    "sent_id": "t0012.s01"
+  },
+  {
+    "start": 297.24,
+    "end": 300.72,
+    "speaker_label": "Camille Dubois",
+    "text": "Which version of the question is truly important?",
+    "char_start": 1970,
+    "char_end": 2019,
+    "unit_id": "t0012.u01",
+    "sent_id": "t0012.s02"
+  },
+  {
+    "start": 300.72,
+    "end": 305.1,
+    "speaker_label": "Julien Mercier",
+    "text": "Yes, listen – the structure of the team is more important than people realize.",
+    "char_start": 2036,
+    "char_end": 2114,
+    "unit_id": "t0013.u01",
+    "sent_id": "t0013.s01"
+  },
+  {
+    "start": 305.16,
+    "end": 308.52,
+    "speaker_label": "Julien Mercier",
+    "text": "We've seen this in teams that use Spoke & Wrench.",
+    "char_start": 2115,
+    "char_end": 2164,
+    "unit_id": "t0013.u01",
+    "sent_id": "t0013.s02"
+  },
+  {
+    "start": 308.58,
+    "end": 312.18,
+    "speaker_label": "Julien Mercier",
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "char_start": 2165,
+    "char_end": 2227,
+    "unit_id": "t0013.u01",
+    "sent_id": "t0013.s03"
+  },
+  {
+    "start": 312.18,
+    "end": 314.64,
+    "speaker_label": "Camille Dubois",
+    "text": "What does the failure mode look like?",
+    "char_start": 2244,
+    "char_end": 2281,
+    "unit_id": "t0014.u01",
+    "sent_id": "t0014.s01"
+  },
+  {
+    "start": 314.7,
+    "end": 319.32,
+    "speaker_label": "Camille Dubois",
+    "text": "What is the structural aspect that most auditors do not have access to?",
+    "char_start": 2282,
+    "char_end": 2353,
+    "unit_id": "t0014.u01",
+    "sent_id": "t0014.s02"
+  },
+  {
+    "start": 319.32,
+    "end": 322.98,
+    "speaker_label": "Julien Mercier",
+    "text": "Let me tell you the version that I truly believe in.",
+    "char_start": 2370,
+    "char_end": 2422,
+    "unit_id": "t0015.u01",
+    "sent_id": "t0015.s01"
+  },
+  {
+    "start": 323.04,
+    "end": 328.44,
+    "speaker_label": "Julien Mercier",
+    "text": "I've changed my mind about machine-made trails compared to those made by hand.",
+    "char_start": 2423,
+    "char_end": 2501,
+    "unit_id": "t0015.u01",
+    "sent_id": "t0015.s02"
+  },
+  {
+    "start": 328.5,
+    "end": 332.1,
+    "speaker_label": "Julien Mercier",
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "char_start": 2502,
+    "char_end": 2564,
+    "unit_id": "t0015.u01",
+    "sent_id": "t0015.s03"
+  },
+  {
+    "start": 332.1,
+    "end": 333.6,
+    "speaker_label": "Camille Dubois",
+    "text": "Tell me more.",
+    "char_start": 2581,
+    "char_end": 2594,
+    "unit_id": "t0016.u01",
+    "sent_id": "t0016.s01"
+  },
+  {
+    "start": 333.6,
+    "end": 343.68,
+    "speaker_label": "Julien Mercier",
+    "text": "And when teams adopt the Cascadia Alliance within this process, the trade-offs become apparent. If you ignore these trade-offs, you end up having to rebuild everything from scratch a year later.",
+    "char_start": 2611,
+    "char_end": 2805,
+    "unit_id": "t0017.u01",
+    "sent_id": "t0017.s01"
+  },
+  {
+    "start": 343.68,
+    "end": 347.58,
+    "speaker_label": "Camille Dubois",
+    "text": "We'll be right back after a short commercial break.",
+    "char_start": 2822,
+    "char_end": 2873,
+    "unit_id": "t0018.u01",
+    "sent_id": "t0018.s01"
+  },
+  {
+    "start": 720.0,
+    "end": 723.18,
+    "speaker_label": "SPEAKER_02",
+    "text": "Today's episode is brought to you by Stripe.",
+    "char_start": 2886,
+    "char_end": 2930,
+    "unit_id": "t0019.u01",
+    "sent_id": "t0019.s01"
+  },
+  {
+    "start": 723.24,
+    "end": 729.18,
+    "speaker_label": "SPEAKER_02",
+    "text": "Stripe simplifies payments, whether you're running a marketplace or a subscription-based business.",
+    "char_start": 2931,
+    "char_end": 3029,
+    "unit_id": "t0019.u01",
+    "sent_id": "t0019.s02"
+  },
+  {
+    "start": 729.24,
+    "end": 732.66,
+    "speaker_label": "SPEAKER_02",
+    "text": "Visit stripe.com/podcast for a free trial.",
+    "char_start": 3030,
+    "char_end": 3072,
+    "unit_id": "t0019.u01",
+    "sent_id": "t0019.s03"
+  },
+  {
+    "start": 840.0,
+    "end": 842.16,
+    "speaker_label": "Camille Dubois",
+    "text": "Welcome back to the show.",
+    "char_start": 3089,
+    "char_end": 3114,
+    "unit_id": "t0020.u01",
+    "sent_id": "t0020.s01"
+  },
+  {
+    "start": 842.22,
+    "end": 844.68,
+    "speaker_label": "Camille Dubois",
+    "text": "What does the failure mode look like?",
+    "char_start": 3115,
+    "char_end": 3152,
+    "unit_id": "t0020.u01",
+    "sent_id": "t0020.s02"
+  },
+  {
+    "start": 844.74,
+    "end": 849.06,
+    "speaker_label": "Camille Dubois",
+    "text": "Where do soil erosion and trail construction intersect?",
+    "char_start": 3153,
+    "char_end": 3208,
+    "unit_id": "t0020.u01",
+    "sent_id": "t0020.s03"
+  },
+  {
+    "start": 849.06,
+    "end": 850.56,
+    "speaker_label": "Julien Mercier",
+    "text": "That's how I see it.",
+    "char_start": 3225,
+    "char_end": 3245,
+    "unit_id": "t0021.u01",
+    "sent_id": "t0021.s01"
+  },
+  {
+    "start": 850.62,
+    "end": 856.02,
+    "speaker_label": "Julien Mercier",
+    "text": "Drainage is the most crucial design decision for any trail.",
+    "char_start": 3246,
+    "char_end": 3305,
+    "unit_id": "t0021.u01",
+    "sent_id": "t0021.s02"
+  },
+  {
+    "start": 856.08,
+    "end": 859.02,
+    "speaker_label": "Julien Mercier",
+    "text": "We've seen it in teams that use Shimano components.",
+    "char_start": 3306,
+    "char_end": 3357,
+    "unit_id": "t0021.u01",
+    "sent_id": "t0021.s03"
+  },
+  {
+    "start": 859.08,
+    "end": 863.46,
+    "speaker_label": "Julien Mercier",
+    "text": "If you ignore that, you'll end up having to rebuild everything from scratch a year later.",
+    "char_start": 3358,
+    "char_end": 3447,
+    "unit_id": "t0021.u01",
+    "sent_id": "t0021.s04"
+  },
+  {
+    "start": 863.46,
+    "end": 866.04,
+    "speaker_label": "Camille Dubois",
+    "text": "Tell me how you came to that decision.",
+    "char_start": 3464,
+    "char_end": 3502,
+    "unit_id": "t0022.u01",
+    "sent_id": "t0022.s01"
+  },
+  {
+    "start": 866.1,
+    "end": 868.92,
+    "speaker_label": "Camille Dubois",
+    "text": "How does RockShox fit into this picture?",
+    "char_start": 3503,
+    "char_end": 3543,
+    "unit_id": "t0022.u01",
+    "sent_id": "t0022.s02"
+  },
+  {
+    "start": 868.92,
+    "end": 875.46,
+    "speaker_label": "Julien Mercier",
+    "text": "Yes, listen – the most common mistake that beginner builders make is digging with too steep a slope.",
+    "char_start": 3560,
+    "char_end": 3660,
+    "unit_id": "t0023.u01",
+    "sent_id": "t0023.s01"
+  },
+  {
+    "start": 875.52,
+    "end": 879.96,
+    "speaker_label": "Julien Mercier",
+    "text": "Once you understand that, the rest of the decisions become much easier.",
+    "char_start": 3661,
+    "char_end": 3732,
+    "unit_id": "t0023.u01",
+    "sent_id": "t0023.s02"
+  },
+  {
+    "start": 879.96,
+    "end": 883.08,
+    "speaker_label": "Camille Dubois",
+    "text": "Challenge my conventional wisdom.",
+    "char_start": 3749,
+    "char_end": 3782,
+    "unit_id": "t0024.u01",
+    "sent_id": "t0024.s01"
+  },
+  {
+    "start": 883.14,
+    "end": 887.1,
+    "speaker_label": "Camille Dubois",
+    "text": "What did you used to believe about this, and what have you revised your views on?",
+    "char_start": 3783,
+    "char_end": 3864,
+    "unit_id": "t0024.u01",
+    "sent_id": "t0024.s02"
+  },
+  {
+    "start": 887.1,
+    "end": 890.76,
+    "speaker_label": "Julien Mercier",
+    "text": "Let me give you the version that I truly believe in.",
+    "char_start": 3881,
+    "char_end": 3933,
+    "unit_id": "t0025.u01",
+    "sent_id": "t0025.s01"
+  },
+  {
+    "start": 890.82,
+    "end": 896.64,
+    "speaker_label": "Julien Mercier",
+    "text": "Discussions about land management should take place before the first shovel hits the ground.",
+    "char_start": 3934,
+    "char_end": 4026,
+    "unit_id": "t0025.u01",
+    "sent_id": "t0025.s02"
+  },
+  {
+    "start": 896.7,
+    "end": 900.06,
+    "speaker_label": "Julien Mercier",
+    "text": "We've seen this in teams that use Spoke & Wrench.",
+    "char_start": 4027,
+    "char_end": 4076,
+    "unit_id": "t0025.u01",
+    "sent_id": "t0025.s03"
+  },
+  {
+    "start": 900.12,
+    "end": 903.72,
+    "speaker_label": "Julien Mercier",
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "char_start": 4077,
+    "char_end": 4139,
+    "unit_id": "t0025.u01",
+    "sent_id": "t0025.s04"
+  },
+  {
+    "start": 903.72,
+    "end": 905.22,
+    "speaker_label": "Camille Dubois",
+    "text": "It's settled.\nOr:\nIt's a done deal.\nOr:\nThat's confirmed.\nOr:\nIt's arranged.\nOr:\nIt's agreed.\n(The best option depends on the context.)",
+    "char_start": 4156,
+    "char_end": 4291,
+    "unit_id": "t0026.u01",
+    "sent_id": "t0026.s01"
+  },
+  {
+    "start": 905.22,
+    "end": 911.64,
+    "speaker_label": "Julien Mercier",
+    "text": "Outside of the tools available at the Cascadia Alliance level, it is more difficult to identify the failure mode.",
+    "char_start": 4308,
+    "char_end": 4421,
+    "unit_id": "t0027.u01",
+    "sent_id": "t0027.s01"
+  },
+  {
+    "start": 911.7,
+    "end": 916.2,
+    "speaker_label": "Julien Mercier",
+    "text": "And the second-order effect is the part that almost everyone overlooks.",
+    "char_start": 4422,
+    "char_end": 4493,
+    "unit_id": "t0027.u01",
+    "sent_id": "t0027.s02"
+  },
+  {
+    "start": 916.2,
+    "end": 919.62,
+    "speaker_label": "Camille Dubois",
+    "text": "What heuristic do you always find yourself returning to?",
+    "char_start": 4510,
+    "char_end": 4566,
+    "unit_id": "t0028.u01",
+    "sent_id": "t0028.s01"
+  },
+  {
+    "start": 919.68,
+    "end": 923.16,
+    "speaker_label": "Camille Dubois",
+    "text": "Which version of the question is truly the most important?",
+    "char_start": 4567,
+    "char_end": 4625,
+    "unit_id": "t0028.u01",
+    "sent_id": "t0028.s02"
+  },
+  {
+    "start": 923.16,
+    "end": 927.96,
+    "speaker_label": "Julien Mercier",
+    "text": "It boils down to this: benches along the hillside are not optional.",
+    "char_start": 4642,
+    "char_end": 4709,
+    "unit_id": "t0029.u01",
+    "sent_id": "t0029.s01"
+  },
+  {
+    "start": 928.02,
+    "end": 932.16,
+    "speaker_label": "Julien Mercier",
+    "text": "The shortcut of the first year leads to the ravine of the third year.",
+    "char_start": 4710,
+    "char_end": 4779,
+    "unit_id": "t0029.u01",
+    "sent_id": "t0029.s02"
+  },
+  {
+    "start": 932.22,
+    "end": 935.82,
+    "speaker_label": "Julien Mercier",
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "char_start": 4780,
+    "char_end": 4842,
+    "unit_id": "t0029.u01",
+    "sent_id": "t0029.s03"
+  },
+  {
+    "start": 1320.0,
+    "end": 1322.46,
+    "speaker_label": "Camille Dubois",
+    "text": "What does the failure mode look like?",
+    "char_start": 4859,
+    "char_end": 4896,
+    "unit_id": "t0030.u01",
+    "sent_id": "t0030.s01"
+  },
+  {
+    "start": 1322.52,
+    "end": 1326.72,
+    "speaker_label": "Camille Dubois",
+    "text": "What is the most underestimated aspect of trail construction?",
+    "char_start": 4897,
+    "char_end": 4958,
+    "unit_id": "t0030.u01",
+    "sent_id": "t0030.s02"
+  },
+  {
+    "start": 1326.72,
+    "end": 1330.38,
+    "speaker_label": "Julien Mercier",
+    "text": "Let me give you the version that I truly believe in.",
+    "char_start": 4975,
+    "char_end": 5027,
+    "unit_id": "t0031.u01",
+    "sent_id": "t0031.s01"
+  },
+  {
+    "start": 1330.44,
+    "end": 1333.98,
+    "speaker_label": "Julien Mercier",
+    "text": "The structure of the soil is more important than people realize.",
+    "char_start": 5028,
+    "char_end": 5092,
+    "unit_id": "t0031.u01",
+    "sent_id": "t0031.s02"
+  },
+  {
+    "start": 1334.04,
+    "end": 1337.7,
+    "speaker_label": "Julien Mercier",
+    "text": "We've seen this in teams that use the Alliance Cascadia.",
+    "char_start": 5093,
+    "char_end": 5149,
+    "unit_id": "t0031.u01",
+    "sent_id": "t0031.s03"
+  },
+  {
+    "start": 1337.76,
+    "end": 1341.36,
+    "speaker_label": "Julien Mercier",
+    "text": "I've seen this pattern repeat itself in three different teams.",
+    "char_start": 5150,
+    "char_end": 5212,
+    "unit_id": "t0031.u01",
+    "sent_id": "t0031.s04"
+  },
+  {
+    "start": 1341.36,
+    "end": 1342.56,
+    "speaker_label": "Camille Dubois",
+    "text": "I want to delve deeper.",
+    "char_start": 5229,
+    "char_end": 5252,
+    "unit_id": "t0032.u01",
+    "sent_id": "t0032.s01"
+  },
+  {
+    "start": 1342.62,
+    "end": 1345.38,
+    "speaker_label": "Camille Dubois",
+    "text": "How does Shimano fit into this picture?",
+    "char_start": 5253,
+    "char_end": 5292,
+    "unit_id": "t0032.u01",
+    "sent_id": "t0032.s02"
+  },
+  {
+    "start": 1345.38,
+    "end": 1351.62,
+    "speaker_label": "Julien Mercier",
+    "text": "Yes, listen – I've changed my mind about machine-made trails versus those made by hand.",
+    "char_start": 5309,
+    "char_end": 5396,
+    "unit_id": "t0033.u01",
+    "sent_id": "t0033.s01"
+  },
+  {
+    "start": 1351.68,
+    "end": 1356.12,
+    "speaker_label": "Julien Mercier",
+    "text": "Once you understand that, the rest of the decisions become easier.",
+    "char_start": 5397,
+    "char_end": 5463,
+    "unit_id": "t0033.u01",
+    "sent_id": "t0033.s02"
+  },
+  {
+    "start": 1356.12,
+    "end": 1358.46,
+    "speaker_label": "Camille Dubois",
+    "text": "Where does it stop working?",
+    "char_start": 5480,
+    "char_end": 5507,
+    "unit_id": "t0034.u01",
+    "sent_id": "t0034.s01"
+  },
+  {
+    "start": 1358.46,
+    "end": 1364.22,
+    "speaker_label": "Julien Mercier",
+    "text": "Outside of issues related to RockShox components, the failure mode is more difficult to identify.",
+    "char_start": 5524,
+    "char_end": 5621,
+    "unit_id": "t0035.u01",
+    "sent_id": "t0035.s01"
+  },
+  {
+    "start": 1364.28,
+    "end": 1368.72,
+    "speaker_label": "Julien Mercier",
+    "text": "Once you understand that, the rest of the decisions become easier.",
+    "char_start": 5622,
+    "char_end": 5688,
+    "unit_id": "t0035.u01",
+    "sent_id": "t0035.s02"
+  },
+  {
+    "start": 1368.72,
+    "end": 1374.18,
+    "speaker_label": "Camille Dubois",
+    "text": "Let's change the subject – I want to dedicate the final section to the management of the territory.",
+    "char_start": 5705,
+    "char_end": 5804,
+    "unit_id": "t0036.u01",
+    "sent_id": "t0036.s01"
+  },
+  {
+    "start": 1374.18,
+    "end": 1382.88,
+    "speaker_label": "Julien Mercier",
+    "text": "That's where the conversation becomes interesting, because the compromises surrounding land management touch upon everything we've discussed.",
+    "char_start": 5821,
+    "char_end": 5962,
+    "unit_id": "t0037.u01",
+    "sent_id": "t0037.s01"
+  },
+  {
+    "start": 1382.88,
+    "end": 1384.08,
+    "speaker_label": "Camille Dubois",
+    "text": "I want to delve deeper.",
+    "char_start": 5979,
+    "char_end": 6002,
+    "unit_id": "t0038.u01",
+    "sent_id": "t0038.s01"
+  },
+  {
+    "start": 1384.14,
+    "end": 1388.7,
+    "speaker_label": "Camille Dubois",
+    "text": "What is the opposing perspective that most listeners don't have access to?",
+    "char_start": 6003,
+    "char_end": 6077,
+    "unit_id": "t0038.u01",
+    "sent_id": "t0038.s02"
+  },
+  {
+    "start": 1388.7,
+    "end": 1395.42,
+    "speaker_label": "Julien Mercier",
+    "text": "It all boils down to this: drainage is the most crucial design decision for any trail.",
+    "char_start": 6094,
+    "char_end": 6180,
+    "unit_id": "t0039.u01",
+    "sent_id": "t0039.s01"
+  },
+  {
+    "start": 1395.48,
+    "end": 1398.48,
+    "speaker_label": "Julien Mercier",
+    "text": "We've seen this with teams that use RockShox components.",
+    "char_start": 6181,
+    "char_end": 6237,
+    "unit_id": "t0039.u01",
+    "sent_id": "t0039.s02"
+  },
+  {
+    "start": 1398.54,
+    "end": 1402.92,
+    "speaker_label": "Julien Mercier",
+    "text": "If you ignore this, you'll end up having to rebuild everything from scratch a year later.",
+    "char_start": 6238,
+    "char_end": 6327,
+    "unit_id": "t0039.u01",
+    "sent_id": "t0039.s03"
+  },
+  {
+    "start": 1402.92,
+    "end": 1405.38,
+    "speaker_label": "Camille Dubois",
+    "text": "What does the failure mode look like?",
+    "char_start": 6344,
+    "char_end": 6381,
+    "unit_id": "t0040.u01",
+    "sent_id": "t0040.s01"
+  },
+  {
+    "start": 1405.44,
+    "end": 1409.64,
+    "speaker_label": "Camille Dubois",
+    "text": "What is the most underestimated aspect of trail construction?",
+    "char_start": 6382,
+    "char_end": 6443,
+    "unit_id": "t0040.u01",
+    "sent_id": "t0040.s02"
+  },
+  {
+    "start": 1409.64,
+    "end": 1416.12,
+    "speaker_label": "Julien Mercier",
+    "text": "Honestly, the most common mistake that beginner builders make is digging with too steep a slope.",
+    "char_start": 6460,
+    "char_end": 6556,
+    "unit_id": "t0041.u01",
+    "sent_id": "t0041.s01"
+  },
+  {
+    "start": 1416.18,
+    "end": 1419.72,
+    "speaker_label": "Julien Mercier",
+    "text": "The framework is important because it tells you what compromises you are making.",
+    "char_start": 6557,
+    "char_end": 6637,
+    "unit_id": "t0041.u01",
+    "sent_id": "t0041.s02"
+  },
+  {
+    "start": 1680.0,
+    "end": 1685.34,
+    "speaker_label": "Camille Dubois",
+    "text": "Before we conclude, what is one thing that listeners can try this week?",
+    "char_start": 6654,
+    "char_end": 6725,
+    "unit_id": "t0042.u01",
+    "sent_id": "t0042.s01"
+  },
+  {
+    "start": 1685.34,
+    "end": 1689.96,
+    "speaker_label": "Julien Mercier",
+    "text": "Choose one of the ideas we discussed and implement it for two weeks.",
+    "char_start": 6742,
+    "char_end": 6810,
+    "unit_id": "t0043.u01",
+    "sent_id": "t0043.s01"
+  },
+  {
+    "start": 1690.02,
+    "end": 1691.7,
+    "speaker_label": "Julien Mercier",
+    "text": "Everything else is iteration.",
+    "char_start": 6811,
+    "char_end": 6840,
+    "unit_id": "t0043.u01",
+    "sent_id": "t0043.s02"
+  },
+  {
+    "start": 1691.7,
+    "end": 1695.18,
+    "speaker_label": "Camille Dubois",
+    "text": "And finally, a big thank you to our partners at Linear.",
+    "char_start": 6857,
+    "char_end": 6912,
+    "unit_id": "t0044.u01",
+    "sent_id": "t0044.s01"
+  },
+  {
+    "start": 1695.24,
+    "end": 1700.28,
+    "speaker_label": "Camille Dubois",
+    "text": "Linear is the ticketing system designed for speed – built for the keyboard.",
+    "char_start": 6913,
+    "char_end": 6988,
+    "unit_id": "t0044.u01",
+    "sent_id": "t0044.s02"
+  },
+  {
+    "start": 1700.34,
+    "end": 1701.9,
+    "speaker_label": "Camille Dubois",
+    "text": "Check them out at linear.com.",
+    "char_start": 6989,
+    "char_end": 7018,
+    "unit_id": "t0044.u01",
+    "sent_id": "t0044.s03"
+  },
+  {
+    "start": 1701.9,
+    "end": 1704.66,
+    "speaker_label": "Camille Dubois",
+    "text": "Julien Mercier, thank you for this conversation.",
+    "char_start": 7019,
+    "char_end": 7067,
+    "unit_id": "t0044.u01",
+    "sent_id": "t0044.s04"
+  },
+  {
+    "start": 1704.66,
+    "end": 1706.16,
+    "speaker_label": "Julien Mercier",
+    "text": "Thank you, Camille.",
+    "char_start": 7084,
+    "char_end": 7103,
+    "unit_id": "t0045.u01",
+    "sent_id": "t0045.s01"
+  },
+  {
+    "start": 1706.16,
+    "end": 1709.76,
+    "speaker_label": "Camille Dubois",
+    "text": "That's all for today's episode of Sessions Sentier.",
+    "char_start": 7120,
+    "char_end": 7171,
+    "unit_id": "t0046.u01",
+    "sent_id": "t0046.s01"
+  },
+  {
+    "start": 1709.82,
+    "end": 1710.72,
+    "speaker_label": "Camille Dubois",
+    "text": "See you next time.",
+    "char_start": 7172,
+    "char_end": 7190,
+    "unit_id": "t0046.u01",
+    "sent_id": "t0046.s02"
+  }
+]

@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p12-e03",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p12_e03.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Camille Dubois",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Mathieu Lefèvre",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p12_e03.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 375,
+    "episode_id": "ep-2e3fcd5d8c418fb4",
+    "language": "fr",
+    "language_source": "rss",
+    "published_date": "2025-12-24T00:00:00",
+    "title": "La Mécanique d'un Vélo Silencieux et Rapide"
+  },
+  "feed": {
+    "authors": [
+      "Camille Dubois"
+    ],
+    "description": "Conversations sur la construction de sentiers : drainage, tracé, et les personnes qui construisent le chemin. Contrepartie française de Singletrack Sessions.",
+    "feed_id": "p12",
+    "language": "fr",
+    "language_raw": "fr-FR",
+    "language_source": "rss",
+    "last_updated": "2025-12-25T00:00:00",
+    "title": "Sessions Sentier",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p12.svg",
+    "image_url": "http://localhost/images/p12.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Most mysterious creaking noises in bicycle drivetrains are resolved by cleaning contact surfaces and tightening bolts to specified torque — a pattern observed across multiple teams using Spoke & Wrench.",
+      "Chain wear is the most reliable early indicator of when the cassette needs replacement, a key insight for proactive maintenance planning.",
+      "Frame geometry and component compatibility reveal the trade-offs inherent in design decisions, with the geometry itself signaling what compromises are being made.",
+      "Maintenance intervals for suspension systems are fundamentally risk management decisions; ignoring them leads to full rebuilds within a year.",
+      "Adopting Spoke & Wrench within a workflow makes the underlying trade-offs apparent — failure to acknowledge them results in unnecessary system overhauls.",
+      "The structural integrity of a bicycle's drivetrain depends on predictable, consistent contact points — any deviation disrupts the rider’s focus on the trail.",
+      "Linear, the ticketing system, is optimized for keyboard-driven workflows and speed — a tool that supports rapid, iterative engineering tasks.",
+      "Choosing one maintenance or design principle and testing it for two weeks enables meaningful iteration — the rest is refinement, not discovery."
+    ],
+    "raw_text": "Most mysterious creaking noises in bicycle drivetrains are resolved by cleaning contact surfaces and tightening bolts to specified torque — a pattern observed across multiple teams using Spoke & Wrench. Chain wear is the most reliable early indicator of when the cassette needs replacement, a key insight for proactive maintenance planning.",
+    "title": "Drivetrain Mechanics and Risk Management in Bicycle Maintenance"
+  }
+}

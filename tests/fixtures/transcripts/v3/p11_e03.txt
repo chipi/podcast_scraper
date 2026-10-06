@@ -1,0 +1,72 @@
+# Sentieri d'Autore — Episodio
+## La Meccanica di Una Bici Silenziosa e Veloce
+Host: Giulia Ferrara
+Guest: Luca Moretti
+#fixture-v3: failure_modes=native_ad
+#fixture-v3: voice=it-IT host_voice=it-IT
+
+[00:00]
+Giulia Ferrara: Bentornati a Sentieri d'Autore. Oggi parliamo di meccanica della trasmissione, e con me c'è Luca Moretti, meccanico da Spoke & Wrench. Luca Moretti, grazie per essere qui.
+Luca Moretti: Grazie, Giulia. Felice di essere di nuovo qui.
+
+Giulia Ferrara: Questo episodio è sponsorizzato da Notion. Notion sostituisce la dozzina di strumenti che il tuo team usa a metà. Prova notion.com oggi.
+
+Giulia Ferrara: Prima di entrare nel merito — Chiara Ricci era ospite nell'episodio scorso e diceva che la pressione delle gomme conta più delle regolazioni delle sospensioni.
+Luca Moretti: Sì, esatto. E si collega a quello che copriamo oggi.
+Giulia Ferrara: Voglio segnalare una cosa — Chiara Ricci ha menzionato la stessa dinamica un paio di episodi fa.
+Giulia Ferrara: Voglio segnalare una cosa — Marco Bellini ha menzionato la stessa dinamica un paio di episodi fa.
+
+[03:30]
+Giulia Ferrara: Voglio approfondire. Cosa credevi su questo tema e hai poi rivisto?
+Luca Moretti: Si riduce a questo: la maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Spoke & Wrench. L'inquadratura conta perché ti dice quali compromessi stai facendo.
+Giulia Ferrara: È un'inquadratura utile. Dove si incrociano la manutenzione e la meccanica della trasmissione?
+Luca Moretti: Io la vedo così. Una bici dovrebbe sembrare silenziosa e prevedibile così la tua attenzione resta sul sentiero. E l'effetto di secondo ordine è la parte che quasi tutti si perdono.
+Giulia Ferrara: Voglio approfondire. Qual è il taglio strutturale a cui la maggior parte degli ascoltatori non ha accesso?
+Luca Moretti: Certo. L'usura della catena è il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Spoke & Wrench. L'inquadratura conta perché ti dice quali compromessi stai facendo.
+Giulia Ferrara: Dimmi di più.
+Luca Moretti: Spoke & Wrench è una delle piattaforme dove questo emerge con chiarezza. Ho visto questo schema ripetersi in tre team diversi.
+Giulia Ferrara: Raccontami come hai deciso. Come si inserisce RockShox in questo quadro?
+Luca Moretti: Certo. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Se lo ignori, finisci per ricostruire tutto da zero un anno dopo.
+
+Giulia Ferrara: Sai cosa? Lo dico e basta: Linear gestisce tutta la mia operatività di ingegneria. Linear è l'issue tracker fatto per la velocità — pensato per la tastiera. Usa il link nelle note dell'episodio.
+
+[12:00]
+Giulia Ferrara: Torniamo subito, dopo una breve pausa pubblicitaria.
+Ad: Questo episodio è sponsorizzato da Stripe. Stripe semplifica i pagamenti, sia che gestisci un marketplace o un business in abbonamento. Visita stripe.com/podcast per una prova gratuita.
+Giulia Ferrara: Bentornati al programma.
+
+[14:00]
+Giulia Ferrara: È un'inquadratura utile. Dove si incrociano la manutenzione e la meccanica della trasmissione?
+Luca Moretti: Io la vedo così. La maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Shimano. Ho visto questo schema ripetersi in tre team diversi.
+Giulia Ferrara: Fammi un esempio concreto. Cosa credevi su questo tema e hai poi rivisto?
+Luca Moretti: Sì, allora — una bici dovrebbe sembrare silenziosa e prevedibile così la tua attenzione resta sul sentiero. Una volta che lo interiorizzi, il resto delle decisioni diventa più facile.
+Giulia Ferrara: Partiamo da lì. Cosa credevi su questo tema e hai poi rivisto?
+Luca Moretti: Io la vedo così. L'usura della catena è il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Shimano. Una volta che lo interiorizzi, il resto delle decisioni diventa più facile.
+Giulia Ferrara: Torna.
+Luca Moretti: E quando i team adottano Spoke & Wrench in quel flusso, il compromesso diventa visibile — se lo ignori, finisci per ricostruire tutto da zero un anno dopo.
+Giulia Ferrara: Partiamo da lì. Qual è il taglio operativo a cui la maggior parte degli ascoltatori non ha accesso?
+Luca Moretti: Io la vedo così. Gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. Ho visto questo schema ripetersi in tre team diversi.
+
+[22:00]
+Giulia Ferrara: Cambiamo argomento — voglio dedicare l'ultimo tratto alla gestione del rischio.
+Luca Moretti: È lì che la conversazione diventa interessante, perché i compromessi intorno alla gestione del rischio attraversano tutto quello che abbiamo coperto.
+Giulia Ferrara: Fammi un esempio concreto. Qual è l'aspetto più sottovalutato della meccanica della trasmissione?
+Luca Moretti: Certo. La maggior parte dei cigolii misteriosi si risolve pulendo le superfici di contatto e riserrando alla coppia prevista. Lo abbiamo visto nei team che usano Spoke & Wrench. Ho visto questo schema ripetersi in tre team diversi.
+Giulia Ferrara: È un'inquadratura utile. Qual è il taglio controcorrente a cui la maggior parte degli ascoltatori non ha accesso?
+Luca Moretti: Si riduce a questo: una bici dovrebbe sembrare silenziosa e prevedibile così la tua attenzione resta sul sentiero. L'inquadratura conta perché ti dice quali compromessi stai facendo.
+Giulia Ferrara: Com'è fatto il modo di guasto? Qual è l'aspetto più sottovalutato della meccanica della trasmissione?
+Luca Moretti: Sinceramente, l'usura della catena è il miglior indicatore anticipato di quando dovrai sostituire la cassetta. Lo abbiamo visto nei team che usano Shimano. Ho visto questo schema ripetersi in tre team diversi.
+Giulia Ferrara: Dove smette di funzionare?
+Luca Moretti: E quando i team adottano Shimano in quel flusso, il compromesso diventa visibile — ho visto questo schema ripetersi in tre team diversi.
+Giulia Ferrara: Qual è l'euristica a cui torni sempre? Dove si incrociano la manutenzione e la meccanica della trasmissione?
+Luca Moretti: Sinceramente, gli intervalli di manutenzione delle sospensioni sono una decisione di gestione del rischio. E l'effetto di secondo ordine è la parte che quasi tutti si perdono.
+
+[28:00]
+Giulia Ferrara: Prima di chiudere, qual è una cosa che gli ascoltatori possono provare questa settimana?
+Luca Moretti: Scegli una delle idee che abbiamo coperto e applicala per due settimane. Il resto è iterazione.
+
+Giulia Ferrara: Prima di chiudere, grazie ancora ai nostri amici di Linear. Linear è l'issue tracker fatto per la velocità — pensato per la tastiera.
+
+Giulia Ferrara: Luca Moretti, grazie per la conversazione.
+Luca Moretti: Grazie a te, Giulia.
+Giulia Ferrara: È tutto per l'episodio di oggi di Sentieri d'Autore. Ci vediamo la prossima volta.

@@ -1,0 +1,299 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "insight:04a8d88f43adde54",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "insight:3211dca92f6ea6e2",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-ec0bf35da3719170",
+      "to": "insight:36e4b2f26ea60e12",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:94bfdd8fec770fec",
+      "to": "person:giulia-ferrara",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:04a8d88f43adde54",
+      "to": "quote:94bfdd8fec770fec",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:e6f5c10a5b3b8b03",
+      "to": "person:luca-moretti",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3211dca92f6ea6e2",
+      "to": "quote:e6f5c10a5b3b8b03",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1e38fa9cd8911e80",
+      "to": "person:giulia-ferrara",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:36e4b2f26ea60e12",
+      "to": "quote:1e38fa9cd8911e80",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:8e5fecf6d2e1c996",
+      "to": "person:giulia-ferrara",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:04a8d88f43adde54",
+      "to": "quote:8e5fecf6d2e1c996",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:16bdec6df8bdb279",
+      "to": "person:luca-moretti",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:3211dca92f6ea6e2",
+      "to": "quote:16bdec6df8bdb279",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:869a7f49ef22f865",
+      "to": "person:giulia-ferrara",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:36e4b2f26ea60e12",
+      "to": "quote:869a7f49ef22f865",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:04a8d88f43adde54",
+      "to": "person:giulia-ferrara",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:3211dca92f6ea6e2",
+      "to": "person:luca-moretti",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:36e4b2f26ea60e12",
+      "to": "person:giulia-ferrara",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-ec0bf35da3719170",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-ec0bf35da3719170",
+      "properties": {
+        "duration_ms": 369000,
+        "feed_id": "p11",
+        "podcast_id": "p11",
+        "publish_date": "2025-12-27T00:00:00",
+        "title": "La Meccanica di Una Bici Silenziosa e Veloce"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:04a8d88f43adde54",
+      "properties": {
+        "episode_id": "ep-ec0bf35da3719170",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Bentornati a Sentieri d'Autore. Oggi parliamo di meccanica della trasmissione, e con me c'\u00e8 Luca Moretti, meccanico da Spoke & Wrench. Luca Moretti, grazie per essere qui.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:3211dca92f6ea6e2",
+      "properties": {
+        "episode_id": "ep-ec0bf35da3719170",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Grazie, Giulia. Felice di essere di nuovo qui.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:36e4b2f26ea60e12",
+      "properties": {
+        "episode_id": "ep-ec0bf35da3719170",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Prima di entrare nel merito \u2014 Chiara Ricci era ospite nell'episodio scorso e diceva che la pressione delle gomme conta pi\u00f9 delle regolazioni delle sospensioni.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:giulia-ferrara",
+      "properties": {
+        "name": "Giulia Ferrara"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:94bfdd8fec770fec",
+      "properties": {
+        "char_end": 187,
+        "char_start": 16,
+        "episode_id": "ep-ec0bf35da3719170",
+        "speaker_id": "person:speaker-01",
+        "text": "Bentornati a Sentieri d'Autore. Oggi parliamo di meccanica della trasmissione, e con me c'\u00e8 Luca Moretti, meccanico da Spoke & Wrench. Luca Moretti, grazie per essere qui.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p11_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:luca-moretti",
+      "properties": {
+        "name": "Luca Moretti"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:e6f5c10a5b3b8b03",
+      "properties": {
+        "char_end": 248,
+        "char_start": 202,
+        "episode_id": "ep-ec0bf35da3719170",
+        "speaker_id": "person:speaker-02",
+        "text": "Grazie, Giulia. Felice di essere di nuovo qui.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p11_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1e38fa9cd8911e80",
+      "properties": {
+        "char_end": 401,
+        "char_start": 265,
+        "episode_id": "ep-ec0bf35da3719170",
+        "speaker_id": "person:speaker-01",
+        "text": "Questo episodio \u00e8 sponsorizzato da Notion. Notion sostituisce la dozzina di strumenti che il tuo team usa a met\u00e0. Prova notion.com oggi.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p11_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:8e5fecf6d2e1c996",
+      "properties": {
+        "char_end": 560,
+        "char_start": 401,
+        "episode_id": "ep-ec0bf35da3719170",
+        "speaker_id": "person:speaker-01",
+        "text": "Prima di entrare nel merito \u2014 Chiara Ricci era ospite nell'episodio scorso e diceva che la pressione delle gomme conta pi\u00f9 delle regolazioni delle sospensioni.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p11_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:16bdec6df8bdb279",
+      "properties": {
+        "char_end": 627,
+        "char_start": 575,
+        "episode_id": "ep-ec0bf35da3719170",
+        "speaker_id": "person:speaker-02",
+        "text": "S\u00ec, esatto. E si collega a quello che copriamo oggi.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p11_e03.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:869a7f49ef22f865",
+      "properties": {
+        "char_end": 740,
+        "char_start": 644,
+        "episode_id": "ep-ec0bf35da3719170",
+        "speaker_id": "person:speaker-01",
+        "text": "Voglio segnalare una cosa \u2014 Chiara Ricci ha menzionato la stessa dinamica un paio di episodi fa.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p11_e03.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

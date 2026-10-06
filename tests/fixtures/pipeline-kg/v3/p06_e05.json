@@ -1,0 +1,19 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p06_e05",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:edge-case-validation",
+      "label": "edge-case validation"
+    },
+    {
+      "id": "topic:parser-robustness-testing",
+      "label": "parser robustness testing"
+    },
+    {
+      "id": "topic:processor-reliability",
+      "label": "processor reliability"
+    }
+  ]
+}

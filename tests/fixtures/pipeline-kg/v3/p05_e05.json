@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p05_e05",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:asset-risk",
+      "label": "asset risk"
+    },
+    {
+      "id": "topic:borrowing-against-assets",
+      "label": "borrowing against assets"
+    },
+    {
+      "id": "topic:financial-blow-ups",
+      "label": "financial blow-ups"
+    },
+    {
+      "id": "topic:forced-selling",
+      "label": "forced selling"
+    },
+    {
+      "id": "topic:index-fund-investing",
+      "label": "index fund investing"
+    },
+    {
+      "id": "topic:investment-financing",
+      "label": "investment financing"
+    },
+    {
+      "id": "topic:leverage-risk",
+      "label": "leverage risk"
+    },
+    {
+      "id": "topic:margin-trading",
+      "label": "margin trading"
+    },
+    {
+      "id": "topic:market-timing",
+      "label": "market timing"
+    },
+    {
+      "id": "topic:patience-in-investing",
+      "label": "patience in investing"
+    }
+  ]
+}

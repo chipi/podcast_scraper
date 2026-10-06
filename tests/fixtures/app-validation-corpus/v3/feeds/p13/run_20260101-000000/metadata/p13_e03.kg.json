@@ -1,0 +1,230 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:chain-wear-monitoring",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:suspension-service-intervals",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:creaking-noise-diagnosis",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:drive-mechanism-maintenance",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:risk-management-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:spoke-wrench-process",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:shimano-component-reliability",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:predictable-bike-behavior",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:maintenance-compromise-awareness",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d005b87f4d3b1c0e",
+      "target": "topic:engineering-operations-tools",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "person:katrin-vogel",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-d005b87f4d3b1c0e",
+      "to": "person:jonas-richter",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-d005b87f4d3b1c0e",
+  "extraction": {
+    "extracted_at": "2025-12-21T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p13_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-d005b87f4d3b1c0e",
+      "properties": {
+        "podcast_id": "p13",
+        "publish_date": "2025-12-21T00:00:00",
+        "title": "Die Mechanik Eines Leisen, Schnellen Bikes"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:chain-wear-monitoring",
+      "properties": {
+        "label": "chain wear monitoring",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:suspension-service-intervals",
+      "properties": {
+        "label": "suspension service intervals",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:creaking-noise-diagnosis",
+      "properties": {
+        "label": "creaking noise diagnosis",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:drive-mechanism-maintenance",
+      "properties": {
+        "label": "drive mechanism maintenance",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management-integration",
+      "properties": {
+        "label": "risk management integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:spoke-wrench-process",
+      "properties": {
+        "label": "spoke wrench process",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:shimano-component-reliability",
+      "properties": {
+        "label": "shimano component reliability",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:predictable-bike-behavior",
+      "properties": {
+        "label": "predictable bike behavior",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance-compromise-awareness",
+      "properties": {
+        "label": "maintenance compromise awareness",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:engineering-operations-tools",
+      "properties": {
+        "label": "engineering operations tools",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:katrin-vogel",
+      "properties": {
+        "name": "Katrin Vogel",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:jonas-richter",
+      "properties": {
+        "name": "Jonas Richter",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

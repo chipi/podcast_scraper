@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 378,
+  "postroll_cut_start": null,
+  "chars_removed": 573,
+  "preroll_pattern_hits": 4,
+  "postroll_pattern_hits": 3,
+  "source_length": 6889,
+  "excised_ranges": [
+    [
+      0,
+      378
+    ],
+    [
+      2795,
+      2990
+    ]
+  ],
+  "excised_texts": [
+    "SPEAKER_00: Welcome back to \"Trails by the Experts.\" Today, we're talking about trail construction, and I'm joined by Marco Bellini, a trail builder with the Cascadia Alliance. Marco Bellini, thank you for being here.\nSPEAKER_01: Thank you, Giulia. It's my pleasure \u2013 building trails is something I've given a lot of thought to.\nSPEAKER_00: This episode is sponsored by Strava. ",
+    "sponsored by Stripe. Stripe makes payments easy, whether you're running a marketplace or a subscription business. Visit stripe.com/podcast for a free trial.\nSPEAKER_00: Welcome back to the show. "
+  ]
+}

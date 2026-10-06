@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 369,
+  "postroll_cut_start": null,
+  "chars_removed": 746,
+  "preroll_pattern_hits": 5,
+  "postroll_pattern_hits": 3,
+  "source_length": 6791,
+  "excised_ranges": [
+    [
+      0,
+      369
+    ],
+    [
+      2617,
+      2994
+    ]
+  ],
+  "excised_texts": [
+    "SPEAKER_00: Welcome back to Trail Sessions. Today, we're talking about trail building, and I'm joined by Javier Benavides, a trail builder from the Cascadia Alliance. Javier Benavides, thank you for being here.\nSPEAKER_01: Thank you, Luc\u00eda. With great enthusiasm \u2013 building trails is something I've thought about a lot.\nSPEAKER_00: This episode is sponsored by Strava. ",
+    "If you ignore that, you end up having to rebuild it from scratch a year later.\nSPEAKER_00: We'll be right back after a short commercial break.\nSPEAKER_02: Today's episode is brought to you by Stripe. Stripe simplifies payments, whether you're running a marketplace or a subscription business. Visit stripe.com/podcast for a free trial.\nSPEAKER_00: Welcome back to the program. "
+  ]
+}

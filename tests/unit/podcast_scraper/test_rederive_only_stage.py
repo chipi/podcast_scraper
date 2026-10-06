@@ -107,10 +107,22 @@ class TestNoAsrCredentialIsDemanded:
         stages that set the flag TRUE while never calling a provider need the extra exemption.
         Adding rederive_only here would hide a regression: if its coercion ever stopped
         setting transcribe_missing=False, this set would mask it.
+
+        ``translate_only`` joined the set on 2026-09-30 (RFC-124 §5.2's retry). It qualifies for
+        exactly the stated reason: its coercion sets ``transcribe_missing=True`` purely so the
+        episode reaches the transcription stage where the reprocess dispatch intercepts it and
+        loads the transcript from disk, and it never calls an ASR provider — so demanding an ASR
+        credential would be a barrier, not a safeguard.
         """
         assert config.STAGES_THAT_NEVER_TRANSCRIBE == frozenset(
-            {"relabel_only", "rediarize_only", "retranscript_only"}
+            {"relabel_only", "rediarize_only", "retranscript_only", "translate_only"}
         )
+
+    def test_translate_only_earns_its_place_in_that_set(self):
+        """The two properties the set's membership rule names, asserted rather than assumed."""
+        cfg = config.Config.model_validate({**_BASE, "pipeline_stage": "translate_only"})
+        assert cfg.transcribe_missing is True, "it must reach the transcription stage"
+        assert cfg.pipeline_stage in config.STAGES_THAT_NEVER_TRANSCRIBE
 
 
 class TestProviderInitIsNonFatalForThoseStages:

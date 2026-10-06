@@ -1,0 +1,27 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p02_e05",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:actionable-alerts",
+      "label": "actionable alerts"
+    },
+    {
+      "id": "topic:alert-fatigue",
+      "label": "alert fatigue"
+    },
+    {
+      "id": "topic:alert-tuning",
+      "label": "alert tuning"
+    },
+    {
+      "id": "topic:noise-problem",
+      "label": "noise problem"
+    },
+    {
+      "id": "topic:real-incident-detection",
+      "label": "real incident detection"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "episode_id": "p07_e02",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "summary": {
+    "bullets": [
+      "Systems thinking in macroeconomics means tracking feedback loops rather than relying on point estimates, which enables more resilient decision-making.",
+      "Employment data is noisier than headlines suggest, and ignoring this leads to repeated, unnecessary rework in economic modeling.",
+      "Risk management at the central-bank level resembles reliability engineering, where failure modes emerge from tooling gaps rather than flawed logic.",
+      "The framing of a problem determines which trade-offs become visible — using Project Drawdown reveals the cost of certain policy choices.",
+      "Teams using IPCC or IEA frameworks demonstrate consistent patterns, indicating that structured tools amplify systemic insight.",
+      "Central-bank risk management fails not from poor models but from inadequate tooling outside Carbon Trust-class systems.",
+      "A key heuristic is to test one idea for two weeks — iteration reveals the real impact of a decision rather than theoretical assumptions.",
+      "The most underrated aspect of macroeconomics is not forecasting but managing the trade-offs embedded in risk frameworks."
+    ],
+    "raw_text": "Systems thinking in macroeconomics means tracking feedback loops rather than relying on point estimates, which enables more resilient decision-making. Employment data is noisier than headlines suggest, and ignoring this leads to repeated, unnecessary rework in economic modeling.",
+    "title": "Systems Thinking and Risk Management in Macroeconomics"
+  }
+}

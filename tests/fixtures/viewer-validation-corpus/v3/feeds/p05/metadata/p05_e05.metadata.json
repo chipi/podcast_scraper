@@ -37,6 +37,8 @@
   },
   "episode": {
     "episode_id": "da36bd38-cbbe-5d64-91c1-e73f0866b824",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2026-09-24",
     "title": "Long Horizon Notes \u2014 Episode 5"
   },
@@ -45,6 +47,9 @@
   "feed": {
     "description": "Investing conversations for normal humans: frameworks, risk, and the habits that matter more than predictions.",
     "feed_id": "sha256:db2a8d9bd397ae36fb9de934ba17688a9b85aebc0525ca7c926d2213913d8d13",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "title": "Long Horizon Notes",
     "url": "http://localhost/"
   },

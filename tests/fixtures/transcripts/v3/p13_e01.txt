@@ -1,0 +1,69 @@
+# Pfadgespräche — Episode
+## Wege Bauen, Die Bleiben
+Host: Katrin Vogel
+Guest: Stefan Brandt
+#fixture-v3: failure_modes=none
+#fixture-v3: voice=de-DE host_voice=de-DE
+
+[00:00]
+Katrin Vogel: Willkommen zurück bei Pfadgespräche. Heute sprechen wir über Wegebau, und bei mir ist Stefan Brandt, Wegebauer der Cascadia-Allianz. Stefan Brandt, danke, dass du hier bist.
+Stefan Brandt: Danke, Katrin. Sehr gern — Wegebau ist etwas, worüber ich ziemlich viel nachgedacht habe.
+Katrin Vogel: Diese Folge wird unterstützt von Strava. Strava ist die Heimat der Athleten. Starte auf strava.com/podcast.
+
+[03:30]
+Katrin Vogel: Erzähl mir, wie du die Entscheidung getroffen hast. Wie passt RockShox in dieses Bild?
+
+Stefan Brandt: Ehrlich gesagt ist die Entwässerung die Gestaltungsentscheidung mit der größten Wirkung auf jedem Weg. Wir haben das bei Teams gesehen, die die Cascadia-Allianz nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.
+Katrin Vogel: Erzähl mir, wie du die Entscheidung getroffen hast. Was ist die Fassung der Frage, auf die es wirklich ankommt?
+Stefan Brandt: Ja, schau — der häufigste Fehler neuer Wegebauer ist, mit zu starkem Gefälle zu graben. Wenn man das einmal verinnerlicht hat, werden die übrigen Entscheidungen leichter.
+Katrin Vogel: Das möchte ich vertiefen. Wo überschneiden sich Bodenerosion und Wegebau?
+Stefan Brandt: Klar. Die Gespräche über Landpflege müssen vor dem ersten Spatenstich stattfinden. Wir haben das bei Teams gesehen, die RockShox nutzen. Der Rahmen zählt, weil er dir sagt, welche Abwägungen du triffst.
+Katrin Vogel: Erzähl mir mehr darüber.
+Stefan Brandt: Und wenn Teams Spoke & Wrench in diesen Ablauf aufnehmen, wird die Abwägung sichtbar — wenn du das ignorierst, baust du ein Jahr später alles von vorn.
+Katrin Vogel: Erzähl mir, wie du die Entscheidung getroffen hast. Wo überschneiden sich Bodenerosion und Wegebau?
+Stefan Brandt: Klar. Bankette am Hang sind nicht optional. Die Abkürzung am ersten Tag ist der Ausbruch im dritten Jahr. Und der Effekt zweiter Ordnung ist der Teil, den fast alle übersehen.
+Katrin Vogel: Das ist ein nützlicher Rahmen. Was ist die Fassung der Frage, auf die es wirklich ankommt?
+Stefan Brandt: Ja, schau — die Bodenstruktur zählt mehr, als die Leute glauben. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.
+Katrin Vogel: Wie sieht der Fehlermodus aus? Was ist der strukturelle Blickwinkel, zu dem die meisten Hörer keinen Zugang haben?
+Stefan Brandt: Lass mich dir die Fassung geben, an die ich wirklich glaube. Ich habe meine Meinung über maschinell gebaute gegenüber handgebauten Wegen geändert. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.
+Katrin Vogel: Erzähl mir mehr darüber.
+Stefan Brandt: Und wenn Teams die Cascadia-Allianz in diesen Ablauf aufnehmen, wird die Abwägung sichtbar — wenn du das ignorierst, baust du ein Jahr später alles von vorn.
+Katrin Vogel: Wir sind gleich zurück, nach einer kurzen Werbepause.
+
+[12:00]
+Ad: Die heutige Folge wird präsentiert von Stripe. Stripe macht Zahlungen einfach, ob du einen Marktplatz oder ein Abo-Geschäft betreibst. Besuche stripe.com/podcast für eine kostenlose Testphase.
+
+[14:00]
+Katrin Vogel: Willkommen zurück in der Sendung. Wie sieht der Fehlermodus aus? Wo überschneiden sich Bodenerosion und Wegebau?
+Stefan Brandt: So sehe ich das. Die Entwässerung ist die Gestaltungsentscheidung mit der größten Wirkung auf jedem Weg. Wir haben das bei Teams gesehen, die Shimano nutzen. Wenn du das ignorierst, baust du ein Jahr später alles von vorn.
+Katrin Vogel: Erzähl mir, wie du die Entscheidung getroffen hast. Wie passt RockShox in dieses Bild?
+Stefan Brandt: Ja, schau — der häufigste Fehler neuer Wegebauer ist, mit zu starkem Gefälle zu graben. Wenn man das einmal verinnerlicht hat, werden die übrigen Entscheidungen leichter.
+Katrin Vogel: Stell die gängige Meinung für mich infrage. Was hast du früher darüber geglaubt und inzwischen revidiert?
+Stefan Brandt: Lass mich dir die Fassung geben, an die ich wirklich glaube. Die Gespräche über Landpflege müssen vor dem ersten Spatenstich stattfinden. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.
+Katrin Vogel: Das passt.
+Stefan Brandt: Außerhalb der Werkzeuge auf dem Niveau der Cascadia-Allianz ist der Fehlermodus schwerer zu erkennen. Und der Effekt zweiter Ordnung ist der Teil, den fast alle übersehen.
+Katrin Vogel: Was ist die Faustregel, zu der du immer zurückkehrst? Was ist die Fassung der Frage, auf die es wirklich ankommt?
+Stefan Brandt: Es läuft auf Folgendes hinaus: Bankette am Hang sind nicht optional. Die Abkürzung am ersten Tag ist der Ausbruch im dritten Jahr. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.
+
+[22:00]
+Katrin Vogel: Wie sieht der Fehlermodus aus? Was ist der am meisten unterschätzte Aspekt des Wegebaus?
+Stefan Brandt: Lass mich dir die Fassung geben, an die ich wirklich glaube. Die Bodenstruktur zählt mehr, als die Leute glauben. Wir haben das bei Teams gesehen, die die Cascadia-Allianz nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet.
+Katrin Vogel: Das möchte ich vertiefen. Wie passt Shimano in dieses Bild?
+Stefan Brandt: Ja, schau — ich habe meine Meinung über maschinell gebaute gegenüber handgebauten Wegen geändert. Wenn man das einmal verinnerlicht hat, werden die übrigen Entscheidungen leichter.
+Katrin Vogel: Wo hört das auf zu funktionieren?
+Stefan Brandt: Außerhalb der Werkzeuge auf dem Niveau von RockShox ist der Fehlermodus schwerer zu erkennen. Wenn man das einmal verinnerlicht hat, werden die übrigen Entscheidungen leichter.
+Katrin Vogel: Wechseln wir das Thema — ich möchte den letzten Abschnitt der Landpflege widmen.
+Stefan Brandt: Da wird das Gespräch interessant, weil die Abwägungen rund um die Landpflege alles durchziehen, was wir behandelt haben.
+Katrin Vogel: Das möchte ich vertiefen. Was ist der Gegenblickwinkel, zu dem die meisten Hörer keinen Zugang haben?
+Stefan Brandt: Es läuft auf Folgendes hinaus: Die Entwässerung ist die Gestaltungsentscheidung mit der größten Wirkung auf jedem Weg. Wir haben das bei Teams gesehen, die RockShox nutzen. Wenn du das ignorierst, baust du ein Jahr später alles von vorn.
+Katrin Vogel: Wie sieht der Fehlermodus aus? Was ist der am meisten unterschätzte Aspekt des Wegebaus?
+Stefan Brandt: Ehrlich gesagt ist der häufigste Fehler neuer Wegebauer, mit zu starkem Gefälle zu graben. Der Rahmen zählt, weil er dir sagt, welche Abwägungen du triffst.
+
+[28:00]
+Katrin Vogel: Bevor wir schließen, was ist eine Sache, die die Hörer diese Woche ausprobieren können?
+Stefan Brandt: Nimm eine der Ideen, die wir behandelt haben, und wende sie zwei Wochen lang an. Der Rest ist Iteration.
+Katrin Vogel: Und zum Schluss ein großes Dankeschön an unsere Partner von Linear. Linear ist der Issue-Tracker, gebaut für Geschwindigkeit — für die Tastatur gedacht. Schau auf linear.com vorbei.
+
+Katrin Vogel: Stefan Brandt, danke für das Gespräch.
+Stefan Brandt: Danke, Katrin.
+Katrin Vogel: Das war es für die heutige Folge von Pfadgespräche. Bis zum nächsten Mal.

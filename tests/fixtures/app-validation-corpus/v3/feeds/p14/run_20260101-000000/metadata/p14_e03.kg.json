@@ -1,0 +1,217 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1d733f650ad9bff9",
+      "target": "topic:bicycle-silence",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1d733f650ad9bff9",
+      "target": "topic:maintenance-intervals",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1d733f650ad9bff9",
+      "target": "topic:chain-wear-indicator",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1d733f650ad9bff9",
+      "target": "topic:contact-surface-creaks",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1d733f650ad9bff9",
+      "target": "topic:transmission-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1d733f650ad9bff9",
+      "target": "topic:component-torque",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1d733f650ad9bff9",
+      "target": "topic:spoke-wrench-workflow",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1d733f650ad9bff9",
+      "target": "topic:shimano-components",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-1d733f650ad9bff9",
+      "target": "topic:linear-task-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "person:beatriz-antunes",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-1d733f650ad9bff9",
+      "to": "person:tiago-moreira",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-1d733f650ad9bff9",
+  "extraction": {
+    "extracted_at": "2025-12-18T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p14_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-1d733f650ad9bff9",
+      "properties": {
+        "podcast_id": "p14",
+        "publish_date": "2025-12-18T00:00:00",
+        "title": "A Mec\u00e2nica de Uma Bicicleta Silenciosa e R\u00e1pida"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:bicycle-silence",
+      "properties": {
+        "label": "bicycle silence",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance-intervals",
+      "properties": {
+        "label": "maintenance intervals",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:chain-wear-indicator",
+      "properties": {
+        "label": "chain wear indicator",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:contact-surface-creaks",
+      "properties": {
+        "label": "contact surface creaks",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:transmission-mechanics",
+      "properties": {
+        "label": "transmission mechanics",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:component-torque",
+      "properties": {
+        "label": "component torque",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:spoke-wrench-workflow",
+      "properties": {
+        "label": "spoke wrench workflow",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:shimano-components",
+      "properties": {
+        "label": "shimano components",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:linear-task-management",
+      "properties": {
+        "label": "linear task management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:beatriz-antunes",
+      "properties": {
+        "name": "Beatriz Antunes",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:tiago-moreira",
+      "properties": {
+        "name": "Tiago Moreira",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

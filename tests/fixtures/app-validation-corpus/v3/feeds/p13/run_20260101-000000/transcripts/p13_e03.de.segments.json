@@ -1,0 +1,345 @@
+[
+  {
+    "end": 6.0,
+    "id": 0,
+    "speaker_label": "Katrin Vogel",
+    "start": 0.0,
+    "text": "Willkommen zur\u00fcck bei Pfadgespr\u00e4chen. Heute sprechen wir \u00fcber Antriebsmechanik, und bei mir ist Jonas Richter, Mechaniker bei Spoke & Wrench. Jonas Richter, danke, dass du hier bist."
+  },
+  {
+    "end": 12.0,
+    "id": 1,
+    "speaker_label": "Jonas Richter",
+    "start": 6.0,
+    "text": "Danke, Katrin. Sch\u00f6n, wieder hier zu sein."
+  },
+  {
+    "end": 18.0,
+    "id": 2,
+    "speaker_label": "Katrin Vogel",
+    "start": 12.0,
+    "text": "Diese Folge wird von Notion gesponsert. Notion ersetzt das Dutzend Werkzeuge, die dein Team halb benutzt. Probiere notion.com heute aus."
+  },
+  {
+    "end": 24.0,
+    "id": 3,
+    "speaker_label": "Katrin Vogel",
+    "start": 18.0,
+    "text": "Bevor wir einsteigen \u2014 Lena Hofmann war in der letzten Folge dabei und sagte, dass Reifendruck mehr z\u00e4hlt als Fahrwerksabstimmungen."
+  },
+  {
+    "end": 30.0,
+    "id": 4,
+    "speaker_label": "Jonas Richter",
+    "start": 24.0,
+    "text": "Ja, genau. Und das kn\u00fcpft an das an, was wir heute behandeln."
+  },
+  {
+    "end": 36.0,
+    "id": 5,
+    "speaker_label": "Katrin Vogel",
+    "start": 30.0,
+    "text": "Ich m\u00f6chte etwas anmerken \u2014 Lena Hofmann hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt."
+  },
+  {
+    "end": 42.0,
+    "id": 6,
+    "speaker_label": "Katrin Vogel",
+    "start": 36.0,
+    "text": "Ich m\u00f6chte etwas anmerken \u2014 Stefan Brandt hat dieselbe Dynamik vor ein paar Folgen erw\u00e4hnt."
+  },
+  {
+    "end": 48.0,
+    "id": 7,
+    "speaker_label": "Katrin Vogel",
+    "start": 42.0,
+    "text": "Da will ich tiefer rein. Was hast du dar\u00fcber fr\u00fcher geglaubt und inzwischen revidiert?"
+  },
+  {
+    "end": 54.0,
+    "id": 8,
+    "speaker_label": "Jonas Richter",
+    "start": 48.0,
+    "text": "Es l\u00e4uft darauf hinaus: die meisten r\u00e4tselhaften Knarzger\u00e4usche l\u00f6st man, indem man die Kontaktfl\u00e4chen reinigt und auf das vorgegebene Drehmoment nachzieht. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Die Rahmung z\u00e4hlt, weil sie dir sagt, welche Kompromisse du eingehst."
+  },
+  {
+    "end": 60.0,
+    "id": 9,
+    "speaker_label": "Katrin Vogel",
+    "start": 54.0,
+    "text": "Das ist eine n\u00fctzliche Rahmung. Wo \u00fcberschneiden sich Wartung und Antriebsmechanik?"
+  },
+  {
+    "end": 66.0,
+    "id": 10,
+    "speaker_label": "Jonas Richter",
+    "start": 60.0,
+    "text": "So sehe ich das. Ein Bike sollte sich leise und vorhersehbar anf\u00fchlen, damit deine Aufmerksamkeit auf dem Trail bleibt. Und der Effekt zweiter Ordnung ist der Teil, den die meisten \u00fcbersehen."
+  },
+  {
+    "end": 72.0,
+    "id": 11,
+    "speaker_label": "Katrin Vogel",
+    "start": 66.0,
+    "text": "Da will ich tiefer rein. Was ist der strukturelle Blickwinkel, zu dem die meisten H\u00f6rer keinen Zugang haben?"
+  },
+  {
+    "end": 78.0,
+    "id": 12,
+    "speaker_label": "Jonas Richter",
+    "start": 72.0,
+    "text": "Klar. Kettenverschlei\u00df ist der beste Fr\u00fchindikator daf\u00fcr, wann du Kassetten ersetzen musst. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Die Rahmung z\u00e4hlt, weil sie dir sagt, welche Kompromisse du eingehst."
+  },
+  {
+    "end": 84.0,
+    "id": 13,
+    "speaker_label": "Katrin Vogel",
+    "start": 78.0,
+    "text": "Erz\u00e4hl mir mehr dar\u00fcber."
+  },
+  {
+    "end": 90.0,
+    "id": 14,
+    "speaker_label": "Jonas Richter",
+    "start": 84.0,
+    "text": "Spoke & Wrench ist eine der Plattformen, wo das klar sichtbar wird. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 96.0,
+    "id": 15,
+    "speaker_label": "Katrin Vogel",
+    "start": 90.0,
+    "text": "Erz\u00e4hl mir, wie du entschieden hast. Wie passt RockShox in dieses Bild?"
+  },
+  {
+    "end": 102.0,
+    "id": 16,
+    "speaker_label": "Jonas Richter",
+    "start": 96.0,
+    "text": "Klar. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Wenn du das ignorierst, baust du es ein Jahr sp\u00e4ter von Null wieder auf."
+  },
+  {
+    "end": 108.0,
+    "id": 17,
+    "speaker_label": "Katrin Vogel",
+    "start": 102.0,
+    "text": "Wei\u00dft du was? Ich sage es einfach: Linear steuert meinen ganzen Engineering-Betrieb. Linear ist der Issue-Tracker, der auf Geschwindigkeit gebaut ist \u2014 gedacht f\u00fcr die Tastatur. Nutze den Link in den Shownotes."
+  },
+  {
+    "end": 114.0,
+    "id": 18,
+    "speaker_label": "Katrin Vogel",
+    "start": 108.0,
+    "text": "Wir sind gleich zur\u00fcck, nach einer kurzen Werbung."
+  },
+  {
+    "end": 120.0,
+    "id": 19,
+    "speaker_label": "Ad",
+    "start": 114.0,
+    "text": "Diese Folge wird von Stripe gesponsert. Stripe macht Zahlungen einfach, egal ob du einen Marktplatz oder ein Abo-Gesch\u00e4ft betreibst. Besuche stripe.com/podcast f\u00fcr eine kostenlose Testphase."
+  },
+  {
+    "end": 126.0,
+    "id": 20,
+    "speaker_label": "Katrin Vogel",
+    "start": 120.0,
+    "text": "Willkommen zur\u00fcck in der Sendung."
+  },
+  {
+    "end": 132.0,
+    "id": 21,
+    "speaker_label": "Katrin Vogel",
+    "start": 126.0,
+    "text": "Das ist eine n\u00fctzliche Rahmung. Wo \u00fcberschneiden sich Wartung und Antriebsmechanik?"
+  },
+  {
+    "end": 138.0,
+    "id": 22,
+    "speaker_label": "Jonas Richter",
+    "start": 132.0,
+    "text": "So sehe ich das. Die meisten r\u00e4tselhaften Knarzger\u00e4usche l\u00f6st man, indem man die Kontaktfl\u00e4chen reinigt und auf das vorgegebene Drehmoment nachzieht. Wir haben das bei Teams gesehen, die Shimano nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 144.0,
+    "id": 23,
+    "speaker_label": "Katrin Vogel",
+    "start": 138.0,
+    "text": "Gib mir ein konkretes Beispiel. Was hast du dar\u00fcber fr\u00fcher geglaubt und inzwischen revidiert?"
+  },
+  {
+    "end": 150.0,
+    "id": 24,
+    "speaker_label": "Jonas Richter",
+    "start": 144.0,
+    "text": "Ja, also \u2014 ein Bike sollte sich leise und vorhersehbar anf\u00fchlen, damit deine Aufmerksamkeit auf dem Trail bleibt. Wenn du das einmal verinnerlicht hast, werden die \u00fcbrigen Entscheidungen leichter."
+  },
+  {
+    "end": 156.0,
+    "id": 25,
+    "speaker_label": "Katrin Vogel",
+    "start": 150.0,
+    "text": "Fangen wir da an. Was hast du dar\u00fcber fr\u00fcher geglaubt und inzwischen revidiert?"
+  },
+  {
+    "end": 162.0,
+    "id": 26,
+    "speaker_label": "Jonas Richter",
+    "start": 156.0,
+    "text": "So sehe ich das. Kettenverschlei\u00df ist der beste Fr\u00fchindikator daf\u00fcr, wann du Kassetten ersetzen musst. Wir haben das bei Teams gesehen, die Shimano nutzen. Wenn du das einmal verinnerlicht hast, werden die \u00fcbrigen Entscheidungen leichter."
+  },
+  {
+    "end": 168.0,
+    "id": 27,
+    "speaker_label": "Katrin Vogel",
+    "start": 162.0,
+    "text": "Das passt."
+  },
+  {
+    "end": 174.0,
+    "id": 28,
+    "speaker_label": "Jonas Richter",
+    "start": 168.0,
+    "text": "Und wenn Teams Spoke & Wrench in diesen Ablauf \u00fcbernehmen, wird der Kompromiss sichtbar \u2014 wenn du das ignorierst, baust du es ein Jahr sp\u00e4ter von Null wieder auf."
+  },
+  {
+    "end": 180.0,
+    "id": 29,
+    "speaker_label": "Katrin Vogel",
+    "start": 174.0,
+    "text": "Fangen wir da an. Was ist der operative Blickwinkel, zu dem die meisten H\u00f6rer keinen Zugang haben?"
+  },
+  {
+    "end": 186.0,
+    "id": 30,
+    "speaker_label": "Jonas Richter",
+    "start": 180.0,
+    "text": "So sehe ich das. Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 192.0,
+    "id": 31,
+    "speaker_label": "Katrin Vogel",
+    "start": 186.0,
+    "text": "Wechseln wir das Thema \u2014 den letzten Abschnitt will ich dem Risikomanagement widmen."
+  },
+  {
+    "end": 198.0,
+    "id": 32,
+    "speaker_label": "Jonas Richter",
+    "start": 192.0,
+    "text": "Da wird das Gespr\u00e4ch interessant, weil die Kompromisse rund um Risikomanagement alles durchziehen, was wir behandelt haben."
+  },
+  {
+    "end": 204.0,
+    "id": 33,
+    "speaker_label": "Katrin Vogel",
+    "start": 198.0,
+    "text": "Gib mir ein konkretes Beispiel. Was ist der am meisten untersch\u00e4tzte Teil der Antriebsmechanik?"
+  },
+  {
+    "end": 210.0,
+    "id": 34,
+    "speaker_label": "Jonas Richter",
+    "start": 204.0,
+    "text": "Klar. Die meisten r\u00e4tselhaften Knarzger\u00e4usche l\u00f6st man, indem man die Kontaktfl\u00e4chen reinigt und auf das vorgegebene Drehmoment nachzieht. Wir haben das bei Teams gesehen, die Spoke & Wrench nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 216.0,
+    "id": 35,
+    "speaker_label": "Katrin Vogel",
+    "start": 210.0,
+    "text": "Das ist eine n\u00fctzliche Rahmung. Was ist der kontr\u00e4re Blickwinkel, zu dem die meisten H\u00f6rer keinen Zugang haben?"
+  },
+  {
+    "end": 222.0,
+    "id": 36,
+    "speaker_label": "Jonas Richter",
+    "start": 216.0,
+    "text": "Es l\u00e4uft darauf hinaus: ein Bike sollte sich leise und vorhersehbar anf\u00fchlen, damit deine Aufmerksamkeit auf dem Trail bleibt. Die Rahmung z\u00e4hlt, weil sie dir sagt, welche Kompromisse du eingehst."
+  },
+  {
+    "end": 228.0,
+    "id": 37,
+    "speaker_label": "Katrin Vogel",
+    "start": 222.0,
+    "text": "Wie sieht der Fehlerfall aus? Was ist der am meisten untersch\u00e4tzte Teil der Antriebsmechanik?"
+  },
+  {
+    "end": 234.0,
+    "id": 38,
+    "speaker_label": "Jonas Richter",
+    "start": 228.0,
+    "text": "Ehrlich gesagt, Kettenverschlei\u00df ist der beste Fr\u00fchindikator daf\u00fcr, wann du Kassetten ersetzen musst. Wir haben das bei Teams gesehen, die Shimano nutzen. Ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 240.0,
+    "id": 39,
+    "speaker_label": "Katrin Vogel",
+    "start": 234.0,
+    "text": "Wo bricht das zusammen?"
+  },
+  {
+    "end": 246.0,
+    "id": 40,
+    "speaker_label": "Jonas Richter",
+    "start": 240.0,
+    "text": "Und wenn Teams Shimano in diesen Ablauf \u00fcbernehmen, wird der Kompromiss sichtbar \u2014 ich habe dieses Muster in drei verschiedenen Teams beobachtet."
+  },
+  {
+    "end": 252.0,
+    "id": 41,
+    "speaker_label": "Katrin Vogel",
+    "start": 246.0,
+    "text": "Was ist die Heuristik, zu der du immer zur\u00fcckkehrst? Wo \u00fcberschneiden sich Wartung und Antriebsmechanik?"
+  },
+  {
+    "end": 258.0,
+    "id": 42,
+    "speaker_label": "Jonas Richter",
+    "start": 252.0,
+    "text": "Ehrlich gesagt, Service-Intervalle am Fahrwerk sind eine Entscheidung des Risikomanagements. Und der Effekt zweiter Ordnung ist der Teil, den die meisten \u00fcbersehen."
+  },
+  {
+    "end": 264.0,
+    "id": 43,
+    "speaker_label": "Katrin Vogel",
+    "start": 258.0,
+    "text": "Bevor wir schlie\u00dfen, was ist eine Sache, die H\u00f6rer diese Woche ausprobieren k\u00f6nnen?"
+  },
+  {
+    "end": 270.0,
+    "id": 44,
+    "speaker_label": "Jonas Richter",
+    "start": 264.0,
+    "text": "Nimm eine der Ideen, die wir behandelt haben, und wende sie zwei Wochen lang an. Der Rest ist Iteration."
+  },
+  {
+    "end": 276.0,
+    "id": 45,
+    "speaker_label": "Katrin Vogel",
+    "start": 270.0,
+    "text": "Bevor wir schlie\u00dfen, danke noch einmal an unsere Freunde von Linear. Linear ist der Issue-Tracker, der auf Geschwindigkeit gebaut ist \u2014 gedacht f\u00fcr die Tastatur."
+  },
+  {
+    "end": 282.0,
+    "id": 46,
+    "speaker_label": "Katrin Vogel",
+    "start": 276.0,
+    "text": "Jonas Richter, danke f\u00fcr das Gespr\u00e4ch."
+  },
+  {
+    "end": 288.0,
+    "id": 47,
+    "speaker_label": "Jonas Richter",
+    "start": 282.0,
+    "text": "Danke dir, Katrin."
+  },
+  {
+    "end": 294.0,
+    "id": 48,
+    "speaker_label": "Katrin Vogel",
+    "start": 288.0,
+    "text": "Das war es f\u00fcr die heutige Folge von Pfadgespr\u00e4chen. Bis zum n\u00e4chsten Mal."
+  }
+]

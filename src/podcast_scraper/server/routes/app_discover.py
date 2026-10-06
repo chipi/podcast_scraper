@@ -21,6 +21,7 @@ from podcast_scraper.server import (
     app_ranking_telemetry,
     app_user_state,
 )
+from podcast_scraper.server.app_audit import append_audit
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_discover_view import build_discover_pool, rank_discover
@@ -255,16 +256,26 @@ def get_ranking_config(request: Request, _admin: User = Depends(get_admin_user))
 def put_ranking_config(
     request: Request,
     body: dict[str, Any] = Body(...),
-    _admin: User = Depends(get_admin_user),
+    admin: User = Depends(get_admin_user),
 ) -> dict[str, Any]:
     """Replace the ranking-signal config (admin only). Parsing is total — a malformed body merges
-    onto the defaults rather than emptying ranking. Returns the stored config."""
+    onto the defaults rather than emptying ranking. Returns the stored config.
+
+    Audited like the other admin writes (`app_admin._audit`): who, and the config before and after.
+    It changes what every listener's Discover shows, and was the one admin write with no record.
+    """
     raw_dir = getattr(request.app.state, "app_data_dir", None)
     if raw_dir is None:
         raise HTTPException(status_code=503, detail="No app data dir configured.")
+    before = ranking_config_to_dict(app_ranking_config_store.load_ranking_config(Path(raw_dir)))
     config = ranking_config_from_dict(body)
     app_ranking_config_store.save_ranking_config(Path(raw_dir), config)
-    return ranking_config_to_dict(config)
+    after = ranking_config_to_dict(config)
+    append_audit(
+        getattr(request.app.state, "audit_path", None),
+        {"action": "ranking_config_set", "by": admin.user_id, "before": before, "after": after},
+    )
+    return after
 
 
 @router.post("/discover/click", status_code=204)

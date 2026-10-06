@@ -82,7 +82,7 @@ PYTEST_WORKERS ?= 2
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-bundle android-device-install android-fastlane-install android-play-preflight android-play
 .PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
-.PHONY: profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-telemetry test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-telemetry test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -369,6 +369,11 @@ lint:
 	$(PYTHON) -m flake8 --config .flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 	@# Full flake8 (E501 etc.): must fail on violations so ci-fast catches them before pre-commit
 	$(PYTHON) -m flake8 --config .flake8 . --count --show-source --statistics
+	@# ONE reader for the run-global language (#2177). INSIDE `lint` deliberately, not a
+	@# standalone target: `lint-search-v3` is the cited precedent and it runs in NO workflow, so
+	@# the guard it provides has never gated a PR. `lint` runs in python-app.yml, nightly.yml and
+	@# ci-fast, so this one actually does.
+	$(PYTHON) scripts/check/lint_language_readers.py
 
 # Search v3 forbidden-imports guard (RFC-107 §S, PRD-045 FR12; #1205 SIGSEGV).
 # Rules: .github/lint/search-v3-forbidden-imports.txt.
@@ -495,14 +500,35 @@ security-bandit:
 # Override either way:
 #   SECURITY_AUDIT_STRICT=1     fail even locally (check before you push)
 #   SECURITY_AUDIT_ADVISORY=1   report-only even on CI (do not)
+#
+# On a local x86_64 macOS run (never on CI, never with SECURITY_AUDIT_STRICT) the advisories of
+# the three packages pinned by that torch ceiling are also ignored, so the audit can pass there and
+# a NEW finding in any other package stands out. The set that works on that platform is torch
+# 2.2.2, transformers 4.57.6, sentence-transformers 3.4.1; the fixed versions need torch >= 2.5
+# (sentence-transformers 5.x imports and then dies with "name 'nn' is not defined"). CI installs
+# the pyproject floors (torch >= 2.11, transformers >= 5, sentence-transformers >= 5.6) and audits
+# them in full. Drop an id here once it stops appearing in a local run.
+SECURITY_AUDIT_X86_MAC_IGNORES := \
+	PYSEC-2024-259 PYSEC-2025-189 PYSEC-2025-190 PYSEC-2025-191 PYSEC-2025-192 PYSEC-2025-193 \
+	PYSEC-2025-195 PYSEC-2025-198 PYSEC-2025-203 PYSEC-2025-204 PYSEC-2025-205 PYSEC-2025-206 \
+	PYSEC-2025-207 PYSEC-2025-208 PYSEC-2025-209 PYSEC-2025-41 PYSEC-2026-139 PYSEC-2026-1970 \
+	PYSEC-2026-2286 \
+	PYSEC-2025-217 PYSEC-2026-2288 PYSEC-2026-2289 PYSEC-2026-2290 PYSEC-2026-3929 PYSEC-2026-4174 \
+	PYSEC-2026-4164
 security-audit:
 	@$(PYTHON) -m pip install --quiet --upgrade pip setuptools
-	@$(PYTHON) -m pip_audit --progress-spinner off \
+	@platform_ignores=""; \
+	if [ -z "$${CI:-}" ] && [ -z "$${SECURITY_AUDIT_STRICT:-}" ] && [ "$$(uname -sm)" = "Darwin x86_64" ]; then \
+		for v in $(SECURITY_AUDIT_X86_MAC_IGNORES); do platform_ignores="$$platform_ignores --ignore-vuln $$v"; done; \
+		echo "x86_64 macOS local run: ignoring the torch/transformers/sentence-transformers advisories (see Makefile)"; \
+	fi; \
+	$(PYTHON) -m pip_audit --progress-spinner off \
 		--ignore-vuln PYSEC-2026-3740 \
 		--ignore-vuln CVE-2026-69112 \
 		--ignore-vuln PYSEC-2026-2447 \
 		--ignore-vuln PYSEC-2026-3624 \
-		--ignore-vuln PYSEC-2025-194; \
+		--ignore-vuln PYSEC-2025-194 \
+		$$platform_ignores; \
 	rc=$$?; \
 	[ $$rc -eq 0 ] && exit 0; \
 	blocking=1; \
@@ -547,7 +573,7 @@ docstrings:
 
 spelling:
 	@echo "=== Spell Checking ==="
-	@$(CODESPELL) src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl"
+	@$(CODESPELL) src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,*/speaker_detectors/naming_vocabulary.py"
 
 spelling-docs:
 	@echo "=== Spell Checking (Docs only) ==="
@@ -1251,7 +1277,7 @@ corpus-snapshot-manifest-validate:
 
 corpus-snapshot-select-tag:
 	@BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
-	TAG_REGEX="$${TAG_REGEX:-^snapshot-[0-9]{8}$$}"; \
+	if [ -z "$${TAG_REGEX:-}" ]; then TAG_REGEX='^snapshot-[0-9]{8}$$'; fi; \
 	export BACKUP_REPO TAG_REGEX PODCAST_BACKUP_TAG; \
 	bash scripts/ops/corpus_snapshot/select_release_tag.sh
 
@@ -1271,8 +1297,14 @@ corpus-snapshot-integration:
 #     WORKSPACE_DIR (default: current dir).
 #
 corpus-snapshot-select-tag-prod:
+	@# The default is assigned with an `if`, NOT `$${TAG_REGEX:-...}`. Inside a brace default the
+	@# shell parses the ERE's own `{8}` as brace syntax and transposes the tail, yielding
+	@# `^snapshot-prod-[0-9]{8$}` — which matches no tag, so selecting the latest snapshot failed
+	@# with "no releases matching" while real snapshots existed. Reproduced before fixing; quoting
+	@# the default leaves literal quotes in the value and escaping the brace leaves a backslash,
+	@# so neither works. This also affects the DR restore path, not just a manual run.
 	@BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
-	TAG_REGEX="$${TAG_REGEX:-^snapshot-prod-[0-9]{8}$$}"; \
+	if [ -z "$${TAG_REGEX:-}" ]; then TAG_REGEX='^snapshot-prod-[0-9]{8}$$'; fi; \
 	export BACKUP_REPO TAG_REGEX PODCAST_BACKUP_TAG; \
 	bash scripts/ops/corpus_snapshot/select_release_tag.sh
 
@@ -1367,6 +1399,27 @@ corpus-compat-check:
 corpus-completeness-check:
 	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
 	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_completeness import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
+# Phase 0 gate (#2175): what language is every episode in, and WHERE did that answer come from?
+# READ-ONLY. Non-zero exit when the report cannot be trusted as a measurement of the CORPUS --
+# specifically when NO episode resolved from 'rss', which means it measured the run configuration
+# instead (the same shape as capability_audit's "0/36 openings, defect rate 0.0%"). Finding a
+# non-English episode is a RESULT, not a failure. Run AFTER the m0011 backfill, and before S0.6:
+# after S0.6 a feed whose RSS says `de` is genuinely transcribed as German. CORPUS_DIR required.
+corpus-language-audit:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	$(PYTHON) -c "import sys; from pathlib import Path; from podcast_scraper.corpus_language_audit import check_corpus; ok, report = check_corpus(Path('$${CORPUS_DIR}').expanduser()); print(report); sys.exit(0 if ok else 1)"
+
+# S3.2 / D-43: withdraw a published language from DISCOVERY (search index rows only; the corpus
+# is untouched, so a reindex undoes it). DRY RUN unless APPLY=1 — what changes is what listeners
+# can find, and `enabled: false` in config/languages.yaml deliberately does NOT do this.
+#   make withdraw-language CORPUS_DIR=<corpus> LANGUAGE=es
+#   make withdraw-language CORPUS_DIR=<corpus> LANGUAGE=es APPLY=1
+withdraw-language:
+	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus parent path)"; exit 1); \
+	test -n "$${LANGUAGE:-}" || (echo "LANGUAGE required (e.g. LANGUAGE=es)"; exit 1); \
+	$(PYTHON) scripts/tools/withdraw_language.py --corpus "$${CORPUS_DIR}" \
+		--language "$${LANGUAGE}" $${APPLY:+--apply}
 
 # Repair gate for #1655: list every episode still carrying a pre-#1657 placeholder insight
 # ("Summary insight (stub).") instead of real GI. Non-zero exit if ANY remain. Run it TWICE —

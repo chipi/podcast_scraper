@@ -23,6 +23,8 @@ import re
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..graph_id_utils import entity_node_id
+from ..languages import TARGET_LANGUAGE
+from ..speaker_detectors import naming_vocabulary
 
 logger = logging.getLogger(__name__)
 
@@ -39,20 +41,8 @@ _OFFSET_PROBE_SLACK = 64
 _NAMED_TURN_RE = re.compile(r"(?m)^[ \t]*([^\n:]{1,60}?)[ \t]*:[ \t]")
 
 # Tokens that mark a "host" string as a publisher/network, not a person name.
-_NON_PERSON_TOKENS = frozenset(
-    {
-        "bloomberg",
-        "industries",
-        "media",
-        "podcast",
-        "podcasts",
-        "network",
-        "news",
-        "studios",
-        "inc",
-        "llc",
-    }
-)
+_NON_PERSON_TOKENS_BY_LANGUAGE = naming_vocabulary.NON_PERSON_LABEL_TOKENS
+_NON_PERSON_TOKENS = _NON_PERSON_TOKENS_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 def speaker_for_char(char_start: int, turns: Sequence[Tuple[int, Optional[str]]]) -> Optional[str]:
@@ -66,9 +56,32 @@ def speaker_for_char(char_start: int, turns: Sequence[Tuple[int, Optional[str]]]
     return spk
 
 
-def _is_publisher_label(name: Optional[str]) -> bool:
-    """True when *name* contains a publisher/network token (not a person)."""
-    return any(t.lower().strip(".,") in _NON_PERSON_TOKENS for t in (name or "").split())
+def _is_publisher_label(name: Optional[str], language: Optional[str] = TARGET_LANGUAGE) -> bool:
+    """True when *name* contains a publisher/network token (not a person).
+
+    WHY THE DEFAULT IS THE ANALYSIS LANGUAGE AND NOT THE FEED'S. The transcript GI reads is the
+    canonical ``<stem>.txt``, which post-D-44 holds the ANALYSIS body — verified on disk:
+    ``p14_e02.txt`` is English prose while the Portuguese source sits beside it as
+    ``p14_e02.pt.txt``. So the TEXT here is English and the English row is the right row for it.
+
+    WHAT THAT ARGUMENT DOES NOT COVER, and why this takes a ``language`` at all: the PROPER NOUNS
+    inside that English body are not translated (D-42 translates the episode title, not the show
+    name), so a Portuguese publisher label — "Rádio Globo" — reaches this check spelled in
+    Portuguese and the English row has no ``rádio``. The row for that language exists in
+    `naming_vocabulary.NON_PERSON_LABEL_TOKENS` and is one argument away.
+
+    NOT THREADED, deliberately and visibly: neither `add_spoken_by_edges` nor
+    `_artifact_from_multi_insight` carries a cfg or a language, so delivering one means a
+    parameter through several layers of `gi/pipeline.py`. The exposure that would justify it is a
+    non-English publisher label surviving this far — and upstream of here the roster's own filter
+    (`is_publishable_speaker_name` + `looks_like_publisher`) is now language-aware and refuses
+    most of them first. Whether any still arrive is a MEASUREMENT nobody has taken; taking it is
+    the precondition for threading this, not the other way round.
+    """
+    tokens = naming_vocabulary.vocabulary_row(
+        _NON_PERSON_TOKENS_BY_LANGUAGE, language, default=frozenset()
+    )
+    return any(t.lower().strip(".,") in tokens for t in (name or "").split())
 
 
 def _looks_like_person(name: Optional[str]) -> bool:

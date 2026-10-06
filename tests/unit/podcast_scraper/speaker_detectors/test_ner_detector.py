@@ -36,6 +36,7 @@ spec.loader.exec_module(parent_conftest)
 create_test_config = parent_conftest.create_test_config
 create_test_episode = parent_conftest.create_test_episode
 
+from podcast_scraper.languages import transcription_language
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector  # noqa: E402
 
 
@@ -135,6 +136,10 @@ class TestNERSpeakerDetector(unittest.TestCase):
             nlp=mock_nlp,
             cfg=self.cfg,
             cached_hosts={"Alice"},
+            # S2.14: the episode's language, so `detect_speaker_names` can refuse English-only
+            # NER on non-English prose. Its absence is what made that guard unreachable — the
+            # parameter existed on the inner function and nothing ever passed it.
+            text_language=transcription_language(self.cfg),
         )
 
     @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.detect_speaker_names")
@@ -165,11 +170,15 @@ class TestNERSpeakerDetector(unittest.TestCase):
         hosts = detector.detect_hosts("Feed Title", "Feed Description", ["Author1"])
 
         self.assertEqual(hosts, {"Host1", "Host2"})
+        # `language` is part of this call on purpose, and asserting it is the point: the
+        # detector reads the feed's declared language rather than assuming English (S0.6), so a
+        # call that omitted it would mean a non-English feed got the English naming vocabulary.
         mock_detect_hosts.assert_called_once_with(
             feed_title="Feed Title",
             feed_description="Feed Description",
             feed_authors=["Author1"],
             nlp=mock_nlp,
+            language="en",
         )
 
     @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")

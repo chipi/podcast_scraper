@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 302,
+  "postroll_cut_start": null,
+  "chars_removed": 591,
+  "preroll_pattern_hits": 4,
+  "postroll_pattern_hits": 3,
+  "source_length": 6820,
+  "excised_ranges": [
+    [
+      0,
+      302
+    ],
+    [
+      2584,
+      2873
+    ]
+  ],
+  "excised_texts": [
+    "Luc\u00eda Herrera: Welcome back to Trail Sessions. Today, we're talking about drivetrain mechanics, and I'm joined by Diego Ferrer, a mechanic at Spoke & Wrench. Diego Ferrer, thank you for being here.\nDiego Ferrer: Thank you, Luc\u00eda. Glad to be back.\nLuc\u00eda Herrera: Today's episode is sponsored by Notion. ",
+    "We'll be right back after a short commercial break.\nSPEAKER_02: Today's episode is brought to you by Stripe. Stripe simplifies payments, whether you're running a marketplace or a subscription business. Visit stripe.com/podcast for a free trial.\nLuc\u00eda Herrera: Welcome back to the program. "
+  ]
+}

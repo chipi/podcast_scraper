@@ -16,6 +16,8 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+from ..languages import primary_language
+
 #: Below this many words a transcript is not judged: a music bed, a trailer or a one-line
 #: episode can be legitimately short and sparse.
 MIN_WORDS_TO_JUDGE = 300
@@ -90,4 +92,4 @@ def echoes_prompt(text: Optional[str], prompt: str = PUNCTUATION_PROMPT) -> bool
 
 def prompt_suits_language(language: Optional[str]) -> bool:
     """The prompt is English; sent with another language it can push Whisper to translate."""
-    return not language or language.lower().split("-")[0] == "en"
+    return not language or primary_language(language) == "en"

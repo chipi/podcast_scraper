@@ -402,7 +402,7 @@ jobs:
           echo ""
           echo "### Spell Checking"
           echo '```'
-          codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" 2>&1 || echo "No spelling errors found"
+          codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,*/speaker_detectors/naming_vocabulary.py" 2>&1 || echo "No spelling errors found"
           echo '```'
           echo ""
         } >> "$GITHUB_STEP_SUMMARY"

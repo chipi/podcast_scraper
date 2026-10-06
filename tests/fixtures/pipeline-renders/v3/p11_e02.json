@@ -1,0 +1,1014 @@
+{
+  "captured_at": "2026-10-03T12:49:31Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p11_e02",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "render": {
+    "segments": [
+      {
+        "char_end": 56,
+        "char_start": 16,
+        "end": 1.86,
+        "sent_id": "t0000.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 0.0,
+        "text": "Welcome back to \"Trails by the Experts.\"",
+        "unit_id": "t0000.u01"
+      },
+      {
+        "char_end": 159,
+        "char_start": 57,
+        "end": 7.38,
+        "sent_id": "t0000.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1.92,
+        "text": "Today, we're talking about enduro racing, and I'm joined by Chiara Ricci, an enduro athlete and coach.",
+        "unit_id": "t0000.u01"
+      },
+      {
+        "char_end": 199,
+        "char_start": 160,
+        "end": 9.6,
+        "sent_id": "t0000.s03",
+        "speaker_label": "Giulia Ferrara",
+        "start": 7.44,
+        "text": "Chiara Ricci, thank you for being here.",
+        "unit_id": "t0000.u01"
+      },
+      {
+        "char_end": 232,
+        "char_start": 214,
+        "end": 10.5,
+        "sent_id": "t0001.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 9.6,
+        "text": "Thank you, Giulia.",
+        "unit_id": "t0001.u01"
+      },
+      {
+        "char_end": 265,
+        "char_start": 233,
+        "end": 12.36,
+        "sent_id": "t0001.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 10.56,
+        "text": "It's good to be back here again.",
+        "unit_id": "t0001.u01"
+      },
+      {
+        "char_end": 318,
+        "char_start": 282,
+        "end": 14.88,
+        "sent_id": "t0002.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 12.36,
+        "text": "This episode is sponsored by Linear.",
+        "unit_id": "t0002.u01"
+      },
+      {
+        "char_end": 391,
+        "char_start": 319,
+        "end": 19.32,
+        "sent_id": "t0002.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 14.94,
+        "text": "Linear is the issue tracker designed for speed – built for the keyboard.",
+        "unit_id": "t0002.u01"
+      },
+      {
+        "char_end": 413,
+        "char_start": 392,
+        "end": 20.7,
+        "sent_id": "t0002.s03",
+        "speaker_label": "Giulia Ferrara",
+        "start": 19.38,
+        "text": "Try linear.com today.",
+        "unit_id": "t0002.u01"
+      },
+      {
+        "char_end": 557,
+        "char_start": 414,
+        "end": 29.28,
+        "sent_id": "t0002.s04",
+        "speaker_label": "Giulia Ferrara",
+        "start": 20.7,
+        "text": "Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is the design choice with the biggest impact.",
+        "unit_id": "t0002.u01"
+      },
+      {
+        "char_end": 592,
+        "char_start": 572,
+        "end": 29.94,
+        "sent_id": "t0003.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 29.28,
+        "text": "Yes, that's correct.",
+        "unit_id": "t0003.u01"
+      },
+      {
+        "char_end": 642,
+        "char_start": 593,
+        "end": 32.4,
+        "sent_id": "t0003.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 30.0,
+        "text": "And that connects to what we're discussing today.",
+        "unit_id": "t0003.u01"
+      },
+      {
+        "char_end": 755,
+        "char_start": 659,
+        "end": 38.22,
+        "sent_id": "t0004.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 32.4,
+        "text": "I want to point out something – Marco Bellini mentioned the same issue a couple of episodes ago.",
+        "unit_id": "t0004.u01"
+      },
+      {
+        "char_end": 791,
+        "char_start": 756,
+        "end": 211.56,
+        "sent_id": "t0004.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 210.0,
+        "text": "Can you give me a specific example?",
+        "unit_id": "t0004.u01"
+      },
+      {
+        "char_end": 841,
+        "char_start": 792,
+        "end": 215.22,
+        "sent_id": "t0004.s03",
+        "speaker_label": "Giulia Ferrara",
+        "start": 211.62,
+        "text": "Where do soil erosion and enduro races intersect?",
+        "unit_id": "t0004.u01"
+      },
+      {
+        "char_end": 948,
+        "char_start": 856,
+        "end": 221.16,
+        "sent_id": "t0005.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 215.22,
+        "text": "Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks.",
+        "unit_id": "t0005.u01"
+      },
+      {
+        "char_end": 992,
+        "char_start": 949,
+        "end": 223.92,
+        "sent_id": "t0005.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 221.22,
+        "text": "We've seen this in teams that use RockShox.",
+        "unit_id": "t0005.u01"
+      },
+      {
+        "char_end": 1062,
+        "char_start": 993,
+        "end": 227.16,
+        "sent_id": "t0005.s03",
+        "speaker_label": "Chiara Ricci",
+        "start": 223.98,
+        "text": "I've observed this pattern repeating itself in three different teams.",
+        "unit_id": "t0005.u01"
+      },
+      {
+        "char_end": 1112,
+        "char_start": 1079,
+        "end": 228.36,
+        "sent_id": "t0006.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 227.16,
+        "text": "I want to delve deeper into this.",
+        "unit_id": "t0006.u01"
+      },
+      {
+        "char_end": 1163,
+        "char_start": 1113,
+        "end": 232.02,
+        "sent_id": "t0006.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 228.42,
+        "text": "Where do soil erosion and enduro racing intersect?",
+        "unit_id": "t0006.u01"
+      },
+      {
+        "char_end": 1188,
+        "char_start": 1178,
+        "end": 232.38,
+        "sent_id": "t0007.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 232.02,
+        "text": "Certainly.",
+        "unit_id": "t0007.u01"
+      },
+      {
+        "char_end": 1292,
+        "char_start": 1189,
+        "end": 239.4,
+        "sent_id": "t0007.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 232.44,
+        "text": "Tire pressure and the choice of tire casing often matter more than minor adjustments to the suspension.",
+        "unit_id": "t0007.u01"
+      },
+      {
+        "char_end": 1371,
+        "char_start": 1293,
+        "end": 243.48,
+        "sent_id": "t0007.s03",
+        "speaker_label": "Chiara Ricci",
+        "start": 239.46,
+        "text": "The framing is important because it tells you what compromises you are making.",
+        "unit_id": "t0007.u01"
+      },
+      {
+        "char_end": 1411,
+        "char_start": 1388,
+        "end": 244.38,
+        "sent_id": "t0008.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 243.48,
+        "text": "Let's start from there.",
+        "unit_id": "t0008.u01"
+      },
+      {
+        "char_end": 1462,
+        "char_start": 1412,
+        "end": 248.04,
+        "sent_id": "t0008.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 244.44,
+        "text": "Where do soil erosion and enduro racing intersect?",
+        "unit_id": "t0008.u01"
+      },
+      {
+        "char_end": 1593,
+        "char_start": 1477,
+        "end": 255.06,
+        "sent_id": "t0009.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 248.04,
+        "text": "Honestly, risk management in racing isn't about avoiding crashes – it's about choosing which crashes are survivable.",
+        "unit_id": "t0009.u01"
+      },
+      {
+        "char_end": 1636,
+        "char_start": 1594,
+        "end": 257.76,
+        "sent_id": "t0009.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 255.12,
+        "text": "We've seen this in teams that use Shimano.",
+        "unit_id": "t0009.u01"
+      },
+      {
+        "char_end": 1721,
+        "char_start": 1637,
+        "end": 261.72,
+        "sent_id": "t0009.s03",
+        "speaker_label": "Chiara Ricci",
+        "start": 257.82,
+        "text": "If you ignore it, you end up having to rebuild everything from scratch a year later.",
+        "unit_id": "t0009.u01"
+      },
+      {
+        "char_end": 1765,
+        "char_start": 1738,
+        "end": 263.28,
+        "sent_id": "t0010.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 261.72,
+        "text": "Where does it stop working?",
+        "unit_id": "t0010.u01"
+      },
+      {
+        "char_end": 1864,
+        "char_start": 1780,
+        "end": 267.9,
+        "sent_id": "t0011.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 263.28,
+        "text": "The Cascadia Alliance is one of the platforms where this becomes particularly clear.",
+        "unit_id": "t0011.u01"
+      },
+      {
+        "char_end": 1936,
+        "char_start": 1865,
+        "end": 272.04,
+        "sent_id": "t0011.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 267.96,
+        "text": "And the second-order effect is the part that almost everyone overlooks.",
+        "unit_id": "t0011.u01"
+      },
+      {
+        "char_end": 2011,
+        "char_start": 1953,
+        "end": 274.32,
+        "sent_id": "t0012.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 272.04,
+        "text": "What is the heuristic that you always find yourself using?",
+        "unit_id": "t0012.u01"
+      },
+      {
+        "char_end": 2058,
+        "char_start": 2012,
+        "end": 277.38,
+        "sent_id": "t0012.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 274.38,
+        "text": "How does Spoke & Wrench fit into this picture?",
+        "unit_id": "t0012.u01"
+      },
+      {
+        "char_end": 2093,
+        "char_start": 2073,
+        "end": 278.34,
+        "sent_id": "t0013.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 277.38,
+        "text": "That's how I see it.",
+        "unit_id": "t0013.u01"
+      },
+      {
+        "char_end": 2220,
+        "char_start": 2094,
+        "end": 285.3,
+        "sent_id": "t0013.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 278.4,
+        "text": "The erosion patterns on the race track sections change the choice of trajectory between practice runs and the actual race day.",
+        "unit_id": "t0013.u01"
+      },
+      {
+        "char_end": 2288,
+        "char_start": 2221,
+        "end": 289.86,
+        "sent_id": "t0013.s03",
+        "speaker_label": "Chiara Ricci",
+        "start": 285.36,
+        "text": "Once you internalize that, the rest of the decisions become easier.",
+        "unit_id": "t0013.u01"
+      },
+      {
+        "char_end": 2384,
+        "char_start": 2305,
+        "end": 294.9,
+        "sent_id": "t0014.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 289.86,
+        "text": "Before we continue, support the program by visiting the website of our sponsor.",
+        "unit_id": "t0014.u01"
+      },
+      {
+        "char_end": 2416,
+        "char_start": 2385,
+        "end": 296.76,
+        "sent_id": "t0014.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 294.96,
+        "text": "Strava is the home of athletes.",
+        "unit_id": "t0014.u01"
+      },
+      {
+        "char_end": 2469,
+        "char_start": 2417,
+        "end": 723.12,
+        "sent_id": "t0014.s03",
+        "speaker_label": "Giulia Ferrara",
+        "start": 720.0,
+        "text": "We'll be right back, after a short commercial break.",
+        "unit_id": "t0014.u01"
+      },
+      {
+        "char_end": 2518,
+        "char_start": 2482,
+        "end": 725.64,
+        "sent_id": "t0015.s01",
+        "speaker_label": "SPEAKER_02",
+        "start": 723.12,
+        "text": "This episode is sponsored by Notion.",
+        "unit_id": "t0015.u01"
+      },
+      {
+        "char_end": 2591,
+        "char_start": 2519,
+        "end": 729.9,
+        "sent_id": "t0015.s02",
+        "speaker_label": "SPEAKER_02",
+        "start": 725.7,
+        "text": "Notion replaces the dozen tools your team currently uses, by about half.",
+        "unit_id": "t0015.u01"
+      },
+      {
+        "char_end": 2634,
+        "char_start": 2592,
+        "end": 732.9,
+        "sent_id": "t0015.s03",
+        "speaker_label": "SPEAKER_02",
+        "start": 729.96,
+        "text": "Visit notion.com/podcast for a free trial.",
+        "unit_id": "t0015.u01"
+      },
+      {
+        "char_end": 2679,
+        "char_start": 2651,
+        "end": 734.4,
+        "sent_id": "t0016.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 732.9,
+        "text": "Welcome back to the program.",
+        "unit_id": "t0016.u01"
+      },
+      {
+        "char_end": 2713,
+        "char_start": 2680,
+        "end": 841.2,
+        "sent_id": "t0016.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 840.0,
+        "text": "I want to delve deeper into this.",
+        "unit_id": "t0016.u01"
+      },
+      {
+        "char_end": 2765,
+        "char_start": 2714,
+        "end": 844.32,
+        "sent_id": "t0016.s03",
+        "speaker_label": "Giulia Ferrara",
+        "start": 841.26,
+        "text": "What is the most important aspect of this question?",
+        "unit_id": "t0016.u01"
+      },
+      {
+        "char_end": 2831,
+        "char_start": 2780,
+        "end": 846.66,
+        "sent_id": "t0017.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 844.32,
+        "text": "I'm giving you the version that I truly believe in.",
+        "unit_id": "t0017.u01"
+      },
+      {
+        "char_end": 2914,
+        "char_start": 2832,
+        "end": 851.82,
+        "sent_id": "t0017.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 846.72,
+        "text": "Speed comes from braking earlier and more smoothly, not from taking greater risks.",
+        "unit_id": "t0017.u01"
+      },
+      {
+        "char_end": 2958,
+        "char_start": 2915,
+        "end": 854.58,
+        "sent_id": "t0017.s03",
+        "speaker_label": "Chiara Ricci",
+        "start": 851.88,
+        "text": "We've seen this in teams that use RockShox.",
+        "unit_id": "t0017.u01"
+      },
+      {
+        "char_end": 3030,
+        "char_start": 2959,
+        "end": 858.72,
+        "sent_id": "t0017.s04",
+        "speaker_label": "Chiara Ricci",
+        "start": 854.64,
+        "text": "And the second-order effect is the part that almost everyone overlooks.",
+        "unit_id": "t0017.u01"
+      },
+      {
+        "char_end": 3080,
+        "char_start": 3047,
+        "end": 860.52,
+        "sent_id": "t0018.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 858.72,
+        "text": "What is the typical failure mode?",
+        "unit_id": "t0018.u01"
+      },
+      {
+        "char_end": 3155,
+        "char_start": 3081,
+        "end": 865.56,
+        "sent_id": "t0018.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 860.58,
+        "text": "What is the operational setting that most listeners do not have access to?",
+        "unit_id": "t0018.u01"
+      },
+      {
+        "char_end": 3284,
+        "char_start": 3170,
+        "end": 873.3,
+        "sent_id": "t0019.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 865.56,
+        "text": "Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension.",
+        "unit_id": "t0019.u01"
+      },
+      {
+        "char_end": 3363,
+        "char_start": 3285,
+        "end": 877.38,
+        "sent_id": "t0019.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 873.36,
+        "text": "The framing is important because it tells you what compromises you are making.",
+        "unit_id": "t0019.u01"
+      },
+      {
+        "char_end": 3407,
+        "char_start": 3380,
+        "end": 878.94,
+        "sent_id": "t0020.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 877.38,
+        "text": "Give me a concrete example.",
+        "unit_id": "t0020.u01"
+      },
+      {
+        "char_end": 3457,
+        "char_start": 3408,
+        "end": 882.06,
+        "sent_id": "t0020.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 879.0,
+        "text": "Which version of the question is truly important?",
+        "unit_id": "t0020.u01"
+      },
+      {
+        "char_end": 3598,
+        "char_start": 3472,
+        "end": 889.02,
+        "sent_id": "t0021.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 882.06,
+        "text": "Yes, so – risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable.",
+        "unit_id": "t0021.u01"
+      },
+      {
+        "char_end": 3642,
+        "char_start": 3599,
+        "end": 891.78,
+        "sent_id": "t0021.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 889.08,
+        "text": "We've seen this in teams that use RockShox.",
+        "unit_id": "t0021.u01"
+      },
+      {
+        "char_end": 3712,
+        "char_start": 3643,
+        "end": 895.02,
+        "sent_id": "t0021.s03",
+        "speaker_label": "Chiara Ricci",
+        "start": 891.84,
+        "text": "I've observed this pattern repeating itself in three different teams.",
+        "unit_id": "t0021.u01"
+      },
+      {
+        "char_end": 3742,
+        "char_start": 3729,
+        "end": 896.52,
+        "sent_id": "t0022.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 895.02,
+        "text": "Tell me more.",
+        "unit_id": "t0022.u01"
+      },
+      {
+        "char_end": 3841,
+        "char_start": 3757,
+        "end": 901.14,
+        "sent_id": "t0023.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 896.52,
+        "text": "The Cascadia Alliance is one of the platforms where this becomes particularly clear.",
+        "unit_id": "t0023.u01"
+      },
+      {
+        "char_end": 3932,
+        "char_start": 3842,
+        "end": 905.7,
+        "sent_id": "t0023.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 901.2,
+        "text": "Once you internalize this concept, the rest of the decision-making process becomes easier.",
+        "unit_id": "t0023.u01"
+      },
+      {
+        "char_end": 3972,
+        "char_start": 3949,
+        "end": 906.6,
+        "sent_id": "t0024.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 905.7,
+        "text": "Let's start from there.",
+        "unit_id": "t0024.u01"
+      },
+      {
+        "char_end": 4029,
+        "char_start": 3973,
+        "end": 910.02,
+        "sent_id": "t0024.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 906.66,
+        "text": "What is the most underestimated aspect of enduro racing?",
+        "unit_id": "t0024.u01"
+      },
+      {
+        "char_end": 4196,
+        "char_start": 4044,
+        "end": 918.12,
+        "sent_id": "t0025.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 910.02,
+        "text": "It boils down to this: the erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day.",
+        "unit_id": "t0025.u01"
+      },
+      {
+        "char_end": 4266,
+        "char_start": 4197,
+        "end": 921.36,
+        "sent_id": "t0025.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 918.18,
+        "text": "I've observed this pattern repeating itself in three different teams.",
+        "unit_id": "t0025.u01"
+      },
+      {
+        "char_end": 4363,
+        "char_start": 4283,
+        "end": 1324.74,
+        "sent_id": "t0026.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1320.0,
+        "text": "Let's change the subject – I want to dedicate the final part to risk management.",
+        "unit_id": "t0026.u01"
+      },
+      {
+        "char_end": 4517,
+        "char_start": 4378,
+        "end": 1333.68,
+        "sent_id": "t0027.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 1324.74,
+        "text": "That's where the conversation becomes interesting, because the compromises involved in risk management permeate everything we've discussed.",
+        "unit_id": "t0027.u01"
+      },
+      {
+        "char_end": 4572,
+        "char_start": 4534,
+        "end": 1335.48,
+        "sent_id": "t0028.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1333.68,
+        "text": "What is the nature of the malfunction?",
+        "unit_id": "t0028.u01"
+      },
+      {
+        "char_end": 4645,
+        "char_start": 4573,
+        "end": 1340.82,
+        "sent_id": "t0028.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1335.54,
+        "text": "What is the hidden or obscure aspect that most listeners are unaware of?",
+        "unit_id": "t0028.u01"
+      },
+      {
+        "char_end": 4670,
+        "char_start": 4660,
+        "end": 1341.18,
+        "sent_id": "t0029.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 1340.82,
+        "text": "Certainly.",
+        "unit_id": "t0029.u01"
+      },
+      {
+        "char_end": 4753,
+        "char_start": 4671,
+        "end": 1346.34,
+        "sent_id": "t0029.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 1341.24,
+        "text": "Speed comes from braking earlier and more smoothly, not from taking greater risks.",
+        "unit_id": "t0029.u01"
+      },
+      {
+        "char_end": 4797,
+        "char_start": 4754,
+        "end": 1349.1,
+        "sent_id": "t0029.s03",
+        "speaker_label": "Chiara Ricci",
+        "start": 1346.4,
+        "text": "We've seen this in teams that use RockShox.",
+        "unit_id": "t0029.u01"
+      },
+      {
+        "char_end": 4860,
+        "char_start": 4798,
+        "end": 1352.34,
+        "sent_id": "t0029.s04",
+        "speaker_label": "Chiara Ricci",
+        "start": 1349.16,
+        "text": "I've observed this pattern repeating in three different teams.",
+        "unit_id": "t0029.u01"
+      },
+      {
+        "char_end": 4904,
+        "char_start": 4877,
+        "end": 1353.9,
+        "sent_id": "t0030.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1352.34,
+        "text": "Give me a concrete example.",
+        "unit_id": "t0030.u01"
+      },
+      {
+        "char_end": 4961,
+        "char_start": 4905,
+        "end": 1357.32,
+        "sent_id": "t0030.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1353.96,
+        "text": "What is the most underestimated aspect of enduro racing?",
+        "unit_id": "t0030.u01"
+      },
+      {
+        "char_end": 5090,
+        "char_start": 4976,
+        "end": 1365.06,
+        "sent_id": "t0031.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 1357.32,
+        "text": "Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension.",
+        "unit_id": "t0031.u01"
+      },
+      {
+        "char_end": 5153,
+        "char_start": 5091,
+        "end": 1368.3,
+        "sent_id": "t0031.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 1365.12,
+        "text": "I've seen this pattern repeat itself in three different teams.",
+        "unit_id": "t0031.u01"
+      },
+      {
+        "char_end": 5197,
+        "char_start": 5170,
+        "end": 1369.86,
+        "sent_id": "t0032.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1368.3,
+        "text": "Give me a concrete example.",
+        "unit_id": "t0032.u01"
+      },
+      {
+        "char_end": 5247,
+        "char_start": 5198,
+        "end": 1372.98,
+        "sent_id": "t0032.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1369.92,
+        "text": "Which version of the question is truly important?",
+        "unit_id": "t0032.u01"
+      },
+      {
+        "char_end": 5313,
+        "char_start": 5262,
+        "end": 1375.32,
+        "sent_id": "t0033.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 1372.98,
+        "text": "I'm giving you the version that I truly believe in.",
+        "unit_id": "t0033.u01"
+      },
+      {
+        "char_end": 5419,
+        "char_start": 5314,
+        "end": 1381.56,
+        "sent_id": "t0033.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 1375.38,
+        "text": "Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.",
+        "unit_id": "t0033.u01"
+      },
+      {
+        "char_end": 5469,
+        "char_start": 5420,
+        "end": 1384.68,
+        "sent_id": "t0033.s03",
+        "speaker_label": "Chiara Ricci",
+        "start": 1381.62,
+        "text": "We've seen this in teams that use Spoke & Wrench.",
+        "unit_id": "t0033.u01"
+      },
+      {
+        "char_end": 5532,
+        "char_start": 5470,
+        "end": 1387.92,
+        "sent_id": "t0033.s04",
+        "speaker_label": "Chiara Ricci",
+        "start": 1384.74,
+        "text": "I've seen this pattern repeat itself in three different teams.",
+        "unit_id": "t0033.u01"
+      },
+      {
+        "char_end": 5559,
+        "char_start": 5549,
+        "end": 1389.42,
+        "sent_id": "t0034.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1387.92,
+        "text": "Come back.",
+        "unit_id": "t0034.u01"
+      },
+      {
+        "char_end": 5727,
+        "char_start": 5574,
+        "end": 1398.0,
+        "sent_id": "t0035.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 1389.42,
+        "text": "And when teams adopt Spoke & Wrench within that workflow, the trade-off becomes apparent – I've seen this pattern repeat itself in three different teams.",
+        "unit_id": "t0035.u01"
+      },
+      {
+        "char_end": 5802,
+        "char_start": 5744,
+        "end": 1400.28,
+        "sent_id": "t0036.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1398.0,
+        "text": "What is the heuristic that you always find yourself using?",
+        "unit_id": "t0036.u01"
+      },
+      {
+        "char_end": 5854,
+        "char_start": 5803,
+        "end": 1403.4,
+        "sent_id": "t0036.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1400.34,
+        "text": "What is the most important aspect of this question?",
+        "unit_id": "t0036.u01"
+      },
+      {
+        "char_end": 5889,
+        "char_start": 5869,
+        "end": 1404.36,
+        "sent_id": "t0037.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 1403.4,
+        "text": "That's how I see it.",
+        "unit_id": "t0037.u01"
+      },
+      {
+        "char_end": 6019,
+        "char_start": 5890,
+        "end": 1411.32,
+        "sent_id": "t0037.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 1404.42,
+        "text": "The erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day.",
+        "unit_id": "t0037.u01"
+      },
+      {
+        "char_end": 6089,
+        "char_start": 6020,
+        "end": 1414.56,
+        "sent_id": "t0037.s03",
+        "speaker_label": "Chiara Ricci",
+        "start": 1411.38,
+        "text": "I've observed this pattern repeating itself in three different teams.",
+        "unit_id": "t0037.u01"
+      },
+      {
+        "char_end": 6174,
+        "char_start": 6106,
+        "end": 1685.28,
+        "sent_id": "t0038.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1680.0,
+        "text": "Before we wrap up, what's one thing listeners can try out this week?",
+        "unit_id": "t0038.u01"
+      },
+      {
+        "char_end": 6260,
+        "char_start": 6189,
+        "end": 1689.6,
+        "sent_id": "t0039.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 1685.28,
+        "text": "Choose one of the ideas we've discussed and implement it for two weeks.",
+        "unit_id": "t0039.u01"
+      },
+      {
+        "char_end": 6290,
+        "char_start": 6261,
+        "end": 1690.98,
+        "sent_id": "t0039.s02",
+        "speaker_label": "Chiara Ricci",
+        "start": 1689.66,
+        "text": "Everything else is iteration.",
+        "unit_id": "t0039.u01"
+      },
+      {
+        "char_end": 6355,
+        "char_start": 6307,
+        "end": 1693.86,
+        "sent_id": "t0040.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1690.98,
+        "text": "And finally, thank you to our sponsors at Vanta.",
+        "unit_id": "t0040.u01"
+      },
+      {
+        "char_end": 6397,
+        "char_start": 6356,
+        "end": 1696.56,
+        "sent_id": "t0040.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1693.92,
+        "text": "Vanta automates SOC 2 and ISO compliance.",
+        "unit_id": "t0040.u01"
+      },
+      {
+        "char_end": 6423,
+        "char_start": 6398,
+        "end": 1698.36,
+        "sent_id": "t0040.s03",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1696.62,
+        "text": "Take a look at vanta.com.",
+        "unit_id": "t0040.u01"
+      },
+      {
+        "char_end": 6469,
+        "char_start": 6424,
+        "end": 1700.88,
+        "sent_id": "t0040.s04",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1698.36,
+        "text": "Chiara Ricci, thank you for the conversation.",
+        "unit_id": "t0040.u01"
+      },
+      {
+        "char_end": 6502,
+        "char_start": 6484,
+        "end": 1702.38,
+        "sent_id": "t0041.s01",
+        "speaker_label": "Chiara Ricci",
+        "start": 1700.88,
+        "text": "Thank you, Giulia.",
+        "unit_id": "t0041.u01"
+      },
+      {
+        "char_end": 6571,
+        "char_start": 6519,
+        "end": 1705.5,
+        "sent_id": "t0042.s01",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1702.38,
+        "text": "That's all for today's episode of \"Author's Trails.\"",
+        "unit_id": "t0042.u01"
+      },
+      {
+        "char_end": 6590,
+        "char_start": 6572,
+        "end": 1707.3,
+        "sent_id": "t0042.s02",
+        "speaker_label": "Giulia Ferrara",
+        "start": 1705.56,
+        "text": "See you next time.",
+        "unit_id": "t0042.u01"
+      }
+    ],
+    "source_language": "it",
+    "source_suffix": "it.txt",
+    "stack": {
+      "adfree.admap.json": "{\n  \"preroll_cut_end\": 319,\n  \"postroll_cut_start\": null,\n  \"chars_removed\": 778,\n  \"preroll_pattern_hits\": 5,\n  \"postroll_pattern_hits\": 5,\n  \"source_length\": 6591,\n  \"excised_ranges\": [\n    [\n      0,\n      319\n    ],\n    [\n      2221,\n      2680\n    ]\n  ],\n  \"excised_texts\": [\n    \"Giulia Ferrara: Welcome back to \\\"Trails by the Experts.\\\" Today, we're talking about enduro racing, and I'm joined by Chiara Ricci, an enduro athlete and coach. Chiara Ricci, thank you for being here.\\nChiara Ricci: Thank you, Giulia. It's good to be back here again.\\nGiulia Ferrara: This episode is sponsored by Linear. \",\n    \"Once you internalize that, the rest of the decisions become easier.\\nGiulia Ferrara: Before we continue, support the program by visiting the website of our sponsor. Strava is the home of athletes. We'll be right back, after a short commercial break.\\nSPEAKER_02: This episode is sponsored by Notion. Notion replaces the dozen tools your team currently uses, by about half. Visit notion.com/podcast for a free trial.\\nGiulia Ferrara: Welcome back to the program. \"\n  ]\n}",
+      "adfree.segments.json": "[\n{\n\"start\": 14.94,\n\"end\": 19.32,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Linear is the issue tracker designed for speed \\u2013 built for the keyboard.\",\n\"char_start\": 16,\n\"char_end\": 88,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s02\"\n},\n{\n\"start\": 19.38,\n\"end\": 20.7,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Try linear.com today.\",\n\"char_start\": 89,\n\"char_end\": 110,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s03\"\n},\n{\n\"start\": 20.7,\n\"end\": 29.28,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is the design choice with the biggest impact.\",\n\"char_start\": 111,\n\"char_end\": 254,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s04\"\n},\n{\n\"start\": 29.28,\n\"end\": 29.94,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Yes, that's correct.\",\n\"char_start\": 269,\n\"char_end\": 289,\n\"unit_id\": \"t0003.u01\",\n\"sent_id\": \"t0003.s01\"\n},\n{\n\"start\": 30.0,\n\"end\": 32.4,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"And that connects to what we're discussing today.\",\n\"char_start\": 290,\n\"char_end\": 339,\n\"unit_id\": \"t0003.u01\",\n\"sent_id\": \"t0003.s02\"\n},\n{\n\"start\": 32.4,\n\"end\": 38.22,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"I want to point out something \\u2013 Marco Bellini mentioned the same issue a couple of episodes ago.\",\n\"char_start\": 356,\n\"char_end\": 452,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s01\"\n},\n{\n\"start\": 210.0,\n\"end\": 211.56,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Can you give me a specific example?\",\n\"char_start\": 453,\n\"char_end\": 488,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s02\"\n},\n{\n\"start\": 211.62,\n\"end\": 215.22,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Where do soil erosion and enduro races intersect?\",\n\"char_start\": 489,\n\"char_end\": 538,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s03\"\n},\n{\n\"start\": 215.22,\n\"end\": 221.16,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks.\",\n\"char_start\": 553,\n\"char_end\": 645,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s01\"\n},\n{\n\"start\": 221.22,\n\"end\": 223.92,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use RockShox.\",\n\"char_start\": 646,\n\"char_end\": 689,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s02\"\n},\n{\n\"start\": 223.98,\n\"end\": 227.16,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 690,\n\"char_end\": 759,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s03\"\n},\n{\n\"start\": 227.16,\n\"end\": 228.36,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"I want to delve deeper into this.\",\n\"char_start\": 776,\n\"char_end\": 809,\n\"unit_id\": \"t0006.u01\",\n\"sent_id\": \"t0006.s01\"\n},\n{\n\"start\": 228.42,\n\"end\": 232.02,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Where do soil erosion and enduro racing intersect?\",\n\"char_start\": 810,\n\"char_end\": 860,\n\"unit_id\": \"t0006.u01\",\n\"sent_id\": \"t0006.s02\"\n},\n{\n\"start\": 232.02,\n\"end\": 232.38,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Certainly.\",\n\"char_start\": 875,\n\"char_end\": 885,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s01\"\n},\n{\n\"start\": 232.44,\n\"end\": 239.4,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Tire pressure and the choice of tire casing often matter more than minor adjustments to the suspension.\",\n\"char_start\": 886,\n\"char_end\": 989,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s02\"\n},\n{\n\"start\": 239.46,\n\"end\": 243.48,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The framing is important because it tells you what compromises you are making.\",\n\"char_start\": 990,\n\"char_end\": 1068,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s03\"\n},\n{\n\"start\": 243.48,\n\"end\": 244.38,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Let's start from there.\",\n\"char_start\": 1085,\n\"char_end\": 1108,\n\"unit_id\": \"t0008.u01\",\n\"sent_id\": \"t0008.s01\"\n},\n{\n\"start\": 244.44,\n\"end\": 248.04,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Where do soil erosion and enduro racing intersect?\",\n\"char_start\": 1109,\n\"char_end\": 1159,\n\"unit_id\": \"t0008.u01\",\n\"sent_id\": \"t0008.s02\"\n},\n{\n\"start\": 248.04,\n\"end\": 255.06,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Honestly, risk management in racing isn't about avoiding crashes \\u2013 it's about choosing which crashes are survivable.\",\n\"char_start\": 1174,\n\"char_end\": 1290,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s01\"\n},\n{\n\"start\": 255.12,\n\"end\": 257.76,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use Shimano.\",\n\"char_start\": 1291,\n\"char_end\": 1333,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s02\"\n},\n{\n\"start\": 257.82,\n\"end\": 261.72,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"If you ignore it, you end up having to rebuild everything from scratch a year later.\",\n\"char_start\": 1334,\n\"char_end\": 1418,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s03\"\n},\n{\n\"start\": 261.72,\n\"end\": 263.28,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Where does it stop working?\",\n\"char_start\": 1435,\n\"char_end\": 1462,\n\"unit_id\": \"t0010.u01\",\n\"sent_id\": \"t0010.s01\"\n},\n{\n\"start\": 263.28,\n\"end\": 267.9,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The Cascadia Alliance is one of the platforms where this becomes particularly clear.\",\n\"char_start\": 1477,\n\"char_end\": 1561,\n\"unit_id\": \"t0011.u01\",\n\"sent_id\": \"t0011.s01\"\n},\n{\n\"start\": 267.96,\n\"end\": 272.04,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"And the second-order effect is the part that almost everyone overlooks.\",\n\"char_start\": 1562,\n\"char_end\": 1633,\n\"unit_id\": \"t0011.u01\",\n\"sent_id\": \"t0011.s02\"\n},\n{\n\"start\": 272.04,\n\"end\": 274.32,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the heuristic that you always find yourself using?\",\n\"char_start\": 1650,\n\"char_end\": 1708,\n\"unit_id\": \"t0012.u01\",\n\"sent_id\": \"t0012.s01\"\n},\n{\n\"start\": 274.38,\n\"end\": 277.38,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"How does Spoke & Wrench fit into this picture?\",\n\"char_start\": 1709,\n\"char_end\": 1755,\n\"unit_id\": \"t0012.u01\",\n\"sent_id\": \"t0012.s02\"\n},\n{\n\"start\": 277.38,\n\"end\": 278.34,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"That's how I see it.\",\n\"char_start\": 1770,\n\"char_end\": 1790,\n\"unit_id\": \"t0013.u01\",\n\"sent_id\": \"t0013.s01\"\n},\n{\n\"start\": 278.4,\n\"end\": 285.3,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The erosion patterns on the race track sections change the choice of trajectory between practice runs and the actual race day.\",\n\"char_start\": 1791,\n\"char_end\": 1917,\n\"unit_id\": \"t0013.u01\",\n\"sent_id\": \"t0013.s02\"\n},\n{\n\"start\": 840.0,\n\"end\": 841.2,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"I want to delve deeper into this.\",\n\"char_start\": 1934,\n\"char_end\": 1967,\n\"unit_id\": \"t0016.u01\",\n\"sent_id\": \"t0016.s02\"\n},\n{\n\"start\": 841.26,\n\"end\": 844.32,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the most important aspect of this question?\",\n\"char_start\": 1968,\n\"char_end\": 2019,\n\"unit_id\": \"t0016.u01\",\n\"sent_id\": \"t0016.s03\"\n},\n{\n\"start\": 844.32,\n\"end\": 846.66,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I'm giving you the version that I truly believe in.\",\n\"char_start\": 2034,\n\"char_end\": 2085,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s01\"\n},\n{\n\"start\": 846.72,\n\"end\": 851.82,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Speed comes from braking earlier and more smoothly, not from taking greater risks.\",\n\"char_start\": 2086,\n\"char_end\": 2168,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s02\"\n},\n{\n\"start\": 851.88,\n\"end\": 854.58,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use RockShox.\",\n\"char_start\": 2169,\n\"char_end\": 2212,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s03\"\n},\n{\n\"start\": 854.64,\n\"end\": 858.72,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"And the second-order effect is the part that almost everyone overlooks.\",\n\"char_start\": 2213,\n\"char_end\": 2284,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s04\"\n},\n{\n\"start\": 858.72,\n\"end\": 860.52,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the typical failure mode?\",\n\"char_start\": 2301,\n\"char_end\": 2334,\n\"unit_id\": \"t0018.u01\",\n\"sent_id\": \"t0018.s01\"\n},\n{\n\"start\": 860.58,\n\"end\": 865.56,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the operational setting that most listeners do not have access to?\",\n\"char_start\": 2335,\n\"char_end\": 2409,\n\"unit_id\": \"t0018.u01\",\n\"sent_id\": \"t0018.s02\"\n},\n{\n\"start\": 865.56,\n\"end\": 873.3,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Yes, so \\u2013 tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension.\",\n\"char_start\": 2424,\n\"char_end\": 2538,\n\"unit_id\": \"t0019.u01\",\n\"sent_id\": \"t0019.s01\"\n},\n{\n\"start\": 873.36,\n\"end\": 877.38,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The framing is important because it tells you what compromises you are making.\",\n\"char_start\": 2539,\n\"char_end\": 2617,\n\"unit_id\": \"t0019.u01\",\n\"sent_id\": \"t0019.s02\"\n},\n{\n\"start\": 877.38,\n\"end\": 878.94,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Give me a concrete example.\",\n\"char_start\": 2634,\n\"char_end\": 2661,\n\"unit_id\": \"t0020.u01\",\n\"sent_id\": \"t0020.s01\"\n},\n{\n\"start\": 879.0,\n\"end\": 882.06,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Which version of the question is truly important?\",\n\"char_start\": 2662,\n\"char_end\": 2711,\n\"unit_id\": \"t0020.u01\",\n\"sent_id\": \"t0020.s02\"\n},\n{\n\"start\": 882.06,\n\"end\": 889.02,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Yes, so \\u2013 risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable.\",\n\"char_start\": 2726,\n\"char_end\": 2852,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s01\"\n},\n{\n\"start\": 889.08,\n\"end\": 891.78,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use RockShox.\",\n\"char_start\": 2853,\n\"char_end\": 2896,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s02\"\n},\n{\n\"start\": 891.84,\n\"end\": 895.02,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 2897,\n\"char_end\": 2966,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s03\"\n},\n{\n\"start\": 895.02,\n\"end\": 896.52,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Tell me more.\",\n\"char_start\": 2983,\n\"char_end\": 2996,\n\"unit_id\": \"t0022.u01\",\n\"sent_id\": \"t0022.s01\"\n},\n{\n\"start\": 896.52,\n\"end\": 901.14,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The Cascadia Alliance is one of the platforms where this becomes particularly clear.\",\n\"char_start\": 3011,\n\"char_end\": 3095,\n\"unit_id\": \"t0023.u01\",\n\"sent_id\": \"t0023.s01\"\n},\n{\n\"start\": 901.2,\n\"end\": 905.7,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Once you internalize this concept, the rest of the decision-making process becomes easier.\",\n\"char_start\": 3096,\n\"char_end\": 3186,\n\"unit_id\": \"t0023.u01\",\n\"sent_id\": \"t0023.s02\"\n},\n{\n\"start\": 905.7,\n\"end\": 906.6,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Let's start from there.\",\n\"char_start\": 3203,\n\"char_end\": 3226,\n\"unit_id\": \"t0024.u01\",\n\"sent_id\": \"t0024.s01\"\n},\n{\n\"start\": 906.66,\n\"end\": 910.02,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the most underestimated aspect of enduro racing?\",\n\"char_start\": 3227,\n\"char_end\": 3283,\n\"unit_id\": \"t0024.u01\",\n\"sent_id\": \"t0024.s02\"\n},\n{\n\"start\": 910.02,\n\"end\": 918.12,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"It boils down to this: the erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day.\",\n\"char_start\": 3298,\n\"char_end\": 3450,\n\"unit_id\": \"t0025.u01\",\n\"sent_id\": \"t0025.s01\"\n},\n{\n\"start\": 918.18,\n\"end\": 921.36,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 3451,\n\"char_end\": 3520,\n\"unit_id\": \"t0025.u01\",\n\"sent_id\": \"t0025.s02\"\n},\n{\n\"start\": 1320.0,\n\"end\": 1324.74,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Let's change the subject \\u2013 I want to dedicate the final part to risk management.\",\n\"char_start\": 3537,\n\"char_end\": 3617,\n\"unit_id\": \"t0026.u01\",\n\"sent_id\": \"t0026.s01\"\n},\n{\n\"start\": 1324.74,\n\"end\": 1333.68,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"That's where the conversation becomes interesting, because the compromises involved in risk management permeate everything we've discussed.\",\n\"char_start\": 3632,\n\"char_end\": 3771,\n\"unit_id\": \"t0027.u01\",\n\"sent_id\": \"t0027.s01\"\n},\n{\n\"start\": 1333.68,\n\"end\": 1335.48,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the nature of the malfunction?\",\n\"char_start\": 3788,\n\"char_end\": 3826,\n\"unit_id\": \"t0028.u01\",\n\"sent_id\": \"t0028.s01\"\n},\n{\n\"start\": 1335.54,\n\"end\": 1340.82,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the hidden or obscure aspect that most listeners are unaware of?\",\n\"char_start\": 3827,\n\"char_end\": 3899,\n\"unit_id\": \"t0028.u01\",\n\"sent_id\": \"t0028.s02\"\n},\n{\n\"start\": 1340.82,\n\"end\": 1341.18,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Certainly.\",\n\"char_start\": 3914,\n\"char_end\": 3924,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s01\"\n},\n{\n\"start\": 1341.24,\n\"end\": 1346.34,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Speed comes from braking earlier and more smoothly, not from taking greater risks.\",\n\"char_start\": 3925,\n\"char_end\": 4007,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s02\"\n},\n{\n\"start\": 1346.4,\n\"end\": 1349.1,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use RockShox.\",\n\"char_start\": 4008,\n\"char_end\": 4051,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s03\"\n},\n{\n\"start\": 1349.16,\n\"end\": 1352.34,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've observed this pattern repeating in three different teams.\",\n\"char_start\": 4052,\n\"char_end\": 4114,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s04\"\n},\n{\n\"start\": 1352.34,\n\"end\": 1353.9,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Give me a concrete example.\",\n\"char_start\": 4131,\n\"char_end\": 4158,\n\"unit_id\": \"t0030.u01\",\n\"sent_id\": \"t0030.s01\"\n},\n{\n\"start\": 1353.96,\n\"end\": 1357.32,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the most underestimated aspect of enduro racing?\",\n\"char_start\": 4159,\n\"char_end\": 4215,\n\"unit_id\": \"t0030.u01\",\n\"sent_id\": \"t0030.s02\"\n},\n{\n\"start\": 1357.32,\n\"end\": 1365.06,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Yes, so \\u2013 tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension.\",\n\"char_start\": 4230,\n\"char_end\": 4344,\n\"unit_id\": \"t0031.u01\",\n\"sent_id\": \"t0031.s01\"\n},\n{\n\"start\": 1365.12,\n\"end\": 1368.3,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 4345,\n\"char_end\": 4407,\n\"unit_id\": \"t0031.u01\",\n\"sent_id\": \"t0031.s02\"\n},\n{\n\"start\": 1368.3,\n\"end\": 1369.86,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Give me a concrete example.\",\n\"char_start\": 4424,\n\"char_end\": 4451,\n\"unit_id\": \"t0032.u01\",\n\"sent_id\": \"t0032.s01\"\n},\n{\n\"start\": 1369.92,\n\"end\": 1372.98,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Which version of the question is truly important?\",\n\"char_start\": 4452,\n\"char_end\": 4501,\n\"unit_id\": \"t0032.u01\",\n\"sent_id\": \"t0032.s02\"\n},\n{\n\"start\": 1372.98,\n\"end\": 1375.32,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I'm giving you the version that I truly believe in.\",\n\"char_start\": 4516,\n\"char_end\": 4567,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s01\"\n},\n{\n\"start\": 1375.38,\n\"end\": 1381.56,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.\",\n\"char_start\": 4568,\n\"char_end\": 4673,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s02\"\n},\n{\n\"start\": 1381.62,\n\"end\": 1384.68,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use Spoke & Wrench.\",\n\"char_start\": 4674,\n\"char_end\": 4723,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s03\"\n},\n{\n\"start\": 1384.74,\n\"end\": 1387.92,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 4724,\n\"char_end\": 4786,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s04\"\n},\n{\n\"start\": 1387.92,\n\"end\": 1389.42,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Come back.\",\n\"char_start\": 4803,\n\"char_end\": 4813,\n\"unit_id\": \"t0034.u01\",\n\"sent_id\": \"t0034.s01\"\n},\n{\n\"start\": 1389.42,\n\"end\": 1398.0,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"And when teams adopt Spoke & Wrench within that workflow, the trade-off becomes apparent \\u2013 I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 4828,\n\"char_end\": 4981,\n\"unit_id\": \"t0035.u01\",\n\"sent_id\": \"t0035.s01\"\n},\n{\n\"start\": 1398.0,\n\"end\": 1400.28,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the heuristic that you always find yourself using?\",\n\"char_start\": 4998,\n\"char_end\": 5056,\n\"unit_id\": \"t0036.u01\",\n\"sent_id\": \"t0036.s01\"\n},\n{\n\"start\": 1400.34,\n\"end\": 1403.4,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the most important aspect of this question?\",\n\"char_start\": 5057,\n\"char_end\": 5108,\n\"unit_id\": \"t0036.u01\",\n\"sent_id\": \"t0036.s02\"\n},\n{\n\"start\": 1403.4,\n\"end\": 1404.36,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"That's how I see it.\",\n\"char_start\": 5123,\n\"char_end\": 5143,\n\"unit_id\": \"t0037.u01\",\n\"sent_id\": \"t0037.s01\"\n},\n{\n\"start\": 1404.42,\n\"end\": 1411.32,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day.\",\n\"char_start\": 5144,\n\"char_end\": 5273,\n\"unit_id\": \"t0037.u01\",\n\"sent_id\": \"t0037.s02\"\n},\n{\n\"start\": 1411.38,\n\"end\": 1414.56,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 5274,\n\"char_end\": 5343,\n\"unit_id\": \"t0037.u01\",\n\"sent_id\": \"t0037.s03\"\n},\n{\n\"start\": 1680.0,\n\"end\": 1685.28,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Before we wrap up, what's one thing listeners can try out this week?\",\n\"char_start\": 5360,\n\"char_end\": 5428,\n\"unit_id\": \"t0038.u01\",\n\"sent_id\": \"t0038.s01\"\n},\n{\n\"start\": 1685.28,\n\"end\": 1689.6,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Choose one of the ideas we've discussed and implement it for two weeks.\",\n\"char_start\": 5443,\n\"char_end\": 5514,\n\"unit_id\": \"t0039.u01\",\n\"sent_id\": \"t0039.s01\"\n},\n{\n\"start\": 1689.66,\n\"end\": 1690.98,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Everything else is iteration.\",\n\"char_start\": 5515,\n\"char_end\": 5544,\n\"unit_id\": \"t0039.u01\",\n\"sent_id\": \"t0039.s02\"\n},\n{\n\"start\": 1690.98,\n\"end\": 1693.86,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"And finally, thank you to our sponsors at Vanta.\",\n\"char_start\": 5561,\n\"char_end\": 5609,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s01\"\n},\n{\n\"start\": 1693.92,\n\"end\": 1696.56,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Vanta automates SOC 2 and ISO compliance.\",\n\"char_start\": 5610,\n\"char_end\": 5651,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s02\"\n},\n{\n\"start\": 1696.62,\n\"end\": 1698.36,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Take a look at vanta.com.\",\n\"char_start\": 5652,\n\"char_end\": 5677,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s03\"\n},\n{\n\"start\": 1698.36,\n\"end\": 1700.88,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Chiara Ricci, thank you for the conversation.\",\n\"char_start\": 5678,\n\"char_end\": 5723,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s04\"\n},\n{\n\"start\": 1700.88,\n\"end\": 1702.38,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Thank you, Giulia.\",\n\"char_start\": 5738,\n\"char_end\": 5756,\n\"unit_id\": \"t0041.u01\",\n\"sent_id\": \"t0041.s01\"\n},\n{\n\"start\": 1702.38,\n\"end\": 1705.5,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"That's all for today's episode of \\\"Author's Trails.\\\"\",\n\"char_start\": 5773,\n\"char_end\": 5825,\n\"unit_id\": \"t0042.u01\",\n\"sent_id\": \"t0042.s01\"\n},\n{\n\"start\": 1705.56,\n\"end\": 1707.3,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"See you next time.\",\n\"char_start\": 5826,\n\"char_end\": 5844,\n\"unit_id\": \"t0042.u01\",\n\"sent_id\": \"t0042.s02\"\n}\n]",
+      "adfree.txt": "Giulia Ferrara: Linear is the issue tracker designed for speed – built for the keyboard. Try linear.com today. Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is the design choice with the biggest impact.\nChiara Ricci: Yes, that's correct. And that connects to what we're discussing today.\nGiulia Ferrara: I want to point out something – Marco Bellini mentioned the same issue a couple of episodes ago. Can you give me a specific example? Where do soil erosion and enduro races intersect?\nChiara Ricci: Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: I want to delve deeper into this. Where do soil erosion and enduro racing intersect?\nChiara Ricci: Certainly. Tire pressure and the choice of tire casing often matter more than minor adjustments to the suspension. The framing is important because it tells you what compromises you are making.\nGiulia Ferrara: Let's start from there. Where do soil erosion and enduro racing intersect?\nChiara Ricci: Honestly, risk management in racing isn't about avoiding crashes – it's about choosing which crashes are survivable. We've seen this in teams that use Shimano. If you ignore it, you end up having to rebuild everything from scratch a year later.\nGiulia Ferrara: Where does it stop working?\nChiara Ricci: The Cascadia Alliance is one of the platforms where this becomes particularly clear. And the second-order effect is the part that almost everyone overlooks.\nGiulia Ferrara: What is the heuristic that you always find yourself using? How does Spoke & Wrench fit into this picture?\nChiara Ricci: That's how I see it. The erosion patterns on the race track sections change the choice of trajectory between practice runs and the actual race day.\nGiulia Ferrara: I want to delve deeper into this. What is the most important aspect of this question?\nChiara Ricci: I'm giving you the version that I truly believe in. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. And the second-order effect is the part that almost everyone overlooks.\nGiulia Ferrara: What is the typical failure mode? What is the operational setting that most listeners do not have access to?\nChiara Ricci: Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. The framing is important because it tells you what compromises you are making.\nGiulia Ferrara: Give me a concrete example. Which version of the question is truly important?\nChiara Ricci: Yes, so – risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: Tell me more.\nChiara Ricci: The Cascadia Alliance is one of the platforms where this becomes particularly clear. Once you internalize this concept, the rest of the decision-making process becomes easier.\nGiulia Ferrara: Let's start from there. What is the most underestimated aspect of enduro racing?\nChiara Ricci: It boils down to this: the erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: Let's change the subject – I want to dedicate the final part to risk management.\nChiara Ricci: That's where the conversation becomes interesting, because the compromises involved in risk management permeate everything we've discussed.\nGiulia Ferrara: What is the nature of the malfunction? What is the hidden or obscure aspect that most listeners are unaware of?\nChiara Ricci: Certainly. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. I've observed this pattern repeating in three different teams.\nGiulia Ferrara: Give me a concrete example. What is the most underestimated aspect of enduro racing?\nChiara Ricci: Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. I've seen this pattern repeat itself in three different teams.\nGiulia Ferrara: Give me a concrete example. Which version of the question is truly important?\nChiara Ricci: I'm giving you the version that I truly believe in. Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.\nGiulia Ferrara: Come back.\nChiara Ricci: And when teams adopt Spoke & Wrench within that workflow, the trade-off becomes apparent – I've seen this pattern repeat itself in three different teams.\nGiulia Ferrara: What is the heuristic that you always find yourself using? What is the most important aspect of this question?\nChiara Ricci: That's how I see it. The erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: Before we wrap up, what's one thing listeners can try out this week?\nChiara Ricci: Choose one of the ideas we've discussed and implement it for two weeks. Everything else is iteration.\nGiulia Ferrara: And finally, thank you to our sponsors at Vanta. Vanta automates SOC 2 and ISO compliance. Take a look at vanta.com. Chiara Ricci, thank you for the conversation.\nChiara Ricci: Thank you, Giulia.\nGiulia Ferrara: That's all for today's episode of \"Author's Trails.\" See you next time.\n",
+      "cleaned.txt": "Giulia Ferrara: Welcome back to \"Trails by the Experts.\" Today, we're talking about enduro racing, and I'm joined by Chiara Ricci, an enduro athlete and coach. Chiara Ricci, thank you for being here.  \nChiara Ricci: Thank you, Giulia. It's good to be back here again.  \n\nGiulia Ferrara: I want to point out something – Marco Bellini mentioned the same issue a couple of episodes ago. Can you give me a specific example? Where do soil erosion and enduro races intersect?  \nChiara Ricci: Certainly. Tire pressure and the choice of tire casing often matter more than minor adjustments to the suspension. The framing is important because it tells you what compromises you are making.  \n\nGiulia Ferrara: Let's start from there. Where do soil erosion and enduro racing intersect?  \nChiara Ricci: Honestly, risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox. I've observed this pattern repeating itself in three different teams.  \n\nGiulia Ferrara: What is the most important aspect of this question?  \nChiara Ricci: I'm giving you the version that I truly believe in. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox.  \n\nGiulia Ferrara: What is the typical failure mode? What is the operational setting that most listeners do not have access to?  \nChiara Ricci: Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. The framing is important because it tells you what compromises you are making.  \n\nGiulia Ferrara: Give me a concrete example. Which version of the question is truly important?  \nChiara Ricci: That's how I see it. The erosion patterns on the race track sections change the choice of trajectory between practice runs and the actual race day. Once you internalize that, the rest of the decisions become easier.  \n\nGiulia Ferrara: Tell me more.  \nChiara Ricci: The Cascadia Alliance is one of the platforms where this becomes particularly clear. And the second-order effect is the part that almost everyone overlooks.  \n\nGiulia Ferrara: What is the heuristic that you always find yourself using? How does Spoke & Wrench fit into this picture?  \nChiara Ricci: That's how I see it. The erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day. Once you internalize this concept, the rest of the decision-making process becomes easier.  \n\nGiulia Ferrara: Let's change the subject – I want to dedicate the final part to risk management.  \nChiara Ricci: That's where the conversation becomes interesting, because the compromises involved in risk management permeate everything we've discussed.  \n\nGiulia Ferrara: What is the nature of the malfunction? What is the hidden or obscure aspect that most listeners are unaware of?  \nChiara Ricci: Certainly. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. I've observed this pattern repeating in three different teams.  \n\nGiulia Ferrara: Give me a concrete example. What is the most underestimated aspect of enduro racing?  \nChiara Ricci: Yes, so – risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.  \n\nGiulia Ferrara: Come back.  \nChiara Ricci: And when teams adopt Spoke & Wrench within that workflow, the trade-off becomes apparent – I've seen this pattern repeat itself in three different teams.  \n\nGiulia Ferrara: What is the heuristic that you always find yourself using? What is the most important aspect of this question?  \nChiara Ricci: That's how I see it. The erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day. I've observed this pattern repeating itself in three different teams.  \n\nGiulia Ferrara: Before we wrap up, what's one thing listeners can try out this week?  \nChiara Ricci: Choose one of the ideas we've discussed and implement it for two weeks. Everything else is iteration.",
+      "segments.json": "[\n{\n\"start\": 0.0,\n\"end\": 1.86,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Welcome back to \\\"Trails by the Experts.\\\"\",\n\"char_start\": 16,\n\"char_end\": 56,\n\"unit_id\": \"t0000.u01\",\n\"sent_id\": \"t0000.s01\"\n},\n{\n\"start\": 1.92,\n\"end\": 7.38,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Today, we're talking about enduro racing, and I'm joined by Chiara Ricci, an enduro athlete and coach.\",\n\"char_start\": 57,\n\"char_end\": 159,\n\"unit_id\": \"t0000.u01\",\n\"sent_id\": \"t0000.s02\"\n},\n{\n\"start\": 7.44,\n\"end\": 9.6,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Chiara Ricci, thank you for being here.\",\n\"char_start\": 160,\n\"char_end\": 199,\n\"unit_id\": \"t0000.u01\",\n\"sent_id\": \"t0000.s03\"\n},\n{\n\"start\": 9.6,\n\"end\": 10.5,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Thank you, Giulia.\",\n\"char_start\": 214,\n\"char_end\": 232,\n\"unit_id\": \"t0001.u01\",\n\"sent_id\": \"t0001.s01\"\n},\n{\n\"start\": 10.56,\n\"end\": 12.36,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"It's good to be back here again.\",\n\"char_start\": 233,\n\"char_end\": 265,\n\"unit_id\": \"t0001.u01\",\n\"sent_id\": \"t0001.s02\"\n},\n{\n\"start\": 12.36,\n\"end\": 14.88,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"This episode is sponsored by Linear.\",\n\"char_start\": 282,\n\"char_end\": 318,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s01\"\n},\n{\n\"start\": 14.94,\n\"end\": 19.32,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Linear is the issue tracker designed for speed – built for the keyboard.\",\n\"char_start\": 319,\n\"char_end\": 391,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s02\"\n},\n{\n\"start\": 19.38,\n\"end\": 20.7,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Try linear.com today.\",\n\"char_start\": 392,\n\"char_end\": 413,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s03\"\n},\n{\n\"start\": 20.7,\n\"end\": 29.28,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is the design choice with the biggest impact.\",\n\"char_start\": 414,\n\"char_end\": 557,\n\"unit_id\": \"t0002.u01\",\n\"sent_id\": \"t0002.s04\"\n},\n{\n\"start\": 29.28,\n\"end\": 29.94,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Yes, that's correct.\",\n\"char_start\": 572,\n\"char_end\": 592,\n\"unit_id\": \"t0003.u01\",\n\"sent_id\": \"t0003.s01\"\n},\n{\n\"start\": 30.0,\n\"end\": 32.4,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"And that connects to what we're discussing today.\",\n\"char_start\": 593,\n\"char_end\": 642,\n\"unit_id\": \"t0003.u01\",\n\"sent_id\": \"t0003.s02\"\n},\n{\n\"start\": 32.4,\n\"end\": 38.22,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"I want to point out something – Marco Bellini mentioned the same issue a couple of episodes ago.\",\n\"char_start\": 659,\n\"char_end\": 755,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s01\"\n},\n{\n\"start\": 210.0,\n\"end\": 211.56,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Can you give me a specific example?\",\n\"char_start\": 756,\n\"char_end\": 791,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s02\"\n},\n{\n\"start\": 211.62,\n\"end\": 215.22,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Where do soil erosion and enduro races intersect?\",\n\"char_start\": 792,\n\"char_end\": 841,\n\"unit_id\": \"t0004.u01\",\n\"sent_id\": \"t0004.s03\"\n},\n{\n\"start\": 215.22,\n\"end\": 221.16,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks.\",\n\"char_start\": 856,\n\"char_end\": 948,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s01\"\n},\n{\n\"start\": 221.22,\n\"end\": 223.92,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use RockShox.\",\n\"char_start\": 949,\n\"char_end\": 992,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s02\"\n},\n{\n\"start\": 223.98,\n\"end\": 227.16,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 993,\n\"char_end\": 1062,\n\"unit_id\": \"t0005.u01\",\n\"sent_id\": \"t0005.s03\"\n},\n{\n\"start\": 227.16,\n\"end\": 228.36,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"I want to delve deeper into this.\",\n\"char_start\": 1079,\n\"char_end\": 1112,\n\"unit_id\": \"t0006.u01\",\n\"sent_id\": \"t0006.s01\"\n},\n{\n\"start\": 228.42,\n\"end\": 232.02,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Where do soil erosion and enduro racing intersect?\",\n\"char_start\": 1113,\n\"char_end\": 1163,\n\"unit_id\": \"t0006.u01\",\n\"sent_id\": \"t0006.s02\"\n},\n{\n\"start\": 232.02,\n\"end\": 232.38,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Certainly.\",\n\"char_start\": 1178,\n\"char_end\": 1188,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s01\"\n},\n{\n\"start\": 232.44,\n\"end\": 239.4,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Tire pressure and the choice of tire casing often matter more than minor adjustments to the suspension.\",\n\"char_start\": 1189,\n\"char_end\": 1292,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s02\"\n},\n{\n\"start\": 239.46,\n\"end\": 243.48,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The framing is important because it tells you what compromises you are making.\",\n\"char_start\": 1293,\n\"char_end\": 1371,\n\"unit_id\": \"t0007.u01\",\n\"sent_id\": \"t0007.s03\"\n},\n{\n\"start\": 243.48,\n\"end\": 244.38,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Let's start from there.\",\n\"char_start\": 1388,\n\"char_end\": 1411,\n\"unit_id\": \"t0008.u01\",\n\"sent_id\": \"t0008.s01\"\n},\n{\n\"start\": 244.44,\n\"end\": 248.04,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Where do soil erosion and enduro racing intersect?\",\n\"char_start\": 1412,\n\"char_end\": 1462,\n\"unit_id\": \"t0008.u01\",\n\"sent_id\": \"t0008.s02\"\n},\n{\n\"start\": 248.04,\n\"end\": 255.06,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Honestly, risk management in racing isn't about avoiding crashes – it's about choosing which crashes are survivable.\",\n\"char_start\": 1477,\n\"char_end\": 1593,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s01\"\n},\n{\n\"start\": 255.12,\n\"end\": 257.76,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use Shimano.\",\n\"char_start\": 1594,\n\"char_end\": 1636,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s02\"\n},\n{\n\"start\": 257.82,\n\"end\": 261.72,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"If you ignore it, you end up having to rebuild everything from scratch a year later.\",\n\"char_start\": 1637,\n\"char_end\": 1721,\n\"unit_id\": \"t0009.u01\",\n\"sent_id\": \"t0009.s03\"\n},\n{\n\"start\": 261.72,\n\"end\": 263.28,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Where does it stop working?\",\n\"char_start\": 1738,\n\"char_end\": 1765,\n\"unit_id\": \"t0010.u01\",\n\"sent_id\": \"t0010.s01\"\n},\n{\n\"start\": 263.28,\n\"end\": 267.9,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The Cascadia Alliance is one of the platforms where this becomes particularly clear.\",\n\"char_start\": 1780,\n\"char_end\": 1864,\n\"unit_id\": \"t0011.u01\",\n\"sent_id\": \"t0011.s01\"\n},\n{\n\"start\": 267.96,\n\"end\": 272.04,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"And the second-order effect is the part that almost everyone overlooks.\",\n\"char_start\": 1865,\n\"char_end\": 1936,\n\"unit_id\": \"t0011.u01\",\n\"sent_id\": \"t0011.s02\"\n},\n{\n\"start\": 272.04,\n\"end\": 274.32,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the heuristic that you always find yourself using?\",\n\"char_start\": 1953,\n\"char_end\": 2011,\n\"unit_id\": \"t0012.u01\",\n\"sent_id\": \"t0012.s01\"\n},\n{\n\"start\": 274.38,\n\"end\": 277.38,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"How does Spoke & Wrench fit into this picture?\",\n\"char_start\": 2012,\n\"char_end\": 2058,\n\"unit_id\": \"t0012.u01\",\n\"sent_id\": \"t0012.s02\"\n},\n{\n\"start\": 277.38,\n\"end\": 278.34,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"That's how I see it.\",\n\"char_start\": 2073,\n\"char_end\": 2093,\n\"unit_id\": \"t0013.u01\",\n\"sent_id\": \"t0013.s01\"\n},\n{\n\"start\": 278.4,\n\"end\": 285.3,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The erosion patterns on the race track sections change the choice of trajectory between practice runs and the actual race day.\",\n\"char_start\": 2094,\n\"char_end\": 2220,\n\"unit_id\": \"t0013.u01\",\n\"sent_id\": \"t0013.s02\"\n},\n{\n\"start\": 285.36,\n\"end\": 289.86,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Once you internalize that, the rest of the decisions become easier.\",\n\"char_start\": 2221,\n\"char_end\": 2288,\n\"unit_id\": \"t0013.u01\",\n\"sent_id\": \"t0013.s03\"\n},\n{\n\"start\": 289.86,\n\"end\": 294.9,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Before we continue, support the program by visiting the website of our sponsor.\",\n\"char_start\": 2305,\n\"char_end\": 2384,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s01\"\n},\n{\n\"start\": 294.96,\n\"end\": 296.76,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Strava is the home of athletes.\",\n\"char_start\": 2385,\n\"char_end\": 2416,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s02\"\n},\n{\n\"start\": 720.0,\n\"end\": 723.12,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"We'll be right back, after a short commercial break.\",\n\"char_start\": 2417,\n\"char_end\": 2469,\n\"unit_id\": \"t0014.u01\",\n\"sent_id\": \"t0014.s03\"\n},\n{\n\"start\": 723.12,\n\"end\": 725.64,\n\"speaker_label\": \"SPEAKER_02\",\n\"text\": \"This episode is sponsored by Notion.\",\n\"char_start\": 2482,\n\"char_end\": 2518,\n\"unit_id\": \"t0015.u01\",\n\"sent_id\": \"t0015.s01\"\n},\n{\n\"start\": 725.7,\n\"end\": 729.9,\n\"speaker_label\": \"SPEAKER_02\",\n\"text\": \"Notion replaces the dozen tools your team currently uses, by about half.\",\n\"char_start\": 2519,\n\"char_end\": 2591,\n\"unit_id\": \"t0015.u01\",\n\"sent_id\": \"t0015.s02\"\n},\n{\n\"start\": 729.96,\n\"end\": 732.9,\n\"speaker_label\": \"SPEAKER_02\",\n\"text\": \"Visit notion.com/podcast for a free trial.\",\n\"char_start\": 2592,\n\"char_end\": 2634,\n\"unit_id\": \"t0015.u01\",\n\"sent_id\": \"t0015.s03\"\n},\n{\n\"start\": 732.9,\n\"end\": 734.4,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Welcome back to the program.\",\n\"char_start\": 2651,\n\"char_end\": 2679,\n\"unit_id\": \"t0016.u01\",\n\"sent_id\": \"t0016.s01\"\n},\n{\n\"start\": 840.0,\n\"end\": 841.2,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"I want to delve deeper into this.\",\n\"char_start\": 2680,\n\"char_end\": 2713,\n\"unit_id\": \"t0016.u01\",\n\"sent_id\": \"t0016.s02\"\n},\n{\n\"start\": 841.26,\n\"end\": 844.32,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the most important aspect of this question?\",\n\"char_start\": 2714,\n\"char_end\": 2765,\n\"unit_id\": \"t0016.u01\",\n\"sent_id\": \"t0016.s03\"\n},\n{\n\"start\": 844.32,\n\"end\": 846.66,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I'm giving you the version that I truly believe in.\",\n\"char_start\": 2780,\n\"char_end\": 2831,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s01\"\n},\n{\n\"start\": 846.72,\n\"end\": 851.82,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Speed comes from braking earlier and more smoothly, not from taking greater risks.\",\n\"char_start\": 2832,\n\"char_end\": 2914,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s02\"\n},\n{\n\"start\": 851.88,\n\"end\": 854.58,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use RockShox.\",\n\"char_start\": 2915,\n\"char_end\": 2958,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s03\"\n},\n{\n\"start\": 854.64,\n\"end\": 858.72,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"And the second-order effect is the part that almost everyone overlooks.\",\n\"char_start\": 2959,\n\"char_end\": 3030,\n\"unit_id\": \"t0017.u01\",\n\"sent_id\": \"t0017.s04\"\n},\n{\n\"start\": 858.72,\n\"end\": 860.52,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the typical failure mode?\",\n\"char_start\": 3047,\n\"char_end\": 3080,\n\"unit_id\": \"t0018.u01\",\n\"sent_id\": \"t0018.s01\"\n},\n{\n\"start\": 860.58,\n\"end\": 865.56,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the operational setting that most listeners do not have access to?\",\n\"char_start\": 3081,\n\"char_end\": 3155,\n\"unit_id\": \"t0018.u01\",\n\"sent_id\": \"t0018.s02\"\n},\n{\n\"start\": 865.56,\n\"end\": 873.3,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension.\",\n\"char_start\": 3170,\n\"char_end\": 3284,\n\"unit_id\": \"t0019.u01\",\n\"sent_id\": \"t0019.s01\"\n},\n{\n\"start\": 873.36,\n\"end\": 877.38,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The framing is important because it tells you what compromises you are making.\",\n\"char_start\": 3285,\n\"char_end\": 3363,\n\"unit_id\": \"t0019.u01\",\n\"sent_id\": \"t0019.s02\"\n},\n{\n\"start\": 877.38,\n\"end\": 878.94,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Give me a concrete example.\",\n\"char_start\": 3380,\n\"char_end\": 3407,\n\"unit_id\": \"t0020.u01\",\n\"sent_id\": \"t0020.s01\"\n},\n{\n\"start\": 879.0,\n\"end\": 882.06,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Which version of the question is truly important?\",\n\"char_start\": 3408,\n\"char_end\": 3457,\n\"unit_id\": \"t0020.u01\",\n\"sent_id\": \"t0020.s02\"\n},\n{\n\"start\": 882.06,\n\"end\": 889.02,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Yes, so – risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable.\",\n\"char_start\": 3472,\n\"char_end\": 3598,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s01\"\n},\n{\n\"start\": 889.08,\n\"end\": 891.78,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use RockShox.\",\n\"char_start\": 3599,\n\"char_end\": 3642,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s02\"\n},\n{\n\"start\": 891.84,\n\"end\": 895.02,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 3643,\n\"char_end\": 3712,\n\"unit_id\": \"t0021.u01\",\n\"sent_id\": \"t0021.s03\"\n},\n{\n\"start\": 895.02,\n\"end\": 896.52,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Tell me more.\",\n\"char_start\": 3729,\n\"char_end\": 3742,\n\"unit_id\": \"t0022.u01\",\n\"sent_id\": \"t0022.s01\"\n},\n{\n\"start\": 896.52,\n\"end\": 901.14,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The Cascadia Alliance is one of the platforms where this becomes particularly clear.\",\n\"char_start\": 3757,\n\"char_end\": 3841,\n\"unit_id\": \"t0023.u01\",\n\"sent_id\": \"t0023.s01\"\n},\n{\n\"start\": 901.2,\n\"end\": 905.7,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Once you internalize this concept, the rest of the decision-making process becomes easier.\",\n\"char_start\": 3842,\n\"char_end\": 3932,\n\"unit_id\": \"t0023.u01\",\n\"sent_id\": \"t0023.s02\"\n},\n{\n\"start\": 905.7,\n\"end\": 906.6,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Let's start from there.\",\n\"char_start\": 3949,\n\"char_end\": 3972,\n\"unit_id\": \"t0024.u01\",\n\"sent_id\": \"t0024.s01\"\n},\n{\n\"start\": 906.66,\n\"end\": 910.02,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the most underestimated aspect of enduro racing?\",\n\"char_start\": 3973,\n\"char_end\": 4029,\n\"unit_id\": \"t0024.u01\",\n\"sent_id\": \"t0024.s02\"\n},\n{\n\"start\": 910.02,\n\"end\": 918.12,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"It boils down to this: the erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day.\",\n\"char_start\": 4044,\n\"char_end\": 4196,\n\"unit_id\": \"t0025.u01\",\n\"sent_id\": \"t0025.s01\"\n},\n{\n\"start\": 918.18,\n\"end\": 921.36,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 4197,\n\"char_end\": 4266,\n\"unit_id\": \"t0025.u01\",\n\"sent_id\": \"t0025.s02\"\n},\n{\n\"start\": 1320.0,\n\"end\": 1324.74,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Let's change the subject – I want to dedicate the final part to risk management.\",\n\"char_start\": 4283,\n\"char_end\": 4363,\n\"unit_id\": \"t0026.u01\",\n\"sent_id\": \"t0026.s01\"\n},\n{\n\"start\": 1324.74,\n\"end\": 1333.68,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"That's where the conversation becomes interesting, because the compromises involved in risk management permeate everything we've discussed.\",\n\"char_start\": 4378,\n\"char_end\": 4517,\n\"unit_id\": \"t0027.u01\",\n\"sent_id\": \"t0027.s01\"\n},\n{\n\"start\": 1333.68,\n\"end\": 1335.48,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the nature of the malfunction?\",\n\"char_start\": 4534,\n\"char_end\": 4572,\n\"unit_id\": \"t0028.u01\",\n\"sent_id\": \"t0028.s01\"\n},\n{\n\"start\": 1335.54,\n\"end\": 1340.82,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the hidden or obscure aspect that most listeners are unaware of?\",\n\"char_start\": 4573,\n\"char_end\": 4645,\n\"unit_id\": \"t0028.u01\",\n\"sent_id\": \"t0028.s02\"\n},\n{\n\"start\": 1340.82,\n\"end\": 1341.18,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Certainly.\",\n\"char_start\": 4660,\n\"char_end\": 4670,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s01\"\n},\n{\n\"start\": 1341.24,\n\"end\": 1346.34,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Speed comes from braking earlier and more smoothly, not from taking greater risks.\",\n\"char_start\": 4671,\n\"char_end\": 4753,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s02\"\n},\n{\n\"start\": 1346.4,\n\"end\": 1349.1,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use RockShox.\",\n\"char_start\": 4754,\n\"char_end\": 4797,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s03\"\n},\n{\n\"start\": 1349.16,\n\"end\": 1352.34,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've observed this pattern repeating in three different teams.\",\n\"char_start\": 4798,\n\"char_end\": 4860,\n\"unit_id\": \"t0029.u01\",\n\"sent_id\": \"t0029.s04\"\n},\n{\n\"start\": 1352.34,\n\"end\": 1353.9,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Give me a concrete example.\",\n\"char_start\": 4877,\n\"char_end\": 4904,\n\"unit_id\": \"t0030.u01\",\n\"sent_id\": \"t0030.s01\"\n},\n{\n\"start\": 1353.96,\n\"end\": 1357.32,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the most underestimated aspect of enduro racing?\",\n\"char_start\": 4905,\n\"char_end\": 4961,\n\"unit_id\": \"t0030.u01\",\n\"sent_id\": \"t0030.s02\"\n},\n{\n\"start\": 1357.32,\n\"end\": 1365.06,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension.\",\n\"char_start\": 4976,\n\"char_end\": 5090,\n\"unit_id\": \"t0031.u01\",\n\"sent_id\": \"t0031.s01\"\n},\n{\n\"start\": 1365.12,\n\"end\": 1368.3,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 5091,\n\"char_end\": 5153,\n\"unit_id\": \"t0031.u01\",\n\"sent_id\": \"t0031.s02\"\n},\n{\n\"start\": 1368.3,\n\"end\": 1369.86,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Give me a concrete example.\",\n\"char_start\": 5170,\n\"char_end\": 5197,\n\"unit_id\": \"t0032.u01\",\n\"sent_id\": \"t0032.s01\"\n},\n{\n\"start\": 1369.92,\n\"end\": 1372.98,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Which version of the question is truly important?\",\n\"char_start\": 5198,\n\"char_end\": 5247,\n\"unit_id\": \"t0032.u01\",\n\"sent_id\": \"t0032.s02\"\n},\n{\n\"start\": 1372.98,\n\"end\": 1375.32,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I'm giving you the version that I truly believe in.\",\n\"char_start\": 5262,\n\"char_end\": 5313,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s01\"\n},\n{\n\"start\": 1375.38,\n\"end\": 1381.56,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.\",\n\"char_start\": 5314,\n\"char_end\": 5419,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s02\"\n},\n{\n\"start\": 1381.62,\n\"end\": 1384.68,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"We've seen this in teams that use Spoke & Wrench.\",\n\"char_start\": 5420,\n\"char_end\": 5469,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s03\"\n},\n{\n\"start\": 1384.74,\n\"end\": 1387.92,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 5470,\n\"char_end\": 5532,\n\"unit_id\": \"t0033.u01\",\n\"sent_id\": \"t0033.s04\"\n},\n{\n\"start\": 1387.92,\n\"end\": 1389.42,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Come back.\",\n\"char_start\": 5549,\n\"char_end\": 5559,\n\"unit_id\": \"t0034.u01\",\n\"sent_id\": \"t0034.s01\"\n},\n{\n\"start\": 1389.42,\n\"end\": 1398.0,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"And when teams adopt Spoke & Wrench within that workflow, the trade-off becomes apparent – I've seen this pattern repeat itself in three different teams.\",\n\"char_start\": 5574,\n\"char_end\": 5727,\n\"unit_id\": \"t0035.u01\",\n\"sent_id\": \"t0035.s01\"\n},\n{\n\"start\": 1398.0,\n\"end\": 1400.28,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the heuristic that you always find yourself using?\",\n\"char_start\": 5744,\n\"char_end\": 5802,\n\"unit_id\": \"t0036.u01\",\n\"sent_id\": \"t0036.s01\"\n},\n{\n\"start\": 1400.34,\n\"end\": 1403.4,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"What is the most important aspect of this question?\",\n\"char_start\": 5803,\n\"char_end\": 5854,\n\"unit_id\": \"t0036.u01\",\n\"sent_id\": \"t0036.s02\"\n},\n{\n\"start\": 1403.4,\n\"end\": 1404.36,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"That's how I see it.\",\n\"char_start\": 5869,\n\"char_end\": 5889,\n\"unit_id\": \"t0037.u01\",\n\"sent_id\": \"t0037.s01\"\n},\n{\n\"start\": 1404.42,\n\"end\": 1411.32,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"The erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day.\",\n\"char_start\": 5890,\n\"char_end\": 6019,\n\"unit_id\": \"t0037.u01\",\n\"sent_id\": \"t0037.s02\"\n},\n{\n\"start\": 1411.38,\n\"end\": 1414.56,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"I've observed this pattern repeating itself in three different teams.\",\n\"char_start\": 6020,\n\"char_end\": 6089,\n\"unit_id\": \"t0037.u01\",\n\"sent_id\": \"t0037.s03\"\n},\n{\n\"start\": 1680.0,\n\"end\": 1685.28,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Before we wrap up, what's one thing listeners can try out this week?\",\n\"char_start\": 6106,\n\"char_end\": 6174,\n\"unit_id\": \"t0038.u01\",\n\"sent_id\": \"t0038.s01\"\n},\n{\n\"start\": 1685.28,\n\"end\": 1689.6,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Choose one of the ideas we've discussed and implement it for two weeks.\",\n\"char_start\": 6189,\n\"char_end\": 6260,\n\"unit_id\": \"t0039.u01\",\n\"sent_id\": \"t0039.s01\"\n},\n{\n\"start\": 1689.66,\n\"end\": 1690.98,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Everything else is iteration.\",\n\"char_start\": 6261,\n\"char_end\": 6290,\n\"unit_id\": \"t0039.u01\",\n\"sent_id\": \"t0039.s02\"\n},\n{\n\"start\": 1690.98,\n\"end\": 1693.86,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"And finally, thank you to our sponsors at Vanta.\",\n\"char_start\": 6307,\n\"char_end\": 6355,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s01\"\n},\n{\n\"start\": 1693.92,\n\"end\": 1696.56,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Vanta automates SOC 2 and ISO compliance.\",\n\"char_start\": 6356,\n\"char_end\": 6397,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s02\"\n},\n{\n\"start\": 1696.62,\n\"end\": 1698.36,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Take a look at vanta.com.\",\n\"char_start\": 6398,\n\"char_end\": 6423,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s03\"\n},\n{\n\"start\": 1698.36,\n\"end\": 1700.88,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"Chiara Ricci, thank you for the conversation.\",\n\"char_start\": 6424,\n\"char_end\": 6469,\n\"unit_id\": \"t0040.u01\",\n\"sent_id\": \"t0040.s04\"\n},\n{\n\"start\": 1700.88,\n\"end\": 1702.38,\n\"speaker_label\": \"Chiara Ricci\",\n\"text\": \"Thank you, Giulia.\",\n\"char_start\": 6484,\n\"char_end\": 6502,\n\"unit_id\": \"t0041.u01\",\n\"sent_id\": \"t0041.s01\"\n},\n{\n\"start\": 1702.38,\n\"end\": 1705.5,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"That's all for today's episode of \\\"Author's Trails.\\\"\",\n\"char_start\": 6519,\n\"char_end\": 6571,\n\"unit_id\": \"t0042.u01\",\n\"sent_id\": \"t0042.s01\"\n},\n{\n\"start\": 1705.56,\n\"end\": 1707.3,\n\"speaker_label\": \"Giulia Ferrara\",\n\"text\": \"See you next time.\",\n\"char_start\": 6572,\n\"char_end\": 6590,\n\"unit_id\": \"t0042.u01\",\n\"sent_id\": \"t0042.s02\"\n}\n]",
+      "translation.json": "{\n  \"version\": \"1.0\",\n  \"episode_slug\": \"0002 - Tecnica Enduro Senza Clamore_20261003-140751_0ca7efcd\",\n  \"source_language\": \"it\",\n  \"target_language\": \"en\",\n  \"model\": \"google/translategemma-12b-it\",\n  \"prompt\": {\n    \"name\": \"shared/translation/translategemma_v1\",\n    \"file\": \"shared/translation/translategemma_v1.j2\",\n    \"sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n  },\n  \"source\": {\n    \"transcript_ref\": \"transcripts/0002 - Tecnica Enduro Senza Clamore_20261003-140751_0ca7efcd.txt\",\n    \"turns\": 43\n  },\n  \"status\": \"translated\",\n  \"units_total\": 43,\n  \"units_failed\": 0,\n  \"english_withdrawn\": false,\n  \"title_en\": \"Enduro Technique: Quiet Excellence.\",\n  \"units\": [\n    {\n      \"unit_id\": \"t0000.u01\",\n      \"turn_id\": \"t0000\",\n      \"content_key\": \"e588739d7fe57ba4b7cd9af7a525edacd3506a8bcc13ac2d46e0d94cdc3c2801\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0000.s01\",\n          \"en_text\": \"Welcome back to \\\"Trails by the Experts.\\\"\"\n        },\n        {\n          \"sent_id\": \"t0000.s02\",\n          \"en_text\": \"Today, we're talking about enduro racing, and I'm joined by Chiara Ricci, an enduro athlete and coach.\"\n        },\n        {\n          \"sent_id\": \"t0000.s03\",\n          \"en_text\": \"Chiara Ricci, thank you for being here.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0001.u01\",\n      \"turn_id\": \"t0001\",\n      \"content_key\": \"8adaac73240bab9db14d99525a17b6a6df20eabae6698d75f8f7184a3e6f2541\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0001.s01\",\n          \"en_text\": \"Thank you, Giulia.\"\n        },\n        {\n          \"sent_id\": \"t0001.s02\",\n          \"en_text\": \"It's good to be back here again.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0002.u01\",\n      \"turn_id\": \"t0002\",\n      \"content_key\": \"fe2140a7913c0a378837fe4d34a01cdb8bc4d5e7d716ada689e9b7519f16d7bf\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0002.s01\",\n          \"en_text\": \"This episode is sponsored by Linear.\"\n        },\n        {\n          \"sent_id\": \"t0002.s02\",\n          \"en_text\": \"Linear is the issue tracker designed for speed – built for the keyboard.\"\n        },\n        {\n          \"sent_id\": \"t0002.s03\",\n          \"en_text\": \"Try linear.com today.\"\n        },\n        {\n          \"sent_id\": \"t0002.s04\",\n          \"en_text\": \"Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is the design choice with the biggest impact.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0003.u01\",\n      \"turn_id\": \"t0003\",\n      \"content_key\": \"641b94abcfbcbfec4217506df8e90c5e26072b2fc375087da29bca2f4b7aaeff\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0003.s01\",\n          \"en_text\": \"Yes, that's correct.\"\n        },\n        {\n          \"sent_id\": \"t0003.s02\",\n          \"en_text\": \"And that connects to what we're discussing today.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0004.u01\",\n      \"turn_id\": \"t0004\",\n      \"content_key\": \"c333760d817fe9a31d0084491f65633b091f424fffb87d47db942b462fa24e5c\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0004.s01\",\n          \"en_text\": \"I want to point out something – Marco Bellini mentioned the same issue a couple of episodes ago.\"\n        },\n        {\n          \"sent_id\": \"t0004.s02\",\n          \"en_text\": \"Can you give me a specific example?\"\n        },\n        {\n          \"sent_id\": \"t0004.s03\",\n          \"en_text\": \"Where do soil erosion and enduro races intersect?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0005.u01\",\n      \"turn_id\": \"t0005\",\n      \"content_key\": \"48a96ad494f18d73fed9d328eb5fc15357fc7a7644f77f414a890c1e6f2e3178\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0005.s01\",\n          \"en_text\": \"Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks.\"\n        },\n        {\n          \"sent_id\": \"t0005.s02\",\n          \"en_text\": \"We've seen this in teams that use RockShox.\"\n        },\n        {\n          \"sent_id\": \"t0005.s03\",\n          \"en_text\": \"I've observed this pattern repeating itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0006.u01\",\n      \"turn_id\": \"t0006\",\n      \"content_key\": \"58c42e2358681abf0e01d6577bcac96edc9cd65e4e4a4870402484c35e23be52\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0006.s01\",\n          \"en_text\": \"I want to delve deeper into this.\"\n        },\n        {\n          \"sent_id\": \"t0006.s02\",\n          \"en_text\": \"Where do soil erosion and enduro racing intersect?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0007.u01\",\n      \"turn_id\": \"t0007\",\n      \"content_key\": \"6b4e597c862d9eaec487a92d5b7fde4b6565757ac5afa66ab55cb125e541611e\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0007.s01\",\n          \"en_text\": \"Certainly.\"\n        },\n        {\n          \"sent_id\": \"t0007.s02\",\n          \"en_text\": \"Tire pressure and the choice of tire casing often matter more than minor adjustments to the suspension.\"\n        },\n        {\n          \"sent_id\": \"t0007.s03\",\n          \"en_text\": \"The framing is important because it tells you what compromises you are making.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0008.u01\",\n      \"turn_id\": \"t0008\",\n      \"content_key\": \"683079f54d479eacdd01a70f2b66b991136d1cc0a8a894109e9c3a52aadfa14e\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0008.s01\",\n          \"en_text\": \"Let's start from there.\"\n        },\n        {\n          \"sent_id\": \"t0008.s02\",\n          \"en_text\": \"Where do soil erosion and enduro racing intersect?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0009.u01\",\n      \"turn_id\": \"t0009\",\n      \"content_key\": \"7280cdc77522e93766835c0b84207aa3fbdcfb61d56a427f6dd34cfb7fc72a8b\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0009.s01\",\n          \"en_text\": \"Honestly, risk management in racing isn't about avoiding crashes – it's about choosing which crashes are survivable.\"\n        },\n        {\n          \"sent_id\": \"t0009.s02\",\n          \"en_text\": \"We've seen this in teams that use Shimano.\"\n        },\n        {\n          \"sent_id\": \"t0009.s03\",\n          \"en_text\": \"If you ignore it, you end up having to rebuild everything from scratch a year later.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0010.u01\",\n      \"turn_id\": \"t0010\",\n      \"content_key\": \"c8a49646a7a164de1720bd4914831c4cc183382fe048283a895f9db077ce8343\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0010.s01\",\n          \"en_text\": \"Where does it stop working?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0011.u01\",\n      \"turn_id\": \"t0011\",\n      \"content_key\": \"53bb744f7197ded217785d86b75d2b6edd4f18b668de9cf7263e460225df45be\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0011.s01\",\n          \"en_text\": \"The Cascadia Alliance is one of the platforms where this becomes particularly clear.\"\n        },\n        {\n          \"sent_id\": \"t0011.s02\",\n          \"en_text\": \"And the second-order effect is the part that almost everyone overlooks.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0012.u01\",\n      \"turn_id\": \"t0012\",\n      \"content_key\": \"f7213984df5640421ee46c7c0ae52be7b12447475ce3e3ea302008cb082bddd2\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0012.s01\",\n          \"en_text\": \"What is the heuristic that you always find yourself using?\"\n        },\n        {\n          \"sent_id\": \"t0012.s02\",\n          \"en_text\": \"How does Spoke & Wrench fit into this picture?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0013.u01\",\n      \"turn_id\": \"t0013\",\n      \"content_key\": \"dfe4cfeddc6ba29ac42e29d69eee446d505c379408f5409d2305b8bd579defc4\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0013.s01\",\n          \"en_text\": \"That's how I see it.\"\n        },\n        {\n          \"sent_id\": \"t0013.s02\",\n          \"en_text\": \"The erosion patterns on the race track sections change the choice of trajectory between practice runs and the actual race day.\"\n        },\n        {\n          \"sent_id\": \"t0013.s03\",\n          \"en_text\": \"Once you internalize that, the rest of the decisions become easier.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0014.u01\",\n      \"turn_id\": \"t0014\",\n      \"content_key\": \"02950077ef833bc4c964a756e31273fe91ad3b328e4d34a21480e8d218228837\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0014.s01\",\n          \"en_text\": \"Before we continue, support the program by visiting the website of our sponsor.\"\n        },\n        {\n          \"sent_id\": \"t0014.s02\",\n          \"en_text\": \"Strava is the home of athletes.\"\n        },\n        {\n          \"sent_id\": \"t0014.s03\",\n          \"en_text\": \"We'll be right back, after a short commercial break.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0015.u01\",\n      \"turn_id\": \"t0015\",\n      \"content_key\": \"9e87d23d690532c98000b2f8c138d6a9448ce835ab5ce984e67ba306b8898167\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0015.s01\",\n          \"en_text\": \"This episode is sponsored by Notion.\"\n        },\n        {\n          \"sent_id\": \"t0015.s02\",\n          \"en_text\": \"Notion replaces the dozen tools your team currently uses, by about half.\"\n        },\n        {\n          \"sent_id\": \"t0015.s03\",\n          \"en_text\": \"Visit notion.com/podcast for a free trial.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0016.u01\",\n      \"turn_id\": \"t0016\",\n      \"content_key\": \"63ad708980b545940413f3ef92cb8527c338ae86ef47235c6d4f28656a718048\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0016.s01\",\n          \"en_text\": \"Welcome back to the program.\"\n        },\n        {\n          \"sent_id\": \"t0016.s02\",\n          \"en_text\": \"I want to delve deeper into this.\"\n        },\n        {\n          \"sent_id\": \"t0016.s03\",\n          \"en_text\": \"What is the most important aspect of this question?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0017.u01\",\n      \"turn_id\": \"t0017\",\n      \"content_key\": \"c4694ad4a29fab5751d3eabee6b8fa958f35b33058beb4507312efe1d8e5d8fb\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0017.s01\",\n          \"en_text\": \"I'm giving you the version that I truly believe in.\"\n        },\n        {\n          \"sent_id\": \"t0017.s02\",\n          \"en_text\": \"Speed comes from braking earlier and more smoothly, not from taking greater risks.\"\n        },\n        {\n          \"sent_id\": \"t0017.s03\",\n          \"en_text\": \"We've seen this in teams that use RockShox.\"\n        },\n        {\n          \"sent_id\": \"t0017.s04\",\n          \"en_text\": \"And the second-order effect is the part that almost everyone overlooks.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0018.u01\",\n      \"turn_id\": \"t0018\",\n      \"content_key\": \"10590709be4eebfc9c49c7aa364771b3a6b12c1d92d0c17fa209622ece5e66ad\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0018.s01\",\n          \"en_text\": \"What is the typical failure mode?\"\n        },\n        {\n          \"sent_id\": \"t0018.s02\",\n          \"en_text\": \"What is the operational setting that most listeners do not have access to?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0019.u01\",\n      \"turn_id\": \"t0019\",\n      \"content_key\": \"4a4eb860d400e4906e437e2d3afa762068826def1e1c4c6f56fb8e1219616f5a\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0019.s01\",\n          \"en_text\": \"Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension.\"\n        },\n        {\n          \"sent_id\": \"t0019.s02\",\n          \"en_text\": \"The framing is important because it tells you what compromises you are making.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0020.u01\",\n      \"turn_id\": \"t0020\",\n      \"content_key\": \"5720eb9cce30762aa451fe1f46a4f03b54b3dd7c1605b84dd84a3f045dc2ef2f\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0020.s01\",\n          \"en_text\": \"Give me a concrete example.\"\n        },\n        {\n          \"sent_id\": \"t0020.s02\",\n          \"en_text\": \"Which version of the question is truly important?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0021.u01\",\n      \"turn_id\": \"t0021\",\n      \"content_key\": \"fc4ca1ac2bb012f0dd65f8f764477abeaf25a0d8fc5e7da71c4aae5f6d267d09\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0021.s01\",\n          \"en_text\": \"Yes, so – risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable.\"\n        },\n        {\n          \"sent_id\": \"t0021.s02\",\n          \"en_text\": \"We've seen this in teams that use RockShox.\"\n        },\n        {\n          \"sent_id\": \"t0021.s03\",\n          \"en_text\": \"I've observed this pattern repeating itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0022.u01\",\n      \"turn_id\": \"t0022\",\n      \"content_key\": \"849cffa2ed2bf076b813cefb6a0ceaff66ebf4755ad653a95fc7446472767d38\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0022.s01\",\n          \"en_text\": \"Tell me more.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0023.u01\",\n      \"turn_id\": \"t0023\",\n      \"content_key\": \"4602db4c7365c72b7a1eb72aa8bbace0f9493108958a56a4d6a61c9725098e0d\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0023.s01\",\n          \"en_text\": \"The Cascadia Alliance is one of the platforms where this becomes particularly clear.\"\n        },\n        {\n          \"sent_id\": \"t0023.s02\",\n          \"en_text\": \"Once you internalize this concept, the rest of the decision-making process becomes easier.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0024.u01\",\n      \"turn_id\": \"t0024\",\n      \"content_key\": \"f815dcdcfd8f09acee6db683a07bf0fadd2a32fa810ecc611a1cabb1552819be\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0024.s01\",\n          \"en_text\": \"Let's start from there.\"\n        },\n        {\n          \"sent_id\": \"t0024.s02\",\n          \"en_text\": \"What is the most underestimated aspect of enduro racing?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0025.u01\",\n      \"turn_id\": \"t0025\",\n      \"content_key\": \"9e9a0a59fd7e9a122e47f5b989dca117e2205e34e07951056ff7b837bb3041ed\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0025.s01\",\n          \"en_text\": \"It boils down to this: the erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day.\"\n        },\n        {\n          \"sent_id\": \"t0025.s02\",\n          \"en_text\": \"I've observed this pattern repeating itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0026.u01\",\n      \"turn_id\": \"t0026\",\n      \"content_key\": \"c14d05ad9b0b911b297d4d7ee9b55c42afbd9efa7f2c8f46df257ece8e68ebd9\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0026.s01\",\n          \"en_text\": \"Let's change the subject – I want to dedicate the final part to risk management.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0027.u01\",\n      \"turn_id\": \"t0027\",\n      \"content_key\": \"e430a14649b04f5a37645400fa172bdd546d0e0a0a066f05910c015c011da673\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0027.s01\",\n          \"en_text\": \"That's where the conversation becomes interesting, because the compromises involved in risk management permeate everything we've discussed.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0028.u01\",\n      \"turn_id\": \"t0028\",\n      \"content_key\": \"bcb92bdaa0ec604c90ec90fde92a8d78fe7296b9e3e4150d51f4a3f6c87a44a4\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0028.s01\",\n          \"en_text\": \"What is the nature of the malfunction?\"\n        },\n        {\n          \"sent_id\": \"t0028.s02\",\n          \"en_text\": \"What is the hidden or obscure aspect that most listeners are unaware of?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0029.u01\",\n      \"turn_id\": \"t0029\",\n      \"content_key\": \"813de25b009f3d5bee147183ae2e030b9d33f3e063d612af7c25babf1e69654f\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0029.s01\",\n          \"en_text\": \"Certainly.\"\n        },\n        {\n          \"sent_id\": \"t0029.s02\",\n          \"en_text\": \"Speed comes from braking earlier and more smoothly, not from taking greater risks.\"\n        },\n        {\n          \"sent_id\": \"t0029.s03\",\n          \"en_text\": \"We've seen this in teams that use RockShox.\"\n        },\n        {\n          \"sent_id\": \"t0029.s04\",\n          \"en_text\": \"I've observed this pattern repeating in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0030.u01\",\n      \"turn_id\": \"t0030\",\n      \"content_key\": \"7efff2e80576bef567491da4a913d69375ca082fa1ecbf7551f69a636aee7d77\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0030.s01\",\n          \"en_text\": \"Give me a concrete example.\"\n        },\n        {\n          \"sent_id\": \"t0030.s02\",\n          \"en_text\": \"What is the most underestimated aspect of enduro racing?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0031.u01\",\n      \"turn_id\": \"t0031\",\n      \"content_key\": \"b77f69e14f5dcbc8b7e0eaa2278ef8a3cad4aee8e9da48811bd1121028e1e2e8\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0031.s01\",\n          \"en_text\": \"Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension.\"\n        },\n        {\n          \"sent_id\": \"t0031.s02\",\n          \"en_text\": \"I've seen this pattern repeat itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0032.u01\",\n      \"turn_id\": \"t0032\",\n      \"content_key\": \"5720eb9cce30762aa451fe1f46a4f03b54b3dd7c1605b84dd84a3f045dc2ef2f\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0032.s01\",\n          \"en_text\": \"Give me a concrete example.\"\n        },\n        {\n          \"sent_id\": \"t0032.s02\",\n          \"en_text\": \"Which version of the question is truly important?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0033.u01\",\n      \"turn_id\": \"t0033\",\n      \"content_key\": \"ba6473433fc9e72833cabe31ff4690aed6a9ef63c92b970e16f82eb2006b6def\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0033.s01\",\n          \"en_text\": \"I'm giving you the version that I truly believe in.\"\n        },\n        {\n          \"sent_id\": \"t0033.s02\",\n          \"en_text\": \"Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable.\"\n        },\n        {\n          \"sent_id\": \"t0033.s03\",\n          \"en_text\": \"We've seen this in teams that use Spoke & Wrench.\"\n        },\n        {\n          \"sent_id\": \"t0033.s04\",\n          \"en_text\": \"I've seen this pattern repeat itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0034.u01\",\n      \"turn_id\": \"t0034\",\n      \"content_key\": \"02b12d42d2455bb19052bd99bb5cd899c984edfc715cfe8868a69641a6bd7251\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0034.s01\",\n          \"en_text\": \"Come back.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0035.u01\",\n      \"turn_id\": \"t0035\",\n      \"content_key\": \"ccfb5880d673f8953d3b618b01b7ebe3b97b497fd29c9d9c6f1dcf375debccfa\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0035.s01\",\n          \"en_text\": \"And when teams adopt Spoke & Wrench within that workflow, the trade-off becomes apparent – I've seen this pattern repeat itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0036.u01\",\n      \"turn_id\": \"t0036\",\n      \"content_key\": \"8084c3142f718d067e3c50b9760e862d81437ddaaa434351963f7187b9775275\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0036.s01\",\n          \"en_text\": \"What is the heuristic that you always find yourself using?\"\n        },\n        {\n          \"sent_id\": \"t0036.s02\",\n          \"en_text\": \"What is the most important aspect of this question?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0037.u01\",\n      \"turn_id\": \"t0037\",\n      \"content_key\": \"71d524178a3d0eaaf3513153b20db14ca8a7e53f4beca0f57d1ac46423759cb1\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0037.s01\",\n          \"en_text\": \"That's how I see it.\"\n        },\n        {\n          \"sent_id\": \"t0037.s02\",\n          \"en_text\": \"The erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day.\"\n        },\n        {\n          \"sent_id\": \"t0037.s03\",\n          \"en_text\": \"I've observed this pattern repeating itself in three different teams.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0038.u01\",\n      \"turn_id\": \"t0038\",\n      \"content_key\": \"85cdce8799636f382e29afc34536fbcc4089246474e66e64b13ccb29f78ffd95\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0038.s01\",\n          \"en_text\": \"Before we wrap up, what's one thing listeners can try out this week?\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0039.u01\",\n      \"turn_id\": \"t0039\",\n      \"content_key\": \"4f111fa76f53ff89fce39ca51013b5b629e2c91edc8f40d50c57a8b16ad5a899\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0039.s01\",\n          \"en_text\": \"Choose one of the ideas we've discussed and implement it for two weeks.\"\n        },\n        {\n          \"sent_id\": \"t0039.s02\",\n          \"en_text\": \"Everything else is iteration.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0040.u01\",\n      \"turn_id\": \"t0040\",\n      \"content_key\": \"49ba9a1ad8f8de401c56ac47d0d98da46e6bf686368b369cc36797d7e904eee4\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0040.s01\",\n          \"en_text\": \"And finally, thank you to our sponsors at Vanta.\"\n        },\n        {\n          \"sent_id\": \"t0040.s02\",\n          \"en_text\": \"Vanta automates SOC 2 and ISO compliance.\"\n        },\n        {\n          \"sent_id\": \"t0040.s03\",\n          \"en_text\": \"Take a look at vanta.com.\"\n        },\n        {\n          \"sent_id\": \"t0040.s04\",\n          \"en_text\": \"Chiara Ricci, thank you for the conversation.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0041.u01\",\n      \"turn_id\": \"t0041\",\n      \"content_key\": \"486abb39f600d5ecf56b40c7c6d60325deedb7811cef8dce1d8457c4f12f2ffb\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0041.s01\",\n          \"en_text\": \"Thank you, Giulia.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    },\n    {\n      \"unit_id\": \"t0042.u01\",\n      \"turn_id\": \"t0042\",\n      \"content_key\": \"10c308e7d288d54e33edb77699c7656f61abb83522fcaf48841da2596d188278\",\n      \"status\": \"ok\",\n      \"alignment\": \"sentence\",\n      \"sentences\": [\n        {\n          \"sent_id\": \"t0042.s01\",\n          \"en_text\": \"That's all for today's episode of \\\"Author's Trails.\\\"\"\n        },\n        {\n          \"sent_id\": \"t0042.s02\",\n          \"en_text\": \"See you next time.\"\n        }\n      ],\n      \"attempts\": 1,\n      \"model\": \"google/translategemma-12b-it\",\n      \"prompt_sha256\": \"b0cabece05a8e7c472f0cc33d5b0c05db55472a9e1c0d037a33d9c8935590a81\"\n    }\n  ]\n}",
+      "txt": "Giulia Ferrara: Welcome back to \"Trails by the Experts.\" Today, we're talking about enduro racing, and I'm joined by Chiara Ricci, an enduro athlete and coach. Chiara Ricci, thank you for being here.\nChiara Ricci: Thank you, Giulia. It's good to be back here again.\nGiulia Ferrara: This episode is sponsored by Linear. Linear is the issue tracker designed for speed – built for the keyboard. Try linear.com today. Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is the design choice with the biggest impact.\nChiara Ricci: Yes, that's correct. And that connects to what we're discussing today.\nGiulia Ferrara: I want to point out something – Marco Bellini mentioned the same issue a couple of episodes ago. Can you give me a specific example? Where do soil erosion and enduro races intersect?\nChiara Ricci: Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: I want to delve deeper into this. Where do soil erosion and enduro racing intersect?\nChiara Ricci: Certainly. Tire pressure and the choice of tire casing often matter more than minor adjustments to the suspension. The framing is important because it tells you what compromises you are making.\nGiulia Ferrara: Let's start from there. Where do soil erosion and enduro racing intersect?\nChiara Ricci: Honestly, risk management in racing isn't about avoiding crashes – it's about choosing which crashes are survivable. We've seen this in teams that use Shimano. If you ignore it, you end up having to rebuild everything from scratch a year later.\nGiulia Ferrara: Where does it stop working?\nChiara Ricci: The Cascadia Alliance is one of the platforms where this becomes particularly clear. And the second-order effect is the part that almost everyone overlooks.\nGiulia Ferrara: What is the heuristic that you always find yourself using? How does Spoke & Wrench fit into this picture?\nChiara Ricci: That's how I see it. The erosion patterns on the race track sections change the choice of trajectory between practice runs and the actual race day. Once you internalize that, the rest of the decisions become easier.\nGiulia Ferrara: Before we continue, support the program by visiting the website of our sponsor. Strava is the home of athletes. We'll be right back, after a short commercial break.\nSPEAKER_02: This episode is sponsored by Notion. Notion replaces the dozen tools your team currently uses, by about half. Visit notion.com/podcast for a free trial.\nGiulia Ferrara: Welcome back to the program. I want to delve deeper into this. What is the most important aspect of this question?\nChiara Ricci: I'm giving you the version that I truly believe in. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. And the second-order effect is the part that almost everyone overlooks.\nGiulia Ferrara: What is the typical failure mode? What is the operational setting that most listeners do not have access to?\nChiara Ricci: Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. The framing is important because it tells you what compromises you are making.\nGiulia Ferrara: Give me a concrete example. Which version of the question is truly important?\nChiara Ricci: Yes, so – risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: Tell me more.\nChiara Ricci: The Cascadia Alliance is one of the platforms where this becomes particularly clear. Once you internalize this concept, the rest of the decision-making process becomes easier.\nGiulia Ferrara: Let's start from there. What is the most underestimated aspect of enduro racing?\nChiara Ricci: It boils down to this: the erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: Let's change the subject – I want to dedicate the final part to risk management.\nChiara Ricci: That's where the conversation becomes interesting, because the compromises involved in risk management permeate everything we've discussed.\nGiulia Ferrara: What is the nature of the malfunction? What is the hidden or obscure aspect that most listeners are unaware of?\nChiara Ricci: Certainly. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. I've observed this pattern repeating in three different teams.\nGiulia Ferrara: Give me a concrete example. What is the most underestimated aspect of enduro racing?\nChiara Ricci: Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. I've seen this pattern repeat itself in three different teams.\nGiulia Ferrara: Give me a concrete example. Which version of the question is truly important?\nChiara Ricci: I'm giving you the version that I truly believe in. Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.\nGiulia Ferrara: Come back.\nChiara Ricci: And when teams adopt Spoke & Wrench within that workflow, the trade-off becomes apparent – I've seen this pattern repeat itself in three different teams.\nGiulia Ferrara: What is the heuristic that you always find yourself using? What is the most important aspect of this question?\nChiara Ricci: That's how I see it. The erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: Before we wrap up, what's one thing listeners can try out this week?\nChiara Ricci: Choose one of the ideas we've discussed and implement it for two weeks. Everything else is iteration.\nGiulia Ferrara: And finally, thank you to our sponsors at Vanta. Vanta automates SOC 2 and ISO compliance. Take a look at vanta.com. Chiara Ricci, thank you for the conversation.\nChiara Ricci: Thank you, Giulia.\nGiulia Ferrara: That's all for today's episode of \"Author's Trails.\" See you next time.\n"
+    },
+    "text": "Giulia Ferrara: Welcome back to \"Trails by the Experts.\" Today, we're talking about enduro racing, and I'm joined by Chiara Ricci, an enduro athlete and coach. Chiara Ricci, thank you for being here.\nChiara Ricci: Thank you, Giulia. It's good to be back here again.\nGiulia Ferrara: This episode is sponsored by Linear. Linear is the issue tracker designed for speed – built for the keyboard. Try linear.com today. Before we get into the details, Marco Bellini was a guest on the show and mentioned that drainage is the design choice with the biggest impact.\nChiara Ricci: Yes, that's correct. And that connects to what we're discussing today.\nGiulia Ferrara: I want to point out something – Marco Bellini mentioned the same issue a couple of episodes ago. Can you give me a specific example? Where do soil erosion and enduro races intersect?\nChiara Ricci: Honestly, speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: I want to delve deeper into this. Where do soil erosion and enduro racing intersect?\nChiara Ricci: Certainly. Tire pressure and the choice of tire casing often matter more than minor adjustments to the suspension. The framing is important because it tells you what compromises you are making.\nGiulia Ferrara: Let's start from there. Where do soil erosion and enduro racing intersect?\nChiara Ricci: Honestly, risk management in racing isn't about avoiding crashes – it's about choosing which crashes are survivable. We've seen this in teams that use Shimano. If you ignore it, you end up having to rebuild everything from scratch a year later.\nGiulia Ferrara: Where does it stop working?\nChiara Ricci: The Cascadia Alliance is one of the platforms where this becomes particularly clear. And the second-order effect is the part that almost everyone overlooks.\nGiulia Ferrara: What is the heuristic that you always find yourself using? How does Spoke & Wrench fit into this picture?\nChiara Ricci: That's how I see it. The erosion patterns on the race track sections change the choice of trajectory between practice runs and the actual race day. Once you internalize that, the rest of the decisions become easier.\nGiulia Ferrara: Before we continue, support the program by visiting the website of our sponsor. Strava is the home of athletes. We'll be right back, after a short commercial break.\nSPEAKER_02: This episode is sponsored by Notion. Notion replaces the dozen tools your team currently uses, by about half. Visit notion.com/podcast for a free trial.\nGiulia Ferrara: Welcome back to the program. I want to delve deeper into this. What is the most important aspect of this question?\nChiara Ricci: I'm giving you the version that I truly believe in. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. And the second-order effect is the part that almost everyone overlooks.\nGiulia Ferrara: What is the typical failure mode? What is the operational setting that most listeners do not have access to?\nChiara Ricci: Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. The framing is important because it tells you what compromises you are making.\nGiulia Ferrara: Give me a concrete example. Which version of the question is truly important?\nChiara Ricci: Yes, so – risk management in racing isn't about avoiding crashes altogether; it's about choosing which crashes are survivable. We've seen this in teams that use RockShox. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: Tell me more.\nChiara Ricci: The Cascadia Alliance is one of the platforms where this becomes particularly clear. Once you internalize this concept, the rest of the decision-making process becomes easier.\nGiulia Ferrara: Let's start from there. What is the most underestimated aspect of enduro racing?\nChiara Ricci: It boils down to this: the erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: Let's change the subject – I want to dedicate the final part to risk management.\nChiara Ricci: That's where the conversation becomes interesting, because the compromises involved in risk management permeate everything we've discussed.\nGiulia Ferrara: What is the nature of the malfunction? What is the hidden or obscure aspect that most listeners are unaware of?\nChiara Ricci: Certainly. Speed comes from braking earlier and more smoothly, not from taking greater risks. We've seen this in teams that use RockShox. I've observed this pattern repeating in three different teams.\nGiulia Ferrara: Give me a concrete example. What is the most underestimated aspect of enduro racing?\nChiara Ricci: Yes, so – tire pressure and the choice of tire casing often matter more than a small adjustment to the suspension. I've seen this pattern repeat itself in three different teams.\nGiulia Ferrara: Give me a concrete example. Which version of the question is truly important?\nChiara Ricci: I'm giving you the version that I truly believe in. Risk management in racing isn't about avoiding crashes; it's about choosing which crashes are survivable. We've seen this in teams that use Spoke & Wrench. I've seen this pattern repeat itself in three different teams.\nGiulia Ferrara: Come back.\nChiara Ricci: And when teams adopt Spoke & Wrench within that workflow, the trade-off becomes apparent – I've seen this pattern repeat itself in three different teams.\nGiulia Ferrara: What is the heuristic that you always find yourself using? What is the most important aspect of this question?\nChiara Ricci: That's how I see it. The erosion patterns on the race track sections influence the choice of trajectory between practice runs and the actual race day. I've observed this pattern repeating itself in three different teams.\nGiulia Ferrara: Before we wrap up, what's one thing listeners can try out this week?\nChiara Ricci: Choose one of the ideas we've discussed and implement it for two weeks. Everything else is iteration.\nGiulia Ferrara: And finally, thank you to our sponsors at Vanta. Vanta automates SOC 2 and ISO compliance. Take a look at vanta.com. Chiara Ricci, thank you for the conversation.\nChiara Ricci: Thank you, Giulia.\nGiulia Ferrara: That's all for today's episode of \"Author's Trails.\" See you next time.",
+    "translated_title": "Enduro Technique: Quiet Excellence.",
+    "translation_status": "translated"
+  }
+}

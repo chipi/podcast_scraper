@@ -1,0 +1,45 @@
+{
+  "callbacks": [],
+  "episode_id": "p11_e01",
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "it-IT",
+  "host_accent": "it-IT",
+  "host_canonical_name": "Giulia Ferrara",
+  "podcast_id": "p11",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p11:Marco",
+  "primary_guest_canonical_name": "Marco Bellini",
+  "primary_guest_surface_in_transcript": "Marco Bellini",
+  "primary_topic": "topic:trail-building",
+  "publish_date": "2025-10-01",
+  "publish_offset_days": 639,
+  "secondary_topics": [
+    "topic:soil-erosion",
+    "topic:land-stewardship"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Strava",
+      "kind": "template_opening",
+      "line_index": 10
+    },
+    {
+      "brand": "Stripe",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Linear",
+      "kind": "template_closing",
+      "line_index": 64
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p11:Marco",
+      "kind": "canonical",
+      "surface": "Marco Bellini"
+    }
+  ]
+}

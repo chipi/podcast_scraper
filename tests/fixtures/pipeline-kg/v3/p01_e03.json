@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p01_e03",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:chain-wear",
+      "label": "chain wear"
+    },
+    {
+      "id": "topic:component-wear",
+      "label": "component wear"
+    },
+    {
+      "id": "topic:drivetrain-mechanics",
+      "label": "drivetrain mechanics"
+    },
+    {
+      "id": "topic:maintenance-flow",
+      "label": "maintenance flow"
+    },
+    {
+      "id": "topic:mystery-creaks",
+      "label": "mystery creaks"
+    },
+    {
+      "id": "topic:predictable-bike-feel",
+      "label": "predictable bike feel"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:service-intervals",
+      "label": "service intervals"
+    },
+    {
+      "id": "topic:spoke-wrench",
+      "label": "spoke & wrench"
+    },
+    {
+      "id": "topic:suspension-service",
+      "label": "suspension service"
+    }
+  ]
+}

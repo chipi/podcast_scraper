@@ -36,6 +36,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:architecture-tradeoffs",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:decision-iteration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:on-call-rotation-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:platform-integration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:postmortem-focus",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:rfc-structure",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:risk-communication",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:systemic-failure-analysis",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-35f04bce441bf827",
+      "target": "topic:writing-things-down",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-35f04bce441bf827",
       "to": "person:ethan",
       "type": "MENTIONS"
@@ -115,6 +160,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:architecture-tradeoffs",
+      "properties": {
+        "label": "architecture tradeoffs",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:decision-iteration",
+      "properties": {
+        "label": "decision iteration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:on-call-rotation-design",
+      "properties": {
+        "label": "on call rotation design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:platform-integration",
+      "properties": {
+        "label": "platform integration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:postmortem-focus",
+      "properties": {
+        "label": "postmortem focus",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:rfc-structure",
+      "properties": {
+        "label": "rfc structure",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-communication",
+      "properties": {
+        "label": "risk communication",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:systemic-failure-analysis",
+      "properties": {
+        "label": "systemic failure analysis",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:writing-things-down",
+      "properties": {
+        "label": "writing things down",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

@@ -50,11 +50,13 @@ from .. import config, config_constants, models
 from ..graph_id_utils import is_bare_speaker_label
 from ..identity.roster_provenance import roster_source, RosterSource
 from ..identity.slugify import canonical_person_name
+from ..languages import resolve_episode_language
 from ..speaker_detectors.hosts import (
     is_publishable_speaker_name,
     looks_like_publisher,
     strip_role_prefix,
 )
+from .translation_stage import analysis_blocked_reason, run_translation_stage
 
 if TYPE_CHECKING:
     from ..models import Episode, RssFeed
@@ -70,6 +72,11 @@ from ..exceptions import (
 from ..schemas.summary_schema import parse_summary_output
 from ..utils import filesystem, llm_call_fuse
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
+from .transcript_resolution import (
+    resolve_segments_path,
+    resolve_text_path,
+    TranscriptPurpose,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -433,7 +440,18 @@ class FeedMetadata(BaseModel):
     url: str
     feed_id: str  # Stable unique identifier for database primary keys
     description: Optional[str] = None
+    #: NORMALIZED primary subtag — ``"en"``, never ``"en-US"``. Until #2172 this carried the
+    #: RUN CONFIG written back out, so every episode claimed the profile's language whatever
+    #: its publisher declared. It is the feed's own tag now, normalized.
     language: Optional[str] = None
+    #: The tag exactly as the feed declared it (``"en-US"``, ``"pt_BR"``). Kept beside the
+    #: normalized form because an operator judging an odd tag needs to see the original.
+    language_raw: Optional[str] = None
+    #: Where ``language`` came from: ``"rss"`` (the feed declared it), ``"profile_default"``
+    #: (it did not, so the run config supplied it), or ``"override"`` (S0.2's per-feed key).
+    #: An audit that cannot say WHERE a language came from cannot tell a measured corpus from
+    #: a uniformly-defaulted one — the failure this field exists to prevent.
+    language_source: Optional[str] = None
     authors: List[str] = Field(default_factory=list)
     category: Optional[str] = None  # podcast category/genre (BS.1), from <itunes:category>
     image_url: Optional[str] = None
@@ -465,6 +483,12 @@ class EpisodeMetadata(BaseModel):
         description="Corpus-relative path to downloaded episode artwork (POSIX).",
     )
     episode_id: str  # Stable unique identifier for database primary keys
+    #: The language THIS episode was processed as, normalized. No episode-level language
+    #: existed anywhere before #2172 — verified across all 80 metadata files in both fixture
+    #: corpora — so every stage read the run-global config instead.
+    language: Optional[str] = None
+    #: Where this episode's language came from; same vocabulary as ``FeedMetadata``.
+    language_source: Optional[str] = None
 
     @field_serializer("published_date")
     def serialize_published_date(self, value: Optional[datetime]) -> Optional[str]:
@@ -904,13 +928,23 @@ def _build_feed_metadata(
 
     Returns:
         FeedMetadata object
+
+    The language is the FEED's declared tag, normalized, with the profile default only as a
+    fallback — and ``language_source`` records which of the two it was (#2172).
     """
+    language_raw, language, language_source = resolve_episode_language(
+        override=getattr(cfg, "language_override", None),
+        feed_declared=getattr(feed, "language", None),
+        profile_default=cfg.language,
+    )
     return FeedMetadata(
         title=feed.title,
         url=feed_url,
         feed_id=feed_id,
         description=feed_description,
-        language=cfg.language,
+        language=language,
+        language_raw=language_raw,
+        language_source=language_source,
         authors=feed.authors if feed.authors else [],
         category=feed_category,
         image_url=feed_image_url,
@@ -928,6 +962,8 @@ def _build_episode_metadata(
     episode_duration_seconds: Optional[int],
     episode_number: Optional[int],
     episode_image_url: Optional[str],
+    language: Optional[str] = None,
+    language_source: Optional[str] = None,
 ) -> EpisodeMetadata:
     """Build EpisodeMetadata object.
 
@@ -955,6 +991,8 @@ def _build_episode_metadata(
         episode_number=episode_number,
         image_url=episode_image_url,
         episode_id=episode_id,
+        language=language,
+        language_source=language_source,
     )
 
 
@@ -1028,6 +1066,7 @@ def _unplaced_speakers(
     detected_hosts: Optional[List[str]],
     detected_guests: Optional[List[str]],
     feed_title: Optional[str],
+    language: Optional[str] = None,
 ) -> List[SpeakerInfo]:
     """People a source named for this episode whom no voice was matched to (#2075).
 
@@ -1073,7 +1112,7 @@ def _unplaced_speakers(
     for raw_name, role, source in candidates:
         name = _clean_record_name(raw_name)
         # The same repair a placed name gets before the gate ("Planet Money's Kenny Malone").
-        name = strip_role_prefix(name) if name else name
+        name = strip_role_prefix(name, language) if name else name
         # Two placeholder predicates, because they cover different shapes: `is_bare_speaker_label`
         # knows `SPEAKER_01` and the role words, `is_default_speaker_name` knows the providers'
         # failure tuple (`unknown_guest_1`). Either alone lets the other through.
@@ -1085,7 +1124,7 @@ def _unplaced_speakers(
             # The same last gate a PLACED name passes. Unplaced entries were published without it:
             # "The China-Global South Project" on 10 episodes as an unplaced host, read from the
             # feed description (2026-10-02).
-            or not is_publishable_speaker_name(name)
+            or not is_publishable_speaker_name(name, language=language)
         ):
             continue
         if feed_title and names_the_show(name, feed_title):
@@ -1116,6 +1155,7 @@ def _build_speaker_record(
     detected_hosts: Optional[List[str]],
     detected_guests: Optional[List[str]],
     feed_title: Optional[str],
+    language: Optional[str] = None,
 ) -> Tuple[List[SpeakerInfo], Optional[int]]:
     """The episode's speaker record: everyone placed on a voice, then everyone only named (#2075).
 
@@ -1172,6 +1212,7 @@ def _build_speaker_record(
         detected_hosts=detected_hosts,
         detected_guests=detected_guests,
         feed_title=feed_title,
+        language=language,
     )
     return placed + unplaced, num_speakers
 
@@ -1196,17 +1237,15 @@ def _build_speakers_from_diarized_segments(
     """
     if not transcript_file_path:
         return None, None
-    base = os.path.splitext(os.path.join(output_dir, transcript_file_path))[0]
-    # Prefer the ad-free base segments (#974); fall back to the raw segments sidecar.
-    for seg_path in (f"{base}.adfree.segments.json", f"{base}.segments.json"):
-        if os.path.isfile(seg_path):
-            try:
-                with open(seg_path, encoding="utf-8") as fh:
-                    segs = json.load(fh)
-            except (OSError, ValueError):
-                return None, None
-            break
-    else:
+    # ANALYSIS: the ad-free sidecar first, the raw one for a pre-#974 corpus (#974, #2170).
+    seg_path = resolve_segments_path(
+        output_dir, transcript_file_path, purpose=TranscriptPurpose.ANALYSIS
+    )
+    if seg_path is None:
+        return None, None
+    try:
+        segs = json.loads(seg_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return None, None
     if not isinstance(segs, list) or not segs:
         return None, None
@@ -2401,10 +2440,13 @@ def _build_content_metadata(
     transcript_text: Optional[str] = None
     if transcript_file_path and output_dir:
         try:
-            full_transcript_path = os.path.join(output_dir, transcript_file_path)
-            if os.path.exists(full_transcript_path):
-                with open(full_transcript_path, "r", encoding="utf-8") as f:
-                    transcript_text = f.read()
+            # TIMELINE: the summary being checked was written from the canonical body, so
+            # the check reads the same one (#2170).
+            resolved = resolve_text_path(
+                output_dir, transcript_file_path, purpose=TranscriptPurpose.TIMELINE
+            )
+            if resolved is not None:
+                transcript_text = resolved.read_text(encoding="utf-8")
         except Exception as exc:
             logger.debug("Error reading transcript for faithfulness check: %s", exc)
 
@@ -2922,8 +2964,19 @@ def _generate_episode_summary(  # noqa: C901
         )
         return None, call_metrics
 
-    # Read transcript file
-    full_transcript_path = os.path.join(output_dir, transcript_file_path)
+    # TIMELINE, i.e. the canonical body: the summariser has its OWN ad removal (the
+    # PatternBasedCleaner below, whose output it saves as `.cleaned.txt`), so it wants the
+    # full text rather than the ad-free base. That was previously true only because this
+    # joined the stored path with no variant logic at all; routing it through the resolver
+    # makes it a decision without changing the answer (#2170).
+    resolved_transcript = resolve_text_path(
+        output_dir, transcript_file_path, purpose=TranscriptPurpose.TIMELINE
+    )
+    full_transcript_path = str(
+        resolved_transcript
+        if resolved_transcript is not None
+        else os.path.join(output_dir, transcript_file_path)
+    )
     try:
         with open(full_transcript_path, "r", encoding="utf-8") as f:
             transcript_text = f.read()
@@ -3916,6 +3969,11 @@ def _prepare_base_metadata_objects(
         episode_duration_seconds,
         episode_number,
         episode_image_url,
+        # S0.1a has no per-episode override, so an episode inherits its feed's resolved
+        # language and the same provenance. S0.2 (#2174) adds the override and the registry,
+        # at which point these two diverge from the feed's for the feeds that need it.
+        language=feed_metadata.language,
+        language_source=feed_metadata.language_source,
     )
     # #2075: ONE speaker record. Placed voices from the diarized segments, then every person a
     # source named but no voice was matched to, each marked. See `_build_speaker_record`.
@@ -3925,6 +3983,8 @@ def _prepare_base_metadata_objects(
         detected_hosts,
         detected_guests,
         getattr(feed, "title", None),
+        # The feed's language: the unplaced names come from its untranslated description.
+        language=feed_metadata.language,
     )
     # #2070: `speakers_source` stays, now DERIVED from the record rather than decided separately:
     # `diarized` when at least one voice was placed, `hint` when every entry is only named.
@@ -4268,9 +4328,13 @@ def _reconcile_entities_in_summary(
     transcript_text_for_check = None
     if transcript_file_path:
         try:
-            full_transcript_path = os.path.join(output_dir, transcript_file_path)
-            with open(full_transcript_path, "r", encoding="utf-8") as f:
-                transcript_text_for_check = f.read()
+            # TIMELINE, for the same reason as the other faithfulness read (#2170).
+            resolved = resolve_text_path(
+                output_dir, transcript_file_path, purpose=TranscriptPurpose.TIMELINE
+            )
+            if resolved is None:
+                raise FileNotFoundError(os.path.join(output_dir, transcript_file_path))
+            transcript_text_for_check = resolved.read_text(encoding="utf-8")
         except Exception as exc:
             logger.debug(
                 "[%s] Error reading transcript for faithfulness check: %s",
@@ -4568,6 +4632,129 @@ def artwork_store_root(cfg: config.Config, output_dir: str) -> Path:
     return Path(run_index.corpus_root_from_cfg(cfg) or output_dir).expanduser().resolve()
 
 
+def _resolved_run_id(cfg: config.Config) -> Optional[str]:
+    """The run id from the correlation global, falling back to the (frozen, usually None) cfg.
+
+    Its own function because the nearest existing binding of ``correlation`` in
+    ``generate_episode_metadata`` happens inside a ``try/except`` that swallows everything — so
+    the name is not guaranteed to be bound further down, and relying on it would turn a
+    correlation hiccup into a ``NameError`` in the middle of metadata generation.
+    """
+    try:
+        from ..utils import correlation
+
+        return correlation.get_run_id() or getattr(cfg, "run_id", None)
+    except Exception:  # noqa: BLE001 - a run id is provenance, never a reason to fail
+        return getattr(cfg, "run_id", None)
+
+
+def _publish_translation_for_provenance(output_dir: str, transcript_relpath: Optional[str]) -> None:
+    """Make this episode's translation ambient for the artifact writers (S2.11)."""
+    from ..translation.provenance import load_for_provenance, publish_episode_translation
+
+    try:
+        loaded = load_for_provenance(transcript_relpath, output_dir) if transcript_relpath else None
+    except Exception:  # noqa: BLE001 — provenance never blocks metadata generation
+        loaded = None
+    if loaded is None:
+        publish_episode_translation(None, None)
+        return
+    doc, segments = loaded
+    publish_episode_translation(doc, segments)
+    logger.info(
+        "    translation provenance armed: %d units, %d English cues",
+        len(doc.units),
+        len(segments),
+    )
+
+
+def _record_analysis_skipped(
+    cfg: config.Config,
+    output_dir: str,
+    transcript_relpath: Optional[str],
+    reason: str,
+    episode_id: Optional[str],
+) -> None:
+    """Record summary/GI/KG as `ran: false` with a reason, rather than as absence (D-39).
+
+    One pipeline: a stage that was skipped says it was skipped. Absence would be
+    indistinguishable from an episode that predates these stages, which is the measured-vs-
+    defaulted confusion the whole arc is built to avoid.
+    """
+    if not transcript_relpath:
+        return
+    from . import processing_manifest as pm
+
+    for stage in ("summary", "gi", "kg"):
+        try:
+            pm.update_stage(
+                output_dir,
+                transcript_relpath,
+                stage,
+                pm.stage_block(
+                    ran=False,
+                    method_version=pm.METHOD_VERSIONS.get(stage),
+                    cost_usd=0.0,
+                    metrics={"skipped_reason": "translation_incomplete", "detail": reason},
+                ),
+                episode_id=episode_id,
+                feed_id=getattr(cfg, "rss_url", None),
+                run_id=_resolved_run_id(cfg),
+            )
+        except Exception:  # noqa: BLE001 — the manifest never fails the episode
+            logger.debug("could not record %s as skipped", stage, exc_info=True)
+
+    _mark_episode_unusable(output_dir, transcript_relpath, reason)
+
+
+def _mark_episode_unusable(output_dir: str, transcript_relpath: Optional[str], reason: str) -> None:
+    """Flag this episode as unservable, so no surface shows it (D-44 point 2).
+
+    WHY A MARKER AND NOT AN INFERENCE. The operator's rule is that an episode the pipeline could not
+    complete "does not show up anywhere". Every surface re-deriving that from the files on disk is
+    how two readers end up with different answers — the class of bug this whole arc kept meeting. So
+    the stage that DISCOVERED the problem records it, and `languages.episode_is_unusable` is the one
+    place that reads it. `build_catalog_rows` honours it, and that function feeds the app, the
+    digest and the topic clusters.
+
+    Written beside the skip records rather than in its own pass, because the two statements have to
+    agree: an episode whose analysis was skipped for an incomplete translation IS the unservable
+    one, and splitting them would let a future edit move one without the other.
+
+    Best-effort, like the manifest updates above. Failing to write the marker must not fail the
+    episode — the artifact is still on disk and the manifest still says the analysis was skipped, so
+    the worst case is an episode that shows up empty, which is today's behaviour and not a
+    regression.
+    """
+    if not transcript_relpath:
+        return
+    import json as _json
+    import os as _os
+
+    from ..languages import UNUSABLE_FIELD, UNUSABLE_REASON_FIELD
+
+    base, _ext = _os.path.splitext(_os.path.basename(transcript_relpath))
+    meta_path = _os.path.join(output_dir, "metadata", f"{base}.metadata.json")
+    try:
+        with open(meta_path, "r", encoding="utf-8") as fh:
+            doc = _json.load(fh)
+        if not isinstance(doc, dict):
+            return
+        episode_block = doc.setdefault("episode", {})
+        if not isinstance(episode_block, dict):
+            return
+        episode_block[UNUSABLE_FIELD] = True
+        episode_block[UNUSABLE_REASON_FIELD] = reason
+        tmp = f"{meta_path}.unusable.tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            _json.dump(doc, fh, indent=2, sort_keys=True, ensure_ascii=False)
+            fh.write("\n")
+        _os.replace(tmp, meta_path)
+        logger.warning("    marked episode UNUSABLE (%s): %s", reason, meta_path)
+    except (OSError, ValueError):
+        logger.debug("could not mark %s unusable", meta_path, exc_info=True)
+
+
 def generate_episode_metadata(  # noqa: C901
     feed: RssFeed,  # type: ignore[valid-type]
     episode: Episode,  # type: ignore[valid-type]
@@ -4719,22 +4906,76 @@ def generate_episode_metadata(  # noqa: C901
             if erel:
                 episode_metadata = episode_metadata.model_copy(update={"image_local_relpath": erel})
 
+    # RFC-124 / S2.2: THE translation seam. It is here and nowhere else because every path that
+    # produces a transcript ends in this function — ASR, a cache hit, a direct download, a
+    # publisher file, and every relabel/rediarize/retranscript cascade — so this is the one place
+    # where "has this episode been translated yet" can be asked once. It runs BEFORE the summary
+    # and everything after it, because every stage from here on reads English.
+    #
+    # It performs no translation in this slice; it decides, records the manifest block, and
+    # credits its own wall time back to the deadline `processing.py` observes around this whole
+    # call, so a future overrun alert keeps meaning "summary + GI + KG were slow".
+    _translation = run_translation_stage(
+        cfg,
+        feed_language=getattr(feed, "language", None),
+        transcript_relpath=transcript_file_path,
+        effective_output_dir=output_dir,
+        episode_id=episode_id,
+        feed_id=feed_id,
+        run_id=_resolved_run_id(cfg),
+        # S2.4's title decision: the EPISODE title goes through the translator so the roster
+        # reads it in English (§5.4 C-6). The SHOW name deliberately does not — ADR-157 measured
+        # the model renaming `Sesiones de Sendero` to `Trail Sessions`, and a show's name is its
+        # identity on every surface, in search, and in every listener's saved library.
+        episode_title=getattr(episode, "title", None),
+    )
+
+    # RFC-124 §5.3: the consumer half of the completeness gate. The producer withholds the
+    # translation
+    # when a translation is incomplete; this is what stops the English stages reading the SOURCE
+    # anyway. Without it a pending translation falls through the resolver's precedence to
+    # `.adfree.txt`/`.txt` and runs English prompts over Spanish — which §5.2 measured as
+    # confidently wrong, not blind. English episodes cost one language comparison here.
+    _blocked = analysis_blocked_reason(
+        cfg,
+        transcript_relpath=transcript_file_path,
+        effective_output_dir=output_dir,
+        feed_language=getattr(feed, "language", None),
+    )
+    if _blocked:
+        logger.warning("[%s] %s", getattr(episode, "idx", "?"), _blocked)
+        _record_analysis_skipped(cfg, output_dir, transcript_file_path, _blocked, episode_id)
+
+    # S2.11: publish this episode's translation so EVERY `gi.json` written below carries
+    # provenance, without ten call sites each having to remember. Called unconditionally — with
+    # this episode's translation or with None for an English one — so a reused worker thread
+    # cannot decorate one episode with another's units.
+    _publish_translation_for_provenance(output_dir, transcript_file_path)
+
     # Get NLP model for entity reconciliation if needed
     nlp = _get_nlp_model_for_reconciliation(
         cfg, episode, transcript_file_path, summary_provider, nlp
     )
 
     # Generate summary if enabled and transcript is available
-    summary_metadata, summary_elapsed, summary_call_metrics = _generate_and_validate_summary(
-        episode,
-        feed_url,
-        transcript_file_path,
-        output_dir,
-        cfg,
-        summary_provider,
-        whisper_model,
-        pipeline_metrics,
-    )
+    if _blocked:
+        # Skipped, not failed. `metadata.json` is still written below, so the episode EXISTS —
+        # the player serves its source text through the resolver's tail, S2.8's
+        # `translation_status` reports it, and the backlog is queryable. Raising here instead
+        # would land in processing.py's generic handler, count the episode as an error and write
+        # no metadata at all, which would make the backlog invisible.
+        summary_metadata, summary_elapsed, summary_call_metrics = None, None, None
+    else:
+        summary_metadata, summary_elapsed, summary_call_metrics = _generate_and_validate_summary(
+            episode,
+            feed_url,
+            transcript_file_path,
+            output_dir,
+            cfg,
+            summary_provider,
+            whisper_model,
+            pipeline_metrics,
+        )
 
     processing_metadata = _build_processing_metadata(
         cfg, output_dir, episode_idx=episode.idx, pipeline_metrics=pipeline_metrics
@@ -4834,7 +5075,15 @@ def generate_episode_metadata(  # noqa: C901
     gi_meta: Optional[GroundedInsightsMetadata] = None
     gi_elapsed: Optional[float] = None  # captured for the processing manifest (RFC-109)
     gi_cost: Optional[float] = None  # per-episode GI cost for the processing manifest (RFC-109)
-    if getattr(cfg, "generate_gi", False):
+    # `not _blocked` is the GI half of RFC-124 §5.3's gate. GI is where the cost of getting this
+    # wrong is highest: it mints claims and attaches them to people via SPOKEN_BY, so a claim
+    # extracted from untranslated Spanish by English prompts becomes a durable corpus fact
+    # nobody can later distinguish from a correct one.
+    #
+    # KG IS GATED SEPARATELY, at its own block below. This comment used to claim "KG runs inside
+    # this block, so gating here gates both" — it does not, and asserting it instead of checking
+    # left KG ungated behind a comment that said otherwise.
+    if getattr(cfg, "generate_gi", False) and not _blocked:
         from .helpers import get_episode_id_from_episode
 
         episode_id_for_status, _ = get_episode_id_from_episode(episode, feed_url)
@@ -4847,7 +5096,7 @@ def generate_episode_metadata(  # noqa: C901
         # is the relpath actually read — quote/viewer references point at it.
         transcript_ref_for_gi = transcript_file_path or "transcript.txt"
         if transcript_file_path and output_dir:
-            from .adfree_transcript import load_processing_transcript
+            from .transcript_resolution import load_processing_transcript
 
             loaded = load_processing_transcript(output_dir, transcript_file_path)
             transcript_text = loaded.text
@@ -5077,7 +5326,14 @@ def generate_episode_metadata(  # noqa: C901
     kg_meta: Optional[KnowledgeGraphMetadata] = None
     kg_elapsed: Optional[float] = None  # captured for the processing manifest (RFC-109)
     kg_cost: Optional[float] = None  # per-episode KG cost for the processing manifest (RFC-109)
-    if getattr(cfg, "generate_kg", False):
+    # `not _blocked` — RFC-124 §5.3. KG is NOT inside the GI block, which an earlier comment
+    # here claimed it was; a review found this ungated. On a blocked Spanish episode the KG
+    # block resolves ANALYSIS, which falls through the absent `<base>.adfree.txt` and the
+    # deliberately-absent source `.adfree.txt` (S2.7) to the Spanish `.txt`, and writes a
+    # `kg.json` extracted from Spanish by English prompts — while the manifest simultaneously
+    # recorded `kg: ran=false, skipped_reason=translation_incomplete`. Two artifacts
+    # contradicting each other, with the wrong one being the durable corpus fact.
+    if getattr(cfg, "generate_kg", False) and not _blocked:
         from .helpers import get_episode_id_from_episode
 
         episode_id_for_kg, _ = get_episode_id_from_episode(episode, feed_url)
@@ -5085,7 +5341,7 @@ def generate_episode_metadata(  # noqa: C901
         transcript_text_kg = ""
         transcript_ref_for_kg = transcript_file_path or "transcript.txt"
         if transcript_file_path and output_dir:
-            from .adfree_transcript import load_processing_transcript
+            from .transcript_resolution import load_processing_transcript
 
             loaded_kg = load_processing_transcript(output_dir, transcript_file_path)
             transcript_text_kg = loaded_kg.text

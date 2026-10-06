@@ -50,6 +50,7 @@ def _rss_with_guid(title: str, guid: str, transcript_url: str) -> str:
     return f"""<?xml version='1.0'?>
 <rss xmlns:podcast=\"https://podcastindex.org/namespace/1.0\">
   <channel>
+    <language>en</language>
     <title>{title}</title>
     <item>
       <title>Episode 1</title>

@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p14_e01",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:cut-banking",
+      "label": "cut banking"
+    },
+    {
+      "id": "topic:drainage-design",
+      "label": "drainage design"
+    },
+    {
+      "id": "topic:land-management",
+      "label": "land management"
+    },
+    {
+      "id": "topic:machine-vs-hand-built",
+      "label": "machine vs hand-built"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:slope-excavation",
+      "label": "slope excavation"
+    },
+    {
+      "id": "topic:soil-structure",
+      "label": "soil structure"
+    },
+    {
+      "id": "topic:team-structure",
+      "label": "team structure"
+    },
+    {
+      "id": "topic:territory-management",
+      "label": "territory management"
+    },
+    {
+      "id": "topic:tooling-impact",
+      "label": "tooling impact"
+    }
+  ]
+}

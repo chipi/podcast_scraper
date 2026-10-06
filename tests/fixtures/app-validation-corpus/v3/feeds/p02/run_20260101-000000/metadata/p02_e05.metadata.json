@@ -27,6 +27,8 @@
   "episode": {
     "duration_seconds": 79,
     "episode_id": "ep-a05e37624721d37c",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2025-03-09T00:00:00",
     "title": "Reliability, Live"
   },
@@ -36,22 +38,28 @@
     ],
     "description": "Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.",
     "feed_id": "p02",
-    "language": "en-us",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
+    "image_url": "http://localhost/images/p02.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "last_updated": "2025-03-09T00:00:00",
     "title": "Practical Systems",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p02.webp",
-    "image_url": "http://localhost/images/p02.webp"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Alert fatigue is a signal-to-noise problem rather than a discipline problem — when a team ignores pages, the pages are wrong, not the people.",
-      "Tuning the alerts should come before tuning the humans; fixing the paging system addresses the root cause, whereas pushing responders to try harder does not.",
-      "The share of pages that led to action is the key diagnostic metric — under half signals a noise problem.",
-      "Noise cannot be overcome through willpower; no amount of responder effort compensates for alerts that don't warrant action, so the fix has to live in the alerting itself."
+      "Alert fatigue stems from signal-to-noise imbalance, not human failure — the system generates too many alerts, not the team's fault.",
+      "Noise in alerts undermines trust, making real incidents harder to detect — even critical alerts risk being ignored.",
+      "The key metric is actionability: if fewer than half of all alerts lead to meaningful action, the system has a noise problem.",
+      "Tuning alerts before training humans is essential — improving the signal is more effective than demanding better discipline.",
+      "Real incidents are often missed not because of poor response, but because of overexposure to irrelevant alerts.",
+      "A well-tuned alert system ensures that every page has a purpose — if it doesn't, it's noise.",
+      "The goal is not to increase willpower but to reduce the number of false or low-value alerts.",
+      "When alerts are reliable, teams respond to them — when they aren't, they don’t."
     ],
-    "raw_text": "Alert fatigue is a signal-to-noise problem rather than a discipline problem — when a team ignores pages, the pages are wrong, not the people. Tuning the alerts should come before tuning the humans; fixing the paging system addresses the root cause, whereas pushing responders to try harder does not.",
-    "title": "Alert Fatigue vs. Real Incidents"
+    "raw_text": "Alert fatigue stems from signal-to-noise imbalance, not human failure — the system generates too many alerts, not the team's fault. Noise in alerts undermines trust, making real incidents harder to detect — even critical alerts risk being ignored.",
+    "title": "Taming Alert Fatigue in Systems Management"
   }
 }

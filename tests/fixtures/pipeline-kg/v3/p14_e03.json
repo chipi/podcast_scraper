@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p14_e03",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from the run's <ep>.kg.json Topic nodes",
+  "topics": [
+    {
+      "id": "topic:bicycle-silence",
+      "label": "bicycle silence"
+    },
+    {
+      "id": "topic:maintenance-intervals",
+      "label": "maintenance intervals"
+    },
+    {
+      "id": "topic:chain-wear-indicator",
+      "label": "chain wear indicator"
+    },
+    {
+      "id": "topic:contact-surface-creaks",
+      "label": "contact surface creaks"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:transmission-mechanics",
+      "label": "transmission mechanics"
+    },
+    {
+      "id": "topic:component-torque",
+      "label": "component torque"
+    },
+    {
+      "id": "topic:spoke-wrench-workflow",
+      "label": "spoke & wrench workflow"
+    },
+    {
+      "id": "topic:shimano-components",
+      "label": "shimano components"
+    },
+    {
+      "id": "topic:linear-task-management",
+      "label": "linear task management"
+    }
+  ]
+}

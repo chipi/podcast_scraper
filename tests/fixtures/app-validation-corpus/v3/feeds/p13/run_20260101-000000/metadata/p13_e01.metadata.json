@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p13-e01",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p13_e01.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Katrin Vogel",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Stefan Brandt",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p13_e01.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 420,
+    "episode_id": "ep-c0ab3bfb1ebdab6d",
+    "language": "de",
+    "language_source": "rss",
+    "published_date": "2025-12-01T00:00:00",
+    "title": "Wege Bauen, Die Bleiben"
+  },
+  "feed": {
+    "authors": [
+      "Katrin Vogel"
+    ],
+    "description": "Gespräche über Wegebau: Entwässerung, Linienführung, und die Menschen, die den Weg bauen. Deutsches Gegenstück zu Singletrack Sessions.",
+    "feed_id": "p13",
+    "language": "de",
+    "language_raw": "de-DE",
+    "language_source": "rss",
+    "last_updated": "2025-12-22T00:00:00",
+    "title": "Pfadgespräche",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p13.svg",
+    "image_url": "http://localhost/images/p13.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Drainage is the design choice that has the biggest impact on trail performance, regardless of route or riding style — a foundational decision that shapes all others.",
+      "Digging with too much of a slope is a common mistake that new path builders make, and correcting it makes all other decisions easier to manage.",
+      "Bankings on slopes are not optional — their absence leads to failure that requires complete reconstruction within a year.",
+      "The underlying structure of a team is more important than people realize, and consistent success emerges from effective team models like Spoke & Wrench.",
+      "Integrating the Cascadia Alliance into the process makes trade-offs clear — ignoring them results in a full rebuild within a year.",
+      "Machine-built trails are not inherently better than hand-built ones; the real issue lies in understanding the structural and environmental tradeoffs involved.",
+      "Land management must be addressed before any ground is broken — its considerations permeate every stage of trail construction.",
+      "The second-order effect — often overlooked — is the long-term consequence of neglecting foundational design choices like drainage and slope management."
+    ],
+    "raw_text": "Drainage is the design choice that has the biggest impact on trail performance, regardless of route or riding style — a foundational decision that shapes all others. Digging with too much of a slope is a common mistake that new path builders make, and correcting it makes all other decisions easier to manage.",
+    "title": "Trail Construction: The Hidden Impact of Drainage and Team Structure"
+  }
+}

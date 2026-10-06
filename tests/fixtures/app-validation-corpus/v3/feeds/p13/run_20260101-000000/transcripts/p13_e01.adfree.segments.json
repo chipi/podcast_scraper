@@ -1,0 +1,922 @@
+[
+{
+"start": 210.0,
+"end": 213.06,
+"speaker_label": "SPEAKER_00",
+"text": "Tell me about how you made that decision.",
+"char_start": 12,
+"char_end": 53,
+"unit_id": "t0002.u01",
+"sent_id": "t0002.s04"
+},
+{
+"start": 213.12,
+"end": 215.16,
+"speaker_label": "SPEAKER_00",
+"text": "How does RockShox fit into this picture?",
+"char_start": 54,
+"char_end": 94,
+"unit_id": "t0002.u01",
+"sent_id": "t0002.s05"
+},
+{
+"start": 215.16,
+"end": 221.28,
+"speaker_label": "SPEAKER_01",
+"text": "To be honest, the way you handle drainage is the design decision that has the biggest impact on every project.",
+"char_start": 107,
+"char_end": 217,
+"unit_id": "t0003.u01",
+"sent_id": "t0003.s01"
+},
+{
+"start": 221.34,
+"end": 225.24,
+"speaker_label": "SPEAKER_01",
+"text": "We've seen this with teams that use the Cascadia Alliance.",
+"char_start": 218,
+"char_end": 276,
+"unit_id": "t0003.u01",
+"sent_id": "t0003.s02"
+},
+{
+"start": 225.3,
+"end": 229.02,
+"speaker_label": "SPEAKER_01",
+"text": "I've observed this pattern in three different teams.",
+"char_start": 277,
+"char_end": 329,
+"unit_id": "t0003.u01",
+"sent_id": "t0003.s03"
+},
+{
+"start": 229.02,
+"end": 232.08,
+"speaker_label": "SPEAKER_00",
+"text": "Tell me how you made the decision.",
+"char_start": 342,
+"char_end": 376,
+"unit_id": "t0004.u01",
+"sent_id": "t0004.s01"
+},
+{
+"start": 232.14,
+"end": 235.68,
+"speaker_label": "SPEAKER_00",
+"text": "What is the core issue that really matters in this question?",
+"char_start": 377,
+"char_end": 437,
+"unit_id": "t0004.u01",
+"sent_id": "t0004.s02"
+},
+{
+"start": 235.68,
+"end": 240.9,
+"speaker_label": "SPEAKER_01",
+"text": "Yes, see \u2013 a common mistake that new path builders make is digging with too much of a slope.",
+"char_start": 450,
+"char_end": 542,
+"unit_id": "t0005.u01",
+"sent_id": "t0005.s01"
+},
+{
+"start": 240.96,
+"end": 245.88,
+"speaker_label": "SPEAKER_01",
+"text": "Once you understand that, the other decisions become easier.",
+"char_start": 543,
+"char_end": 603,
+"unit_id": "t0005.u01",
+"sent_id": "t0005.s02"
+},
+{
+"start": 245.88,
+"end": 247.38,
+"speaker_label": "SPEAKER_00",
+"text": "I would like to explore this further.",
+"char_start": 616,
+"char_end": 653,
+"unit_id": "t0006.u01",
+"sent_id": "t0006.s01"
+},
+{
+"start": 247.44,
+"end": 250.26,
+"speaker_label": "SPEAKER_00",
+"text": "Where do soil erosion and road construction intersect?",
+"char_start": 654,
+"char_end": 708,
+"unit_id": "t0006.u01",
+"sent_id": "t0006.s02"
+},
+{
+"start": 250.26,
+"end": 250.56,
+"speaker_label": "SPEAKER_01",
+"text": "Certainly.",
+"char_start": 721,
+"char_end": 731,
+"unit_id": "t0007.u01",
+"sent_id": "t0007.s01"
+},
+{
+"start": 250.62,
+"end": 255.18,
+"speaker_label": "SPEAKER_01",
+"text": "Discussions about land management must take place before any ground is broken.",
+"char_start": 732,
+"char_end": 810,
+"unit_id": "t0007.u01",
+"sent_id": "t0007.s02"
+},
+{
+"start": 255.24,
+"end": 258.42,
+"speaker_label": "SPEAKER_01",
+"text": "We've seen this happen with teams that use RockShox products.",
+"char_start": 811,
+"char_end": 872,
+"unit_id": "t0007.u01",
+"sent_id": "t0007.s03"
+},
+{
+"start": 258.48,
+"end": 262.38,
+"speaker_label": "SPEAKER_01",
+"text": "The frame is important because it tells you what trade-offs you're making.",
+"char_start": 873,
+"char_end": 947,
+"unit_id": "t0007.u01",
+"sent_id": "t0007.s04"
+},
+{
+"start": 262.38,
+"end": 263.88,
+"speaker_label": "SPEAKER_00",
+"text": "Tell me more about it.",
+"char_start": 960,
+"char_end": 982,
+"unit_id": "t0008.u01",
+"sent_id": "t0008.s01"
+},
+{
+"start": 263.88,
+"end": 272.94,
+"speaker_label": "SPEAKER_01",
+"text": "And when teams integrate Spoke & Wrench into this process, the trade-offs become clear. If you ignore these trade-offs, you'll end up having to rebuild everything from scratch a year later.",
+"char_start": 995,
+"char_end": 1184,
+"unit_id": "t0009.u01",
+"sent_id": "t0009.s01"
+},
+{
+"start": 272.94,
+"end": 276.0,
+"speaker_label": "SPEAKER_00",
+"text": "Tell me about how you made the decision.",
+"char_start": 1197,
+"char_end": 1237,
+"unit_id": "t0010.u01",
+"sent_id": "t0010.s01"
+},
+{
+"start": 276.06,
+"end": 278.88,
+"speaker_label": "SPEAKER_00",
+"text": "Where do soil erosion and road construction intersect?",
+"char_start": 1238,
+"char_end": 1292,
+"unit_id": "t0010.u01",
+"sent_id": "t0010.s02"
+},
+{
+"start": 278.88,
+"end": 279.18,
+"speaker_label": "SPEAKER_01",
+"text": "Certainly.",
+"char_start": 1305,
+"char_end": 1315,
+"unit_id": "t0011.u01",
+"sent_id": "t0011.s01"
+},
+{
+"start": 279.24,
+"end": 281.46,
+"speaker_label": "SPEAKER_01",
+"text": "Bankings on slopes are not optional.",
+"char_start": 1316,
+"char_end": 1352,
+"unit_id": "t0011.u01",
+"sent_id": "t0011.s02"
+},
+{
+"start": 281.52,
+"end": 285.18,
+"speaker_label": "SPEAKER_01",
+"text": "The shortcut is the breakthrough in the third year.",
+"char_start": 1353,
+"char_end": 1404,
+"unit_id": "t0011.u01",
+"sent_id": "t0011.s03"
+},
+{
+"start": 285.24,
+"end": 289.38,
+"speaker_label": "SPEAKER_01",
+"text": "And the second-order effect is the part that almost everyone overlooks.",
+"char_start": 1405,
+"char_end": 1476,
+"unit_id": "t0011.u01",
+"sent_id": "t0011.s04"
+},
+{
+"start": 289.38,
+"end": 291.18,
+"speaker_label": "SPEAKER_00",
+"text": "This is a useful framework.",
+"char_start": 1489,
+"char_end": 1516,
+"unit_id": "t0012.u01",
+"sent_id": "t0012.s01"
+},
+{
+"start": 291.24,
+"end": 294.78,
+"speaker_label": "SPEAKER_00",
+"text": "What is the core issue or the most important aspect of the question?",
+"char_start": 1517,
+"char_end": 1585,
+"unit_id": "t0012.u01",
+"sent_id": "t0012.s02"
+},
+{
+"start": 294.78,
+"end": 298.62,
+"speaker_label": "SPEAKER_01",
+"text": "Yes, look \u2013 the team structure is more important than people often realize.",
+"char_start": 1598,
+"char_end": 1673,
+"unit_id": "t0013.u01",
+"sent_id": "t0013.s01"
+},
+{
+"start": 298.68,
+"end": 302.22,
+"speaker_label": "SPEAKER_01",
+"text": "We've seen this with teams that use the Spoke & Wrench model.",
+"char_start": 1674,
+"char_end": 1735,
+"unit_id": "t0013.u01",
+"sent_id": "t0013.s02"
+},
+{
+"start": 302.28,
+"end": 306.0,
+"speaker_label": "SPEAKER_01",
+"text": "I've observed this pattern in three different teams.",
+"char_start": 1736,
+"char_end": 1788,
+"unit_id": "t0013.u01",
+"sent_id": "t0013.s03"
+},
+{
+"start": 306.0,
+"end": 307.8,
+"speaker_label": "SPEAKER_00",
+"text": "What does the error mode look like?",
+"char_start": 1801,
+"char_end": 1836,
+"unit_id": "t0014.u01",
+"sent_id": "t0014.s01"
+},
+{
+"start": 307.86,
+"end": 312.84,
+"speaker_label": "SPEAKER_00",
+"text": "What is the structural perspective that most listeners do not have access to?",
+"char_start": 1837,
+"char_end": 1914,
+"unit_id": "t0014.u01",
+"sent_id": "t0014.s02"
+},
+{
+"start": 312.84,
+"end": 316.44,
+"speaker_label": "SPEAKER_01",
+"text": "Let me share with you the perspective that I truly believe in.",
+"char_start": 1927,
+"char_end": 1989,
+"unit_id": "t0015.u01",
+"sent_id": "t0015.s01"
+},
+{
+"start": 316.5,
+"end": 321.6,
+"speaker_label": "SPEAKER_01",
+"text": "I have changed my opinion about machine-built versus hand-built trails.",
+"char_start": 1990,
+"char_end": 2061,
+"unit_id": "t0015.u01",
+"sent_id": "t0015.s02"
+},
+{
+"start": 321.66,
+"end": 325.38,
+"speaker_label": "SPEAKER_01",
+"text": "I have observed this pattern in three different teams.",
+"char_start": 2062,
+"char_end": 2116,
+"unit_id": "t0015.u01",
+"sent_id": "t0015.s03"
+},
+{
+"start": 325.38,
+"end": 326.88,
+"speaker_label": "SPEAKER_00",
+"text": "Tell me more about it.",
+"char_start": 2129,
+"char_end": 2151,
+"unit_id": "t0016.u01",
+"sent_id": "t0016.s01"
+},
+{
+"start": 842.04,
+"end": 843.84,
+"speaker_label": "SPEAKER_00",
+"text": "What does the error mode look like?",
+"char_start": 2152,
+"char_end": 2187,
+"unit_id": "t0020.u01",
+"sent_id": "t0020.s02"
+},
+{
+"start": 843.9,
+"end": 846.72,
+"speaker_label": "SPEAKER_00",
+"text": "Where do soil erosion and road construction intersect?",
+"char_start": 2188,
+"char_end": 2242,
+"unit_id": "t0020.u01",
+"sent_id": "t0020.s03"
+},
+{
+"start": 846.72,
+"end": 847.68,
+"speaker_label": "SPEAKER_01",
+"text": "That's my perspective.",
+"char_start": 2255,
+"char_end": 2277,
+"unit_id": "t0021.u01",
+"sent_id": "t0021.s01"
+},
+{
+"start": 847.74,
+"end": 852.96,
+"speaker_label": "SPEAKER_01",
+"text": "Drainage is the design decision that has the biggest impact on performance, regardless of the route.",
+"char_start": 2278,
+"char_end": 2378,
+"unit_id": "t0021.u01",
+"sent_id": "t0021.s02"
+},
+{
+"start": 853.02,
+"end": 856.14,
+"speaker_label": "SPEAKER_01",
+"text": "We've seen this with teams that use Shimano components.",
+"char_start": 2379,
+"char_end": 2434,
+"unit_id": "t0021.u01",
+"sent_id": "t0021.s03"
+},
+{
+"start": 856.2,
+"end": 860.04,
+"speaker_label": "SPEAKER_01",
+"text": "If you ignore that, you'll have to rebuild everything from scratch a year later.",
+"char_start": 2435,
+"char_end": 2515,
+"unit_id": "t0021.u01",
+"sent_id": "t0021.s04"
+},
+{
+"start": 860.04,
+"end": 863.1,
+"speaker_label": "SPEAKER_00",
+"text": "Tell me about how you made the decision.",
+"char_start": 2528,
+"char_end": 2568,
+"unit_id": "t0022.u01",
+"sent_id": "t0022.s01"
+},
+{
+"start": 863.16,
+"end": 865.2,
+"speaker_label": "SPEAKER_00",
+"text": "How does RockShox fit into this picture?",
+"char_start": 2569,
+"char_end": 2609,
+"unit_id": "t0022.u01",
+"sent_id": "t0022.s02"
+},
+{
+"start": 865.2,
+"end": 870.42,
+"speaker_label": "SPEAKER_01",
+"text": "Yes, see \u2013 a common mistake that new path builders make is digging with too much of a slope.",
+"char_start": 2622,
+"char_end": 2714,
+"unit_id": "t0023.u01",
+"sent_id": "t0023.s01"
+},
+{
+"start": 870.48,
+"end": 875.4,
+"speaker_label": "SPEAKER_01",
+"text": "Once you understand that, the other decisions become easier.",
+"char_start": 2715,
+"char_end": 2775,
+"unit_id": "t0023.u01",
+"sent_id": "t0023.s02"
+},
+{
+"start": 875.4,
+"end": 877.98,
+"speaker_label": "SPEAKER_00",
+"text": "Challenge my existing beliefs.",
+"char_start": 2788,
+"char_end": 2818,
+"unit_id": "t0024.u01",
+"sent_id": "t0024.s01"
+},
+{
+"start": 878.04,
+"end": 881.7,
+"speaker_label": "SPEAKER_00",
+"text": "What did you used to believe about this, and how have your views changed since then?",
+"char_start": 2819,
+"char_end": 2903,
+"unit_id": "t0024.u01",
+"sent_id": "t0024.s02"
+},
+{
+"start": 881.7,
+"end": 885.3,
+"speaker_label": "SPEAKER_01",
+"text": "Let me share with you the approach that I truly believe in.",
+"char_start": 2916,
+"char_end": 2975,
+"unit_id": "t0025.u01",
+"sent_id": "t0025.s01"
+},
+{
+"start": 885.36,
+"end": 889.92,
+"speaker_label": "SPEAKER_01",
+"text": "Discussions about land management must take place before any digging begins.",
+"char_start": 2976,
+"char_end": 3052,
+"unit_id": "t0025.u01",
+"sent_id": "t0025.s02"
+},
+{
+"start": 889.98,
+"end": 893.52,
+"speaker_label": "SPEAKER_01",
+"text": "We've seen this with teams that use Spoke & Wrench.",
+"char_start": 3053,
+"char_end": 3104,
+"unit_id": "t0025.u01",
+"sent_id": "t0025.s03"
+},
+{
+"start": 893.58,
+"end": 897.3,
+"speaker_label": "SPEAKER_01",
+"text": "I've observed this pattern in three different teams.",
+"char_start": 3105,
+"char_end": 3157,
+"unit_id": "t0025.u01",
+"sent_id": "t0025.s04"
+},
+{
+"start": 897.3,
+"end": 898.8,
+"speaker_label": "SPEAKER_00",
+"text": "That fits.\nThat works.\nThat's perfect.\nThat's right.\nThat's a good fit.",
+"char_start": 3170,
+"char_end": 3241,
+"unit_id": "t0026.u01",
+"sent_id": "t0026.s01"
+},
+{
+"start": 898.8,
+"end": 904.86,
+"speaker_label": "SPEAKER_01",
+"text": "Outside of the tools available at the Cascadia Alliance level, the error mode is more difficult to identify.",
+"char_start": 3254,
+"char_end": 3362,
+"unit_id": "t0027.u01",
+"sent_id": "t0027.s01"
+},
+{
+"start": 904.92,
+"end": 909.06,
+"speaker_label": "SPEAKER_01",
+"text": "And the second-order effect is the part that almost everyone overlooks.",
+"char_start": 3363,
+"char_end": 3434,
+"unit_id": "t0027.u01",
+"sent_id": "t0027.s02"
+},
+{
+"start": 909.06,
+"end": 912.24,
+"speaker_label": "SPEAKER_00",
+"text": "What is the guiding principle you always come back to?",
+"char_start": 3447,
+"char_end": 3501,
+"unit_id": "t0028.u01",
+"sent_id": "t0028.s01"
+},
+{
+"start": 912.3,
+"end": 915.84,
+"speaker_label": "SPEAKER_00",
+"text": "What is the core of the question that really matters?",
+"char_start": 3502,
+"char_end": 3555,
+"unit_id": "t0028.u01",
+"sent_id": "t0028.s02"
+},
+{
+"start": 915.84,
+"end": 919.92,
+"speaker_label": "SPEAKER_01",
+"text": "It all boils down to this: curbs on slopes are not optional.",
+"char_start": 3568,
+"char_end": 3628,
+"unit_id": "t0029.u01",
+"sent_id": "t0029.s01"
+},
+{
+"start": 919.98,
+"end": 923.64,
+"speaker_label": "SPEAKER_01",
+"text": "The shortcut is the breakthrough in the third year.",
+"char_start": 3629,
+"char_end": 3680,
+"unit_id": "t0029.u01",
+"sent_id": "t0029.s02"
+},
+{
+"start": 923.7,
+"end": 927.42,
+"speaker_label": "SPEAKER_01",
+"text": "I have observed this pattern in three different teams.",
+"char_start": 3681,
+"char_end": 3735,
+"unit_id": "t0029.u01",
+"sent_id": "t0029.s03"
+},
+{
+"start": 1320.0,
+"end": 1321.8,
+"speaker_label": "SPEAKER_00",
+"text": "What does the failure mode look like?",
+"char_start": 3748,
+"char_end": 3785,
+"unit_id": "t0030.u01",
+"sent_id": "t0030.s01"
+},
+{
+"start": 1321.86,
+"end": 1325.28,
+"speaker_label": "SPEAKER_00",
+"text": "What is the most underestimated aspect of road construction?",
+"char_start": 3786,
+"char_end": 3846,
+"unit_id": "t0030.u01",
+"sent_id": "t0030.s02"
+},
+{
+"start": 1325.28,
+"end": 1328.88,
+"speaker_label": "SPEAKER_01",
+"text": "Let me share with you the framework that I truly believe in.",
+"char_start": 3859,
+"char_end": 3919,
+"unit_id": "t0031.u01",
+"sent_id": "t0031.s01"
+},
+{
+"start": 1328.94,
+"end": 1332.06,
+"speaker_label": "SPEAKER_01",
+"text": "The underlying structure is more important than people often realize.",
+"char_start": 3920,
+"char_end": 3989,
+"unit_id": "t0031.u01",
+"sent_id": "t0031.s02"
+},
+{
+"start": 1332.12,
+"end": 1336.02,
+"speaker_label": "SPEAKER_01",
+"text": "We've seen this with teams that utilize the Cascadia Alliance.",
+"char_start": 3990,
+"char_end": 4052,
+"unit_id": "t0031.u01",
+"sent_id": "t0031.s03"
+},
+{
+"start": 1336.08,
+"end": 1339.8,
+"speaker_label": "SPEAKER_01",
+"text": "I've observed this pattern in three different teams.",
+"char_start": 4053,
+"char_end": 4105,
+"unit_id": "t0031.u01",
+"sent_id": "t0031.s04"
+},
+{
+"start": 1339.8,
+"end": 1341.3,
+"speaker_label": "SPEAKER_00",
+"text": "I would like to explore this further.",
+"char_start": 4118,
+"char_end": 4155,
+"unit_id": "t0032.u01",
+"sent_id": "t0032.s01"
+},
+{
+"start": 1341.36,
+"end": 1343.34,
+"speaker_label": "SPEAKER_00",
+"text": "How does Shimano fit into this picture?",
+"char_start": 4156,
+"char_end": 4195,
+"unit_id": "t0032.u01",
+"sent_id": "t0032.s02"
+},
+{
+"start": 1343.34,
+"end": 1349.16,
+"speaker_label": "SPEAKER_01",
+"text": "Yes, look \u2013 I've changed my opinion about machine-built versus hand-built roads.",
+"char_start": 4208,
+"char_end": 4288,
+"unit_id": "t0033.u01",
+"sent_id": "t0033.s01"
+},
+{
+"start": 1349.22,
+"end": 1354.14,
+"speaker_label": "SPEAKER_01",
+"text": "Once you understand that, the other decisions become easier.",
+"char_start": 4289,
+"char_end": 4349,
+"unit_id": "t0033.u01",
+"sent_id": "t0033.s02"
+},
+{
+"start": 1354.14,
+"end": 1356.12,
+"speaker_label": "SPEAKER_00",
+"text": "Where does it stop working?",
+"char_start": 4362,
+"char_end": 4389,
+"unit_id": "t0034.u01",
+"sent_id": "t0034.s01"
+},
+{
+"start": 1356.12,
+"end": 1361.7,
+"speaker_label": "SPEAKER_01",
+"text": "Outside of the tools available at the RockShox level, the error mode is more difficult to identify.",
+"char_start": 4402,
+"char_end": 4501,
+"unit_id": "t0035.u01",
+"sent_id": "t0035.s01"
+},
+{
+"start": 1361.76,
+"end": 1366.68,
+"speaker_label": "SPEAKER_01",
+"text": "Once you understand that, the remaining decisions become easier.",
+"char_start": 4502,
+"char_end": 4566,
+"unit_id": "t0035.u01",
+"sent_id": "t0035.s02"
+},
+{
+"start": 1366.68,
+"end": 1371.48,
+"speaker_label": "SPEAKER_00",
+"text": "Let's change the subject \u2013 I would like to dedicate the next section to land management.",
+"char_start": 4579,
+"char_end": 4667,
+"unit_id": "t0036.u01",
+"sent_id": "t0036.s01"
+},
+{
+"start": 1371.48,
+"end": 1378.68,
+"speaker_label": "SPEAKER_01",
+"text": "That's where the conversation becomes interesting, because the considerations surrounding land management permeate everything we've discussed.",
+"char_start": 4680,
+"char_end": 4822,
+"unit_id": "t0037.u01",
+"sent_id": "t0037.s01"
+},
+{
+"start": 1378.68,
+"end": 1380.18,
+"speaker_label": "SPEAKER_00",
+"text": "I would like to explore this further.",
+"char_start": 4835,
+"char_end": 4872,
+"unit_id": "t0038.u01",
+"sent_id": "t0038.s01"
+},
+{
+"start": 1380.24,
+"end": 1384.74,
+"speaker_label": "SPEAKER_00",
+"text": "What is the opposing perspective that most listeners are unable to grasp?",
+"char_start": 4873,
+"char_end": 4946,
+"unit_id": "t0038.u01",
+"sent_id": "t0038.s02"
+},
+{
+"start": 1384.74,
+"end": 1391.82,
+"speaker_label": "SPEAKER_01",
+"text": "Ultimately, the suspension setup is the design choice that has the biggest impact on performance, regardless of the riding style.",
+"char_start": 4959,
+"char_end": 5088,
+"unit_id": "t0039.u01",
+"sent_id": "t0039.s01"
+},
+{
+"start": 1391.88,
+"end": 1395.06,
+"speaker_label": "SPEAKER_01",
+"text": "We've seen this with teams that use RockShox.",
+"char_start": 5089,
+"char_end": 5134,
+"unit_id": "t0039.u01",
+"sent_id": "t0039.s02"
+},
+{
+"start": 1395.12,
+"end": 1398.96,
+"speaker_label": "SPEAKER_01",
+"text": "If you ignore this, you'll end up having to rebuild everything from scratch a year later.",
+"char_start": 5135,
+"char_end": 5224,
+"unit_id": "t0039.u01",
+"sent_id": "t0039.s03"
+},
+{
+"start": 1398.96,
+"end": 1400.76,
+"speaker_label": "SPEAKER_00",
+"text": "What does the failure mode look like?",
+"char_start": 5237,
+"char_end": 5274,
+"unit_id": "t0040.u01",
+"sent_id": "t0040.s01"
+},
+{
+"start": 1400.82,
+"end": 1404.24,
+"speaker_label": "SPEAKER_00",
+"text": "What is the most underestimated aspect of road construction?",
+"char_start": 5275,
+"char_end": 5335,
+"unit_id": "t0040.u01",
+"sent_id": "t0040.s02"
+},
+{
+"start": 1404.24,
+"end": 1409.64,
+"speaker_label": "SPEAKER_01",
+"text": "To be honest, the most common mistake made by new path builders is digging with too much of a slope.",
+"char_start": 5348,
+"char_end": 5448,
+"unit_id": "t0041.u01",
+"sent_id": "t0041.s01"
+},
+{
+"start": 1409.7,
+"end": 1413.6,
+"speaker_label": "SPEAKER_01",
+"text": "The framework is important because it tells you what considerations you are taking into account.",
+"char_start": 5449,
+"char_end": 5545,
+"unit_id": "t0041.u01",
+"sent_id": "t0041.s02"
+},
+{
+"start": 1680.0,
+"end": 1685.22,
+"speaker_label": "SPEAKER_00",
+"text": "Before we wrap up, what's one thing that listeners can try out this week?",
+"char_start": 5558,
+"char_end": 5631,
+"unit_id": "t0042.u01",
+"sent_id": "t0042.s01"
+},
+{
+"start": 1685.22,
+"end": 1690.02,
+"speaker_label": "SPEAKER_01",
+"text": "Choose one of the ideas we discussed and implement it for two weeks.",
+"char_start": 5644,
+"char_end": 5712,
+"unit_id": "t0043.u01",
+"sent_id": "t0043.s01"
+},
+{
+"start": 1690.08,
+"end": 1691.46,
+"speaker_label": "SPEAKER_01",
+"text": "The rest is iteration.",
+"char_start": 5713,
+"char_end": 5735,
+"unit_id": "t0043.u01",
+"sent_id": "t0043.s02"
+},
+{
+"start": 1691.46,
+"end": 1695.48,
+"speaker_label": "SPEAKER_00",
+"text": "And finally, a big thank you to our partners at Linear.",
+"char_start": 5748,
+"char_end": 5803,
+"unit_id": "t0044.u01",
+"sent_id": "t0044.s01"
+},
+{
+"start": 1695.54,
+"end": 1700.58,
+"speaker_label": "SPEAKER_00",
+"text": "Linear is the issue tracker, built for speed \u2013 designed for keyboard use.",
+"char_start": 5804,
+"char_end": 5877,
+"unit_id": "t0044.u01",
+"sent_id": "t0044.s02"
+},
+{
+"start": 1700.64,
+"end": 1702.32,
+"speaker_label": "SPEAKER_00",
+"text": "Visit linear.com.",
+"char_start": 5878,
+"char_end": 5895,
+"unit_id": "t0044.u01",
+"sent_id": "t0044.s03"
+},
+{
+"start": 1702.32,
+"end": 1704.6,
+"speaker_label": "SPEAKER_00",
+"text": "Stefan Brandt, thank you for the conversation.",
+"char_start": 5896,
+"char_end": 5942,
+"unit_id": "t0044.u01",
+"sent_id": "t0044.s04"
+},
+{
+"start": 1704.6,
+"end": 1706.1,
+"speaker_label": "SPEAKER_01",
+"text": "Thank you, Katrin.",
+"char_start": 5955,
+"char_end": 5973,
+"unit_id": "t0045.u01",
+"sent_id": "t0045.s01"
+},
+{
+"start": 1706.1,
+"end": 1709.16,
+"speaker_label": "SPEAKER_00",
+"text": "That's all for today's episode of \"Path Conversations.\"",
+"char_start": 5986,
+"char_end": 6041,
+"unit_id": "t0046.u01",
+"sent_id": "t0046.s01"
+},
+{
+"start": 1709.22,
+"end": 1710.48,
+"speaker_label": "SPEAKER_00",
+"text": "Until next time.",
+"char_start": 6042,
+"char_end": 6058,
+"unit_id": "t0046.u01",
+"sent_id": "t0046.s02"
+}
+]

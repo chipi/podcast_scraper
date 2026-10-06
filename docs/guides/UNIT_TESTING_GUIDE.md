@@ -26,9 +26,9 @@ This guide covers unit test implementation details: what to mock, isolation patt
 
 **Baseline extra:** **`[dev]`** — this is what `check_unit_test_imports.py` and “no ML at import time” checks target. Treat anything declared under **`[project.optional-dependencies].dev`** in `pyproject.toml` (and its transitive wheels) as **allowed** for unit tests. Do **not** assume **`[ml]`** is installed.
 
-**Why this matters:** CI `test-unit` installs `pip install -e .[dev]` only. Any test in `tests/unit/` that needs a non-`[dev]` package will be silently skipped (via `importorskip`) or fail outright, meaning it never validates anything in CI. Integration CI jobs install `.[dev,ml,llm]`, so tests there run with the full dependency set.
+**Why this matters:** CI `test-unit` installs `pip install -e .[dev]` only. Any test in `tests/unit/` that needs a non-`[dev]` package will be silently skipped (via `importorskip`) or fail outright, meaning it never validates anything in CI. Integration CI jobs install `.[dev,ml,llm,search]`, so tests there run with the full dependency set — including `lancedb`/`pyarrow`, which the `test-unit` job does **not** have (corrected 2026-10-03; the list previously omitted `search` and implied a real index was unavailable in integration).
 
-**Viewer / FastAPI tests:** Place in **`tests/integration/server/`** (not `tests/unit/`). Use `pytest.importorskip("fastapi")` there. CI integration jobs install `.[dev,ml,llm]`, so these tests run. Prefer thin HTTP boundaries (domain exceptions, lazy imports, patching the LanceDB backend load, etc.) so most server logic can be tested without a real index or ML stacks. Reserve `TestClient` + `create_app` for route/contract checks in integration tests.
+**Viewer / FastAPI tests:** Place in **`tests/integration/server/`** (not `tests/unit/`). Use `pytest.importorskip("fastapi")` there. CI integration jobs install `.[dev,ml,llm,search]`, so these tests run. Prefer thin HTTP boundaries (domain exceptions, lazy imports, patching the LanceDB backend load, etc.) so most server logic can be tested without a real index or ML stacks. Reserve `TestClient` + `create_app` for route/contract checks in integration tests.
 
 **Local CI parity:** **`make venv-dev-init`** creates **`.venv-dev`** with `pip install -e .[dev]` only (same extras as GitHub `test-unit`). Then **`make test-unit-dev-venv`** runs `check_unit_test_imports` + `pytest tests/unit/` inside that env. Override path: `make venv-dev-init VENVDEV=.venv-ci-unit`. Install ffmpeg locally if audio-related unit tests fail (CI installs it in the unit job).
 
@@ -39,6 +39,40 @@ This guide covers unit test implementation details: what to mock, isolation patt
 - `TestClient` / `create_app` calls that need FastAPI -- these belong in integration tests.
 
 **See also:** [Testing Strategy — Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject) for CI alignment and rationale.
+
+### Search and the vector store {#search-and-the-vector-store}
+
+`lancedb` and `pyarrow` live in the **`[search]`** extra, not `[dev]` — so a unit test must not
+reach them, **even indirectly**. The trap is indirect: importing
+`podcast_scraper.search.backends.lancedb_backend` for one helper is enough, because its schema
+builders import `pyarrow` lazily. That passes on a development machine with the full extras and
+fails in CI's `test-unit` job, which installs `.[dev]` only.
+
+Measured 2026-10-03: `make ci-fast` reported 13,353 unit tests passing while CI's `test-unit` job
+failed 8 — the same commit, a different dependency set. Neither `check-test-policy` nor
+`check-unit-imports` catches it: the former bans the import-or-skip helper (U1) and `*_AVAILABLE`
+guards (U2), which those tests did not use, and the latter checks that *library* modules import
+without ML deps, not that the *tests* do.
+
+**What a unit search test may cover:** query parsing and language signals
+(`search/query_language.py`), chunk-id construction, tier routing choices, offset arithmetic —
+anything expressible without the store. Across 20 unit files that touch search, **none**
+instantiates a backend, mocked or otherwise.
+
+**Use the shared fake, not a new hand-rolled one.** `tests/_fake_search_backend.py` is an
+in-memory `SearchBackend` held to the same behaviour contract as the real one
+(`tests/search_backend_contract.py`, run against both). Seven unit files predate it and still carry
+their own `_FakeBackend`; new tests should not add an eighth. A fake nothing holds to a contract is
+a fake the suite agrees with rather than checks — see
+[Integration Testing Guide — The backend contract](INTEGRATION_TESTING_GUIDE.md#search-backend-contract),
+which records the two real bugs that gap was hiding.
+
+**If the assertion needs the store to mean anything, it is not a unit test.** A schema's field
+list, a table's row count after a write, reindex behaviour — those belong in
+`tests/integration/search/`. Mocking does not rescue them: against a `MagicMock` an assertion
+like "this schema has no embedding column" passes while checking nothing, which is worse than
+having no test. See
+[Integration Testing Guide — Search and the vector store](INTEGRATION_TESTING_GUIDE.md#search-and-the-vector-store).
 
 ## What to Mock
 

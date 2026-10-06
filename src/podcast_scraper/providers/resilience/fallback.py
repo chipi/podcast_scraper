@@ -22,6 +22,7 @@ on this tier and raise.
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any, Callable, List, Optional, Tuple
 
 from ...providers.ml.diarization.base import DiarizationProvider, DiarizationResult
@@ -95,6 +96,22 @@ class FallbackChainTranscriptionProvider:
         self._builders = [b for _, b in tiers]
         self._providers: List[Optional[TranscriptionProvider]] = [None] * len(tiers)
         self._inited = [False] * len(tiers)
+        # Which tier produced the last transcript, per thread (episodes transcribe concurrently).
+        self._winner = threading.local()
+
+    def primary_provider(self) -> TranscriptionProvider:
+        """The tier this chain tries FIRST — the provider a cache lookup must be keyed on.
+
+        The transcript cache is keyed by the provider that produces a transcript, never by this
+        wrapper: the resilience strategy (``failover`` wraps, ``hold`` does not) must not change
+        the key for a transcript the same provider made (operator, 2026-10-06).
+        """
+        return self._ensure_tier(0)
+
+    def last_provider(self) -> Optional[TranscriptionProvider]:
+        """The tier that produced this thread's most recent transcript, or ``None`` before any."""
+        index = getattr(self._winner, "index", None)
+        return self._providers[index] if index is not None else None
 
     def initialize(self) -> None:
         """Eagerly construct + initialize the primary so its config errors surface at startup;
@@ -171,6 +188,7 @@ class FallbackChainTranscriptionProvider:
                     record_actual_asr_tier(pname)
                 except Exception:  # noqa: BLE001 — telemetry must never break a transcription
                     logger.debug("could not record the winning ASR tier", exc_info=True)
+            self._winner.index = i
             return result, elapsed
         # Unreachable: the last tier either returns or raises above. Kept for the type checker.
         assert last_exc is not None

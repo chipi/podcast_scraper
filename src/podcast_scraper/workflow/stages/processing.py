@@ -34,6 +34,7 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
     RssFeed = models.RssFeed  # type: ignore[assignment]
 from ...kg.speaker_coherence import same_person
+from ...languages import transcription_language
 from ...rss import BYTES_PER_MB, http_head, OPENAI_MAX_FILE_SIZE_BYTES
 from ...utils import filesystem
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
@@ -734,7 +735,9 @@ def _handle_dry_run_host_detection(
     # regex (no ML — safe in dry-run), so an org-authored feed whose description names its hosts
     # previews the same hosts the real run would find, instead of reporting none. NER is skipped
     # here (it needs the model dry-run deliberately avoids); author tags are the second source.
-    cached_hosts: set[str] = set(hosts_from_feed_statement(feed.title, feed.description))
+    cached_hosts: set[str] = set(
+        hosts_from_feed_statement(feed.title, feed.description, getattr(feed, "language", "") or "")
+    )
     if not cached_hosts and feed.authors:
         cached_hosts = {a for a in feed.authors if not is_network_or_org_author(a)}
     if cached_hosts:
@@ -742,7 +745,7 @@ def _handle_dry_run_host_detection(
             "DETECTED HOSTS (dry-run, feed statement / author tags): %s",
             ", ".join(sorted(cached_hosts)),
         )
-    return HostDetectionResult(cached_hosts, None, None)
+    return HostDetectionResult(cached_hosts, None, None, language=_feed_language(feed))
 
 
 def _create_speaker_detector_if_needed(
@@ -814,7 +817,12 @@ def _detect_hosts_from_feed(
     # mis-anchors org-authored feeds (the org is returned, then stripped to nothing) AND overrides a
     # feed whose description names hosts different from a personal author tag. Consult the provider
     # only when the deterministic parse finds nothing (it may still add an LLM-NER hit).
-    stated = detect_hosts_from_feed(feed.title, feed.description, feed.authors or [])
+    stated = detect_hosts_from_feed(
+        feed.title,
+        feed.description,
+        feed.authors or [],
+        language=getattr(feed, "language", "") or "",
+    )
     if stated:
         return stated
     try:
@@ -982,6 +990,12 @@ def hosts_for_episode(
     hosts of 9 episodes; the live feed carries that tag on ONE of its 229 items — 170 say only
     "Latent.Space". Another episode's author is not this episode's host.
     """
+    # An operator `hosts` override on THIS episode replaces everything below (#2283).
+    from ..apply_overrides import override_hosts
+
+    forced = override_hosts(episode)
+    if forced is not None:
+        return set(forced)
     hosts = set(result.cached_hosts or ())
     fallback = set(getattr(result, "episode_author_hosts", frozenset()) or ())
     from ...rss import parser as rss_parser
@@ -1004,6 +1018,7 @@ def hosts_for_episode(
             episode_description=extract_episode_description(item) if item is not None else None,
             feed_title=result.feed_title,
             episode_people=list(episode_people or ()),
+            language=getattr(result, "language", None),
         )
     )
 
@@ -1125,6 +1140,12 @@ def _feed_title(feed: Any) -> Optional[str]:
     return getattr(feed, "title", None)
 
 
+def _feed_language(feed: Any) -> Optional[str]:
+    """The feed's declared language, or None. Carried on `HostDetectionResult` for the same reason
+    as the title: the per-episode host pool is checked against that language's reject words."""
+    return getattr(feed, "language", None) or None
+
+
 # How much of each transcript the recurrence scan reads. Wider than the 2,000 the per-episode
 # roster path uses: this scan pays the cost once per feed rather than once per episode, and a show
 # that opens with a sponsor read or a cold-open clip puts its host introduction well past 2,000.
@@ -1162,6 +1183,10 @@ def _newest_run_transcripts(root: Path) -> List[Path]:
     for meta in metas:
         stem = meta.name[: -len(".metadata.json")]
         transcripts = meta.parent.parent / filesystem.TRANSCRIPTS_SUBDIR
+        # First rendering with the pre-roll gone; this scan does not care about offsets. Inline
+        # and local on purpose: it briefly routed through `workflow.transcript_resolution`, a
+        # module written for translation, which made a generic scan depend on a language feature
+        # for five lines of precedence it can state itself (reverted 2026-10-02).
         for suffix in (".adfree.txt", ".cleaned.txt", ".txt"):
             candidate = transcripts / f"{stem}{suffix}"
             if candidate.is_file():
@@ -1277,7 +1302,11 @@ def detect_feed_hosts_and_patterns(
             # Skip validation since known_hosts are trusted
             _record_hosts_detected(cached_hosts, "config known_hosts + feed", feed_hosts, set())
             return HostDetectionResult(
-                cached_hosts, heuristics, speaker_detector, _feed_title(feed)
+                cached_hosts,
+                heuristics,
+                speaker_detector,
+                _feed_title(feed),
+                language=_feed_language(feed),
             )
 
     # Validate hosts with first episode: hosts should appear in first episode too
@@ -1420,6 +1449,7 @@ def detect_feed_hosts_and_patterns(
         _feed_title(feed),
         episode_author_hosts=frozenset(episode_authors & set(cached_hosts)),
         kind_votes=kind_votes,
+        language=_feed_language(feed),
     )
 
 
@@ -1790,6 +1820,15 @@ def _detect_speakers_for_episode(
                 "speaker_detection", episode.idx, outcome, reason=reason, **kwargs
             )
 
+    # An operator `guests` override on this episode is the answer, not an input (#2283): the
+    # override REPLACES detection, so nothing detected can add a guest it left out.
+    from ..apply_overrides import override_guests
+
+    forced_guests = override_guests(episode)
+    if forced_guests is not None:
+        _record("skipped", "operator_override")
+        return DetectedSpeakers(guests=forced_guests, stated=list(forced_guests))
+
     if not cfg.auto_speakers:
         if cfg.screenplay_speaker_names and len(cfg.screenplay_speaker_names) > 1:
             _record("skipped", "auto_speakers_disabled_using_configured_names")
@@ -2034,7 +2073,10 @@ def _detect_speakers_for_episode(
         # only ever ADDS a candidate the roster may bind. The show's own name and any publisher are
         # refused inside the helper.
         _ep_hosts = hosts_from_episode_description(
-            episode.title, episode_description, host_detection_result.feed_title
+            episode.title,
+            episode_description,
+            host_detection_result.feed_title,
+            language=transcription_language(cfg) or "",
         )
         report["hosts_from_description"] = sorted(_ep_hosts or ())
         if _ep_hosts:
@@ -2221,7 +2263,13 @@ def prepare_episode_download_args(
     # Only fires when the run EXPLICITLY asked for reprocessing. A normal incremental run where
     # everything is already ingested reaches here legitimately, and warning on that would make
     # the counter noise — non-zero on healthy nightly runs, which is how a signal gets ignored.
-    reprocess_stages = {"rederive_only", "relabel_only", "rediarize_only", "retranscript_only"}
+    reprocess_stages = {
+        "rederive_only",
+        "relabel_only",
+        "rediarize_only",
+        "retranscript_only",
+        "translate_only",
+    }
     asked_for_reprocess = (
         bool(getattr(cfg, "reprocess_existing_only", False))
         or str(getattr(cfg, "pipeline_stage", "full") or "full") in reprocess_stages

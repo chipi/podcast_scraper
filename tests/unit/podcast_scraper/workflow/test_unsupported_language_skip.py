@@ -1,0 +1,252 @@
+"""An episode in a language we do not ingest is refused, visibly (#2179 / slice S0.8).
+
+The skip and the ability to SEE it are one change. Shipping the refusal without the log line, the
+incident and the ledger row would add a new silent failure to the phase whose entire purpose is
+removing them — the episode would simply never appear, with nothing saying why.
+
+
+THE EXAMPLE LANGUAGE IS `de`, NOT `es`, AND THAT MATTERS.
+Every case here needs a language the registry DESCRIBES but does not ENABLE — that is the
+whole subject of the gate. `es` played that role until 2026-09-30, when it became the first
+language enabled after English, and these tests went red as a result. That is the registry
+doing its job: `enabled` is the only gate there is (D-41), so enabling a language must
+visibly change behaviour. `de` is tier 1 like `es` was, so the shape of each case is
+unchanged; if `de` is ever enabled too, pick another disabled one rather than weakening the
+assertions.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Optional
+from unittest.mock import MagicMock
+
+import pytest
+
+from podcast_scraper import config as config_mod
+from podcast_scraper.workflow.episode_processor import _unsupported_language_skip_reason
+
+pytestmark = pytest.mark.unit
+
+
+#: A language the registry DESCRIBES but does not enable — the subject of every refusal below.
+#:
+#: Derived, not named. This module used `de` throughout, which was a described-but-disabled
+#: language when it was written and became an ENABLED one the day German joined it/fr/pt. Eight
+#: tests then failed saying the refusal path was broken, when what had actually happened is that
+#: their example stopped being an example. The refusal path does not care which language it is.
+def _a_disabled_language() -> str:
+    from podcast_scraper.languages import is_language_enabled, language_registry
+
+    for code in sorted(language_registry()):
+        if not is_language_enabled(code):
+            return code
+    raise AssertionError(
+        "every described language is enabled, so the refusal path has no subject to test"
+    )
+
+
+DISABLED = _a_disabled_language()
+
+
+def _cfg(
+    *, language: str = "en", override: Optional[str] = None, feed: Optional[str] = None
+) -> Any:
+    # `language` is the FEED'S declared tag (#2283): the profile default no longer supplies a
+    # language, so a case that means "this episode is in X" has to say so the way it arrives.
+    cfg = config_mod.Config(rss="https://example.com/f.xml")
+    update: dict[str, Any] = {"feed_declared_language": language} if language else {}
+    if override is not None:
+        update["language_override"] = override
+    if feed is not None:
+        # The channel tag as `run_pipeline` records it. Reachable only since #2172 wired the
+        # pipeline's own `RssFeed`; before that this source could not be produced at all, which
+        # is why every test here used to exercise only two of the three.
+        update["feed_declared_language"] = feed
+    return cfg.model_copy(update=update) if update else cfg
+
+
+class TestWhatIsRefused:
+    def test_a_language_the_registry_does_not_enable_is_refused(self) -> None:
+        reason = _unsupported_language_skip_reason(_cfg(language=DISABLED))
+        assert reason is not None
+        assert f"'{DISABLED}'" in reason
+        assert "not enabled in config/languages.yaml" in reason
+
+    def test_english_proceeds(self) -> None:
+        assert _unsupported_language_skip_reason(_cfg(language="en")) is None
+
+    def test_a_regional_english_tag_proceeds(self) -> None:
+        """``en-US`` normalizes to ``en`` in Config, so this must not read as a foreign language.
+
+        Before S0.2 it became ``"en-us"``, which is not in the registry — so this exact gate would
+        have refused every episode of an English corpus configured that way.
+        """
+        assert _unsupported_language_skip_reason(_cfg(language="en-US")) is None
+
+    @pytest.mark.parametrize(
+        "code",
+        sorted(
+            c
+            for c in __import__("podcast_scraper.languages", fromlist=["x"]).language_registry()
+            if not __import__("podcast_scraper.languages", fromlist=["x"]).is_language_enabled(c)
+        ),
+    )
+    def test_every_described_but_disabled_language_is_refused(self, code: str) -> None:
+        """Present-in-the-registry but ``enabled: false`` must refuse, not proceed. Being
+        described is not being ingested."""
+        assert _unsupported_language_skip_reason(_cfg(language=code)) is not None
+
+    def test_an_unknown_language_is_refused(self) -> None:
+        """Absent from the registry entirely — never a lenient default."""
+        assert _unsupported_language_skip_reason(_cfg(language="xx")) is not None
+
+
+class TestTheOverrideIsTheRemedy:
+    def test_an_override_rescues_a_mis_tagged_feed(self) -> None:
+        """THE ORDERING THIS SLICE DEPENDS ON.
+
+        Publisher tags are routinely wrong. An English show tagged ``de`` would otherwise stop
+        ingesting on every run — including relabels and rederives — with no remedy at all. The
+        override is that remedy, which is why S0.8 must not land before S0.2.
+        """
+        assert _unsupported_language_skip_reason(_cfg(language=DISABLED)) is not None
+        assert _unsupported_language_skip_reason(_cfg(language=DISABLED, override="en")) is None
+
+    def test_an_override_can_also_refuse(self) -> None:
+        """It is a correction, not a bypass: pointing a feed at a disabled language still skips."""
+        assert _unsupported_language_skip_reason(_cfg(language="en", override=DISABLED)) is not None
+
+
+class TestTheReasonIsUsable:
+    def test_it_names_the_language_and_where_it_came_from(self) -> None:
+        """One sentence carries the log line, the incident and the ledger row, so an operator
+        reading any one of the three learns the same thing. Both sources that can still produce
+        a language: the operator override and the feed's declared tag (#2283 removed the
+        profile default as a source)."""
+        from_override = _unsupported_language_skip_reason(_cfg(language="en", override=DISABLED))
+        assert from_override is not None and "the operator override" in from_override
+
+        from_feed = _unsupported_language_skip_reason(_cfg(language=DISABLED))
+        assert from_feed is not None and "the feed's declared <language> tag" in from_feed
+
+    def test_the_remedy_is_PER_SOURCE(self) -> None:
+        """The remedy names the thing to change: the override when it caused the refusal, the
+        publisher's tag when that did."""
+        override = _unsupported_language_skip_reason(_cfg(language="en", override=DISABLED)) or ""
+        assert "correct the override that set it" in override
+        assert "publisher" not in override
+
+        feed = _unsupported_language_skip_reason(_cfg(language=DISABLED)) or ""
+        assert "if the publisher's tag is wrong" in feed
+
+    def test_it_says_what_to_do_about_it(self) -> None:
+        reason = _unsupported_language_skip_reason(_cfg(language=DISABLED))
+        assert reason is not None
+        assert "Enable it in config/languages.yaml" in reason
+
+
+class TestNoLanguageIsRefused:
+    """#2283: no language is refused before download — never assumed English."""
+
+    def test_a_feed_that_declares_nothing_is_refused(self) -> None:
+        reason = _unsupported_language_skip_reason(_cfg(language=""))
+        assert reason is not None
+        assert "the feed declares no <language>" in reason
+        assert "nothing was downloaded or processed" in reason
+        assert "operator override" in reason
+
+    def test_the_profile_language_does_not_rescue_it(self) -> None:
+        cfg = config_mod.Config(rss="https://example.com/f.xml", language="en")
+        assert _unsupported_language_skip_reason(cfg) is not None
+
+    def test_a_tag_that_is_not_an_iso_code_is_reported_with_what_it_said(self) -> None:
+        """Saying "declares no <language>" for a feed that declared `?` would be false, and would
+        hide the one fact that explains the refusal."""
+        junk = _unsupported_language_skip_reason(_cfg(language="?")) or ""
+        assert "<language>?</language>" in junk
+        assert "not an ISO language code" in junk
+
+    def test_an_unusable_override_is_named_as_the_override(self) -> None:
+        reason = _unsupported_language_skip_reason(_cfg(language="en", override="zzz")) or ""
+        assert "the override is set to 'zzz'" in reason
+
+    def test_an_override_rescues_a_feed_with_no_language(self) -> None:
+        assert _unsupported_language_skip_reason(_cfg(language="", override="en")) is None
+
+
+class TestTheRefusalIsCountable:
+    """Structurally guarded by test_refusals_are_countable; asserted here by behaviour."""
+
+    def test_the_skip_writes_a_ledger_row_and_an_incident(self, monkeypatch) -> None:
+        from podcast_scraper.workflow import episode_processor as ep
+
+        recorded: list[dict[str, Any]] = []
+        incidents: list[dict[str, Any]] = []
+
+        monkeypatch.setattr(
+            ep,
+            "_record_unresolved_transcript",
+            lambda job, cfg, pm, stage, *, error_type="", detail=None: recorded.append(
+                {"stage": stage, "error_type": error_type, "detail": detail}
+            ),
+        )
+        monkeypatch.setattr(
+            ep,
+            "_append_transcription_incident",
+            lambda cfg, job, *, category="", message="", exception_type="": incidents.append(
+                {"category": category, "message": message, "exception_type": exception_type}
+            ),
+        )
+        monkeypatch.setattr(ep, "_bind_episode_correlation", lambda job, cfg: None)
+
+        job = MagicMock()
+        job.idx = 1
+        ok, path, downloaded = ep.transcribe_media_to_text(
+            job, _cfg(language=DISABLED), None, None, "/tmp/out", None, None
+        )
+
+        assert (ok, path, downloaded) == (False, None, 0), "a refusal, not a silent success"
+        assert len(recorded) == 1
+        assert recorded[0]["error_type"] == "UnsupportedLanguage"
+        assert recorded[0]["stage"] == "transcription"
+        assert f"'{DISABLED}'" in (recorded[0]["detail"] or "")
+        assert len(incidents) == 1
+        assert incidents[0]["exception_type"] == "UnsupportedLanguage"
+        assert incidents[0]["category"] == "policy"
+
+    def test_the_gate_runs_before_any_provider_is_touched(self, monkeypatch) -> None:
+        """Refused before a provider is called, so a disabled language costs nothing.
+
+        ``transcription_provider=None`` would raise on the ordinary path; returning the refusal
+        cleanly is what proves the gate came first.
+        """
+        from podcast_scraper.workflow import episode_processor as ep
+
+        monkeypatch.setattr(ep, "_record_unresolved_transcript", lambda *a, **k: None)
+        monkeypatch.setattr(ep, "_append_transcription_incident", lambda *a, **k: None)
+        monkeypatch.setattr(ep, "_bind_episode_correlation", lambda job, cfg: None)
+
+        job = MagicMock()
+        job.idx = 1
+        result = ep.transcribe_media_to_text(
+            job, _cfg(language="ja"), None, None, "/tmp/out", None, None
+        )
+        assert result == (False, None, 0)
+
+    def test_it_is_refused_even_under_dry_run(self, monkeypatch) -> None:
+        """A dry run should report the skip it WOULD make, not a transcription it would never
+        attempt — so the gate sits ahead of the dry-run guard."""
+        from podcast_scraper.workflow import episode_processor as ep
+
+        monkeypatch.setattr(ep, "_record_unresolved_transcript", lambda *a, **k: None)
+        monkeypatch.setattr(ep, "_append_transcription_incident", lambda *a, **k: None)
+        monkeypatch.setattr(ep, "_bind_episode_correlation", lambda job, cfg: None)
+
+        cfg = _cfg(language=DISABLED).model_copy(update={"dry_run": True})
+        job = MagicMock()
+        job.idx = 1
+        assert ep.transcribe_media_to_text(job, cfg, None, None, "/tmp/out", None, None) == (
+            False,
+            None,
+            0,
+        )

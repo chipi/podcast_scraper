@@ -1,0 +1,31 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p09_e01",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:iteration-and-testing",
+      "label": "iteration and testing"
+    },
+    {
+      "id": "topic:leverage-points",
+      "label": "leverage points"
+    },
+    {
+      "id": "topic:reliability-and-sustainability",
+      "label": "reliability and sustainability"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "label": "systems thinking"
+    },
+    {
+      "id": "topic:top-down-interventions",
+      "label": "top-down interventions"
+    }
+  ]
+}

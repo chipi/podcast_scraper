@@ -1,0 +1,58 @@
+{
+  "callbacks": [
+    "o Rafael Vasconcelos esteve no programa a contar que a drenagem \u00e9 a decis\u00e3o de projeto com mais impacto."
+  ],
+  "episode_id": "p14_e02",
+  "extra_alias_callbacks": [],
+  "failure_modes": [],
+  "guest_accent": "pt-PT",
+  "host_accent": "pt-PT",
+  "host_canonical_name": "Beatriz Antunes",
+  "podcast_id": "p14",
+  "position_arc": null,
+  "primary_guest_canonical_id": "p14:In\u00eas",
+  "primary_guest_canonical_name": "In\u00eas Carvalho",
+  "primary_guest_surface_in_transcript": "In\u00eas Carvalho",
+  "primary_topic": "topic:enduro-racing",
+  "publish_date": "2026-02-15",
+  "publish_offset_days": 776,
+  "secondary_topics": [
+    "topic:soil-erosion",
+    "topic:risk-management"
+  ],
+  "sponsor_blocks": [
+    {
+      "brand": "Linear",
+      "kind": "template_opening",
+      "line_index": 11
+    },
+    {
+      "brand": "Strava",
+      "kind": "native_ad",
+      "line_index": 29,
+      "note": "Host-read native ad \u2014 no canonical 'brought to you by' marker."
+    },
+    {
+      "brand": "Notion",
+      "kind": "template_midroll",
+      "line_index": 33
+    },
+    {
+      "brand": "Vanta",
+      "kind": "template_closing",
+      "line_index": 66
+    }
+  ],
+  "surface_forms": [
+    {
+      "canonical_id": "p14:In\u00eas",
+      "kind": "canonical",
+      "surface": "In\u00eas Carvalho"
+    },
+    {
+      "canonical_id": "p14:Rafael",
+      "kind": "canonical",
+      "surface": "Rafael Vasconcelos"
+    }
+  ]
+}

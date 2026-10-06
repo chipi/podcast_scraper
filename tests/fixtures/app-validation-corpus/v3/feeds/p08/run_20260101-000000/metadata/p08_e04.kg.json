@@ -36,6 +36,56 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-d428e906f5affc60",
+      "target": "topic:correction-as-reliability-signal",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d428e906f5affc60",
+      "target": "topic:decision-making-under-uncertainty",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d428e906f5affc60",
+      "target": "topic:feedback-driven-development",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d428e906f5affc60",
+      "target": "topic:iteration-over-reconstruction",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d428e906f5affc60",
+      "target": "topic:long-term-system-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d428e906f5affc60",
+      "target": "topic:public-failure-management",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d428e906f5affc60",
+      "target": "topic:rebuilding-from-scratch",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d428e906f5affc60",
+      "target": "topic:risk-of-being-wrong-in-public",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d428e906f5affc60",
+      "target": "topic:trust-in-public-systems",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-d428e906f5affc60",
+      "target": "topic:underrated-reliability",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-d428e906f5affc60",
       "to": "person:a-correspondent",
       "type": "MENTIONS"
@@ -115,6 +165,86 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:correction-as-reliability-signal",
+      "properties": {
+        "label": "correction as reliability signal",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:decision-making-under-uncertainty",
+      "properties": {
+        "label": "decision making under uncertainty",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:feedback-driven-development",
+      "properties": {
+        "label": "feedback driven development",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:iteration-over-reconstruction",
+      "properties": {
+        "label": "iteration over reconstruction",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:long-term-system-design",
+      "properties": {
+        "label": "long term system design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:public-failure-management",
+      "properties": {
+        "label": "public failure management",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:rebuilding-from-scratch",
+      "properties": {
+        "label": "rebuilding from scratch",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-of-being-wrong-in-public",
+      "properties": {
+        "label": "risk of being wrong in public",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:trust-in-public-systems",
+      "properties": {
+        "label": "trust in public systems",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:underrated-reliability",
+      "properties": {
+        "label": "underrated reliability",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

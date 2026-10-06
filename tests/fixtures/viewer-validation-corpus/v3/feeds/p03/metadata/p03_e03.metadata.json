@@ -37,6 +37,8 @@
   },
   "episode": {
     "episode_id": "9a2d05c1-8854-5ae6-8ad0-14fcf37d1de9",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2026-09-24",
     "title": "Below the Surface \u2014 Episode 3"
   },
@@ -45,6 +47,9 @@
   "feed": {
     "description": "Scuba diving stories and skills: safety, marine life, travel, and calm thinking underwater.",
     "feed_id": "sha256:1f9abe36d575d2737a998280601b57b1005b188d2303f356327d3e633ca1eb4b",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "title": "Below the Surface",
     "url": "http://localhost/"
   },

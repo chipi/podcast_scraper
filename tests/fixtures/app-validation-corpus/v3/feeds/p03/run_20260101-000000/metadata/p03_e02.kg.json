@@ -36,6 +36,41 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-a0a7f86b34a4de26",
+      "target": "topic:anchor-strikes",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a0a7f86b34a4de26",
+      "target": "topic:coral-bleaching-events",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a0a7f86b34a4de26",
+      "target": "topic:dan-adoption",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a0a7f86b34a4de26",
+      "target": "topic:diving-tooling",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a0a7f86b34a4de26",
+      "target": "topic:heuristic-iteration",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a0a7f86b34a4de26",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a0a7f86b34a4de26",
+      "target": "topic:sediment-plumes",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-a0a7f86b34a4de26",
       "to": "person:rina",
       "type": "MENTIONS"
@@ -115,6 +150,62 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:anchor-strikes",
+      "properties": {
+        "label": "anchor strikes",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:coral-bleaching-events",
+      "properties": {
+        "label": "coral bleaching events",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:dan-adoption",
+      "properties": {
+        "label": "dan adoption",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:diving-tooling",
+      "properties": {
+        "label": "diving tooling",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:heuristic-iteration",
+      "properties": {
+        "label": "heuristic iteration",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:sediment-plumes",
+      "properties": {
+        "label": "sediment plumes",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

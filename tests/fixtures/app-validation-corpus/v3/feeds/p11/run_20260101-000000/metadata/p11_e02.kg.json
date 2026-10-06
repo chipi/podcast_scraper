@@ -1,0 +1,217 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7ccfb108302b3faa",
+      "target": "topic:braking-technique",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7ccfb108302b3faa",
+      "target": "topic:tire-pressure-selection",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7ccfb108302b3faa",
+      "target": "topic:erosion-patterns",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7ccfb108302b3faa",
+      "target": "topic:suspension-tuning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7ccfb108302b3faa",
+      "target": "topic:frame-design",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7ccfb108302b3faa",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7ccfb108302b3faa",
+      "target": "topic:practice-vs-race-conditions",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7ccfb108302b3faa",
+      "target": "topic:equipment-ecosystem",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-7ccfb108302b3faa",
+      "target": "topic:compliance-automation",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "person:giulia-ferrara",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-7ccfb108302b3faa",
+      "to": "person:chiara-ricci",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-7ccfb108302b3faa",
+  "extraction": {
+    "extracted_at": "2025-12-28T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p11_e02.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-7ccfb108302b3faa",
+      "properties": {
+        "podcast_id": "p11",
+        "publish_date": "2025-12-28T00:00:00",
+        "title": "Tecnica Enduro Senza Clamore"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:braking-technique",
+      "properties": {
+        "label": "braking technique",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:tire-pressure-selection",
+      "properties": {
+        "label": "tire pressure selection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:erosion-patterns",
+      "properties": {
+        "label": "erosion patterns",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:suspension-tuning",
+      "properties": {
+        "label": "suspension tuning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame-design",
+      "properties": {
+        "label": "frame design",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:practice-vs-race-conditions",
+      "properties": {
+        "label": "practice vs race conditions",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:equipment-ecosystem",
+      "properties": {
+        "label": "equipment ecosystem",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:compliance-automation",
+      "properties": {
+        "label": "compliance automation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:giulia-ferrara",
+      "properties": {
+        "name": "Giulia Ferrara",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:chiara-ricci",
+      "properties": {
+        "name": "Chiara Ricci",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

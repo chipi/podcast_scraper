@@ -45,8 +45,9 @@ def main() -> int:
         "--corpus",
         action="store_true",
         help=(
-            "Also serve the 9 corpus feeds (corpus_p01..corpus_p09) that describe the whole "
-            "app-validation corpus — what a real pipeline run needs"
+            "Also serve the corpus feeds (corpus_p01..) that describe the whole "
+            "app-validation corpus — what a real pipeline run needs. Discovered from "
+            "tests/fixtures/rss/*_corpus.xml, so a new show is served without editing this."
         ),
     )
     args = parser.parse_args()
@@ -58,7 +59,7 @@ def main() -> int:
 
     names = {x.strip() for x in args.podcasts.split(",") if x.strip()}
     if args.corpus:
-        # The whole app-validation corpus (9 shows), not the 5 generic e2e placeholders.
+        # The whole app-validation corpus, not the 5 generic e2e placeholders.
         names |= set(E2EHTTPRequestHandler.CORPUS_PODCASTS)
     E2EHTTPRequestHandler.set_allowed_podcasts(names)
     E2EHTTPRequestHandler.set_use_fast_fixtures(bool(args.fast_fixtures))

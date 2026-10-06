@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Sesiones de Sendero</title>
+    <link>http://localhost/</link>
+    <description>Conversaciones sobre construcción de senderos: drenaje, trazado, y las personas que construyen la ruta. Contraparte en español de Singletrack Sessions.</description>
+    <language>es-ES</language>
+
+    <itunes:author>Lucía Herrera</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p10_cover.svg"/>
+
+    <item>
+      <title>Construyendo Senderos Que Duran</title>
+      <guid isPermaLink="false">p10_e01</guid>
+      <pubDate>Mon, 19 Jan 2026 00:00:00 +0000</pubDate>
+      <description>Lucía Herrera conversa con el constructor de senderos Javier Benavides sobre drenaje, trazado, y cómo mantener los senderos rodables durante el invierno.</description>
+      <enclosure url="/audio/p10_e01.mp3" length="3276425" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p10_e01.vtt" type="text/vtt"/>
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:06:49</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>Habilidades de Enduro Sin el Bombo</title>
+      <guid isPermaLink="false">p10_e02</guid>
+      <pubDate>Sun, 19 Apr 2026 00:00:00 +0000</pubDate>
+      <description>Lucía Herrera talks with Marta Solís: Habilidades de Enduro Sin el Bombo.</description>
+      <enclosure url="/audio/p10_e02.mp3" length="3034635" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p10_e02.vtt" type="text/vtt"/>
+      <itunes:episode>2</itunes:episode>
+      <itunes:duration>00:06:19</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>La Mecánica de Una Bici Silenciosa y Rápida</title>
+      <guid isPermaLink="false">p10_e03</guid>
+      <pubDate>Mon, 17 Aug 2026 00:00:00 +0000</pubDate>
+      <description>Lucía Herrera talks with Diego Ferrer: La Mecánica de Una Bici Silenciosa y Rápida.</description>
+      <enclosure url="/audio/p10_e03.mp3" length="3139125" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p10_e03.vtt" type="text/vtt"/>
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:06:32</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,217 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-2e3fcd5d8c418fb4",
+      "target": "topic:bicycle-silence",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-2e3fcd5d8c418fb4",
+      "target": "topic:maintenance-intervals",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-2e3fcd5d8c418fb4",
+      "target": "topic:chain-wear",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-2e3fcd5d8c418fb4",
+      "target": "topic:contact-surface-cleaning",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-2e3fcd5d8c418fb4",
+      "target": "topic:frame-geometry",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-2e3fcd5d8c418fb4",
+      "target": "topic:spoke-wrench",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-2e3fcd5d8c418fb4",
+      "target": "topic:shimano-components",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-2e3fcd5d8c418fb4",
+      "target": "topic:linear-systems",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-2e3fcd5d8c418fb4",
+      "target": "topic:operational-perspective",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "person:camille-dubois",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-2e3fcd5d8c418fb4",
+      "to": "person:mathieu-lefevre",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-2e3fcd5d8c418fb4",
+  "extraction": {
+    "extracted_at": "2025-12-24T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p12_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-2e3fcd5d8c418fb4",
+      "properties": {
+        "podcast_id": "p12",
+        "publish_date": "2025-12-24T00:00:00",
+        "title": "La M\u00e9canique d'un V\u00e9lo Silencieux et Rapide"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:bicycle-silence",
+      "properties": {
+        "label": "bicycle silence",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance-intervals",
+      "properties": {
+        "label": "maintenance intervals",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:chain-wear",
+      "properties": {
+        "label": "chain wear",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:contact-surface-cleaning",
+      "properties": {
+        "label": "contact surface cleaning",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame-geometry",
+      "properties": {
+        "label": "frame geometry",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:spoke-wrench",
+      "properties": {
+        "label": "spoke wrench",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:shimano-components",
+      "properties": {
+        "label": "shimano components",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:linear-systems",
+      "properties": {
+        "label": "linear systems",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:operational-perspective",
+      "properties": {
+        "label": "operational perspective",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:camille-dubois",
+      "properties": {
+        "name": "Camille Dubois",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:mathieu-lefevre",
+      "properties": {
+        "name": "Mathieu Lef\u00e8vre",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

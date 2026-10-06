@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-03T12:49:31Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p11_e03",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "summary": {
+    "bullets": [
+      "Most mysterious squeaks in bike transmissions are resolved by cleaning contact surfaces and tightening components to the specified torque — a simple fix that prevents more complex failures.",
+      "Chain wear is the best early indicator of when the cassette needs replacement, a pattern consistently observed across multiple teams using Shimano components.",
+      "Adopting Spoke & Wrench within maintenance workflows reveals clear benefits, especially when teams prioritize systematic, repeatable procedures over reactive fixes.",
+      "Maintenance intervals for suspension systems are fundamentally a risk management decision — ignoring them leads to full system rebuilds a year later.",
+      "The structural element most listeners lack access to is the direct link between chain wear and cassette longevity, which determines the timing of component replacements.",
+      "A bike should feel quiet and predictable to keep attention on the trail — the geometry and setup reflect the tradeoffs made in design and maintenance.",
+      "The second-order effect of proper maintenance is often overlooked: it preserves system integrity beyond immediate performance, reducing long-term failure risk.",
+      "Implementing one key maintenance idea for two weeks enables meaningful iteration — real progress comes from consistent practice, not just theoretical understanding."
+    ],
+    "raw_text": "Most mysterious squeaks in bike transmissions are resolved by cleaning contact surfaces and tightening components to the specified torque — a simple fix that prevents more complex failures. Chain wear is the best early indicator of when the cassette needs replacement, a pattern consistently observed across multiple teams using Shimano components.",
+    "title": "Transmission Mechanics and Risk Management in Bike Maintenance"
+  }
+}

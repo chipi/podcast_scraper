@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p13_e03",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from the run's <ep>.kg.json Topic nodes",
+  "topics": [
+    {
+      "id": "topic:chain-wear-monitoring",
+      "label": "chain wear monitoring"
+    },
+    {
+      "id": "topic:suspension-service-intervals",
+      "label": "suspension service intervals"
+    },
+    {
+      "id": "topic:creaking-noise-diagnosis",
+      "label": "creaking noise diagnosis"
+    },
+    {
+      "id": "topic:drive-mechanism-maintenance",
+      "label": "drive mechanism maintenance"
+    },
+    {
+      "id": "topic:risk-management-integration",
+      "label": "risk management integration"
+    },
+    {
+      "id": "topic:spoke-wrench-process",
+      "label": "spoke & wrench process"
+    },
+    {
+      "id": "topic:shimano-component-reliability",
+      "label": "shimano component reliability"
+    },
+    {
+      "id": "topic:predictable-bike-behavior",
+      "label": "predictable bike behavior"
+    },
+    {
+      "id": "topic:maintenance-compromise-awareness",
+      "label": "maintenance compromise awareness"
+    },
+    {
+      "id": "topic:engineering-operations-tools",
+      "label": "engineering operations tools"
+    }
+  ]
+}

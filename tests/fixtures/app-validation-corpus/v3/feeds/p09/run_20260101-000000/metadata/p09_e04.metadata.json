@@ -27,6 +27,8 @@
   "episode": {
     "duration_seconds": 217,
     "episode_id": "ep-4d94c63887afbd1a",
+    "language": "en",
+    "language_source": "rss",
     "published_date": "2026-07-16T00:00:00",
     "title": "Risk Is a Systems Property"
   },
@@ -36,25 +38,28 @@
     ],
     "description": "Recurring guests from other shows revisit their positions.",
     "feed_id": "p09",
-    "language": "en-us",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
+    "image_url": "http://localhost/images/p09.webp",
+    "language": "en",
+    "language_raw": "en-us",
+    "language_source": "rss",
     "last_updated": "2026-07-16T00:00:00",
     "title": "Cross-Show",
-    "url": "http://localhost/",
-    "image_local_relpath": ".podcast_scraper/corpus-art/p09.webp",
-    "image_url": "http://localhost/images/p09.webp"
+    "url": "http://localhost/"
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Risk lives in the couplings, not the components — the same principle that governs reliability, observed in practice at teams using IPCC.",
-      "The dangerous risks are the slow correlated ones you can name but discount, rather than sudden or unknown threats — a pattern observed holding across three different teams.",
-      "Framing a risk correctly matters because it reveals which trade-offs are being made rather than leaving them implicit.",
-      "Ignoring how risk concentrates in interactions leads to rebuilding the approach from scratch a year later rather than getting it right the first time.",
-      "Risk is a systems property that lives in the interactions, not the parts — a claim grounded in direct measurement rather than a hunch.",
-      "Systems thinking and risk management are one discipline in two vocabularies; the trade-offs around reliability cross-cut both.",
-      "Running one idea for two weeks is the recommended starting point, with everything beyond that treated as iteration."
+      "Risk is a systems property that lives in the couplings, not the components — a foundational insight that redefines how teams approach failure and resilience.",
+      "The most dangerous risks are slow, correlated, and predictable yet routinely discounted — naming them is the first step toward managing them effectively.",
+      "Systems thinking and risk management are not separate disciplines but one discipline expressed in two vocabularies — their convergence enables deeper insight into complex failures.",
+      "Teams using IPCC have repeatedly rebuilt solutions from scratch because they ignored the couplings — a sign that systems awareness is not optional but essential.",
+      "Reliability is not a component-level attribute but a property of interactions — trade-offs around reliability cross-cut every system design decision.",
+      "Framing matters because it reveals the hidden trade-offs embedded in any risk assessment — the right question determines the outcome.",
+      "Measuring the system directly confirms that risk emerges from couplings, not parts — this empirical validation shifts the focus from isolated failures to systemic behavior.",
+      "Try one idea from the conversation for two weeks; the rest is iteration — practical adoption begins with small, sustained experiments."
     ],
-    "raw_text": "Risk lives in the couplings, not the components — the same principle that governs reliability, observed in practice at teams using IPCC. The dangerous risks are the slow correlated ones you can name but discount, rather than sudden or unknown threats — a pattern observed holding across three different teams.",
-    "title": "Risk Management as a Systems Property"
+    "raw_text": "Risk is a systems property that lives in the couplings, not the components — a foundational insight that redefines how teams approach failure and resilience. The most dangerous risks are slow, correlated, and predictable yet routinely discounted — naming them is the first step toward managing them effectively.",
+    "title": "Risk Management and Systems Thinking: The Couplings That Matter"
   }
 }

@@ -108,6 +108,10 @@ _NO_ENRICHERS_PROFILES: frozenset[str] = frozenset(
         # so running them here would cost LLM calls and change nothing downstream. Its YAML declares
         # `enrichment.enabled: false`; listed so the empty set is a decision, not a default.
         "fixture_validation",
+        # Same tree, DGX-served, and with GI/KG ON — the corpus takes its graph from the
+        # run rather than from the builder's synthesized one. Enrichment stays off for the
+        # same reason as above: the builder derives those itself, deterministically.
+        "fixture_validation_dgx",
         # profile_freeze.example is config-only — never a real run.
         "profile_freeze.example",
         # Pre-prod is for local Whisper testing — keep enrichment off so

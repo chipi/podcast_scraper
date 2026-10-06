@@ -129,9 +129,9 @@ def test_default_path_transcribe_diarize_screenplay_into_graph() -> None:
     # slice back exactly (the basis for Fault A/B fixes downstream).
     from podcast_scraper.workflow.adfree_transcript import (
         build_adfree_artifacts,
-        load_processing_transcript,
         produce_adfree_transcript,
     )
+    from podcast_scraper.workflow.transcript_resolution import load_processing_transcript
 
     arts = build_adfree_artifacts(screenplay, segments)
     assert arts is not None, "no ad-free artifacts from diarized screenplay"

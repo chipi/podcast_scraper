@@ -1,0 +1,29 @@
+{
+  "fixture": "p14_e02",
+  "podcast": "Sessões de Trilha — Episódio",
+  "episode": "Técnica de Enduro Sem Exagero",
+  "type": "interview",
+  "speakers": [
+    "Beatriz Antunes",
+    "Inês Carvalho"
+  ],
+  "num_human_speakers": 2,
+  "has_commercial": true,
+  "num_ad_voices": 1,
+  "expected_diarized_voices": 3,
+  "failure_modes": [
+    "none"
+  ],
+  "voice_map": {
+    "Beatriz Antunes": "Luciana",
+    "Inês Carvalho": "Joana",
+    "Ad": "Zarvox"
+  },
+  "voice_pitch_shift": {
+    "Inês Carvalho": 0.4
+  },
+  "cameo": null,
+  "transcript_sha256": "5cc96ff26e24811a3ef560a79acb5ef4e7021862218185412677afbb1ed7e1f2",
+  "audio_sha256": "22ee3545922bcf8742d385f18b6c73ebeffbc6b43056257915bddbd91de1bac5",
+  "rttm_sha256": "4e5ae836de06ffe5977ea9fed3febfeccc9c3120055de796e17f7879dfe74212"
+}

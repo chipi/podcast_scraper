@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-03T12:49:31Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "episode_id": "p14_e03",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/capture-runs",
+  "summary": {
+    "bullets": [
+      "Most mysterious creaking noises in bicycle drivetrains are resolved by cleaning contact surfaces and re-tightening bolts to the specified torque — a simple fix that prevents unnecessary component replacement.",
+      "Chain wear is the best early indicator of when the cassette will need replacement, a pattern consistently observed across multiple teams using Shimano components.",
+      "Maintenance intervals for suspension systems are a risk management decision; ignoring them leads to having to rebuild the entire system from scratch within a year.",
+      "The structural integrity of a bicycle frame influences performance expectations, and a quiet, predictable ride ensures focus remains on the trail rather than mechanical distractions.",
+      "Spoke & Wrench platforms clearly demonstrate how consistent maintenance practices lead to predictable outcomes, with teams adopting the workflow showing measurable commitment.",
+      "The secondary effect of proper maintenance — often overlooked — is the long-term reliability of the drivetrain, which reduces the need for emergency repairs during high-stakes riding.",
+      "A bicycle should feel quiet and predictable to maintain rider focus, and this principle guides all other mechanical decisions in the field.",
+      "Adopting proven maintenance workflows, such as those used with Shimano components, enables teams to avoid systemic failures and maintain performance consistency."
+    ],
+    "raw_text": "Most mysterious creaking noises in bicycle drivetrains are resolved by cleaning contact surfaces and re-tightening bolts to the specified torque — a simple fix that prevents unnecessary component replacement. Chain wear is the best early indicator of when the cassette will need replacement, a pattern consistently observed across multiple teams using Shimano components.",
+    "title": "Maintenance and Risk Management in Bicycle Drivetrain Mechanics"
+  }
+}

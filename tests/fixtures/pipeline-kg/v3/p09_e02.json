@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p09_e02",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:data-reliability",
+      "label": "data reliability"
+    },
+    {
+      "id": "topic:data-trade-offs",
+      "label": "data trade-offs"
+    },
+    {
+      "id": "topic:dependable-signals",
+      "label": "dependable signals"
+    },
+    {
+      "id": "topic:forecasting-humility",
+      "label": "forecasting humility"
+    },
+    {
+      "id": "topic:iteration-practice",
+      "label": "iteration practice"
+    },
+    {
+      "id": "topic:macro-forecasting",
+      "label": "macro forecasting"
+    },
+    {
+      "id": "topic:model-cleverness",
+      "label": "model cleverness"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:second-order-effect",
+      "label": "second-order effect"
+    },
+    {
+      "id": "topic:tool-selection",
+      "label": "tool selection"
+    }
+  ]
+}

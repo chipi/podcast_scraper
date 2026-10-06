@@ -25,6 +25,10 @@ import re
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
+from ..languages import primary_language, TARGET_LANGUAGE
+from . import naming_vocabulary
+from .hosts import _STATED_LC_CHARS, _STATED_UC
+
 logger = logging.getLogger(__name__)
 
 # The host/guest roles the model is allowed to assert. Anything else is discarded like an invented
@@ -77,13 +81,41 @@ def _speaker_sample(text: str) -> str:
 # cues are often joined with no space ("Kansas City Fed PresidentJeff Schmidt").
 # Zero-width, so candidate pairs OVERLAP: "Fed PresidentJeff Schmidt" must yield "Jeff Schmidt"
 # even though "Fed PresidentJeff" is also a capitalised pair.
+#: English is main's pattern verbatim, ASCII (operator, 2026-10-05: English must not change), so
+#: on an English feed an accented given name still pairs from the surname, exactly as on main.
+#: The other languages get the Unicode classes: on the fifteen-episode non-English cast the
+#: ASCII scanner made "Élodie Chevalier" pair from the SURNAME.
 _SPOKEN_FULL_NAME = re.compile(
     r"(?:(?<![A-Za-z])|(?<=[a-z]))(?=([A-Z][a-z'’\-]+)\s+([A-Z][a-zA-Z'’\-]+))"
 )
+_SPOKEN_FULL_NAME_UNICODE = re.compile(
+    rf"(?:(?<![A-Za-z{_STATED_LC_CHARS}À-ÖØ-Þ])|(?<=[{_STATED_LC_CHARS}]))"
+    rf"(?=({_STATED_UC}[{_STATED_LC_CHARS}'’\-]+)\s+({_STATED_UC}[{_STATED_LC_CHARS}A-Z'’\-]+))"
+)
+
+
+def _spoken_full_name(language: Optional[str]) -> "re.Pattern[str]":
+    """main's ASCII scanner for English, unset or unsupported; the Unicode one for the rest."""
+    lang = primary_language(language)
+    supported = lang in naming_vocabulary.SELF_INTRO_WORDS
+    if not lang or lang == TARGET_LANGUAGE or not supported:
+        return _SPOKEN_FULL_NAME
+    return _SPOKEN_FULL_NAME_UNICODE
+
+
 # "I'm Tracy Allaway", "I am", "my name is": the voice saying it IS the person. NOT "this is": that
 # is how a host introduces a guest ("this is Matthew Cobb's seventh book"), and framed as a
 # self-introduction it told the model the host was the guest (advisor review, #2075).
-_SELF_INTRO_BEFORE = re.compile(r"(?:\bI['’]?m|\bI am|\bmy name is)\s*$", re.IGNORECASE)
+#: The English entry is main's pattern verbatim — NOT built from `SELF_INTRO_WORDS["en"]`, whose
+#: words are not the three English sites' words (each site had its own, and they differ).
+_SELF_INTRO_BEFORE_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
+    **{
+        lang: re.compile(rf"\b(?:{words})\s*$", re.IGNORECASE)
+        for lang, words in naming_vocabulary.SELF_INTRO_WORDS.items()
+    },
+    TARGET_LANGUAGE: re.compile(r"(?:\bI['’]?m|\bI am|\bmy name is)\s*$", re.IGNORECASE),
+}
+_SELF_INTRO_BEFORE = _SELF_INTRO_BEFORE_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
 class _Span:
@@ -141,7 +173,13 @@ def _surname_variant(spoken: str, stated: str) -> bool:
     return _edit_distance(spoken, stated) <= 2
 
 
-def _mentions_of(name: str, tokens: List[str], exact: "re.Pattern[str]", body: str) -> List[Any]:
+def _mentions_of(
+    name: str,
+    tokens: List[str],
+    exact: "re.Pattern[str]",
+    body: str,
+    language: Optional[str] = TARGET_LANGUAGE,
+) -> List[Any]:
     """Exact full-name / surname matches, plus the SPOKEN VARIANTS of the full name (#2075).
 
     Measured on an Odd Lots episode: the show notes say `Jeffrey Schmid` and `Tracy Alloway`, the
@@ -156,7 +194,7 @@ def _mentions_of(name: str, tokens: List[str], exact: "re.Pattern[str]", body: s
     found: List[Any] = [_Span(m.start(), m.end()) for m in exact.finditer(body)]
     if len(tokens) < 2 or len(tokens[-1]) < 5:
         return found
-    for m in _SPOKEN_FULL_NAME.finditer(body):
+    for m in _spoken_full_name(language).finditer(body):
         given, last = m.group(1), m.group(2)
         if not (given.lower() == tokens[0].lower() or first_names_match(tokens[0], given)):
             continue
@@ -170,7 +208,10 @@ def _mentions_of(name: str, tokens: List[str], exact: "re.Pattern[str]", body: s
 
 
 def retrieve_mentions(
-    name: str, ordered_turns: Sequence[tuple], context_chars: int = MENTION_CONTEXT_CHARS
+    name: str,
+    ordered_turns: Sequence[tuple],
+    context_chars: int = MENTION_CONTEXT_CHARS,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> List[str]:
     """Every passage where this NAME is spoken, with who said it and who spoke NEXT.
 
@@ -191,7 +232,7 @@ def retrieve_mentions(
     out: List[str] = []
     for i, (voice, text) in enumerate(ordered_turns):
         body = str(text or "")
-        for m in _mentions_of(name, tokens, pattern, body):
+        for m in _mentions_of(name, tokens, pattern, body, language):
             lo = max(0, m.start() - context_chars // 2)
             hi = min(len(body), m.end() + context_chars // 2)
             passage = re.sub(r"\s+", " ", body[lo:hi]).strip()
@@ -204,7 +245,12 @@ def retrieve_mentions(
             # third-person mention means. Say what it actually is: somebody TALKING ABOUT them.
             # EXCEPT a self-introduction — "And I'm Joe Weisenthal" was being presented as Joe's
             # own voice "probably NOT" being Joe (#2075, Odd Lots, measured on the DGX).
-            if _SELF_INTRO_BEFORE.search(body[max(0, m.start() - 20) : m.start()]):
+            self_intro_before = naming_vocabulary.vocabulary_row(
+                _SELF_INTRO_BEFORE_BY_LANGUAGE, language
+            )
+            if self_intro_before is not None and self_intro_before.search(
+                body[max(0, m.start() - 20) : m.start()]
+            ):
                 line = f'{voice} INTRODUCES ITSELF as them (so {voice} IS them): "...{passage}..."'
             else:
                 line = (
@@ -228,6 +274,7 @@ def build_resolution_prompt(
     episode_title: Optional[str] = None,
     episode_description: Optional[str] = None,
     intro_block: Optional[str] = None,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> str:
     """Two questions with answers: which named person is each voice, and is it a host or a guest?
 
@@ -241,7 +288,7 @@ def build_resolution_prompt(
 
     roster_lines = []
     for n in stated_names:
-        mentions = retrieve_mentions(n, ordered_turns or [])
+        mentions = retrieve_mentions(n, ordered_turns or [], language=language)
         roster_lines.append(f"  - {n}")
         if mentions:
             for passage in mentions:
@@ -446,12 +493,16 @@ def _talks_about(text: str, name: str) -> bool:
 # cluster, and on a two-voice show the complement pass would then swap two correct names. A guard
 # that fires on 2 true positives is worth having; one that fires on 858 mostly-false ones is a
 # regression with a rationale.
-_ADDRESSED_AT_OPEN = (
-    r"^\W*(?:hey|hi|hello|good\s+(?:morning|afternoon|evening)|morning)[,!]?\s+{first}\b[,.!?]"
-)
+#: ``{first}`` is filled in by the caller with the escaped first name. Only the GREETING moves
+#: between languages; the anchors and the punctuation class are structure.
+_ADDRESSED_AT_OPEN_BY_LANGUAGE: Dict[str, str] = {
+    lang: r"^\W*(?:" + greeting + r")[,!]?\s+{first}\b[,.!?]"
+    for lang, greeting in naming_vocabulary.GREETING_AT_OPEN.items()
+}
+_ADDRESSED_AT_OPEN = _ADDRESSED_AT_OPEN_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
-def _addressed_at_open(text: str, name: str) -> bool:
+def _addressed_at_open(text: str, name: str, language: Optional[str] = TARGET_LANGUAGE) -> bool:
     """Whether this voice OPENS by greeting ``name`` — "Hey, Jordan. Good morning."
 
     Complements :func:`_talks_about`, which matches the full name or the SURNAME and therefore
@@ -461,11 +512,19 @@ def _addressed_at_open(text: str, name: str) -> bool:
     tokens = [t for t in re.split(r"\s+", (name or "").strip()) if t]
     if not tokens or not text:
         return False
-    pattern = _ADDRESSED_AT_OPEN.format(first=re.escape(tokens[0]))
+    # NO GREETING ROW MEANS NO OPINION. The whole guard is "this voice GREETS the name, so it is
+    # not that person"; with no greeting list for the language there is no evidence either way,
+    # and returning True would refute a correct name on no grounds at all.
+    template = naming_vocabulary.vocabulary_row(_ADDRESSED_AT_OPEN_BY_LANGUAGE, language)
+    if template is None:
+        return False
+    pattern = template.format(first=re.escape(tokens[0]))
     return bool(re.search(pattern, text, re.IGNORECASE))
 
 
-def refuted_by_third_person(voice_text: str, name: str) -> bool:
+def refuted_by_third_person(
+    voice_text: str, name: str, language: Optional[str] = TARGET_LANGUAGE
+) -> bool:
     """IF YOU SAY SOMEBODY'S NAME IN THE THIRD PERSON, YOU ARE NOT THEM.
 
     The retrieval that makes this work is also what misleads the model. It hands over passages
@@ -479,7 +538,7 @@ def refuted_by_third_person(voice_text: str, name: str) -> bool:
     a prompt is not an enforcement mechanism (#876).
     """
     return (
-        _talks_about(voice_text, name) or _addressed_at_open(voice_text, name)
+        _talks_about(voice_text, name) or _addressed_at_open(voice_text, name, language)
     ) and not _introduces_itself_as(voice_text, name)
 
 
@@ -493,6 +552,7 @@ def resolve_voices_and_roles(
     episode_description: Optional[str] = None,
     intro_block: Optional[str] = None,
     report: Optional[Dict[str, Any]] = None,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Dict[str, LLMVoice]:
     """``{voice: LLMVoice(name, role)}`` — the name AND host/guest role, in one call (ADR-137).
 
@@ -530,6 +590,7 @@ def resolve_voices_and_roles(
         episode_title,
         episode_description,
         intro_block,
+        language,
     )
     rep_["stated_names"] = list(stated)
     rep_["prompt_chars"] = len(prompt)
@@ -599,7 +660,7 @@ def resolve_voices_and_roles(
             if match is None:
                 invented.append(verdict.name)
                 seen["outcome"] = "invented"
-            elif refuted_by_third_person(voice_texts[voice], match):
+            elif refuted_by_third_person(voice_texts[voice], match, language):
                 refuted.append(f"{voice}={match}")
                 refuted_pairs.append((voice, match))
                 seen["outcome"] = "third_person"
@@ -670,8 +731,8 @@ def resolve_voices_and_roles(
                     continue  # that voice already has a name; do not overwrite a direct answer
                 if (
                     existing.name.lower() != other_name.lower()
-                    or refuted_by_third_person(voice_texts[other], name)
-                    or refuted_by_third_person(voice_texts[bad_voice], other_name)
+                    or refuted_by_third_person(voice_texts[other], name, language)
+                    or refuted_by_third_person(voice_texts[bad_voice], other_name, language)
                 ):
                     continue  # not a swap of the two stated names — the direct answer stands
                 used.add(name.lower())
@@ -697,7 +758,7 @@ def resolve_voices_and_roles(
                     other,
                 )
                 continue
-            if refuted_by_third_person(voice_texts[other], name):
+            if refuted_by_third_person(voice_texts[other], name, language):
                 continue  # the other voice talks about them too — no evidence either way
             used.add(name.lower())
             out[other] = LLMVoice(name=name, role=existing.role if existing else None)

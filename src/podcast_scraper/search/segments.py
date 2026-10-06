@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from ..languages import primary_language
 from .backend import SegmentDocument
 from .chunker import chunk_transcript
 
@@ -71,10 +72,23 @@ def link_insights_to_segments(
     ``InsightDocument.source_segment_id``. One segment per insight (first match).
     """
     mapping: Dict[str, str] = {}
+    # RFC-124 §6.2: a translated episode is indexed as TWO layers and both share the audio
+    # timeline, so a time-based match cannot tell them apart. Insights are derived from the
+    # English analysis body, so a source-language segment must never be offered as the one
+    # "containing" an insight's grounding quote — it would attach source-language evidence to
+    # an English claim, at a timestamp that matches perfectly.
+    #
+    # `language in (None, "en")` rather than a layer marker because this function receives
+    # `SegmentDocument`s, which carry the language and not the chunk metadata; `None` is the
+    # pre-language corpus and routes English everywhere else too (see
+    # `_split_segments_by_language`).
+    linkable = [
+        seg for seg in segments if primary_language(getattr(seg, "language", None) or "en") == "en"
+    ]
     for insight_id, quote_start, quote_end in insight_quotes:
         if quote_start is None:
             continue
-        for seg in segments:
+        for seg in linkable:
             end_ok = quote_end is None or quote_end <= seg.end_time + tolerance_seconds
             if seg.start_time - tolerance_seconds <= quote_start and end_ok:
                 seg.linked_insight_ids.append(insight_id)

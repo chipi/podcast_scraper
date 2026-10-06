@@ -1,0 +1,2582 @@
+{
+  "p01_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Liam Verbeek",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Liam Verbeek",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p01_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_02",
+      "Sophie Lorenz"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Sophie Lorenz",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p01_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Noah Bryer",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Noah Bryer",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p01_e04": {
+    "input_voices": 2,
+    "num_speakers": 2,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "Sophie Laurent"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Sophie Laurent",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      }
+    ]
+  },
+  "p02_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Priya Nair",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Priya Nair",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p02_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Joll Wisenthal",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Joll Wisenthal",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p02_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Priya Nair",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Priya Nair",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p02_e04": {
+    "input_voices": 2,
+    "num_speakers": 2,
+    "resolved_labels": [
+      "Priya Nair",
+      "SPEAKER_00"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Priya Nair",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      }
+    ]
+  },
+  "p02_e05": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p03_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Marco Sylva",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Marco Sylva",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p03_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Hanna Crebo Rediker",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Hanna Crebo Rediker",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p03_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Hanna Krebohticker",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Hanna Krebohticker",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p03_e04": {
+    "input_voices": 2,
+    "num_speakers": 2,
+    "resolved_labels": [
+      "Marco Silva",
+      "SPEAKER_00"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Marco Silva",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      }
+    ]
+  },
+  "p04_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Ava Lemoine",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Ava Lemoine",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p04_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_02",
+      "Tarek Hassan"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Tarek Hassan",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p04_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Daniel Olufemi",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Daniel Olufemi",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p04_e04": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Ava Lemoine",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Ava Lemoine",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p05_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Daniel Cho",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Daniel Cho",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p05_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Rich Clarida",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Rich Clarida",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p05_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_02",
+      "Scott Bessett"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Scott Bessett",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p05_e04": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Daniel Cho",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "commercial"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Daniel Cho",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "unidentified"
+      }
+    ]
+  },
+  "p05_e05": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Daniel Cho",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Daniel Cho",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p06_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Jordan Park",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Jordan Park",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p06_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Jordan Park",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Jordan Park",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p06_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Jordan Park",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Jordan Park",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p06_e04": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Jordan Park",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Jordan Park",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p06_e05": {
+    "input_voices": 1,
+    "num_speakers": 1,
+    "resolved_labels": [
+      "SPEAKER_00"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      }
+    ]
+  },
+  "p06_e06": {
+    "input_voices": 2,
+    "num_speakers": 2,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p07_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Elena Fischer",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Elena Fischer",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p07_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_02",
+      "Skanda Eminas"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Skanda Eminas",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p07_e03": {
+    "input_voices": 2,
+    "num_speakers": 2,
+    "resolved_labels": [
+      "Alex Morgan",
+      "SPEAKER_01"
+    ],
+    "speaker_record": [
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Alex Morgan",
+        "role": "host",
+        "source": "self_intro",
+        "voice": "SPEAKER_00",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      }
+    ]
+  },
+  "p07_e04": {
+    "input_voices": 2,
+    "num_speakers": 2,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "Skanda Amarnath"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Skanda Amarnath",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      }
+    ]
+  },
+  "p08_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Renee Montagne-Park",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Renee Montagne-Park",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p08_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Renee Montague-Park",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Renee Montague-Park",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p08_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Renee Montagne-Park",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Renee Montagne-Park",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p08_e04": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Renee Montagne-Park",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Renee Montagne-Park",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p09_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Elena Fischer",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Elena Fischer",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p09_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_02",
+      "Skanda Amarnauth"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Skanda Amarnauth",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p09_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_02",
+      "Skanda Amarnath"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Skanda Amarnath",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p09_e04": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Elena Fischer",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Elena Fischer",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p10_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Javier Benavides",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Javier Benavides",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p10_e01.es": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p10_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Marta Solís",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Marta Solís",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p10_e02.es": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p10_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Diego Ferrer",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Diego Ferrer",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p10_e03.es": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p11_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Marco Bellini",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Marco Bellini",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p11_e01.it": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p11_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Chiara Ricci",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Chiara Ricci",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p11_e02.it": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p11_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Luca Moretti",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Luca Moretti",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p11_e03.it": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p12_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Julien Mercier",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Julien Mercier",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p12_e01.fr": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p12_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p12_e02.fr": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p12_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Mathieu Lefèvre",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Mathieu Lefèvre",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p12_e03.fr": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p13_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_02",
+      "Stefan Brandt"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Stefan Brandt",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p13_e01.de": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p13_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Lena Hofmann",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Lena Hofmann",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p13_e02.de": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p13_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Jonas Richter",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Jonas Richter",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p13_e03.de": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p14_e01": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Rafael Vasconcelos",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Rafael Vasconcelos",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p14_e01.pt": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p14_e02": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "Inês Carvalho",
+      "SPEAKER_00",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Inês Carvalho",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p14_e02.pt": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  },
+  "p14_e03": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_02",
+      "Tiago Moreira"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": true,
+        "reason": null,
+        "resolved_name": "Tiago Moreira",
+        "role": "guest",
+        "source": "self_intro",
+        "voice": "SPEAKER_01",
+        "voice_type": "person"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "commercial"
+      }
+    ]
+  },
+  "p14_e03.pt": {
+    "input_voices": 3,
+    "num_speakers": 3,
+    "resolved_labels": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "SPEAKER_02"
+    ],
+    "speaker_record": [
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_00",
+        "role": "host",
+        "source": "raw",
+        "voice": "SPEAKER_00",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_01",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_01",
+        "voice_type": "unidentified"
+      },
+      {
+        "named": false,
+        "reason": "no self-introduction in own turns and no guests were detected for this episode",
+        "resolved_name": "SPEAKER_02",
+        "role": "unknown",
+        "source": "raw",
+        "voice": "SPEAKER_02",
+        "voice_type": "cameo"
+      }
+    ]
+  }
+}

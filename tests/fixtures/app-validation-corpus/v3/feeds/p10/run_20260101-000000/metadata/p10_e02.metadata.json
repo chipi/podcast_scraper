@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p10-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p10_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Lucía Herrera",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Marta Solís",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p10_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 379,
+    "episode_id": "ep-7fd3ec879c8c2b44",
+    "language": "es",
+    "language_source": "rss",
+    "published_date": "2025-12-31T00:00:00",
+    "title": "Habilidades de Enduro Sin el Bombo"
+  },
+  "feed": {
+    "authors": [
+      "Lucía Herrera"
+    ],
+    "description": "Conversaciones sobre construcción de senderos: drenaje, trazado, y las personas que construyen la ruta. Contraparte en español de Singletrack Sessions.",
+    "feed_id": "p10",
+    "language": "es",
+    "language_raw": "es-ES",
+    "language_source": "rss",
+    "last_updated": "2026-01-19T00:00:00",
+    "title": "Sesiones de Sendero",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p10.svg",
+    "image_url": "http://localhost/images/p10.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Speed comes from braking earlier and more smoothly rather than taking greater risks — a principle consistently observed across teams using RockShox components.",
+      "Tire pressure and tire casing selection matter more than minor suspension adjustments — a key factor in optimizing performance on varied terrain.",
+      "The optimal racing line changes between practice and race day due to erosion patterns on track sections — a dynamic that alters decision-making in real time.",
+      "Risk management in enduro racing isn't about avoiding crashes, but about choosing which crashes are survivable — a mindset shift that defines team success.",
+      "The Cascadia Alliance exemplifies how second-order effects influence performance — where the real impact lies beyond immediate outcomes.",
+      "Spoke & Wrench integration within team workflows enables consistent, repeatable gains — a pattern observed across three distinct teams.",
+      "Frame design reveals the compromises inherent in a bike’s construction — a visible signal of what the manufacturer prioritized or sacrificed.",
+      "Implementing one core idea for two weeks enables meaningful iteration — the rest is refinement, not reinvention."
+    ],
+    "raw_text": "Speed comes from braking earlier and more smoothly rather than taking greater risks — a principle consistently observed across teams using RockShox components. Tire pressure and tire casing selection matter more than minor suspension adjustments — a key factor in optimizing performance on varied terrain.",
+    "title": "Enduro Racing: Erosion, Risk, and the Power of Smart Choices"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-01T08:52:55Z",
+  "captured_from": "/private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "episode_id": "p03_e01",
+  "provenance": "captured by build_app_validation_corpus.py --capture-summaries from /private/tmp/claude-503/-Users-claude-projects-podcast-scraper/00e8f664-a096-4c7e-ad82-e8e1f4bf5ba0/scratchpad/fullrun",
+  "summary": {
+    "bullets": [
+      "Wreck penetration is a planning problem first, a buoyancy problem second — internalizing this shifts decision-making toward safer, more predictable outcomes.",
+      "Silt-out from poor finning technique kills more divers in wrecks than equipment failures, making technique a primary safety factor.",
+      "Erosion on a wreck site changes the dive every season, requiring updated planning and adaptation to avoid unexpected hazards.",
+      "Dive planning and wreck diving intersect through the framing of safety stops: DAN's safety stops aren't suggestions but critical tradeoffs in risk management.",
+      "GoPro adoption in team dives makes the trade-off between documentation and situational awareness visible — the framing reveals the underlying decisions.",
+      "Soil erosion and site changes create second-order effects that most divers overlook, yet they fundamentally alter dive dynamics and navigation.",
+      "The key to effective wreck diving lies in running one idea for two weeks — testing decisions in practice to refine them through iteration.",
+      "When teams use GoPro, the trade-off between recording and awareness becomes explicit — the framing determines which decisions are prioritized."
+    ],
+    "raw_text": "Wreck penetration is a planning problem first, a buoyancy problem second — internalizing this shifts decision-making toward safer, more predictable outcomes. Silt-out from poor finning technique kills more divers in wrecks than equipment failures, making technique a primary safety factor.",
+    "title": "Wreck Diving Fundamentals: Planning, Buoyancy, and Erosion"
+  }
+}

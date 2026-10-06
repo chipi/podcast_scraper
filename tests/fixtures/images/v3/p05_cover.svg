@@ -20,7 +20,7 @@
   <rect width="600" height="600" fill="url(#glow)"/>
 
   <!-- Subject mark: the part that still reads at 120px. -->
-  <g transform="translate(300 34) scale(2.32)" fill="none" stroke="#FFFFFF" stroke-opacity="0.92"
+  <g transform="translate(300 34) scale(1.73)" fill="none" stroke="#FFFFFF" stroke-opacity="0.92"
      stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" color="#FFFFFF">
     <g transform="translate(-50 0)"><path d="M12 88 V26 M12 88 H92"/><path d="M26 72 V54 M44 78 V38 M62 66 V28 M80 74 V44"/><path d="M22 62 L44 30 L62 46 L88 18"/></g>
   </g>

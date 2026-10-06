@@ -31,6 +31,51 @@
       "type": "MENTIONS"
     },
     {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:canonical-labeling",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:edge-case-episode",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:language-alternation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:multilingual-input",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:parser-robustness",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:processor-testing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:robustness-testing",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:system-validation",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-26eaa57651247221",
+      "target": "topic:transcription-robustness",
+      "type": "MENTIONS"
+    },
+    {
       "from": "episode:ep-26eaa57651247221",
       "to": "person:maya",
       "type": "MENTIONS"
@@ -102,6 +147,78 @@
       "properties": {
         "label": "expert interviews",
         "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:canonical-labeling",
+      "properties": {
+        "label": "canonical labeling",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:edge-case-episode",
+      "properties": {
+        "label": "edge case episode",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:language-alternation",
+      "properties": {
+        "label": "language alternation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:multilingual-input",
+      "properties": {
+        "label": "multilingual input",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:parser-robustness",
+      "properties": {
+        "label": "parser robustness",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:processor-testing",
+      "properties": {
+        "label": "processor testing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:robustness-testing",
+      "properties": {
+        "label": "robustness testing",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:system-validation",
+      "properties": {
+        "label": "system validation",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:transcription-robustness",
+      "properties": {
+        "label": "transcription robustness",
+        "topic_source": "extracted"
       },
       "type": "Topic"
     },

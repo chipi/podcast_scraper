@@ -1,0 +1,65 @@
+{
+  "content": {
+    "diarization_num_speakers": 3,
+    "media_id": "sha256:p11-e02",
+    "media_type": "audio/mpeg",
+    "media_url": "/audio/p11_e02.mp3",
+    "speakers": [
+      {
+        "id": "speaker_1",
+        "name": "Giulia Ferrara",
+        "role": "host"
+      },
+      {
+        "id": "speaker_2",
+        "name": "Chiara Ricci",
+        "role": "guest"
+      },
+      {
+        "id": "speaker_3",
+        "name": "Ad",
+        "role": "guest"
+      }
+    ],
+    "transcript_file_path": "transcripts/p11_e02.txt",
+    "transcript_source": "synthetic-app-validation-corpus"
+  },
+  "episode": {
+    "duration_seconds": 353,
+    "episode_id": "ep-7ccfb108302b3faa",
+    "language": "it",
+    "language_source": "rss",
+    "published_date": "2025-12-28T00:00:00",
+    "title": "Tecnica Enduro Senza Clamore"
+  },
+  "feed": {
+    "authors": [
+      "Giulia Ferrara"
+    ],
+    "description": "Conversazioni sulla costruzione di sentieri: drenaggio, tracciato, e le persone che costruiscono il percorso. Controparte italiana di Singletrack Sessions.",
+    "feed_id": "p11",
+    "language": "it",
+    "language_raw": "it-IT",
+    "language_source": "rss",
+    "last_updated": "2025-12-28T00:00:00",
+    "title": "Sentieri d'Autore",
+    "url": "http://localhost/",
+    "image_local_relpath": ".podcast_scraper/corpus-art/p11.svg",
+    "image_url": "http://localhost/images/p11.svg"
+  },
+  "schema_version": "1",
+  "summary": {
+    "bullets": [
+      "Soil erosion patterns on race tracks directly influence trajectory choices between practice and race day, making track condition awareness a core racing strategy.",
+      "Tire pressure and casing selection matter more than minor suspension adjustments, as they impact grip and stability on eroded terrain.",
+      "Speed comes from braking earlier and more smoothly rather than taking greater risks, a principle observed across multiple teams using RockShox.",
+      "The framing of a race setup reveals the compromises being made — design decisions reflect tradeoffs in risk, durability, and performance.",
+      "Risk management in enduro racing isn't about avoiding crashes but about choosing which crashes are survivable through disciplined technique.",
+      "The Cascadia Alliance highlights how second-order effects — like altered rider behavior due to track erosion — shape long-term race outcomes.",
+      "Spoke & Wrench integration into team workflows makes the trade-off between risk and reliability visibly apparent across three observed teams.",
+      "Listeners should implement one core idea from the episode for two weeks to test its impact — everything else is iteration."
+    ],
+    "raw_text": "Soil erosion patterns on race tracks directly influence trajectory choices between practice and race day, making track condition awareness a core racing strategy. Tire pressure and casing selection matter more than minor suspension adjustments, as they impact grip and stability on eroded terrain.",
+    "title": "Enduro Racing: Erosion, Risk, and the Power of Smart Decision-Making"
+  }
+}

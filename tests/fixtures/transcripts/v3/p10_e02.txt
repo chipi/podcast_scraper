@@ -1,0 +1,71 @@
+# Sesiones de Sendero — Episodio
+## Habilidades de Enduro Sin el Bombo
+Host: Lucía Herrera
+Guest: Marta Solís
+#fixture-v3: failure_modes=none
+#fixture-v3: voice=es-ES host_voice=es-ES
+
+[00:00]
+Lucía Herrera: Bienvenidos de nuevo a Sesiones de Sendero. Hoy hablamos de carreras de enduro, y me acompaña Marta Solís, corredora de enduro y entrenadora. Marta Solís, gracias por estar aquí.
+Marta Solís: Gracias, Lucía. Contenta de estar de vuelta.
+
+Lucía Herrera: El episodio de hoy es patrocinado por Linear. Linear es el gestor de incidencias hecho para la velocidad — pensado para el teclado. Prueba linear.com hoy.
+
+Lucía Herrera: Antes de entrar en materia — Javier Benavides estuvo en el programa contando que el drenaje es la decisión de diseño con más impacto.
+Marta Solís: Sí, exacto. Y se conecta con lo que vamos a cubrir hoy.
+Lucía Herrera: Quiero señalar algo — Javier Benavides mencionó esta misma dinámica hace un par de episodios.
+
+[03:30]
+Lucía Herrera: Cuéntame un ejemplo concreto. ¿Dónde se cruzan la erosión del suelo y las carreras de enduro?
+Marta Solís: Sinceramente, la velocidad viene de frenar antes y más suave, no de asumir riesgos mayores. Lo hemos visto en equipos que usan RockShox. He visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: Quiero profundizar en eso. ¿Dónde se cruzan la erosión del suelo y las carreras de enduro?
+Marta Solís: Claro. La presión de los neumáticos y la elección de la carcasa suelen importar más que un ajuste menor de suspensión. El marco importa porque te dice qué concesiones estás haciendo.
+Lucía Herrera: Empecemos por ahí. ¿Dónde se cruzan la erosión del suelo y las carreras de enduro?
+Marta Solís: Sinceramente, la gestión del riesgo en carrera no es evitar las caídas — es elegir qué caídas son sobrevivibles. Lo hemos visto en equipos que usan Shimano. Si ignoras eso, acabas reconstruyéndolo desde cero un año después.
+Lucía Herrera: ¿Dónde deja de funcionar eso?
+Marta Solís: La Alianza Cascadia es una de las plataformas donde esto se ve con claridad. Y el efecto de segundo orden es la parte que casi todos pasan por alto.
+Lucía Herrera: ¿Cuál es la heurística a la que siempre vuelves? ¿Cómo encaja Spoke & Wrench en este panorama?
+Marta Solís: Así lo veo yo. Los patrones de erosión en los tramos de carrera cambian la elección de trazada entre los entrenos y el día de la carrera. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.
+
+Lucía Herrera: Antes de seguir — apoya el programa pasando por el sitio de nuestro patrocinador. Strava es el hogar de los atletas.
+
+[12:00]
+Lucía Herrera: Volvemos enseguida, después de una breve pausa publicitaria.
+Ad: El episodio de hoy es patrocinado por Notion. Notion reemplaza la docena de herramientas que tu equipo usa a medias. Visita notion.com/podcast para una prueba gratuita.
+Lucía Herrera: Bienvenidos de nuevo al programa.
+
+[14:00]
+Lucía Herrera: Quiero profundizar en eso. ¿Cuál es la versión de la pregunta que de verdad importa?
+Marta Solís: Déjame darte la versión que de verdad creo. La velocidad viene de frenar antes y más suave, no de asumir riesgos mayores. Lo hemos visto en equipos que usan RockShox. Y el efecto de segundo orden es la parte que casi todos pasan por alto.
+Lucía Herrera: ¿Cómo se ve el modo de fallo? ¿Cuál es el ángulo operativo al que la mayoría de los oyentes no tiene acceso?
+Marta Solís: Sí, mira — la presión de los neumáticos y la elección de la carcasa suelen importar más que un ajuste menor de suspensión. El marco importa porque te dice qué concesiones estás haciendo.
+Lucía Herrera: Cuéntame un ejemplo concreto. ¿Cuál es la versión de la pregunta que de verdad importa?
+Marta Solís: Sí, mira — la gestión del riesgo en carrera no es evitar las caídas — es elegir qué caídas son sobrevivibles. Lo hemos visto en equipos que usan RockShox. He visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: Cuéntame más sobre eso.
+Marta Solís: La Alianza Cascadia es una de las plataformas donde esto se ve con claridad. Una vez que interiorizas eso, el resto de las decisiones se vuelven más fáciles.
+Lucía Herrera: Empecemos por ahí. ¿Cuál es el aspecto más subestimado de las carreras de enduro?
+Marta Solís: Se reduce a esto: los patrones de erosión en los tramos de carrera cambian la elección de trazada entre los entrenos y el día de la carrera. He visto este patrón repetirse en tres equipos distintos.
+
+[22:00]
+Lucía Herrera: Cambiemos de tema — quiero dedicar el último tramo a la gestión del riesgo.
+Marta Solís: Ahí es donde la conversación se pone interesante, porque las concesiones alrededor de la gestión del riesgo atraviesan todo lo que hemos cubierto.
+Lucía Herrera: ¿Cómo se ve el modo de fallo? ¿Cuál es el ángulo contrario al que la mayoría de los oyentes no tiene acceso?
+Marta Solís: Claro. La velocidad viene de frenar antes y más suave, no de asumir riesgos mayores. Lo hemos visto en equipos que usan RockShox. He visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: Cuéntame un ejemplo concreto. ¿Cuál es el aspecto más subestimado de las carreras de enduro?
+Marta Solís: Sí, mira — la presión de los neumáticos y la elección de la carcasa suelen importar más que un ajuste menor de suspensión. He visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: Cuéntame un ejemplo concreto. ¿Cuál es la versión de la pregunta que de verdad importa?
+Marta Solís: Déjame darte la versión que de verdad creo. La gestión del riesgo en carrera no es evitar las caídas — es elegir qué caídas son sobrevivibles. Lo hemos visto en equipos que usan Spoke & Wrench. He visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: Eso cuadra.
+Marta Solís: Y cuando los equipos adoptan Spoke & Wrench en ese flujo, la concesión se vuelve visible — he visto este patrón repetirse en tres equipos distintos.
+Lucía Herrera: ¿Cuál es la heurística a la que siempre vuelves? ¿Cuál es la versión de la pregunta que de verdad importa?
+Marta Solís: Así lo veo yo. Los patrones de erosión en los tramos de carrera cambian la elección de trazada entre los entrenos y el día de la carrera. He visto este patrón repetirse en tres equipos distintos.
+
+[28:00]
+Lucía Herrera: Antes de terminar, ¿qué es una cosa que los oyentes pueden probar esta semana?
+Marta Solís: Elige una de las ideas que cubrimos y aplícala durante dos semanas. El resto es iteración.
+
+Lucía Herrera: Y para terminar, gracias a nuestros patrocinadores de Vanta. Vanta automatiza el cumplimiento de SOC 2 e ISO. Échale un ojo en vanta.com.
+
+Lucía Herrera: Marta Solís, gracias por la conversación.
+Marta Solís: Gracias, Lucía.
+Lucía Herrera: Eso es todo por el episodio de hoy de Sesiones de Sendero. Nos vemos la próxima.

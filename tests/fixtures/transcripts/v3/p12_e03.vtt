@@ -1,0 +1,148 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:11.340
+<v Camille Dubois>Bienvenue à nouveau dans Sessions Sentier. Aujourd'hui on parle de mécanique de transmission, et je reçois Mathieu Lefèvre, mécanicien chez Spoke &amp; Wrench. Mathieu Lefèvre, merci d'être là.</v>
+
+00:00:11.340 --> 00:00:13.800
+<v Mathieu Lefèvre>Merci, Camille. Content d'être de retour.</v>
+
+00:00:13.800 --> 00:00:22.560
+<v Camille Dubois>Cet épisode est sponsorisé par Notion. Notion remplace la douzaine d'outils que votre équipe utilise à moitié. Essayez notion.com dès aujourd'hui.</v>
+
+00:00:22.560 --> 00:00:31.920
+<v Camille Dubois>Avant d'entrer dans le vif — Élodie Chevalier était là à l'épisode précédent et disait que la pression des pneus compte plus que les réglages de suspension.</v>
+
+00:00:31.920 --> 00:00:35.460
+<v Mathieu Lefèvre>Oui, exactement. Et ça rejoint ce qu'on couvre aujourd'hui.</v>
+
+00:00:35.460 --> 00:00:41.700
+<v Camille Dubois>Je veux signaler une chose — Élodie Chevalier a mentionné cette même dynamique il y a quelques épisodes.</v>
+
+00:00:41.700 --> 00:00:47.820
+<v Camille Dubois>Je veux signaler une chose — Julien Mercier a mentionné cette même dynamique il y a quelques épisodes.</v>
+
+00:03:30.000 --> 00:03:34.620
+<v Camille Dubois>Je veux creuser ça. Qu'est-ce que tu croyais à ce sujet et que tu as révisé ?</v>
+
+00:03:34.620 --> 00:03:50.340
+<v Mathieu Lefèvre>Ça se résume à ceci : la plupart des craquements mystérieux se résolvent en nettoyant les surfaces de contact et en resserrant au couple prévu. On l'a vu dans les équipes qui utilisent Spoke &amp; Wrench. Le cadrage compte parce qu'il te dit quels compromis tu fais.</v>
+
+00:03:50.340 --> 00:03:55.380
+<v Camille Dubois>C'est un cadrage utile. Où se croisent l'entretien et la mécanique de transmission ?</v>
+
+00:03:55.380 --> 00:04:06.900
+<v Mathieu Lefèvre>Voilà comment je le vois. Un vélo devrait sembler silencieux et prévisible pour que ton attention reste sur le sentier. Et l'effet de second ordre est la partie que presque tout le monde rate.</v>
+
+00:04:06.900 --> 00:04:12.720
+<v Camille Dubois>Je veux creuser ça. Quel est l'angle structurel auquel la plupart des auditeurs n'ont pas accès ?</v>
+
+00:04:12.720 --> 00:04:26.460
+<v Mathieu Lefèvre>Bien sûr. L'usure de la chaîne est le meilleur indicateur avancé du moment où tu devras remplacer la cassette. On l'a vu dans les équipes qui utilisent Spoke &amp; Wrench. Le cadrage compte parce qu'il te dit quels compromis tu fais.</v>
+
+00:04:26.460 --> 00:04:27.960
+<v Camille Dubois>Dis-m'en plus.</v>
+
+00:04:27.960 --> 00:04:35.580
+<v Mathieu Lefèvre>Spoke &amp; Wrench est l'une des plateformes où ça ressort clairement. J'ai vu ce schéma se répéter dans trois équipes différentes.</v>
+
+00:04:35.580 --> 00:04:40.260
+<v Camille Dubois>Raconte-moi comment tu as décidé. Comment RockShox s'inscrit dans ce tableau ?</v>
+
+00:04:40.260 --> 00:04:50.340
+<v Mathieu Lefèvre>Bien sûr. Les intervalles d'entretien de la suspension sont une décision de gestion du risque. Si tu ignores ça, tu finis par tout reconstruire de zéro un an plus tard.</v>
+
+00:04:50.340 --> 00:05:03.720
+<v Camille Dubois>Tu sais quoi ? Je le dis franchement : Linear fait tourner toute mon ingénierie au quotidien. Linear est le gestionnaire de tickets conçu pour la vitesse — pensé pour le clavier. Utilise le lien dans les notes de l'épisode.</v>
+
+00:12:00.000 --> 00:12:03.720
+<v Camille Dubois>On revient tout de suite, après une courte pause publicitaire.</v>
+
+00:12:03.720 --> 00:12:14.760
+<v Ad>Cet épisode est sponsorisé par Stripe. Stripe simplifie les paiements, que vous gériez une marketplace ou une activité par abonnement. Visitez stripe.com/podcast pour un essai gratuit.</v>
+
+00:12:14.760 --> 00:12:16.920
+<v Camille Dubois>Bienvenue à nouveau dans l'émission.</v>
+
+00:14:00.000 --> 00:14:05.040
+<v Camille Dubois>C'est un cadrage utile. Où se croisent l'entretien et la mécanique de transmission ?</v>
+
+00:14:05.040 --> 00:14:20.520
+<v Mathieu Lefèvre>Voilà comment je le vois. La plupart des craquements mystérieux se résolvent en nettoyant les surfaces de contact et en resserrant au couple prévu. On l'a vu dans les équipes qui utilisent Shimano. J'ai vu ce schéma se répéter dans trois équipes différentes.</v>
+
+00:14:20.520 --> 00:14:25.740
+<v Camille Dubois>Donne-moi un exemple concret. Qu'est-ce que tu croyais à ce sujet et que tu as révisé ?</v>
+
+00:14:25.740 --> 00:14:36.840
+<v Mathieu Lefèvre>Oui, alors — un vélo devrait sembler silencieux et prévisible pour que ton attention reste sur le sentier. Une fois que tu as intériorisé ça, le reste des décisions devient plus facile.</v>
+
+00:14:36.840 --> 00:14:41.400
+<v Camille Dubois>Commençons par là. Qu'est-ce que tu croyais à ce sujet et que tu as révisé ?</v>
+
+00:14:41.400 --> 00:14:56.700
+<v Mathieu Lefèvre>Voilà comment je le vois. L'usure de la chaîne est le meilleur indicateur avancé du moment où tu devras remplacer la cassette. On l'a vu dans les équipes qui utilisent Shimano. Une fois que tu as intériorisé ça, le reste des décisions devient plus facile.</v>
+
+00:14:56.700 --> 00:14:58.200
+<v Camille Dubois>Ça se tient.</v>
+
+00:14:58.200 --> 00:15:07.980
+<v Mathieu Lefèvre>Et quand les équipes adoptent Spoke &amp; Wrench dans ce flux, le compromis devient visible — si tu ignores ça, tu finis par tout reconstruire de zéro un an plus tard.</v>
+
+00:15:07.980 --> 00:15:13.860
+<v Camille Dubois>Commençons par là. Quel est l'angle opérationnel auquel la plupart des auditeurs n'ont pas accès ?</v>
+
+00:15:13.860 --> 00:15:24.120
+<v Mathieu Lefèvre>Voilà comment je le vois. Les intervalles d'entretien de la suspension sont une décision de gestion du risque. J'ai vu ce schéma se répéter dans trois équipes différentes.</v>
+
+00:22:00.000 --> 00:22:04.860
+<v Camille Dubois>Changeons de sujet — je veux consacrer la dernière partie à la gestion du risque.</v>
+
+00:22:04.860 --> 00:22:13.320
+<v Mathieu Lefèvre>C'est là que la conversation devient intéressante, parce que les compromis autour de la gestion du risque traversent tout ce qu'on a couvert.</v>
+
+00:22:13.320 --> 00:22:19.380
+<v Camille Dubois>Donne-moi un exemple concret. Quel est l'aspect le plus sous-estimé de la mécanique de transmission ?</v>
+
+00:22:19.380 --> 00:22:34.320
+<v Mathieu Lefèvre>Bien sûr. La plupart des craquements mystérieux se résolvent en nettoyant les surfaces de contact et en resserrant au couple prévu. On l'a vu dans les équipes qui utilisent Spoke &amp; Wrench. J'ai vu ce schéma se répéter dans trois équipes différentes.</v>
+
+00:22:34.320 --> 00:22:40.740
+<v Camille Dubois>C'est un cadrage utile. Quel est l'angle à contre-courant auquel la plupart des auditeurs n'ont pas accès ?</v>
+
+00:22:40.740 --> 00:22:51.360
+<v Mathieu Lefèvre>Ça se résume à ceci : un vélo devrait sembler silencieux et prévisible pour que ton attention reste sur le sentier. Le cadrage compte parce qu'il te dit quels compromis tu fais.</v>
+
+00:22:51.360 --> 00:22:58.140
+<v Camille Dubois>À quoi ressemble le mode de défaillance ? Quel est l'aspect le plus sous-estimé de la mécanique de transmission ?</v>
+
+00:22:58.140 --> 00:23:11.580
+<v Mathieu Lefèvre>Honnêtement, l'usure de la chaîne est le meilleur indicateur avancé du moment où tu devras remplacer la cassette. On l'a vu dans les équipes qui utilisent Shimano. J'ai vu ce schéma se répéter dans trois équipes différentes.</v>
+
+00:23:11.580 --> 00:23:13.560
+<v Camille Dubois>Où est-ce que ça ne marche plus ?</v>
+
+00:23:13.560 --> 00:23:22.140
+<v Mathieu Lefèvre>Et quand les équipes adoptent Shimano dans ce flux, le compromis devient visible — j'ai vu ce schéma se répéter dans trois équipes différentes.</v>
+
+00:23:22.140 --> 00:23:29.340
+<v Camille Dubois>Quelle est l'heuristique sur laquelle tu reviens toujours ? Où se croisent l'entretien et la mécanique de transmission ?</v>
+
+00:23:29.340 --> 00:23:39.540
+<v Mathieu Lefèvre>Honnêtement, les intervalles d'entretien de la suspension sont une décision de gestion du risque. Et l'effet de second ordre est la partie que presque tout le monde rate.</v>
+
+00:28:00.000 --> 00:28:05.340
+<v Camille Dubois>Avant de conclure, quelle est une chose que les auditeurs peuvent essayer cette semaine ?</v>
+
+00:28:05.340 --> 00:28:11.880
+<v Mathieu Lefèvre>Choisis une des idées qu'on a couvertes et applique-la pendant deux semaines. Le reste, c'est de l'itération.</v>
+
+00:28:11.880 --> 00:28:20.160
+<v Camille Dubois>Avant de conclure, merci encore à nos amis de Linear. Linear est le gestionnaire de tickets conçu pour la vitesse — pensé pour le clavier.</v>
+
+00:28:20.160 --> 00:28:22.800
+<v Camille Dubois>Mathieu Lefèvre, merci pour la conversation.</v>
+
+00:28:22.800 --> 00:28:24.300
+<v Mathieu Lefèvre>Merci à toi, Camille.</v>
+
+00:28:24.300 --> 00:28:28.860
+<v Camille Dubois>C'est tout pour l'épisode d'aujourd'hui de Sessions Sentier. À la prochaine.</v>

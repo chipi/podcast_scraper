@@ -1,0 +1,299 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "insight:eadfdd2896f0cf8c",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "insight:aec35d9942d267fd",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "episode:ep-88fec846e9003e86",
+      "to": "insight:7bafcce26c6785b3",
+      "type": "HAS_INSIGHT"
+    },
+    {
+      "from": "quote:3d4dddc6a9bb5060",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:eadfdd2896f0cf8c",
+      "to": "quote:3d4dddc6a9bb5060",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:c5b5e36c07f2363a",
+      "to": "person:ines-carvalho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:aec35d9942d267fd",
+      "to": "quote:c5b5e36c07f2363a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:385a4c29a122e34a",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7bafcce26c6785b3",
+      "to": "quote:385a4c29a122e34a",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:52d3727e6989cd56",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:eadfdd2896f0cf8c",
+      "to": "quote:52d3727e6989cd56",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:b332ea51aad8b266",
+      "to": "person:ines-carvalho",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:aec35d9942d267fd",
+      "to": "quote:b332ea51aad8b266",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "quote:1b0309d7fa1b1d11",
+      "to": "person:beatriz-antunes",
+      "type": "SPOKEN_BY"
+    },
+    {
+      "from": "insight:7bafcce26c6785b3",
+      "to": "quote:1b0309d7fa1b1d11",
+      "type": "SUPPORTED_BY"
+    },
+    {
+      "from": "insight:eadfdd2896f0cf8c",
+      "to": "person:beatriz-antunes",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:aec35d9942d267fd",
+      "to": "person:ines-carvalho",
+      "type": "MENTIONS_PERSON"
+    },
+    {
+      "from": "insight:7bafcce26c6785b3",
+      "to": "person:beatriz-antunes",
+      "type": "MENTIONS_PERSON"
+    }
+  ],
+  "episode_id": "ep-88fec846e9003e86",
+  "model_version": "synthetic-validation-corpus-v1",
+  "nodes": [
+    {
+      "id": "episode:ep-88fec846e9003e86",
+      "properties": {
+        "duration_ms": 406000,
+        "feed_id": "p14",
+        "podcast_id": "p14",
+        "publish_date": "2025-12-19T00:00:00",
+        "title": "T\u00e9cnica de Enduro Sem Exagero"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "insight:eadfdd2896f0cf8c",
+      "properties": {
+        "episode_id": "ep-88fec846e9003e86",
+        "grounded": true,
+        "insight_type": "claim",
+        "position_hint": 0.2,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Bem-vindos de novo \u00e0s Sess\u00f5es de Trilha. Hoje falamos de corridas de enduro, e comigo est\u00e1 In\u00eas Carvalho, atleta de enduro e treinadora. In\u00eas Carvalho, obrigada por estares aqui.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:aec35d9942d267fd",
+      "properties": {
+        "episode_id": "ep-88fec846e9003e86",
+        "grounded": true,
+        "insight_type": "observation",
+        "position_hint": 0.35,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "Obrigada, Beatriz. Contente de estar de volta.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "insight:7bafcce26c6785b3",
+      "properties": {
+        "episode_id": "ep-88fec846e9003e86",
+        "grounded": true,
+        "insight_type": "recommendation",
+        "position_hint": 0.5,
+        "routing_tag": "surface",
+        "salience": 0.7667,
+        "text": "O epis\u00f3dio de hoje \u00e9 patrocinado pela Linear. A Linear \u00e9 o gestor de tarefas feito para a velocidade \u2014 pensado para o teclado. Experimenta linear.com hoje.",
+        "tier": 2
+      },
+      "type": "Insight"
+    },
+    {
+      "id": "person:beatriz-antunes",
+      "properties": {
+        "name": "Beatriz Antunes"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:3d4dddc6a9bb5060",
+      "properties": {
+        "char_end": 195,
+        "char_start": 17,
+        "episode_id": "ep-88fec846e9003e86",
+        "speaker_id": "person:speaker-01",
+        "text": "Bem-vindos de novo \u00e0s Sess\u00f5es de Trilha. Hoje falamos de corridas de enduro, e comigo est\u00e1 In\u00eas Carvalho, atleta de enduro e treinadora. In\u00eas Carvalho, obrigada por estares aqui.",
+        "timestamp_end_ms": 6000,
+        "timestamp_start_ms": 0,
+        "transcript_ref": "transcripts/p14_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "person:ines-carvalho",
+      "properties": {
+        "name": "In\u00eas Carvalho"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "quote:c5b5e36c07f2363a",
+      "properties": {
+        "char_end": 257,
+        "char_start": 211,
+        "episode_id": "ep-88fec846e9003e86",
+        "speaker_id": "person:speaker-02",
+        "text": "Obrigada, Beatriz. Contente de estar de volta.",
+        "timestamp_end_ms": 12000,
+        "timestamp_start_ms": 6000,
+        "transcript_ref": "transcripts/p14_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:385a4c29a122e34a",
+      "properties": {
+        "char_end": 430,
+        "char_start": 275,
+        "episode_id": "ep-88fec846e9003e86",
+        "speaker_id": "person:speaker-01",
+        "text": "O epis\u00f3dio de hoje \u00e9 patrocinado pela Linear. A Linear \u00e9 o gestor de tarefas feito para a velocidade \u2014 pensado para o teclado. Experimenta linear.com hoje.",
+        "timestamp_end_ms": 18000,
+        "timestamp_start_ms": 12000,
+        "transcript_ref": "transcripts/p14_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:52d3727e6989cd56",
+      "properties": {
+        "char_end": 566,
+        "char_start": 430,
+        "episode_id": "ep-88fec846e9003e86",
+        "speaker_id": "person:speaker-01",
+        "text": "Antes de entrarmos no assunto \u2014 o Rafael Vasconcelos esteve no programa a contar que a drenagem \u00e9 a decis\u00e3o de projeto com mais impacto.",
+        "timestamp_end_ms": 24000,
+        "timestamp_start_ms": 18000,
+        "transcript_ref": "transcripts/p14_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:b332ea51aad8b266",
+      "properties": {
+        "char_end": 634,
+        "char_start": 582,
+        "episode_id": "ep-88fec846e9003e86",
+        "speaker_id": "person:speaker-02",
+        "text": "Sim, exatamente. E liga-se ao que vamos cobrir hoje.",
+        "timestamp_end_ms": 30000,
+        "timestamp_start_ms": 24000,
+        "transcript_ref": "transcripts/p14_e02.txt"
+      },
+      "type": "Quote"
+    },
+    {
+      "id": "quote:1b0309d7fa1b1d11",
+      "properties": {
+        "char_end": 751,
+        "char_start": 652,
+        "episode_id": "ep-88fec846e9003e86",
+        "speaker_id": "person:speaker-01",
+        "text": "Quero assinalar uma coisa \u2014 o Rafael Vasconcelos mencionou esta mesma din\u00e2mica h\u00e1 alguns epis\u00f3dios.",
+        "timestamp_end_ms": 36000,
+        "timestamp_start_ms": 30000,
+        "transcript_ref": "transcripts/p14_e02.txt"
+      },
+      "type": "Quote"
+    }
+  ],
+  "prompt_version": "n/a",
+  "schema_version": "3.1"
+}

@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 442,
+  "postroll_cut_start": null,
+  "chars_removed": 839,
+  "preroll_pattern_hits": 3,
+  "postroll_pattern_hits": 3,
+  "source_length": 6993,
+  "excised_ranges": [
+    [
+      0,
+      442
+    ],
+    [
+      2689,
+      3086
+    ]
+  ],
+  "excised_texts": [
+    "SPEAKER_00: Welcome back to Path Talks. Today, we're talking about trail construction, and I'm joined by Stefan Brandt, a trail builder with the Cascadia Alliance. Stefan Brandt, thank you for being here.\nSPEAKER_01: Thank you, Katrin. You're very welcome \u2013 road construction is something I've thought a lot about.\nSPEAKER_00: This episode is brought to you by Strava. Strava is the home of athletes. Visit strava.com/podcast to get started. ",
+    "If you ignore these trade-offs, you'll end up having to rebuild everything from scratch a year later.\nSPEAKER_00: We'll be right back after a short commercial break.\nSPEAKER_02: Today's episode is brought to you by Stripe. Stripe makes payments easy, whether you're running a marketplace or a subscription business. Visit stripe.com/podcast for a free trial.\nSPEAKER_00: Welcome back to the show. "
+  ]
+}

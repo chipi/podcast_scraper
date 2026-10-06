@@ -824,6 +824,7 @@ class TestLibraryAPIIntegration(unittest.TestCase):
         rss_xml = """<?xml version='1.0'?>
 <rss>
   <channel>
+    <language>en</language>
     <title>Empty Feed</title>
   </channel>
 </rss>""".strip()

@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 307,
+  "postroll_cut_start": null,
+  "chars_removed": 582,
+  "preroll_pattern_hits": 4,
+  "postroll_pattern_hits": 4,
+  "source_length": 6705,
+  "excised_ranges": [
+    [
+      0,
+      307
+    ],
+    [
+      2520,
+      2795
+    ]
+  ],
+  "excised_texts": [
+    "Katrin Vogel: Welcome back to Path Talks. Today, we're talking about drivetrain mechanics, and I'm joined by Jonas Richter, a mechanic at Spoke & Wrench. Jonas Richter, thank you for being here.\nJonas Richter: Thank you, Katrin. It's good to be back here.\nKatrin Vogel: This episode is sponsored by Notion. ",
+    "We'll be right back, after a short advertisement.\nSPEAKER_02: This episode is sponsored by Stripe. Stripe makes payments easy, whether you're running a marketplace or a subscription business. Visit stripe.com/podcast for a free trial.\nKatrin Vogel: Welcome back to the show. "
+  ]
+}

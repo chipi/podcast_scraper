@@ -1,0 +1,217 @@
+{
+  "edges": [
+    {
+      "from": "episode:ep-a341174daaf88193",
+      "to": "topic:endurance-sport",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a341174daaf88193",
+      "to": "topic:risk-management",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a341174daaf88193",
+      "to": "topic:lifelong-learning",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a341174daaf88193",
+      "to": "topic:expert-interviews",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:bike-silence",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:maintenance-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:chain-wear-indicator",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:spoke-and-wrench-system",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:suspension-service-intervals",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:second-order-effects",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:frame-compromises",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:transmission-mechanics",
+      "type": "MENTIONS"
+    },
+    {
+      "source": "episode:ep-a341174daaf88193",
+      "target": "topic:early-failure-detection",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a341174daaf88193",
+      "to": "person:lucia-herrera",
+      "type": "MENTIONS"
+    },
+    {
+      "from": "episode:ep-a341174daaf88193",
+      "to": "person:diego-ferrer",
+      "type": "MENTIONS"
+    }
+  ],
+  "episode_id": "ep-a341174daaf88193",
+  "extraction": {
+    "extracted_at": "2025-12-30T00:00:00",
+    "model_version": "provider:synthetic-validation-corpus-v1",
+    "transcript_ref": "transcripts/p10_e03.txt"
+  },
+  "nodes": [
+    {
+      "id": "episode:ep-a341174daaf88193",
+      "properties": {
+        "podcast_id": "p10",
+        "publish_date": "2025-12-30T00:00:00",
+        "title": "La Mec\u00e1nica de Una Bici Silenciosa y R\u00e1pida"
+      },
+      "type": "Episode"
+    },
+    {
+      "id": "topic:endurance-sport",
+      "properties": {
+        "label": "endurance sport",
+        "slug": "endurance-sport"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:risk-management",
+      "properties": {
+        "label": "risk management",
+        "slug": "risk-management"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:lifelong-learning",
+      "properties": {
+        "label": "lifelong learning",
+        "slug": "lifelong-learning"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:expert-interviews",
+      "properties": {
+        "label": "expert interviews",
+        "slug": "expert-interviews"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:bike-silence",
+      "properties": {
+        "label": "bike silence",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:maintenance-mechanics",
+      "properties": {
+        "label": "maintenance mechanics",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:chain-wear-indicator",
+      "properties": {
+        "label": "chain wear indicator",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:spoke-and-wrench-system",
+      "properties": {
+        "label": "spoke and wrench system",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:suspension-service-intervals",
+      "properties": {
+        "label": "suspension service intervals",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "properties": {
+        "label": "second order effects",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:frame-compromises",
+      "properties": {
+        "label": "frame compromises",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:transmission-mechanics",
+      "properties": {
+        "label": "transmission mechanics",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "topic:early-failure-detection",
+      "properties": {
+        "label": "early failure detection",
+        "topic_source": "extracted"
+      },
+      "type": "Topic"
+    },
+    {
+      "id": "person:lucia-herrera",
+      "properties": {
+        "name": "Luc\u00eda Herrera",
+        "role": "host"
+      },
+      "type": "Person"
+    },
+    {
+      "id": "person:diego-ferrer",
+      "properties": {
+        "name": "Diego Ferrer",
+        "role": "guest"
+      },
+      "type": "Person"
+    }
+  ],
+  "schema_version": "2.0"
+}

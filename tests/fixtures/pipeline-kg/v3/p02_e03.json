@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p02_e03",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:authn-authz-separation",
+      "label": "authn authz separation"
+    },
+    {
+      "id": "topic:compliance-vs-real-security",
+      "label": "compliance vs real security"
+    },
+    {
+      "id": "topic:decision-framing",
+      "label": "decision framing"
+    },
+    {
+      "id": "topic:embedded-ownership",
+      "label": "embedded ownership"
+    },
+    {
+      "id": "topic:operational-angle",
+      "label": "operational angle"
+    },
+    {
+      "id": "topic:reliability-incidents",
+      "label": "reliability incidents"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:security-incidents",
+      "label": "security incidents"
+    },
+    {
+      "id": "topic:threat-modeling",
+      "label": "threat modeling"
+    },
+    {
+      "id": "topic:tooling-visibility",
+      "label": "tooling visibility"
+    }
+  ]
+}

@@ -129,7 +129,18 @@ def test_upsert_empty_batch_is_noop(tmp_path):
     b.upsert_auxes([])
     # No table was ever created -> health reports all zero, no on-disk tables.
     assert b._open_if_exists("segment") is None
-    assert b.health() == {"status": "ok", "segments": 0, "insights": 0, "aux": 0}
+    # EXHAUSTIVE on purpose, and `segments_nonen` joined it on 2026-10-03. `health()` used to
+    # name three tiers and omit the keyword-only one, so a corpus whose only indexed content was
+    # non-English reported as empty; it now derives the report from the tier list. An exhaustive
+    # assertion is exactly what catches a tier being dropped from the report, so this stays a
+    # full-dict comparison rather than a subset check.
+    assert b.health() == {
+        "status": "ok",
+        "segments": 0,
+        "insights": 0,
+        "aux": 0,
+        "segments_nonen": 0,
+    }
 
 
 def test_search_applies_where_filter(tmp_path):

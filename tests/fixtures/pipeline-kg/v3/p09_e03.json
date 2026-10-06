@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p09_e03",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:bloomberg-data-caveats",
+      "label": "bloomberg data caveats"
+    },
+    {
+      "id": "topic:data-reliability",
+      "label": "data reliability"
+    },
+    {
+      "id": "topic:ipcc-data-integration",
+      "label": "ipcc data integration"
+    },
+    {
+      "id": "topic:iterative-learning",
+      "label": "iterative learning"
+    },
+    {
+      "id": "topic:labor-market-dynamics",
+      "label": "labor market dynamics"
+    },
+    {
+      "id": "topic:macroeconomic-abstraction",
+      "label": "macroeconomic abstraction"
+    },
+    {
+      "id": "topic:model-rebuilding",
+      "label": "model rebuilding"
+    },
+    {
+      "id": "topic:portfolio-level-risk",
+      "label": "portfolio-level risk"
+    },
+    {
+      "id": "topic:risk-management",
+      "label": "risk management"
+    },
+    {
+      "id": "topic:systems-thinking",
+      "label": "systems thinking"
+    }
+  ]
+}

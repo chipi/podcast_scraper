@@ -41,26 +41,76 @@ def _canonical_episodes() -> list[str]:
     )
 
 
-def _documented_counts() -> dict[int, str]:
-    """The bolded counts from the spec's reconciliation table, in order."""
+def _feed_language(show: str) -> str:
+    """The show's language, from its corpus RSS feed — the pipeline's own source of truth.
+
+    Read from the feed rather than inferred from the show id, because "p10 and up is non-English"
+    is a coincidence of the order languages were added, not a rule.
+    """
+    feed = _FIXTURES / "rss" / f"{show}_corpus.xml"
+    if not feed.is_file():
+        return ""
+    m = re.search(r"<language>([^<]+)</language>", feed.read_text(encoding="utf-8"))
+    return m.group(1).split("-")[0].strip().lower() if m else ""
+
+
+def _built_episode_labels(corpus: Path) -> set[str]:
+    """``{pNN_eNN}`` actually present in the built corpus.
+
+    Derived from the TRANSCRIPT filenames rather than the metadata ids, because the metadata
+    carries content-hash episode ids (``ep-7072d2e8...``) that cannot be compared to disk labels.
+    """
+    return {
+        p.stem for p in corpus.rglob("transcripts/*.txt") if re.fullmatch(r"p\d{2}_e\d{2}", p.stem)
+    }
+
+
+def _documented_counts() -> list[tuple[int, str]]:
+    """The bolded counts from the spec's reconciliation table, in order.
+
+    A LIST, not a dict keyed by the count, because two rows may legitimately share a number: on
+    2026-10-03 the built corpus caught up with disk and both rows became 55. Keyed by count, the
+    second row overwrote the first and the "real episodes" lookup below raised `StopIteration` —
+    the table was right and the reader was wrong.
+    """
     body = _SPEC.read_text(encoding="utf-8")
-    start = body.index("Three episode counts, all correct")
+    start = body.index("Four episode counts, all correct")
     end = body.index("The special episodes")
     rows = re.findall(r"^\|\s*\*\*(\d+)\*\*\s*\|\s*([^|]+)\|", body[start:end], re.M)
-    return {int(n): desc.strip() for n, desc in rows}
+    return [(int(n), desc.strip()) for n, desc in rows]
 
 
 def test_spec_reconciles_exactly_three_counts() -> None:
-    """46 files / 40 episodes / 38 generated.
+    """51 files / 45 episodes / 38 generated.
 
     There used to be a fourth, 36, which was the built corpus under a default
     ``--max-episodes-per-feed 4``. Removing that default collapsed it into 40, so a
     table that still lists four counts is describing a flag that no longer exists.
+
+    46/40 became 47/41 on 2026-09-30 when `p10_e01` landed — the Spanish counterpart of `p01`.
+    The **38 did not move**: that row counts what `build_v3_fixtures.py` generates, and p10's
+    transcript is hand-written like `p06_e05` and `p06_e06`, so it subtracts from 41 rather than
+    adding to 38.
+
+    47/41 became 51/45 on 2026-10-01 with `p11`..`p14` (it, fr, de, pt) — four more hand-written
+    counterparts of p01, so the 38 does not move for exactly the same reason.
+
+    51/45 became 61/55 on 2026-10-03 when the ten non-English `e02`/`e03` episodes got their
+    translations. That ALSO collapsed a distinction: the built app-validation corpus had been 45
+    while disk was 55, because the ten had no captured English render and
+    `_drop_untranslated_non_english` excluded them (D-44). The capture run closed the gap, so the
+    built-corpus row and the real-episode row are both 55 and the table reconciles THREE distinct
+    numbers, not four — the same kind of collapse as the 36 that disappeared into 40.
     """
     counts = _documented_counts()
-    assert sorted(counts) == [38, 40, 46], (
-        "the spec's count table changed shape; it should reconcile 46/40/38 "
-        f"and it now lists {sorted(counts)}"
+    distinct = sorted({n for n, _ in counts})
+    assert len(counts) == 4, (
+        f"the spec's table should still have four ROWS (61 / 55 disk / 55 built / 38 generated); "
+        f"it has {len(counts)}"
+    )
+    assert distinct == [38, 55, 61], (
+        "the spec's count table changed shape; it should reconcile 61/55/55/38 "
+        f"and it now lists {distinct}"
     )
 
 
@@ -68,7 +118,7 @@ def test_documented_file_count_matches_disk() -> None:
     """Read the number OUT of the doc, so editing the doc cannot satisfy the test."""
     counts = _documented_counts()
     files = len(list(_V3.glob("*.txt")))
-    documented = next(n for n, desc in counts.items() if ".txt" in desc)
+    documented = next(n for n, desc in counts if ".txt" in desc)
     assert (
         files == documented
     ), f"transcripts/v3 holds {files} .txt files; FIXTURES_SPEC.md says {documented}"
@@ -80,13 +130,17 @@ def test_documented_file_count_matches_disk() -> None:
 def test_documented_episode_count_matches_disk() -> None:
     counts = _documented_counts()
     episodes = len(_canonical_episodes())
-    documented = next(n for n, desc in counts.items() if "real episodes" in desc)
+    documented = next(n for n, desc in counts if "real episodes" in desc)
     assert (
         episodes == documented
     ), f"disk has {episodes} canonical pNN_eNN episodes; FIXTURES_SPEC.md says {documented}"
-    assert f"**{episodes} episodes across 9 shows.**" in _README.read_text(
+    # The SHOW count is derived too, not hardcoded. It was a literal `9` and went stale the
+    # moment `p10` landed — which is the same failure this whole file exists to catch, one level
+    # up: a number written into a test instead of read from disk.
+    shows = len({e.split("_", 1)[0] for e in _canonical_episodes()})
+    assert f"**{episodes} episodes across {shows} shows.**" in _README.read_text(
         "utf-8"
-    ), f"README.md's headline episode count disagrees with disk ({episodes})"
+    ), f"README.md's headline disagrees with disk ({episodes} episodes across {shows} shows)"
 
 
 def test_generator_defines_the_documented_number_of_episodes() -> None:
@@ -123,12 +177,36 @@ def test_built_corpus_matches_what_its_readme_claims() -> None:
     assert built == int(
         m.group(1)
     ), f"the committed corpus holds {built} episodes; its README says {m.group(1)}"
-    # The built corpus and the episodes on disk are the same number now that the
-    # per-feed cap has no default. If these ever diverge again, something is
-    # dropping episodes silently — which is exactly how 36 happened.
-    assert built == len(
-        _canonical_episodes()
-    ), f"{built} episodes built from {len(_canonical_episodes())} on disk"
+    # THE BUILT CORPUS IS SMALLER THAN DISK AGAIN, DELIBERATELY — and the point of this
+    # assertion is that the gap is exactly the explainable set and nothing else.
+    #
+    # It used to assert `built == on disk`, true once the per-feed cap lost its default. Since
+    # 2026-10-02 the ten non-English `e02`/`e03` episodes are excluded by
+    # `build_app_validation_corpus.py::_drop_untranslated_non_english`: D-44 makes the canonical
+    # body the ANALYSIS language, the English body is replayed from a captured translation run,
+    # and no capture exists for them — so admitting them would put source-language text at the
+    # path every generic reader treats as English.
+    #
+    # Asserting equality against that EXPECTED set rather than relaxing to `<=` is what keeps the
+    # original protection: an episode dropped for any OTHER reason still fails here, which is how
+    # the silent 36 happened.
+    on_disk = set(_canonical_episodes())
+    captures = _FIXTURES / "pipeline-renders" / "v3"
+    captured = {p.stem for p in captures.glob("*.json")} if captures.is_dir() else set()
+    corpus_feeds = {p.name.split("_")[0] for p in (_FIXTURES / "rss").glob("p*_corpus.xml")}
+    non_english = {
+        e
+        for e in on_disk
+        if e.split("_")[0] in corpus_feeds and _feed_language(e.split("_")[0]) not in ("", "en")
+    }
+    expected = on_disk - (non_english - captured)
+    missing = expected - _built_episode_labels(corpus)
+    extra = _built_episode_labels(corpus) - expected
+    assert not missing and not extra, (
+        f"the built corpus is not the expected set. Missing: {sorted(missing)}. "
+        f"Unexpected: {sorted(extra)}. Expected = every canonical episode on disk minus the "
+        "non-English ones with no captured translation in pipeline-renders/v3."
+    )
 
 
 def test_readme_per_show_table_matches_disk() -> None:

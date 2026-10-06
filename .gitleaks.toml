@@ -4,7 +4,12 @@ useDefault = true
 # ---------------------------------------------------------------------------
 # Allowlist: paths excluded from scanning
 # ---------------------------------------------------------------------------
-[allowlist]
+# Converted from the deprecated singular `[allowlist]` on 2026-10-03: gitleaks 8.30.1 refuses a
+# config that mixes the singular form with `[[allowlists]]`, and a second block was needed for a
+# rule that must match against the full match rather than the extracted secret (see the bottom of
+# this file). No `regexTarget` here, so this block keeps the default (`secret`) that its own
+# entries are written against.
+[[allowlists]]
 description = "Repo-level allowlist: vendored paths and known false-positive patterns"
 
 paths = [
@@ -75,4 +80,34 @@ regexes = [
     # only because CI scans every commit in a PR and the commit that added the fixture still holds
     # the old shape. Exact text, so it cannot excuse a real token (a real one has a payload segment).
     '''eyJhbGciOiJIUzI1NiJ9\.signature''',
+]
+
+# ---------------------------------------------------------------------------
+# A SECOND allowlist, with regexTarget = "match" (2026-10-03)
+# ---------------------------------------------------------------------------
+# The block above matches against the extracted SECRET — gitleaks' default, and what at least one
+# of its entries relies on ("the Secret field extracted by gitleaks for this shape is the path
+# portion"). A rule that has to see the KEY NAME cannot live there: the secret is the bare value
+# with no key attached, so `content_key["\s:=]+<hex>` could never fire against it. (The comment on
+# that block claiming its regexes match "the full match string" is wrong for gitleaks 8.30.1,
+# which is worth knowing before adding to it — some entries there may already be dead.)
+#
+# WHAT THIS EXEMPTS, AND WHY IT IS NOT A SECRET. `content_key` is the sha256 of one translation
+# unit's SOURCE text. It is the resume index: a unit whose text has not changed is not translated
+# again, which is what makes a re-run cheap instead of a full re-pay. The five
+# `*.translation.json` fixtures carry roughly 47 each, so `generic-api-key` reported 234 findings
+# of a single shape — every one verified to be exactly 64 lowercase hex characters. They are
+# derived from transcripts committed in this same repo, so there is nothing behind them to leak.
+#
+# TIED TO THE KEY NAME, deliberately. A bare 64-hex string anywhere else in the tree is still a
+# finding; only `"content_key": "<64 hex>"` is exempt. That is the difference between an allowlist
+# and switching the rule off.
+#
+# Never reported before 2026-10-03 because PR #2260 was CONFLICTING, and GitHub runs no Actions at
+# all on a conflicting PR — this scan had never executed on the branch.
+[[allowlists]]
+description = "Translation resume-index digests (content_key) — deterministic sha256, not keys"
+regexTarget = "match"
+regexes = [
+    '''content_key["\s:=]+[0-9a-f]{64}''',
 ]

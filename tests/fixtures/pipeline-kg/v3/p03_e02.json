@@ -1,0 +1,47 @@
+{
+  "captured_from": "fixture_validation_dgx run, 2026-10-01",
+  "episode_id": "p03_e02",
+  "provenance": "NVFP4/Qwen3-30B-A3B-Instruct-2507-FP4 via vLLM :8003, temperature 0",
+  "topics": [
+    {
+      "id": "topic:anchor-strikes",
+      "label": "anchor strikes"
+    },
+    {
+      "id": "topic:coral-bleaching-events",
+      "label": "coral bleaching events"
+    },
+    {
+      "id": "topic:dan-adoption",
+      "label": "dan adoption"
+    },
+    {
+      "id": "topic:diving-tooling",
+      "label": "diving tooling"
+    },
+    {
+      "id": "topic:heuristic-iteration",
+      "label": "heuristic iteration"
+    },
+    {
+      "id": "topic:marine-biology",
+      "label": "marine biology"
+    },
+    {
+      "id": "topic:reef-conservation",
+      "label": "reef conservation"
+    },
+    {
+      "id": "topic:second-order-effects",
+      "label": "second-order effects"
+    },
+    {
+      "id": "topic:sediment-plumes",
+      "label": "sediment plumes"
+    },
+    {
+      "id": "topic:soil-erosion",
+      "label": "soil erosion"
+    }
+  ]
+}

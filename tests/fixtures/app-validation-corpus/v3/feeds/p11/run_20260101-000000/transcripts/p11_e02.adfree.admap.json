@@ -1,0 +1,22 @@
+{
+  "preroll_cut_end": 319,
+  "postroll_cut_start": null,
+  "chars_removed": 778,
+  "preroll_pattern_hits": 5,
+  "postroll_pattern_hits": 5,
+  "source_length": 6591,
+  "excised_ranges": [
+    [
+      0,
+      319
+    ],
+    [
+      2221,
+      2680
+    ]
+  ],
+  "excised_texts": [
+    "Giulia Ferrara: Welcome back to \"Trails by the Experts.\" Today, we're talking about enduro racing, and I'm joined by Chiara Ricci, an enduro athlete and coach. Chiara Ricci, thank you for being here.\nChiara Ricci: Thank you, Giulia. It's good to be back here again.\nGiulia Ferrara: This episode is sponsored by Linear. ",
+    "Once you internalize that, the rest of the decisions become easier.\nGiulia Ferrara: Before we continue, support the program by visiting the website of our sponsor. Strava is the home of athletes. We'll be right back, after a short commercial break.\nSPEAKER_02: This episode is sponsored by Notion. Notion replaces the dozen tools your team currently uses, by about half. Visit notion.com/podcast for a free trial.\nGiulia Ferrara: Welcome back to the program. "
+  ]
+}
