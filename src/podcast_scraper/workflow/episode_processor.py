@@ -4948,6 +4948,13 @@ def process_transcript_download(
                     # 2026-07-17 H4). Cost: transcripts_downloaded is +1 high for a
                     # reused transcript (cosmetic metric only).
                     return True, rel_path, "direct_download", 0
+        # Recorded as SKIPPED, as the transcription path records its own skip-existing skips.
+        # Unrecorded, the episode kept the status it started with ("ok"), so a nightly over
+        # publisher-transcript feeds reported e.g. "ok=10 skipped=0" for ten episodes it never
+        # touched (2026-10-06: 38 of 50 "ok" were already-present episodes).
+        _mark_episode_skipped_existing(
+            episode, cfg, pipeline_metrics, "transcript already present in corpus"
+        )
         return False, None, None, 0
 
     planned_ext = derive_transcript_extension(transcript_type, None, transcript_url)

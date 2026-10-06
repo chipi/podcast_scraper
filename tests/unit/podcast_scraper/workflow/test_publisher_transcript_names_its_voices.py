@@ -758,3 +758,30 @@ def test_the_real_metrics_ledger_answers_the_same_way(tmp_path, monkeypatch) -> 
     real.record_stage_outcome("speaker_detection", 1, "ran")
     seen = _download_with_metrics(tmp_path, monkeypatch, real, [])
     assert seen.get("detection_ran") is True, seen
+
+
+def test_an_already_present_publisher_transcript_is_counted_as_skipped(
+    tmp_path, monkeypatch
+) -> None:
+    """A skip-existing skip on the publisher-transcript path is recorded ``skipped``, not left at
+    the ``ok`` an episode starts with (a nightly reported ok=10 skipped=0 for ten untouched
+    episodes, 2026-10-06)."""
+    from podcast_scraper.workflow import metrics as metrics_module
+
+    monkeypatch.setattr(epx, "_check_existing_transcript", lambda *a, **k: True)
+    monkeypatch.setattr(
+        epx, "_fetch_transcript_content", lambda *a, **k: pytest.fail("must not download")
+    )
+    cfg = config_module.Config(output_dir=str(tmp_path), generate_summaries=False)
+    pm = metrics_module.Metrics()
+    ep = _episode()
+    from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+    episode_id, _ = get_episode_id_from_episode(ep, cfg.rss_url or "")
+    pm.record_episode_status(episode_id=episode_id, episode_number=1, status="ok")
+    ok, rel_path, source, nbytes = epx.process_transcript_download(
+        ep, "http://feed.example/t.vtt", "text/vtt", cfg, str(tmp_path), None, pipeline_metrics=pm
+    )
+    assert (ok, rel_path, source, nbytes) == (False, None, None, 0)
+    statuses = [s.status for s in pm.episode_statuses if s.episode_id == episode_id]
+    assert statuses == ["skipped"]
