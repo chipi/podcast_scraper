@@ -390,6 +390,10 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           mkdir -p android/app/src/main/assets
+          # `cap update` also copies the web build (webDir: dist), and a fresh checkout has none:
+          # it failed with "Could not find the web assets directory: ./dist". The scan reads the
+          # Gradle build only, so a placeholder page is enough — no web build needed.
+          mkdir -p dist && printf '<!doctype html><title>snyk</title>\n' > dist/index.html
           npx cap update android
       - uses: snyk/actions/setup@master
       # releaseRuntimeClasspath is exactly what the release APK links — the same configuration the
