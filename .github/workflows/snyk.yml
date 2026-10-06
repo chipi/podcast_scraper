@@ -384,8 +384,12 @@ jobs:
       # (it is not committed). Unlike `cap sync`, it needs no web build.
       - name: Install the player's npm tree and generate the Capacitor Android projects
         working-directory: web/learning-player
+        # `cap update` writes capacitor.plugins.json into app/src/main/assets/, which nothing tracked
+        # creates: a fresh checkout has no such directory and the step died with ENOENT (first CI run,
+        # 2026-10-06). Local runs passed only because a previous build had made it.
         run: |
           npm ci --no-audit --no-fund
+          mkdir -p android/app/src/main/assets
           npx cap update android
       - uses: snyk/actions/setup@master
       # releaseRuntimeClasspath is exactly what the release APK links — the same configuration the
