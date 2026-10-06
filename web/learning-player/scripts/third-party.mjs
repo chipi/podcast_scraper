@@ -7,10 +7,12 @@
  * obligations attach to — and nothing that only runs on the build machine:
  *
  *  - npm: the resolved PRODUCTION tree, direct and transitive (a transitive package ships as much as
- *    a direct one), MINUS `BUILD_ONLY` roots. `@capacitor/cli` is declared a production dependency by
- *    Capacitor convention, but it is the command-line tool that syncs the web build into the native
- *    projects; it never ships, and it alone pulled in more than half the list. A package it shares
- *    with something that DOES ship is kept, because the walk only skips the CLI's own subtree.
+ *    a direct one), MINUS `BUILD_ONLY` roots. `@capacitor/cli` is the command-line tool that syncs
+ *    the web build into the native projects; it never ships, and it alone pulled in more than half
+ *    the list. It is a devDependency since 2026-10-06 (Snyk counted its tree as shipped while it sat
+ *    in `dependencies`), so the production walk no longer reaches it; `BUILD_ONLY` stays as the
+ *    guard should it ever move back. A package it shares with something that DOES ship is kept,
+ *    because the walk only skips the CLI's own subtree.
  *  - native: `scripts/third-party-native.json`, the committed iOS pod and Android Gradle snapshot
  *    `scripts/third-party-native.mjs` writes on the Mac (see there for why it is a snapshot).
  *  - the self-hosted Google Sans font (SIL OFL 1.1).

@@ -26,7 +26,6 @@
     "@capacitor/android": "^8.4.2",
     "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.4",
-    "@capacitor/cli": "^8.4.2",
     "@capacitor/core": "^8.4.2",
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/ios": "^8.4.2",
@@ -45,6 +44,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.10.0",
     "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.4.2",
     "@playwright/test": "^1.50.1",
     "@types/node": "^24.12.0",
     "@vitejs/plugin-vue": "^6.0.5",
