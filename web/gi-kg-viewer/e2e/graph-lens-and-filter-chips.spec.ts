@@ -107,8 +107,9 @@ test.describe('Graph time lens and counts strip (UXS-004)', () => {
     // `fill` already fires `change` on a date input; dispatching another would reload twice.
     const nSince = await lensChange(page, () => since.fill('2026-01-01'))
     await expect(label).toHaveText('Showing since 2026-01-01')
-    // 2026-01-01 → 2026-07-17 holds 6 corpus episodes, three more than 90 days.
-    expect(nSince).toBe(n90 + 3)
+    // 2026-01-01 → 2026-07-17 holds 8 corpus episodes, five more than 90 days (p14_e03 on
+    // 2026-01-01 and p10_e03 on 2026-01-19 are two of them).
+    expect(nSince).toBe(n90 + 5)
 
     // All time is capped, so it can leave no sibling to merge — don't wait for one.
     await lens.getByRole('button', { name: 'All', exact: true }).click()
