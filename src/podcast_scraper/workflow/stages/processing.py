@@ -40,7 +40,11 @@ from ...utils import filesystem
 from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ...utils.optional_deps import caused_by_missing_import
 from .. import metrics
-from ..episode_processor import process_episode_download as factory_process_episode_download
+from ..episode_processor import (
+    _mark_episode_skipped_existing as mark_episode_skipped_existing,
+    presence_skip_evidence,
+    process_episode_download as factory_process_episode_download,
+)
 
 
 # Use wrapper function if available (for testability)
@@ -2192,6 +2196,23 @@ def prepare_episode_download_args(
     """
     download_args = []
     for episode in episodes:
+        # PRESENCE FIRST (#2290): nothing per-episode -- not the size probe (an HTTP HEAD), not
+        # speaker detection (an LLM call) -- runs for an episode the corpus already holds.
+        present = presence_skip_evidence(
+            episode, cfg, effective_output_dir, run_suffix, transcription_resources.temp_dir
+        )
+        if present is not None:
+            prefix = "[dry-run] " if cfg.dry_run else ""
+            logger.info(
+                "[%s] %salready present in corpus; skipping (--skip-existing): %s",
+                episode.idx,
+                prefix,
+                present,
+            )
+            mark_episode_skipped_existing(
+                episode, cfg, pipeline_metrics, f"already present in corpus: {present}"
+            )
+            continue
         size_skip = _check_episode_size_skip(cfg, episode)
         if size_skip.skip_episode:
             if pipeline_metrics is not None:

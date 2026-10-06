@@ -11,7 +11,7 @@ import re
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Set, Tuple, TYPE_CHECKING
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
@@ -456,9 +456,7 @@ def download_media_for_transcription(
     # retranscript_only takes the same exit for the same reason: its input is the publisher's
     # transcript URL over the network, and downloading the audio it will never open would make
     # the cheap repair as expensive as the one it exists to avoid.
-    # translate_only likewise: its input is the on-disk SOURCE transcript, and the whole point of
-    # the mode is that a re-translation costs no ASR and no audio.
-    if cfg.pipeline_stage in ("relabel_only", "retranscript_only", "translate_only"):
+    if audio_route_leaves_before_skip_existing(cfg):
         speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
         return TranscriptionJob(  # type: ignore[no-any-return]
             idx=episode.idx,
@@ -470,92 +468,62 @@ def download_media_for_transcription(
             speaker_detection_ran=detection_ran,
             episode=episode,
         )
-    # D7: under --single-feed-uses-corpus-layout each run writes a FRESH run dir, so an
-    # already-processed episode's transcript is in a PRIOR run dir — NOT final_out_path (this run's
-    # OUTPUT path). Resolve presence corpus-wide by stable guid; else skip-existing scoped to the
-    # empty run dir silently re-transcribes it (the Step-1 NO-GO, 2026-08-11).
-    # 2026-08-27: batch mode (--feeds-spec) writes the IDENTICAL shape with the flag off —
-    # BOTH multi-feed loops (cli.py's own, the prod nightly path, and service.run_multi_feed)
-    # rebase each child cfg's output_dir to <corpus>/feeds/<slug> — so every flag-only gate was
-    # blind there and the nightly re-ingested its whole window. All corpus-root resolution now
-    # goes through corpus_root_from_cfg (both layouts, one place).
-    _corpus_root = run_index.corpus_root_from_cfg(cfg)
-    _corpus_layout = _corpus_root is not None
-    _existing_transcript = None
-    if cfg.skip_existing and _corpus_root:
-        _existing_transcript = run_index.existing_transcript_path_in_corpus(episode, _corpus_root)
-        if (
-            _existing_transcript is None
-            and not getattr(cfg, "single_feed_uses_corpus_layout", False)
-            and os.path.exists(final_out_path)
-        ):
-            # Legacy fallback: a non-flag run whose output_dir merely *looks* feed-shaped keeps
-            # its run-local skip behaviour when the corpus-wide lookup finds nothing.
-            _existing_transcript = final_out_path
-    elif cfg.skip_existing and os.path.exists(final_out_path):
-        _existing_transcript = final_out_path
-
-    if cfg.skip_existing and _existing_transcript is not None:
-        if _force_reprocess_for_source(episode, effective_output_dir, run_suffix, cfg):
-            # #925: a scoped reprocess (--reprocess-source) forces matching episodes
-            # (e.g. whisper_transcription) back through download+transcribe so diarization
-            # re-runs and the GI/KG/CIL cascade with it. This is the Whisper path (episodes
-            # with no transcript URL); the override in _check_existing_transcript covers the
-            # direct-download path. Falling through schedules a real download, so the
-            # job.temp_media reuse skip below is bypassed too.
-            logger.info(
-                "[%s] [#925] forcing re-transcription + diarization (reprocess-source=%s): %s",
-                episode.idx,
-                cfg.reprocess_source,
-                _existing_transcript,
-            )
-            # Fall through: schedule download/transcribe.
-        elif _should_retranscribe_for_gi_segments(cfg, _existing_transcript):
-            logger.info(
-                "[%s] Transcript exists without .segments.json; will re-transcribe to populate "
-                "sidecar for GI quote timestamps and segment-backed speaker_id when segments "
-                "carry speaker labels (backfill_transcript_segments + generate_gi): %s",
-                episode.idx,
-                _existing_transcript,
-            )
-            # Fall through: do not return — schedule download/transcribe to populate sidecar (#542).
-        # If generate_summaries is enabled, still return a job so transcript path can be used for
-        # summarization (even though we won't re-transcribe). NOT in corpus-layout: there the
-        # episode is already fully processed in a prior run — reusing re-summarizes; skip instead.
-        elif cfg.generate_summaries and not _corpus_layout:
-            logger.debug(
-                "[%s] Transcript exists, but will use for summarization: %s",
-                episode.idx,
-                _existing_transcript,
-            )
-            # Return a job with empty temp_media since we won't download/transcribe
-            # CRITICAL: Create a copy of detected_speaker_names to prevent shared mutable state
-            # This prevents speaker names from one episode leaking to another
-            speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
-            return TranscriptionJob(  # type: ignore[no-any-return]
-                idx=episode.idx,
-                ep_title=episode.title,
-                ep_title_safe=episode.title_safe,
-                temp_media="",  # Empty since we're reusing existing transcript
-                detected_speaker_names=speaker_names_copy,
-                speaker_detection_ran=detection_ran,
-                episode=episode,
-            )
-        else:
-            prefix = "[dry-run] " if cfg.dry_run else ""
-            logger.info(
-                "[%s] %stranscript already exists; skipping (--skip-existing): %s",
-                episode.idx,
-                prefix,
-                _existing_transcript,
-            )
-            _mark_episode_skipped_existing(
-                episode,
-                cfg,
-                pipeline_metrics,
-                f"transcript already exists: {_existing_transcript}",
-            )
-            return None
+    decision = media_route_skip_existing(episode, cfg, effective_output_dir, run_suffix)
+    if decision.action == FORCED:
+        # #925: a scoped reprocess (--reprocess-source) forces matching episodes
+        # (e.g. whisper_transcription) back through download+transcribe so diarization
+        # re-runs and the GI/KG/CIL cascade with it. This is the Whisper path (episodes
+        # with no transcript URL); the override in _check_existing_transcript covers the
+        # direct-download path. Falling through schedules a real download, so the
+        # job.temp_media reuse skip below is bypassed too.
+        logger.info(
+            "[%s] [#925] forcing re-transcription + diarization (reprocess-source=%s): %s",
+            episode.idx,
+            cfg.reprocess_source,
+            decision.path,
+        )
+    elif decision.action == BACKFILL:
+        logger.info(
+            "[%s] Transcript exists without .segments.json; will re-transcribe to populate "
+            "sidecar for GI quote timestamps and segment-backed speaker_id when segments "
+            "carry speaker labels (backfill_transcript_segments + generate_gi): %s",
+            episode.idx,
+            decision.path,
+        )
+    elif decision.action == REUSE:
+        logger.debug(
+            "[%s] Transcript exists, but will use for summarization: %s",
+            episode.idx,
+            decision.path,
+        )
+        # Return a job with empty temp_media since we won't download/transcribe
+        # CRITICAL: Create a copy of detected_speaker_names to prevent shared mutable state
+        # This prevents speaker names from one episode leaking to another
+        speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
+        return TranscriptionJob(  # type: ignore[no-any-return]
+            idx=episode.idx,
+            ep_title=episode.title,
+            ep_title_safe=episode.title_safe,
+            temp_media="",  # Empty since we're reusing existing transcript
+            detected_speaker_names=speaker_names_copy,
+            speaker_detection_ran=detection_ran,
+            episode=episode,
+        )
+    elif decision.action == SKIP:
+        prefix = "[dry-run] " if cfg.dry_run else ""
+        logger.info(
+            "[%s] %stranscript already exists; skipping (--skip-existing): %s",
+            episode.idx,
+            prefix,
+            decision.path,
+        )
+        _mark_episode_skipped_existing(
+            episode,
+            cfg,
+            pipeline_metrics,
+            f"transcript already exists: {decision.path}",
+        )
+        return None
 
     if not episode.media_url:
         logger.debug("[%s] Episode missing media_url; cannot schedule transcription", episode.idx)
@@ -4654,11 +4622,189 @@ def _episode_identity_candidates(
     return out
 
 
+class SkipExisting(NamedTuple):
+    """What ``--skip-existing`` does with one episode on one download route (#2290).
+
+    ONE decision, asked from two places: the download step acts on it, and
+    ``presence_skip_evidence`` asks it earlier, before any per-episode work, so an episode the
+    corpus already holds costs a guid lookup and nothing else. Because both ask the same
+    function on the same state, the early skip cannot disagree with the download step.
+    """
+
+    action: str
+    path: Optional[str] = None
+
+
+#: Not skipped: obtain the transcript as usual (absent, or skip-existing off).
+NEW = "new"
+#: Present and done: record the episode as skipped.
+SKIP = "skip"
+#: Present, but ``--reprocess-source`` / ``--reprocess-episode-ids`` selects it (#925, #32).
+FORCED = "forced"
+#: Present without ``.segments.json``; re-transcribe to backfill it (#542).
+BACKFILL = "backfill"
+#: Present; hand the existing transcript to summarization instead of skipping.
+REUSE = "reuse"
+#: Present; ``rederive_only`` works from it.
+REDERIVE = "rederive"
+
+
+def media_route_skip_existing(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+) -> SkipExisting:
+    """The skip-existing decision for an episode transcribed from its audio.
+
+    D7: under --single-feed-uses-corpus-layout each run writes a FRESH run dir, so an
+    already-processed episode's transcript is in a PRIOR run dir — NOT this run's output path.
+    Presence is resolved corpus-wide by stable guid; else skip-existing scoped to the empty run
+    dir silently re-transcribes it (the Step-1 NO-GO, 2026-08-11). 2026-08-27: batch mode
+    (--feeds-spec) writes the IDENTICAL shape with the flag off — BOTH multi-feed loops rebase
+    each child cfg's output_dir to <corpus>/feeds/<slug> — so every flag-only gate was blind
+    there and the nightly re-ingested its whole window. All corpus-root resolution goes through
+    corpus_root_from_cfg (both layouts, one place).
+    """
+    if not cfg.skip_existing:
+        return SkipExisting(NEW)
+    # Key on the STABLE guid, not the run-local idx (which shifts when the feed grows → silent
+    # reprocess + duplicates). A genuinely new episode falls back to its run-local idx.
+    skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
+    final_out_path = filesystem.build_whisper_output_path(
+        skip_idx, episode.title_safe, run_suffix, effective_output_dir
+    )
+    corpus_root = run_index.corpus_root_from_cfg(cfg)
+    existing: Optional[str] = None
+    if corpus_root:
+        existing = run_index.existing_transcript_path_in_corpus(episode, corpus_root)
+        if (
+            existing is None
+            and not getattr(cfg, "single_feed_uses_corpus_layout", False)
+            and os.path.exists(final_out_path)
+        ):
+            # Legacy fallback: a non-flag run whose output_dir merely *looks* feed-shaped keeps
+            # its run-local skip behaviour when the corpus-wide lookup finds nothing.
+            existing = final_out_path
+    elif os.path.exists(final_out_path):
+        existing = final_out_path
+    if existing is None:
+        return SkipExisting(NEW)
+    if _force_reprocess_for_source(episode, effective_output_dir, run_suffix, cfg):
+        return SkipExisting(FORCED, existing)
+    if _should_retranscribe_for_gi_segments(cfg, existing):
+        return SkipExisting(BACKFILL, existing)
+    # NOT in corpus-layout: there the episode is already fully processed in a prior run —
+    # reusing re-summarizes; skip instead.
+    if cfg.generate_summaries and not corpus_root:
+        return SkipExisting(REUSE, existing)
+    return SkipExisting(SKIP, existing)
+
+
+def transcript_route_skip_existing(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    *,
+    quiet: bool = False,
+) -> SkipExisting:
+    """The skip-existing decision for an episode whose publisher serves a transcript.
+
+    ``rederive_only``: the existing transcript is that stage's INPUT. Measured on prod
+    2026-09-28: a feed-scoped rederive_only over 50 Odd Lots episodes re-derived 2 and skipped
+    48 — every ``direct_download`` episode came through here and was dropped, so 48 stale KGs
+    survived a run that exited 0. The reuse glob below is RUN-LOCAL, and under corpus layout
+    every run gets a fresh run dir, so it cannot serve rederive; the caller resolves the
+    transcript corpus-wide instead.
+    """
+    if not _check_existing_transcript(episode, effective_output_dir, run_suffix, cfg, quiet=quiet):
+        return SkipExisting(NEW)
+    if cfg.pipeline_stage == "rederive_only":
+        return SkipExisting(REDERIVE)
+    if cfg.generate_summaries:
+        # Resolve the on-disk idx by STABLE guid — episode.idx shifts when the feed grows, so
+        # rebuilding the glob from it would miss the transcript and silently skip summarization
+        # for an already-present episode (the same P0.1 drift, one branch missed; Fable-5 #2).
+        skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
+        base_name = filesystem.build_transcript_base_name(skip_idx, episode.title_safe, run_suffix)
+        transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
+        for candidate in Path(transcripts_dir).glob(f"{base_name}*"):
+            if candidate.is_file():
+                return SkipExisting(REUSE, os.path.relpath(str(candidate), effective_output_dir))
+    return SkipExisting(SKIP)
+
+
+def presence_skip_evidence(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    temp_dir: Optional[str],
+) -> Optional[str]:
+    """Why the download step WILL skip this episode as already present, else ``None`` (#2290).
+
+    Asked before any per-episode work. The nightly used to run speaker detection (one LLM call
+    each) on every selected episode and only then reach skip-existing in the download step:
+    nightly 4d62d1ab (2026-10-06) made 562 speaker-detection calls for 12 processed episodes.
+
+    It routes the episode the way ``process_episode_download`` does, then asks that route's
+    skip-existing decision — the same function the download step acts on. ``None`` means "not
+    skipped here"; the episode then reaches the download step, which decides as before.
+    """
+    if not cfg.skip_existing:
+        return None
+    stage = cfg.pipeline_stage
+    if publisher_transcript_choice(episode, cfg):
+        decision = transcript_route_skip_existing(
+            episode, cfg, effective_output_dir, run_suffix, quiet=True
+        )
+        return "already present in corpus" if decision.action == SKIP else None
+    # The audio route reaches skip-existing only with transcription on and a temp dir, and not
+    # for the stages that leave before it (rederive in process_episode_download; the rest at the
+    # top of download_media_for_transcription, via the same predicate).
+    if stage == "rederive_only" or audio_route_leaves_before_skip_existing(cfg):
+        return None
+    if not (cfg.transcribe_missing and temp_dir):
+        return None
+    decision = media_route_skip_existing(episode, cfg, effective_output_dir, run_suffix)
+    return decision.path if decision.action == SKIP else None
+
+
+def audio_route_leaves_before_skip_existing(cfg: config.Config) -> bool:
+    """Stages whose audio route returns a no-download job before skip-existing is consulted.
+
+    relabel_only reuses the on-disk transcript + diarization and re-runs only speaker-name
+    resolution; retranscript_only's input is the publisher's transcript URL; translate_only's is
+    the on-disk SOURCE transcript (a re-translation costs no ASR and no audio). None needs the
+    audio, and each must reach its stage even for an episode already in the corpus. Shared by
+    ``download_media_for_transcription`` and ``presence_skip_evidence`` (#2290) so a stage added
+    here is honoured by both.
+    """
+    return cfg.pipeline_stage in ("relabel_only", "retranscript_only", "translate_only")
+
+
+def publisher_transcript_choice(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+) -> Optional[Tuple[str, Optional[str]]]:
+    """The publisher transcript the download step will fetch, or ``None`` for the audio route.
+
+    A REPROCESS STAGE NEVER RE-DOWNLOADS THE PUBLISHER TRANSCRIPT (#2075): see
+    ``process_episode_download``.
+    """
+    if cfg.pipeline_stage in config.STAGES_REUSING_ON_DISK_ARTIFACTS:
+        return None
+    return choose_transcript_url(episode.transcript_urls, cfg.prefer_types)
+
+
 def _check_existing_transcript(
     episode: Episode,  # type: ignore[valid-type]
     effective_output_dir: str,
     run_suffix: Optional[str],
     cfg: config.Config,
+    *,
+    quiet: bool = False,
 ) -> bool:
     """Check if transcript already exists and should be skipped.
 
@@ -4679,11 +4825,12 @@ def _check_existing_transcript(
     # through transcription again so diarization re-runs (and the downstream
     # GI/KG/CIL cascade with it), instead of being skipped by --skip-existing.
     if _force_reprocess_for_source(episode, effective_output_dir, run_suffix, cfg):
-        logger.info(
-            "    [#925] forcing re-transcription (reprocess-source=%s): %s",
-            cfg.reprocess_source,
-            episode.title_safe,
-        )
+        if not quiet:
+            logger.info(
+                "    [#925] forcing re-transcription (reprocess-source=%s): %s",
+                cfg.reprocess_source,
+                episode.title_safe,
+            )
         return False
 
     # D7: under --single-feed-uses-corpus-layout each run writes a FRESH run dir, so the episode's
@@ -4699,9 +4846,12 @@ def _check_existing_transcript(
         present = run_index.episode_metadata_rel_in_corpus(episode, _corpus_root)
         if present:
             prefix = "[dry-run] " if cfg.dry_run else ""
-            logger.info(
-                "    %salready present in corpus, skipping (--skip-existing): %s", prefix, present
-            )
+            if not quiet:
+                logger.info(
+                    "    %salready present in corpus, skipping (--skip-existing): %s",
+                    prefix,
+                    present,
+                )
             return True
         if getattr(cfg, "single_feed_uses_corpus_layout", False):
             return False
@@ -4717,11 +4867,12 @@ def _check_existing_transcript(
     for candidate in existing_matches:
         if candidate.is_file():
             prefix = "[dry-run] " if cfg.dry_run else ""
-            logger.info(
-                "    %stranscript already exists, skipping (--skip-existing): %s",
-                prefix,
-                candidate,
-            )
+            if not quiet:
+                logger.info(
+                    "    %stranscript already exists, skipping (--skip-existing): %s",
+                    prefix,
+                    candidate,
+                )
             return True
     return False
 
@@ -4884,70 +5035,39 @@ def process_transcript_download(
     # Check if transcript already exists
     # If skip_existing is True but generate_summaries is enabled, still return transcript path
     # so summaries can be generated even when transcript exists
-    if _check_existing_transcript(episode, effective_output_dir, run_suffix, cfg):
+    decision = transcript_route_skip_existing(episode, cfg, effective_output_dir, run_suffix)
+    if decision.action == REDERIVE:
         # rederive_only: AN EXISTING TRANSCRIPT IS THIS STAGE'S INPUT, NOT A REASON TO SKIP.
-        #
-        # This is the direct-download twin of the branch in ``process_episode_download`` (search
-        # "rederive_only: re-derive cleaning/GI/KG"). That one fixed the no-op for episodes with no
-        # transcript URL; this route kept it, so a feed whose publisher SERVES transcripts could not
-        # be re-derived at all.
-        #
-        # Measured on prod 2026-09-28: a feed-scoped rederive_only over 50 Odd Lots episodes
-        # re-derived 2 and skipped 48. The 2 were the only ones with no transcript URL
-        # (``transcript_source`` unset) — they reached the sibling branch. All 48
-        # ``direct_download`` episodes came through HERE and were dropped, so 48 stale KGs (19 of
-        # them carrying a misspelled duplicate of the host) survived a run that exited 0.
-        #
-        # Why the old path missed them even with ``generate_summaries`` on: the block below globs
-        # ``effective_output_dir`` RUN-LOCALLY, and under ``--single-feed-uses-corpus-layout`` every
-        # run gets a FRESH run dir while the transcript lives in a prior one. So the glob found
-        # nothing and fell through to ``return False`` — the same D7 corpus-vs-run-local blindness
-        # that ``_check_existing_transcript`` was already fixed for, one function over. Resolve it
-        # corpus-wide with the hardened helper instead, which also rejects metadata
-        # presence-markers and derivative files and preserves the real transcript_source.
-        if cfg.pipeline_stage == "rederive_only":
-            reused, reused_source = _resolve_existing_transcript_for_rederive(
-                episode, cfg, effective_output_dir, run_suffix
-            )
-            if reused is not None:
-                logger.info(
-                    "[%s] rederive_only: re-deriving from existing transcript %s",
-                    episode.idx,
-                    reused,
-                )
-                return True, reused, reused_source, 0
-            logger.warning(
-                "[%s] rederive_only: episode is recorded as present but no usable transcript was "
-                "found for it; nothing to re-derive. It will NOT be counted as processed.",
+        # See ``transcript_route_skip_existing`` for the measured no-op this replaced.
+        reused, reused_source = _resolve_existing_transcript_for_rederive(
+            episode, cfg, effective_output_dir, run_suffix
+        )
+        if reused is not None:
+            logger.info(
+                "[%s] rederive_only: re-deriving from existing transcript %s",
                 episode.idx,
+                reused,
             )
-            return False, None, None, 0
-        if cfg.generate_summaries:
-            # Find existing transcript file to return its path for summarization.
-            # Resolve the on-disk idx by STABLE guid — episode.idx shifts when the feed grows, so
-            # rebuilding the glob from it would miss the transcript and silently skip summarization
-            # for an already-present episode (the same P0.1 drift, one branch missed; Fable-5 #2).
-            skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
-            base_name = filesystem.build_transcript_base_name(
-                skip_idx, episode.title_safe, run_suffix
-            )
-            transcripts_dir = os.path.join(effective_output_dir, filesystem.TRANSCRIPTS_SUBDIR)
-            existing_matches = list(Path(transcripts_dir).glob(f"{base_name}*"))
-            for candidate in existing_matches:
-                if candidate.is_file():
-                    rel_path = os.path.relpath(str(candidate), effective_output_dir)
-                    logger.debug(
-                        "[%s] Transcript exists, but will use for summarization: %s",
-                        episode.idx,
-                        rel_path,
-                    )
-                    # success=True so the result handlers ENQUEUE the summarization
-                    # / metadata ProcessingJob — they gate that on `if success`, and
-                    # returning False here silently skipped summarization for every
-                    # direct-download episode with a pre-existing transcript (review
-                    # 2026-07-17 H4). Cost: transcripts_downloaded is +1 high for a
-                    # reused transcript (cosmetic metric only).
-                    return True, rel_path, "direct_download", 0
+            return True, reused, reused_source, 0
+        logger.warning(
+            "[%s] rederive_only: episode is recorded as present but no usable transcript was "
+            "found for it; nothing to re-derive. It will NOT be counted as processed.",
+            episode.idx,
+        )
+        return False, None, None, 0
+    if decision.action == REUSE:
+        logger.debug(
+            "[%s] Transcript exists, but will use for summarization: %s",
+            episode.idx,
+            decision.path,
+        )
+        # success=True so the result handlers ENQUEUE the summarization / metadata
+        # ProcessingJob — they gate that on `if success`, and returning False here silently
+        # skipped summarization for every direct-download episode with a pre-existing
+        # transcript (review 2026-07-17 H4). Cost: transcripts_downloaded is +1 high for a
+        # reused transcript (cosmetic metric only).
+        return True, decision.path, "direct_download", 0
+    if decision.action == SKIP:
         # Recorded as SKIPPED, as the transcription path records its own skip-existing skips.
         # Unrecorded, the episode kept the status it started with ("ok"), so a nightly over
         # publisher-transcript feeds reported e.g. "ok=10 skipped=0" for ten episodes it never
@@ -5251,12 +5371,7 @@ def process_episode_download(
     # is the predicate `STAGES_REUSING_ON_DISK_ARTIFACTS` names. This used to read
     # "in STAGES_THAT_NEVER_TRANSCRIBE or == 'rederive_only'", the same phrase three call sites had
     # to repeat; see that constant's comment for why the two predicates are not interchangeable.
-    reprocess_from_disk = cfg.pipeline_stage in config.STAGES_REUSING_ON_DISK_ARTIFACTS
-    chosen = (
-        None
-        if reprocess_from_disk
-        else choose_transcript_url(episode.transcript_urls, cfg.prefer_types)
-    )
+    chosen = publisher_transcript_choice(episode, cfg)
 
     # Bytes already pulled for a transcript we then REFUSED. Carried into whatever this function
     # finally returns, so a run using `require_transcript_speakers` does not under-report what it

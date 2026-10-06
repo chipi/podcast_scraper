@@ -83,18 +83,37 @@ class TestTheStageExists:
 
 
 class TestItDownloadsNoAudio:
-    def test_it_takes_the_no_download_exit(self) -> None:
+    def test_it_takes_the_no_download_exit(self, tmp_path: Path) -> None:
         """Its input is the on-disk SOURCE transcript. Downloading audio it will never open would
-        make the cheap repair as expensive as the one it exists to avoid."""
-        from pathlib import Path as _P
+        make the cheap repair as expensive as the one it exists to avoid.
 
-        src = (
-            _P(__file__).resolve().parents[4] / "src/podcast_scraper/workflow/episode_processor.py"
-        ).read_text(encoding="utf-8")
-        assert (
-            'if cfg.pipeline_stage in ("relabel_only", "retranscript_only", "translate_only"):'
-            in src
-        )
+        Asserted on behaviour, not on the source text: the exit is the shared
+        ``audio_route_leaves_before_skip_existing`` predicate, which the early skip-existing check
+        (#2290) asks too, so the two cannot disagree about this stage.
+        """
+        import xml.etree.ElementTree as ET
+        from unittest.mock import patch
+
+        from podcast_scraper import models
+        from podcast_scraper.workflow import episode_processor
+
+        cfg = config.Config(rss="https://e.com/f.xml", pipeline_stage="translate_only")
+        item = ET.Element("item")
+        ET.SubElement(item, "guid").text = "g1"
+        episode = models.Episode(idx=1, title="Ep", title_safe="Ep", item=item, transcript_urls=[])
+        episode.media_url = "https://e.com/ep.mp3"
+
+        with patch.object(
+            episode_processor,
+            "_download_or_reuse_media",
+            side_effect=AssertionError("translate_only must not download audio"),
+        ):
+            job = episode_processor.download_media_for_transcription(
+                episode, cfg, str(tmp_path / "tmp"), str(tmp_path / "out"), None
+            )
+
+        assert job is not None and job.temp_media == ""
+        assert episode_processor.audio_route_leaves_before_skip_existing(cfg)
 
 
 class TestTheMemoryFlag:
