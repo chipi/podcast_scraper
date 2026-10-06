@@ -1314,8 +1314,11 @@ _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE = naming_vocabulary.NAME_FIRST_REPORT_TAIL
 NAME_FIRST_REPORT_TAIL = _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE[TARGET_LANGUAGE]
 _GUEST_INTRODUCED_NAME_FIRST_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
     # Tolerate an ASR comma between the name and the verb ("Eric Schmitt, talks us through…").
+    # The trailing \b is load-bearing: without it `reports?` matched inside "reported", and "in
+    # June, China Daily reported on…" read as a hand-off — the newspaper was published as the guest.
     lang: re.compile(
-        rf"(?P<names>{_NAMES})\s*,?\s+" rf"(?:{tail}|{_NAME_FIRST_REPORT_TAIL_BY_LANGUAGE[lang]})",
+        rf"(?P<names>{_NAMES})\s*,?\s+"
+        rf"(?:{tail}|{_NAME_FIRST_REPORT_TAIL_BY_LANGUAGE[lang]})\b",
         re.IGNORECASE,
     )
     for lang, tail in _NAME_FIRST_TAIL_BY_LANGUAGE.items()

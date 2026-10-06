@@ -682,6 +682,50 @@ def test_contaminated_greeting_reclaimed_off_guest_cluster() -> None:
     assert r.by_voice["GUEST"].name == "Kara Swisher"
 
 
+@pytest.mark.parametrize(
+    "said",
+    [
+        "Yeah, in June, China Daily reported on Chinese artist Bai Shui, whose work uses AI.",
+        "Last week Carnegie India explained why the deal stalled.",
+        "Trivium China reporters noted that exports fell.",
+    ],
+)
+def test_a_past_tense_report_is_not_a_hand_off(said) -> None:
+    """ "X reports" hands the floor to X; "X reported on…" says what X once published.
+
+    The name-first tail had no word boundary, so `reports?` matched inside "reported": on prod
+    (episode 1_2766017, "can AI understand beauty?") a guest's own sentence about the newspaper was
+    reclaimed onto the host as a greeting, the introduction reader named the guest "China Daily",
+    and the newspaper was published as a speaker.
+    """
+    from podcast_scraper.providers.ml.diarization.roster import _greeted_names
+
+    assert _greeted_names(said) == []
+    assert _greeted_names("Sydney Baloue reports.") == ["Sydney Baloue"]  # the hand-off still reads
+
+
+def test_a_guest_citing_a_newspaper_is_not_named_after_it() -> None:
+    turns = [
+        ("HOST", "I'm Steve Hatherly. This is a conversation happening in China, too."),
+        ("GUEST", "Yeah, in June, China Daily reported on Chinese artist Bai Shui."),
+        ("GUEST", "And the discussion is now reaching major Chinese art institutions."),
+        ("HOST", "Fascinating."),
+    ]
+    diar = _diar([("HOST", 0, 20), ("GUEST", 20, 300), ("HOST", 300, 320)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back. I'm Steve Hatherly.",
+        known_hosts=["Steve Hatherly"],
+        voice_texts={
+            "HOST": turns[0][1] + " " + turns[3][1],
+            "GUEST": turns[1][1] + " " + turns[2][1],
+        },
+        ordered_turns=turns,
+    )
+    assert r.by_voice["HOST"].name == "Steve Hatherly"
+    assert r.by_voice["GUEST"].name != "China Daily"
+
+
 @pytest.mark.parametrize("opener", ["But", "Well", "Anyway", "So", "Now"])
 def test_greeted_names_reject_a_swept_up_discourse_opener(opener) -> None:
     """R1/#876 fu on the intro-reader path: ``_greeted_names`` fed the introduction reader a

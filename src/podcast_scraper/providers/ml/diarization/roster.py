@@ -1781,13 +1781,13 @@ _CUE_FIRST_PAST_MATCHFORM_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
 }
 _CUE_FIRST_PAST_MATCHFORM = _CUE_FIRST_PAST_MATCHFORM_BY_LANGUAGE[TARGET_LANGUAGE]
 _NAME_FIRST_MATCHFORM_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
-    lang: re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{tail})")
+    lang: re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{tail})\b")
     for lang, tail in _NAME_FIRST_TAIL_BY_LANGUAGE.items()
 }
 _NAME_FIRST_MATCHFORM = _NAME_FIRST_MATCHFORM_BY_LANGUAGE[TARGET_LANGUAGE]
 # Report-verb tail — resolved against CORROBORATED refs only (see _voice_named_by_the_introduction).
 _NAME_FIRST_REPORT_MATCHFORM_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
-    lang: re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{tail})")
+    lang: re.compile(rf"{_NAME_WINDOW_MF}\s*,?\s+(?:{tail})\b")
     for lang, tail in _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE.items()
 }
 _NAME_FIRST_REPORT_MATCHFORM = _NAME_FIRST_REPORT_MATCHFORM_BY_LANGUAGE[TARGET_LANGUAGE]

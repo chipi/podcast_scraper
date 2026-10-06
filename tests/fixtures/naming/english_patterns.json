@@ -187,7 +187,7 @@
    },
    "_GUEST_INTRODUCED_NAME_FIRST_RE": {
     "flags": 34,
-    "re": "(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})\\s*,?\\s+(?:(?:is|are)\\s+(?:here\\s+)?with\\s+(?:me|us)|(?:is|are)\\s+(?:my|our)\\s+guests?|(?:is|are)\\s+joining\\s+(?:me|us)|joins?\\s+(?:me|us)|(?:is|are)\\s+here\\s+to\\b|explains?|reports?|tells\\s+us|walks\\s+us\\s+through|talks\\s+us\\s+through|takes\\s+us\\s+(?:through|inside)|breaks\\s+(?:it\\s+|this\\s+)?down)"
+    "re": "(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})\\s*,?\\s+(?:(?:is|are)\\s+(?:here\\s+)?with\\s+(?:me|us)|(?:is|are)\\s+(?:my|our)\\s+guests?|(?:is|are)\\s+joining\\s+(?:me|us)|joins?\\s+(?:me|us)|(?:is|are)\\s+here\\s+to\\b|explains?|reports?|tells\\s+us|walks\\s+us\\s+through|talks\\s+us\\s+through|takes\\s+us\\s+(?:through|inside)|breaks\\s+(?:it\\s+|this\\s+)?down)\\b"
    },
    "_GUEST_REPLY_WIDE": {
     "patterns": [
@@ -308,11 +308,11 @@
    },
    "_NAME_FIRST_MATCHFORM": {
     "flags": 32,
-    "re": "([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})\\s*,?\\s+(?:(?:is|are)\\s+(?:here\\s+)?with\\s+(?:me|us)|(?:is|are)\\s+(?:my|our)\\s+guests?|(?:is|are)\\s+joining\\s+(?:me|us)|joins?\\s+(?:me|us)|(?:is|are)\\s+here\\s+to\\b)"
+    "re": "([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})\\s*,?\\s+(?:(?:is|are)\\s+(?:here\\s+)?with\\s+(?:me|us)|(?:is|are)\\s+(?:my|our)\\s+guests?|(?:is|are)\\s+joining\\s+(?:me|us)|joins?\\s+(?:me|us)|(?:is|are)\\s+here\\s+to\\b)\\b"
    },
    "_NAME_FIRST_REPORT_MATCHFORM": {
     "flags": 32,
-    "re": "([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})\\s*,?\\s+(?:explains?|reports?|tells\\s+us|walks\\s+us\\s+through|talks\\s+us\\s+through|takes\\s+us\\s+(?:through|inside)|breaks\\s+(?:it\\s+|this\\s+)?down)"
+    "re": "([a-z][a-z'\\-]+(?:\\s+[a-z][a-z'\\-]+){0,3})\\s*,?\\s+(?:explains?|reports?|tells\\s+us|walks\\s+us\\s+through|talks\\s+us\\s+through|takes\\s+us\\s+(?:through|inside)|breaks\\s+(?:it\\s+|this\\s+)?down)\\b"
    },
    "_NAME_SUFFIXES": {
     "set": [
@@ -587,7 +587,7 @@
    },
    "_GUEST_INTRODUCED_NAME_FIRST": {
     "flags": 34,
-    "re": "(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})\\s*,?\\s+(?:(?:is|are)\\s+(?:here\\s+)?with\\s+(?:me|us)|(?:is|are)\\s+(?:my|our)\\s+guests?|(?:is|are)\\s+joining\\s+(?:me|us)|joins?\\s+(?:me|us)|(?:is|are)\\s+here\\s+to\\b|explains?|reports?|tells\\s+us|walks\\s+us\\s+through|talks\\s+us\\s+through|takes\\s+us\\s+(?:through|inside)|breaks\\s+(?:it\\s+|this\\s+)?down)"
+    "re": "(?P<names>(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})(?:\\s*(?:,|and|&)\\s*(?-i:[A-Z][\\w'’\\-]+(?:\\s+[A-Z][\\w'’\\-]+){1,5})){0,9})\\s*,?\\s+(?:(?:is|are)\\s+(?:here\\s+)?with\\s+(?:me|us)|(?:is|are)\\s+(?:my|our)\\s+guests?|(?:is|are)\\s+joining\\s+(?:me|us)|joins?\\s+(?:me|us)|(?:is|are)\\s+here\\s+to\\b|explains?|reports?|tells\\s+us|walks\\s+us\\s+through|talks\\s+us\\s+through|takes\\s+us\\s+(?:through|inside)|breaks\\s+(?:it\\s+|this\\s+)?down)\\b"
    },
    "_GUEST_SPEECH_ACTS": {
     "patterns": [
