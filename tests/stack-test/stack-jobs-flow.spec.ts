@@ -344,6 +344,12 @@ async function validateCorpusDataLoadedAfterJob(
     .getByTestId('digest-popover-date')
     .getByRole('button', { name: 'All time' })
     .click()
+  // Record what the API serves BEFORE waiting on the page. When the rows never render, this line
+  // tells a backend digest with 0 rows apart from a page that did not show the rows it got
+  // (CI 2026-10-06 failed here once with a fast 200 digest and no way to tell which).
+  stackTestProgress(
+    `post-job: digest API recent rows before UI wait=${await fetchDigestRecentRowCount(request, CORPUS)}`,
+  )
   const digestRows = page.locator('[data-digest-recent-row]')
   await expect(digestRows.first()).toBeVisible({ timeout: 120_000 })
   const digestApiRows = await fetchDigestRecentRowCount(request, CORPUS)
@@ -606,6 +612,12 @@ async function waitForLatestJobSucceeded(
 }
 
 test.describe('stack test — feeds UI + job + data', () => {
+  // NOT RETRYABLE. A retry reruns the pipeline job against a corpus that already holds every
+  // episode, so they are all (correctly) skipped and `episodes_processed` reads 0 -- the retry can
+  // never pass, and it buries the first attempt's real failure under a second, misleading one
+  // (CI 2026-10-06, run 37485731510: digest rows missing, then "should sum to 4 / received 0").
+  test.describe.configure({ retries: 0 })
+
   test('configure mock feeds, run pipeline job, wait, evaluate', async ({ page, request }) => {
     // The global config timeout (120s) is for fast smoke specs. This test
     // drives a real pipeline job end-to-end (download → transcribe → GI/KG)

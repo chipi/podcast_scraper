@@ -17,7 +17,9 @@ export default defineConfig({
   use: {
     baseURL,
     ignoreHTTPSErrors,
-    trace: process.env.CI ? 'on-first-retry' : 'retain-on-failure',
+    // Keep the trace of the attempt that FAILED. `on-first-retry` recorded only the retry, so a
+    // failure that a retry could not reproduce left no trace at all.
+    trace: 'retain-on-failure',
     ...devices['Desktop Firefox'],
   },
   projects: [{ name: 'firefox', use: {} }],

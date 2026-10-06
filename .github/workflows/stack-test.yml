@@ -172,13 +172,18 @@ jobs:
         if: always()
         run: make stack-test-down || true
 
-      - name: Upload Playwright report on failure
+      - name: Upload Playwright traces + report on failure
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: stack-test-playwright-report
-          path: tests/stack-test/playwright-report
-          if-no-files-found: ignore
+          # The reporter is `list`, so `playwright-report/` is never written: this step uploaded
+          # NOTHING on every failure (`if-no-files-found: ignore` hid it). The traces and page
+          # snapshots live in `test-results/`.
+          path: |
+            tests/stack-test/test-results
+            tests/stack-test/playwright-report
+          if-no-files-found: warn
 
   # ============================================================
   # publish — gated on stack-test success on main.
