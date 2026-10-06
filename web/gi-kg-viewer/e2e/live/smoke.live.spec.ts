@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { umamiOptOut } from './analytics-opt-out'
+
 /**
  * Post-deploy smoke vs the LIVE operator viewer (#43). Validates the deployed
  * operator.closelistening.app: the coming-soon gate holds for the public, preview users reach
@@ -17,9 +19,13 @@ import { expect, test } from '@playwright/test'
 
 const gated = Boolean(process.env.OPERATOR_PREVIEW_PASS || process.env.PLAYER_PREVIEW_PASS)
 
-test('coming-soon gate holds for the public (no preview creds)', async ({ browser }) => {
+test('coming-soon gate holds for the public (no preview creds)', async ({ browser, baseURL }) => {
   // A fresh context WITHOUT credentials must see the marketing gate, never the viewer.
-  const ctx = await browser.newContext({ httpCredentials: undefined, serviceWorkers: 'block' })
+  const ctx = await browser.newContext({
+    httpCredentials: undefined,
+    serviceWorkers: 'block',
+    storageState: umamiOptOut(baseURL || 'https://operator.closelistening.app'),
+  })
   try {
     const page = await ctx.newPage()
     const resp = await page.goto('/')

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { umamiOptOut } from './e2e/live/analytics-opt-out'
 
 /**
  * POST-DEPLOY LIVE SMOKE (#43) — runs against the DEPLOYED operator viewer at
@@ -39,6 +40,8 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   use: {
     baseURL,
+    // Never count the smoke in production analytics (see analytics-opt-out.ts).
+    storageState: umamiOptOut(baseURL),
     // Undefined when no password is provided so the gated specs skip cleanly instead of
     // hammering the gate with empty creds. `origin`-scoped so the basic-auth is NOT sent to
     // cross-origin destinations (e.g. accounts.google.com during the OAuth redirect).

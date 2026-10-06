@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
 import { bearer, canMintSession, gatePass, mintSession, smokeUserId } from './session'
 
+import { umamiOptOut } from './analytics-opt-out'
+
 /**
  * Post-deploy live smoke for the PER-USER surfaces (Collections / Library / Queue) against the
  * deployed player. A headless smoke can't complete a real Google sign-in, so it authenticates as a
@@ -61,6 +63,7 @@ test.describe('per-user surfaces (test account)', () => {
     const ctx = await browser.newContext({
       serviceWorkers: 'block',
       httpCredentials: { username: process.env.PLAYER_PREVIEW_USER || 'marko', password: gatePass, origin },
+      storageState: umamiOptOut(origin),
     })
     // Web auth is the cookie; set the same minted token as the lp_session cookie.
     const host = new URL(origin).hostname

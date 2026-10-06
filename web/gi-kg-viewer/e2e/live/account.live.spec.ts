@@ -1,6 +1,8 @@
 import { createHmac } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 
+import { umamiOptOut } from './analytics-opt-out'
+
 /**
  * Post-deploy live smoke for the AUTHENTICATED operator surface at operator.closelistening.app.
  *
@@ -90,6 +92,7 @@ test.describe('operator — authed as creator', () => {
     // /preview's basic-auth challenge is satisfied and the gate sets cl_op_preview.
     const ctx = await browser.newContext({
       serviceWorkers: 'block',
+      storageState: umamiOptOut(origin),
       httpCredentials: {
         username: process.env.OPERATOR_PREVIEW_USER || 'marko',
         password: gatePass,

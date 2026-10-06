@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
 import { canMintSession, signedInContext } from './session'
 
+import { umamiOptOut } from './analytics-opt-out'
+
 /**
  * Post-deploy smoke vs the LIVE player (#43). Validates the deployed closelistening.app:
  * the coming-soon gate holds for the public, a preview visitor meets the lure landing, a SIGNED-IN
@@ -20,9 +22,13 @@ import { canMintSession, signedInContext } from './session'
 
 const gated = Boolean(process.env.PLAYER_PREVIEW_PASS)
 
-test('coming-soon gate holds for the public (no preview creds)', async ({ browser }) => {
+test('coming-soon gate holds for the public (no preview creds)', async ({ browser, baseURL }) => {
   // A fresh context WITHOUT credentials must see the marketing gate, never the app.
-  const ctx = await browser.newContext({ httpCredentials: undefined, serviceWorkers: 'block' })
+  const ctx = await browser.newContext({
+    httpCredentials: undefined,
+    serviceWorkers: 'block',
+    storageState: umamiOptOut(baseURL || 'https://closelistening.app'),
+  })
   try {
     const page = await ctx.newPage()
     const resp = await page.goto('/')

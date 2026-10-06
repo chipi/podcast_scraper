@@ -1,6 +1,8 @@
 import { createHmac } from 'node:crypto'
 import type { Browser, BrowserContext } from '@playwright/test'
 
+import { umamiOptOut } from './analytics-opt-out'
+
 /**
  * Minting a prod session for the live smokes.
  *
@@ -85,6 +87,7 @@ export async function signedInContext(browser: Browser, origin: string): Promise
   const ctx = await browser.newContext({
     serviceWorkers: 'block',
     httpCredentials: { username: gateUser, password: gatePass, origin },
+    storageState: umamiOptOut(origin),
   })
   await addSessionCookie(ctx, origin)
   return ctx
