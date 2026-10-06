@@ -122,3 +122,14 @@ def test_the_digest_warm_fills_the_cache_a_request_reads(monkeypatch, tmp_path) 
     app_cache_warm._warm_corpus_digest(tmp_path)
     app_cache_warm._warm_corpus_digest(tmp_path)
     assert builds == [1]
+
+
+def test_the_search_path_maps_are_warmed_before_the_entity_id_map(monkeypatch, tmp_path) -> None:
+    """Built lazily, the first search walked the corpus beside the entity-id map build and took
+    186-195 s instead of ~4 s (prod 2026-10-06)."""
+    order: list[str] = []
+    monkeypatch.setattr(app_cache_warm, "_warm_corpus_digest", lambda root: order.append("digest"))
+    monkeypatch.setattr(app_cache_warm, "_warm_search_paths", lambda root: order.append("search"))
+    monkeypatch.setattr(app_cache_warm, "_warm_entity_id_map", lambda root: order.append("entity"))
+    app_cache_warm.warm_caches(tmp_path)
+    assert order == ["digest", "search", "entity"]

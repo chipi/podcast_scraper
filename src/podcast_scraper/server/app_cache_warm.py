@@ -35,6 +35,14 @@ def _warm_entity_id_map(root: Path) -> None:
     cached_entity_id_map(root)
 
 
+def _warm_search_paths(root: Path) -> None:
+    """Build the two corpus-walk maps every search reads into their shared caches."""
+    from ..search.corpus_search import cached_episode_gi_paths, cached_metadata_relpath_by_scope
+
+    cached_episode_gi_paths(root)
+    cached_metadata_relpath_by_scope(root)
+
+
 def _warm_corpus_digest(root: Path) -> None:
     """Build ``GET /api/corpus/digest?window=all`` into its caches (catalog rows + topic bands),
     through the route itself so the warmed keys are exactly the ones a request reads."""
@@ -72,6 +80,10 @@ def warm_caches(root: Path) -> None:
         # 202.4 s -- the two compete for the GIL). After the 2026-10-05 deploy every digest request
         # waited 110-215 s and the post-deploy smoke, which probes the digest, failed on it twice.
         ("corpus_digest", lambda: _warm_corpus_digest(root)),
+        # The two corpus-walk maps every search reads, also BEFORE entity_id_map. Built lazily by
+        # the first search, they walked the corpus while the entity id map held the CPU, and that
+        # search took 186-195 s instead of ~4 s (prod 2026-10-06; player smoke 504s).
+        ("search_paths", lambda: _warm_search_paths(root)),
         # resolve_slug builds + caches the slug index on any non-empty query (then misses harmless).
         ("slug_index", lambda: resolve_slug(root, "\x00warm")),
         # BEFORE kg_index, which consumes it. The entity id map is the most expensive thing the

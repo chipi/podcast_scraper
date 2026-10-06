@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set
 
+from podcast_scraper import perf_cache
 from podcast_scraper.search.cil_lift_overrides import load_cil_lift_overrides
 from podcast_scraper.search.cli_handlers import (
     _enrich_hit,
@@ -297,6 +298,40 @@ def run_corpus_search(
     )
 
 
+def cached_episode_gi_paths(output_dir: Path) -> Dict[str, Path]:
+    """:func:`merged_episode_gi_paths`, cached per corpus generation (``corpus_mtime``).
+
+    Every search read these two maps by walking the WHOLE corpus (``discover_metadata_files``
+    plus one JSON read per episode) -- twice per request, and most of a search's time: on prod
+    2026-10-06 a search took ~4 s with them and ~0.4 s once they were cached. Worse, a directory
+    walk hands the GIL back and forth on every filesystem call, so beside a CPU-bound thread (the
+    cache warmer's entity-id map after a restart) each handoff waits out the switch interval:
+    the same search took 186-195 s until the warmer finished, and the player post-deploy smoke
+    failed on 504s. Read-only maps; callers only ``.get`` from them.
+    """
+    root = Path(output_dir)
+    paths: Dict[str, Path] = perf_cache.get_or_compute(
+        "search_episode_gi_paths",
+        str(root.resolve()),
+        perf_cache.corpus_mtime(root),
+        lambda: merged_episode_gi_paths(output_dir),
+    )
+    return paths
+
+
+def cached_metadata_relpath_by_scope(output_dir: Path) -> Dict[str, str]:
+    """:func:`_metadata_relpath_by_scope_from_corpus`, cached the same way, for the same reason
+    (see :func:`cached_episode_gi_paths`)."""
+    root = Path(output_dir)
+    relpaths: Dict[str, str] = perf_cache.get_or_compute(
+        "search_metadata_relpath_by_scope",
+        str(root.resolve()),
+        perf_cache.corpus_mtime(root),
+        lambda: _metadata_relpath_by_scope_from_corpus(output_dir),
+    )
+    return relpaths
+
+
 def _filter_and_enrich(
     hits: Sequence[SearchResult],
     output_dir: Path,
@@ -318,8 +353,8 @@ def _filter_and_enrich(
     single search path since FAISS was retired (#995) — producing the enriched response shape.
     """
     since_dt = _parse_since(since) if isinstance(since, str) and since.strip() else None
-    gi_cache = merged_episode_gi_paths(output_dir)
-    rel_by_scope = _metadata_relpath_by_scope_from_corpus(output_dir)
+    gi_cache = cached_episode_gi_paths(output_dir)
+    rel_by_scope = cached_metadata_relpath_by_scope(output_dir)
     filtered: List[SearchResult] = []
     for h in hits:
         dt = h.metadata.get("doc_type")
