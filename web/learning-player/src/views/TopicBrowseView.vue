@@ -11,6 +11,7 @@
 import { computed, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
+import BackIcon from "../components/BackIcon.vue"
 import TrendingSparkChips from "../components/TrendingSparkChips.vue"
 import TrendWindowTabs from "../components/TrendWindowTabs.vue"
 import SectionStatus from "../components/SectionStatus.vue"
@@ -133,7 +134,7 @@ onMounted(async () => {
       class="lp-nav mb-4"
       data-testid="browse-back-home"
     >
-      ‹ {{ t("browse.backHome") }}
+      <BackIcon /> {{ t("browse.backHome") }}
     </RouterLink>
     <h1 v-if="!embedded" class="mb-4 font-display text-3xl font-extrabold tracking-tight">
       {{ t("browse.topicsTitle") }}

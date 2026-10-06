@@ -194,7 +194,7 @@ describe("KnowledgePanel", () => {
     body().scrollTop = 640 // down at the people row
     await w
       .findAll("button")
-      .find((b) => b.text() === "Matthew Walker")!
+      .find((b) => chipName(b) === "Matthew Walker")!
       .trigger("click")
     await flushPromises()
     await w.find('[data-testid="ec-dismiss"]').trigger("click")
