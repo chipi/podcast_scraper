@@ -769,3 +769,26 @@ class TestAddInsightEntityEdgesWithNer:
         org_node = next(n for n in gi["nodes"] if n.get("type") == "Organization")
         assert org_node["id"] == "org:acme-corp"
         assert org_node["properties"]["name"] == "Acme Corp"
+
+
+def test_kg_entity_index_drops_a_person_named_exactly_like_an_org():
+    """A KG written before the build-time collapse must not re-mint the Person in GI."""
+    kg = {
+        "nodes": [
+            {
+                "id": "org:africa-tech-summit",
+                "type": "Organization",
+                "properties": {"name": "Africa Tech Summit"},
+            },
+            {
+                "id": "person:africa-tech-summit",
+                "type": "Person",
+                "properties": {"name": "africa tech summit", "role": "mentioned"},
+            },
+            {"id": "person:gillian-tett", "type": "Person", "properties": {"name": "Gillian Tett"}},
+        ]
+    }
+    idx = kg_entity_index(kg)
+    assert "person:africa-tech-summit" not in idx
+    assert idx["org:africa-tech-summit"] == ("Africa Tech Summit", "organization")
+    assert idx["person:gillian-tett"] == ("Gillian Tett", "person")

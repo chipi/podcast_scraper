@@ -286,7 +286,7 @@ class TestKgPipeline(unittest.TestCase):
         self.assertTrue(art["extraction"]["model_version"].startswith("provider:"))
 
     def test_provider_entities_dedup_by_kind_and_name(self) -> None:
-        """Same display name may appear as person and organization; both are kept."""
+        """Duplicates collapse by kind+name; a mentioned person named like an org is the org."""
         prov = MagicMock()
         prov.summary_model = "test-model"
         prov.extract_kg_graph.return_value = {
@@ -315,11 +315,43 @@ class TestKgPipeline(unittest.TestCase):
         # RFC-097 v2.0: typed Person + Organization nodes (was Entity(kind=...)).
         entities = [n for n in art["nodes"] if n["type"] in ("Person", "Organization")]
         kinds = sorted((n["type"], n["properties"]["name"]) for n in entities)
-        self.assertEqual(
-            kinds,
-            [("Organization", "Mercury"), ("Person", "Mercury")],
+        self.assertEqual(kinds, [("Organization", "Mercury")])
+        self.assertEqual(len(entities), 1)
+
+    def test_a_mentioned_person_named_like_an_org_collapses_into_the_org(self) -> None:
+        """Prod 2026-10-05: "Africa Tech Summit" typed both ways reached GI as a "person"."""
+        prov = MagicMock()
+        prov.summary_model = "test-model"
+        prov.extract_kg_graph.return_value = {
+            "topics": [],
+            "entities": [
+                {"name": "Africa Tech Summit", "entity_kind": "organization"},
+                {"name": "africa tech summit ", "entity_kind": "person"},
+                {"name": "Gillian Tett", "entity_kind": "person"},
+            ],
+        }
+        cfg = SimpleNamespace(
+            kg_extraction_source="provider",
+            kg_max_topics=5,
+            kg_max_entities=10,
+            kg_merge_pipeline_entities=False,
         )
-        self.assertEqual(len(entities), 2)
+        art = build_artifact(
+            "ep:ats",
+            "transcript",
+            podcast_id="p:1",
+            episode_title="E",
+            cfg=cfg,
+            kg_extraction_provider=prov,
+        )
+        validate_artifact(art, strict=True)
+        ids = {n["id"] for n in art["nodes"]}
+        self.assertNotIn("person:africa-tech-summit", ids)
+        self.assertIn("org:africa-tech-summit", ids)
+        self.assertIn("person:gillian-tett", ids)
+        targets = {e["to"] for e in art["edges"]} | {e["from"] for e in art["edges"]}
+        self.assertNotIn("person:africa-tech-summit", targets)
+        self.assertIn("org:africa-tech-summit", targets)
 
     def test_pipeline_host_skipped_only_if_same_kind_and_name_as_llm(self) -> None:
         """Host merged only when person+name matches; org with same name does not block."""

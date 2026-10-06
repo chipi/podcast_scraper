@@ -539,6 +539,7 @@ def build_artifact(
     # whole corpus reindex on 2026-08-26 (LanceDB refuses ambiguous merges). Last-writer's
     # properties fill gaps; an explicit host/guest role always beats 'mentioned'.
     nodes, edges = _collapse_mentions_into_speakers(nodes, edges)
+    nodes, edges = _collapse_persons_named_as_orgs(nodes, edges)
     nodes = _dedupe_nodes_by_id(nodes)
 
     return {
@@ -634,6 +635,53 @@ def _collapse_mentions_into_speakers(
                 target,
             )
 
+    return _remap_nodes(nodes, edges, remap)
+
+
+def _collapse_persons_named_as_orgs(
+    nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """A MENTIONED Person with exactly an Organization's name in the same KG is that organization.
+
+    The extractor sometimes types one name both ways in one episode -- "Africa Tech Summit" as
+    ``org:africa-tech-summit`` AND ``person:africa-tech-summit``. The Person then reaches GI as a
+    ``MENTIONS_PERSON`` target and the person surfaces as a "person" (m0012's verify flagged it on
+    2026-10-05 after an enrich-edges pass re-copied it). Measured on the prod corpus (2026-10-06):
+    34 of 2,766 KGs carry such a collision, across 7 names, every one an organization or a show
+    (Machine Learning Street, Trivium China, Africa Tech Summit, Carnegie India, Andreessen
+    Horowitz, Conversations with Tyler, China Daily) -- no person among them.
+
+    Only ``mentioned`` Persons: a host/guest is a voice somebody resolved, and an org-named speaker
+    is the speaker guards' business, not a typing slip to merge away.
+    """
+    org_by_name = {
+        str((n.get("properties") or {}).get("name") or "").strip().casefold(): str(n.get("id"))
+        for n in nodes
+        if isinstance(n, dict) and n.get("type") == "Organization" and n.get("id")
+    }
+    org_by_name.pop("", None)
+    remap: Dict[str, str] = {}
+    for node in nodes:
+        if not isinstance(node, dict) or node.get("type") != "Person":
+            continue
+        props = node.get("properties") or {}
+        if str(props.get("role") or "mentioned") != "mentioned":
+            continue
+        org_id = org_by_name.get(str(props.get("name") or "").strip().casefold())
+        if org_id and node.get("id"):
+            remap[str(node["id"])] = org_id
+            logger.info(
+                "kg build_artifact: %r is typed both Person and Organization; keeping %s",
+                props.get("name"),
+                org_id,
+            )
+    return _remap_nodes(nodes, edges, remap)
+
+
+def _remap_nodes(
+    nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]], remap: Dict[str, str]
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Drop the nodes in *remap* and point every edge that referenced one at its target."""
     if not remap:
         return nodes, edges
 

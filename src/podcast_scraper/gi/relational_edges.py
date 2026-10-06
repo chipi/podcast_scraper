@@ -235,7 +235,16 @@ def kg_entity_index(kg_artifact: Dict) -> Dict[str, Tuple[str, str]]:
         if isinstance(eid, str) and isinstance(name, str) and name.strip():
             kind = normalized_entity_kind_from_node(node)
             out[eid] = (name.strip(), kind)
-    return out
+    # A person with exactly an organization's name in the same KG is that organization -- the
+    # extractor typed one name both ways ("Africa Tech Summit"). Without this, every enrich-edges
+    # pass re-mints the Person in GI from a KG written before the build-time collapse
+    # (``kg.pipeline._collapse_persons_named_as_orgs``) existed.
+    org_names = {name.casefold() for name, kind in out.values() if kind == "organization"}
+    return {
+        eid: (name, kind)
+        for eid, (name, kind) in out.items()
+        if not (kind == "person" and name.casefold() in org_names)
+    }
 
 
 def apply_typed_mentions_to_gi_artifact(
