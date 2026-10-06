@@ -132,13 +132,25 @@ test('UXS-012: "Browse all →" under What\'s new opens the Browse hub on Episod
 test('UXS-012 §Section state: a failed What\'s new says so and Retry recovers it', async ({ page }) => {
   // EVERY discover request fails until Retry is pressed — more than one Home consumer may ask, so
   // "fail the first" made which section saw the failure a race.
+  // A 500, NOT a 503: the app reads 503 as "the server is degraded" (services/api.ts) and shows the
+  // app-wide "couldn't reach the server" banner instead — a different state, which won the race
+  // against the section's own error intermittently (desktop, 2026-10-06).
   let failing = true
   await page.route('**/api/app/discover**', async (route) => {
     if (failing) {
-      await route.fulfill({ status: 503, body: 'down' })
+      await route.fulfill({ status: 500, body: 'section failed' })
       return
     }
     await route.continue()
+  })
+  // Sign-in lands on Home, which loads What's new and CACHES it (offline-first, per account). With
+  // that cache present a failed load correctly shows the cached rows under "Showing what you had
+  // last time" — not the section error this test is about — so it passed or failed on whether the
+  // sign-in's own load had finished (2026-10-06). Drop that one cache entry first.
+  await page.evaluate(() => {
+    for (const k of Object.keys(localStorage)) {
+      if (k.endsWith('.home.whatsnew')) localStorage.removeItem(k)
+    }
   })
   await page.goto('/')
   const error = page.getByTestId('section-error').first()
