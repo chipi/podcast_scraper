@@ -57,9 +57,9 @@ chmod 600 "$OPERATOR_ENV"
 
 : "${OPERATOR_DOMAIN:?OPERATOR_DOMAIN missing from .env.operator and env}"
 : "${PODCAST_CORPUS_VOLUME:?PODCAST_CORPUS_VOLUME missing from .env.operator and env}"
-# Coming-soon gate cookie secret — substituted into operator.caddy below. REQUIRED: an empty
-# value would ship `cl_op_preview=` as the gate, which is guessable → the gate opens for
-# anyone. Fail loudly rather than deploy a broken gate.
+# Coming-soon gate cookie secret. The closed operator.caddy (2026-10-05) carries no gate, so it
+# is not substituted into anything today; it stays REQUIRED so that re-opening the gated vhost
+# can never ship an empty value (`cl_op_preview=` is guessable → the gate opens for anyone).
 : "${OPERATOR_PREVIEW_COOKIE:?OPERATOR_PREVIEW_COOKIE missing from .env.operator and env (coming-soon gate cookie secret)}"
 
 # OTEL traces (ADR-119) reach the homelab VictoriaTraces OTLP ingest via the Tailscale

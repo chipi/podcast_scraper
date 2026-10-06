@@ -1,4 +1,9 @@
-# Public operator surface (RFC-108 / epic #1320 — operator.closelistening.app).
+# Operator-read surface (RFC-108 / epic #1320 — operator.closelistening.app).
+#
+# NOT PUBLIC since 2026-10-05: operator.caddy serves only a coming-soon page and proxies nothing
+# here, so this stack is reachable only on the box's loopback (127.0.0.1:8093, `ports` below).
+# Operator work happens on the control plane's viewer over the tailnet. What follows is the design
+# that would apply if the host is re-opened, which must re-review its security first.
 #
 # A STANDALONE composition (do NOT merge with the privileged operator stack): the
 # gi-kg-viewer SPA + a LOW-PRIVILEGE operator-read backend. The backend runs with
