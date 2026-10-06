@@ -19,6 +19,89 @@ that wrote this (no prod SSH there); check them first rather than trusting them.
 - **GI/KG fail hard** (`TranscriptBodyMissingError`) when an episode names a transcript that is
   not on disk; the episode stops instead of producing an artifact from empty text.
 
+## Security changes in this PR
+
+The admin and operator surfaces are reachable over the tailnet only, and every operator write
+records who made it. In detail:
+
+| change | where | effect on prod |
+| --- | --- | --- |
+| **The operator host is closed.** `operator.closelistening.app` proxies nothing to the app: every path, with or without the old `/preview` basic-auth or preview cookie, returns the coming-soon page. The operator-public compose still runs on loopback `127.0.0.1:8093`, unreachable from outside the box. | `infra/caddy/operator.caddy` (installed by `deploy-config`) | Operator work happens only on the control-plane viewer over MagicDNS. Re-opening the host is a deliberate decision that must re-review admin routes, sign-in and CSRF. |
+| **Admin routes are never served on the public player host.** The player nginx returns 404 for `/api/app/admin/*` (user management, access policy), `/api/app/ranking-config` and the `/api/app/graph-events/*` admin readout. `POST /api/app/graph-events` itself (the player's event ingestion) stays open. | `web/learning-player/nginx.conf` | An admin account may exist on the player, but its surface is reached over the tailnet only. |
+| **Production trusts only its real domain.** Credentialed CORS and the cross-site write check trust `PODCAST_SERVE_CORS_ORIGINS`, pinned to `https://closelistening.app` in the player compose. A deployed api (`PODCAST_ENV` prod/preprod) without the pin trusts no other page; it no longer falls back to the localhost dev servers. Native-app origins stay CORS-allowed (the app uses a Bearer token). | `server/app.py` (`web_origins`, `cors_allowed_origins`), `compose/docker-compose.player-public.yml` | `www.closelistening.app` 301s to the apex, so it needs no entry. |
+| **Cross-site writes with the session cookie are refused (CSRF).** A POST/PUT/PATCH/DELETE that carries the session cookie and states a foreign `Origin` (or `Referer`) gets 403 "Cross-site request refused.". Before this, the only defence was the cookie's `SameSite=Lax`. A request with no `Origin` passes (non-browser clients). The Sign in with Apple callback is exempt (Apple posts it cross-site by design). | `server/app_csrf.py` | Shows up as a 403 in the player `account.live` smoke if the origin pin is wrong. |
+| **Operator writes record WHO.** The audit used to record `actor: "operator"` for every write. It now records `via` (`operator_key`, `operator_read_key`, `admin_session`) and, for a session, `by` (the user id), on allowed and denied writes alike. | `server/app_operator_guard.py`, `<app_data_dir>/audit.jsonl` | A feeds.spec rewrite, a rollback or an override can be traced to a person or a key. |
+| **`POST /api/corpus/topic-clusters/rebuild` is operator-gated.** It sat outside every operator base, so a creator account could start it. | `server/app_operator_guard.py` | Same gate as `/api/index/rebuild`. |
+| **`PUT /api/app/ranking-config` is audited** with who, before and after. It wrote no audit record before. | `server/routes/app_discover.py` | |
+| **The overrides endpoint never takes a file location from the request.** `path` only has to name the corpus root; the file is built from the server's own anchor. This cleared the CodeQL `py/path-injection` alerts. | `server/routes/feed_overrides.py` | Any `path` other than the corpus root returns 400. |
+
+Pinned by tests: `tests/integration/server/test_admin_security_gaps.py`,
+`tests/integration/server/test_app_cors.py`, `tests/integration/server/test_player_nginx_runtime.py`,
+`tests/unit/podcast_scraper/server/test_player_nginx_admin_is_tailnet_only.py`. The live smokes
+check the operator host is closed and the player's cookie writes work (Step 3).
+
+**Not covered:** whether prod's control plane has `APP_OPERATOR_API_KEY` set (not verified, see
+Step 5); the audit write is best-effort, and the overrides store uses a per-process lock, which is
+enough with one admin and one control-plane process but does not serialise two writers in
+different processes.
+
+## Operator overrides — what they can do
+
+An operator can correct what a feed publishes without editing RSS or artifacts by hand. Overrides
+live in one file per corpus, `<corpus>/overrides.json`, beside `feeds.spec.yaml`, and are written
+only through the control-plane endpoint (Step 5 has the curl calls).
+
+**What can be overridden** (an explicit, typed list; any other field is refused with 422):
+
+| level | key | fields |
+| --- | --- | --- |
+| feed | RSS URL (trimmed) | `title`, `description`, `authors`, `image_url`, `language`, `hosts` |
+| episode | RSS URL + the episode's `<guid>` | `title`, `description`, `published_date`, `image_url`, `language`, `hosts`, `guests`, `speaker_renames` |
+
+- `language` must be an ISO code and is normalised on write. A feed override is how a feed that
+  declares no `<language>` gets one; without it, the feed is refused before download.
+- `hosts` / `guests` **replace** what the pipeline detects (not merged with it); `[]` means none.
+- `speaker_renames` maps a published speaker name to the name to publish instead.
+- `image_url` must be http(s). Names are whitespace-cleaned and de-duplicated.
+- An episode's title override changes the displayed title only; its files keep their names, so
+  nothing is re-downloaded.
+
+**Endpoints** (control plane; an admin session or `X-Operator-Key` for every method, or the
+operator read key for GET only):
+
+| method | path | does |
+| --- | --- | --- |
+| GET | `/api/feeds/overrides?path=…` | the whole file |
+| PUT | `/api/feeds/overrides/feed?path=…&url=…` | REPLACES the feed's fields with the body (fields left out are no longer overridden) |
+| DELETE | `/api/feeds/overrides/feed?path=…&url=…` | removes the feed's overrides **and every episode override under it** |
+| PUT | `/api/feeds/overrides/episode?path=…&url=…&guid=…` | replaces one episode's fields |
+| DELETE | `/api/feeds/overrides/episode?path=…&url=…&guid=…` | removes one episode's overrides |
+
+Every change is audited (`override_feed_set`, `override_feed_deleted`, `override_episode_set`,
+`override_episode_deleted`) with who, before and after.
+
+**When an override takes effect.** The pipeline applies overrides when it runs that feed: right
+after the feed is fetched and BEFORE the language gate, so a language override is what lets an
+untagged feed in. An override does not rewrite anything already on disk by itself; an episode
+already published changes only when a run processes it again. An episode override whose GUID is
+not in the fetched feed (aged out of the window) is logged and ignored. m0021 reads feed-level
+language overrides only: `metadata.json` holds no `<guid>`, so episode-level overrides apply on
+the episode's next run.
+
+**One language per run.** If a feed is refused for language but some episodes carry a language
+override, the run processes only those episodes, provided they all name the same enabled
+language; mixed languages are refused with the reason. If the feed is accepted, an episode whose
+override names a different language is skipped with a warning.
+
+**Fail hard.** A broken `overrides.json` (invalid JSON or an unknown field) makes the endpoint
+return 500 and makes every pipeline run for that corpus raise. A run that ignored it would
+publish exactly what the operator overrode. Fix the file on disk. Writes are atomic (temp file +
+rename).
+
+Code: `src/podcast_scraper/overrides.py` (store, validation),
+`src/podcast_scraper/workflow/apply_overrides.py` (where each field lands),
+`src/podcast_scraper/server/routes/feed_overrides.py` (endpoint). Issue #2283.
+
 ## Order of operations
 
 1. **Merge PR #2260 to main.** Images publish only from `main`; one tag pins all three services.
