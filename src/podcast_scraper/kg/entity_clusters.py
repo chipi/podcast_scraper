@@ -477,8 +477,55 @@ _ID_MAP_NS = "kg.entity_id_map"
 _ID_MAP_LOCK = threading.Lock()
 
 
+_ISOLATED_BUILD_TIMEOUT_S = 1800.0
+
+
+def _build_entity_id_map_isolated(root: Path, same_show_required: bool) -> Dict[str, str]:
+    """:func:`build_entity_id_map` in a child process; in-process if that cannot run.
+
+    The build is minutes of pure-Python string comparison (difflib) that never waits on IO, so in
+    the api process it holds the GIL against every request thread. Measured on prod after the
+    2026-10-06 deploys: while the cache warmer built it, anything that walks the corpus stalled --
+    search 186-195 s (alone ~4 s), /api/index/stats 84-173 s, /api/artifacts up to 300 s -- and
+    every post-deploy smoke failed in that window. A directory walk hands the GIL back on each
+    filesystem call and then queues behind the builder for it. In a child process the build has
+    its own interpreter; this thread only waits on the result, which holds no GIL.
+    """
+    import json
+    import subprocess
+    import sys
+
+    try:
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "podcast_scraper.kg.entity_id_map_worker",
+                str(root),
+                "1" if same_show_required else "0",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=_ISOLATED_BUILD_TIMEOUT_S,
+        )
+        id_map = json.loads(proc.stdout)
+        if not isinstance(id_map, dict):
+            raise ValueError(f"worker returned {type(id_map).__name__}, not a map")
+        return {str(k): str(v) for k, v in id_map.items()}
+    except Exception as exc:  # noqa: BLE001 - a child that cannot run must not cost the map
+        stderr = getattr(exc, "stderr", None) or ""
+        logger.warning(
+            "entity id map: isolated build failed (%s: %s%s); building in-process instead",
+            type(exc).__name__,
+            exc,
+            f" | {stderr.strip()[-500:]}" if stderr else "",
+        )
+        return build_entity_id_map(root, same_show_required=same_show_required)
+
+
 def cached_entity_id_map(
-    corpus_dir: Path | str, *, same_show_required: bool = True
+    corpus_dir: Path | str, *, same_show_required: bool = True, isolate_process: bool = False
 ) -> Dict[str, str]:
     """:func:`build_entity_id_map`, computed at most once per corpus change.
 
@@ -494,7 +541,10 @@ def cached_entity_id_map(
     builds, the rest wait and take the cached value — and the double-check inside means a caller
     that waited does no work at all.
 
-    Warmed by ``server/app_cache_warm``, so a reader normally never sees the miss.
+    Warmed by ``server/app_cache_warm``, so a reader normally never sees the miss. The warmer
+    passes ``isolate_process=True`` (see :func:`_build_entity_id_map_isolated`): the build then
+    runs in a child process, and readers arriving meanwhile wait on the lock without holding the
+    GIL.
     """
     root = Path(corpus_dir)
     key = (str(root.resolve()), bool(same_show_required))
@@ -509,7 +559,11 @@ def cached_entity_id_map(
                 _ID_MAP_NS,
                 key,
                 token,
-                lambda: build_entity_id_map(root, same_show_required=same_show_required),
+                (
+                    (lambda: _build_entity_id_map_isolated(root, same_show_required))
+                    if isolate_process
+                    else (lambda: build_entity_id_map(root, same_show_required=same_show_required))
+                ),
             )
         )
 

@@ -32,7 +32,7 @@ def _warm_entity_id_map(root: Path) -> None:
     """Build the corpus-wide entity id map into its shared cache (import kept local/optional)."""
     from ..kg.entity_clusters import cached_entity_id_map
 
-    cached_entity_id_map(root)
+    cached_entity_id_map(root, isolate_process=True)
 
 
 def _warm_search_paths(root: Path) -> None:
