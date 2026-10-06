@@ -29,10 +29,10 @@
       <guid isPermaLink="false">p12_e02</guid>
       <pubDate>Wed, 11 Mar 2026 00:00:00 +0000</pubDate>
       <description>Camille Dubois talks with Élodie Chevalier: Le Pilotage Enduro Sans le Battage.</description>
-      <enclosure url="/audio/p12_e02.mp3" length="2911337" type="audio/mpeg"/>
+      <enclosure url="/audio/p12_e02.mp3" length="2750423" type="audio/mpeg"/>
       <podcast:transcript url="/transcripts/p12_e02.vtt" type="text/vtt"/>
       <itunes:episode>2</itunes:episode>
-      <itunes:duration>00:06:04</itunes:duration>
+      <itunes:duration>00:05:44</itunes:duration>
       <itunes:episodeType>full</itunes:episodeType>
     </item>
 
@@ -41,7 +41,7 @@
       <guid isPermaLink="false">p12_e03</guid>
       <pubDate>Mon, 29 Jun 2026 00:00:00 +0000</pubDate>
       <description>Camille Dubois talks with Mathieu Lefèvre: La Mécanique d'un Vélo Silencieux et Rapide.</description>
-      <enclosure url="/audio/p12_e03.mp3" length="2999736" type="audio/mpeg"/>
+      <enclosure url="/audio/p12_e03.mp3" length="2999527" type="audio/mpeg"/>
       <podcast:transcript url="/transcripts/p12_e03.vtt" type="text/vtt"/>
       <itunes:episode>3</itunes:episode>
       <itunes:duration>00:06:15</itunes:duration>
