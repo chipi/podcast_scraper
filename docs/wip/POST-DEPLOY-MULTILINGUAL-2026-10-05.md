@@ -197,7 +197,7 @@ Reference count, NOT prod's: of the 72 feeds in `config/corpus-expansion.feeds.y
 
 The transcript cache is keyed by the audio hash plus the provider name and model. On main, the
 DGX profiles wrap Whisper in a failover chain, and every entry is stored under the wrapper's name,
-`fallback_chain`, whichever tier actually transcribed. This PR (ccb75ad3e) keys on the provider
+`fallback_chain`, whichever tier actually transcribed. This PR (ebe629218) keys on the provider
 that produced the transcript: a lookup uses the primary tier (DGX Whisper, key name
 `tailnetdgxwhispertranscription` plus its model), and a save uses the tier that ran. The
 resilience strategy (`hold` or `failover`) no longer affects the key. As a result, none of prod's
@@ -240,7 +240,7 @@ candidate 1a8a493f0 vs `origin/main` 712ff7ebb:
 
 **What this does NOT cover:**
 
-- **The cache-key change (ccb75ad3e) came after these runs.** It is covered by unit tests
+- **The cache-key change (ebe629218) came after these runs.** It is covered by unit tests
   (`tests/unit/podcast_scraper/workflow/test_transcript_cache_key_is_the_factual_provider.py`), not
   by an A/B run. It changes which cache entry is read, not how a transcript is made.
 - **One real episode only**, from one English feed. Feeds with other tag forms were exercised in
