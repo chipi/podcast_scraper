@@ -20,10 +20,10 @@
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Diego Ferrer": 0.45
+    "Diego Ferrer": 0.65
   },
   "cameo": null,
   "transcript_sha256": "3483bc7aa5268209f75107dac51d032b4cd5933d12f7dae7e397e92356bee4e1",
-  "audio_sha256": "9e3e7fd03f3f655ebc312286eaef64cdac249d6dd5ff24ca9932a57f09886594",
-  "rttm_sha256": "9a65bb00c2062bd59e8ee556c2d3b03e7b90ac87a0e0d3c61d6e6e82944d9b5e"
+  "audio_sha256": "00725d21a0a40623c63cead2d0b1f993be6b9b36c0041868f94670aaf9c57f1d",
+  "rttm_sha256": "f9398b202ea5720ac4c44c04484af6e714cd632a5290fe22d64e47728c3b3672"
 }

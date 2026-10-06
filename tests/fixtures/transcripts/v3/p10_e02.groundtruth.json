@@ -20,10 +20,10 @@
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Marta Solís": 0.45
+    "Marta Solís": 0.8
   },
   "cameo": null,
   "transcript_sha256": "32a92de25b079506ad84d41837fe7a794ea7d3450a2f08b583ef5b29835d03e6",
-  "audio_sha256": "d63dfd26175ef8955aa20670a9d53055cc27de83aa7786b565672dd656884fd2",
-  "rttm_sha256": "980f95c1838ef3d333524d01ea89108fe615d5d3726997339a44a1269d2234d4"
+  "audio_sha256": "a2eceea50b57655445ded6a3d98d233d635ac959181564cb80da37f3e673be86",
+  "rttm_sha256": "59613f880a8eede7a583e54de6b6a1740e64201f2acb2c4c58c6a2fa009e445f"
 }

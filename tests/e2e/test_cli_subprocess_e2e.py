@@ -397,7 +397,7 @@ class TestCLISubprocessConfigFile:
         transcript_files = [
             p
             for p in output_dir.rglob("*.txt")
-            if not any(part in p.name for part in (".adfree.", ".cleaned."))
+            if not any(part in p.name for part in (".adfree.", ".anon.", ".cleaned."))
         ]
         assert (
             len(transcript_files) == 1

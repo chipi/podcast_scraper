@@ -20,10 +20,10 @@
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Luca Moretti": 0.4
+    "Luca Moretti": 0.6
   },
   "cameo": null,
   "transcript_sha256": "d53df240d0d5a09e97d3cad533b57d8ce61726fe9a4cc8fdcd2ae761716b8fb7",
-  "audio_sha256": "d3f7c49b31f74868d707f7fc6ee15212588be527d7d4009cbe0a42d7147b4a07",
-  "rttm_sha256": "84d2dec37ea3ec2c8a9886020a35e614ea6a51c200952f67242ac219199363b8"
+  "audio_sha256": "93fed6a54b65427a65aa4800e635d5cc3a69548464e3000bc659dfdbd6e31867",
+  "rttm_sha256": "f8bb6949c4b1c8e72d04610f8ece3ba34102ab229f9bb52804182dffdeb3dd1b"
 }

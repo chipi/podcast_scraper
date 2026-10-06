@@ -20,10 +20,10 @@
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Chiara Ricci": 0.4
+    "Chiara Ricci": 0.8
   },
   "cameo": null,
   "transcript_sha256": "2c34111f57cee91a5083e07d33c468e7e48ebb876179cdd9d59f02c0cafd7b8e",
-  "audio_sha256": "33a52991d024a8df4a024e5417c4c5faac627b0f24513320e962b41e960c54a7",
-  "rttm_sha256": "081ffa20e58f8efc493033d0edd8f45f56e224ec684f5a77d03349def5de9de8"
+  "audio_sha256": "29b4b51bd9e44467d9d804b1229fd53179d2303ff0fe5d5d4f27ac6a64e1f2f7",
+  "rttm_sha256": "e767da09ca4de2e7da691d2efaebccdfdb5e70eb6c53b26af50b8b9bddf96fb3"
 }

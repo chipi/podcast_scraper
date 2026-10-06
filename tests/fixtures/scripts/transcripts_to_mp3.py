@@ -229,9 +229,10 @@ SPANISH_SPEAKER_VOICE_MAP: dict[str, str] = {
     # through every layer.
     "Lucía Herrera": "Monica",
     "Javier Benavides": "Paulina",
-    # e02 / e03 guests (2026-10-03). Same voice and shift as the e01 guest on purpose: the
-    # acoustic geometry below was MEASURED for that pair, and a new voice would need measuring
-    # again. The guest ROLE is what the separation is for, not the individual.
+    # e02 / e03 guests. Same base voice as the e01 guest, but each at its OWN measured pitch
+    # factor (VOICE_PITCH_SHIFT): two distinct people never share an acoustic identity, across
+    # episodes too (FIXTURES_SPEC.md, #1170). Sharing the e01 guest's exact voice+shift, as the
+    # first version of these did, is what test_voice_assignment rejected on main.
     "Marta Solís": "Paulina",
     "Diego Ferrer": "Paulina",
 }
@@ -261,7 +262,7 @@ ITALIAN_SPEAKER_VOICE_MAP: dict[str, str] = {
 FRENCH_SPEAKER_VOICE_MAP: dict[str, str] = {
     "Camille Dubois": "Amelie",  # host, fr_CA
     "Julien Mercier": "Thomas",  # guest, fr_FR — a real second voice, no shift needed
-    "Élodie Chevalier": "Thomas",  # e02 guest
+    "Élodie Chevalier": "Amelie",  # e02 guest — the host's voice, shifted (VOICE_PITCH_SHIFT)
     "Mathieu Lefèvre": "Thomas",  # e03 guest
 }
 GERMAN_SPEAKER_VOICE_MAP: dict[str, str] = {
@@ -340,9 +341,10 @@ VOICE_MAPS_BY_LANGUAGE: dict[str, dict[str, str]] = {
 #: Zarvox, reproducing exactly the collision the Spanish comment above records rejecting 0.55
 #: for. The right factor is the one that fits the voice, not the one that worked last time.
 #:
-#: FRENCH IS DELIBERATELY ABSENT. Amelie and Thomas are 90.7 Hz apart on their own, so shifting
-#: would be decoration — and a shift that is not needed is a difference between the fixture and
-#: real audio for no measured reason.
+#: FRENCH e01 IS DELIBERATELY ABSENT. Amelie and Thomas are 90.7 Hz apart on their own, so
+#: shifting that pair would be decoration — and a shift that is not needed is a difference between
+#: the fixture and real audio for no measured reason. The French e02/e03 guests ARE shifted: with
+#: only two voices, a third and fourth person need a shift to be anyone other than Amelie or Thomas.
 #:
 #: Italian and German are the WEAKEST case in the corpus and worth stating plainly: macOS ships
 #: one voice per language, so host and guest are the same synthesis at two pitches, not two
@@ -354,18 +356,37 @@ VOICE_PITCH_SHIFT: dict[tuple[str, str], float] = {
     ("it", "Marco Bellini"): 0.40,
     ("de", "Stefan Brandt"): 0.40,
     ("pt", "Rafael Vasconcelos"): 0.40,
-    # The e02 / e03 guests, 2026-10-03. Each takes its language's ALREADY-MEASURED factor,
-    # because it is the same base voice: the number was chosen for (voice, host, ad-voice)
-    # geometry, and that triple is unchanged by which person is speaking. French stays absent
-    # for the reason stated above — Amelie and Thomas are 90.7 Hz apart unaided.
-    ("es", "Marta Solís"): 0.45,
-    ("es", "Diego Ferrer"): 0.45,
-    ("it", "Chiara Ricci"): 0.40,
-    ("it", "Luca Moretti"): 0.40,
-    ("de", "Lena Hofmann"): 0.40,
-    ("de", "Jonas Richter"): 0.40,
-    ("pt", "Inês Carvalho"): 0.40,
-    ("pt", "Tiago Moreira"): 0.40,
+    # The e02 / e03 guests, 2026-10-06: each person its OWN factor, because two distinct people
+    # never share an acoustic identity (`voice_identity`), not even in different episodes —
+    # the first version reused the e01 guest's factor and broke that rule. Median F0 of the
+    # rendered audio (same autocorrelation proxy, each voice reading its own language), with the
+    # 25th-75th percentile, against the show's host and Zarvox (~89.5 Hz in every language):
+    #
+    #   es  host Monica 170 [154-188]  e01 Paulina@0.45 74 [70-80]
+    #       Marta  Paulina@0.8  131 [123-143]    Diego  Paulina@0.65 107 [101-116]
+    #   it  host Alice  174 [157-195]  e01 Alice@0.4    72 [68-79]
+    #       Chiara Alice@0.8    140 [125-155]    Luca   Alice@0.6    105 [95-117]
+    #   fr  host Amelie 229 [208-239]  e01 Thomas       133 [118-143]
+    #       Élodie Amelie@0.75  170 [155-180]    Mathieu Thomas@0.5  69 [63-73]
+    #   de  host Anna   165 [154-178]  e01 Anna@0.4     68 [64-72]
+    #       Lena   Anna@0.8     132 [124-143]    Jonas  Anna@0.65    107 [101-115]
+    #   pt  host Luciana 191 [178-198] e01 Joana@0.4    69 [65-77]
+    #       Inês   Joana@0.85   144 [136-157]    Tiago  Joana@0.65   110 [103-120]
+    #
+    # Chosen so that every identity in a show has a quartile range clear of every other one's,
+    # sits >= 25 Hz from the host and >= 15 Hz from Zarvox (the smallest margin the corpus already
+    # accepted: Paulina@0.45 at 74 Hz). Female names took the upper slot, male the lower. NOT yet
+    # measured against the real pyannote service.
+    ("es", "Marta Solís"): 0.80,
+    ("es", "Diego Ferrer"): 0.65,
+    ("it", "Chiara Ricci"): 0.80,
+    ("it", "Luca Moretti"): 0.60,
+    ("fr", "Élodie Chevalier"): 0.75,
+    ("fr", "Mathieu Lefèvre"): 0.50,
+    ("de", "Lena Hofmann"): 0.80,
+    ("de", "Jonas Richter"): 0.65,
+    ("pt", "Inês Carvalho"): 0.85,
+    ("pt", "Tiago Moreira"): 0.65,
 }
 
 

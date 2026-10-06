@@ -56,7 +56,7 @@ class TestSpecialCharactersInTitles:
             output_files = [
                 p
                 for p in Path(tmpdir).rglob("*.txt")
-                if not any(d in p.name for d in (".adfree.", ".cleaned."))
+                if not any(d in p.name for d in (".adfree.", ".anon.", ".cleaned."))
             ]
             assert len(output_files) == 1, "Should create one transcript file"
             # Filename should be sanitized (no special chars)
@@ -100,7 +100,7 @@ class TestUnicodeCharacters:
             output_files = [
                 p
                 for p in Path(tmpdir).rglob("*.txt")
-                if not any(d in p.name for d in (".adfree.", ".cleaned."))
+                if not any(d in p.name for d in (".adfree.", ".anon.", ".cleaned."))
             ]
             assert (
                 len(output_files) == expected_episodes
@@ -375,7 +375,7 @@ class TestAllEdgeCasesTogether:
             output_files = [
                 p
                 for p in Path(tmpdir).rglob("*.txt")
-                if not any(d in p.name for d in (".adfree.", ".cleaned."))
+                if not any(d in p.name for d in (".adfree.", ".anon.", ".cleaned."))
             ]
             assert (
                 len(output_files) == expected_episodes

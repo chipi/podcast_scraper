@@ -86,6 +86,18 @@ def surface_to_person():
         "Stefan Brandt": "guest:Stefan Brandt",
         "Beatriz Antunes": "host:Beatriz Antunes",
         "Rafael Vasconcelos": "guest:Rafael Vasconcelos",
+        # The e02/e03 guests, since those ten transcripts became real translations (1538029b4)
+        # with their own people — this list was left at the e01 cast.
+        "Marta Solís": "guest:Marta Solís",
+        "Diego Ferrer": "guest:Diego Ferrer",
+        "Chiara Ricci": "guest:Chiara Ricci",
+        "Luca Moretti": "guest:Luca Moretti",
+        "Élodie Chevalier": "guest:Élodie Chevalier",
+        "Mathieu Lefèvre": "guest:Mathieu Lefèvre",
+        "Lena Hofmann": "guest:Lena Hofmann",
+        "Jonas Richter": "guest:Jonas Richter",
+        "Inês Carvalho": "guest:Inês Carvalho",
+        "Tiago Moreira": "guest:Tiago Moreira",
     }
     mapping.update(extra)
     return mapping

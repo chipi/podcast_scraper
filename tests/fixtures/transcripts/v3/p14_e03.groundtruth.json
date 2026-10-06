@@ -20,10 +20,10 @@
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Tiago Moreira": 0.4
+    "Tiago Moreira": 0.65
   },
   "cameo": null,
   "transcript_sha256": "27f34d3866b2f08b3504c0378d1bc2efa0d40fbe9db392e6064e8a5d4ca9dc49",
-  "audio_sha256": "cd1eb70c54c255e84eceba11d8a40c3235786642ce65a276b24f08a6a79e7347",
-  "rttm_sha256": "841de0769ab1c46ae5b957ba38e631b8864b1d8165606a2f6eabe506baed048f"
+  "audio_sha256": "6af299bbe8ba6e3bd96dbdc9492fcc7a966431b3ae517f70716dd3aad03a4470",
+  "rttm_sha256": "9751c89ef9cf335e38181182bb7ef143c0ab499b4b5f9efb6ca9c280487f5f57"
 }

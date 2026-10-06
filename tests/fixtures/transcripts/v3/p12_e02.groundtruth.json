@@ -16,12 +16,14 @@
   ],
   "voice_map": {
     "Camille Dubois": "Amelie",
-    "Élodie Chevalier": "Thomas",
+    "Élodie Chevalier": "Amelie",
     "Ad": "Zarvox"
   },
-  "voice_pitch_shift": {},
+  "voice_pitch_shift": {
+    "Élodie Chevalier": 0.75
+  },
   "cameo": null,
   "transcript_sha256": "1d58cf5cab901bbfe6f329c2c15a29da2fc5e249f30ec2dfb3bcc0c11e04af22",
-  "audio_sha256": "877d1e02389b57883fdfa34cf3c37507a7bb18f98ac13482094b6abaabf3b39e",
-  "rttm_sha256": "eeb1717ca085b667a0e1c0aadfef0d4c0b0fb119f6766895b59f5b05c7c74eb0"
+  "audio_sha256": "24ab8f9cc01c34717aac2d9e6379bf2fa48811cce1a3f11b366daf7520a491d1",
+  "rttm_sha256": "1995a3b89c46d5a3cb6e478876d07ae3b24f4922a86d2a37c7b97a31d40d1dde"
 }

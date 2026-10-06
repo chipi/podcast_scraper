@@ -312,7 +312,7 @@ class TestFullPipelineWithLargeFiles:
             # written beside it (`<base>.adfree.txt`), so a bare rglob counts two files
             # for one episode and this assertion would measure sidecar behaviour
             # instead of what it is named for.
-            _DERIVED = (".adfree.", ".cleaned.")
+            _DERIVED = (".adfree.", ".anon.", ".cleaned.")
             output_files = [
                 p for p in Path(tmpdir).rglob("*.txt") if not any(d in p.name for d in _DERIVED)
             ]

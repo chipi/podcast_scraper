@@ -19,9 +19,11 @@
     "Mathieu Lefèvre": "Thomas",
     "Ad": "Zarvox"
   },
-  "voice_pitch_shift": {},
+  "voice_pitch_shift": {
+    "Mathieu Lefèvre": 0.5
+  },
   "cameo": null,
   "transcript_sha256": "a47135f7f120027acf9c0a7ab15d62496eca766fc2868c320c71d9da72757939",
-  "audio_sha256": "6704b5508d52bcc7eb691f8445639b7871949858c53c060b45bfb45344da100d",
-  "rttm_sha256": "7f2a76af9d231f73e3ed60c6fbf0d3c291d928e098fb383ad91e5776c76809c0"
+  "audio_sha256": "6eb7afded54abdf41e438e29c0f1db1b105378653a6df716075ac2fc77443c4a",
+  "rttm_sha256": "1db02a33f8819a955997e6fe5ce1e20d2a0e93cac1e40f023f5d9e26e8587ae6"
 }

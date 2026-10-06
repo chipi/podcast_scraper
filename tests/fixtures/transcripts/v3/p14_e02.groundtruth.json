@@ -20,10 +20,10 @@
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Inês Carvalho": 0.4
+    "Inês Carvalho": 0.85
   },
   "cameo": null,
   "transcript_sha256": "5cc96ff26e24811a3ef560a79acb5ef4e7021862218185412677afbb1ed7e1f2",
-  "audio_sha256": "22ee3545922bcf8742d385f18b6c73ebeffbc6b43056257915bddbd91de1bac5",
-  "rttm_sha256": "4e5ae836de06ffe5977ea9fed3febfeccc9c3120055de796e17f7879dfe74212"
+  "audio_sha256": "e7b07da5d42fad002295c603f8e5217768113009b85851f55893e960a9384b4f",
+  "rttm_sha256": "258e40107789d4d2273359bbb3117abff5d7815eeee7850f262c9547e79ad4cb"
 }

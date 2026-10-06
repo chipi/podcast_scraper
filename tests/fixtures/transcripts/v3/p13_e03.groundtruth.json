@@ -20,10 +20,10 @@
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Jonas Richter": 0.4
+    "Jonas Richter": 0.65
   },
   "cameo": null,
   "transcript_sha256": "14945f097ff64d85bce0b538084ed5f1b32b4e894c4ab1fba4ea5e092bf9ce64",
-  "audio_sha256": "1e3523ce515b0f261fcdc1194fd3bbbee82d49d3479ed0872577b780f5e6bbad",
-  "rttm_sha256": "bc0854de2e4effaa8cc70824422f766d5ab7fc4e9bc5c4144b9efd6f63ff3f0b"
+  "audio_sha256": "632333ea389223d5f8700f9d5fefed0b58b4561aaa80e8589e0a5a72f88db9f7",
+  "rttm_sha256": "369dbf5286961283deadc1c2577530a274986d0646beffbfb7cc02d4864a20f4"
 }

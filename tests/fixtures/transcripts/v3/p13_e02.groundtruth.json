@@ -20,10 +20,10 @@
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Lena Hofmann": 0.4
+    "Lena Hofmann": 0.8
   },
   "cameo": null,
   "transcript_sha256": "301885c881a34cafea69a8319744e98a3a010399aec4886f4bf910a4864d89d0",
-  "audio_sha256": "08a04bf89fcebb211c74bf13e189338137c799ee1dd84c9aaa3bf26fbe540073",
-  "rttm_sha256": "c7fcd35385e8fdedcf072d9b4f97b87ad82cbb3edfbfd715fa671edbbb665d1c"
+  "audio_sha256": "af79305ff6641be199877607722c9466e35f1e57c46df6db55c3078b4a3cb6e3",
+  "rttm_sha256": "a0055359a640028bf79a1eec75a09e22beb8a9237386ebc6275157bb8e46b407"
 }
