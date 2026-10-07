@@ -659,8 +659,8 @@ export interface KeyVoicesResponse {
 
 /** GET /api/health (subset the client cares about). */
 export interface HealthInfo {
-  /** Backend package version — NOT comparable to the client app version. */
-  code_version: string
+  /** Backend package version — NOT comparable to the client app version. Not on `/auth/status`. */
+  code_version?: string
   /** Released player-app version (same scale as `__APP_VERSION__`); null when the deploy is unset. */
   player_version: string | null
   /** False when the server cannot authenticate anyone (lost signing secret / user store). */

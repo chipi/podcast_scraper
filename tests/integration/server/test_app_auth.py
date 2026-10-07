@@ -250,7 +250,12 @@ def test_auth_status_enabled_anonymous(tmp_path: Path) -> None:
     client = TestClient(_app(tmp_path))
     resp = client.get("/api/app/auth/status")
     assert resp.status_code == 200
-    assert resp.json() == {"enabled": True, "user": None, "providers": ["stub"]}
+    body = resp.json()
+    assert {k: body[k] for k in ("enabled", "user", "providers")} == {
+        "enabled": True,
+        "user": None,
+        "providers": ["stub"],
+    }
 
 
 def test_auth_status_enabled_with_signed_in_user(tmp_path: Path) -> None:
@@ -272,10 +277,25 @@ def test_auth_status_lists_every_configured_provider(tmp_path: Path) -> None:
     assert body["providers"] == ["google", "apple"]
 
 
+def test_auth_status_carries_the_player_health_facts(tmp_path: Path) -> None:
+    # /api/health never reaches a signed-out phone in production, so the update prompt and the
+    # sign-out guard read these here — and they must be the SAME values /api/health reports.
+    app = _app(tmp_path)
+    app.state.player_version = "1.0.1"
+    client = TestClient(app)
+    status = client.get("/api/app/auth/status").json()
+    health = client.get("/api/health").json()
+    assert status["player_version"] == "1.0.1"
+    for key in ("auth_ready", "auth_epoch", "player_version"):
+        assert status[key] == health[key], key
+    assert status["auth_ready"] is True and status["auth_epoch"]
+
+
 def test_auth_status_disabled_when_unconfigured(tmp_path: Path) -> None:
     # No provider + no secret → auth is NOT enabled → the viewer renders open (never 401s here).
     client = TestClient(_app(tmp_path, with_provider=False, secret=""))
-    assert client.get("/api/app/auth/status").json() == {
+    body = client.get("/api/app/auth/status").json()
+    assert {k: body[k] for k in ("enabled", "user", "providers")} == {
         "enabled": False,
         "user": None,
         "providers": [],

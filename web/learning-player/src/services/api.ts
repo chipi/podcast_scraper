@@ -1722,19 +1722,34 @@ export async function getKeyVoices(limit = 8): Promise<KeyVoicesResponse> {
 
 // --- Health / version (wave-I.6 update check) ---
 
-/** `/api/health` lives at the API root, not under the `/api/app` consumer BASE. */
-const API_ROOT = BASE.replace(/\/app$/, "")
-
 /**
- * Fetch the server health/version. Returns null on any failure — the update check is best-effort
- * and must never throw into a boot path. `player_version` is the released player-app version (same
- * scale as the baked `__APP_VERSION__`); null when the deploy hasn't set it.
+ * The server's health facts the player acts on. Returns null on any failure — the update check and
+ * the sign-out guard are best-effort and must never throw into a boot path. `player_version` is the
+ * released player-app version (same scale as the baked `__APP_VERSION__`); null when unset.
+ *
+ * Read from `/auth/status`, not `/api/health`: in production the public edge answers `/api/health`
+ * with the coming-soon page and the player nginx never proxies it, so a phone parsed HTML, got null,
+ * and the update prompt never fired while the "is the server unwell?" guard ran blind. The server
+ * computes these fields once and serves them on both routes (`player_client_health`).
  */
 export async function getHealth(): Promise<HealthInfo | null> {
   try {
-    const resp = await apiFetch(`${API_ROOT}/health`, { credentials: "include" })
+    const resp = await apiFetch(`${BASE}/auth/status`, { credentials: "include" })
     if (!resp.ok) return null
-    return (await resp.json()) as HealthInfo
+    const body = (await resp.json()) as {
+      providers?: unknown
+      player_version?: string | null
+      auth_ready?: boolean
+      auth_epoch?: string | null
+    }
+    return {
+      player_version: body.player_version ?? null,
+      auth_ready: body.auth_ready,
+      auth_epoch: body.auth_epoch ?? null,
+      auth_providers: Array.isArray(body.providers)
+        ? body.providers.filter((p): p is string => typeof p === "string")
+        : [],
+    }
   } catch {
     return null
   }

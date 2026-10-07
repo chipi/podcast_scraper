@@ -32,6 +32,7 @@ from podcast_scraper.server import (
 from podcast_scraper.server.app_audit import audit_event
 from podcast_scraper.server.app_oauth import OAuthError, OAuthProvider
 from podcast_scraper.server.app_user_store import get_or_create_user, get_user, set_role, User
+from podcast_scraper.server.routes.health import player_client_health
 
 logger = logging.getLogger(__name__)
 
@@ -595,10 +596,14 @@ def app_auth_status(request: Request) -> dict[str, object]:
     # never proxies — so the Apple button could not appear in production whatever was configured.
     # This route is public at the edge and proxied, which is where a signed-out client can ask.
     providers = list(_providers(request)) if enabled else []
+    # The player's health facts ride along for the same reason the providers do: /api/health is
+    # unreachable from a signed-out client in production, which left the native update prompt and
+    # the sign-out guard's "is the server unwell?" check reading null (#2275 follow-up).
     return {
         "enabled": enabled,
         "user": _user_dict(user) if user is not None else None,
         "providers": providers,
+        **player_client_health(request.app.state),
     }
 
 

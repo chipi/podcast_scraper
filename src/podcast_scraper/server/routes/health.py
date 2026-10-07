@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
@@ -42,6 +43,30 @@ def _probe_enriched_search_available(corpus_dir: Path | None) -> bool:
         return candidate.is_file()
     except OSError:
         return False
+
+
+def player_client_health(st: Any) -> dict[str, Any]:
+    """The health facts the PLAYER app acts on — and nothing else.
+
+    Served by ``/api/health`` and, because the public edge never lets a signed-out client reach that
+    route (it answers the coming-soon page; the player nginx does not proxy it), ALSO by
+    ``/api/app/auth/status``, which is public. One computation, two routes, so they cannot drift:
+
+    * ``auth_ready`` — readiness, not just liveness (incident 2026-09-16): platform auth needs BOTH
+      a signing secret and a user store. Scoped to deployments that actually authenticate (an OAuth
+      provider is configured); tailnet / operator modes run without auth on purpose.
+    * ``auth_epoch`` — non-secret fingerprint of the session key (see :func:`_auth_epoch`).
+    * ``player_version`` — the released app version, for the native update prompt.
+    """
+    auth_configured = getattr(st, "oauth_provider", None) is not None
+    auth_ready = not auth_configured or (
+        bool(getattr(st, "session_secret", "")) and getattr(st, "app_data_dir", None) is not None
+    )
+    return {
+        "auth_ready": auth_ready,
+        "auth_epoch": _auth_epoch(getattr(st, "session_secret", "")),
+        "player_version": getattr(st, "player_version", None),
+    }
 
 
 def _auth_epoch(secret: str) -> str | None:
@@ -119,18 +144,16 @@ async def health(
     # tailnet / operator modes deliberately run with no auth at all; reporting them "degraded"
     # would be crying wolf about a configuration that is working as intended.
     # `app_data_dir` is the same state `app_auth._data_dir` resolves against.
-    auth_configured = getattr(st, "oauth_provider", None) is not None
-    auth_ready = not auth_configured or (
-        bool(getattr(st, "session_secret", "")) and getattr(st, "app_data_dir", None) is not None
-    )
+    client = player_client_health(st)
+    auth_ready = client["auth_ready"]
     return HealthResponse().model_copy(
         update={
             "status": "ok" if auth_ready else "degraded",
             "auth_ready": auth_ready,
             "auth_providers": list((getattr(st, "oauth_providers", None) or {}).keys()),
-            "auth_epoch": _auth_epoch(getattr(st, "session_secret", "")),
+            "auth_epoch": client["auth_epoch"],
             "code_version": __version__,
-            "player_version": getattr(st, "player_version", None),
+            "player_version": client["player_version"],
             "min_supported_corpus_code_version": MIN_SUPPORTED_CORPUS_CODE_VERSION,
             "corpus_produced_by": corpus_produced_by,
             "corpus_code_version": corpus_ver,
