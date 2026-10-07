@@ -304,7 +304,7 @@ to the platform's remote MCP server and search/read the shared corpus **as them*
 LLM (D6). Two auth paths: **OAuth 2.1 + PKCE** (per-user connectors like claude.ai) and **personal-access
 tokens** (CLI clients). Everything here is gated by the **`mcp_access`** entitlement (an orthogonal
 boolean grant; **403** without it) on top of the session. The remote MCP server itself is a **separate
-service on its own vhost** (`mcp.<domain>/mcp`) — see `docs/guides/PLAYER_PUBLIC_LAUNCH.md` §MCP.
+service on its own vhost** (`mcp.<domain>/mcp`) — see the operator's player launch runbook §MCP (not in this repository).
 
 **Token management + connector config** (`mcp_access`-gated):
 

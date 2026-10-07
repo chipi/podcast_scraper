@@ -3,8 +3,8 @@
 Architecture (RFC-089 / ADR-096 / #814):
 
 - Whisper service on DGX: faster-whisper-server (#814), OpenAI-compatible,
-  listening on ``:8000``. Installed by ``infra/dgx/converge/deploy.py`` via
-  pyinfra. Speaks ``POST /v1/audio/transcriptions`` with multipart audio.
+  listening on ``:8000``. Installed by the operator's pyinfra converge (not in this
+  repository). Speaks ``POST /v1/audio/transcriptions`` with multipart audio.
 - Fallback: owned by the stage factory's ``FallbackChainTranscriptionProvider``
   (RFC-106 / #1198), not by this provider. This tier tries DGX and RAISES on
   failure; the chain advances to the next tier (DGX-whisper -> cloud). ADR-096's

@@ -1,7 +1,7 @@
 # VPS-prod-only overlay (RFC-082 + #713).
 #
 # Layered ON TOP of docker-compose.stack.yml + docker-compose.prod.yml when
-# the stack runs on the always-on Hetzner VPS. Used by infra/deploy/deploy.sh
+# the stack runs on the always-on Hetzner VPS. Used by the operator deploy script (not in this repository)
 # and the systemd unit in infra/cloud-init/prod.user-data; NOT used by
 # Codespaces (pre-prod), which sticks with stack + prod only and keeps the
 # auth-free default nginx config.

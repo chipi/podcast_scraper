@@ -74,7 +74,7 @@ Survey baseline: `src/podcast_scraper/server/routes/` and pipeline writers under
 | **Dashboard** | `/api/corpus/stats`, `/api/corpus/runs/summary`, `/api/index/stats` | `/api/corpus/coverage`, `/api/corpus/topic-clusters`, `/api/jobs` (Pipeline sub-tab) |
 | **Configuration** (status bar) | `/api/feeds`, `/api/operator-config`, `/api/health` | `/api/jobs`, `/api/scheduled-jobs` |
 
-Post-deploy smoke (`scripts/ops/post_deploy_smoke.sh`) hits the **primary** route for Library, Digest, Graph-relevant corpus reads, and Search, plus `/api/health`.
+Post-deploy smoke (`scripts/ops/post_deploy_smoke.sh`, operator tooling not in this repository) hits the **primary** route for Library, Digest, Graph-relevant corpus reads, and Search, plus `/api/health`.
 
 ---
 

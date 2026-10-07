@@ -10,6 +10,10 @@ section [Stack contract vs environment adapters](../rfc/RFC-082-always-on-pre-pr
 **Corpus backup/restore mechanics (manifest, Make vs Actions):**
 CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md.
 
+**Scope:** the compose files and `stack-test` are in this repository. The deploy, drill and
+restore workflows and scripts this page names, and the runbooks it points to, are operator
+tooling and are **not in this repository**; the page records the contract they follow.
+
 ---
 
 ## Steady-state playbook (routine)
@@ -65,7 +69,7 @@ Do not document these as steps in daily prod bring-up.
 | --- | --- |
 | PROD_RUNBOOK.md | Prod operator commands |
 | DR_DRILL_RUNBOOK.md | Drill workflows and confirms |
-| [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md) | OpenTofu + deploy script layout |
+| `infra/README.md` (not in this repository) | OpenTofu + deploy script layout |
 | WORKFLOWS.md | CI workflow index |
 | [`compose/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/compose/README.md) | Compose file purposes |
 | CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md | Manifest, tag selection, Make vs Actions restore |

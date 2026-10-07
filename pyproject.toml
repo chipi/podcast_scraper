@@ -72,7 +72,7 @@ dependencies = [
   "jsonschema>=4.26.0,<5.0.0",
   # NOTE: no 3rd-party observability SaaS SDKs here — Sentry/Langfuse are fully
   # optional opt-in extras ([sentry] / [langfuse]); the core no-ops without them.
-  # See the [project.optional-dependencies] header + docs/guides/OBSERVABILITY_EXTENSIONS.md.
+  # See the [project.optional-dependencies] header (the extensions guide is operator documentation, not in this repository).
 ]
 
 [project.optional-dependencies]
@@ -110,7 +110,7 @@ observability = [
 #     config-gated no-op (active only when its secret is present) AND degrades to a no-op
 #     when the SDK isn't installed. Install only what you use; compose them into the prod
 #     images you deploy (docker/{api,pipeline}); [dev] pulls all of them so tests/CI
-#     exercise them. Adding a new one → docs/guides/OBSERVABILITY_EXTENSIONS.md.
+#     exercise them. Adding a new one → the operator's observability extensions guide.
 sentry = [
   # Error reporting for the api (FastAPI) + pipeline (cli) via
   # podcast_scraper.utils.sentry_init.init_sentry(); no-op without PODCAST_SENTRY_DSN_*.
@@ -126,7 +126,7 @@ otel = [
   # backend). `opentelemetry-instrument` auto-wraps the process and
   # `opentelemetry-bootstrap -a install` (run in the Dockerfile) adds per-library
   # instrumentations. No-op unless OTEL_TRACES_EXPORTER=otlp + an OTLP endpoint are
-  # set — safe to bake into the image. See docs/guides/OBSERVABILITY_ARCHITECTURE.md.
+  # set — safe to bake into the image.
   "opentelemetry-distro>=0.65b0",
   "opentelemetry-exporter-otlp-proto-http>=1.44.0",
 ]
