@@ -14,8 +14,10 @@
  *
  * Renders nothing at all when there is no recording yet — an empty recap is worse than no recap.
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onActivated, onMounted, ref, watch } from 'vue'
 import { track } from '../services/analytics'
+import { identityChangedSince, identityEpoch } from '../services/identity'
+import { useAuthStore } from '../stores/auth'
 import { useI18n } from 'vue-i18n'
 import PlayFrom from './PlayFrom.vue'
 import { getRecap } from '../services/api'
@@ -44,8 +46,12 @@ const loading = ref(true)
 const failed = ref(false)
 async function load(): Promise<void> {
   loading.value = true
+  const generation = identityEpoch()
   try {
-    recap.value = await getRecap(window_.value)
+    const next = await getRecap(window_.value)
+    // A recap that resolves after an account switch belongs to the previous account.
+    if (identityChangedSince(generation)) return
+    recap.value = next
     failed.value = false
   } catch {
     failed.value = !recap.value
@@ -54,6 +60,22 @@ async function load(): Promise<void> {
   }
 }
 onMounted(load)
+// Profile is kept alive, so mount happens once per app session. Without these two, the recap of
+// whoever was signed in first stayed on screen for every account after them (operator 2026-10-07:
+// a brand-new Apple account showed the Google account's half hour, six episodes and saved line),
+// and a returning listener saw the recap as it was when Profile first opened.
+onActivated(load)
+const auth = useAuthStore()
+watch(
+  () => auth.user?.user_id ?? null,
+  (uid, previous) => {
+    if (uid === previous) return
+    recap.value = null
+    failed.value = false
+    reportedRecap.value = false
+    if (uid) void load()
+  },
+)
 watch(window_, load)
 
 /**

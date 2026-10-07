@@ -8,6 +8,7 @@ import * as api from '../services/api'
 import type { RecapResponse } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import RecapPrompt from './RecapPrompt.vue'
+import { bumpIdentityEpoch } from '../services/identity'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
@@ -50,6 +51,20 @@ beforeEach(() => setActivePinia(createPinia()))
 afterEach(() => vi.restoreAllMocks())
 
 describe('RecapPrompt', () => {
+  it("drops the previous account's week on an account switch (operator 2026-10-07)", async () => {
+    signIn()
+    const spy = vi.spyOn(api, 'getRecap').mockResolvedValue(recap())
+    const w = mountPrompt()
+    await flushPromises()
+    expect(w.text()).toContain('2.4h')
+    spy.mockResolvedValue(recap({ listening_seconds: 0 }))
+    bumpIdentityEpoch()
+    useAuthStore().user = { user_id: 'u2', email: 'b@b.c', name: 'B' }
+    await flushPromises()
+    expect(spy).toHaveBeenCalledTimes(2)
+    expect(w.text()).not.toContain('2.4h')
+  })
+
   it('says the least it can and points at Profile', async () => {
     // Profile is the permanent home for the recap; this is the reminder that it exists.
     signIn()

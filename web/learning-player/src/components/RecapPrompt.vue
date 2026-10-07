@@ -14,10 +14,11 @@
  * contract YourWeek has directly above it. A row that says "0h, 0 episodes" is worse than no row:
  * it takes space to tell you nothing happened, which you already knew.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onActivated, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { getRecap } from '../services/api'
+import { identityChangedSince, identityEpoch } from '../services/identity'
 import type { RecapResponse } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import { trendLabel } from '../utils/recapTrend'
@@ -26,10 +27,24 @@ const { t } = useI18n()
 const auth = useAuthStore()
 const recap = ref<RecapResponse | null>(null)
 
-onMounted(async () => {
+async function load(): Promise<void> {
   if (!auth.isAuthenticated) return
-  recap.value = await getRecap('week')
-})
+  const generation = identityEpoch()
+  const next = await getRecap('week')
+  if (!identityChangedSince(generation)) recap.value = next
+}
+onMounted(load)
+// Home is kept alive: without these the first account's week stayed on Home for every account
+// signed in after it on the same device (operator 2026-10-07), and never refreshed on return.
+onActivated(load)
+watch(
+  () => auth.user?.user_id ?? null,
+  (uid, previous) => {
+    if (uid === previous) return
+    recap.value = null
+    if (uid) void load()
+  },
+)
 
 const hours = computed(() => (recap.value?.listening_seconds ?? 0) / 3600)
 const hoursLabel = computed(() =>

@@ -731,9 +731,16 @@ const mainBottomPadding = computed(() =>
     >
       <!-- Keep the bottom-nav tabs alive so returning to Home/Search/etc. does NOT factory-refresh
            (re-run onMounted + re-fetch). Detail views (player/podcast/topic/person) are NOT included,
-           so each still mounts fresh. Volatile sections refresh via onActivated in their view. -->
+           so each still mounts fresh. Volatile sections refresh via onActivated in their view.
+
+           KEYED BY ACCOUNT (operator 2026-10-07). A kept-alive tab mounts once per app session, so
+           anything it fetched in setup belonged to whoever was signed in at the time: a brand-new
+           Apple account opened Profile and saw the previous Google account's recap — half an hour,
+           six episodes, its saved line. Resetting the stores (the watcher above) cannot reach state
+           a component holds itself. A new key discards the whole cache, so every tab mounts fresh
+           for the new account. -->
       <RouterView v-slot="{ Component }">
-        <keep-alive :include="KEEP_ALIVE_TABS">
+        <keep-alive :key="auth.user?.user_id ?? ANON_NAMESPACE" :include="KEEP_ALIVE_TABS">
           <component :is="Component" />
         </keep-alive>
       </RouterView>

@@ -7,6 +7,9 @@ import en from '../i18n/locales/en.json'
 import * as api from '../services/api'
 import type { RecapResponse } from '../services/types'
 import ListeningRecap from './ListeningRecap.vue'
+import { useAuthStore } from '../stores/auth'
+import { bumpIdentityEpoch } from '../services/identity'
+import type { Me } from '../services/types'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
@@ -56,6 +59,41 @@ beforeEach(() => setActivePinia(createPinia()))
 afterEach(() => vi.restoreAllMocks())
 
 describe('ListeningRecap', () => {
+  it("never shows the previous account's recap after an account switch (operator 2026-10-07)", async () => {
+    // A brand-new Apple account showed the Google account's half hour, six episodes and saved line:
+    // Profile is kept alive, the recap loaded once on mount and nothing reloaded it.
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u_a', email: 'a@x.com', name: 'A' } as unknown as Me
+    const spy = vi.spyOn(api, 'getRecap').mockResolvedValue(recap())
+    const w = mountRecap()
+    await flushPromises()
+    expect(w.text()).toContain('2.4h')
+
+    spy.mockResolvedValue(recap({ listening_seconds: 0, days_recorded: 0, episodes_started: 0 }))
+    bumpIdentityEpoch() // what App.vue does on every identity change
+    auth.user = { user_id: 'u_b', email: 'b@x.com', name: 'B' } as unknown as Me
+    await flushPromises()
+    expect(spy).toHaveBeenCalledTimes(2)
+    expect(w.text()).not.toContain('2.4h')
+  })
+
+  it("drops a recap that resolves after the account changed", async () => {
+    const auth = useAuthStore()
+    auth.user = { user_id: 'u_a', email: 'a@x.com', name: 'A' } as unknown as Me
+    let resolveA: (r: RecapResponse) => void = () => {}
+    const spy = vi.spyOn(api, 'getRecap').mockImplementationOnce(
+      () => new Promise<RecapResponse>((res) => { resolveA = res }),
+    )
+    spy.mockResolvedValue(recap({ listening_seconds: 0, days_recorded: 0, episodes_started: 0 }))
+    const w = mountRecap()
+    bumpIdentityEpoch()
+    auth.user = { user_id: 'u_b', email: 'b@x.com', name: 'B' } as unknown as Me
+    await flushPromises()
+    resolveA(recap()) // A's late answer
+    await flushPromises()
+    expect(w.text()).not.toContain('2.4h')
+  })
+
   it('shows time actually listened, not a lifetime position sum', async () => {
     vi.spyOn(api, 'getRecap').mockResolvedValue(recap())
     const w = mountRecap()
