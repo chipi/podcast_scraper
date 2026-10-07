@@ -75,7 +75,7 @@ class TestTheProviderReturnsBothHalves:
 
         with (
             patch(
-                "podcast_scraper.providers.tailnet_dgx.whisper_provider.check_faster_whisper_health",
+                f"{wp.__name__}.check_faster_whisper_health",
                 return_value=True,
             ),
             patch.object(TailnetDgxWhisperTranscriptionProvider, "_transcribe_dgx", fake_call),
@@ -155,3 +155,45 @@ class TestTheArtifacts:
         episode_processor._write_processing_manifest(result, _cfg(), job, rel, d)
         data = json.load(open(pm.manifest_path(d, rel)))
         assert "asr_language_mismatch" not in data.get("quality_flags", [])
+
+
+class TestUntranscribedSpeechIsRecorded:
+    """The diarization pipeline's `asr_untranscribed_speech` reaches asr.json and the manifest."""
+
+    GAP = [{"start": 166.739, "end": 185.791, "duration_s": 19.052, "speaker": "SPEAKER_00"}]
+
+    def _setup(self):
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "transcripts"))
+        open(os.path.join(d, "transcripts", "0006 - X.txt"), "w").close()
+        return d, "transcripts/0006 - X.txt"
+
+    def test_asr_json_lists_the_gaps(self) -> None:
+        d, rel = self._setup()
+        result = {"speech_audio_ratio": 0.93, "asr_untranscribed_speech": self.GAP}
+        episode_processor._save_asr_provenance_file(result, _cfg(), rel, d)
+        rec = json.load(open(os.path.join(d, "transcripts", "0006 - X.asr.json")))
+        assert rec["untranscribed_speech"] == self.GAP
+
+    def test_the_manifest_flags_and_counts_them(self) -> None:
+        from podcast_scraper.models.entities import TranscriptionJob
+
+        d, rel = self._setup()
+        job = TranscriptionJob(idx=6, ep_title="X", ep_title_safe="X", temp_media="", episode=None)
+        result = {"speech_audio_ratio": 0.93, "asr_untranscribed_speech": self.GAP}
+        episode_processor._write_processing_manifest(result, _cfg(), job, rel, d)
+        data = json.load(open(pm.manifest_path(d, rel)))
+        assert "asr_untranscribed_speech" in data["quality_flags"]
+        assert data["stages"]["asr"]["metrics"]["untranscribed_speech_count"] == 1
+        assert data["stages"]["asr"]["metrics"]["untranscribed_speech_s"] == 19.052
+
+    def test_no_gaps_is_recorded_as_zero_not_flagged(self) -> None:
+        from podcast_scraper.models.entities import TranscriptionJob
+
+        d, rel = self._setup()
+        job = TranscriptionJob(idx=6, ep_title="X", ep_title_safe="X", temp_media="", episode=None)
+        result = {"speech_audio_ratio": 0.93, "asr_untranscribed_speech": []}
+        episode_processor._write_processing_manifest(result, _cfg(), job, rel, d)
+        data = json.load(open(pm.manifest_path(d, rel)))
+        assert "asr_untranscribed_speech" not in data.get("quality_flags", [])
+        assert data["stages"]["asr"]["metrics"]["untranscribed_speech_count"] == 0

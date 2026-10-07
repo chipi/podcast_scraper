@@ -910,6 +910,10 @@ def _save_asr_provenance_file(
     if punct:
         # #2284: was the transcript unpunctuated, and was a prompted retry made / did it help.
         provenance["punctuation"] = punct
+    untranscribed = result.get("asr_untranscribed_speech")
+    if untranscribed is not None:
+        # #2187: diarized speech with no transcript under it — present only when diarization ran.
+        provenance["untranscribed_speech"] = untranscribed
     full_path = os.path.join(effective_output_dir, rel_transcript_path)
     base, _ = os.path.splitext(full_path)
     asr_path = base + ".asr.json"
@@ -985,6 +989,10 @@ def _write_processing_manifest(
         if _language["mismatch"]:
             # #2187 hazard 3: the service says the audio is not the language we asked for.
             asr_flags.append("asr_language_mismatch")
+        _untranscribed = result.get("asr_untranscribed_speech")
+        if _untranscribed:
+            # #2187: the diarizer heard speech the transcript has no words for.
+            asr_flags.append("asr_untranscribed_speech")
         # Total ASR cost = primary call + any failover re-transcription (both 0 for local models;
         # a cloud ASR that failed over billed twice — RFC-109).
         _primary_cost = getattr(asr_call_metrics, "estimated_cost", None)
@@ -1011,6 +1019,14 @@ def _write_processing_manifest(
                 "speech_audio_ratio": sar,
                 "language_requested": _language["requested"],
                 "language_reported": _language["reported"],
+                "untranscribed_speech_count": (
+                    len(_untranscribed) if _untranscribed is not None else None
+                ),
+                "untranscribed_speech_s": (
+                    round(sum(g["duration_s"] for g in _untranscribed), 3)
+                    if _untranscribed is not None
+                    else None
+                ),
             },
             failover=failover or None,
         )
@@ -3952,8 +3968,6 @@ def _maybe_speech_coverage_failover(
     """
     min_cov = float(getattr(cfg, "transcription_speech_coverage_min", 0.0) or 0.0)
     fo_model = getattr(cfg, "transcription_coverage_failover_model", None)
-    if min_cov <= 0 or not fo_model:
-        return result
     speech = float(result.get("diarization_speech_seconds") or 0.0)
     if speech <= 0:
         return result  # no speech denominator — defer to the raw-coverage gate
@@ -3963,9 +3977,15 @@ def _maybe_speech_coverage_failover(
         merged_speech_seconds,
     )
 
+    # The METRIC is recorded whether or not the gate is armed (#2187). It used to be computed
+    # only past the gate's early return, so a profile that turns the gate off (prod_dgx_full:
+    # ASR must stay constant) recorded `speech_coverage: null` while its registry comment said
+    # the metric was still recorded.
     covered = merged_speech_seconds(result.get("segments") or [])
     speech_cov = min(1.0, covered / speech)
     result["asr_speech_coverage"] = round(speech_cov, 3)
+    if min_cov <= 0 or not fo_model:
+        return result
     primary_model = getattr(cfg, "dgx_whisper_model", None)
     if speech_cov >= min_cov:
         # Observable pass (ADR-131): log every evaluation so a run shows the gate ran + its

@@ -110,6 +110,70 @@ def merged_speech_seconds(segments: Sequence[Any]) -> float:
     return total
 
 
+#: The shortest stretch of diarized speech with no ASR segment that counts as UNTRANSCRIBED.
+#: Below it are the ordinary seams between a speaker turn and Whisper's segment edges (0.5 s on
+#: the V.6b Spanish run, three of them); above it is speech the transcript is missing (19.1 s on the
+#: same run: a whole ad read Whisper skipped in long-form decoding). Tune on real data, not on
+#: fixtures — measured only on V.6b so far.
+UNTRANSCRIBED_SPEECH_MIN_S = 3.0
+
+
+def untranscribed_speech(
+    diarization_segments: Sequence[Any],
+    asr_segments: Sequence[Any],
+    min_gap_s: float = UNTRANSCRIBED_SPEECH_MIN_S,
+) -> List[Dict[str, Any]]:
+    """Stretches of diarized SPEECH that no ASR segment covers, each at least ``min_gap_s`` long.
+
+    The diarizer and the ASR model listen to the same audio independently, so a speaker turn with
+    no transcript under it is a transcription gap rather than silence: on the V.6b Spanish run the
+    diarizer found a third voice talking for 19.1 s and Whisper returned no words for it at all —
+    the ad read was skipped in long-form decoding, while the same clip transcribed on its own.
+    Detection only: nothing here changes the transcript.
+
+    Returns ``[{"start", "end", "duration_s", "speaker"}]`` in time order. Provider-agnostic: any
+    segment with ``start``/``end`` (attrs or keys); ``speaker`` from the diarization turn.
+    """
+
+    def _bounds(s: Any) -> Optional[Tuple[float, float]]:
+        try:
+            if isinstance(s, dict):
+                return float(s["start"]), float(s["end"])
+            return float(s.start), float(s.end)
+        except (AttributeError, KeyError, TypeError, ValueError):
+            return None
+
+    def _speaker(s: Any) -> Optional[str]:
+        value = s.get("speaker") if isinstance(s, dict) else getattr(s, "speaker", None)
+        return None if value is None else str(value)
+
+    covered = sorted(b for b in (_bounds(s) for s in asr_segments) if b is not None and b[1] > b[0])
+    gaps: List[Tuple[float, float, Optional[str]]] = []
+    for turn in diarization_segments:
+        bounds = _bounds(turn)
+        if bounds is None or bounds[1] <= bounds[0]:
+            continue
+        start, end = bounds
+        cursor = start
+        for c_start, c_end in covered:
+            if c_end <= cursor:
+                continue
+            if c_start >= end:
+                break
+            if c_start > cursor:
+                gaps.append((cursor, min(c_start, end), _speaker(turn)))
+            cursor = max(cursor, c_end)
+            if cursor >= end:
+                break
+        if cursor < end:
+            gaps.append((cursor, end, _speaker(turn)))
+    return [
+        {"start": round(a, 3), "end": round(b, 3), "duration_s": round(b - a, 3), "speaker": spk}
+        for a, b, spk in sorted(gaps, key=lambda g: g[0])
+        if b - a >= min_gap_s
+    ]
+
+
 def _segment_end(s: Any) -> Optional[float]:
     try:
         return float(s["end"]) if isinstance(s, dict) else float(s.end)
@@ -889,6 +953,10 @@ def apply_diarization_to_result(
     # the speech-normalized coverage gate. Provider-agnostic (any DiarizationResult). Non-speech
     # (music/ads/silence) has no speaker turn, so it is excluded here, unlike raw audio duration.
     enriched_result["diarization_speech_seconds"] = merged_speech_seconds(diarization.segments)
+    # #2187: speech the diarizer heard and the ASR transcript has no segment for (detection only).
+    enriched_result["asr_untranscribed_speech"] = untranscribed_speech(
+        diarization.segments, list(result.get("segments") or [])
+    )
     # RFC-109 / ADR-132: per-episode diarization cost. Cloud diarizers (Deepgram/Gemini) bill per
     # audio-minute; local diarizers (pyannote/DGX/MOSS) have no pricing entry -> None. Bill on the
     # widest end across the ASR transcript + diarization turns (closest in-memory audio proxy).
