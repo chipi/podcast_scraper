@@ -17,13 +17,11 @@
  * Idempotent: the workdir is wiped and re-seeded each time.
  */
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs"
-import { dirname, join, resolve } from "node:path"
-import { fileURLToPath } from "node:url"
+import { join } from "node:path"
 
-const here = dirname(fileURLToPath(import.meta.url))
-const appRoot = resolve(here, "..")
-const repoRoot = resolve(appRoot, "..", "..")
-const source = join(repoRoot, "tests", "fixtures", "app-validation-corpus", "v3")
+import { appRoot, platformRoot } from "../platform-root.mjs"
+
+const source = join(platformRoot(), "tests", "fixtures", "app-validation-corpus", "v3")
 const workdir = process.env.APP_E2E_CORPUS_WORKDIR || join(appRoot, ".e2e-corpus")
 const corpus = join(workdir, "v3")
 
