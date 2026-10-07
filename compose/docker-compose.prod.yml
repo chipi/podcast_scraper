@@ -1,17 +1,16 @@
-# Pre-prod overlay on top of compose/docker-compose.stack.yml — used by
-# Codespaces (RFC-081 Phase 1) and any future always-on host (Phase 2,
-# separate RFC).
+# Always-on host overlay on top of compose/docker-compose.stack.yml (RFC-082). The VPS
+# adds compose/docker-compose.vps-prod.yml on top of this.
 #
 # Use on top of docker-compose.stack.yml, e.g.:
 #   docker compose -f compose/docker-compose.stack.yml -f compose/docker-compose.prod.yml up -d
 #
 # What this overlay does:
 #
-#   * Adds ``restart: unless-stopped`` so the api + viewer survive Codespace
-#     suspend / wake cycles.
+#   * Adds ``restart: unless-stopped`` so the api + viewer survive host
+#     restarts.
 #   * Swaps ``image:`` refs from local-tag (``podcast-scraper-stack-*:latest``)
 #     to GHCR-published refs (``ghcr.io/chipi/podcast-scraper-stack-*:main``).
-#     Codespaces / VPS pulls bytes from GHCR instead of building locally —
+#     The host pulls bytes from GHCR instead of building locally —
 #     fast, repeatable, and the exact bits Stack-test validated.
 #   * Clears the ``build:`` block on those services so compose never tries
 #     to build pre-prod images locally.
@@ -29,7 +28,7 @@
 # Tagging:
 #
 #   * Default ``${PODCAST_IMAGE_TAG:-main}`` — every passing main pushes
-#     :main, so codespaces auto-track green main.
+#     :main, so a host on the default tag tracks green main.
 #   * Override to ``:sha-<short>`` for pinning during incident response
 #     or to ``:pr-<num>`` for collaborator UAT.
 #
@@ -42,19 +41,17 @@
 #   Docker-managed volume in stack.yml for stack-test ephemerality) as a
 #   bind mount onto a host directory the operator can edit + back up:
 #
-#     - On Codespaces: ``/workspaces/podcast_scraper/.codespace_corpus``
-#       (workspace-mounted, persists across rebuilds, the path that
-#       backup-corpus.yml tarballs).
-#     - On a VPS: override via ``PODCAST_CORPUS_HOST_PATH`` env var.
+#     - The host directory is ``PODCAST_CORPUS_HOST_PATH`` (required, no
+#       default), set in the host ``.env``.
 #
 #   So:
-#     * From a codespace shell: ``/workspaces/podcast_scraper/.codespace_corpus``
+#     * On the host: ``$PODCAST_CORPUS_HOST_PATH``
 #     * From inside the api / pipeline-llm containers: ``/app/output``
 #     * From the viewer corpus-path input: also ``/app/output`` (the path
 #       the api validates against is the container's view).
 #
-#   ``.devcontainer/start.sh`` ``mkdir -p``s the host dir before
-#   ``docker compose up`` so the bind mount source always exists.
+#   The host directory must exist before ``docker compose up``; the bind
+#   mount does not create it.
 
 services:
   viewer:
@@ -114,7 +111,7 @@ services:
     # nested compose call can resolve them.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${PODCAST_DOCKER_PROJECT_DIR:?PODCAST_DOCKER_PROJECT_DIR must be set — Codespaces sets it via .devcontainer/start.sh; VPS sets it via /srv/podcast-scraper/.env per PROD_RUNBOOK.md}:${PODCAST_DOCKER_PROJECT_DIR}:ro
+      - ${PODCAST_DOCKER_PROJECT_DIR:?PODCAST_DOCKER_PROJECT_DIR must be set — the VPS sets it in /srv/podcast-scraper/.env}:${PODCAST_DOCKER_PROJECT_DIR}:ro
     environment:
       # Surface the pre-prod observability env vars. Defaults are off
       # (empty) so this overlay is safe to apply without operator-side
@@ -135,7 +132,7 @@ services:
       # instead of running pipeline code in-process. Required because
       # the published ``api`` image only ships runtime HTTP + search deps.
       PODCAST_PIPELINE_EXEC_MODE: docker
-      PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:?see comment above; required env var (.devcontainer/start.sh for Codespaces, .env for VPS)}
+      PODCAST_DOCKER_PROJECT_DIR: ${PODCAST_DOCKER_PROJECT_DIR:?see comment above; required env var (set in the host .env)}
       # Pass-through for the nested ``docker compose run`` the api spawns.
       # That nested call parses ``stack.yml + prod.yml`` (per
       # ``PODCAST_DOCKER_COMPOSE_FILES`` below) and the prod overlay's
@@ -148,8 +145,8 @@ services:
       # ``--env-file`` (pipeline_docker_factory) as the durable fix; this
       # passthrough remains as a belt-and-suspenders + works for any
       # other compose-time vars the YAML grows over time.
-      PODCAST_CORPUS_HOST_PATH: ${PODCAST_CORPUS_HOST_PATH:?see comment above; required env var (.devcontainer/start.sh for Codespaces, .env for VPS)}
-      # Compose files the nested ``docker compose run`` resolves. Codespace
+      PODCAST_CORPUS_HOST_PATH: ${PODCAST_CORPUS_HOST_PATH:?see comment above; required env var (set in the host .env)}
+      # Compose files the nested ``docker compose run`` resolves. The
       # default targets stack + prod overlays so the spawned container
       # inherits the prod overlay's bind-mounted ``corpus_data``.
       PODCAST_DOCKER_COMPOSE_FILES: ${PODCAST_DOCKER_COMPOSE_FILES:-compose/docker-compose.stack.yml,compose/docker-compose.prod.yml}
@@ -188,7 +185,6 @@ services:
       # other values fall back to the strict YAML-required error path.
       # Default ``llm`` matches the prod-published image set (only the
       # ``pipeline-llm`` image is published in RFC-081 Phase 1 / RFC-082).
-      # Codespace preprod inherits the same value via the prod overlay.
       PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS: ${PODCAST_DEFAULT_PIPELINE_INSTALL_EXTRAS:-llm}
       # Pass-through for the nested ``docker compose run pipeline-llm``.
       # The pipeline-llm service's ``environment:`` block resolves these
@@ -209,7 +205,7 @@ services:
       # cloud_balanced (the default profile) transcribes via Deepgram and routes LLM
       # stages through the LiteLLM gateway. Under VIA_FILES the shim already exports
       # these into the api env, but the passthrough must list them too so the non-VIA
-      # (codespace) path and the nested run's interpolation both see them. Their
+      # path and the nested run's interpolation both see them. Their
       # absence here was the cloud_balanced "Deepgram API key required" prod failure.
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-}
@@ -263,13 +259,12 @@ services:
 #           memory: 2G
 
 # Override the ``corpus_data`` named volume from stack.yml as a bind
-# mount onto the host's workspace dir. Default targets the codespace
-# layout. On a VPS, set ``PODCAST_CORPUS_HOST_PATH`` to an absolute
-# path (e.g., ``/var/lib/podcast/corpus``) before ``docker compose up``.
+# mount onto the host directory in ``PODCAST_CORPUS_HOST_PATH`` (required).
+# It must be an absolute path that exists before ``docker compose up``.
 volumes:
   corpus_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${PODCAST_CORPUS_HOST_PATH:?PODCAST_CORPUS_HOST_PATH must be set — Codespaces sets it via .devcontainer/start.sh; VPS sets it via /srv/podcast-scraper/.env per PROD_RUNBOOK.md}
+      device: ${PODCAST_CORPUS_HOST_PATH:?PODCAST_CORPUS_HOST_PATH must be set — the VPS sets it in /srv/podcast-scraper/.env}
