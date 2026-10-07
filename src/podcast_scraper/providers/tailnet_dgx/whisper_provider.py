@@ -210,6 +210,11 @@ class TailnetDgxWhisperTranscriptionProvider:
                 # never a fabricated default. `None` is an honest "nobody said", which the
                 # metadata layer can normalize or report; "en" is an assertion we cannot make.
                 "language": language or self._last_detected_language,
+                # The two halves of that, kept apart so the artifacts can show both (#2187):
+                # what the pipeline ASKED for, and what the server SAID the audio is. A mismatch
+                # is the hazard-3 signal; merged into one field it is invisible.
+                "language_requested": language,
+                "language_reported": self._last_detected_language,
                 "model_requested": (model_override or self._model),
                 "model_used": actual_model,
                 # #2284: whether the transcript came back unpunctuated and what was done about it.

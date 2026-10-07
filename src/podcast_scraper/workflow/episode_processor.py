@@ -850,6 +850,25 @@ def _attach_speech_audio_ratio(
         result["speech_audio_ratio"] = round(sar, 3)
 
 
+def _asr_language_record(result: Dict[str, Any], cfg: config.Config) -> Dict[str, Any]:
+    """``{requested, reported, mismatch}`` for the ASR call — the #2187 hazard-3 record.
+
+    ``requested`` is the language the pipeline sent: the provider's own echo when it gives one,
+    else the episode's resolved transcription language (the call site passes exactly that).
+    ``reported`` is what the ASR service said the audio is, and is ``None`` for a provider that
+    does not report it — never filled from ``requested``, or a mismatch could not be seen.
+    ``mismatch`` compares primary subtags and is ``None`` unless both sides are known.
+    """
+    requested = (
+        result["language_requested"] if "language_requested" in result else None
+    ) or transcription_language(cfg)
+    reported = result.get("language_reported")
+    mismatch: Optional[bool] = None
+    if requested and reported:
+        mismatch = primary_language(str(requested)) != primary_language(str(reported))
+    return {"requested": requested, "reported": reported, "mismatch": mismatch}
+
+
 def _save_asr_provenance_file(
     result: Optional[Dict[str, Any]],
     cfg: config.Config,
@@ -870,7 +889,8 @@ def _save_asr_provenance_file(
     failover = result.get("speech_coverage_failover")
     sar = result.get("speech_audio_ratio")
     punct = result.get("punctuation")
-    if cov is None and not failover and sar is None and not punct:
+    language = _asr_language_record(result, cfg)
+    if cov is None and not failover and sar is None and not punct and not language["requested"]:
         return
     provenance: Dict[str, Any] = {
         "model": (
@@ -882,6 +902,8 @@ def _save_asr_provenance_file(
         # Σ(segments)/total-audio content signal — always present, gate or not (see caller).
         "speech_audio_ratio": sar,
         "failed_over": bool(failover),
+        # What language went to the ASR service and what it said back (#2187).
+        "language": language,
     }
     if failover:
         provenance["speech_coverage_failover"] = failover
@@ -959,6 +981,10 @@ def _write_processing_manifest(
         if isinstance(_punct, dict) and _punct.get("unpunctuated"):
             # #2284: kept, never dropped -- but countable, and downstream knows.
             asr_flags.append("asr_unpunctuated")
+        _language = _asr_language_record(result, cfg)
+        if _language["mismatch"]:
+            # #2187 hazard 3: the service says the audio is not the language we asked for.
+            asr_flags.append("asr_language_mismatch")
         # Total ASR cost = primary call + any failover re-transcription (both 0 for local models;
         # a cloud ASR that failed over billed twice — RFC-109).
         _primary_cost = getattr(asr_call_metrics, "estimated_cost", None)
@@ -980,7 +1006,12 @@ def _write_processing_manifest(
                 getattr(cfg, "transcription_provider", None),
                 pm.LOCAL_TRANSCRIPTION_PROVIDERS,
             ),
-            metrics={"speech_coverage": cov, "speech_audio_ratio": sar},
+            metrics={
+                "speech_coverage": cov,
+                "speech_audio_ratio": sar,
+                "language_requested": _language["requested"],
+                "language_reported": _language["reported"],
+            },
             failover=failover or None,
         )
         pm.update_stage(

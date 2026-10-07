@@ -32,6 +32,7 @@ from urllib.parse import urlparse
 from pydantic import ValidationError
 
 from . import __version__, config, config_constants
+from .languages import transcription_language
 from .rss.feeds_spec import load_feeds_spec_file, merge_feed_entry_into_config, RssFeedEntry
 from .utils import filesystem, progress
 from .utils.log_redaction import format_exception_for_log
@@ -4552,7 +4553,10 @@ def _log_configuration_summary(cfg: config.Config, logger: logging.Logger) -> No
         cfg.episode_retry_delay_sec,
         transcribe,
         "on" if cfg.auto_speakers else "off",
-        cfg.language,
+        # Not `cfg.language`: that is the run-wide default ("en"), printed before any feed is
+        # read, and it read as "this run is English" on a Spanish run (#2187). The language is
+        # resolved per feed; only an explicit override is known here.
+        transcription_language(cfg) or "per-feed",
         cfg.ner_model or "-",
         summ,
         meta,
