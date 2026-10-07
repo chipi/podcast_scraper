@@ -337,3 +337,33 @@ def test_anchor_defaults_to_corpus_latest_month_not_wall_clock(tmp_path: Path, m
     out = trending(tmp_path, None, kind="topic", limit=5)  # no now → corpus-anchored
     assert [t.entity_id for t in out] == ["topic:past"]
     assert out[0].total >= _CFG.min_total  # it counted, rather than falling outside a now-window
+
+
+def test_restrict_to_keeps_only_the_listeners_own_entities(tmp_path: Path) -> None:
+    # Trends "Mine" (operator 2026-10-07): the same momentum, over the listener's world only.
+    weeks = _weeks_ending(resolve_as_of_week(_NOW))
+    r0, r1 = weeks[-2], weeks[-1]
+    _write_content(
+        tmp_path,
+        topics=[
+            {"topic_id": "topic:rising", "weekly_counts": {r0: 4, r1: 6}},
+            {"topic_id": "topic:mine", "weekly_counts": {r0: 2, r1: 3}},
+        ],
+    )
+    everyone = [t.entity_id for t in trending(tmp_path, None, kind="topic", now=_NOW, limit=10)]
+    assert set(everyone) == {"topic:rising", "topic:mine"}
+    mine = trending(tmp_path, None, kind="topic", now=_NOW, limit=10, restrict_to={"topic:mine"})
+    assert [t.entity_id for t in mine] == ["topic:mine"]
+    assert trending(tmp_path, None, kind="topic", now=_NOW, limit=10, restrict_to=set()) == []
+
+
+def test_personal_entity_ids_spans_follows_saves_and_their_clusters(tmp_path: Path) -> None:
+    from podcast_scraper.server.app_user_corpus import personal_entity_ids
+
+    data = tmp_path / "appdata"
+    app_user_state.set_interests(data, "u1", ["person:jane", "thc:followed-storyline"])
+    app_user_state.add_favorite(data, "u1", {"kind": "topic", "ref": "topic:ai"})
+    _clusters(tmp_path, "search/topic_clusters.json", "tc:machines", ["topic:ai"])
+    ids = personal_entity_ids(tmp_path, data, "u1")
+    assert {"person:jane", "thc:followed-storyline", "topic:ai", "tc:machines"} <= ids
+    assert personal_entity_ids(tmp_path, data, "nobody") == set()

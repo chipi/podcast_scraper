@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { signInIsolated, showEveryonesTrends } from './helpers'
 
 /**
  * Sparkline — the shared inline chart primitive (trend chips, Profile activity). REAL API over the
@@ -13,6 +13,7 @@ test('discovery rows draw a real sparkline path from the corpus, not an empty on
 }, testInfo) => {
   await signInIsolated(page, 'sparkline', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   // Topics tab is the default; discovery-row rows carry an inline Sparkline each.
   await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
 

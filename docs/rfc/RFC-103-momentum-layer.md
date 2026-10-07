@@ -182,6 +182,12 @@ volume; the blend is exposed alongside the components so a surface can show eith
   min-count floor before an entity is shown, to avoid single-user identifiability), with a **per-user
   scope** (`scope=mine` — reuses the existing "your corpus" lens) for "*your* recent momentum",
   **shipped in v1**. The per-user scope has no min-count floor (it is the user's own data).
+- **Revised 2026-10-07 (operator):** `scope=mine` is now a FILTER, not only a blend — it ranks
+  only the listener's own world: topics and people they follow, saved, or met in episodes they
+  heard or captured from, plus the themes and storylines they follow or that contain those topics
+  (`personal_entity_ids`). As a blend of one user's engagement into corpus content it was
+  indistinguishable from the corpus list for a light listener. It is the player's default lens;
+  card momentum badges and the Browse topic / people lists stay corpus-wide.
 
 ### 7. Dedicated endpoint — `GET /api/app/trending`
 

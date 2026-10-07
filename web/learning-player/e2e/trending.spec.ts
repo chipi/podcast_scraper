@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { signInIsolated, showEveryonesTrends } from './helpers'
 
 /**
  * Discovery list on Discover (Trends left Home 2026-10-07) — REAL API over the COMMITTED validation corpus, NO mocks. The e2e
@@ -13,6 +13,7 @@ import { signInIsolated } from './helpers'
 test('Discover shows the Rising-now discovery list with rising topics', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trending-rising', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
 
   // #4 folded the three "what's hot" rails into one tabbed area; the default discovery TAB is
   // Topics, and Rising sort is the default — the discovery list renders immediately.
@@ -35,6 +36,7 @@ test('signed in: following a trending topic from the list toggles to followed', 
 }, testInfo) => {
   await signInIsolated(page, 'trending', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
 
   const list = page.getByTestId('discovery-list-topic')
   await expect(list).toBeVisible()

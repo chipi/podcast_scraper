@@ -147,3 +147,17 @@ export async function tapAndRecordTop(el: Locator): Promise<number> {
   expect(top, 'the tap never reached the page').not.toBeUndefined()
   return top as number
 }
+
+/**
+ * Switch Discover's Trends to everyone's (operator 2026-10-07: "Mine" is the default, and a fresh
+ * test account has no world of its own, so Mine is empty). Through the real toggle, not a stored
+ * preference, and only when it is on — so a spec reads the corpus-wide list it is written about.
+ */
+export async function showEveryonesTrends(page: Page): Promise<void> {
+  const toggle = page.getByTestId('home-trending-scope')
+  await expect(toggle).toBeVisible()
+  // The lens resolves from the synced preferences after mount; wait for it to settle on "mine".
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+}

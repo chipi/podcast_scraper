@@ -44,7 +44,7 @@ from podcast_scraper.server.app_ranking_config import (
     ranking_config_to_dict,
 )
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, search_interests
-from podcast_scraper.server.app_user_corpus import derive_interests
+from podcast_scraper.server.app_user_corpus import derive_interests, personal_entity_ids
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import (
     get_admin_user,
@@ -168,6 +168,12 @@ def app_trending(
     data_dir = Path(raw_dir) if raw_dir is not None else None
     eff_scope = "mine" if (scope == "mine" and user is not None) else "corpus"
     uid = user.user_id if (eff_scope == "mine" and user is not None) else None
+    # "Mine" is the listener's own world only — not their engagement blended into everyone's.
+    mine = (
+        personal_entity_ids(root, data_dir, uid)
+        if (uid is not None and data_dir is not None)
+        else None
+    )
     rows = trending(
         root,
         data_dir,
@@ -177,6 +183,7 @@ def app_trending(
         limit=limit,
         window=window,
         config=_momentum_config(request),
+        restrict_to=mine,
     )
     items = [AppTrendingEntity(**vars(r)) for r in rows]
     if kind == "person":

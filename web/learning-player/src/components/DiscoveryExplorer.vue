@@ -178,6 +178,7 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
         :expanded="expandedAll"
         @open="emit('open', $event)"
         @count="total = $event"
+        @show-everyone="setTrendingScope('corpus')"
       />
     </div>
   </div>

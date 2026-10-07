@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { signInIsolated, showEveryonesTrends } from './helpers'
 
 /**
  * Browse hub + standalone Topic/Person deep-links (#1261-6, #1261-9, #14). Real API +
@@ -61,6 +61,7 @@ test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async
   // the window control always renders (so an empty window can be switched away from). Assert the
   // control's default + that a pick updates the selection; the refetch is covered by unit tests.
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   await expect(page.getByTestId('browse-discovery')).toBeVisible()
   const section = page.getByTestId('browse-discovery')
   // `aria-checked`, not `aria-selected` (#1594 item 7): the window selector is a radiogroup.
@@ -90,6 +91,7 @@ test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async
 test('the catalogue groups by time, and stops when time is not the order', async ({ page }, testInfo) => {
   await signInIsolated(page, 'catalogue-time-groups', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   await page.waitForLoadState('networkidle')
 
   const headings = page.locator('h2.lp-kicker')
@@ -127,6 +129,7 @@ for (const viewport of [
     await page.setViewportSize(viewport)
     await signInIsolated(page, `trending-header-${viewport.width}`, testInfo)
     await page.goto('/browse')
+    await showEveryonesTrends(page)
     const rail = page.getByTestId('trending-shows-rail')
     const tiles = rail.getByTestId('trending-show-card')
     await expect(tiles.first()).toBeVisible()

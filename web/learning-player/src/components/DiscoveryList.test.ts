@@ -127,3 +127,33 @@ describe("DiscoveryList — a storyline row that cannot be opened", () => {
     expect(w.emitted("open")?.[0]).toEqual([{ kind: "topic", id: "topic:ai", rank: 1 }])
   })
 })
+
+describe("DiscoveryList — an empty Mine says why and offers everyone (operator 2026-10-07)", () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  function mountScoped(rows: TrendingEntity[], scope: "mine" | "corpus") {
+    vi.spyOn(api, "getTrending").mockResolvedValue(rows)
+    vi.spyOn(api, "getStorylines").mockResolvedValue([])
+    return mount(DiscoveryList, {
+      props: { kind: "topic", sort: "rising", scope },
+      global: { plugins: [i18n, router] },
+    })
+  }
+
+  it("explains an empty Mine and asks to show everyone's trends", async () => {
+    const w = mountScoped([], "mine")
+    await flushPromises()
+    expect(w.get('[data-testid="discovery-mine-empty"]').text()).toContain("as you listen, save and follow")
+    await w.get('[data-testid="discovery-show-everyone"]').trigger("click")
+    expect(w.emitted("show-everyone")).toHaveLength(1)
+  })
+
+  it("says nothing of the sort for an empty everyone list, or a Mine with rows", async () => {
+    const empty = mountScoped([], "corpus")
+    await flushPromises()
+    expect(empty.find('[data-testid="discovery-mine-empty"]').exists()).toBe(false)
+    const full = mountScoped([row("topic:a", null)], "mine")
+    await flushPromises()
+    expect(full.find('[data-testid="discovery-mine-empty"]').exists()).toBe(false)
+  })
+})

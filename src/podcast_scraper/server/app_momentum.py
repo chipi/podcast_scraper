@@ -537,6 +537,7 @@ def trending(
     limit: int = 12,
     window: str | None = None,
     config: MomentumConfig | None = None,
+    restrict_to: set[str] | None = None,
 ) -> list[TrendingEntity]:
     """Ranked trending entities of ``kind`` over the selected ``window`` (RFC-103 R2).
 
@@ -569,6 +570,9 @@ def trending(
     weeks = _weeks_ending(anchor_week)
 
     ids = {eid for (k, eid) in content if k == kind} | {eid for (k, eid) in engagement if k == kind}
+    # Trends "Mine" (operator 2026-10-07): only the listener's own world, same momentum.
+    if restrict_to is not None:
+        ids &= restrict_to
     out: list[TrendingEntity] = []
     for eid in ids:
         c_wc = content.get((kind, eid))

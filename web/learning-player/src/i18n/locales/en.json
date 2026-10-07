@@ -153,7 +153,9 @@
     "whatsNewYours": "New in your shows and topics",
     "whatsNewAll": "New across all shows",
     "recommendedKicker": "Picked from what you listen to",
-    "whatsNewKicker": "{scope} · since {date}"
+    "whatsNewKicker": "{scope} · since {date}",
+    "trendsMineEmpty": "Your trends fill in as you listen, save and follow. Nothing to rank yet.",
+    "trendsShowEveryone": "Show everyone's trends"
   },
   "ask": {
     "title": "Find what's worth hearing",
