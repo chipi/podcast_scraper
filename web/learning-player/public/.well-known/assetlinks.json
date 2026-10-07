@@ -4,7 +4,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "app.closelistening.player",
-      "sha256_cert_fingerprints": ["PLAY_APP_SIGNING_SHA256_FROM_PLAY_CONSOLE"]
+      "sha256_cert_fingerprints": ["12:8C:2E:1F:DF:DD:AF:97:72:88:E6:80:56:C9:B1:66:34:DA:15:93:E7:10:1E:C7:A0:B1:AC:09:07:F0:09:64"]
     }
   }
 ]
