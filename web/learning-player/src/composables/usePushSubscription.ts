@@ -115,7 +115,21 @@ async function enablePushNative(): Promise<boolean> {
       perm.receive === 'granted' ? 'granted' : perm.receive === 'denied' ? 'denied' : 'deferred',
   })
   if (perm.receive !== 'granted') return false
+  return await registerNativeToken()
+}
 
+/**
+ * Register with the OS and store THIS device's current token server-side — retiring the token
+ * this device registered before, when the OS has issued a new one.
+ *
+ * A device token changes under the app (an Android refresh, a restore). The server keyed on the
+ * exact token, so the new one was ADDED beside the old, and the old stayed until a send bounced on
+ * it — prod 2026-10-07: one phone held two FCM tokens, the stale one 404 UNREGISTERED. The new
+ * token is stored first and only then is the previous one deregistered, so a failed registration
+ * never leaves the device with nothing on the server.
+ */
+async function registerNativeToken(): Promise<boolean> {
+  const previous = (await Preferences.get({ key: NATIVE_ENDPOINT_KEY })).value
   return await new Promise<boolean>((resolve) => {
     let settled = false
     let regHandle: PluginListenerHandle | undefined
@@ -136,6 +150,9 @@ async function enablePushNative(): Promise<boolean> {
       try {
         await subscribePush({ endpoint, kind, platform: Capacitor.getPlatform(), token })
         await Preferences.set({ key: NATIVE_ENDPOINT_KEY, value: endpoint })
+        if (previous && previous !== endpoint) {
+          await unsubscribePush(previous).catch(() => undefined)
+        }
         finish(true)
       } catch {
         finish(false)
@@ -149,6 +166,23 @@ async function enablePushNative(): Promise<boolean> {
     void PushNotifications.register()
     setTimeout(() => finish(false), REGISTER_TIMEOUT_MS)
   })
+}
+
+/**
+ * At launch: keep this device's registered token current (prod 2026-10-07).
+ *
+ * Registration used to happen only from the Profile toggle, so a token the OS rotated afterwards
+ * never reached the server and the device went silent until someone toggled again. Acts ONLY when
+ * this device turned push on (a stored endpoint) and permission is ALREADY granted — it never
+ * prompts. Same token → the server upsert is a no-op; new token → the old one is retired.
+ */
+export async function refreshNativePushToken(): Promise<boolean> {
+  if (!isNative() || !pushSupported()) return false
+  const { value: stored } = await Preferences.get({ key: NATIVE_ENDPOINT_KEY })
+  if (!stored) return false
+  const perm = await PushNotifications.checkPermissions()
+  if (perm.receive !== 'granted') return false
+  return await registerNativeToken()
 }
 
 async function disablePushNative(): Promise<void> {

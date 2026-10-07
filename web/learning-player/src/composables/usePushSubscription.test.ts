@@ -16,14 +16,19 @@ vi.mock('@capacitor/core', () => ({
 
 type RegListener = (t: { value: string }) => void | Promise<void>
 const listeners: Record<string, RegListener> = {}
+// What the OS hands back on the next register(), and what checkPermissions() reports.
+let nextToken = 'TOKEN123'
+let permission = 'granted'
+const register = vi.fn(async () => {
+  // The plugin delivers the token asynchronously; mimic that rather than resolving inline.
+  await Promise.resolve()
+  await listeners.registration?.({ value: nextToken })
+})
 vi.mock('@capacitor/push-notifications', () => ({
   PushNotifications: {
     requestPermissions: vi.fn(async () => ({ receive: 'granted' })),
-    register: vi.fn(async () => {
-      // The plugin delivers the token asynchronously; mimic that rather than resolving inline.
-      await Promise.resolve()
-      await listeners.registration?.({ value: 'TOKEN123' })
-    }),
+    checkPermissions: vi.fn(async () => ({ receive: permission })),
+    register: () => register(),
     unregister: vi.fn(async () => undefined),
     addListener: vi.fn(async (event: string, cb: RegListener) => {
       listeners[event] = cb
@@ -48,9 +53,10 @@ vi.mock('@capacitor/preferences', () => ({
 // Typed with its argument: the module forwards the subscription, and the assertions read it back
 // from `mock.calls[0][0]` — a zero-arg mock made both of those a type error under vue-tsc.
 const subscribePush = vi.fn(async (_subscription: unknown) => ({ count: 1 }))
+const unsubscribePush = vi.fn(async (_endpoint: string) => undefined)
 vi.mock('../services/api', () => ({
   subscribePush: (s: unknown) => subscribePush(s as never),
-  unsubscribePush: vi.fn(async () => undefined),
+  unsubscribePush: (e: string) => unsubscribePush(e),
   getVapidKey: vi.fn(async () => ''),
 }))
 
@@ -59,6 +65,11 @@ vi.mock('../services/native', () => ({ isNative: () => true }))
 describe('native push registration', () => {
   beforeEach(() => {
     subscribePush.mockClear()
+    subscribePush.mockImplementation(async () => ({ count: 1 }))
+    unsubscribePush.mockClear()
+    register.mockClear()
+    nextToken = 'TOKEN123'
+    permission = 'granted'
     for (const k of Object.keys(prefs)) delete prefs[k]
   })
   afterEach(() => {
@@ -112,5 +123,78 @@ describe('native push registration', () => {
     vi.resetModules()
     const { pushSupported } = await import('./usePushSubscription')
     expect(pushSupported()).toBe(true)
+  })
+
+  // Prod 2026-10-07: one phone held two FCM tokens — the OS had issued a new one, the app added it
+  // beside the old, and the old stayed until a send bounced on it (404 UNREGISTERED).
+  it('a new token retires the one this device registered before', async () => {
+    platform = 'android'
+    prefs['push.apnsEndpoint'] = 'fcm://OLD'
+    nextToken = 'NEW'
+    const { enablePush } = await import('./usePushSubscription')
+    await expect(enablePush()).resolves.toBe(true)
+
+    expect((subscribePush.mock.calls[0][0] as { endpoint: string }).endpoint).toBe('fcm://NEW')
+    expect(unsubscribePush).toHaveBeenCalledWith('fcm://OLD')
+    expect(prefs['push.apnsEndpoint']).toBe('fcm://NEW')
+    // New stored BEFORE the old is retired: never a moment with nothing on the server.
+    expect(subscribePush.mock.invocationCallOrder[0]).toBeLessThan(
+      unsubscribePush.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('the same token retires nothing', async () => {
+    platform = 'ios'
+    prefs['push.apnsEndpoint'] = 'apns://TOKEN123'
+    const { enablePush } = await import('./usePushSubscription')
+    await expect(enablePush()).resolves.toBe(true)
+    expect(unsubscribePush).not.toHaveBeenCalled()
+  })
+
+  it('a failed registration keeps the old token, on the server and on the device', async () => {
+    platform = 'android'
+    prefs['push.apnsEndpoint'] = 'fcm://OLD'
+    nextToken = 'NEW'
+    subscribePush.mockImplementation(async () => {
+      throw new Error('offline')
+    })
+    const { enablePush } = await import('./usePushSubscription')
+    await expect(enablePush()).resolves.toBe(false)
+    expect(unsubscribePush).not.toHaveBeenCalled()
+    expect(prefs['push.apnsEndpoint']).toBe('fcm://OLD')
+  })
+
+  describe('refreshNativePushToken (at launch)', () => {
+    it('re-registers a rotated token and retires the old one', async () => {
+      platform = 'android'
+      prefs['push.apnsEndpoint'] = 'fcm://OLD'
+      nextToken = 'ROTATED'
+      const { refreshNativePushToken } = await import('./usePushSubscription')
+      await expect(refreshNativePushToken()).resolves.toBe(true)
+      expect((subscribePush.mock.calls[0][0] as { endpoint: string }).endpoint).toBe(
+        'fcm://ROTATED',
+      )
+      expect(unsubscribePush).toHaveBeenCalledWith('fcm://OLD')
+    })
+
+    it('does nothing on a device that never turned push on', async () => {
+      platform = 'ios'
+      const { refreshNativePushToken } = await import('./usePushSubscription')
+      await expect(refreshNativePushToken()).resolves.toBe(false)
+      expect(register).not.toHaveBeenCalled()
+      expect(subscribePush).not.toHaveBeenCalled()
+    })
+
+    it('never prompts: no granted permission, no registration', async () => {
+      platform = 'ios'
+      prefs['push.apnsEndpoint'] = 'apns://OLD'
+      permission = 'prompt'
+      const mod = await import('./usePushSubscription')
+      const { PushNotifications } = await import('@capacitor/push-notifications')
+      vi.mocked(PushNotifications.requestPermissions).mockClear()
+      await expect(mod.refreshNativePushToken()).resolves.toBe(false)
+      expect(register).not.toHaveBeenCalled()
+      expect(PushNotifications.requestPermissions).not.toHaveBeenCalled()
+    })
   })
 })

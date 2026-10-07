@@ -15,6 +15,7 @@ import OfflineBanner from './components/OfflineBanner.vue'
 import ProfileAvatar from './components/ProfileAvatar.vue'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { useAuthStore } from './stores/auth'
+import { refreshNativePushToken } from './composables/usePushSubscription'
 import { useResurfacingStore } from './stores/resurfacing'
 import { useNotificationsStore } from './stores/notifications'
 import { useCollectionsStore } from './stores/collections'
@@ -158,6 +159,10 @@ async function hydrateUser(): Promise<void> {
   // Preferences hydrate only once a session exists (they 401 otherwise); do it here, right after
   // auth resolves, so a signed-in user's synced prefs are loaded without the signed-out boot 401.
   void useUserPreferencesStore().hydrate()
+  // A device token the OS rotated never reached the server — registration only ran from the
+  // Profile toggle — and the device went silent. Refresh it once signed in; never prompts, and does
+  // nothing unless this device turned push on (see refreshNativePushToken).
+  void refreshNativePushToken().catch(() => undefined)
   // Persist the browser's IANA timezone (#2041) so digests land at the user's local hour — but ONLY
   // when the user hasn't set one. Auto-detecting on every boot overwrote an explicit Settings
   // override on the next reload (Fable-5 review S1), which is the one case the override exists for.
