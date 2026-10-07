@@ -144,11 +144,19 @@ common:
       - topic_theme_clusters
     podcast_scraper.enrichment.query_enrichers:
       - query_topic_relatedness
+    podcast_scraper.enrichment.eval.scorers:
+      - grounding_rate
+      - topic_similarity
+    # ADR-158 decision 3: the observability data layer (config, result, _http,
+    # sources, aggregate) stays public for the operator Ops view; the MCP server,
+    # its CLI and its auth move.
+    podcast_obs:
+      - mcp_server
+      - cli
+      - auth
+      - __main__
   packages:
     podcast_scraper.mcp: mcp
-  # podcast_obs is already its own top-level package; it moves under its own name.
-  verbatim_packages:
-    - podcast_obs
   files:
     - docs/prd/PRD-034-generic-mcp-server.md
     - docs/rfc/RFC-093-litm-context-packs.md
