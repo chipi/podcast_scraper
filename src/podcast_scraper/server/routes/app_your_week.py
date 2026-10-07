@@ -21,9 +21,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from podcast_scraper.server import app_artwork, app_digest_personal
+from podcast_scraper.server.app_catalog_cache import cached_catalog_last_run
 from podcast_scraper.server.app_slugs import episode_slug
 from podcast_scraper.server.app_user_store import User
-from podcast_scraper.server.corpus_catalog import build_catalog_rows, CatalogEpisodeRow
+from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import YourWeekResponse
 
@@ -104,7 +105,10 @@ def get_your_week(request: Request, user: User = Depends(get_current_user)) -> Y
     """
     now = int(time.time())
     root = _corpus_root(request)
-    catalog = build_catalog_rows(root)  # one scan, shared by the assembler + the item enrichment
+    # Cached until the next ingest. Uncached this was a full corpus scan PER REQUEST — 2.6 s of
+    # GIL-bound JSON parsing on prod (2,464 rows, 2026-10-07) — and Home fires this together with
+    # /notifications (which scanned too), so real users waited 9-25 s all day.
+    catalog = cached_catalog_last_run(root)
     payload = app_digest_personal.assemble_digest_payload(
         root, _data_dir(request), user.user_id, now, catalog=catalog
     )

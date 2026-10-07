@@ -214,3 +214,39 @@ def test_new_in_follows_honors_passed_catalog(tmp_path: Path) -> None:
         app_digest_sections.new_in_follows_items(root, data_dir, user.user_id, limit=5, catalog=[])
         == []
     )
+
+
+def test_home_reads_scan_the_corpus_once_not_per_request(tmp_path: Path, monkeypatch) -> None:
+    """/your-week and the bell's new-episode sweep share the cached catalog.
+
+    Prod 2026-10-07: each re-scanned the corpus per request (2.6 s, 2,464 rows); Home fires both
+    together, so real users waited 9-25 s for them all day. The result is unchanged — the same
+    last-run rows — only scanned once per ingest.
+    """
+    from podcast_scraper.server import corpus_catalog
+
+    root, data_dir = tmp_path / "corpus", tmp_path / "app"
+    user = get_or_create_user(
+        data_dir, provider="google", subject="s", email="u@gmail.com", name="U"
+    )
+    followed = _write_ep(
+        root, stem="0002", feed_id="fb", episode_id="e2", topics=[("topic:ml", "ML")]
+    )
+    app_user_state.add_subscription(data_dir, user.user_id, {"feed_id": "fb"})
+
+    # Spied at the corpus walk itself, so ANY catalog build counts — cached or not.
+    scans: list = []
+    real = corpus_catalog.discover_metadata_files
+
+    def counting(r):
+        scans.append(r)
+        return real(r)
+
+    monkeypatch.setattr(corpus_catalog, "discover_metadata_files", counting)
+    client = _client(root, data_dir, user.user_id)
+    for _ in range(2):
+        resp = client.get("/api/app/your-week")
+        assert resp.status_code == 200
+        assert _kinds(resp.json())["new_in_follows"][0]["episode_slug"] == followed
+    assert client.get("/api/app/notifications").status_code == 200
+    assert len(scans) == 1
