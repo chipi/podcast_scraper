@@ -23,7 +23,8 @@ breaker borrowed from the battle-tested RSS downloader (``rss/http_policy``):
 - Circuit breaker: once DGX has failed, skip it for a cooldown and raise immediately
   (the chain fails over); a half-open probe re-tests so it self-heals on recovery.
 
-Service contract (DGX-side, deploy.py / infra/dgx/pyannote-server/app.py):
+Service contract (DGX-side; the server and its installer are operator tooling, not in this
+repository):
 
 - ``POST /v1/diarize`` — multipart form ``file=<audio>`` plus optional
   ``num_speakers`` / ``min_speakers`` / ``max_speakers`` form fields. Returns
