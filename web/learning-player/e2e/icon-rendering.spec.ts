@@ -63,3 +63,28 @@ test('a sheet dismiss control renders a drawn ✕', async ({ page }, testInfo) =
   await expect(dismiss).toBeVisible()
   await assertDrawnIcon(dismiss, 'entity card dismiss')
 })
+
+test('every share control wears the same share icon (operator 2026-10-07)', async ({ page }, testInfo) => {
+  // Highlights drew a bare "↗", which reads as "open externally". One glyph for every share.
+  await signInIsolated(page, 'icon-share', testInfo)
+  const eps = await page.request.get('/api/app/episodes?page_size=1')
+  const slug = (await eps.json()).items?.[0]?.slug
+  expect(slug, 'fixture corpus returned no episode').toBeTruthy()
+  const made = await page.request.post('/api/app/highlights', {
+    data: { episode_slug: slug, kind: 'moment', start_ms: 1000 },
+  })
+  expect(made.ok(), `seeding a highlight failed: ${made.status()}`).toBeTruthy()
+
+  await page.goto(`/episode/${encodeURIComponent(slug)}`)
+  const menu = page.getByTestId('share-menu').first()
+  await expect(menu).toBeVisible()
+  await expect(menu.getByTestId('share-icon')).toHaveCount(1)
+  await assertDrawnIcon(menu, 'episode share')
+
+  await page.goto('/library?tab=saved')
+  const hl = page.getByTestId('highlight-share').first()
+  await expect(hl).toBeVisible()
+  await expect(hl.getByTestId('share-icon')).toHaveCount(1)
+  await assertDrawnIcon(hl, 'highlight share')
+  expect((await hl.textContent()) ?? '').not.toContain('↗')
+})

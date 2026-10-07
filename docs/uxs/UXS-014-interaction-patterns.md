@@ -123,6 +123,11 @@ still clamp; show names do not.)
   character `‹` (U+2039), kept because it rendered — but it rendered as a sliver beside the drawn ✕,
   so the two dismiss controls looked unrelated (operator 2026-10-04). Every `lp-nav` back control
   uses it; the visible "Back" labels beside it are unchanged.
+- Share is **`ShareIcon`** — three joined nodes, the glyph the episode page's `ShareMenu` always
+  drew — on every share control: `ShareMenu` (episode, show, storyline, theme, entity card), a
+  saved highlight's share, and the export viewer's Share button. Highlights drew a bare `↗`, which
+  reads as "open externally", not "share" (operator 2026-10-07). An external-link `↗` (Settings ›
+  Support) is a different action and keeps its arrow.
 
 ## Sharing (#2036)
 

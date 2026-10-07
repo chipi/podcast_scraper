@@ -38,6 +38,7 @@ import { summaryFromDetail } from '../utils/episode'
 import { matchesQuery } from '../utils/textFilter'
 import { useCappedSections } from '../composables/useCappedSections'
 import { shareHighlightCard } from '../composables/shareCard'
+import ShareIcon from '../components/ShareIcon.vue'
 
 const { t, locale } = useI18n()
 const capture = useCaptureStore()
@@ -610,8 +611,9 @@ onMounted(async () => {
                   class="rounded-full p-1 text-muted transition hover:text-accent"
                   :aria-label="t('highlights.share')"
                   :title="t('highlights.share')"
+                  data-testid="highlight-share"
                   @click="share(h)"
-                >↗</button>
+                ><ShareIcon /></button>
               </div>
             </div>
             <p v-if="shareFailed === h.id" class="mt-1 text-xs text-danger" data-testid="highlight-share-error">

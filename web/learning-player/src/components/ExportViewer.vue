@@ -36,6 +36,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { isNative, saveAndShareText } from '../services/native'
+import ShareIcon from './ShareIcon.vue'
 
 const props = defineProps<{
   /** The fetched print-styled document. */
@@ -132,11 +133,11 @@ async function printOrShare(): Promise<void> {
           >{{ t('export.markdown') }}</a>
           <button
             type="button"
-            class="rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent transition hover:bg-overlay"
+            class="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-bold text-accent transition hover:bg-overlay"
             data-testid="export-viewer-share"
             @click="printOrShare"
           >
-            {{ t('export.share') }}
+            <ShareIcon :size="14" />{{ t('export.share') }}
           </button>
         </div>
       </div>

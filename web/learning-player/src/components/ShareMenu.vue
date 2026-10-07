@@ -11,6 +11,7 @@
  * it, on the clipboard and confirm it. They were "Share link" and "Share text", and beta testers
  * could not tell them apart from the card: on a phone all three opened the same system sheet.
  */
+import ShareIcon from './ShareIcon.vue'
 import { computed, ref } from "vue"
 import { useI18n } from "vue-i18n"
 import { track } from "../services/analytics"
@@ -115,19 +116,7 @@ function flash(msg: string): void {
       data-testid="share-menu"
       @click="toggle"
     >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        class="h-4 w-4"
-        aria-hidden="true"
-      >
-        <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
-        <path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4" />
-      </svg>
+      <ShareIcon />
       <!-- A non-hidden accessible name INSIDE the trigger (2026-09-24, Android device tier).
            `aria-haspopup` PLUS a fully hidden subtree leaves the button UNNAMED on Android System
            WebView 150 — the label string appears nowhere in the accessibility tree, so TalkBack
