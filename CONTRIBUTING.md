@@ -398,7 +398,6 @@ Before submitting:
 - [ ] If viewer **UX** changed: `E2E_SURFACE_MAP.md` and Playwright specs/helpers updated; UXS-001 updated if the visual contract changed ([checklist](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow))
 - [ ] If you renamed `data-testid`s or refactored chip / Status-bar surfaces: `make ci-ui-full` (not `ci-ui-fast`) before push — `tests/stack-test/` only runs in `ci` / `ci-ui-full`
 - [ ] If you fixed a real-corpus viewer bug: a **Tier-2 matrix row** reproducing it landed first ([ADR-095](docs/adr/ADR-095-viewer-test-pyramid.md))
-- [ ] If you touched `.devcontainer/*`, `compose/docker-compose.prod.yml`, `deploy-codespace.yml`, or `backup-corpus.yml`: a real codespace boot + operator workflow ran end-to-end
 - [ ] If any `*.md` changed: `make docs` (strict) passes
 - [ ] Tests added/updated for changes
 - [ ] Documentation updated if needed
