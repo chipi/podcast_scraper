@@ -409,6 +409,7 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore .build/site \
 	--ignore "docs/wip/**" \
 	--ignore "tests/fixtures/**" --ignore "eval-data/**" --ignore eval-data \
+	--ignore "apps/**" --ignore apps \
 	--ignore "data/eval/**" --ignore data/eval \
 	--ignore "$(WEB_VIEWER_DIR)/playwright-report/**" \
 	--ignore "$(WEB_VIEWER_DIR)/test-results/**" \
@@ -471,7 +472,7 @@ security-fast: security-bandit
 # ./eval-data is its own private repo cloned inside the checkout (gitignored; CI never has it),
 # with its own .venv: scanning it reported ~69k third-party findings on machines that have it.
 security-bandit:
-	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./infra/dgx/converge/.venv,./eval-data --skip B113,B108,B110,B310 --severity-level medium
+	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./infra/dgx/converge/.venv,./eval-data,./apps --skip B113,B108,B110,B310 --severity-level medium
 
 # Dependency vulnerability audit (pip-audit).
 #

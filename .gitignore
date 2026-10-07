@@ -474,6 +474,15 @@ AuthKey_*.p8
 /eval-data/
 /eval-data
 
+# ── the private app repos, mounted here (ADR-158) ───────────────────────────
+#
+# The private Common and Player repos clone into ./apps/common and ./apps/player
+# so one agent sees the platform and the apps in one tree. Same rules as eval-data
+# above: this entry must exist before any clone, and both forms are deliberate
+# (directory and symlink).
+/apps/
+/apps
+
 # Disposable app-corpus copy the learning-player e2e seeds (see e2e/prepare-corpus.mjs).
 # The committed fixture is read-only; this is the tree the API is allowed to write into.
 web/learning-player/.e2e-corpus/
