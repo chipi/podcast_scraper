@@ -1600,7 +1600,12 @@ jobs:
     #
     # `!cancelled()` keeps the behaviour `always()` was chosen for — report coverage even when a
     # test job FAILED — and drops only the case where the inputs cannot exist.
-    if: ${{ !cancelled() && needs.detect-changes.outputs.python == 'true' }}
+    #
+    # `!cancelled()` alone was not enough (2026-10-07): it reads the WORKFLOW's state, and a
+    # superseding push cancelled `test-unit` while this run was still live. This job then ran on
+    # zero artifacts ("Combined: 0 tests"), failed --fail-under=70, and the CI Gate went RED for a
+    # cancel. So it also skips when ANY upstream job was cancelled; a FAILED one still reports.
+    if: ${{ !cancelled() && !contains(needs.*.result, 'cancelled') && needs.detect-changes.outputs.python == 'true' }}
     steps:
     - uses: actions/checkout@v7
       with:
