@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast, Dict, List, Mapping, Optional, Sequence, Set, Tuple
+
+from filelock import FileLock, Timeout
 
 from podcast_scraper import config
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
@@ -737,6 +740,57 @@ def index_corpus(
     """
     stats = IndexRunStats()
     out = Path(output_dir)
+    # ONE WRITER AT A TIME. A pipeline run's post-run update (a subprocess) and the API's
+    # POST /api/index/rebuild (a thread in another process) both write this index, and nothing
+    # stopped them overlapping — the API's rebuild gate is per-process. Each now waits for the
+    # other; the second one then finds most episodes unchanged and is quick.
+    lock = _index_write_lock(out)
+    try:
+        lock.acquire(timeout=0)
+    except Timeout:
+        wait = _index_lock_wait_seconds()
+        logger.info(
+            "index: another index update holds %s; waiting up to %.0fs", lock.lock_file, wait
+        )
+        try:
+            lock.acquire(timeout=wait)
+        except Timeout:
+            msg = f"index: gave up after {wait:.0f}s waiting for {lock.lock_file}"
+            logger.warning(msg)
+            stats.errors.append(msg)
+            return stats
+    try:
+        return _index_corpus_locked(out, cfg, stats, rebuild, backbone_changed_relpaths)
+    finally:
+        lock.release()
+
+
+#: How long an index update waits for another one to finish (``PODCAST_INDEX_LOCK_WAIT_SECONDS``).
+DEFAULT_INDEX_LOCK_WAIT_SECONDS = 7200.0
+
+
+def _index_lock_wait_seconds() -> float:
+    raw = os.environ.get("PODCAST_INDEX_LOCK_WAIT_SECONDS", "").strip()
+    try:
+        value = float(raw) if raw else DEFAULT_INDEX_LOCK_WAIT_SECONDS
+    except ValueError:
+        return DEFAULT_INDEX_LOCK_WAIT_SECONDS
+    return value if value >= 0 else DEFAULT_INDEX_LOCK_WAIT_SECONDS
+
+
+def _index_write_lock(out: Path) -> FileLock:
+    search_dir = out / "search"
+    search_dir.mkdir(parents=True, exist_ok=True)
+    return FileLock(str(search_dir / ".index-write.lock"))
+
+
+def _index_corpus_locked(
+    out: Path,
+    cfg: config.Config,
+    stats: IndexRunStats,
+    rebuild: bool,
+    backbone_changed_relpaths: Optional[set],
+) -> IndexRunStats:
     # ADR-099 / #995: the single search index is the LanceDB two-tier index, built from
     # corpus artifacts (segment + insight + aux tiers). FAISS is retired. The builder upserts
     # idempotently (merge on id), so re-running refreshes rows in place.

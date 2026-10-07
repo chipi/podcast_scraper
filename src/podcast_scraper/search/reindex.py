@@ -40,13 +40,31 @@ from podcast_scraper import config  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
+#: The post-run index update's time limit. 1800 s was too short once a backlog built up: on prod
+#: 2026-10-07 the update had 367 changed episodes to re-embed on CPU (data repairs + a nightly +
+#: a deepen job), timed out twice, and — because fingerprints are only saved at the end — each
+#: timeout left the backlog for the next run, so search stayed stale. Override with
+#: ``PODCAST_INDEX_TIMEOUT_SECONDS``.
+DEFAULT_INDEX_TIMEOUT_SECONDS = 7200.0
+
+
+def index_timeout_seconds() -> float:
+    """``PODCAST_INDEX_TIMEOUT_SECONDS`` when set to a positive number, else the default."""
+    raw = os.environ.get("PODCAST_INDEX_TIMEOUT_SECONDS", "").strip()
+    try:
+        value = float(raw) if raw else DEFAULT_INDEX_TIMEOUT_SECONDS
+    except ValueError:
+        logger.warning("ignoring PODCAST_INDEX_TIMEOUT_SECONDS=%r (not a number)", raw)
+        return DEFAULT_INDEX_TIMEOUT_SECONDS
+    return value if value > 0 else DEFAULT_INDEX_TIMEOUT_SECONDS
+
 
 def run_index_in_subprocess(
     corpus_parent: str,
     idx_cfg: "config.Config",
     *,
     rebuild: bool = False,
-    timeout: float = 1800.0,
+    timeout: Optional[float] = None,
     backbone_changed_relpaths: Optional[Sequence[str]] = None,
 ) -> bool:
     """Build the corpus index in a clean subprocess. Return True on success.
@@ -72,6 +90,8 @@ def run_index_in_subprocess(
         ) as fh:
             json.dump(sorted(backbone_changed_relpaths), fh)
             delta_path = fh.name
+    if timeout is None:
+        timeout = index_timeout_seconds()
     env = dict(os.environ)
     env["ARROW_DEFAULT_MEMORY_POOL"] = "system"
     argv = [
