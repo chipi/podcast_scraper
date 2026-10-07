@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { listenToOne, signInIsolated } from './helpers'
 
 /**
  * Home's two PERSONAL surfaces, against a real api: the boards teaser and the revisit rail.
@@ -106,10 +106,12 @@ test('every Home section header is the same shape', async ({ page }, testInfo) =
    * fails here even if it never imports the component.
    */
   await signInIsolated(page, 'home-heading-uniformity', testInfo)
+  // One real play, so the sections that need history (Your Week, Jump back in, Recommended) render
+  // too: an empty Your Week is not rendered at all (operator 2026-10-08).
+  await listenToOne(page)
   await page.goto('/')
   await page.waitForLoadState('networkidle')
-  // A fresh account sees the welcome card, which hides the empty Your Week; decline it so every
-  // section that can carry a heading is on the page.
+  // Decline the welcome card so every section that can carry a heading is on the page.
   await page.getByRole('button', { name: 'Not now' }).click()
 
   const titles = page.getByTestId('section-title')
@@ -145,8 +147,12 @@ test('every Home section header is the same shape', async ({ page }, testInfo) =
 
   // The kicker is a count or a date — never the title again in other words. Two did exactly that
   // ("For you" over "Your Week"; "Ask across every episode" over "Find what's worth hearing").
+  // One named exception (operator 2026-10-07): Recommended's kicker says what it is built from, the
+  // label that tells it apart from What's new. Those two strings, and no others.
+  const BASIS_KICKERS = ['Picked from what you listen to', 'Picked from what you follow']
   const kickers = await page.getByTestId('section-kicker').allTextContents()
   for (const k of kickers) {
+    if (BASIS_KICKERS.includes(k.trim())) continue
     expect(k, `kicker "${k}" carries no number or date`).toMatch(/\d/)
   }
 })

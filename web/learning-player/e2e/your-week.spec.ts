@@ -1,28 +1,17 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { listenToOne, signInIsolated } from './helpers'
 
 /**
  * Your Week — your week in review on Home (operator 2026-10-07). REAL API over the committed
  * validation corpus (tests/fixtures/app-validation-corpus/v3), NO mocks.
  *
  * Coverage:
- *  - signed-out → absent entirely. Signed-in with nothing yet → a FIRST-RUN line (#1591);
+ *  - signed-out → absent entirely. Signed-in with nothing to review → not rendered (operator
+ *    2026-10-08);
  *  - populated render: play an episode through the REAL API (two position saves, so listening time
  *    accrues), then "You listened to" renders. New episodes from followed shows are NOT here any more
  *    — they are What's new — so a follow alone leaves Your Week hidden.
  */
-
-/** Play an episode the way the player does: two saves, two minutes apart in position. */
-async function listenToOne(page: import('@playwright/test').Page): Promise<string> {
-  const resp = await page.request.get('/api/app/episodes?page_size=1')
-  const slug = ((await resp.json()).items as Array<{ slug: string }>)[0].slug
-  const tz = -new Date().getTimezoneOffset()
-  for (const position_seconds of [10, 130]) {
-    const r = await page.request.put(`/api/app/playback/${slug}`, { data: { position_seconds, tz_offset_minutes: tz } })
-    expect(r.ok()).toBeTruthy()
-  }
-  return slug
-}
 
 test('Your Week is absent when signed out (RFC-120: anon → /welcome, no digest)', async ({
   page,

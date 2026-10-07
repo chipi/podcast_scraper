@@ -49,7 +49,7 @@ const EXIT_BUTTON =
 
 const interestsToGo = computed(() => Math.max(0, MIN_INTERESTS - interestCount.value))
 
-/** Shows to follow in step 2 — the catalogue, newest-active first as the server returns it. */
+/** Shows to follow in step 2 — the first 8 of `/podcasts`, which is sorted by feed id: unranked. */
 const shows = ref<Podcast[]>([])
 onMounted(async () => {
   try {

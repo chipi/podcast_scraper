@@ -161,3 +161,15 @@ export async function showEveryonesTrends(page: Page): Promise<void> {
   await page.getByTestId('home-trending-scope-everyone').click()
   await expect(you).toHaveAttribute('aria-pressed', 'false')
 }
+
+/** Play an episode the way the player does: two saves, two minutes apart in position. */
+export async function listenToOne(page: Page): Promise<string> {
+  const resp = await page.request.get('/api/app/episodes?page_size=1')
+  const slug = ((await resp.json()).items as Array<{ slug: string }>)[0].slug
+  const tz = -new Date().getTimezoneOffset()
+  for (const position_seconds of [10, 130]) {
+    const r = await page.request.put(`/api/app/playback/${slug}`, { data: { position_seconds, tz_offset_minutes: tz } })
+    expect(r.ok()).toBeTruthy()
+  }
+  return slug
+}

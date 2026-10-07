@@ -10,7 +10,8 @@
  * The contract:
  *
  *   KICKER            small caps, muted, ONE line, truncated — a count or a date, never a
- *                     restatement of the title beneath it
+ *                     restatement of the title beneath it (one exception: Recommended names what
+ *                     it is built from, operator 2026-10-07)
  *   Title   [action]  `lp-section`, ONE line, truncated; the action (a "See all" link) sits at the
  *                     far right of the same row
  *
