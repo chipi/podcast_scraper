@@ -24,6 +24,7 @@ import { formatPublishDate } from '../utils/format'
 import { episodeArtwork } from "../utils/episode"
 import { toRankBucket, track } from "../services/analytics"
 import { useAuthStore } from "../stores/auth"
+import BrandGlyph from "../components/BrandGlyph.vue"
 import { useLibraryStore } from "../stores/library"
 import { allPositions } from "../services/playbackPositions"
 import { localArtworkFor, localKnowledgeFor } from "../services/downloads"
@@ -169,6 +170,16 @@ const showInterestsCard = computed(
     interests.ids.length === 0 &&
     !interestsDismissed.value
 )
+
+/**
+ * The first name for the welcome, or null. An email-link account's `name` can be the address
+ * itself, and "Welcome, marko@…" reads worse than no name at all.
+ */
+const welcomeName = computed<string | null>(() => {
+  const raw = auth.user?.name?.trim() ?? ""
+  if (!raw || raw.includes("@")) return null
+  return raw.split(/\s+/)[0] ?? null
+})
 
 function dismissInterests(): void {
   interestsDismissed.value = true
@@ -476,32 +487,46 @@ async function loadContinue(): Promise<void> {
          moved together, LOWER on the page (H.3) — see the Search section below Your Week. The top of
          Home is now the resume hero (when resuming) then Jump-back-in + the trending rails (H.4). -->
 
-    <!-- Set-your-interests card (first visit; dismissible) — opens the cluster picker -->
-    <!-- One quiet line, not a bordered accent card (#1964).
-         As a card it was the third pitch before any content, and the worst-composed object on the
-         page: a 1px orange stroke fighting the solid orange Search button ~40px above it, a title
-         wrapping in a column with 200px of unused width, and "Not now" aligned to neither the
-         button's left nor its centre. It is an offer, not an announcement — so it gets a line. -->
-    <section v-if="showInterestsCard" class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1">
-      <span class="min-w-0">
-        <span class="block text-sm text-muted">{{ t("interests.cardTitle") }}</span>
-      </span>
-      <!--
-        The two controls are ONE stacked group, not two siblings of the text.
-        Side by side they were both `shrink-0` on the same row, so together they claimed the width
-        the copy needed: on a 390px screen the title wrapped to two lines and the body to four, in a
-        card whose whole job is a one-line ask. Stacking "Not now" under the primary button returns
-        that width to the left column and puts the dismiss where it reads as secondary — beneath the
-        action it declines, rather than competing beside it.
-      -->
-      <span class="flex shrink-0 items-center gap-4">
-        <button type="button" class="text-sm font-bold text-accent" @click="pickerOpen = true">
+    <!-- Welcome + set-your-interests card (first visit, until interests exist or "Not now").
+         Operator 2026-10-07, from a beta user who did not know what "Choose interests" / "Not now"
+         did: it was one muted line with two text links. It is now a WELCOME — the person's name,
+         what choosing interests changes, and two real buttons. (It was reduced to a line in #1964
+         for competing with the Search button; a designed card that leads the page is the answer to
+         that, not a quieter line.) Button labels are unchanged: device journeys find them by text. -->
+    <section
+      v-if="showInterestsCard"
+      class="relative mt-4 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-accent/20 via-elevated to-surface p-5 sm:p-6"
+      data-testid="interests-welcome"
+    >
+      <BrandGlyph
+        class="pointer-events-none absolute -right-4 -top-4 h-28 w-28 opacity-15"
+        aria-hidden="true"
+      />
+      <p class="lp-kicker mb-2">{{ t("interests.cardTitle") }}</p>
+      <h2 class="font-display text-2xl font-extrabold tracking-tight text-canvas-foreground">
+        {{ welcomeName ? t("interests.welcome", { name: welcomeName }) : t("interests.welcomeNoName") }}
+      </h2>
+      <p class="mt-2 max-w-prose text-sm leading-relaxed text-muted">
+        {{ t("interests.welcomeBody") }}
+      </p>
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          class="inline-flex h-11 items-center rounded-full bg-accent px-5 text-sm font-bold text-accent-foreground shadow-sm transition hover:opacity-90"
+          data-testid="interests-choose"
+          @click="pickerOpen = true"
+        >
           {{ t("interests.cardCta") }}
         </button>
-        <button type="button" class="text-sm text-muted" @click="dismissInterests">
+        <button
+          type="button"
+          class="inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
+          data-testid="interests-not-now"
+          @click="dismissInterests"
+        >
           {{ t("interests.dismiss") }}
         </button>
-      </span>
+      </div>
     </section>
 
     <!-- Your Week — the personal digest, in-app (#1412). The first curated, personalized block.

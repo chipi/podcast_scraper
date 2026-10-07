@@ -352,6 +352,29 @@ describe('HomeView interests card (3.5)', () => {
     expect(w.findAll('[data-testid="interest-suggestion"]').map((b) => b.text())).toContain('+ AI')
   })
 
+  it('welcomes the person by first name, and offers two real buttons (operator 2026-10-07)', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    useAuthStore().user = { user_id: 'u', email: 'm@x.com', name: 'Marko Dragoljevic' } as unknown as Me
+    const w = mountKeptAlive()
+    await flushPromises()
+    const card = w.get('[data-testid="interests-welcome"]')
+    expect(card.text()).toContain('Welcome, Marko')
+    expect(card.text()).toContain('shape your Home and recommendations')
+    // Buttons, with the labels the device journeys find them by.
+    expect(card.get('[data-testid="interests-choose"]').text()).toBe('Choose interests')
+    expect(card.get('[data-testid="interests-not-now"]').text()).toBe('Not now')
+  })
+
+  it('does not greet an email-link account by its address', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    useAuthStore().user = { user_id: 'u', email: 'm@x.com', name: 'm@x.com' } as unknown as Me
+    const w = mountKeptAlive()
+    await flushPromises()
+    const card = w.get('[data-testid="interests-welcome"]')
+    expect(card.text()).toContain('Welcome to Close Listening')
+    expect(card.text()).not.toContain('m@x.com')
+  })
+
   it('dismissing hides the card', async () => {
     signIn()
     const w = mountKeptAlive()
