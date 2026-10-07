@@ -331,6 +331,11 @@ async function pushPendingWrites({ revalidate = true }: { revalidate?: boolean }
       void useCaptureStore().load()
       void useCollectionsStore().load()
       void useCompletedStore().load()
+      // Queue and follows replay through the outbox too. Missing here, a follow replayed at boot
+      // (one a reload had cut off) reached the server while the page kept the list it loaded
+      // before the replay: "+ Follow" on a topic that was followed (UXS-013, 14 of 20 runs).
+      void queue.load()
+      void useInterestsStore().load().catch(() => {})
     }
   })
 }
@@ -384,6 +389,7 @@ async function revalidateAfterReconnect(): Promise<void> {
     useCompletedStore().load(),
     useCollectionsStore().load(),
     useCaptureStore().load(),
+    useInterestsStore().load(),
   ])
 }
 
