@@ -63,8 +63,16 @@ const label = computed(() => {
   return t('capture.markMoment')
 })
 
-/** Expanded (labelled) whenever there is an outcome to report; an icon the rest of the time. */
-const expanded = computed(() => props.state !== 'idle')
+/**
+ * Expanded (labelled) when there is an outcome to report — but only where there is ROOM for words.
+ *
+ * In the sticky transport (`pill`) the row is centred and cannot wrap: the expanded receipt pushed
+ * itself off the left edge of a phone, cut to "Saved — view" or a clipped failure sentence
+ * (operator 2026-10-07). There the circle stays a circle and carries the outcome itself — filled
+ * accent + filled bookmark = saved (tap opens Library › Saved), danger + "!" = failed (tap retries),
+ * the full sentence in `aria-label`/`title`. The masthead `icon` variant has room and keeps words.
+ */
+const expanded = computed(() => props.state !== 'idle' && props.variant !== 'pill')
 
 const tone = computed(() => {
   if (props.state === 'saved') return 'bg-accent text-accent-foreground'
@@ -102,12 +110,13 @@ const shape = computed(() => {
     :to="HIGHLIGHTS"
     :class="[shape, tone, 'no-underline transition']"
     :title="label"
+    :aria-label="expanded ? undefined : label"
     data-testid="capture-receipt"
   >
     <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" class="h-4 w-4 shrink-0" aria-hidden="true">
       <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
     </svg>
-    <span>{{ label }}</span>
+    <span v-if="expanded">{{ label }}</span>
   </RouterLink>
 
   <button

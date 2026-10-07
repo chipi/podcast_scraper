@@ -76,4 +76,21 @@ describe('CaptureMoment (#1592)', () => {
     const saved = await mountAt({ state: 'saved' })
     expect(saved.get('[data-testid="capture-receipt"]').text()).not.toBe('')
   })
+
+  it('in the transport (pill) the receipt stays a CIRCLE — no words to push the row off screen', async () => {
+    // Operator 2026-10-07: the expanded "Saved — view" pill pushed itself off the left edge of a
+    // phone, because the transport row is centred and cannot wrap. The circle carries the outcome.
+    const saved = await mountAt({ state: 'saved', variant: 'pill' })
+    const receipt = saved.get('[data-testid="capture-receipt"]')
+    expect(receipt.text()).toBe('')
+    expect(receipt.attributes('aria-label')).toBe(en.capture.savedGoToHighlights)
+    expect(receipt.attributes('href')).toBe('/library?tab=saved')
+    expect(receipt.classes().join(' ')).not.toContain('max-w-')
+
+    const failed = await mountAt({ state: 'failed', variant: 'pill' })
+    const btn = failed.get('[data-testid="capture-moment"]')
+    expect(btn.text()).toBe('')
+    expect(btn.attributes('aria-label')).toBe(en.capture.saveFailed)
+    expect(btn.classes().join(' ')).toContain('text-danger')
+  })
 })
