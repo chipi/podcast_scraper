@@ -27,6 +27,7 @@ import { RouterLink } from 'vue-router'
 import type { Podcast } from '../services/types'
 import { showArtwork } from '../utils/episode'
 import { formatPublishDate } from '../utils/format'
+import { borderClass } from '../utils/highlightColors'
 
 const props = defineProps<{
   show: Podcast
@@ -37,6 +38,11 @@ const props = defineProps<{
    * list stands alone and carries a labelled Follow, which does not fit beside a heart at 128px.
    */
   actionsBelow?: boolean
+  /**
+   * The saved colour (Library › Saved): the same left bar {@link EpisodeCard} draws, so a coloured
+   * show reads as coloured in the list and not only in its small swatch (operator 2026-10-07).
+   */
+  color?: string | null
 }>()
 const { t, locale } = useI18n()
 
@@ -77,6 +83,7 @@ const canExpand = computed(() => !!description.value && (descClipped.value || de
 <template>
   <article
     class="lp-media-row group relative -mx-3 gap-4 rounded-xl border-b border-border px-3 py-5 transition-colors sm:gap-5"
+    :class="color ? ['border-l-4', borderClass(color)] : ''"
     data-testid="show-row"
   >
     <!-- LEFT: artwork with the controls OVER it, the episode count beneath. -->

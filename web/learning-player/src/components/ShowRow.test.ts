@@ -52,3 +52,15 @@ describe('ShowRow controls placement', () => {
     expect(w.findAll('[data-testid="act"]')).toHaveLength(1) // moved, not duplicated
   })
 })
+
+describe('ShowRow saved colour', () => {
+  it('draws the same left bar as an episode when the show carries a saved colour', () => {
+    const row = mountRow({ color: 'rose' }).get('[data-testid="show-row"]')
+    expect(row.classes()).toContain('border-l-4')
+    expect(row.classes()).toContain('border-l-rose-400')
+  })
+
+  it('draws no bar without one', () => {
+    expect(mountRow().get('[data-testid="show-row"]').classes()).not.toContain('border-l-4')
+  })
+})

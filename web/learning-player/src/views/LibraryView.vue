@@ -672,7 +672,7 @@ onMounted(async () => {
             >
               <!-- Controls UNDER the artwork, like the episode rows below them (operator
                    2026-10-05): shows and episodes share this page, so they share a control row. -->
-              <ShowRow :show="show" actions-below>
+              <ShowRow :show="show" :color="entity.color" actions-below>
                 <template #actions>
                   <SavedColorControl
                     :color="entity.color"
