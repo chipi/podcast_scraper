@@ -295,9 +295,7 @@ describe('HomeView distinguishes empty from broken (#1591)', () => {
     await flushPromises()
     expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
 
-    spy.mockResolvedValueOnce({
-      items: [ep('a-1', 'Recovered Ep')], page: 1, page_size: 8, total: 1, has_more: false,
-    })
+    spy.mockResolvedValueOnce({ items: [ep('a-1', 'Recovered Ep')], scope: 'all' })
     await w.get('[data-testid="section-retry"]').trigger('click')
     await flushPromises()
 
@@ -686,10 +684,7 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
 
     spy.mockResolvedValue({
       items: [ep('a-2', 'Fresh Again')],
-      page: 1,
-      page_size: 8,
-      total: 1,
-      has_more: false,
+      scope: 'all',
     })
     await w.get('[data-testid="stale-retry"]').trigger('click')
     await flushPromises()
