@@ -58,6 +58,14 @@ def main() -> int:
             "run transcribes the audio instead of taking the fixture VTT (ASR measurement, #2187)."
         ),
     )
+    parser.add_argument(
+        "--no-language",
+        action="store_true",
+        help=(
+            "Serve every feed WITHOUT its <language>, so the run language falls back to the "
+            "profile default — what the pipeline does with an undeclared-language feed (#2187)."
+        ),
+    )
     args = parser.parse_args()
 
     from tests.e2e.fixtures.e2e_http_server import (  # noqa: E402 (sys.path first)
@@ -74,6 +82,9 @@ def main() -> int:
     E2EHTTPRequestHandler.set_strip_transcripts(bool(args.no_transcripts))
     if args.no_transcripts:
         print("Feeds are served AUDIO-ONLY (no <podcast:transcript>).", flush=True)
+    E2EHTTPRequestHandler.set_strip_language(bool(args.no_language))
+    if args.no_language:
+        print("Feeds are served with NO <language>.", flush=True)
 
     server = E2EHTTPServer(port=args.port)
     server.start()

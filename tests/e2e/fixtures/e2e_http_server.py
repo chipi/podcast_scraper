@@ -88,6 +88,19 @@ def strip_podcast_transcripts(feed_xml: bytes) -> bytes:
     return _PODCAST_TRANSCRIPT_RE.sub(b"", feed_xml)
 
 
+_LANGUAGE_RE = re.compile(rb"[ \t]*<language>[^<]*</language>[ \t]*(?:\r?\n)?")
+
+
+def strip_feed_language(feed_xml: bytes) -> bytes:
+    """The feed with its ``<language>`` removed — a feed that DECLARES NO LANGUAGE (#2187).
+
+    Real feeds omit or mis-declare the tag, and then the run language falls back to the profile
+    default. This is how a run measures what the pipeline does with a non-English episode it was
+    not told about.
+    """
+    return _LANGUAGE_RE.sub(b"", feed_xml)
+
+
 def _anthropic_system_text(system: Any) -> str:
     """Normalize Anthropic `system` (str or list of content blocks) to plain text."""
     if system is None:
@@ -679,6 +692,9 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     # like the flags above, so a test that sets it must restore it (get_strip_transcripts).
     _strip_transcripts: bool = False
     _strip_transcripts_lock = threading.Lock()
+    # Serve every feed without its <language> (see strip_feed_language). Same contract as above.
+    _strip_language: bool = False
+    _strip_language_lock = threading.Lock()
 
     # Error behavior registry (shared across all handler instances)
     # Format: {url_path: {"status": 404|500, "delay": seconds}}
@@ -833,6 +849,38 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return cls._strip_transcripts
 
     @classmethod
+    def set_strip_language(cls, strip: bool) -> None:
+        """Serve feeds without ``<language>`` when True."""
+        with cls._strip_language_lock:
+            cls._strip_language = strip
+
+    @classmethod
+    def get_strip_language(cls) -> bool:
+        """Whether feeds are served without a language (read side of :meth:`set_strip_language`)."""
+        with cls._strip_language_lock:
+            return cls._strip_language
+
+    def _feed_filter(self) -> Optional[Callable[[bytes], bytes]]:
+        """The body filter for a feed: the strips that are switched on, composed; else None."""
+        filters = [
+            f
+            for f, on in (
+                (strip_podcast_transcripts, self.get_strip_transcripts()),
+                (strip_feed_language, self.get_strip_language()),
+            )
+            if on
+        ]
+        if not filters:
+            return None
+
+        def apply(body: bytes) -> bytes:
+            for f in filters:
+                body = f(body)
+            return body
+
+        return apply
+
+    @classmethod
     def get_allowed_podcasts(cls) -> Optional[set[str]]:
         """Get currently allowed podcasts.
 
@@ -982,7 +1030,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     file_path,
                     content_type="application/xml",
                     head_only=head_only,
-                    body_filter=strip_podcast_transcripts if self.get_strip_transcripts() else None,
+                    body_filter=self._feed_filter(),
                 )
                 return
             self.send_error(404, "RSS feed not found")
