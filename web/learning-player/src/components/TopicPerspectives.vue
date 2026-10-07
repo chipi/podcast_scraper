@@ -137,16 +137,17 @@ const heading = computed(() =>
     : headingTitle.value
 )
 
-// Show up to PREVIEW insights per speaker; the rest sit behind a per-speaker toggle.
-const PREVIEW = 3
+// Show up to PREVIEW insights per speaker; the rest sit behind a per-speaker toggle. Two, and three
+// speakers at a time (operator 2026-10-07): one person with 59 takes filled a phone screen alone.
+const PREVIEW = 2
 
 /**
- * Speakers are PAGED, five at a time, on every surface (operator 2026-10-05: "page those with show
- * more in chunks of 5"). A grouping is the union over its members — the storyline fixture returns
+ * Speakers are PAGED, three at a time, on every surface (operator 2026-10-05 set five; 2026-10-07
+ * three, each with two takes). A grouping is the union over its members — the storyline fixture returns
  * 11 speakers, which unfolded took the page from ~2,200px to 11,185px — and a topic reached 10.
  * Speakers arrive ranked most-takes-first, so each page is the next-most-engaged five.
  */
-const caps = useCappedSections(5, 5)
+const caps = useCappedSections(3, 3)
 const visible = computed(() => caps.visible("speakers", perspectives.value))
 const expanded = ref<Set<string>>(new Set())
 function toggle(personId: string): void {
@@ -263,6 +264,7 @@ function toggle(personId: string): void {
         :expanded="caps.remaining('speakers', perspectives.length) === 0"
         :count="perspectives.length"
         :remaining="caps.remaining('speakers', perspectives.length)"
+        :more-label="t('ec.moreVoices', { count: caps.remaining('speakers', perspectives.length) })"
         data-testid="perspectives-more-speakers"
         @toggle="caps.toggle('speakers', perspectives.length)"
       />

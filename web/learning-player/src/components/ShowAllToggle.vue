@@ -24,6 +24,8 @@ const props = defineProps<{
   count: number
   /** Items still hidden. Passing this is what puts the control in incremental mode. */
   remaining?: number
+  /** Incremental mode only: what the "more" label names, e.g. "Show more voices ({count})". */
+  moreLabel?: string
 }>()
 defineEmits<{ toggle: [] }>()
 const { t } = useI18n()
@@ -33,7 +35,7 @@ function label(): string {
     return props.expanded ? t('library.showLess') : t('library.showAll', { count: props.count })
   }
   return props.remaining > 0
-    ? t('library.showMore', { count: props.remaining })
+    ? (props.moreLabel ?? t('library.showMore', { count: props.remaining }))
     : t('library.showLess')
 }
 </script>

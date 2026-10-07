@@ -363,6 +363,48 @@ const allTags = computed<Tag[]>(() => {
 const visibleTags = computed(() => allTags.value)
 
 /**
+ * Progressive disclosure across the panel (operator 2026-10-07): a few of each section first, the
+ * rest one "Show N more" away. The first screen was a wall — every key point, every chip, eight
+ * insight cards — before anyone had decided the episode was worth reading about.
+ */
+const KEY_POINTS_COLLAPSED = 2
+const TAGS_COLLAPSED = 5
+const RELATED_COLLAPSED = 3
+const keyPointsExpanded = ref(false)
+const tagsExpanded = ref(false)
+const relatedExpanded = ref(false)
+const visibleBullets = computed(() =>
+  keyPointsExpanded.value ? summaryBullets.value : summaryBullets.value.slice(0, KEY_POINTS_COLLAPSED)
+)
+const visibleRelated = computed(() =>
+  relatedExpanded.value ? related.value : related.value.slice(0, RELATED_COLLAPSED)
+)
+/**
+ * The five shown before "+N more" are a MIX, not the first five topics (operator 2026-10-07): the
+ * storyline when there is one, the theme when there is one, then up to two people who are not the
+ * host — the guest first, then someone else in the conversation (the host is already named in the
+ * room line above) — and topics fill what is left.
+ */
+const showStorylinePill = computed(() => Boolean(storylineDominantLabel.value))
+const showThemePill = computed(() => Boolean(dominantClusterId.value && dominantThemeLabel.value))
+const collapsedTags = computed<Tag[]>(() => {
+  let room = TAGS_COLLAPSED - (showStorylinePill.value ? 1 : 0) - (showThemePill.value ? 1 : 0)
+  const people = allTags.value
+    .filter((tg) => tg.kind === "person" && (tg.role ?? "").toLowerCase() !== "host")
+    .slice(0, Math.min(2, Math.max(room, 0)))
+  room -= people.length
+  const topics = allTags.value.filter((tg) => tg.kind === "topic").slice(0, Math.max(room, 0))
+  return [...people, ...topics]
+})
+const tagsTotal = computed(
+  () => allTags.value.length + (showStorylinePill.value ? 1 : 0) + (showThemePill.value ? 1 : 0)
+)
+const tagsShown = computed(
+  () => collapsedTags.value.length + (showStorylinePill.value ? 1 : 0) + (showThemePill.value ? 1 : 0)
+)
+const shownTags = computed(() => (tagsExpanded.value ? visibleTags.value : collapsedTags.value))
+
+/**
  * `unknown` renders NO type label at all.
  *
  * A row labelled "UNKNOWN" spends a line to tell the reader nothing, and it is the one value that
@@ -394,7 +436,9 @@ function insightTypeLabel(ins: { insight_type?: string | null }): string {
 // about attribution. `drop` is excluded server-side; a null tag = pre-3.1 corpus, kept for back-
 // compat. Server returns them salience-sorted; we preserve order and cap at gi_surface_default_limit
 // (8) — the eval showed ranks 6-8 are as good as the top-5, so 8 (not 6) is the fold.
-const INSIGHT_COLLAPSED = 8
+// Four, not eight (operator 2026-10-07): the eval found ranks 6-8 as good as the top 5, but the
+// panel opens on a gist now, and "Show N more" is one tap.
+const INSIGHT_COLLAPSED = 4
 // #2198: `attributed === false` insights are routed `connect` (no named speaker) yet shown — the
 // server sends them only as the fallback for an episode whose speakers were never named, so they
 // never appear beside named ones. Without this an episode with 44 grounded insights showed none.
@@ -794,30 +838,38 @@ watch(() => auth.isAuthenticated, loadCaptures)
              short left rule gives each point weight and scans as a structured list. -->
           <ul data-testid="summary-bullets" class="flex flex-col gap-2.5">
             <li
-              v-for="(b, i) in summaryBullets"
+              v-for="(b, i) in visibleBullets"
               :key="i"
               class="border-l-2 border-accent/50 pl-3 text-sm leading-relaxed text-surface-foreground"
             >
               {{ b }}
             </li>
           </ul>
+          <button
+            v-if="!keyPointsExpanded && summaryBullets.length > KEY_POINTS_COLLAPSED"
+            type="button"
+            data-testid="kp-key-points-more"
+            class="mt-3 text-sm font-bold text-accent"
+            @click="keyPointsExpanded = true"
+          >
+            {{ t("home.showMore", { count: summaryBullets.length - KEY_POINTS_COLLAPSED }) }}
+          </button>
         </CollapsibleSection>
 
         <!-- Topics & People — one compact, expandable row; topics cluster-first (RFC-102) -->
         <CollapsibleSection
           v-if="allTags.length"
           :title="t('kp.tags')"
-          :count="allTags.length"
+          :count="tagsTotal"
           section-key="tags"
           class="mb-5"
         >
           <!-- Storyline + similar context (IN.2): promoted from a cramped, right-aligned `text-xs`
              column to a clear left-aligned block, so the storyline (theme cluster) this episode's
              topics belong to reads at a glance rather than as fine print. -->
-          <div
-            v-if="storylineDominantLabel || (dominantClusterId && dominantThemeLabel)"
-            class="mb-2 flex flex-wrap items-center gap-2"
-          >
+          <!-- ONE wrapping row (operator 2026-10-07): storyline, theme, people and topics together,
+               five of them until "+N more" (see `collapsedTags` for the mix). -->
+          <div class="flex flex-wrap items-center gap-1.5" data-testid="kp-tags-row">
             <button
               v-if="dominantClusterId && dominantThemeLabel"
               type="button"
@@ -858,15 +910,13 @@ watch(() => auth.isAuthenticated, loadCaptures)
               <span class="font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.storylineKind") }}</span>
               {{ storylineDominantLabel }}
             </span>
-          </div>
-          <div class="flex flex-wrap gap-1.5">
             <!-- data-testid, not the colour class: specs used to select these with
                `button.text-topic`, which couples the test suite to styling — a restyle would break
                them for reasons unrelated to behaviour, and it was the cause of two flaky specs
                (consolidation, perspectives). Flagged in #1612. -->
             <component
               :is="tag.episodeScoped ? 'span' : 'button'"
-              v-for="tag in visibleTags"
+              v-for="tag in shownTags"
               :key="tag.key"
               :type="tag.episodeScoped ? undefined : 'button'"
               :data-episode-scoped="tag.episodeScoped ? 'true' : undefined"
@@ -899,6 +949,15 @@ watch(() => auth.isAuthenticated, loadCaptures)
                 >{{ roleLabel(tag.role) }}</span
               >
             </component>
+            <button
+              v-if="!tagsExpanded && tagsTotal > tagsShown"
+              type="button"
+              data-testid="kp-tags-more"
+              class="rounded-full px-2.5 py-1 text-xs font-bold text-accent hover:bg-overlay"
+              @click="tagsExpanded = true"
+            >
+              {{ t("kp.moreTags", { count: tagsTotal - tagsShown }) }}
+            </button>
           </div>
         </CollapsibleSection>
 
@@ -1071,7 +1130,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
             class="mt-3 text-sm font-bold text-accent"
             @click="showAll = true"
           >
-            {{ t("kp.showAll") }}
+            {{ t("home.showMore", { count: typeFilteredInsights.length - INSIGHT_COLLAPSED }) }}
           </button>
         </CollapsibleSection>
 
@@ -1087,10 +1146,19 @@ watch(() => auth.isAuthenticated, loadCaptures)
                section name, same shape everywhere). It was a text list here, with a Play-next
                button the tile's shared action row does not carry. -->
           <CardRail>
-            <li v-for="r in related" :key="r.slug" class="lp-rail-item">
+            <li v-for="r in visibleRelated" :key="r.slug" class="lp-rail-item">
               <EpisodeTile :episode="r" />
             </li>
           </CardRail>
+          <button
+            v-if="!relatedExpanded && related.length > RELATED_COLLAPSED"
+            type="button"
+            data-testid="kp-related-more"
+            class="mt-3 text-sm font-bold text-accent"
+            @click="relatedExpanded = true"
+          >
+            {{ t("home.showMore", { count: related.length - RELATED_COLLAPSED }) }}
+          </button>
         </CollapsibleSection>
 
         <!-- Your notes on this episode (NT.1) — episode-target notes, timestamped, dictation where

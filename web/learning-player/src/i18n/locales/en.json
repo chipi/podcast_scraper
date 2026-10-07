@@ -517,7 +517,8 @@
     "jumpToMoment": "Jump to this moment in the episode ({time})",
     "filterByType": "Filter insights by type",
     "filterAll": "All",
-    "speakerNotIdentified": "Speaker not identified"
+    "speakerNotIdentified": "Speaker not identified",
+    "moreTags": "+{count} more"
   },
   "interests": {
     "title": "Choose your interests",
@@ -652,7 +653,8 @@
     "sig_steady": "Steady",
     "sigVsAvg": "vs its 6-month average",
     "sigSimilar": "Similar topics",
-    "sigAlongside": "Often discussed alongside"
+    "sigAlongside": "Often discussed alongside",
+    "moreVoices": "Show more voices ({count})"
   },
   "queue": {
     "title": "Queue",

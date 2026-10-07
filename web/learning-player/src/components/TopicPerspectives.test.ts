@@ -48,7 +48,7 @@ const RESP: TopicPerspectivesResponse = {
 afterEach(() => vi.restoreAllMocks())
 
 describe('TopicPerspectives', () => {
-  it('pages speakers five at a time on a topic too, then folds back', async () => {
+  it('shows three voices, then "Show more voices" pages three more, then folds back (operator 2026-10-07)', async () => {
     const speaker = (i: number) => ({
       person_id: `person:p${i}`,
       person_name: `Person ${i}`,
@@ -65,11 +65,13 @@ describe('TopicPerspectives', () => {
     await flushPromises()
     const cards = () => w.findAll('[data-testid="topic-perspective"]').length
     const more = () => w.get('[data-testid="perspectives-more-speakers"]')
-    expect([cards(), more().text()]).toEqual([5, 'Show more (2)'])
+    expect([cards(), more().text()]).toEqual([3, 'Show more voices (4)'])
+    await more().trigger('click')
+    expect([cards(), more().text()]).toEqual([6, 'Show more voices (1)'])
     await more().trigger('click')
     expect([cards(), more().text()]).toEqual([7, 'Show less'])
     await more().trigger('click')
-    expect(cards()).toBe(5)
+    expect(cards()).toBe(3)
   })
 
   it("names the topic in its heading: '2 perspectives on AI'", async () => {
@@ -88,10 +90,10 @@ describe('TopicPerspectives', () => {
     expect(cards).toHaveLength(2)
     expect(cards[0].text()).toContain('Jack Clark')
     expect(cards[0].text()).toContain('5 insights')
-    // preview caps at 3; the rest sit behind "show more"
-    expect(cards[0].text()).toContain('Take three')
-    expect(cards[0].text()).not.toContain('Take four')
-    expect(cards[0].text()).toContain('Show 2 more')
+    // preview caps at 2 (operator 2026-10-07); the rest sit behind "show more"
+    expect(cards[0].text()).toContain('Take two')
+    expect(cards[0].text()).not.toContain('Take three')
+    expect(cards[0].text()).toContain('Show 3 more')
   })
 
   it('expands a speaker on "show more"', async () => {

@@ -497,6 +497,7 @@ Storylines surface in `DiscoveryList` when `kind="storyline"` — each row is `d
 | ------- | ---- |
 | Insights list | `data-testid="kp-insights"`, fold control `kp-insights-show-all` |
 | Entity chips | `data-testid="kp-topic-chip"` / `kp-person-chip` → opens the entity card in-panel. A MIXED group, so every chip names its kind (`kp-chip-kind`, 2026-10-04); above them the dominant theme `kp-theme-link` (opens `ThemeCard` on top) and the storyline `kp-storyline-link` |
+| Notes disclosure (operator 2026-10-07) | A few of each section first: the chips are ONE row (`kp-tags-row`) of five — storyline, theme, up to two non-host people (guest first), then topics — with `kp-tags-more` ("+N more") revealing every chip; key points show 2 (`kp-key-points-more`), insights 4 (`kp-insights-show-all`, "Show N more"), related episodes 3 (`kp-related-more`); voices on a topic/storyline show 3 people × 2 takes, paged by `perspectives-more-speakers` ("Show more voices (N)"). The summary stays in full |
 | People in the room | `data-testid="kp-dossier-person"` inside `kp-episode-dossier` — host then guests (mentioned people stay in the chips), each with a `ProfileAvatar` photo (initials when none) and a role; a tap opens the person in-panel with ‹ Back, exactly like `kp-person-chip`; an episode-scoped person is a `<span>`, not a button |
 | Save an insight | `aria-label` "Save to highlights" — the ONE save per insight since #1593; the `.lp-fav` heart is no longer on insight rows |
 

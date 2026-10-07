@@ -30,6 +30,9 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   await page.goto('/podcast/p05') // #1148: reach the episode via its show page (date-independent)
   await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
   await page.getByTestId('player-open-insights').click()
+  // The notes show five chips first (operator 2026-10-07); open the rest when they are folded.
+  const moreChips = page.getByTestId('kp-tags-more')
+  if (await moreChips.isVisible().catch(() => false)) await moreChips.click()
   await page.getByTestId('kp-topic-chip').filter({ hasText: 'risk management' }).first().click()
 
   // The Perspectives section renders the real, corpus-derived speakers.
@@ -38,9 +41,14 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   // The heading names the topic (operator 2026-10-05).
   await expect(section.getByText('10 perspectives on risk management', { exact: true })).toBeVisible()
   await expect(section.getByRole('button', { name: 'Daniel Cho' })).toBeVisible()
-  // Speakers are paged five at a time (operator 2026-10-05): Scott Bessent ranks 9th of 10.
+  // Voices are paged three at a time (operator 2026-10-07): Scott Bessent ranks 9th of 10, so he
+  // appears on the second "Show more voices".
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
-  await section.getByTestId('perspectives-more-speakers').click()
+  const moreVoices = section.getByTestId('perspectives-more-speakers')
+  await expect(moreVoices).toHaveText('Show more voices (7)')
+  await moreVoices.click()
+  await expect(section.getByRole('button', { name: 'Scott Bessent' })).toHaveCount(0)
+  await moreVoices.click()
   await expect(section.getByRole('button', { name: 'Scott Bessent' })).toBeVisible()
   // The engineered opposition surfaces verbatim as a grounded claim.
   await expect(
@@ -77,7 +85,7 @@ test('per-speaker show-more toggle reveals insights past the preview cap', async
 }, testInfo) => {
   await signInIsolated(page, 'perspectives-showmore', testInfo)
 
-  // Mock a >3-insight speaker: the preview cap (3) + "show more" toggle is a client behavior the
+  // Mock a >2-insight speaker: the preview cap (2, operator 2026-10-07) + "show more" toggle is a client behavior the
   // real corpus can't reach (≤2 insights/speaker), so this one case fakes the endpoint to cover it.
   await page.route('**/api/app/topics/**/perspectives**', async (route) => {
     await route.fulfill({
@@ -109,14 +117,17 @@ test('per-speaker show-more toggle reveals insights past the preview cap', async
   await page.goto('/podcast/p05')
   await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
   await page.getByTestId('player-open-insights').click()
+  // The notes show five chips first (operator 2026-10-07); open the rest when they are folded.
+  const moreChips = page.getByTestId('kp-tags-more')
+  if (await moreChips.isVisible().catch(() => false)) await moreChips.click()
   await page.getByTestId('kp-topic-chip').filter({ hasText: 'risk management' }).first().click()
 
   const section = page.getByTestId('topic-perspectives')
   await expect(section).toBeVisible()
-  await expect(section.getByText('Perspective insight three')).toBeVisible()
-  await expect(section.getByText('Perspective insight four')).toBeHidden()
+  await expect(section.getByText('Perspective insight two')).toBeVisible()
+  await expect(section.getByText('Perspective insight three')).toBeHidden()
 
-  // "Show more" reveals the 4th insight.
-  await section.getByRole('button', { name: 'Show 1 more' }).click()
+  // "Show more" reveals the 3rd and 4th.
+  await section.getByRole('button', { name: 'Show 2 more' }).click()
   await expect(section.getByText('Perspective insight four')).toBeVisible()
 })
