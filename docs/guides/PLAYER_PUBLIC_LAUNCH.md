@@ -87,7 +87,13 @@ health), and probes the public domain. Stage these first (once):
 - **secrets:** `TS_OAUTH_CLIENT_ID`/`_SECRET`, `PROD_SSH_PRIVATE_KEY`, `PLAYER_APP_SESSION_SECRET`,
   `PLAYER_GOOGLE_CLIENT_SECRET` (see [ADR-143](../adr/ADR-143-tailscale-oauth-migration-and-tag-self-ownership.md) for Tailscale auth)
 - **vars:** `PROD_TAILNET_FQDN`, `PLAYER_DOMAIN`, `PODCAST_CORPUS_VOLUME`,
-  `PLAYER_GOOGLE_CLIENT_ID`
+  `PLAYER_GOOGLE_CLIENT_ID`, `PLAYER_RELEASED_VERSION`
+- **`PLAYER_RELEASED_VERSION`** (environment `prod`) is the newest app version people can
+  install from TestFlight / Play, e.g. `1.0.1`. The deploy writes it as `APP_PLAYER_VERSION`; the
+  native app shows "update available" when it is higher than its own version. Set it by hand once
+  a store build is live — not from `package.json`, which runs ahead of the stores — then run a
+  player deploy (the value is read when the api container starts). Unset means no prompt.
+  `gh variable set PLAYER_RELEASED_VERSION --env prod --body 1.0.1`
 
 Prereqs: the Caddy edge + firewall 80/443 already live on the box; DNS A-record for
 `PLAYER_DOMAIN` → the VPS.

@@ -214,6 +214,11 @@ jobs:
           # Empty by default -> deploy-player.sh pins to the operator's running engine sha.
           PODCAST_IMAGE_TAG: ${{ steps.imgsha.outputs.tag }}
           GOOGLE_CLIENT_ID: ${{ vars.PLAYER_GOOGLE_CLIENT_ID }}
+          # The NEWEST APP VERSION PEOPLE CAN INSTALL (TestFlight / Play), e.g. 1.0.1. The native
+          # app prompts "update available" when this is higher than its own version. Set by hand
+          # when a store build is live — never from package.json, which says what the code WILL be.
+          # Unset = no prompt. `gh variable set PLAYER_RELEASED_VERSION --env prod --body 1.0.1`.
+          PLAYER_RELEASED_VERSION: ${{ vars.PLAYER_RELEASED_VERSION }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.PLAYER_GOOGLE_CLIENT_SECRET }}
           # Sign in with Apple (#2275): the .p8 key's PEM text. Absent = Apple stays off.
           APPLE_SIWA_PRIVATE_KEY: ${{ secrets.PLAYER_APPLE_SIWA_PRIVATE_KEY }}
@@ -356,6 +361,11 @@ jobs:
             fi
             # VAPID PUBLIC key — not secret (the browser fetches it); always written.
             echo "APP_VAPID_PUBLIC_KEY=${APP_VAPID_PUBLIC_KEY}"
+            # Released app version for the native update prompt (see PLAYER_RELEASED_VERSION above).
+            # Written only when set, so an unset variable leaves the prompt off.
+            if [ -n "${PLAYER_RELEASED_VERSION:-}" ]; then
+              echo "APP_PLAYER_VERSION=${PLAYER_RELEASED_VERSION}"
+            fi
             # Runtime secrets (ADR-115 Option A): under PLAYER_SECRETS_VIA_FILES=1 these are
             # delivered as /run/secrets files + exported by the shim, so DROPPED from
             # .env.player (no secrets at rest on disk). Flag off = today's env behaviour.

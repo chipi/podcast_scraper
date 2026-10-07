@@ -52,6 +52,10 @@ services:
       APP_OAUTH_APPLE_SERVICES_ID: ${APP_OAUTH_APPLE_SERVICES_ID:-}
       APP_OAUTH_APPLE_PRIVATE_KEY: ${APP_OAUTH_APPLE_PRIVATE_KEY:-}
       APP_SESSION_SECRET: ${APP_SESSION_SECRET:-}
+      # The newest app version people can install (deploy writes it from the PLAYER_RELEASED_VERSION
+      # variable). Served as player_version on /api/health and /api/app/auth/status; the native
+      # app prompts "update available" when it is higher than its own. Empty = no prompt.
+      APP_PLAYER_VERSION: ${APP_PLAYER_VERSION:-}
       # Delivery seam (#1412/#1415): the infra worker authenticates to /internal/outbox/*
       # with this shared token (X-Internal-Token); empty → the endpoints 503 (disabled).
       # APP_VAPID_PUBLIC_KEY is the PUBLIC half of the worker's VAPID key, served to the
