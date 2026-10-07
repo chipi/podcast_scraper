@@ -39,6 +39,10 @@ WEB_VIEWER_DIR ?= web/gi-kg-viewer
 
 # Consumer Learning Player (Vue + Vite + Playwright; Epic 2 / RFC-099). Separate top-level app.
 APP_DIR ?= web/learning-player
+#: The app version people see, single-sourced from package.json — the same value Android's
+#: versionName and the iOS fastlane lanes use. Passed to the Makefile's own Xcode builds too, which
+#: otherwise shipped the project's MARKETING_VERSION = 1.0 to the simulator and to a dev install.
+APP_MARKETING_VERSION := $(shell sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p' $(APP_DIR)/package.json | head -1)
 
 # GIL Quote vs indexed transcript chunk offset gate (#528 Phase 5). ``make verify-gil-offsets-strict`` uses these.
 # Override for CI or another indexed corpus: GIL_OFFSET_VERIFY_DIR=/path/to/corpus-root make verify-gil-offsets-strict
@@ -3250,7 +3254,8 @@ ios-app-install: ios-origin-up ios-dd-check
 		npm run build >/dev/null && npx cap sync ios >/dev/null
 	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
 		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
-		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO build >/dev/null
+		-derivedDataPath $(IOS_DD) CODE_SIGNING_ALLOWED=NO \
+		MARKETING_VERSION=$(APP_MARKETING_VERSION) build >/dev/null
 	@xcrun simctl boot "$(IOS_SIM)" >/dev/null 2>&1 || true
 	@xcrun simctl install booted "$(IOS_DD)/Build/Products/Debug-iphonesimulator/App.app"
 	@# Prove the installed bundle is the one we meant — the failure mode above is silent otherwise.
@@ -3672,7 +3677,7 @@ ios-device-install:
 			-destination "platform=iOS,id=$$udid" -derivedDataPath $(IOS_DEVICE_DD) \
 			-allowProvisioningUpdates $$ASC_AUTH \
 			DEVELOPMENT_TEAM=$(IOS_TEAM_ID) CODE_SIGN_STYLE=Automatic \
-			build; \
+			MARKETING_VERSION=$(APP_MARKETING_VERSION) build; \
 	}; \
 	if ! build_once; then \
 		echo "--> build failed; clearing $(IOS_DEVICE_DD) and retrying once"; \
