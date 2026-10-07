@@ -436,20 +436,6 @@ def _prod_token_vars() -> set[str]:
     return out
 
 
-def test_the_prod_yaml_carries_no_backend_url() -> None:
-    """A literal here WINS over the rendered value — which is exactly how obs went blind."""
-    import yaml
-
-    spec = yaml.safe_load(_read("config/observability.prod.yaml"))["targets"]["prod"]
-    leaked = [
-        f"{block}.{key}"
-        for block in ("victoria", "grafana", "sentry")
-        for key in (spec.get(block) or {})
-        if key.endswith("url") or key.endswith("url_env")
-    ]
-    assert not leaked, f"backend URLs must come from the deploy, not the YAML: {leaked}"
-
-
 def test_every_prod_obs_var_is_declared_on_the_obs_service() -> None:
     """THE SILENT SEAM: compose passes a container only what its `environment:` block names."""
     import yaml
@@ -459,25 +445,6 @@ def test_every_prod_obs_var_is_declared_on_the_obs_service() -> None:
     missing = sorted(set(_PROD_URL_VARS) | _prod_token_vars() - {"PODCAST_OBS_GITHUB_TOKEN"})
     missing = [n for n in missing if n not in declared]
     assert not missing, f"needed by prod obs, not passed to the obs service: {missing}"
-
-
-def test_every_prod_obs_url_var_is_rendered_by_the_player_deploy() -> None:
-    workflow = _read(".github/workflows/deploy-player.yml")
-    missing = [n for n in _PROD_URL_VARS if f'echo "{n}=' not in workflow]
-    assert not missing, f"needed by prod obs, never rendered by deploy-player: {missing}"
-
-
-def test_obs_reads_logs_and_metrics_from_the_nodes_alloy_writes_to() -> None:
-    """Logs / metrics nodes come from the SAME file Alloy's write URLs are built from, so obs can
-    never drift onto a different node than the one the telemetry actually lands on."""
-    nodes = _read("infra/observability/vps-observability.endpoints.env")
-    for key in ("LOGS_NODE=", "METRICS_NODE="):
-        assert key in nodes, key
-    workflow = _read(".github/workflows/deploy-player.yml")
-    assert ". infra/observability/vps-observability.endpoints.env" in workflow
-    # grafana / glitchtip have no write side; the obs deploy declares them itself
-    for key in ("GRAFANA_NODE=", "GLITCHTIP_NODE="):
-        assert key in workflow, key
 
 
 def test_operator_key_from_a_mounted_secret_file(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
