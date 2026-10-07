@@ -414,37 +414,26 @@ def _read(rel: str) -> str:
     return (_repo_root() / rel).read_text(encoding="utf-8")
 
 
-#: Every variable the prod obs container needs from the deploy for its read URLs.
-_PROD_URL_VARS = (
-    "PODCAST_OBS_VICTORIALOGS_URL",
-    "PODCAST_OBS_VICTORIAMETRICS_URL",
-    "PODCAST_OBS_GRAFANA_URL",
-    "PODCAST_OBS_SENTRY_URL",
-    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
-)
+def test_the_obs_service_env_contract_matches_compose() -> None:
+    """THE SILENT SEAM: compose passes a container only what its `environment:` block names.
 
+    The deployment renders the obs read URLs and tokens, and that side is not in this repository.
+    So the names the obs service accepts are published in ``config/deploy_contract.json`` and kept
+    EXACTLY equal to compose here; the deployment tests that everything it renders is in the list.
+    """
+    import json
 
-def _prod_token_vars() -> set[str]:
-    import yaml
-
-    spec = yaml.safe_load(_read("config/observability.prod.yaml"))["targets"]["prod"]
-    out = set()
-    for block in ("github", "sentry", "grafana", "victoria"):
-        name = (spec.get(block) or {}).get("token_env")
-        if name:
-            out.add(name)
-    return out
-
-
-def test_every_prod_obs_var_is_declared_on_the_obs_service() -> None:
-    """THE SILENT SEAM: compose passes a container only what its `environment:` block names."""
     import yaml
 
     svc = yaml.safe_load(_read("compose/docker-compose.player-public.yml"))["services"]["obs"]
     declared = set(svc.get("environment") or {})
-    missing = sorted(set(_PROD_URL_VARS) | _prod_token_vars() - {"PODCAST_OBS_GITHUB_TOKEN"})
-    missing = [n for n in missing if n not in declared]
-    assert not missing, f"needed by prod obs, not passed to the obs service: {missing}"
+    contract = set(json.loads(_read("config/deploy_contract.json"))["obs_service_env"])
+    assert declared == contract, (
+        "config/deploy_contract.json obs_service_env has drifted from the obs service in "
+        "compose/docker-compose.player-public.yml — "
+        f"in compose only: {sorted(declared - contract)}; in the contract only: "
+        f"{sorted(contract - declared)}. Update the contract to match compose."
+    )
 
 
 def test_operator_key_from_a_mounted_secret_file(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
