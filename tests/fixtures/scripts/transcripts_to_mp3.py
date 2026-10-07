@@ -261,7 +261,7 @@ FRENCH_SPEAKER_VOICE_MAP: dict[str, str] = {
     "Camille Dubois": "Amelie",  # host, fr_CA
     "Julien Mercier": "Thomas",  # guest, fr_FR — a real second voice, no shift needed
     "Élodie Chevalier": "Amelie",  # e02 guest — the host's voice, shifted (VOICE_PITCH_SHIFT)
-    "Mathieu Lefèvre": "Thomas",  # e03 guest
+    "Mathieu Lefèvre": "Amelie",  # e03 guest — Thomas below 0.6 is unintelligible
 }
 GERMAN_SPEAKER_VOICE_MAP: dict[str, str] = {
     "Katrin Vogel": "Anna",  # host
@@ -349,40 +349,59 @@ VOICE_MAPS_BY_LANGUAGE: dict[str, dict[str, str]] = {
 #: voices. Spanish at least had Monica and Paulina. Whether a diarizer separates them is a
 #: question for the diarizer, not for this table — measured against the real pyannote service,
 #: not assumed.
+#: THE INTELLIGIBILITY FLOOR (2026-10-07, #2187). A factor is chosen for pitch SEPARATION, but a
+#: factor that separates well can still make the voice unintelligible to ASR — and then every ASR
+#: measurement on the fixture measures our distortion instead of the model. Measured on the DGX
+#: Whisper (large-v3-turbo), one sentence per voice in its own language, by factor:
+#:
+#:     factor   0.40   0.45   0.50   0.55   0.60+
+#:     Paulina   3%     0%     0%     0%     0%
+#:     Alice   121%     0%     4%     0%     0%
+#:     Thomas  100%    94%    29%     3%     0%
+#:     Amelie   97%     0%     3%     0%     0%
+#:     Anna     20%     8%     8%     4%     0%
+#:     Joana    46%     4%     4%     4%     0%
+#:
+#: Every voice is clean from 0.60 up; below it some are destroyed. The e01 guests sat at 0.40 and
+#: the first real ASR run on this audio (V.6b, 2026-10-07) read Marco at 92% WER — on each guest's
+#: own episode text: Marco Alice@0.4 98%, Stefan Anna@0.4 56%, Rafael Joana@0.4 119%, Mathieu
+#: Thomas@0.5 53%; at the factors below, 0.0 / 0.0 / 1.8 / 4.3%. So a factor below
+#: INTELLIGIBLE_MIN_FACTOR needs an entry in INTELLIGIBLE_BELOW_FLOOR, with its measurement.
+INTELLIGIBLE_MIN_FACTOR = 0.60
+INTELLIGIBLE_BELOW_FLOOR: dict[tuple[str, str], str] = {
+    ("es", "Javier Benavides"): "Paulina@0.45: 0% on the V.6b run (1.4% on his own turns)",
+}
+
+#: Each person's factor. The rule, in order:
+#:   1. intelligible — >= INTELLIGIBLE_MIN_FACTOR unless measured (above);
+#:   2. separated WITHIN ITS EPISODE — >= 25 Hz from the host and >= 15 Hz from Zarvox (~89.5 Hz in
+#:      every language), so a diarizer can tell the people in one conversation apart;
+#:   3. a distinct identity (`voice_identity`) per person per language — across episodes too, so
+#:      one person never has two voices and two people never share one. Guests of DIFFERENT
+#:      episodes never speak together, so they need distinct identities, not distant pitches.
+#: Median F0 of the rendered audio (autocorrelation proxy, each voice reading its own language):
+#:
+#:   es  host Monica 170  | Javier Paulina@0.45 74  Marta Paulina@0.8 131  Diego Paulina@0.65 107
+#:   it  host Alice 174   | Marco Alice@0.7 122     Chiara Alice@0.8 140   Luca Alice@0.6 105
+#:   fr  host Amelie 229  | Julien Thomas 133       Élodie Amelie@0.75 170 Mathieu Amelie@0.6 137
+#:   de  host Anna 165    | Stefan Anna@0.75 124    Lena Anna@0.8 132      Jonas Anna@0.65 107
+#:   pt  host Luciana 191 | Rafael Joana@0.7 118    Inês Joana@0.85 144    Tiago Joana@0.65 110
+#:
+#: French e01 is unshifted: Amelie and Thomas are 90.7 Hz apart on their own. Whether the real
+#: pyannote service separates host and guest is measured by V.6b (#2187), not assumed here.
 VOICE_PITCH_SHIFT: dict[tuple[str, str], float] = {
     ("es", "Javier Benavides"): 0.45,
-    ("it", "Marco Bellini"): 0.40,
-    ("de", "Stefan Brandt"): 0.40,
-    ("pt", "Rafael Vasconcelos"): 0.40,
-    # The e02 / e03 guests, 2026-10-06: each person its OWN factor, because two distinct people
-    # never share an acoustic identity (`voice_identity`), not even in different episodes —
-    # the first version reused the e01 guest's factor and broke that rule. Median F0 of the
-    # rendered audio (same autocorrelation proxy, each voice reading its own language), with the
-    # 25th-75th percentile, against the show's host and Zarvox (~89.5 Hz in every language):
-    #
-    #   es  host Monica 170 [154-188]  e01 Paulina@0.45 74 [70-80]
-    #       Marta  Paulina@0.8  131 [123-143]    Diego  Paulina@0.65 107 [101-116]
-    #   it  host Alice  174 [157-195]  e01 Alice@0.4    72 [68-79]
-    #       Chiara Alice@0.8    140 [125-155]    Luca   Alice@0.6    105 [95-117]
-    #   fr  host Amelie 229 [208-239]  e01 Thomas       133 [118-143]
-    #       Élodie Amelie@0.75  170 [155-180]    Mathieu Thomas@0.5  69 [63-73]
-    #   de  host Anna   165 [154-178]  e01 Anna@0.4     68 [64-72]
-    #       Lena   Anna@0.8     132 [124-143]    Jonas  Anna@0.65    107 [101-115]
-    #   pt  host Luciana 191 [178-198] e01 Joana@0.4    69 [65-77]
-    #       Inês   Joana@0.85   144 [136-157]    Tiago  Joana@0.65   110 [103-120]
-    #
-    # Chosen so that every identity in a show has a quartile range clear of every other one's,
-    # sits >= 25 Hz from the host and >= 15 Hz from Zarvox (the smallest margin the corpus already
-    # accepted: Paulina@0.45 at 74 Hz). Female names took the upper slot, male the lower. NOT yet
-    # measured against the real pyannote service.
     ("es", "Marta Solís"): 0.80,
     ("es", "Diego Ferrer"): 0.65,
+    ("it", "Marco Bellini"): 0.70,
     ("it", "Chiara Ricci"): 0.80,
     ("it", "Luca Moretti"): 0.60,
     ("fr", "Élodie Chevalier"): 0.75,
-    ("fr", "Mathieu Lefèvre"): 0.50,
+    ("fr", "Mathieu Lefèvre"): 0.60,
+    ("de", "Stefan Brandt"): 0.75,
     ("de", "Lena Hofmann"): 0.80,
     ("de", "Jonas Richter"): 0.65,
+    ("pt", "Rafael Vasconcelos"): 0.70,
     ("pt", "Inês Carvalho"): 0.85,
     ("pt", "Tiago Moreira"): 0.65,
 }

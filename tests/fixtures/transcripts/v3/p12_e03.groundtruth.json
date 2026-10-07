@@ -16,14 +16,14 @@
   ],
   "voice_map": {
     "Camille Dubois": "Amelie",
-    "Mathieu Lefèvre": "Thomas",
+    "Mathieu Lefèvre": "Amelie",
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Mathieu Lefèvre": 0.5
+    "Mathieu Lefèvre": 0.6
   },
   "cameo": null,
   "transcript_sha256": "a47135f7f120027acf9c0a7ab15d62496eca766fc2868c320c71d9da72757939",
-  "audio_sha256": "6eb7afded54abdf41e438e29c0f1db1b105378653a6df716075ac2fc77443c4a",
-  "rttm_sha256": "1db02a33f8819a955997e6fe5ce1e20d2a0e93cac1e40f023f5d9e26e8587ae6"
+  "audio_sha256": "dad4473e5514c3ee982b18b68ee6a9ff340f11727dc6303943badb958d97a885",
+  "rttm_sha256": "2b29d6a5b59da1b83f7b03788f587f0b65a461248a139122fb9b29eb7da2267c"
 }

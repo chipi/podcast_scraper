@@ -865,7 +865,11 @@ transcript) pointing at it. Never reuse a voice already assigned to someone else
 Where a language ships fewer voices than it has people (Italian and German one, Spanish,
 French and Portuguese two), the identity is the voice PLUS its pitch factor (`Anna@0.65`), and
 it is that PAIR that must be unused — across episodes too. Pick the factor by measuring the
-rendered audio, as the table in `VOICE_PITCH_SHIFT` records.
+rendered audio, as the table in `VOICE_PITCH_SHIFT` records — and keep it INTELLIGIBLE: at or
+above `INTELLIGIBLE_MIN_FACTOR` (0.60), unless an intelligibility measurement is recorded in
+`INTELLIGIBLE_BELOW_FLOOR`. Below 0.60 some voices are gibberish to ASR (`Alice@0.4`: 121% WER,
+`Alice@0.7`: 0%), which turns every ASR measurement on the fixture into a measurement of the
+distortion; `test_voice_assignment.py` enforces the floor.
 
 **Enforcement:** `tests/integration/fixtures/test_voice_assignment.py` asserts, over all
 transcripts, that (1) no name resolves to >1 voice, (2) no voice is shared by >1

@@ -287,3 +287,30 @@ class TestTheRuleHoldsPerLANGUAGE:
             "Javier Benavides": "Paulina",
             "Ad": "Zarvox",
         }, vm
+
+
+class TestEveryShiftedVoiceIsIntelligible:
+    """A pitch factor that separates well can still make the voice unintelligible to ASR (#2187).
+
+    V.6b, the first real ASR run on this audio, read the Italian e01 guest at 92% WER: `Alice@0.4`
+    is gibberish to Whisper while `Alice@0.7` is perfect. Every ASR measurement on a destroyed
+    voice measures the fixture, not the model. The floor and its measured exceptions live beside
+    the table in transcripts_to_mp3.py.
+    """
+
+    def test_no_factor_below_the_floor_without_a_measurement(self, t2m):
+        below = {
+            key: factor
+            for key, factor in t2m.VOICE_PITCH_SHIFT.items()
+            if factor < t2m.INTELLIGIBLE_MIN_FACTOR and key not in t2m.INTELLIGIBLE_BELOW_FLOOR
+        }
+        assert not below, (
+            f"pitch factors below {t2m.INTELLIGIBLE_MIN_FACTOR} with no intelligibility "
+            f"measurement in INTELLIGIBLE_BELOW_FLOOR: {below}"
+        )
+
+    def test_every_exception_is_still_in_the_table(self, t2m):
+        stale = set(t2m.INTELLIGIBLE_BELOW_FLOOR) - set(t2m.VOICE_PITCH_SHIFT)
+        assert (
+            not stale
+        ), f"INTELLIGIBLE_BELOW_FLOOR names people the table no longer shifts: {stale}"
