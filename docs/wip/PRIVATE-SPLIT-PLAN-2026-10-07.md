@@ -50,15 +50,16 @@ module. The probe deletes those files from a throwaway worktree and checks both 
 public without private (import every public module; list every import edge into moved code), and
 private on top of public (import every private module, with `PYTHONPATH`, nothing installed).
 
-### Current numbers (re-probed after decision 3, 2026-10-07)
+### Current numbers (`scripts/tools/split_probe.py`, after ADR-158 decisions 3 and 5, 2026-10-07)
 
 | | Result |
 | --- | --- |
 | Baseline, unpruned tree | 0 import failures (after deleting the eval split's leftover `search/llm_judge.py`) |
-| Copied | Player: 53 modules, 68 tests, 784 web files, 67 docs. Common: 42 modules, 60 tests, 16 docs |
+| Copied | Player: 53 modules, 68 tests, 786 web files, 67 docs. Common: 38 modules, 57 tests, 16 docs |
 | Copy check | 0 stale references (AST verifier; it catches a planted stale import and `mock.patch` string) |
-| Public without private | 35 modules fail; roots: enricher registry (14), MCP tokens via account deletion (13), query-enricher registry (3), engagement series via momentum (2), scorer registry, discovery ranking, enrichment route function (1 each) |
-| Private on top of public | 82 of 117 import; all 35 failures name a public module broken by a seam |
+| Public without private | 27 of 575 modules fail; roots: MCP tokens via account deletion (13), enricher registry (6), query-enricher registry (3), engagement series via momentum (2), scorer registry, discovery ranking, enrichment route function (1 each). 65 imports in 20 files still name moved code |
+| Private on top of public | 20 of 100 modules fail, all on a public module broken by a seam |
+| Not yet in the manifest | tier A features (ADR-158 decision 5): 46 public `src/` files and 25 operator-viewer files read the four tier-A outputs; to be read and listed |
 
 ### Seams
 

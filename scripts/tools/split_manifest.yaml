@@ -10,7 +10,9 @@
 # operator guard, account deletion, user seed and CLI, oauth protocol + mock, comms
 # consent store, released-app-version store), and
 # what the operator viewer calls under /api/app (auth, preferences, admin,
-# graph-events, profile). The two example enrichers stay public as well.
+# graph-events, profile). The five enrichers with no IP stay public (ADR-158 decision 5):
+# insight_density, guest_coappearance, insight_sentiment, grounding_rate,
+# topic_cooccurrence_corpus, with the grounding_rate scorer.
 
 player:
   package: closelistening_player
@@ -133,19 +135,15 @@ common:
       - mcp_oauth
       - internal_mcp
     podcast_scraper.enrichment.enrichers:
-      - grounding_rate
-      - insight_sentiment
       - org_web
       - person_web
       - temporal_velocity
       - topic_consensus
-      - topic_cooccurrence_corpus
       - topic_similarity
       - topic_theme_clusters
     podcast_scraper.enrichment.query_enrichers:
       - query_topic_relatedness
     podcast_scraper.enrichment.eval.scorers:
-      - grounding_rate
       - topic_similarity
     # ADR-158 decision 3: the observability data layer (config, result, _http,
     # sources, aggregate) stays public for the operator Ops view; the MCP server,
