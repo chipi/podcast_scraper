@@ -10,6 +10,7 @@ import SearchTab from './components/search/SearchTab.vue'
 import OpsView from './components/ops/OpsView.vue'
 import UsersAdminView from './components/admin/UsersAdminView.vue'
 import RankingConfigAdminView from './components/admin/RankingConfigAdminView.vue'
+import ReleaseAdminView from './components/admin/ReleaseAdminView.vue'
 import GraphAnalyticsAdminView from './components/admin/GraphAnalyticsAdminView.vue'
 import ReplayControls from './components/graph/ReplayControls.vue'
 import { useGraphReplayStore, type ReplayEvent } from './stores/graphReplay'
@@ -1192,6 +1193,7 @@ watch(
           >
             <UsersAdminView />
             <RankingConfigAdminView />
+            <ReleaseAdminView />
             <GraphAnalyticsAdminView @replay="onReplaySession" />
           </div>
           <keep-alive>

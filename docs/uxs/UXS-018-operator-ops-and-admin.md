@@ -2,7 +2,7 @@
 
 - **Status**: Active (written 2026-10-05 from the shipped components; the code was the source)
 - **Surface:** `web/gi-kg-viewer` — main tabs **Ops** (`OpsView`) and **Admin** (`UsersAdminView`,
-  `RankingConfigAdminView`, `GraphAnalyticsAdminView`)
+  `RankingConfigAdminView`, `ReleaseAdminView`, `GraphAnalyticsAdminView`)
 - **Inherits:** [UXS-001](UXS-001-gi-kg-viewer.md) (operator design system — tokens, type, density)
 - **Related:** #1128 (viewer roles, user management), ADR-113 (resilience), ADR-142 (LLM gateway),
   #11 B2 (discovery ranking)
@@ -77,7 +77,8 @@ Each panel fetches on its own, so one failing source never blanks the others.
 
 ## Admin tab
 
-Three sections stacked in one scroll column (`space-y-8`): Users, Discovery ranking, Analytics.
+Four sections stacked in one scroll column (`space-y-8`): Users, Discovery ranking, Released app
+version, Analytics.
 
 ### Users (`users-admin`)
 
@@ -108,6 +109,20 @@ Three sections stacked in one scroll column (`space-y-8`): Users, Discovery rank
   cannot empty ranking.
 - The loading state is `ranking-config-loading`; the error state is `ranking-config-error`.
 
+### Released app version (`release-admin`)
+
+The newest app version people can install from TestFlight / Play; the native app shows "update
+available" when it is higher than its own. Backed by `GET`/`PUT /api/app/admin/release`, which the
+player API reads per request — a change takes effect with no deploy and no restart.
+
+- **Served now** (`release-served`) — what the server reports (the override when set, else the
+  deploy default; "— (no prompt)" when neither). **Deploy default** (`release-deploy-default`) —
+  `APP_PLAYER_VERSION`, set by the deploy from the `PLAYER_RELEASED_VERSION` variable.
+- **Override** input (`release-input`) + **Save** (`release-save`) → **Saved ✓** (`release-saved`).
+  Only dotted numbers (e.g. `1.0.2`); anything else is refused before the request, and by the server.
+- **Use deploy default** (`release-clear`) clears the override; disabled when there is none.
+- The loading state is `release-loading`; errors (`release-error`) use `role="alert"`.
+
 ### Analytics — Graph (`graph-analytics-admin`)
 
 - **Refresh** (`graph-analytics-refresh`). The totals line reads `{events} events · {users} users`.
@@ -126,7 +141,7 @@ Three sections stacked in one scroll column (`space-y-8`): Users, Discovery rank
 
 ## Accessibility
 
-- Errors use `role="alert"` (users, ranking, analytics).
+- Errors use `role="alert"` (users, ranking, released version, analytics).
 - Every control is a real `button`, `select` or `input` with a visible label. Status is never colour
   alone: the pill, status words and chips all carry text.
 - Disabled self-row controls use the native `disabled` attribute, so assistive tech announces them
@@ -147,8 +162,8 @@ Three sections stacked in one scroll column (`space-y-8`): Users, Discovery rank
 
 `e2e/ops-and-admin.spec.ts` owns this surface:
 
-- **Users and Discovery ranking** run against the live e2e API, with unique identities per run.
-  Ranking is restored after its test.
+- **Users, Discovery ranking and Released app version** run against the live e2e API, with unique
+  identities per run. Ranking and the release override are restored after their tests.
 - **Ops and graph analytics** are mocked. A test server has no telemetry sources (see **Decided**),
   and a fresh corpus has no analytics events.
 

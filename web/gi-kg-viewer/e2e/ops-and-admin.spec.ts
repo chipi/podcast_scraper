@@ -151,6 +151,39 @@ test.describe('Admin › Discovery ranking (live API)', () => {
   })
 })
 
+test.describe('Admin › Released app version (live API)', () => {
+  test.describe.configure({ mode: 'serial' })
+
+  test('an override saves to the server and is served at once; "Use deploy default" clears it', async ({
+    page,
+  }) => {
+    await signInAsAdmin(page)
+    const original = (await (await page.request.get('/api/app/admin/release')).json()) as {
+      override: string | null
+    }
+    try {
+      await openAdmin(page)
+      const panel = page.getByTestId('release-admin')
+      await panel.getByTestId('release-input').fill('9.8.7')
+      await panel.getByTestId('release-save').click()
+      await expect(panel.getByTestId('release-saved')).toHaveText('Saved ✓')
+      await expect(panel.getByTestId('release-served')).toHaveText('9.8.7')
+      // What a phone reads, with no restart in between.
+      const status = await (await page.request.get('/api/app/auth/status')).json()
+      expect(status.player_version).toBe('9.8.7')
+
+      await panel.getByTestId('release-clear').click()
+      await expect.poll(async () => (await (await page.request.get('/api/app/admin/release')).json()).override).toBeNull()
+      await expect(panel.getByTestId('release-input')).toHaveValue('')
+    } finally {
+      const r = await page.request.put('/api/app/admin/release', {
+        data: { player_version: original.override },
+      })
+      expect(r.ok(), `restoring the release override returned ${r.status()}`).toBe(true)
+    }
+  })
+})
+
 /* ---- graph analytics (mocked) -------------------------------------------------------------- */
 
 const SUMMARY = {

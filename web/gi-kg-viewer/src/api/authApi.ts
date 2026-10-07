@@ -159,6 +159,36 @@ export async function saveRankingConfig(config: RankingConfigDTO): Promise<Ranki
   return (await res.json()) as RankingConfigDTO
 }
 
+// --- released app version (admin; runtime, no restart) -----------------------------------------
+
+/** The released app version the native update prompt compares against, and where it came from. */
+export interface ReleaseDTO {
+  /** What the server serves now: the override when set, else the deploy default. */
+  player_version: string | null
+  /** The runtime override; null when none is set. */
+  override: string | null
+  /** `APP_PLAYER_VERSION` from the deployment (the PLAYER_RELEASED_VERSION variable). */
+  deploy_default: string | null
+}
+
+/** The released app version (admin only). */
+export async function fetchRelease(): Promise<ReleaseDTO> {
+  const res = await fetchWithTimeout(`${BASE}/admin/release`)
+  if (!res.ok) throw new Error(await errorMessage(res, 'load the released version'))
+  return (await res.json()) as ReleaseDTO
+}
+
+/** Set the released app version at runtime (admin only); `null` clears the override. */
+export async function saveRelease(playerVersion: string | null): Promise<ReleaseDTO> {
+  const res = await fetchWithTimeout(`${BASE}/admin/release`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ player_version: playerVersion }),
+  })
+  if (!res.ok) throw new Error(await errorMessage(res, 'save the released version'))
+  return (await res.json()) as ReleaseDTO
+}
+
 // --- graph analytics (admin; owned) -------------------------------------------------------------
 
 export interface SizeStat {
