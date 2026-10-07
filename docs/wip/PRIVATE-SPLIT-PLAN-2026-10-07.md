@@ -112,7 +112,9 @@ renames, which no import depends on.
    `make check-doc-structure` went red on links such as `../../../docs/guides/E2E_TESTING_GUIDE.md`
    in the copied player docs: same cause as risk 2. The gate itself also walked `apps/` (and
    would have walked `eval-data/`); fixed with a top-level-only skip and a test. Round 1 of the
-   doc move has to convert these links to the `repo-name:path` form.
+   doc move has to rewrite these links as plain IDs ("ADR-158", "PRD-039"): private docs may
+   name public docs by ID, never by path or link; public docs name no private doc at all
+   (operator rule, 2026-10-07; ADR-158 decision 10).
 8. **The probe checks imports, not behaviour.** A clean probe means everything loads. Runtime
    paths (a router missing at request time, a hook never called) show up only in the test runs.
 
