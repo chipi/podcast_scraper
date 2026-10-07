@@ -99,7 +99,6 @@ v2.5.0 added **five** cloud LLM families plus **Ollama** on top of OpenAI and Ge
 
 **2. Documentation-first comparison**
 
-- AI Provider Comparison Guide (moved to the private eval repo) — decision matrices, cost and quality framing, “which provider?” narrative.
 - [Provider Deep Dives](../guides/PROVIDER_DEEP_DIVES.md) — per-provider cards and quadrant-style comparisons.
 - `Evaluation reports` — methodology (ROUGE, BLEU, embeddings, and related metrics) and report index.
 - [ML Model Comparison Guide](../guides/ML_MODEL_COMPARISON_GUIDE.md) — local and hybrid model tradeoffs.
@@ -107,7 +106,7 @@ v2.5.0 added **five** cloud LLM families plus **Ollama** on top of OpenAI and Ge
 **3. Tooling new in the v2.6.0 track**
 
 - **Run Comparison — Performance tab (RFC-066)** — Streamlit **`?page=performance`** joins **run metrics** from experiments with **frozen RFC-064 YAML profiles** so you can relate **summary quality** (eval runs under `data/eval/`) to **resource shape** (RSS, CPU, wall time by stage) on comparable fixtures.
-- **Performance profiling framework (RFC-064)** — `config/profiles/`, captured artifacts under `data/profiles/`, `make profile-freeze` / `make profile-diff`, scripts described in Performance profile guide (moved to the private eval repo).
+- **Performance profiling framework (RFC-064)** — `config/profiles/`, captured artifacts under `data/profiles/`, `make profile-freeze` / `make profile-diff`.
 - **AutoResearch closure (RFC-057 / ADR-073)** — optimization loop and eval matrix work brought to a documented closure; silver references and broad config sweeps support **evidence-backed** model and prompt choices.
 
 **4. Live pipeline visibility (developers)**

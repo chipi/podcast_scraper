@@ -65,8 +65,7 @@ Dashboard does not replace **RFC-064** frozen profiles or **RFC-066** Streamlit 
 
 ## Non-goals
 
-- **Not** a replacement for **Streamlit** run comparison (`RFC-047` (moved to the private eval repo as RFC-007),
-  `RFC-066` (moved to the private eval repo as RFC-009)) or **frozen release profiles** (`RFC-064` (moved to the private eval repo as RFC-008)).
+- **Not** a replacement for **Streamlit** run comparison or **frozen release profiles**.
 - **Not** real-time pipeline monitoring during a run — that is **[RFC-065](../rfc/RFC-065-live-pipeline-monitor.md)**
   (`--monitor`).
 - **Not** arbitrary SQL or Postgres — **[RFC-051](../rfc/RFC-051-database-projection-gil-kg.md)** remains

@@ -10,7 +10,6 @@
   - `docs/adr/ADR-017-registered-preprocessing-profiles.md` (Preprocessing profiles)
 - **Related RFCs**:
   - `docs/rfc/RFC-012-episode-summarization.md` (Episode summarization)
-  - `RFC-041` — ML benchmarking (moved to the private eval repo as RFC-005)
 - **Related Documents**:
   - Original preprocessing-improvements and baseline-BART-experiment plans (WIP source docs, now removed)
 
@@ -899,7 +898,6 @@ preprocessing:
 ### Documentation
 
 - [ ] Update `docs/guides/ML_MODEL_COMPARISON_GUIDE.md`
-- [ ] Update `EXPERIMENT_GUIDE.md` (moved to the private eval repo)
 
 ## References
 

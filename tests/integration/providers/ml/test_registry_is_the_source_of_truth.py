@@ -386,9 +386,14 @@ def test_value_gate_runs_for_every_hosted_llm_sibling(provider: str) -> None:
 
 @pytest.mark.parametrize("option_id", sorted(_GI_OPTIONS))
 def test_every_registered_gi_option_cites_its_research(option_id: str) -> None:
-    """A number in the registry without a report behind it is a guess with good posture."""
+    """A number in the registry without a measurement behind it is a guess with good posture.
+
+    The option publishes the measurement; the report is cited in the private eval project, whose
+    registry-refs-check fails on a published claim with no report behind it (ADR-158)."""
     opt = _GI_OPTIONS[option_id]
-    assert opt.research_ref, f"GI option '{option_id}' carries tuned params but cites no research"
+    assert (
+        opt.headline_metric and opt.measured_at
+    ), f"GI option '{option_id}' carries tuned params but publishes no measurement"
 
 
 def test_no_gi_option_is_an_orphan() -> None:

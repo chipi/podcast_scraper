@@ -464,6 +464,7 @@ exclude = [
     "^\\.venv/.*",  # Local venv (make type uses ``mypy .``)
     "^\\.venv-dev/.*",  # CI-parity venv (see Makefile VENVDEV)
     "^autoresearch/.*",  # Standalone autoresearch scripts (not part of src package)
+    "^apps/.*",  # Private repos mounted here (ADR-166); they type-check in their own repos
     "^eval-data/.*",  # The private eval repo, mounted here per its README; its own make ci types it
 ]
 

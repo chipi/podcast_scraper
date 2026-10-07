@@ -9,7 +9,6 @@
   - `docs/prd/PRD-031-search.md` — Search product
 - **Related RFCs**:
   - `docs/rfc/RFC-090-hybrid-retrieval.md` — ships the rules-based router this replaces
-  - `RFC-057` (moved to the private eval repo as RFC-002) — eval loop that produces labeled queries
 - **Related Documents**:
   - `config/search.yaml` — router mode switch
 
@@ -232,7 +231,6 @@ rate trends down after the switch.
 ## References
 
 - **Related PRD**: `docs/prd/PRD-032-hybrid-corpus-search.md`
-- **Related RFC**: `docs/rfc/RFC-090-hybrid-retrieval.md`,
-  `RFC-057` (moved to the private eval repo as RFC-002)
+- **Related RFC**: `docs/rfc/RFC-090-hybrid-retrieval.md`
 - **Source Code**: `src/podcast_scraper/search/router.py` (rules router from RFC-090)
 - **Config**: `config/search.yaml`

@@ -167,7 +167,6 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 
 | Need | Guide |
 | ---- | ----- |
-| Compare providers (cost, quality, speed, privacy) | AI Provider Comparison (moved to the private eval repo) |
 | Per-provider specs, benchmarks, magic quadrant | [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) |
 | Implement a new provider | [Provider Implementation](PROVIDER_IMPLEMENTATION_GUIDE.md) |
 | Quick provider config | [Provider Configuration](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) |
@@ -181,9 +180,7 @@ The experiment, run-promote, profile-freeze and profile-diff commands are retire
 from this repository (#2134).
 
 **Docs:**
-`Experiment Guide`
-· Performance Profile Guide (moved to the private eval repo)
-· `data/eval/README.md`
+`data/eval/README.md`
 · `data/profiles/README.md`
 
 ---
@@ -350,10 +347,8 @@ On **`main`**, GitHub Actions runs **`stack-test.yml`** against the same topolog
 
 - [Development Guide](DEVELOPMENT_GUIDE.md) - Full development workflow
 - [Testing Guide](TESTING_GUIDE.md) - Detailed test information
-- AI Provider Comparison (moved to the private eval repo) - Provider decision guide
 - [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) - Per-provider benchmarks
 - `Experiment Guide` - Eval datasets and baselines
-- Performance Profile Guide (moved to the private eval repo) - Release timing snapshots
 - [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) - Docker usage and deployment
 - [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) - LLM-only vs ML-enabled
 - [CLI Reference](../api/CLI.md) - All CLI options

@@ -602,10 +602,8 @@ python scripts/acceptance/analyze_bulk_runs.py \
 
 Generate performance benchmarking reports that group runs by provider/model configuration:
 
-The report generator moved to the private eval repo with the rest of the
-performance story, and `make benchmark-acceptance` went with it. Run the
-acceptance session here, then generate the report there against its output
-directory.
+The report generator is no longer part of this repo, and
+`make benchmark-acceptance` went with it.
 
 The benchmark report includes:
 

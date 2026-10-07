@@ -5,8 +5,7 @@
 - **Status**: Superseded by [ADR-154](ADR-154-hybrid-map-reduce-retirement.md)
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: `RFC-057` (moved to the private eval repo as RFC-002),
-  [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)
+- **Related RFCs**: [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)
 - **Supersedes**: —
 - **See Also**: [ADR-043](ADR-043-hybrid-map-reduce-summarization.md),
   [ADR-068](ADR-068-bart-led-as-ml-production-baseline.md),
@@ -163,7 +162,6 @@ The hybrid champion closes **70% of the gap** between pure-ML local (18.8%) and 
 
 ## References
 
-- RFC-057: AutoResearch Optimization Loop (moved to the private eval repo as RFC-002)
 - [RFC-042: Hybrid Podcast Summarization Pipeline](../rfc/RFC-042-hybrid-summarization-pipeline.md)
 - [ADR-043: Hybrid MAP-REDUCE Summarization](ADR-043-hybrid-map-reduce-summarization.md)
 - [ADR-068: BART+LED as ML Production Baseline](ADR-068-bart-led-as-ml-production-baseline.md)

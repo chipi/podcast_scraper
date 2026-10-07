@@ -222,9 +222,16 @@ References across the boundary run one way only:
   converted. Measured cost, accepted by the operator: 825 references to the 33 moving document IDs
   in 237 public files (230 in `src/` docstrings, 62 in `mkdocs.yml`), and 288 lines in 99 files
   that name the earlier eval split's private repo (index stubs, registry evidence citations and
-  their tests, onboarding docs). Both are removed on this branch, not later (operator decision
-2026-10-07). The mount tooling may name the `eval-data/` and `apps/`
-  directories, because `.gitignore` has to.
+  their tests, onboarding docs). The eval-repo lines are removed on this branch (operator
+  decision 2026-10-07); the document-ID references go when round 1 moves the documents. The
+  mount tooling may name the `eval-data/` and `apps/` directories, because `.gitignore` has
+  to; so may a test that forbids those names.
+- **Evidence for the model registry stays traceable, privately** (operator decision 2026-10-08).
+  A stage option publishes its claim (`headline_metric`, `measured_at`) and keeps a citation
+  only when it is public (a decision doc or an issue). The eval reports behind the other
+  options are listed in an evidence map in the eval repo, whose registry check fails when a
+  published claim has no report there. Removing the citations from public is safe only because
+  that map was filled from them first and checked against both the old and the new registry.
 
 ## Sequence
 

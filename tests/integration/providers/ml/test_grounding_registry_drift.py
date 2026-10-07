@@ -17,16 +17,17 @@ Any two agreeing while the third quietly disagrees is exactly how this got shipp
 from __future__ import annotations
 
 import pathlib
-import re
 
 import pytest
 
 from podcast_scraper.config import Config, GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS
+from podcast_scraper.providers.ml import model_registry
 from podcast_scraper.providers.ml.model_registry import (
     _PROFILE_PRESETS,
     _SUMMARY_OPTIONS,
     get_grounding_option,
     get_grounding_options,
+    StageOption,
 )
 
 PROFILE_DIR = pathlib.Path("config/profiles")
@@ -41,8 +42,8 @@ class TestGroundingStageIsRegistered:
         assert set(options) == {LLM_GROUNDER, ML_GROUNDER}
         for opt in options.values():
             # A StageOption without a measurement is an opinion. This stage shipped for months on
-            # an unmeasured default; every option must now carry its evidence.
-            assert opt.research_ref, f"{opt.option_id} has no research_ref"
+            # an unmeasured default; every option must now publish what was measured, and when.
+            # The report behind it is cited in the private eval project (ADR-158).
             assert opt.headline_metric, f"{opt.option_id} has no headline_metric"
             assert opt.measured_at, f"{opt.option_id} has no measured_at"
 
@@ -50,86 +51,65 @@ class TestGroundingStageIsRegistered:
         assert get_grounding_option(LLM_GROUNDER).tier == "primary"
         assert get_grounding_option(ML_GROUNDER).tier == "fallback"
 
-    def test_research_ref_points_at_a_real_report(self) -> None:
-        """A citation must be one of three honest forms, and public ones must resolve.
 
-        Arc 2 (#2134) moved the eval reports to the private repo, and every
-        citation to them was left as a repo-relative path that no longer resolved.
-        19 rotted before one assertion noticed.
-
-        The first fix pointed them at ``eval-data/``, which was worse than it
-        looked: that directory exists in maybe one working tree out of five, so
-        the existence check almost never ran, and the value read like a local
-        path that normally is not there.
-
-        So a ref must now declare which KIND of citation it is:
-
-          * ``podcast-scraper-eval-data:<path>`` — a report in the private research
-            repo. Unverifiable from here by construction; the check that resolves
-            it lives in that repo, which always has both the registry (installed
-            from the pin) and the reports.
-          * ``docs/...`` — a public decision doc. MUST resolve here, which is what
-            catches a bare ``docs/guides/eval-reports/...`` — the arc-2 bug.
-          * ``#1234`` — a GitHub issue.
-
-        Anything else is a typo or a path smuggled in without saying so.
-        """
-        for opt in get_grounding_options().values():
-            ref = opt.research_ref
-            assert ref is not None, f"{opt.option_id} has no research_ref"
-            if ref.startswith("podcast-scraper-eval-data:"):
-                tail = ref.split(":", 1)[1]
-                assert tail.endswith(".md"), f"{opt.option_id}: {ref!r} names no document"
-            elif ref.startswith("#"):
-                assert ref[1:].isdigit(), f"{opt.option_id}: {ref!r} is not an issue number"
-            elif ref.startswith("docs/"):
-                assert pathlib.Path(ref).is_file(), (
-                    f"{opt.option_id}: {ref} does not exist. If it moved to the research "
-                    "repo, cite it as podcast-scraper-eval-data:<path>."
-                )
-            else:
-                raise AssertionError(
-                    f"{opt.option_id}: research_ref {ref!r} is not a recognised citation. "
-                    "Use podcast-scraper-eval-data:<path>, docs/<path>, or #<issue>."
-                )
+def _all_options() -> list[StageOption]:
+    return [
+        opt
+        for name in sorted(dir(model_registry))
+        if name.startswith("get_") and name.endswith("_options")
+        for opt in getattr(model_registry, name)().values()
+    ]
 
 
-class TestRationalePointersAreWellFormed:
-    """A `rationale:` pointer is a citation too, and rots the same way.
+class TestCitationsArePublic:
+    """The registry cites only what a reader of this repo can open.
 
-    Five research arguments moved to the private repo so they sit beside the
-    reports they cite — they were prose in `#` comments, one of them copied
-    verbatim into three presets. What stayed here is the operative fact plus a
-    pointer.
+    Arc 2 (#2134) moved the eval reports to the private repo, and every
+    citation to them was left as a repo-relative path that no longer resolved;
+    19 rotted before one assertion noticed. The repo-qualified spelling that
+    replaced them still named private documents from public code, which ADR-158
+    rules out. So an option publishes its claim (``headline_metric``,
+    ``measured_at``) here, and the eval project holds the report behind it and
+    checks, against its pinned build, that every claim has one.
 
-    A comment is not importable, so the private repo's `registry-refs-check`
-    cannot resolve these until its pin advances. This asserts what CAN be
-    asserted here: that every pointer is repo-qualified and names a markdown
-    file. It is the same three-form rule `research_ref` follows, and it catches
-    the failure that actually happened — a citation left as a bare path.
+    What stays here is a public decision doc, which must resolve, or an issue.
     """
 
-    def test_every_rationale_pointer_is_repo_qualified(self) -> None:
-        src = pathlib.Path("src/podcast_scraper/providers/ml/model_registry.py").read_text()
-        pointers = re.findall(r"#\s*rationale:\s*(\S+)", src)
-        assert pointers, "no rationale pointers found — did the comment form change?"
-        for ref in pointers:
-            assert ref.startswith("podcast-scraper-eval-data:"), (
-                f"rationale pointer {ref!r} is not repo-qualified. The rationale files "
-                "live in chipi/podcast-scraper-eval-data; cite them as "
-                "podcast-scraper-eval-data:<path>."
-            )
-            assert ref.endswith(".md"), f"rationale pointer {ref!r} names no document"
+    def test_every_research_ref_is_a_public_doc_or_an_issue(self) -> None:
+        options = _all_options()
+        assert len(options) > 40, "the stage accessors changed; this test reads none of them"
+        for opt in options:
+            ref = opt.research_ref
+            if ref is None:
+                continue
+            if ref.startswith("#"):
+                assert ref[1:].isdigit(), f"{opt.option_id}: {ref!r} is not an issue number"
+            elif ref.startswith("docs/"):
+                assert pathlib.Path(ref).is_file(), f"{opt.option_id}: {ref} does not exist"
+                assert not ref.startswith(
+                    "docs/guides/eval-reports/"
+                ), f"{opt.option_id}: eval reports are private; cite them in the eval project"
+            else:
+                raise AssertionError(
+                    f"{opt.option_id}: research_ref {ref!r} is not a public doc or an issue"
+                )
 
-    def test_the_duplicated_argument_is_cited_once_per_preset(self) -> None:
-        """The v3-not-v25 argument was copied into three presets verbatim.
+    def test_every_option_publishes_its_claim(self) -> None:
+        for opt in _all_options():
+            assert opt.headline_metric, f"{opt.option_id} has no headline_metric"
+            assert opt.measured_at, f"{opt.option_id} has no measured_at"
 
-        Three copies meant correcting one left two stale. They now point at one
-        file; this keeps that true.
-        """
+    def test_the_registry_names_no_private_document(self) -> None:
+        """Comments included: the research arguments that were ``# rationale:`` pointers
+        are listed in the eval project's evidence map, beside the reports they cite."""
         src = pathlib.Path("src/podcast_scraper/providers/ml/model_registry.py").read_text()
-        n = src.count("rationale/gi_v3_not_v25.md")
-        assert n == 3, f"expected the 3 cloud presets to cite the shared rationale, found {n}"
+        for marker in (
+            "podcast-scraper-eval-data",
+            "eval-data/",
+            "private eval repo",
+            "rationale/",
+        ):
+            assert marker not in src, f"model_registry.py names the private eval repo ({marker!r})"
 
 
 class TestPresetGrounderMatchesItsSummariser:
