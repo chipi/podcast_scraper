@@ -36,62 +36,85 @@ commits beyond their titles; indirect references (variables, globs).
 
 ---
 
-## 1. In-repo refactor (ADR-158 step 2)
+## 1. Seams, measured (ADR-158 sequence step 2)
 
-Everything stays in this repo and every test keeps running. Each slice is its own PR. Slices that
-touch `Makefile`, `.github/workflows/`, `compose/` or `mkdocs.yml` wait for #2138.
+Everything stays in this repo until the probe is clean. Each slice is its own PR, and the probe
+is re-run after each one; the failure count is the progress measure. Work that touches
+`Makefile`, `.github/workflows/`, `compose/` or `mkdocs.yml` waits for #2138.
 
-| Slice | What | Size signal | Waits for #2138 |
+### How the probe works
+
+`scripts/tools/split_copy.py` copies what `scripts/tools/split_manifest.yaml` lists into the
+local, unpublished repos `apps/common` and `apps/player`, rewriting every import of a moved
+module. The probe deletes those files from a throwaway worktree and checks both directions:
+public without private (import every public module; list every import edge into moved code), and
+private on top of public (import every private module, with `PYTHONPATH`, nothing installed).
+
+### Current numbers (re-probed after decision 3, 2026-10-07)
+
+| | Result |
+| --- | --- |
+| Baseline, unpruned tree | 0 import failures (after deleting the eval split's leftover `search/llm_judge.py`) |
+| Copied | Player: 53 modules, 68 tests, 784 web files, 67 docs. Common: 42 modules, 60 tests, 16 docs |
+| Copy check | 0 stale references (AST verifier; it catches a planted stale import and `mock.patch` string) |
+| Public without private | 35 modules fail; roots: enricher registry (14), MCP tokens via account deletion (13), query-enricher registry (3), engagement series via momentum (2), scorer registry, discovery ranking, enrichment route function (1 each) |
+| Private on top of public | 82 of 117 import; all 35 failures name a public module broken by a seam |
+
+### Seams
+
+| # | Seam (public file:line → moved code) | Fix | Order |
 | --- | --- | --- | --- |
-| A | Rename the ten corpus read-models out of `app_` (`app_kg_view`, `app_gi_view`, `app_relational_view`, `app_momentum`, `app_catalog_cache`, `app_corpus_access`, `app_content_source`, `app_slugs`, `app_artwork`, `app_kg_index`); make `_role_of`, `_aggregate_role`, `_ROLE_RANK` public | rename + import edits | no |
-| B | Extension interface: protocol, entry-point loader, a fake app in tests that exercises every hook | new module + contract tests | no |
-| C | Convert the seams one at a time: `app.py` router mounts, cache warmer, digest-health metrics, `scheduler.py` digest dispatch, `capability_audit.py` checks, account deletion, `player_client_health`, move `filtered_entity_signals` into the platform | 8 seams | no |
-| D | Sign-in providers: `GoogleProvider` and `AppleProvider` behind the registry; mock stays | small | no |
-| E | Enricher registry: register `insight_density` and `guest_coappearance` publicly, the rest from the Common package; public readers of named enricher output (`og/build.py`, `feed_signals.py`, `cil_queries.py`, others) treat it as optional | 18 importing modules to check | no |
-| F | Separate top-level packages in `src/`: public kernel, `common` (providers, `mcp/`, `podcast_obs/`, enrichers), `player` (the 50 player-only modules plus the player logic currently pulled in transitively) | directory moves | no |
-| G | Per-app data folders: `data/apps/<app>/users/<id>/…`, prod migration with dry run, verify, undo | migration | partly (backups, compose volumes) |
-| H | Split the tests: 105 test files touching `app_*`, plus enrichment and MCP tests, assigned to the package they test | classification | no |
-| I | Player make targets (42 by name), player CI jobs in `python-app.yml`, `stack-test.yml` image entries | config | **yes** |
+| 1 | `enrichment/enrichers/__init__.py:17-27`, `query_enrichers/__init__.py:5`, `enrichment/eval/scorers/__init__.py:19,21` import every enricher or scorer | registries fed by entry points; public registers its two examples | 2 |
+| 2 | `enrichment/ml_wiring.py:27,30`, `web_wiring.py:13-14`, `routes/enrichment_config.py:230-234`, `enrichment/eval/admission.py:101` name enricher classes | wiring looks enrichers up by id | 2 |
+| 3 | `server/og/build.py:366,400` call `person_web.person_image_path`, `org_web.org_logo_path` | the two file-path helpers move into the platform | 2 |
+| 4 | `tests/conftest.py:1070` imports `person_web` | the fixture moves to Common's tests | 2 |
+| 5 | `server/app_account_deletion.py:32` deletes MCP tokens and OAuth grants | account-deleted hook per package | 3 |
+| 6 | `server/routes/app_auth.py:392,871` writes `append_account_created` into player state | account-created hook | 3 |
+| 7 | `server/app_momentum.py:25` reads the player's engagement series | registered data source; absent, content signals only | 3 |
+| 8 | `server/app.py:30` mounts 17 player and 3 Common routers | registered routers | 4 |
+| 9 | `server/app.py:497` cache warmer, `:663` digest-health metrics | startup hooks | 4 |
+| 10 | `server/scheduler.py:424` digest dispatch | registered scheduled jobs | 4 |
+| 11 | `capability_audit.py:44,1178,1184` → discovery ranking | registered audit checks | 4 |
+| 12 | `routes/corpus_enrichments.py:36` → `filtered_entity_signals` | the function moves into the platform | 4 |
+| 13 | `cli.py:3970,5282` → MCP CLI handlers | registered CLI subcommands | 4 |
+| 14 | `routes/ops.py`, `routes/llm_gateway.py` → `podcast_obs` | **resolved** by decision 3 (obs data layer public, MCP server private); re-probe shows no edge | done |
+| 15 | `scripts/eval/score/rank_discover_v1.py`, `rank_scenarios_v1.py` → player ranking | move to Player | manifest |
+| 16 | `scripts/mcp_e2e_pivot_chain.py` → MCP tools | move to Common | manifest |
 
-### Measured seams (probe, 2026-10-07)
+Order 1 is the extension interface itself (protocol, entry-point loader, a fake app in tests
+exercising every hook). Then 2–4 as numbered, then the OAuth-provider split and the read-model
+renames, which no import depends on.
 
-Measured instead of estimated. `scripts/tools/split_copy.py` copies what
-`scripts/tools/split_manifest.yaml` lists into local, not-yet-published repos under `apps/`,
-rewriting imports. The probe then deletes those files from a throwaway worktree and checks two
-directions: public without private (import every public module, list every import edge into
-moved code), and private on top of public (import every private module).
+### Plan review — risks the probe surfaced (2026-10-07)
 
-- Baseline: 0 import failures on the unpruned tree, after deleting `search/llm_judge.py`, which
-  the eval split left behind and which could not import on `main`.
-- Public without private: 34 of the public modules fail to import, all from the seams below.
-- Private on top of public: 78 of 112 modules import; all 34 failures come from public modules
-  broken by seams 1, 7, 8 and 10, none from the private code itself.
-- Two modules first classified as player are kernel and stay public: `app_comms_store` (the
-  outbox and account deletion use it) and `app_release_store` (health, admin and `app.py` use it).
-
-| # | Seam (public file:line → moved code) | Fix | Slice |
-| --- | --- | --- | --- |
-| 1 | `enrichment/enrichers/__init__.py:17-27` imports every enricher; `query_enrichers/__init__.py:5` likewise | registry fed by entry points; public registers the two examples | E |
-| 2 | `enrichment/ml_wiring.py:27,30`, `web_wiring.py:13-14`, `routes/enrichment_config.py:230-234`, `enrichment/eval/admission.py:101` name enricher classes | wiring looks enrichers up by id from the registry | E |
-| 3 | `server/og/build.py:366,400` call `person_web.person_image_path`, `org_web.org_logo_path` | move the two file-path helpers into the platform | E |
-| 4 | `tests/conftest.py:1070` imports `person_web` | move the fixture to Common's tests | H |
-| 5 | `server/app.py:30` mounts 17 player and 2 Common routers (+ `app_mcp`) | registered routers | C |
-| 6 | `server/app.py:497` cache warmer, `:663` digest-health metrics | startup hooks | C |
-| 7 | `server/app_account_deletion.py:32` deletes MCP tokens and OAuth grants | per-package deletion hooks | C |
-| 8 | `server/routes/app_auth.py:392,871` writes `app_user_state.append_account_created` on sign-up | "account created" hook | C |
-| 9 | `server/scheduler.py:424` digest dispatch | registered scheduled jobs | C |
-| 10 | `server/app_momentum.py:25` (public read-model) reads `app_engagement_series` (player) | momentum takes engagement series from a registered source | C |
-| 11 | `capability_audit.py:44,1178,1184` → `app_discover_view`, `app_ranking_config` | registered audit checks | C |
-| 12 | `routes/corpus_enrichments.py:36` → `filtered_entity_signals` | move the function into the platform | C |
-| 13 | `cli.py:3970,5282` → `mcp.cli_handlers` | CLI subcommands registered by Common | C |
-| 14 | `routes/ops.py:33-34`, `routes/llm_gateway.py:50-51` (operator Ops view) import `podcast_obs.aggregate`, `.config`, `.sources.victoria` | **decision**: the operator view depends on the obs MCP's data sources — split `podcast_obs` (sources public, MCP private) or move the Ops view's two routes to Common | — |
-| 15 | `scripts/eval/score/rank_discover_v1.py`, `rank_scenarios_v1.py` → player ranking | move to Player (ranking tradecraft) | H |
-| 16 | `scripts/mcp_e2e_pivot_chain.py` → MCP tools | move to Common | H |
-
-Also found: the operator viewer calls `/api/app/mcp` (token management UI). With Common absent
-that route is gone; the viewer has to hide the UI when the route is not mounted.
-
----
+1. **Entry points need an install.** The probe runs on `PYTHONPATH`, which cannot see entry
+   points. Testing real registration needs `pip install -e apps/common -e apps/player` into some
+   venv. Installing into the shared `.venv` needs the operator's approval first; the alternative
+   is a separate venv for the private side. Decide before order 1 lands.
+2. **Player e2e assumes the repo root two levels up.** Four files under `web/learning-player`
+   (Playwright configs and e2e helpers) reference `../../src`, `../../.venv/bin/python` and
+   `../../scripts/tools/run_e2e_mock_server.py` 18 times. From `apps/player/web` that resolves to
+   `apps/`. Those paths need to come from one setting (a platform-root variable) before the
+   private e2e can run.
+3. **The "what" stays visible; only the "how" goes private.** The operator viewer is public and
+   renders the private enrichers' outputs; the public fixture corpora contain those outputs; the
+   player's `/api/app` surface is visible to anyone who runs the app. Moving the code hides how
+   results are computed, not what is computed. If an output schema itself is IP, that is a
+   separate decision.
+4. **Public fixtures cannot be regenerated without Common.** `make enrich-viewer-fixture`
+   (`Makefile:1794`) runs every enricher over the public fixture corpus. ADR-158 decision 6 keeps
+   the outputs as frozen data; regeneration then requires the mount.
+5. **The released-version store names one app.** `app_release_store` holds `player_version`. It
+   stays in the kernel because health and admin read it, but a second app needs it per app.
+6. **Private tests may depend on public test helpers.** The copy brings the `conftest.py` chain
+   but not helper modules under `tests/`. Unknown until the private tests run (sequence step 3).
+7. **Copied docs link into public docs by relative path.** With the mount populated,
+   `make check-doc-structure` went red on links such as `../../../docs/guides/E2E_TESTING_GUIDE.md`
+   in the copied player docs: same cause as risk 2. The gate itself also walked `apps/` (and
+   would have walked `eval-data/`); fixed with a top-level-only skip and a test. Round 1 of the
+   doc move has to convert these links to the `repo-name:path` form.
+8. **The probe checks imports, not behaviour.** A clean probe means everything loads. Runtime
+   paths (a router missing at request time, a hook never called) show up only in the test runs.
 
 ## 2. Documents — round 1 (whole documents that move)
 
