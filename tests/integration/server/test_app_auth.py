@@ -250,7 +250,7 @@ def test_auth_status_enabled_anonymous(tmp_path: Path) -> None:
     client = TestClient(_app(tmp_path))
     resp = client.get("/api/app/auth/status")
     assert resp.status_code == 200
-    assert resp.json() == {"enabled": True, "user": None}
+    assert resp.json() == {"enabled": True, "user": None, "providers": ["stub"]}
 
 
 def test_auth_status_enabled_with_signed_in_user(tmp_path: Path) -> None:
@@ -263,10 +263,23 @@ def test_auth_status_enabled_with_signed_in_user(tmp_path: Path) -> None:
     assert body["user"]["role"] == "listener"
 
 
+def test_auth_status_lists_every_configured_provider(tmp_path: Path) -> None:
+    # The login page reads the providers from here (the edge never lets a signed-out client reach
+    # /api/health), so Apple must show up beside the primary when it is configured.
+    app = _app(tmp_path)
+    app.state.oauth_providers = {"google": _StubProvider(), "apple": _StubProvider()}
+    body = TestClient(app).get("/api/app/auth/status").json()
+    assert body["providers"] == ["google", "apple"]
+
+
 def test_auth_status_disabled_when_unconfigured(tmp_path: Path) -> None:
     # No provider + no secret → auth is NOT enabled → the viewer renders open (never 401s here).
     client = TestClient(_app(tmp_path, with_provider=False, secret=""))
-    assert client.get("/api/app/auth/status").json() == {"enabled": False, "user": None}
+    assert client.get("/api/app/auth/status").json() == {
+        "enabled": False,
+        "user": None,
+        "providers": [],
+    }
 
 
 def test_missing_secret_is_503_not_401(tmp_path: Path) -> None:

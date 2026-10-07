@@ -1104,6 +1104,24 @@ export interface DevUser {
  * Predefined dev identities for the sign-in picker — populated only when the MOCK provider is on.
  * Never throws: any failure → `{ enabled: false }` (the UI shows the normal sign-in button).
  */
+/**
+ * The sign-in providers the server has configured (#2275), from `/auth/status`.
+ *
+ * Not from `/api/health`: the public edge answers that with the coming-soon page and the player's
+ * nginx never proxies it, so a signed-out phone parsed HTML, got nothing, and the Apple button
+ * never appeared in production. `/auth/status` is public and proxied — reachable before sign-in.
+ */
+export async function getAuthProviders(): Promise<string[]> {
+  try {
+    const res = await apiFetch(`${BASE}/auth/status`, { credentials: "include" })
+    if (!res.ok) return []
+    const body = (await res.json()) as { providers?: unknown }
+    return Array.isArray(body.providers) ? body.providers.filter((p): p is string => typeof p === "string") : []
+  } catch {
+    return []
+  }
+}
+
 export async function getDevUsers(): Promise<{ enabled: boolean; users: DevUser[] }> {
   try {
     const res = await apiFetch(`${BASE}/auth/dev-users`, { credentials: "include" })

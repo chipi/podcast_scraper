@@ -5,14 +5,14 @@ import { expect, test, type Page } from '@playwright/test'
  *
  * The e2e server runs the MOCK provider, whose dev picker replaces these buttons, so two responses
  * are shaped here — and only these two: `/auth/dev-users` says the picker is off (what a prod
- * server says), and `/health` lists the providers a deployment has configured. Everything else is
+ * server says), and `/auth/status` lists the providers a deployment has configured. Everything else is
  * the real server.
  */
 async function realProviders(page: Page, providers: string[]): Promise<void> {
   await page.route('**/auth/dev-users', (r) => r.fulfill({ json: { enabled: false, users: [] } }))
-  await page.route('**/api/health', async (r) => {
+  await page.route('**/auth/status', async (r) => {
     const resp = await r.fetch()
-    await r.fulfill({ response: resp, json: { ...(await resp.json()), auth_providers: providers } })
+    await r.fulfill({ response: resp, json: { ...(await resp.json()), providers } })
   })
 }
 

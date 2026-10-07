@@ -10,7 +10,7 @@ import { Capacitor } from '@capacitor/core'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { getDevUsers, getHealth, requestMagicLink, type DevUser } from '../services/api'
+import { getAuthProviders, getDevUsers, requestMagicLink, type DevUser } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { safeInternalPath } from '../utils/redirect'
 
@@ -43,16 +43,16 @@ const devUsers = ref<DevUser[]>([])
 const custom = ref('')
 /**
  * Sign in with Apple is offered only when the server lists it (#2275): a button for a provider the
- * deployment has not configured would 404. Read from `/health` rather than baked into the build,
+ * deployment has not configured would 404. Read from `/auth/status` rather than baked into the build,
  * so turning Apple on is a server change and every shipped app picks it up.
  */
 const appleEnabled = ref(false)
 
 onMounted(async () => {
-  const [{ enabled, users }, health] = await Promise.all([getDevUsers(), getHealth()])
+  const [{ enabled, users }, providers] = await Promise.all([getDevUsers(), getAuthProviders()])
   devEnabled.value = enabled
   devUsers.value = users
-  appleEnabled.value = !!health?.auth_providers?.includes('apple')
+  appleEnabled.value = providers.includes('apple')
 })
 
 // --- Email magic link (#2272) -----------------------------------------------------------------

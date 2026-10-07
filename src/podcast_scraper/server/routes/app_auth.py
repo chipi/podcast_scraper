@@ -590,7 +590,16 @@ def app_auth_status(request: Request) -> dict[str, object]:
     """
     enabled = bool(_secret(request) and _provider(request) is not None and _data_dir(request))
     user = get_optional_user(request) if enabled else None
-    return {"enabled": enabled, "user": _user_dict(user) if user is not None else None}
+    # The sign-in providers, so the login page offers exactly these (#2275). They were read from
+    # `/api/health`, which the public edge answers with the coming-soon page and the player nginx
+    # never proxies — so the Apple button could not appear in production whatever was configured.
+    # This route is public at the edge and proxied, which is where a signed-out client can ask.
+    providers = list(_providers(request)) if enabled else []
+    return {
+        "enabled": enabled,
+        "user": _user_dict(user) if user is not None else None,
+        "providers": providers,
+    }
 
 
 # ---------------------------------------------------------------------------------------------
