@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from podcast_scraper.server import app_comms_store, app_outbox_store
+from podcast_scraper.server import app_comms_store, app_outbox_store, app_push_store
 
 pytestmark = pytest.mark.unit
 
@@ -110,6 +110,42 @@ def test_push_bounce_suppresses_push(tmp_path: Path) -> None:
     app_outbox_store.enqueue(tmp_path, _envelope(eid="p", channel="push"))
     app_outbox_store.record_status(tmp_path, "p", "bounced")
     assert app_comms_store.get_comms(tmp_path, _UID)["types"]["digest"]["push"] is False
+
+
+def _push_to(endpoint: str, eid: str) -> dict:
+    return _envelope(
+        eid=eid,
+        channel="push",
+        type="new_episodes",
+        recipient={"push_subscription": {"endpoint": endpoint, "kind": "fcm"}},
+    )
+
+
+def test_a_dead_device_is_dropped_and_the_others_keep_push(tmp_path: Path) -> None:
+    # Prod 2026-10-07: 4 devices, 2 stale tokens bounced (FCM 404 UNREGISTERED, APNs 400
+    # BadDeviceToken) and the bounce switched new-episode push OFF for the whole account, the two
+    # working phones included, until the app was next opened — and the dead tokens stayed, so the
+    # next send would do it again. A bounce is about ONE endpoint: drop that subscription.
+    app_comms_store.set_comms(tmp_path, _UID, types={"new_episodes": {"push": True}})
+    for ep in ("fcm://dead", "fcm://live", "apns://live"):
+        app_push_store.add_subscription(tmp_path, _UID, {"endpoint": ep, "kind": ep[:4]})
+    app_outbox_store.enqueue(tmp_path, _push_to("fcm://dead", "n1"))
+    app_outbox_store.record_status(tmp_path, "n1", "bounced")
+
+    remaining = [s["endpoint"] for s in app_push_store.list_subscriptions(tmp_path, _UID)]
+    assert remaining == ["fcm://live", "apns://live"]
+    assert app_comms_store.get_comms(tmp_path, _UID)["types"]["new_episodes"]["push"] is True
+
+
+def test_the_last_device_bouncing_turns_push_off(tmp_path: Path) -> None:
+    # Nothing left to deliver to: the old behaviour stands (the app re-enables on re-subscribe).
+    app_comms_store.set_comms(tmp_path, _UID, types={"new_episodes": {"push": True}})
+    app_push_store.add_subscription(tmp_path, _UID, {"endpoint": "fcm://only", "kind": "fcm"})
+    app_outbox_store.enqueue(tmp_path, _push_to("fcm://only", "n2"))
+    app_outbox_store.record_status(tmp_path, "n2", "bounced")
+
+    assert app_push_store.list_subscriptions(tmp_path, _UID) == []
+    assert app_comms_store.get_comms(tmp_path, _UID)["types"]["new_episodes"]["push"] is False
 
 
 def test_delivered_does_not_suppress(tmp_path: Path) -> None:

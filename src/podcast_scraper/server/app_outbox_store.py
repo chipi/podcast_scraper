@@ -273,6 +273,19 @@ def _suppress(data_dir: Path, envelope: dict[str, Any]) -> None:
     channel = envelope.get("channel")
     if channel not in ("email", "push"):
         return
+    # A push bounce is about ONE device's endpoint (FCM 404 UNREGISTERED, APNs 400 BadDeviceToken).
+    # Drop that subscription; only when none is left is there nothing to deliver to, and the channel
+    # goes off as before. Prod 2026-10-07: two stale tokens switched new-episode push off for the
+    # whole account, the two working phones included, and stayed to do it again on the next send.
+    if channel == "push":
+        endpoint = str(
+            ((envelope.get("recipient") or {}).get("push_subscription") or {}).get("endpoint") or ""
+        )
+        if endpoint:
+            from podcast_scraper.server import app_push_store
+
+            if app_push_store.remove_subscription(data_dir, user_id, endpoint):
+                return
     raw_type = envelope.get("type")
     try:
         # When the envelope carries no ``type`` (a pre-matrix envelope), we don't know which type
