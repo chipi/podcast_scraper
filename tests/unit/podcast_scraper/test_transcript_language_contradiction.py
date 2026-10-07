@@ -137,6 +137,7 @@ class TestThePipelineRefusesTheEpisode:
         def _diarization(*a: Any, **k: Any) -> Any:
             # Not an exception the pipeline catches, so reaching diarization ends the run here.
             seen["diarized"] = True
+            seen["transcribe_clip"] = k.get("transcribe_clip")
             raise _ReachedDiarization
 
         seen["diarized"] = False
@@ -180,3 +181,5 @@ class TestThePipelineRefusesTheEpisode:
         assert seen["diarized"] is True
         assert seen["recorded"] == []
         assert seen["incidents"] == []
+        # #2187 A2: the fresh-transcription path hands diarization a way to re-transcribe gaps.
+        assert callable(seen["transcribe_clip"])

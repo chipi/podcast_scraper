@@ -197,3 +197,77 @@ class TestUntranscribedSpeechIsRecorded:
         data = json.load(open(pm.manifest_path(d, rel)))
         assert "asr_untranscribed_speech" not in data.get("quality_flags", [])
         assert data["stages"]["asr"]["metrics"]["untranscribed_speech_count"] == 0
+
+
+class TestSpeechRecoveryIsRecorded:
+    """#2187 A2: what was re-transcribed reaches asr.json and the manifest, flagged and counted."""
+
+    RECOVERY = [
+        {
+            "start": 29.7,
+            "end": 34.1,
+            "speaker": "SPEAKER_00",
+            "status": "recovered",
+            "words": 12,
+            "rejected": [],
+        },
+        {
+            "start": 34.6,
+            "end": 48.9,
+            "speaker": "SPEAKER_00",
+            "status": "rejected",
+            "words": 0,
+            "rejected": ["low_confidence"],
+        },
+    ]
+
+    def _setup(self):
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "transcripts"))
+        open(os.path.join(d, "transcripts", "0006 - X.txt"), "w").close()
+        return d, "transcripts/0006 - X.txt"
+
+    def test_asr_json_lists_each_attempt(self) -> None:
+        d, rel = self._setup()
+        result = {"speech_audio_ratio": 0.93, "asr_speech_recovery": self.RECOVERY}
+        episode_processor._save_asr_provenance_file(result, _cfg(), rel, d)
+        rec = json.load(open(os.path.join(d, "transcripts", "0006 - X.asr.json")))
+        assert rec["speech_recovery"] == self.RECOVERY
+
+    def test_the_manifest_flags_and_counts_recovered_speech(self) -> None:
+        from podcast_scraper.models.entities import TranscriptionJob
+
+        d, rel = self._setup()
+        job = TranscriptionJob(idx=6, ep_title="X", ep_title_safe="X", temp_media="", episode=None)
+        result = {"speech_audio_ratio": 0.93, "asr_speech_recovery": self.RECOVERY}
+        episode_processor._write_processing_manifest(result, _cfg(), job, rel, d)
+        data = json.load(open(pm.manifest_path(d, rel)))
+        assert "asr_speech_recovered" in data["quality_flags"]
+        assert data["stages"]["asr"]["metrics"]["recovered_speech_count"] == 1
+        assert data["stages"]["asr"]["metrics"]["recovered_words"] == 12
+
+    def test_attempts_that_recovered_nothing_are_not_flagged(self) -> None:
+        from podcast_scraper.models.entities import TranscriptionJob
+
+        d, rel = self._setup()
+        job = TranscriptionJob(idx=6, ep_title="X", ep_title_safe="X", temp_media="", episode=None)
+        result = {"speech_audio_ratio": 0.93, "asr_speech_recovery": self.RECOVERY[1:]}
+        episode_processor._write_processing_manifest(result, _cfg(), job, rel, d)
+        data = json.load(open(pm.manifest_path(d, rel)))
+        assert "asr_speech_recovered" not in data.get("quality_flags", [])
+        assert data["stages"]["asr"]["metrics"]["recovered_speech_count"] == 0
+
+    def test_the_clip_transcriber_uses_the_episodes_provider_and_language(self) -> None:
+        calls = []
+
+        class _Provider:
+            def transcribe_with_segments(self, path, language=None, **kw):
+                calls.append((path, language, kw))
+                return {"segments": [], "text": ""}, 0.1
+
+        cfg = Config(rss="https://example.com/f.xml").model_copy(
+            update={"feed_declared_language": "es"}
+        )
+        out = episode_processor._gap_clip_transcriber(cfg, _Provider())("/tmp/gap_000.wav")
+        assert out == {"segments": [], "text": ""}
+        assert calls == [("/tmp/gap_000.wav", "es", {})]

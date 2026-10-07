@@ -9,7 +9,7 @@ import os
 import re
 import threading
 from pathlib import Path
-from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import AbstractSet, Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 
@@ -652,8 +652,15 @@ def apply_diarization_to_result(
     detection_ran: Optional[bool] = None,
     detection_report: Optional[Mapping[str, Any]] = None,
     speaker_renames: Optional[Mapping[str, str]] = None,
+    transcribe_clip: Optional[Callable[[str], Mapping[str, Any]]] = None,
 ) -> dict:
     """Enrich transcription segments with diarized speaker labels.
+
+    ``transcribe_clip`` (#2187 A2) transcribes one audio clip in the episode's language. When
+    given, every stretch of diarized speech the transcript has no words for is re-transcribed and
+    spliced in, tagged ``recovered``; ``asr_untranscribed_speech`` then reports what is STILL
+    missing. Passed only on the fresh-transcription path, where ``audio_path`` is the audio the
+    transcript was made from.
 
     ``speaker_renames`` (operator override, #2283) maps a resolved speaker name to the name to
     publish instead. Applied to the FINAL roster, before the segments and the diagnostics are
@@ -717,6 +724,19 @@ def apply_diarization_to_result(
             os.path.basename(audio_path),
         )
         return result
+
+    # #2187 A2: re-transcribe the speech the diarizer heard and the transcript skipped, BEFORE
+    # alignment, so recovered words get their speaker the same way every other segment does.
+    if transcribe_clip is not None:
+        from podcast_scraper.transcription.gap_recovery import recover_untranscribed_speech
+
+        result = recover_untranscribed_speech(
+            result,
+            untranscribed_speech(diarization.segments, segments),
+            audio_path,
+            transcribe_clip,
+        )
+        segments = list(result.get("segments") or [])
 
     # Resolve every diarized voice once via the unified roster (#876): host = the opening
     # voice (#1169), named by transcript self-intro ("I'm Patrick O'Shaughnessy") → config

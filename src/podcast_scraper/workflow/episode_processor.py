@@ -11,7 +11,18 @@ import re
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Set, Tuple, TYPE_CHECKING
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    TYPE_CHECKING,
+)
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
@@ -914,6 +925,10 @@ def _save_asr_provenance_file(
     if untranscribed is not None:
         # #2187: diarized speech with no transcript under it — present only when diarization ran.
         provenance["untranscribed_speech"] = untranscribed
+    recovery = result.get("asr_speech_recovery")
+    if recovery is not None:
+        # #2187 A2: each stretch that was re-transcribed, and what came of it.
+        provenance["speech_recovery"] = recovery
     full_path = os.path.join(effective_output_dir, rel_transcript_path)
     base, _ = os.path.splitext(full_path)
     asr_path = base + ".asr.json"
@@ -993,6 +1008,10 @@ def _write_processing_manifest(
         if _untranscribed:
             # #2187: the diarizer heard speech the transcript has no words for.
             asr_flags.append("asr_untranscribed_speech")
+        _recovery = result.get("asr_speech_recovery")
+        if _recovery and any(r.get("status") == "recovered" for r in _recovery):
+            # #2187 A2: the transcript carries re-transcribed segments (tagged ``recovered``).
+            asr_flags.append("asr_speech_recovered")
         # Total ASR cost = primary call + any failover re-transcription (both 0 for local models;
         # a cloud ASR that failed over billed twice — RFC-109).
         _primary_cost = getattr(asr_call_metrics, "estimated_cost", None)
@@ -1025,6 +1044,16 @@ def _write_processing_manifest(
                 "untranscribed_speech_s": (
                     round(sum(g["duration_s"] for g in _untranscribed), 3)
                     if _untranscribed is not None
+                    else None
+                ),
+                "recovered_speech_count": (
+                    sum(1 for r in _recovery if r.get("status") == "recovered")
+                    if _recovery is not None
+                    else None
+                ),
+                "recovered_words": (
+                    sum(int(r.get("words") or 0) for r in _recovery)
+                    if _recovery is not None
                     else None
                 ),
             },
@@ -2778,6 +2807,24 @@ def _transcribe_with_segments_maybe_chunked(
         raise
 
 
+def _gap_clip_transcriber(
+    cfg: config.Config, transcription_provider: Any
+) -> Callable[[str], Dict[str, Any]]:
+    """#2187 A2: transcribe one gap clip with the provider and language the episode used.
+
+    No metrics are passed: a recovery call is not the episode's transcription, and counting it
+    there would inflate the per-episode ASR time and audio-seconds.
+    """
+
+    def _transcribe(clip_path: str) -> Dict[str, Any]:
+        result, _elapsed = transcription_provider.transcribe_with_segments(
+            clip_path, language=transcription_language(cfg)
+        )
+        return dict(result)
+
+    return _transcribe
+
+
 def _feed_hosts_from_sibling_metadata(txt_path: Path) -> List[str]:
     """Read the feed-stated host names from a transcript's sibling metadata JSON.
 
@@ -4349,6 +4396,7 @@ def transcribe_media_to_text(
                     episode_description=getattr(job.episode, "description", None),
                     detection_report=_detection_report_of(job),
                     speaker_renames=_operator_renames(job),
+                    transcribe_clip=_gap_clip_transcriber(cfg, transcription_provider),
                 )
             except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
                 # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).
