@@ -64,7 +64,8 @@ test('the trend window tabs re-query rather than re-rendering the same series', 
   await expect(page.getByTestId('discovery-list-topic')).toBeVisible()
 
   // Switching sort (Rising → Trending) keeps the same discovery section visible.
-  await page.getByTestId('discovery-sort').click()
+  await page.getByTestId('discovery-sort-trending').click()
+  await expect(page.getByTestId('discovery-sort-trending')).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByTestId('browse-discovery')).toBeVisible()
 })
 

@@ -66,42 +66,40 @@ test('Trends sits at the same inset and width as the search on Discover', async 
 })
 
 /**
- * Four kind pills and the two switches share one row on a phone — and never
- * overlap. The pills render in the device's system font, so their width is the OS's: macOS left 6px
- * of slack at 375px while CI's Linux font ran People 13px into the sort switch (2026-10-06). When
- * the pills do not fit, the strip stops at the switches and scrolls; 360px is a common Android width.
+ * The kind pills and the two labelled switches fit a phone, at 360px and 375px (operator 2026-10-07:
+ * the switches moved to their own row under the pills, in words). Nothing may leave the screen, and
+ * the switches must not sit on the pills' row. The pills render in the device's system font, so a
+ * row that does not fit clips and scrolls rather than overflowing (2026-10-06, CI's Linux font).
  */
 for (const width of [360, 375]) {
-  test(`the Trends kind pills stop at the switches at ${width}px on Discover`, async ({ page }, testInfo) => {
+  test(`the Trends kind pills and switches fit at ${width}px on Discover`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile-chrome', 'a phone-width layout')
     await page.setViewportSize({ width, height: 800 })
     await signInIsolated(page, `trends-${width}`, testInfo)
-    for (const url of ['/browse']) {
-      await page.goto(url)
-      await expect(page.getByTestId('discovery-tab-person')).toBeVisible()
-      // One read of every box, so nothing reflows between them. A pill past the sort switch is
-      // only acceptable inside a strip that clips and scrolls — never drawn over the switch.
-      const m = await page.evaluate(`(() => {
-        const r = (id) => document.querySelector('[data-testid="' + id + '"]').getBoundingClientRect()
-        const strip = document.querySelector('[data-testid="discovery-tab-person"]').parentElement
-        const sortX = r('discovery-sort').left
-        const pills = Array.prototype.slice.call(strip.children)
-        const pastSwitch = pills.filter((el) => el.getBoundingClientRect().right > sortX).length
-        return {
-          pastSwitch,
-          stripClips: getComputedStyle(strip).overflowX !== 'visible',
-          stripRight: strip.getBoundingClientRect().right,
-          sortX,
-          scopeRight: r('home-trending-scope').right,
-        }
-      })()`) as { pastSwitch: number; stripClips: boolean; stripRight: number; sortX: number; scopeRight: number }
-      expect(m.stripRight, `${url}: the kind strip runs into the sort switch`).toBeLessThanOrEqual(m.sortX)
-      if (m.pastSwitch > 0) expect(m.stripClips, `${url}: ${m.pastSwitch} pill(s) drawn over the sort switch`).toBe(true)
-      expect(m.scopeRight, `${url}: the scope switch leaves the screen`).toBeLessThanOrEqual(width)
-      // Every kind stays reachable — People is the last pill, the one a narrow row hides.
-      await page.getByTestId('discovery-tab-person').click()
-      await expect(page.getByTestId('discovery-tab-person')).toHaveAttribute('aria-selected', 'true')
-    }
+    await page.goto('/browse')
+    await expect(page.getByTestId('discovery-tab-person')).toBeVisible()
+    const m = await page.evaluate(`(() => {
+      const r = (id) => document.querySelector('[data-testid="' + id + '"]').getBoundingClientRect()
+      const strip = document.querySelector('[data-testid="discovery-tab-person"]').parentElement
+      const s = strip.getBoundingClientRect()
+      return {
+        stripRight: s.right,
+        stripBottom: s.bottom,
+        stripClips: getComputedStyle(strip).overflowX !== 'visible',
+        lastPillRight: r('discovery-tab-person').right,
+        switchesTop: r('discovery-switches').top,
+        scopeRight: r('discovery-scope').right,
+        sortRight: r('discovery-sort').right,
+      }
+    })()`) as Record<string, number | boolean>
+    expect(m.stripRight as number, 'the kind strip leaves the screen').toBeLessThanOrEqual(width)
+    if ((m.lastPillRight as number) > width) expect(m.stripClips, 'People overflows without scrolling').toBe(true)
+    expect(m.switchesTop as number, 'the switches share the pills row').toBeGreaterThanOrEqual(m.stripBottom as number)
+    expect(m.scopeRight as number, 'You | Everyone leaves the screen').toBeLessThanOrEqual(width)
+    expect(m.sortRight as number, 'Rising | Most talked about leaves the screen').toBeLessThanOrEqual(width)
+    // Every kind stays reachable — People is the last pill, the one a narrow row hides.
+    await page.getByTestId('discovery-tab-person').click()
+    await expect(page.getByTestId('discovery-tab-person')).toHaveAttribute('aria-selected', 'true')
   })
 }
 

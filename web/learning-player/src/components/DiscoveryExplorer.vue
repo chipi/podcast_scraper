@@ -13,6 +13,7 @@
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import Tabs from "./Tabs.vue"
+import SegmentedSwitch from "./SegmentedSwitch.vue"
 import { panelAttrs, type TabSpec } from "./tabs"
 import DiscoveryList from "./DiscoveryList.vue"
 import { useAuthStore } from "../stores/auth"
@@ -110,58 +111,38 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
       >{{ expandedAll ? t("home.showLess") : t("home.seeAll") }} {{ expandedAll ? "‹" : "›" }}</button>
     </div>
 
-    <!-- Kind pills + the sort/scope icon cluster on ONE row (operator). -->
-    <div class="mb-3 flex items-center gap-2">
-      <Tabs
-        v-model="discoveryTab"
-        :tabs="discoveryTabs"
-        :label="t('home.discoveryTabs')"
-        id-prefix="discovery"
-        variant="pill"
-        dense
-        class="min-w-0"
+    <!-- Kind pills on their own row; the two switches under them, in WORDS (operator 2026-10-07):
+         the icon-only person and chart buttons left readers guessing what they did. -->
+    <Tabs
+      v-model="discoveryTab"
+      :tabs="discoveryTabs"
+      :label="t('home.discoveryTabs')"
+      id-prefix="discovery"
+      variant="pill"
+      dense
+      class="mb-2 min-w-0"
+    />
+    <div class="mb-3 flex flex-wrap items-center gap-2" data-testid="discovery-switches">
+      <SegmentedSwitch
+        v-if="auth.isAuthenticated"
+        :model-value="trendingScope"
+        :label="t('home.trendingScopeLabel')"
+        :options="[
+          { value: 'mine', label: t('home.trendsYou'), testid: 'home-trending-scope' },
+          { value: 'corpus', label: t('home.trendsEveryone'), testid: 'home-trending-scope-everyone' },
+        ]"
+        data-testid="discovery-scope"
+        @update:model-value="setTrendingScope($event)"
       />
-      <div class="ml-auto flex shrink-0 items-center gap-1.5">
-        <!-- Rising ⇄ Trending — the glyph IS the active sort; tap re-sorts client-side. -->
-        <button
-          type="button"
-          data-testid="discovery-sort"
-          class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-muted transition hover:text-canvas-foreground"
-          :aria-label="t('home.discoverySortLabel', { mode: discoverySort === 'rising' ? t('home.tabRising') : t('home.tabTrending') })"
-          :title="discoverySort === 'rising' ? t('home.tabRising') : t('home.tabTrending')"
-          @click="discoverySort = discoverySort === 'rising' ? 'trending' : 'rising'"
-        >
-          <svg v-if="discoverySort === 'rising'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M3 17l6-6 4 4 7-7" /><path d="M17 8h4v4" /></svg>
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7" /></svg>
-          <!-- A non-hidden NAME inside the button (2026-09-25, Android device tier). Both svgs
-               above are correctly `aria-hidden` and the button had nothing else, so Chromium left
-               it with NO name — it announced as "Button". `aria-label` does not survive a fully
-               hidden subtree here. See `AccessibleNameAuditTests`. -->
-          <span class="sr-only">{{
-            t('home.discoverySortLabel', {
-              mode: discoverySort === 'rising' ? t('home.tabRising') : t('home.tabTrending'),
-            })
-          }}</span>
-        </button>
-        <!-- Corpus ⇄ Mine scope — icon circle; active (accent) = My listening. -->
-        <button
-          v-if="auth.isAuthenticated"
-          type="button"
-          data-testid="home-trending-scope"
-          class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition"
-          :class="trendingScope === 'mine' ? 'border-accent bg-accent text-accent-foreground' : 'border-border text-muted hover:text-canvas-foreground'"
-          :aria-pressed="trendingScope === 'mine'"
-          :aria-label="t('home.trendingScopeLabel')"
-          :title="trendingScope === 'mine' ? t('home.trendingScopeMine') : t('home.trendingScopeAll')"
-          @click="setTrendingScope(trendingScope === 'mine' ? 'corpus' : 'mine')"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
-          <!-- Same reason as the sort toggle above: the only child is a hidden svg. -->
-          <span class="sr-only">{{
-            trendingScope === 'mine' ? t('home.trendingScopeMine') : t('home.trendingScopeAll')
-          }}</span>
-        </button>
-      </div>
+      <SegmentedSwitch
+        v-model="discoverySort"
+        :label="t('home.discoverySortGroup')"
+        :options="[
+          { value: 'rising', label: t('home.tabRising'), testid: 'discovery-sort-rising' },
+          { value: 'trending', label: t('home.trendsMostTalked'), testid: 'discovery-sort-trending' },
+        ]"
+        data-testid="discovery-sort"
+      />
     </div>
 
     <!-- `panelAttrs` already mints this panel's id; the header's expand control points

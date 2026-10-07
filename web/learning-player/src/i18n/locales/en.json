@@ -103,9 +103,7 @@
     "tabTrending": "Trending",
     "discoveryTabs": "What's hot",
     "trendingShows": "Trending shows",
-    "trendingScopeLabel": "Trending scope",
-    "trendingScopeAll": "Everything",
-    "trendingScopeMine": "My listening",
+    "trendingScopeLabel": "Whose trends",
     "trendingScopeMineShort": "Mine",
     "storylineSize": "· {count} topic | · {count} topics",
     "storylineOpen": "Open the {label} storyline ({count} topics)",
@@ -139,7 +137,6 @@
     "seeAll": "all",
     "dashTopics": "{count} topics",
     "discoveryVolume": "{count} mentions",
-    "discoverySortLabel": "Sort: {mode} (tap to switch)",
     "yourWeekFindShows": "Find shows →",
     "momentumHint": "twice as often as in recent weeks",
     "yourWeekFirstRunLine": "Your weekly digest fills as you follow shows, topics and people.",
@@ -155,7 +152,11 @@
     "recommendedKicker": "Picked from what you listen to",
     "whatsNewKicker": "{scope} · since {date}",
     "trendsMineEmpty": "Your trends fill in as you listen, save and follow. Nothing to rank yet.",
-    "trendsShowEveryone": "Show everyone's trends"
+    "trendsShowEveryone": "Show everyone's trends",
+    "trendsYou": "You",
+    "trendsEveryone": "Everyone",
+    "trendsMostTalked": "Most talked about",
+    "discoverySortGroup": "Sort trends"
   },
   "ask": {
     "title": "Find what's worth hearing",

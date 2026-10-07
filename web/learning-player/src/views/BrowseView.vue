@@ -14,7 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 defineOptions({ name: 'BrowseView' }) // stable name for <keep-alive :include> (App.vue)
 import Tabs from '../components/Tabs.vue'
-import { track } from '../services/analytics'
+import { toRankBucket, track } from '../services/analytics'
 import { panelAttrs, type TabSpec } from '../components/tabs'
 import CatalogView from './CatalogView.vue'
 import ShowBrowseView from './ShowBrowseView.vue'
@@ -65,6 +65,7 @@ function onEntityOpen(p: { kind: Kind; id: string; rank: number }): void {
     p.kind === 'topic' ? 'topic' : p.kind === 'person' ? 'person' : p.kind === 'theme' ? 'theme' : 'storyline'
   // `presentation: 'page'`: Trends opens entities as full pages (Home's overlay-card Trends went
   // away 2026-10-07).
+  track('trends_row_click', { kind: p.kind, rank: toRankBucket(p.rank) })
   track('entity_open', { kind: p.kind, presentation: 'page', source: 'browse' })
   void router.push({ name, params: { id: p.id } })
 }

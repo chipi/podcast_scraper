@@ -45,6 +45,8 @@ test.describe('browse', () => {
     await page.goto('/browse?trends=topic')
     await expect(page.getByTestId('browse-view')).toBeVisible()
 
+    // Mine is the default and this account has no world yet: read everyone's.
+    await page.getByTestId('home-trending-scope-everyone').click()
     const row = page.locator('#trends [data-testid="discovery-row"]').first()
     await expect(
       row,
@@ -55,6 +57,10 @@ test.describe('browse', () => {
     const open = await sink.waitForEvent('entity_open')
     expect(open.data?.presentation, 'Browse opens a full page, not an overlay card').toBe('page')
     expect(open.data?.source).toBe('browse')
+    // The rank question `home_rail_click` asked on Home, asked on Discover (operator 2026-10-07).
+    const click = await sink.waitForEvent('trends_row_click')
+    expect(click.data?.kind).toBe('topic')
+    expect(['1', '2-3', '4-10', '11+'], 'rank is bucketed').toContain(String(click.data?.rank))
   })
 })
 

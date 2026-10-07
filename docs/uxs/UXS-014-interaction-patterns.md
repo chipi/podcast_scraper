@@ -123,6 +123,9 @@ still clamp; show names do not.)
   character `‹` (U+2039), kept because it rendered — but it rendered as a sliver beside the drawn ✕,
   so the two dismiss controls looked unrelated (operator 2026-10-04). Every `lp-nav` back control
   uses it; the visible "Back" labels beside it are unchanged.
+- A two-way choice is **`SegmentedSwitch`** — both options in words, the chosen one filled, in a
+  named group (operator 2026-10-07). Trends' "You | Everyone" and "Rising | Most talked about" were
+  icon-only buttons (a person, a chart) that a beta tester could not read or tell were working.
 - Share is **`ShareIcon`** — three joined nodes, the glyph the episode page's `ShareMenu` always
   drew — on every share control: `ShareMenu` (episode, show, storyline, theme, entity card), a
   saved highlight's share, and the export viewer's Share button. Highlights drew a bare `↗`, which

@@ -174,8 +174,9 @@ export const EVENT_NAMES = [
   'interests_picker_shown',
   'interests_saved',
   'interests_dismissed',
-  // discovery and pivots (`home_rail_click` retired 2026-10-07: its only rail, Home's Trends, left
-  // Home for Discover)
+  // discovery and pivots (`home_rail_click` retired 2026-10-07 with Home's Trends; Discover's
+  // Trends reports the same question as `trends_row_click`)
+  'trends_row_click',
   'browse_tab_view',
   'entity_open',
   'episode_open',
@@ -263,6 +264,11 @@ export type EventProps = {
    * question it exists for — "which browse surface do people actually use" — is the same for both
    * rows of controls, so both report through here.
    */
+  /**
+   * A tap on a Trends row on Discover, with its rank (operator 2026-10-07): "do people browse the list
+   * or only ever tap the first row". Paired with `entity_open`, which says what opened and how.
+   */
+  trends_row_click: { kind: 'topic' | 'theme' | 'storyline' | 'person'; rank: RankBucket }
   browse_tab_view: { tab: 'episodes' | 'shows' | 'topics' | 'people' | 'storylines' }
   entity_open: { kind: EntityKind; presentation: 'card' | 'page'; source: Source }
   episode_open: { source: Source; from_followed_show: boolean }
