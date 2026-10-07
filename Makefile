@@ -5221,7 +5221,7 @@ docker-clean:
 # android tiers
 .PHONY: android-app-install android-contact-sheet
 
-.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-verify-dashboard obs-umami-views obs-umami-views-check
+.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve
 
 obs-test: ## Unit tests for the observability control plane (podcast_obs). Fast, no network.
 	$(PYTHON) -m pytest tests/unit/podcast_obs/ -q --no-cov --disable-socket --allow-hosts=127.0.0.1,localhost
@@ -5237,31 +5237,6 @@ obs-summary: ## Control-plane glance for the configured target. Needs PODCAST_OB
 
 obs-serve: ## Run the observability MCP server. Usage: make obs-serve OBS_ARGS="--transport http --port 8848"
 	$(PYTHON) -m podcast_obs serve $(OBS_ARGS)
-
-
-
-obs-verify-dashboard: ## Prove a PUBLISHED dashboard renders data, panel by panel. UID=<uid> [VAR=instance=prod-podcast] [EXPECT_EMPTY=1]
-	@# `obs-sync` proves a dashboard was UPLOADED. It cannot prove any panel on it will show
-	@# anything, and those are very different claims. Three player log streams read empty for weeks
-	@# because an Alloy glob named the wrong directory AND the wrong filename: nothing errored, the
-	@# dashboards were present and correct and blank, and a blank analytics panel looks exactly like
-	@# a product nobody used. This runs every panel's own query through Grafana and fails on empty.
-	@test -n "$(UID)" || { echo "ERROR: pass UID=<dashboard-uid>"; exit 1; }
-	@test -n "$$GRAFANA_URL" || { echo "ERROR: GRAFANA_URL must be set"; exit 1; }
-	@test -n "$$GRAFANA_TOKEN" || { echo "ERROR: GRAFANA_TOKEN must be set"; exit 1; }
-	$(PYTHON) scripts/obs/verify_dashboard.py --uid $(UID) \
-	  $(if $(VAR),--var $(VAR),) $(if $(EXPECT_EMPTY),--expect-empty,)
-
-obs-umami-views: ## Umami beta views as code (ADR-126). WEBSITE_ID=<uuid> [APPLY=1] [VERIFY=1]
-	@# Dry run by default, like obs-sync. VERIFY=1 EXECUTES each view and fails if any returns
-	@# nothing — creating a view proves it was stored, not that it will ever show a number, and an
-	@# empty analytics surface looks exactly like a product nobody used.
-	@test -n "$(WEBSITE_ID)" || { echo "ERROR: pass WEBSITE_ID=<umami-website-uuid>"; exit 1; }
-	$(PYTHON) scripts/obs/umami_views.py --website-id $(WEBSITE_ID) \
-	  $(if $(APPLY),--apply,) $(if $(VERIFY),--verify,)
-
-obs-umami-views-check: ## No-network guard: every view step must be a real EVENT_NAMES member.
-	$(PYTHON) scripts/obs/umami_views.py --check-registry
 
 install-hooks:
 	@if [ ! -d .git ]; then echo "Error: Not a git repository"; exit 1; fi

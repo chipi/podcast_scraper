@@ -37,14 +37,27 @@ def test_podcast_obs_honours_the_same_switch(
         monkeypatch.delenv(KEY, raising=False)
 
 
-def test_the_switch_also_skips_the_committed_homelab_yaml(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The Ops routes read their targets from `ObservabilityConfig.load()`, which auto-discovers the
-    TRACKED `config/observability.homelab.yaml`; with the env file alone switched off, a test server
-    still showed `"target": "homelab"` and live production gateway spend."""
+def test_the_switch_also_skips_the_committed_homelab_yaml(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Ops routes read their targets from `ObservabilityConfig.load()`, which auto-discovers
+    `config/observability.homelab.yaml`; with the env file alone switched off, a test server still
+    showed `"target": "homelab"` and live production gateway spend.
+
+    The YAML is written here rather than relied on in the tree: the operator's homelab file is
+    deployment config and is not tracked in this repository."""
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "observability.homelab.yaml").write_text(
+        "default_target: homelab\ntargets:\n  homelab:\n    api_base: http://homelab:8000\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     monkeypatch.delenv("PODCAST_OBS_CONFIG", raising=False)
     monkeypatch.delenv("PODCAST_OBS_TARGET", raising=False)
+    monkeypatch.delenv("PODCAST_DEV_OBS_ENV", raising=False)
     assert obs_config._discover_default_config() is not None  # the YAML is there to be found
+    assert "homelab" in obs_config.ObservabilityConfig.load().targets  # and load() uses it
 
     monkeypatch.setenv("PODCAST_DEV_OBS_ENV", "0")
     cfg = obs_config.ObservabilityConfig.load()
