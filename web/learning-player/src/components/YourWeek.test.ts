@@ -107,7 +107,8 @@ describe('YourWeek section', () => {
     // on a fresh account that list stood 373px tall with zero episode links, between the hero and
     // "What's new", and said "… will land here" four times over.
     expect(wrapper.findAll('[data-testid="yourweek-firstrun"] li')).toHaveLength(0)
-    expect(wrapper.find('[data-testid="yourweek-firstrun"]').text()).toMatch(/fills as you follow/i)
+    // A week in review fills by listening and saving (operator 2026-10-07), not by following.
+    expect(wrapper.find('[data-testid="yourweek-firstrun"]').text()).toMatch(/fills in as you listen and save/i)
     // No compact/full toggle: there is nothing to expand yet.
     expect(wrapper.find('[data-testid="yourweek-toggle"]').exists()).toBe(false)
   })

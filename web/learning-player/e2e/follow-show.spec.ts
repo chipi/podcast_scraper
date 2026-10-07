@@ -50,7 +50,7 @@ test('signed out, a show deep-link redirects to the landing with a ?redirect fun
   expect(lib.status()).toBe(401)
 })
 
-test('following a show from the show page lands in the library and surfaces Your Week', async ({
+test("following a show from the show page lands in the library and makes What's new yours", async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'follow-show', testInfo)
@@ -78,12 +78,10 @@ test('following a show from the show page lands in the library and surfaces Your
   await page.reload()
   await expect(page.getByTestId('follow-show')).toContainText('Following')
 
-  // The acceptance criterion: the digest section now has content to show.
+  // The acceptance criterion: Home's What's new is now from the followed show (operator 2026-10-07 —
+  // it was Your Week's "New in your follows", which What's new took over).
   await page.goto('/')
-  const yourWeek = page.getByTestId('your-week')
-  await expect(yourWeek).toBeVisible()
-  await yourWeek.getByTestId('yourweek-toggle').click()
-  await expect(yourWeek.getByText('New in your follows')).toBeVisible()
+  await expect(page.getByText('New in your shows and topics', { exact: false })).toBeVisible()
 })
 
 test('clicking Following unfollows the show', async ({ page }, testInfo) => {

@@ -100,11 +100,13 @@ Region order, top to bottom:
    `discovery-tab-{key}`, `rising` default). The **active tab's label IS the section heading** — the
    rails no longer render a duplicate `<h2>`. `v-show` keeps each panel mounted (no refetch on
    switch).
-6. **New in topics & people you follow (#1836)** — recent UNHEARD episodes about a followed topic or
-   featuring a followed person (deterministic; no ranking score). Also a **Your-Week** digest section.
-7. **Discover strip** — a compact `home-browse-nav` "Discover" strip (**Topics** / **Storylines** /
-   **People** chips) that deep-link into Discover's own Trends section
-   (`/browse?trends=topic`/`storyline`/`person`), selecting that kind and scrolling it into view.
+6. **What's new** — the newest episodes from the shows you follow and about the topics, people,
+   themes and storylines you follow ("New in your shows and topics"); with nothing followed, the newest
+   across every show ("New across all shows"). At the bottom of Home since 2026-10-07; it absorbed
+   Your Week's new-in-follows / new-in-interests.
+7. **Discover strip** — a compact `home-browse-nav` "Discover" strip (**Topics** / **Themes** /
+   **Storylines** / **People** chips; Themes added 2026-10-07) that deep-link into Discover's own Trends
+   section (`/browse?trends=topic`/`theme`/`storyline`/`person`), selecting that kind and scrolling it into view.
    *(Renamed from the old "Browse topics/people" links — operator 2026-09-14. They then pointed at a
    standalone `/trends` page, which was a thinner second copy of a section `/browse` already renders;
    that page is deleted — operator 2026-09-18.)*
@@ -198,18 +200,20 @@ cleanly.** No empty panel, no skeleton that never resolves, no "0 results" row t
 say nothing happened. `SectionStatus` (#1591) owns the loading/empty/error triad so a section
 header cannot outlive its content.
 
-### `YourWeek` — the personal digest, in-app
+### `YourWeek` — your week in review
 
-The same rollup the weekly email sends (new-in-follows + new-in-interests + trending-in-your-corpus),
-served live and **decoupled from email consent**. The email's **revisit** section is deliberately NOT
-shown here (2026-09-30): this block is "what's new", and due highlights have their own Home section,
-`RevisitRail` ("Highlights to revisit"), with the reviewed / stop / unsave actions that belong to them
-— showing them in both put the same highlights on Home twice. The server still sends the section, so
-the email and the push nudge keep it — turning the email off must never cost the capability;
-the email is only the edge for someone who does not visit. Two layouts behind a per-user synced
-preference: `compact` (one rail of the week's top items) and `full` (a labelled rail per section),
-flipped inline with "Show more / Show less". Hidden entirely when signed out or when nothing is due
-— a digest with nothing in it is not a digest.
+Since 2026-10-07 (operator: "cut the overlap"), **what you listened to** (`listened_this_week`), **what
+you saved** (`saved_this_week`) and **what is rising in what you have heard**
+(`trending_in_your_corpus`), each for the last 7 days. It no longer shows the email's
+new-in-follows / new-in-interests: new episodes from your shows, topics and people are Home's
+**What's new** (`GET /api/app/whats-new`), and repeating them here put the same episodes on Home
+twice. The **email** keeps those sections — in an inbox, "what's new from your shows" is the point.
+The email's **revisit** section is not shown here either (2026-09-30): due highlights have their own
+Home section, `RevisitRail`. Served live and **decoupled from email consent**. Two layouts behind a
+per-user synced preference: `compact` (one rail of the week's top items) and `full` (a labelled rail
+per section), flipped inline with "Show more / Show less". Empty, it is one first-run line ("fills in
+as you listen and save"); while the welcome card is asking a new listener for interests, an empty
+Your Week is hidden.
 
 ### `KeyVoicesRail` — your key voices (wave-G)
 

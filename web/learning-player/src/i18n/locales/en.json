@@ -79,9 +79,11 @@
     "yourWeekShowMore": "Show more",
     "yourWeekShowLess": "Show less",
     "yourWeekSection": {
+      "listened_this_week": "You listened to",
+      "saved_this_week": "You saved",
+      "trending_in_your_corpus": "Rising in what you've heard",
       "new_in_follows": "New in your follows",
-      "new_in_interests": "New in topics & people you follow",
-      "trending_in_your_corpus": "Trending in what you've heard"
+      "new_in_interests": "New in topics & people you follow"
     },
     "stale": "Showing what you had last time — we couldn't reach the server.",
     "staleRetry": "Try again",
@@ -139,7 +141,7 @@
     "discoveryVolume": "{count} mentions",
     "yourWeekFindShows": "Find shows →",
     "momentumHint": "twice as often as in recent weeks",
-    "yourWeekFirstRunLine": "Your weekly digest fills as you follow shows, topics and people.",
+    "yourWeekFirstRunLine": "Your week in review fills in as you listen and save.",
     "staleForced": "Offline mode is on — showing what you saved.",
     "staleNetwork": "You're offline — showing what you saved.",
     "staleServer": "We can't reach your account right now — showing what you saved.",

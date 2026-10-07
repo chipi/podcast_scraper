@@ -715,6 +715,9 @@ export type YourWeekSectionKind =
   | "new_in_follows"
   | "new_in_interests"
   | "trending_in_your_corpus"
+  // The week in review (operator 2026-10-07): what you played and saved in the last 7 days.
+  | "listened_this_week"
+  | "saved_this_week"
 
 export interface YourWeekSection {
   kind: YourWeekSectionKind

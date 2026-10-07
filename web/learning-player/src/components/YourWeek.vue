@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * "Your Week" — the in-app personal digest (#1412), the highlight of the home page.
+ * "Your Week" — your week in review (#1412; operator 2026-10-07): what you listened to, what you saved,
+ * and what is rising in what you have heard. New episodes from your follows are What's new now.
  *
- * The SAME rollup the email sends (new-in-follows + new-in-interests + trending-in-your-corpus;
- * the email's revisit section is left to Home's own RevisitRail — see `sections`), served
- * live and decoupled from email consent — so turning the email off never loses the capability;
- * the email is just the edge for when you don't visit.
+ * Read from the same digest the email sends — it keeps only its trending section, and adds the two
+ * review sections; the email's revisit is left to Home's RevisitRail (see `sections`). Served live
+ * and decoupled from email consent, so turning the email off never loses it.
  *
  * Two layouts, a per-user preference (synced via userPreferences, so it follows the user across
  * devices): `compact` = one rail of the week's top highlights; `full` = a labelled rail per
