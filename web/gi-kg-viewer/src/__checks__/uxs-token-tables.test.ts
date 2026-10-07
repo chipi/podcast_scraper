@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { appDocsRoot } from '../../platform-root.mjs'
 
 /**
  * UXS-001's colour tables are checked against tokens.css, in both directions (#2280).
@@ -18,7 +19,7 @@ import { describe, expect, it } from 'vitest'
  */
 
 const VIEWER = resolve(__dirname, '..', '..')
-const SPEC = readFileSync(resolve(VIEWER, '..', '..', 'docs', 'uxs', 'UXS-001-gi-kg-viewer.md'), 'utf8')
+const SPEC = readFileSync(resolve(appDocsRoot(), 'uxs', 'UXS-001-gi-kg-viewer.md'), 'utf8')
 const CSS = readFileSync(resolve(VIEWER, 'src', 'theme', 'tokens.css'), 'utf8').replace(
   /\/\*[\s\S]*?\*\//g,
   '',

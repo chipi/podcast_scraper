@@ -48,19 +48,28 @@ module in both directions. With the manifest as of decision 5 below:
 
 ## Decision
 
-### 1. Four layers, one repo each
+### 1. Five layers, one repo each
 
 | Layer | Visibility | Holds |
 | --- | --- | --- |
-| **Platform** (this repo) | public | pipeline, corpus, plain search, operator viewer, corpus read-models, the public kernel, the enrichment framework and the five enrichers without IP, the observability data layer, the fixture corpora (public outputs only) |
-| **Common** | private | Google and Apple sign-in providers; the corpus MCP server (`mcp/`), its OAuth authorization server, MCP tokens and rate limiter; the observability MCP server; the six enrichers with real logic, their eval scorers, and the platform features built on their outputs (Decision 5); further IP chosen later |
+| **Platform** (this repo) | public | pipeline, corpus, plain search, operator viewer without the tier-A features (Decision 5), corpus read-models, the public kernel, the enrichment framework and the five enrichers without IP, the observability data layer, the fixture corpora (public outputs only) |
+| **Common** | private | two subpackages. `identity`: Google and Apple sign-in providers; the corpus MCP server (`mcp/`), its OAuth authorization server, MCP tokens and rate limiter. `intelligence`: the corpus MCP tools, the observability MCP server, the six enrichers with real logic, their eval scorers, and the platform features built on their outputs (Decision 5); further IP chosen later |
+| **Studio** | private | the full operator viewer (`web/gi-kg-viewer` with every tier-A feature), its unit tests, e2e specs and fixtures, make targets and CI job |
 | **Player** | private | player backend (product logic), `web/learning-player`, `android/`, `ios/`, its tests, make targets and CI jobs, player ranking-eval scripts |
 | **News** | private, future | same shape as Player |
 
-Dependencies point one way: Player and News depend on Common and Platform; Common depends on
+Dependencies point one way: Player, Studio and News depend on Common and Platform; Common depends on
 Platform; Platform depends on nothing private and must run, test and deploy without it.
 Repositories: `chipi/closelistening-common`, `chipi/closelistening-player` (private, created
-2026-10-07). Package names: `closelistening_common`, `closelistening_player`.
+2026-10-07), `chipi/closelistening-studio` (private, decided 2026-10-07). Package names:
+`closelistening_common`, `closelistening_player`, `closelistening_studio`.
+
+Inside Common, `identity` never imports `intelligence`, so an app that needs sign-in alone (News)
+uses `identity` without the enrichers. One repo and one distribution, two subpackages; the probe
+fails on any import across that line.
+
+That makes three UI surfaces: the public viewer (stripped), Studio (the full viewer) and the
+Player.
 
 ### 2. What stays public, by name
 
@@ -117,7 +126,7 @@ Two consequences the import graph cannot show:
   `cil_queries.py`, the public search route's query enrichment, the operator viewer's enrichment
   panels) treats that output as optional.
 - The operator viewer calls `/api/app/mcp` (MCP token management). Without Common that route is
-  not mounted, and the viewer hides the UI.
+  not mounted, and the public viewer hides the UI; Studio keeps it.
 
 ### 5. Enrichers: the line is IP, and the features built on private outputs go with them
 
@@ -141,7 +150,9 @@ So outputs are tiered by who consumes them, and the consumer moves with the prod
   `routes/corpus_storylines.py`, `routes/search.py`, `og/build.py`, schemas, enrichment wiring)
   and 25 operator-viewer files (graph lenses, the search operator bar, dashboard trending, the
   theme legend, enrichment panels). Which of those move and which only stop reading the output is
-  the next manifest step; how the operator viewer loses these features is an open question.
+  the next manifest step. **The public viewer loses these features; Studio keeps them** (operator
+  decision 2026-10-07): the viewer is copied whole into Studio, and the tier-A panels are then
+  removed from the public copy only.
 - **Tier B, outputs only private code consumes:** `person_web`, `org_web`. Their schemas
   (`AppPersonWeb`, `AppOrgWeb`), fixtures and the two image-path helpers move to Common.
 - **Tier C, pipeline IP:** prompts, GI and KG extraction. Untouched by this split; it is the later
@@ -173,9 +184,11 @@ the first `git init`.
 The copy is a script, not an event. `split_copy.py` wipes `apps/<repo>/` (keeping `.git`) and
 copies from the current tracked tree on every run, so the private side never drifts from `main`
 while the seams are being fixed. The manifest is the single list of what moves, and
-`split_probe.py` is the measure. The GitHub repos exist early (created 2026-10-07) so private CI,
+`split_probe.py` is the measure. Studio's viewer is a *forked* tree: copied like the player's, but
+not pruned from public, since the public repo keeps its own stripped viewer. The GitHub repos exist early (created 2026-10-07) so private CI,
 image builds and pinning can be set up while the seams are fixed; what is pushed to them is
-regenerated by the copy until the cutover.
+regenerated by the copy until the cutover; Common and Player received their first copy on
+2026-10-07.
 
 After the cutover, a change that needs both sides lands as two PRs: public first, with a contract
 test against a fake app in this repo's tests; then the private one, which moves its pin. Private
@@ -186,8 +199,9 @@ CI runs against its pin and nightly against public `main`.
 The Player repo builds the production API image as the public API image plus Common and Player,
 and the player web image. The pipeline image gets Common, because enrichment runs inside the
 pipeline (`workflow/orchestration.py`). Deploying belongs to the infrastructure repo (PR #2138
-moves the deploy, smoke and backup workflows there). iOS and Android build on a developer
-machine. Until #2138 merges, this work stays out of `.github/workflows/`, `infra/`, `Makefile` and
+moves the deploy, smoke and backup workflows there). Studio builds its web image and runs on the
+public API image plus Common, the same API the Player image carries. iOS and Android build on a
+developer machine. Until #2138 merges, this work stays out of `.github/workflows/`, `infra/`, `Makefile` and
 `mkdocs.yml` beyond what it strictly needs.
 
 ### 10. Docs move with their surface
@@ -208,19 +222,22 @@ References across the boundary run one way only:
   converted. Measured cost, accepted by the operator: 825 references to the 33 moving document IDs
   in 237 public files (230 in `src/` docstrings, 62 in `mkdocs.yml`), and 288 lines in 99 files
   that name the earlier eval split's private repo (index stubs, registry evidence citations and
-  their tests, onboarding docs). The mount tooling may name the `eval-data/` and `apps/`
+  their tests, onboarding docs). Both are removed on this branch, not later (operator decision
+2026-10-07). The mount tooling may name the `eval-data/` and `apps/`
   directories, because `.gitignore` has to.
 
 ## Sequence
 
-1. This ADR, the mount, the copy script, the probe, and the two empty private repos. **Done.**
+1. This ADR, the mount, the copy script, the probe, and the private repos. **Done** for Common and
+   Player (first copy pushed); Studio's repo is not created yet.
 2. Fix the seams in public, one slice at a time, re-running the probe after each. Order: the
    extension interface with a fake app in tests; the enricher registry and wiring; the
    user-lifecycle hooks; router, startup, job, CLI and audit registration; the `podcast_obs` and
    OAuth-provider splits; the read-model renames. Done when both probe directions import cleanly.
 3. Run the test suites in both directions and fix what fails.
 4. Per-app data folders and the prod migration.
-5. Read the round-1 documents; adjust the manifest.
+5. Read the round-1 documents; adjust the manifest. Remove the public references to moved
+   documents and to the eval repo (Decision 10).
 6. Private CI, image builds and pinning (can start in parallel with steps 2–5).
 7. Cutover (playbook arc 2): delete from public, after PR #2138 has merged.
 8. Later: further seams, then pipeline logic with IP value moves to Common.
@@ -233,7 +250,8 @@ References across the boundary run one way only:
 - **Negative**: a cross-cutting change becomes two PRs in two repos; public CI cannot see the
   apps, so a public change can break them until the nightly run catches it; the production API
   and pipeline images are built in a private repo; public fixtures carry outputs the public repo
-  cannot regenerate on its own.
+  cannot regenerate on its own; after the cutover the public viewer and Studio are two copies of
+  one codebase, so a fix to code they share is made twice.
 - **The limit**: this hides future work, not past work, and not what clients see. The repo is
   public with 3 forks and 8 stars; every enricher, the player and the MCP servers as they stand
   today are out permanently. Anything the phone receives from `/api/app`, and the MCP tool
@@ -255,14 +273,18 @@ References across the boundary run one way only:
 6. **Move the whole `podcast_obs` package to Common.** The public Ops view would lose its data.
 7. **Git submodules instead of the mount.** Records the private repos' names and SHAs in public
    history, which the eval split avoided on purpose.
+8. **The public viewer loads private panels when Common is installed.** Keeps one viewer, but
+   needs a plugin mechanism in the frontend; the advisor judged it too much machinery.
+9. **Move the operator viewer private and drop it from public.** The public platform would have
+   no UI at all.
+10. **Two Common distributions instead of two subpackages.** Cleaner install for News, but two
+   pyprojects and two version lines before there is a second consumer.
 
 ## Open questions
 
 - Which further modules count as IP for Common (deferred until the refactor is seen).
-- How the operator viewer loses the tier-A features: strip them from the public viewer, make the
-  viewer load private panels, or move the viewer private.
-- Whether Common is two packages (identity: sign-in, MCP auth; intelligence: enrichers, MCP
-  tools), so the news app can depend on identity alone.
+- How shared viewer fixes reach both copies after the cutover (by hand, or a shared package the
+  two depend on).
 - Versioning between repos: how a private repo pins the public one (git SHA, a deploy key, the
   public image tag), and how tags are cut.
 - MCP tokens live under `data/users/<id>/` today: the per-app data migration and the

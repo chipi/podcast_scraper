@@ -11,7 +11,11 @@ What moves is listed in ``scripts/tools/split_manifest.yaml``:
   them, in every copied file, is rewritten to the new location.
 * ``packages`` — whole Python packages that move and are renamed.
 * ``verbatim_packages`` — whole top-level packages that move under their own name.
+* ``subpackages`` — named groups inside the repo's package (``<package>.<name>``), each
+  with its own ``modules`` / ``packages``.
 * ``trees`` / ``file_trees`` / ``files`` — copied byte for byte.
+* ``forked_trees`` — copied byte for byte like ``trees``, but the public repo keeps its
+  own copy (the probe does not prune them).
 
 Tests under ``tests/`` that reference a moved module are copied too (with the
 ``conftest.py`` files above them), into the repo that owns most of what they
@@ -59,30 +63,43 @@ def build_mapping(manifest: dict, files: list[str]) -> tuple[dict[str, str], dic
     """Return (old module -> new module, old module -> repo)."""
     mapping: dict[str, str] = {}
     owner: dict[str, str] = {}
-    for repo, spec in manifest.items():
-        pkg = spec["package"]
-        for parent, names in spec.get("modules", {}).items():
-            tail = parent.removeprefix("podcast_scraper.")
-            if tail.startswith("enrichment."):
-                tail = tail.removeprefix("enrichment.")
-            for name in names:
-                old = f"{parent}.{name}"
-                mapping[old] = f"{pkg}.{tail}.{name}"
-                owner[old] = repo
-        for old_pkg, new_tail in spec.get("packages", {}).items():
-            prefix = "src/" + old_pkg.replace(".", "/") + "/"
-            for f in files:
-                if f.startswith(prefix) and f.endswith(".py"):
-                    old = module_of(f)
-                    mapping[old] = f"{pkg}.{new_tail}" + old[len(old_pkg) :]
-                    owner[old] = repo
-        for top in spec.get("verbatim_packages", []):
-            for f in files:
-                if f.startswith(f"src/{top}/") and f.endswith(".py"):
-                    old = module_of(f)
-                    mapping[old] = old
-                    owner[old] = repo
+    for repo, top in manifest.items():
+        for pkg, spec in units(top):
+            _map_unit(repo, pkg, spec, files, mapping, owner)
     return mapping, owner
+
+
+def units(spec: dict) -> list[tuple[str, dict]]:
+    """The (package, spec) pairs one repo entry defines: itself, then each of its
+    ``subpackages`` as ``<package>.<name>``."""
+    pkg = spec["package"]
+    return [(pkg, spec)] + [
+        (f"{pkg}.{name}", sub) for name, sub in spec.get("subpackages", {}).items()
+    ]
+
+
+def _map_unit(repo: str, pkg: str, spec: dict, files, mapping: dict, owner: dict) -> None:
+    for parent, names in spec.get("modules", {}).items():
+        tail = parent.removeprefix("podcast_scraper.")
+        if tail.startswith("enrichment."):
+            tail = tail.removeprefix("enrichment.")
+        for name in names:
+            old = f"{parent}.{name}"
+            mapping[old] = f"{pkg}.{tail}.{name}"
+            owner[old] = repo
+    for old_pkg, new_tail in spec.get("packages", {}).items():
+        prefix = "src/" + old_pkg.replace(".", "/") + "/"
+        for f in files:
+            if f.startswith(prefix) and f.endswith(".py"):
+                old = module_of(f)
+                mapping[old] = f"{pkg}.{new_tail}" + old[len(old_pkg) :]
+                owner[old] = repo
+    for top in spec.get("verbatim_packages", []):
+        for f in files:
+            if f.startswith(f"src/{top}/") and f.endswith(".py"):
+                old = module_of(f)
+                mapping[old] = old
+                owner[old] = repo
 
 
 def new_path(new_module: str, is_package: bool) -> str:
@@ -113,7 +130,7 @@ def rewrite(source: str, module: str | None, is_package: bool, mapping: dict[str
         if not isinstance(node, ast.ImportFrom):
             continue
         if node.level and module:
-            absmod = absolute_from(module, is_package, node)
+            absmod: str | None = absolute_from(module, is_package, node)
         else:
             absmod = node.module
         if absmod is None:
@@ -134,7 +151,8 @@ def rewrite(source: str, module: str | None, is_package: bool, mapping: dict[str
         merged: dict[str, list[ast.alias]] = {}
         for parent, aliases in groups:
             merged.setdefault(parent, []).extend(aliases)
-        indent = re.match(r"\s*", lines[node.lineno - 1]).group(0)
+        first = lines[node.lineno - 1]
+        indent = first[: len(first) - len(first.lstrip())]
         text = "".join(
             indent + ast.unparse(ast.ImportFrom(module=parent, names=aliases, level=0)) + "\n"
             for parent, aliases in merged.items()
@@ -207,7 +225,8 @@ def copy_modules(files, mapping, owner, bump, dry_run: bool) -> None:
 
 def copy_verbatim(manifest: dict, files, bump, dry_run: bool) -> None:
     for repo, spec in manifest.items():
-        for tree, dest in spec.get("trees", {}).items():
+        trees = {**spec.get("trees", {}), **spec.get("forked_trees", {})}
+        for tree, dest in trees.items():
             for f in (f for f in files if f.startswith(tree + "/")):
                 data = (ROOT / f).read_bytes()
                 write(APPS / repo / dest / f[len(tree) + 1 :], data, dry_run)
@@ -231,7 +250,7 @@ def copy_tests(files, mapping, owner, bump, dry_run: bool) -> None:
         refs = references(src, mapping, owner)
         if not refs:
             continue
-        repo = "player" if refs.get("player") else max(refs, key=refs.get)
+        repo = "player" if refs.get("player") else max(refs, key=lambda r: refs[r])
         write(APPS / repo / f, rewrite(src, None, False, mapping).encode(), dry_run)
         bump(repo, "tests")
         for parent in Path(f).parents:
@@ -257,6 +276,11 @@ def write_scaffold(manifest: dict, dry_run: bool) -> None:
             "repo (ADR-158). Do not edit here: every run replaces this tree.\n"
         )
         write(APPS / repo / "README.md", readme.encode(), dry_run)
+        ignore = "__pycache__/\n*.py[cod]\n*.egg-info/\n.pytest_cache/\n.mypy_cache/\n"
+        write(APPS / repo / ".gitignore", ignore.encode(), dry_run)
+        init = APPS / repo / "src" / spec["package"] / "__init__.py"
+        if not dry_run and not init.exists():
+            write(init, b"", False)
 
 
 def main() -> int:
