@@ -32,7 +32,15 @@ export function useAnchoredMenu(
   triggerEl: Ref<HTMLElement | null>,
   panelEl: Ref<HTMLElement | null>,
   opts: AnchorOptions = {},
-  hooks: { onOpened?: () => void } = {}
+  hooks: {
+    onOpened?: () => void
+    /**
+     * `false` for a panel that lays itself out (a bottom sheet / centred panel, operator
+     * 2026-10-07): it keeps this shell's dismissal, Escape and teleport target, but is never moved
+     * to the trigger. Default true — every menu that hangs off its trigger.
+     */
+    anchored?: boolean
+  } = {}
 ) {
   const open = ref(false)
 
@@ -55,6 +63,10 @@ export function useAnchoredMenu(
     const trigger = triggerEl.value
     const panel = panelEl.value
     if (!trigger || !panel) return
+    if (hooks.anchored === false) {
+      panel.dataset.anchoredPanel = ""
+      return
+    }
     const { top, left } = anchorPanel(
       trigger.getBoundingClientRect(),
       { width: panel.offsetWidth, height: panel.offsetHeight },

@@ -38,6 +38,8 @@ test('a board can be dragged into a new position, and the order persists', async
     await page.getByTestId('add-to-collection').click()
     const menu = page.getByTestId('add-to-collection-menu')
     await expect(menu).toBeVisible()
+    // The create field opens from "New board" in the sheet (operator 2026-10-07).
+    await menu.getByTestId('add-to-collection-new').click()
     await menu.locator('input').fill(name)
     await menu.locator('form button[type="submit"]').click()
     await expect(page.getByTestId('add-to-collection-menu')).toBeHidden({ timeout: 5000 })

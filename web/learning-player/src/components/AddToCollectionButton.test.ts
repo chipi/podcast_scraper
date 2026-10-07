@@ -114,7 +114,7 @@ describe('AddToCollectionButton (#1839)', () => {
      * computed wrong; `overflow: visible` cannot hide anything whatever the width comes out as.
      */
     for (const row of rows) {
-      const name = row.find('span')
+      const name = row.get('[data-testid="add-to-collection-board-name"]')
       expect(
         name.classes(),
         'the board name is truncatable again — a mis-measured flex row will clip it to nothing, ' +
@@ -132,6 +132,7 @@ describe('AddToCollectionButton (#1839)', () => {
     const w = await mountIt()
     await w.get('[data-testid="add-to-collection"]').trigger('click')
     await flushPromises()
+    await w.get('[data-testid="add-to-collection-new"]').trigger('click')
     await w.find('input[type="text"]').setValue('New')
     await w.find('form').trigger('submit')
     await flushPromises()
@@ -213,6 +214,7 @@ describe('failures are visible, not swallowed (#2004 item 13)', () => {
     const w = await mountIt()
     await w.get('button').trigger('click')
     await flushPromises()
+    await w.get('[data-testid="add-to-collection-new"]').trigger('click')
     const input = w.get('input')
     await input.setValue('Tech')
     await w.get('form').trigger('submit')
@@ -264,6 +266,7 @@ describe('a transient failure is QUEUED, not lost (#2004 item 13 — root cause)
     const w = await mountIt()
     await w.get('button').trigger('click')
     await flushPromises()
+    await w.get('[data-testid="add-to-collection-new"]').trigger('click')
     await w.get('input').setValue('Tech')
     await w.get('form').trigger('submit')
     await flushPromises()

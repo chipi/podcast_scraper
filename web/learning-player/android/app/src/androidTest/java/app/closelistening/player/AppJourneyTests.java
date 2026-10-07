@@ -306,9 +306,9 @@ public class AppJourneyTests extends UITestCase {
         Journey.sleep(3_000);
 
         for (String name : Arrays.asList("Test Board A", "Test Board B")) {
-            // The name field: collections.namePlaceholder = 'New collection name'. On Android the
-            // placeholder lands as the contentDescription on the EditText.
-            UiObject2 field = Journey.find("New collection name", true, 12_000);
+            // The name field: collections.namePlaceholder = 'Board name' (was 'New collection
+            // name' until 2026-10-07). On Android the placeholder lands as the contentDescription.
+            UiObject2 field = Journey.find("Board name", true, 12_000);
             if (field == null) {
                 // Fallback: the text field without a name — only present when no named field exists.
                 field = Journey.device().findObject(

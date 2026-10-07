@@ -248,7 +248,7 @@ final class AppJourneyTests: UITestCase {
     Journey.shot(self, "05-collections-before")
 
     for name in ["Test Board A", "Test Board B"] {
-      guard let field = Journey.find(app, labels: ["New collection name"], contains: true, timeout: 12)
+      guard let field = Journey.find(app, labels: ["Board name"], contains: true, timeout: 12)
         ?? app.textFields.firstMatch as XCUIElement?
       else { XCTFail("no collection-name field"); break }
       guard field.waitForExistence(timeout: 8) else { XCTFail("no collection-name field"); break }

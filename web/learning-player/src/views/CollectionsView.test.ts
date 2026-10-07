@@ -81,7 +81,7 @@ describe('CollectionsView', () => {
     expect(w.text()).toContain('2 items')
   })
 
-  it('titles the section "Your collections"', async () => {
+  it('titles the section "Your boards"', async () => {
     const w = mountView()
     await flushPromises()
     expect(w.text()).toContain(en.collections.sectionTitle)
@@ -210,11 +210,11 @@ describe('CollectionsView', () => {
     const del = vi.spyOn(api, 'deleteCollection').mockResolvedValue([])
     const w = mountView()
     await flushPromises()
-    await w.find('[aria-label="Delete collection"]').trigger('click')
+    await w.find('[aria-label="Delete board"]').trigger('click')
     await w.get('[data-testid="confirm-accept"]').trigger('click')
     await flushPromises()
     expect(del).toHaveBeenCalledWith('col_1')
-    expect(w.text()).toContain('No collections yet')
+    expect(w.text()).toContain('No boards yet')
   })
 })
 
