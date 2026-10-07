@@ -15,6 +15,7 @@ from podcast_scraper.corpus_version import (
     corpus_code_version,
     MIN_SUPPORTED_CORPUS_CODE_VERSION,
 )
+from podcast_scraper.server.app_release_store import load_released_version
 from podcast_scraper.server.pathutil import (
     CorpusPathRequestError,
     read_manifest_produced_by_under_anchor,
@@ -56,7 +57,9 @@ def player_client_health(st: Any) -> dict[str, Any]:
       a signing secret and a user store. Scoped to deployments that actually authenticate (an OAuth
       provider is configured); tailnet / operator modes run without auth on purpose.
     * ``auth_epoch`` — non-secret fingerprint of the session key (see :func:`_auth_epoch`).
-    * ``player_version`` — the released app version, for the native update prompt.
+    * ``player_version`` — the released app version, for the native update prompt: the runtime
+      override an admin set (``PUT /api/app/admin/release``) when there is one, else the deploy's
+      ``APP_PLAYER_VERSION``. Read per request, so a native-only release needs no restart.
     """
     auth_configured = getattr(st, "oauth_provider", None) is not None
     auth_ready = not auth_configured or (
@@ -65,8 +68,15 @@ def player_client_health(st: Any) -> dict[str, Any]:
     return {
         "auth_ready": auth_ready,
         "auth_epoch": _auth_epoch(getattr(st, "session_secret", "")),
-        "player_version": getattr(st, "player_version", None),
+        "player_version": released_player_version(st),
     }
+
+
+def released_player_version(st: Any) -> str | None:
+    """The runtime override when set, else the environment default (``None`` = no prompt)."""
+    raw_dir = getattr(st, "app_data_dir", None)
+    override = load_released_version(Path(raw_dir) if raw_dir is not None else None)
+    return override or getattr(st, "player_version", None)
 
 
 def _auth_epoch(secret: str) -> str | None:

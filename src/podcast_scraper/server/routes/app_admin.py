@@ -19,7 +19,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from podcast_scraper.server import app_access_store, app_roles
+from podcast_scraper.server import app_access_store, app_release_store, app_roles
 from podcast_scraper.server.app_access import AccessPolicy
 from podcast_scraper.server.app_audit import append_audit
 from podcast_scraper.server.app_user_store import (
@@ -314,3 +314,72 @@ def admin_put_access_policy(
         added_emails=sorted(saved.allowed_emails - before.allowed_emails) if before else [],
     )
     return _policy_out(saved, persisted=True)
+
+
+# --- Released app version (runtime, no restart) ----------------------------------------------
+
+
+class ReleaseOut(BaseModel):
+    """The released app version the native update prompt compares against, and its source."""
+
+    player_version: str | None = Field(
+        description="What the server serves now: the override when set, else the deploy default."
+    )
+    override: str | None = Field(description="The runtime override (null = none set).")
+    deploy_default: str | None = Field(description="APP_PLAYER_VERSION from the deployment.")
+
+
+class ReleaseBody(BaseModel):
+    """``player_version`` to set, or ``null`` to clear the override."""
+
+    player_version: str | None
+
+
+def _release_out(request: Request) -> ReleaseOut:
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    override = app_release_store.load_released_version(
+        Path(raw_dir) if raw_dir is not None else None
+    )
+    deploy_default = getattr(request.app.state, "player_version", None)
+    return ReleaseOut(
+        player_version=override or deploy_default,
+        override=override,
+        deploy_default=deploy_default,
+    )
+
+
+@router.get("/admin/release", response_model=ReleaseOut)
+def admin_get_release(request: Request, admin: User = Depends(get_admin_user)) -> ReleaseOut:
+    """The released app version served to the native update prompt (admin only)."""
+    return _release_out(request)
+
+
+@router.put("/admin/release", response_model=ReleaseOut)
+def admin_put_release(
+    body: ReleaseBody, request: Request, admin: User = Depends(get_admin_user)
+) -> ReleaseOut:
+    """Set the released app version at RUNTIME — no deploy, no restart (operator 2026-10-07).
+
+    For a native-only release: once a build is installable in TestFlight / Play, set its version
+    here and every app below it is prompted to update on its next check. ``null`` clears the
+    override and the deploy's ``APP_PLAYER_VERSION`` applies again. Audited, like every admin write.
+    """
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    if raw_dir is None:
+        raise HTTPException(status_code=503, detail="No app data dir configured.")
+    version = body.player_version.strip() if body.player_version else None
+    if version is not None and not app_release_store.valid_player_version(version):
+        raise HTTPException(
+            status_code=422, detail="player_version must be a dotted number, e.g. 1.0.2."
+        )
+    before = _release_out(request)
+    app_release_store.save_released_version(Path(raw_dir), version)
+    after = _release_out(request)
+    _audit(
+        request,
+        action="player_release_set",
+        by=admin.user_id,
+        before=before.override,
+        after=after.override,
+    )
+    return after
