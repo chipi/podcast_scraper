@@ -13,42 +13,6 @@ import './settle'
  * and wrong.
  */
 
-test.describe('home rails', () => {
-  test('home_rail_click and entity_open are both emitted, and say different things', async ({
-    page,
-  }) => {
-    const sink = attachSink(page)
-    await page.goto('/api/app/auth/login?as=telemetry-home')
-    await page.waitForLoadState('networkidle')
-    await page.goto('/')
-
-    const row = page.locator('[data-testid="discovery-row"]').first()
-    await expect(
-      row,
-      'Home needs a populated discovery rail; the fixture lowers APP_MOMENTUM_MIN_TOTAL so it has one',
-    ).toBeVisible()
-    await row.click()
-
-    const rail = await sink.waitForEvent('home_rail_click')
-    const open = await sink.waitForEvent('entity_open')
-
-    // TWO events on purpose. `home_rail_click` carries the rank and answers "do people browse the
-    // rail or only ever tap the first row"; `entity_open` is the pivot event and feeds Pivot rate.
-    // Collapsing them into one would lose whichever question the survivor does not answer.
-    expect(String(rail.data?.rail ?? ''), 'the rail must be named').not.toBe('')
-    expect(['1', '2-3', '4-10', '11+'], 'rank is bucketed').toContain(String(rail.data?.rank))
-
-    // Home opens an entity as an overlay CARD. Browse opens the same entity as a full PAGE. Whether
-    // one converts better than the other is a question the spec asks, so the distinction has to
-    // survive the wire.
-    expect(open.data?.presentation).toBe('card')
-    expect(
-      String(open.data?.source ?? ''),
-      'a Home tap must report its rail, never the generic fallback',
-    ).not.toBe('other')
-  })
-})
-
 test.describe('browse', () => {
   test('browse_tab_view reports the tab CHOSEN, not the default landed on', async ({ page }) => {
     const sink = attachSink(page)

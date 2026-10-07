@@ -22,7 +22,6 @@ import { formatTime } from "../player/transcriptSync"
 import { formatDuration } from "../utils/format"
 import { formatPublishDate } from '../utils/format'
 import { episodeArtwork } from "../utils/episode"
-import { toRankBucket, track } from "../services/analytics"
 import { useAuthStore } from "../stores/auth"
 import BrandGlyph from "../components/BrandGlyph.vue"
 import { useLibraryStore } from "../stores/library"
@@ -35,11 +34,9 @@ import { useUserPreferencesStore } from "../stores/userPreferences"
 import { useInterestsStore } from "../stores/interests"
 import { useCompletedStore } from "../stores/completed"
 import { usePlayed } from "../composables/usePlayed"
-import EntityCard from "../components/EntityCard.vue"
 import InterestsPicker from "../components/InterestsPicker.vue"
 import KeyVoicesRail from "../components/KeyVoicesRail.vue"
 import SearchSection from "../components/SearchSection.vue"
-import TrendsSection from "../components/TrendsSection.vue"
 import CollectionsTeaser from "../components/CollectionsTeaser.vue"
 import RevisitRail from "../components/RevisitRail.vue"
 import SectionHeading from "../components/SectionHeading.vue"
@@ -47,8 +44,6 @@ import EpisodeActions from "../components/EpisodeActions.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
 import CardRail from "../components/CardRail.vue"
 import SectionStatus from "../components/SectionStatus.vue"
-import StorylineCard from "../components/StorylineCard.vue"
-import ThemeCard from "../components/ThemeCard.vue"
 import RecapPrompt from "../components/RecapPrompt.vue"
 import YourWeek from "../components/YourWeek.vue"
 
@@ -98,64 +93,6 @@ watch(recommended, () => {
 const continueItems = computed(() =>
   continueSection.data.value.filter((x) => !isPlayed(x.detail.slug))
 )
-
-// Trending-topic chip → open the topic entity card (overlay), same surface as Search.
-const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
-// Discovery = one shared list (DiscoveryList) over three ENTITY KINDS — the tabs pick WHAT (topics /
-// storylines / people), and two little switches pick HOW: sort (Rising = by velocity, Trending = by
-// volume) and scope (Corpus ⇄ Mine). All three kinds come from one `/trending` endpoint carrying
-// both signals, so Rising⇄Trending is a client-side re-sort. This replaced three bespoke rails
-// (MomentumRail / TrendingTopics / Storylines) so every tab reads identically (operator 2026-09-14).
-// A tapped discovery row opens the entity: topics/people → the entity card overlay; storylines → the
-// storyline overlay (its id is the anchor topic, resolved inside DiscoveryList). The tabs + sort +
-// scope controls live in the shared DiscoveryExplorer now (operator 2026-09-14).
-/**
- * Which Home rail a discovery tap came from (#2267).
- *
- * The spec's first six `source` values exist to answer "which rail actually produces discovery",
- * so a generic `home` would erase the only thing they are for. DiscoveryList's three kinds map
- * one-to-one onto three of them.
- */
-const DISCOVERY_SOURCE = {
-  topic: "home_trending_topics",
-  theme: "home_themes",
-  person: "home_key_voices",
-  storyline: "home_storylines",
-} as const
-
-/** The rail name `home_rail_click` reports, for the same three kinds. */
-const DISCOVERY_RAIL = {
-  topic: "trending_topics",
-  theme: "themes",
-  person: "key_voices",
-  storyline: "storylines",
-} as const
-
-function onDiscoveryOpen(p: {
-  kind: "topic" | "theme" | "storyline" | "person"
-  id: string
-  rank: number
-}): void {
-  // Two events, deliberately, because they answer different questions. `home_rail_click` with its
-  // rank says whether people browse the rail or only ever tap the first row; `entity_open` is THE
-  // pivot event and feeds Pivot rate and the funnel's last step. Collapsing them would lose one.
-  track("home_rail_click", { rail: DISCOVERY_RAIL[p.kind], rank: toRankBucket(p.rank) })
-  track("entity_open", {
-    kind: p.kind,
-    presentation: "card",
-    source: DISCOVERY_SOURCE[p.kind],
-  })
-  if (p.kind === "storyline") storylineTarget.value = p.id
-  else if (p.kind === "theme") themeTarget.value = p.id
-  else cardTarget.value = { kind: p.kind, id: p.id }
-}
-// #9 / F4.5 — a tapped storyline opens as a dismissible OVERLAY card (StorylineCard), the same
-// lightweight-and-in-context pattern a topic uses, rather than navigating to a full page (operator
-// 2026-09-14: the two must feel the same). The `/storyline/:id` route stays for deep-links/sharing;
-// StorylineCard adds a `?storyline=` history entry so hardware Back closes the card, not the page.
-const storylineTarget = ref<string | null>(null)
-// A tapped theme opens ON TOP the same way (ThemeCard, by the theme's own `tc:` id).
-const themeTarget = ref<string | null>(null)
 
 // First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
 const interestsDismissed = ref(false)
@@ -573,24 +510,12 @@ async function loadContinue(): Promise<void> {
          decline with "Not now" — or as soon as it has content, e.g. after following a show. -->
     <YourWeek :key="railKey" :hide-when-empty="showInterestsCard" />
 
-    <!-- Discovery: the shared tabbed DiscoveryExplorer (Topics / Storylines / People + sort/scope),
-         after the digest. Capped at 5 rows here; Discover uses the same section capped at 10.
-
-         TITLED, with the same heading Discover gives it (operator 2026-09-17). Untitled it sat
-         directly under Your Week's first-run line, so on an empty digest it read as Your Week's own
-         content arriving without a heading — when in fact Your Week had rendered nothing and this is
-         the next section entirely.
-
-         Half width from `lg`, matching Discover: a trend row is a short label against a sparkline +
-         multiplier + follow, and across the full column those two clusters sit ~500px apart. -->
-    <!-- Search, then Trends — the same two sections, in the same order, that Discover renders
-         (operator 2026-10-05: Home and Discover are one screen family and must look identical; each
-         section owns its own spacing so neither page can wrap it differently). Left half on `lg`, with
-         the revisit rail and the boards teaser stacked in the right half; stacked on phones. -->
+    <!-- Search — the same section Discover renders (operator 2026-10-05: one screen family). Trends
+         left Home (operator 2026-10-07) and lives on Discover only. Left half on `lg`, with the
+         revisit rail and the boards teaser stacked in the right half; stacked on phones. -->
     <div class="lg:flex lg:items-start lg:gap-8">
       <div class="lg:w-1/2 lg:pr-4">
         <SearchSection prefix="home" />
-        <TrendsSection prefix="home" @open="onDiscoveryOpen" />
       </div>
       <div class="lg:w-1/2">
         <RevisitRail />
@@ -601,6 +526,88 @@ async function loadContinue(): Promise<void> {
     <!-- A one-line look BACK, pointing at the recap in Profile (#1914). Self-hides when there is
          nothing to look back on. -->
     <RecapPrompt />
+
+    <!-- Recommended — no-scroll responsive grid. Up here, right after the look back, and What's
+         new at the bottom (operator 2026-10-07): picks for YOU lead, the corpus-wide feed follows. -->
+    <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
+      <SectionHeading :title="t('home.recommended')" />
+      <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
+      <!-- The SAME tile the Discover grid uses (operator 2026-09-17), not a second copy of it.
+           This grid was hand-rolled here: square artwork, overlaid actions, show name and title —
+           EpisodeTile's shape, re-implemented. Keeping two of them is how they drifted apart in the
+           first place (title-above-show here, show-above-title there; clamped there, unclamped
+           here). One component, so a change to the tile reaches every grid that uses it. -->
+      <!-- 2 on a phone, 4 on desktop (operator 2026-09-17). Deliberately NOT the browse grids' 3/4:
+           Recommended is a short curated set on the home screen, so its tiles stay large enough to
+           read at a glance rather than matching a dense catalogue.
+
+           FOUR to begin with — one row on both breakpoints — then a control that reveals the rest
+           in place (operator 2026-09-19). There is no "see all" here because there is nowhere for
+           it to go: nothing in the app is a recommendations page, and inventing a route to satisfy
+           the shape of a link would be worse than expanding where you already are. -->
+      <ul class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <li v-for="ep in visibleRecommended" :key="ep.slug" class="h-full">
+          <EpisodeTile :episode="ep" />
+        </li>
+      </ul>
+      <button
+        v-if="recommended.length > visibleRecommended.length"
+        type="button"
+        class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay"
+        data-testid="home-recommended-more"
+        @click="recommendedShown += RECOMMENDED_PAGE"
+      >
+        <!-- What the tap will ACTUALLY reveal, not what remains. It said "Show 8 more" and then
+             revealed four, which is a control describing someone else's behaviour. -->
+        {{
+          t("ec.moreEpisodes", {
+            count: Math.min(recommended.length - visibleRecommended.length, RECOMMENDED_PAGE),
+          })
+        }}
+      </button>
+    </section>
+
+    <!-- Discover entry points (operator 2026-09-14): a compact one-line strip — a "Discover" lead-in
+         + three chips deep-linking into Browse's Trends section on the matching kind.
+
+         These pointed at a separate /trends page, which was a second, thinner copy of a section
+         Browse already renders — tapping a chip left the hub for a page with the same three tabs and
+         less around them. The operator called it "small pages that should not exist" (2026-09-18).
+         /trends is deleted; `?trends=<kind>` selects the kind and scrolls it into view. -->
+    <nav
+      class="mt-6 flex flex-wrap items-center gap-2 text-sm"
+      :aria-label="t('home.browseNavLabel')"
+      data-testid="home-browse-nav"
+    >
+      <span class="font-bold text-muted">{{ t("home.discoverLabel") }}</span>
+      <RouterLink
+        :to="{ name: 'browse', query: { trends: 'topic' } }"
+        data-testid="home-discover-topics"
+        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
+      >
+        {{ t("home.tabTopics") }}
+      </RouterLink>
+      <RouterLink
+        :to="{ name: 'browse', query: { trends: 'storyline' } }"
+        data-testid="home-discover-storylines"
+        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
+      >
+        {{ t("home.storylines") }}
+      </RouterLink>
+      <RouterLink
+        :to="{ name: 'browse', query: { trends: 'person' } }"
+        data-testid="home-discover-people"
+        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
+      >
+        {{ t("home.tabPeople") }}
+      </RouterLink>
+    </nav>
+
+    <!-- Key voices (wave-G): the people most present in your corpus. Moved up to sit right after
+         Trending shows and before Recommended (operator review) — a quiet discovery rail. Self-hides
+         when empty. -->
+    <KeyVoicesRail v-if="auth.isAuthenticated" />
+
 
     <!-- What's new keeps HALF the desktop row (operator 2026-09-17): a ranked chart stretched across
          the full column read as a half-empty row. It shared the row with Trending shows until that
@@ -726,102 +733,7 @@ async function loadContinue(): Promise<void> {
            a sparkline — for a section with the same name. -->
     </div>
 
-    <!-- Discover entry points (operator 2026-09-14): a compact one-line strip — a "Discover" lead-in
-         + three chips deep-linking into Browse's Trends section on the matching kind.
-
-         These pointed at a separate /trends page, which was a second, thinner copy of a section
-         Browse already renders — tapping a chip left the hub for a page with the same three tabs and
-         less around them. The operator called it "small pages that should not exist" (2026-09-18).
-         /trends is deleted; `?trends=<kind>` selects the kind and scrolls it into view. -->
-    <nav
-      class="mt-6 flex flex-wrap items-center gap-2 text-sm"
-      :aria-label="t('home.browseNavLabel')"
-      data-testid="home-browse-nav"
-    >
-      <span class="font-bold text-muted">{{ t("home.discoverLabel") }}</span>
-      <RouterLink
-        :to="{ name: 'browse', query: { trends: 'topic' } }"
-        data-testid="home-discover-topics"
-        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
-      >
-        {{ t("home.tabTopics") }}
-      </RouterLink>
-      <RouterLink
-        :to="{ name: 'browse', query: { trends: 'storyline' } }"
-        data-testid="home-discover-storylines"
-        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
-      >
-        {{ t("home.storylines") }}
-      </RouterLink>
-      <RouterLink
-        :to="{ name: 'browse', query: { trends: 'person' } }"
-        data-testid="home-discover-people"
-        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
-      >
-        {{ t("home.tabPeople") }}
-      </RouterLink>
-    </nav>
-
-    <!-- Key voices (wave-G): the people most present in your corpus. Moved up to sit right after
-         Trending shows and before Recommended (operator review) — a quiet discovery rail. Self-hides
-         when empty. -->
-    <KeyVoicesRail v-if="auth.isAuthenticated" />
-
-    <!-- Recommended — no-scroll responsive grid -->
-    <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
-      <SectionHeading :title="t('home.recommended')" />
-      <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
-      <!-- The SAME tile the Discover grid uses (operator 2026-09-17), not a second copy of it.
-           This grid was hand-rolled here: square artwork, overlaid actions, show name and title —
-           EpisodeTile's shape, re-implemented. Keeping two of them is how they drifted apart in the
-           first place (title-above-show here, show-above-title there; clamped there, unclamped
-           here). One component, so a change to the tile reaches every grid that uses it. -->
-      <!-- 2 on a phone, 4 on desktop (operator 2026-09-17). Deliberately NOT the browse grids' 3/4:
-           Recommended is a short curated set on the home screen, so its tiles stay large enough to
-           read at a glance rather than matching a dense catalogue.
-
-           FOUR to begin with — one row on both breakpoints — then a control that reveals the rest
-           in place (operator 2026-09-19). There is no "see all" here because there is nowhere for
-           it to go: nothing in the app is a recommendations page, and inventing a route to satisfy
-           the shape of a link would be worse than expanding where you already are. It sits at the
-           very bottom of Home, so an expansion pushes nothing else down. -->
-      <ul class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <li v-for="ep in visibleRecommended" :key="ep.slug" class="h-full">
-          <EpisodeTile :episode="ep" />
-        </li>
-      </ul>
-      <button
-        v-if="recommended.length > visibleRecommended.length"
-        type="button"
-        class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay"
-        data-testid="home-recommended-more"
-        @click="recommendedShown += RECOMMENDED_PAGE"
-      >
-        <!-- What the tap will ACTUALLY reveal, not what remains. It said "Show 8 more" and then
-             revealed four, which is a control describing someone else's behaviour. -->
-        {{
-          t("ec.moreEpisodes", {
-            count: Math.min(recommended.length - visibleRecommended.length, RECOMMENDED_PAGE),
-          })
-        }}
-      </button>
-    </section>
-
     <InterestsPicker v-if="pickerOpen" trigger="home_prompt" @close="pickerOpen = false" @saved="onInterestsSaved" />
 
-    <EntityCard
-      v-if="cardTarget"
-      :kind="cardTarget.kind"
-      :id="cardTarget.id"
-      @close="cardTarget = null"
-    />
-    <!-- A tapped storyline opens ON TOP as a dismissible overlay (operator 2026-09-14), the same
-         wrapper a topic uses — not a full-page navigation. -->
-    <StorylineCard
-      v-if="storylineTarget"
-      :id="storylineTarget"
-      @close="storylineTarget = null"
-    />
-    <ThemeCard v-if="themeTarget" :id="themeTarget" @close="themeTarget = null" />
   </section>
 </template>

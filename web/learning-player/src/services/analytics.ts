@@ -153,7 +153,7 @@ export function toDurationBucket(seconds: number): DurationBucket {
 /**
  * The canonical player event vocabulary. `track()` accepts only these names.
  *
- * All 39 are listed up front, before their call sites exist (#2267 wires those), because the names
+ * All of them were listed up front, before their call sites exist (#2267 wires those), because the names
  * and their props ARE the contract: the dashboards, the funnel and every metric are defined in
  * terms of them. Freezing them here means the call-site work cannot quietly rename or re-shape one.
  *
@@ -174,8 +174,8 @@ export const EVENT_NAMES = [
   'interests_picker_shown',
   'interests_saved',
   'interests_dismissed',
-  // discovery and pivots
-  'home_rail_click',
+  // discovery and pivots (`home_rail_click` retired 2026-10-07: its only rail, Home's Trends, left
+  // Home for Discover)
   'browse_tab_view',
   'entity_open',
   'episode_open',
@@ -253,17 +253,6 @@ export type EventProps = {
   interests_saved: { count: CountBucket }
   interests_dismissed: undefined
 
-  home_rail_click: {
-    rail:
-      | 'your_week'
-      | 'key_voices'
-      | 'momentum'
-      | 'trending_topics'
-      | 'themes'
-      | 'trending_shows'
-      | 'storylines'
-    rank: RankBucket
-  }
   /**
    * Widened beyond the spec's `shows | topics | people`, because that set can express neither half
    * of the real Browse surface (2026-10-03).

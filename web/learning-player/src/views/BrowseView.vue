@@ -63,9 +63,8 @@ type Tab = 'episodes' | 'shows'
 function onEntityOpen(p: { kind: Kind; id: string; rank: number }): void {
   const name =
     p.kind === 'topic' ? 'topic' : p.kind === 'person' ? 'person' : p.kind === 'theme' ? 'theme' : 'storyline'
-  // `presentation: 'page'` is the point of that property: Home opens the same entity as an
-  // overlay card, this opens it as a full page, and whether one converts better than the other is
-  // a question the spec asks.
+  // `presentation: 'page'`: Trends opens entities as full pages (Home's overlay-card Trends went
+  // away 2026-10-07).
   track('entity_open', { kind: p.kind, presentation: 'page', source: 'browse' })
   void router.push({ name, params: { id: p.id } })
 }
@@ -155,7 +154,7 @@ watch(
     <div class="lg:flex lg:items-start lg:gap-8">
       <div class="lg:w-1/2 lg:pr-4">
         <SearchSection prefix="browse" />
-        <TrendsSection ref="trends" prefix="browse" :kind="trendsKind" @open="onEntityOpen" />
+        <TrendsSection ref="trends" :kind="trendsKind" @open="onEntityOpen" />
       </div>
       <div class="hidden lg:block lg:w-1/2" aria-hidden="true" />
     </div>

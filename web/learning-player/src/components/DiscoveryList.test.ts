@@ -62,8 +62,7 @@ describe("DiscoveryList — a storyline row that cannot be opened", () => {
 
     await w.find('[data-testid="discovery-row"] button').trigger("click")
     // Handing a `thc:` id to a consumer that resolves a TOPIC is what made the tap dead.
-    // `rank` is the 1-based position tapped (#2267): only this list knows it, and
-    // `home_rail_click` cannot answer "do people browse the rail or only tap row one" without it.
+    // `rank` is the 1-based position tapped (#2267): only this list knows it.
     expect(w.emitted("open")?.[0]).toEqual([{ kind: "storyline", id: "topic:ai", rank: 1 }])
   })
 

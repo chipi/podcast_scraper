@@ -520,16 +520,15 @@ test.describe('design invariants', () => {
     // which is the placement that broke. A menu anchored to its button is only ever correct
     // relative to where the button is, so this asserts the outcome rather than the CSS.
     await signInIsolated(page, 'invariants-menu-viewport', testInfo)
-    await page.goto('/')
+    // A show's signals band opens the entity card (Home's Trends did until 2026-10-07).
+    await page.goto('/podcast/p05')
     await page.waitForLoadState('networkidle')
-    // Topics tab is the default; discovery-row opens the entity card on click.
-    await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
-    const chip = page.getByTestId('discovery-row').first()
+    const chip = page.getByTestId('ps-distinctive-topic').first()
     await expect(chip).toBeVisible()
     await chip.click()
 
     // Scope to the entity-card dialog: the shared EpisodeActions row now carries an
-    // add-to-collection button on every episode card, so the Home page BEHIND this modal has many
+    // add-to-collection button on every episode card, so the page BEHIND this modal has many
     // — a page-level `.first()` would resolve one of those (correctly non-interactive under the
     // scrim) instead of the card's own button. This test is about the card's menu placement.
     const card = page.getByRole('dialog')

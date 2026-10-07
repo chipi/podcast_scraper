@@ -46,36 +46,36 @@ test('topic, person and storyline pages inset their content by the same gutter',
 })
 
 /**
- * Home and Discover render the SAME Trends component, so it must sit at the same place and width
- * on both (operator 2026-10-05). Discover wrapped it in an extra `px-4`, which made it 32px
- * narrower than on Home — enough that the fourth kind pill (Themes) collided with the sort switch.
+ * Trends sits at the page's own inset and width (operator 2026-10-05): Discover once wrapped it in an
+ * extra `px-4`, which made it 32px narrower than the search above it — enough that the fourth kind
+ * pill (Themes) collided with the sort switch. Since Trends left Home (2026-10-07) the reference is
+ * the search section beside it on the same page.
  */
-test('Trends sits at the same inset and width on Home and Discover', async ({ page }, testInfo) => {
+test('Trends sits at the same inset and width as the search on Discover', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trends-gutter', testInfo)
-  const box = async (url: string) => {
-    await page.goto(url)
-    const el = page.getByTestId('discovery-explorer')
-    await expect(el).toBeVisible()
-    return (await el.boundingBox())!
-  }
-  const home = await box('/')
-  const discover = await box('/browse')
-  expect(Math.round(discover.x)).toBe(Math.round(home.x))
-  expect(Math.round(discover.width)).toBe(Math.round(home.width))
+  await page.goto('/browse')
+  const trends = page.getByTestId('discovery-explorer')
+  const search = page.getByTestId('browse-search-section')
+  await expect(trends).toBeVisible()
+  await expect(search).toBeVisible()
+  const t = (await trends.boundingBox())!
+  const s = (await search.boundingBox())!
+  expect(Math.round(t.x)).toBe(Math.round(s.x))
+  expect(Math.round(t.width)).toBe(Math.round(s.width))
 })
 
 /**
- * Four kind pills and the two switches share one row on a phone, on both screens — and never
+ * Four kind pills and the two switches share one row on a phone — and never
  * overlap. The pills render in the device's system font, so their width is the OS's: macOS left 6px
  * of slack at 375px while CI's Linux font ran People 13px into the sort switch (2026-10-06). When
  * the pills do not fit, the strip stops at the switches and scrolls; 360px is a common Android width.
  */
 for (const width of [360, 375]) {
-  test(`the Trends kind pills stop at the switches at ${width}px, on Home and Discover`, async ({ page }, testInfo) => {
+  test(`the Trends kind pills stop at the switches at ${width}px on Discover`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile-chrome', 'a phone-width layout')
     await page.setViewportSize({ width, height: 800 })
     await signInIsolated(page, `trends-${width}`, testInfo)
-    for (const url of ['/', '/browse']) {
+    for (const url of ['/browse']) {
       await page.goto(url)
       await expect(page.getByTestId('discovery-tab-person')).toBeVisible()
       // One read of every box, so nothing reflows between them. A pill past the sort switch is

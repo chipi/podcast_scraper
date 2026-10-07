@@ -51,13 +51,13 @@ test('icon-only controls render a drawn icon, not a character', async ({ page },
 
 test('a sheet dismiss control renders a drawn ✕', async ({ page }, testInfo) => {
   await signInIsolated(page, 'icon-dismiss', testInfo)
-  await page.goto('/')
+  await page.goto('/podcast/p05')
 
-  // Open an entity card from the discovery rail; its dismiss is the control that was showing "?"
-  // on device for every sheet in the app.
-  const row = page.getByTestId('discovery-row').first()
-  await expect(row).toBeVisible()
-  await row.getByRole('button').first().click()
+  // Open an entity card from the show's signals band; its dismiss is the control that was showing
+  // "?" on device for every sheet in the app.
+  const chip = page.getByTestId('ps-distinctive-topic').first()
+  await expect(chip).toBeVisible()
+  await chip.click()
 
   const dismiss = page.getByTestId('ec-dismiss').first()
   await expect(dismiss).toBeVisible()

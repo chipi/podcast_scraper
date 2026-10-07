@@ -233,27 +233,27 @@ describe('HomeView (discover state, signed out)', () => {
     expect(w.findAll('a[href^="/episode/"] [aria-hidden="true"]').some((s) => s.text() === '▶')).toBe(false)
   })
 
-  it('folds Rising/Trending/Storylines into one tabbed area, Rising default (#4)', async () => {
+  it('has no Trends — they live on Discover only (operator 2026-10-07)', async () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({
       items: [ep('a-1', 'First Ep')], page: 1, page_size: 8, total: 1, has_more: false,
     })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
-
     const w = mountKeptAlive()
     await flushPromises()
-    const tabs = w.find('[data-testid="home-discovery"]')
-    expect(tabs.exists()).toBe(true)
-    // One switcher over three KINDS (Topics default); Rising/Trending is now a sort switch, not a tab.
-    for (const key of ['topic', 'storyline', 'person']) {
-      expect(w.find(`[data-testid="discovery-tab-${key}"]`).exists()).toBe(true)
-    }
-    expect(w.find('[data-testid="discovery-sort"]').exists()).toBe(true)
-    expect(w.get('[data-testid="discovery-tab-topic"]').attributes('aria-selected')).toBe('true')
-    expect(w.get('[data-testid="discovery-tab-storyline"]').attributes('aria-selected')).toBe('false')
-    await w.get('[data-testid="discovery-tab-storyline"]').trigger('click')
-    expect(w.get('[data-testid="discovery-tab-storyline"]').attributes('aria-selected')).toBe('true')
-    expect(w.get('[data-testid="discovery-tab-topic"]').attributes('aria-selected')).toBe('false')
+    expect(w.find('[data-testid="home-discovery"]').exists()).toBe(false)
+    expect(w.find('[data-testid="discovery-tab-topic"]').exists()).toBe(false)
+    // The way to them stays: the Discover strip deep-links into Discover's Trends.
+    expect(w.find('[data-testid="home-browse-nav"]').exists()).toBe(true)
+  })
+
+  it("puts Recommended above What's new (operator 2026-10-07)", () => {
+    const tpl = homeViewSource.slice(homeViewSource.indexOf('<template>'))
+    const rec = tpl.indexOf(":title=\"t('home.recommended')\"")
+    const wn = tpl.indexOf(":title=\"t('home.whatsNew')\"")
+    expect(rec).toBeGreaterThan(0)
+    expect(wn).toBeGreaterThan(0)
+    expect(rec).toBeLessThan(wn)
   })
 
   it('submitting the search navigates to /search', async () => {

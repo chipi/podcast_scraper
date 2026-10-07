@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test'
 import { signInIsolated } from './helpers'
 
 /**
- * The Home rails that had unit tests and no e2e (E2E_SURFACE_MAP coverage gaps, closed 2026-09-03).
+ * The Home rails that had unit tests and no e2e (E2E_SURFACE_MAP coverage gaps, closed 2026-09-03),
+ * and Trends — which left Home for Discover only (operator 2026-10-07), so its specs run on
+ * `/browse` now.
  *
  * They are grouped because they share ONE contract, and that contract is what is actually worth
  * asserting in a browser: a rail with nothing to show **omits itself**. A unit test can prove a
@@ -26,7 +28,7 @@ test('Your Week renders for a signed-in listener and can expand', async ({ page 
 
 test('the discovery list lists rows and each one can be followed', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-momentum', testInfo)
-  await page.goto('/')
+  await page.goto('/browse')
 
   // Topics tab is the default; Rising sort is the default — no extra click needed.
   await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
@@ -47,7 +49,7 @@ test('the trend window tabs re-query rather than re-rendering the same series', 
   page,
 }, testInfo) => {
   await signInIsolated(page, 'home-trend-window', testInfo)
-  await page.goto('/')
+  await page.goto('/browse')
   // Topics tab (Rising sort by default) — the window tabs belong to the discovery section.
   await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
   await expect(page.getByTestId('trend-window-tabs')).toBeVisible()
@@ -61,12 +63,12 @@ test('the trend window tabs re-query rather than re-rendering the same series', 
 
   // Switching sort (Rising → Trending) keeps the same discovery section visible.
   await page.getByTestId('discovery-sort').click()
-  await expect(page.getByTestId('home-discovery')).toBeVisible()
+  await expect(page.getByTestId('browse-discovery')).toBeVisible()
 })
 
 test('the storylines tab renders rows and follows one', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-storylines', testInfo)
-  await page.goto('/')
+  await page.goto('/browse')
   await page.getByTestId('discovery-tab-storyline').click()
 
   const list = page.getByTestId('discovery-list-storyline')
@@ -79,9 +81,9 @@ test('the storylines tab renders rows and follows one', async ({ page }, testInf
   await expect(page.getByTestId('discovery-row').first()).toBeVisible()
 })
 
-test('the themes tab lists themes, and a theme opens its card on top of Home', async ({ page }, testInfo) => {
+test('the Trends kind tabs are in order and fit the phone row', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-themes', testInfo)
-  await page.goto('/')
+  await page.goto('/browse')
   // Topics, Themes, Storylines, People — the order every surface lists the kinds in (2026-10-05).
   await expect(page.locator('[data-testid^="discovery-tab-"]')).toHaveText(['Topics', 'Themes', 'Storylines', 'People'])
   // All four kind pills fit the phone row beside the two switches — none clipped off the edge.
@@ -93,10 +95,7 @@ test('the themes tab lists themes, and a theme opens its card on top of Home', a
   await page.getByTestId('discovery-tab-theme').click()
   const list = page.getByTestId('discovery-list-theme')
   await expect(list).toBeVisible()
-  const row = list.getByTestId('discovery-row').first()
-  await expect(row).toBeVisible()
-  await row.locator('button').first().click()
-  await expect(page.getByTestId('theme-card')).toBeVisible()
+  await expect(list.getByTestId('discovery-row').first()).toBeVisible()
 })
 
 test('Discover lists themes too, and a theme opens its page', async ({ page }, testInfo) => {
@@ -113,13 +112,13 @@ test('the discovery tabs switch between topics, themes, storylines and people', 
   page,
 }, testInfo) => {
   await signInIsolated(page, 'home-discovery', testInfo)
-  await page.goto('/')
+  await page.goto('/browse')
 
-  await expect(page.getByTestId('home-discovery')).toBeVisible()
+  await expect(page.getByTestId('browse-discovery')).toBeVisible()
   for (const tab of ['discovery-tab-topic', 'discovery-tab-theme', 'discovery-tab-storyline', 'discovery-tab-person']) {
     await page.getByTestId(tab).click()
     // Whatever the tab shows, the section must not be left empty-but-present.
-    await expect(page.getByTestId('home-discovery')).toBeVisible()
+    await expect(page.getByTestId('browse-discovery')).toBeVisible()
   }
 })
 
@@ -132,12 +131,12 @@ test('the discovery tabs switch between topics, themes, storylines and people', 
  * pass on a device nobody re-runs.
  */
 test('browser Back closes the entity card and leaves the page under it alone', async ({ page }, testInfo) => {
+  // On a show page: Home's Trends opened this card until Trends left Home (2026-10-07); the show's
+  // signals band opens the same EntityCard.
   await signInIsolated(page, 'home-entity-back', testInfo)
-  await page.goto('/')
-  // Topics tab is default; discovery-row opens the entity card.
-  await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
+  await page.goto('/podcast/p05')
 
-  const chip = page.getByTestId('discovery-row').first()
+  const chip = page.getByTestId('ps-distinctive-topic').first()
   await expect(chip).toBeVisible()
   await chip.click()
 
@@ -150,8 +149,8 @@ test('browser Back closes the entity card and leaves the page under it alone', a
 
   await expect(card, 'Back left the card open — it navigated the page underneath').toBeHidden()
   await expect(page).not.toHaveURL(/[?&]card=/)
-  // Still on Home. Before this, Back with an open card took the page behind it somewhere else.
-  expect(new URL(page.url()).pathname).toBe('/')
+  // Still on the show. Before this, Back with an open card took the page behind it somewhere else.
+  expect(new URL(page.url()).pathname).toBe('/podcast/p05')
 })
 
 test('closing the card with Escape does not leave a dead Back press behind', async ({ page }, testInfo) => {
@@ -159,11 +158,9 @@ test('closing the card with Escape does not leave a dead Back press behind', asy
   // has to pop that entry, or the user's next Back press spends itself undoing our state and reads
   // as a button that did nothing.
   await signInIsolated(page, 'home-entity-esc', testInfo)
-  await page.goto('/')
-  // Topics tab is default; discovery-row opens the entity card.
-  await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
+  await page.goto('/podcast/p05')
 
-  const chip = page.getByTestId('discovery-row').first()
+  const chip = page.getByTestId('ps-distinctive-topic').first()
   await expect(chip).toBeVisible()
   await chip.click()
 
@@ -173,16 +170,16 @@ test('closing the card with Escape does not leave a dead Back press behind', asy
   await expect(card).toBeHidden()
   await expect(page).not.toHaveURL(/[?&]card=/)
 
-  // One Back press from here must leave Home entirely — if the pushed entry were still on the
-  // stack, this would only return to Home with the card shut.
+  // One Back press from here must leave the show entirely — if the pushed entry were still on the
+  // stack, this would only return to the show with the card shut.
   await page.goBack()
-  expect(new URL(page.url()).pathname, 'a stale history entry absorbed the Back press').not.toBe('/')
+  expect(new URL(page.url()).pathname, 'a stale history entry absorbed the Back press').not.toBe('/podcast/p05')
 })
 
 
 test('a theme row says how many topics it holds, and can be followed', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trends-theme-row', testInfo)
-  await page.goto('/')
+  await page.goto('/browse')
   await page.getByTestId('discovery-tab-theme').click()
   const row = page.getByTestId('discovery-list-theme').getByTestId('discovery-row').first()
   await expect(row).toBeVisible()
@@ -195,35 +192,35 @@ test('a theme row says how many topics it holds, and can be followed', async ({ 
 })
 
 /**
- * Home and Discover render ONE search + Trends block (operator 2026-10-05): search before Trends on
- * both, the two trending-topic chips under the search on both, 3 Trends rows on a phone and 5 on
- * desktop, and "all ›" expanding in place on both (Home used to link out).
+ * Discover's search + Trends block (operator 2026-10-05): search before Trends, the two
+ * trending-topic chips under the search, 3 Trends rows on a phone and 5 on desktop, and "all ›"
+ * expanding in place. Home shares the search half only since Trends left it (2026-10-07).
  */
 for (const viewport of [
   { width: 412, height: 915, rows: 3 },
   { width: 1440, height: 900, rows: 5 },
 ]) {
-  test(`Home and Discover share the search + Trends block (${viewport.width}px)`, async ({ page }, testInfo) => {
+  test(`Discover's search + Trends block (${viewport.width}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport)
     await signInIsolated(page, `trends-block-${viewport.width}`, testInfo)
-    for (const [url, search, trends] of [
-      ['/', 'home-search-section', 'home-discovery'],
-      ['/browse', 'browse-search-section', 'browse-discovery'],
-    ] as const) {
-      await page.goto(url)
-      const block = page.getByTestId(trends)
-      const rows = block.getByTestId('discovery-list-topic').getByTestId('discovery-row')
-      await expect(rows).toHaveCount(viewport.rows)
-      await expect(page.getByTestId(search).getByTestId('home-topic-chip')).toHaveCount(2)
-      const [s, t] = await page.evaluate(
-        ([a, b]) => [a, b].map((id) => document.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect().top),
-        [search, trends],
-      )
-      expect(t, `${url}: Trends below the search`).toBeGreaterThan(s)
-      // "all ›" expands in place: more rows, same page.
-      await block.getByTestId('discovery-see-all').click()
-      await expect(page).toHaveURL(new RegExp(url === '/' ? '/$|/\\?' : '/browse'))
-      expect(await rows.count()).toBeGreaterThan(viewport.rows)
-    }
+    await page.goto('/browse')
+    const block = page.getByTestId('browse-discovery')
+    const rows = block.getByTestId('discovery-list-topic').getByTestId('discovery-row')
+    await expect(rows).toHaveCount(viewport.rows)
+    await expect(page.getByTestId('browse-search-section').getByTestId('home-topic-chip')).toHaveCount(2)
+    const [s, t] = await page.evaluate(
+      ([a, b]) => [a, b].map((id) => document.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect().top),
+      ['browse-search-section', 'browse-discovery'],
+    )
+    expect(t, 'Trends below the search').toBeGreaterThan(s)
+    // "all ›" expands in place: more rows, same page.
+    await block.getByTestId('discovery-see-all').click()
+    await expect(page).toHaveURL(/\/browse/)
+    expect(await rows.count()).toBeGreaterThan(viewport.rows)
+
+    // Home keeps the search half, and has no Trends (operator 2026-10-07).
+    await page.goto('/')
+    await expect(page.getByTestId('home-search-section').getByTestId('home-topic-chip')).toHaveCount(2)
+    await expect(page.getByTestId('home-discovery')).toHaveCount(0)
   })
 }

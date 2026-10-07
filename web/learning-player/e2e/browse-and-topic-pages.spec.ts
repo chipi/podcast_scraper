@@ -56,13 +56,13 @@ test('the standalone /topic/:id page renders the topic card body (EntityCardBody
 
 test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trend-window-3m', testInfo)
-  // The trend-window control lives inside DiscoveryList, rendered on Home's discovery section.
-  // The committed corpus ships no temporal_velocity, so rows may be empty — but the window
-  // control always renders (so an empty window can be switched away from). Assert the control's
-  // default + that a pick updates the selection; the refetch itself is covered by the unit tests.
-  await page.goto('/')
-  await expect(page.getByTestId('home-discovery')).toBeVisible()
-  const section = page.getByTestId('home-discovery')
+  // The trend-window control lives inside DiscoveryList, rendered in Discover's Trends (Home's
+  // left 2026-10-07). The committed corpus ships no temporal_velocity, so rows may be empty — but
+  // the window control always renders (so an empty window can be switched away from). Assert the
+  // control's default + that a pick updates the selection; the refetch is covered by unit tests.
+  await page.goto('/browse')
+  await expect(page.getByTestId('browse-discovery')).toBeVisible()
+  const section = page.getByTestId('browse-discovery')
   // `aria-checked`, not `aria-selected` (#1594 item 7): the window selector is a radiogroup.
   // It re-queries the rail its PARENT owns and switches no panel, so `role="tab"` was promising a
   // panel that never existed.
