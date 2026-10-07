@@ -29,7 +29,7 @@ const SIGNED_OUT_PAGES = new Set(['landing', 'login'])
  * - Otherwise, only a signed-out page is left: to its `?redirect` target if safe, else home. The
  *   link can be opened with the app anywhere, and most often it was closed in the meantime and
  *   booted to `/welcome` — which has no sign-in watch of its own (only `/login` does), so the person
- *   sat signed in under a "Create your free account" page (measured on the simulator 2026-10-03).
+ *   sat signed in under the signed-out landing page (its CTA then read "Create your free account") (measured on the simulator 2026-10-03).
  * - Anywhere else, the person was already somewhere they chose; leave them there.
  */
 export function postLinkSignInRoute(

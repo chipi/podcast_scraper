@@ -42,20 +42,19 @@ describe('landing funnel wiring (#2267)', () => {
   it('pairs each CTA with its own position — hero is hero, footer is closing', () => {
     // The distinction is the entire purpose of the property: "convinced by the hero" versus
     // "convinced after reading". Swap them and the funnel tells a confident, inverted story.
+    // One CTA kind since 2026-10-07: sign-in creates the account, so there is no separate signup.
     const hero = elementWith(landingSrc, 'landing-cta-primary')
-    expect(hero).toContain("cta: 'create_account'")
+    expect(hero).toContain("cta: 'sign_in'")
     expect(hero).toContain("position: 'hero'")
     expect(hero, 'the hero CTA must not report itself as the closing one').not.toContain(
       "position: 'closing'",
     )
 
     const foot = elementWith(landingSrc, 'landing-cta-foot')
-    expect(foot).toContain("cta: 'create_account'")
+    expect(foot).toContain("cta: 'sign_in'")
     expect(foot).toContain("position: 'closing'")
     expect(foot).not.toContain("position: 'hero'")
 
-    const signin = elementWith(landingSrc, 'landing-cta-signin')
-    expect(signin).toContain("cta: 'sign_in'")
   })
 
   it('distinguishes a show teaser from a topic chip', () => {

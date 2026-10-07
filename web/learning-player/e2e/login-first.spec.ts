@@ -21,9 +21,9 @@ test('(b) the landing shows the CTA + a featured card + topic chips', async ({ p
   await page.goto('/welcome')
   // Value-prop hero.
   await expect(page.getByText('Understand any podcast in minutes.')).toBeVisible()
-  // Primary sign-up CTA (landing.ctaCreate i18n key).
+  // The one CTA (auth.signIn): a first sign-in creates the account (operator 2026-10-07).
   await expect(page.getByTestId('landing-cta-primary')).toBeVisible()
-  await expect(page.getByTestId('landing-cta-primary')).toHaveText('Create your free account')
+  await expect(page.getByTestId('landing-cta-primary')).toHaveText('Sign in')
   // Featured teaser rail (sourced from /discover — real API, real corpus).
   await expect(page.getByTestId('landing-featured')).toBeVisible()
   await expect(page.getByTestId('landing-card').first()).toBeVisible()
@@ -36,8 +36,8 @@ test('(b) the landing shows the CTA + a featured card + topic chips', async ({ p
   if (chipCount > 0) {
     await expect(chips.first()).toBeVisible()
   }
-  // The secondary sign-in path must always be present (existing users are not forced through signup).
-  await expect(page.getByTestId('landing-cta-signin')).toBeVisible()
+  // No second, "create account" CTA: it ran the same flow as sign-in.
+  await expect(page.getByTestId('landing-cta-signin')).toHaveCount(0)
 })
 
 test('(c) signing in from the landing lands on home (authed)', async ({ page }, testInfo) => {

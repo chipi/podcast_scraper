@@ -31,11 +31,12 @@ test('Google only: the button says it is Google, and there is no Apple button', 
 
 test('Apple configured: both buttons, the same height, each with its own framing', async ({ page }) => {
   await realProviders(page, ['google', 'apple'])
+  // An old `?mode=signup` link reads the same as sign-in: one flow, one framing (2026-10-07).
   await page.goto('/login?mode=signup')
   const google = page.getByTestId('signin-button')
   const apple = page.getByTestId('signin-apple-button')
-  await expect(google).toHaveText('Sign up with Google')
-  await expect(apple).toHaveText('Sign up with Apple')
+  await expect(google).toHaveText('Sign in with Google')
+  await expect(apple).toHaveText('Sign in with Apple')
   // Apple: no smaller than other sign-in buttons. Google: no less prominent than other providers.
   const [g, a] = await Promise.all([google.boundingBox(), apple.boundingBox()])
   expect(g && a && Math.abs(g.height - a.height) < 1).toBe(true)

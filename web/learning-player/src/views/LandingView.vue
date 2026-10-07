@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Logged-out lure landing (RFC-120). Slim "marketing" shape — NOT a mirror of HomeView:
- * value-prop hero + "Create your free account" CTA, one read-only "Featured" rail (curated
+ * value-prop hero + a single "Sign in" CTA (a first sign-in creates the account; 2026-10-07), one read-only "Featured" rail (curated
  * teaser), topic chips, a short "how it works", repeat CTA. Every card/chip funnels to signup
  * (no action controls, no auth-gated detail). The only anonymous content it touches is the
  * teaser allow-list (/discover, /corpus/trending-topics) — server-clamped for anon callers.
@@ -28,16 +28,17 @@ const topics = ref<{ topic_id: string; topic_label?: string | null }[]>([])
 /** Same-origin redirect target carried by the guard, if any. */
 const redirect = computed<string | undefined>(() => safeInternalPath(route.query.redirect) ?? undefined)
 
-/** Route to signup, preserving a deep-link redirect (a featured card sends you to that episode). */
-function signupTo(deepLink?: string) {
+/**
+ * Route to sign-in, preserving a deep-link redirect (a featured card sends you to that episode).
+ * ONE entry, not "create account" + "sign in" (operator 2026-10-07): both ran the same flow, and a
+ * first sign-in creates the account anyway, so the choice only asked people a question that had
+ * no consequence.
+ */
+function signInTo(deepLink?: string) {
   const redir = deepLink ?? redirect.value
-  return { name: 'login', query: { mode: 'signup', ...(redir ? { redirect: redir } : {}) } }
+  return { name: 'login', query: redir ? { redirect: redir } : {} }
 }
 const { isOnline } = useOnline()
-const signInTo = computed(() => ({
-  name: 'login',
-  query: redirect.value ? { redirect: redirect.value } : {},
-}))
 
 // `episodeArtwork`, not the raw fields. It applies the same fallback order AND absolutises the
 // URL, which is the half this used to drop: the API returns these RELATIVE, correct on the web where
@@ -104,17 +105,9 @@ onMounted(async () => {
       </p>
       <div class="flex flex-wrap items-center justify-center gap-3">
         <RouterLink
-          :to="signupTo()"
+          :to="signInTo()"
           class="rounded-full bg-accent px-7 py-3 font-bold text-accent-foreground no-underline"
           data-testid="landing-cta-primary"
-          @click="track('landing_cta_click', { cta: 'create_account', position: 'hero' })"
-        >
-          {{ t('landing.ctaCreate') }}
-        </RouterLink>
-        <RouterLink
-          :to="signInTo"
-          class="rounded-full border border-border px-6 py-3 font-bold no-underline hover:bg-surface"
-          data-testid="landing-cta-signin"
           @click="track('landing_cta_click', { cta: 'sign_in', position: 'hero' })"
         >
           {{ t('auth.signIn') }}
@@ -145,7 +138,7 @@ onMounted(async () => {
         <RouterLink
           v-for="ep in featured"
           :key="ep.slug"
-          :to="signupTo(`/episode/${ep.slug}`)"
+          :to="signInTo(`/episode/${ep.slug}`)"
           @click="track('landing_teaser_click', { kind: 'show' })"
           class="group block rounded-2xl border border-border bg-surface p-3 no-underline"
           data-testid="landing-card"
@@ -174,7 +167,7 @@ onMounted(async () => {
         <RouterLink
           v-for="tp in topics"
           :key="tp.topic_id"
-          :to="signupTo(`/topic/${tp.topic_id}`)"
+          :to="signInTo(`/topic/${tp.topic_id}`)"
           @click="track('landing_teaser_click', { kind: 'topic' })"
           class="rounded-full border border-topic/40 px-3 py-1.5 text-sm font-semibold text-topic no-underline transition hover:bg-overlay"
           data-testid="landing-chip"
@@ -202,12 +195,12 @@ onMounted(async () => {
     <section class="pb-12 pt-2 text-center">
       <p class="mb-3 font-display text-xl font-bold">{{ t('landing.closer') }}</p>
       <RouterLink
-        :to="signupTo()"
+        :to="signInTo()"
         class="inline-block rounded-full bg-accent px-7 py-3 font-bold text-accent-foreground no-underline"
         data-testid="landing-cta-foot"
-        @click="track('landing_cta_click', { cta: 'create_account', position: 'closing' })"
+        @click="track('landing_cta_click', { cta: 'sign_in', position: 'closing' })"
       >
-        {{ t('landing.ctaCreate') }}
+        {{ t('auth.signIn') }}
       </RouterLink>
     </section>
   </div>

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * Auth entry (C2/#1081). One view, two modes (`?mode=signup` vs sign-in) — both drive the
- * same OAuth flow: with open signup the provider get-or-creates the account, so "sign up" and
- * "sign in" converge on the same redirect. A link toggles between the two framings.
+ * Auth entry (C2/#1081). ONE mode (operator 2026-10-07): the provider get-or-creates the account,
+ * so "sign up" and "sign in" were the same flow under two framings, and the choice between them had
+ * no consequence. The tagline says a first sign-in creates the account. An old `?mode=signup` link
+ * still lands here and reads the same.
  *
  * Dev (mock provider): a picker lets you sign in as a seeded user or a custom name (#1128).
  */
@@ -19,7 +20,6 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
-const isSignup = computed(() => route.query.mode === 'signup')
 const isIos = Capacitor.getPlatform() === 'ios'
 // Same-origin post-login target (login-first #2009); null when absent/unsafe.
 const redirectTarget = computed(() => safeInternalPath(route.query.redirect) ?? undefined)
@@ -110,10 +110,10 @@ function signInCustom(): void {
     <div class="text-center">
     <span class="lp-kicker">{{ t('app.tagline') }}</span>
     <h1 class="mb-2 mt-1 font-display text-3xl font-extrabold tracking-tight">
-      {{ isSignup ? t('auth.signupTitle') : t('auth.loginTitle') }}
+      {{ t('auth.loginTitle') }}
     </h1>
     <p class="mb-6 text-sm text-muted">
-      {{ isSignup ? t('auth.signupTagline') : t('auth.loginTagline') }}
+      {{ t('auth.loginTagline') }}
     </p>
     </div>
 
@@ -186,7 +186,7 @@ function signInCustom(): void {
         class="size-5 shrink-0"
         :class="isIos ? 'mr-3' : 'mr-2.5'"
       />
-      {{ isSignup ? t('auth.signUpWithGoogle') : t('auth.signInWithGoogle') }}
+      {{ t('auth.signInWithGoogle') }}
     </button>
 
     <!-- Sign in with Apple (#2275), App Store guideline 4.8. A CUSTOM button per Apple's HIG: the
@@ -204,7 +204,7 @@ function signInCustom(): void {
       @click="auth.login(undefined, redirectTarget, 'apple')"
     >
       <img src="/brand/apple-logo-left-black-medium.svg" alt="" class="h-10 w-auto shrink-0" />
-      {{ isSignup ? t('auth.signUpWithApple') : t('auth.signInWithApple') }}
+      {{ t('auth.signInWithApple') }}
     </button>
     </div>
 
@@ -263,20 +263,6 @@ function signInCustom(): void {
       </button>
     </div>
 
-    <p class="mt-5 text-center text-sm text-muted">
-      <template v-if="isSignup">
-        {{ t('auth.haveAccount') }}
-        <RouterLink :to="{ name: 'login' }" class="font-bold text-accent no-underline">
-          {{ t('auth.signIn') }}
-        </RouterLink>
-      </template>
-      <template v-else>
-        {{ t('auth.newHere') }}
-        <RouterLink :to="{ name: 'login', query: { mode: 'signup' } }" class="font-bold text-accent no-underline">
-          {{ t('auth.signUp') }}
-        </RouterLink>
-      </template>
-    </p>
 
     <!-- What you agree to by continuing (2026-10-05), at the foot of the page where the choice to
          sign up is made — the same two pages, under the same names, that Settings › About & legal

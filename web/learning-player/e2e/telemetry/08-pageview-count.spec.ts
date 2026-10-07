@@ -18,7 +18,7 @@ test('an anonymous visitor sends exactly one page view per navigation', async ({
 
   await page.goto('/welcome')
   await sink.waitForEvent('landing_view')
-  await page.getByTestId('landing-cta-signin').click()
+  await page.getByTestId('landing-cta-primary').click()
   await page.waitForURL('**/login**')
   await sink.waitForEvent('screen_view')
   await sink.settle()

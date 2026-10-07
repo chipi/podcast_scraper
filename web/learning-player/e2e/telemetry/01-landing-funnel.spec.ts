@@ -26,34 +26,27 @@ test.describe('landing funnel', () => {
       .toBe(1)
   })
 
-  test('each CTA reports its OWN position and cta kind', async ({ page }) => {
+  test('each CTA reports its OWN position', async ({ page }) => {
+    // One CTA kind since 2026-10-07 — `sign_in`; a first sign-in creates the account, so there is
+    // no separate "create account" choice. Position is what is left to tell apart.
     const sink = attachSink(page)
 
-    // Hero — create account
     await page.goto('/welcome')
     await sink.waitForEvent('landing_view')
     await page.getByTestId('landing-cta-primary').click()
     const hero = await sink.waitForEvent('landing_cta_click')
-    expect(hero.data).toMatchObject({ cta: 'create_account', position: 'hero' })
+    expect(hero.data).toMatchObject({ cta: 'sign_in', position: 'hero' })
 
-    // Hero — sign in
-    await page.goto('/welcome')
-    await page.getByTestId('landing-cta-signin').click()
-    await expect.poll(() => sink.byName('landing_cta_click').length).toBeGreaterThanOrEqual(2)
-    const signin = sink.byName('landing_cta_click')[1]
-    expect(signin.data).toMatchObject({ cta: 'sign_in', position: 'hero' })
-
-    // Closing — create account. The one that must NOT say 'hero'.
+    // Closing — the one that must NOT say 'hero'.
     await page.goto('/welcome')
     await page.getByTestId('landing-cta-foot').scrollIntoViewIfNeeded()
     await page.getByTestId('landing-cta-foot').click()
-    await expect.poll(() => sink.byName('landing_cta_click').length).toBeGreaterThanOrEqual(3)
-    const foot = sink.byName('landing_cta_click')[2]
-    expect(foot.data).toMatchObject({ cta: 'create_account', position: 'closing' })
+    await expect.poll(() => sink.byName('landing_cta_click').length).toBeGreaterThanOrEqual(2)
+    const foot = sink.byName('landing_cta_click')[1]
+    expect(foot.data).toMatchObject({ cta: 'sign_in', position: 'closing' })
 
-    // The distinction actually survived the wire — three clicks, two distinct positions.
     const positions = sink.byName('landing_cta_click').map((b) => b.data?.position)
-    expect(positions).toEqual(['hero', 'hero', 'closing'])
+    expect(positions).toEqual(['hero', 'closing'])
   })
 
   test('a show teaser and a topic chip are distinguishable', async ({ page }) => {
@@ -92,7 +85,7 @@ test.describe('screen_view', () => {
     // Every screen_view across the session: no path-shaped or query-shaped value anywhere. The
     // router hook could regress to `to.path` or `to.fullPath` and still fire a plausible event.
     await page.goto('/welcome')
-    await page.getByTestId('landing-cta-signin').click()
+    await page.getByTestId('landing-cta-primary').click()
     await page.waitForLoadState('networkidle')
     for (const b of sink.byName('screen_view')) {
       const s = String(b.data?.screen ?? '')

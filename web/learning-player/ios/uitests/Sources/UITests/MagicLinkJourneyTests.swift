@@ -137,9 +137,10 @@ final class MagicLinkJourneyTests: UITestCase {
     XCTAssertTrue(AppSession.isSignedIn(app), "the returning account is not signed in")
     // Short timeout on purpose: this asserts ABSENCE, and the page has settled once signed in.
     let onProfileNow = onProfile(app, timeout: 3)
-    // The landing's sign-up CTA. Signed in UNDER it was the real bug this phase first missed: the
-    // masthead showed the avatar while the page still said "Create your free account" (2026-10-03).
-    let stillOnLanding = Journey.find(app, labels: ["Create your free account"], timeout: 3) != nil
+    // The landing's hero. Signed in UNDER it was the real bug this phase first missed: the masthead
+    // showed the avatar while the page still showed the signed-out landing (2026-10-03). The hero
+    // title, not the CTA: the CTA became a plain "Sign in" (2026-10-07), which the masthead shares.
+    let stillOnLanding = Journey.find(app, labels: ["Understand any podcast in minutes."], timeout: 3) != nil
     Journey.shot(self, "M3-landed")
     XCTAssertFalse(onProfileNow, "a RETURNING account must not be sent to Profile")
     XCTAssertFalse(stillOnLanding, "signed in, but still on the signed-out landing page")

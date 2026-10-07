@@ -693,14 +693,6 @@ const mainBottomPadding = computed(() =>
           >
             {{ t('auth.signIn') }}
           </RouterLink>
-          <!-- Sign up is redundant in the phone header (the login screen has a sign-up toggle); hide it
-               on mobile so the brand name fits on one compact row. Shown on wider screens. -->
-          <RouterLink
-            :to="{ name: 'login', query: { mode: 'signup' } }"
-            class="hidden shrink-0 whitespace-nowrap rounded-full bg-accent px-4 py-2 font-bold text-accent-foreground no-underline sm:inline-flex"
-          >
-            {{ t('auth.signUp') }}
-          </RouterLink>
         </template>
       </nav>
       </div>

@@ -88,7 +88,7 @@ test('a tracker that never loads drops its queue instead of growing forever', as
   // Generate plenty of trackable activity while the tracker is dead.
   for (let i = 0; i < 5; i++) {
     await page.goto('/welcome')
-    await page.getByTestId('landing-cta-signin').click().catch(() => {})
+    await page.getByTestId('landing-cta-primary').click().catch(() => {})
   }
 
   // Nothing reached the wire — correct, there is nowhere to send it.
