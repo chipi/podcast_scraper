@@ -464,7 +464,10 @@ jobs:
   # Unit tests - fast, no ML dependencies, network isolation enforced
   test-unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15  # Conservative timeout for fast unit tests
+    # 25, not 15: the suite now takes ~13.7 min on a hosted runner (13m40s, 13m39s, 13m53s on the
+    # last three green runs, 2026-10-07), so 15 left ~1 min of headroom and a slower runner
+    # cancelled main's run on f5ab549a9 at 15m16s with no test failing.
+    timeout-minutes: 25
     needs: [lint, build, detect-changes]  # optional verify-stack-profiles + stack compose config steps
     # Python-only gate (path-A): viewer-only PRs run viewer-unit (Vitest)
     # instead; pytest doesn't apply to web/gi-kg-viewer/**.
