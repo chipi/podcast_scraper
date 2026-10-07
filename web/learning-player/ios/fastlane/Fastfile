@@ -35,6 +35,8 @@
 # moves to CI, switch to `match` or `app_store_connect_api_key` + `sync_code_signing`; the
 # credential wiring below already supports it.
 
+require "json"
+
 default_platform(:ios)
 
 APP_DIR = File.expand_path("..", __dir__)          # web/learning-player/ios
@@ -125,7 +127,8 @@ platform :ios do
       clean: true,
       # Bundle id, icon and display name all come from the Debug configuration now — one source of
       # truth in the project rather than settings the lane reapplies and Xcode does not.
-      xcargs: "-allowProvisioningUpdates " \
+      xcargs: "MARKETING_VERSION=#{marketing_version} " \
+              "-allowProvisioningUpdates " \
               "-authenticationKeyID #{ENV['ASC_KEY_ID']} " \
               "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']} " \
               "-authenticationKeyPath \"#{File.expand_path(ENV['ASC_KEY_PATH'])}\" " \
@@ -154,7 +157,15 @@ platform :ios do
   # testers as soon as processing finishes (5-15 min), capped at 100 App Store Connect users.
   INTERNAL_GROUP = "Internal Testers"
 
+  # The version people see in TestFlight and the App Store, single-sourced from package.json like
+  # Android's versionName. The Xcode project holds its own `MARKETING_VERSION = 1.0`, and with
+  # nothing overriding it every build shipped as 1.0 whatever package.json said.
+  def marketing_version
+    JSON.parse(File.read(File.join(APP_DIR, "..", "package.json"))).fetch("version")
+  end
+
   def signing_xcargs(team)
+    "MARKETING_VERSION=#{marketing_version} " \
     "-allowProvisioningUpdates " \
     "-authenticationKeyID #{ENV['ASC_KEY_ID']} " \
     "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']} " \
