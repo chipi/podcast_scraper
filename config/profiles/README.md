@@ -67,12 +67,6 @@ python -m podcast_scraper.cli \
   --output-dir <output>
 ```
 
-All numbers and picks trace back to
-`AI_PROVIDER_COMPARISON_GUIDE.md` (moved to the private eval repo) (moved to the private eval repo)
-→ **Autoresearch-derived defaults** section and
-the eval reports, which moved to `chipi/podcast-scraper-eval-data` in arc 2 (they quote real
-transcripts, so they are not published publicly).
-
 ## `config/profiles/audio/*.yaml` — audio preprocessing presets
 
 Named bundles of audio-preprocessing fields (bitrate, sample rate, silence

@@ -264,8 +264,7 @@ Raw transcript
   models; costs CPU and must stay idempotent-safe where layered.
 - **REDUCE-only filtering** — Possible in theory for obvious ads, but MAP would still waste
   capacity on noise; pattern + targeted internal profile is the default balance.
-- **Comparing full vs minimal preprocessing** — Use the benchmarking framework in
-  `RFC-041` (moved to the private eval repo as RFC-005) for ROUGE/BERTScore-style runs;
+- **Comparing full vs minimal preprocessing** — Use ROUGE/BERTScore-style runs;
   keep variable isolation (profile IDs + strategy) in run metadata.
 
 ---

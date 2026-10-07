@@ -3,8 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-04-05
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: `RFC-057` (moved to the private eval repo as RFC-002),
-  [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)
+- **Related RFCs**: [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)
 - **See Also**: [ADR-069](ADR-069-hybrid-ml-pipeline-as-production-direction.md),
   [ADR-071](ADR-071-four-tier-summarization-strategy.md)
 
@@ -116,7 +115,6 @@ params:
 
 ## References
 
-- RFC-057: AutoResearch Optimization Loop (moved to the private eval repo as RFC-002)
 - [ADR-069: Hybrid ML Pipeline as Production Direction](ADR-069-hybrid-ml-pipeline-as-production-direction.md)
 - [ADR-070: BART-base as Hybrid MAP Stage](ADR-070-bart-base-as-hybrid-map-stage.md)
 - [ADR-071: Four-Tier Summarization Strategy](ADR-071-four-tier-summarization-strategy.md)

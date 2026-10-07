@@ -96,11 +96,12 @@ class TestStageOptionRegistries:
     """Diarization registry — provenance + tier coverage missing from integration suite."""
 
     def test_every_option_has_research_provenance(self) -> None:
-        """Every diarization StageOption must cite the eval report that justified it."""
+        """Every diarization StageOption publishes what was measured and when; the report is
+        cited in the private eval project (ADR-158)."""
         for opts in (get_diarization_options(),):
             for opt in opts.values():
-                assert opt.research_ref, f"{opt.option_id} missing research_ref"
                 assert opt.headline_metric, f"{opt.option_id} missing headline_metric"
+                assert opt.measured_at, f"{opt.option_id} missing measured_at"
 
     def test_every_option_has_valid_tier(self) -> None:
         valid_tiers = {"primary", "fallback", "experimental", "deprecated"}
@@ -133,12 +134,12 @@ class TestProfilePresets:
     def test_resolver_routes_diarization_model_by_backend(self) -> None:
         """resolve_profile_to_settings routes the diarization model to the config field
         for the option's backend (pyannote->diarization_model, tailnet_dgx->
-        dgx_diarize_model, deepgram->deepgram_diarization_model) + a research ref."""
+        dgx_diarize_model, deepgram->deepgram_diarization_model) + the research-ref key."""
         # local -> in-process pyannote
         s = resolve_profile_to_settings("local", dgx_tailnet_host="h")
         assert s["diarization_model"] == "pyannote/speaker-diarization-community-1"
         assert "dgx_diarize_model" not in s and "deepgram_diarization_model" not in s
-        assert s.get("_diarization_research_ref")
+        assert "_diarization_research_ref" in s
         # eval_default -> DGX diarize service
         s = resolve_profile_to_settings("eval_default", dgx_tailnet_host="h")
         assert s["dgx_diarize_model"] == "pyannote/speaker-diarization-community-1"

@@ -850,9 +850,7 @@ dedicated scripts and a "golden" dataset.
 Evaluation is performed against human-verified ground
 truth data stored in `data/eval/`. This dataset is
 versioned and frozen to provide a stable baseline for
-comparison. See
-`ADR-040` (moved to the private eval repo as ADR-009)
-for details.
+comparison.
 
 **GIL Golden Dataset**: A golden dataset for GIL
 evaluation includes human-annotated insights,

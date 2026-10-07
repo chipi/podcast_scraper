@@ -61,8 +61,6 @@ Evaluation scripts for the AI quality and experimentation platform:
 
 ### Usage
 
-See the **Experiment Guide (moved to the private eval repo)** for complete usage instructions.
-
 **Quick examples:**
 
 ```bash

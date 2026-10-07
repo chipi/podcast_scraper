@@ -1453,8 +1453,7 @@ class GeminiProvider:
         regressed in mega-bundle mode on fixture transcripts. #646 real-episode
         validation revisits this claim against production audio. Exposed for
         users who want to trade some quality for ~3× lower cost and ~1.5 s/ep
-        latency; tier status is documented in
-        ``AI_PROVIDER_COMPARISON_GUIDE.md`` (private eval repo).
+        latency.
         """
         if not self._summarization_initialized:
             raise RuntimeError(

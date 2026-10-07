@@ -296,13 +296,11 @@ JSON reports `processing_overlap_ratio`, `processing_thread_busy_ratio`,
 `processing_thread_queue_idle_seconds`, `inline_processed_episodes_count`,
 `safety_net_processed_episodes_count`, and
 `handoff_latency_seconds_per_episode`. Cross-referenced in
-[Pipeline and workflow](PIPELINE_AND_WORKFLOW.md#parallelism-observability-1180)
-and `PERFORMANCE.md` § Tuning parallelism (moved to the private eval repo).
+[Pipeline and workflow](PIPELINE_AND_WORKFLOW.md#parallelism-observability-1180).
 
 ## Related documents
 
 - [DEPENDENCIES_GUIDE.md](DEPENDENCIES_GUIDE.md) — `[ml]` / `[dev]` pyannote pins
 - [PREPROCESSING_PROFILES_GUIDE.md](PREPROCESSING_PROFILES_GUIDE.md) — text cleaning profiles (includes sponsor step)
-- AI Provider Comparison Guide (moved to the private eval repo) — provider matrix
 - [ADR-058](../adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md) — diarization decision + amendment
 - [ADR-059](../adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md) — commercial detection decision

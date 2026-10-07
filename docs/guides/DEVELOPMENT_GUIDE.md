@@ -23,7 +23,6 @@ For comprehensive testing information, see the dedicated testing documentation:
 - **[Testing Strategy](../architecture/TESTING_STRATEGY.md)** - Testing philosophy, test pyramid, decision criteria
 - **[Testing Guide](TESTING_GUIDE.md)** - Quick reference, test execution commands
 - **`Experiment Guide`** — Complete guide: datasets, baselines, experiments, and evaluation
-- **Performance Profile Guide (moved to the private eval repo)** — Frozen release profiles (RSS, CPU%, wall time per stage; RFC-064)
 - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test guidelines
 - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models
@@ -725,9 +724,7 @@ performance profiles. Lives in `tools/run_compare/`
   diffs), Performance (frozen profiles, resource
   deltas, per-stage trends)
 - **Details:**
-  [tools/run_compare/README.md](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md),
-  `RFC-047` (moved to the private eval repo as RFC-007),
-  `RFC-066` (moved to the private eval repo as RFC-009)
+  [tools/run_compare/README.md](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md)
 
 ## Evaluation artifacts (`data/eval/`)
 
@@ -801,9 +798,7 @@ Profiles live in `data/profiles/<version>.yaml`.
 Pipeline capture configs live in
 `config/profiles/freeze/*.yaml`.
 
-**Full guide:**
-Performance Profile Guide (moved to the private eval repo)
-and `data/profiles/README.md`.
+**Full guide:** `data/profiles/README.md`.
 
 ## Validation gates: `ci-fast` vs `ci-ui-fast` vs `ci`
 
@@ -1935,17 +1930,13 @@ and summarization. When implementing new providers:
 **For complete implementation guide**, see [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md).
 
 **Choosing a provider:**
-AI Provider Comparison (moved to the private eval repo)
-(decision-oriented: cost, quality, speed, privacy) and
 [Provider Deep Dives](PROVIDER_DEEP_DIVES.md)
 (per-provider reference cards, benchmarks, magic
 quadrant).
 
 **Validating provider quality:** Run experiments
 against `data/eval/` baselines and capture
-performance profiles in `data/profiles/`. See
-`Experiment Guide` and
-Performance Profile Guide (moved to the private eval repo).
+performance profiles in `data/profiles/`.
 
 ## Third-Party Dependencies
 

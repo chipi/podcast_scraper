@@ -87,8 +87,7 @@ def test_pinning_insights_does_NOT_re_tune_summarisation_or_speaker_detection() 
     assert cfg.gemini_temperature == pytest.approx(0.3), "the insight pin leaked into other stages"
 
 
-# ALLOWLIST #1 — the eval's ``params:`` mapping — moved to chipi/podcast-scraper-eval-data
-# (tests/unit/podcast_scraper_eval/test_eval_forwards_the_sampler_pin.py) with
+# ALLOWLIST #1 — the eval's ``params:`` mapping — moved out with
 # the eval harness. The five tests that remain here assert APPLICATION
 # behaviour: provider resolution, the CLI, and that every config/profiles/*.yaml
 # pins a temperature. Those profiles live in this repo, so those tests do too.

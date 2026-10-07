@@ -53,7 +53,6 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --speaker-detector-provider anthropic \
   --summary-provider mistral
 ```
-- AI Provider Comparison Guide (moved to the private eval repo) - Detailed comparison of all 8 providers
 - [Provider Configuration Quick Reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) - Configuration examples
 - [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) - Implementation details
 

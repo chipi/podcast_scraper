@@ -437,7 +437,8 @@ exclude = [
     "^\\.venv/.*",  # Local venv (make type uses ``mypy .``)
     "^\\.venv-dev/.*",  # CI-parity venv (see Makefile VENVDEV)
     "^autoresearch/.*",  # Standalone autoresearch scripts (not part of src package)
-    "^eval-data/.*",  # The private eval repo, mounted here per its README; its own make ci types it
+    "^apps/.*",  # Private repos mounted here (ADR-158); they type-check in their own repos
+    "^eval-data/.*",  # The private eval repo's mount, same reason
     "^infra/dgx/.*-server/app\\.py$",  # Docker-image app.py files (pyannote-server, whisper-server) — both named "app", not part of src package
 ]
 

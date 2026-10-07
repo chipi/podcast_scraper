@@ -125,10 +125,8 @@ class ProviderRequirement:
 class AccuracyGateRule:
     """One accuracy threshold on an enricher's eval metric.
 
-    The acceptance-gate analogue of
-    ``podcast_scraper_eval.regression.RegressionRule`` (in the private eval
-    repo since arc 2): where a
-    ``RegressionRule`` fires on a *delta vs baseline*, this fires on an
+    The acceptance-gate analogue of a provider regression rule: where that
+    fires on a *delta vs baseline*, this fires on an
     *absolute floor* — the enricher is promoted only when
     ``metrics[metric_name] >= min_value``. Declared on the manifest,
     checked by ``podcast_scraper.enrichment.eval.gate``.

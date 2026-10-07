@@ -144,7 +144,7 @@ def _cloud_ml_tier_set() -> list[str]:
     # replaced the 0%-precision ``nli_contradiction``) is listed here and admitted / excluded by
     # its manifest ``accuracy_gate`` via ``_admit`` below — NOT by commenting it out. It stays dark
     # until an eval records passing precision in
-    # ``eval-data/data/eval/enrichment/<id>/gate_metrics.json`` (it has, 0.91 on prod-v2,
+    # ``<eval root>/enrichment/<id>/gate_metrics.json`` (it has, 0.91 on prod-v2,
     # so it is admitted). Per-person / per-topic stance-over-time is now a
     # read-time CIL query (conversation-arc / position-arc), not a gated enricher — see ADR-108's
     # 2026-07-08 update on why stance-over-time is a read-time query, not a gated enricher.

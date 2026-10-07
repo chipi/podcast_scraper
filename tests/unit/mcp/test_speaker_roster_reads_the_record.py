@@ -136,7 +136,6 @@ class TestTheRosterIsTheRecord:
         ]
 
 
-# TestTheDiarizationQualityEval moved to chipi/podcast-scraper-eval-data
-# (tests/unit/podcast_scraper_eval/test_diarization_quality_ignores_unplaced.py)
-# with diarization_quality.py itself. The #2075 fix it guards was ported there;
+# TestTheDiarizationQualityEval moved out with the eval harness and
+# diarization_quality.py itself. The #2075 fix it guards was ported there;
 # everything above stays here, because it asserts the MCP roster — runtime.

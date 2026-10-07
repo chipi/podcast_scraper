@@ -4,8 +4,6 @@
 - **Tracking issue**: #1198
 - **Authors**: Marko
 - **Stakeholders**: Core Pipeline, Providers, DGX Infra, Cost/Resilience
-- **Related RFCs**:
-  - `RFC-046` — profiles/registry as source of truth (moved to the private eval repo as RFC-006)
 - **Related work**:
   - `docs/guides/eval-reports/EVAL_MOSS_BAKEOFF_2026_07.md` (MOSS promoted as DGX transcription; #1174)
   - `#926` (the original lazy DGX-diarization → local fallback)

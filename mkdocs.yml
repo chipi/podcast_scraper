@@ -70,7 +70,7 @@ nav:
       - Splitting a surface into a private repo: guides/SPLITTING_A_SURFACE_INTO_A_PRIVATE_REPO.md
       - Mounting the private eval research repo: guides/EVAL_RESEARCH_MOUNT.md
       # The eval reports, performance reports and perf traces moved to the
-      # private research repo (chipi/podcast-scraper-eval-data). They quote real
+      # private research repo. They quote real
       # episode transcripts and gold references, so they are not published
       # anywhere public and there is deliberately NO link here — a public doc
       # must not point at a private network. Ask the operator for access.

@@ -49,7 +49,8 @@ class TestStageOptionRegistries:
         assert "ollama_qwen35_9b" in opts
 
     def test_every_option_has_research_provenance(self) -> None:
-        """Every StageOption must cite the eval report that justified it."""
+        """Every StageOption publishes what was measured and when. The eval report behind it is
+        cited in the private eval project, which checks every option has one (ADR-158)."""
         for opts in (
             get_transcription_options(),
             get_summary_options(),
@@ -58,8 +59,8 @@ class TestStageOptionRegistries:
             get_clustering_options(),
         ):
             for opt in opts.values():
-                assert opt.research_ref, f"{opt.option_id} missing research_ref"
                 assert opt.headline_metric, f"{opt.option_id} missing headline_metric"
+                assert opt.measured_at, f"{opt.option_id} missing measured_at"
 
     def test_every_option_has_valid_tier(self) -> None:
         valid_tiers = {"primary", "fallback", "experimental", "deprecated"}
@@ -196,10 +197,12 @@ class TestResolveProfileToSettings:
         assert settings["summary_model"] == "podcast-flash-0731"
 
     def test_resolved_settings_carry_research_refs(self) -> None:
-        """Every resolved profile must surface the research provenance for traceability."""
+        """Every resolved profile surfaces each stage's public citation, None where the evidence
+        is not public (ADR-158)."""
         settings = resolve_profile_to_settings("cloud_with_dgx_primary")
-        assert settings["_transcription_research_ref"]
-        assert settings["_summary_research_ref"]
+        for stage in ("transcription", "summary", "kg", "ner", "gi", "diarization", "clustering"):
+            assert f"_{stage}_research_ref" in settings, stage
+        assert settings["_clustering_research_ref"] == "docs/rfc/RFC-075-corpus-topic-clustering.md"
         assert settings["_profile_preset"] == "cloud_with_dgx_primary"
 
 

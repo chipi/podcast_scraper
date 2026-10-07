@@ -1122,8 +1122,7 @@ Every run reports the six #1180 parallelism metrics in the summary JSON
 `processing_thread_queue_idle_seconds`,
 `inline_processed_episodes_count`, `safety_net_processed_episodes_count`,
 `handoff_latency_seconds_per_episode`). Full guides:
-`docs/guides/PIPELINE_AND_WORKFLOW.md` → "Parallelism observability",
-`PERFORMANCE.md` (moved to the private eval repo) → "Tuning parallelism".
+`docs/guides/PIPELINE_AND_WORKFLOW.md` → "Parallelism observability".
 
 ### Corpus backup / restore — pick the right surface
 

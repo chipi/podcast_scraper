@@ -2,8 +2,7 @@
 
 Used by `make profile-freeze` to capture per-provider timing and cost profiles
 under a fixed E2E fixture. Frozen outputs land in
-`data/profiles/` per release tag — that tree moved to `chipi/podcast-scraper-eval-data`
-in arc 2, since a frozen profile is a materialised research artifact.
+`data/profiles/` per release tag.
 
 ## How it works
 

@@ -620,7 +620,6 @@ cat output/*/metadata/*.json | jq '.processing.config_snapshot.ml_providers'
 ## Related Documentation
 
 - [Provider Configuration Quick Reference](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) - Configuration options
-- AI Provider Comparison Guide (moved to the private eval repo) - Ollama vs other providers
 - [E2E Testing Guide](E2E_TESTING_GUIDE.md) - Testing with real Ollama
 - [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
 

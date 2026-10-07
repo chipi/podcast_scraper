@@ -1,10 +1,9 @@
 # flake8: noqa: E501
 """Generate v3 fixture transcripts + ground-truth labels + dataset manifest.
 
-This generator extends the v2 fixture model
-(``eval-data/scripts/eval/data/generate_v2_transcripts.py``) with explicit knobs for the
+This generator extends the v2 fixture model with explicit knobs for the
 **failure-mode catalogue** harvested from the autoresearch programme
-(`docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md` + `eval-data/docs/guides/eval-reports/EVAL_FIXTURES_V3.md`):
+(`docs/rfc/RFC-116-autoresearch-driven-fixture-corpus.md`):
 
 * ASR garble class (Whisper-style speaker-name corruption — Bessent → Bessett,
   Weisenthal → Wassenthal, Geithner → Geidner, Hobart → Burne/Byrne Hobart).

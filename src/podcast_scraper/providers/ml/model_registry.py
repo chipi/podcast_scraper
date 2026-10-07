@@ -37,9 +37,13 @@ The flow for any autoresearch finding that changes a default:
     run experiment → score → write eval report → MATERIALIZE here →
     REGENERATE profile YAML → behavior test
 
-See RFC-044 for the vision / migration path,
-``docs/adr/ADR-048-centralized-model-registry.md`` for the
-amendment, and ``EXPERIMENT_GUIDE.md`` (private eval repo) § Step 6 for the flow.
+See RFC-044 for the vision / migration path, and
+``docs/adr/ADR-048-centralized-model-registry.md`` for the amendment.
+
+An option publishes its claim here (``headline_metric``, ``measured_at``). ``research_ref``
+cites a public decision doc or an issue when there is one; the eval reports behind the
+other options are cited in the private eval project, which checks that every claim here
+has its evidence there (ADR-158).
 """
 
 from dataclasses import dataclass, replace as _dc_replace
@@ -775,7 +779,7 @@ class StageOption:
     extra_settings: Optional[Dict[str, Any]] = None  # e.g. {"think": False}
 
     # Research provenance
-    research_ref: Optional[str] = None  # eval report path or issue ref
+    research_ref: Optional[str] = None  # public decision doc or issue (module docstring)
     headline_metric: Optional[str] = None  # one-line summary of why this won
     measured_at: Optional[str] = None  # YYYY-MM-DD of the latest measurement
 
@@ -801,10 +805,6 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         option_id="openai_whisper_1",
         provider="openai",
         model="whisper-1",
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md"
-        ),
         headline_metric="quality ceiling for v2 fixtures; ~$0.006/min",
         measured_at="2026-06-11",
         tier="primary",
@@ -817,10 +817,6 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         provider="tailnet_dgx_whisper",
         model="large-v3",
         endpoint="http://{dgx_tailnet_host}:8002/v1/audio/transcriptions",
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md"
-        ),
         headline_metric=(
             "mean WER 0.102 / 4.56× realtime on v2; " "verified stable under vLLM contention (#963)"
         ),
@@ -840,10 +836,6 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         model="Systran/faster-whisper-large-v3",
         endpoint="http://{dgx_tailnet_host}:8000/v1/audio/transcriptions",
         extra_settings={"WHISPER__COMPUTE_TYPE": "default"},
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_WHISPER_ENGINE_DRIFT_2026_06_16.md"
-        ),
         headline_metric=(
             "DGX transcription winner (#952): 10.23% WER vs Deepgram silver on real "
             "podcasts — beats whisper-openai (:8002) by 2.74pp AND ~20% faster. "
@@ -868,10 +860,6 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         provider="tailnet_dgx_whisper",
         model="deepdml/faster-whisper-large-v3-turbo-ct2",
         endpoint="http://{dgx_tailnet_host}:8000/v1/audio/transcriptions",
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_ASR_5MODEL_BAKEOFF_2026_07.md"
-        ),
         headline_metric=(
             "PRIMARY DGX transcription — chosen on SPEED: ~25-30x realtime (fastest; ~9x MOSS). "
             "On REAL human ground truth (80k Hours, n=10) turbo is mid-pack accuracy (13.5% WER, "
@@ -897,9 +885,6 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         provider="moss",
         model="OpenMOSS-Team/MOSS-Transcribe-Diarize",
         endpoint="http://{dgx_tailnet_host}:8004/v1/transcribe",
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_MOSS_BAKEOFF_2026_07.md"
-        ),
         headline_metric=(
             "DGX transcription winner (#1174): 5.2% WER vs Deepgram silver on 10 real "
             "prod episodes — beats faster-whisper (8.5%) on all 10. Diarization loses to "
@@ -908,7 +893,6 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         ),
         # 2026-07-22: DEMOTED to fallback on SPEED, not accuracy — 2nd-best WER (12.5%)
         # but the slowest option (2.9x realtime vs turbo 25x).
-        # rationale: podcast-scraper-eval-data:data/eval/rationale/moss_demotion.md
         measured_at="2026-07-16",
         tier="fallback",
         resident_memory_gb=16.0,
@@ -921,10 +905,6 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         provider="whisper",
         model="large-v3",
         extra_settings={"LOCAL_WHISPER_DEVICE": "mps"},
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_TRANSCRIPTION_3WAY_2026_06.md"
-        ),
         headline_metric="mean WER 0.096 / 1.6× realtime on v2 (laptop default)",
         measured_at="2026-06-09",
         tier="primary",
@@ -938,10 +918,6 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         option_id="local_whisper_small_en",
         provider="whisper",
         model="small.en",
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_WHISPER_SMALL_EN_2026_06_13.md"
-        ),
         headline_metric=(
             "mean WER 0.029 on v2 (-25% vs base.en); 30.6s/ep on M4 Pro CPU "
             "(2.6× base.en latency — laptop trade)"
@@ -956,32 +932,22 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         option_id="deepgram_nova_3",
         provider="deepgram",
         model="nova-3",
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_DEEPGRAM_TRANSCRIPTION_2026_06_13.md"
-        ),
         headline_metric=(
             "mean WER 0.0248 on v2 — best accuracy AND best latency (1.2s/ep) "
             "across all measured models. ≈$0.0043/min."
         ),
         # 2026-07-22: DEMOTED to fallback for TRANSCRIPTION — 13.9% WER on real human
         # ground truth (4th of 5). Stays PRIMARY for cloud DIARIZATION.
-        # rationale: podcast-scraper-eval-data:data/eval/rationale/deepgram_demotion.md
         measured_at="2026-06-13",
         tier="fallback",
     ),
     # Dev / airgapped_thin floor — fastest local Whisper. WER is comparable to the
     # v2 fixture baseline only because of FU4 clean-reference preprocessing.
-    # rationale: podcast-scraper-eval-data:data/eval/rationale/whisper_small_en_wer.md
     "local_whisper_tiny_en": StageOption(
         stage="transcription",
         option_id="local_whisper_tiny_en",
         provider="whisper",
         model="tiny.en",
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md"
-        ),
         headline_metric=(
             "mean WER 17.2% (M4 Pro CPU) / 16.0% (DGX GB10 CUDA) on smoke_v2 "
             "with FU4 clean reference; 9.8 s/ep CPU vs 5.4 s/ep CUDA "
@@ -1000,10 +966,6 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
         option_id="local_whisper_medium_en",
         provider="whisper",
         model="medium.en",
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md"
-        ),
         headline_metric=(
             "mean WER 8.1% on smoke_v2 with FU4 clean reference (M4 Pro CPU "
             "and DGX GB10 CUDA agree to 1pp); 82.7 s/ep CPU vs 34.3 s/ep CUDA "
@@ -1028,9 +990,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="cloud_or_deepseek_flash",
         provider="litellm",
         model="podcast-flash-0731",
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md"
-        ),
         headline_metric="v2.5 finale cloud winner — deepseek-v4-flash via OpenRouter (~$0.005/ep)",
         measured_at="2026-08-07",
         tier="primary",
@@ -1045,9 +1004,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="deepseek_native_flash",
         provider="deepseek",
         model="deepseek-v4-flash",
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md"
-        ),
         headline_metric="Direct-DeepSeek fallback tier for a homelab gateway outage (RFC-111)",
         measured_at="2026-08-07",
         tier="fallback",
@@ -1059,9 +1015,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="cloud_qwen_flash",
         provider="qwen",
         model="qwen3.7-flash",
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md"
-        ),
         headline_metric="v2.5 finale flash arm — qwen3.7-flash via DashScope",
         measured_at="2026-08-07",
         tier="primary",
@@ -1073,9 +1026,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="gemini_flash_lite",
         provider="gemini",
         model="gemini-2.5-flash-lite",
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md"
-        ),
         headline_metric=(
             "0.564 bullets / 1.5s / $0.00047/ep — " "best compound (cost × latency × quality) score"
         ),
@@ -1091,10 +1041,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         model="qwen3.5:35b",
         endpoint="http://{dgx_tailnet_host}:11434/v1",
         extra_settings={"think": False},  # required for direct /api/chat (#959)
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md"
-        ),
         headline_metric="G-Eval 5.00 mean on #928 finale; Q4_K_M robust per #958 Cell D",
         measured_at="2026-06-11",
         tier="primary",
@@ -1114,10 +1060,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
             ),
             "postprocess": "strip_r1_reasoning",
         },
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md"
-        ),
         headline_metric="G-Eval 4.05 mean (post-#961 prompt fix; pre-fix was 3.25)",
         measured_at="2026-06-11",
         tier="experimental",
@@ -1131,10 +1073,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         provider="ollama",
         model="deepseek-r1:32b",
         endpoint="http://{dgx_tailnet_host}:11434/v1",
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_SUMMARY_DGX_LOCAL_2026_06.md"
-        ),
         headline_metric=(
             "G-Eval 4.15 mean (#958 Cell D) — " "beats vLLM-R1-bf16 by +0.90 on same model"
         ),
@@ -1174,9 +1112,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="anthropic_haiku_4_5",
         provider="anthropic",
         model="claude-haiku-4-5",
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md"
-        ),
         headline_metric=(
             "bullets-bundled compound winner (0.552); 4th quality / 2nd fastest "
             "on the cost-latency-quality frontier; 4.8s / $0.00416/ep"
@@ -1190,9 +1125,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         option_id="ollama_hermes3_8b_laptop",
         provider="ollama",
         model="hermes3:8b",
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_HYBRID_ROUTING_2026_06.md"
-        ),
         headline_metric=(
             "laptop-default summary per #949 finale; ~50× realtime on Ollama CPU. "
             "Trade vs base llama3.1:8b documented in EVAL_SMOKE_V2_DGX_REFRESH_2026_06."
@@ -1346,10 +1278,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
             "summllama_device": "mps",
             "summllama_max_tokens": 600,
         },
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md"
-        ),
         headline_metric=(
             "ROUGE-L 0.251 / ROUGE-1 0.499 / cosine 0.823 on smoke_v2 "
             "paragraph vs silver_sonnet46_smoke_v2; cross-vendor judge mean "
@@ -1375,10 +1303,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
             "summary_reduce_model": "long-fast",
             "summary_mode_id": "ml_small_authority",
         },
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_DEV_TIER_REGISTRY_2026_06_23.md"
-        ),
         headline_metric=(
             "ROUGE-L 0.150 / ROUGE-1 0.311 / cosine 0.655 on smoke_v2 "
             "paragraph vs silver_sonnet46_smoke_v2; cross-vendor judge mean "
@@ -1406,7 +1330,6 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
 
 # GI — summary-derived provider mode is the v2 winner (#978): 72% coverage
 # vs 10% for direct-from-transcript. Bundling is the cross-provider champion (#921).
-# rationale: podcast-scraper-eval-data:data/eval/rationale/gi_summary_derived.md
 _GI_OPTIONS: Dict[str, StageOption] = {
     # v2.5 finale GI config — identical to ``provider_chunked_gated_v3`` EXCEPT three knobs the
     # 2026-08 finale validated for the cloud flash summarisers (deepseek/qwen): max_insights 50->12
@@ -1431,9 +1354,6 @@ _GI_OPTIONS: Dict[str, StageOption] = {
             "nli_entailment_min": 0.5,
             "evidence_match_summary_provider": True,
         },
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md"
-        ),
         headline_metric=(
             "v2.5 finale cloud GI config (12/0.72/tier-3); all six bake-off arms beat the 2.4 "
             "baseline (deepseek-native 9-0, +2.2 summary / +3.0 insights)"
@@ -1472,10 +1392,6 @@ _GI_OPTIONS: Dict[str, StageOption] = {
             "evidence_quote_mode": "bundled",
             "evidence_nli_mode": "bundled",
         },
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_GI_AUTORESEARCH_V2_2026_06_13.md"
-        ),
         headline_metric=(
             "summary-derived provider mode beats direct-from-transcript by "
             "~60pp on v2 silver (72% vs 10%); n=12 historic default holds; "
@@ -1535,10 +1451,6 @@ _GI_OPTIONS: Dict[str, StageOption] = {
             # model gets the blame. It is a researched guarantee, not an implementation detail.
             "evidence_match_summary_provider": True,
         },
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_GEMINI_VS_QWEN_10EP_2026_07.md"
-        ),
         headline_metric=(
             "chunked extraction lifts grounded insights/episode 17.1 -> 43.2 (gemini) and "
             "16.1 -> 27.7 (qwen) on 10 pinned episodes; temperature 0 cuts re-run drift from "
@@ -1561,10 +1473,6 @@ _GI_OPTIONS: Dict[str, StageOption] = {
 # sweeps, so a "winner" doesn't meaningfully apply. The canonicalization
 # thresholds 0.65 / 0.70 baked into ``entity_clusters.py`` ARE measured
 # (see #853 report).
-_GROUNDING_RESEARCH_REF = (
-    "podcast-scraper-eval-data:"
-    "docs/guides/eval-reports/EVAL_GROUNDING_WHO_FINDS_THE_QUOTE_2026_07.md"
-)
 
 # GROUNDING — who finds the quote that backs an insight.
 #
@@ -1584,7 +1492,6 @@ _GROUNDING_OPTIONS: Dict[str, StageOption] = {
         # _auto_promote_evidence_providers, so an LLM grounds the insights it wrote.
         provider="match_summary",
         extra_settings={"nli_entailment_min": 0.75},
-        research_ref=_GROUNDING_RESEARCH_REF,
         headline_metric=(
             "82% of insights grounded (vs 8% for the ML QA+NLI stack) on a frozen 100-insight set; "
             "100% of returned quotes verbatim, 0% drift, 0% fabricated — an LLM asked for a quote "
@@ -1602,7 +1509,6 @@ _GROUNDING_OPTIONS: Dict[str, StageOption] = {
             "nli_model": "cross-encoder/nli-deberta-v3-base",
             "qa_window_chars": 1800,
         },
-        research_ref=_GROUNDING_RESEARCH_REF,
         headline_metric=(
             "8% of insights grounded on the same frozen set. Two structural faults, neither "
             "fixable by a threshold: QA answers WITHIN a window and nothing asks which of ~40 "
@@ -1623,9 +1529,6 @@ _KG_OPTIONS: Dict[str, StageOption] = {
         option_id="provider_n10_15",
         provider="provider",
         extra_settings={"max_topics": 10, "max_entities": 15},
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_ENTITY_CANON_2026_06_08.md"
-        ),
         headline_metric=(
             "canonicalization thresholds 0.65/0.70 (+18pp recall vs pre-#853 baseline at "
             "100% precision); per-provider KG-extraction default for cloud + DGX profiles"
@@ -1656,9 +1559,6 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         provider="litellm",
         model="en_core_web_trf",
         extra_settings={"speaker_llm_model": "podcast-flash-0731"},
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md"
-        ),
         headline_metric="cloud_openrouter speaker detection — LLM naming + spaCy trf NER",
         measured_at="2026-08-07",
         tier="primary",
@@ -1669,9 +1569,6 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         provider="qwen",
         model="en_core_web_trf",
         extra_settings={"speaker_llm_model": "qwen3.7-flash"},
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md"
-        ),
         headline_metric="cloud_qwen speaker detection — LLM naming via DashScope + spaCy trf NER",
         measured_at="2026-08-07",
         tier="primary",
@@ -1680,10 +1577,6 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         stage="ner",
         option_id="gemini_speaker_detector",
         provider="gemini",
-        research_ref=(
-            "podcast-scraper-eval-data:docs/guides/eval-reports/"
-            "EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md"
-        ),
         headline_metric=(
             "cloud-profile default — pipeline-llm image lacks spaCy models, "
             "Gemini handles NER + speaker detection inline with summary calls"
@@ -1697,10 +1590,6 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         provider="ollama",
         model="en_core_web_trf",  # spaCy ner_model (local entity stage runs alongside)
         extra_settings={"speaker_llm_model": "qwen3.5:35b"},  # DGX-local ollama LLM for naming
-        research_ref=(
-            "podcast-scraper-eval-data:docs/guides/eval-reports/"
-            "EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md"
-        ),
         headline_metric=(
             "speaker/host detection served by the same DGX-resident LLM, so an all-DGX profile "
             "needs no cloud call for it (#1169)"
@@ -1736,10 +1625,6 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         option_id="spacy_trf",
         provider="spacy",
         model="en_core_web_trf",
-        research_ref=(
-            "podcast-scraper-eval-data:docs/guides/eval-reports/"
-            "EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md"
-        ),
         headline_metric=(
             "v2 spec recall 96.7% (+13pp vs en_core_web_sm); 2× more PERSON "
             "mentions/ep; ~1s latency. Preferred where the 600MB model is installed."
@@ -1752,10 +1637,6 @@ _NER_OPTIONS: Dict[str, StageOption] = {
         option_id="spacy_sm",
         provider="spacy",
         model="en_core_web_sm",
-        research_ref=(
-            "podcast-scraper-eval-data:docs/guides/eval-reports/"
-            "EVAL_FIXTURES_V2_TIER3_TUNING_2026_06_08.md"
-        ),
         headline_metric=(
             "lightweight fallback — 83.3% v2 spec recall, 0.55s/ep; the "
             "thin-deploy default when `_trf` isn't available"
@@ -1803,10 +1684,6 @@ _CLUSTERING_OPTIONS: Dict[str, StageOption] = {
         option_id="topic_clusters_default_0_75",
         provider="default",
         extra_settings={"threshold": 0.75},
-        research_ref=(
-            "podcast-scraper-eval-data:docs/guides/eval-reports/"
-            "EVAL_FIXTURES_V2_TIER1_TUNING_2026_06_08.md"
-        ),
         headline_metric=(
             "SUPERSEDED 2026-09-02 by topic_clusters_corpus_0_70 — kept for provenance. "
             "0.75 was Pareto-optimal on v2 FIXTURES (6 tc:* parents / 4 cross-feed), a corpus far "
@@ -1828,10 +1705,6 @@ _CLUSTERING_OPTIONS: Dict[str, StageOption] = {
 # (count 40/45 vs 32/45, DER 7.1% vs 10.8%) by fixing 3.1's multi-speaker
 # panel merges; 3.1 kept as fallback (better on brief-cameo count). community-1
 # is non-gated (no HF token, unlike 3.1). See the eval report.
-_DIARIZATION_RESEARCH_REF = (
-    "podcast-scraper-eval-data:"
-    "docs/guides/eval-reports/EVAL_DIARIZATION_31_VS_COMMUNITY1_RTTM_2026_07.md"
-)
 _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
     # Diarization OFF — for cloud production profiles that run ``diarize: false`` (speaker turns
     # come from the LLM naming stage, not a diarizer pass). ``model=None`` so the resolver emits NO
@@ -1844,9 +1717,6 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
         option_id="no_diarization",
         provider="none",
         model=None,
-        research_ref=(
-            "podcast-scraper-eval-data:" "docs/guides/eval-reports/EVAL_FINALE_METHODOLOGY.md"
-        ),
         headline_metric="diarize:false posture — speaker turns via LLM naming, no diarizer pass",
         measured_at="2026-08-07",
         tier="primary",
@@ -1859,7 +1729,6 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
         # RFC-106 fallback chain can construct this tier directly.
         provider="local",
         model="pyannote/speaker-diarization-community-1",
-        research_ref=_DIARIZATION_RESEARCH_REF,
         headline_metric=(
             "count 40/45 + DER 7.1% on v3 fixtures (vs 3.1's 32/45 / 10.8%); "
             "fixes 3.1's multi-speaker panel merges; non-gated"
@@ -1874,7 +1743,6 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
         provider="tailnet_dgx",
         model="pyannote/speaker-diarization-community-1",
         endpoint="http://{dgx_tailnet_host}:8001",
-        research_ref=_DIARIZATION_RESEARCH_REF,
         headline_metric=(
             "same community-1 win, served by the DGX diarize service on a "
             "parallel pyannote-4 container (3.1 kept ready for rollback)"
@@ -1888,7 +1756,6 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
         option_id="pyannote_diarization_31",
         provider="local",  # in-process pyannote; matches the diarization_provider Literal
         model="pyannote/speaker-diarization-3.1",
-        research_ref=_DIARIZATION_RESEARCH_REF,
         headline_metric="prior default; wins brief-cameo count, merges panels. Gated (HF token).",
         measured_at="2026-07-11",
         tier="fallback",
@@ -1900,7 +1767,6 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
         provider="tailnet_dgx",
         model="pyannote/speaker-diarization-3.1",
         endpoint="http://{dgx_tailnet_host}:8001",
-        research_ref=_DIARIZATION_RESEARCH_REF,
         headline_metric="prior DGX default; kept deployable for instant rollback.",
         measured_at="2026-07-11",
         tier="fallback",
@@ -1914,10 +1780,6 @@ _DIARIZATION_OPTIONS: Dict[str, StageOption] = {
         option_id="deepgram_diarization_nova3",
         provider="deepgram",
         model="nova-3-general",
-        research_ref=(
-            "podcast-scraper-eval-data:"
-            "docs/guides/eval-reports/EVAL_DEEPGRAM_TRANSCRIPTION_2026_06_13.md"
-        ),
         headline_metric="cloud-profile diarization via Deepgram nova-3-general (standalone pass)",
         measured_at="2026-06-13",
         tier="primary",
@@ -2251,7 +2113,6 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_corpus_0_70",
         # v3, not v25 (2026-08-30): v25's max_insights=12 is the value
         # provider_chunked_gated_v3 superseded, citing EVAL_GEMINI_VS_QWEN_10EP_2026_07.
-        # rationale: podcast-scraper-eval-data:data/eval/rationale/gi_v3_not_v25.md
         gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # Same primary as cloud_balanced (``cloud_or_deepseek_flash`` -> OpenRouter) and, until
@@ -2271,7 +2132,6 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_corpus_0_70",
         # v3, not v25 (2026-08-30): v25's max_insights=12 is the value
         # provider_chunked_gated_v3 superseded, citing EVAL_GEMINI_VS_QWEN_10EP_2026_07.
-        # rationale: podcast-scraper-eval-data:data/eval/rationale/gi_v3_not_v25.md
         gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # Native DashScope rather than OpenRouter, so it does not share that account's budget —
@@ -2296,7 +2156,6 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         clustering="topic_clusters_corpus_0_70",
         # v3, not v25 (2026-08-30): v25's max_insights=12 is the value
         # provider_chunked_gated_v3 superseded, citing EVAL_GEMINI_VS_QWEN_10EP_2026_07.
-        # rationale: podcast-scraper-eval-data:data/eval/rationale/gi_v3_not_v25.md
         gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # RFC-111 (#1482): a homelab:4001 gateway CONNECTION outage must fail over to direct

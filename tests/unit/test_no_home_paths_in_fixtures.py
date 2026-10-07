@@ -16,7 +16,7 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.critical_path]
 
 # Dirs where generated artifacts live + are committed.
-# Was five dirs; four of them moved to chipi/podcast-scraper-eval-data with the research
+# Was five dirs; four of them moved out with the research
 # (data/eval/baselines, data/eval/references, data/perf, autoresearch). The check
 # itself is still worth having — a committed absolute /Users/<name>/ path is a
 # leak of someone's username and makes a fixture unusable on any other machine —
