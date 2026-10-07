@@ -110,6 +110,12 @@ SKIP_DIRS = {
     "playwright-report",
 }
 
+# Private repos cloned into this checkout (gitignored; ADR-158 and the eval mount). Their docs
+# link by their own layout, and public CI never has them, so checking them here only makes the
+# gate red for whoever has a mount. Top level only: a nested directory with the same name is
+# public content and stays checked.
+PRIVATE_MOUNTS = {"apps", "eval-data"}
+
 
 def _is_vendored(parts: tuple[str, ...]) -> bool:
     """Is this path inside someone else's package rather than our repo?
@@ -158,7 +164,7 @@ def markdown_files() -> list[Path]:
         parts = path.relative_to(REPO_ROOT).parts
         if any(part in SKIP_DIRS for part in parts) or _is_vendored(parts):
             continue
-        if any(repo in path.parents for repo in nested):
+        if parts[0] in PRIVATE_MOUNTS or any(repo in path.parents for repo in nested):
             continue
         out.append(path)
     return sorted(out)
