@@ -246,6 +246,20 @@ describe('HomeView (discover state, signed out)', () => {
     expect(w.find('[data-testid="home-browse-nav"]').exists()).toBe(true)
   })
 
+  it('the Discover strip links all four Trends kinds, Themes included (operator 2026-10-07)', async () => {
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    const w = mountKeptAlive()
+    await flushPromises()
+    const nav = w.get('[data-testid="home-browse-nav"]')
+    expect(nav.findAll('a').map((a) => a.attributes('href'))).toEqual([
+      '/browse?trends=topic',
+      '/browse?trends=theme',
+      '/browse?trends=storyline',
+      '/browse?trends=person',
+    ])
+  })
+
   it("puts Recommended above What's new (operator 2026-10-07)", () => {
     const tpl = homeViewSource.slice(homeViewSource.indexOf('<template>'))
     const rec = tpl.indexOf(":title=\"t('home.recommended')\"")

@@ -608,6 +608,14 @@ async function loadContinue(): Promise<void> {
       >
         {{ t("home.tabTopics") }}
       </RouterLink>
+      <!-- Themes too (operator 2026-10-07): Trends has four kinds, and the strip linked three. -->
+      <RouterLink
+        :to="{ name: 'browse', query: { trends: 'theme' } }"
+        data-testid="home-discover-themes"
+        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
+      >
+        {{ t("home.themes") }}
+      </RouterLink>
       <RouterLink
         :to="{ name: 'browse', query: { trends: 'storyline' } }"
         data-testid="home-discover-storylines"
