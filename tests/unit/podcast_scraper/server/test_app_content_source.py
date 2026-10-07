@@ -135,6 +135,21 @@ def test_transcript_corpus_relpath_resolves_run_relative() -> None:
     )
 
 
+def test_transcript_corpus_relpath_takes_an_absolute_path_from_the_run_dir() -> None:
+    # Prod 2026-10-07: 129 served episodes store it ABSOLUTE. Joined onto the run dir it became
+    # feeds/F/run_R/app/output/feeds/F/run_R/... and every one 404'd its transcript segments.
+    meta = "feeds/F/run_R/metadata/ep.metadata.json"
+    assert (
+        transcript_corpus_relpath(meta, "/app/output/feeds/F/run_R/transcripts/ep.txt")
+        == "feeds/F/run_R/transcripts/ep.txt"
+    )
+    # Written under another root (a laptop corpus): still corpus-relative from `feeds/` on.
+    assert (
+        transcript_corpus_relpath(meta, "/Users/x/corpus/feeds/F/run_Q/transcripts/ep.txt")
+        == "feeds/F/run_Q/transcripts/ep.txt"
+    )
+
+
 def test_transcript_relpath_prefers_canonical_key() -> None:
     # Canonical key written by the pipeline + read by the search indexer.
     assert transcript_relpath({"transcript_file_path": "t/0001.txt"}) == "t/0001.txt"

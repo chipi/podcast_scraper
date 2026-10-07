@@ -119,8 +119,20 @@ def transcript_corpus_relpath(metadata_relpath: str, transcript_rel: str) -> str
     metadata dir): e.g. metadata ``feeds/F/run_R/metadata/ep.metadata.json`` → transcript
     ``feeds/F/run_R/transcripts/ep.txt``. For a flat corpus (``metadata/ep.metadata.json``)
     the run dir is ``""`` and the result is just ``transcript_rel``.
+
+    SOME RUNS WROTE IT ABSOLUTE (``/app/output/feeds/F/run_R/transcripts/ep.txt``; 129 served
+    prod episodes from 2026-08 runs). Joined onto the run dir that became ``feeds/F/run_R/app/
+    output/feeds/F/run_R/…``, nothing resolved, and every one of those episodes 404'd its
+    transcript segments (operator, 2026-10-07). An absolute path is taken from the episode's own
+    run dir — or from ``feeds/`` — onward, which is corpus-relative whatever root it was written
+    under.
     """
     run_dir = posixpath.dirname(posixpath.dirname(metadata_relpath))
+    if transcript_rel.startswith("/"):
+        for anchor in (f"/{run_dir}/" if run_dir else None, "/feeds/"):
+            at = transcript_rel.find(anchor) if anchor else -1
+            if at >= 0:
+                return posixpath.normpath(transcript_rel[at + 1 :])
     return posixpath.normpath(posixpath.join(run_dir, transcript_rel.lstrip("/")))
 
 
