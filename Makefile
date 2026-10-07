@@ -82,7 +82,7 @@ PYTEST_WORKERS ?= 2
 # triggered fallback, doubling wall time).
 
 .PHONY: ios-origin-up ios-origin-down ios-origin-check app-e2e-users-reset test-app-ios-sim-download
-.PHONY: test-app-ios-journey-ui test-app-ios-restore test-app-android-restore ios-journey-signin ios-journey-shots test-app-ios-server-degraded
+.PHONY: android-play-apk test-app-ios-journey-ui test-app-ios-restore test-app-android-restore ios-journey-signin ios-journey-shots test-app-ios-server-degraded
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-bundle android-device-install android-fastlane-install android-play-preflight android-play
 .PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
@@ -3863,6 +3863,8 @@ android-bundle:
 #   make android-fastlane-install    # once per machine
 #   make android-play-preflight      # verify creds + app record; builds nothing, fails in seconds
 #   make android-play                # rebuild the tester bundle, sign it, upload to `internal`
+#   make android-play-apk            # download Play's SIGNED universal APK (latest internal build)
+#   make android-play-apk VERSION_CODE=1460   # ...or a specific build
 #
 # NOTE: Play refuses an API upload for a package it has never seen, so the FIRST artifact must be
 # uploaded by hand in the Play Console once. `android-play-preflight` detects and explains that
@@ -3873,6 +3875,29 @@ android-fastlane-install:
 	@command -v bundle >/dev/null || { echo "FAIL: bundler missing — gem install bundler"; exit 1; }
 	@# Into the project, not the system gem dir — same reasoning as ios-fastlane-install.
 	@cd $(ANDROID_FASTLANE_DIR) && bundle config set --local path vendor/bundle && bundle install
+
+#: The Play app-signing certificate (Play Console → App integrity → App signing key certificate).
+#: The downloaded APK must carry it, or Play would refuse to update it in place later.
+PLAY_SIGNING_SHA256 ?= 128c2e1fdfddaf977288e68056c9b16634da1593e7101ec7a0b1ac0907f00964
+
+# A direct-install file for a tester Play will not serve yet ("Item not found" while a new
+# tester's access propagates — 2026-10-07). Play's own universal APK, signed with the Play
+# app-signing key, so Play updates it in place once it serves the app. Read-only on Play.
+android-play-apk:
+	@out=$$(cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane universal_apk \
+		$(if $(VERSION_CODE),version_code:$(VERSION_CODE),) 2>&1 | tee /dev/stderr \
+		| sed -n 's/.*UNIVERSAL_APK=\(.*\.apk\)$$/\1/p' | tail -1); \
+	[ -n "$$out" ] && [ -f "$$out" ] || { echo "FAIL: no APK downloaded (see the fastlane output above)"; exit 1; }; \
+	bt=$$(ls -d $(ANDROID_SDK_DIR)/build-tools/*/ | sort -V | tail -1); \
+	certs=$$("$$bt/apksigner" verify -v --print-certs --min-sdk-version 24 --max-sdk-version 36 "$$out" 2>&1); \
+	echo "$$certs" | grep -q "^Verifies" || { echo "FAIL: signature does not verify:"; echo "$$certs"; exit 1; }; \
+	echo "$$certs" | grep -qi "SHA-256 digest: $(PLAY_SIGNING_SHA256)" \
+		|| { echo "FAIL: not signed with the Play app-signing key"; echo "$$certs" | grep -i sha-256; exit 1; }; \
+	echo "OK: signed with the Play app-signing key (Android 7–16 schemes verified)"; \
+	"$$bt/aapt2" dump badging "$$out" 2>/dev/null | head -1 \
+		| grep -oE "name='[^']*' versionCode='[^']*' versionName='[^']*'" | sed 's/^/OK: /'; \
+	echo "--> $$out"; \
+	echo "    Send it to the tester; they tap it to install (allow installs from that app when asked)."
 
 android-play-preflight:
 	@cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane preflight

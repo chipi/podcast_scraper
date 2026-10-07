@@ -94,6 +94,41 @@ platform :android do
     puts "NEXT_VERSION_CODE=#{next_code}"
   end
 
+  desc "Download Play's SIGNED universal APK for a build (default: the latest on internal)."
+  desc "For a tester Play will not serve yet ('Item not found'): install the file directly."
+  lane :universal_apk do |options|
+    # WHY THIS EXISTS (2026-10-07)
+    #
+    # A newly added tester accepted the invite and Play answered "Item not found" until his access
+    # propagated. Internal app sharing is not available — the API refuses with NOT_PUBLISHED while
+    # the app has never been published. Play itself can hand out the universal APK it generates
+    # from the uploaded bundle, signed with the Play APP-SIGNING key — the same key every Play
+    # install carries — so a tester can sideload it now and Play later updates it in place.
+    code = (options[:version_code] || ENV["VERSION_CODE"]).to_s.strip
+    if code.empty?
+      codes = google_play_track_version_codes(package_name: PACKAGE, track: "internal", json_key: json_key)
+      UI.user_error!("The internal track has no build.") if codes.empty?
+      code = codes.max.to_s
+    end
+    UI.user_error!("version_code must be a number, got #{code.inspect}") unless code.match?(/\A\d+\z/)
+
+    require "supply"
+    Supply.config = FastlaneCore::Configuration.create(
+      Supply::Options.available_options, { package_name: PACKAGE, json_key: json_key }
+    )
+    service = Supply::Client.make_from_config.instance_variable_get(:@client)
+    generated = service.list_generatedapks(PACKAGE, code.to_i).generated_apks || []
+    universal = generated.map(&:generated_universal_apk).compact.first
+    UI.user_error!("Play has no universal APK for versionCode #{code} (yet).") unless universal
+
+    out_dir = File.join(APP_DIR, "app", "build", "outputs", "play")
+    FileUtils.mkdir_p(out_dir)
+    out = File.join(out_dir, "close-listening-#{code}-universal.apk")
+    service.download_generatedapk(PACKAGE, code.to_i, universal.download_id, download_dest: out)
+    UI.success("Saved #{out} (#{(File.size(out) / 1_048_576.0).round(1)} MB)")
+    puts "UNIVERSAL_APK=#{out}"
+  end
+
   desc "Verify the Play credentials + that the app record exists (no build, no upload)."
   desc "Run this first on a new machine — it fails in seconds instead of after a build."
   lane :preflight do
