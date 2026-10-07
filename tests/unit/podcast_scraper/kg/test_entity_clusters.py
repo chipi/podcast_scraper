@@ -526,7 +526,7 @@ class TestTheSharedIdMapIsBuiltOnce:
         assert "person:injected" not in ec.cached_entity_id_map(tmp_path)
 
 
-def _reference_clusters(candidates, kind_of):
+def _reference_clusters(candidates, same_show_required=True):
     """The pre-index loop, verbatim in behaviour: every cluster scanned, show overlap per member."""
     from podcast_scraper.kg.entity_clusters import _are_xep_variants
 
@@ -538,7 +538,7 @@ def _reference_clusters(candidates, kind_of):
         clusters = []
         for cand in sorted(items, key=lambda c: (-c.freq, c.name.lower())):
             for cluster in clusters:
-                if not any(cand.shows & m.shows for m in cluster):
+                if same_show_required and not any(cand.shows & m.shows for m in cluster):
                     continue
                 if any(_are_xep_variants(cand.name, m.name, kind) for m in cluster):
                     cluster.append(cand)
@@ -549,8 +549,9 @@ def _reference_clusters(candidates, kind_of):
     return out
 
 
+@pytest.mark.parametrize("same_show_required", [True, False])
 @pytest.mark.parametrize("seed", range(25))
-def test_show_index_clusters_exactly_like_the_full_scan(seed, monkeypatch):
+def test_show_index_clusters_exactly_like_the_full_scan(seed, same_show_required, monkeypatch):
     # The cold start after every restart was this loop: 176 s on prod (16,231 candidates) because
     # each candidate intersected its shows with every member of every cluster. The show index must
     # change the cost only — the same clusters, in the same order, so the same map.
@@ -579,8 +580,9 @@ def test_show_index_clusters_exactly_like_the_full_scan(seed, monkeypatch):
         return real_pick(cluster)
 
     monkeypatch.setattr(ec, "_pick_canonical", spy)
-    ec.build_entity_canonical_map(cands, same_show_required=True)
-    want = {k: [c for c in v if len(c) >= 2] for k, v in _reference_clusters(cands, None).items()}
+    ec.build_entity_canonical_map(cands, same_show_required=same_show_required)
+    reference = _reference_clusters(cands, same_show_required)
+    want = {k: [c for c in v if len(c) >= 2] for k, v in reference.items()}
     assert {k: v for k, v in captured.items()} == {k: v for k, v in want.items() if v}
 
 
