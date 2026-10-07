@@ -53,8 +53,43 @@ touch `Makefile`, `.github/workflows/`, `compose/` or `mkdocs.yml` wait for #213
 | H | Split the tests: 105 test files touching `app_*`, plus enrichment and MCP tests, assigned to the package they test | classification | no |
 | I | Player make targets (42 by name), player CI jobs in `python-app.yml`, `stack-test.yml` image entries | config | **yes** |
 
-Still to trace before slice F: which platform entry point pulls `app_recap` and `app_stats` into
-the platform-needed set.
+### Measured seams (probe, 2026-10-07)
+
+Measured instead of estimated. `scripts/tools/split_copy.py` copies what
+`scripts/tools/split_manifest.yaml` lists into local, not-yet-published repos under `apps/`,
+rewriting imports. The probe then deletes those files from a throwaway worktree and checks two
+directions: public without private (import every public module, list every import edge into
+moved code), and private on top of public (import every private module).
+
+- Baseline: 0 import failures on the unpruned tree, after deleting `search/llm_judge.py`, which
+  the eval split left behind and which could not import on `main`.
+- Public without private: 34 of the public modules fail to import, all from the seams below.
+- Private on top of public: 78 of 112 modules import; all 34 failures come from public modules
+  broken by seams 1, 7, 8 and 10, none from the private code itself.
+- Two modules first classified as player are kernel and stay public: `app_comms_store` (the
+  outbox and account deletion use it) and `app_release_store` (health, admin and `app.py` use it).
+
+| # | Seam (public file:line → moved code) | Fix | Slice |
+| --- | --- | --- | --- |
+| 1 | `enrichment/enrichers/__init__.py:17-27` imports every enricher; `query_enrichers/__init__.py:5` likewise | registry fed by entry points; public registers the two examples | E |
+| 2 | `enrichment/ml_wiring.py:27,30`, `web_wiring.py:13-14`, `routes/enrichment_config.py:230-234`, `enrichment/eval/admission.py:101` name enricher classes | wiring looks enrichers up by id from the registry | E |
+| 3 | `server/og/build.py:366,400` call `person_web.person_image_path`, `org_web.org_logo_path` | move the two file-path helpers into the platform | E |
+| 4 | `tests/conftest.py:1070` imports `person_web` | move the fixture to Common's tests | H |
+| 5 | `server/app.py:30` mounts 17 player and 2 Common routers (+ `app_mcp`) | registered routers | C |
+| 6 | `server/app.py:497` cache warmer, `:663` digest-health metrics | startup hooks | C |
+| 7 | `server/app_account_deletion.py:32` deletes MCP tokens and OAuth grants | per-package deletion hooks | C |
+| 8 | `server/routes/app_auth.py:392,871` writes `app_user_state.append_account_created` on sign-up | "account created" hook | C |
+| 9 | `server/scheduler.py:424` digest dispatch | registered scheduled jobs | C |
+| 10 | `server/app_momentum.py:25` (public read-model) reads `app_engagement_series` (player) | momentum takes engagement series from a registered source | C |
+| 11 | `capability_audit.py:44,1178,1184` → `app_discover_view`, `app_ranking_config` | registered audit checks | C |
+| 12 | `routes/corpus_enrichments.py:36` → `filtered_entity_signals` | move the function into the platform | C |
+| 13 | `cli.py:3970,5282` → `mcp.cli_handlers` | CLI subcommands registered by Common | C |
+| 14 | `routes/ops.py:33-34`, `routes/llm_gateway.py:50-51` (operator Ops view) import `podcast_obs.aggregate`, `.config`, `.sources.victoria` | **decision**: the operator view depends on the obs MCP's data sources — split `podcast_obs` (sources public, MCP private) or move the Ops view's two routes to Common | — |
+| 15 | `scripts/eval/score/rank_discover_v1.py`, `rank_scenarios_v1.py` → player ranking | move to Player (ranking tradecraft) | H |
+| 16 | `scripts/mcp_e2e_pivot_chain.py` → MCP tools | move to Common | H |
+
+Also found: the operator viewer calls `/api/app/mcp` (token management UI). With Common absent
+that route is gone; the viewer has to hide the UI when the route is not mounted.
 
 ---
 

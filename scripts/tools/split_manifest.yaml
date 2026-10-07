@@ -1,0 +1,168 @@
+# What the private split (ADR-158) copies into ./apps/<repo>/, read by
+# scripts/tools/split_copy.py. Python modules listed under `modules` move to a new
+# package and every import of them is rewritten; `trees` and `files` are copied
+# verbatim. Everything not listed stays public.
+#
+# Kept public on purpose (do not add here): the corpus read-models
+# (app_kg_view, app_gi_view, app_relational_view, app_momentum, app_catalog_cache,
+# app_corpus_access, app_content_source, app_slugs, app_artwork, app_kg_index), the
+# kernel (sessions, users, roles, csrf, access, magic link, outbox, push, audit,
+# operator guard, account deletion, user seed and CLI, oauth protocol + mock, comms
+# consent store, released-app-version store), and
+# what the operator viewer calls under /api/app (auth, preferences, admin,
+# graph-events, profile). The two example enrichers stay public as well.
+
+player:
+  package: closelistening_player
+  modules:
+    podcast_scraper.server:
+      - app_audio_bridge
+      - app_auto_picks
+      - app_cache_warm
+      - app_capture_export
+      - app_collections_store
+      - app_corpus_revision
+      - app_corpus_strength
+      - app_digest_common
+      - app_digest_daily_recap
+      - app_digest_dispatch
+      - app_digest_health
+      - app_digest_personal
+      - app_digest_recommendations
+      - app_digest_sections
+      - app_discover_view
+      - app_email_episode
+      - app_engagement_series
+      - app_episode_notes
+      - app_favorites_view
+      - app_graph_refs
+      - app_key_voices
+      - app_new_episode_alerts
+      - app_new_episode_digest
+      - app_notifications_store
+      - app_pkm_export
+      - app_ranking_config
+      - app_ranking_config_store
+      - app_ranking_telemetry
+      - app_recap
+      - app_recap_view
+      - app_reference_client
+      - app_resurfacing
+      - app_search_view
+      - app_stats
+      - app_user_corpus
+      - app_user_state
+    podcast_scraper.server.routes:
+      - app_artwork
+      - app_capture
+      - app_collections
+      - app_comms
+      - app_consolidation
+      - app_corpus
+      - app_discover
+      - app_enrichment
+      - app_episodes
+      - app_exits
+      - app_export
+      - app_key_voices
+      - app_notifications
+      - app_relational
+      - app_search
+      - app_user_state
+      - app_your_week
+  trees:
+    web/learning-player: web
+  files:
+    - docs/prd/PRD-035-learning-platform.md
+    - docs/prd/PRD-036-foundation-identity.md
+    - docs/prd/PRD-037-discovery.md
+    - docs/prd/PRD-038-catalog.md
+    - docs/prd/PRD-039-player.md
+    - docs/prd/PRD-040-capture.md
+    - docs/prd/PRD-041-consolidation.md
+    - docs/prd/PRD-042-home.md
+    - docs/prd/PRD-043-knowledge-layer.md
+    - docs/prd/PRD-046-delivery-and-curation.md
+    - docs/rfc/RFC-098-learning-platform-foundation.md
+    - docs/rfc/RFC-099-learning-platform-consumer-client.md
+    - docs/rfc/RFC-100-audio-bridge-subsystem.md
+    - docs/rfc/RFC-101-personal-knowledge-corpus.md
+    - docs/rfc/RFC-102-knowledge-clusters-entity-cards.md
+    - docs/rfc/RFC-111-curation-surfaces.md
+    - docs/rfc/RFC-113-graph-aware-pkm-export.md
+    - docs/rfc/RFC-114-personal-corpus.md
+    - docs/rfc/RFC-119-holistic-collections.md
+    - docs/rfc/RFC-120-login-first-lure-landing.md
+    - docs/rfc/RFC-121-unified-saved-model.md
+    - docs/rfc/RFC-122-post-episode-recap.md
+    - docs/adr/ADR-146-your-week-in-app-surface-and-scheduling.md
+    - docs/uxs/UXS-011-consumer-learning-app.md
+    - docs/uxs/UXS-012-consumer-home.md
+    - docs/uxs/UXS-013-knowledge-clusters.md
+    - docs/uxs/UXS-014-interaction-patterns.md
+    - docs/api/PLATFORM_API.md
+    - docs/guides/CONSUMER_LEARNING_PLAYER_GUIDE.md
+    - docs/guides/MOBILE_E2E_TESTING.md
+    - docs/guides/MOBILE_STORE_RELEASE_RUNBOOK.md
+    - docs/guides/E2E_ON_INTEL_MAC.md
+    - docs/guides/RECOMMENDATION_GUIDE.md
+    - docs/guides/NOTIFICATIONS_GUIDE.md
+    - docs/wip/PLAYER-BACKEND-WAVES-2026-09-10.md
+    - docs/wip/PLAYER-GOLDEN-WALKTHROUGH-v3.md
+    - docs/wip/PLAYER-NEXT-WAVE-G-J-2026-09-10.md
+    - docs/wip/DAILY-RECAP-EMAIL-HANDOFF.md
+    - docs/wip/DEVICE-FEEDBACK-2026-09-19.md
+    - docs/wip/DEVICE-ONLY-DEFECTS-2026-09-27.md
+    - docs/wip/DEVICE-TIERS-HANDOVER-2026-09-27.md
+    - docs/wip/APP-LINKS-PRE-BUILD-TODO-2026-10-05.md
+    - docs/wip/HANDOFF-BETA-USER-SHOWS-SMOKE-2026-10-01.md
+    - docs/wip/REDESIGN-CRITIC-FEEDBACK.md
+  file_trees:
+    - docs/wip/player
+    - docs/wip/knowledge-retention
+
+common:
+  package: closelistening_common
+  modules:
+    podcast_scraper.server:
+      - app_mcp_tokens
+      - app_oauth_server
+      - app_rate_limit
+    podcast_scraper.server.routes:
+      - app_mcp
+      - mcp_oauth
+      - internal_mcp
+    podcast_scraper.enrichment.enrichers:
+      - grounding_rate
+      - insight_sentiment
+      - org_web
+      - person_web
+      - temporal_velocity
+      - topic_consensus
+      - topic_cooccurrence_corpus
+      - topic_similarity
+      - topic_theme_clusters
+    podcast_scraper.enrichment.query_enrichers:
+      - query_topic_relatedness
+  packages:
+    podcast_scraper.mcp: mcp
+  # podcast_obs is already its own top-level package; it moves under its own name.
+  verbatim_packages:
+    - podcast_obs
+  files:
+    - docs/prd/PRD-034-generic-mcp-server.md
+    - docs/rfc/RFC-093-litm-context-packs.md
+    - docs/rfc/RFC-095-generic-mcp-server.md
+    - docs/rfc/RFC-112-remote-mcp-transport-and-auth.md
+    - docs/adr/ADR-153-mcp-stays-read-only-over-http.md
+    - docs/adr/ADR-108-nli-disagreement-enrichers-gated-dark.md
+    - docs/guides/EXPLORATION_MCP.md
+    - docs/guides/LOCAL_MCP_SERVERS.md
+    - docs/guides/MCP_SERVER_GUIDE.md
+    - docs/guides/OBS_MCP_HOMELAB_DEPLOY.md
+    - docs/guides/OBSERVABILITY_CONTROL_PLANE.md
+    - docs/wip/OBS-MCP-ON-VPS-PLAN.md
+    - docs/wip/ENRICHER-HARDENING-ROADMAP.md
+    - docs/wip/ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md
+    - docs/wip/2026-09-02-enricher-reenable-prep.md
+    - docs/wip/PUBLIC-EXPOSURE-AND-PRIVATE-SPLIT.md
