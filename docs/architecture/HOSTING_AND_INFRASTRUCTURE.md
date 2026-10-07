@@ -4,13 +4,17 @@
 environment, CI, Tailscale, OpenTofu, and Docker Compose fit together — without rereading every RFC
 paragraph first.
 
+**Scope of this repository:** the application, its compose files and its CI. The OpenTofu
+configuration, deploy scripts, prod/drill workflows and runbooks named below are operator
+tooling and are **not in this repository**; this document keeps the design narrative.
+
 **Relationship to other docs:**
 
 | Need | Start here | Go deeper with |
 | --- | --- | --- |
 | **Why** these choices exist (trade-offs, alternatives) | This document (summary) + **ADRs** below | [RFC-082](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md) |
 | **What to type** on prod or drill | Not this doc | PROD_RUNBOOK.md, DR_DRILL_RUNBOOK.md |
-| **OpenTofu file layout and workflow table** | § IaC below | [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md) |
+| **OpenTofu file layout and workflow table** | § IaC below | `infra/README.md` (operator tooling; not in this repository) |
 | **Every workflow file and trigger** | § Control plane | WORKFLOWS.md |
 | **Compose stack for CI and prod-shaped runs** | § Runtime on the host | [RFC-079](../rfc/RFC-079-full-stack-docker-compose.md), [DOCKER_SERVICE_GUIDE.md](../guides/DOCKER_SERVICE_GUIDE.md) |
 | **Cross-surface stack contract (audit table)** | Not this doc | [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md), [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md) |
@@ -406,7 +410,7 @@ GitOps with Flux) becomes real, add a new ADR and extend this doc with a “grad
 1. This document (context).
 2. [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md) and [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md) (immutable decisions: IaC ingress + stack contract discipline).
 3. [STACK_CONTRACT.md](../guides/STACK_CONTRACT.md) (surface audit table; steady vs recovery playbooks).
-4. [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md) (hands-on OpenTofu and drill table).
+4. `infra/README.md` (hands-on OpenTofu and drill table; operator tooling, not in this repository).
 5. PROD_RUNBOOK.md (commands, secrets staging, first boot).
 6. WORKFLOWS.md when you need exact workflow names and filters.
 
@@ -418,7 +422,7 @@ GitOps with Flux) becomes real, add a new ADR and extend this doc with a “grad
 - CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md — manifest + restore entry points ([ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md))
 - [RFC-082: Production hosting](../rfc/RFC-082-always-on-pre-prod-and-prod-hosting.md)
 - [ADR-079](../adr/ADR-079-opentofu-for-always-on-hosting-iac.md)–[ADR-083](../adr/ADR-083-tailscale-private-ingress-always-on-vps.md), [ADR-082](../adr/ADR-082-gitops-app-deploy-via-stack-test-and-gha.md), [ADR-084](../adr/ADR-084-full-stack-docker-compose-topology.md), [ADR-085](../adr/ADR-085-ephemeral-stack-test-integration-gate.md), [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)
-- [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md)
+- `infra/README.md` (operator tooling; not in this repository)
 - PROD_RUNBOOK.md
 - DR_DRILL_RUNBOOK.md
 - WORKFLOWS.md

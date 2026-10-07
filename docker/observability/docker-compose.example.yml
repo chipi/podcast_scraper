@@ -6,7 +6,7 @@
 #
 # Reaching prod over Tailscale (and being reachable by agents on other boxes) requires this
 # container to be on the tailnet: run it on a tailnet host with host networking, or add a
-# tailscale sidecar. See docs/guides/OBSERVABILITY_CONTROL_PLANE.md.
+# tailscale sidecar. The control-plane guide is operator documentation, not in this repository.
 
 services:
   podcast-obs:

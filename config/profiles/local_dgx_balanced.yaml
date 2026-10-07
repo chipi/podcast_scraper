@@ -6,7 +6,7 @@ profile: local_dgx_balanced
 # Profile: local_dgx_balanced — DGX-hosted Ollama with cloud degradation fallback (RFC-089)
 #
 # Point ollama_api_base / dgx_tailnet_host at your DGX MagicDNS name before running.
-# See docs/guides/DGX_RUNBOOK.md.
+# The DGX runbook is operator documentation and is not in this repository.
 
 dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
 ollama_api_base: http://${DGX_TAILNET_HOST:-dgx-llm-1}:11434/v1
