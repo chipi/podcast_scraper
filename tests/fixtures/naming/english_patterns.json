@@ -223,6 +223,7 @@
    },
    "_HOST_EVIDENCE_SOURCES": {
     "set": [
+     "introduced",
      "llm_resolution",
      "publisher_transcript",
      "self_intro"

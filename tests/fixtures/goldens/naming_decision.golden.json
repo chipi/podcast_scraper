@@ -22,7 +22,7 @@
         "reason": null,
         "resolved_name": "Liam Verbeek",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -60,7 +60,7 @@
         "reason": null,
         "resolved_name": "Sophie Lorenz",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -98,7 +98,7 @@
         "reason": null,
         "resolved_name": "Noah Bryer",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -135,7 +135,7 @@
         "reason": null,
         "resolved_name": "Sophie Laurent",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       }
@@ -164,7 +164,7 @@
         "reason": null,
         "resolved_name": "Priya Nair",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -202,7 +202,7 @@
         "reason": null,
         "resolved_name": "Joll Wisenthal",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -240,7 +240,7 @@
         "reason": null,
         "resolved_name": "Priya Nair",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -277,7 +277,7 @@
         "reason": null,
         "resolved_name": "Priya Nair",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       }
@@ -344,7 +344,7 @@
         "reason": null,
         "resolved_name": "Marco Sylva",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -382,7 +382,7 @@
         "reason": null,
         "resolved_name": "Hanna Crebo Rediker",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -420,7 +420,7 @@
         "reason": null,
         "resolved_name": "Hanna Krebohticker",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -457,7 +457,7 @@
         "reason": null,
         "resolved_name": "Marco Silva",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       }
@@ -486,7 +486,7 @@
         "reason": null,
         "resolved_name": "Ava Lemoine",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -524,7 +524,7 @@
         "reason": null,
         "resolved_name": "Tarek Hassan",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -562,7 +562,7 @@
         "reason": null,
         "resolved_name": "Daniel Olufemi",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -600,7 +600,7 @@
         "reason": null,
         "resolved_name": "Ava Lemoine",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -638,7 +638,7 @@
         "reason": null,
         "resolved_name": "Daniel Cho",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -676,7 +676,7 @@
         "reason": null,
         "resolved_name": "Rich Clarida",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -714,7 +714,7 @@
         "reason": null,
         "resolved_name": "Scott Bessett",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -752,7 +752,7 @@
         "reason": null,
         "resolved_name": "Daniel Cho",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -790,7 +790,7 @@
         "reason": null,
         "resolved_name": "Daniel Cho",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -828,7 +828,7 @@
         "reason": null,
         "resolved_name": "Jordan Park",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -866,7 +866,7 @@
         "reason": null,
         "resolved_name": "Jordan Park",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -904,7 +904,7 @@
         "reason": null,
         "resolved_name": "Jordan Park",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -942,7 +942,7 @@
         "reason": null,
         "resolved_name": "Jordan Park",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1026,7 +1026,7 @@
         "reason": null,
         "resolved_name": "Elena Fischer",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1064,7 +1064,7 @@
         "reason": null,
         "resolved_name": "Skanda Eminas",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1129,7 +1129,7 @@
         "reason": null,
         "resolved_name": "Skanda Amarnath",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       }
@@ -1158,7 +1158,7 @@
         "reason": null,
         "resolved_name": "Renee Montagne-Park",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1196,7 +1196,7 @@
         "reason": null,
         "resolved_name": "Renee Montague-Park",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1234,7 +1234,7 @@
         "reason": null,
         "resolved_name": "Renee Montagne-Park",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1272,7 +1272,7 @@
         "reason": null,
         "resolved_name": "Renee Montagne-Park",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1310,7 +1310,7 @@
         "reason": null,
         "resolved_name": "Elena Fischer",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1348,7 +1348,7 @@
         "reason": null,
         "resolved_name": "Skanda Amarnauth",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1386,7 +1386,7 @@
         "reason": null,
         "resolved_name": "Skanda Amarnath",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1424,7 +1424,7 @@
         "reason": null,
         "resolved_name": "Elena Fischer",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1462,7 +1462,7 @@
         "reason": null,
         "resolved_name": "Javier Benavides",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1538,7 +1538,7 @@
         "reason": null,
         "resolved_name": "Marta Solís",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1614,7 +1614,7 @@
         "reason": null,
         "resolved_name": "Diego Ferrer",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1690,7 +1690,7 @@
         "reason": null,
         "resolved_name": "Marco Bellini",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1766,7 +1766,7 @@
         "reason": null,
         "resolved_name": "Chiara Ricci",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1842,7 +1842,7 @@
         "reason": null,
         "resolved_name": "Luca Moretti",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -1918,7 +1918,7 @@
         "reason": null,
         "resolved_name": "Julien Mercier",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -2070,7 +2070,7 @@
         "reason": null,
         "resolved_name": "Mathieu Lefèvre",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -2146,7 +2146,7 @@
         "reason": null,
         "resolved_name": "Stefan Brandt",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -2222,7 +2222,7 @@
         "reason": null,
         "resolved_name": "Lena Hofmann",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -2298,7 +2298,7 @@
         "reason": null,
         "resolved_name": "Jonas Richter",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -2374,7 +2374,7 @@
         "reason": null,
         "resolved_name": "Rafael Vasconcelos",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -2450,7 +2450,7 @@
         "reason": null,
         "resolved_name": "Inês Carvalho",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },
@@ -2526,7 +2526,7 @@
         "reason": null,
         "resolved_name": "Tiago Moreira",
         "role": "guest",
-        "source": "self_intro",
+        "source": "introduced",
         "voice": "SPEAKER_01",
         "voice_type": "person"
       },

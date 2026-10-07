@@ -1089,3 +1089,29 @@ def test_a_cold_open_guest_opener_does_not_name_the_host_voice() -> None:
         ordered_turns=[("GUEST", guest), ("HOST", host)],
     )
     assert "Jane Doe" not in (r.by_voice["HOST"].name or "")
+
+
+def test_a_name_the_host_spoke_is_recorded_as_introduced_not_self_intro() -> None:
+    # Provenance: the host said "Kara Swisher, welcome back"; Kara never said her own name. As
+    # `self_intro` it passed checks that require the voice's own words (the show-named-host
+    # exception in metadata_generation, m0014) and an audit could not tell the two apart.
+    diar = _diar([("HOST", 0, 20), ("GUEST", 20, 40), ("GUEST", 40, 340), ("HOST", 340, 360)], 2)
+    r = resolve_speaker_roster(
+        diar,
+        "Welcome back. I'm Patrick O'Shaughnessy.",
+        known_hosts=["Patrick O'Shaughnessy"],
+        detected_guests=["Kara Swisher", "Andrew Yang"],
+        voice_texts={
+            "HOST": "Welcome back. I'm Patrick O'Shaughnessy. Kara Swisher, welcome back.",
+            "GUEST": "Thanks, it is great to be here. My new project is about longevity.",
+        },
+        ordered_turns=[
+            ("HOST", "Welcome back. I'm Patrick O'Shaughnessy. Big news today."),
+            ("HOST", "Kara Swisher, welcome back, we are delighted to have you."),
+            ("GUEST", "Thanks, it is great to be here. My new project is about longevity."),
+            ("HOST", "Tell us all about it."),
+        ],
+    )
+    assert r.by_voice["GUEST"].name == "Kara Swisher"
+    assert r.by_voice["GUEST"].source == "introduced"
+    assert r.by_voice["HOST"].source == "self_intro"  # said it himself

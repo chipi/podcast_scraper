@@ -1101,7 +1101,12 @@ _CONVERSING_MIN_ALTERNATIONS = 10
 _CONVERSING_MIN_SHARE = 0.05
 #: How directly a voice's name came from the voice: its own words or an introduction of it, then
 #: the LLM's match, then arithmetic.
-_NAME_EVIDENCE_RANK = {"self_intro": 3, "publisher_transcript": 3, "llm_resolution": 2}
+_NAME_EVIDENCE_RANK = {
+    "self_intro": 3,
+    "introduced": 3,
+    "publisher_transcript": 3,
+    "llm_resolution": 2,
+}
 
 
 def _alternations(diarization: DiarizationResult) -> Dict[FrozenSet[str], int]:
@@ -2110,6 +2115,7 @@ def _name_host_voices(
     host_evidence_voices: AbstractSet[str] = frozenset(),
     introducer_voices: AbstractSet[str] = frozenset(),
     ignore_ownership: bool = False,
+    introduced_named: AbstractSet[str] = frozenset(),
     feed_title: Optional[str] = None,
     trace: Optional[NamingTrace] = None,
     language: Optional[str] = TARGET_LANGUAGE,
@@ -2345,6 +2351,8 @@ def _name_host_voices(
                 src = "publisher_transcript"
             elif llm_named and v in llm_named:
                 src = "llm_resolution"
+            elif v in introduced_named:
+                src = "introduced"
             else:
                 src = "self_intro"
             out[v] = SpeakerRole(name=iname, role="host", named=True, source=src)
@@ -2602,6 +2610,7 @@ def _name_guest_voices(
     refused_intro_voices: AbstractSet[str] = frozenset(),
     trace: Optional[NamingTrace] = None,
     language: Optional[str] = TARGET_LANGUAGE,
+    introduced_named: AbstractSet[str] = frozenset(),
 ) -> Dict[str, SpeakerRole]:
     """Name the remaining voices from EVIDENCE, never from position.
 
@@ -2758,6 +2767,8 @@ def _name_guest_voices(
                 src = "publisher_transcript"
             elif llm_named and v in llm_named:
                 src = "llm_resolution"
+            elif v in introduced_named:
+                src = "introduced"
             else:
                 src = "self_intro"
             out[v] = SpeakerRole(name=iname, role="guest", named=True, source=src)
@@ -3636,7 +3647,9 @@ _HOST_COPRESENCE_MIN = 0.25
 _HOST_COPRESENCE_MIN_EPISODES = 4
 #: Sources that count as EVIDENCE a stated host was in the room
 #: (see `host_copresence_from_diagnostics`).
-_HOST_EVIDENCE_SOURCES = frozenset({"self_intro", "publisher_transcript", "llm_resolution"})
+_HOST_EVIDENCE_SOURCES = frozenset(
+    {"self_intro", "introduced", "publisher_transcript", "llm_resolution"}
+)
 
 
 def host_copresence_from_diagnostics(
@@ -5059,6 +5072,10 @@ def resolve_speaker_roster(
         )
     )
     tr.diff_names("intro_reader", _vi_before, voice_intro)
+    # PROVENANCE: a name the HOST spoke is not one the voice said. Recorded as `self_intro` it
+    # passed the checks that require the voice's own words (the show-named-host exception,
+    # m0014) and an audit could not tell the two apart.
+    introduced_named = {v for v, n in voice_intro.items() if _vi_before.get(v) != n}
 
     # ...and the voices an LLM matched to a STATED name from their own words (ADR-110). It ranks
     # BELOW both of the above on purpose: a voice that says "I'm Peter Ludwig" needs no model's
@@ -5223,6 +5240,7 @@ def resolve_speaker_roster(
         absent_hosts=_hosts_said_absent(voice_texts or {}, known_hosts, set(host_voices)),
         host_evidence_voices=presenter_voices,
         introducer_voices=_introducer_voices,
+        introduced_named=introduced_named,
         feed_title=feed_title,
         trace=tr,
         language=language,
@@ -5337,6 +5355,7 @@ def resolve_speaker_roster(
             self_intros=_names_self_intro,
             known_hosts=known_hosts,
             refused_intro_voices=introduced_but_unspellable,
+            introduced_named=introduced_named,
             trace=tr,
             language=language,
         )
@@ -5363,6 +5382,7 @@ def resolve_speaker_roster(
             absent_hosts=_hosts_said_absent(voice_texts or {}, known_hosts, set(host_voices)),
             host_evidence_voices=presenter_voices,
             introducer_voices=_introducer_voices,
+            introduced_named=introduced_named,
             ignore_ownership=True,
             feed_title=feed_title,
             language=language,
