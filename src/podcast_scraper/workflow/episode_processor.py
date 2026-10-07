@@ -26,7 +26,7 @@ from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 from ..exceptions import ProviderError, ProviderRuntimeError
 from ..languages import transcription_language
-from ..languages_guard import is_target_language
+from ..languages_guard import is_target_language, transcript_language_contradiction
 from ..preprocessing.audio.factory import preprocessing_fingerprint
 from ..rss import choose_transcript_url, downloader
 from ..rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
@@ -4308,6 +4308,29 @@ def transcribe_media_to_text(
                 f"[{job.idx}] Transcription timeout after {cfg.transcription_timeout}s: {e}"
             )
             raise
+        # #2187: ASR echoes the language it is asked for, so only the text can say the feed's
+        # language was wrong. Refused before diarization, and before anything is written.
+        wrong_language = transcript_language_contradiction(
+            str(result.get("text") or ""), _asr_language_record(result, cfg)["requested"]
+        )
+        if wrong_language is not None:
+            logger.error("[%s] REFUSING episode: %s", job.idx, wrong_language)
+            _append_transcription_incident(
+                cfg,
+                job,
+                category="hard",
+                message=wrong_language,
+                exception_type="TranscriptLanguageMismatch",
+            )
+            _record_unresolved_transcript(
+                job,
+                cfg,
+                pipeline_metrics,
+                "transcription",
+                error_type="TranscriptLanguageMismatch",
+                detail=wrong_language,
+            )
+            return False, None, bytes_downloaded
         if cfg.diarize:
             from ..exceptions import ProviderDependencyError
             from ..providers.ml.diarization.pipeline import apply_diarization_to_result

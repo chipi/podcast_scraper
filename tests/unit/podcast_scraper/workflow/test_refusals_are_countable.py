@@ -56,6 +56,9 @@ EXPECTED_ERROR_TYPES = {
     # before any provider is called, and countable for the same reason as the rest -- a skip
     # must be at least as loud as the plausible-wrong-language transcript it replaces.
     "UnsupportedLanguage",
+    # #2187: the transcript does not read as the declared language — ASR echoes the request, so
+    # only the text can show a wrong <language> tag.
+    "TranscriptLanguageMismatch",
 }
 
 
