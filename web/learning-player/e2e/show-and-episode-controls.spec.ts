@@ -89,7 +89,7 @@ test('Search: a show row carries ONE ⋯ right of its name, holding Follow / Sav
   await expect(page.getByTestId('follow-show').first()).toHaveText('Following')
 })
 
-test("What's new: every position carries ♡ queue ⋯ — a row on #01, one column on 02+", async ({
+test("What's new: #01 carries ♡ queue ⋯ in a row; 02+ stack queue ⋯ with the ♡ in the ⋯", async ({
   page,
 }) => {
   await page.goto('/')
@@ -102,42 +102,51 @@ test("What's new: every position carries ♡ queue ⋯ — a row on #01, one col
   await page.waitForLoadState('networkidle')
   const layout = await rows.evaluateAll((els) =>
     els.map((el) => {
-      const r = (sel: string) => {
-        const b = (el.querySelector(sel) as HTMLElement).getBoundingClientRect()
+      const box = (node: Element | null | undefined) => {
+        if (!node) return null
+        const b = node.getBoundingClientRect()
         return { x: b.x, y: b.y }
       }
-      const queue = Array.from(el.querySelectorAll('button')).find((b) =>
-        /queue/i.test(b.getAttribute('aria-label') ?? ''),
-      ) as HTMLElement
-      const q = queue.getBoundingClientRect()
       const li = el.closest('li')
       const title = li?.querySelector('a[href^="/episode/"]')?.getBoundingClientRect()
       return {
-        heart: r('[data-testid="favorite-button"]'),
-        queue: { x: q.x, y: q.y },
-        more: r('[data-testid="overflow-trigger"]'),
+        heart: box(el.querySelector('[data-testid="favorite-button"]')),
+        queue: box(
+          Array.from(el.querySelectorAll('button')).find((b) =>
+            /queue/i.test(b.getAttribute('aria-label') ?? ''),
+          ),
+        ),
+        more: box(el.querySelector('[data-testid="overflow-trigger"]')),
         titleShare: li && title ? title.width / li.getBoundingClientRect().width : null,
       }
     }),
   )
   expect(layout.length).toBeGreaterThanOrEqual(2)
   layout.forEach(({ heart, queue, more }, i) => {
+    expect(queue, `row ${i + 1} has no queue`).not.toBeNull()
+    expect(more, `row ${i + 1} has no ⋯`).not.toBeNull()
     if (i === 0) {
-      // #01: one row, top right of the card.
-      expect(Math.abs(heart.y - queue.y), '#01 heart/queue not on one row').toBeLessThan(4)
-      expect(Math.abs(queue.y - more.y), '#01 queue/⋯ not on one row').toBeLessThan(4)
-      expect(heart.x).toBeLessThan(queue.x)
-      expect(queue.x).toBeLessThan(more.x)
+      // #01: all three in one row, top right of the card.
+      expect(heart, '#01 has no ♡').not.toBeNull()
+      expect(Math.abs(heart!.y - queue!.y), '#01 heart/queue not on one row').toBeLessThan(4)
+      expect(Math.abs(queue!.y - more!.y), '#01 queue/⋯ not on one row').toBeLessThan(4)
+      expect(heart!.x).toBeLessThan(queue!.x)
+      expect(queue!.x).toBeLessThan(more!.x)
     } else {
-      // 02+: one column, top to bottom.
-      expect(Math.abs(heart.x - queue.x), `row ${i + 1} not one column`).toBeLessThan(4)
-      expect(Math.abs(queue.x - more.x), `row ${i + 1} not one column`).toBeLessThan(4)
-      expect(heart.y).toBeLessThan(queue.y)
-      expect(queue.y).toBeLessThan(more.y)
+      // 02+ (operator 2026-10-07): the ♡ moved into the ⋯ — three stacked targets made each row
+      // taller than its content — so the column is queue over ⋯.
+      expect(heart, `row ${i + 1} still shows ♡ inline`).toBeNull()
+      expect(Math.abs(queue!.x - more!.x), `row ${i + 1} not one column`).toBeLessThan(4)
+      expect(queue!.y).toBeLessThan(more!.y)
     }
   })
   // The stack costs height, not width: a ranked row's title keeps most of the row.
   expect(layout[1].titleShare).toBeGreaterThan(0.5)
+  // …and the ♡ is not gone, only one tap further: row 02's ⋯ carries it.
+  await rows.nth(1).getByTestId('overflow-trigger').click()
+  await expect(
+    page.getByTestId('overflow-menu').getByRole('menuitem').and(page.getByTestId('favorite-button')),
+  ).toBeVisible()
 })
 
 test('an episode card shows the publisher\'s description, not our summary', async ({ page }) => {

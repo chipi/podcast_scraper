@@ -66,10 +66,19 @@ async function expectBackAt(el: Locator, before: Place, what: string): Promise<v
   await expect(el, `${what}: the control it was opened from is not back in view`).toBeInViewport({
     ratio: 1,
   })
+  // A re-render between two polls can leave the control box-less for one tick: keep polling
+  // (Infinity never passes) instead of throwing on `null`, which ends the poll as a failure
+  // (CI 2026-10-07, mobile: "Cannot read properties of null (reading 'y')", passed on retry).
   await expect
-    .poll(async () => Math.round(Math.abs((await el.boundingBox())!.y - before.screen)), {
-      message: `${what}: not at the spot on screen it was tapped at (${Math.round(before.screen)}px)`,
-    })
+    .poll(
+      async () => {
+        const box = await el.boundingBox()
+        return box ? Math.round(Math.abs(box.y - before.screen)) : Number.POSITIVE_INFINITY
+      },
+      {
+        message: `${what}: not at the spot on screen it was tapped at (${Math.round(before.screen)}px)`,
+      },
+    )
     .toBeLessThan(12)
 }
 
