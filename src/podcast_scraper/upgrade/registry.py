@@ -41,6 +41,9 @@ from .migrations.m0022_derived_speaker_surfaces_resynced import (
 from .migrations.m0023_transcript_speaker_prefixes_resynced import (
     TranscriptSpeakerPrefixesResyncedMigration,
 )
+from .migrations.m0024_shared_removed_speaker_prefixes import (
+    SharedRemovedSpeakerPrefixesMigration,
+)
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -93,6 +96,8 @@ _MIGRATIONS: List[Migration] = [
     DerivedSpeakerSurfacesResyncedMigration(),
     # 0023 re-renders the text transcripts from the repaired segments, offsets carried across.
     TranscriptSpeakerPrefixesResyncedMigration(),
+    # 0024 renames what 0023 refused: a removed name on 2+ voices becomes SPEAKER (#2294).
+    SharedRemovedSpeakerPrefixesMigration(),
 ]
 
 

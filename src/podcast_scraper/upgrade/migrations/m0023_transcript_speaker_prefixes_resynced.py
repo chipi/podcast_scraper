@@ -252,7 +252,7 @@ class _Episode:
                 out[name] = next(iter(labs))
         return out
 
-    def _in_place(self, run: Path, rel: str) -> None:
+    def _in_place(self, run: Path, rel: str, gi: Optional[Any] = None) -> None:
         renames = self._old_names(run, rel)
         if not renames:
             return
@@ -262,7 +262,7 @@ class _Episode:
             + r"): "
         )
         gi_path = Path(str(self.meta)[: -len(".metadata.json")] + ".gi.json")
-        gi = _load(gi_path)
+        gi = gi if gi is not None else _load(gi_path)
         quotes_moved = 0
         for suffix in (".txt", ".adfree.txt", ".cleaned.txt"):
             path = run / rel.replace(".txt", suffix)
@@ -411,10 +411,12 @@ class _Episode:
             self._bump("cleaned_lines", n)
 
 
-def _write_text_with_backup(root: Path, path: Path, text: str) -> Dict[str, str]:
+def _write_text_with_backup(
+    root: Path, path: Path, text: str, tag: str = BACKUP_TAG
+) -> Dict[str, str]:
     """``write_with_backup`` for a plain-text file (that one serialises JSON)."""
     rel = str(path.relative_to(root))
-    backup = backup_dir(root, BACKUP_TAG) / rel
+    backup = backup_dir(root, tag) / rel
     backup.parent.mkdir(parents=True, exist_ok=True)
     if not backup.exists():
         backup.write_bytes(path.read_bytes())
