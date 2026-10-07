@@ -376,6 +376,60 @@ def build_discover_pool(
     return [*window, *extra]
 
 
+def interest_relpaths(root: Path, interests: Iterable[str]) -> set[str]:
+    """Episodes (by metadata relpath) carrying any followed interest, from cached sidecars only.
+
+    ``topic:`` / ``person:`` tokens hit :func:`interest_episode_index` directly. A followed theme
+    (``tc:``) or storyline (``thc:``) is not an episode token, so it expands to its member topics
+    first — the same membership maps :func:`rank_discover` reads. No KG artifact is loaded.
+    """
+    tokens = {str(t) for t in interests if str(t)}
+    if not tokens:
+        return set()
+    direct = {t for t in tokens if t.startswith(("topic:", "person:"))}
+    clusters = tokens - direct
+    if clusters:
+        for topic_id, info in theme_map_by_topic(root).items():
+            if info.get("cluster_id") in clusters:
+                direct.add(topic_id)
+        for topic_id, info in storyline_map_by_topic(root).items():
+            if info.get("storyline_id") in clusters:
+                direct.add(topic_id)
+    index = interest_episode_index(root)
+    out: set[str] = set()
+    for token in direct:
+        out |= index.get(token, set())
+    return out
+
+
+def whats_new_rows(
+    rows: Sequence[CatalogEpisodeRow],
+    *,
+    followed_feeds: Iterable[str],
+    matching_relpaths: set[str],
+    limit: int,
+) -> tuple[list[CatalogEpisodeRow], bool]:
+    """Home's What's new: newest first, from the listener's own world (operator 2026-10-07).
+
+    "Your world" is episodes from shows they follow plus episodes carrying a topic, person, theme
+    or storyline they follow. Returns ``(rows, personal)``: when that world holds nothing — no
+    follows yet, or follows that match no episode — it falls back to the newest across every show
+    and says so with ``personal=False``, so the label can say "across all shows" rather than
+    passing the corpus feed off as theirs.
+
+    Deliberately NOT ranked: Recommended is the relevance-first section. This one answers "what is
+    new", so recency is the order and membership is the only filter. ``rows`` must be newest-first.
+    """
+    feeds = {str(f) for f in followed_feeds if str(f)}
+    if feeds or matching_relpaths:
+        mine = [
+            r for r in rows if r.feed_id in feeds or r.metadata_relative_path in matching_relpaths
+        ][: max(limit, 0)]
+        if mine:
+            return mine, True
+    return list(rows[: max(limit, 0)]), False
+
+
 def _recency_boost(publish_date: str | None, newest: date | None, half_life_days: float) -> float:
     """How fresh this episode is RELATIVE TO THE FRESHEST in the pool — 1.0 down towards 0.0.
 

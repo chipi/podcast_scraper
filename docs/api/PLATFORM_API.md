@@ -416,7 +416,8 @@ class names resolve against `server/schemas.py`.
 
 | Method | Path | Response model | Auth | Params | Purpose |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/app/discover` | `AppEpisodesResponse` | optional session | `limit` | Home discovery feed. When signed in AND `APP_PERSONALIZED_RANKING=true`, interest-ranked via the user's followed clusters; otherwise recency. |
+| GET | `/api/app/discover` | `AppEpisodesResponse` | optional session | `limit` | Discovery feed (the signed-out landing). When signed in AND `APP_PERSONALIZED_RANKING=true`, interest-ranked via the user's followed clusters; otherwise recency. |
+| GET | `/api/app/whats-new` | `AppWhatsNewResponse` | session | `limit` (1–20, default 5) | Home's What's new: newest first from the shows the listener follows plus episodes carrying a followed topic / person / theme / storyline (themes and storylines expand to their member topics). `scope: "yours"`; with nothing followed or nothing matching, the newest across every show with `scope: "all"`. Ordered by time only — Recommended is the relevance-first section. |
 | POST | `/api/app/discover/click` | 204 | optional session | JSON body: `slug`, `position` | Fire-and-forget click telemetry for ranking feedback. Silent no-op signed out or on network error. |
 | GET | `/api/app/storylines` | `AppStorylinesResponse` | open | `limit` | Home "Storylines" — topics discussed together. |
 | GET | `/api/app/trending` | `AppTrendingResponse` | optional session | `kind`, `scope`, `limit` | RFC-103 momentum — trending entities of a given `kind`, corpus-wide or `scope=mine`. |

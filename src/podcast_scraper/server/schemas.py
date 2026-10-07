@@ -258,6 +258,18 @@ class AppEpisodesResponse(BaseModel):
     has_more: bool = Field(description="Whether more pages exist after this one.")
 
 
+class AppWhatsNewResponse(BaseModel):
+    """Response for GET /api/app/whats-new — Home's What's new (operator 2026-10-07)."""
+
+    items: list[AppEpisodeSummary] = Field(default_factory=list)
+    scope: Literal["yours", "all"] = Field(
+        description=(
+            "'yours' = newest from the shows, topics, people, themes and storylines the listener "
+            "follows; 'all' = the fallback when that is empty: newest across every show."
+        )
+    )
+
+
 class AppDiscoverClickBody(BaseModel):
     """A click on a discovery-feed episode — ranking-experiment telemetry (#11)."""
 

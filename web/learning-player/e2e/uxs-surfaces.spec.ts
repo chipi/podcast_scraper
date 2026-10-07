@@ -130,13 +130,13 @@ test('UXS-012: "Browse all →" under What\'s new opens the Browse hub on Episod
 })
 
 test('UXS-012 §Section state: a failed What\'s new says so and Retry recovers it', async ({ page }) => {
-  // EVERY discover request fails until Retry is pressed — more than one Home consumer may ask, so
+  // EVERY What's new request fails until Retry is pressed — more than one Home consumer may ask, so
   // "fail the first" made which section saw the failure a race.
   // A 500, NOT a 503: the app reads 503 as "the server is degraded" (services/api.ts) and shows the
   // app-wide "couldn't reach the server" banner instead — a different state, which won the race
   // against the section's own error intermittently (desktop, 2026-10-06).
   let failing = true
-  await page.route('**/api/app/discover**', async (route) => {
+  await page.route('**/api/app/whats-new**', async (route) => {
     if (failing) {
       await route.fulfill({ status: 500, body: 'section failed' })
       return
@@ -149,7 +149,7 @@ test('UXS-012 §Section state: a failed What\'s new says so and Retry recovers i
   // sign-in's own load had finished (2026-10-06). Drop that one cache entry first.
   await page.evaluate(() => {
     for (const k of Object.keys(localStorage)) {
-      if (k.endsWith('.home.whatsnew')) localStorage.removeItem(k)
+      if (k.endsWith('.home.whatsnew.v2')) localStorage.removeItem(k)
     }
   })
   await page.goto('/')

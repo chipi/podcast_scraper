@@ -11,11 +11,10 @@ import { useI18n } from "vue-i18n"
 defineOptions({ name: "HomeView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink } from "vue-router"
 import {
-  getDiscover,
+  getWhatsNew,
   getEpisode,
   getPlaybackList,
   getRelated,
-  recordDiscoverClick,
 } from "../services/api"
 import type { EpisodeDetail, EpisodeSummary } from "../services/types"
 import { formatTime } from "../player/transcriptSync"
@@ -61,8 +60,13 @@ const { isPlayed } = usePlayed()
 // localStorage remains the fast-path fallback until the server responds.
 const INTERESTS_DISMISSED_PREF_KEY = "lp.interests.dismissed"
 
-const whatsNew = useSectionState<EpisodeSummary[]>([], { cacheKey: "home.whatsnew" })
-const latest = computed(() => whatsNew.data.value)
+// What's new is the listener's own world, newest first (operator 2026-10-07) — `scope` says
+// whether it is (`yours`) or the every-show fallback (`all`), and the kicker says the same.
+const whatsNew = useSectionState<{ items: EpisodeSummary[]; scope: "yours" | "all" }>(
+  { items: [], scope: "all" },
+  { cacheKey: "home.whatsnew.v2" },
+)
+const latest = computed(() => whatsNew.data.value.items)
 /**
  * Continue gets the same contract as every other section (#1591, S7): a playback outage must not
  * silently swap the resume hero for the discover hero. An outage that looks like a new account is
@@ -154,7 +158,7 @@ async function onInterestsSaved(): Promise<void> {
  * which renders a message and a retry.
  */
 function loadWhatsNew(): Promise<void> {
-  return whatsNew.load(async () => (await getDiscover(8)).items)
+  return whatsNew.load(() => getWhatsNew(5))
 }
 
 /** #1591 — Recommended, same contract: a rejection is an error phase, not an empty list. */
@@ -204,14 +208,18 @@ const wnRows = computed(() => latest.value.slice(1, 5))
 // Ranked "chart" rows 02–05 beneath the #01 hero (operator 2026-09-14): the numbered leaderboard
 // look is the point. wnRows starts at latest[1], so row i is rank i+2.
 const rank = (i: number): string => String(i + 2).padStart(2, "0")
-// The row's discover-position telemetry must count a click on THIS EPISODE only. The wrapping <li>
-// catches every bubbled click inside the card — action buttons, the "Read more" toggle, and the
-// show-name link that navigates AWAY to the podcast — so record only when the clicked anchor is one
-// of the episode's own links (artwork/title → player), identified by the slug in its href.
-function onWnRowClick(e: MouseEvent, slug: string, position: number): void {
-  const href = (e.target as HTMLElement | null)?.closest("a")?.getAttribute("href")
-  if (href && href.includes(slug)) recordDiscoverClick(slug, position)
-}
+/**
+ * The What's new kicker says WHOSE new it is (operator 2026-10-07): the listener's shows and topics,
+ * or — the fallback when they follow nothing that matches — every show. Recommended's kicker says
+ * the other half: picked from what they listen to.
+ */
+const whatsNewKicker = computed(() => {
+  const scope =
+    whatsNew.data.value.scope === "yours" ? t("home.whatsNewYours") : t("home.whatsNewAll")
+  return whatsNewSince.value
+    ? t("home.whatsNewKicker", { scope, date: whatsNewSince.value })
+    : scope
+})
 const resumeTop = computed(() => continueItems.value[0] ?? null)
 // "Jump back in" (H.5): every OTHER in-progress listen beyond the resume hero, so multiple active
 // episodes are all reachable (cap a handful for the rail).
@@ -530,7 +538,7 @@ async function loadContinue(): Promise<void> {
     <!-- Recommended — no-scroll responsive grid. Up here, right after the look back, and What's
          new at the bottom (operator 2026-10-07): picks for YOU lead, the corpus-wide feed follows. -->
     <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
-      <SectionHeading :title="t('home.recommended')" />
+      <SectionHeading :title="t('home.recommended')" :kicker="t('home.recommendedKicker')" />
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
       <!-- The SAME tile the Discover grid uses (operator 2026-09-17), not a second copy of it.
            This grid was hand-rolled here: square artwork, overlaid actions, show name and title —
@@ -623,7 +631,7 @@ async function loadContinue(): Promise<void> {
       <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7 min-w-0 lg:w-1/2">
       <SectionHeading
         :title="t('home.whatsNew')"
-        :kicker="whatsNewSince ? t('home.whatsNewSince', { date: whatsNewSince }) : null"
+        :kicker="whatsNewKicker"
       >
         <template #action>
           <RouterLink
@@ -650,7 +658,6 @@ async function loadContinue(): Promise<void> {
           <RouterLink
             :to="{ name: 'player', params: { slug: wnFeatured.slug } }"
             class="relative block overflow-hidden rounded-2xl border border-border no-underline text-canvas-foreground"
-            @click="recordDiscoverClick(wnFeatured.slug, 0)"
           >
             <img
               v-if="epArt(wnFeatured)"
@@ -686,13 +693,12 @@ async function loadContinue(): Promise<void> {
         <!-- Ranked rows 02–06 (operator 2026-09-14): the numbered chart look, same capped column as
              the featured card so they line up. Each row carries the #01 card's actions, stacked in a
              column (operator 2026-10-05) — the side-by-side cluster is what once crushed the title.
-             Tapping a row opens it. The wrapping <li> keeps the discover-position telemetry. -->
+             Tapping a row opens it. -->
         <ul class="mt-2 max-w-3xl">
           <li
             v-for="(ep, i) in wnRows"
             :key="ep.slug"
             class="flex items-center gap-1 border-b border-border py-3 last:border-b-0"
-            @click="onWnRowClick($event, ep.slug, i + 1)"
           >
             <RouterLink
               :to="{ name: 'player', params: { slug: ep.slug } }"

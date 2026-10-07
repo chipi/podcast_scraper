@@ -150,8 +150,8 @@ function signIn(): void {
 
 describe('HomeView (discover state, signed out)', () => {
   it('renders the ask hero and What\'s new, but no shows section', async () => {
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({
-      items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep')], page: 1, page_size: 8, total: 2, has_more: false,
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({
+      items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep')], scope: 'all',
     })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([
       { feed_id: 'showa', title: 'Show A', artwork_url: null, image_url: null, episode_count: 2 } as Podcast,
@@ -172,8 +172,8 @@ describe('HomeView (discover state, signed out)', () => {
   it('shows artwork on What\'s-new rows 02+ (#15 variant A)', async () => {
     const row = ep('a-2', 'Second Ep')
     row.artwork_url = 'https://x/row.png'
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({
-      items: [ep('a-1', 'First Ep'), row], page: 1, page_size: 8, total: 2, has_more: false,
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({
+      items: [ep('a-1', 'First Ep'), row], scope: 'all',
     })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
@@ -185,9 +185,8 @@ describe('HomeView (discover state, signed out)', () => {
   })
 
   it("What's new: #01 carries ♡ queue ⋯ in a row; 02+ stack queue ⋯ with the ♡ in the ⋯ (operator 2026-10-07)", async () => {
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({
-      items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep'), ep('a-3', 'Third Ep')],
-      page: 1, page_size: 8, total: 3, has_more: false,
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({
+      items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep'), ep('a-3', 'Third Ep')], scope: 'all',
     })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
@@ -217,8 +216,8 @@ describe('HomeView (discover state, signed out)', () => {
   })
 
   it("What's new: the card and rows OPEN the episode — only Resume plays (operator 2026-10-05)", async () => {
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({
-      items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep')], page: 1, page_size: 8, total: 2, has_more: false,
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({
+      items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep')], scope: 'all',
     })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
@@ -234,8 +233,8 @@ describe('HomeView (discover state, signed out)', () => {
   })
 
   it('has no Trends — they live on Discover only (operator 2026-10-07)', async () => {
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({
-      items: [ep('a-1', 'First Ep')], page: 1, page_size: 8, total: 1, has_more: false,
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({
+      items: [ep('a-1', 'First Ep')], scope: 'all',
     })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
@@ -257,7 +256,7 @@ describe('HomeView (discover state, signed out)', () => {
   })
 
   it('submitting the search navigates to /search', async () => {
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({ items: [], page: 1, page_size: 8, total: 0, has_more: false })
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({ items: [], scope: 'all', })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
     const push = vi.spyOn(router, 'push')
@@ -279,7 +278,7 @@ describe('HomeView distinguishes empty from broken (#1591)', () => {
   it('renders an error with a retry when the fetch fails', async () => {
     // The defect: every section did `.catch(() => [])` and then hid itself when empty, so a total
     // API outage rendered the same page as a brand-new account — a hero, a search box, two chips.
-    vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('boom'))
+    vi.spyOn(api, 'getWhatsNew').mockRejectedValue(new Error('boom'))
     const w = mountKeptAlive()
     await flushPromises()
 
@@ -291,7 +290,7 @@ describe('HomeView distinguishes empty from broken (#1591)', () => {
 
   it('retry re-fetches and recovers', async () => {
     // No error state anywhere in the app previously offered a retry: the only move was a reload.
-    const spy = vi.spyOn(api, 'getDiscover').mockRejectedValueOnce(new Error('boom'))
+    const spy = vi.spyOn(api, 'getWhatsNew').mockRejectedValueOnce(new Error('boom'))
     const w = mountKeptAlive()
     await flushPromises()
     expect(w.find('[data-testid="section-error"]').exists()).toBe(true)
@@ -309,8 +308,8 @@ describe('HomeView distinguishes empty from broken (#1591)', () => {
   it('a successful-but-empty load still hides the section', async () => {
     // Hide when the SYSTEM is empty — there is no action the user can take, so an empty shell is
     // noise. Contrast "Your shows", which is empty because of a user action not yet taken.
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({
-      items: [], page: 1, page_size: 8, total: 0, has_more: false,
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({
+      items: [], scope: 'all',
     })
     const w = mountKeptAlive()
     await flushPromises()
@@ -325,7 +324,7 @@ describe('HomeView distinguishes empty from broken (#1591)', () => {
 
 describe('HomeView interests card (3.5)', () => {
   beforeEach(() => {
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({ items: [], page: 1, page_size: 8, total: 0, has_more: false })
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({ items: [], scope: 'all', })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
   })
@@ -495,8 +494,8 @@ describe('HomeView interests card (3.5)', () => {
   })
 
   it('carries no Trending shows section — it lives on Discover (operator 2026-10-05)', async () => {
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({
-      items: [], page: 1, page_size: 8, total: 0, has_more: false,
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({
+      items: [], scope: 'all',
     })
     vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
     const trending = vi.spyOn(api, 'getTrending')
@@ -515,8 +514,8 @@ describe('HomeView interests card (3.5)', () => {
   // catalogue, left Home with Trending shows (2026-10-05).
 
   it('a playback outage does not silently swap the resume hero for the discover hero', async () => {
-    vi.spyOn(api, 'getDiscover').mockResolvedValue({
-      items: [], page: 1, page_size: 8, total: 0, has_more: false,
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({
+      items: [], scope: 'all',
     })
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('502'))
@@ -656,9 +655,9 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
 
   it('keeps the cached rail and says it is stale, instead of an error card', async () => {
     readCached.mockImplementation(async (k: string) =>
-      k === 'home.whatsnew' ? [ep('a-1', 'From Last Time')] : null,
+      k === 'home.whatsnew.v2' ? { items: [ep('a-1', 'From Last Time')], scope: 'all' } : null,
     )
-    vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('offline'))
+    vi.spyOn(api, 'getWhatsNew').mockRejectedValue(new Error('offline'))
     const w = mountKeptAlive()
     await flushPromises()
 
@@ -678,9 +677,9 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
     // A stale section renders no error card, so it offers no `section-retry`. Without this the
     // page would be quieter and have no way to refresh at all.
     readCached.mockImplementation(async (k: string) =>
-      k === 'home.whatsnew' ? [ep('a-1', 'From Last Time')] : null,
+      k === 'home.whatsnew.v2' ? { items: [ep('a-1', 'From Last Time')], scope: 'all' } : null,
     )
-    const spy = vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('offline'))
+    const spy = vi.spyOn(api, 'getWhatsNew').mockRejectedValue(new Error('offline'))
     const w = mountKeptAlive()
     await flushPromises()
     const calls = spy.mock.calls.length
@@ -703,30 +702,41 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
     ).toBe(false)
   })
 
-  it("What's-new row telemetry fires for the episode link (the row is a single player link)", async () => {
-    // onWnRowClick records a discover-click only when the clicked anchor's href contains the
-    // episode slug. The restored numbered rows (operator 2026-09-14) are ONE link to the player —
-    // the show name is plain text, not a second link that navigates away — so a row click always
-    // means "this episode". Two whatsnew items → item[0] is featured, item[1] is the first row.
+  it("a What's-new row is one player link and reports no ranking click (operator 2026-10-07)", async () => {
+    // What's new is no longer the ranked /discover feed, so a click on it is not a ranking
+    // impression to score — reporting one would credit a feed the listener never saw.
     readCached.mockImplementation(async (k: string) =>
-      k === 'home.whatsnew' ? [ep('feat-0', 'Featured'), ep('row-one', 'Row One')] : null,
+      k === 'home.whatsnew.v2' ? { items: [ep('feat-0', 'Featured'), ep('row-one', 'Row One')], scope: 'all' } : null,
     )
-    vi.spyOn(api, 'getDiscover').mockRejectedValue(new Error('offline'))
+    vi.spyOn(api, 'getWhatsNew').mockRejectedValue(new Error('offline'))
     const rec = vi.spyOn(api, 'recordDiscoverClick').mockReturnValue(undefined)
     const w = mountKeptAlive()
     await flushPromises()
 
     const rowUl = w.find('ul.max-w-3xl') // the What's-new rows list (featured sits in a separate div)
-    expect(rowUl.exists()).toBe(true)
     const rowLinks = rowUl.findAll('a')
     const epLink = rowLinks.find((a) => a.attributes('href')?.includes('row-one'))
     expect(epLink, 'the row should carry an episode link').toBeTruthy()
-    // No separate show link: the show name is plain text inside the one player link.
     expect(rowLinks.length, 'the row is a single link (no away-navigating show link)').toBe(1)
-
     await epLink!.trigger('click')
-    expect(rec).toHaveBeenCalledTimes(1)
-    expect(rec).toHaveBeenCalledWith('row-one', 1)
+    expect(rec).not.toHaveBeenCalled()
+  })
+
+  it("labels What's new by whose it is, and Recommended by why (operator 2026-10-07)", async () => {
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({ items: [ep('a-1', 'Mine')], scope: 'yours' })
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(w.text()).toContain('New in your shows and topics')
+    expect(w.text()).not.toContain('New across all shows')
+  })
+
+  it("says so when What's new falls back to every show", async () => {
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({ items: [ep('a-1', 'Anyone')], scope: 'all' })
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(w.text()).toContain('New across all shows')
   })
 
   it('no notice when everything is fresh', async () => {

@@ -24,8 +24,14 @@ from podcast_scraper.server import (
 )
 from podcast_scraper.server.app_audit import append_audit
 from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
-from podcast_scraper.server.app_discover_view import build_discover_pool, rank_discover
+from podcast_scraper.server.app_discover_view import (
+    build_discover_pool,
+    interest_relpaths,
+    rank_discover,
+    whats_new_rows,
+)
 from podcast_scraper.server.app_momentum import (
     MomentumConfig,
     resolve_as_of_week,
@@ -55,6 +61,7 @@ from podcast_scraper.server.schemas import (
     AppStorylinesResponse,
     AppTrendingEntity,
     AppTrendingResponse,
+    AppWhatsNewResponse,
 )
 
 # Every kind the momentum layer can rank (RFC-103). Namespaced ids per kind. `organization` (#2031)
@@ -259,6 +266,39 @@ def discover(
         )
     return AppEpisodesResponse(
         items=items, page=1, page_size=limit, total=len(items), has_more=False
+    )
+
+
+@router.get("/whats-new", response_model=AppWhatsNewResponse)
+def whats_new(
+    request: Request,
+    limit: int = Query(default=5, ge=1, le=20, description="Episodes to return."),
+    user: User = Depends(get_current_user),
+) -> AppWhatsNewResponse:
+    """Home's What's new: the newest episodes from what the listener follows (operator 2026-10-07).
+
+    Shows they follow, plus episodes carrying a followed topic, person, theme or storyline, newest
+    first. With nothing followed — or nothing matching — it is the newest across every show, and
+    ``scope`` says which, so the section can label itself honestly. Recommended is the
+    relevance-first section; this one is ordered by time only.
+    """
+    root = corpus_root_or_503(request)
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    data_dir = Path(raw_dir) if raw_dir is not None else None
+    feeds: list[str] = []
+    matching: set[str] = set()
+    if data_dir is not None:
+        feeds = [
+            str(x.get("feed_id") or "") for x in app_user_state.get_library(data_dir, user.user_id)
+        ]
+        matching = interest_relpaths(root, app_user_state.get_interests(data_dir, user.user_id))
+    rows = cached_catalog(root)
+    rows.sort(key=lambda r: (r.publish_date or ""), reverse=True)
+    picked, personal = whats_new_rows(
+        rows, followed_feeds=feeds, matching_relpaths=matching, limit=limit
+    )
+    return AppWhatsNewResponse(
+        items=[row_to_summary(root, r) for r in picked], scope="yours" if personal else "all"
     )
 
 

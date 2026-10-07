@@ -108,6 +108,12 @@ export interface EpisodeSummary {
 }
 
 /** Paginated catalog list (AppEpisodesResponse). */
+/** GET /api/app/whats-new — `yours` = from what the listener follows; `all` = every show. */
+export interface WhatsNewResponse {
+  items: EpisodeSummary[]
+  scope: 'yours' | 'all'
+}
+
 export interface EpisodesPage {
   items: EpisodeSummary[]
   page: number

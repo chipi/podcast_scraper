@@ -153,6 +153,9 @@ export const CACHE_KEYS = [
   // Listed here so sign-out clears them with everything else — a rail is per-account content too,
   // and leaving one behind would show the previous user's Home to the next one.
   'home.whatsnew',
+  // What's new became the listener's own world (operator 2026-10-07) — a new shape, so a new key;
+  // the old one stays listed so its leftovers are still cleared on sign-out.
+  'home.whatsnew.v2',
   'home.catalogue',
   'home.continue',
   'home.recommended',

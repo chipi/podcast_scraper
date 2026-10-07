@@ -86,7 +86,6 @@
     "stale": "Showing what you had last time — we couldn't reach the server.",
     "staleRetry": "Try again",
     "staleRetrying": "Trying…",
-    "whatsNewSince": "Since {date}",
     "whatsNew": "What's new",
     "browseAll": "Browse all",
     "discoverLabel": "Discover",
@@ -150,7 +149,11 @@
     "staleForcedAction": "Offline mode is on",
     "seeAllTrends": "See all",
     "trendsNotOpenable": "These aren’t linked to topic pages yet — momentum is still live.",
-    "rowNotOpenable": "{label} — nothing to open"
+    "rowNotOpenable": "{label} — nothing to open",
+    "whatsNewYours": "New in your shows and topics",
+    "whatsNewAll": "New across all shows",
+    "recommendedKicker": "Picked from what you listen to",
+    "whatsNewKicker": "{scope} · since {date}"
   },
   "ask": {
     "title": "Find any moment you've heard.",

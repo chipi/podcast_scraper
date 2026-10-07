@@ -7,6 +7,7 @@
  */
 
 import type {
+  WhatsNewResponse,
   RecapResponse,
   RecapWindow,
   AudioSource,
@@ -591,6 +592,12 @@ export function resolveEntity(q: string): Promise<EntitySearchResponse> {
 /** Home discovery feed — interest-ranked when enabled + signed-in, else recency (the default). */
 export function getDiscover(limit = 8): Promise<EpisodesPage> {
   return getJSON<EpisodesPage>("/discover", { limit })
+}
+
+/** Home's What's new (operator 2026-10-07): newest from what the listener follows, or — with
+ *  nothing followed or nothing matching — newest across every show. `scope` says which. */
+export function getWhatsNew(limit = 5): Promise<WhatsNewResponse> {
+  return getJSON<WhatsNewResponse>("/whats-new", { limit })
 }
 
 /** Fire-and-forget: log a click on a discovery-feed episode (its shown rank position) for
