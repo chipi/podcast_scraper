@@ -27,6 +27,7 @@ autoresearch. See issue #852.
 from __future__ import annotations
 
 import difflib
+import functools
 import logging
 import re
 import threading
@@ -171,6 +172,12 @@ _TITLE_PREFIXES: frozenset[str] = frozenset(
         "ambassador",
     }
 )
+_TITLE_PREFIX_STEMS: frozenset[str] = frozenset(p.rstrip(".") for p in _TITLE_PREFIXES)
+
+# The canonical-map build compares every candidate against every same-show cluster member, so
+# one name is cleaned millions of times on the production corpus. Cleaning is pure; cache it.
+# Bounded so a long-lived server cannot grow it without limit.
+_clean_cached = functools.lru_cache(maxsize=1 << 16)(_clean_entity_name)
 
 
 @dataclass
@@ -189,13 +196,21 @@ class EntityCandidate:
         return len(self.episodes)
 
 
-def _ratio(a: str, b: str) -> float:
-    return difflib.SequenceMatcher(None, a, b).ratio()
+def _ratio_below(a: str, b: str, threshold: float) -> bool:
+    """Exactly ``SequenceMatcher(None, a, b).ratio() < threshold``, mostly without the full match.
+
+    ``real_quick_ratio`` and ``quick_ratio`` are upper bounds on ``ratio`` (difflib documents
+    this), so a bound already under the threshold decides the answer.
+    """
+    matcher = difflib.SequenceMatcher(None, a, b)
+    if matcher.real_quick_ratio() < threshold or matcher.quick_ratio() < threshold:
+        return True
+    return matcher.ratio() < threshold
 
 
 def _strip_title_prefix(tokens: List[str]) -> List[str]:
     """Drop a leading title token like 'Dr.' or 'Ayatollah'. Returns the rest."""
-    if tokens and tokens[0].rstrip(".") in {p.rstrip(".") for p in _TITLE_PREFIXES}:
+    if tokens and tokens[0].rstrip(".") in _TITLE_PREFIX_STEMS:
         return tokens[1:]
     return tokens
 
@@ -265,7 +280,7 @@ def _token_count_tolerant_match(a: str, b: str, kind: str) -> bool:
 
 def _are_xep_variants(name_a: str, name_b: str, kind: str) -> bool:
     """Conservative cross-episode variant test (spelling drift, not distinct names)."""
-    a, b = _clean_entity_name(name_a), _clean_entity_name(name_b)
+    a, b = _clean_cached(name_a), _clean_cached(name_b)
     if not a or not b:
         return False
     if a == b:
@@ -309,7 +324,7 @@ def _are_xep_variants(name_a: str, name_b: str, kind: str) -> bool:
     # equal-token-count branch where we'd otherwise apply ratio similarity.
     if _is_acronymish(name_a, a) or _is_acronymish(name_b, b):
         return False
-    if _ratio(a, b) < _OVERALL_RATIO:
+    if _ratio_below(a, b, _OVERALL_RATIO):
         # One escape hatch: same token-count, otherwise-identical names, but
         # one token differs by nickname (Mike Selig vs Michael Selig). The
         # ratio test rejects because Mike/Michael are too dissimilar — but
@@ -352,7 +367,7 @@ def _are_xep_variants(name_a: str, name_b: str, kind: str) -> bool:
             and _ROMAN_NUMERAL_RE.match(y)
         ):
             return False  # regnal numbers: Charles I is not Charles II
-        if _ratio(x, y) < _TOKEN_RATIO and not _nickname_token_equiv(x, y):
+        if _ratio_below(x, y, _TOKEN_RATIO) and not _nickname_token_equiv(x, y):
             return False  # distinct words, not a spelling variant
     return True
 
@@ -424,15 +439,34 @@ def build_entity_canonical_map(
         # High-frequency first so the dominant spelling seeds (and wins) each cluster.
         items_sorted = sorted(items, key=lambda c: (-c.freq, c.name.lower()))
         clusters: List[List[EntityCandidate]] = []
-        for cand in items_sorted:
-            for cluster in clusters:
-                if same_show_required and not any(cand.shows & m.shows for m in cluster):
-                    continue
-                if any(_are_xep_variants(cand.name, m.name, kind) for m in cluster):
-                    cluster.append(cand)
-                    break
-            else:
-                clusters.append([cand])
+        if not same_show_required:
+            for cand in items_sorted:
+                for cluster in clusters:
+                    if any(_are_xep_variants(cand.name, m.name, kind) for m in cluster):
+                        cluster.append(cand)
+                        break
+                else:
+                    clusters.append([cand])
+        else:
+            # THE SHOW INDEX. A cluster can only take a candidate it shares a show with, and the
+            # old loop found that out by intersecting the candidate's shows with every member of
+            # EVERY cluster — quadratic, minutes on the prod corpus, and the cold start every
+            # restart waits on (entity search, share cards and trending block on this map).
+            # `clusters_by_show` holds, per show, the clusters any member of which appeared on it:
+            # exactly the clusters the old check let through. Visited in ascending index — the old
+            # loop's order — so the first match, and the map, are identical.
+            clusters_by_show: Dict[str, Set[int]] = {}
+            for cand in items_sorted:
+                eligible = sorted({i for s in cand.shows for i in clusters_by_show.get(s, ())})
+                for i in eligible:
+                    if any(_are_xep_variants(cand.name, m.name, kind) for m in clusters[i]):
+                        clusters[i].append(cand)
+                        break
+                else:
+                    clusters.append([cand])
+                    i = len(clusters) - 1
+                for s in cand.shows:
+                    clusters_by_show.setdefault(s, set()).add(i)
 
         for cluster in clusters:
             if len(cluster) < 2:

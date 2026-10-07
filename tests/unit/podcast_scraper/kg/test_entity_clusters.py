@@ -524,3 +524,78 @@ class TestTheSharedIdMapIsBuiltOnce:
         first = ec.cached_entity_id_map(tmp_path)
         first["person:injected"] = "person:oops"
         assert "person:injected" not in ec.cached_entity_id_map(tmp_path)
+
+
+def _reference_clusters(candidates, kind_of):
+    """The pre-index loop, verbatim in behaviour: every cluster scanned, show overlap per member."""
+    from podcast_scraper.kg.entity_clusters import _are_xep_variants
+
+    out = {}
+    by_kind = {}
+    for c in candidates.values():
+        by_kind.setdefault(c.kind, []).append(c)
+    for kind, items in sorted(by_kind.items()):
+        clusters = []
+        for cand in sorted(items, key=lambda c: (-c.freq, c.name.lower())):
+            for cluster in clusters:
+                if not any(cand.shows & m.shows for m in cluster):
+                    continue
+                if any(_are_xep_variants(cand.name, m.name, kind) for m in cluster):
+                    cluster.append(cand)
+                    break
+            else:
+                clusters.append([cand])
+        out[kind] = [[m.id for m in cl] for cl in clusters]
+    return out
+
+
+@pytest.mark.parametrize("seed", range(25))
+def test_show_index_clusters_exactly_like_the_full_scan(seed, monkeypatch):
+    # The cold start after every restart was this loop: 176 s on prod (16,231 candidates) because
+    # each candidate intersected its shows with every member of every cluster. The show index must
+    # change the cost only — the same clusters, in the same order, so the same map.
+    import random
+
+    from podcast_scraper.kg import entity_clusters as ec
+
+    rng = random.Random(seed)
+    firsts = ["Kevin", "Kevin", "Kara", "Ann", "Anne", "Sam", "Sam", "Dan"]
+    lasts = ["Roose", "Ross", "Swisher", "Lee", "Leigh", "Altman", "Altmann", "Gross"]
+    shows = [f"show{i}" for i in range(6)]
+    cands = {}
+    for i in range(120):
+        name = f"{rng.choice(firsts)} {rng.choice(lasts)}"
+        kind = rng.choice(["person", "person", "org"])
+        cid = f"{kind}:{i}"
+        eps = {f"e{rng.randrange(400)}" for _ in range(rng.randrange(1, 6))}
+        own = set(rng.sample(shows, rng.randrange(0, 3)))  # 0 shows on some: never merges
+        cands[cid] = _cand(cid, kind, name, eps, own)
+
+    captured = {}
+    real_pick = ec._pick_canonical
+
+    def spy(cluster):
+        captured.setdefault(cluster[0].kind, []).append([m.id for m in cluster])
+        return real_pick(cluster)
+
+    monkeypatch.setattr(ec, "_pick_canonical", spy)
+    ec.build_entity_canonical_map(cands, same_show_required=True)
+    want = {k: [c for c in v if len(c) >= 2] for k, v in _reference_clusters(cands, None).items()}
+    assert {k: v for k, v in captured.items()} == {k: v for k, v in want.items() if v}
+
+
+def test_ratio_below_agrees_with_the_full_ratio():
+    """The quick-ratio shortcut must never change a threshold decision."""
+    import difflib
+    import random
+
+    from podcast_scraper.kg import entity_clusters as ec
+
+    rng = random.Random(7)
+    alphabet = "abcdeiou rnst"
+    for _ in range(20000):
+        a = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 14)))
+        b = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 14)))
+        full = difflib.SequenceMatcher(None, a, b).ratio()
+        for threshold in (ec._TOKEN_RATIO, ec._OVERALL_RATIO):
+            assert ec._ratio_below(a, b, threshold) is (full < threshold), (a, b, threshold)
