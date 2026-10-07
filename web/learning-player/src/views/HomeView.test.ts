@@ -360,6 +360,10 @@ describe('HomeView interests card (3.5)', () => {
     // Buttons, with the labels the device journeys find them by.
     expect(card.get('[data-testid="interests-choose"]').text()).toBe('Choose interests')
     expect(card.get('[data-testid="interests-not-now"]').text()).toBe('Not now')
+    // The other way in: follow shows, which opens Discover on Shows (operator 2026-10-07).
+    const follow = card.get('[data-testid="interests-follow-shows"]')
+    expect(follow.text()).toBe('Follow shows')
+    expect(follow.attributes('href')).toBe('/browse?tab=shows')
   })
 
   it('does not greet an email-link account by its address', async () => {

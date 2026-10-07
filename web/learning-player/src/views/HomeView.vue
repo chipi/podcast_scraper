@@ -269,6 +269,10 @@ onActivated(async () => {
   // FAILED quiet refresh left the rail looking current — no stale flag, and therefore no notice
   // and no retry. The section's own failure handling is exactly what should run here.
   await loadContinue()
+  // What's new follows what you follow, so a return to Home re-reads it (operator 2026-10-07): a
+  // listener sent to Discover by the welcome card's "Follow shows" comes back to their own shows,
+  // not the every-show fallback they left. In place — only the first load shows a skeleton.
+  if (whatsNew.isReady.value) void loadWhatsNew()
   // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes). Only compute it
   // when we don't already have it, so returning to Home doesn't re-flicker it either.
   if (continueItems.value[0] && !recSection.isReady.value) await loadRecommended()
@@ -463,9 +467,18 @@ async function loadContinue(): Promise<void> {
         >
           {{ t("interests.cardCta") }}
         </button>
+        <!-- The other way to make Home yours (operator 2026-10-07): follow a few shows. Opens
+             Discover on its Shows tab, the destination Your Week's "Find shows" link uses. -->
+        <RouterLink
+          :to="{ name: 'browse', query: { tab: 'shows' } }"
+          class="inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
+          data-testid="interests-follow-shows"
+        >
+          {{ t("interests.followShows") }}
+        </RouterLink>
         <button
           type="button"
-          class="inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
+          class="inline-flex h-11 items-center rounded-full px-3 text-sm font-semibold text-muted transition hover:text-canvas-foreground"
           data-testid="interests-not-now"
           @click="dismissInterests"
         >
