@@ -24,12 +24,13 @@ from pathlib import Path
 from typing import Iterable
 
 from ...migrations.gil_kg_identity_migrations import migrate_gi_document_v3_1
+from ...utils.corpus_walk import corpus_rglob
 from ..migration import Migration, MigrationContext, MigrationResult
 
 
 def _iter_gi_files(root: Path) -> Iterable[Path]:
     """All ``*.gi.json`` files under ``root`` (recursive). Stable order."""
-    return sorted(root.rglob("*.gi.json"))
+    return sorted(corpus_rglob(root, "*.gi.json"))
 
 
 class GiV31RouteAndTagMigration(Migration):

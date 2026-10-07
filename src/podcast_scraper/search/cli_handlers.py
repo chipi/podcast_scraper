@@ -21,6 +21,7 @@ from podcast_scraper.search.corpus_scope import (
 )
 from podcast_scraper.search.indexer import _scope_display_titles, index_corpus
 from podcast_scraper.search.protocol import SearchResult
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 from podcast_scraper.utils.path_validation import (
     safe_relpath_under_corpus_root,
@@ -1427,7 +1428,7 @@ def run_topic_insights_cli(args: Namespace, logger: logging.Logger) -> int:
     matched_cluster_ids: set = set()
     matched_clusters: List[Dict[str, Any]] = []
 
-    for gi_path in sorted(output_dir.rglob("*.gi.json")):
+    for gi_path in sorted(corpus_rglob(output_dir, "*.gi.json")):
         try:
             gi = json.loads(gi_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):

@@ -32,6 +32,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 logger = logging.getLogger(__name__)
 
 #: Attempts after which an episode stops being requeued and becomes a human's problem. One
@@ -92,7 +94,7 @@ def assess_summaries(corpus_root: Path) -> Dict[str, Dict[str, Any]]:
     latest_ok: Dict[str, Tuple[str, bool]] = {}
     seen: set = set()
 
-    for meta_path in sorted(corpus_root.rglob("*.metadata.json")):
+    for meta_path in sorted(corpus_rglob(corpus_root, "*.metadata.json")):
         doc = _read_json(meta_path)
         if not doc:
             continue

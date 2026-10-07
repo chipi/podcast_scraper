@@ -30,6 +30,7 @@ from podcast_scraper.search.corpus_scope import (
     index_fingerprint_scope_key,
     normalize_feed_id,
 )
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 from podcast_scraper.workflow.metadata_generation import _determine_gi_path
 
@@ -79,7 +80,7 @@ def scan_artifact_paths(output_dir: Path) -> List[Path]:
     metadata_dir = out / "metadata"
     if metadata_dir.is_dir():
         paths.extend(metadata_dir.glob("*.gi.json"))
-    for p in out.rglob("*.gi.json"):
+    for p in corpus_rglob(out, "*.gi.json"):
         if p not in paths:
             paths.append(p)
     return sorted(set(paths))

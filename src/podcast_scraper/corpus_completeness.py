@@ -25,6 +25,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 from .search.backends.lancedb_backend import LANCE_SCHEMA_VERSION, stored_schema_version
 from .search.hybrid_search import lance_index_dir
 from .search.topic_clusters import TOPIC_CLUSTERS_FILENAME
@@ -133,7 +135,7 @@ def _collect_edge_types(corpus_root: Path) -> Tuple[Set[str], int]:
     """
     edge_types: Set[str] = set()
     seen = 0
-    for gi_path in sorted(corpus_root.rglob("*.gi.json")):
+    for gi_path in sorted(corpus_rglob(corpus_root, "*.gi.json")):
         seen += 1
         try:
             with open(gi_path, encoding="utf-8") as fh:
@@ -148,7 +150,7 @@ def _collect_edge_types(corpus_root: Path) -> Tuple[Set[str], int]:
 
 def _has_enrichments(corpus_root: Path) -> bool:
     """True when at least one non-empty ``enrichments/`` dir exists under a run."""
-    for enr in corpus_root.rglob("enrichments"):
+    for enr in corpus_rglob(corpus_root, "enrichments"):
         if enr.is_dir() and any(enr.iterdir()):
             return True
     return False

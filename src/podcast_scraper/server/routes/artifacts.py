@@ -15,6 +15,7 @@ from podcast_scraper.server.corpus_catalog import publish_calendar_date_for_arti
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import ArtifactItem, ArtifactListResponse
 from podcast_scraper.utils.corpus_episode_paths import corpus_search_parent_hint
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 router = APIRouter(tags=["artifacts"])
 
@@ -67,8 +68,8 @@ def list_artifacts(
     base = resolve_corpus_path_param(path, anchor)
     items: list[ArtifactItem] = []
     seen: set[Path] = set()
-    for pattern in ("**/*.gi.json", "**/*.kg.json", "**/*.bridge.json"):
-        for p in sorted(base.glob(pattern)):
+    for pattern in ("*.gi.json", "*.kg.json", "*.bridge.json"):
+        for p in sorted(corpus_rglob(base, pattern)):
             if not p.is_file() or p in seen:
                 continue
             seen.add(p)

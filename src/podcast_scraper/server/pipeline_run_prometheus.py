@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from podcast_scraper.utils.corpus_walk import prune_excluded_dirs
+
 logger = logging.getLogger(__name__)
 
 _SECONDS_BUCKETS = (
@@ -67,7 +69,8 @@ def discover_run_json_paths_in_mtime_window(
     safe_prefix = root_safe + os.sep
     out: list[Path] = []
     try:
-        for dirpath, _, filenames in os.walk(root_safe):
+        for dirpath, dirnames, filenames in os.walk(root_safe):
+            prune_excluded_dirs(dirnames)
             if "run.json" not in filenames:
                 continue
             candidate = os.path.normpath(os.path.join(dirpath, "run.json"))

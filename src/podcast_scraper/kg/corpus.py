@@ -8,6 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 from .io import read_artifact
@@ -43,7 +44,7 @@ def scan_kg_artifact_paths(output_dir: Path) -> List[Path]:
     metadata_dir = out / "metadata"
     if metadata_dir.is_dir():
         paths.extend(metadata_dir.glob("*.kg.json"))
-    for p in out.rglob("*.kg.json"):
+    for p in corpus_rglob(out, "*.kg.json"):
         if p not in paths:
             paths.append(p)
     return sorted(set(paths))
@@ -100,7 +101,7 @@ def collect_kg_paths_from_inputs(paths: List[Path]) -> List[Path]:
                 raise ValueError(f"Not a .kg.json file: {p}")
             result.append(p)
             continue
-        for child in p.rglob("*.kg.json"):
+        for child in corpus_rglob(p, "*.kg.json"):
             result.append(child)
     return sorted(set(result))
 

@@ -10,6 +10,8 @@ import logging
 from pathlib import Path
 from typing import Any, cast, Dict, List, Optional, Tuple
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 from .contracts import EvidenceSpan, InsightSummary, InspectOutput, SupportingQuote
 from .io import read_artifact
 
@@ -329,7 +331,7 @@ def find_artifact_by_episode_id(
 def find_artifact_by_insight_id(output_dir: Path, insight_id: str) -> Optional[Path]:
     """Scan output_dir for *.gi.json containing a node with the given insight id."""
     output_path = Path(output_dir)
-    for path in output_path.rglob("*.gi.json"):
+    for path in corpus_rglob(output_path, "*.gi.json"):
         try:
             artifact = read_artifact(path, validate=False)
             for node in artifact.get("nodes", []):

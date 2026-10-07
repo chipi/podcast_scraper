@@ -45,12 +45,13 @@ from ...identity.bare_name_scope import (
     plan_bare_name_ids,
     rewrite_ids,
 )
+from ...utils.corpus_walk import corpus_rglob
 from ..migration import Migration, MigrationContext, MigrationResult
 
 
 def _iter_gi_files(root: Path) -> Iterable[Path]:
     """All ``*.gi.json`` files under *root* (recursive). Stable order."""
-    return sorted(root.rglob("*.gi.json"))
+    return sorted(corpus_rglob(root, "*.gi.json"))
 
 
 def _kg_sibling(gi_path: Path) -> Path:

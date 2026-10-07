@@ -43,6 +43,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 from .corpus import is_legacy_placeholder_artifact, resolve_episode_gi_path
 
 logger = logging.getLogger(__name__)
@@ -81,7 +83,7 @@ def _corpus_member_metadata(corpus_root: Path) -> Tuple[List[Path], bool]:
     Returns ``(paths, used_canonical_rule)``; the flag lets the report say so, and lets a corpus
     the rule cannot be applied to fall back to a plain scan rather than failing.
     """
-    all_paths = sorted(corpus_root.rglob("*.metadata.json"))
+    all_paths = sorted(corpus_rglob(corpus_root, "*.metadata.json"))
     try:
         from ..search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
 

@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 else:
     Episode = models.Episode  # type: ignore[assignment]
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 from ..exceptions import ProviderError, ProviderRuntimeError
 from ..languages import transcription_language
 from ..languages_guard import is_target_language
@@ -3027,7 +3029,7 @@ def _existing_transcript_for(
     idx_prefix = f"{search_idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d} - "
     matches = [
         p
-        for p in search_root.glob(f"**/{filesystem.TRANSCRIPTS_SUBDIR}/{idx_prefix}*.txt")
+        for p in corpus_rglob(search_root, f"{filesystem.TRANSCRIPTS_SUBDIR}/{idx_prefix}*.txt")
         if ".adfree." not in p.name
         and p.with_name(p.name[: -len(".txt")] + ".segments.json").exists()
     ]

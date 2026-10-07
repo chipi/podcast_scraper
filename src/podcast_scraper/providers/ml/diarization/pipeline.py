@@ -11,6 +11,8 @@ import threading
 from pathlib import Path
 from typing import AbstractSet, Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 from .... import config
 from ....languages import transcription_language
 from ....speaker_detectors.normalization import filter_default_speaker_names
@@ -289,7 +291,9 @@ def _feed_recurring_text(cfg: config.Config) -> set:
         stem = name[: -len(".txt")] if name.endswith(".txt") else name
         return not any(stem.endswith(s[:-1]) for s in _lang_suffixes)
 
-    paths = [p for p in Path(out_dir).glob("**/transcripts/*.txt") if _is_episode_text(p.name)]
+    paths = [
+        p for p in corpus_rglob(Path(out_dir), "transcripts/*.txt") if _is_episode_text(p.name)
+    ]
     count = len(paths)
     cached = _recurring_cache.get(out_dir)
     if cached is not None and count <= cached[0]:

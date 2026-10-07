@@ -23,6 +23,7 @@ from podcast_scraper.server.schemas import (
     CorpusRunSummaryItem,
     CorpusStatsResponse,
 )
+from podcast_scraper.utils.corpus_walk import prune_excluded_dirs
 from podcast_scraper.utils.path_validation import safe_fixed_file_under_root
 
 logger = logging.getLogger(__name__)
@@ -262,7 +263,8 @@ def corpus_runs_summary(
     def _compute() -> list[CorpusRunSummaryItem]:
         discovered: list[str] = []
         safe_prefix = root_safe + os.sep
-        for dirpath, _, filenames in os.walk(root_safe):
+        for dirpath, dirnames, filenames in os.walk(root_safe):
+            prune_excluded_dirs(dirnames)
             if "run.json" not in filenames:
                 continue
             candidate = os.path.normpath(os.path.join(dirpath, "run.json"))

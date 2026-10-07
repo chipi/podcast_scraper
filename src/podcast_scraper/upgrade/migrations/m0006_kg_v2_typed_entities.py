@@ -20,12 +20,13 @@ from pathlib import Path
 from typing import Iterable
 
 from ...migrations.gil_kg_identity_migrations import migrate_kg_document_v2
+from ...utils.corpus_walk import corpus_rglob
 from ..migration import Migration, MigrationContext, MigrationResult
 
 
 def _iter_kg_files(root: Path) -> Iterable[Path]:
     """All ``*.kg.json`` files under ``root`` (recursive). Stable order."""
-    return sorted(root.rglob("*.kg.json"))
+    return sorted(corpus_rglob(root, "*.kg.json"))
 
 
 class KgV2TypedEntitiesMigration(Migration):

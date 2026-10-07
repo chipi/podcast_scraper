@@ -38,13 +38,6 @@ def metadata_sibling_for(artifact: Path, suffix: str) -> Path:
     return artifact.with_name(artifact.name[: -len(suffix)] + METADATA_SUFFIX)
 
 
-def _rel(path: Path, root: Path) -> str:
-    try:
-        return path.relative_to(root).as_posix()
-    except ValueError:
-        return path.as_posix()
-
-
 def select_served_artifacts(root: Path, suffix: str) -> Tuple[List[Path], List[Path]]:
     """``(served, superseded)`` artifact paths under *root* matching *suffix*, stable order.
 
@@ -56,18 +49,14 @@ def select_served_artifacts(root: Path, suffix: str) -> Tuple[List[Path], List[P
     silently drop an episode from a migration on the strength of a missing file, which is a worse
     failure than migrating one extra copy. It is also exactly what happens today.
     """
-    from ..search.corpus_scope import (
-        corpus_relpath_is_excluded,
-        dedupe_metadata_paths_newest_run_per_episode,
-    )
+    from ..search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
+    from ..utils.corpus_walk import corpus_rglob
 
     # Bookkeeping copies are never corpus content: upgrade backups, trash, job logs. Without this a
     # backed-up GI file whose metadata sibling was not backed up counted as an orphan and so as
     # SERVED — `upgrade verify` for 0010 read 4,219 old ids from m0017's own backups while the live
     # corpus held none (prod, 2026-10-03).
-    artifacts = sorted(
-        a for a in root.rglob(f"*{suffix}") if not corpus_relpath_is_excluded(_rel(a, root))
-    )
+    artifacts = sorted(corpus_rglob(root, f"*{suffix}"))
     if not artifacts:
         return [], []
 

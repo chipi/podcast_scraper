@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, cast, Dict, List
 
 from podcast_scraper.utils.atomic_io import write_json_atomic
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 from .schema import validate_artifact
 
@@ -29,7 +30,7 @@ def collect_gi_paths_from_inputs(paths: List[Path]) -> List[Path]:
                 raise ValueError(f"Not a .gi.json file: {p}")
             result.append(p)
             continue
-        for child in p.rglob("*.gi.json"):
+        for child in corpus_rglob(p, "*.gi.json"):
             result.append(child)
     return sorted(set(result))
 

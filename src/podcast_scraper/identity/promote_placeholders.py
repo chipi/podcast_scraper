@@ -65,6 +65,8 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 from .bare_name_scope import (
     person_node_ids_in,
     resolve_candidates,
@@ -166,7 +168,7 @@ def _name_of(gi: dict, kg: Optional[dict], person_id: str) -> str:
 
 
 def _iter_gi(root: Path):
-    return sorted(root.rglob("*.gi.json"))
+    return sorted(corpus_rglob(root, "*.gi.json"))
 
 
 def _load(path: Path) -> Optional[dict]:

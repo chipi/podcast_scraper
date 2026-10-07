@@ -33,6 +33,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterator, List, Optional, Tuple
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 logger = logging.getLogger(__name__)
 
 CORPUS_MEDIA_DIR = "media"
@@ -250,7 +252,7 @@ def _find_run_dirs(output_dir: str) -> List[str]:
     if not root.is_dir():
         return []
     seen: List[str] = []
-    for media_dir in root.glob("**/media"):
+    for media_dir in corpus_rglob(root, "media"):
         if not media_dir.is_dir():
             continue
         run_dir = media_dir.parent

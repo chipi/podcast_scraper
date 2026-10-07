@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 ArtifactKind = Literal["gi", "kg"]
@@ -96,9 +97,9 @@ def _fallback_rglob_candidates(
     want_feed: Optional[str],
     kind: ArtifactKind,
 ) -> List[Path]:
-    pattern = "**/*.gi.json" if kind == "gi" else "**/*.kg.json"
+    pattern = "*.gi.json" if kind == "gi" else "*.kg.json"
     found: List[Path] = []
-    for path in sorted(output_root.glob(pattern)):
+    for path in sorted(corpus_rglob(output_root, pattern)):
         if not path.is_file():
             continue
         if _episode_id_from_artifact_file(path) != episode_id:

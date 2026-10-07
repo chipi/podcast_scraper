@@ -16,6 +16,9 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, List, Optional, Tuple
 
 from podcast_scraper.utils import filesystem
+from podcast_scraper.utils.corpus_walk import (  # noqa: F401 - re-exported, its old home
+    corpus_relpath_is_excluded,
+)
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 logger = logging.getLogger(__name__)
@@ -98,29 +101,6 @@ def run_segment_from_flat_relpath(rel_posix: str) -> Optional[str]:
     if len(parts) >= 3 and parts[0].startswith("run_") and parts[1] == "metadata":
         return parts[0]
     return None
-
-
-def corpus_relpath_is_excluded(rel_posix: str) -> bool:
-    """True when a corpus-relative path lies under a RETIRED / non-content directory (#2161).
-
-    Corpus cleanup moves superseded artifacts to ``.trash/<ts>/feeds/<feed>/run_*/metadata/``.
-    Those files are real metadata for a real episode id, so every stage that walks the corpus for
-    membership used to collect them as if they were live — and because the trash path parses as
-    NEITHER corpus layout it was kept unconditionally and never compared against the live copy. The
-    episode was then collected twice, its id-keyed rows collided, and the index prune deleted the
-    LIVE copy's rows as "superseded".
-
-    The rule is by leading dot rather than a ``.trash`` literal: every dot-directory here
-    (``.trash``, ``.viewer`` job logs, caches) is bookkeeping, not corpus content, and a future
-    retirement directory should be excluded on the day it is introduced rather than after it
-    deletes data. Judged on the path RELATIVE to the corpus root, so a root that itself sits under
-    a dotted directory is unaffected.
-    """
-    return any(
-        seg.startswith(".") and seg not in (".", "..")
-        for seg in rel_posix.replace("\\", "/").split("/")
-        if seg
-    )
 
 
 #: Corpus-relative layouts this module knows how to reconcile. Anything else is unrecognised and

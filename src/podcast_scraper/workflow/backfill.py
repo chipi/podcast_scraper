@@ -21,6 +21,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 from ..rss.parser import extract_feed_category, extract_feed_metadata
 from ..server.atomic_write import atomic_write_text
 
@@ -29,9 +31,9 @@ logger = logging.getLogger(__name__)
 #: Covers the per-feed run layout (``feeds/<id>/run_*/metadata/*.metadata.<ext>``) and a flat
 #: ``metadata/*.metadata.<ext>`` — for both metadata_format kinds (advisor L7).
 _METADATA_GLOBS = (
-    "**/metadata/*.metadata.json",
-    "**/metadata/*.metadata.yaml",
-    "**/metadata/*.metadata.yml",
+    "metadata/*.metadata.json",
+    "metadata/*.metadata.yaml",
+    "metadata/*.metadata.yml",
 )
 
 #: ``url -> (raw RSS bytes, effective URL after redirects)``, or None on failure. The effective URL
@@ -132,7 +134,7 @@ def refresh_feed_metadata(
     # Group files by feed, capturing each feed's RSS url from the first file that carries one.
     by_feed: dict[str, list[Path]] = {}
     urls: dict[str, str] = {}
-    all_paths = sorted(p for glob in _METADATA_GLOBS for p in corpus_dir.glob(glob))
+    all_paths = sorted(p for glob in _METADATA_GLOBS for p in corpus_rglob(corpus_dir, glob))
     for path in all_paths:
         doc = _load(path)
         feed = doc.get("feed") if doc else None

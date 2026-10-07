@@ -46,6 +46,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 logger = logging.getLogger(__name__)
 
 #: The flat budget #558 replaced. A wall time within ~10 % of it is the fingerprint of the old
@@ -144,7 +146,7 @@ def _current_run_dirs(corpus_root: Path) -> Optional[set]:
     try:
         from ..search.corpus_scope import dedupe_metadata_paths_newest_run_per_episode
 
-        all_meta = sorted(corpus_root.rglob("*.metadata.json"))
+        all_meta = sorted(corpus_rglob(corpus_root, "*.metadata.json"))
         members = dedupe_metadata_paths_newest_run_per_episode(corpus_root, all_meta)
         return {str(Path(p).parent.parent) for p in members}
     except Exception as exc:  # noqa: BLE001 - the gate must still run without the search extra
@@ -176,7 +178,7 @@ def assess_preprocessing(
     keep = _current_run_dirs(corpus_root) if current_only else None
 
     runs: List[RunPreprocessing] = []
-    for metrics_path in sorted(corpus_root.rglob("metrics.json")):
+    for metrics_path in sorted(corpus_rglob(corpus_root, "metrics.json")):
         d = _read_json(metrics_path)
         if d is None:
             continue
@@ -224,7 +226,7 @@ def episode_durations_seconds(corpus_root: Path) -> Dict[str, float]:
     look affordable.
     """
     out: Dict[str, float] = {}
-    for meta in sorted(corpus_root.rglob("*.metadata.json")):
+    for meta in sorted(corpus_rglob(corpus_root, "*.metadata.json")):
         doc = _read_json(meta)
         if not doc:
             continue

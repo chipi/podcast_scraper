@@ -38,6 +38,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -122,7 +124,7 @@ def gather_corpus_topics(corpus_root: Path) -> List[TopicMention]:
     import json
 
     out: List[TopicMention] = []
-    for kg_path in corpus_root.rglob("*.kg.json"):
+    for kg_path in corpus_rglob(corpus_root, "*.kg.json"):
         try:
             data = json.loads(kg_path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:

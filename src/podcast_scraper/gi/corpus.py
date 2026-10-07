@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
+from podcast_scraper.utils.corpus_walk import corpus_rglob
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 from .io import read_artifact
@@ -100,7 +101,7 @@ def find_legacy_placeholder_artifacts(
     count the operator's go/no-go decision is made on. Pass ``include_superseded=True`` for a
     forensic sweep.
     """
-    all_paths = sorted(corpus_root.rglob("*.gi.json"))
+    all_paths = sorted(corpus_rglob(corpus_root, "*.gi.json"))
     scoped: Optional[List[Path]] = None if include_superseded else _member_gi_paths(corpus_root)
     if scoped:
         paths: List[Path] = scoped
@@ -182,7 +183,7 @@ def _member_gi_paths(corpus_root: Path) -> Optional[List[Path]]:
     except Exception:  # noqa: BLE001 - the work-list must still build without the search extra
         return None
 
-    all_meta = sorted(corpus_root.rglob("*.metadata.json"))
+    all_meta = sorted(corpus_rglob(corpus_root, "*.metadata.json"))
     try:
         members = dedupe_metadata_paths_newest_run_per_episode(corpus_root, all_meta)
     except Exception:  # noqa: BLE001
@@ -218,7 +219,7 @@ def find_gi_artifacts_for_episode_ids(
     if not wanted:
         return []
 
-    all_paths = sorted(corpus_root.rglob("*.gi.json"))
+    all_paths = sorted(corpus_rglob(corpus_root, "*.gi.json"))
     scoped = _member_gi_paths(corpus_root)
     if scoped:
         paths = scoped
@@ -259,7 +260,7 @@ def _read_json_safe(path: Path) -> Optional[Dict[str, Any]]:
 
 def summarize_legacy_placeholder_artifacts(corpus_root: Path) -> Dict[str, Any]:
     """Counts for an operator deciding whether a repair run is worth starting."""
-    total = len(sorted(corpus_root.rglob("*.gi.json")))
+    total = len(sorted(corpus_rglob(corpus_root, "*.gi.json")))
     found = find_legacy_placeholder_artifacts(corpus_root)
     return {
         "artifacts_total": total,
