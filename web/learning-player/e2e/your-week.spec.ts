@@ -9,7 +9,7 @@ import { signInIsolated } from './helpers'
  *  - signed-out → absent entirely. Signed-in with nothing yet → a FIRST-RUN line (#1591);
  *  - populated render: play an episode through the REAL API (two position saves, so listening time
  *    accrues), then "You listened to" renders. New episodes from followed shows are NOT here any more
- *    — they are What's new — so a follow alone leaves Your Week on its first-run line.
+ *    — they are What's new — so a follow alone leaves Your Week hidden.
  */
 
 /** Play an episode the way the player does: two saves, two minutes apart in position. */
@@ -36,45 +36,26 @@ test('Your Week is absent when signed out (RFC-120: anon → /welcome, no digest
   await expect(page.getByTestId('your-week')).toHaveCount(0)
 })
 
-test('Your Week teaches a fresh signed-in user instead of hiding (#1591)', async ({
+test('Your Week is skipped for a fresh signed-in user with nothing to review', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'your-week-empty', testInfo) // asserts signed-in (Sign out visible)
   await page.goto('/')
 
-  // While the welcome card asks a brand-new listener for interests, the card IS the teaching and an
-  // empty Your Week stays out of its way (operator 2026-10-07). Declining brings the first-run line.
+  // Operator 2026-10-08: no empty week in review. Not while the welcome card shows, and not after
+  // it is declined either — the section appears once there is something in it (next test).
   await expect(page.getByTestId('interests-welcome')).toBeVisible()
   await expect(page.getByTestId('your-week')).toHaveCount(0)
   await page.getByRole('button', { name: 'Not now' }).click()
-
-  // REVERSED contract. This previously asserted the section must NOT render when nothing is due.
-  // Hiding meant the user most in need of learning that a weekly digest exists — a brand-new one —
-  // got no hint of it, and an API outage was indistinguishable from a quiet week. See UXS-012.
-  const yourWeek = page.getByTestId('your-week')
-  await expect(yourWeek).toBeVisible()
-  await expect(yourWeek.getByTestId('yourweek-firstrun')).toBeVisible()
-
-  // ONE LINE, not four rows (#1978). #1591's contract is what this test is named for and it is
-  // intact — the section still teaches instead of hiding. The four-row list was the implementation:
-  // measured on a fresh account it stood 373px tall with zero episode links, sitting between the
-  // hero and "What's new" and saying "… will land here" four times. Compacting it moved What's new
-  // from y=771 to y=499 — above the fold on the surface every first-time tester lands on.
-  const firstRun = yourWeek.getByTestId('yourweek-firstrun')
-  await expect(firstRun.locator('li')).toHaveCount(0)
-  await expect(firstRun).toContainText(/fills in as you listen and save/i)
-  // The one action that actually starts the digest survives; it is the whole point of teaching.
-  await expect(firstRun.getByRole('link')).toHaveCount(1)
-
-  // Nothing to expand yet, so no compact/full toggle.
-  await expect(yourWeek.getByTestId('yourweek-toggle')).toHaveCount(0)
+  await expect(page.getByTestId('interests-welcome')).toHaveCount(0)
+  await expect(page.getByTestId('your-week')).toHaveCount(0)
 })
 
 test('Your Week shows what you listened to this week, and not the new episodes of a followed show', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'your-week-listened', testInfo)
-  // A follow alone: its new episodes are What's new's now, so Your Week stays on its first-run line.
+  // A follow alone does not fill it: a followed show's new episodes are What's new's now.
   const resp = await page.request.get('/api/app/episodes?page_size=50')
   const items = (await resp.json()).items as Array<{ feed_id: string }>
   expect((await page.request.post('/api/app/library', { data: { feed_id: items[0].feed_id } })).ok()).toBeTruthy()

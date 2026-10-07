@@ -27,6 +27,15 @@ test('Home surfaces the compact "Discover" strip and each chip deep-links into t
   await expect(nav.getByTestId('home-discover-topics')).toBeVisible()
   await expect(nav.getByTestId('home-discover-storylines')).toBeVisible()
   await expect(nav.getByTestId('home-discover-people')).toBeVisible()
+  await expect(nav.getByTestId('home-discover-themes')).toBeVisible()
+
+  // ONE row (operator 2026-10-08): the four chips share a top edge at phone width too.
+  const tops = await Promise.all(
+    ['topics', 'people', 'themes', 'storylines'].map(async (k) =>
+      Math.round((await nav.getByTestId(`home-discover-${k}`).boundingBox())!.y),
+    ),
+  )
+  expect(new Set(tops).size).toBe(1)
 
   await nav.getByTestId('home-discover-topics').click()
   await expect(page).toHaveURL(/\/browse\?trends=topic/)

@@ -91,3 +91,19 @@ export function dedupeByLabel(
   }
   return out
 }
+
+/**
+ * Each kind wears its own hue (`--lp-topic` / `--lp-person` / `--lp-theme` / `--lp-storyline`, the
+ * shared palette set 2026-10-04) and its own shape: a topic filled, a person and a theme outlined,
+ * a storyline tinted. Followed, suggested and found items all wear their kind's pill, so the colour
+ * teaches the kind; what differs between them is the mark — ×, + or ✓. Never the accent: that
+ * means 'you can act on this', not 'storyline'.
+ */
+export function kindPill(kind: InterestKind): string {
+  return {
+    storyline: 'lp-storyline-chip font-semibold text-storyline',
+    person: 'bg-overlay text-person ring-1 ring-inset ring-person/30',
+    theme: 'bg-overlay text-theme ring-1 ring-inset ring-theme/30',
+    topic: 'bg-overlay text-topic',
+  }[kind]
+}

@@ -69,7 +69,9 @@ const RESP: YourWeekResponse = {
   generated_at: '2026-08-07T00:00:00Z',
 }
 
-function mountIt(opts: { signedIn?: boolean; resp?: YourWeekResponse; layout?: 'full' | 'compact' } = {}) {
+function mountIt(
+  opts: { signedIn?: boolean; resp?: YourWeekResponse; layout?: 'full' | 'compact'; fail?: boolean } = {},
+) {
   setActivePinia(createPinia())
   const prefs = useUserPreferencesStore()
   vi.spyOn(prefs, 'hydrate').mockResolvedValue()
@@ -78,7 +80,8 @@ function mountIt(opts: { signedIn?: boolean; resp?: YourWeekResponse; layout?: '
   if (opts.signedIn) {
     useAuthStore().user = { user_id: 'u_1', email: 'd@l', name: 'Dev' }
   }
-  vi.spyOn(api, 'getYourWeek').mockResolvedValue(opts.resp ?? EMPTY)
+  if (opts.fail) vi.spyOn(api, 'getYourWeek').mockRejectedValue(new Error('boom'))
+  else vi.spyOn(api, 'getYourWeek').mockResolvedValue(opts.resp ?? EMPTY)
   const wrapper = mount(YourWeek, { global: { plugins: [i18n, router] } })
   return { wrapper, setSpy }
 }
@@ -94,36 +97,19 @@ describe('YourWeek section', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('renders a first-run state when signed in with nothing due (#1591)', async () => {
-    // Reverses the old self-hiding contract, deliberately. Hiding meant a brand-new user — the
-    // person most in need of learning a weekly digest exists — got no hint of it at all, and an
-    // API outage was indistinguishable from a quiet week.
+  it('renders nothing when signed in with nothing to review (operator 2026-10-08)', async () => {
+    // Reverses #1591's teach-instead-of-hide, at the operator's call: a week in review with nothing
+    // in it was an empty heading and a promise. Skip the section until there is something.
     const { wrapper } = mountIt({ signedIn: true, resp: EMPTY })
     await flushPromises()
-    expect(wrapper.find('section').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="yourweek-firstrun"]').exists()).toBe(true)
-    // ONE LINE, not four rows (#1978). #1591's contract — teach rather than self-hide — is intact
-    // and is what this asserts; the four-row list was its implementation, not its intent. Measured
-    // on a fresh account that list stood 373px tall with zero episode links, between the hero and
-    // "What's new", and said "… will land here" four times over.
-    expect(wrapper.findAll('[data-testid="yourweek-firstrun"] li')).toHaveLength(0)
-    // A week in review fills by listening and saving (operator 2026-10-07), not by following.
-    expect(wrapper.find('[data-testid="yourweek-firstrun"]').text()).toMatch(/fills in as you listen and save/i)
-    // No compact/full toggle: there is nothing to expand yet.
-    expect(wrapper.find('[data-testid="yourweek-toggle"]').exists()).toBe(false)
+    expect(wrapper.find('section').exists()).toBe(false)
   })
 
-  it('the first-run line offers the one action that starts filling it (#1591, #1978)', async () => {
-    // The four-row version distinguished USER-empty rows (blank because you follow nothing — so
-    // they linked) from SYSTEM-empty ones (they fill as you listen — so they explained). That
-    // distinction is subsumed rather than lost: one line, and the single action that actually
-    // starts the digest. The copy names follows only: marking moments fed the revisit rail, which
-    // is not shown here any more (2026-09-30).
-    const { wrapper } = mountIt({ signedIn: true, resp: EMPTY })
+  it('still shows when the load fails, so an outage is not mistaken for a quiet week', async () => {
+    const { wrapper } = mountIt({ signedIn: true, fail: true })
     await flushPromises()
-    const firstRun = wrapper.find('[data-testid="yourweek-firstrun"]')
-    expect(firstRun.findAll('a')).toHaveLength(1)
-    expect(firstRun.find('a').attributes('href')).toContain('browse')
+    expect(wrapper.find('section').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="yourweek-toggle"]').exists()).toBe(false)
   })
 
   it('stays hidden when signed out', async () => {
@@ -206,12 +192,11 @@ describe('YourWeek section', () => {
     }
   })
 
-  it('a digest holding ONLY revisit shows the first-run line, not an empty rail', async () => {
+  it('a digest holding ONLY revisit renders nothing, not an empty rail', async () => {
     const onlyRevisit: YourWeekResponse = { ...RESP, sections: [RESP.sections[0]] }
     const { wrapper } = mountIt({ signedIn: true, resp: onlyRevisit })
     await flushPromises()
-    expect(wrapper.find('[data-testid="yourweek-firstrun"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="yourweek-toggle"]').exists()).toBe(false)
+    expect(wrapper.find('section').exists()).toBe(false)
   })
 
   it('respects a saved full layout and shows per-section labels', async () => {

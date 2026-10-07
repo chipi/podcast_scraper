@@ -15,6 +15,16 @@ test("Follow shows from the welcome card, and What's new becomes yours on return
   await expect(page.getByTestId('interests-welcome')).toBeVisible()
   await expect(page.getByText('New across all shows', { exact: false })).toBeVisible()
 
+  // The step's action, "Skip step" and "Not now" share one row, at phone width too (operator
+  // 2026-10-08).
+  const card = page.getByTestId('interests-welcome')
+  const tops = await Promise.all(
+    ['interests-choose', 'guided-skip', 'interests-not-now'].map(async (id) =>
+      Math.round((await card.getByTestId(id).boundingBox())!.y),
+    ),
+  )
+  expect(new Set(tops).size).toBe(1)
+
   // Shows are step 2 of the guided start (operator 2026-10-07): skip interests to reach it.
   await page.getByTestId('guided-skip').click()
   await expect(page.getByTestId('interests-welcome')).toHaveAttribute('data-step', '2')

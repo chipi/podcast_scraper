@@ -43,6 +43,10 @@ const step = computed<1 | 2 | 3>(() => {
   if (showCount.value < MIN_SHOWS && !skippedShows.value) return 2
   return 3
 })
+/** "Skip step" and "Not now" — the two ways out, quieter than the step's action. */
+const EXIT_BUTTON =
+  "inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full px-2.5 text-sm font-semibold text-muted transition hover:text-canvas-foreground"
+
 const interestsToGo = computed(() => Math.max(0, MIN_INTERESTS - interestCount.value))
 
 /** Shows to follow in step 2 — the catalogue, newest-active first as the server returns it. */
@@ -85,29 +89,22 @@ onMounted(async () => {
       <p v-if="interestCount > 0" class="mt-2 text-sm font-semibold text-canvas-foreground" data-testid="guided-interests-to-go">
         {{ t("guided.interestsToGo", interestsToGo, { named: { count: interestsToGo } }) }}
       </p>
-      <div class="mt-4 flex flex-wrap items-center gap-3">
+      <!-- One row (operator 2026-10-08): the action, then "Skip step" (this step only) and "Not now"
+           (closes the whole guide), in that order. Text buttons for the two ways out, so the row
+           fits a phone without wrapping. -->
+      <div class="mt-4 flex flex-nowrap items-center gap-1">
         <button
           type="button"
-          class="inline-flex h-11 items-center rounded-full bg-accent px-5 text-sm font-bold text-accent-foreground shadow-sm transition hover:opacity-90"
+          class="inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full bg-accent px-4 text-sm font-bold text-accent-foreground shadow-sm transition hover:opacity-90"
           data-testid="interests-choose"
           @click="emit('choose-interests')"
         >
           {{ t("interests.cardCta") }}
         </button>
-        <button
-          type="button"
-          class="inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
-          data-testid="guided-skip"
-          @click="skippedInterests = true"
-        >
+        <button type="button" :class="EXIT_BUTTON" data-testid="guided-skip" @click="skippedInterests = true">
           {{ t("guided.skip") }}
         </button>
-        <button
-          type="button"
-          class="inline-flex h-11 items-center rounded-full px-3 text-sm font-semibold text-muted transition hover:text-canvas-foreground"
-          data-testid="interests-not-now"
-          @click="emit('dismiss')"
-        >
+        <button type="button" :class="EXIT_BUTTON" data-testid="interests-not-now" @click="emit('dismiss')">
           {{ t("interests.dismiss") }}
         </button>
       </div>
@@ -125,21 +122,19 @@ onMounted(async () => {
           <ShowTile :show="p" followable />
         </li>
       </CardRail>
-      <div class="mt-4 flex flex-wrap items-center gap-3">
+      <div class="mt-4 flex flex-nowrap items-center gap-1">
         <RouterLink
           :to="{ name: 'browse', query: { tab: 'shows' } }"
-          class="inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
+          class="inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full border border-border px-4 text-sm font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
           data-testid="interests-follow-shows"
         >
           {{ t("guided.allShows") }}
         </RouterLink>
-        <button
-          type="button"
-          class="inline-flex h-11 items-center rounded-full px-3 text-sm font-semibold text-muted transition hover:text-canvas-foreground"
-          data-testid="guided-skip"
-          @click="skippedShows = true"
-        >
+        <button type="button" :class="EXIT_BUTTON" data-testid="guided-skip" @click="skippedShows = true">
           {{ t("guided.skip") }}
+        </button>
+        <button type="button" :class="EXIT_BUTTON" data-testid="interests-not-now" @click="emit('dismiss')">
+          {{ t("interests.dismiss") }}
         </button>
       </div>
     </template>

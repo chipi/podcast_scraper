@@ -22,6 +22,7 @@ import { formatTime } from "../player/transcriptSync"
 import { formatDuration } from "../utils/format"
 import { formatPublishDate } from '../utils/format'
 import { episodeArtwork } from "../utils/episode"
+import { kindPill, type InterestKind } from "../utils/interests"
 import { useAuthStore } from "../stores/auth"
 import GuidedStart from "../components/GuidedStart.vue"
 import { useLibraryStore } from "../stores/library"
@@ -123,6 +124,14 @@ const pickerOpen = ref(false)
  * `GUIDED_START_PREF` is synced: `active` once shown, `done` once finished. "Not now" still dismisses.
  * A beta account that already chose interests before this existed never sees it.
  */
+/** Home's Discover strip: one chip per Trends kind, in the Interests page's order. */
+const DISCOVER_CHIPS: { kind: InterestKind; label: string; testid: string }[] = [
+  { kind: "topic", label: "home.tabTopics", testid: "home-discover-topics" },
+  { kind: "person", label: "home.tabPeople", testid: "home-discover-people" },
+  { kind: "theme", label: "home.themes", testid: "home-discover-themes" },
+  { kind: "storyline", label: "home.storylines", testid: "home-discover-storylines" },
+]
+
 const GUIDED_START_PREF = "lp.guidedStart"
 const guidedState = computed(() => userPrefs.get<string>(GUIDED_START_PREF))
 const showInterestsCard = computed(
@@ -529,10 +538,8 @@ async function loadContinue(): Promise<void> {
 
     <!-- Your Week — the personal digest LEADS the content, right under Continue / Jump-back-in
          (operator review): the forward-looking "what to play next" is the reason to open Home.
-         While the welcome card asks a new listener for interests, an EMPTY Your Week stays hidden:
-         the card is the teaching (operator 2026-10-07). It appears once they save interests or
-         decline with "Not now" — or as soon as it has content, e.g. after following a show. -->
-    <YourWeek :key="railKey" :hide-when-empty="showInterestsCard" />
+         It renders only once the week has something to review (operator 2026-10-08). -->
+    <YourWeek :key="railKey" />
 
     <!-- Search — the same section Discover renders (operator 2026-10-05: one screen family). Trends
          left Home (operator 2026-10-07) and lives on Discover only. Left half on `lg`, with the
@@ -594,48 +601,28 @@ async function loadContinue(): Promise<void> {
       </button>
     </section>
 
-    <!-- Discover entry points (operator 2026-09-14): a compact one-line strip — a "Discover" lead-in
-         + three chips deep-linking into Browse's Trends section on the matching kind.
+    <!-- Discover entry points: a small title line over one row of four chips, each deep-linking
+         into Browse's Trends section on its kind (`?trends=<kind>` selects and scrolls to it).
 
-         These pointed at a separate /trends page, which was a second, thinner copy of a section
-         Browse already renders — tapping a chip left the hub for a page with the same three tabs and
-         less around them. The operator called it "small pages that should not exist" (2026-09-18).
-         /trends is deleted; `?trends=<kind>` selects the kind and scrolls it into view. -->
-    <nav
-      class="mt-6 flex flex-wrap items-center gap-2 text-sm"
-      :aria-label="t('home.browseNavLabel')"
-      data-testid="home-browse-nav"
-    >
-      <span class="font-bold text-muted">{{ t("home.discoverLabel") }}</span>
-      <RouterLink
-        :to="{ name: 'browse', query: { trends: 'topic' } }"
-        data-testid="home-discover-topics"
-        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
-      >
-        {{ t("home.tabTopics") }}
-      </RouterLink>
-      <!-- Themes too (operator 2026-10-07): Trends has four kinds, and the strip linked three. -->
-      <RouterLink
-        :to="{ name: 'browse', query: { trends: 'theme' } }"
-        data-testid="home-discover-themes"
-        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
-      >
-        {{ t("home.themes") }}
-      </RouterLink>
-      <RouterLink
-        :to="{ name: 'browse', query: { trends: 'storyline' } }"
-        data-testid="home-discover-storylines"
-        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
-      >
-        {{ t("home.storylines") }}
-      </RouterLink>
-      <RouterLink
-        :to="{ name: 'browse', query: { trends: 'person' } }"
-        data-testid="home-discover-people"
-        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
-      >
-        {{ t("home.tabPeople") }}
-      </RouterLink>
+         Operator 2026-10-08: the inline "Discover" lead-in pushed the fourth chip onto a second
+         row, and plain grey chips said nothing about the kind. The lead-in is now a title above, so
+         the chips get the whole width, and each chip wears its kind's colour from `kindPill` — the
+         same pill the Interests page and episode notes use, so the colour already means "topic" or
+         "storyline" wherever the listener meets it. -->
+    <nav class="mt-6" :aria-label="t('home.browseNavLabel')" data-testid="home-browse-nav">
+      <p class="lp-kicker mb-2">{{ t("home.discoverLabel") }}</p>
+      <div class="flex flex-nowrap items-center gap-2 overflow-x-auto text-sm [scrollbar-width:none]">
+        <RouterLink
+          v-for="chip in DISCOVER_CHIPS"
+          :key="chip.kind"
+          :to="{ name: 'browse', query: { trends: chip.kind } }"
+          :data-testid="chip.testid"
+          class="shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 font-semibold no-underline transition hover:brightness-125"
+          :class="kindPill(chip.kind)"
+        >
+          {{ t(chip.label) }}
+        </RouterLink>
+      </div>
     </nav>
 
     <!-- Key voices (wave-G): the people most present in your corpus. Moved up to sit right after

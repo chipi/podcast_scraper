@@ -104,9 +104,12 @@ Region order, top to bottom:
    themes and storylines you follow ("New in your shows and topics"); with nothing followed, the newest
    across every show ("New across all shows"). At the bottom of Home since 2026-10-07; it absorbed
    Your Week's new-in-follows / new-in-interests.
-7. **Discover strip** — a compact `home-browse-nav` "Discover" strip (**Topics** / **Themes** /
-   **Storylines** / **People** chips; Themes added 2026-10-07) that deep-link into Discover's own Trends
-   section (`/browse?trends=topic`/`theme`/`storyline`/`person`), selecting that kind and scrolling it into view.
+7. **Discover strip** — `home-browse-nav`: a title line ("Explore what people are talking about")
+   over ONE row of chips, **Topics** / **People** / **Themes** / **Storylines** (Themes added
+   2026-10-07), each in its kind's colour — the same `kindPill` the Interests page uses, so the colour
+   means the kind everywhere (operator 2026-10-08; the inline "Discover" lead-in had pushed a chip onto
+   a second row). They deep-link into Discover's own Trends section
+   (`/browse?trends=topic`/`person`/`theme`/`storyline`), selecting that kind and scrolling it into view.
    *(Renamed from the old "Browse topics/people" links — operator 2026-09-14. They then pointed at a
    standalone `/trends` page, which was a thinner second copy of a section `/browse` already renders;
    that page is deleted — operator 2026-09-18.)*
@@ -179,9 +182,9 @@ corpus, a brand-new account and **a total API outage** render the same page.
   there is no action available. Hide; an empty shell is noise. *Storylines, Trending topics,
   Trending shows, Momentum, Recommended.*
 - **User-empty** — empty because of an action the user has not taken yet. **Render, and the empty
-  state must carry that action** — not a description of it, the action itself. *"Your Week" shows
-  one first-run line (#1978 replaced the per-section rows) — "fills as you follow shows, topics and
-  people" — carrying the one action that starts it, a link to the Shows index.*
+  state must carry that action** — not a description of it, the action itself. *Your Week was the
+  example here until 2026-10-08, when the operator ruled that an empty week in review is skipped,
+  not explained: it is now system-empty and hides.*
 
 A section that merely *describes* what the user could do is the failure mode this rule exists to
 prevent: it makes the reader go and find the control it is telling them about.
@@ -221,9 +224,9 @@ twice. The **email** keeps those sections — in an inbox, "what's new from your
 The email's **revisit** section is not shown here either (2026-09-30): due highlights have their own
 Home section, `RevisitRail`. Served live and **decoupled from email consent**. Two layouts behind a
 per-user synced preference: `compact` (one rail of the week's top items) and `full` (a labelled rail
-per section), flipped inline with "Show more / Show less". Empty, it is one first-run line ("fills in
-as you listen and save"); while the welcome card is asking a new listener for interests, an empty
-Your Week is hidden.
+per section), flipped inline with "Show more / Show less". Empty, it is not rendered at all (operator
+2026-10-08: "nothing to review is better than an empty section"); a failed load still shows, with
+retry, so an outage does not read as a quiet week.
 
 ### `KeyVoicesRail` — your key voices (wave-G)
 

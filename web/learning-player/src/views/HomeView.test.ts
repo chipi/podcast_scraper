@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { kindPill } from '../utils/interests'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
@@ -255,10 +256,23 @@ describe('HomeView (discover state, signed out)', () => {
     const nav = w.get('[data-testid="home-browse-nav"]')
     expect(nav.findAll('a').map((a) => a.attributes('href'))).toEqual([
       '/browse?trends=topic',
+      '/browse?trends=person',
       '/browse?trends=theme',
       '/browse?trends=storyline',
-      '/browse?trends=person',
     ])
+  })
+
+  it('each Discover chip wears its kind colour, the one Interests uses (operator 2026-10-08)', async () => {
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    const w = mountKeptAlive()
+    await flushPromises()
+    for (const kind of ['topic', 'person', 'theme', 'storyline'] as const) {
+      const chip = w.get(`[data-testid="home-discover-${kind === 'topic' ? 'topics' : kind === 'person' ? 'people' : `${kind}s`}"]`)
+      for (const cls of kindPill(kind).split(' ')) expect(chip.classes()).toContain(cls)
+    }
+    // One row: the lead-in is a title line above the chips, not a chip-row sibling.
+    expect(w.get('[data-testid="home-browse-nav"] > div').classes()).toContain('flex-nowrap')
   })
 
   it("Recommended is absent until there is a basis for it (operator 2026-10-07)", async () => {
@@ -404,7 +418,7 @@ describe('HomeView interests card (3.5)', () => {
     // Step 1 of the guided start (operator 2026-10-07): shows are step 2, reached by Skip or by
     // choosing three interests.
     expect(card.attributes('data-step')).toBe('1')
-    expect(card.get('[data-testid="guided-skip"]').text()).toBe('Skip')
+    expect(card.get('[data-testid="guided-skip"]').text()).toBe('Skip step')
   })
 
   it('does not greet an email-link account by its address', async () => {
@@ -417,8 +431,9 @@ describe('HomeView interests card (3.5)', () => {
     expect(card.text()).not.toContain('m@x.com')
   })
 
-  it('hides Your Week while the guided start runs; it appears once the start is finished (operator 2026-10-07)', async () => {
-    // A week in review for someone who has done nothing yet is empty by construction.
+  it('an empty Your Week stays hidden during and after the guided start (operator 2026-10-08)', async () => {
+    // A week in review for someone who has done nothing yet is empty by construction, and an
+    // empty one is skipped, not explained.
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
     vi.spyOn(api, 'getYourWeek').mockResolvedValue({ sections: [] } as never)
     signIn()
@@ -434,18 +449,20 @@ describe('HomeView interests card (3.5)', () => {
     await w.get('[data-testid="guided-finish"]').trigger('click')
     await flushPromises()
     expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(false)
-    expect(w.find('[data-testid="your-week"]').exists()).toBe(true)
+    expect(w.find('[data-testid="your-week"]').exists()).toBe(false)
   })
 
-  it('"Not now" also brings Your Week back', async () => {
+  it('"Not now" closes the whole guide; "Skip step" only moves past the step', async () => {
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
-    vi.spyOn(api, 'getYourWeek').mockResolvedValue({ sections: [] } as never)
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
     signIn()
     const w = mountKeptAlive()
     await flushPromises()
-    expect(w.find('[data-testid="your-week"]').exists()).toBe(false)
+    await w.get('[data-testid="guided-skip"]').trigger('click')
+    expect(w.get('[data-testid="interests-welcome"]').attributes('data-step')).toBe('2')
     await w.get('[data-testid="interests-not-now"]').trigger('click')
-    expect(w.find('[data-testid="your-week"]').exists()).toBe(true)
+    await flushPromises()
+    expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(false)
   })
 
   it('Your Week with content shows even beside the welcome card (followed a show, no interests)', async () => {
@@ -527,7 +544,7 @@ describe('HomeView interests card (3.5)', () => {
     expect(localStorage.getItem('lp.interests.dismissed')).toBeNull()
   })
 
-  // Compact "Discover" strip (renamed from Browse topics/people, operator 2026-09-14): three chips
+  // Compact Discover strip (renamed from Browse topics/people, operator 2026-09-14): chips
   // deep-linking into Browse's Trends section on the matching kind. The standalone /trends page
   // they used to open was a thinner copy of that section and is deleted (operator 2026-09-18).
   it('renders the compact "Discover" strip as Browse trends deep links', async () => {
@@ -539,7 +556,7 @@ describe('HomeView interests card (3.5)', () => {
     expect(hrefs).toContain('/browse?trends=topic')
     expect(hrefs).toContain('/browse?trends=storyline')
     expect(hrefs).toContain('/browse?trends=person')
-    expect(nav.text()).toContain('Discover')
+    expect(nav.text()).toContain('Explore what people are talking about')
   })
 
   it('carries no Trending shows section — it lives on Discover (operator 2026-10-05)', async () => {

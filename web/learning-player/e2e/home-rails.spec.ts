@@ -10,21 +10,10 @@ import { signInIsolated, showEveryonesTrends } from './helpers'
  * asserting in a browser: a rail with nothing to show **omits itself**. A unit test can prove a
  * component renders chips from props; only a real render against a real API can prove the section
  * does not leave an empty shell behind when the API returns nothing.
+ *
+ * Your Week's render-and-expand lives in `your-week.spec.ts`, against a listener with a real play:
+ * an empty Your Week is not rendered at all (operator 2026-10-08).
  */
-
-test('Your Week renders for a signed-in listener and can expand', async ({ page }, testInfo) => {
-  await signInIsolated(page, 'home-yourweek', testInfo)
-  await page.goto('/')
-
-  const week = page.getByTestId('your-week')
-  await expect(week).toBeVisible()
-  // compact ↔ full is a synced per-user preference; the inline control is the only way to reach it.
-  const toggle = week.getByRole('button', { name: /show more|show less/i }).first()
-  if (await toggle.isVisible().catch(() => false)) {
-    await toggle.click()
-    await expect(week).toBeVisible()
-  }
-})
 
 test('the discovery list lists rows and each one can be followed', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-momentum', testInfo)
