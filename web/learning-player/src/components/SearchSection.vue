@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * "Find any moment you've heard" — the search box, with two trending-topic chips under it. Home and
+ * "Find what's worth hearing" (operator 2026-10-07; it was "Find any moment you've heard", which
+ * read as a search of your own history to someone who had heard nothing yet) — the search box, with two trending-topic chips under it. Home and
  * Discover both render THIS, so the two entry points to one capability are one control and look
  * identical (operator 2026-10-05). Spacing is owned here, not by the page, for the same reason:
  * each page wrapping it its own way is exactly how the two screens drifted apart.
@@ -78,7 +79,10 @@ onMounted(async () => {
     </form>
     <!-- Just TWO examples: a single row that always fits, rather than a longer list clipped at the
          screen edge. The test ids keep Home's names on both pages — the chips were Home's. -->
-    <div v-if="heroTopics.length" data-testid="home-topic-chips" class="mt-3 flex flex-wrap gap-2">
+    <!-- "Try:" says what the chips ARE — suggested searches (operator 2026-10-07: a beta tester could
+         not tell). -->
+    <div v-if="heroTopics.length" data-testid="home-topic-chips" class="mt-3 flex flex-wrap items-center gap-2">
+      <span class="text-sm font-semibold text-muted" data-testid="home-topic-chips-label">{{ t("ask.tryLabel") }}</span>
       <button
         v-for="tp in heroTopics.slice(0, 2)"
         :key="tp.id"

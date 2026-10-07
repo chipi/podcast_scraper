@@ -142,7 +142,7 @@ test('every Home section header is the same shape', async ({ page }, testInfo) =
   ).toEqual([])
 
   // The kicker is a count or a date — never the title again in other words. Two did exactly that
-  // ("For you" over "Your Week"; "Ask across every episode" over "Find any moment you've heard.").
+  // ("For you" over "Your Week"; "Ask across every episode" over "Find what's worth hearing").
   const kickers = await page.getByTestId('section-kicker').allTextContents()
   for (const k of kickers) {
     expect(k, `kicker "${k}" carries no number or date`).toMatch(/\d/)

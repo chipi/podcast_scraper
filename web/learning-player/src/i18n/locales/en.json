@@ -156,9 +156,10 @@
     "whatsNewKicker": "{scope} · since {date}"
   },
   "ask": {
-    "title": "Find any moment you've heard.",
+    "title": "Find what's worth hearing",
     "kicker": "Ask across every episode",
-    "placeholder": "e.g. how memory consolidates…"
+    "placeholder": "e.g. how memory consolidates…",
+    "tryLabel": "Try:"
   },
   "rail": {
     "prev": "Scroll left",

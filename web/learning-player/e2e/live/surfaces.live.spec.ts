@@ -76,7 +76,7 @@ test.describe('signed-in UI surfaces', () => {
   test('Home renders the hero + discovery tabs', async ({ page }) => {
     await page.goto('/preview')
     // NOT the hero text: Home's hero is ADAPTIVE, and the smoke account has listening history, so
-    // it gets "Continue listening" rather than "Find any moment you've heard."
+    // it gets "Continue listening" rather than "Find what's worth hearing"
     await expect(page).not.toHaveURL(/\/welcome/)
     await expect(page.getByTestId('home-search-input')).toBeVisible()
     // The shared DiscoveryExplorer: tabs are by KIND now (Topics / Storylines / People), Topics

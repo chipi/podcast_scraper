@@ -36,7 +36,7 @@ test('coming-soon gate holds for the public (no preview creds)', async ({ browse
     await expect(page.getByText('Coming soon')).toBeVisible()
     // App-only marker (the home hero) must be absent — the "Close Listening" brand can also appear
     // on the marketing gate, so assert on something that ONLY the real app renders.
-    await expect(page.getByText("Find any moment you've heard.")).toHaveCount(0)
+    await expect(page.getByText("Find what's worth hearing")).toHaveCount(0)
   } finally {
     await ctx.close()
   }
@@ -54,7 +54,7 @@ test.describe('preview surface', () => {
     await expect(page).toHaveURL(/\/welcome/)
     await expect(page.getByTestId('landing-cta-primary')).toBeVisible()
     // The app's own hero must NOT be here — that is the marker separating landing from app.
-    await expect(page.getByText("Find any moment you've heard.")).toHaveCount(0)
+    await expect(page.getByText("Find what's worth hearing")).toHaveCount(0)
   })
 
   test('a SIGNED-IN preview user reaches the real app home', async ({ browser, baseURL }) => {
@@ -65,7 +65,7 @@ test.describe('preview surface', () => {
       await page.goto('/preview')
       await page.goto('/')
       // NOT the hero text. Home's hero is ADAPTIVE: a signed-in account with listening history
-      // gets "Continue listening", everyone else gets "Find any moment you've heard." The smoke
+      // gets "Continue listening", everyone else gets "Find what's worth hearing" The smoke
       // account has history precisely because the other live specs play episodes as it, so
       // asserting the hero made this test fail for the one account it runs as. The search bar is
       // on Home in both states, and its absence is what "we got bounced to /welcome" looks like.

@@ -160,7 +160,7 @@ describe('HomeView (discover state, signed out)', () => {
 
     const w = mountKeptAlive()
     await flushPromises()
-    expect(w.text()).toContain("Find any moment you've heard.") // discover hero
+    expect(w.text()).toContain("Find what's worth hearing") // discover hero
     expect(w.text()).toContain("What's new")
     expect(w.text()).toContain('First Ep')
     // "Your shows" is per-user (#1585): signed out there are no follows, so no section — and
