@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
 
+import { platformRoot } from './platform-root.mjs'
+
+const ROOT = platformRoot()
+
 /**
  * E2E config for the consumer Learning Player. Boots the Vite preview server and runs the
  * smoke + (later) full listen→capture specs. Mobile-first: the default project emulates a
@@ -79,26 +83,23 @@ export default defineConfig({
       // itself, so the version bump is not duplicated here. `reuseExistingServer` means a locally
       // running mock host (or the nginx `mock-feeds` container, for machines whose venv cannot run
       // this) is reused instead of a second bind.
-      command: '../../.venv/bin/python ../../scripts/tools/run_e2e_mock_server.py --port 18765',
+      command: `"${ROOT}/.venv/bin/python" "${ROOT}/scripts/tools/run_e2e_mock_server.py" --port 18765`,
       url: 'http://127.0.0.1:18765/audio/p05_e03.mp3',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
-      env: { PYTHONPATH: '../../src:../..' },
+      env: { PYTHONPATH: `${ROOT}/src:${ROOT}` },
     },
     {
-      // Paths are relative to this config's cwd — web/learning-player/ —
-      // so `../..` traverses back to the repo root (where .venv, src/,
-      // and tests/ live). Missed this on slice 14; caught by
-      // ``make test-app-e2e`` locally when the first run of playwright
-      // failed with `../.venv/bin/python: No such file or directory`.
+      // ROOT is the platform checkout (.venv, src/, tests/), found by platform-root.mjs so the
+      // same config runs from web/learning-player and from the private repo's apps/player/web.
       command:
-        'node e2e/prepare-corpus.mjs && ../../.venv/bin/python -m podcast_scraper.cli serve ' +
+        `node e2e/prepare-corpus.mjs && "${ROOT}/.venv/bin/python" -m podcast_scraper.cli serve ` +
         '--output-dir .e2e-corpus/v3 --port 8011 --host 127.0.0.1',
       url: 'http://127.0.0.1:8011/api/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
-        PYTHONPATH: '../../src',
+        PYTHONPATH: `${ROOT}/src`,
         // Use the cached MiniLM embedding model offline — the serve embeds the search query at
         // request time, and without this it tries to reach huggingface.co, fails, and every
         // /api/*/search returns embed_failed ("Search needs the library index"). The model is

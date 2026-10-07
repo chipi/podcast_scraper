@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
+import { appDocsRoot } from '../../platform-root.mjs'
 import surfaceMap from '../../e2e/E2E_SURFACE_MAP.md?raw'
 import routerSrc from '../router/index.ts?raw'
 
@@ -25,8 +25,6 @@ import routerSrc from '../router/index.ts?raw'
  * Deliberately NOT checked: that every testid in `src/` appears in the map. Not every testid is a
  * contract, and a noisy gate gets disabled.
  */
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // --- sources -----------------------------------------------------------------
 
@@ -91,7 +89,7 @@ const NOT_TESTIDS = new Set(['data-testid', 'aria-pressed', 'aria-expanded', 'ar
  * time keeps the guard where the app is, without widening `server.fs.allow` for everything.
  */
 function consumerUxsSrc(): string {
-  const dir = path.resolve(__dirname, '../../../../docs/uxs')
+  const dir = path.join(appDocsRoot(), 'uxs')
   return readdirSync(dir)
     .filter((f) => /^UXS-01[1234].*\.md$/.test(f))
     .map((f) => readFileSync(path.join(dir, f), 'utf8'))

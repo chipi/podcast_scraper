@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
 
+import { platformRoot } from './platform-root.mjs'
+
+const ROOT = platformRoot()
+
 /**
  * Tier-4: the analytics arc's end-to-end proof (#2263, epic slices 1–5).
  *
@@ -56,21 +60,21 @@ export default defineConfig({
   projects: [{ name: 'desktop-chrome', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
-      command: '../../.venv/bin/python ../../scripts/tools/run_e2e_mock_server.py --port 18765',
+      command: `"${ROOT}/.venv/bin/python" "${ROOT}/scripts/tools/run_e2e_mock_server.py" --port 18765`,
       url: 'http://127.0.0.1:18765/audio/p05_e03.mp3',
       reuseExistingServer: true,
       timeout: 120_000,
-      env: { PYTHONPATH: '../../src:../..' },
+      env: { PYTHONPATH: `${ROOT}/src:${ROOT}` },
     },
     {
       command:
-        'node e2e/prepare-corpus.mjs && ../../.venv/bin/python -m podcast_scraper.cli serve ' +
+        `node e2e/prepare-corpus.mjs && "${ROOT}/.venv/bin/python" -m podcast_scraper.cli serve ` +
         '--output-dir .e2e-corpus/v3 --port 8011 --host 127.0.0.1',
       url: 'http://127.0.0.1:8011/api/health',
       reuseExistingServer: true,
       timeout: 180_000,
       env: {
-        PYTHONPATH: '../../src',
+        PYTHONPATH: `${ROOT}/src`,
         HF_HUB_OFFLINE: '1',
         TRANSFORMERS_OFFLINE: '1',
         HF_HOME: process.env.HF_HOME || `${process.env.HOME}/.cache/huggingface`,
