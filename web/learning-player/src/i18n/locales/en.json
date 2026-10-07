@@ -158,7 +158,8 @@
     "trendsYou": "You",
     "trendsEveryone": "Everyone",
     "trendsMostTalked": "Most talked about",
-    "discoverySortGroup": "Sort trends"
+    "discoverySortGroup": "Sort trends",
+    "recommendedFromFollows": "Picked from what you follow"
   },
   "ask": {
     "title": "Find what's worth hearing",

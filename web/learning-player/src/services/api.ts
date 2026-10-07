@@ -7,6 +7,7 @@
  */
 
 import type {
+  EpisodeSummary,
   WhatsNewResponse,
   RecapResponse,
   RecapWindow,
@@ -598,6 +599,13 @@ export function getDiscover(limit = 8): Promise<EpisodesPage> {
  *  nothing followed or nothing matching — newest across every show. `scope` says which. */
 export function getWhatsNew(limit = 5): Promise<WhatsNewResponse> {
   return getJSON<WhatsNewResponse>("/whats-new", { limit })
+}
+
+/** Home's Recommended without listening history (operator 2026-10-07): episodes carrying what the
+ *  listener follows or their listening implies, minus what they played. `basis: "none"` = nothing to
+ *  base it on, and no items. */
+export function getRecommended(limit = 12): Promise<{ items: EpisodeSummary[]; basis: "interests" | "none" }> {
+  return getJSON("/recommended", { limit })
 }
 
 /** Fire-and-forget: log a click on a discovery-feed episode (its shown rank position) for

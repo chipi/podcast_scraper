@@ -159,6 +159,7 @@ export const CACHE_KEYS = [
   'home.catalogue',
   'home.continue',
   'home.recommended',
+  'home.recommended.v2',
   'home.yourweek',
   'home.storylines',
   'home.trendingtopics',

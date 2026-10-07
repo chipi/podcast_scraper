@@ -12,6 +12,7 @@ defineOptions({ name: "HomeView" }) // stable name for <keep-alive :include> (Ap
 import { RouterLink } from "vue-router"
 import {
   getWhatsNew,
+  getRecommended,
   getEpisode,
   getPlaybackList,
   getRelated,
@@ -75,8 +76,20 @@ const latest = computed(() => whatsNew.data.value.items)
 const continueSection = useSectionState<{ detail: EpisodeDetail; position: number }[]>([], {
   cacheKey: "home.continue",
 })
-const recSection = useSectionState<EpisodeSummary[]>([], { cacheKey: "home.recommended" })
-const recommended = computed(() => recSection.data.value)
+/**
+ * Recommended, from the best basis there is (operator 2026-10-07): "more like" the latest in-progress
+ * listen, else picks from what the listener follows (`/recommended`), else nothing — the section does
+ * not render without a basis. It never repeats What's new: an episode already there is dropped here.
+ */
+const recSection = useSectionState<{ items: EpisodeSummary[]; basis: "listening" | "interests" | "none" }>(
+  { items: [], basis: "none" },
+  { cacheKey: "home.recommended.v2" },
+)
+const recBasis = computed(() => recSection.data.value.basis)
+const recommended = computed(() => {
+  const inWhatsNew = new Set(latest.value.map((e) => e.slug))
+  return recSection.data.value.items.filter((e) => !inWhatsNew.has(e.slug))
+})
 // Four visible, then four more per tap (operator 2026-09-19) — one grid row at both breakpoints.
 // The fetch asks for 12 rather than the api default of 6, so "show more" is worth the tap; the
 // route's own ceiling is 25 and the similarity merge caps at 50, so 12 is well inside both.
@@ -150,6 +163,8 @@ async function onInterestsSaved(): Promise<void> {
   //
   // Re-pull discovery so a personalized order (when the flag is on) takes effect immediately.
   await loadWhatsNew()
+  // Interests are a basis for Recommended: it can appear the moment they are saved.
+  await loadRecommended()
 }
 
 /**
@@ -163,9 +178,15 @@ function loadWhatsNew(): Promise<void> {
 
 /** #1591 — Recommended, same contract: a rejection is an error phase, not an empty list. */
 function loadRecommended(): Promise<void> {
+  if (!auth.isAuthenticated) return Promise.resolve()
   const top = continueItems.value[0]
-  if (!top) return Promise.resolve()
-  return recSection.load(async () => (await getRelated(top.detail.slug, RECOMMENDED_FETCH)).items)
+  return recSection.load(async () => {
+    if (top) {
+      return { items: (await getRelated(top.detail.slug, RECOMMENDED_FETCH)).items, basis: "listening" as const }
+    }
+    const r = await getRecommended(RECOMMENDED_FETCH)
+    return { items: r.items, basis: r.basis }
+  })
 }
 
 /**
@@ -183,7 +204,7 @@ async function retryStale(): Promise<void> {
   railKey.value += 1
   try {
     await Promise.all([loadWhatsNew(), loadContinue()])
-    if (continueItems.value[0]) await loadRecommended()
+    await loadRecommended()
   } finally {
     retrying.value = false
   }
@@ -275,7 +296,9 @@ onActivated(async () => {
   if (whatsNew.isReady.value) void loadWhatsNew()
   // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes). Only compute it
   // when we don't already have it, so returning to Home doesn't re-flicker it either.
-  if (continueItems.value[0] && !recSection.isReady.value) await loadRecommended()
+  // Every return re-reads it, in place: interests chosen or an episode started elsewhere changes the
+  // basis, and the section must appear (or move to "more like") without a reload.
+  await loadRecommended()
 })
 
 type ContinueItem = { detail: EpisodeDetail; position: number }
@@ -550,8 +573,11 @@ async function loadContinue(): Promise<void> {
 
     <!-- Recommended — no-scroll responsive grid. Up here, right after the look back, and What's
          new at the bottom (operator 2026-10-07): picks for YOU lead, the corpus-wide feed follows. -->
-    <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
-      <SectionHeading :title="t('home.recommended')" :kicker="t('home.recommendedKicker')" />
+    <section v-if="recommended.length" class="mt-7" data-testid="home-recommended">
+      <SectionHeading
+        :title="t('home.recommended')"
+        :kicker="recBasis === 'listening' ? t('home.recommendedKicker') : t('home.recommendedFromFollows')"
+      />
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
       <!-- The SAME tile the Discover grid uses (operator 2026-09-17), not a second copy of it.
            This grid was hand-rolled here: square artwork, overlaid actions, show name and title —

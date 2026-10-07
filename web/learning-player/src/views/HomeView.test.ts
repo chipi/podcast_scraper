@@ -260,6 +260,32 @@ describe('HomeView (discover state, signed out)', () => {
     ])
   })
 
+  it("Recommended is absent until there is a basis for it (operator 2026-10-07)", async () => {
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({ items: [ep('n-1', 'New One')], scope: 'all' })
+    vi.spyOn(api, 'getRecommended').mockResolvedValue({ items: [], basis: 'none' })
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(w.find('[data-testid="home-recommended"]').exists()).toBe(false)
+  })
+
+  it("with no listen yet, Recommended comes from what you follow, and never repeats What's new", async () => {
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({ items: [ep('dup', 'Already New')], scope: 'yours' })
+    vi.spyOn(api, 'getRecommended').mockResolvedValue({
+      items: [ep('dup', 'Already New'), ep('pick-1', 'A Pick')],
+      basis: 'interests',
+    })
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    const rec = w.get('[data-testid="home-recommended"]')
+    expect(rec.text()).toContain('Picked from what you follow')
+    expect(rec.text()).toContain('A Pick')
+    expect(rec.text()).not.toContain('Already New')
+  })
+
   it("puts Recommended above What's new (operator 2026-10-07)", () => {
     const tpl = homeViewSource.slice(homeViewSource.indexOf('<template>'))
     const rec = tpl.indexOf(":title=\"t('home.recommended')\"")

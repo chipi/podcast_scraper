@@ -31,3 +31,21 @@ test("Follow shows from the welcome card, and What's new becomes yours on return
   await expect(page.getByText('New in your shows and topics', { exact: false })).toBeVisible()
   await expect(page.getByText('New across all shows', { exact: false })).toHaveCount(0)
 })
+
+test('with no listening yet, Recommended appears once there is something to base it on', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, `rec-from-follows-${Date.now()}`, testInfo)
+  await page.goto('/')
+  // No basis yet: no Recommended at all (operator 2026-10-07 — not a section saying nothing).
+  await expect(page.getByTestId('interests-welcome')).toBeVisible()
+  await expect(page.getByTestId('home-recommended')).toHaveCount(0)
+
+  // Follow a topic the corpus carries, through the real API, and come back to Home.
+  const follow = await page.request.post(`/api/app/interests/${encodeURIComponent('topic:risk-management')}`)
+  expect(follow.ok()).toBeTruthy()
+  await page.reload()
+  const rec = page.getByTestId('home-recommended')
+  await expect(rec).toBeVisible()
+  await expect(rec).toContainText('Picked from what you follow')
+})

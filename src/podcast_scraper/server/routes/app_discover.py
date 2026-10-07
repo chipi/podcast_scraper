@@ -44,7 +44,12 @@ from podcast_scraper.server.app_ranking_config import (
     ranking_config_to_dict,
 )
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, search_interests
-from podcast_scraper.server.app_user_corpus import derive_interests, personal_entity_ids
+from podcast_scraper.server.app_slugs import slug_for_row
+from podcast_scraper.server.app_user_corpus import (
+    derive_interests,
+    personal_entity_ids,
+    user_episode_set,
+)
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import (
     get_admin_user,
@@ -57,6 +62,7 @@ from podcast_scraper.server.schemas import (
     AppInterestCluster,
     AppInterestClustersResponse,
     AppInterestSearchResponse,
+    AppRecommendedResponse,
     AppStoryline,
     AppStorylinesResponse,
     AppTrendingEntity,
@@ -307,6 +313,43 @@ def whats_new(
     return AppWhatsNewResponse(
         items=[row_to_summary(root, r) for r in picked], scope="yours" if personal else "all"
     )
+
+
+@router.get("/recommended", response_model=AppRecommendedResponse)
+def recommended(
+    request: Request,
+    limit: int = Query(default=8, ge=1, le=20, description="Episodes to return."),
+    user: User = Depends(get_current_user),
+) -> AppRecommendedResponse:
+    """Home's Recommended when there is no listen to base it on (operator 2026-10-07).
+
+    Episodes carrying what the listener follows (topics, people, themes, storylines) or what their
+    listening implies, ranked by the discover ranker, minus what they already played. Independent of
+    ``APP_PERSONALIZED_RANKING``, which gates the shared discovery FEED: a section called
+    Recommended has to be personal or absent. Nothing to base it on → ``basis: none``, no items, and
+    Home does not show the section.
+    """
+    root = corpus_root_or_503(request)
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    if raw_dir is None:
+        return AppRecommendedResponse(items=[], basis="none")
+    data_dir = Path(raw_dir)
+    explicit = app_user_state.get_interests(data_dir, user.user_id)
+    derived = derive_interests(root, data_dir, user.user_id)
+    matching = interest_relpaths(root, [*explicit, *derived])
+    if not matching:
+        return AppRecommendedResponse(items=[], basis="none")
+    heard = user_episode_set(root, data_dir, user.user_id)
+    rows = cached_catalog(root)
+    rows.sort(key=lambda r: (r.publish_date or ""), reverse=True)
+    candidates = [
+        r for r in rows if r.metadata_relative_path in matching and slug_for_row(r) not in heard
+    ]
+    config = app_ranking_config_store.load_ranking_config(data_dir)
+    items = rank_discover(
+        root, explicit, candidates, limit=limit, config=config, derived_interests=derived
+    )
+    return AppRecommendedResponse(items=items, basis="interests")
 
 
 @router.get("/ranking-config")

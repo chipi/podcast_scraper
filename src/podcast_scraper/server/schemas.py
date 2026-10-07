@@ -270,6 +270,18 @@ class AppWhatsNewResponse(BaseModel):
     )
 
 
+class AppRecommendedResponse(BaseModel):
+    """Response for GET /api/app/recommended — Home's Recommended without listening history."""
+
+    items: list[AppEpisodeSummary] = Field(default_factory=list)
+    basis: Literal["interests", "none"] = Field(
+        description=(
+            "'interests' = ranked against what the listener follows and what their listening "
+            "implies; 'none' = nothing to base picks on yet, and `items` is empty."
+        )
+    )
+
+
 class AppDiscoverClickBody(BaseModel):
     """A click on a discovery-feed episode — ranking-experiment telemetry (#11)."""
 
