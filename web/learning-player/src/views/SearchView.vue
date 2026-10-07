@@ -480,7 +480,11 @@ async function run(q: string): Promise<void> {
   } catch {
     if (current()) error.value = true
   } finally {
-    await entityP
+    // NOT `await entityP`. The entity card fills in when its lookup lands (it guards itself with
+    // current()); the passages must not wait for it. Awaiting it held the whole result list
+    // behind a spinner for as long as the entity lookup took — 12-102 s on prod while the
+    // entity-id map warmed after a deploy (2026-10-07), with the passages already in hand.
+    void entityP
     // A newer run has taken over — leave its searching/ran/sig state alone.
     if (current()) {
       searching.value = false

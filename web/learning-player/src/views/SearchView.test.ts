@@ -130,6 +130,37 @@ describe("SearchView", () => {
     expect(actions.get("button").attributes("aria-label")).toBe("More actions")
   })
 
+  it("shows the passages while the entity lookup is still pending, and the card when it lands", async () => {
+    // Prod 2026-10-07: right after a deploy /entities/search took 12-102 s (entity-id map warming)
+    // while search itself answered in ~1.5 s — and the page held every passage behind its spinner
+    // until the entity lookup returned.
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "memory",
+      error: null,
+      results: [
+        {
+          doc_id: "d1",
+          score: 0.9,
+          text: "A grounded passage about memory.",
+          source_tier: "segment",
+          metadata: { episode_slug: "show-x", episode_title: "Ep X", podcast_title: "Show" },
+        },
+      ],
+    })
+    let land: (v: Awaited<ReturnType<typeof api.resolveEntity>>) => void = () => {}
+    vi.spyOn(api, "resolveEntity").mockReturnValue(new Promise((r) => (land = r)))
+    const { w } = await mountAt("memory")
+    expect(w.text()).toContain("A grounded passage about memory.")
+
+    land({
+      query: "memory",
+      entity: { kind: "person", id: "person:jane-doe", label: "Jane Doe" },
+    } as Awaited<ReturnType<typeof api.resolveEntity>>)
+    await flushPromises()
+    expect(w.text()).toContain("Jane Doe")
+    expect(w.text()).toContain("A grounded passage about memory.")
+  })
+
   it("persists results across a tab switch — navigate away and back does not clear them", async () => {
     // Regression (operator 2026-09-13): SearchView is kept-alive, but its `route.query.q` watcher
     // re-ran an empty search when navigating away (q → undefined) and when the bottom-nav Search
