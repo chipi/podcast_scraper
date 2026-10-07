@@ -291,3 +291,26 @@ def test_image_credit_formats_attribution() -> None:
     assert _image_credit("Photo", "A. Smith", "CC BY-SA 4.0") == "Photo: A. Smith · CC BY-SA 4.0"
     assert _image_credit("Logo", None, "CC0") == "Logo: CC0"
     assert _image_credit("Photo", None, None) is None
+
+
+@pytest.mark.parametrize(
+    "route,kind",
+    [("topic", "topic"), ("person", "person"), ("podcast", "show"), ("theme", "theme")],
+)
+def test_share_page_carries_the_og_tags_a_link_preview_reads(
+    client: TestClient, ids: dict[str, str], route: str, kind: str
+) -> None:
+    # The player's documents are index.html from nginx, so a shared /topic/… link unfurled as
+    # nothing (prod 2026-10-07). Link-preview bots are routed to this page instead.
+    r = client.get(f"/og/page/{route}/{ids[kind]}")
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"].startswith("text/html")
+    body = r.text
+    assert f'property="og:image" content="http://testserver/og/{kind}/' in body
+    assert 'property="og:title"' in body and 'name="twitter:card"' in body
+    assert "<script" not in body  # a bare page, not the app
+
+
+def test_share_page_404s_an_unknown_entity_or_route(client: TestClient) -> None:
+    assert client.get("/og/page/topic/topic:no-such-topic-zz9").status_code == 404
+    assert client.get("/og/page/library/x").status_code == 404

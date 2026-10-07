@@ -10,8 +10,11 @@ suffix lets the edge's static rule route it to the backend without the coming-so
 from __future__ import annotations
 
 import asyncio
+import html
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse
 
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.og.build import build_og_model, OG_KINDS
@@ -43,4 +46,43 @@ async def og_card_image(request: Request, kind: str, ident: str) -> Response:
             "Cache-Control": "public, max-age=3600",
             "X-Content-Type-Options": "nosniff",
         },
+    )
+
+
+_SHARE_PAGE = (
+    '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+    "<title>{title}</title></head><body>"
+    '<p><a href="{url}">{title}</a></p></body></html>'
+)
+
+
+@router.get("/og/page/{route}/{ident}")
+async def og_share_page(request: Request, route: str, ident: str) -> Response:
+    """The og/twitter tags for one shareable document, for a link-preview bot.
+
+    The player's documents are ``index.html`` straight from nginx, so the head ``SpaStaticFiles``
+    injects never reached a shared ``/topic/…`` link: it unfurled as nothing (prod 2026-10-07). The
+    player's nginx (and, pre-launch, the edge gate) sends ONLY link-preview bots on entity paths
+    here; people keep getting the app. Same tags ``SpaStaticFiles`` would inject, on a minimal page.
+    """
+    from podcast_scraper.server.og.build import build_og_meta
+    from podcast_scraper.server.spa import SpaStaticFiles
+
+    target = SpaStaticFiles._entity_target(f"/{route}/{ident}")
+    if target is None:
+        raise HTTPException(status_code=404, detail="Not a shareable page.")
+    kind, entity = target
+    root = corpus_root_or_503(request)
+    meta = await asyncio.to_thread(build_og_meta, root, kind, entity)
+    if meta is None:
+        raise HTTPException(status_code=404, detail="Nothing to share for this entity.")
+    origin = SpaStaticFiles._origin(request.scope)
+    page_url = f"{origin}/{route}/{quote(ident, safe=':')}"
+    image = f"{origin}/og/{kind}/{quote(entity, safe='')}.png"
+    shell = _SHARE_PAGE.format(
+        title=html.escape(meta.title, quote=True), url=html.escape(page_url, quote=True)
+    )
+    return HTMLResponse(
+        SpaStaticFiles._inject(shell, meta.title, meta.description, image, page_url),
+        headers={"Cache-Control": "public, max-age=3600"},
     )

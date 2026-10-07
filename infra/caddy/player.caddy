@@ -110,6 +110,20 @@ closelistening.app {
 		reverse_proxy 127.0.0.1:8092
 	}
 
+	# Link previews (operator 2026-10-07) — a LINK-PREVIEW BOT on a shareable entity document passes
+	# the gate. iMessage, WhatsApp, Slack, X fetch a shared link cookie-less; behind the gate they got
+	# the coming-soon page and the link unfurled as nothing. The player's nginx sends exactly these
+	# requests to the api's og share page (title, description, card — what the public /og/*.png card
+	# already shows); a person still gets coming-soon without the cookie. Same bot list as nginx's
+	# `$lp_link_preview` map.
+	@share_bots {
+		path_regexp ^/(topic|person|episode|podcast|storyline|theme)/[^/]+$
+		header_regexp User-Agent (?i)(facebookexternalhit|facebot|twitterbot|slackbot|linkedinbot|discordbot|telegrambot|whatsapp|applebot|skypeuripreview|redditbot|pinterest|embedly)
+	}
+	handle @share_bots {
+		reverse_proxy 127.0.0.1:8092
+	}
+
 	@static path_regexp \.(js|mjs|css|map|woff2?|ttf|otf|eot|png|jpe?g|gif|svg|ico|webmanifest|webp|avif)$
 	handle @static {
 		reverse_proxy 127.0.0.1:8092
