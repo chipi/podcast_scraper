@@ -23,7 +23,7 @@ import { formatDuration } from "../utils/format"
 import { formatPublishDate } from '../utils/format'
 import { episodeArtwork } from "../utils/episode"
 import { useAuthStore } from "../stores/auth"
-import BrandGlyph from "../components/BrandGlyph.vue"
+import GuidedStart from "../components/GuidedStart.vue"
 import { useLibraryStore } from "../stores/library"
 import { allPositions } from "../services/playbackPositions"
 import { localArtworkFor, localKnowledgeFor } from "../services/downloads"
@@ -117,13 +117,30 @@ const pickerOpen = ref(false)
 // Only offer the "choose interests" card to users who have NOT already picked any — the bug was it
 // showed even to users with a full interest set. Gate on the store being loaded so it never flashes
 // before we know, and it hides the instant interests exist.
+/**
+ * The guided start (operator 2026-10-07) — for a NEW listener (no interests yet), and for as long as
+ * a run they started is not finished, so following through step 1 does not make step 2 vanish.
+ * `GUIDED_START_PREF` is synced: `active` once shown, `done` once finished. "Not now" still dismisses.
+ * A beta account that already chose interests before this existed never sees it.
+ */
+const GUIDED_START_PREF = "lp.guidedStart"
+const guidedState = computed(() => userPrefs.get<string>(GUIDED_START_PREF))
 const showInterestsCard = computed(
   () =>
     auth.isAuthenticated &&
     interests.loaded &&
-    interests.ids.length === 0 &&
-    !interestsDismissed.value
+    !interestsDismissed.value &&
+    guidedState.value !== "done" &&
+    (interests.ids.length === 0 || guidedState.value === "active")
 )
+watch(showInterestsCard, (on) => {
+  if (on && guidedState.value !== "active") void userPrefs.set(GUIDED_START_PREF, "active")
+})
+/** Close the flow and rebuild Home from what was just chosen. */
+async function finishGuidedStart(): Promise<void> {
+  await userPrefs.set(GUIDED_START_PREF, "done")
+  await Promise.all([loadWhatsNew(), loadRecommended()])
+}
 
 /**
  * The first name for the welcome, or null. An email-link account's `name` can be the address
@@ -465,50 +482,13 @@ async function loadContinue(): Promise<void> {
          what choosing interests changes, and two real buttons. (It was reduced to a line in #1964
          for competing with the Search button; a designed card that leads the page is the answer to
          that, not a quieter line.) Button labels are unchanged: device journeys find them by text. -->
-    <section
+    <GuidedStart
       v-if="showInterestsCard"
-      class="relative mt-4 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-accent/20 via-elevated to-surface p-5 sm:p-6"
-      data-testid="interests-welcome"
-    >
-      <BrandGlyph
-        class="pointer-events-none absolute -right-4 -top-4 h-28 w-28 opacity-15"
-        aria-hidden="true"
-      />
-      <p class="lp-kicker mb-2">{{ t("interests.cardTitle") }}</p>
-      <h2 class="font-display text-2xl font-extrabold tracking-tight text-canvas-foreground">
-        {{ welcomeName ? t("interests.welcome", { name: welcomeName }) : t("interests.welcomeNoName") }}
-      </h2>
-      <p class="mt-2 max-w-prose text-sm leading-relaxed text-muted">
-        {{ t("interests.welcomeBody") }}
-      </p>
-      <div class="mt-4 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          class="inline-flex h-11 items-center rounded-full bg-accent px-5 text-sm font-bold text-accent-foreground shadow-sm transition hover:opacity-90"
-          data-testid="interests-choose"
-          @click="pickerOpen = true"
-        >
-          {{ t("interests.cardCta") }}
-        </button>
-        <!-- The other way to make Home yours (operator 2026-10-07): follow a few shows. Opens
-             Discover on its Shows tab, the destination Your Week's "Find shows" link uses. -->
-        <RouterLink
-          :to="{ name: 'browse', query: { tab: 'shows' } }"
-          class="inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
-          data-testid="interests-follow-shows"
-        >
-          {{ t("interests.followShows") }}
-        </RouterLink>
-        <button
-          type="button"
-          class="inline-flex h-11 items-center rounded-full px-3 text-sm font-semibold text-muted transition hover:text-canvas-foreground"
-          data-testid="interests-not-now"
-          @click="dismissInterests"
-        >
-          {{ t("interests.dismiss") }}
-        </button>
-      </div>
-    </section>
+      :welcome-name="welcomeName"
+      @choose-interests="pickerOpen = true"
+      @dismiss="dismissInterests"
+      @finish="finishGuidedStart"
+    />
 
     <!-- Your Week — the personal digest, in-app (#1412). The first curated, personalized block.
          Self-hides when signed-out. Compact/full is a synced per-user preference.

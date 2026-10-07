@@ -9,6 +9,7 @@ import type { EpisodeSummary, Me, Podcast } from '../services/types'
 import { resetStaleness } from '../composables/useSectionState'
 import { useDownloadsStore } from '../stores/downloads'
 import { useInterestsStore } from '../stores/interests'
+import { useLibraryStore } from '../stores/library'
 import HomeView from './HomeView.vue'
 
 // Defaults to "nothing cached", so every test above keeps the behaviour it was written for.
@@ -400,10 +401,10 @@ describe('HomeView interests card (3.5)', () => {
     // Buttons, with the labels the device journeys find them by.
     expect(card.get('[data-testid="interests-choose"]').text()).toBe('Choose interests')
     expect(card.get('[data-testid="interests-not-now"]').text()).toBe('Not now')
-    // The other way in: follow shows, which opens Discover on Shows (operator 2026-10-07).
-    const follow = card.get('[data-testid="interests-follow-shows"]')
-    expect(follow.text()).toBe('Follow shows')
-    expect(follow.attributes('href')).toBe('/browse?tab=shows')
+    // Step 1 of the guided start (operator 2026-10-07): shows are step 2, reached by Skip or by
+    // choosing three interests.
+    expect(card.attributes('data-step')).toBe('1')
+    expect(card.get('[data-testid="guided-skip"]').text()).toBe('Skip')
   })
 
   it('does not greet an email-link account by its address', async () => {
@@ -416,8 +417,8 @@ describe('HomeView interests card (3.5)', () => {
     expect(card.text()).not.toContain('m@x.com')
   })
 
-  it('hides Your Week while the welcome card shows; it appears once interests exist (operator 2026-10-07)', async () => {
-    // A week digest for someone who follows nothing is empty by construction.
+  it('hides Your Week while the guided start runs; it appears once the start is finished (operator 2026-10-07)', async () => {
+    // A week in review for someone who has done nothing yet is empty by construction.
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
     vi.spyOn(api, 'getYourWeek').mockResolvedValue({ sections: [] } as never)
     signIn()
@@ -425,8 +426,12 @@ describe('HomeView interests card (3.5)', () => {
     await flushPromises()
     expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(true)
     expect(w.find('[data-testid="your-week"]').exists()).toBe(false)
-    // Saving interests from the picker fills the store; the card goes and Your Week comes.
-    useInterestsStore().ids = ['tc:ai']
+    // Three interests and a followed show reach the last step; finishing closes the flow.
+    useInterestsStore().ids = ['tc:ai', 'tc:science', 'topic:risk']
+    useLibraryStore().items = [{ feed_id: 'f1' } as never]
+    await flushPromises()
+    expect(w.get('[data-testid="interests-welcome"]').attributes('data-step')).toBe('3')
+    await w.get('[data-testid="guided-finish"]').trigger('click')
     await flushPromises()
     expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(false)
     expect(w.find('[data-testid="your-week"]').exists()).toBe(true)
@@ -481,7 +486,7 @@ describe('HomeView interests card (3.5)', () => {
     expect(w.text()).not.toContain('Personalize your Home')
   })
 
-  it('stops prompting once interests are SAVED IN SESSION, not only when present at load', async () => {
+  it('reflects interests SAVED IN SESSION, not only those present at load', async () => {
     // iOS-F1, caught by `PersonalisationTests.test10` on device and by nothing here.
     //
     // The test above loads an account that ALREADY has interests, which the store gets right for
@@ -514,7 +519,9 @@ describe('HomeView interests card (3.5)', () => {
     await flushPromises()
 
     expect(useInterestsStore().ids).toEqual(['tc:ai'])
-    expect(w.text()).not.toContain('Personalize your Home')
+    // The card reads the STORE: one saved interest shows as progress toward the three the guided
+    // start asks for (operator 2026-10-07), rather than a card still asking from zero.
+    expect(w.get('[data-testid="guided-interests-to-go"]').text()).toBe('2 more to go')
     // And NOT because we marked the offer declined — that would suppress it forever, so a user who
     // later cleared their interests would never be offered it again.
     expect(localStorage.getItem('lp.interests.dismissed')).toBeNull()

@@ -200,6 +200,16 @@ cleanly.** No empty panel, no skeleton that never resolves, no "0 results" row t
 say nothing happened. `SectionStatus` (#1591) owns the loading/empty/error triad so a section
 header cannot outlive its content.
 
+### `GuidedStart` — a new listener's first Home
+
+Since 2026-10-07 (operator): Home on a first visit was two screens of not much, so a new listener
+(no interests yet) gets a short flow of cards in place of the single welcome card: **1** choose at
+least three interests (the interests picker, with progress), **2** follow at least one show (the
+followable show tiles, in the card), **3** "Your Home is ready", which closes the flow and reloads
+What's new and Recommended from the choices. Each step can be skipped; "Not now" dismisses it. Progress
+is a synced preference (`lp.guidedStart`), so a run continues where it was left on any device; an
+account that already had interests never sees it. While it runs, an empty Your Week is hidden.
+
 ### `YourWeek` — your week in review
 
 Since 2026-10-07 (operator: "cut the overlap"), **what you listened to** (`listened_this_week`), **what

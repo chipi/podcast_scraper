@@ -15,6 +15,9 @@ test("Follow shows from the welcome card, and What's new becomes yours on return
   await expect(page.getByTestId('interests-welcome')).toBeVisible()
   await expect(page.getByText('New across all shows', { exact: false })).toBeVisible()
 
+  // Shows are step 2 of the guided start (operator 2026-10-07): skip interests to reach it.
+  await page.getByTestId('guided-skip').click()
+  await expect(page.getByTestId('interests-welcome')).toHaveAttribute('data-step', '2')
   await page.getByTestId('interests-follow-shows').click()
   await expect(page).toHaveURL(/\/browse\?tab=shows/)
 

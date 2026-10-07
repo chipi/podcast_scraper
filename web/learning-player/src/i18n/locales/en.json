@@ -1108,5 +1108,21 @@
     "markdown": "Markdown",
     "markdownLabel": "Download as Markdown",
     "share": "Print or share"
+  },
+  "guided": {
+    "progress": "Step {step} of {total}",
+    "step1Body": "We're excited to have you here. Pick at least three topics, people, themes or storylines you care about, and we'll shape your Home and recommendations around them.",
+    "interestsToGo": "You're set on interests | One more to go | {count} more to go",
+    "skip": "Skip",
+    "step2Kicker": "Next",
+    "step2Title": "Follow a few shows",
+    "step2Body": "Their new episodes come to your Home first. Follow one or more.",
+    "allShows": "See all shows",
+    "doneKicker": "All set",
+    "doneTitle": "Your Home is ready",
+    "doneBody": "{interests} and {shows}. We'll keep shaping your Home as you listen.",
+    "interestCount": "No interests yet | 1 interest | {count} interests",
+    "showCount": "no shows yet | 1 show | {count} shows",
+    "finish": "Show my Home"
   }
 }
