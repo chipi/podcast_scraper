@@ -1,7 +1,7 @@
 # Stack contract and environment adapters
 
 **Audience:** Operators and workflow authors who need one place to compare how the product
-stack runs on Codespaces, production VPS, DR drill VPS, CI stack-test, and the orchestrated
+stack runs on the production VPS, DR drill VPS, CI stack-test, and the orchestrated
 drill exercise — without rereading every workflow file.
 
 **Law:** [ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md).
@@ -25,7 +25,7 @@ restore only (see [Recovery-only](#recovery-only-not-steady-state) below).
 4. **Behavioral gate** (when claiming “deployed correctly”) — `tests/stack-test` Playwright on CI;
    drill HTTPS Playwright after smoke in the orchestrated exercise.
 
-**Transport** (Tailscale SSH, Codespace `postStart`, runner Docker, HTTPS MagicDNS) is an
+**Transport** (Tailscale SSH, runner Docker, HTTPS MagicDNS) is an
 **adapter** only; it must not change compose topology, corpus semantics, or health meaning.
 
 ---
@@ -34,7 +34,6 @@ restore only (see [Recovery-only](#recovery-only-not-steady-state) below).
 
 | Surface | Compose files | Env / corpus path | Bring-up entrypoint | Authoritative health probe | Adapter / ingress probes | Behavioral gate | Restore from `snapshot.tgz` |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Codespaces (pre-prod)** | `stack.yml` + `prod.yml` (no `vps-prod`) | `.devcontainer/start.sh` exports `PODCAST_DOCKER_PROJECT_DIR`, `PODCAST_CORPUS_HOST_PATH` → `.codespace_corpus` | `.devcontainer/start.sh`; optional `deploy-codespace.yml` | In-container `api` `curl` `http://127.0.0.1:8000/api/health` for parity with VPS | Operator / forwarded viewer port; optional `post-deploy-smoke.yml` codespace SSH `:8090` | `stack-test.yml` on main before publish; optional `post-deploy-smoke.yml` after codespace deploy | Manual / Make paths in CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md — **not** post-deploy routine |
 | **Prod VPS** | `stack.yml` + `prod.yml` + `vps-prod.yml` | `/srv/podcast-scraper/.env`; corpus `/srv/podcast-scraper/corpus` | `infra/deploy/deploy.sh` via `deploy-prod.yml` | In-container `api` `curl` `http://127.0.0.1:8000/api/health` in `deploy.sh` and `restore_corpus_from_tarball_host.sh` (GH-745) | `deploy-prod.yml` HTTPS tailnet probe after deploy | `stack-test.yml` on main before GHCR publish (no prod Playwright gate in GHA today) | `prod-restore-corpus.yml` — manual **`PROD_RESTORE`** only |
 | **DR drill VPS** | Same triple as prod | Same host layout as prod | Same `deploy.sh` via `drill-deploy.yml` | Same in-container `api` `:8000` probe in `deploy.sh` and shared restore host script | `drill-deploy.yml` SSH **8080** health adapter; `drill-e2e.yml` HTTPS **`post_deploy_smoke.sh`** (six surfaces); `drill-stack-playwright.yml` HTTPS MagicDNS | `drill-stack-playwright.yml` HTTPS + `stack-viewer.spec.ts` after `drill-e2e` | `drill-restore-corpus.yml` in **orchestrator** + manual **`DRILL_RESTORE`** |
 | **CI stack-test** | `stack.yml` + `stack-test.yml` | Ephemeral compose project; seeded corpus via `make stack-test-seed` | `make stack-test-build` / `up` / `seed` / `playwright` in `stack-test.yml` | Runner wait on published viewer `:8090` `/api/health` before Playwright | N/A | Full `tests/stack-test` on runner | Not used |
@@ -56,7 +55,7 @@ CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md.
 - **Drill manual restore** — `drill-restore-corpus.yml`; confirm **`DRILL_RESTORE`** when not
   called from the orchestrator.
 
-Do not document these as steps in daily prod or Codespace bring-up.
+Do not document these as steps in daily prod bring-up.
 
 ---
 
