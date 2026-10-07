@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import * as contentCache from '../services/contentCache'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail } from '../services/types'
 import { useQueueStore } from '../stores/queue'
@@ -65,6 +66,22 @@ describe('QueueView', () => {
     await flushPromises()
     expect(w.text()).not.toContain('Alpha')
     expect(w.text()).toContain('Beta')
+  })
+
+  it('refreshes a cached episode, so a description added since it was cached shows (operator 2026-10-07)', async () => {
+    // The cache paints first. It used to be the ONLY copy for any slug already in it: entries cached
+    // before the detail carried `description` showed cards with no description for good.
+    vi.spyOn(api, 'getQueue').mockResolvedValue(['a-1'])
+    vi.spyOn(contentCache, 'readCached').mockResolvedValue({ 'a-1': detail('a-1', 'Alpha') } as never)
+    vi.spyOn(contentCache, 'writeCached').mockResolvedValue()
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({
+      ...detail('a-1', 'Alpha'),
+      description: 'What the publisher says this episode is about.',
+    })
+    const w = mount(QueueView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(api.getEpisode).toHaveBeenCalledWith('a-1')
+    expect(w.text()).toContain('What the publisher says this episode is about.')
   })
 
   it('shows the empty state with no queue', async () => {

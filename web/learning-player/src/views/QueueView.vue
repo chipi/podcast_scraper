@@ -47,9 +47,12 @@ async function hydrate(): Promise<void> {
   const cached = await readCached<Record<string, EpisodeDetail>>(DETAILS_KEY, isDetailMap)
   if (cached) details.value = { ...cached, ...details.value }
 
-  const missing = queue.items.filter((s) => !details.value[s])
+  // Revalidate EVERY queued episode, not only the uncached ones. Fetching just the missing slugs
+  // meant a cached entry was never refreshed: one written before the detail carried `description`
+  // painted a card with no description for as long as the episode stayed queued (operator
+  // 2026-10-07, "in queue, we lost episode descriptions").
   const fetched = await Promise.all(
-    missing.map((s) =>
+    queue.items.map((s) =>
       getEpisode(s)
         .then((d) => [s, d] as const)
         .catch(() => null),
