@@ -221,6 +221,10 @@ jobs:
           APP_SIGNUP_MODE: ${{ vars.OPERATOR_SIGNUP_MODE }}
           APP_ALLOWED_EMAILS: ${{ vars.OPERATOR_ALLOWED_EMAILS }}
           APP_ALLOWED_DOMAINS: ${{ vars.OPERATOR_ALLOWED_DOMAINS }}
+          # The player's deploy default for the released app version (#2296). The operator viewer's
+          # Admin view shows "served now" / "deploy default" from THIS api, so it needs the same
+          # default the player serves — otherwise it reads "no prompt" while phones get this.
+          PLAYER_RELEASED_VERSION: ${{ vars.PLAYER_RELEASED_VERSION }}
         run: |
           set -euo pipefail
           ENVTMP="$(mktemp -p /dev/shm)"
@@ -240,6 +244,10 @@ jobs:
             echo "APP_SIGNUP_MODE=${APP_SIGNUP_MODE:-allowlist}"
             echo "APP_ALLOWED_EMAILS=${APP_ALLOWED_EMAILS}"
             echo "APP_ALLOWED_DOMAINS=${APP_ALLOWED_DOMAINS}"
+            # Same default the player api serves (#2296); written only when set, like the player.
+            if [ -n "${PLAYER_RELEASED_VERSION:-}" ]; then
+              echo "APP_PLAYER_VERSION=${PLAYER_RELEASED_VERSION}"
+            fi
             # OTEL distributed tracing (ADR-119) → the SAME homelab VictoriaTraces OTLP
             # ingest the operator uses (deploy-prod.yml). Turns operator-public API request
             # spans on so a user-triggered error on the operator surface pivots to its trace.

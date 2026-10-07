@@ -127,6 +127,9 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
         app.state.app_data_dir = resolved_output / ".app"
     else:
         app.state.app_data_dir = None
+    # The released-version file may live in a dir shared with the other stack (#2296).
+    raw_release = os.environ.get("APP_RELEASE_DIR", "").strip()
+    app.state.app_release_dir = Path(raw_release).expanduser().resolve() if raw_release else None
     # Every configured provider (#2275); the primary is the first and stays `oauth_provider`, which
     # everything that predates multi-provider sign-in (health, tests) reads.
     app.state.oauth_providers = providers_from_env()

@@ -113,7 +113,9 @@ version, Analytics.
 
 The newest app version people can install from TestFlight / Play; the native app shows "update
 available" when it is higher than its own. Backed by `GET`/`PUT /api/app/admin/release`, which the
-player API reads per request — a change takes effect with no deploy and no restart.
+player API reads per request — a change takes effect with no deploy and no restart. The operator
+api writes it to a dir it shares with the player api (`APP_RELEASE_DIR`, #2296), and carries the
+player's deploy default, so what this view shows is what phones are served.
 
 - **Served now** (`release-served`) — what the server reports (the override when set, else the
   deploy default; "— (no prompt)" when neither). **Deploy default** (`release-deploy-default`) —

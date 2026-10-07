@@ -69,6 +69,9 @@ services:
       # OAuth callback as https://<player-domain>/... (#1163).
       FORWARDED_ALLOW_IPS: "*"
       APP_DATA_DIR: /app/appdata
+      # The released app version (player_release.json) lives in a dir SHARED with the operator api,
+      # whose viewer has the Admin field that sets it (#2296). Only that file is shared.
+      APP_RELEASE_DIR: /app/release
       # Origin the EXPORTS link back to, e.g. https://closelistening.app/episode/<slug>?t=42.
       # Export links must be absolute or they are dead where the export is actually read: Obsidian
       # resolves "/episode/x" against the vault, and a .md file on disk has no origin at all.
@@ -163,6 +166,9 @@ services:
       # corpus) so it lives on the host FS: backupable (backup-player-appdata-prod.yml),
       # survives a container/volume prune, and operator-visible. #3.
       - ${PLAYER_APPDATA_HOST_PATH:-/srv/podcast-scraper/player-appdata}:/app/appdata
+      # Shared with the operator api (#2296): the released app version only. Prepared (and
+      # chowned to 1000) by both deploy scripts, which run in parallel.
+      - ${PLAYER_RELEASE_HOST_PATH:-/srv/podcast-scraper/player-release}:/app/release
     # Hardening (#1160 T-04): no sock, no keys, drop caps. NOT read_only (entrypoint
     # chown + app-data writes). Boot profile matches the operator api (verified there).
     security_opt:

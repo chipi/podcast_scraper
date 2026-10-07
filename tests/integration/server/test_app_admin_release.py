@@ -98,3 +98,40 @@ def test_a_change_is_audited(tmp_path: Path) -> None:
     assert any(
         r.get("action") == "player_release_set" and r.get("after") == "1.0.2" for r in records
     )
+
+
+def test_the_operator_viewer_sets_the_version_the_player_serves(tmp_path: Path) -> None:
+    """#2296: the Admin field is in the OPERATOR viewer, phones read the PLAYER api.
+
+    The two apis have separate data dirs, so a write landed in the operator's copy and phones never
+    saw it. Both now point ``app_release_dir`` at one shared dir.
+    """
+    shared = tmp_path / "release"
+    operator = _app(tmp_path / "op")
+    operator.state.app_data_dir = tmp_path / "operator-appdata"
+    operator.state.app_release_dir = shared
+    player = _app(tmp_path / "pl")
+    player.state.app_data_dir = tmp_path / "player-appdata"
+    player.state.app_release_dir = shared
+
+    assert (
+        _login(operator, "boss").put(RELEASE, json={"player_version": "1.0.2"}).status_code == 200
+    )
+    assert _served(TestClient(player)) == ("1.0.2", "1.0.2")
+    # Neither stack's user data holds it — only the shared dir does.
+    assert not (tmp_path / "operator-appdata" / "player_release.json").exists()
+    assert not (tmp_path / "player-appdata" / "player_release.json").exists()
+
+
+def test_without_a_release_dir_the_data_dir_holds_it(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    assert app.state.app_release_dir is None
+    _login(app, "boss").put(RELEASE, json={"player_version": "1.0.2"})
+    assert (tmp_path / "appdata" / "player_release.json").is_file()
+
+
+def test_app_release_dir_comes_from_the_environment(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("APP_RELEASE_DIR", str(tmp_path / "shared"))
+    assert create_app(tmp_path, static_dir=False).state.app_release_dir == tmp_path / "shared"
+    monkeypatch.delenv("APP_RELEASE_DIR")
+    assert create_app(tmp_path, static_dir=False).state.app_release_dir is None

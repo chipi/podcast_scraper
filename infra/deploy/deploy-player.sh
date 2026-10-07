@@ -163,6 +163,20 @@ APPDATA_DIR="${PLAYER_APPDATA_HOST_PATH:-/srv/podcast-scraper/player-appdata}"
 install -d -m 0750 "$APPDATA_DIR" 2>/dev/null || mkdir -p "$APPDATA_DIR"
 chown -R 1000:1000 "$APPDATA_DIR" 2>/dev/null || sudo -n chown -R 1000:1000 "$APPDATA_DIR" || true
 
+# The released app version lives in a dir shared with the operator api (#2296); deploy-operator.sh
+# prepares the same dir, since the two deploys run in parallel. Seeded ONCE from the player's
+# appdata copy, which is where the override lived before: without it the served version would
+# fall back to the deploy default the moment this deploy lands. A copy, not a move — rolling back
+# to an image that still reads appdata keeps serving the same version.
+RELEASE_DIR="${PLAYER_RELEASE_HOST_PATH:-/srv/podcast-scraper/player-release}"
+install -d -m 0750 "$RELEASE_DIR" 2>/dev/null || mkdir -p "$RELEASE_DIR"
+if [ ! -e "$RELEASE_DIR/player_release.json" ] && [ -f "$APPDATA_DIR/player_release.json" ]; then
+  cp "$APPDATA_DIR/player_release.json" "$RELEASE_DIR/player_release.json" 2>/dev/null \
+    || sudo -n cp "$APPDATA_DIR/player_release.json" "$RELEASE_DIR/player_release.json"
+  echo "[$(date -u +%FT%TZ)] release: seeded $RELEASE_DIR/player_release.json from $APPDATA_DIR"
+fi
+chown -R 1000:1000 "$RELEASE_DIR" 2>/dev/null || sudo -n chown -R 1000:1000 "$RELEASE_DIR" || true
+
 # NO --build. The app image is PUBLISHED now (stack-test publish job) and pinned by
 # PODCAST_IMAGE_TAG like every other container here. Building on the box is what made the
 # player unpinnable: `up --build` rebuilt the UI from whatever this checkout happened to be,

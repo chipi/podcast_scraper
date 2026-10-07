@@ -34,6 +34,11 @@ services:
       # so uvicorn derives the OAuth callback as https://<operator-domain>/...
       FORWARDED_ALLOW_IPS: "*"
       APP_DATA_DIR: /app/appdata
+      # The Admin field for the released app version writes HERE, a dir shared with the player api
+      # that serves it to phones (#2296) — not this stack's appdata, which the player never reads.
+      APP_RELEASE_DIR: /app/release
+      # The player's deploy default, so the Admin view reports what phones are actually served.
+      APP_PLAYER_VERSION: ${APP_PLAYER_VERSION:-}
       # THE operator differentiator: these emails become admin (creator via grant). A signed-in
       # listener is 403'd from the operator routes (require_viewer_access = ≥creator).
       APP_ADMIN_EMAILS: ${APP_ADMIN_EMAILS:-}
@@ -77,6 +82,8 @@ services:
       # Per-user operator data (prefs/library) — a HOST bind mount, backupable + durable,
       # separate from the player's appdata.
       - ${OPERATOR_APPDATA_HOST_PATH:-/srv/podcast-scraper/operator-appdata}:/app/appdata
+      # Shared with the player api (#2296): the released app version only.
+      - ${PLAYER_RELEASE_HOST_PATH:-/srv/podcast-scraper/player-release}:/app/release
     # Hardening (T-01/T-04): NO docker.sock, NO provider keys, drop caps. NOT read_only
     # (entrypoint chown + app-data writes). Mirrors the player-public api boot profile.
     security_opt:

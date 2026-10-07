@@ -336,9 +336,8 @@ class ReleaseBody(BaseModel):
 
 
 def _release_out(request: Request) -> ReleaseOut:
-    raw_dir = getattr(request.app.state, "app_data_dir", None)
     override = app_release_store.load_released_version(
-        Path(raw_dir) if raw_dir is not None else None
+        app_release_store.release_dir(request.app.state)
     )
     deploy_default = getattr(request.app.state, "player_version", None)
     return ReleaseOut(
@@ -364,8 +363,8 @@ def admin_put_release(
     here and every app below it is prompted to update on its next check. ``null`` clears the
     override and the deploy's ``APP_PLAYER_VERSION`` applies again. Audited, like every admin write.
     """
-    raw_dir = getattr(request.app.state, "app_data_dir", None)
-    if raw_dir is None:
+    target = app_release_store.release_dir(request.app.state)
+    if target is None:
         raise HTTPException(status_code=503, detail="No app data dir configured.")
     version = body.player_version.strip() if body.player_version else None
     if version is not None and not app_release_store.valid_player_version(version):
@@ -373,7 +372,7 @@ def admin_put_release(
             status_code=422, detail="player_version must be a dotted number, e.g. 1.0.2."
         )
     before = _release_out(request)
-    app_release_store.save_released_version(Path(raw_dir), version)
+    app_release_store.save_released_version(target, version)
     after = _release_out(request)
     _audit(
         request,

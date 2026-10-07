@@ -15,7 +15,7 @@ from podcast_scraper.corpus_version import (
     corpus_code_version,
     MIN_SUPPORTED_CORPUS_CODE_VERSION,
 )
-from podcast_scraper.server.app_release_store import load_released_version
+from podcast_scraper.server.app_release_store import load_released_version, release_dir
 from podcast_scraper.server.pathutil import (
     CorpusPathRequestError,
     read_manifest_produced_by_under_anchor,
@@ -74,8 +74,7 @@ def player_client_health(st: Any) -> dict[str, Any]:
 
 def released_player_version(st: Any) -> str | None:
     """The runtime override when set, else the environment default (``None`` = no prompt)."""
-    raw_dir = getattr(st, "app_data_dir", None)
-    override = load_released_version(Path(raw_dir) if raw_dir is not None else None)
+    override = load_released_version(release_dir(st))
     return override or getattr(st, "player_version", None)
 
 

@@ -95,8 +95,11 @@ health), and probes the public domain. Stage these first (once):
   player deploy (the value is read when the api container starts). Unset means no prompt.
   `gh variable set PLAYER_RELEASED_VERSION --env prod --body 1.0.1`
 - **Changing it without a deploy** (a native-only release): an admin sends
-  `PUT /api/app/admin/release` with `{"player_version": "1.0.2"}`. It is stored in the player's data
-  dir and read on every request, so the next health read reports it — no restart. `null` clears it
+  `PUT /api/app/admin/release` with `{"player_version": "1.0.2"}` — normally from the operator
+  viewer's Admin view. It is stored in `APP_RELEASE_DIR` (`/srv/podcast-scraper/player-release`), the
+  one dir both the player and the operator api mount, so the operator's save is the copy the player
+  serves (#2296); each stack's user data stays separate. It is read on every request, so the next
+  health read reports it — no restart. `null` clears it
   and the deploy's value applies again; `GET` shows the served value, the override and the deploy
   default. Like every `/api/app/admin/*` route it is tailnet-only (the public nginx 404s it) and
   audited (`player_release_set`).

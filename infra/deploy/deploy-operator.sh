@@ -124,6 +124,13 @@ APPDATA_DIR="${OPERATOR_APPDATA_HOST_PATH:-/srv/podcast-scraper/operator-appdata
 install -d -m 0750 "$APPDATA_DIR" 2>/dev/null || mkdir -p "$APPDATA_DIR"
 chown -R 1000:1000 "$APPDATA_DIR" 2>/dev/null || sudo -n chown -R 1000:1000 "$APPDATA_DIR" || true
 
+# The released app version dir, shared with the player api (#2296). deploy-player.sh prepares it
+# too (the deploys run in parallel) and seeds it; here it only has to exist and be uid 1000's,
+# or Docker auto-creates it root-owned and the Admin field's save fails.
+RELEASE_DIR="${PLAYER_RELEASE_HOST_PATH:-/srv/podcast-scraper/player-release}"
+install -d -m 0750 "$RELEASE_DIR" 2>/dev/null || mkdir -p "$RELEASE_DIR"
+chown -R 1000:1000 "$RELEASE_DIR" 2>/dev/null || sudo -n chown -R 1000:1000 "$RELEASE_DIR" || true
+
 echo "[$(date -u +%FT%TZ)] building + starting operator-public..."
 "${COMPOSE[@]}" up -d --build --remove-orphans || {
   echo "ERROR: docker compose up failed" >&2
