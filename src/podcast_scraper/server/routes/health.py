@@ -15,7 +15,7 @@ from podcast_scraper.corpus_version import (
     corpus_code_version,
     MIN_SUPPORTED_CORPUS_CODE_VERSION,
 )
-from podcast_scraper.server.app_release_store import load_released_version, release_dir
+from podcast_scraper.server.app_release_store import load_released_versions, release_dir
 from podcast_scraper.server.pathutil import (
     CorpusPathRequestError,
     read_manifest_produced_by_under_anchor,
@@ -60,6 +60,8 @@ def player_client_health(st: Any) -> dict[str, Any]:
     * ``player_version`` — the released app version, for the native update prompt: the runtime
       override an admin set (``PUT /api/app/admin/release``) when there is one, else the deploy's
       ``APP_PLAYER_VERSION``. Read per request, so a native-only release needs no restart.
+    * ``app_versions`` — the same fact for every client app the kernel serves (ADR-158), keyed by
+      app id. ``player_version`` stays because installed builds read it.
     """
     auth_configured = getattr(st, "oauth_provider", None) is not None
     auth_ready = not auth_configured or (
@@ -69,13 +71,28 @@ def player_client_health(st: Any) -> dict[str, Any]:
         "auth_ready": auth_ready,
         "auth_epoch": _auth_epoch(getattr(st, "session_secret", "")),
         "player_version": released_player_version(st),
+        "app_versions": released_app_versions(st),
     }
+
+
+def released_app_versions(st: Any) -> dict[str, str]:
+    """Each app's runtime override when set, else its deploy default; apps with neither are absent.
+
+    Deploy defaults: ``player_version`` (``APP_PLAYER_VERSION``) for the player, plus any other
+    app's in ``app_version_defaults``.
+    """
+    defaults: dict[str, str | None] = {
+        "player": getattr(st, "player_version", None),
+        **(getattr(st, "app_version_defaults", None) or {}),
+    }
+    served = {app: v for app, v in defaults.items() if v}
+    served.update(load_released_versions(release_dir(st)))
+    return served
 
 
 def released_player_version(st: Any) -> str | None:
     """The runtime override when set, else the environment default (``None`` = no prompt)."""
-    override = load_released_version(release_dir(st))
-    return override or getattr(st, "player_version", None)
+    return released_app_versions(st).get("player")
 
 
 def _auth_epoch(secret: str) -> str | None:
@@ -163,6 +180,7 @@ async def health(
             "auth_epoch": client["auth_epoch"],
             "code_version": __version__,
             "player_version": client["player_version"],
+            "app_versions": client["app_versions"],
             "min_supported_corpus_code_version": MIN_SUPPORTED_CORPUS_CODE_VERSION,
             "corpus_produced_by": corpus_produced_by,
             "corpus_code_version": corpus_ver,

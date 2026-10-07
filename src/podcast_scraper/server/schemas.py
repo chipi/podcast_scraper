@@ -2493,6 +2493,14 @@ class HealthResponse(BaseModel):
             "skips the update check rather than compare mismatched scales (wave-I.6)."
         ),
     )
+    app_versions: dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "The released version of every client app the server knows, keyed by app id "
+            "(``player``, later ``news``): the admin's runtime override when set, else the "
+            "deploy default. ``player_version`` repeats the player's entry for installed builds."
+        ),
+    )
     min_supported_corpus_code_version: str = Field(
         default="",
         description="Minimum ``produced_by.code_version`` the server supports without warning.",

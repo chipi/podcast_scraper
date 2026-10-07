@@ -57,6 +57,8 @@ def test_an_admin_sets_the_version_and_it_is_served_at_once(tmp_path: Path) -> N
     resp = admin.put(RELEASE, json={"player_version": "1.0.2"})
     assert resp.status_code == 200
     assert resp.json() == {
+        "app": "player",
+        "version": "1.0.2",
         "player_version": "1.0.2",
         "override": "1.0.2",
         "deploy_default": "1.0.1",
@@ -128,6 +130,58 @@ def test_without_a_release_dir_the_data_dir_holds_it(tmp_path: Path) -> None:
     assert app.state.app_release_dir is None
     _login(app, "boss").put(RELEASE, json={"player_version": "1.0.2"})
     assert (tmp_path / "appdata" / "player_release.json").is_file()
+
+
+def test_each_app_has_its_own_version(tmp_path: Path) -> None:
+    """ADR-158: the kernel serves more than one client app, so a release is per app."""
+    app = _app(tmp_path)
+    admin = _login(app, "boss")
+    resp = admin.put(RELEASE, json={"app": "news", "version": "0.3.0"})
+    assert resp.status_code == 200
+    assert resp.json()["app"] == "news" and resp.json()["version"] == "0.3.0"
+    # The player is untouched, and health lists both apps.
+    assert _served(TestClient(app)) == ("1.0.1", "1.0.1")
+    assert TestClient(app).get("/api/health").json()["app_versions"] == {
+        "player": "1.0.1",
+        "news": "0.3.0",
+    }
+    assert admin.get(RELEASE, params={"app": "news"}).json()["override"] == "0.3.0"
+    # Clearing news leaves the player's entry alone.
+    admin.put(RELEASE, json={"app": "news", "version": None})
+    assert TestClient(app).get("/api/health").json()["app_versions"] == {"player": "1.0.1"}
+
+
+def test_the_player_override_reads_and_writes_the_old_file_too(tmp_path: Path) -> None:
+    """An instance upgraded from before per-app versions keeps its override, and a rollback to
+    code that knows only ``player_release.json`` still sees what was set after the upgrade."""
+    app = _app(tmp_path)
+    data = tmp_path / "appdata"
+    data.mkdir(parents=True)
+    (data / "player_release.json").write_text(json.dumps({"player_version": "1.0.5"}))
+    assert _served(TestClient(app)) == ("1.0.5", "1.0.5")
+
+    admin = _login(app, "boss")
+    admin.put(RELEASE, json={"version": "1.0.6"})
+    assert json.loads((data / "player_release.json").read_text()) == {"player_version": "1.0.6"}
+    admin.put(RELEASE, json={"version": None})
+    assert not (data / "player_release.json").exists()
+    assert _served(TestClient(app)) == ("1.0.1", "1.0.1")
+
+
+def test_a_body_naming_no_version_is_refused_not_a_silent_clear(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    admin = _login(app, "boss")
+    admin.put(RELEASE, json={"version": "1.0.2"})
+    assert admin.put(RELEASE, json={}).status_code == 422
+    assert admin.put(RELEASE, json={"app": "player"}).status_code == 422
+    assert admin.get(RELEASE).json()["override"] == "1.0.2"
+
+
+def test_a_malformed_app_id_is_refused(tmp_path: Path) -> None:
+    admin = _login(_app(tmp_path), "boss")
+    for bad in ("News", "../x", "", "a" * 40):
+        assert admin.put(RELEASE, json={"app": bad, "version": "1.0.0"}).status_code == 422, bad
+        assert admin.get(RELEASE, params={"app": bad}).status_code == 422, bad
 
 
 def test_app_release_dir_comes_from_the_environment(tmp_path: Path, monkeypatch) -> None:
