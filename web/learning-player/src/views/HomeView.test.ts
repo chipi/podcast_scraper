@@ -184,7 +184,7 @@ describe('HomeView (discover state, signed out)', () => {
     expect(w.find('img[src="https://x/row.png"]').exists()).toBe(true)
   })
 
-  it("What's new: every position carries ♡ queue ⋯ — #01 in a row, 02+ stacked (operator 2026-10-05)", async () => {
+  it("What's new: #01 carries ♡ queue ⋯ in a row; 02+ stack queue ⋯ with the ♡ in the ⋯ (operator 2026-10-07)", async () => {
     vi.spyOn(api, 'getDiscover').mockResolvedValue({
       items: [ep('a-1', 'First Ep'), ep('a-2', 'Second Ep'), ep('a-3', 'Third Ep')],
       page: 1, page_size: 8, total: 3, has_more: false,
@@ -197,12 +197,19 @@ describe('HomeView (discover state, signed out)', () => {
     const rows = w.findAll('[data-testid="episode-actions"]')
     expect(rows).toHaveLength(3) // #01 + two ranked rows
     // Each control by its test id, or its accessible name where it has none (the queue toggle).
-    for (const r of rows) {
-      const got = r.findAll('button').map((b) => b.attributes('data-testid') ?? b.attributes('aria-label'))
-      expect(got).toHaveLength(3)
-      expect(got[0]).toBe('favorite-button')
-      expect(got[1]).toMatch(/queue/i)
-      expect(got[2]).toBe('overflow-trigger')
+    const controls = (r: (typeof rows)[number]) =>
+      r.findAll('button').map((b) => b.attributes('data-testid') ?? b.attributes('aria-label'))
+    const featured = controls(rows[0])
+    expect(featured).toHaveLength(3)
+    expect(featured[0]).toBe('favorite-button')
+    expect(featured[1]).toMatch(/queue/i)
+    expect(featured[2]).toBe('overflow-trigger')
+    // 02+: the heart lives in the ⋯, so each stacked row is two targets tall, not three.
+    for (const r of rows.slice(1)) {
+      const got = controls(r)
+      expect(got).toHaveLength(2)
+      expect(got[0]).toMatch(/queue/i)
+      expect(got[1]).toBe('overflow-trigger')
     }
     expect(rows[0].classes()).not.toContain('flex-col') // the #01 card: one row, top right
     expect(rows[1].classes()).toContain('flex-col') // 02+: one column, top to bottom

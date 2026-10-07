@@ -700,12 +700,11 @@ onMounted(async () => {
             <span class="lp-kicker ml-1 font-normal">{{ filteredEpisodes.length }}</span>
           </h2>
           <div class="flex flex-col">
-            <!-- `hide-favorite`: every row here IS saved, so the heart restates what the surface
-                 already says — while spending one of three slots in the 128px column, which wrapped
-                 the colour control onto a second row (operator 2026-09-16). It moves into the ⋯
-                 (still the only way to unsave) and the colour control takes its place via
-                 `lead-action`, so the row is three wide again and nothing wraps. -->
-            <EpisodeCard v-for="e in visibleEpisodes" :key="e.slug" :episode="e" hide-favorite>
+            <!-- Colour, heart, ⋯ (operator 2026-10-07): the heart is the one-tap unsave here, like
+                 the show rows above it, and the queue toggle moves into the ⋯ (`hide-queue`) — three
+                 targets in the 128px column, so nothing wraps. The colour control leads via
+                 `lead-action`. -->
+            <EpisodeCard v-for="e in visibleEpisodes" :key="e.slug" :episode="e" hide-queue>
               <template #lead-action>
                 <SavedColorControl
                   :color="e.color"

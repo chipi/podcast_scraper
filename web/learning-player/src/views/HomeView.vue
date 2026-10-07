@@ -681,12 +681,13 @@ async function loadContinue(): Promise<void> {
                 <span class="lp-kicker lp-show-name mt-0.5" :title="ep.podcast_title ?? undefined">{{ ep.podcast_title }}</span>
               </span>
             </RouterLink>
-            <!-- The row's actions, STACKED in one column on the right (operator 2026-10-05): heart,
-                 queue, ⋯ — the #01 card's set, so every position acts alike. The row opens the episode
-                 (paused, like every card — only Resume plays). Outside the link — never an interactive inside an
-                 interactive. A vertical stack costs height, not width, so the title keeps the row's
-                 width; side by side, a cluster like this once crushed it to one word per line. -->
-            <EpisodeActions :slug="ep.slug" class="shrink-0 flex-col" />
+            <!-- The row's actions, STACKED in one column on the right (operator 2026-10-05): queue and
+                 ⋯, with the heart inside the ⋯ (operator 2026-10-07) — three stacked targets made each
+                 row taller than its content. The row opens the episode (paused, like every card — only
+                 Resume plays). Outside the link — never an interactive inside an interactive. A
+                 vertical stack costs height, not width, so the title keeps the row's width; side by
+                 side, a cluster like this once crushed it to one word per line. -->
+            <EpisodeActions :slug="ep.slug" hide-favorite class="shrink-0 flex-col" />
           </li>
         </ul>
       </template>
