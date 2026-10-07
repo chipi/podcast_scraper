@@ -159,19 +159,20 @@ platform :android do
   # scaled to 512, so both stores show the same mark. Changes the PUBLIC listing — run it on
   # purpose, never as part of a build.
   lane :listing_icon do
-    icon = File.join(__dir__, "metadata", "android", "en-US", "images", "icon.png")
+    icon = File.join(APP_DIR, "fastlane", "metadata", "android", "en-US", "images", "icon.png")
     UI.user_error!("No listing icon at #{icon}.") unless File.exist?(icon)
-    upload_to_play_store(
-      package_name: PACKAGE,
-      json_key: json_key,
-      metadata_path: File.join(__dir__, "metadata", "android"),
-      skip_upload_apk: true,
-      skip_upload_aab: true,
-      skip_upload_metadata: true,
-      skip_upload_changelogs: true,
-      skip_upload_screenshots: true,
-      skip_upload_images: false,
+    # The Play client directly, not `upload_to_play_store`: with every binary skipped, supply still
+    # looks for a release to attach to and fails ("Could not find release for version code ''",
+    # 2026-10-07) before uploading anything. One edit: replace the icon, commit, nothing else.
+    require "supply"
+    Supply.config = FastlaneCore::Configuration.create(
+      Supply::Options.available_options, { package_name: PACKAGE, json_key: json_key }
     )
-    UI.success("Listing icon uploaded.")
+    client = Supply::Client.make_from_config
+    client.begin_edit(package_name: PACKAGE)
+    client.clear_screenshots(image_type: "icon", language: "en-US")
+    client.upload_image(image_path: icon, image_type: "icon", language: "en-US")
+    client.commit_current_edit!
+    UI.success("Listing icon uploaded (en-US).")
   end
 end
