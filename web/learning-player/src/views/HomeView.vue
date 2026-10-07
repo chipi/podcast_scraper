@@ -567,8 +567,11 @@ async function loadContinue(): Promise<void> {
     </section>
 
     <!-- Your Week — the personal digest LEADS the content, right under Continue / Jump-back-in
-         (operator review): the forward-looking "what to play next" is the reason to open Home. -->
-    <YourWeek :key="railKey" />
+         (operator review): the forward-looking "what to play next" is the reason to open Home.
+         While the welcome card asks a new listener for interests, an EMPTY Your Week stays hidden:
+         the card is the teaching (operator 2026-10-07). It appears once they save interests or
+         decline with "Not now" — or as soon as it has content, e.g. after following a show. -->
+    <YourWeek :key="railKey" :hide-when-empty="showInterestsCard" />
 
     <!-- Discovery: the shared tabbed DiscoveryExplorer (Topics / Storylines / People + sort/scope),
          after the digest. Capped at 5 rows here; Discover uses the same section capped at 10.

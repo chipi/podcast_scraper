@@ -57,8 +57,18 @@ const itemCount = computed(() =>
  * indistinguishable from a quiet week. Now the section persists and explains, per row, what will
  * appear there and how to earn it.
  */
-const show = computed(() => auth.isAuthenticated)
+const props = withDefaults(defineProps<{
+  /**
+   * Render nothing until there is something to show. Home sets it while the welcome card is asking
+   * a new listener for interests (operator 2026-10-07): that card is the teaching, and a first-run
+   * line beneath it promising a digest for someone who follows nothing was noise. Content still
+   * wins — a listener who followed a show but chose no interests sees their rollup.
+   */
+  hideWhenEmpty?: boolean
+}>(), { hideWhenEmpty: false })
+
 const hasContent = computed(() => nonEmptySections.value.length > 0)
+const show = computed(() => auth.isAuthenticated && (hasContent.value || !props.hideWhenEmpty))
 
 
 

@@ -106,6 +106,9 @@ test('every Home section header is the same shape', async ({ page }, testInfo) =
   await signInIsolated(page, 'home-heading-uniformity', testInfo)
   await page.goto('/')
   await page.waitForLoadState('networkidle')
+  // A fresh account sees the welcome card, which hides the empty Your Week; decline it so every
+  // section that can carry a heading is on the page.
+  await page.getByRole('button', { name: 'Not now' }).click()
 
   const titles = page.getByTestId('section-title')
   await expect(titles.first()).toBeVisible()

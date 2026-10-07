@@ -32,6 +32,12 @@ test('Your Week teaches a fresh signed-in user instead of hiding (#1591)', async
   await signInIsolated(page, 'your-week-empty', testInfo) // asserts signed-in (Sign out visible)
   await page.goto('/')
 
+  // While the welcome card asks a brand-new listener for interests, the card IS the teaching and an
+  // empty Your Week stays out of its way (operator 2026-10-07). Declining brings the first-run line.
+  await expect(page.getByTestId('interests-welcome')).toBeVisible()
+  await expect(page.getByTestId('your-week')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Not now' }).click()
+
   // REVERSED contract. This previously asserted the section must NOT render when nothing is due.
   // Hiding meant the user most in need of learning that a weekly digest exists — a brand-new one —
   // got no hint of it, and an API outage was indistinguishable from a quiet week. See UXS-012.

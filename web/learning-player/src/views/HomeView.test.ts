@@ -375,6 +375,53 @@ describe('HomeView interests card (3.5)', () => {
     expect(card.text()).not.toContain('m@x.com')
   })
 
+  it('hides Your Week while the welcome card shows; it appears once interests exist (operator 2026-10-07)', async () => {
+    // A week digest for someone who follows nothing is empty by construction.
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, 'getYourWeek').mockResolvedValue({ sections: [] } as never)
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(true)
+    expect(w.find('[data-testid="your-week"]').exists()).toBe(false)
+    // Saving interests from the picker fills the store; the card goes and Your Week comes.
+    useInterestsStore().ids = ['tc:ai']
+    await flushPromises()
+    expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(false)
+    expect(w.find('[data-testid="your-week"]').exists()).toBe(true)
+  })
+
+  it('"Not now" also brings Your Week back', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, 'getYourWeek').mockResolvedValue({ sections: [] } as never)
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(w.find('[data-testid="your-week"]').exists()).toBe(false)
+    await w.get('[data-testid="interests-not-now"]').trigger('click')
+    expect(w.find('[data-testid="your-week"]').exists()).toBe(true)
+  })
+
+  it('Your Week with content shows even beside the welcome card (followed a show, no interests)', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, 'getYourWeek').mockResolvedValue({
+      sections: [{ kind: 'follows', items: [{ episode_slug: 'e1', episode_title: 'Followed Ep', deep_link: '/e/e1' }] }],
+    } as never)
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(true)
+    expect(w.find('[data-testid="your-week"]').exists()).toBe(true)
+  })
+
+  it('a listener who already has interests sees Your Week straight away', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['tc:ai'])
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(w.find('[data-testid="your-week"]').exists()).toBe(true)
+  })
+
   it('dismissing hides the card', async () => {
     signIn()
     const w = mountKeptAlive()
