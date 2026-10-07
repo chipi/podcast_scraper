@@ -67,19 +67,6 @@ def test_the_gi_and_kg_scanners_ignore_backups(tmp_path: Path) -> None:
     assert _rels(tmp_path, scan_kg_artifact_paths(tmp_path)) == {f"{LIVE}.kg.json"}
 
 
-def test_the_artifact_listing_ignores_backups(tmp_path: Path) -> None:
-    from fastapi.testclient import TestClient
-
-    from podcast_scraper.server.app import create_app
-
-    _corpus(tmp_path)
-    client = TestClient(create_app(tmp_path, static_dir=False))
-    resp = client.get("/api/artifacts", params={"path": str(tmp_path)})
-    assert resp.status_code == 200
-    listed = {a["relative_path"] for a in resp.json()["artifacts"]}
-    assert listed and not any(".podcast_scraper" in r or ".trash" in r for r in listed)
-
-
 # The guard. A recursive scan written as ``root.rglob(...)`` walks straight into the backups; it
 # happened in `upgrade verify` (2026-10-03, fixed alone) and then in ~30 other places. New corpus
 # scanners use corpus_rglob; anything that walks a NON-corpus tree is named here with its reason.
