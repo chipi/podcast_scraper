@@ -219,11 +219,13 @@ function toggle(personId: string): void {
                   class="flex items-baseline gap-1.5 text-sm text-canvas-foreground"
                 >
                   <span aria-hidden="true" class="text-muted">•</span>
-                  <span class="min-w-0 flex-1">{{ ins.text }}</span>
                   <!-- #2032: topic → insight → episode-moment. Grounded insights carry their source
                        episode + the supporting quote's start, so the take jumps into the player AT
-                       the moment. Ungrounded/quote-less insights render with no ▶ (stays honest). -->
-                  <PlayFrom
+                       the moment. Ungrounded/quote-less insights render with no ▶ (stays honest).
+                       INLINE at the end of the text (operator 2026-10-07): as its own column beside
+                       the text it took a third of a phone row and stacked every insight into a
+                       word-wide strip. -->
+                  <span class="min-w-0 flex-1">{{ ins.text }}<template v-if="ins.episode_slug && ins.start_ms != null">&#32;</template><PlayFrom
                     v-if="ins.episode_slug && ins.start_ms != null"
                     :seconds="ins.start_ms / 1000"
                     :to="{
@@ -234,7 +236,8 @@ function toggle(personId: string): void {
                     data-testid="perspective-jump"
                     :aria-label="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
                     :title="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
-                  />
+                    class="ml-1"
+                  /></span>
                 </li>
               </ul>
               <button

@@ -188,6 +188,12 @@ describe('TopicPerspectives', () => {
       params: { slug: 'ep-a' },
       query: { t: '90', play: '1' }, // an explicit ▶ plays (operator 2026-10-05)
     })
+    // INLINE, at the end of the insight's own text — not a column beside it, which squeezed every
+    // insight into a word-wide strip on a phone (operator 2026-10-07).
+    const parent = jumps[0].element.parentElement!
+    expect(parent.tagName, 'the ▶ must sit inside the text, not beside it in the row').toBe('SPAN')
+    expect(parent.textContent).toContain('With a moment')
+    expect(parent.lastElementChild).toBe(jumps[0].element)
   })
 })
 
