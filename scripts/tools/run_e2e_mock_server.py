@@ -50,6 +50,14 @@ def main() -> int:
             "tests/fixtures/rss/*_corpus.xml, so a new show is served without editing this."
         ),
     )
+    parser.add_argument(
+        "--no-transcripts",
+        action="store_true",
+        help=(
+            "Serve every feed AUDIO-ONLY: strip each item's <podcast:transcript>, so a pipeline "
+            "run transcribes the audio instead of taking the fixture VTT (ASR measurement, #2187)."
+        ),
+    )
     args = parser.parse_args()
 
     from tests.e2e.fixtures.e2e_http_server import (  # noqa: E402 (sys.path first)
@@ -63,6 +71,9 @@ def main() -> int:
         names |= set(E2EHTTPRequestHandler.CORPUS_PODCASTS)
     E2EHTTPRequestHandler.set_allowed_podcasts(names)
     E2EHTTPRequestHandler.set_use_fast_fixtures(bool(args.fast_fixtures))
+    E2EHTTPRequestHandler.set_strip_transcripts(bool(args.no_transcripts))
+    if args.no_transcripts:
+        print("Feeds are served AUDIO-ONLY (no <podcast:transcript>).", flush=True)
 
     server = E2EHTTPServer(port=args.port)
     server.start()
