@@ -166,10 +166,19 @@ machine. Until #2138 merges, this work stays out of `.github/workflows/`, `infra
 ### 10. Docs move with their surface
 
 ADRs, RFCs, PRDs, UXS documents and WIP notes whose subject moves go with it, chosen by the
-playbook's path sweep and then by reading each candidate. Public citations of moved docs use the
-`repo-name:path` form. Round 1 moves whole documents (including
-`docs/wip/PUBLIC-EXPOSURE-AND-PRIVATE-SPLIT.md`); round 2 later repairs mixed documents, listed
-but not edited in round 1.
+playbook's path sweep and then by reading each candidate. Round 1 moves whole documents
+(including `docs/wip/PUBLIC-EXPOSURE-AND-PRIVATE-SPLIT.md`); round 2 later repairs mixed
+documents, listed but not edited in round 1.
+
+References across the boundary run one way only:
+
+- **Private → public: allowed, by ID, never as a link.** A private document names a public one by
+  its identifier ("ADR-158", "PRD-039", "RFC-088"), not by a relative path or URL. A path breaks
+  as soon as either repo's layout changes, which is how the copied player docs failed the doc
+  check.
+- **Public → private: not allowed.** No public document, comment or code names a private
+  document, by link, path or ID. When a document moves, public references to it are removed, not
+  converted.
 
 ## Sequence
 
