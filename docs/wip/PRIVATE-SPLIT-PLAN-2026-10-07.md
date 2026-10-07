@@ -27,7 +27,7 @@ carve up. Reviewed 2026-10-07; it cannot merge as it stands.
 
 Order to land it: port the 29 files into infra → activate infra and prove one deploy → rebase
 PR #2138 (the 24 modify/delete conflicts then resolve to delete; `Makefile` and `mkdocs.yml` by
-hand) → move or invert the two tests and delink the three docs → rerun the gates the PR did not
+hand) → move or invert the two tests and remove the links from the three docs → rerun the gates the PR did not
 run locally (`test-ui`, `build-viewer`, `test-app`, `build-app`, `stack-test`) → no infra edits
 on `main` between the port and the merge.
 
