@@ -25,12 +25,26 @@ export async function expectSignedIn(page: Page): Promise<void> {
   await expect(page.locator('a[href="/profile"]:visible').first()).toBeVisible()
 }
 
+/**
+ * The mock login keeps only the first 32 characters of `?as=` (`_safe_hint` on the server), so two
+ * long ids that differ only at the end were ONE account: every `--repeat-each` copy of
+ * "trends-mine-fresh-desktop-chrome-r1" signed into the first copy's account and saw its state
+ * (2026-10-08). A long id keeps a readable prefix and ends in a hash of the whole id.
+ */
+function accountHint(raw: string): string {
+  const id = raw.toLowerCase().replace(/[^a-z0-9-]/g, '')
+  if (id.length <= 32) return id
+  let h = 0x811c9dc5
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193) >>> 0
+  return `${id.slice(0, 23)}-${h.toString(16).padStart(8, '0')}`
+}
+
 export async function signInIsolated(page: Page, who: string, testInfo: TestInfo): Promise<void> {
   // Per REPEAT too. `--repeat-each` runs copies of a test in parallel, and copies sharing one
   // account read each other's state — one copy's Save showed up as "Saved ✓" in another
   // (2026-10-04). A normal run has repeatEachIndex 0 and keeps its existing account id.
   const repeat = testInfo.repeatEachIndex > 0 ? `-r${testInfo.repeatEachIndex}` : ''
-  const id = `${who}-${testInfo.project.name}${repeat}`.toLowerCase().replace(/[^a-z0-9-]/g, '')
+  const id = accountHint(`${who}-${testInfo.project.name}${repeat}`)
   await page.goto(`/api/app/auth/login?as=${encodeURIComponent(id)}`)
   await expectSignedIn(page)
 }
