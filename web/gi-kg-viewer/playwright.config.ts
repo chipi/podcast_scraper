@@ -2,9 +2,10 @@ import { defineConfig, devices } from '@playwright/test'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { platformRoot } from './platform-root.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const repoRoot = path.resolve(__dirname, '..', '..')
+const repoRoot = platformRoot()
 /**
  * The API server below must run the interpreter that HAS podcast_scraper installed. CI creates
  * the venv at <repo>/.venv and never activates it, so a bare `python` there is the setup-python

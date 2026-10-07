@@ -123,38 +123,46 @@ player:
     - docs/wip/player
     - docs/wip/knowledge-retention
 
+# Common is two subpackages (ADR-158 decision 1): identity (who you are: MCP sign-in
+# and tokens) and intelligence (what the corpus knows: enrichers, MCP tool servers).
+# identity never imports intelligence, so an app that needs sign-in alone can use
+# it on its own; split_probe.py checks that.
 common:
   package: closelistening_common
-  modules:
-    podcast_scraper.server:
-      - app_mcp_tokens
-      - app_oauth_server
-      - app_rate_limit
-    podcast_scraper.server.routes:
-      - app_mcp
-      - mcp_oauth
-      - internal_mcp
-    podcast_scraper.enrichment.enrichers:
-      - org_web
-      - person_web
-      - temporal_velocity
-      - topic_consensus
-      - topic_similarity
-      - topic_theme_clusters
-    podcast_scraper.enrichment.query_enrichers:
-      - query_topic_relatedness
-    podcast_scraper.enrichment.eval.scorers:
-      - topic_similarity
-    # ADR-158 decision 3: the observability data layer (config, result, _http,
-    # sources, aggregate) stays public for the operator Ops view; the MCP server,
-    # its CLI and its auth move.
-    podcast_obs:
-      - mcp_server
-      - cli
-      - auth
-      - __main__
-  packages:
-    podcast_scraper.mcp: mcp
+  subpackages:
+    identity:
+      modules:
+        podcast_scraper.server:
+          - app_mcp_tokens
+          - app_oauth_server
+          - app_rate_limit
+        podcast_scraper.server.routes:
+          - app_mcp
+          - mcp_oauth
+          - internal_mcp
+    intelligence:
+      modules:
+        podcast_scraper.enrichment.enrichers:
+          - org_web
+          - person_web
+          - temporal_velocity
+          - topic_consensus
+          - topic_similarity
+          - topic_theme_clusters
+        podcast_scraper.enrichment.query_enrichers:
+          - query_topic_relatedness
+        podcast_scraper.enrichment.eval.scorers:
+          - topic_similarity
+        # ADR-158 decision 3: the observability data layer (config, result, _http,
+        # sources, aggregate) stays public for the operator Ops view; the MCP server,
+        # its CLI and its auth move.
+        podcast_obs:
+          - mcp_server
+          - cli
+          - auth
+          - __main__
+      packages:
+        podcast_scraper.mcp: mcp
   files:
     - docs/prd/PRD-034-generic-mcp-server.md
     - docs/rfc/RFC-093-litm-context-packs.md
@@ -172,3 +180,12 @@ common:
     - docs/wip/ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md
     - docs/wip/2026-09-02-enricher-reenable-prep.md
     - docs/wip/PUBLIC-EXPOSURE-AND-PRIVATE-SPLIT.md
+
+# Studio is the full operator viewer as a private app (ADR-158 decision 2). The public
+# repo keeps its own viewer, which loses the tier-A features (consensus search,
+# storylines, topic clusters, graph lenses, trending, OG cards) as they move; Studio
+# keeps all of them. Its UI, unit tests, e2e specs and fixtures come with the tree.
+studio:
+  package: closelistening_studio
+  forked_trees:
+    web/gi-kg-viewer: web

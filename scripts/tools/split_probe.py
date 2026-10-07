@@ -66,12 +66,14 @@ def prune(worktree: Path, manifest: dict, mapping: dict[str, str]) -> int:
         if f.startswith("src/") and f.endswith(".py") and sc.module_of(f) in mapping:
             (worktree / f).unlink(missing_ok=True)
             gone += 1
-    for spec in manifest.values():
-        for tree in spec.get("trees", {}):
+    for top in manifest.values():
+        # forked_trees are not pruned: the public repo keeps its own copy.
+        for tree in top.get("trees", {}):
             shutil.rmtree(worktree / tree, ignore_errors=True)
             gone += 1
-        for pkg in spec.get("packages", {}):
-            shutil.rmtree(worktree / "src" / pkg.replace(".", "/"), ignore_errors=True)
+        for _pkg, spec in sc.units(top):
+            for pkg in spec.get("packages", {}):
+                shutil.rmtree(worktree / "src" / pkg.replace(".", "/"), ignore_errors=True)
     for repo in manifest:
         for p in (sc.APPS / repo / "tests").rglob("*.py"):
             rel = p.relative_to(sc.APPS / repo)
@@ -95,7 +97,8 @@ def import_all(pythonpath: list[Path], packages: list[str], cwd: Path) -> dict:
         text=True,
         check=True,
     ).stdout
-    return json.loads(out.strip().splitlines()[-1])
+    result: dict = json.loads(out.strip().splitlines()[-1])
+    return result
 
 
 def edges(worktree: Path, moved: set[str]) -> list[tuple[str, int, str]]:
@@ -139,6 +142,34 @@ def edges(worktree: Path, moved: set[str]) -> list[tuple[str, int, str]]:
                 ):
                     targets += rx.findall(n.value)
                 found += [(rel, n.lineno, t) for t in targets]
+    return sorted(set(found))
+
+
+#: (importer, imported): a subpackage that must never import another (ADR-158 decision 1:
+#: an app that needs sign-in alone installs Common and uses identity without intelligence).
+FORBIDDEN = [("closelistening_common.identity", "closelistening_common.intelligence")]
+
+
+def forbidden_imports(manifest: dict) -> list[tuple[str, int, str]]:
+    """Every import in ``apps/`` that crosses a FORBIDDEN line, as (file, line, target)."""
+    repo_of = {spec["package"]: repo for repo, spec in manifest.items()}
+    found: list[tuple[str, int, str]] = []
+    for importer, imported in FORBIDDEN:
+        repo_src = sc.APPS / repo_of[importer.split(".")[0]] / "src"
+        for p in (repo_src / importer.replace(".", "/")).rglob("*.py"):
+            rel = p.relative_to(repo_src).with_suffix("").as_posix().replace("/", ".")
+            module = rel.removesuffix(".__init__")
+            is_pkg = p.name == "__init__.py"
+            for n in ast.walk(ast.parse(p.read_text())):
+                if isinstance(n, ast.ImportFrom):
+                    names = [sc.absolute_from(module, is_pkg, n)]
+                    names += [f"{names[0]}.{a.name}" for a in n.names]
+                elif isinstance(n, ast.Import):
+                    names = [a.name for a in n.names]
+                else:
+                    continue
+                if any(x == imported or x.startswith(imported + ".") for x in names):
+                    found.append((str(p.relative_to(sc.APPS)), n.lineno, imported))
     return sorted(set(found))
 
 
@@ -193,6 +224,10 @@ def main() -> int:
     print(f"private on top of public: {len(private['fails'])} of {private['modules']} modules fail")
     for cause, n in roots(private["fails"]).most_common():
         print(f"  {n:3}  {cause}")
+    crossings = forbidden_imports(manifest)
+    print(f"forbidden imports between private subpackages: {len(crossings)}")
+    for f, line, target in crossings:
+        print(f"  {f}:{line} -> {target}")
     return 0
 
 

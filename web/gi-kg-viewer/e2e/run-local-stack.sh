@@ -17,7 +17,10 @@
 #   make e2e-api-image          # -> podcast-api:e2e-local
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+VIEWER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Found the way the Playwright configs find it (platform-root.mjs), so this runs from the public
+# repo and from the private studio mount alike (ADR-158).
+REPO_ROOT="$(node "$VIEWER_ROOT/platform-root.mjs")"
 CORPUS_SRC="$REPO_ROOT/tests/fixtures/app-validation-corpus/v3"
 IMAGE="${E2E_API_IMAGE:-podcast-api:e2e-local}"
 CONTAINER=viewer-e2e-api
@@ -37,7 +40,7 @@ PORT=8012
 # E2E_CORPUS_WORKDIR if the default is inconvenient (it must be a path your container runtime can
 # bind-mount — on Colima only paths under $HOME are visible inside the VM, so a $TMPDIR path
 # silently mounts as an EMPTY directory).
-WORKDIR="${E2E_CORPUS_WORKDIR:-$REPO_ROOT/web/gi-kg-viewer/.e2e-corpus}"
+WORKDIR="${E2E_CORPUS_WORKDIR:-$VIEWER_ROOT/.e2e-corpus}"
 CORPUS="$WORKDIR/v3"
 
 cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; }
