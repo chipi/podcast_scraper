@@ -139,9 +139,10 @@ platform :android do
       json_key: key,
       aab: AAB,
       track: "internal",
-      # This repo has no Play listing metadata, screenshots or changelogs under fastlane/metadata,
-      # and supply would otherwise try to sync (and could CLEAR) what is in the console. Uploading
-      # a binary must not be able to rewrite the store listing as a side effect.
+      # The only listing asset in fastlane/metadata is the icon (see `listing_icon`); there is no
+      # text, screenshots or changelogs, and supply would otherwise try to sync (and could CLEAR)
+      # what is in the console. Uploading a binary must not be able to rewrite the store listing
+      # as a side effect.
       skip_upload_metadata: true,
       skip_upload_images: true,
       skip_upload_screenshots: true,
@@ -150,5 +151,27 @@ platform :android do
       release_status: "completed",
     )
     UI.success("Uploaded to the internal testing track.")
+  end
+
+  desc "Set the Play listing's app icon (512x512) and nothing else."
+  # The listing icon is a store asset, not the launcher icon inside the AAB: Play showed none
+  # because nothing ever uploaded one (operator 2026-10-07). The file is the iOS 1024 AppIcon
+  # scaled to 512, so both stores show the same mark. Changes the PUBLIC listing — run it on
+  # purpose, never as part of a build.
+  lane :listing_icon do
+    icon = File.join(__dir__, "metadata", "android", "en-US", "images", "icon.png")
+    UI.user_error!("No listing icon at #{icon}.") unless File.exist?(icon)
+    upload_to_play_store(
+      package_name: PACKAGE,
+      json_key: json_key,
+      metadata_path: File.join(__dir__, "metadata", "android"),
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_screenshots: true,
+      skip_upload_images: false,
+    )
+    UI.success("Listing icon uploaded.")
   end
 end
