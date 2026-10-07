@@ -337,6 +337,25 @@ export async function initDeepLinks(
 }
 
 /**
+ * Open the OS share sheet for a file, treating a dismissed sheet as done.
+ *
+ * The Share plugin REJECTS with "Share canceled" when the sheet closes without completing (iOS
+ * `completed == false`; Android `RESULT_CANCELED`, which many Android targets return even after a
+ * successful share). Callers caught that as a failure, so closing the sheet — or sharing to such an
+ * app — showed "Couldn't make the card — try again" (operator 2026-10-07, on device). Same rule as
+ * the web path's `AbortError`: the reader closing the sheet is not an error. Real errors still throw.
+ */
+export async function openShareSheet(title: string, uri: string): Promise<void> {
+  try {
+    await Share.share({ title, url: uri, dialogTitle: title })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/share cancell?ed/i.test(msg)) return
+    throw e
+  }
+}
+
+/**
  * Save text to a file and hand it to the OS share sheet (native replacement for `<a download>`,
  * which doesn't save in WKWebView). Writes to the Cache dir (transient, no permission prompt) then
  * shares the resulting file URI so the user can save/send it wherever they want.
@@ -352,7 +371,7 @@ export async function saveAndShareText(
     directory: Directory.Cache,
     encoding: Encoding.UTF8,
   })
-  await Share.share({ title: filename, url: uri, dialogTitle: filename })
+  await openShareSheet(filename, uri)
   // Best-effort cleanup — the share is synchronous with the sheet; leave the file for the OS to
   // reap from Cache (deleting immediately can race the receiving app reading the URI).
   void mimeType
@@ -379,7 +398,7 @@ export async function saveAndShareBinary(filename: string, blob: Blob): Promise<
     data: btoa(binary),
     directory: Directory.Cache,
   })
-  await Share.share({ title: filename, url: uri, dialogTitle: filename })
+  await openShareSheet(filename, uri)
 }
 
 /**
