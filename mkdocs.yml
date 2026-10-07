@@ -288,6 +288,7 @@ nav:
       - ADR-163 The jobs of Discover: adr/ADR-163-the-jobs-of-discover.md
       - ADR-164 Discover is a taste: adr/ADR-164-discover-is-a-taste.md
       - ADR-165 The validation corpus grounds every insight: adr/ADR-165-validation-corpus-grounds-every-insight.md
+      - ADR-158 Private repo split (platform, common, apps): adr/ADR-158-private-repo-split-platform-common-apps.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
