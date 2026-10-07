@@ -390,8 +390,8 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
 #   relabel_only   - re-resolves speaker names on the frozen diarization; no audio, no ASR.
 #   rediarize_only - downloads audio and re-diarizes, aligning to the EXISTING ASR text.
 #   retranscript_only - re-fetches the PUBLISHER transcript and re-parses it; no audio at all.
-#   translate_only - re-translates from the on-disk source transcript, then re-names from the
-#     fresh English render. No audio, no ASR, no re-diarize.
+#   translate_only - re-translates from the on-disk source transcript. No audio, no ASR, no
+#     re-diarize. (It no longer re-names from the English render: D-34 was reverted, #2234.)
 # None can consume an ASR credential, so requiring one is a barrier, not a safeguard.
 STAGES_THAT_NEVER_TRANSCRIBE = frozenset(
     {"relabel_only", "rediarize_only", "retranscript_only", "translate_only"}

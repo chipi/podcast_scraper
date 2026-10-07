@@ -6,21 +6,27 @@ TWO ARTIFACTS, TWO MEANINGS, and keeping them apart is the whole design:
   per-unit ledger AND the resume state (D-33): every successfully translated unit is stored
   with its content key, so a repair re-requests only what failed and nothing already paid for
   is thrown away.
-- ``<base>.en.txt`` / ``<base>.en.segments.json`` are written **only when every unit
-  succeeded**, atomically. Their EXISTENCE is the completeness signal.
+- the English render is SWAPPED INTO the canonical ``<base>.txt`` / ``<base>.segments.json``
+  **only when every unit succeeded**, atomically, and the source body moves to
+  ``<base>.<lang>.txt`` / ``<base>.<lang>.segments.json`` (D-44: English is the file without a
+  language suffix). The swap having happened is the completeness signal
+  (:func:`translation_swap_happened`).
 
-WHY EXISTENCE HAS TO BE THE SIGNAL. The resolver's contract is "file present → read it first",
-with no status check (`transcript_resolution.py`), and D-38 makes `.en.txt` the player's default
-with no marker (D-36). So a partial English render would be consumed as if it were whole, by
-every stage and by the listener. That is why the threshold for writing it is zero failed units
-rather than a percentage: the harm of a missing unit is not proportional to how many are
-missing — one dropped unit can be the pivot the whole episode turns on — and "is 2% acceptable"
-is the quality question v1 explicitly deferred.
+WHY THE SWAP HAS TO BE ALL OR NOTHING. Every generic reader opens the canonical file with no
+status check, and D-38 makes it the player's default with no marker (D-36). So a partial English
+render would be consumed as if it were whole, by every stage and by the listener. That is why the
+threshold is zero failed units rather than a percentage: the harm of a missing unit is not
+proportional to how many are missing — one dropped unit can be the pivot the whole episode turns
+on — and "is 2% acceptable" is the quality question v1 explicitly deferred.
 
-A failed unit's text is therefore NOTHING, because the render is not written at all. Leaving
-source text in `.en.txt` would feed Spanish to English NER; an empty string would silently
-shorten the episode. With `.en.txt` absent the resolver falls back to the canonical source and
-the right thing happens by construction.
+A failed unit's text is therefore NOTHING, because no swap happens at all: the canonical file
+keeps the source, and the ledger's per-unit outcomes record which units failed (the resume state
+a repair reads). ``english_withdrawn`` is the different case where every unit translated but the
+analysis body could not be written. Leaving source
+text inside an English render would feed Spanish to English NER; an empty string would silently
+shorten the episode.
+
+(Before D-44 the render was written beside the source as ``<base>.en.txt``; that naming is gone.)
 """
 
 from __future__ import annotations
@@ -168,7 +174,7 @@ class TranslationDocument:
 
     @property
     def complete(self) -> bool:
-        """Every unit translated. The ONLY condition under which `.en.*` may be written."""
+        """Every unit translated. The ONLY condition under which the English is swapped in."""
         return bool(self.units) and not self.failed_units
 
     @property
@@ -412,13 +418,14 @@ def write_translated_artifacts(
     rel_transcript_path: str,
     effective_output_dir: str,
 ) -> Optional[str]:
-    """Write `.en.txt` + `.en.segments.json` — ONLY when the translation is complete.
+    """Swap the English render into the canonical text + segments — ONLY when complete.
 
-    Returns the `.en.txt` relpath, or ``None`` when nothing was written (and logs why).
+    Returns the canonical relpath (now English), or ``None`` when nothing was swapped (and logs
+    why). The source body moves to ``<base>.<lang>.*`` (D-44; :func:`_swap_in_translation`).
 
-    ATOMIC AS A GROUP. A reader that found `.en.txt` without its sidecar would resolve English
-    text against source-language segments — the displacement bug in its newest shape — so both
-    are staged and moved, and a failure removes whatever landed.
+    ATOMIC AS A GROUP. A reader that found English text beside source-language segments would
+    resolve one against the other — the displacement bug in its newest shape — so both are staged
+    and moved, and a failure rolls back to the unchanged episode.
     """
     if not doc.complete:
         logger.warning(
@@ -582,7 +589,7 @@ def write_analysis_base(
     effective_output_dir: str,
     extra_cue_patterns: Optional[List[str]] = None,
 ) -> Optional[str]:
-    """Build ``<base>.en.adfree.*`` from the English render, with the EXISTING machinery (S2.5).
+    """Build ``<base>.adfree.*`` from the swapped-in English render, with the EXISTING machinery.
 
     AD EXCISION HAS TO RUN ON THE ENGLISH, and this is the slice where that becomes true rather
     than asserted. ``_AD_PATTERNS`` are English regexes: measured on the V.6a fixture, the

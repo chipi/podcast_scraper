@@ -207,14 +207,12 @@ SPEAKER_VOICE_MAP: dict[str, str] = {
 # `Ad` is deliberately absent: `Zarvox` is a robotic mid-roll voice with no locale to match, and
 # it stays the ad voice in every language.
 #
-# LIAM VERBEEK'S VOICE HERE IS A PLACEHOLDER, and the audio is NOT generated from it yet.
-# Measured median F0 over the same sentence: Monica 175.8 Hz, Paulina 164.9 Hz — 11 Hz apart with
-# standard deviations of 27 and 21, so the distributions overlap almost entirely. The English
-# control pair is Samantha 177.8 / Ralph 79.8, i.e. 98 Hz apart. Both default macOS Spanish
-# voices are female, so a diarizer would very likely merge them, the episode would have no guest,
-# and D-34's payoff (position-bearing insights) would be unmeasurable — failing for a reason that
-# has nothing to do with the pipeline. See FIXTURES_SPEC.md; unblocking needs Jorge/Juan/Diego
-# installed through System Settings, which has no shell path.
+# BOTH SPANISH VOICES ARE FEMALE, so the guests are separated by PITCH. Measured median F0 over
+# the same sentence: Monica 175.8 Hz, Paulina 164.9 Hz — 11 Hz apart with standard deviations of
+# 27 and 21, so unshifted the distributions overlap almost entirely (the English control pair,
+# Samantha 177.8 / Ralph 79.8, is 98 Hz apart) and a diarizer would merge host and guest. Every
+# guest is therefore `Paulina` at its own measured factor (VOICE_PITCH_SHIFT), which is what let
+# the p10 audio be generated (2026-10-01) without a male Spanish voice.
 SPANISH_SPEAKER_VOICE_MAP: dict[str, str] = {
     # The show declares <language>es-ES</language>, so the host takes the es_ES voice and the
     # guest the es_MX one.

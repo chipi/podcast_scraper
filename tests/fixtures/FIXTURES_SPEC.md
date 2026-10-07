@@ -522,31 +522,21 @@ different ways:
   `language.lower() in ("en", "english")`, which `"en-us"` fails.
 - **No RSS fixture declared a non-English language**, which made S0.1a's own stated acceptance
   (a feed declaring `es-ES` persists `language: "es"`) impossible to test. `p10_spanish.xml` now
-  exists for exactly that. It is a fixture, not a rollout: `es` stays `enabled: false` in
-  `config/languages.yaml`, so an episode resolving to it is skipped with a reason, and a test
-  asserts that so nobody quietly enables it.
+  exists for exactly that. (When written, `es` was `enabled: false`; es, it, fr, de and pt are
+  all enabled now, and `test_spanish_is_ENABLED_now_so_this_fixture_is_ingested` asserts it.)
 
 Both generators now write `language` (normalized), `language_raw` (the publisher's original) and
 `language_source` — the third being what lets an audit tell a measured corpus from one that
 defaulted every episode. Both import the pipeline's own `normalize_language_tag`, so a fixture
 cannot disagree with production about what a tag means.
 
-**THE COMMITTED CORPORA STILL CARRY THE OLD SHAPE.** Generator changes do not alter committed
-artifacts. The decision, recorded rather than assumed:
-
-- **Do not regenerate for this alone.** Regeneration needs an LLM for summaries and rebuilds the
-  search index (defect 11), so it is not a cheap step, and nothing in Phase 0 depends on the
-  fixture corpora carrying real languages — S0.5's contract tests deliberately cover both the
-  raw-tag and absent states because both are real.
-- **The existing corpora are the pre-migration test cases**, and they are more valuable as that
-  than as corrected data: they are exactly what a production corpus looks like before m0011 runs.
-- **Regenerate with v4**, when summaries and the index are being rebuilt anyway.
-- Until then, `tests/unit/podcast_scraper/test_fixture_languages.py` asserts the *current* state
-  in a class named `TestTheCommittedCorporaStillNeedRegenerating`. Those tests FAIL on
-  regeneration, which is the signal to delete them and tighten the assertions above them.
-
-**v4 requirement:** regenerate both corpora so `language`, `language_raw` and `language_source`
-are present and normalized, and delete that holding class.
+**BOTH COMMITTED CORPORA CARRY LANGUAGE (2026-10-01).** The app corpus was regenerated; the
+viewer corpus was written SURGICALLY (`scripts/tools/backfill_viewer_corpus_language.py`), not
+regenerated, because `build_synthetic_validation_corpus.py` is non-deterministic — its
+`base_date` is `datetime.utcnow()`, so a no-op rerun changes 131 of 332 files and deletes 18
+git-tracked `.app/users/*` files the viewer e2e reads. `test_fixture_languages.py` asserts every
+viewer-corpus episode carries `feed.language`; making that generator deterministic is the part
+of issue #2185 still open.
 
 ---
 
@@ -573,7 +563,7 @@ arrives on its own once the sponsor reads and interview cues are translated fait
 The count said 8 and the list omitted `p10_e01` once — 61 − 38 is 23, so the arithmetic in the
 table below has to agree with the prose above it.
 
-#### Regenerating a non-English episode: the order is not arbitrary
+### Regenerating a non-English episode: the order is not arbitrary
 
 Each step below consumes the output of the one before it, so running them out of order produces
 artifacts that disagree with each other while every command exits 0:
@@ -596,10 +586,10 @@ step 4 — worth stating here because nothing fails loudly when the order is wro
 TWO WAYS THESE SCRIPTS "SUCCEED" WITHOUT DOING ANYTHING. Both exit 0, so the exit code is not
 evidence — check that the artifact's mtime and duration actually moved.
 
-* A SPACE-JOINED LIST OF BASENAMES is taken as a SINGLE name: `transcripts_to_vtt.py` and
+- A SPACE-JOINED LIST OF BASENAMES is taken as a SINGLE name: `transcripts_to_vtt.py` and
   `transcripts_to_mp3.py` printed "skipped" / "No .txt transcripts found" and exited 0. Loop one
   file at a time.
-* `say` CAN WEDGE. Observed 2026-10-03 regenerating `p10_e01`: the `say` child sat at 0.0% CPU on
+- `say` CAN WEDGE. Observed 2026-10-03 regenerating `p10_e01`: the `say` child sat at 0.0% CPU on
   segment 001 for twenty minutes and produced no `.aiff` at all, while the wrapper reported exit
   0 and the committed mp3 was left untouched. It talks to the system audio daemon and occasionally
   blocks. The tell is `ps aux | grep say` showing 0.0% CPU with no growing temp dir
@@ -826,7 +816,7 @@ than to the synthesis.
   which is exactly enough for this episode's two human identities *by count* — but **not by
   acoustic distance**, which is the property that actually matters.
 
-**AUDIO IS BLOCKED ON A SPANISH MALE VOICE (measured 2026-09-30).** Voices must be different
+**SPANISH SHIPS TWO FEMALE VOICES, so its guests are separated by PITCH (measured 2026-09-30).** Voices must be different
 enough that a diarizer can attribute each passage to the right speaker. Median F0 over the same
 sentence, autocorrelation on decoded 16 kHz mono:
 
@@ -842,13 +832,19 @@ diarizer would very likely merge them into one voice, and the episode would then
 unmeasurable, **failing for a reason that has nothing to do with the pipeline**. `Thomas` is
 closer but is already Marco Bianchi's voice and pronounces Spanish as French.
 
-So `p10_e01` ships **transcript-only** for now (`audio_sha256: null`), exactly as V.6a did.
-Unblocking it needs one of `Jorge` (es_ES), `Juan` (es_MX) or `Diego` (es_AR) — all male, all
-free — installed via **System Settings → Accessibility → Spoken Content → System Voice → Manage
-Voices**. There is no shell path: modern macOS ships voices through an on-demand asset system,
-and neither `/System/Library/Speech/Voices` nor `/Library/Speech/Voices` contains them. After
-installing, point `SPANISH_SPEAKER_VOICE_MAP["Liam Verbeek"]` at it and regenerate
-(`transcripts_to_mp3.py`, then `make_groundtruth.py`).
+That blocked audio until 2026-10-01. It was unblocked without a male voice: each guest is
+rendered with an available voice and then PITCH-SHIFTED after synthesis
+(`VOICE_PITCH_SHIFT` in `tests/fixtures/scripts/transcripts_to_mp3.py`), so every person in a
+language is a distinct ACOUSTIC IDENTITY — the voice plus its factor, `voice_identity()`, e.g.
+`Paulina@0.45`. Audio now exists for all fifteen non-English episodes (`p10`..`p14` x
+`e01`..`e03`); the factors and the measured F0 of every identity are tabled in
+`VOICE_PITCH_SHIFT`. Whether the real pyannote service separates them is NOT yet measured — that
+is part of #2187, the first ASR run on this audio.
+
+**Regenerating audio is three steps, not two:** `transcripts_to_mp3.py`, then
+`make_groundtruth.py`, then `scripts/build_corpus_feeds.py` — the corpus feeds carry each mp3's
+byte length, and skipping the last step leaves `test_corpus_feeds` red (it did, on main,
+2026-10-06).
 
 - The language comes from the transcript's own `#fixture-v3: voice=` annotation, so a fixture
   cannot be rendered in a language its text disagrees with, and nothing has to be threaded
@@ -866,6 +862,10 @@ canonical names + `garble_variants` + `nickname_variants`).
 **Adding a new person:** assign a NEW, unused voice and add ALL of that person's
 surface forms (canonical + garbles + nicknames + any bare first name used in a
 transcript) pointing at it. Never reuse a voice already assigned to someone else.
+Where a language ships fewer voices than it has people (Italian and German one, Spanish,
+French and Portuguese two), the identity is the voice PLUS its pitch factor (`Anna@0.65`), and
+it is that PAIR that must be unused — across episodes too. Pick the factor by measuring the
+rendered audio, as the table in `VOICE_PITCH_SHIFT` records.
 
 **Enforcement:** `tests/integration/fixtures/test_voice_assignment.py` asserts, over all
 transcripts, that (1) no name resolves to >1 voice, (2) no voice is shared by >1

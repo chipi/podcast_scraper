@@ -199,13 +199,14 @@ def run_translation_stage(
     run_id: Optional[str] = None,
     episode_title: Optional[str] = None,
 ) -> TranslationOutcome:
-    """Decide, record, and credit the deadline. Never raises into metadata generation.
+    """Decide, translate, and record. Never raises into metadata generation.
 
-    THE DEADLINE CREDIT IS THE POINT OF DOING THIS HERE RATHER THAN OUTSIDE. The seam sits
-    inside the block ``processing.py`` observes under the ``summarization_timeout`` key — the
-    block that already reports GI's overruns under the summariser's name. Translation's wall
-    time is credited back, so an overrun alert keeps meaning "summary + GI + KG were slow"
-    rather than quietly becoming "this episode was translated".
+    NO DEADLINE CREDIT IS APPLIED (checked 2026-10-07; #2230). The seam sits inside the block
+    ``processing.py`` observes under the ``summarization_timeout`` key — the block that already
+    reports GI's overruns under the summariser's name — and the design called for crediting
+    translation's wall time back so an overrun alert keeps meaning "summary + GI + KG were
+    slow". That credit was never built: only ``outcome.duration_s`` is recorded, so a long
+    translation DOES count toward "METADATA GENERATION OVERRAN".
     """
     started = time.monotonic()
     try:

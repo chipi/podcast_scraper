@@ -15,9 +15,9 @@ Two things make this one able to fail:
 * it reports the **resolution source** for every episode, not just the language. A corpus where
   every row says ``profile_default`` has told you about the profile, not the corpus;
 * ``ok`` is False when NO episode resolved from ``rss``. On a corpus that has been through
-  ``m0011`` that means the backfill has not run, and a clean-looking report would be a lie.
+  ``m0021`` that means the backfill has not run, and a clean-looking report would be a lie.
 
-Ordering matters for the same reason: run this AFTER m0011. Before it, no artifact carries a
+Ordering matters for the same reason: run this AFTER m0021. Before it, no artifact carries a
 publisher-declared language at all, so the audit can only echo the config.
 """
 
@@ -169,7 +169,7 @@ def format_report(report: LanguageAuditReport) -> str:
     if not report.measured:
         lines.append(
             "    ^ NO episode resolved from 'rss'. This report measured the CONFIGURATION, "
-            "not the corpus — run the m0011 backfill first."
+            "not the corpus — run the m0021 backfill first."
         )
 
     if report.non_english:

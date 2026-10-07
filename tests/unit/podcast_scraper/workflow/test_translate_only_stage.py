@@ -7,9 +7,10 @@ it, so every one of those paths was unactionable and recovery meant deleting `.e
 
 It is deliberately thin, because the work already exists in order: discard the English render,
 then take the relabel path, which loads the on-disk transcript and its frozen `SPEAKER_NN`
-diarization — and for a non-English episode that re-naming is DEFERRED (D-34), so the re-rendered
-source carries anonymous labels again, which is exactly what the translator must be given. The
-seam then re-translates, names from the fresh English render, and cascades GI/KG.
+diarization — and for a non-English episode naming declines (the S2.14 English-only guard), so the
+re-rendered source carries anonymous labels again, which is exactly what the translator must be
+given. The seam then re-translates and cascades GI/KG. (Naming from the fresh English render was
+D-34, reverted 2026-10-02 — #2234 — so a non-English episode stays anonymous.)
 
 TWO OPERATIONS WEAR THIS NAME, and conflating them is the trap:
 

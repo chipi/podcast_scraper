@@ -59,7 +59,7 @@ class TestItCanFail:
         """The whole reason this audit exists.
 
         Every episode says ``en`` from ``profile_default`` — which is what the corpus looked like
-        before m0011. A report that called this a pass would have measured our own configuration
+        before m0021. A report that called this a pass would have measured our own configuration
         and closed the question.
         """
         for i in range(3):
