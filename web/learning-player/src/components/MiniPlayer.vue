@@ -146,6 +146,21 @@ const progress = computed(() =>
           <template v-else><path d="M8 5.5v13l11-6.5z" /></template>
         </svg>
       </button>
+
+      <!-- Close (operator 2026-10-07): stop and dismiss. Last, after play/pause, so a thumb
+           reaching for the transport lands on play first. The position is kept, so the episode
+           resumes where it was from anywhere else in the app. -->
+      <button
+        type="button"
+        data-testid="mini-player-close"
+        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-overlay hover:text-canvas-foreground"
+        :aria-label="t('player.closeMini')"
+        @click="player.close()"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-5 w-5" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
     </div>
   </div>
 </template>

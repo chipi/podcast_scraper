@@ -395,6 +395,19 @@ export const usePlayerStore = defineStore('player', () => {
     resetForLoad()
   }
 
+  /**
+   * The listener dismissed the mini-player's ✕ (operator 2026-10-07): stop, and put nothing in its
+   * place. The position is saved FIRST — `clear()` pauses, but the pause event fires after the slug
+   * is already gone, so relying on it would lose where they were. The lock screen loses the episode
+   * too; a now-playing card for something closed would be a control that resumes it.
+   */
+  function close(): void {
+    savePosition()
+    clear()
+    setPlaybackState('none')
+    if (hasMediaSession()) navigator.mediaSession.metadata = null
+  }
+
   /** The loaded episode and where in it we are, or null with nothing loaded (#2278). */
   function nowPlaying(): (NextUp & { position: number }) | null {
     if (!currentSlug.value || !currentUrl) return null
@@ -889,6 +902,7 @@ export const usePlayerStore = defineStore('player', () => {
     loadAt,
     nowPlaying,
     clear,
+    close,
     playNext,
     setAdvanceHold,
     setAdvanceResolver,

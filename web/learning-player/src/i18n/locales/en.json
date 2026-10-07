@@ -470,7 +470,8 @@
     "recapNextIn": "Up next in {n}s",
     "recapStay": "Stay",
     "recapPlayNext": "Play next",
-    "recapRegion": "Episode recap"
+    "recapRegion": "Episode recap",
+    "closeMini": "Close player"
   },
   "kp": {
     "exportKicker": "Download notes",

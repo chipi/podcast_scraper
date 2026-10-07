@@ -84,6 +84,37 @@ test('the mini-player pauses and resumes from anywhere', async ({ page }, testIn
     .toBe(false)
 })
 
+test('the mini-player ✕ stops playback, hides the bar and keeps the place (operator 2026-10-07)', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'audio-continuity-close', testInfo)
+  await page.goto('/podcast/p05')
+  await page.getByText('Index Investing Without the Myths').first().click()
+  await expect(page).toHaveURL(/\/episode\//)
+  const slug = decodeURIComponent(new URL(page.url()).pathname.split('/').pop() ?? '')
+  await page.getByRole('button', { name: 'Play', exact: true }).first().click()
+  await expect
+    .poll(async () => page.evaluate(() => document.querySelector('audio')?.currentTime ?? 0), {
+      timeout: 15_000,
+    })
+    .toBeGreaterThan(1)
+
+  await navTo(page, 'catalog')
+  await page.getByTestId('mini-player-close').click()
+  await expect(page.getByTestId('mini-player')).toHaveCount(0)
+  await expect
+    .poll(async () => page.evaluate(() => document.querySelector('audio')?.paused ?? true))
+    .toBe(true)
+
+  // Closing is not forgetting: the server holds where the listener was.
+  await expect
+    .poll(async () => {
+      const r = await page.request.get(`/api/app/playback/${encodeURIComponent(slug)}`)
+      return r.ok() ? ((await r.json()).position_seconds as number) : 0
+    })
+    .toBeGreaterThan(0.5)
+})
+
 /**
  * The bars must not eat page content (#1594 + #1587).
  *

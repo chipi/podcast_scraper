@@ -719,6 +719,22 @@ describe('listen logging', () => {
     expect(logged).toEqual(['ep-1', 'ep-2'])
   })
 
+  it("close() keeps the listener's place, then forgets the episode (mini-player ✕, operator 2026-10-07)", () => {
+    const el = stubAudio()
+    const p = usePlayerStore()
+    const saves: [string, number][] = []
+    p.setPositionPersister((slug, seconds) => saves.push([slug, seconds]))
+    loaded(p, el)
+    ;(el as unknown as { currentTime: number }).currentTime = 42
+    el.__emit('timeupdate')
+    saves.length = 0
+    p.close()
+    // Saved BEFORE the slug is gone: the pause event clear() causes would arrive with no episode.
+    expect(saves).toContainEqual(['ep-1', 42])
+    expect(p.currentSlug).toBeNull()
+    expect(p.nowPlaying()).toBeNull()
+  })
+
   it('forgets an armed-but-unplayed episode on clear — sign-out is not a listen', () => {
     const el = stubAudio()
     const p = usePlayerStore()

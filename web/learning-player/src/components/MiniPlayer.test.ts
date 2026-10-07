@@ -159,3 +159,17 @@ describe('MiniPlayer line composition (operator 2026-09-23)', () => {
   })
 })
 
+
+describe('MiniPlayer close (operator 2026-10-07)', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('has a labelled ✕ that closes the player and hides the bar', async () => {
+    const player = nowPlaying()
+    const w = await mountMini()
+    const close = w.get('[data-testid="mini-player-close"]')
+    expect(close.attributes('aria-label')).toBe(en.player.closeMini)
+    await close.trigger('click')
+    expect(player.currentSlug).toBeNull()
+    expect(w.find('[data-testid="mini-player"]').exists()).toBe(false)
+  })
+})
