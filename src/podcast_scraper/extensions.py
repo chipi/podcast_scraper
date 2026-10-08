@@ -23,11 +23,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
-from typing import Any, Callable, Iterator, Literal, Sequence, TYPE_CHECKING
+from typing import Any, Callable, Iterator, Literal, Mapping, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi import APIRouter
 
+    from podcast_scraper.search.groupings import TopicGroupings
     from podcast_scraper.server.app_user_store import User
 
 logger = logging.getLogger(__name__)
@@ -111,6 +112,20 @@ class EnrichmentContribution:
     provider_types: Callable[[], None] | None = None
 
 
+#: ``(corpus_root, entity_id) -> (path, media_type)`` of an image the extension hosts, or None.
+HostedImage = Callable[[Path, str], "tuple[Path, str] | None"]
+
+
+@dataclass(frozen=True)
+class ShareCardContribution:
+    """What the public share cards (OG images) draw from an extension; each part is optional."""
+
+    #: ``(corpus_root, kind) -> {entity_id: (velocity, weekly_series)}`` over the past year.
+    trends: Callable[[Path, str], Mapping[str, tuple[float, tuple[float, ...]]]] | None = None
+    person_image_path: HostedImage | None = None
+    org_logo_path: HostedImage | None = None
+
+
 @dataclass(frozen=True)
 class Extension:
     """What one installed package adds to the platform. Every part is optional."""
@@ -121,9 +136,13 @@ class Extension:
     account_deleted: Sequence[AccountDeletedHook] = field(default_factory=tuple)
     account_created: Sequence[AccountCreatedHook] = field(default_factory=tuple)
     enrichment: EnrichmentContribution | None = None
+    #: Themes and storylines: the read side, the index rows, the builder and the search operators.
+    groupings: TopicGroupings | None = None
+    share_cards: ShareCardContribution | None = None
 
 
 _override: list[Extension] | None = None
+_discovered: list[Extension] | None = None
 
 
 def _from_module(module_name: str) -> Extension | None:
@@ -140,9 +159,17 @@ def _from_module(module_name: str) -> Extension | None:
 
 
 def load_extensions() -> list[Extension]:
-    """Every installed extension, in-tree ones first, one per name."""
+    """Every installed extension, in-tree ones first, one per name. Discovered once per process:
+    read paths consult it per request, and a scan of the installed distributions costs ~17 ms."""
+    global _discovered
     if _override is not None:
         return list(_override)
+    if _discovered is None:
+        _discovered = _discover()
+    return list(_discovered)
+
+
+def _discover() -> list[Extension]:
     found: dict[str, Extension] = {}
     for module_name in _IN_TREE:
         ext = _from_module(module_name)
@@ -164,6 +191,11 @@ def load_extensions() -> list[Extension]:
 def enrichment_contributions() -> list[EnrichmentContribution]:
     """Every installed extension's enrichment contribution, in load order."""
     return [ext.enrichment for ext in load_extensions() if ext.enrichment is not None]
+
+
+def share_card_contributions() -> list[ShareCardContribution]:
+    """Every installed extension's share-card contribution, in load order."""
+    return [ext.share_cards for ext in load_extensions() if ext.share_cards is not None]
 
 
 def run_account_created(data_dir: Path, user: User, provider: str) -> None:
@@ -191,10 +223,13 @@ __all__ = [
     "ENTRY_POINT_GROUP",
     "EnrichmentContribution",
     "Extension",
+    "HostedImage",
     "Plane",
     "RouterMount",
+    "ShareCardContribution",
     "enrichment_contributions",
     "load_extensions",
     "run_account_created",
+    "share_card_contributions",
     "use_extensions",
 ]

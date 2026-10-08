@@ -70,8 +70,9 @@ def _spawn_rebuild_thread(
             vector_index_types=vector_index_types,
         )
         index_corpus(output_dir, cfg, rebuild=rebuild)
-        # Build topic_clusters.json off the just-built LanceDB index (reads search/lance_index).
-        from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+        # Build topic_clusters.json off the just-built LanceDB index (reads search/lance_index);
+        # a no-op when no installed extension provides themes.
+        from podcast_scraper.search.groupings import build_topic_clusters_for_corpus
 
         build_topic_clusters_for_corpus(output_dir, threshold=topic_cluster_threshold)
     except Exception as exc:
@@ -166,7 +167,7 @@ def _spawn_topic_clusters_thread(
     """(Re)build topic_clusters.json off the request thread; clear the gate in ``finally``."""
     err: Optional[str] = None
     try:
-        from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+        from podcast_scraper.search.groupings import build_topic_clusters_for_corpus
 
         build_topic_clusters_for_corpus(output_dir, threshold=threshold)
     except Exception as exc:  # noqa: BLE001
@@ -180,6 +181,7 @@ def _spawn_topic_clusters_thread(
     "/corpus/topic-clusters/rebuild",
     status_code=202,
     responses={
+        404: {"description": "No installed extension provides themes"},
         409: {"description": "A rebuild is already running for this corpus"},
         503: {"description": "LanceDB unavailable"},
     },
@@ -201,6 +203,10 @@ def rebuild_topic_clusters(
     gate, so it is mutually exclusive with an index rebuild (both write ``search/``). Poll
     ``GET /api/corpus/topic-clusters`` for completion.
     """
+    from podcast_scraper.search import groupings
+
+    if not groupings.available():
+        raise HTTPException(status_code=404, detail="Themes are not installed.")
     try:
         import lancedb  # noqa: F401
     except ImportError:

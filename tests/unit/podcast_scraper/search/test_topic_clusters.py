@@ -7,14 +7,16 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from podcast_scraper.search.topic_clusters import (
-    build_topic_clusters_payload,
+from podcast_scraper.search.cluster_math import (
     cluster_indices_by_threshold,
     cosine_similarity_matrix,
+    pick_centroid_closest_label,
+)
+from podcast_scraper.search.topic_clusters import (
+    build_topic_clusters_payload,
     evaluate_validation_against_topics,
     load_theme_enrichment_map,
     load_validation_yaml,
-    pick_centroid_closest_label,
     theme_enrichment_by_topic_id,
     theme_map_by_topic,
     theme_siblings_by_topic,

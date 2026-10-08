@@ -12,7 +12,7 @@ import tracemalloc
 import numpy as np
 import pytest
 
-from podcast_scraper.search import topic_clusters as tc
+from podcast_scraper.search import cluster_math as tc
 
 pytestmark = [pytest.mark.unit]
 

@@ -27,9 +27,10 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 
+from .search import groupings
 from .search.backends.lancedb_backend import LANCE_SCHEMA_VERSION, stored_schema_version
+from .search.groupings import TOPIC_CLUSTERS_FILENAME
 from .search.hybrid_search import lance_index_dir
-from .search.topic_clusters import TOPIC_CLUSTERS_FILENAME
 from .utils.path_validation import safe_resolve_directory
 
 # Stage → (edge types that satisfy it, MCP tools it kills). From #1497's evidence table.
@@ -109,6 +110,9 @@ class CompletenessReport:
     edge_types_present: Set[str] = field(default_factory=set)
     has_enrichments: bool = False
     has_topic_clusters: bool = False
+    #: False when no installed extension provides themes: then nothing builds the artifact and
+    #: nothing serves it, so its absence is not a gap (ADR-158).
+    themes_expected: bool = True
     episodes_scanned: int = 0
 
     @property
@@ -123,7 +127,7 @@ class CompletenessReport:
             self.index.ok
             and not self.missing_hard
             and self.has_enrichments
-            and self.has_topic_clusters
+            and (self.has_topic_clusters or not self.themes_expected)
         )
 
 
@@ -212,6 +216,7 @@ def assess_completeness(corpus_root: Path) -> CompletenessReport:
         edge_types_present=edge_types,
         has_enrichments=_has_enrichments(root),
         has_topic_clusters=topic_clusters,
+        themes_expected=groupings.available(),
         episodes_scanned=seen,
     )
 
@@ -230,7 +235,7 @@ def format_report(report: CompletenessReport) -> str:
     # search/topic_clusters.json is a query-time-read file the pipeline/prep never generated —
     # its absence 404s /api/corpus/topic-clusters on a populated corpus (the post-deploy smoke
     # rule). Only a fault when the index is servable (populated).
-    if report.index.present:
+    if report.index.present and report.themes_expected:
         tc = "present" if report.has_topic_clusters else "MISSING (404s /api/corpus/topic-clusters)"
         lines.append(f"search/topic_clusters.json: {tc}")
     lines.append(f"edge types present: {', '.join(sorted(report.edge_types_present)) or '(none)'}")
@@ -240,7 +245,7 @@ def format_report(report: CompletenessReport) -> str:
             lines.append(f"  ✗ {m.stage} — kills: {', '.join(m.kills)}")
     if not report.has_enrichments:
         lines.append("  ✗ enrichments/ missing — kills: corpus_enrichment_signals")
-    if report.index.present and not report.has_topic_clusters:
+    if report.index.present and report.themes_expected and not report.has_topic_clusters:
         lines.append("  ✗ search/topic_clusters.json missing — 404s /api/corpus/topic-clusters")
     if report.missing_soft:
         lines.append("SOFT gaps (warn — optional):")
