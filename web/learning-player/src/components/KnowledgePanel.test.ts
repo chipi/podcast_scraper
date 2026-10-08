@@ -1132,6 +1132,30 @@ describe("episode-scoped people (#1685 / #2062)", () => {
    * saw the "Insights" heading, the chip strip, and nothing under it, with no explanation and no
    * obvious escape (review 2026-09-19).
    */
+  it("explains insights to a first-time listener: an intro, the picked type's meaning, a legend (operator 2026-10-08)", async () => {
+    const w = mountPanel({
+      insights: [
+        insight({ id: "i1", insight_type: "claim", text: "a claim" }),
+        insight({ id: "i2", insight_type: "observation", text: "an observation" }),
+      ],
+      persons: [],
+    })
+    await flushPromises()
+    expect(w.get('[data-testid="kp-insights-intro"]').text()).toMatch(/tied to the moment/)
+    // "All": no single meaning, but a legend on tap listing each type present.
+    expect(w.find('[data-testid="kp-insight-type-meaning"]').exists()).toBe(false)
+    expect(w.find('[data-testid="kp-insight-types-legend"]').exists()).toBe(false)
+    await w.get('[data-testid="kp-insight-types-explain"]').trigger("click")
+    const legend = w.get('[data-testid="kp-insight-types-legend"]').text()
+    expect(legend).toContain("something the speaker asserts as true")
+    expect(legend).toContain("noticed or described")
+    // A picked type says what it means, in place of the legend.
+    const chip = w.findAll('[data-testid="insight-type-filter"] button').find((c) => c.text().toLowerCase().includes("claim"))!
+    await chip.trigger("click")
+    expect(w.get('[data-testid="kp-insight-type-meaning"]').text()).toContain("something the speaker asserts as true")
+    expect(w.find('[data-testid="kp-insight-types-explain"]').exists()).toBe(false)
+  })
+
   it("clears the insight-type filter when the episode changes", async () => {
     // Episode A has claims and predictions; the user filters to predictions.
     const a = [

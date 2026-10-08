@@ -449,6 +449,15 @@ const surfaceInsights = computed(() =>
 // Per-type filter (IN.3): null = all. Chips render only for the types actually present.
 const insightTypeFilter = ref<string | null>(null)
 /**
+ * First-time listeners did not know what an insight is or what "Claim" vs "Observation" means
+ * (operator 2026-10-08). The meanings existed only as hover tooltips, which a phone never shows:
+ * now a picked type states its meaning under the chips, and with "All" a small legend opens on tap.
+ */
+const typesExplained = ref(false)
+function typeMeaning(type: string): string {
+  return insightTypeHint({ insight_type: type })
+}
+/**
  * The types present, each with how many insights carry it (operator 2026-09-19).
  *
  * Counted off `surfaceInsights` — the same list the filter narrows — so a chip's number is exactly
@@ -970,6 +979,10 @@ watch(() => auth.isAuthenticated, loadCaptures)
         >
           <!-- No early/mid/late density box here any more (operator 2026-10-08): it took a screen
                before the first insight. The player's own density band still shows where they sit. -->
+          <!-- What an insight IS, in one line, for a listener meeting the word for the first time. -->
+          <p class="mb-3 text-sm leading-relaxed text-muted" data-testid="kp-insights-intro">
+            {{ t("kp.insightsIntro") }}
+          </p>
           <!-- Per-type filter (IN.3) — only shown when the episode has more than one insight type. -->
           <!-- ONE row that scrolls, not a wrapping block (operator 2026-09-19). The per-type counts
                widened every chip, so a fourth type pushed "Claim 9" alone onto a second line and
@@ -1012,6 +1025,31 @@ watch(() => auth.isAuthenticated, loadCaptures)
               <!-- `font-mono` + not capitalized: the count is data, not part of the type's name. -->
               <span class="ml-1 font-mono normal-case opacity-70">{{ opt.count }}</span>
             </button>
+          </div>
+          <p
+            v-if="insightTypeFilter"
+            class="-mt-1 mb-3 text-xs leading-relaxed text-muted"
+            data-testid="kp-insight-type-meaning"
+          >
+            {{ typeMeaning(insightTypeFilter) }}
+          </p>
+          <div v-else-if="insightTypeOptions.length" class="-mt-1 mb-3">
+            <button
+              type="button"
+              class="text-xs font-semibold text-accent hover:underline"
+              :aria-expanded="typesExplained"
+              data-testid="kp-insight-types-explain"
+              @click="typesExplained = !typesExplained"
+            >
+              {{ typesExplained ? t("kp.typesHide") : t("kp.typesExplain") }}
+            </button>
+            <ul
+              v-if="typesExplained"
+              class="mt-2 flex flex-col gap-1 text-xs leading-relaxed text-muted"
+              data-testid="kp-insight-types-legend"
+            >
+              <li v-for="opt in insightTypeOptions" :key="opt.type">{{ typeMeaning(opt.type) }}</li>
+            </ul>
           </div>
           <ul class="flex flex-col gap-3">
             <li

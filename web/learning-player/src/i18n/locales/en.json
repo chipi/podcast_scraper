@@ -514,6 +514,9 @@
     "keyPoints": "Key points",
     "jumpToMoment": "Jump to this moment in the episode ({time})",
     "filterByType": "Filter insights by type",
+    "insightsIntro": "The points the speakers make in this episode, each tied to the moment it is said. Tap ▶ to hear it.",
+    "typesExplain": "What do these types mean?",
+    "typesHide": "Hide the types",
     "filterAll": "All",
     "speakerNotIdentified": "Speaker not identified",
     "moreTags": "+{count} more"
