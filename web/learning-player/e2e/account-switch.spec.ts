@@ -60,6 +60,8 @@ test("an in-app account switch never shows the other account's boards or recap",
   await switchInApp(page, 'switch-b', testInfo)
   await expect(page.getByText('Listened')).toHaveCount(0)
   await navTo(page, 'library')
+  // Library panels mount on first visit (useVisitedTabs), so open Boards to look at its list.
+  await page.getByTestId('library-tab-collections').click()
   await expect(page.locator('li', { hasText: board })).toHaveCount(0)
 
   // Back to A: A's boards come back — the half of the bug the operator hit on the Google account.
@@ -80,6 +82,10 @@ test("an in-app account switch never shows the other account's boards or recap",
   await switchInApp(page, 'switch-a', testInfo)
   await expect.poll(() => swallowed).toBe(true)
   await navTo(page, 'library')
-  await expect(page.locator('li', { hasText: board })).toHaveCount(1)
+  await page.getByTestId('library-tab-collections').click()
+  // Well inside the client's 15 s read backstop (READ_SAFETY_MS): when the held reload times out it
+  // falls back to A's cached boards — the same leak as an abort — and a 15 s wait passed without the
+  // fix. A fresh mount answers in well under a second.
+  await expect(page.locator('li', { hasText: board })).toHaveCount(1, { timeout: 5000 })
   await page.unrouteAll({ behavior: 'ignoreErrors' })
 })

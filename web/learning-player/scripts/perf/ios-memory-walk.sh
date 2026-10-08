@@ -6,11 +6,13 @@
 # process (where the page's images, layers and JS live) and the app process. Writes a Markdown
 # report. iOS has no DevTools protocol into a WKWebView, so this is the device-side number.
 #
-# usage: ios-memory-walk.sh <out-dir> <derived-data> [token] [walk]
+# usage: ios-memory-walk.sh <out-dir> <derived-data> [token] [walk] [only-testing]
 #   token  a session token to sign in with (optional; without it the app's current session is used)
 #   walk   comma-separated deep-link paths, e.g. "episode/<slug>,episode/<slug>?panel=notes,topic/topic:x"
+#   only-testing  the xcodebuild selector; `make perf-ios` passes it so the Makefile names the suite
 set -u
 OUT=$1; DD=$2; TOKEN=${3:-}; WALK=${4:-}
+ONLY=${5:--only-testing:OfflineSpikeUITests/MemoryWalkTests}
 SIM=${IOS_SIM:-iPhone 17}
 mkdir -p "$OUT"
 REPORT="$OUT/report.md"
@@ -29,7 +31,7 @@ xcodegen generate >/dev/null
 TEST_RUNNER_LP_TOKEN="$TOKEN" TEST_RUNNER_LP_WALK="$WALK" \
   xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
     -destination "platform=iOS Simulator,name=$SIM" \
-    -only-testing:OfflineSpikeUITests/MemoryWalkTests \
+    "$ONLY" \
     -derivedDataPath "$DD" CODE_SIGNING_ALLOWED=NO 2>&1 |
   while IFS= read -r line; do
     case "$line" in

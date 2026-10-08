@@ -2728,7 +2728,8 @@ PERF_IOS_TOKEN ?=
 PERF_IOS_WALK ?=
 perf-ios:
 	@IOS_SIM="$(IOS_SIM)" $(APP_DIR)/scripts/perf/ios-memory-walk.sh $(abspath $(PERF_IOS_OUT)) \
-		$(IOS_DD)-uitests "$(PERF_IOS_TOKEN)" "$(PERF_IOS_WALK)"
+		$(IOS_DD)-uitests "$(PERF_IOS_TOKEN)" "$(PERF_IOS_WALK)" \
+		-only-testing:OfflineSpikeUITests/MemoryWalkTests
 
 android-contact-sheet: android-app-install
 	@echo "--> seeding data so the tour photographs a populated app (as $(ANDROID_SEED_IDENTITY))"

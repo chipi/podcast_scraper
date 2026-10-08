@@ -143,7 +143,8 @@ test.describe('person page', () => {
     }
     // Related topics: themes and storylines first, every pill naming its kind.
     const related = v.getByTestId('ec-person-related')
-    const kinds = await related.locator('button').evaluateAll((els) =>
+    // The kind pills only — "+N more" (five pills, then the rest on tap) names no kind.
+    const kinds = await related.locator('button:not([data-testid="ec-person-related-more"])').evaluateAll((els) =>
       els.map((e) => (e.querySelector('span')?.textContent ?? '').trim().toLowerCase()),
     )
     expect(kinds.length).toBeGreaterThan(0)
