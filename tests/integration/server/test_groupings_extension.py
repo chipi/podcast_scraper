@@ -216,3 +216,35 @@ def test_the_intelligence_extension_serves_trends_photos_and_logos(tmp_path: Pat
         # The fixture's endurance-sport topic is rising (10x over the past year).
         hot, spark, mult = _trend(_CORPUS, "topic", "topic:endurance-sport")
     assert hot == "↑ 10.0× rising" and mult == 10.0 and spark
+
+
+def test_digest_pills_are_clustered_only_when_themes_are_installed(tmp_path: Path) -> None:
+    import json
+
+    from podcast_scraper.server.cil_digest_topics import load_topic_cluster_index
+
+    (tmp_path / "search").mkdir()
+    (tmp_path / "search" / "topic_clusters.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "2",
+                "clusters": [
+                    {
+                        "graph_compound_parent_id": "tc:a",
+                        "members": [{"topic_id": "topic:a"}, {"topic_id": "topic:b"}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    with use_extensions([]):
+        assert load_topic_cluster_index(tmp_path).cluster_for_topic("topic:a", None) == (
+            False,
+            None,
+        )
+    with use_extensions([_intelligence()]):
+        assert load_topic_cluster_index(tmp_path).cluster_for_topic("topic:a", None) == (
+            True,
+            "tc:a",
+        )

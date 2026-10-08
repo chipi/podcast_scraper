@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from podcast_scraper.search import groupings
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 from podcast_scraper.server.schemas import CilDigestTopicPill
 from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
@@ -16,8 +17,6 @@ from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 logger = logging.getLogger(__name__)
 
 CIL_TOPIC_PILL_CAP = 5
-
-_TOPIC_CLUSTERS_REL = os.path.join("search", "topic_clusters.json")
 
 
 @dataclass(frozen=True)
@@ -98,17 +97,9 @@ def _humanize_topic_id(topic_id: str) -> str:
 
 
 def load_topic_cluster_index(corpus_root: Path) -> TopicClusterIndex:
-    """Load ``search/topic_clusters.json`` when present; else empty index."""
-    root = corpus_root.resolve()
-    root_s = os.path.normpath(str(root))
-    safe_prefix = root_s + os.sep
-    joined = os.path.normpath(os.path.join(root_s, _TOPIC_CLUSTERS_REL.replace("\\", "/")))
-    if joined != root_s and not joined.startswith(safe_prefix):
-        return TopicClusterIndex.empty()
-    if not os.path.isfile(joined):
-        return TopicClusterIndex.empty()
-    doc = _read_json_object(joined)
-    if doc is None:
+    """The themes artifact as a membership index; empty when themes are absent or not installed."""
+    doc = groupings.load_theme_payload(corpus_root.resolve())
+    if not isinstance(doc, dict):
         return TopicClusterIndex.empty()
     clusters = doc.get("clusters")
     if not isinstance(clusters, list):

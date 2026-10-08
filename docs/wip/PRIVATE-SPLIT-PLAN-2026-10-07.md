@@ -57,6 +57,7 @@ private on top of public (import every private module, with `PYTHONPATH`, nothin
 | Baseline, unpruned tree | 0 import failures (after deleting the eval split's leftover `search/llm_judge.py`) |
 | Copied | Player: 53 modules, 68 tests, 786 web files, 67 docs. Common: 38 modules (two subpackages, `identity` and `intelligence`), 57 tests, 16 docs. Studio: the whole viewer, 670 files (forked: the public repo keeps its own) |
 | Copy check | 0 stale references (AST verifier; it catches a planted stale import and `mock.patch` string) |
+| After the seam slices (2026-10-08) | Public without private: 0 of 582 modules fail. Private on top of public: 0 of 123. identity → intelligence: 0. 18 imports in 6 files still name moved code: the in-tree extension list (`extensions.py`, removed at the cutover) and five test files that move with their packages |
 | After the tier-A moves (2026-10-08) | Public without private: 40 of 556 fail — storylines 15, MCP tokens 13, temporal_velocity 5, topic_clusters 2, query enricher 2, scorer 1, consensus provider 1, enrichment route 1; 89 imports in 30 files. Private on top of public: 22 of 120 fail. identity → intelligence: 0 |
 | Before them | 27 of 575 modules fail; roots: MCP tokens via account deletion (13), enricher registry (6), query-enricher registry (3), engagement series via momentum (2), scorer registry, discovery ranking, enrichment route function (1 each). 65 imports in 20 files still name moved code |
 | Private on top of public | 20 of 102 modules fail, all on a public module broken by a seam |
@@ -89,6 +90,13 @@ private on top of public (import every private module, with `PYTHONPATH`, nothin
 Order 1 is the extension interface itself (protocol, entry-point loader, a fake app in tests
 exercising every hook). Then 2–4 as numbered, then the OAuth-provider split and the read-model
 renames, which no import depends on.
+
+Seam status (2026-10-08): all fixed, in the order above. Two differ from the table: #3 became a
+share-card contribution from the extension (trend stat, photos and logos), not helpers moved into
+the platform; #11 moved `capability_audit.py` to Player whole, because every section walks the
+corpus through the player's Discover feature extraction. Found while doing it, not in the table, and fixed:
+`server/cil_digest_topics.py` read `search/topic_clusters.json` directly to mark digest pills as
+clustered; it reads through `search.groupings` now, so without themes no pill is marked.
 
 ### Tier-A consumers (read and classified 2026-10-08)
 
