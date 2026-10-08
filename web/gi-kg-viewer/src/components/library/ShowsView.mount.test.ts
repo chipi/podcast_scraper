@@ -109,3 +109,35 @@ describe('ShowsView — mount + behaviour', () => {
     expect(w.find('[data-testid="shows-card-raw-id"]').text()).toContain('1 episode')
   })
 })
+
+describe('ShowsView — language badge (V2-C.1)', () => {
+  it('labels each show with its language when the corpus holds more than one', async () => {
+    stubFeeds([
+      { feed_id: 'en1', display_title: 'English Show', episode_count: 3, language: 'en-US' },
+      { feed_id: 'es1', display_title: 'Spanish Show', episode_count: 2, language: 'es' },
+      { feed_id: 'nolang', display_title: 'Unknown Show', episode_count: 1, language: null },
+    ])
+    withCorpus()
+    const w = mount(ShowsView)
+    await flushPromises()
+
+    const badgeOf = (id: string) =>
+      w.find(`[data-testid="shows-card-${id}"] [data-testid="language-badge"]`)
+    expect(badgeOf('en1').attributes('data-lang')).toBe('en')
+    expect(badgeOf('es1').attributes('data-lang')).toBe('es')
+    expect(badgeOf('es1').attributes('aria-label')).toBe('Language: Spanish')
+    // Unknown is omitted, not guessed.
+    expect(badgeOf('nolang').exists()).toBe(false)
+  })
+
+  it('shows no badge at all in a single-language corpus (FR7.5)', async () => {
+    stubFeeds([
+      { feed_id: 'a', display_title: 'A', episode_count: 3, language: 'en' },
+      { feed_id: 'b', display_title: 'B', episode_count: 2, language: 'en-GB' },
+    ])
+    withCorpus()
+    const w = mount(ShowsView)
+    await flushPromises()
+    expect(w.findAll('[data-testid="language-badge"]')).toHaveLength(0)
+  })
+})

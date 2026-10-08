@@ -556,6 +556,41 @@ on every row, to say nothing.
 queue's recently-played list renders, and a list of things you have heard is the one place the
 marker is load-bearing rather than incidental.
 
+## Language (`LanguageBadge`) — V2-C.1, 2026-10-08
+
+**Every show and episode says what language it is in, wherever its metadata already renders**
+(PRD-047 FR7.2). A squared chip carrying the code — `ES`, `DE`, `EN` — not a word: it has to fit a
+128px artwork column and the corner of a phone tile.
+
+**Squared, not a pill.** The rounded chips beside it (Played, Pending) are states; the language is a
+property. Same muted colour, different shape, so the two do not read as one family.
+
+**Placement follows each item's existing facts, never a new row:**
+
+| Surface | Where |
+| --- | --- |
+| Episode card (`EpisodeCard`) | After date · duration under the artwork; on its own in compact cards, which drop that row |
+| Episode row (`EpisodeRow`) | Leading the show-name line |
+| Episode tile, show tile (`EpisodeTile`, `ShowTile`) | Over the artwork, **top-left** — opposite the controls in the top-right — on the same dark plate those controls use, so contrast never depends on the picture |
+| Show row (`ShowRow`) | The last stacked fact under the artwork |
+| Show page (`PodcastView`) | Leading the feed meta line, in both its phone and desktop copies |
+| Player | Leading the date · duration line under the title |
+
+**Only when it says something** (FR7.5). In a single-language corpus every badge would read the same
+code — the constant #2115 deleted for costing a wrap and saying nothing. One catalogue fetch per page
+decides it; until that answers, or if it fails, no badge renders. English is labelled like any other
+language once there is a second one: in a mixed corpus `EN` is information.
+
+**Unknown is omitted, never guessed.** No badge is better than a wrong one.
+
+**Codes are normalized** to the primary subtag — `en-US` and `en-GB` are both `EN`, and a corpus of
+only those is single-language.
+
+**A screen reader hears the name, not the letters** — "Language: Spanish", from `Intl.DisplayNames`
+in the UI locale, so it follows the app when the UI is localized.
+
+**Not a filter.** Filtering by language (V2-C.2) is a separate control and is not built yet.
+
 ## Destructive confirmation (#1594)
 
 `ConfirmDialog.vue` — the one pattern in front of a delete that cannot be undone.

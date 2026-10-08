@@ -105,6 +105,8 @@ export interface EpisodeSummary {
   /** Per-user saved-item colour token — set only on favourited episodes (RFC-121 ph. 4); null on
    *  catalog cards. A personal annotation, not corpus data. */
   color?: string | null
+  /** Episode language as a normalized primary subtag ('en', 'es'); null/absent when unknown. */
+  language?: string | null
 }
 
 /** Paginated catalog list (AppEpisodesResponse). */
@@ -146,6 +148,8 @@ export interface EpisodeDetail {
   has_gi: boolean
   has_kg: boolean
   has_bridge: boolean
+  /** Episode language as a normalized primary subtag ('en', 'es'); null/absent when unknown. */
+  language?: string | null
 }
 
 export interface ListEpisodesParams {

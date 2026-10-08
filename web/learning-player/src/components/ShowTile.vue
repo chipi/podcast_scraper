@@ -16,6 +16,7 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import FollowButton from './FollowButton.vue'
 import FavoriteButton from './FavoriteButton.vue'
+import LanguageBadge from './LanguageBadge.vue'
 import type { Podcast } from '../services/types'
 import { showArtwork } from '../utils/episode'
 import { useLibraryStore } from '../stores/library'
@@ -83,6 +84,12 @@ const art = (): string | null => showArtwork(props.show)
       class="aspect-square w-full rounded-xl bg-elevated object-cover"
     />
     <div v-else class="aspect-square w-full rounded-xl bg-elevated" />
+    <!-- Top-LEFT, opposite Follow + Save, on the same dark plate so it reads over any artwork. -->
+    <LanguageBadge
+      :lang="show.language"
+      overlay
+      class="pointer-events-none absolute left-1.5 top-1.5 z-10"
+    />
     <!-- Follow + Save over the artwork, as ONE right-aligned column in the top-right corner: the
          pill on top, the heart directly under it, both flush right — the L the episode tile's icon
          cluster makes when it wraps (operator 2026-09-17).

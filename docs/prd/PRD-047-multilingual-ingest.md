@@ -311,7 +311,8 @@ chrome follows when it has something to distinguish.
 - **FR7.2**: Every show and episode displays a compact language badge — a small squared chip with the
   uppercase code — wherever that item's metadata already renders: consumer episode rows, tiles and
   cards, show rows, tiles and detail page, and the operator shows library. Omitted, not guessed, when
-  the language is unknown. **v2.**
+  the language is unknown. **v2 — built 2026-10-08 (V2-C.1)**, ahead of the filter: the first
+  non-English feeds are what makes it carry information. FR7.5 applies to it from day one.
 - **FR7.3**: Shows and episodes can be **filtered by language** on the surfaces that already offer
   filters — the consumer episode toolbar (today: all / unplayed / played / insights / downloaded, plus
   a show selector), show browse, and the operator library filter bar. **v2.**

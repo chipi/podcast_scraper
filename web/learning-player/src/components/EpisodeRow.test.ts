@@ -11,9 +11,15 @@
  */
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createI18n } from 'vue-i18n'
 import { createRouter, createWebHistory } from 'vue-router'
+import en from '../i18n/locales/en.json'
 import EpisodeRow from './EpisodeRow.vue'
 import type { EpisodeSummary } from '../services/types'
+
+// The row carries a LanguageBadge, which reads its accessible name through `t()`; every real host
+// installs i18n, so the test must too.
+const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 
 const episode = {
   slug: 'ep-1',
@@ -36,7 +42,7 @@ describe('EpisodeRow', () => {
     const r = router()
     r.push('/')
     await r.isReady()
-    const w = mount(EpisodeRow, { props: { episode }, global: { plugins: [r] } })
+    const w = mount(EpisodeRow, { props: { episode }, global: { plugins: [r, i18n] } })
     expect(w.find('a').attributes('href')).toBe('/episode/ep-1')
   })
 
@@ -44,7 +50,7 @@ describe('EpisodeRow', () => {
     const r = router()
     r.push('/')
     await r.isReady()
-    const w = mount(EpisodeRow, { props: { episode }, global: { plugins: [r] } })
+    const w = mount(EpisodeRow, { props: { episode }, global: { plugins: [r, i18n] } })
     await w.find('a').trigger('click')
     // `click` itself shows up here because vue-test-utils records native DOM events that reach the
     // root — that one is the browser's, not ours. What must NOT appear is a COMPONENT event, whose

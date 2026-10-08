@@ -123,9 +123,8 @@ test('the show page surfaces feed authors and last-updated (#2043)', async ({
   await expect(meta).toContainText('Nora Bakker')
   await expect(meta).toContainText('Updated')
 
-  // LANGUAGE is deliberately absent, so this asserts its absence rather than dropping the case
-  // silently: every show in the corpus is English today, which made the chip a constant that said
-  // nothing and cost a wrap in the narrow column. The field is still on the model — restore the
-  // assertion together with the chip when the corpus is genuinely multilingual.
+  // LANGUAGE is back (V2-C.1): the corpus is multilingual now, so the chip says something. It is a
+  // LanguageBadge leading the line, carrying the normalized code — never the raw feed tag `en-us`.
+  await expect(meta.getByTestId('language-badge')).toHaveAttribute('data-lang', 'en')
   await expect(meta).not.toContainText('en-us')
 })
