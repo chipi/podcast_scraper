@@ -8,10 +8,10 @@ the released-version floor in the operator viewer and the app-version mix in the
 ## Server: responses that exist only for clients that do not page
 
 | Endpoint | Old behaviour kept | New behaviour | Delete when |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `GET /persons/{id}/card`, `/topics/{id}/card`, `/storylines/{id}`, `/themes/{id}`, `/orgs/{id}/card` | no `episodes_offset` / `episodes_limit` → the WHOLE episode list | paged when the client sends them | 1.0.2 gone: make the page the only shape, with a default `limit` |
 | `GET /topics/{id}/perspectives`, storyline and theme perspectives | no `speakers_offset` / `per_speaker` → every speaker, every take | paged when sent | same |
-| `GET /favorites`, `/highlights`, `/notes`, `/collections`, `/collections/{id}`, `/resurfacing`, `/playback`, `/queue` | no paging params → the whole list | paged + server-side search / filter / sort when sent | same |
+| `GET /favorites`, `/highlights`, `/notes`, `/collections/{id}`, `/resurfacing`, `/playback`, `/podcasts` | no `limit` → the whole list | paged + server-side search / filter / sort when `limit` is sent | same |
 
 ## Server: write responses that still answer with the WHOLE list
 

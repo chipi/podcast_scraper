@@ -120,11 +120,22 @@ On the Pixel 8 that went black: Settings → **Copy debug info** gives the model
 free/total RAM and the app's memory. Then Episode notes → toggle Key points → open "More like this"
 and scroll it, the case that reproduced 3 of 3 on 1.0.2.
 
-## Not done here (for the operator to decide)
+## Paging: what this PR pages, and what it does not
 
-- The per-user lists still return everything for the client to page: `/favorites`, `/collections`,
-  `/resurfacing`, `/playback`, `/your-week`. Paging them on the server needs server-side search,
-  filter and sort, because the client filters the whole list today. Queue and Recently played
-  fetch each episode separately (one request per row); a batch endpoint would fix that. Both wait
-  on the operator. Entity cards' episodes and the speakers' takes ARE paged in this PR
-  (`docs/api/PLATFORM_API.md`), and covers that were only a feed URL are stored by `0027`.
+Paged on the server, opt-in (`limit`; a request without it answers exactly as before, so 1.0.2
+is unaffected — see `docs/api/PLATFORM_API.md`): entity cards' episodes and speakers' takes,
+`/favorites` (+ `/favorites/refs`), `/highlights`, `/notes`, `/resurfacing`, `/playback`,
+`/collections/{id}` (a board's items) and `/podcasts`. Lists of saved slugs hydrate through
+`/episodes/batch`. The queue renders twenty at a time and fetches only those.
+
+Not paged, on purpose or not yet:
+
+- `/collections` (the boards list): capped at 200 by the server, and the Boards tab drag-reorders
+  the whole list — paging it would break reordering.
+- `/completed`: the played slugs that mark episodes played everywhere. It grows with listening;
+  bounding it needs a "played" flag on episode rows instead, which is a different change.
+- `/your-week` (each section capped by `MAX_REVISIT_ITEMS`), `/library`, `/interests`: bounded.
+- Write answers (`PUT`/`DELETE /favorites…`, `DELETE /highlights/{id}`, `DELETE /notes/{id}`)
+  still carry the whole list for 1.0.2; `docs/wip/TODO-remove-pre-1.0.3-compat.md` lists them.
+
+Covers that were only a feed URL are stored by `0027`.
