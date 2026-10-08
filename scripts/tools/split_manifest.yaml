@@ -83,6 +83,9 @@ player:
   trees:
     web/learning-player: web
   files:
+    # The Discover ranking scorers (they import the player's ranking).
+    - scripts/eval/score/rank_discover_v1.py
+    - scripts/eval/score/rank_scenarios_v1.py
     - docs/prd/PRD-035-learning-platform.md
     - docs/prd/PRD-036-foundation-identity.md
     - docs/prd/PRD-037-discovery.md
@@ -197,6 +200,7 @@ common:
         podcast_scraper.mcp: mcp
         podcast_scraper.enrichment.provider_types.consensus: provider_types.consensus
   files:
+    - scripts/mcp_e2e_pivot_chain.py
     - docs/prd/PRD-034-generic-mcp-server.md
     - docs/rfc/RFC-093-litm-context-packs.md
     - docs/rfc/RFC-095-generic-mcp-server.md
