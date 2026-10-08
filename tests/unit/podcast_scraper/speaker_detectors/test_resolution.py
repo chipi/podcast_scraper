@@ -46,6 +46,23 @@ class TestTheRefutationIsEvidenceNotJustAVeto:
         assert (
             refused is None or refused.role != "guest"
         ), "SPEAKER_00 is Tyler, the host: the refused answer's 'guest' must not stay on him"
+        assert (
+            out["SPEAKER_01"].role == "guest"
+        ), "the role travels with the name: dropped from the host, it must land on the guest"
+
+    def test_a_refused_host_role_is_not_copied_to_the_other_voice(self) -> None:
+        """Only a role the refusal REMOVED travels. A refused "<name>, host" keeps "host" on its
+        voice, so copying it to the other voice as well would publish two hosts."""
+        from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+
+        out = resolve_voices_and_roles(
+            stated_names=["Alison Gopnik"],
+            voice_texts={"SPEAKER_00": self.HOST, "SPEAKER_01": self.GUEST},
+            complete=self._llm({"SPEAKER_00": {"name": "Alison Gopnik", "role": "host"}}),
+            episode_title="Alison Gopnik on Childhood Learning",
+        )
+        assert out["SPEAKER_01"].name == "Alison Gopnik"
+        assert out["SPEAKER_01"].role is None
 
     def test_three_voices_do_not_complement(self) -> None:
         """THE GUARD ON THE GUARD. 90.5% vs 98.0% is the whole reason this is two-voice only."""

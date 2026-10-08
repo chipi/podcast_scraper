@@ -779,7 +779,17 @@ def resolve_voices_and_roles(
             if refuted_by_third_person(voice_texts[other], name, language):
                 continue  # the other voice talks about them too — no evidence either way
             used.add(name.lower())
-            out[other] = LLMVoice(name=name, role=existing.role if existing else None)
+            # A role the refusal took off the refused voice travels with the name, as in the swap
+            # above — otherwise "<name>, guest" refused on the host published the guest role-less.
+            # Only the role that was REMOVED: a refused "host" stays on its voice, and copying it
+            # here too would publish two hosts.
+            refused_role = refuted_roles.get(bad_voice)
+            dropped = (
+                refused_role
+                if _role_after_third_person_refusal(refused_role) != refused_role
+                else None
+            )
+            out[other] = LLMVoice(name=name, role=existing.role if existing else dropped)
             rep_["complement"].append({"kind": "two_voice", "name": name, "voice": other})
             logger.info(
                 "speaker resolution: %r was refuted on %s, and %s is the only other voice and is "
