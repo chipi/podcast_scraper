@@ -10,6 +10,7 @@
  */
 
 import { nativeMemoryInfo } from '../services/lifecycle'
+import { cacheStats } from '../services/contentCache'
 
 export interface DebugContext {
   version: string
@@ -103,6 +104,37 @@ function network(): string {
   return `Network: ${navigator.onLine ? 'online' : 'offline'}${kind ? ` (${kind})` : ''}`
 }
 
+/**
+ * The images the page holds right now and what they cost decoded — the measure behind the Android
+ * blank-render bug (2026-10-08: compositor memory, not JS heap). Natural size, 4 bytes a pixel.
+ */
+function images(): string[] {
+  try {
+    const imgs = Array.from(document.querySelectorAll('img')).filter((i) => i.complete && i.naturalWidth > 0)
+    const px = imgs.reduce((n, i) => n + i.naturalWidth * i.naturalHeight, 0)
+    const largest = imgs.reduce((m, i) => Math.max(m, i.naturalWidth, i.naturalHeight), 0)
+    return [
+      `Images on the page: ${imgs.length} decoded, ~${Math.round((px * 4) / 1048576)} MB as bitmaps, ` +
+        `largest side ${largest}px`,
+    ]
+  } catch {
+    return ['Images on the page: could not be read']
+  }
+}
+
+/** The on-device content cache for this account, per key (operator 2026-10-08: dump the cache). */
+async function cacheLines(): Promise<string[]> {
+  const { namespace, entries } = await cacheStats()
+  const kb = (n: number): string => `${Math.round(n / 1024)} KB`
+  const total = entries.reduce((n, e) => n + e.bytes, 0)
+  return [
+    `Cache (${namespace}): ${entries.length} keys, ${kb(total)}`,
+    ...entries
+      .sort((a, b) => b.bytes - a.bytes)
+      .map((e) => `  ${e.key}: ${kb(e.bytes)}`),
+  ]
+}
+
 /** The whole block, in the order a reader triages: when, what app, what device, what screen. */
 export async function collectDebugInfo(ctx: DebugContext): Promise<string> {
   const now = new Date()
@@ -117,6 +149,8 @@ export async function collectDebugInfo(ctx: DebugContext): Promise<string> {
     ...memory(),
     ...(await nativeLines()),
     'Not readable by any app: free GPU memory, GPU load',
+    ...images(),
+    ...(await cacheLines()),
     screenInfo(),
     network(),
   ]

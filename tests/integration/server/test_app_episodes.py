@@ -790,3 +790,18 @@ def test_entities_topics_flat_without_cluster_artifact(tmp_path: Path) -> None:
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
     topic = next(t for t in body["topics"] if t["id"] == "topic:ai")
     assert topic["cluster_id"] is None and topic["cluster_size"] == 0
+
+
+def test_related_cache_reports_its_lookups(tmp_path: Path) -> None:
+    # /api/ops/cache-stats carries this cache under `related` (it is not a perf_cache namespace).
+    from podcast_scraper.server.routes import app_episodes
+
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    before = app_episodes.related_cache_stats()
+    client = _client(tmp_path)
+    client.get(f"/api/app/episodes/{slug}/related")
+    client.get(f"/api/app/episodes/{slug}/related")
+    after = app_episodes.related_cache_stats()
+    assert after["hits"] + after["misses"] == before["hits"] + before["misses"] + 2
+    assert set(after) >= {"entries", "max_entries", "ttl_seconds", "hit_rate_pct"}

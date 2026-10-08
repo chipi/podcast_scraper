@@ -145,6 +145,10 @@ export async function clearCached(keys: readonly string[]): Promise<void> {
 export const CACHE_KEYS = [
   'library',
   'favorites',
+  // The saved items' identities (2026-10-08): what the favourites store keeps now.
+  'favorite-refs',
+  // The queue's episode cards, so an offline queue still reads (operator 2026-09-19).
+  'queue.details',
   'queue',
   'completed',
   'collections',
@@ -187,3 +191,26 @@ export const CACHE_KEYS = [
   'browse.storylines',
   'browse.shows',
 ] as const
+
+/**
+ * What this account's cache holds on the device, per key — for "Copy debug info" (operator
+ * 2026-10-08: dump memory and cache). Sizes are the stored JSON's length in bytes; a key with
+ * nothing stored is left out. Never throws.
+ */
+export async function cacheStats(): Promise<{ namespace: string; entries: { key: string; bytes: number }[] }> {
+  const entries: { key: string; bytes: number }[] = []
+  for (const key of CACHE_KEYS) {
+    try {
+      if (!isNative()) {
+        const v = await getDeviceJson(deviceKey(key))
+        if (v != null) entries.push({ key, bytes: JSON.stringify(v).length })
+      } else {
+        const st = await Filesystem.stat({ path: filePath(key), directory: CACHE_DIR })
+        entries.push({ key, bytes: Number(st.size) || 0 })
+      }
+    } catch {
+      // Not stored.
+    }
+  }
+  return { namespace, entries }
+}

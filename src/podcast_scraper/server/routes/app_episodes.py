@@ -419,14 +419,30 @@ def _episode_detail(root: Path, row: CatalogEpisodeRow, slug: str) -> AppEpisode
 _RELATED_TTL_S = 3600
 _RELATED_MAX = 512
 _related_cache: OrderedDict[tuple[str, str, int], tuple[float, AppEpisodesResponse]] = OrderedDict()
+_related_counts = {"hits": 0, "misses": 0}
 
 
 def _related_cached(key: tuple[str, str, int]) -> AppEpisodesResponse | None:
     hit = _related_cache.get(key)
     if hit is None or time.monotonic() - hit[0] > _RELATED_TTL_S:
+        _related_counts["misses"] += 1
         return None
+    _related_counts["hits"] += 1
     _related_cache.move_to_end(key)
     return hit[1]
+
+
+def related_cache_stats() -> dict[str, float | int]:
+    """The "More like this" cache, for ``/api/ops/cache-stats`` (not a perf_cache namespace)."""
+    looked = _related_counts["hits"] + _related_counts["misses"]
+    return {
+        "entries": len(_related_cache),
+        "max_entries": _RELATED_MAX,
+        "ttl_seconds": _RELATED_TTL_S,
+        "hits": _related_counts["hits"],
+        "misses": _related_counts["misses"],
+        "hit_rate_pct": round(100.0 * _related_counts["hits"] / looked, 1) if looked else 0.0,
+    }
 
 
 def _related_store(key: tuple[str, str, int], value: AppEpisodesResponse) -> None:

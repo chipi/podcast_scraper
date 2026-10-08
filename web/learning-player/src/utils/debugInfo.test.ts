@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as lifecycle from '../services/lifecycle'
+import * as contentCache from '../services/contentCache'
 import { collectDebugInfo } from './debugInfo'
 
 const ctx = {
@@ -44,5 +45,20 @@ describe('collectDebugInfo (operator 2026-10-08)', () => {
     expect(text).toContain('Native availMb: 412')
     expect(text).toContain('Native lowMemory: true')
     expect(text.indexOf('Native model')).toBeLessThan(text.indexOf('Native availMb'))
+  })
+
+  it('dumps the on-device cache per key, largest first, and the images held (2026-10-08)', async () => {
+    vi.spyOn(lifecycle, 'nativeMemoryInfo').mockResolvedValue(null)
+    vi.spyOn(contentCache, 'cacheStats').mockResolvedValue({
+      namespace: 'u_123',
+      entries: [
+        { key: 'queue', bytes: 2048 },
+        { key: 'player.snapshots', bytes: 512 * 1024 },
+      ],
+    })
+    const text = await collectDebugInfo(ctx)
+    expect(text).toContain('Cache (u_123): 2 keys, 514 KB')
+    expect(text.indexOf('  player.snapshots: 512 KB')).toBeLessThan(text.indexOf('  queue: 2 KB'))
+    expect(text).toMatch(/Images on the page: \d+ decoded/)
   })
 })

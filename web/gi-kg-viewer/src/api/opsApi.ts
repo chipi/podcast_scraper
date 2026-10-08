@@ -31,6 +31,35 @@ export async function fetchOpsSummary(): Promise<OpsSummary> {
   return (await res.json()) as OpsSummary
 }
 
+/** One in-process cache namespace's health (perf_cache.stats()). */
+export interface CacheNamespaceStats {
+  hits: number
+  misses: number
+  entries: number
+  hit_rate_pct: number
+  avg_build_ms?: number
+  est_saved_seconds?: number
+}
+
+/** GET /api/ops/cache-stats — the server's read caches: are they earning their keep? */
+export interface CacheStatsSnapshot {
+  namespaces: Record<string, CacheNamespaceStats>
+  /** The "More like this" cache (2026-10-08), outside perf_cache; absent on older servers. */
+  related?: CacheNamespaceStats & { max_entries: number; ttl_seconds: number }
+}
+
+export async function fetchCacheStats(): Promise<CacheStatsSnapshot> {
+  const res = await fetchWithTimeout('/api/ops/cache-stats', undefined, {
+    timeoutMs: 10_000,
+    timeoutDetail: 'cache-stats',
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(t.trim() || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as CacheStatsSnapshot
+}
+
 /** One LLM provider's circuit-breaker state (ADR-113). */
 export interface LlmBreakerState {
   open: boolean
