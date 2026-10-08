@@ -708,6 +708,8 @@ export interface YourWeekItem {
   highlight_id?: string
   /** Episode/show artwork used as the card backdrop (in-app enrichment; absent → flat card). */
   image_url?: string | null
+  /** The show's name, under the title (in-app enrichment; absent when the slug no longer resolves). */
+  podcast_title?: string | null
 }
 
 export type YourWeekSectionKind =

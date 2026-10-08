@@ -56,7 +56,15 @@ const title = computed(() => props.item.episode_title || props.item.graph_refs?.
       <div class="mt-auto pt-3">
         <!-- Not clamped (#2004 item 3b): same rule as the other cards — the tile keeps rows even, the
            title is allowed to be as long as it is. -->
-      <div class="text-sm font-bold leading-tight">{{ title }}</div>
+      <!-- Shaped like Continue listening (operator 2026-10-08): the episode title large in the display
+           face, the show it is from under it. The card named no show at all before. -->
+      <div class="font-display text-lg font-extrabold leading-tight tracking-tight" data-testid="yourweek-card-title">{{ title }}</div>
+      <div
+        v-if="item.podcast_title"
+        class="lp-show-name mt-1 text-sm"
+        :class="hasImage ? 'text-white/80' : 'text-muted'"
+        data-testid="yourweek-card-show"
+      >{{ item.podcast_title }}</div>
         <ul v-if="chips.length" class="mt-2 flex flex-wrap gap-1.5">
           <li
             v-for="c in chips"

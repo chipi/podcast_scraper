@@ -72,8 +72,9 @@ def _image_for(row: CatalogEpisodeRow) -> str | None:
 
 def _enrich_items(catalog: list[CatalogEpisodeRow], sections: list[dict[str, Any]]) -> None:
     """Enrich each item from its catalog row: the episode/show art (``image_url``) for the card
-    backdrop, and ``episode_title`` where the assembler omits it (the ``trending_in_your_corpus``
-    items are topic-centric and carry none, which would render a blank card title). In-app ONLY —
+    backdrop, the show name (``podcast_title``), and ``episode_title`` where the assembler omits
+    it (the ``trending_in_your_corpus`` items are topic-centric and carry none, which would render
+    a blank card title). In-app ONLY —
     the shared assembler and the email envelope contract stay untouched. ``catalog`` is the SAME
     scan the assembler used this request (threaded through), so enrichment adds no extra scan."""
     slugs = {
@@ -95,6 +96,8 @@ def _enrich_items(catalog: list[CatalogEpisodeRow], sections: list[dict[str, Any
             if match is not None:
                 it["image_url"] = _image_for(match)
                 it.setdefault("episode_title", match.episode_title)
+                # The card names the show too (operator 2026-10-08), as Continue listening does.
+                it.setdefault("podcast_title", match.feed_title)
 
 
 #: What the IN-APP Your Week leaves out (operator 2026-10-07: "cut the overlap"): new episodes from

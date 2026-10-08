@@ -196,6 +196,7 @@ def test_your_week_route_backfills_trending_episode_title(tmp_path: Path) -> Non
     assert resp.status_code == 200
     trend = _kinds(resp.json())["trending_in_your_corpus"][0]
     assert trend["episode_title"] == "Episode e1"  # backfilled — the assembler omits it
+    assert trend["podcast_title"] == "Show fa"  # the card names the show (operator 2026-10-08)
     assert trend["image_url"] == "https://img.example/fa.jpg"
     assert trend["graph_refs"] == [{"id": "topic:ai", "kind": "topic", "label": "AI"}]
 

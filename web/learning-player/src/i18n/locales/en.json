@@ -74,8 +74,8 @@
     "revisitMute": "Stop resurfacing this",
     "jumpBackInCount": "1 in progress | {count} in progress",
     "jumpBackIn": "Jump back in",
-    "yourWeek": "Your Week",
-    "yourWeekCount": "1 new | {count} new",
+    "yourWeek": "Your week in review",
+    "yourWeekCount": "1 this week | {count} this week",
     "yourWeekShowMore": "Show more",
     "yourWeekShowLess": "Show less",
     "yourWeekSection": {
