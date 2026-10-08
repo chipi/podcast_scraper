@@ -12,8 +12,10 @@ import pytest
 from podcast_scraper.providers.ml.diarization.roster import (
     _canonicalize_to_known_host,
     _core_name_tokens,
+    _recover_stated_names,
     _same_person,
     _snap_near_identical_host,
+    SpeakerRole,
 )
 from podcast_scraper.workflow.metadata_generation import _unplaced_speakers, SpeakerInfo
 
@@ -116,3 +118,70 @@ def test_two_swapped_letters_are_one_slip_of_the_host_name() -> None:
     assert _snap_near_identical_host("Kevin Rsos", ["Kevin Ross"]) == "Kevin Rsos"
     # Two letters traded across the word are two edits, not one slip.
     assert _snap_near_identical_host("Joe Waisenthel", ["Joe Weisenthal"]) == "Joe Waisenthel"
+
+
+# --- 3. A stated participant in a polluted host pool is not a host -----------------------------
+
+
+def _roster(name: str, role: str) -> dict:
+    return {"V": SpeakerRole(name=name, role=role, named=True, source="self_intro")}
+
+
+def test_a_stated_participant_in_a_polluted_host_pool_gets_its_spelling_not_the_host_role() -> None:
+    # The a16z Show lists its interviewee Lukasz Kaiser among nine "hosts"; his voice said "Lucas".
+    by_voice = _roster("Lucas Kaiser", "guest")
+    _recover_stated_names(
+        by_voice, ["Lukasz Kaiser"], ["Lukasz Kaiser"], participants=["Lukasz Kaiser"]
+    )
+    assert (by_voice["V"].name, by_voice["V"].role) == ("Lukasz Kaiser", "guest")
+
+
+def test_without_the_episode_naming_them_a_guest_still_never_takes_a_hosts_spelling() -> None:
+    by_voice = _roster("Kevin Ross", "guest")
+    _recover_stated_names(by_voice, ["Kevin Roose"], ["Kevin Roose"])
+    assert by_voice["V"].name == "Kevin Ross"
+
+
+# --- 4. A spoken respelling of a person already on a voice is not a spare guest name ------------
+
+
+def test_a_spoken_respelling_of_a_placed_guest_is_not_a_spare_guest_name() -> None:
+    # The Long Run: the host's spoken "Andy Ratcliffe" stayed spare beside the claimed Andy
+    # Rachleff and was forced onto the co-guest Yung Lie's voice.
+    from podcast_scraper.providers.ml.diarization.roster import _spare_guest_names
+
+    declared = ["Andy Ratcliffe", "Young Lee", "Jill Lepore"]
+    claimed = ["Luke Timmerman", "Andy Rachleff"]
+    assert _spare_guest_names(declared, {"luke timmerman"}, {"young lee"}, claimed) == [
+        "Jill Lepore"
+    ]
+    # A different person with the same given name stays spare.
+    assert _spare_guest_names(["Andy Jassy"], set(), set(), claimed) == ["Andy Jassy"]
+
+
+# --- 5. A respelling of a stated participant publishes the stated spelling ---------------------
+
+
+def test_a_respelt_participant_takes_the_metadata_spelling() -> None:
+    # Made In Africa: the host said "Scholastic Gatobu"; the show notes say "Schola Gatobu".
+    by_voice = _roster("Scholastic Gatobu", "guest")
+    _recover_stated_names(by_voice, ["SCHOLA GATOBU"], [], participants=["SCHOLA GATOBU"])
+    assert by_voice["V"].name == "SCHOLA GATOBU"
+
+
+@pytest.mark.parametrize(
+    "name, participants, claimed_elsewhere",
+    [
+        ("Scholastic Gatobu", ["SCHOLA GATOBU"], "SCHOLA GATOBU"),  # another voice has it
+        ("Anna Smith", ["Anna Jones"], None),  # a different surname is a different person
+        ("Anita Anant", ["Anita Anand", "Anita Anaut"], None),  # two candidates: no answer
+    ],
+)
+def test_otherwise_the_voice_keeps_its_spelling(name, participants, claimed_elsewhere) -> None:
+    by_voice = _roster(name, "guest")
+    if claimed_elsewhere:
+        by_voice["W"] = SpeakerRole(
+            name=claimed_elsewhere, role="guest", named=True, source="llm_resolution"
+        )
+    _recover_stated_names(by_voice, [], [], participants=participants)
+    assert by_voice["V"].name == name

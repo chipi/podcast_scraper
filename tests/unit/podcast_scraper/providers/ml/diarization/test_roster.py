@@ -834,9 +834,12 @@ def test_detected_guest_is_not_forced_when_its_surname_is_already_on_the_roster(
             ("BUMPER", "We'll be right back."),
         ],
     )
-    names = [role.name for role in r.by_voice.values()]
-    assert "Alan Fenwick" not in names  # not force-fabricated onto the bumper
-    assert r.by_voice["BUMPER"].name == "BUMPER"  # the bumper stays unnamed (safe direction)
+    # Not force-fabricated onto the bumper: the bumper stays unnamed (safe direction), and the one
+    # Fenwick is the guest — under the metadata's spelling since 2026-10-08 (one person, one
+    # entry: "Professor Fenwick" and the stated "Alan Fenwick" are the same person).
+    assert r.by_voice["BUMPER"].name == "BUMPER"
+    assert [v for v, role in r.by_voice.items() if "Fenwick" in role.name] == ["GUEST"]
+    assert r.by_voice["GUEST"].name == "Alan Fenwick"
 
 
 def test_two_distinct_guests_sharing_a_surname_are_both_nameable() -> None:

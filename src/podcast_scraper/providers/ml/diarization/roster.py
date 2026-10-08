@@ -1641,6 +1641,7 @@ def _recover_stated_names(
     known_hosts: Sequence[str] = (),
     *,
     fuzzy: bool = True,
+    participants: Sequence[str] = (),
 ) -> None:
     """ADR-130 in-place pass: snap each published name that ASR-mangled a STATED person (host OR
     guest) back to its metadata spelling. Guards that keep it from doing harm:
@@ -1662,17 +1663,22 @@ def _recover_stated_names(
       "Kevin Ross" must not be painted as the host "Kevin Roose" just because the host's voice was
       left unnamed — the host-identity canonicalization is gated to host-candidate voices upstream,
       and this final pass must not reopen that hole. A genuinely mangled co-host already carries
-      ``role == "host"`` by the time this runs, so it still snaps.
+      ``role == "host"`` by the time this runs, so it still snaps. UNLESS the episode itself
+      names that person as a participant (``participants``): then the feed's host list is the
+      polluted source, not the voice. The a16z Show lists its interviewee Lukasz Kaiser among nine
+      "hosts", and his own "Lucas Kaiser" was kept beside the stated spelling (2026-10-08).
     """
     if not fuzzy:
         return
     stated_lower = {r.lower() for r in stated_refs}
-    known_hosts_lower = {h.lower() for h in known_hosts}
+    known_hosts_lower = {h.lower() for h in known_hosts} - {p.lower() for p in participants if p}
     claimed = {r.name.lower() for r in by_voice.values() if r.named}
     for v, role in list(by_voice.items()):
         if not role.named or role.name.lower() in stated_lower:
             continue
         canon = _canonicalize_to_stated_name(role.name, stated_refs)
+        if canon == role.name:
+            canon = _stated_participant_spelling(role.name, participants, claimed)
         if canon == role.name:
             continue
         if canon.lower() in known_hosts_lower and role.role != "host":
@@ -1707,6 +1713,29 @@ def _recover_stated_names(
         claimed.discard(role.name.lower())
         claimed.add(canon.lower())
         by_voice[v] = replace(role, name=canon)
+
+
+def _stated_participant_spelling(
+    name: str, participants: Sequence[str], claimed: AbstractSet[str]
+) -> str:
+    """The ONE stated participant *name* is a respelling of on this episode, else *name*.
+
+    The fuzzy canonicaliser needs a given name within two edits, so the host's "Scholastic
+    Gatobu" never reached the stated "Schola Gatobu" (Made In Africa, 2026-10-08) — the record
+    showed the stated spelling only because a forced twin on an ad voice had merged into her. The
+    one-episode rule reads the same pair as one person; the metadata's spelling is the published
+    one. A participant another voice already carries is not available, and two candidates are
+    no answer.
+    """
+    hits = {
+        p.lower(): p
+        for p in participants
+        if p
+        and p.lower() != name.lower()
+        and p.lower() not in claimed
+        and _same_person_on_one_episode(name, p)
+    }
+    return next(iter(hits.values())) if len(hits) == 1 else name
 
 
 def _vouched_by_metadata(candidate: str, metadata_named: Sequence[str]) -> Optional[str]:
@@ -3373,6 +3402,26 @@ def _intro_people(names: Sequence[str]) -> int:
         if not any(len(last) >= 5 and len(p) >= 5 and _edit_distance(last, p) <= 2 for p in people):
             people.append(last)
     return len(people)
+
+
+def _spare_guest_names(
+    declared: Sequence[str],
+    host_names_lower: AbstractSet[str],
+    intro_names_lower: AbstractSet[str],
+    claimed: Sequence[str],
+) -> List[str]:
+    """The declared guest names no voice holds yet: not a host, not a voice's name, and not the
+    same person as any name a voice already carries (``_same_spoken_person`` or the one-episode
+    rule), whichever source named that voice."""
+    return [
+        g
+        for g in declared
+        if g.lower() not in host_names_lower
+        and g.lower() not in intro_names_lower
+        and not any(
+            _same_spoken_person(g, c) or _same_person_on_one_episode(g, c) for c in claimed if c
+        )
+    ]
 
 
 def _one_swap_apart(a: str, b: str) -> bool:
@@ -5359,14 +5408,17 @@ def resolve_speaker_roster(
     # spoken "Jeff Schmidt" in the pool, and it was forced onto a host's question voice (Odd Lots,
     # #2075); snapping only one side just moved the mismatch ("Sergey Levin" claimed, "Sergey
     # Levine" forced onto an ad read — measured on the replay).
-    _claimed = list(voice_intro.values())
-    guest_names = [
-        g
-        for g in declared
-        if g.lower() not in host_names_lower
-        and g.lower() not in intro_names_lower
-        and not any(_same_spoken_person(g, c) for c in _claimed)
-    ]
+    #
+    # "Same person" includes the one-episode rule (`_spare_guest_names`): "Andy Ratcliffe" and
+    # "Andy Rachleff" are two edits apart, past the spoken rule, so the host's spoken form stayed
+    # spare and was forced onto the co-guest Yung Lie's voice (The Long Run, 2026-10-08) — one
+    # person twice, and a guest under someone else's name.
+    guest_names = _spare_guest_names(
+        declared,
+        host_names_lower,
+        intro_names_lower,
+        list(voice_intro.values()),
+    )
     tr.guest_pool(declared, guest_names, host_names_lower, intro_names_lower)
     # Ad voices are excluded from GUEST naming too — otherwise the pre-roll consumes a real guest's
     # name out of the pool and the guest is left as SPEAKER_0n.
@@ -5455,7 +5507,11 @@ def resolve_speaker_roster(
     )
     if stated_refs:
         _recover_stated_names(
-            by_voice, stated_refs, known_hosts, fuzzy=profile.nickname_fuzzy_binding
+            by_voice,
+            stated_refs,
+            known_hosts,
+            fuzzy=profile.nickname_fuzzy_binding,
+            participants=list(detected_guests or ()) + list(metadata_named or ()),
         )
     tr.diff_roles("recover_stated_names", _bv_before, by_voice)
 
