@@ -332,7 +332,18 @@ final class Journey {
     static boolean tap(List<String> names, boolean contains, long timeoutMs) {
         UiObject2 el = find(names, contains, timeoutMs);
         if (el == null) return false;
+        // The floor is the bottom nav — AND the mini-player docked above it, when one is open
+        // (2026-10-08). On iOS a Discover storyline row that cleared the tab bar but sat under the
+        // mini-player took the tap and opened the episode player. The mini-player's own close
+        // control ("Close player", player.closeMini) marks it.
         int floor = device().getDisplayHeight() - 220;
+        UiObject2 mini = find(Arrays.asList("Close player"), false, 500);
+        if (mini != null) {
+            Rect mb = attr(mini, UiObject2::getVisibleBounds);
+            if (mb != null && mb.top > device().getDisplayHeight() / 2) {
+                floor = Math.min(floor, mb.top - 60);
+            }
+        }
         Rect lastGood = attr(el, UiObject2::getVisibleBounds);
         for (int i = 0; i < 6; i++) {
             Rect b = attr(el, UiObject2::getVisibleBounds);

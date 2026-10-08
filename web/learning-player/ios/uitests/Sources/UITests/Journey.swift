@@ -245,8 +245,18 @@ enum Journey {
       print("=====TAP_MISS \(labels)=====")
       return false
     }
+    // The floor is the tab bar — AND the mini-player docked above it, when one is open
+    // (2026-10-08). With only the tab bar's 90pt allowed for, a row that cleared the tab bar but sat
+    // under the mini-player took the tap: Discover's storyline row opened the episode player
+    // instead. The mini-player's own close control ("Close player", player.closeMini) marks it.
+    var floor = app.frame.height - 90
+    let mini = app.buttons["Close player"].firstMatch
+    if mini.exists {
+      let top = mini.frame.minY
+      if top > app.frame.height / 2 { floor = min(floor, top - 24) }
+    }
     var tries = 0
-    while el.frame.maxY > app.frame.height - 90 && tries < 6 {
+    while el.frame.maxY > floor && tries < 6 {
       app.swipeUp(); usleep(700_000); tries += 1
     }
     // ...and the MIRROR CASE, which was missing (2026-09-25). An element scrolled ABOVE the
