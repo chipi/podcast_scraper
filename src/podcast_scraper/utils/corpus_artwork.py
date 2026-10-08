@@ -103,26 +103,30 @@ def download_podcast_artwork(
         except OSError as exc:
             logger.warning("Could not write artwork %s: %s", dest_str, exc)
             return None
-    # The serving API mounts the corpus READ-ONLY, so a thumbnail it cannot find is never made
+    # The serving API mounts the corpus READ-ONLY, so a downscale it cannot find is never made
     # there: it serves the full image instead (measured on prod, 200 KB for a 320px slot). The
-    # writer has write access — make it now. Best effort: a missing thumb only costs bytes.
+    # writer has write access — make both now. Best effort: a missing one only costs bytes.
     write_thumbnail(Path(corpus_root), dest_str)
+    write_medium(Path(corpus_root), dest_str)
     return rel_posix
 
 
 #: Longest edge of a list/card thumbnail (served by ``GET /api/app/artwork?size=thumb``).
 THUMB_MAX_PX = 320
 
+#: Longest edge of the player-sized image (``size=medium``): the hero is ~400 CSS px wide, so
+#: 1024 covers a 2.5x screen. Originals run to 3000², ~36 MB once a phone decodes them, and
+#: Android's WebView went blank under that load (2026-10-08, Pixel 8, build 1.0.2).
+MEDIUM_MAX_PX = 1024
 
-def thumbnail_path(corpus_root: Path, original_abs: str) -> Path:
-    """Where the thumbnail of *original_abs* lives: ``corpus-art/derived/thumb/<stem>.jpg``."""
+
+def _derived_path(corpus_root: Path, original_abs: str, kind: str) -> Path:
     stem = os.path.splitext(os.path.basename(original_abs))[0]
-    return Path(corpus_root) / CORPUS_ART_REL_PREFIX / "derived" / "thumb" / f"{stem}.jpg"
+    return Path(corpus_root) / CORPUS_ART_REL_PREFIX / "derived" / kind / f"{stem}.jpg"
 
 
-def write_thumbnail(corpus_root: Path, original_abs: str) -> bool:
-    """Make the thumbnail for *original_abs* if it is missing. ``True`` when it exists after."""
-    dst = thumbnail_path(corpus_root, original_abs)
+def _write_derived(corpus_root: Path, original_abs: str, kind: str, max_px: int) -> bool:
+    dst = _derived_path(corpus_root, original_abs, kind)
     if dst.is_file():
         return True
     try:
@@ -131,11 +135,31 @@ def write_thumbnail(corpus_root: Path, original_abs: str) -> bool:
         dst.parent.mkdir(parents=True, exist_ok=True)
         with Image.open(original_abs) as im:
             img = im.convert("RGB") if im.mode not in ("RGB", "L") else im
-            img.thumbnail((THUMB_MAX_PX, THUMB_MAX_PX))
+            img.thumbnail((max_px, max_px))
             tmp = dst.with_name(dst.name + ".tmp")
             img.save(tmp, format="JPEG", quality=85, optimize=True)
         os.replace(tmp, dst)
         return True
     except Exception as exc:  # noqa: BLE001 - undecodable / unwritable -> the original is served
-        logger.debug("thumbnail not written for %s: %s", original_abs, exc)
+        logger.debug("%s not written for %s: %s", kind, original_abs, exc)
         return False
+
+
+def thumbnail_path(corpus_root: Path, original_abs: str) -> Path:
+    """Where the thumbnail of *original_abs* lives: ``corpus-art/derived/thumb/<stem>.jpg``."""
+    return _derived_path(corpus_root, original_abs, "thumb")
+
+
+def write_thumbnail(corpus_root: Path, original_abs: str) -> bool:
+    """Make the thumbnail for *original_abs* if it is missing. ``True`` when it exists after."""
+    return _write_derived(corpus_root, original_abs, "thumb", THUMB_MAX_PX)
+
+
+def medium_path(corpus_root: Path, original_abs: str) -> Path:
+    """Where the player-sized copy lives: ``corpus-art/derived/medium/<stem>.jpg``."""
+    return _derived_path(corpus_root, original_abs, "medium")
+
+
+def write_medium(corpus_root: Path, original_abs: str) -> bool:
+    """Make the player-sized copy if it is missing (never upscaled). ``True`` when it exists."""
+    return _write_derived(corpus_root, original_abs, "medium", MEDIUM_MAX_PX)

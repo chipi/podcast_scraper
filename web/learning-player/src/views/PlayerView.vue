@@ -89,7 +89,7 @@ import type {
 } from '../services/types'
 import Sparkline from '../components/Sparkline.vue'
 import { formatDuration, formatPublishDate, speakerLabel } from '../utils/format'
-import { episodeArtwork } from '../utils/episode'
+import { episodePlayerArtwork } from '../utils/episode'
 import { getPlayerViewSnapshot, setPlayerViewSnapshot } from './player-view-cache'
 import QueueButton from '../components/QueueButton.vue'
 
@@ -509,7 +509,7 @@ function deepLinkSeconds(): number | null {
 // Audio-time → content-time: subtract the sync offset so the highlight tracks what's heard.
 const contentTime = computed(() => currentTime.value - syncOffset.value)
 const activeIndex = computed(() => activeSegmentIndex(segments.value, contentTime.value))
-const artwork = computed(() => (episode.value ? episodeArtwork(episode.value) : undefined))
+const artwork = computed(() => (episode.value ? episodePlayerArtwork(episode.value) : undefined))
 
 const favItem = computed<FavoriteAdd>(() => ({
   kind: 'episode',
@@ -815,7 +815,7 @@ async function load(slug: string): Promise<void> {
         url: diskSrc,
         title: diskDetail.title,
         showTitle: diskDetail.podcast_title ?? null,
-        artwork: episodeArtwork(diskDetail) ?? null,
+        artwork: episodePlayerArtwork(diskDetail) ?? null,
         // The offline path is exactly the one where the element reports no duration, and the
         // registry kept this when the episode was downloaded.
         durationSeconds: diskDetail.duration_seconds ?? null,
@@ -1002,7 +1002,7 @@ async function load(slug: string): Promise<void> {
     player.setMetadata({
       title: detail.title,
       artist: detail.podcast_title ?? undefined,
-      artworkUrl: episodeArtwork(detail) ?? undefined,
+      artworkUrl: episodePlayerArtwork(detail) ?? undefined,
     })
   } catch (err: unknown) {
     // A revalidation failure on a cache-hit reopen (#16) must NOT tear down the already-painted page
@@ -1564,7 +1564,7 @@ onBeforeUnmount(() => {
               <div
                 v-if="!panelOpen && hasReach"
                 data-testid="player-reach"
-                class="flex shrink-0 items-center gap-1.5 rounded-full bg-canvas/95 px-2.5 py-1 backdrop-blur"
+                class="flex shrink-0 items-center gap-1.5 rounded-full bg-canvas/95 px-2.5 py-1"
               >
                 <div class="flex items-center gap-2 text-[11px] font-bold leading-none">
                   <span
@@ -1635,9 +1635,14 @@ onBeforeUnmount(() => {
                   legibility over real cover art (recorded regression): text only reads reliably
                   once it sits in the near-opaque zone right at the panel, so a ramp — not a
                   uniform wash — is load-bearing here, not decorative.
+
+                  NO BACKDROP BLUR, here or anywhere in the app (2026-10-08). This ramp and the panel
+                  below were `backdrop-blur-md`; with the blurred action buttons on artwork tiles they
+                  made Android's WebView stop drawing whole regions — Episode notes went blank on a
+                  beta tester's Pixel 8 and on an 8 GB Pixel 8 emulator, and drew again with every
+                  blur removed. The tint carries the legibility. `__checks__/no-backdrop-blur.test.ts`.
                 -->
                 <div class="relative h-20">
-                  <div class="zone-d-scrim absolute inset-0 backdrop-blur-md" />
                   <div class="zone-d-scrim-tint absolute inset-0" />
                 </div>
                 <!--
@@ -1668,7 +1673,7 @@ onBeforeUnmount(() => {
                   of stopping at a hard edge — same 95% canvas at the bottom, blended upward, so the
                   legibility is unchanged and the rectangle is gone.
                 -->
-                <div class="zone-d-body px-4 pb-4 pt-1 backdrop-blur-md">
+                <div class="zone-d-body px-4 pb-4 pt-1">
                   <!-- Attribution: ONE glyph for the whole panel. The sr-only span keeps the
                        "speaking now" context for screen readers even though it's folded visually
                        into this one line rather than a separate pill. -->
@@ -1705,7 +1710,7 @@ onBeforeUnmount(() => {
                 <button
                   v-if="nextInsight"
                   type="button"
-                  class="inline-flex items-center gap-1.5 rounded-full bg-canvas/95 px-3 py-1 backdrop-blur transition hover:bg-canvas/90"
+                  class="inline-flex items-center gap-1.5 rounded-full bg-canvas/95 px-3 py-1 transition hover:bg-canvas/90"
                   @click="seekToNextInsight"
                 >
                   <span class="lp-kicker leading-none">{{ t('player.next') }} · {{ t('player.nextIn', { time: formatTime(nextInsightCountdown ?? 0) }) }}</span>
@@ -2010,16 +2015,12 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /*
- * Zone D scrim ramp (UXS-011 §43 rewrite): the blur and the tint fade together, over the SAME
- * ~80px band, from fully applied at the panel's own top edge to nothing above it. A flat
- * `bg-canvas/40`–`/80` wash across the whole lower artwork was tried and failed legibility over
- * real cover art (recorded regression) — text only reads reliably where it sits in the near-opaque
- * zone right at the panel, so the ramp does the legibility work, not a uniform tint.
+ * Zone D scrim ramp (UXS-011 §43 rewrite): the tint fades over a ~80px band, from fully applied at
+ * the panel's own top edge to nothing above it. A flat `bg-canvas/40`–`/80` wash across the whole
+ * lower artwork was tried and failed legibility over real cover art (recorded regression) — text
+ * only reads reliably where it sits in the near-opaque zone right at the panel, so the ramp does
+ * the legibility work, not a uniform tint. (A blur used to fade with it; see the template note.)
  */
-.zone-d-scrim {
-  -webkit-mask-image: linear-gradient(to top, black, transparent);
-  mask-image: linear-gradient(to top, black, transparent);
-}
 /* Continues the scrim through the panel body, so the two read as one gradient rather than a
    gradient stopping at the top edge of a filled box. */
 .zone-d-body {

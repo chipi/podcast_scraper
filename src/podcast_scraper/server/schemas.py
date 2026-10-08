@@ -136,8 +136,13 @@ class AppEpisodeDetail(BaseModel):
     )
     artwork_url: str | None = Field(
         default=None,
-        description="Preferred artwork: our locally-stored copy (large size for the player) "
+        description="Preferred artwork: our locally-stored copy (medium size, for the player) "
         "when present. Clients use this, falling back to the remote image URLs.",
+    )
+    artwork_thumb_url: str | None = Field(
+        default=None,
+        description="The same artwork at thumb size, for any card or tile built from this "
+        "detail. Never put ``artwork_url`` in a card: it is decoded at full player size.",
     )
     summary_title: str | None = Field(default=None, description="Summary title when present.")
     summary_bullets: list[str] = Field(default_factory=list, description="Summary bullet points.")
@@ -470,7 +475,7 @@ class AppEpisodeRecap(BaseModel):
     title: str | None = Field(default=None, description="Episode title.")
     podcast_title: str | None = Field(default=None, description="Feed/show display title.")
     artwork_url: str | None = Field(
-        default=None, description="Preferred artwork (our local copy, large size) when present."
+        default=None, description="Preferred artwork (our local copy, medium size) when present."
     )
     key_points: list[str] = Field(
         default_factory=list, description="Summary bullet points — the gist to consolidate."

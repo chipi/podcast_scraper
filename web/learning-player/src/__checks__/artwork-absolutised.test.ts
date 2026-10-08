@@ -41,7 +41,7 @@ const SRC = resolve(process.cwd(), 'src')
 const OWNERS = ['utils/episode.ts']
 
 /** Any of these in an expression means the author went through a resolver. */
-const RESOLVERS = ['resolveMediaUrl', 'episodeArtwork', 'showArtwork', 'localArtworkFor']
+const RESOLVERS = ['resolveMediaUrl', 'episodeArtwork', 'episodePlayerArtwork', 'showArtwork', 'localArtworkFor']
 
 function sourceFiles(dir: string, acc: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

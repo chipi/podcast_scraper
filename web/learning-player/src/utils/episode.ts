@@ -2,15 +2,29 @@ import { resolveMediaUrl } from '../services/tier'
 import type { EpisodeDetail, EpisodeSummary } from '../services/types'
 
 /** Anything carrying the episode artwork fallback chain (EpisodeSummary or EpisodeDetail). */
-type WithEpisodeArt = Pick<EpisodeSummary, 'artwork_url' | 'episode_image_url' | 'feed_image_url'>
+type WithEpisodeArt = Pick<EpisodeSummary, 'artwork_url' | 'episode_image_url' | 'feed_image_url'> & {
+  artwork_thumb_url?: string | null
+}
 
 /**
- * Preferred episode artwork: our locally-stored copy, then the episode image, then the feed image.
- * ONE place for the fallback order so it can't drift across cards, the player and panels.
+ * Episode artwork for a CARD, TILE or ROW: our stored thumb, then the episode image, then the feed
+ * image. ONE place for the fallback order so it can't drift across surfaces.
+ *
+ * A detail carries two sizes and this takes the thumb. It used to take the detail's `artwork_url`,
+ * which was the original — up to 3000px, ~36 MB decoded — in 116px tiles on Home, Queue, Recent,
+ * Saved and boards (measured on a Pixel 8 emulator against prod, 2026-10-08).
  */
 export function episodeArtwork(e: WithEpisodeArt): string | null {
   // Absolutised because the API returns these relative, which breaks every image on native
   // (document origin is capacitor://localhost, not the API).
+  return resolveMediaUrl(e.artwork_thumb_url || e.artwork_url || e.episode_image_url || e.feed_image_url)
+}
+
+/**
+ * Episode artwork at PLAYER size (≤1024px): the player hero, the lock screen and the offline copy.
+ * Only a detail carries it; anything else falls back to the card chain.
+ */
+export function episodePlayerArtwork(e: WithEpisodeArt): string | null {
   return resolveMediaUrl(e.artwork_url || e.episode_image_url || e.feed_image_url)
 }
 
@@ -36,7 +50,8 @@ export function summaryFromDetail(d: EpisodeDetail): EpisodeSummary {
     duration_seconds: d.duration_seconds,
     episode_image_url: d.episode_image_url,
     feed_image_url: d.feed_image_url,
-    artwork_url: d.artwork_url,
+    // A summary's `artwork_url` is card-sized everywhere else, so it gets the thumb here too.
+    artwork_url: d.artwork_thumb_url ?? d.artwork_url,
     status: 'ready',
     // `summary_title`, like the server (#2004 item 4). This used to be `ledeFrom(d.summary_text)` —
     // the first-sentence-of-prose shape the server rewrite removed — so Queue and Recent rendered a

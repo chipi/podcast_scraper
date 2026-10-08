@@ -109,7 +109,7 @@ async function shareEpisode(slug: string, title: string): Promise<void> {
     class="flex flex-wrap items-center gap-[12px]"
     :class="
       overlay
-        ? '[&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:shadow-lg [&>button]:backdrop-blur-sm'
+        ? '[&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:shadow-lg'
         : undefined
     "
     data-testid="episode-actions"

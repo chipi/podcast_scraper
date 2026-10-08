@@ -114,8 +114,19 @@ def test_episode_endpoints_expose_artwork_url(tmp_path: Path) -> None:
     assert "size=thumb" in item["artwork_url"]
 
     detail = client.get(f"/api/app/episodes/{item['slug']}").json()
-    assert detail["artwork_url"] is not None
-    assert "size=large" in detail["artwork_url"]
-    # And that URL actually serves an image.
-    art = client.get(detail["artwork_url"])
-    assert art.status_code == 200 and art.headers["content-type"].startswith("image/")
+    # The player gets the ≤1024px copy and cards built from the detail get the thumb — never the
+    # original, which runs to 3000px on prod (Android blanked under it, 2026-10-08).
+    assert "size=medium" in detail["artwork_url"]
+    assert "size=thumb" in detail["artwork_thumb_url"]
+    # And both URLs actually serve an image.
+    for url in (detail["artwork_url"], detail["artwork_thumb_url"]):
+        art = client.get(url)
+        assert art.status_code == 200 and art.headers["content-type"].startswith("image/")
+
+
+def test_medium_serves_an_image_no_larger_than_1024(tmp_path: Path) -> None:
+    _write_corpus_with_art(tmp_path)
+    resp = _client(tmp_path).get("/api/app/artwork", params={"ref": ART_REL, "size": "medium"})
+    assert resp.status_code == 200, resp.text
+    assert "immutable" in resp.headers.get("cache-control", "")
+    assert max(Image.open(io.BytesIO(resp.content)).size) <= 1024

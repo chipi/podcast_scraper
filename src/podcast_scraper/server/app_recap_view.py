@@ -103,7 +103,7 @@ def build_episode_recap(
         slug=slug,
         title=row.episode_title,
         podcast_title=row.feed_title,
-        artwork_url=artwork_url(local_art, "large"),
+        artwork_url=artwork_url(local_art, "medium"),
         key_points=list(row.summary_bullets),
         summary_text=row.summary_text,
         insights=insights,

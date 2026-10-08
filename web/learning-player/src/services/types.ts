@@ -132,8 +132,10 @@ export interface EpisodeDetail {
   duration_seconds: number | null
   episode_image_url: string | null
   feed_image_url: string | null
-  /** Preferred artwork (our locally-stored copy, large size for the player) when present. */
+  /** Preferred artwork (our locally-stored copy, ≤1024px, for the player) when present. */
   artwork_url: string | null
+  /** The same artwork at thumb size (≤320px) — what any card built from a detail shows. */
+  artwork_thumb_url?: string | null
   summary_title: string | null
   summary_bullets: string[]
   summary_text: string | null

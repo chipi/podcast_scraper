@@ -25,7 +25,9 @@ describe('FollowButton (F2.4)', () => {
     // which meant the button chose its own corner and nothing could sit beside or under it — so
     // ShowTile could not stack Follow and the heart into one column (operator 2026-09-17).
     const overlay = mountBtn({ variant: 'overlay' }).get('button').classes()
-    expect(overlay, 'the overlay variant lost its plate').toContain('backdrop-blur')
+    expect(overlay, 'the overlay variant lost its plate').toContain('bg-canvas/80')
+    // No blur: backdrop-filter made Android WebView stop drawing (__checks__/no-backdrop-blur).
+    expect(overlay).not.toContain('backdrop-blur')
     expect(overlay, 'the button still positions itself').not.toContain('absolute')
     expect(mountBtn({ variant: 'inline' }).get('button').classes()).not.toContain('backdrop-blur')
   })

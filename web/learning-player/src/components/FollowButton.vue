@@ -94,7 +94,7 @@ function srLabel(followKey: string, followingKey: string): string {
     class="inline-flex shrink-0 items-center gap-1 rounded-full font-bold transition disabled:opacity-50"
     :class="[
       variant === 'overlay'
-        ? 'h-7 px-2 text-[0.65rem] shadow-lg backdrop-blur'
+        ? 'h-7 px-2 text-[0.65rem] shadow-lg'
         : variant === 'icon'
         ? 'lp-tap h-8 w-8 justify-center border border-border text-base'
         : 'px-3 py-1 text-xs',

@@ -119,7 +119,7 @@ const art = (): string | null => showArtwork(props.show)
          `z-10` keeps both above the stretched link below, so a tap reaches the button instead of
          navigating. -->
     <div
-      class="absolute right-1.5 top-1.5 z-10 flex flex-col items-end gap-1.5 [&>button:last-child]:border-white/25 [&>button:last-child]:bg-black/55 [&>button:last-child]:shadow-lg [&>button:last-child]:backdrop-blur-sm"
+      class="absolute right-1.5 top-1.5 z-10 flex flex-col items-end gap-1.5 [&>button:last-child]:border-white/25 [&>button:last-child]:bg-black/55 [&>button:last-child]:shadow-lg"
     >
       <FollowButton
         v-if="followable"
