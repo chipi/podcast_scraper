@@ -44,6 +44,13 @@ The reason names the remedy: an operator language override (#2283), then re-run.
   silent wrong label.
 - **Neutral**: languages without a function-word list pass unjudged; adding a list turns the
   guard on for them.
+- **A refusal is remembered.** It writes no transcript, and skip-existing keys on the transcript,
+  so every scheduled run would re-download and re-transcribe the episode on the DGX only to refuse
+  it again. The refusal is recorded under the corpus root (`.language_refusals/`, by a hash of the
+  stable episode id) with the language it was refused under; while skip-existing is on and the
+  declared language is unchanged the episode is skipped (`REFUSED`). A changed declaration — an
+  override or a corrected feed tag — is the operator's answer and retries it; so does a scoped
+  reprocess.
 
 ## Alternatives Considered
 

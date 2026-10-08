@@ -523,6 +523,17 @@ def download_media_for_transcription(
             speaker_detection_ran=detection_ran,
             episode=episode,
         )
+    elif decision.action == REFUSED:
+        logger.info(
+            "[%s] refused earlier: the transcript did not read as the declared language, which "
+            "has not changed; skipping until it does (%s)",
+            episode.idx,
+            decision.path,
+        )
+        _mark_episode_skipped_existing(
+            episode, cfg, pipeline_metrics, f"language refusal on record: {decision.path}"
+        )
+        return None
     elif decision.action == SKIP:
         prefix = "[dry-run] " if cfg.dry_run else ""
         logger.info(
@@ -4507,6 +4518,8 @@ def transcribe_media_to_text(
         )
         if wrong_language is not None:
             logger.error("[%s] REFUSING episode: %s", job.idx, wrong_language)
+            if job.episode is not None:
+                _record_language_refusal(job.episode, cfg, wrong_language)
             _append_transcription_incident(
                 cfg,
                 job,
@@ -4920,6 +4933,66 @@ BACKFILL = "backfill"
 REUSE = "reuse"
 #: Present; ``rederive_only`` works from it.
 REDERIVE = "rederive"
+#: Refused by the language guard under the language still declared: nothing would change, so the
+#: DGX is not asked again until the feed's language changes. ``path`` is the refusal record.
+REFUSED = "refused"
+
+
+def _language_refusal_path(episode: Episode, cfg: config.Config) -> str:  # type: ignore[valid-type]
+    """Where an episode's language-guard refusal is recorded: corpus-wide, by stable episode id.
+
+    A refusal writes no transcript, and skip-existing keys on the transcript, so without a record
+    every scheduled run re-downloaded and re-transcribed a mis-tagged episode on the DGX, only to
+    refuse it again. Under the corpus layout each run has a fresh run dir, so the record cannot
+    live in one; it sits under the corpus root (else the output dir), keyed by a hash of the id.
+    """
+    from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+    episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+    root = run_index.corpus_root_from_cfg(cfg) or cfg.output_dir or "."
+    digest = hashlib.sha1(str(episode_id).encode("utf-8")).hexdigest()  # nosec B324 - a name
+    return os.path.join(root, ".language_refusals", f"{digest}.json")
+
+
+def _record_language_refusal(
+    episode: Episode, cfg: config.Config, detail: str  # type: ignore[valid-type]
+) -> None:
+    """Record the refusal so the next run does not repeat it. Never raises (a failure path)."""
+    try:
+        path = _language_refusal_path(episode, cfg)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(
+                {
+                    "requested": primary_language(transcription_language(cfg) or ""),
+                    "detail": detail,
+                    "title": getattr(episode, "title", None),
+                },
+                fh,
+                ensure_ascii=False,
+            )
+    except Exception:  # noqa: BLE001 - the refusal itself is already recorded and logged
+        logger.warning("could not record the language refusal", exc_info=True)
+
+
+def _still_refused(
+    episode: Episode, cfg: config.Config  # type: ignore[valid-type]
+) -> Optional[str]:
+    """The refusal record's path when the episode was refused under the language declared NOW.
+
+    A changed declaration (an override, a corrected feed tag) is the operator's answer to the
+    refusal, so the episode is tried again; an unreadable record is ignored rather than trusted.
+    """
+    try:
+        path = _language_refusal_path(episode, cfg)
+        if not os.path.exists(path):
+            return None
+        with open(path, encoding="utf-8") as fh:
+            record = json.load(fh)
+    except Exception:  # noqa: BLE001 - no usable record: proceed as if none
+        return None
+    now = primary_language(transcription_language(cfg) or "")
+    return path if record.get("requested") == now else None
 
 
 def media_route_skip_existing(
@@ -4941,6 +5014,11 @@ def media_route_skip_existing(
     """
     if not cfg.skip_existing:
         return SkipExisting(NEW)
+    refusal = _still_refused(episode, cfg)
+    if refusal is not None and not _force_reprocess_for_source(
+        episode, effective_output_dir, run_suffix, cfg
+    ):
+        return SkipExisting(REFUSED, refusal)
     # Key on the STABLE guid, not the run-local idx (which shifts when the feed grows → silent
     # reprocess + duplicates). A genuinely new episode falls back to its run-local idx.
     skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
@@ -5041,7 +5119,7 @@ def presence_skip_evidence(
     if not (cfg.transcribe_missing and temp_dir):
         return None
     decision = media_route_skip_existing(episode, cfg, effective_output_dir, run_suffix)
-    return decision.path if decision.action == SKIP else None
+    return decision.path if decision.action in (SKIP, REFUSED) else None
 
 
 def audio_route_leaves_before_skip_existing(cfg: config.Config) -> bool:
