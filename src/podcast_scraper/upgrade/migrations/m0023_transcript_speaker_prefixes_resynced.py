@@ -325,9 +325,17 @@ class _Episode:
         if self.text_files:
             self._bump("in_place_episodes")
 
-    def _plan(self, run: Path, rel: str) -> None:
+    def _plan(
+        self,
+        run: Path,
+        rel: str,
+        gi: Optional[Any] = None,
+        segments: Optional[Dict[Path, Any]] = None,
+    ) -> None:
+        """Re-render from the segments. ``gi`` / ``segments`` (keyed by path) are payloads a caller
+        has already changed in memory (m0025); without them, both are read from disk."""
         gi_path = Path(str(self.meta)[: -len(".metadata.json")] + ".gi.json")
-        gi = _load(gi_path)
+        gi = gi if gi is not None else _load(gi_path)
         quotes = [
             n
             for n in ((gi or {}).get("nodes") or [])
@@ -341,7 +349,9 @@ class _Episode:
         ):
             txt_path = run / rel.replace(".txt", suffix)
             seg_path = run / rel.replace(".txt", seg_suffix)
-            seg_payload = _load(seg_path)
+            seg_payload = (
+                segments[seg_path] if segments and seg_path in segments else _load(seg_path)
+            )
             if not txt_path.is_file() or seg_payload is None:
                 continue
             old = txt_path.read_text(encoding="utf-8")
