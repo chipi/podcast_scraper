@@ -152,6 +152,20 @@ def test_missing_topic_clusters_fails_when_index_present(tmp_path: Path):
     assert report2.ok and report2.has_topic_clusters
 
 
+def test_missing_topic_clusters_is_no_gap_when_themes_are_not_installed(tmp_path: Path):
+    """ADR-158: themes are a private feature. With no extension providing them nothing builds the
+    artifact and nothing serves it, so the gate must not demand it."""
+    from podcast_scraper.extensions import use_extensions
+
+    _write_index(tmp_path, LANCE_SCHEMA_VERSION)
+    _write_episode(tmp_path, "e1", ["HAS_EPISODE", "MENTIONS_PERSON", "SPOKEN_BY"])
+    _write_enrichments(tmp_path)
+    with use_extensions([]):
+        report = assess_completeness(tmp_path)
+    assert report.ok and not report.themes_expected
+    assert "topic_clusters.json" not in format_report(report)
+
+
 def test_empty_topic_clusters_fails(tmp_path: Path):
     """Present-but-empty topic_clusters.json still breaks the surface — mirror the smoke's
     'clusters empty on populated prod corpus' rule, not just the 404."""

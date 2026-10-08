@@ -11,10 +11,12 @@ endpoints and the discover ranker — one source of "hot" everywhere.
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +27,8 @@ from podcast_scraper.server.app_corpus_access import cached_json_artifact
 from podcast_scraper.server.app_engagement_series import engagement_series
 from podcast_scraper.server.app_kg_index import get_kg_index
 from podcast_scraper.server.corpus_catalog import aggregate_feeds
+
+logger = logging.getLogger(__name__)
 
 _CONTENT_REL = "enrichments/temporal_velocity.json"
 _TOPIC_CLUSTERS_REL = "search/topic_clusters.json"
@@ -524,6 +528,34 @@ def _blend(
         num += w_e * engagement
         den += w_e
     return round(num / den, 4) if den > 0 else 0.0
+
+
+def _velocity_mtime(root: Path) -> float:
+    """mtime of the temporal-velocity artifact, or 0.0: the share-card cache key, so a re-enrich
+    busts it rather than serving a stale trend for the process lifetime."""
+    try:
+        return (root / "enrichments" / "temporal_velocity.json").stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+@lru_cache(maxsize=16)
+def _share_card_trends_cached(
+    root_str: str, kind: str, _mtime: float
+) -> dict[str, tuple[float, tuple[float, ...]]]:
+    try:
+        # window="1y" so the "↑N×" score matches the card's "PAST 12 MONTHS" caption + the 52-week
+        # sparkline (trending's default window is 3m, which would mislabel the score).
+        rows = trending(Path(root_str), None, kind=kind, scope="corpus", limit=50, window="1y")
+        return {r.entity_id: (float(r.velocity), tuple(r.series or ())) for r in rows}
+    except Exception:  # noqa: BLE001 — a share card drops its trend, it never fails
+        logger.warning("share-card trend lookup failed for kind=%s", kind, exc_info=True)
+        return {}
+
+
+def share_card_trends(root: Path, kind: str) -> dict[str, tuple[float, tuple[float, ...]]]:
+    """entity_id → (velocity, weekly series) over the past year, for the public share cards."""
+    return _share_card_trends_cached(str(root), kind, _velocity_mtime(root))
 
 
 def trending(

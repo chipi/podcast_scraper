@@ -16,9 +16,11 @@ import logging
 import statistics
 from dataclasses import dataclass
 from datetime import datetime
-from functools import lru_cache
 from pathlib import Path
+from typing import Mapping
 
+from podcast_scraper.extensions import share_card_contributions
+from podcast_scraper.search import groupings
 from podcast_scraper.server.og.card import accent_for_kind, OgCardModel
 
 logger = logging.getLogger(__name__)
@@ -107,35 +109,23 @@ def _artwork_bytes(root: Path, relpath: str | None) -> bytes | None:
     return _asset_bytes(target) if target else None
 
 
-def _velocity_mtime(root: Path) -> float:
-    """mtime of the temporal-velocity artifact that feeds corpus trending, or 0.0 when absent. Used
-    as a cache key so ``_trend_map`` self-invalidates when the corpus is re-enriched."""
-    try:
-        return (root / "enrichments" / "temporal_velocity.json").stat().st_mtime
-    except OSError:
-        return 0.0
+def _trend_map(root: Path, kind: str) -> Mapping[str, tuple[float, tuple[float, ...]]]:
+    """entity_id → (velocity, weekly-series) from the installed extension that knows trends; empty
+    when none does, and then no card carries a trend stat (ADR-158)."""
+    for contribution in share_card_contributions():
+        if contribution.trends is not None:
+            return contribution.trends(root, kind)
+    return {}
 
 
-@lru_cache(maxsize=16)
-def _trend_map_cached(
-    root_str: str, kind: str, _mtime: float
-) -> dict[str, tuple[float, tuple[float, ...]]]:
-    from podcast_scraper.server.app_momentum import trending
-
-    try:
-        # window="1y" so the "↑N×" score matches the card's "PAST 12 MONTHS" caption + the 52-week
-        # sparkline (trending's default window is 3m, which would mislabel the score).
-        rows = trending(Path(root_str), None, kind=kind, scope="corpus", limit=50, window="1y")
-        return {r.entity_id: (float(r.velocity), tuple(r.series or ())) for r in rows}
-    except Exception:  # noqa: BLE001
-        logger.warning("OG trend lookup failed for kind=%s", kind, exc_info=True)
-        return {}
-
-
-def _trend_map(root: Path, kind: str) -> dict[str, tuple[float, tuple[float, ...]]]:
-    """entity_id → (velocity, weekly-series), cached per (corpus, kind, artifact-mtime) so a
-    re-enrich busts the cache rather than serving a stale trend for the process lifetime."""
-    return _trend_map_cached(str(root), kind, _velocity_mtime(root))
+def _hosted_image(root: Path, ident: str, part: str) -> bytes | None:
+    """Bytes of an image an extension hosts (``person_image_path`` / ``org_logo_path``), or None."""
+    for contribution in share_card_contributions():
+        lookup = getattr(contribution, part)
+        if lookup is not None:
+            found = lookup(root, ident)
+            return _asset_bytes(found[0]) if found else None
+    return None
 
 
 def _people(names: list[str], cap: int = 2) -> str:
@@ -363,10 +353,7 @@ def _show_tiles(root: Path, card: object) -> tuple[bytes, ...]:
 
 
 def _person_photo(root: Path, person_id: str) -> bytes | None:
-    from podcast_scraper.enrichment.enrichers.person_web import person_image_path
-
-    found = person_image_path(root, person_id)
-    return _asset_bytes(found[0]) if found else None
+    return _hosted_image(root, person_id, "person_image_path")
 
 
 def _org(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
@@ -397,10 +384,7 @@ def _org(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
 
 
 def _org_logo(root: Path, org_id: str) -> bytes | None:
-    from podcast_scraper.enrichment.enrichers.org_web import org_logo_path
-
-    found = org_logo_path(root, org_id)
-    return _asset_bytes(found[0]) if found else None
+    return _hosted_image(root, org_id, "org_logo_path")
 
 
 def _storyline(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
@@ -408,6 +392,8 @@ def _storyline(root: Path, ident: str, with_art: bool = True) -> OgCardModel | N
     # together. The card explains that (byline), shows WHICH topics (blurb) + how big + the trend.
     from podcast_scraper.server.app_relational_view import build_topic_card
 
+    if not groupings.available():
+        return None  # no storylines installed: a topic card under a "Storyline" kicker would lie
     card = build_topic_card(root, ident)
     if card is None:
         return None

@@ -19,6 +19,10 @@ player:
   entry_points:
     player: podcast_scraper.server.app_player_extension:EXTENSION
   modules:
+    # The capability audit measures Discover: every section walks the corpus through the
+    # player's own feature extraction (app_discover_view._episode_features).
+    podcast_scraper:
+      - capability_audit
     podcast_scraper.server:
       - app_player_extension
       - app_audio_bridge

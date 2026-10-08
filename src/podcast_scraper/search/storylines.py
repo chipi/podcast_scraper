@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, cast, Dict, Mapping, Optional
 
 from podcast_scraper import perf_cache
+from podcast_scraper.search.groupings import STORYLINE_DOC_TYPE
 from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 logger = logging.getLogger(__name__)
@@ -371,11 +372,6 @@ def storyline_episode_ids(corpus_root: Path) -> Dict[str, frozenset]:
                     eps.add(eid.strip())
         out[gpid.strip()] = frozenset(eps)
     return out
-
-
-#: Doc type for a storyline row in the search index. Distinct from ``kg_topic``: a storyline is a
-#: CORPUS-level object (a set of topics that recur together), not a node in one episode's graph.
-STORYLINE_DOC_TYPE = "storyline"
 
 
 def storyline_index_rows(corpus_root: Path) -> list[tuple[str, str, Dict[str, Any]]]:

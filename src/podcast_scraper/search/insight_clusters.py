@@ -20,7 +20,7 @@ import numpy as np
 
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 
-from .topic_clusters import (
+from .cluster_math import (
     cluster_labels_by_threshold,
     pick_centroid_closest_label,
 )

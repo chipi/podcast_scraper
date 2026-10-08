@@ -37,9 +37,9 @@ from .corpus_scope import (
     episode_root_from_metadata_path,
     index_fingerprint_scope_key,
 )
+from .groupings import STORYLINE_DOC_TYPE, storyline_index_rows
 from .indexer import _collect_docs_for_episode, _gi_path, _load_metadata_file
 from .segments import link_insights_to_segments, link_insights_to_segments_by_text
-from .storylines import STORYLINE_DOC_TYPE, storyline_index_rows
 
 logger = logging.getLogger(__name__)
 

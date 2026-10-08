@@ -87,7 +87,10 @@ def _map_unit(repo: str, pkg: str, spec: dict, files, mapping: dict, owner: dict
             tail = tail.removeprefix("enrichment.")
         for name in names:
             old = f"{parent}.{name}"
-            mapping[old] = f"{pkg}.{tail}.{name}"
+            # A top-level module (``podcast_scraper.<name>``) lands at the package root.
+            mapping[old] = (
+                f"{pkg}.{name}" if parent == "podcast_scraper" else f"{pkg}.{tail}.{name}"
+            )
             owner[old] = repo
     for old_pkg, new_tail in spec.get("packages", {}).items():
         prefix = "src/" + old_pkg.replace(".", "/") + "/"

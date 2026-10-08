@@ -18,9 +18,9 @@ from typing import cast, List
 import numpy as np
 import pytest
 
+from podcast_scraper.search.cluster_math import cluster_indices_by_threshold
 from podcast_scraper.search.topic_clusters import (
     build_topic_clusters_payload,
-    cluster_indices_by_threshold,
     fingerprint_topic_rows,
     TopicVectorRow,
 )

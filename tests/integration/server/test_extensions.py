@@ -188,7 +188,7 @@ def test_the_platform_runs_with_no_extensions(tmp_path: Path, posture) -> None:
 def test_an_in_tree_module_the_split_removed_is_skipped(monkeypatch) -> None:
     monkeypatch.setattr(extensions, "_IN_TREE", ("podcast_scraper.server.no_such_extension",))
     monkeypatch.setattr(extensions.metadata, "entry_points", lambda group: [])
-    assert extensions.load_extensions() == []
+    assert extensions._discover() == []
 
 
 def test_a_broken_import_inside_an_extension_is_not_hidden(tmp_path: Path, monkeypatch) -> None:
@@ -198,7 +198,7 @@ def test_a_broken_import_inside_an_extension_is_not_hidden(tmp_path: Path, monke
     monkeypatch.setattr(extensions, "_IN_TREE", ("broken_ext_for_test",))
     monkeypatch.setattr(extensions.metadata, "entry_points", lambda group: [])
     with pytest.raises(ModuleNotFoundError, match="no_such_dependency_for_test"):
-        extensions.load_extensions()
+        extensions._discover()
 
 
 def test_an_extension_found_twice_loads_once_and_the_in_tree_copy_wins(monkeypatch) -> None:
@@ -219,7 +219,26 @@ def test_an_extension_found_twice_loads_once_and_the_in_tree_copy_wins(monkeypat
     monkeypatch.setitem(sys.modules, "podcast_scraper._fake_ext", module)
     monkeypatch.setattr(extensions, "_IN_TREE", ("podcast_scraper._fake_ext",))
     monkeypatch.setattr(extensions.metadata, "entry_points", lambda group: [_EP()])
-    assert extensions.load_extensions() == [in_tree]
+    assert extensions._discover() == [in_tree]
+
+
+def test_discovery_runs_once_per_process(monkeypatch) -> None:
+    """Read paths ask for extensions per request; scanning the installed distributions is slow."""
+    calls: list[str] = []
+    monkeypatch.setattr(extensions, "_discovered", None)
+    monkeypatch.setattr(extensions, "_IN_TREE", ())
+
+    def _entry_points(group: str) -> list:
+        calls.append(group)
+        return []
+
+    monkeypatch.setattr(extensions.metadata, "entry_points", _entry_points)
+    assert extensions.load_extensions() == []
+    assert extensions.load_extensions() == []
+    assert calls == [extensions.ENTRY_POINT_GROUP]
+    with use_extensions([Extension(name="fake")]):
+        assert [e.name for e in extensions.load_extensions()] == ["fake"]
+    assert calls == [extensions.ENTRY_POINT_GROUP]
 
 
 def test_account_created_runs_once_at_sign_up_not_at_later_sign_ins(tmp_path: Path) -> None:

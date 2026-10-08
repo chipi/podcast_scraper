@@ -668,9 +668,9 @@ def run_index_cli(args: Namespace, logger: logging.Logger) -> int:
     # lever would not. Non-fatal, like the route's cluster step.
     if getattr(args, "with_clusters", False):
         try:
-            from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+            from podcast_scraper.search.groupings import build_topic_clusters_for_corpus
 
-            payload = build_topic_clusters_for_corpus(output_dir)
+            payload = build_topic_clusters_for_corpus(output_dir) or {}
             logger.info(
                 "index: topic clusters re-derived (topics=%s clusters=%s)",
                 payload.get("topic_count"),
@@ -1059,8 +1059,8 @@ def run_topic_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
         spec = load_validation_yaml(spec_path)
         import numpy as np
 
+        from podcast_scraper.search.cluster_math import cluster_labels_by_threshold
         from podcast_scraper.search.topic_clusters import (
-            cluster_labels_by_threshold,
             collect_topic_rows_from_lance,
             load_kg_topic_labels_from_corpus,
         )

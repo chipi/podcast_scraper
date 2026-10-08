@@ -674,7 +674,7 @@ def finalize_multi_feed_batch(
         # single-feed finalize and ``POST /api/index/rebuild``. Non-fatal, like the index.
         clusters_ok = False
         try:
-            from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+            from podcast_scraper.search.groupings import build_topic_clusters_for_corpus
             from podcast_scraper.workflow.orchestration import (
                 skip_topic_clusters_on_empty_delta,
             )

@@ -2282,13 +2282,17 @@ def _maybe_build_topic_clusters_after_index(
         if skipped:
             return
 
-    from podcast_scraper.search.topic_clusters import build_topic_clusters_for_corpus
+    from podcast_scraper.search.groupings import build_topic_clusters_for_corpus
 
     _t0 = time.perf_counter()
     kwargs: Dict[str, Any] = {"index_dir": index_dir}
     if threshold is not None:
         kwargs["threshold"] = threshold
     payload = build_topic_clusters_for_corpus(output_dir, **kwargs)
+    if payload is None:
+        logger.info("topic-clusters: skipped (no installed extension provides themes)")
+        pipeline_metrics.topic_clusters_built = False
+        return
     pipeline_metrics.topic_clusters_built = True
     pipeline_metrics.topic_cluster_count = int(payload.get("cluster_count") or 0)
     pipeline_metrics.topic_cluster_topic_count = int(payload.get("topic_count") or 0)
