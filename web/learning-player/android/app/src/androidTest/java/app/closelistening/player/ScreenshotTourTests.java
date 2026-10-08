@@ -100,8 +100,9 @@ public class ScreenshotTourTests extends UITestCase {
             settle(5_000);
             frame("t02-discover");
             // Search from Discover's own box: phones have no Search tab and no header magnifier,
-            // so this is the route a person actually takes.
-            if (Journey.tap("Search", false, 8_000)) {
+            // so this is the route a person actually takes. With a query — Search on an empty box
+            // does nothing, and t03 came back identical to t02.
+            if (Journey.searchFromDiscover("risk")) {
                 settle(4_000);
                 frame("t03-search");
             }
@@ -158,13 +159,20 @@ public class ScreenshotTourTests extends UITestCase {
             if (Journey.scrollTo(java.util.Arrays.asList("Topics & People"), true, 8) != null) {
                 settle(2_000); frame("t16-episode-entities");
             }
+            // Close the notes sheet by name ("Close panel", kp.close): `dismissCards` taps only an
+            // exact "Close"/"Back", so the sheet stayed over the page and hid the Share and Add to
+            // board controls the next two frames need (2026-10-08).
+            Journey.tap(Arrays.asList("Close panel"), false, 4_000);
+            settle(1_500);
         }
 
         // --- the overlays, which only a picture can confirm render correctly -------------------
         Journey.dismissCards();
         AppSession.openEpisode(EPISODE_SLUG);
         settle(5_000);
-        if (Journey.tap("Share", true, 10_000)) {
+        // EXACTLY "Share": a contains-match also hits the notes export button ("Open these episode
+        // notes to download or share them"), and t17 photographed the export viewer (2026-10-08).
+        if (Journey.tap("Share", false, 10_000)) {
             settle(3_000);
             frame("t17-share-popover");
             Journey.tap(Arrays.asList("Close", "Cancel"), true, 4_000);

@@ -7,6 +7,7 @@ import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.BySelector;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
+import androidx.test.uiautomator.Until;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -619,6 +620,44 @@ final class Journey {
     /** Bottom tab bar. */
     static boolean openTab(String name) {
         return tap(name, false, 20_000);
+    }
+
+    /**
+     * Discover's search box → a results page, the route a phone takes (no Search tab, no header
+     * magnifier). The twin of iOS `searchFromDiscover`, and like it the field is found by CLASS, not
+     * by label: the label is an sr-only text node, and typing into it does nothing. Tapping Search
+     * with the box empty also does nothing — the tour's t03 came back as a copy of t02 (2026-10-08).
+     *
+     * Submitted with ENTER: a tap on the Search button with the keyboard up did not submit (the
+     * frame showed the query typed on Discover), while Enter did, by hand over adb. The button is
+     * the fallback. True only once Discover's heading is gone, i.e. the results page is showing.
+     */
+    static boolean searchFromDiscover(String query) {
+        if (!openTab("Discover")) return false;
+        UiObject2 field = device().wait(
+                Until.findObject(By.clazz("android.widget.EditText")), 10_000);
+        if (field == null) {
+            mark("SEARCH no text field on Discover");
+            return false;
+        }
+        field.click();
+        field.setText(query);
+        device().pressEnter();
+        if (leftDiscover(6_000)) return true;
+        tap("Search", false, 4_000);
+        if (leftDiscover(6_000)) return true;
+        mark("SEARCH still on Discover after Enter and the Search button");
+        return false;
+    }
+
+    /** Polls until Discover's own heading is gone — `find` returns on PRESENCE, so it cannot. */
+    private static boolean leftDiscover(long timeoutMs) {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        do {
+            if (find("Find what's worth hearing", false, 0) == null) return true;
+            sleep(400);
+        } while (System.currentTimeMillis() < deadline);
+        return false;
     }
 
     /**
