@@ -86,6 +86,20 @@ describe('QueueView', () => {
     expect(w.text()).toContain('What the publisher says this episode is about.')
   })
 
+  it('fetches the twenty cards it shows, and the next twenty only on Show more (2026-10-08)', async () => {
+    const slugs = Array.from({ length: 25 }, (_, i) => `q-${i}`)
+    vi.spyOn(api, 'getQueue').mockResolvedValue(slugs)
+    const get = vi.spyOn(api, 'getEpisode').mockImplementation(async (s: string) => detail(s, `T ${s}`))
+    const w = mount(QueueView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(get).toHaveBeenCalledTimes(20)
+    expect(w.text()).not.toContain('T q-24')
+    await w.get('[data-testid="queue-more"]').trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('T q-24')
+    expect(new Set(get.mock.calls.map(([s]) => s)).size).toBe(25)
+  })
+
   it('shows the empty state with no queue', async () => {
     vi.spyOn(api, 'getQueue').mockResolvedValue([])
     const w = mount(QueueView, { global: { plugins: [i18n, router] } })
