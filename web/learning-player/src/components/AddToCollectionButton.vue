@@ -336,6 +336,7 @@ async function createAndAdd(): Promise<void> {
                 v-if="c.cover_url && !brokenCovers.has(c.id)"
                 :src="c.cover_url"
                 alt=""
+                loading="lazy"
                 class="h-14 w-14 shrink-0 rounded-xl bg-elevated object-cover"
                 data-testid="add-to-collection-thumb"
                 @error="brokenCovers = new Set(brokenCovers).add(c.id)"

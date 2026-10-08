@@ -24,6 +24,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute } from 'vue-router'
 import { usePlayerStore } from '../stores/player'
+import { artworkThumb } from '../utils/episode'
 import FavoriteButton from './FavoriteButton.vue'
 import RouteButton from './RouteButton.vue'
 import AddToCollectionButton from './AddToCollectionButton.vue'
@@ -87,7 +88,7 @@ const progress = computed(() =>
       >
         <img
           v-if="currentArtwork"
-          :src="currentArtwork"
+          :src="artworkThumb(currentArtwork) ?? undefined"
           alt=""
           class="h-9 w-9 shrink-0 rounded bg-canvas object-cover"
         />

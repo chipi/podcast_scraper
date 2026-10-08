@@ -5,7 +5,7 @@
  * sits in the header (the single export format, REMEMBER-half-scope §4). Embedded in the Library
  * "Highlights" tab. Auth-gated (the store no-ops + stays empty when signed out).
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { track } from '../services/analytics'
 import BellOffIcon from "../components/BellOffIcon.vue"
 import BookmarkIcon from "../components/BookmarkIcon.vue"
@@ -326,14 +326,32 @@ onMounted(async () => {
   // Tolerated, not awaited blindly: this view's whole job is to show captures, so a load failure
   // renders the empty state rather than tearing down the rest of the mount (collections, titles).
   await capture.ensureLoaded().catch(() => {})
-  const slugs = [...new Set(capture.highlights.map((h) => h.episode_slug))]
-  await Promise.all(
-    slugs.map(async (slug) => {
-      const d = await getEpisode(slug).catch(() => null)
-      if (d) details.value[slug] = d
-    }),
-  )
 })
+
+/**
+ * Fetch the episode of each group ON SCREEN — five, then five more per "Show more" (2026-10-08). It
+ * used to fetch every highlighted episode on mount while showing five.
+ *
+ * Except under the A–Z sort, which orders groups by episode TITLE: that needs every title, or an
+ * unfetched group would sort by its slug.
+ */
+const requested = new Set<string>()
+watch(
+  () => ((props.sort ?? 'recent') === 'title' ? groups.value : visibleGroups.value).map((g) => g.slug),
+  (wanted) => {
+    // `requested`, not just `details`: groups recompute as each detail lands, re-firing this watch.
+    const slugs = [...new Set(wanted)].filter((slug) => !details.value[slug] && !requested.has(slug))
+    for (const slug of slugs) {
+      requested.add(slug)
+      void getEpisode(slug)
+        .then((d) => {
+          details.value[slug] = d
+        })
+        .catch(() => {})
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>

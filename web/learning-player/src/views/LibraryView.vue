@@ -39,6 +39,7 @@ import SavedFilterBar from '../components/SavedFilterBar.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCappedSections } from '../composables/useCappedSections'
+import { useVisitedTabs } from '../composables/useVisitedTabs'
 import { matchesQuery } from '../utils/textFilter'
 
 const { t } = useI18n()
@@ -330,6 +331,8 @@ const tabs = computed<TabSpec<Tab>[]>(() =>
 const route = useRoute()
 const initialTab = String(route.query.tab || '')
 const tab = ref<Tab>(TAB_KEYS.some((tb) => tb.key === initialTab) ? (initialTab as Tab) : 'saved')
+// Panels mount on first visit, then stay (v-show): a tab never opened fetches and decodes nothing.
+const visitedTabs = useVisitedTabs(tab)
 
 /**
  * Re-sync the tab when the QUERY changes, not just at setup.
@@ -513,6 +516,7 @@ onMounted(async () => {
          stores had loaded — and it did nothing for the identical rows in the Saved panel. Fixed in
          the component; this stays `v-show`. -->
     <div v-show="tab === 'shows'" v-bind="panelAttrs('library', 'shows')">
+      <template v-if="visitedTabs.has('shows')">
       <!-- Following's own filter bar (search + type + sort), same shape as Saved's minus colour. -->
       <SavedFilterBar
         v-if="tab === 'shows' && followingAvailableTypes.length"
@@ -595,12 +599,14 @@ onMounted(async () => {
         :sort="followingSort"
         :visible-types="interestVisibleTypes"
       />
+      </template>
     </div>
 
     <!-- Saved — everything you deliberately kept, one section per kind: searches, episodes, insights,
          plus Highlights and Collections (folded in from their old tabs to keep the strip to five).
          Each section owns its own presence/empty state, so there is no separate "nothing saved" line. -->
     <div v-show="tab === 'saved'" v-bind="panelAttrs('library', 'saved')">
+      <template v-if="visitedTabs.has('saved')">
         <!-- The filter bar governs every section below (type · colour · sort), RFC-121 ph. 3. Only
              shown once there is something to filter. -->
         <!-- Gated on the ACTIVE tab (not just v-show) so only ONE SavedFilterBar is ever mounted —
@@ -817,16 +823,21 @@ onMounted(async () => {
             {{ t('highlights.emptyCta') }}
           </RouterLink>
         </div>
+      </template>
     </div>
 
     <!-- Collections — the Pinterest-style curation boards, now a first-class tab (RFC-119). -->
     <div v-show="tab === 'collections'" v-bind="panelAttrs('library', 'collections')">
+      <template v-if="visitedTabs.has('collections')">
       <CollectionsView />
+      </template>
     </div>
 
     <!-- Revisit — spaced resurfacing of past highlights with reflection prompts. -->
     <div v-show="tab === 'revisit'" v-bind="panelAttrs('library', 'revisit')">
+      <template v-if="visitedTabs.has('revisit')">
       <ResurfacingInbox />
+      </template>
     </div>
   </section>
 </template>

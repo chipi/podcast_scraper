@@ -28,6 +28,16 @@ export function episodePlayerArtwork(e: WithEpisodeArt): string | null {
   return resolveMediaUrl(e.artwork_url || e.episode_image_url || e.feed_image_url)
 }
 
+/**
+ * The thumb of one of OUR artwork URLs, for a small slot fed by a player-size one (the 36px mini
+ * player, the accent sampler). Anything else — a remote feed image, an offline file — is returned
+ * unchanged: only our own route can be asked for another size.
+ */
+export function artworkThumb(url: string | null | undefined): string | null {
+  if (!url) return null
+  return /\/api\/app\/artwork\?/.test(url) ? url.replace(/([?&]size=)(?:medium|large)\b/, '$1thumb') : url
+}
+
 /** Preferred show artwork: our stored copy, then the remote feed image. */
 export function showArtwork(p: { artwork_url: string | null; image_url: string | null }): string | null {
   return resolveMediaUrl(p.artwork_url || p.image_url)

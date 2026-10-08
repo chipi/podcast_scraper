@@ -89,7 +89,6 @@ async function load(): Promise<void> {
   } finally {
     loaded.value = true
   }
-  void hydrateEpisodes()
   void hydrateListenedAt()
 }
 
@@ -104,16 +103,19 @@ async function hydrateListenedAt(): Promise<void> {
 }
 
 /**
- * Resolve the episode each due item came from.
+ * Resolve the episode of each group ON SCREEN — the capped first page, then each page "Show all"
+ * reveals (2026-10-08). It used to fetch every due episode up front while showing six groups.
  *
- * Not awaited by `load`: the list is useful before the episodes arrive (each group falls back to a
+ * Not awaited: the list is useful before the episodes arrive (each group falls back to a
  * slug-titled card), and one unresolvable episode must not hold up the rest. Failures are silent per
  * slug for the same reason.
  */
-async function hydrateEpisodes(): Promise<void> {
-  const slugs = [...new Set(items.value.map((i) => i.highlight.episode_slug))].filter(
-    (s) => s && !details.value[s],
-  )
+const requested = new Set<string>()
+async function hydrateEpisodes(wanted: string[]): Promise<void> {
+  // `requested`, not just `details`: the groups recompute when a detail lands, which re-fires the
+  // watch below while the rest are still in flight.
+  const slugs = [...new Set(wanted)].filter((s) => s && !details.value[s] && !requested.has(s))
+  slugs.forEach((s) => requested.add(s))
   await Promise.all(
     slugs.map(async (slug) => {
       const d = await getEpisode(slug).catch(() => null)
@@ -197,6 +199,11 @@ function toggleGroup(slug: string): void {
   collapsed.value = next
 }
 const visibleGroups = computed(() => caps.visible('revisit-groups', groups.value))
+watch(
+  () => visibleGroups.value.map((g) => g.slug),
+  (slugs) => void hydrateEpisodes(slugs),
+  { immediate: true },
+)
 
 /** "Listened 14 Sep 2026" for an episode with playback history; null when never played. */
 function listenedLabel(slug: string): string | null {

@@ -38,7 +38,7 @@ const title = computed(() => props.item.episode_title || props.item.graph_refs?.
     :class="hasImage ? 'text-white' : 'bg-surface text-canvas-foreground'"
   >
     <template v-if="hasImage">
-      <img :src="cardImage!" alt="" class="absolute inset-0 h-full w-full object-cover" />
+      <img :src="cardImage!" alt="" loading="lazy" class="absolute inset-0 h-full w-full object-cover" />
       <!-- Scrim: darkest at the bottom, where the title sits, keeping the artwork's colour up top. -->
       <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/40" />
     </template>

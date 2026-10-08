@@ -284,6 +284,14 @@ describe("ProfileView — Your Week layout", () => {
 })
 
 describe("ProfileView — Interests tab (beta feedback 2026-10-04)", () => {
+  // Panels mount on first visit (useVisitedTabs), so a test reads a tab by opening it.
+  beforeEach(async () => {
+    await router.push("/profile?tab=interests")
+  })
+  afterEach(async () => {
+    await router.push("/profile")
+  })
+
   it("the tab is called Interests, and an old ?tab=topics link still lands on it", async () => {
     vi.spyOn(api, "getUserInterests").mockResolvedValue([])
     await router.push("/profile?tab=topics")
@@ -385,6 +393,14 @@ describe("ProfileView — Interests tab (beta feedback 2026-10-04)", () => {
 })
 
 describe("ProfileView — Your listening panel", () => {
+  // Panels mount on first visit (useVisitedTabs), so a test reads a tab by opening it.
+  beforeEach(async () => {
+    await router.push("/profile?tab=stats")
+  })
+  afterEach(async () => {
+    await router.push("/profile")
+  })
+
   it("renders streak / episodes / shows when episodes > 0", async () => {
     vi.spyOn(api, "getUserInterests").mockResolvedValue([])
     const w = mountProfile()
@@ -646,6 +662,7 @@ describe("ProfileView — notifications", () => {
    */
   it("says a STATS load failed rather than claiming you have nothing", async () => {
     vi.spyOn(api, "getMyStats").mockImplementation(() => Promise.reject(new Error("offline")))
+    await router.push("/profile?tab=stats")
     const w = await mountProfile()
     await flushPromises()
 
@@ -653,15 +670,18 @@ describe("ProfileView — notifications", () => {
       true
     )
     expect(w.text()).not.toContain("Start listening to build your stats")
+    await router.push("/profile")
   })
 
   it("a genuinely empty account still reads as empty, not as broken", async () => {
     // The distinction has to cut both ways or it is just a different lie.
     vi.spyOn(api, "getUserInterests").mockResolvedValue([])
+    await router.push("/profile?tab=interests")
     const w = await mountProfile()
     await flushPromises()
     expect(w.find('[data-testid="interests-unavailable"]').exists()).toBe(false)
     expect(w.text()).toContain("You're not following any topics yet.")
+    await router.push("/profile")
   })
 })
 
@@ -679,6 +699,14 @@ describe("ProfileView — notifications", () => {
  * Outside that describe there is no first spy, and the test is clean.
  */
 describe("ProfileView — a failed load is not an empty account", () => {
+  // Panels mount on first visit (useVisitedTabs), so a test reads a tab by opening it.
+  beforeEach(async () => {
+    await router.push("/profile?tab=interests")
+  })
+  afterEach(async () => {
+    await router.push("/profile")
+  })
+
   it("says an INTERESTS load failed rather than claiming you chose none", async () => {
     vi.spyOn(api, "getUserInterests").mockImplementation(() => Promise.reject(new Error("offline")))
     const w = mountProfile()

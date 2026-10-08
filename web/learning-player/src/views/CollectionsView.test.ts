@@ -393,6 +393,26 @@ describe('a board renders its items, not their refs', () => {
     expect(w.text()).toContain('Good Episode')
     expect(w.findAll('[data-testid="collection-item"]')).toHaveLength(2)
   })
+
+  it('resolves the ten rows it shows, and the next ten only on Show more (2026-10-08)', async () => {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    vi.spyOn(api, 'getCollection').mockResolvedValue({
+      collection: col(),
+      items: Array.from({ length: 14 }, (_, i) => ({ kind: 'episode', ref: `ep-${i}` })),
+    } as CollectionDetail)
+    const get = vi.spyOn(api, 'getEpisode').mockImplementation(
+      async (slug: string) => ({ slug, title: slug, podcast_title: 'Show' }) as never,
+    )
+    const w = mountView()
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text().includes('AI takes'))!.trigger('click')
+    await flushPromises()
+    expect(get).toHaveBeenCalledTimes(10)
+    await w.get('[data-testid="collection-items-more"]').trigger('click')
+    await flushPromises()
+    expect(get).toHaveBeenCalledTimes(14)
+    expect(new Set(get.mock.calls.map((c) => c[0])).size).toBe(14) // none fetched twice
+  })
 })
 
 describe('collections open as an accordion (#2004 follow-up)', () => {

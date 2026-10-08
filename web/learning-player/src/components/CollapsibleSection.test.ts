@@ -81,4 +81,22 @@ describe('CollapsibleSection', () => {
     expect(w.element.tagName.toLowerCase()).toBe('details')
     expect(w.find('summary').exists()).toBe(true)
   })
+
+  it('a section left closed builds nothing until opened, then keeps it (2026-10-08)', async () => {
+    // A closed <details> still renders its children, so folded sections fetched and decoded their
+    // images on every visit.
+    localStorage.setItem('lp.kp.insights', 'closed')
+    const w = make()
+    expect(w.text()).not.toContain('body content')
+    const details = w.get('details').element as HTMLDetailsElement
+    details.open = true
+    details.dispatchEvent(new Event('toggle'))
+    await w.vm.$nextTick()
+    expect(w.text()).toContain('body content')
+    details.open = false
+    details.dispatchEvent(new Event('toggle'))
+    await w.vm.$nextTick()
+    expect(w.html()).toContain('body content') // kept, so folding again loses no state
+  })
 })
+

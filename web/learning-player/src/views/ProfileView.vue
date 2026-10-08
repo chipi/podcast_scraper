@@ -37,6 +37,7 @@ const EntityCard = defineAsyncComponent(() => import("../components/EntityCard.v
 const StorylineCard = defineAsyncComponent(() => import("../components/StorylineCard.vue"))
 import { useInterestsStore } from "../stores/interests"
 import type { InterestKind } from "../utils/interests"
+import { useVisitedTabs } from "../composables/useVisitedTabs"
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -140,6 +141,8 @@ watch(
 )
 
 const tab = ref<ProfileTab>(tabFromQuery(route.query.tab) ?? "account")
+// Panels mount on first visit, then stay (v-show): a tab never opened fetches and decodes nothing.
+const visitedTabs = useVisitedTabs(tab)
 // ProfileView is kept alive (KEEP_ALIVE_TABS), so setup runs once — re-navigating with a new `?tab=`
 // (e.g. tapping "see my stats" while Profile is already cached) must still switch the tab.
 watch(
@@ -619,6 +622,7 @@ onActivated(() => {
 
     <!-- STATS tab: listening analytics + the recap. -->
     <div v-show="tab === 'stats'" v-bind="panelAttrs('profile', 'stats')">
+      <template v-if="visitedTabs.has('stats')">
       <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->
       <!-- Always rendered. A conditional was tried and reverted (operator 2026-09-18): "Start
            listening to build your stats" appeared above a kept block reading 12 captures, which
@@ -740,10 +744,12 @@ onActivated(() => {
       <!-- The recap (#1914): time actually listened, the listener's own days, what recurred, and the
          line they kept. -->
       <ListeningRecap class="mt-6" />
+      </template>
     </div>
 
     <!-- INTERESTS tab: one section per kind, each editable in place (beta feedback 2026-10-04). -->
     <div v-show="tab === 'interests'" v-bind="panelAttrs('profile', 'interests')">
+      <template v-if="visitedTabs.has('interests')">
       <p class="mb-4 text-sm text-muted" data-testid="interests-help">{{ t("profile.interestsHelp") }}</p>
       <!-- Failed to load, the sections would offer "Follow" on things already followed and a Stop
            button on nothing — so say so instead of rendering a confidently wrong list (#1591). -->
@@ -762,10 +768,12 @@ onActivated(() => {
         @toggle="(id) => void interests.toggle(id)"
         @open="openInterest"
       />
+      </template>
     </div>
 
     <!-- ACCOUNT tab: delivery/notifications + sign out. -->
     <div v-show="tab === 'account'" v-bind="panelAttrs('profile', 'account')">
+      <template v-if="visitedTabs.has('account')">
       <!-- Delivery consent (PRD-046 FR1 / #1414) — the "Your Week" digest + push nudges. -->
       <section v-if="comms" class="rounded-2xl border border-border p-5">
         <h2 class="lp-section mb-1">{{ t("profile.notifications") }}</h2>
@@ -952,6 +960,7 @@ onActivated(() => {
       <p v-if="clearResult" role="status" class="mt-2 text-center text-xs" data-testid="profile-clear-history-result">
         {{ clearResult }}
       </p>
+      </template>
     </div>
 
 

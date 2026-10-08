@@ -79,6 +79,7 @@ import {
 } from './services/playbackPositions'
 import { Network } from '@capacitor/network'
 import { deriveShowAccent } from './theme/accent'
+import { artworkThumb } from './utils/episode'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
 import { purgeAnonymousState } from './services/anonState'
@@ -439,7 +440,9 @@ watch(forcedOffline, (isOffline, wasOffline) => {
 watch(
   () => player.currentArtwork,
   (url) => {
-    void deriveShowAccent(url)
+    // The thumb: the sampler reads a few pixels, and decoding the player-size image for that is a
+    // second full-size copy in memory.
+    void deriveShowAccent(artworkThumb(url))
   },
   { immediate: true },
 )

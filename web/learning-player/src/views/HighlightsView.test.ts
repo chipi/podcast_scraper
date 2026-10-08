@@ -433,4 +433,29 @@ describe('HighlightsView', () => {
     expect(w.findAll('[data-testid="add-to-collection"]')).toHaveLength(1)
     expect(w.find('select[aria-label="Add to board"]').exists()).toBe(false)
   })
+
+  it('fetches the episodes it SHOWS, and the next five only on Show more (2026-10-08)', async () => {
+    // 7 episodes, one capture each: five groups on screen, so five episode fetches — not seven.
+    vi.spyOn(api, 'getHighlights').mockResolvedValue(
+      Array.from({ length: 7 }, (_, i) => hl({ id: `h${i}`, episode_slug: `ep-${i}`, created_at: 100 - i })),
+    )
+    const get = vi.spyOn(api, 'getEpisode').mockImplementation(async (slug: string) => detail(slug, slug))
+    const w = mountView()
+    await flushPromises()
+    expect(get.mock.calls.map((c) => c[0]).sort()).toEqual(['ep-0', 'ep-1', 'ep-2', 'ep-3', 'ep-4'])
+    const more = w.findAll('[data-testid="show-all-toggle"]').find((b) => !b.element.closest('[data-testid="highlight-group"]'))
+    await more!.trigger('click')
+    await flushPromises()
+    expect(get.mock.calls.map((c) => c[0]).sort()).toEqual(['ep-0', 'ep-1', 'ep-2', 'ep-3', 'ep-4', 'ep-5', 'ep-6'])
+  })
+
+  it('A–Z by title fetches every episode, because the order needs every title', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue(
+      Array.from({ length: 7 }, (_, i) => hl({ id: `h${i}`, episode_slug: `ep-${i}`, created_at: 100 - i })),
+    )
+    const get = vi.spyOn(api, 'getEpisode').mockImplementation(async (slug: string) => detail(slug, slug))
+    mountView({ sort: 'title' })
+    await flushPromises()
+    expect(get).toHaveBeenCalledTimes(7)
+  })
 })

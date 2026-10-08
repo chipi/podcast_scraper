@@ -6,8 +6,8 @@
  * view in `embedded` mode, which drops its page heading and — for Topics/People — its back-to-Home
  * button (that button is only meaningful on the standalone routes reached from Home, not here).
  *
- * v-show (not v-if) keeps each panel mounted so switching tabs never refetches; supports ?tab= for
- * deep links.
+ * A panel's content mounts the first time its tab opens and then stays (v-show), so switching back
+ * never refetches and a tab never opened loads nothing (useVisitedTabs). Supports ?tab= for deep links.
  */
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -18,6 +18,7 @@ import { toRankBucket, track } from '../services/analytics'
 import { panelAttrs, type TabSpec } from '../components/tabs'
 import CatalogView from './CatalogView.vue'
 import ShowBrowseView from './ShowBrowseView.vue'
+import { useVisitedTabs } from '../composables/useVisitedTabs'
 import SearchSection from '../components/SearchSection.vue'
 import TrendsSection from '../components/TrendsSection.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
@@ -110,6 +111,8 @@ watch(
 
 const initial = String(route.query.tab || '')
 const tab = ref<Tab>(TAB_KEYS.some((tb) => tb.key === initial) ? (initial as Tab) : 'episodes')
+// Panels mount on first visit, then stay (v-show): a tab never opened fetches and decodes nothing.
+const visitedTabs = useVisitedTabs(tab)
 // Which browse surface people actually use (#2267). Reported on CHANGE rather than on mount, so
 // arriving at the hub is not counted as choosing the default tab — otherwise `episodes` would
 // always lead simply because it is first.
@@ -180,8 +183,8 @@ watch(
         class="mb-6"
       />
 
-      <div v-show="tab === 'episodes'" v-bind="panelAttrs('browse', 'episodes')" data-testid="browse-panel-episodes"><CatalogView embedded /></div>
-      <div v-show="tab === 'shows'" v-bind="panelAttrs('browse', 'shows')" data-testid="browse-panel-shows"><ShowBrowseView embedded :initial-sort="showsSort" :initial-view="showsView" /></div>
+      <div v-show="tab === 'episodes'" v-bind="panelAttrs('browse', 'episodes')" data-testid="browse-panel-episodes"><template v-if="visitedTabs.has('episodes')"><CatalogView embedded /></template></div>
+      <div v-show="tab === 'shows'" v-bind="panelAttrs('browse', 'shows')" data-testid="browse-panel-shows"><template v-if="visitedTabs.has('shows')"><ShowBrowseView embedded :initial-sort="showsSort" :initial-view="showsView" /></template></div>
     </div>
   </section>
 </template>

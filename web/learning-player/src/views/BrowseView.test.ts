@@ -50,9 +50,18 @@ describe('BrowseView (Discover)', () => {
     expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('false')
   })
 
-  it('embeds the content index views (no navigation) and passes embedded', async () => {
+  it('embeds the content index views (no navigation); a tab mounts when first opened, then stays', async () => {
+    // A tab never opened builds nothing: the hidden Shows grid used to fetch and decode artwork
+    // (a 3000px one on prod) while the listener was on Episodes (2026-10-08).
     const w = await mountView()
     expect(w.find('[data-testid="stub-episodes"]').exists()).toBe(true)
+    expect(w.find('[data-testid="stub-shows"]').exists()).toBe(false)
+    await w.get('[data-testid="browse-tab-shows"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="stub-shows"]').exists()).toBe(true)
+    await w.get('[data-testid="browse-tab-episodes"]').trigger('click')
+    await flushPromises()
+    // Kept after leaving it, so switching back neither refetches nor loses the scroll position.
     expect(w.find('[data-testid="stub-shows"]').exists()).toBe(true)
   })
 

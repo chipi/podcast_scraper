@@ -795,7 +795,8 @@ describe('a downloaded episode paints from disk, not from the network', () => {
     })
 
     it("the notes panel's ▶ Play from seeks AND plays — an explicit ▶ starts audio (operator 2026-10-05)", async () => {
-      const { player, play } = await mountWithQuery({})
+      // `?notes=1` opens the panel: it mounts on first open (2026-10-08), not behind the closed sheet.
+      const { player, play } = await mountWithQuery({ notes: '1' })
       const panel = (mountedPlayers.at(-1) as ReturnType<typeof mount>).findComponent({
         name: 'KnowledgePanel',
       })
@@ -805,6 +806,17 @@ describe('a downloaded episode paints from disk, not from the network', () => {
       await flushPromises()
       expect(play, '▶ Play from left the episode paused').toHaveBeenCalled()
       expect(Math.round(player.el?.currentTime ?? 0)).toBe(30)
+    })
+
+    it('the notes panel is not built until it is first opened (2026-10-08)', async () => {
+      // A closed <dialog> still renders its children: every episode built key points, insights, the
+      // related rail and its artwork behind a sheet that might never open.
+      await mountWithQuery({})
+      const w = mountedPlayers.at(-1) as ReturnType<typeof mount>
+      expect(w.findComponent({ name: 'KnowledgePanel' }).exists()).toBe(false)
+      await router.push({ name: 'player', params: { slug: SLUG }, query: { notes: '1' } })
+      await flushPromises()
+      expect(w.findComponent({ name: 'KnowledgePanel' }).exists()).toBe(true)
     })
 
     it('▶ Play from a link to the episode ALREADY OPEN still seeks and plays (operator 2026-10-05)', async () => {

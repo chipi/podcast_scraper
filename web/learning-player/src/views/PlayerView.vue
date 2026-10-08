@@ -217,6 +217,15 @@ const recapDismissedFor = ref<string | null>(null)
 const recapAutoAdvanceSeconds = ref<number | null>(null)
 const recapNextTitle = ref<string | null>(null)
 const panelOpen = ref(false)
+/**
+ * The notes panel mounts the first time it opens, then stays. A closed <dialog> still renders its
+ * children, so every episode built the whole panel — key points, insights, the related rail and its
+ * artwork, dossier avatars — behind a sheet the listener might never open (2026-10-08).
+ */
+const panelEverOpen = ref(false)
+watch(panelOpen, (open) => {
+  if (open) panelEverOpen.value = true
+})
 const panelDialog = ref<HTMLDialogElement | null>(null)
 const insightsOpener = ref<HTMLButtonElement | null>(null)
 
@@ -1993,6 +2002,7 @@ onBeforeUnmount(() => {
         class="h-full overflow-hidden rounded-t-2xl border-t border-border bg-canvas pb-[env(safe-area-inset-bottom)] lg:max-h-[70dvh] lg:rounded-2xl lg:border lg:pb-0"
       >
         <KnowledgePanel
+          v-if="panelEverOpen"
           :episode="episode"
           :insights="insights"
           :topics="topics"

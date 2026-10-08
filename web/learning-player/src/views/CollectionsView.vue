@@ -278,9 +278,24 @@ function itemKey(it: CollectionItem): string {
  * Shows resolve from the podcasts list — one request for the whole board rather than one per row,
  * since a board of eight shows from one feed would otherwise be eight identical lookups.
  */
+/** Rows already asked for, so a second trigger while the first is in flight does not refetch. */
+const requestedItems = new Set<string>()
+// "Show more" on an open board reveals ten rows the open did not resolve.
+watch(
+  () => (open.value ? itemCaps.visible(open.value.collection.id, open.value.items).length : 0),
+  () => {
+    if (open.value) void hydrate(open.value)
+  },
+)
+
 async function hydrate(detail: CollectionDetail): Promise<void> {
-  const items = detail.items.filter((i) => HYDRATES.has(i.kind))
+  // Only the rows ON SCREEN — ten, then ten more per "Show more" (watch below). It used to resolve
+  // every item on the board, up to 1,000, to show ten (2026-10-08). A row resolved once stays so.
+  const items = itemCaps
+    .visible(detail.collection.id, detail.items)
+    .filter((i) => HYDRATES.has(i.kind) && !shown.value[itemKey(i)] && !requestedItems.has(itemKey(i)))
   if (!items.length) return
+  items.forEach((i) => requestedItems.add(itemKey(i)))
 
   const wantShows = items.some((i) => i.kind === "show")
   const podcasts = wantShows ? await getPodcasts().catch(() => []) : []
@@ -735,6 +750,7 @@ onMounted(() => {
             v-if="c.cover_url && !brokenCovers.has(c.id)"
             :src="c.cover_url"
             alt=""
+            loading="lazy"
             class="h-9 w-9 shrink-0 rounded-md bg-elevated object-cover"
             data-testid="collection-thumb"
             @error="brokenCovers.add(c.id)"
