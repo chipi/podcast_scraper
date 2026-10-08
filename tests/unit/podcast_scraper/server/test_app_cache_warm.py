@@ -69,15 +69,15 @@ def test_warm_loop_survives_a_transient_error(monkeypatch) -> None:
 def test_warm_caches_is_best_effort_one_failure_does_not_skip_the_rest(
     monkeypatch, tmp_path
 ) -> None:
-    from podcast_scraper.server import app_catalog_cache, app_kg_index
+    from podcast_scraper.server import catalog_cache, kg_index
 
     monkeypatch.setattr(
-        app_catalog_cache,
+        catalog_cache,
         "cached_catalog",
         lambda root: (_ for _ in ()).throw(RuntimeError("boom")),
     )
     kg_calls: list[int] = []
-    monkeypatch.setattr(app_kg_index, "get_kg_index", lambda root: kg_calls.append(1))
+    monkeypatch.setattr(kg_index, "get_kg_index", lambda root: kg_calls.append(1))
 
     # Must not raise even though the catalog step throws, and later steps still run.
     app_cache_warm.warm_caches(tmp_path)

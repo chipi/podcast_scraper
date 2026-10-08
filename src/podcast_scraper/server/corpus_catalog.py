@@ -384,7 +384,7 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
         # the other two had no check. Who they feed, enumerated because the first version of this
         # correction got it wrong too and named the capability audit under the single-row builder:
         #
-        #   `build_catalog_rows_cumulative` -> `app_catalog_cache` (so the app's cached catalog),
+        #   `build_catalog_rows_cumulative` -> `catalog_cache` (so the app's cached catalog),
         #       the operator library and stats endpoints, `capability_audit.measure`, and the
         #       eval ranking scripts;
         #   `catalog_row_for_metadata_path` -> one operator library route and the MCP
@@ -886,7 +886,7 @@ def episode_list_summary_preview(
     different SHAPE, so the same slot rendered a headline on one row, a headline-plus-two-bullets on
     the next, and half a sentence on a third — which is precisely the "the line feels like it has 2
     parts sometimes" report that got the chain removed from ``_card_lede``
-    (``app_content_source.py``). It survived here, under the same field name, on a different
+    (``content_source.py``). It survived here, under the same field name, on a different
     endpoint: two functions producing ``summary_preview`` with two contracts.
 
     So this is now the same rule as ``_card_lede``: the title, or nothing. ``summary.title`` is
@@ -897,7 +897,7 @@ def episode_list_summary_preview(
     A title that merely restates the episode title is still skipped: the row renders that title
     directly above, so echoing it spends the only descriptive line saying nothing new.
     """
-    from podcast_scraper.server.app_content_source import _card_lede
+    from podcast_scraper.server.content_source import _card_lede
 
     return _card_lede(row, max_len=max_len)
 

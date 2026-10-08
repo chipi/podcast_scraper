@@ -19,18 +19,18 @@ from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key
 from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.search.storylines import STORYLINE_DOC_TYPE
-from podcast_scraper.server.app_artwork import artwork_url
-from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_search_view import build_search_response
-from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_corpus import user_episode_set
 from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.artwork import artwork_url
+from podcast_scraper.server.catalog_cache import cached_catalog
 from podcast_scraper.server.corpus_catalog import (
     index_rows_by_feed_episode,
 )
 from podcast_scraper.server.query_enricher_helper import apply_query_enrichers
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import CorpusSearchApiResponse
+from podcast_scraper.server.slugs import slug_for_row
 
 router = APIRouter(tags=["app"])
 

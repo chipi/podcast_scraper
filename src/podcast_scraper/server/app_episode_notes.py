@@ -284,8 +284,8 @@ def build_episode_notes(
     corpus on disk. Every section is independently optional: an episode with no KG still produces
     notes, exactly as the panel still renders.
     """
-    from podcast_scraper.server.app_gi_view import insights_from_gi
-    from podcast_scraper.server.app_kg_view import entities_from_kg
+    from podcast_scraper.server.gi_view import insights_from_gi
+    from podcast_scraper.server.kg_view import entities_from_kg
 
     doc = EpisodeNotes(
         slug=slug,

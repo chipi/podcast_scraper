@@ -68,9 +68,9 @@ def episode_insights(
     to the top-N by salience (drop-tagged excluded). Fills the "insights for THIS episode"
     gap — the relational tools are entity/topic-scoped, not episode-scoped.
     """
-    from ...server.app_corpus_access import load_json_artifact
-    from ...server.app_gi_view import insights_from_gi
+    from ...server.corpus_access import load_json_artifact
     from ...server.corpus_catalog import catalog_row_for_metadata_path
+    from ...server.gi_view import insights_from_gi
 
     row = catalog_row_for_metadata_path(ctx.corpus_dir, metadata_path)
     if row is None or not getattr(row, "has_gi", False):

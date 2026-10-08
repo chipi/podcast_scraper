@@ -19,9 +19,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from podcast_scraper.server.app_corpus_access import corpus_root_or_503
-from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.corpus_access import corpus_root_or_503
 from podcast_scraper.server.corpus_signals import (
     _SUMMARY_FILES,
     corpus_signals as _corpus_signals,
@@ -38,6 +37,7 @@ from podcast_scraper.server.schemas import (
     AppTrendingTopicRow,
     AppTrendingTopicsResponse,
 )
+from podcast_scraper.server.slugs import resolve_slug
 
 router = APIRouter(tags=["app"])
 

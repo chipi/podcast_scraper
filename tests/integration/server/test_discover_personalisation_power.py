@@ -83,8 +83,8 @@ from podcast_scraper.server.app_discover_view import (
     interest_episode_index,
     rank_discover,
 )
-from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+from podcast_scraper.server.slugs import slug_for_row
 
 pytestmark = [pytest.mark.integration]
 

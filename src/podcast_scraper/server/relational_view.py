@@ -29,17 +29,17 @@ from podcast_scraper.search.groupings import (
     top_themes_by_member_count,
     TOPIC_CLUSTERS_FILENAME,
 )
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_content_source import row_to_summary
-from podcast_scraper.server.app_corpus_access import load_json_artifact
-from podcast_scraper.server.app_kg_index import (
+from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.cil_queries import topic_perspectives, topics_perspectives
+from podcast_scraper.server.content_source import row_to_summary
+from podcast_scraper.server.corpus_access import load_json_artifact
+from podcast_scraper.server.corpus_catalog import (
+    CatalogEpisodeRow,
+)
+from podcast_scraper.server.kg_index import (
     get_kg_index,
     iter_kg_entities,
     normalize_label,
-)
-from podcast_scraper.server.cil_queries import topic_perspectives, topics_perspectives
-from podcast_scraper.server.corpus_catalog import (
-    CatalogEpisodeRow,
 )
 from podcast_scraper.server.schemas import (
     AppClusterCard,
@@ -453,15 +453,15 @@ def _sorted_episode_cards(root: Path, rows: list[CatalogEpisodeRow]) -> list[App
 
 # Role precedence for the aggregate card badge: a person who hosts anywhere is a "host",
 # a guest anywhere (but never a host) is a "guest", otherwise the weakest role seen.
-_ROLE_RANK = {"host": 3, "guest": 2, "mentioned": 1}
+ROLE_RANK = {"host": 3, "guest": 2, "mentioned": 1}
 
 
-def _aggregate_role(roles: Sequence[str | None]) -> str | None:
+def aggregate_role(roles: Sequence[str | None]) -> str | None:
     """The strongest speaker role across a person's episode nodes (host > guest > mentioned)."""
     ranked = [r for r in roles if r]
     if not ranked:
         return None
-    return max(ranked, key=lambda r: _ROLE_RANK.get(r, 0))
+    return max(ranked, key=lambda r: ROLE_RANK.get(r, 0))
 
 
 def _person_shows(pairs: Sequence[tuple[CatalogEpisodeRow, str | None]]) -> list[AppPersonShow]:
@@ -484,12 +484,12 @@ def _person_shows(pairs: Sequence[tuple[CatalogEpisodeRow, str | None]]) -> list
         AppPersonShow(
             feed_id=fid,
             title=slot["title"],
-            role=_aggregate_role(slot["roles"]),
+            role=aggregate_role(slot["roles"]),
             episode_count=slot["count"],
         )
         for fid, slot in by_feed.items()
     ]
-    shows.sort(key=lambda s: (-_ROLE_RANK.get(s.role or "", 0), -s.episode_count, s.title))
+    shows.sort(key=lambda s: (-ROLE_RANK.get(s.role or "", 0), -s.episode_count, s.title))
     return shows
 
 
@@ -546,7 +546,7 @@ def build_person_card(
     # would leak one card's aggregate into the next.
     related_people = with_photos(
         [
-            people_by_id[i].model_copy(update={"role": _aggregate_role(related_roles.get(i, []))})
+            people_by_id[i].model_copy(update={"role": aggregate_role(related_roles.get(i, []))})
             for i, _ in person_counts.most_common(top_k)
         ],
         hosted_photo_urls(root),
@@ -558,7 +558,7 @@ def build_person_card(
     return AppPersonCard(
         id=person_id,
         label=label or person_id.split(":", 1)[-1],
-        role=_aggregate_role(roles),
+        role=aggregate_role(roles),
         shows=_person_shows(list(zip(appears_in, roles))),
         episode_count=len(appears_in),
         episodes=_sorted_episode_cards(root, appears_in),

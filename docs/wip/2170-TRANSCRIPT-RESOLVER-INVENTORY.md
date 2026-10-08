@@ -141,7 +141,7 @@ matches this one.
 - `workflow/metadata_generation.py:1032` — `.speakers.diagnostics.json`, same base-derivation idiom,
   one file, no variant choice.
 - `search/indexer.py:79`, `:90` and `gi/explore.py:179` — GI and KG artifact paths.
-- `server/app_content_source.py:111-118` — translates a run-relative path to a corpus-relative one.
+- `server/content_source.py:111-118` — translates a run-relative path to a corpus-relative one.
   A path mapper with no variant preference; the resolver may end up using it.
 - `utils/corpus_media.py:123-135` — normalizes the relpath for media pairing.
 

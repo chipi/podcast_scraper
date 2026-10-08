@@ -50,7 +50,7 @@ lead-in names the dominant cluster. Stable sort preserves original order within 
 
 Tap a person → a card (sheet mobile / panel desktop): name, episodes they appear in, related
 people/topics. Data from a **dedicated** `GET /api/app/persons/{id}` — KG co-occurrence over the
-corpus (`app_relational_view.build_person_card` reuses `entities_from_kg`), NOT the operator
+corpus (`relational_view.build_person_card` reuses `entities_from_kg`), NOT the operator
 relational API / `subject` store (the `/api/app` boundary stays clean; effort over coupling). No
 biography. Replaces the Epic-2 person-chip→search default; the `EntityCard` keeps an explicit
 "search the library" action, is re-entrant (related chips walk with a back stack), and is a proper

@@ -228,3 +228,35 @@ def test_trending_blends_engagement_only_from_an_installed_source(tmp_path: Path
         assert _engagement_weekly_by_entity(tmp_path, "u1") == {("topic", "topic:x"): {"w": 2}}
         assert _engagement_weekly_by_entity(None, "u1") == {}
     assert calls == [(tmp_path, "u1")]
+
+
+def test_real_sign_in_providers_come_only_from_an_extension(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    from podcast_scraper.server.app_oauth import provider_from_env, providers_from_env
+
+    monkeypatch.setenv("APP_OAUTH_PROVIDER", "google")
+    monkeypatch.setenv("APP_OAUTH_PROVIDERS", "google,apple,other")
+    monkeypatch.setenv("APP_OAUTH_GOOGLE_CLIENT_ID", "id")
+    monkeypatch.setenv("APP_OAUTH_GOOGLE_CLIENT_SECRET", "secret")
+    with use_extensions([]), caplog.at_level(logging.WARNING):
+        assert provider_from_env() is None
+    assert "no installed extension provides it" in caplog.text
+
+    google = SimpleNamespace(name="google")
+    apple = SimpleNamespace(name="apple")
+    other = SimpleNamespace(name="other")
+    fake = Extension(
+        name="fake",
+        oauth_providers={"google": lambda: google, "apple": lambda: apple, "other": lambda: other},
+    )
+    with use_extensions([fake]):
+        # Only Apple may be added beside the primary, whatever else is installed.
+        assert providers_from_env() == {"google": google, "apple": apple}
+        # Apple only ever sits beside a real primary, never as the primary itself.
+        monkeypatch.setenv("APP_OAUTH_PROVIDER", "apple")
+        assert providers_from_env() == {}
+    with use_extensions([_installed("mcp")]):
+        monkeypatch.setenv("APP_OAUTH_PROVIDER", "google")
+        monkeypatch.setenv("APP_OAUTH_PROVIDERS", "")
+        assert type(provider_from_env()).__name__ == "GoogleProvider"

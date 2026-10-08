@@ -17,11 +17,11 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.server.app_corpus_access import load_json_artifact
-from podcast_scraper.server.app_kg_view import entities_from_kg
-from podcast_scraper.server.app_relational_view import hosted_photo_urls
-from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_corpus import user_episode_set
+from podcast_scraper.server.corpus_access import load_json_artifact
+from podcast_scraper.server.kg_view import entities_from_kg
+from podcast_scraper.server.relational_view import hosted_photo_urls
+from podcast_scraper.server.slugs import resolve_slug
 
 #: Cap the per-episode KG scan (mirrors app_digest_sections' heard-scan bound).
 _MAX_SCAN = 200

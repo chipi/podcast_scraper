@@ -18,7 +18,7 @@ from podcast_scraper.kg.filters import is_filler_topic
 from podcast_scraper.server.schemas import AppEntity, AppTopic
 
 
-def _role_of(props: dict) -> str | None:
+def role_of(props: dict) -> str | None:
     """Normalised speaker role (``host``/``guest``/``mentioned``) from a person node, else None."""
     role = props.get("role")
     if isinstance(role, str) and role.strip():
@@ -136,7 +136,7 @@ def entities_from_kg(artifact: Any) -> tuple[list[AppEntity], list[AppEntity], l
                     id=node_id,
                     name=person_name,
                     kind="person",
-                    role=_role_of(props),
+                    role=role_of(props),
                     episode_scoped=episode_scoped,
                 ),
             )

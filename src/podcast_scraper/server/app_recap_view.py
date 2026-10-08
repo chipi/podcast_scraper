@@ -17,11 +17,11 @@ from podcast_scraper.search.storylines import (
     storyline_map_by_topic,
     top_storylines_by_member_count,
 )
-from podcast_scraper.server.app_artwork import artwork_url
-from podcast_scraper.server.app_corpus_access import load_json_artifact
-from podcast_scraper.server.app_gi_view import insights_from_gi
-from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.artwork import artwork_url
+from podcast_scraper.server.corpus_access import load_json_artifact
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
+from podcast_scraper.server.gi_view import insights_from_gi
+from podcast_scraper.server.kg_view import entities_from_kg
 from podcast_scraper.server.schemas import (
     AppEpisodeRecap,
     AppInsight,

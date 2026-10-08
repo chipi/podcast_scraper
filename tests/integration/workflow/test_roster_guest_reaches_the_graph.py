@@ -195,7 +195,7 @@ class TestTheWholeChainOnDisk:
     """
 
     def test_the_guest_is_persisted_and_served_as_a_guest(self, workspace: Path) -> None:
-        from podcast_scraper.server.app_kg_view import entities_from_kg
+        from podcast_scraper.server.kg_view import entities_from_kg
 
         cfg = _pc.create_test_config(
             output_dir=str(workspace),

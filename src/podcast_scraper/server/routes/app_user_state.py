@@ -14,14 +14,13 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from podcast_scraper.server import app_recap, app_stats, app_user_corpus, app_user_state
-from podcast_scraper.server.app_corpus_access import corpus_root_or_503
 from podcast_scraper.server.app_favorites_view import (
     favorite_refs,
     hydrate_favorites,
     query_favorites,
 )
-from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.corpus_access import corpus_root_or_503
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppFavoriteRefsResponse,
@@ -45,6 +44,7 @@ from podcast_scraper.server.schemas import (
     RecapResponse,
     UserStatsResponse,
 )
+from podcast_scraper.server.slugs import resolve_slug
 
 logger = logging.getLogger(__name__)
 

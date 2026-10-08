@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper import perf_cache
-from podcast_scraper.server import app_kg_index
+from podcast_scraper.server import kg_index
 
 pytestmark = [pytest.mark.unit]
 
@@ -80,7 +80,7 @@ def _corpus(root: Path) -> None:
 def test_inverted_maps_and_label_refs(tmp_path: Path) -> None:
     _corpus(tmp_path)
     _stamp(tmp_path, 1_000_000.0)
-    idx = app_kg_index.get_kg_index(tmp_path)
+    idx = kg_index.get_kg_index(tmp_path)
 
     # Jane is in both episodes; Bob in one; ai in both; ml in one.
     assert len(idx.person_episodes("person:jane")) == 2
@@ -98,22 +98,22 @@ def test_index_built_once_then_cached(tmp_path: Path, monkeypatch) -> None:
     _corpus(tmp_path)
     _stamp(tmp_path, 1_000_000.0)
     calls = [0]
-    real = app_kg_index.build_kg_index
+    real = kg_index.build_kg_index
 
     def _counting(root: Path):
         calls[0] += 1
         return real(root)
 
-    monkeypatch.setattr(app_kg_index, "build_kg_index", _counting)
+    monkeypatch.setattr(kg_index, "build_kg_index", _counting)
     for _ in range(6):
-        app_kg_index.get_kg_index(tmp_path)
+        kg_index.get_kg_index(tmp_path)
     assert calls[0] == 1, "the KG index was rebuilt on a cache hit (per-request KG parse is back)"
 
 
 def test_index_invalidates_on_ingest(tmp_path: Path) -> None:
     _corpus(tmp_path)
     _stamp(tmp_path, 1_000_000.0)
-    assert len(app_kg_index.get_kg_index(tmp_path).topic_episodes("topic:ml")) == 1
+    assert len(kg_index.get_kg_index(tmp_path).topic_episodes("topic:ml")) == 1
 
     # A new episode about ml lands and the ingest stamp advances.
     _write_episode(
@@ -124,7 +124,7 @@ def test_index_invalidates_on_ingest(tmp_path: Path) -> None:
         topics=[("topic:ml", "Machine Learning")],
     )
     _stamp(tmp_path, 2_000_000.0)
-    idx = app_kg_index.get_kg_index(tmp_path)
+    idx = kg_index.get_kg_index(tmp_path)
     assert len(idx.topic_episodes("topic:ml")) == 2, "a stale KG index hid the new episode"
     assert idx.person_ref_by_norm["carol"].id == "person:carol"
 
@@ -193,22 +193,22 @@ class TestSpellingVariantsCollapseInTheAppIndex:
 
     def test_both_spellings_resolve_to_one_person(self, tmp_path: Path) -> None:
         self._two_spellings(tmp_path)
-        index = app_kg_index.build_kg_index(tmp_path)
+        index = kg_index.build_kg_index(tmp_path)
         jaffe_ids = {pid for pid in index.person_to_eps if "jaffe" in pid}
         assert len(jaffe_ids) == 1, f"one human must have one id on the cards, got {jaffe_ids}"
 
     def test_the_surviving_person_carries_both_episodes(self, tmp_path: Path) -> None:
         self._two_spellings(tmp_path)
-        index = app_kg_index.build_kg_index(tmp_path)
+        index = kg_index.build_kg_index(tmp_path)
         pid = next(p for p in index.person_to_eps if "jaffe" in p)
         assert len(index.person_to_eps[pid]) == 2, "the merged person appears in both episodes"
 
     def test_searching_either_spelling_finds_the_same_person(self, tmp_path: Path) -> None:
         self._two_spellings(tmp_path)
-        index = app_kg_index.build_kg_index(tmp_path)
+        index = kg_index.build_kg_index(tmp_path)
         refs = {
-            app_kg_index.normalize_label("Theo Jaffee"),
-            app_kg_index.normalize_label("Theo Jaffe"),
+            kg_index.normalize_label("Theo Jaffee"),
+            kg_index.normalize_label("Theo Jaffe"),
         }
         found = {index.person_ref_by_norm[r].id for r in refs if r in index.person_ref_by_norm}
         assert len(found) == 1, f"both spellings must lead to one id, got {found}"
@@ -230,6 +230,6 @@ class TestSpellingVariantsCollapseInTheAppIndex:
             show="show:a16z",
         )
         _stamp(tmp_path, 1000.0)
-        index = app_kg_index.build_kg_index(tmp_path)
+        index = kg_index.build_kg_index(tmp_path)
         assert "person:albert-einstein" in index.person_to_eps
         assert "person:robert-jensen" in index.person_to_eps

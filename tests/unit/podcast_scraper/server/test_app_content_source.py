@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from podcast_scraper.server.app_content_source import (
+from podcast_scraper.server.content_source import (
     _card_bullets,
     _card_lede,
     _clean_bullets,
@@ -330,7 +330,7 @@ class TestTheShowsOwnArtworkIsSeparableFromTheEpisodesOwn:
     def _summary(self, tmp_path, *, episode_art: str | None, feed_art: str | None):
         from dataclasses import replace
 
-        from podcast_scraper.server.app_content_source import row_to_summary
+        from podcast_scraper.server.content_source import row_to_summary
 
         row = replace(
             _row(),

@@ -13,7 +13,7 @@ from fastapi import APIRouter, Query, Request
 from podcast_scraper import perf_cache
 from podcast_scraper.enrichment.enrichers._loaders import is_unresolved_speaker_placeholder
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
-from podcast_scraper.server.app_catalog_cache import cached_catalog_last_run
+from podcast_scraper.server.catalog_cache import cached_catalog_last_run
 from podcast_scraper.server.cil_queries import (
     _insight_ids_supported_by_quotes,
     _quote_ids_spoken_by_person,

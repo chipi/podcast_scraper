@@ -14,9 +14,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from podcast_scraper.server.app_corpus_access import load_json_artifact
-from podcast_scraper.server.app_kg_view import entities_from_kg
-from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.corpus_access import load_json_artifact
+from podcast_scraper.server.kg_view import entities_from_kg
+from podcast_scraper.server.slugs import resolve_slug
 
 #: A small cap keeps digests/cards legible and the persisted highlight compact.
 DEFAULT_LIMIT = 3

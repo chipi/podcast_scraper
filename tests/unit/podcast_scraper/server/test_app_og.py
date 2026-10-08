@@ -9,9 +9,9 @@ import pytest
 from starlette.testclient import TestClient
 
 from podcast_scraper.server.app import create_app
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_kg_index import build_kg_index
-from podcast_scraper.server.app_slugs import slug_for_row
+from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.kg_index import build_kg_index
+from podcast_scraper.server.slugs import slug_for_row
 
 _CORPUS = Path("tests/fixtures/app-validation-corpus/v3")
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
@@ -77,7 +77,7 @@ def test_organization_build_model(monkeypatch: pytest.MonkeyPatch) -> None:
     # blurb, founded → stats, green accent, and a missing logo → no artwork (graceful).
     from types import SimpleNamespace
 
-    import podcast_scraper.server.app_relational_view as arv
+    import podcast_scraper.server.relational_view as arv
     from podcast_scraper.server.og import build
 
     web = SimpleNamespace(

@@ -12,13 +12,9 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
-from podcast_scraper.server import app_oauth
-from podcast_scraper.server.app_oauth import (
-    APPLE_ISSUER,
-    AppleProvider,
-    OAuthError,
-    providers_from_env,
-)
+from podcast_scraper.server import app_oauth_providers
+from podcast_scraper.server.app_oauth import OAuthError, providers_from_env
+from podcast_scraper.server.app_oauth_providers import APPLE_ISSUER, AppleProvider
 
 pytestmark = [pytest.mark.unit]
 
@@ -67,7 +63,9 @@ def _fake_token_endpoint(monkeypatch: pytest.MonkeyPatch, id_token: str | None, 
 
     real = httpx.Client
     monkeypatch.setattr(
-        app_oauth.httpx, "Client", lambda **kw: real(transport=httpx.MockTransport(handler), **kw)
+        app_oauth_providers.httpx,
+        "Client",
+        lambda **kw: real(transport=httpx.MockTransport(handler), **kw),
     )
 
 

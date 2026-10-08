@@ -103,7 +103,7 @@ def _artwork_bytes(root: Path, relpath: str | None) -> bytes | None:
     """Local corpus-art file bytes for a catalog image relpath (episode/show art)."""
     if not relpath:
         return None
-    from podcast_scraper.server.app_artwork import safe_artwork_target
+    from podcast_scraper.server.artwork import safe_artwork_target
 
     target = safe_artwork_target(root, relpath)
     return _asset_bytes(target) if target else None
@@ -137,8 +137,8 @@ def _people(names: list[str], cap: int = 2) -> str:
 
 def _episode_roster(root: Path, row: object) -> tuple[list[str], list[str], list[str]]:
     """(hosts, guests, topic-labels) named on an episode, from its KG."""
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_kg_view import entities_from_kg
+    from podcast_scraper.server.corpus_access import load_json_artifact
+    from podcast_scraper.server.kg_view import entities_from_kg
 
     rel = getattr(row, "kg_relative_path", None)
     if not rel:
@@ -155,8 +155,8 @@ def _show_signals(root: Path, feed_id: str, rows: list) -> tuple[str | None, lis
     top topics are what the show is most ABOUT per our KG — the value-add over the feed's blurb."""
     from collections import Counter
 
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_kg_view import entities_from_kg
+    from podcast_scraper.server.corpus_access import load_json_artifact
+    from podcast_scraper.server.kg_view import entities_from_kg
 
     hosts: Counter[str] = Counter()
     topics: Counter[str] = Counter()
@@ -194,7 +194,7 @@ def _trend(
 # Per-kind builders.
 # --------------------------------------------------------------------------- #
 def _topic(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
-    from podcast_scraper.server.app_relational_view import (
+    from podcast_scraper.server.relational_view import (
         build_topic_card,
         build_topic_perspectives,
     )
@@ -232,8 +232,8 @@ def _topic(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
 
 
 def _person(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
-    from podcast_scraper.server.app_relational_view import build_person_card
+    from podcast_scraper.server.catalog_cache import cached_catalog
+    from podcast_scraper.server.relational_view import build_person_card
 
     card = build_person_card(root, ident)
     if card is None:
@@ -318,7 +318,7 @@ def _image_credit(kind: str, artist: str | None, license_: str | None) -> str | 
 
 
 def _feed_artwork(root: Path, feed_id: str) -> bytes | None:
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
+    from podcast_scraper.server.catalog_cache import cached_catalog
     from podcast_scraper.server.corpus_catalog import aggregate_feeds
 
     feeds = aggregate_feeds(cached_catalog(root))
@@ -333,7 +333,7 @@ def _show_tiles(root: Path, card: object) -> tuple[bytes, ...]:
     middle of the card was otherwise empty (operator 2026-10-05)."""
     from typing import Any
 
-    from podcast_scraper.server.app_slugs import resolve_slug
+    from podcast_scraper.server.slugs import resolve_slug
 
     by_feed: dict[str, Any] = {}
     for e in getattr(card, "episodes", None) or []:
@@ -357,7 +357,7 @@ def _person_photo(root: Path, person_id: str) -> bytes | None:
 
 
 def _org(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
-    from podcast_scraper.server.app_relational_view import build_org_card
+    from podcast_scraper.server.relational_view import build_org_card
 
     card = build_org_card(root, ident)
     if card is None:
@@ -390,7 +390,7 @@ def _org_logo(root: Path, org_id: str) -> bytes | None:
 def _storyline(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
     # A storyline IS its anchor topic's theme cluster (same as StorylineView): topics discussed
     # together. The card explains that (byline), shows WHICH topics (blurb) + how big + the trend.
-    from podcast_scraper.server.app_relational_view import build_topic_card
+    from podcast_scraper.server.relational_view import build_topic_card
 
     if not groupings.available():
         return None  # no storylines installed: a topic card under a "Storyline" kicker would lie
@@ -423,7 +423,7 @@ def _theme(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
     # A theme (`tc:`) groups topics that MEAN the same thing (operator 2026-10-05: a first-class
     # kind like the chips, so it shares as itself, not as a topic). Same KPI-tile layout as a
     # storyline: which topics (blurb), how big (stats), and the trend when it is rising.
-    from podcast_scraper.server.app_relational_view import build_theme_card
+    from podcast_scraper.server.relational_view import build_theme_card
 
     card = build_theme_card(root, ident)
     if card is None:
@@ -449,9 +449,9 @@ def _theme(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
 
 
 def _episode(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
-    from podcast_scraper.server.app_corpus_access import load_json_artifact
-    from podcast_scraper.server.app_gi_view import insights_from_gi
-    from podcast_scraper.server.app_slugs import resolve_slug
+    from podcast_scraper.server.corpus_access import load_json_artifact
+    from podcast_scraper.server.gi_view import insights_from_gi
+    from podcast_scraper.server.slugs import resolve_slug
 
     row = resolve_slug(root, ident)
     if row is None:
@@ -523,7 +523,7 @@ def build_highlight_card(
     Not an OG card: a highlight is private, so this is served signed-in, never unfurled. ``None``
     when the episode has left the corpus.
     """
-    from podcast_scraper.server.app_slugs import resolve_slug
+    from podcast_scraper.server.slugs import resolve_slug
 
     row = resolve_slug(root, str(highlight.get("episode_slug") or ""))
     if row is None:
@@ -574,7 +574,7 @@ def _published(publish_date: str | None) -> str | None:
 
 
 def _show(root: Path, ident: str, with_art: bool = True) -> OgCardModel | None:
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
+    from podcast_scraper.server.catalog_cache import cached_catalog
     from podcast_scraper.server.corpus_catalog import aggregate_feeds
 
     rows = cached_catalog(root)

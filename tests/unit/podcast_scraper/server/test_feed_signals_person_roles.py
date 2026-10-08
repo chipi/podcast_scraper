@@ -11,7 +11,7 @@ cut is what makes the badge meaningful.
 
 from __future__ import annotations
 
-from podcast_scraper.server.feed_signals import _accumulate_kg_entities, _aggregate_role
+from podcast_scraper.server.feed_signals import _accumulate_kg_entities, aggregate_role
 
 
 def _person(pid: str, name: str, role: str | None) -> dict:
@@ -36,7 +36,7 @@ def test_roles_are_collected_per_episode_and_aggregated_to_the_strongest() -> No
     _accumulate_kg_entities(_kg(_person("person:ada", "Ada", "host")), "e2", {}, person_eps, roles)
 
     assert sorted(roles["person:ada"]) == ["host", "mentioned"]
-    assert _aggregate_role(roles["person:ada"]) == "host"
+    assert aggregate_role(roles["person:ada"]) == "host"
 
 
 def test_a_roleless_person_stays_in_the_payload_unbadged() -> None:
@@ -49,7 +49,7 @@ def test_a_roleless_person_stays_in_the_payload_unbadged() -> None:
 
     assert "person:nora" in person_eps
     assert roles.get("person:nora") is None
-    assert _aggregate_role([]) is None
+    assert aggregate_role([]) is None
 
 
 def test_role_outranks_episode_count_in_the_ordering() -> None:

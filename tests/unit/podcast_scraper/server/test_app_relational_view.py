@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`podcast_scraper.server.app_relational_view` (#1095/#1096/#1097).
+"""Unit tests for :mod:`podcast_scraper.server.relational_view` (#1095/#1096/#1097).
 
 Exercise the KG-grounded person/topic card projections and the entity resolver directly
 against a tiny on-disk fixture corpus (no TestClient) so the corpus-scan + co-occurrence
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.server.app_relational_view import (
+from podcast_scraper.server.relational_view import (
     _storyline_ref_by_norm_at,
     build_org_card,
     build_person_card,
@@ -668,7 +668,7 @@ class TestRankingProjection:
     """ADR-135/#1191: _node_to_app_insight carries ranking fields; _rank_for_display orders them."""
 
     def test_node_to_app_insight_carries_ranking_fields(self) -> None:
-        from podcast_scraper.server.app_relational_view import _node_to_app_insight
+        from podcast_scraper.server.relational_view import _node_to_app_insight
 
         node = {
             "id": "insight:1",
@@ -684,7 +684,7 @@ class TestRankingProjection:
         assert (ins.salience, ins.rank, ins.routing_tag, ins.tier) == (0.82, 1, "surface", 3)
 
     def test_node_to_app_insight_missing_fields_default_none(self) -> None:
-        from podcast_scraper.server.app_relational_view import _node_to_app_insight
+        from podcast_scraper.server.relational_view import _node_to_app_insight
 
         ins = _node_to_app_insight({"id": "insight:1", "properties": {"text": "x"}})
         assert (ins.salience, ins.rank, ins.routing_tag, ins.tier) == (None, None, None, None)
@@ -693,7 +693,7 @@ class TestRankingProjection:
 
     def test_node_to_app_insight_maps_episode_slug_and_start_ms(self) -> None:
         """#2032 — annotated episode id + quote start become episode_slug (via map) + start_ms."""
-        from podcast_scraper.server.app_relational_view import _node_to_app_insight
+        from podcast_scraper.server.relational_view import _node_to_app_insight
 
         node = {
             "id": "insight:1",
@@ -709,7 +709,7 @@ class TestRankingProjection:
         assert _node_to_app_insight(bare, {"e": "s"}).start_ms is None
 
     def test_rank_for_display_sorts_desc_and_drops_drop_tagged(self) -> None:
-        from podcast_scraper.server.app_relational_view import (
+        from podcast_scraper.server.relational_view import (
             _node_to_app_insight,
             _rank_for_display,
         )
@@ -723,7 +723,7 @@ class TestRankingProjection:
         assert [i.id for i in out] == ["b", "a"]  # c dropped despite highest salience
 
     def test_rank_for_display_stable_for_missing_salience(self) -> None:
-        from podcast_scraper.server.app_relational_view import (
+        from podcast_scraper.server.relational_view import (
             _node_to_app_insight,
             _rank_for_display,
         )
@@ -768,7 +768,7 @@ class TestThemeCardMergesAcrossItsMembers:
         hand-authored `tc:show-themes` hid this by bundling eight unrelated topics, which made the
         merge look dramatic (84 -> 40) for a grouping that should never have existed.
         """
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         card = build_theme_card(self.FIXTURE, "tc:macroeconomics")
         assert card is not None
@@ -789,14 +789,14 @@ class TestThemeCardMergesAcrossItsMembers:
         )
 
     def test_episode_count_matches_the_list_it_describes(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         card = build_theme_card(self.FIXTURE, self.THEME)
         assert card is not None
         assert card.episode_count == len(card.episodes)
 
     def test_episodes_are_distinct(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         card = build_theme_card(self.FIXTURE, self.THEME)
         assert card is not None
@@ -807,7 +807,7 @@ class TestThemeCardMergesAcrossItsMembers:
 
     def test_members_are_ordered_by_corpus_weight(self) -> None:
         """First row is the member a reader is most likely to recognise."""
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         card = build_theme_card(self.FIXTURE, self.THEME)
         assert card is not None
@@ -818,20 +818,20 @@ class TestThemeCardMergesAcrossItsMembers:
         assert counts == sorted(counts, reverse=True), f"members out of order: {counts}"
 
     def test_carries_the_canonical_label_not_the_slug(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         card = build_theme_card(self.FIXTURE, self.THEME)
         assert card is not None
         assert card.label and card.label != card.id
 
     def test_unknown_theme_is_none_so_the_route_404s(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         assert build_theme_card(self.FIXTURE, "tc:no-such-theme") is None
 
     def test_a_topic_id_is_not_a_theme(self) -> None:
         """Passing a `topic:` id must not accidentally build a one-member theme."""
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         assert build_theme_card(self.FIXTURE, "topic:risk-management") is None
 
@@ -854,7 +854,7 @@ class TestStorylineCardMergesToo:
             pytest.skip(f"fixture corpus missing: {self.FIXTURE}")
 
     def test_union_beats_the_anchor_the_page_used_to_show(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_storyline_card
+        from podcast_scraper.server.relational_view import build_storyline_card
 
         card = build_storyline_card(self.FIXTURE, self.STORYLINE)
         anchor = build_topic_card(self.FIXTURE, self.ANCHOR)
@@ -866,7 +866,7 @@ class TestStorylineCardMergesToo:
 
     def test_resolves_from_an_anchor_topic_id_too(self) -> None:
         """`/storyline/:id` routes by anchor topic, so the endpoint must accept one."""
-        from podcast_scraper.server.app_relational_view import build_storyline_card
+        from podcast_scraper.server.relational_view import build_storyline_card
 
         by_cluster = build_storyline_card(self.FIXTURE, self.STORYLINE)
         by_anchor = build_storyline_card(self.FIXTURE, self.ANCHOR)
@@ -876,7 +876,7 @@ class TestStorylineCardMergesToo:
         assert [m.id for m in by_anchor.member_topics] == [m.id for m in by_cluster.member_topics]
 
     def test_episodes_are_distinct(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_storyline_card
+        from podcast_scraper.server.relational_view import build_storyline_card
 
         card = build_storyline_card(self.FIXTURE, self.STORYLINE)
         assert card is not None
@@ -884,14 +884,14 @@ class TestStorylineCardMergesToo:
         assert len(slugs) == len(set(slugs))
 
     def test_unknown_ids_are_none(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_storyline_card
+        from podcast_scraper.server.relational_view import build_storyline_card
 
         assert build_storyline_card(self.FIXTURE, "thc:no-such-storyline") is None
         assert build_storyline_card(self.FIXTURE, "topic:not-in-any-storyline") is None
 
     def test_a_theme_and_a_storyline_do_not_collide(self) -> None:
         """Both builders read maps keyed by topic; a `tc:` id must not resolve as a storyline."""
-        from podcast_scraper.server.app_relational_view import (
+        from podcast_scraper.server.relational_view import (
             build_storyline_card,
             build_theme_card,
         )
@@ -917,7 +917,7 @@ class TestWhatHoldsAStorylineTogether:
             pytest.skip(f"fixture corpus missing: {self.FIXTURE}")
 
     def test_members_carry_their_own_episode_count(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_storyline_card
+        from podcast_scraper.server.relational_view import build_storyline_card
 
         card = build_storyline_card(self.FIXTURE, self.STORYLINE)
         assert card is not None
@@ -928,7 +928,7 @@ class TestWhatHoldsAStorylineTogether:
         )
 
     def test_exactly_one_anchor_and_it_leads(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_storyline_card
+        from podcast_scraper.server.relational_view import build_storyline_card
 
         card = build_storyline_card(self.FIXTURE, self.STORYLINE)
         assert card is not None
@@ -941,7 +941,7 @@ class TestWhatHoldsAStorylineTogether:
         check is that the anchor is the highest-lift member rather than the biggest — they happen
         to coincide here, and the tie-break below is where the two genuinely differ."""
         from podcast_scraper.search.storylines import storyline_member_lift
-        from podcast_scraper.server.app_relational_view import build_storyline_card
+        from podcast_scraper.server.relational_view import build_storyline_card
 
         card = build_storyline_card(self.FIXTURE, self.STORYLINE)
         lift = storyline_member_lift(self.FIXTURE)[self.STORYLINE]
@@ -967,7 +967,7 @@ class TestWhatHoldsAStorylineTogether:
         go stale the way the tie did.
         """
         from podcast_scraper.search.storylines import storyline_member_lift
-        from podcast_scraper.server.app_relational_view import build_storyline_card
+        from podcast_scraper.server.relational_view import build_storyline_card
 
         card = build_storyline_card(self.FIXTURE, self.STORYLINE)
         lift = storyline_member_lift(self.FIXTURE)[self.STORYLINE]
@@ -994,7 +994,7 @@ class TestWhatHoldsAStorylineTogether:
         )
 
     def test_strongest_pair_is_the_storylines_evidence(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_storyline_card
+        from podcast_scraper.server.relational_view import build_storyline_card
 
         card = build_storyline_card(self.FIXTURE, self.STORYLINE)
         assert card is not None and card.strongest_pair is not None
@@ -1008,7 +1008,7 @@ class TestWhatHoldsAStorylineTogether:
     def test_a_theme_gets_neither_anchor_nor_pair(self) -> None:
         """The divergence, asserted. "Means the same thing" is symmetric: no centre, no pair
         claim. Flagging one member or printing a pair would both say something a theme does not."""
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         card = build_theme_card(self.FIXTURE, self.THEME)
         assert card is not None
@@ -1047,7 +1047,7 @@ class TestAGroupingMovesOverTime:
         between the two is the member ORDERING (storylines have lift, themes do not), which this
         test does not touch.
         """
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         card = build_theme_card(self.FIXTURE, "tc:macroeconomics")
         assert card is not None
@@ -1069,7 +1069,7 @@ class TestAGroupingMovesOverTime:
         bundled one lead topic per show, so it had members from every corner of the corpus and
         trivially contained a late arrival. A real cluster has to earn one.
         """
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         card = build_theme_card(self.FIXTURE, "tc:macroeconomics")
         assert card is not None
@@ -1084,7 +1084,7 @@ class TestAGroupingMovesOverTime:
         assert arrival.first_seen > established.first_seen
 
     def test_every_member_reports_the_dates_behind_its_trend(self) -> None:
-        from podcast_scraper.server.app_relational_view import build_storyline_card
+        from podcast_scraper.server.relational_view import build_storyline_card
 
         card = build_storyline_card(self.FIXTURE, "thc:managing-risk")
         assert card is not None
@@ -1094,7 +1094,7 @@ class TestAGroupingMovesOverTime:
 
     def test_steady_is_the_default_so_badges_stay_rare(self) -> None:
         """A badge on every row is a badge that says nothing."""
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         card = build_theme_card(self.FIXTURE, "tc:safety-practices")
         assert card is not None
@@ -1111,7 +1111,7 @@ class TestAGroupingMovesOverTime:
         by checking that the earliest-starting member is NOT called new — under a fixed recent
         window on this corpus (which runs to 2026) several members would be.
         """
-        from podcast_scraper.server.app_relational_view import build_theme_card
+        from podcast_scraper.server.relational_view import build_theme_card
 
         card = build_theme_card(self.FIXTURE, "tc:safety-practices")
         assert card is not None
@@ -1120,7 +1120,7 @@ class TestAGroupingMovesOverTime:
 
     def test_a_grouping_reports_what_is_said_across_its_members(self) -> None:
         """The union, not one member — that is what makes it the GROUPING's perspectives."""
-        from podcast_scraper.server.app_relational_view import build_cluster_perspectives
+        from podcast_scraper.server.relational_view import build_cluster_perspectives
 
         theme = build_cluster_perspectives(self.FIXTURE, "tc:safety-practices", "theme")
         assert theme is not None
@@ -1134,7 +1134,7 @@ class TestAGroupingMovesOverTime:
 
     def test_the_union_is_wider_than_any_single_member(self) -> None:
         """A grouping's speakers are the ones across it, not the biggest member's."""
-        from podcast_scraper.server.app_relational_view import (
+        from podcast_scraper.server.relational_view import (
             build_cluster_perspectives,
             build_topic_perspectives,
         )
@@ -1156,7 +1156,7 @@ class TestAGroupingMovesOverTime:
         Resolving against the theme map first served a storyline page the THEME's speakers — the
         grouping was wrong while the page looked entirely healthy.
         """
-        from podcast_scraper.server.app_relational_view import build_cluster_perspectives
+        from podcast_scraper.server.relational_view import build_cluster_perspectives
 
         as_storyline = build_cluster_perspectives(
             self.FIXTURE, "topic:risk-management", "storyline"
@@ -1168,7 +1168,7 @@ class TestAGroupingMovesOverTime:
 
     def test_a_grouping_nobody_speaks_to_is_absent_not_empty(self) -> None:
         """Its members are abstract labels nobody says aloud; the page shows nothing."""
-        from podcast_scraper.server.app_relational_view import build_cluster_perspectives
+        from podcast_scraper.server.relational_view import build_cluster_perspectives
 
         assert build_cluster_perspectives(self.FIXTURE, "tc:lifelong-learning", "theme") is None
         assert build_cluster_perspectives(self.FIXTURE, "tc:nope", "theme") is None

@@ -1306,7 +1306,7 @@ class TestBothGraphLayersAreConsulted:
         KG-only answer and look healthy — the same trap as `_transcript_opening` resolving 0/36
         openings and printing a 0.0% defect rate.
         """
-        from podcast_scraper.server.app_corpus_access import load_json_artifact
+        from podcast_scraper.server.corpus_access import load_json_artifact
         from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
 
         rows = build_catalog_rows_cumulative(CORPUS)

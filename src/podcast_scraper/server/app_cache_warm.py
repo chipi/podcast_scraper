@@ -69,9 +69,9 @@ def warm_caches(root: Path) -> None:
     not skip the rest. Imports are local so a warm never drags card/relational modules into a
     caller that would not otherwise need them.
     """
-    from podcast_scraper.server.app_catalog_cache import cached_catalog
-    from podcast_scraper.server.app_kg_index import get_kg_index
-    from podcast_scraper.server.app_slugs import resolve_slug
+    from podcast_scraper.server.catalog_cache import cached_catalog
+    from podcast_scraper.server.kg_index import get_kg_index
+    from podcast_scraper.server.slugs import resolve_slug
 
     steps = (
         ("catalog", lambda: cached_catalog(root)),

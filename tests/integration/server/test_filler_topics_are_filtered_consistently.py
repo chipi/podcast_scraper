@@ -43,7 +43,7 @@ def test_the_enrichment_loader_drops_filler() -> None:
 
 def test_the_kg_read_path_drops_the_same_filler() -> None:
     """Episode topic chips, followable interests, discover ranking, digest sections."""
-    from podcast_scraper.server.app_kg_view import entities_from_kg
+    from podcast_scraper.server.kg_view import entities_from_kg
 
     _persons, _orgs, topics = entities_from_kg(_kg())
     assert [t.id for t in topics] == [_REAL_ID], (
@@ -69,8 +69,8 @@ def test_show_signals_drop_the_same_filler() -> None:
 def test_all_three_chokepoints_agree() -> None:
     """The invariant itself, stated once: same input, same verdict, everywhere."""
     from podcast_scraper.enrichment.enrichers._loaders import topic_nodes
-    from podcast_scraper.server.app_kg_view import entities_from_kg
     from podcast_scraper.server.feed_signals import _accumulate_kg_entities
+    from podcast_scraper.server.kg_view import entities_from_kg
 
     kg = _kg()
     topic_eps: dict[str, tuple[str, set[str]]] = {}

@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
-from podcast_scraper.server.app_catalog_cache import cached_catalog, cached_catalog_last_run
+from podcast_scraper.server.catalog_cache import cached_catalog, cached_catalog_last_run
 from podcast_scraper.server.cil_digest_topics import (
     build_cil_digest_topics_for_row,
     load_topic_cluster_index,
@@ -516,7 +516,7 @@ def _read_transcript_relative_path(
     episode's metadata JSON, or ``None`` when the field is absent.
 
     Reads ``content.transcript_file_path`` first (canonical, matches
-    ``search/indexer.py`` and ``app_content_source.py``) and falls back
+    ``search/indexer.py`` and ``content_source.py``) and falls back
     to ``content.transcript_file`` for legacy metadata. Read errors and
     JSON parse errors return ``None`` — an absent transcript reference
     is expected on episodes ingested by a summary-only path.

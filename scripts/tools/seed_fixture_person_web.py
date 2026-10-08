@@ -193,7 +193,7 @@ def main() -> None:
             }
         )
 
-    # The executor's envelope — the reader unwraps `data` (app_relational_view._person_web_payload).
+    # The executor's envelope — the reader unwraps `data` (relational_view._person_web_payload).
     artifact = {
         "derived": True,
         "status": "ok",

@@ -141,8 +141,8 @@ def episode_speaker_roster(ctx: CorpusContext, metadata_path: str) -> Dict[str, 
     returning it here put a second, contradictory answer to "who spoke" in front of the caller.
     Distinct from ``who_said_about_topic`` / ``person_positions`` (knowledge-graph person queries).
     """
-    from ...server.app_content_source import transcript_corpus_relpath, transcript_relpath
-    from ...server.app_corpus_access import load_json_artifact
+    from ...server.content_source import transcript_corpus_relpath, transcript_relpath
+    from ...server.corpus_access import load_json_artifact
 
     root = Path(ctx.corpus_dir)
     meta = load_json_artifact(root, metadata_path)

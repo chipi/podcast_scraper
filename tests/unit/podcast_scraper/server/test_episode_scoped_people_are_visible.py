@@ -33,7 +33,7 @@ from typing import Any, Dict
 
 import pytest
 
-from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.kg_view import entities_from_kg
 
 pytestmark = pytest.mark.unit
 

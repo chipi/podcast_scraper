@@ -169,6 +169,9 @@ class Extension:
     job_kinds: Mapping[str, JobRunner] = field(default_factory=dict)
     cli_commands: Mapping[str, CliCommand] = field(default_factory=dict)
     engagement_series: EngagementSeries | None = None
+    #: Sign-in providers by name (``APP_OAUTH_PROVIDER`` / ``APP_OAUTH_PROVIDERS``), each built
+    #: from its own env: ``() -> OAuthProvider | None``.
+    oauth_providers: Mapping[str, Callable[[], Any]] = field(default_factory=dict)
 
 
 _override: list[Extension] | None = None

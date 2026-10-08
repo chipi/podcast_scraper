@@ -212,7 +212,7 @@ class TestReplaceDoesNotDamageWhatItRebuilds:
         assert node["properties"].get("role") == "guest"
 
     def test_the_quote_property_is_rewritten_too(self) -> None:
-        # THE ONE THAT MAKES THE PASS POINTLESS. `app_gi_view` resolves a quote's speaker as
+        # THE ONE THAT MAKES THE PASS POINTLESS. `gi_view` resolves a quote's speaker as
         # `speaker_name` or the quote's own `speaker_id` BEFORE the SPOKEN_BY edge, so rewriting
         # edges alone leaves the panel showing exactly the name the operator complained about.
         transcript, art = self._artifact_with_a_correct_person()

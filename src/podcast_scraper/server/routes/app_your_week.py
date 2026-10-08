@@ -20,13 +20,13 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from podcast_scraper.server import app_artwork, app_digest_personal, app_user_state
-from podcast_scraper.server.app_catalog_cache import cached_catalog_last_run
-from podcast_scraper.server.app_slugs import episode_slug
+from podcast_scraper.server import app_digest_personal, app_user_state, artwork
 from podcast_scraper.server.app_user_store import User
+from podcast_scraper.server.catalog_cache import cached_catalog_last_run
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import YourWeekResponse
+from podcast_scraper.server.slugs import episode_slug
 
 router = APIRouter(tags=["app"])
 
@@ -63,9 +63,9 @@ def _image_for(row: CatalogEpisodeRow) -> str | None:
     """Best card artwork for an episode row: the episode's own art (served-local, else remote),
     falling back to the show's. Local paths become the /api/app/artwork thumb URL."""
     return (
-        app_artwork.artwork_url(row.episode_image_local_relpath, "thumb")
+        artwork.artwork_url(row.episode_image_local_relpath, "thumb")
         or row.episode_image_url
-        or app_artwork.artwork_url(row.feed_image_local_relpath, "thumb")
+        or artwork.artwork_url(row.feed_image_local_relpath, "thumb")
         or row.feed_image_url
     )
 

@@ -12,7 +12,7 @@ then reads only the episodes an entity is in — O(matches) not O(corpus) — wi
 
 The one full KG pass is paid by the first card request after an ingest (the same parse cost one card
 paid before), then amortized to zero until the next ingest. Entities are shared read-only, the same
-convention as :func:`app_catalog_cache.cached_catalog`.
+convention as :func:`catalog_cache.cached_catalog`.
 """
 
 from __future__ import annotations
@@ -25,10 +25,10 @@ from pathlib import Path
 from typing import Iterator, NamedTuple, Sequence
 
 from podcast_scraper import perf_cache
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_corpus_access import load_json_artifact
-from podcast_scraper.server.app_kg_view import entities_from_kg
+from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.corpus_access import load_json_artifact
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
+from podcast_scraper.server.kg_view import entities_from_kg
 from podcast_scraper.server.schemas import AppEntity, AppEntityRef, AppTopic
 
 _INDEX_NS = "app_kg_entity_index"

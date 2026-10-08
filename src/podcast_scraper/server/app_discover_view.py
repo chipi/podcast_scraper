@@ -22,9 +22,6 @@ from typing import Any, Iterable, Sequence
 
 from podcast_scraper.search.storylines import storyline_map_by_topic
 from podcast_scraper.search.topic_clusters import theme_map_by_topic
-from podcast_scraper.server.app_content_source import row_to_summary
-from podcast_scraper.server.app_corpus_access import load_json_artifact
-from podcast_scraper.server.app_kg_view import entities_from_kg
 from podcast_scraper.server.app_ranking_config import (
     DEFAULT_RANKING_CONFIG,
     RankingConfig,
@@ -34,7 +31,10 @@ from podcast_scraper.server.app_ranking_config import (
     SIGNAL_SIGNIFICANCE,
     SIGNAL_TREND_VELOCITY,
 )
+from podcast_scraper.server.content_source import row_to_summary
+from podcast_scraper.server.corpus_access import load_json_artifact
 from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
+from podcast_scraper.server.kg_view import entities_from_kg
 from podcast_scraper.server.schemas import AppEpisodeSummary
 
 # The temporal_velocity enricher envelope (corpus scope) — topic momentum for the trend signal.

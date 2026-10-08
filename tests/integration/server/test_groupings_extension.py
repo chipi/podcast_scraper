@@ -178,7 +178,7 @@ def test_the_storyline_share_card_exists_only_with_storylines() -> None:
 
 
 def test_share_cards_take_their_trend_and_photo_from_an_extension(tmp_path: Path) -> None:
-    from podcast_scraper.server.app_kg_index import build_kg_index
+    from podcast_scraper.server.kg_index import build_kg_index
     from podcast_scraper.server.og.build import _person_photo, _trend
 
     topic_id = next(iter(build_kg_index(_CORPUS).topic_to_eps))

@@ -104,8 +104,8 @@ def _personalized_corpus(root: Path) -> None:
 
 
 def _slug(root: Path, eid: str) -> str:
-    from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+    from podcast_scraper.server.slugs import slug_for_row
 
     for row in build_catalog_rows_cumulative(root):
         if row.episode_id == eid:

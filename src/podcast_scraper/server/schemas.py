@@ -3325,7 +3325,7 @@ class FeedSignalPerson(BaseModel):
         default=None,
         description=(
             "Strongest speaker role across this show's episodes — host > guest > mentioned, the "
-            "same precedence `_aggregate_role` applies on the person card. None when no episode "
+            "same precedence `aggregate_role` applies on the person card. None when no episode "
             "node carried a role, which is how older KGs degrade: the chip renders unbadged rather "
             "than claiming a 'mentioned' it cannot support."
         ),

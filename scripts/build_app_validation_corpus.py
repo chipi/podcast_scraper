@@ -15,7 +15,7 @@ It REUSES the viewer generator's proven construction helpers (``build_gi``,
 ``read_transcript_excerpts``, ``slug``, ``stable_feed_id``,
 ``parse_rss_feed_metadata``) so the GI/KG artifacts can't drift from what the
 backend readers expect — exactly the same artifact shapes the viewer corpus
-uses (``app_gi_view`` / ``app_kg_view`` read them defensively).
+uses (``gi_view`` / ``kg_view`` read them defensively).
 
 It differs from the viewer corpus only in the *on-disk layout* and the *extra
 fields the consumer readers require*, derived from studying the consumer readers:
@@ -28,7 +28,7 @@ fields the consumer readers require*, derived from studying the consumer readers
   ``iter_cil_episode_bundles`` pairs with the GI so the #1146 perspectives
   surface reads real speaker-attributed insights (see ``_bridge_from_gi``).
 * ``metadata.content.transcript_file_path`` stored **run-relative**
-  (``transcripts/<ep>.txt``) — ``app_content_source.transcript_corpus_relpath``
+  (``transcripts/<ep>.txt``) — ``content_source.transcript_corpus_relpath``
   joins it onto the run dir.
 * RAW canonical ``<ep>.segments.json`` (NOT ``.adfree.segments.json``) — the
   consumer player streams the original audio, so ``segments_view`` prefers raw.
@@ -1307,7 +1307,7 @@ def _enrich_kg_with_people(kg: dict[str, Any], roster: list[dict[str, str]]) -> 
     """Add Person nodes (+ episode→person edges) to a ``build_kg`` artifact in place.
 
     The viewer ``build_kg`` emits only Topic/Entity nodes, so the consumer entity-card
-    *people* surface (``app_kg_view.entities_from_kg`` reads Person nodes from the KG)
+    *people* surface (``kg_view.entities_from_kg`` reads Person nodes from the KG)
     would be empty. The real people are in the diarized roster (host/guest), so we add a
     ``Person`` node per roster speaker and a ``MENTIONS`` edge from the episode node —
     keeping the artifact shape identical to a real reprocessed KG (which carries people).

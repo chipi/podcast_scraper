@@ -33,9 +33,9 @@ from podcast_scraper.server.app_capture_export import (
     format_note,
     public_origin,
 )
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.atomic_write import atomic_write_text
+from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.slugs import slug_for_row
 
 _ROOT = "closelistening"
 

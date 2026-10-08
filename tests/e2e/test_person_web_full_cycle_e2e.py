@@ -26,7 +26,7 @@ from podcast_scraper.enrichment.enrichers.person_web import (
     WikipediaProvider,
 )
 from podcast_scraper.enrichment.protocol import EpisodeArtifactBundle, RunContext
-from podcast_scraper.server.app_relational_view import build_person_card
+from podcast_scraper.server.relational_view import build_person_card
 
 pytestmark = pytest.mark.e2e
 

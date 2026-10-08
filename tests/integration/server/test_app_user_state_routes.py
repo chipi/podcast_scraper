@@ -240,8 +240,8 @@ def _write_kg_episode(root: Path, *, stem: str, episode_id: str) -> None:
 
 
 def test_favorites_roundtrip_hydrated(tmp_path: Path) -> None:
-    from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+    from podcast_scraper.server.slugs import slug_for_row
 
     _write_kg_episode(tmp_path, stem="0001-hello", episode_id="ep1")
     slug = slug_for_row(build_catalog_rows_cumulative(tmp_path)[0])

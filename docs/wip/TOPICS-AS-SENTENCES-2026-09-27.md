@@ -25,7 +25,7 @@ Those are the **insight texts**. They appear verbatim as insights in the same pa
 insight sentences as `Topic` nodes.
 
 `is_filler_topic` then rejects all ten on `_TOPIC_MAX_RAW_WORDS`
-(`app_kg_view.py:107`, the same predicate the corpus enrichers apply), which is **correct** — a
+(`kg_view.py:107`, the same predicate the corpus enrichers apply), which is **correct** — a
 35-word sentence is not a topic, must not become a followable interest, and must not become a
 discover signal. The chip row is empty because there was nothing legitimate to put in it.
 

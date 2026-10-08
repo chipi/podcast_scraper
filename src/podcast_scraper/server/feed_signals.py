@@ -25,16 +25,16 @@ from podcast_scraper.enrichment.enrichers._loaders import (
     nodes_of_type,
 )
 from podcast_scraper.kg.filters import is_filler_topic
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_corpus_access import cached_json_artifact
-
-# The episode card's role extractor and precedence, reused rather than re-implemented: the show
-# page and the episode card must not be able to disagree about what "host" means.
-from podcast_scraper.server.app_kg_view import _role_of
-from podcast_scraper.server.app_relational_view import _aggregate_role, _ROLE_RANK
+from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.corpus_access import cached_json_artifact
 from podcast_scraper.server.corpus_catalog import (
     filter_rows,
 )
+
+# The episode card's role extractor and precedence, reused rather than re-implemented: the show
+# page and the episode card must not be able to disagree about what "host" means.
+from podcast_scraper.server.kg_view import role_of
+from podcast_scraper.server.relational_view import aggregate_role, ROLE_RANK
 from podcast_scraper.server.schemas import (
     CorpusFeedSignalsResponse,
     FeedConnectivity,
@@ -102,7 +102,7 @@ def person_sort_key(
     honest, a missing person is a silent loss.
     """
     name, eps = entry
-    return (-_ROLE_RANK.get(_aggregate_role(person_roles.get(pid, [])) or "", 0), -len(eps), name)
+    return (-ROLE_RANK.get(aggregate_role(person_roles.get(pid, [])) or "", 0), -len(eps), name)
 
 
 def _accumulate_kg_entities(
@@ -144,11 +144,11 @@ def _accumulate_kg_entities(
         eps.add(ep_key)
         # Collect the per-episode role so the show page can distinguish host / guest / mentioned
         # instead of listing everyone identically (operator 2026-09-27). Read with the SAME
-        # extractor the episode card uses (`_role_of`), so the two surfaces cannot drift on what a
+        # extractor the episode card uses (`role_of`), so the two surfaces cannot drift on what a
         # role is; aggregated to the strongest by the caller, because a person can host one episode
         # of a show and merely be mentioned in the next.
         if person_roles is not None:
-            role = _role_of(n.get("properties") or {})
+            role = role_of(n.get("properties") or {})
             if role:
                 person_roles.setdefault(pid, []).append(role)
 
@@ -497,7 +497,7 @@ def compute_feed_signals(
             person_id=pid,
             name=name,
             episode_count=len(eps),
-            role=_aggregate_role(person_roles.get(pid, [])),
+            role=aggregate_role(person_roles.get(pid, [])),
         )
         for pid, (name, eps) in sorted(
             person_eps.items(), key=lambda kv: person_sort_key(kv[0], kv[1], person_roles)

@@ -13,10 +13,10 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper.server import app_graph_refs
-from podcast_scraper.server.app_corpus_access import load_json_artifact
-from podcast_scraper.server.app_gi_view import insights_from_gi
-from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_corpus import user_episode_set
+from podcast_scraper.server.corpus_access import load_json_artifact
+from podcast_scraper.server.gi_view import insights_from_gi
+from podcast_scraper.server.slugs import resolve_slug
 
 # Bound the per-user episode scan so a large heard-set can't make a digest assemble slowly.
 _MAX_EPISODES_SCANNED = 50

@@ -18,9 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast, Optional, Protocol
 
-from podcast_scraper.server.app_artwork import artwork_url
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_slugs import slug_for_row
+from podcast_scraper.server.artwork import artwork_url
+from podcast_scraper.server.catalog_cache import cached_catalog
 from podcast_scraper.server.corpus_catalog import (
     _load_metadata_doc,
     CatalogEpisodeRow,
@@ -28,6 +27,7 @@ from podcast_scraper.server.corpus_catalog import (
     filter_rows,
 )
 from podcast_scraper.server.schemas import AppEpisodeSummary
+from podcast_scraper.server.slugs import slug_for_row
 
 #: Max bullets surfaced on a card's expand-on-demand insights view.
 _MAX_CARD_BULLETS = 8

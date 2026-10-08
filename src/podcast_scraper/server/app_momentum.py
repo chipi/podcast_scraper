@@ -23,10 +23,10 @@ from typing import Any
 from podcast_scraper import perf_cache
 from podcast_scraper.extensions import engagement_series
 from podcast_scraper.search.storylines import load_storylines_payload, storyline_anchor
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_corpus_access import cached_json_artifact
-from podcast_scraper.server.app_kg_index import get_kg_index
+from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.corpus_access import cached_json_artifact
 from podcast_scraper.server.corpus_catalog import aggregate_feeds
+from podcast_scraper.server.kg_index import get_kg_index
 
 logger = logging.getLogger(__name__)
 

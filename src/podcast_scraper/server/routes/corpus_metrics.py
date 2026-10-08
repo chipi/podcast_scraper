@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 
 from podcast_scraper import perf_cache
 from podcast_scraper.search.corpus_scope import normalize_feed_id
-from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.catalog_cache import cached_catalog
 from podcast_scraper.server.corpus_digest import load_digest_topics
 from podcast_scraper.server.pathutil import resolved_corpus_root_str
 from podcast_scraper.server.routes.corpus_library import _resolve_corpus_root

@@ -26,8 +26,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 from podcast_scraper.server import app_corpus_strength, app_user_corpus, app_user_state
-from podcast_scraper.server.app_catalog_cache import cached_catalog
-from podcast_scraper.server.app_slugs import slug_for_row
+from podcast_scraper.server.catalog_cache import cached_catalog
+from podcast_scraper.server.slugs import slug_for_row
 
 Window = Literal["week", "month", "year", "ytd"]
 
