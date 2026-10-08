@@ -11,6 +11,9 @@ import { getPodcasts } from '../services/api'
  * so an offline start does not pin the app to "monolingual" for the session.
  */
 const languages = ref<ReadonlySet<string> | null>(null)
+/** Each show's language, from the same catalogue fetch — Search's fallback for a result whose hits
+ *  carry none (only source-layer chunks of a translated episode do). */
+const byFeed = ref<ReadonlyMap<string, string>>(new Map())
 let pending: Promise<void> | null = null
 
 /** `en-US` / `EN` / ` en ` → `en`; empty or missing → null. */
@@ -24,10 +27,14 @@ function load(): void {
   pending = getPodcasts()
     .then((shows) => {
       const found = new Set<string>()
+      const feeds = new Map<string, string>()
       for (const show of shows) {
         const lang = primaryLanguage(show.language)
-        if (lang) found.add(lang)
+        if (!lang) continue
+        found.add(lang)
+        feeds.set(show.feed_id, lang)
       }
+      byFeed.value = feeds
       languages.value = found
     })
     .catch(() => undefined)
@@ -43,11 +50,14 @@ export function useCorpusLanguages() {
    *  gate on. Gating on `tag` alone left an empty row wherever the badge itself stays hidden. */
   const badgeShown = (tag: string | null | undefined): boolean =>
     multilingual.value && primaryLanguage(tag) !== null
-  return { multilingual, badgeShown }
+  const languageOfFeed = (feedId: unknown): string | null =>
+    typeof feedId === 'string' ? (byFeed.value.get(feedId) ?? null) : null
+  return { multilingual, badgeShown, languageOfFeed }
 }
 
 /** Test seam: forget the cached answer so each test starts from an unloaded catalogue. */
 export function resetCorpusLanguagesForTests(): void {
   languages.value = null
+  byFeed.value = new Map()
   pending = null
 }

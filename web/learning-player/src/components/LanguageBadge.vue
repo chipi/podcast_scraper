@@ -47,7 +47,7 @@ const name = computed(() => {
     class="inline-flex w-fit shrink-0 items-center rounded-[3px] border px-1 text-[10px] font-bold uppercase leading-4 tracking-wide"
     :class="
       overlay
-        ? 'border-white/25 bg-black/55 text-white shadow-lg backdrop-blur-sm'
+        ? 'border-white/25 bg-black/55 text-white shadow-lg'
         : 'border-border text-muted'
     "
   >{{ code }}</span>

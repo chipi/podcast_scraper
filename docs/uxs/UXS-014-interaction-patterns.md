@@ -597,8 +597,9 @@ in the UI locale, so it follows the app when the UI is localized.
 
 **Known limits of the checks.** Revisit's group heading has no e2e: nothing is due until a capture
 is two days old, and backdating state would test the fixture — it shares Saved's component and
-adapter, which are covered. The over-artwork contrast check composites the plate over pure white
-and pure black but ignores the backdrop blur, so it bounds the worst case without modelling it.
+adapter, which are covered. The over-artwork plate is an opaque-enough `bg-black/55` with no
+backdrop blur (blur blanks regions in Android WebView); the contrast check composites it over pure
+white and pure black, the two extremes the artwork can present.
 
 ## Destructive confirmation (#1594)
 

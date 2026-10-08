@@ -13,6 +13,7 @@ import { noteRoute as resolveNoteRoute, noteTargetLabel } from "../composables/n
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
 import { getPodcastsPage, resolveEntity, searchCorpus } from "../services/api"
+import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import { resolveMediaUrl } from "../services/tier"
 import type { EntityRef, EpisodeSummary, Note, Podcast, SearchHit } from "../services/types"
 import { hitStartSeconds } from "../player/insights"
@@ -89,6 +90,7 @@ const ranTerm = ref("")
  */
 /** The matching shows — asked of the server per search since 2026-10-08 (same every-word rule). */
 const showMatches = ref<Podcast[]>([])
+const { languageOfFeed } = useCorpusLanguages()
 
 // USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
 // watch reacts when the payload arrives so the Save button flips to
@@ -230,7 +232,7 @@ function groupAsEpisode(g: EpisodeGroup): EpisodeSummary {
 function groupLanguage(g: EpisodeGroup, feedId: unknown): string | null {
   const fromHit = g.hits.map((h) => md(h).language).find((l): l is string => typeof l === "string" && !!l)
   if (fromHit) return fromHit
-  return catalogue.value.find((p) => p.feed_id === feedId)?.language ?? null
+  return languageOfFeed(feedId)
 }
 
 const md = (h: SearchHit) => h.metadata as Record<string, unknown>
