@@ -21,10 +21,10 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper import perf_cache
+from podcast_scraper.extensions import engagement_series
 from podcast_scraper.search.storylines import load_storylines_payload, storyline_anchor
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import cached_json_artifact
-from podcast_scraper.server.app_engagement_series import engagement_series
 from podcast_scraper.server.app_kg_index import get_kg_index
 from podcast_scraper.server.corpus_catalog import aggregate_feeds
 
@@ -359,10 +359,12 @@ def _add_cluster_series(
 def _engagement_weekly_by_entity(
     data_dir: Path | None, user_id: str | None
 ) -> dict[tuple[str, str], dict[str, int]]:
-    """``(kind, id)`` → weekly engagement counts from the engagement aggregator."""
-    if data_dir is None:
+    """``(kind, id)`` → weekly engagement counts from the installed engagement source (the player);
+    none installed means trending is content-only."""
+    source = engagement_series()
+    if data_dir is None or source is None:
         return {}
-    data = engagement_series(data_dir, user_id=user_id)
+    data = source(data_dir, user_id)
     return {
         (str(e["kind"]), str(e["entity_id"])): dict(e.get("weekly_counts") or {})
         for e in data.get("entities") or []

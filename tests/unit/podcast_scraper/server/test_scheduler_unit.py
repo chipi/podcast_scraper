@@ -214,7 +214,7 @@ def test_digest_spawn_calls_enqueue_due_digests(
     from types import SimpleNamespace
 
     from podcast_scraper.server import app_digest_personal, app_digest_recommendations
-    from podcast_scraper.server.scheduler import JOB_KIND_DIGEST, make_app_spawn_callback
+    from podcast_scraper.server.scheduler import make_app_spawn_callback
 
     calls: list[Path] = []
     rec_calls: list[Path] = []
@@ -232,7 +232,7 @@ def test_digest_spawn_calls_enqueue_due_digests(
     monkeypatch.setattr(app_digest_recommendations, "enqueue_due_recommendations", _fake_rec)
     app = SimpleNamespace(state=SimpleNamespace(app_data_dir=tmp_path / "appdata"))
     spawn = make_app_spawn_callback(app)
-    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", JOB_KIND_DIGEST)
+    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", "digest")
     assert calls == [tmp_path / "appdata"]
     assert rec_calls == [tmp_path / "appdata"]
 
@@ -250,7 +250,7 @@ def test_digest_spawn_drives_every_shared_enqueuer(
     from types import SimpleNamespace
 
     from podcast_scraper.server import app_digest_dispatch
-    from podcast_scraper.server.scheduler import JOB_KIND_DIGEST, make_app_spawn_callback
+    from podcast_scraper.server.scheduler import make_app_spawn_callback
 
     seen: list[str] = []
     for label, module_name, func_name in app_digest_dispatch.ENQUEUERS:
@@ -264,7 +264,7 @@ def test_digest_spawn_drives_every_shared_enqueuer(
 
     app = SimpleNamespace(state=SimpleNamespace(app_data_dir=tmp_path / "appdata"))
     spawn = make_app_spawn_callback(app)
-    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", JOB_KIND_DIGEST)
+    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", "digest")
 
     assert seen == [label for label, _, _ in app_digest_dispatch.ENQUEUERS]
 
@@ -277,7 +277,7 @@ def test_digest_spawn_survives_a_failing_enqueuer(
     from types import SimpleNamespace
 
     from podcast_scraper.server import app_digest_dispatch
-    from podcast_scraper.server.scheduler import JOB_KIND_DIGEST, make_app_spawn_callback
+    from podcast_scraper.server.scheduler import make_app_spawn_callback
 
     survived: list[str] = []
     for label, module_name, func_name in app_digest_dispatch.ENQUEUERS:
@@ -300,6 +300,6 @@ def test_digest_spawn_survives_a_failing_enqueuer(
 
     app = SimpleNamespace(state=SimpleNamespace(app_data_dir=tmp_path / "appdata"))
     spawn = make_app_spawn_callback(app)
-    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", JOB_KIND_DIGEST)  # no raise
+    spawn("weekly-digest", tmp_path / "corpus", tmp_path / "op.yaml", "digest")  # no raise
 
     assert survived == [label for label, _, _ in app_digest_dispatch.ENQUEUERS[1:]]

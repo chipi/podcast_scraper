@@ -56,6 +56,21 @@ AccountDeletedHook = Callable[[Path, "User"], dict[str, int]]
 #: or email link). An app records its own first-use state here.
 AccountCreatedHook = Callable[[Path, "User", str], None]
 
+#: ``(app)``. Runs once while the server app is built, after sign-in and the user data directory
+#: are configured and before it serves. Must not raise into startup.
+AppConfiguredHook = Callable[[Any], None]
+
+#: ``(app) -> stop | None``. Runs when the server starts serving; must not block or raise. The
+#: returned callable, if any, runs at shutdown.
+ServerStartedHook = Callable[[Any], "Callable[[], None] | None"]
+
+#: ``(job_name, corpus_root, app)``. Fires a scheduled job of a kind the extension owns.
+JobRunner = Callable[[str, Path, Any], None]
+
+#: ``(data_dir, user_id | None) -> {"entities": [{"kind", "entity_id", "weekly_counts"}]}``: what
+#: listeners did with each entity per week (saves, plays, opens, follows). Trending blends it in.
+EngagementSeries = Callable[[Path, "str | None"], dict[str, Any]]
+
 #: Modules that become private packages at the cutover, each exposing ``EXTENSION``.
 _IN_TREE: tuple[str, ...] = (
     "podcast_scraper.server.app_mcp_extension",
@@ -127,6 +142,15 @@ class ShareCardContribution:
 
 
 @dataclass(frozen=True)
+class CliCommand:
+    """A ``podcast_scraper <name>`` subcommand. ``parse(argv)`` returns the namespace (with
+    ``command`` set to the name); ``run(args, log)`` returns the exit code. Both import lazily."""
+
+    parse: Callable[[Sequence[str]], Any]
+    run: Callable[[Any, logging.Logger], int]
+
+
+@dataclass(frozen=True)
 class Extension:
     """What one installed package adds to the platform. Every part is optional."""
 
@@ -139,6 +163,12 @@ class Extension:
     #: Themes and storylines: the read side, the index rows, the builder and the search operators.
     groupings: TopicGroupings | None = None
     share_cards: ShareCardContribution | None = None
+    app_configured: Sequence[AppConfiguredHook] = field(default_factory=tuple)
+    server_started: Sequence[ServerStartedHook] = field(default_factory=tuple)
+    #: Scheduled-job kinds the extension runs, by the ``kind`` a ``scheduled_jobs:`` entry names.
+    job_kinds: Mapping[str, JobRunner] = field(default_factory=dict)
+    cli_commands: Mapping[str, CliCommand] = field(default_factory=dict)
+    engagement_series: EngagementSeries | None = None
 
 
 _override: list[Extension] | None = None
@@ -198,6 +228,55 @@ def share_card_contributions() -> list[ShareCardContribution]:
     return [ext.share_cards for ext in load_extensions() if ext.share_cards is not None]
 
 
+def cli_command(name: str) -> CliCommand | None:
+    """The installed subcommand called *name*, if any."""
+    for ext in load_extensions():
+        if name in ext.cli_commands:
+            return ext.cli_commands[name]
+    return None
+
+
+def job_runner(kind: str) -> JobRunner | None:
+    """The installed runner for scheduled jobs of *kind*, if any."""
+    for ext in load_extensions():
+        if kind in ext.job_kinds:
+            return ext.job_kinds[kind]
+    return None
+
+
+def engagement_series() -> EngagementSeries | None:
+    """The installed listener-engagement source, if any."""
+    for ext in load_extensions():
+        if ext.engagement_series is not None:
+            return ext.engagement_series
+    return None
+
+
+def run_app_configured(app: Any) -> None:
+    """Every extension's ``app_configured`` hook, in load order; a failing one is logged."""
+    for ext in load_extensions():
+        for hook in ext.app_configured:
+            try:
+                hook(app)
+            except Exception:  # noqa: BLE001 — an extension never breaks the platform's startup
+                logger.exception("extension %s: app_configured hook failed", ext.name)
+
+
+def run_server_started(app: Any) -> list[Callable[[], None]]:
+    """Every extension's ``server_started`` hook; returns the stop callables to run at shutdown."""
+    stops: list[Callable[[], None]] = []
+    for ext in load_extensions():
+        for hook in ext.server_started:
+            try:
+                stop = hook(app)
+            except Exception:  # noqa: BLE001 — an extension never breaks the platform's startup
+                logger.exception("extension %s: server_started hook failed", ext.name)
+                continue
+            if stop is not None:
+                stops.append(stop)
+    return stops
+
+
 def run_account_created(data_dir: Path, user: User, provider: str) -> None:
     """Every extension's ``account_created`` hook, in load order."""
     for ext in load_extensions():
@@ -220,6 +299,11 @@ def use_extensions(extensions: Sequence[Extension]) -> Iterator[None]:
 __all__ = [
     "AccountCreatedHook",
     "AccountDeletedHook",
+    "AppConfiguredHook",
+    "CliCommand",
+    "EngagementSeries",
+    "JobRunner",
+    "ServerStartedHook",
     "ENTRY_POINT_GROUP",
     "EnrichmentContribution",
     "Extension",
@@ -227,9 +311,14 @@ __all__ = [
     "Plane",
     "RouterMount",
     "ShareCardContribution",
+    "cli_command",
+    "engagement_series",
     "enrichment_contributions",
+    "job_runner",
     "load_extensions",
     "run_account_created",
+    "run_app_configured",
+    "run_server_started",
     "share_card_contributions",
     "use_extensions",
 ]

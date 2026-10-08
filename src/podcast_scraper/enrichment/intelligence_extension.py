@@ -14,7 +14,13 @@ import importlib
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
-from podcast_scraper.extensions import EnrichmentContribution, Extension, ShareCardContribution
+from podcast_scraper.extensions import (
+    CliCommand,
+    EnrichmentContribution,
+    Extension,
+    RouterMount,
+    ShareCardContribution,
+)
 from podcast_scraper.search.groupings import SearchOperator, TopicGroupings
 
 
@@ -122,8 +128,36 @@ SHARE_CARDS = ShareCardContribution(
 )
 
 
+def _routers() -> Sequence[RouterMount]:
+    from podcast_scraper.server.routes import (
+        corpus_storylines,
+        corpus_topic_clusters,
+        corpus_trending,
+    )
+
+    # Read-only, so also on the curated public operator surface (RFC-108).
+    return tuple(
+        RouterMount(module.router, "operator", operator_public=True)
+        for module in (corpus_topic_clusters, corpus_storylines, corpus_trending)
+    )
+
+
+CLI_COMMANDS = {
+    "topic-clusters": CliCommand(
+        parse=_lazy("podcast_scraper.search.topic_clusters_cli", "parse_topic_clusters_argv"),
+        run=_lazy("podcast_scraper.search.topic_clusters_cli", "run_topic_clusters_cli"),
+    ),
+    "mcp": CliCommand(
+        parse=_lazy("podcast_scraper.mcp.cli_handlers", "parse_mcp_argv"),
+        run=_lazy("podcast_scraper.mcp.cli_handlers", "run_mcp"),
+    ),
+}
+
+
 EXTENSION = Extension(
     name="intelligence",
+    routers=_routers,
+    cli_commands=CLI_COMMANDS,
     groupings=GROUPINGS,
     share_cards=SHARE_CARDS,
     enrichment=EnrichmentContribution(

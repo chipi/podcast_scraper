@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from podcast_scraper import __version__
-from podcast_scraper.extensions import load_extensions
+from podcast_scraper.extensions import load_extensions, run_app_configured, run_server_started
 from podcast_scraper.server import app_access_store, app_roles
 from podcast_scraper.server.app_access import policy_from_env
 from podcast_scraper.server.app_csrf import CrossSiteWriteGuard
@@ -30,28 +30,11 @@ from podcast_scraper.server.app_user_seed import seed_from_env
 from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import (
     app_admin,
-    app_artwork,
     app_auth,
-    app_capture,
-    app_collections,
-    app_comms,
-    app_consolidation,
-    app_corpus,
-    app_discover,
-    app_enrichment,
-    app_episodes,
-    app_exits,
-    app_export,
     app_graph_events,
-    app_key_voices,
-    app_notifications,
     app_og,
     app_profile,
-    app_relational,
-    app_search,
     app_user_preferences,
-    app_user_state,
-    app_your_week,
     artifacts,
     cil,
     corpus_binary,
@@ -63,10 +46,7 @@ from podcast_scraper.server.routes import (
     corpus_metrics,
     corpus_persons,
     corpus_rollback,
-    corpus_storylines,
     corpus_text_file,
-    corpus_topic_clusters,
-    corpus_trending,
     enrichment as enrichment_route,
     enrichment_config as enrichment_config_route,
     explore,
@@ -166,9 +146,6 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     # two are versioned independently, so the native update check compares this like-to-like. Empty
     # → /api/health reports null and the client skips the check (wave-I.6).
     app.state.player_version = os.environ.get("APP_PLAYER_VERSION", "") or None
-    # Shared token for the internal MCP verify seam (RFC-112 §4, #1471) — the MCP server process
-    # authenticates with it over the tailnet. Empty → /internal/mcp/verify 503 (disabled).
-    app.state.internal_mcp_token = os.environ.get("INTERNAL_MCP_TOKEN", "")
     app.state.audit_path = (
         (app.state.app_data_dir / "audit.jsonl") if app.state.app_data_dir is not None else None
     )
@@ -201,9 +178,6 @@ _OPERATOR_READ_ROUTES = (
     corpus_persons,
     corpus_digest,
     corpus_enrichments,
-    corpus_topic_clusters,
-    corpus_storylines,
-    corpus_trending,
     cil,
     ops,
     llm_gateway,
@@ -239,36 +213,18 @@ _OPERATOR_PUBLIC_READ_ROUTES = (
     corpus_persons,
     corpus_digest,
     corpus_enrichments,
-    corpus_topic_clusters,
-    corpus_storylines,
-    corpus_trending,
     cil,
 )
 # Consumer Learning Platform API (RFC-098): slug-addressed routes under their own
-# ``/api/app`` namespace, auth-gated (#1063/#1066). Always mounted.
+# ``/api/app`` namespace, auth-gated (#1063/#1066). Always mounted. These are the platform's own:
+# sign-in, accounts, preferences, profile and the graph-event log the operator viewer also uses.
+# The player's routes come from its extension (ADR-158).
 _APP_ROUTES = (
     app_auth,
     app_admin,
-    app_artwork,
-    app_episodes,
-    app_exits,
     app_graph_events,
-    app_relational,
-    app_discover,
-    app_search,
-    app_user_state,
     app_user_preferences,
-    app_capture,
-    app_collections,
-    app_comms,
-    app_key_voices,
-    app_notifications,
     app_profile,
-    app_your_week,
-    app_corpus,
-    app_export,
-    app_enrichment,
-    app_consolidation,
 )
 
 
@@ -495,31 +451,6 @@ async def _stop_queue_sweeper_guarded(task: "asyncio.Task | None") -> None:
         logger.warning("job queue: sweeper shutdown failed (%s)", exc)
 
 
-def _start_cache_warmer_guarded(app: FastAPI) -> "threading.Event | None":
-    """Start the consumer read-cache warmer (catalog / slug index / KG index): warm at startup +
-    re-warm on ingest, on a daemon thread. Never blocks startup — a failure just means lazy fills.
-
-    Module-level (like the queue sweeper) so its guard branches don't count against ``create_app``'s
-    complexity budget. Disable with ``APP_CACHE_WARMING=0``.
-    """
-    root = getattr(app.state, "output_dir", None)
-    if root is None or os.environ.get("APP_CACHE_WARMING", "1") == "0":
-        return None
-    try:
-        from podcast_scraper.server.app_cache_warm import start_cache_warmer
-
-        return start_cache_warmer(Path(root))
-    except Exception as exc:  # pragma: no cover - never block startup on warming
-        logger.warning("cache warmer failed to start: %s", exc)
-        return None
-
-
-def _stop_cache_warmer_guarded(stop: "threading.Event | None") -> None:
-    """Signal the warmer loop to exit on shutdown (idempotent, never raises)."""
-    if stop is not None:
-        stop.set()
-
-
 def _json_safe(value: Any) -> Any:
     """Recursively coerce a validation-error payload into something that can be serialised.
 
@@ -646,37 +577,6 @@ def _install_metrics(app: FastAPI) -> None:
         # PODCAST_METRICS_PUSH_URL is set (no daemon/scraper on the dev box). True no-op
         # otherwise — the packaged image leaves it unset and Alloy scrapes /metrics instead.
         _start_dev_metrics_pusher()
-
-
-def _install_digest_health_metrics(app: FastAPI) -> None:
-    """Register the per-cadence digest delivery gauges (#2119).
-
-    ORDERING IS THE WHOLE POINT. This must be called AFTER ``_configure_platform_auth``, which
-    is what sets ``app.state.app_data_dir``. It was first written inside :func:`_install_metrics`
-    — called ~27 lines earlier — where the guard read ``None``, skipped, and exported nothing.
-    It shipped to production that way: the sidecar wrote its state file correctly and no
-    ``podcast_digest_*`` series existed at all. Silently, because the ``except`` below only fires
-    on a raised exception and "the guard was falsy" is not one.
-
-    ``tests/integration/server/test_app_digest_health_wiring.py`` pins the order by building a
-    real app; it fails if this is moved back above the line that sets ``app_data_dir``.
-
-    The digest sidecar runs ``network_mode: none`` and can neither expose nor push metrics. It
-    writes a state file to the shared appdata volume and this API — already scraped as job
-    ``api`` — exports it. Collected at scrape time, so the gauges reflect the sidecar's latest
-    tick rather than whenever this app last did something.
-    """
-    if not _env_truthy("PODCAST_METRICS_ENABLED"):
-        return
-    data_dir = getattr(app.state, "app_data_dir", None)
-    if data_dir is None:
-        return
-    try:
-        from podcast_scraper.server import app_digest_health
-
-        app_digest_health.install_metrics(app, Path(data_dir))
-    except Exception:  # noqa: BLE001 — telemetry never breaks the app (ADR-120)
-        logger.exception("digest health gauges failed to install — continuing without")
 
 
 def _install_job_age_metrics(app: FastAPI) -> None:
@@ -829,7 +729,7 @@ def create_app(
             threading.Thread(
                 target=_warm_search, args=(root,), name="search-warmup", daemon=True
             ).start()
-        cache_warmer_stop = _start_cache_warmer_guarded(app)
+        extension_stops = run_server_started(app)
         scheduler = getattr(app.state, "scheduler", None)
         if scheduler is not None:
             try:
@@ -840,7 +740,9 @@ def create_app(
         try:
             yield
         finally:
-            _stop_cache_warmer_guarded(cache_warmer_stop)
+            for stop in extension_stops:
+                with contextlib.suppress(Exception):
+                    stop()
             await _stop_queue_sweeper_guarded(sweeper_task)
             scheduler = getattr(app.state, "scheduler", None)
             if scheduler is not None:
@@ -899,8 +801,10 @@ def create_app(
     # would, and used to boot clean because the guard read only the environment (#2190).
     _guard_operator_public_open_signup(operator_public, app.state.app_data_dir)
 
-    # MUST stay below _configure_platform_auth — see the function's docstring for why.
-    _install_digest_health_metrics(app)
+    # MUST stay below _configure_platform_auth: extensions read app.state.app_data_dir here. The
+    # digest gauges once shipped reading None from a call placed above it, and exported nothing
+    # (#2119); tests/integration/server/test_app_digest_health_wiring.py pins the order.
+    run_app_configured(app)
     _install_job_age_metrics(app)
 
     app.state.feeds_api_enabled = bool(enable_feeds_api)

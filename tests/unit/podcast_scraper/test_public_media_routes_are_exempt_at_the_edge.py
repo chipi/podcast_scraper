@@ -46,15 +46,25 @@ _ROUTE = re.compile(
 def _player_route_modules() -> list[str]:
     """The modules mounted at ``/api/app`` — i.e. the ones the PLAYER edge actually fronts.
 
-    Read from ``_APP_ROUTES`` in ``app.py`` rather than matched on an ``app_*`` filename, because
-    the mount is the thing that matters and the naming is only a convention. The operator plane
-    (``corpus_media``, ``jobs``, …) mounts at ``/api`` on the tailnet and public-operator surfaces
-    and never passes through ``player.caddy``, so its file routes are correctly out of scope here.
+    Read from what mounts there (the platform's ``_APP_ROUTES`` plus every installed extension's
+    ``app`` plane, ADR-158) rather than matched on an ``app_*`` filename, because the mount is the
+    thing that matters and the naming is only a convention. The operator plane (``corpus_media``,
+    ``jobs``, …) mounts at ``/api`` on the tailnet and public-operator surfaces and never passes
+    through ``player.caddy``, so its file routes are correctly out of scope here.
     """
-    src = (SERVER / "app.py").read_text(encoding="utf-8")
-    block = src[src.index("_APP_ROUTES = (") :]
-    block = block[: block.index(")")]
-    return [f"{name}.py" for name in re.findall(r"^\s*(\w+),", block, re.MULTILINE)]
+    from podcast_scraper.extensions import load_extensions
+    from podcast_scraper.server import app as app_module
+
+    routers = [module.router for module in app_module._APP_ROUTES]
+    for ext in load_extensions():
+        routers += [mount.router for mount in ext.routers() if mount.plane == "app"]
+    names = {
+        f"{route.endpoint.__module__.rsplit('.', 1)[-1]}.py"
+        for router in routers
+        for route in router.routes
+        if getattr(route, "endpoint", None) is not None
+    }
+    return sorted(names)
 
 
 def _file_serving_public_routes() -> list[tuple[str, str, str]]:
@@ -100,7 +110,7 @@ def _matches(edge_pattern: str, route_path: str) -> bool:
 
 def test_the_scan_finds_the_routes_it_is_meant_to_police() -> None:
     """Guard the guard: a regex that silently matches nothing would make this file always pass."""
-    assert _player_route_modules(), "could not read _APP_ROUTES out of app.py"
+    assert _player_route_modules(), "found no router mounted at /api/app"
     routes = _file_serving_public_routes()
     names = {name for _, name, _ in routes}
     assert {"serve_avatar", "person_photo", "org_logo"} <= names, (

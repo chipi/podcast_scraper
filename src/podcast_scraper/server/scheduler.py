@@ -34,6 +34,8 @@ from typing import Any, Optional
 import yaml
 from pydantic import BaseModel, Field, field_validator
 
+from podcast_scraper.extensions import job_runner, load_extensions
+
 logger = logging.getLogger(__name__)
 
 # ``scheduled_jobs:`` lives at the YAML root alongside Config-shaped fields.
@@ -48,8 +50,15 @@ JOB_KIND_PIPELINE = "pipeline"
 JOB_KIND_ENRICHMENT = "enrichment"
 # ``digest`` fires the per-user "Your Week" digest enqueue (#1415) — enqueues DeliveryEnvelopes to
 # the outbox for the infra worker to deliver; extractive, no pipeline job. Idempotent per period.
-JOB_KIND_DIGEST = "digest"
-_VALID_JOB_KINDS = frozenset({JOB_KIND_PIPELINE, JOB_KIND_ENRICHMENT, JOB_KIND_DIGEST})
+#: The platform's own kinds. Installed extensions add theirs (the player's ``digest``, ADR-158).
+_PLATFORM_JOB_KINDS = frozenset({JOB_KIND_PIPELINE, JOB_KIND_ENRICHMENT})
+
+
+def _valid_job_kinds() -> frozenset[str]:
+    kinds = set(_PLATFORM_JOB_KINDS)
+    for ext in load_extensions():
+        kinds.update(ext.job_kinds)
+    return frozenset(kinds)
 
 
 class ScheduledJobConfig(BaseModel):
@@ -66,8 +75,9 @@ class ScheduledJobConfig(BaseModel):
     @classmethod
     def _validate_kind(cls, v: str) -> str:
         v = (v or "").strip().lower()
-        if v not in _VALID_JOB_KINDS:
-            raise ValueError(f"scheduled job kind must be one of {sorted(_VALID_JOB_KINDS)}")
+        valid = _valid_job_kinds()
+        if v not in valid:
+            raise ValueError(f"scheduled job kind must be one of {sorted(valid)}")
         return v
 
     @field_validator("name")
@@ -418,29 +428,16 @@ def make_app_spawn_callback(app: Any) -> Any:
     def _spawn(
         name: str, corpus_root: Path, operator_yaml: Path, kind: str = JOB_KIND_PIPELINE
     ) -> None:
-        # The digest kind (#1415) doesn't spawn a pipeline job — it enqueues per-user delivery
-        # envelopes to the outbox (extractive, idempotent per period). No event loop / post_submit.
-        if kind == JOB_KIND_DIGEST:
-            from podcast_scraper.server import app_digest_dispatch
-
-            data_dir = getattr(app.state, "app_data_dir", None)
-            if data_dir is None:
-                logger.warning("scheduler: digest %r fired but app_data_dir unset; skipping", name)
+        # A kind an extension owns runs through that extension, not the job queue (the player's
+        # digest enqueues delivery envelopes to the outbox). No event loop / post_submit.
+        if kind not in _PLATFORM_JOB_KINDS:
+            runner = job_runner(kind)
+            if runner is None:
+                logger.warning(
+                    "scheduler: job %r has kind %r, which nothing installed runs", name, kind
+                )
                 return
-            # Every enqueuer lives in app_digest_dispatch.ENQUEUERS, which the production sidecar
-            # (infra/deploy/digest_scheduler.py) drives from the same list. Adding one there wires
-            # both paths; maintaining two lists is what shipped daily_recap and the monthly
-            # recommendations digest dead to prod (#2119). Each enqueuer applies its own
-            # cadence-slot gate and per-period envelope id, so an hourly fire is idempotent.
-            result = app_digest_dispatch.enqueue_all_due(corpus_root, Path(data_dir))
-            logger.info(
-                "scheduler: digest %r enqueued %d envelope(s) [%s]",
-                name,
-                result.total,
-                result.summary(),
-            )
-            for label, err in result.errors.items():
-                logger.error("scheduler: digest %r enqueuer %s failed: %s", name, label, err)
+            runner(name, corpus_root, app)
             return
         loop: Optional[asyncio.AbstractEventLoop] = getattr(app.state, "event_loop", None)
         if loop is None or not loop.is_running():

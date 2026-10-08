@@ -36,6 +36,7 @@ player:
       - app_digest_daily_recap
       - app_digest_dispatch
       - app_digest_health
+      - app_digest_job
       - app_digest_personal
       - app_digest_recommendations
       - app_digest_sections
@@ -177,6 +178,7 @@ common:
           - storylines
           - operators
           - topic_clusters
+          - topic_clusters_cli
         podcast_scraper.server:
           - app_momentum
         podcast_scraper.server.routes:
