@@ -142,3 +142,88 @@ test('an episode carries its language on its card and in the player header', asy
   await expect(badge(facts)).toHaveAttribute('aria-label', 'Language: French')
   await expectBadgesReadable(page)
 })
+
+test('related episodes carry their language as tiles, readable over artwork', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'language-badge-related', testInfo)
+  await page.goto('/podcast/p12')
+  await page.getByText('Construire Des Sentiers Qui Durent').first().click()
+  const rail = page.getByTestId('related-episodes-rail')
+  await rail.scrollIntoViewIfNeeded()
+  const tiles = rail.locator('article')
+  await expect(tiles.first()).toBeVisible()
+  // EpisodeTile, every one labelled — the related rail is cross-language in this corpus.
+  await expect(badge(rail)).toHaveCount(await tiles.count())
+  await expectOverlayBadgesReadable(rail)
+})
+
+test('a topic page lists its episodes as rows, each with its language', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'language-badge-topic', testInfo)
+  await page.goto('/topic/topic:risk-management')
+  const rows = page.getByTestId('episode-row')
+  await expect(rows.first()).toBeVisible()
+  // EpisodeRow, through the entity episode list (row_to_summary carries the language).
+  const count = await rows.count()
+  for (let i = 0; i < count; i++) {
+    await expect(badge(rows.nth(i))).toHaveAttribute('data-lang', /^[a-z]{2,3}$/)
+  }
+  await expectBadgesReadable(page)
+})
+
+test('a search result is labelled with its episode language (EpisodeGroupCard)', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'language-badge-search', testInfo)
+  await page.goto(`/search?q=${encodeURIComponent('construcción de senderos drenaje')}`)
+  const group = page
+    .getByTestId('episode-group')
+    .filter({ hasText: /Construyendo Senderos Que Duran/ })
+    .first()
+  await expect(group).toBeVisible({ timeout: 20_000 })
+  await expect(badge(group)).toHaveAttribute('data-lang', 'es')
+})
+
+test('a queued episode keeps its language in the queue (summaryFromDetail)', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'language-badge-queue', testInfo)
+  const queueHydrated = page
+    .waitForResponse((r) => /\/api\/app\/queue(\?|$)/.test(r.url()) && r.request().method() === 'GET')
+    .catch(() => null)
+  await page.goto('/podcast/p13')
+  await queueHydrated
+  const card = page.getByTestId('episode-card').filter({ hasText: 'Enduro-Technik Ohne Hype' })
+  const add = card.getByRole('button', { name: 'Add to queue' })
+  await expect(add).toBeVisible()
+  const written = page.waitForResponse(
+    (r) => r.url().includes('/api/app/queue/items') && r.request().method() === 'POST' && r.ok(),
+  )
+  await add.click()
+  await written
+
+  await page.goto('/queue')
+  const queued = page.getByTestId('episode-card').filter({ hasText: 'Enduro-Technik Ohne Hype' })
+  await expect(badge(queued)).toHaveAttribute('data-lang', 'de')
+})
+
+test('a saved moment groups under its episode, labelled with its language (Saved)', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, 'language-badge-saved', testInfo)
+  const eps = (await (await page.request.get('/api/app/podcasts/p11/episodes')).json()) as {
+    items: { slug: string; title: string }[]
+  }
+  const ep = eps.items[0]!
+  const made = await page.request.post('/api/app/highlights', {
+    data: { episode_slug: ep.slug, kind: 'moment', start_ms: 3000 },
+  })
+  expect(made.ok()).toBe(true)
+
+  await page.goto('/library?tab=saved')
+  // The heading resolves through summaryFromDetail once the episode detail lands.
+  const group = page.getByTestId('highlight-group').filter({ hasText: ep.title })
+  await expect(badge(group)).toHaveAttribute('data-lang', 'it')
+})

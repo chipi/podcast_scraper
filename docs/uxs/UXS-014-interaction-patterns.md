@@ -571,6 +571,7 @@ property. Same muted colour, different shape, so the two do not read as one fami
 | --- | --- |
 | Episode card (`EpisodeCard`) | After date · duration under the artwork; on its own in compact cards, which drop that row |
 | Episode row (`EpisodeRow`) | Leading the show-name line |
+| Episode group heading (`EpisodeGroupCard` — Search, Saved, Revisit) | Leading the show-name line. Search takes it from a source-layer hit, else from the show's catalogue language: hits only carry a language on original-language chunks |
 | Episode tile, show tile (`EpisodeTile`, `ShowTile`) | Over the artwork, **top-left** — opposite the controls in the top-right — on the same dark plate those controls use, so contrast never depends on the picture |
 | Show row (`ShowRow`) | The last stacked fact under the artwork |
 | Show page (`PodcastView`) | Leading the feed meta line, in both its phone and desktop copies |
