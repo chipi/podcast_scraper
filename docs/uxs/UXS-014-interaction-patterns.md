@@ -595,6 +595,11 @@ in the UI locale, so it follows the app when the UI is localized.
 
 **Not a filter.** Filtering by language (V2-C.2) is a separate control and is not built yet.
 
+**Known limits of the checks.** Revisit's group heading has no e2e: nothing is due until a capture
+is two days old, and backdating state would test the fixture — it shares Saved's component and
+adapter, which are covered. The over-artwork contrast check composites the plate over pure white
+and pure black but ignores the backdrop blur, so it bounds the worst case without modelling it.
+
 ## Destructive confirmation (#1594)
 
 `ConfirmDialog.vue` — the one pattern in front of a delete that cannot be undone.

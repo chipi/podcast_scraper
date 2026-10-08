@@ -987,6 +987,12 @@ Phase names match PRD-047 and the arc notes; slice ids (S0.x, S2.x) refer to the
 9. **One refused translation unit fails the whole episode's translation** (V.6b es: 1 of 102
    units, "here's the translation" commentary), and §5.3 then skips summary, GI and KG. Retry the
    unit, or accept a translation with a bounded share of refused units?
+10. **Non-English accuracy is unmeasured, not measured-and-good.** V.6b ran one real episode per
+    language (es, it, fr, de, pt-PT, pt-BR) with no reference transcript, so every number is a
+    proxy — coverage, punctuation, the language guard, filters — and translation quality is not
+    scored at all. English has WER on the 80k set; the non-English equivalent needs a few minutes
+    of hand-checked reference per language and more than one episode per show. Scheduled as its
+    own measurement, not part of #2187.
 
 ## References
 
