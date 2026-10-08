@@ -75,6 +75,14 @@ def prune(worktree: Path, manifest: dict, mapping: dict[str, str]) -> int:
         for _pkg, spec in sc.units(top):
             for pkg in spec.get("packages", {}):
                 shutil.rmtree(worktree / "src" / pkg.replace(".", "/"), ignore_errors=True)
+            for f in spec.get("files", []):
+                if (worktree / f).exists():
+                    (worktree / f).unlink()
+                    gone += 1
+            for tree in spec.get("file_trees", []):
+                if (worktree / tree).exists():
+                    shutil.rmtree(worktree / tree)
+                    gone += 1
     for repo in manifest:
         for p in (sc.APPS / repo / "tests").rglob("*.py"):
             rel = p.relative_to(sc.APPS / repo)
