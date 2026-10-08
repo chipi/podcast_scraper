@@ -92,7 +92,9 @@ def test_the_early_presence_skip_agrees(tmp_path: Path) -> None:
 
 def test_an_unreadable_record_is_ignored(tmp_path: Path) -> None:
     ep, cfg = _episode(), _cfg(tmp_path)
-    path = Path(EP._language_refusal_path(ep, cfg))
+    raw = EP._language_refusal_path(ep, cfg)
+    assert raw is not None
+    path = Path(raw)
     path.parent.mkdir(parents=True)
     path.write_text("{not json", encoding="utf-8")
     assert _decide(ep, cfg).action == EP.NEW
@@ -105,3 +107,14 @@ def test_the_refusal_site_writes_the_record() -> None:
     start = source.index('"[%s] REFUSING episode: %s"')
     branch = source[start : source.index("return False, None, bytes_downloaded", start)]
     assert "_record_language_refusal(job.episode, cfg, wrong_language)" in branch
+
+
+def test_with_no_corpus_and_no_output_dir_nothing_is_written_anywhere(
+    tmp_path: Path, monkeypatch
+) -> None:
+    # The first version fell back to "." and a test run scattered a record into the repo root.
+    monkeypatch.chdir(tmp_path)
+    cfg = _cfg(tmp_path, output_dir=None)
+    assert EP._language_refusal_path(_episode(), cfg) is None
+    EP._record_language_refusal(_episode(), cfg, "detail")
+    assert list(tmp_path.iterdir()) == []

@@ -4938,7 +4938,9 @@ REDERIVE = "rederive"
 REFUSED = "refused"
 
 
-def _language_refusal_path(episode: Episode, cfg: config.Config) -> str:  # type: ignore[valid-type]
+def _language_refusal_path(
+    episode: Episode, cfg: config.Config  # type: ignore[valid-type]
+) -> Optional[str]:
     """Where an episode's language-guard refusal is recorded: corpus-wide, by stable episode id.
 
     A refusal writes no transcript, and skip-existing keys on the transcript, so without a record
@@ -4948,8 +4950,12 @@ def _language_refusal_path(episode: Episode, cfg: config.Config) -> str:  # type
     """
     from podcast_scraper.workflow.helpers import get_episode_id_from_episode
 
+    root = run_index.corpus_root_from_cfg(cfg) or cfg.output_dir
+    if not root:
+        # No corpus and no output dir: there is nowhere the next run would look, and "." would
+        # scatter records into whatever directory the process happens to run in.
+        return None
     episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
-    root = run_index.corpus_root_from_cfg(cfg) or cfg.output_dir or "."
     digest = hashlib.sha1(str(episode_id).encode("utf-8")).hexdigest()  # nosec B324 - a name
     return os.path.join(root, ".language_refusals", f"{digest}.json")
 
@@ -4960,6 +4966,8 @@ def _record_language_refusal(
     """Record the refusal so the next run does not repeat it. Never raises (a failure path)."""
     try:
         path = _language_refusal_path(episode, cfg)
+        if path is None:
+            return
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(
@@ -4985,7 +4993,7 @@ def _still_refused(
     """
     try:
         path = _language_refusal_path(episode, cfg)
-        if not os.path.exists(path):
+        if path is None or not os.path.exists(path):
             return None
         with open(path, encoding="utf-8") as fh:
             record = json.load(fh)
