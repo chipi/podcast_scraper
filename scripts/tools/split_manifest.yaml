@@ -136,6 +136,7 @@ common:
   # the module path is rewritten like any moved module.
   entry_points:
     mcp: podcast_scraper.server.app_mcp_extension:EXTENSION
+    intelligence: podcast_scraper.enrichment.intelligence_extension:EXTENSION
   subpackages:
     identity:
       modules:
@@ -165,6 +166,7 @@ common:
           - consensus
         podcast_scraper.enrichment:
           - ml_wiring
+          - intelligence_extension
         # Tier-A features (ADR-158 decision 5, operator decisions 2026-10-08): storylines,
         # consensus and cluster search operators, semantic topic clusters, momentum/trending.
         podcast_scraper.search:

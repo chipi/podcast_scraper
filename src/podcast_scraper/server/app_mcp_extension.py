@@ -9,7 +9,7 @@ wherever extensions are, including the pipeline, which has no web stack.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence, TYPE_CHECKING
 
 from podcast_scraper.extensions import Extension, RouterMount
 

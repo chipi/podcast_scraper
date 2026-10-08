@@ -34,8 +34,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from podcast_scraper.enrichment.enrichers import ALL_DETERMINISTIC_ENRICHER_IDS
-from podcast_scraper.enrichment.eval.admission import admit_enrichers
+from podcast_scraper.enrichment.enrichers import all_deterministic_enricher_ids
+from podcast_scraper.enrichment.eval.admission import admit_enrichers, known_enricher_manifests
 from podcast_scraper.enrichment.protocol import EnricherSet
 
 logger = logging.getLogger(__name__)
@@ -130,12 +130,19 @@ _NO_ENRICHERS_PROFILES: frozenset[str] = frozenset(
 
 # Profile preset → enricher set membership. Built lazily so callers
 # can monkey-patch in tests without import-order surprises.
+def _installed(ids: list[str]) -> list[str]:
+    """*ids* minus enrichers nothing installed provides. The ML and WEB enrichers come from an
+    extension (ADR-158); without it a profile that lists them simply runs without them."""
+    known = known_enricher_manifests()
+    return [i for i in ids if i in known]
+
+
 def _deterministic_only() -> list[str]:
-    return list(ALL_DETERMINISTIC_ENRICHER_IDS)
+    return list(all_deterministic_enricher_ids())
 
 
 def _with_topic_similarity() -> list[str]:
-    return [*ALL_DETERMINISTIC_ENRICHER_IDS, "topic_similarity"]
+    return _installed([*all_deterministic_enricher_ids(), "topic_similarity"])
 
 
 def _cloud_ml_tier_set() -> list[str]:
@@ -148,22 +155,25 @@ def _cloud_ml_tier_set() -> list[str]:
     # so it is admitted). Per-person / per-topic stance-over-time is now a
     # read-time CIL query (conversation-arc / position-arc), not a gated enricher — see ADR-108's
     # 2026-07-08 update on why stance-over-time is a read-time query, not a gated enricher.
-    return [
-        *ALL_DETERMINISTIC_ENRICHER_IDS,
-        "topic_similarity",
-        "topic_consensus",
-        # WEB tier (wave-G) — external Wikipedia bio/photo. ON by default in the cloud/prod
-        # profiles ONLY; deliberately absent from the airgapped/deterministic sets so CI never
-        # fetches (the airgap is profile membership). No accuracy_gate → _admit passes it through.
-        "person_web",
-        # org_web is person_web's sibling: same WEB tier, same manifest shape
-        # (requires_opt_in=False, no accuracy_gate), registered by the same
-        # web_wiring.register_web_enrichers call. It shipped in the same commit as person_web
-        # (2e69d68e4) but was never added HERE, so no profile ever selected it and it has never
-        # run anywhere — not disabled, not failing, just never chosen. Listing it makes the pair
-        # symmetric: persons and organizations both get their Wikipedia bio/photo.
-        "org_web",
-    ]
+    return _installed(
+        [
+            *all_deterministic_enricher_ids(),
+            "topic_similarity",
+            "topic_consensus",
+            # WEB tier (wave-G) — external Wikipedia bio/photo. ON by default in the cloud/prod
+            # profiles ONLY; deliberately absent from the airgapped/deterministic sets so CI
+            # never fetches (the airgap is profile membership). No accuracy_gate → _admit
+            # passes it through.
+            "person_web",
+            # org_web is person_web's sibling: same WEB tier, same manifest shape
+            # (requires_opt_in=False, no accuracy_gate), registered by the same
+            # web_wiring.register_web_enrichers call. It shipped in the same commit as person_web
+            # (2e69d68e4) but was never added HERE, so no profile ever selected it and it has never
+            # run anywhere — not disabled, not failing, just never chosen. Listing it makes the pair
+            # symmetric: persons and organizations both get their Wikipedia bio/photo.
+            "org_web",
+        ]
+    )
 
 
 def _admit(candidate_ids: list[str], eval_root: Path | None = None) -> list[str]:

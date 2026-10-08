@@ -78,42 +78,21 @@ def admitted_enricher_ids(
 
 
 def known_enricher_manifests() -> dict[str, EnricherManifest]:
-    """Map ``enricher_id → EnricherManifest`` for all built-in enrichers.
+    """Map ``enricher_id → EnricherManifest`` for every enricher: the platform's and those
+    installed extensions declare (ADR-158).
 
     Reads each enricher's *class-level* ``manifest`` attribute — no
-    instantiation, so provider-injected ML enrichers (topic_similarity,
-    topic_consensus) are included without wiring a
-    provider. This is the
+    instantiation, so provider-injected ML enrichers are included without
+    wiring a provider. This is the
     manifest source the gate + UI config read for ``accuracy_gate`` /
     ``config_schema`` / ``provider_requirement`` without a live registry.
     """
-    from podcast_scraper.enrichment.enrichers import (
-        GroundingRateEnricher,
-        GuestCoappearanceEnricher,
-        InsightDensityEnricher,
-        InsightSentimentEnricher,
-        TemporalVelocityEnricher,
-        TopicConsensusEnricher,
-        TopicCooccurrenceCorpusEnricher,
-        TopicSimilarityEnricher,
-        TopicThemeClustersEnricher,
-    )
-    from podcast_scraper.enrichment.enrichers.person_web import PersonWebEnricher
+    from podcast_scraper.enrichment.enrichers import PUBLIC_ENRICHER_CLASSES
+    from podcast_scraper.extensions import enrichment_contributions
 
-    classes = (
-        TopicCooccurrenceCorpusEnricher,
-        TopicThemeClustersEnricher,
-        TemporalVelocityEnricher,
-        GroundingRateEnricher,
-        GuestCoappearanceEnricher,
-        InsightDensityEnricher,
-        InsightSentimentEnricher,
-        TopicSimilarityEnricher,
-        TopicConsensusEnricher,
-        # WEB tier (wave-G) — external Wikipedia bio/photo. Included here (class-level manifest, no
-        # instantiation) so the gate + UI config discover its config_schema/tier like any other.
-        PersonWebEnricher,
-    )
+    classes = list(PUBLIC_ENRICHER_CLASSES)
+    for contribution in enrichment_contributions():
+        classes.extend(contribution.enricher_classes())
     return {cls.manifest.id: cls.manifest for cls in classes}
 
 
