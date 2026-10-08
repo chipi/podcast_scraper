@@ -27,7 +27,9 @@ CONTAINER=viewer-e2e-api
 VOLUME=viewer-e2e-appdata
 PORT=8012
 
-# ── The corpus is served from a COPY, never from the tracked fixture ──────────────────────────
+CORPUS_VOLUME=viewer-e2e-corpus
+
+# ── The corpus is served from a COPY in a volume, never from the tracked fixture ──────────────
 #
 # The operator plane WRITES into whatever corpus directory it is given: `GET /api/operator-config`
 # *creates* `viewer_operator.yaml` when it is missing, and enabling the jobs API creates
@@ -36,33 +38,33 @@ PORT=8012
 # tracked tree after every run — and worse, a second run starts from a corpus the first one
 # mutated, so "fresh corpus" assertions quietly stop being fresh.
 #
-# Copying is cheap (~6 MB) and makes each run hermetic. Override the location with
-# E2E_CORPUS_WORKDIR if the default is inconvenient (it must be a path your container runtime can
-# bind-mount — on Colima only paths under $HOME are visible inside the VM, so a $TMPDIR path
-# silently mounts as an EMPTY directory).
-WORKDIR="${E2E_CORPUS_WORKDIR:-$VIEWER_ROOT/.e2e-corpus}"
-CORPUS="$WORKDIR/v3"
+# The copy lives in a named volume, re-created on every run, not in a bind-mounted host directory.
+# On Colima a bind mount crosses the VM boundary for every stat and read: `GET /api/artifacts`,
+# which walks the corpus, took 7.3 s against the bind mount and 0.1–0.3 s against the same files
+# inside the container (measured 2026-10-08). That walk runs on every graph load, so the
+# bind-mounted corpus pushed graph-loading specs past their timeouts.
+#
+# The container runs as uid 1000 (PODCAST_UID in docker/api/Dockerfile), so the seeded tree is
+# chowned to it. Symptom if it is not: `GET /api/jobs` → 500 with
+# `PermissionError: '/corpus/.viewer/jobs.jsonl.lock'`, and the Dashboard jobs card sits on
+# "Loading…" forever — which reads as a hung frontend, not a permissions problem.
 
-cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; }
+cleanup() { docker rm -f "$CONTAINER" "$CONTAINER-seed" >/dev/null 2>&1 || true; }
 trap cleanup EXIT INT TERM
 
 [ -d "$CORPUS_SRC" ] || { echo "missing fixture corpus: $CORPUS_SRC" >&2; exit 1; }
 
-echo "seeding a disposable corpus copy at $CORPUS"
-rm -rf "$WORKDIR"
-mkdir -p "$WORKDIR"
-cp -R "$CORPUS_SRC" "$CORPUS"
-# The container runs as a non-root uid (PODCAST_UID=1000 in docker/api/Dockerfile) while the copy is
-# owned by whoever ran this script, so the operator plane cannot create the files it needs inside
-# the mount. Symptom if you skip this: `GET /api/jobs` → 500 with
-# `PermissionError: '/corpus/.viewer/jobs.jsonl.lock'`, and the Dashboard jobs card sits on
-# "Loading…" forever — which reads as a hung frontend, not a permissions problem.
-# Safe to blanket-chmod: this tree is a throwaway copy, re-seeded above on every run.
-chmod -R a+rwX "$CORPUS"
-
 cleanup
-docker volume rm "$VOLUME" >/dev/null 2>&1 || true
+docker volume rm "$VOLUME" "$CORPUS_VOLUME" >/dev/null 2>&1 || true
 docker volume create "$VOLUME" >/dev/null
+docker volume create "$CORPUS_VOLUME" >/dev/null
+
+echo "seeding a disposable corpus copy into the $CORPUS_VOLUME volume"
+docker run -d --name "$CONTAINER-seed" --user root -v "$CORPUS_VOLUME:/w" \
+  --entrypoint sleep "$IMAGE" 300 >/dev/null
+docker cp "$CORPUS_SRC/." "$CONTAINER-seed:/w"
+docker exec "$CONTAINER-seed" chown -R 1000:1000 /w
+docker rm -f "$CONTAINER-seed" >/dev/null
 
 # ── Env the suite actually needs ───────────────────────────────────────────────────────────────
 #
@@ -81,7 +83,7 @@ docker volume create "$VOLUME" >/dev/null
 # Mounting them is safe here because the corpus is a throwaway copy (see above).
 docker run -d --name "$CONTAINER" \
   -p "127.0.0.1:$PORT:$PORT" \
-  -v "$CORPUS:/corpus" \
+  -v "$CORPUS_VOLUME:/corpus" \
   -v "$VOLUME:/appdata" \
   -e APP_OAUTH_PROVIDER=mock \
   -e APP_SESSION_SECRET=e2e-secret \

@@ -162,7 +162,11 @@ test.describe('Library pagination and row keyboard (live)', () => {
     const total = Number(m![1])
     expect(total).toBeGreaterThan(20)
 
-    await page.getByRole('button', { name: 'Load more' }).click()
+    // Dispatched, not clicked: a real click scrolls the button into view, which also brings the
+    // scroll-to-load sentinel just above it into view. That loads the page on its own, re-renders
+    // the button as "Loading…" mid-click, and can keep loading pages until the button is gone —
+    // the click then waits out the whole test timeout. This test is about the button.
+    await page.getByRole('button', { name: 'Load more' }).dispatchEvent('click')
     await expect(rows(page)).toHaveCount(Math.min(40, total))
   })
 
