@@ -1060,9 +1060,8 @@ def run_topic_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
         import numpy as np
 
         from podcast_scraper.search.topic_clusters import (
-            cluster_indices_by_threshold,
+            cluster_labels_by_threshold,
             collect_topic_rows_from_lance,
-            cosine_similarity_matrix,
             load_kg_topic_labels_from_corpus,
         )
 
@@ -1075,8 +1074,7 @@ def run_topic_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
             return EXIT_INVALID_ARGS
         ids = [r.topic_id for r in rows]
         mat = np.stack([r.vector for r in rows], axis=0)
-        sim = cosine_similarity_matrix(mat)
-        labels = cluster_indices_by_threshold(sim, threshold)
+        labels = cluster_labels_by_threshold(mat, threshold)
         ok, errors = evaluate_validation_against_topics(spec, ids, labels.tolist())
         if not ok:
             for err in errors:

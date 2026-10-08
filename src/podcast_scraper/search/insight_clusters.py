@@ -21,8 +21,7 @@ import numpy as np
 from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 from .topic_clusters import (
-    cluster_indices_by_threshold,
-    cosine_similarity_matrix,
+    cluster_labels_by_threshold,
     pick_centroid_closest_label,
 )
 
@@ -126,8 +125,7 @@ def build_insight_clusters_payload(
     )
     texts = [r["text"] for r in rows]
     embs = embedder.encode(texts, normalize_embeddings=True)
-    sim = cosine_similarity_matrix(embs)
-    labels = cluster_indices_by_threshold(sim, threshold)
+    labels = cluster_labels_by_threshold(embs, threshold)
 
     # Group by cluster
     from collections import defaultdict
