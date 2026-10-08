@@ -54,7 +54,8 @@ onMounted(async () => {
       loading.value = false
     }
 
-    const positions = (await getPlaybackList().catch(() => [])).slice(0, 30)
+    // The newest thirty from the server — not every position, to keep thirty (2026-10-08).
+    const positions = await getPlaybackList({ limit: 30 }).catch(() => [])
     // No positions AND a cached copy means the request failed, not that the history is empty —
     // overwriting with [] would discard the only copy at the moment it is the only copy.
     if (!positions.length && cached?.length) return

@@ -351,7 +351,8 @@ async function fetchContinue(): Promise<ContinueItem[]> {
   // anything went wrong.
   let positions
   try {
-    positions = await getPlaybackList()
+    // Only what Continue listening shows (2026-10-08): the in-progress ones, newest first.
+    positions = await getPlaybackList({ inProgress: true, limit: 6 })
   } catch (err) {
     // The device knows where you are. Falling back to it beats an empty rail, and beats a cached
     // copy of the server's answer — this is the record, not a copy of one.

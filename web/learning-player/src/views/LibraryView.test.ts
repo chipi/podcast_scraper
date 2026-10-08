@@ -477,7 +477,10 @@ describe('returning to Library (#2024)', () => {
   it('refreshes the Revisit badge, so it cannot disagree with the tab', async () => {
     // A badge loaded only in onMounted goes stale the moment you review anything, and Revisit is
     // one tap away — the nav would keep claiming items that are no longer due.
-    const spy = vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: [], paused: false })
+    // The store reads a PAGE now (the count and a few episodes), not the whole due list.
+    const spy = vi.spyOn(api, 'getResurfacingPage').mockResolvedValue({
+      items: [], paused: false, total: 0, episode_total: 0, episode_counts: {},
+    })
     const { leave, comeBack } = mountReturnable()
     await flushPromises()
     const first = spy.mock.calls.length

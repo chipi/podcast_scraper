@@ -24,6 +24,29 @@ vi.mock('../services/contentCache', () => ({
  * through HomeView, which tests the composition rather than the contract.
  */
 describe('useSectionState', () => {
+  it('the NEWEST load owns the section: an older answer landing late is dropped (2026-10-08)', async () => {
+    // Discover's Trends asked for "mine" (0 rows) and then "everyone" (8); when the "mine" answer
+    // landed second it replaced the list, and Everyone's trends showed nothing — 2 of 6 loads.
+    const s = useSectionState<number[]>([])
+    let releaseOld!: (v: number[]) => void
+    const old = s.load(() => new Promise<number[]>((r) => (releaseOld = r)))
+    await s.load(async () => [1, 2, 3])
+    releaseOld([])
+    await old
+    expect(s.data.value).toEqual([1, 2, 3])
+  })
+
+  it('a late FAILURE of an older load does not mark the newer answer stale', async () => {
+    const s = useSectionState<number[]>([])
+    let failOld!: (e: Error) => void
+    const old = s.load(() => new Promise<number[]>((_, f) => (failOld = f)))
+    await s.load(async () => [7])
+    failOld(new Error('late'))
+    await old
+    expect(s.stale.value).toBe(false)
+    expect(s.isReady.value).toBe(true)
+  })
+
   it('starts in loading, before anything is fetched', () => {
     const s = useSectionState<string[]>([])
     expect(s.phase.value).toBe('loading')

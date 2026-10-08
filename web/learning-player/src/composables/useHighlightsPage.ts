@@ -88,7 +88,12 @@ export function useHighlightsPage(filters: HighlightFilters) {
     }
   }
 
+  let moreInFlight = false
   async function showMoreGroups(): Promise<void> {
+    // A tap while the NEXT PAGE is on its way would supersede it (and a run of taps, every one).
+    // Only a "more" blocks a "more": a background revalidation must not swallow the tap.
+    if (moreInFlight) return
+    moreInFlight = true
     const mine = ++seq
     const offset = groupState.value.length
     wantedGroups = offset + PAGE
@@ -99,6 +104,8 @@ export function useHighlightsPage(filters: HighlightFilters) {
       groupState.value = [...groupState.value, ...groupsFrom(page.items, page.episode_counts)]
     } catch {
       if (mine === seq) error.value = true
+    } finally {
+      moreInFlight = false
     }
   }
 
@@ -111,9 +118,10 @@ export function useHighlightsPage(filters: HighlightFilters) {
   }
 
   /** The next five highlights of one episode (or back to five once all are out). */
+  const busyIn = new Set<string>()
   async function toggleIn(slug: string): Promise<void> {
     const g = groupState.value.find((x) => x.slug === slug)
-    if (!g) return
+    if (!g || busyIn.has(slug)) return
     if (g.ids.length >= g.total) {
       wantedIn.delete(slug)
       g.ids = g.ids.slice(0, PAGE)
@@ -121,6 +129,7 @@ export function useHighlightsPage(filters: HighlightFilters) {
     }
     const want = Math.min(MAX, g.ids.length + PAGE)
     wantedIn.set(slug, want)
+    busyIn.add(slug)
     try {
       const page = await getHighlightsPage({ ...query(), episode: slug, offset: 0, limit: 1, perEpisode: want })
       capture.merge(page.items, page.notes)
@@ -128,6 +137,8 @@ export function useHighlightsPage(filters: HighlightFilters) {
       g.total = page.episode_counts[slug] ?? g.total
     } catch {
       error.value = true
+    } finally {
+      busyIn.delete(slug)
     }
   }
 

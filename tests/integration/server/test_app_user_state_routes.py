@@ -89,6 +89,22 @@ def test_playback_save_and_resume(tmp_path: Path) -> None:
     assert client.get("/api/app/playback/ep").json()["position_seconds"] == 42.5
 
 
+def test_playback_list_pages_and_filters_when_asked(tmp_path: Path) -> None:
+    client = _authed_client(tmp_path)
+    for slug, pos in [("a", 0.5), ("b", 120), ("c", 300)]:
+        assert client.put(f"/api/app/playback/{slug}", json={"position_seconds": pos}).status_code
+    full = client.get("/api/app/playback").json()
+    assert set(full) == {"items"} and len(full["items"]) == 3
+    started = client.get("/api/app/playback", params={"limit": 10, "in_progress": True}).json()
+    assert {p["slug"] for p in started["items"]} == {"b", "c"} and started["total"] == 2
+    some = client.get(
+        "/api/app/playback", params=[("limit", 10), ("slugs", "a"), ("slugs", "c")]
+    ).json()
+    assert {p["slug"] for p in some["items"]} == {"a", "c"}
+    one = client.get("/api/app/playback", params={"limit": 1}).json()
+    assert len(one["items"]) == 1 and one["total"] == 3
+
+
 def test_recap_route(tmp_path: Path) -> None:
     """The windowed read (#1914). Auth-gated, and honest about what it does not have."""
     client = _authed_client(tmp_path)

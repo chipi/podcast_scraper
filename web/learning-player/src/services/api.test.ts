@@ -7,7 +7,9 @@ import {
   deleteHighlight,
   getEpisode,
   getEpisodesBatch,
+  getCollectionPage,
   getFavoriteRefs,
+  getPlaybackList,
   getHighlightsPage,
   getNotesPage,
   getFavoritesPage,
@@ -220,6 +222,33 @@ describe('getHighlightsPage / getNotesPage', () => {
     const url = lastUrl()
     expect(url).toContain('kinds=topic&kinds=episode')
     expect(url).toContain('match=words')
+  })
+})
+
+describe('getPlaybackList / getCollectionPage (1.0.3 paging)', () => {
+  const lastUrl = (): string => {
+    const calls = (globalThis.fetch as unknown as { mock: { calls: [string][] } }).mock.calls
+    return String(calls[calls.length - 1]![0])
+  }
+
+  it('playback: sends the filters, and filters an older server\'s full list here', async () => {
+    const all = [
+      { slug: 'a', position_seconds: 0.5, finished: false },
+      { slug: 'b', position_seconds: 90, finished: false },
+      { slug: 'c', position_seconds: 300, finished: true },
+    ]
+    mockFetch(200, { items: all }) // no `total`: an older server
+    const got = await getPlaybackList({ inProgress: true, slugs: ['a', 'b', 'c'], limit: 5 })
+    expect(lastUrl()).toContain('in_progress=true')
+    expect(lastUrl()).toContain('slugs=a&slugs=b&slugs=c')
+    expect(got.map((p) => p.slug)).toEqual(['b'])
+  })
+
+  it('board: sends limit/offset/kind and returns a paging server\'s answer', async () => {
+    mockFetch(200, { collection: { id: 'c' }, items: [], total: 12, kind_counts: { episode: 12 } })
+    const page = await getCollectionPage('c', { limit: 10, offset: 10, kind: 'episode' })
+    expect(page.total).toBe(12)
+    for (const part of ['limit=10', 'offset=10', 'kind=episode']) expect(lastUrl()).toContain(part)
   })
 })
 

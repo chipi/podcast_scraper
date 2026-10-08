@@ -543,6 +543,12 @@ export interface ResurfacingItem {
 export interface ResurfacingResponse {
   items: ResurfacingItem[]
   paused: boolean
+  /** Paged requests only (1.0.3): everything due, across all pages. */
+  total?: number
+  /** Paged: episodes with something due. */
+  episode_total?: number
+  /** Paged: due items per episode on this page. */
+  episode_counts?: Record<string, number>
 }
 
 export interface ResurfacingSettings {
@@ -599,6 +605,10 @@ export interface CollectionItem {
 export interface CollectionDetail {
   collection: Collection
   items: CollectionItem[]
+  /** Paged requests only (1.0.3): the matching items across all pages. */
+  total?: number
+  /** Paged: the board's items per kind. */
+  kind_counts?: Record<string, number>
 }
 
 // --- Delivery consent: per-TYPE × per-CHANNEL notification matrix (#1414 → wave-I) ---

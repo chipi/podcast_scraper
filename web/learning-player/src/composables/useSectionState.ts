@@ -81,6 +81,8 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
   /** Whether anything worth keeping is on screen — the thing a failure must not destroy. */
   const hasData = ref(false)
   let hydrated = false
+  /** Bumped by every `load` (and `reset`); only the newest load may write. */
+  let loadSeq = 0
 
   function accept(value: T, isStale: boolean): void {
     data.value = value
@@ -98,6 +100,11 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
    * already-loaded content, in which case the content stays and only its freshness changes.
    */
   async function load(fetcher: () => Promise<T>): Promise<void> {
+    // The NEWEST load owns the section (2026-10-08). Without this an older request that answered
+    // late overwrote a newer one: Discover's Trends asked for "mine" (0 rows), then "everyone" (8),
+    // and when "mine" landed second, Everyone's trends showed nothing — 2 of 6 loads, measured.
+    const mine = ++loadSeq
+    const current = () => mine === loadSeq
     // Start the request BEFORE reading the cache, so hydration never delays the network. Settled
     // into a result object rather than left to reject: the cache read below is a real async gap,
     // and a promise that rejects across it with no handler attached is an unhandled rejection.
@@ -137,9 +144,10 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
       // `stale` now means ONE thing: a fetch FAILED and you are looking at older content. That is
       // set in the failure branch below, which is what the notice exists for. Painting a snapshot
       // while the request is still in flight is loading-with-content, and it says nothing.
-      if (first.from === 'cache' && first.value !== null) accept(first.value, false)
+      if (first.from === 'cache' && first.value !== null && current()) accept(first.value, false)
     }
     const result = await inflight
+    if (!current()) return
     if (result.ok) {
       accept(result.value, false)
       if (options.cacheKey) void writeCached(options.cacheKey, result.value)
@@ -178,6 +186,7 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
    * under a different name is a correctness one.
    */
   function reset(): void {
+    loadSeq++ // whatever is in flight answered the old question
     data.value = initial
     phase.value = 'loading'
     stale.value = false

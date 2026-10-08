@@ -630,6 +630,21 @@ def test_highlights_page_filters(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     )
 
 
+def test_same_second_notes_and_highlights_page_newest_first(tmp_path: Path) -> None:
+    # No clock patch: these land in the same second, and the later-stored must still lead.
+    client = _authed(tmp_path)
+    for i in range(3):
+        client.post("/api/app/notes", json={"target": "topic", "target_id": "t", "text": f"n{i}"})
+        client.post(
+            "/api/app/highlights",
+            json={"episode_slug": "ep", "kind": "moment", "start_ms": i, "quote_text": f"h{i}"},
+        )
+    notes = client.get("/api/app/notes", params={"limit": 10}).json()["items"]
+    assert [n["text"] for n in notes] == ["n2", "n1", "n0"]
+    hls = client.get("/api/app/highlights", params={"limit": 1, "per_episode": 10}).json()
+    assert [h["quote_text"] for h in hls["items"]] == ["h2", "h1", "h0"]
+
+
 def test_notes_paged_with_counts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     client, ids = _seed_highlights(tmp_path, monkeypatch)
     for target, tid, text in [
@@ -1225,6 +1240,36 @@ def test_resurfacing_due_then_pause_then_mark_surfaced(tmp_path: Path) -> None:
     assert client.post(f"/api/app/resurfacing/{old['id']}/surfaced").status_code == 204
     state = _json.loads((user_dir / "resurfacing.json").read_text())
     assert state[old["id"]]["count"] == 1
+
+
+def test_resurfacing_pages_by_episode_when_asked(tmp_path: Path) -> None:
+    import json as _json
+
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    slug = _real_slug(tmp_path)
+    for i in range(3):
+        client.post(
+            "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": i}
+        )
+    user_dir = next(p for p in (tmp_path / "appdata" / "users").iterdir() if p.is_dir())
+    hl_file = user_dir / "highlights.json"
+    rows = _json.loads(hl_file.read_text())
+    for r in rows:
+        r["created_at"] = 1  # far past: all three are due
+    hl_file.write_text(_json.dumps(rows))
+
+    # 1.0.2 sends nothing: everything due, and no paging fields.
+    full = client.get("/api/app/resurfacing").json()
+    assert set(full) == {"items", "paused"} and len(full["items"]) == 3
+
+    page = client.get("/api/app/resurfacing", params={"limit": 1, "per_episode": 2}).json()
+    assert len(page["items"]) == 2
+    assert page["total"] == 3 and page["episode_total"] == 1
+    assert page["episode_counts"] == {slug: 3}
+    assert (
+        client.get("/api/app/resurfacing", params={"limit": 1, "offset": 1}).json()["items"] == []
+    )
 
 
 def test_marking_an_id_you_do_not_own_is_a_404(tmp_path: Path) -> None:

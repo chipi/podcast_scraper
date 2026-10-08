@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { resurfacingViaGetResurfacing } from '../test/apiViaSpies'
 import en from '../i18n/locales/en.json'
 import type { Highlight, ResurfacingItem } from '../services/types'
 import RevisitRail from './RevisitRail.vue'
@@ -34,6 +35,10 @@ const item = (over: Partial<Highlight> = {}): ResurfacingItem => ({
 function mountRail() {
   return mount(RevisitRail, { global: { plugins: [i18n, router] } })
 }
+
+beforeEach(() => {
+  resurfacingViaGetResurfacing()
+})
 
 describe('RevisitRail (Home)', () => {
   beforeEach(() => {

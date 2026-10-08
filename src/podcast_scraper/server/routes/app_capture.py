@@ -167,6 +167,13 @@ def _paged_highlights(
     needle = (q or "").strip().casefold()
     groups: dict[str, list[dict]] = {}
     matched = 0
+    # Newest first by (created_at, position): seconds are coarse, and of two same-second captures
+    # the later-stored one is newer — the client's `newestFirst` rule, so page and store agree.
+    position = {id(r): i for i, r in enumerate(rows)}
+
+    def newest(r: dict) -> tuple[int, int]:
+        return (int(r.get("created_at") or 0), position[id(r)])
+
     for row in rows:
         st = state.get(str(row.get("id") or ""))
         row["retired"] = bool(st.get("retired")) if isinstance(st, dict) else False
@@ -179,7 +186,7 @@ def _paged_highlights(
         matched += 1
         groups.setdefault(str(row.get("episode_slug") or ""), []).append(row)
     for group in groups.values():
-        group.sort(key=lambda r: int(r.get("created_at") or 0), reverse=True)
+        group.sort(key=newest, reverse=True)
     root = _corpus_root_opt(request)
     order = list(groups)
     if sort == "title":
@@ -190,7 +197,7 @@ def _paged_highlights(
 
         order.sort(key=title)
     else:
-        order.sort(key=lambda slug: int(groups[slug][0].get("created_at") or 0), reverse=True)
+        order.sort(key=lambda slug: newest(groups[slug][0]), reverse=True)
     page = order[offset : offset + limit]
     items = [row for slug in page for row in groups[slug][:per_episode]]
     if root is not None and items:
@@ -419,11 +426,14 @@ def list_notes(
     needle = (q or "").strip().casefold()
     words = needle.split() if match == "words" else [needle]
     every = app_user_state.get_notes(_data_dir(request), user.user_id, None, target_id)
-    hits = [
+    # Newest first, ties on position (the later-stored is newer) — the client's `newestFirst`.
+    ordered = [
         n
-        for n in sorted(every, key=lambda n: int(n.get("created_at") or 0), reverse=True)
-        if all(_matches(w, n.get("text")) for w in words)
+        for _, n in sorted(
+            enumerate(every), key=lambda p: (int(p[1].get("created_at") or 0), p[0]), reverse=True
+        )
     ]
+    hits = [n for n in ordered if all(_matches(w, n.get("text")) for w in words)]
     counts: dict[str, int] = {}
     for n in hits:
         counts[str(n.get("target"))] = counts.get(str(n.get("target")), 0) + 1

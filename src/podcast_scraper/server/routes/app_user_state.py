@@ -70,20 +70,48 @@ def _library_items(rows: list[dict]) -> list[LibraryItem]:
 
 
 @router.get("/playback", response_model=PlaybackListResponse)
-def list_playback(request: Request, user: User = Depends(get_current_user)) -> PlaybackListResponse:
-    """All saved playback positions, newest-updated first (Home 'Continue listening')."""
+def list_playback(
+    request: Request,
+    in_progress: bool = Query(
+        default=False, description="Paged: only started-and-unfinished (Continue listening)."
+    ),
+    slugs: list[str] = Query(
+        default_factory=list, max_length=100, description="Paged: only these episodes."
+    ),
+    offset: int = Query(default=0, ge=0),
+    limit: int | None = Query(
+        default=None,
+        ge=1,
+        le=100,
+        description="Page size. Absent: every position, as before 1.0.3.",
+    ),
+    user: User = Depends(get_current_user),
+) -> PlaybackListResponse:
+    """All saved playback positions, newest-updated first (Home 'Continue listening').
+
+    Paging is opt-in: with ``limit`` the list is filtered (``in_progress``, ``slugs``) and paged.
+    """
     rows = app_user_state.list_playback(_data_dir(request), user.user_id)
-    return PlaybackListResponse(
-        items=[
-            PlaybackPosition(
-                slug=r["slug"],
-                position_seconds=float(r["position_seconds"]),
-                updated_at=r.get("updated_at"),
-                finished=bool(r.get("finished", False)),
-            )
-            for r in rows
-        ]
-    )
+    items = [
+        PlaybackPosition(
+            slug=r["slug"],
+            position_seconds=float(r["position_seconds"]),
+            updated_at=r.get("updated_at"),
+            finished=bool(r.get("finished", False)),
+        )
+        for r in rows
+    ]
+    if limit is None:
+        return PlaybackListResponse(items=items)
+    wanted = set(slugs)
+    # "In progress" is Home's rule: past the first second and not finished.
+    selected = [
+        p
+        for p in items
+        if (not wanted or p.slug in wanted)
+        and (not in_progress or (p.position_seconds > 1 and not p.finished))
+    ]
+    return PlaybackListResponse(items=selected[offset : offset + limit], total=len(selected))
 
 
 @router.get("/playback/{slug}", response_model=PlaybackPosition)

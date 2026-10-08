@@ -67,10 +67,16 @@ export function useNotesPage(
 
   const reload = (): Promise<void> => fetch(0, wanted, false)
 
+  let moreInFlight = false
   function toggle(): void {
+    // A second tap while the NEXT PAGE is on its way would supersede it, and a quick enough run of
+    // taps would discard every answer: the list never grew (e2e under load, 2026-10-08). Only a
+    // "more" blocks a "more" — a background revalidation must not swallow the tap.
+    if (moreInFlight) return
     if (total.value > items.value.length) {
       wanted = items.value.length + pageSize
-      void fetch(items.value.length, pageSize, true)
+      moreInFlight = true
+      void fetch(items.value.length, pageSize, true).finally(() => (moreInFlight = false))
     } else {
       wanted = pageSize
       items.value = items.value.slice(0, pageSize)

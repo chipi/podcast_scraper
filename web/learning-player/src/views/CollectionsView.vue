@@ -23,7 +23,7 @@ import {
   addToCollection,
   createCollection,
   deleteCollection,
-  getCollection,
+  getCollectionPage,
   getEpisodesBatch,
   getPodcasts,
   removeFromCollection,
@@ -244,8 +244,40 @@ watch(availableNoteTypes, (types) => {
 // never hidden behind "Show all") — the same rule the Library Saved sections use.
 const caps = useCappedSections()
 const searchActive = computed(() => search.value.trim() !== "")
-// An open board's items: ten, then ten more (operator 2026-10-05) — a board holds up to 1,000.
-const itemCaps = useCappedSections(10, 10)
+// An open board's items: ten, then ten more (operator 2026-10-05) — a board holds up to 1,000, and
+// since 2026-10-08 each ten is a server page: the open board holds what has been LOADED.
+const ITEM_PAGE = 10
+/** The open board's item count and per-kind counts (the server's, across all pages). */
+const openTotal = ref(0)
+const openKindCounts = ref<Record<string, number>>({})
+const itemsLoading = ref(false)
+async function loadBoardItems(id: string, limit: number): Promise<CollectionDetail> {
+  const page = await getCollectionPage(id, { limit })
+  openTotal.value = page.total
+  openKindCounts.value = page.kind_counts
+  return { collection: page.collection, items: page.items }
+}
+/** "Show more": the next ten from the server; "Show less": back to ten, no request. */
+async function toggleItems(): Promise<void> {
+  const board = open.value
+  if (!board || itemsLoading.value) return
+  if (board.items.length >= openTotal.value) {
+    open.value = { ...board, items: board.items.slice(0, ITEM_PAGE) }
+    return
+  }
+  itemsLoading.value = true
+  try {
+    const page = await getCollectionPage(board.collection.id, {
+      limit: ITEM_PAGE,
+      offset: board.items.length,
+    })
+    if (open.value?.collection.id !== board.collection.id) return
+    open.value = { ...open.value, items: [...open.value.items, ...page.items] }
+    void hydrate(open.value)
+  } finally {
+    itemsLoading.value = false
+  }
+}
 
 /**
  * Display data for the items the server does not resolve.
@@ -276,20 +308,13 @@ function itemKey(it: CollectionItem): string {
  */
 /** Rows already asked for, so a second trigger while the first is in flight does not refetch. */
 const requestedItems = new Set<string>()
-// "Show more" on an open board reveals ten rows the open did not resolve.
-watch(
-  () => (open.value ? itemCaps.visible(open.value.collection.id, open.value.items).length : 0),
-  () => {
-    if (open.value) void hydrate(open.value)
-  },
-)
 
 async function hydrate(detail: CollectionDetail): Promise<void> {
   // Only the rows ON SCREEN — ten, then ten more per "Show more" (watch below). It used to resolve
   // every item on the board, up to 1,000, to show ten (2026-10-08). A row resolved once stays so.
-  const items = itemCaps
-    .visible(detail.collection.id, detail.items)
-    .filter((i) => HYDRATES.has(i.kind) && !shown.value[itemKey(i)] && !requestedItems.has(itemKey(i)))
+  const items = detail.items.filter(
+    (i) => HYDRATES.has(i.kind) && !shown.value[itemKey(i)] && !requestedItems.has(itemKey(i)),
+  )
   if (!items.length) return
   items.forEach((i) => requestedItems.add(itemKey(i)))
 
@@ -349,7 +374,8 @@ const newName = ref("")
 const newLink = ref("")
 const loaded = ref(false)
 
-const episodeItems = computed(() => open.value?.items.filter((i) => i.kind === "episode") ?? [])
+/** Episodes on the open board (the server's count — the items loaded may be fewer). */
+const episodeCount = computed(() => openKindCounts.value.episode ?? 0)
 
 /**
  * A failed load is NOT an empty library (#2004 item 13).
@@ -397,7 +423,7 @@ async function openCollection(id: string): Promise<void> {
   // Clear immediately so a slow fetch cannot leave the previous board expanded under a different
   // row's header.
   open.value = null
-  const detail = await getCollection(id)
+  const detail = await loadBoardItems(id, ITEM_PAGE)
   open.value = detail
   void hydrate(detail)
 }
@@ -434,7 +460,20 @@ watch(
 
 /** Queue every episode in this collection, oldest-pinned first, and open the first (#1839 P4). */
 const playAll = gated(async () => {
-  const eps = episodeItems.value
+  const board = open.value
+  if (!board || !episodeCount.value) return
+  // Every episode on the board, asked for now (a page of 100 at a time — a board holds up to
+  // 1,000), rather than kept loaded for a button that may never be pressed.
+  const eps: CollectionItem[] = []
+  while (eps.length < episodeCount.value) {
+    const page = await getCollectionPage(board.collection.id, {
+      kind: "episode",
+      limit: 100,
+      offset: eps.length,
+    })
+    if (!page.items.length) break
+    eps.push(...page.items)
+  }
   if (!eps.length) return
   for (const it of eps) await queue.add(it.ref)
   void router.push({ name: "player", params: { slug: eps[0].ref } })
@@ -460,7 +499,7 @@ async function addLink(): Promise<void> {
   }
   linkError.value = false
   newLink.value = ""
-  open.value = await getCollection(cid)
+  open.value = await loadBoardItems(cid, Math.max(ITEM_PAGE, open.value?.items.length ?? 0))
   void hydrate(open.value)
 }
 
@@ -485,7 +524,8 @@ async function removeItem(it: CollectionItem): Promise<void> {
   if (!open.value) return
   const cid = open.value.collection.id
   await removeFromCollection(cid, it.kind, it.ref)
-  open.value = await getCollection(cid) // re-resolve so the list + count stay honest
+  // Re-resolve what was on screen so the list + count stay honest.
+  open.value = await loadBoardItems(cid, Math.max(ITEM_PAGE, open.value.items.length))
   void hydrate(open.value)
 }
 
@@ -734,7 +774,7 @@ onMounted(() => {
             </span>
           </button>
           <button
-            v-if="open?.collection.id === c.id && episodeItems.length"
+            v-if="open?.collection.id === c.id && episodeCount"
             type="button"
             class="shrink-0 rounded-full bg-accent px-3 py-1 text-sm font-bold text-accent-foreground"
             data-testid="collection-play-all"
@@ -812,7 +852,7 @@ onMounted(() => {
             thing telling a topic from a search from a link at a glance.
           -->
             <li
-              v-for="it in itemCaps.visible(open.collection.id, open.items)"
+              v-for="it in open.items"
               :key="itemKey(it)"
               class="flex items-center gap-3 rounded-xl border border-border p-3"
               data-testid="collection-item"
@@ -868,12 +908,12 @@ onMounted(() => {
             </li>
           </ul>
           <ShowAllToggle
-            v-if="itemCaps.overflows(open.items.length, false, open.collection.id)"
-            :expanded="itemCaps.remaining(open.collection.id, open.items.length) === 0"
-            :count="open.items.length"
-            :remaining="itemCaps.remaining(open.collection.id, open.items.length)"
+            v-if="openTotal > ITEM_PAGE"
+            :expanded="open.items.length >= openTotal"
+            :count="openTotal"
+            :remaining="Math.max(0, openTotal - open.items.length)"
             data-testid="collection-items-more"
-            @toggle="itemCaps.toggle(open.collection.id, open.items.length)"
+            @toggle="toggleItems"
           />
 
           <!-- Pin an external link (an article / blog post found while researching) — URL only (RFC-119). -->

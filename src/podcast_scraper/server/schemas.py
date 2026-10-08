@@ -1543,6 +1543,17 @@ class ResurfacingResponse(BaseModel):
 
     items: list[ResurfacingItem] = Field(default_factory=list)
     paused: bool = Field(default=False, description="Whether the user has paused resurfacing.")
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged (1.0.3): due items, all pages."
+    )
+    episode_total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: episodes with something due."
+    )
+    episode_counts: dict[str, int] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: due items per episode on this page (items may hold fewer).",
+    )
 
 
 class ResurfacingSettings(BaseModel):
@@ -1997,10 +2008,22 @@ class CollectionItem(BaseModel):
 
 
 class CollectionDetail(BaseModel):
-    """A collection with its resolved, typed items (GET /api/app/collections/{id})."""
+    """A collection with its resolved, typed items (GET /api/app/collections/{id}).
+
+    With ``limit`` (1.0.3) ``items`` is one page and ``total`` / ``kind_counts`` are filled;
+    without it every item, and neither field.
+    """
 
     collection: Collection
     items: list[CollectionItem] = Field(default_factory=list)
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: matching items, all pages."
+    )
+    kind_counts: dict[str, int] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: the board's items per kind (Play all needs the episode count).",
+    )
 
 
 # --- The delivery outbox seam (#1415, RFC-110 §2 / ADR-145) — internal, worker-facing ---
@@ -2107,9 +2130,15 @@ class PlaybackUpdate(BaseModel):
 
 
 class PlaybackListResponse(BaseModel):
-    """All saved playback positions (Home 'Continue listening')."""
+    """All saved playback positions (Home 'Continue listening').
+
+    With ``limit`` (1.0.3) one page of the filtered list, plus ``total``; without it, unchanged.
+    """
 
     items: list[PlaybackPosition] = Field(default_factory=list)
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: matching positions, all pages."
+    )
 
 
 class UserPreferencesResponse(BaseModel):

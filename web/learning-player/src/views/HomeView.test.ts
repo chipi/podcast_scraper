@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
-import { batchViaGetEpisode } from '../test/apiViaSpies'
+import { batchViaGetEpisode, resurfacingViaGetResurfacing } from '../test/apiViaSpies'
 import en from '../i18n/locales/en.json'
 import type { EpisodeSummary, Me, Podcast } from '../services/types'
 import { resetStaleness } from '../composables/useSectionState'
@@ -82,6 +82,7 @@ function ep(slug: string, title: string): EpisodeSummary {
 }
 
 beforeEach(() => {
+  resurfacingViaGetResurfacing()
   batchViaGetEpisode()
   setActivePinia(createPinia())
   // The embedded TrendingTopics + Storylines fetch trending topics / theme clusters; keep these

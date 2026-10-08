@@ -10,6 +10,7 @@ import type {
   EpisodeSummary,
   FavoriteKind,
   FavoriteRef,
+  ResurfacingItem,
   WhatsNewResponse,
   RecapResponse,
   RecapWindow,
@@ -1001,9 +1002,29 @@ export function getPodcastSignals(feedId: string, topK?: number): Promise<Podcas
 }
 
 /** Saved playback positions, newest-first (Home "Continue"); `[]` when signed out. */
-export async function getPlaybackList(): Promise<PlaybackPosition[]> {
+/** Which positions to read (`GET /playback` with `limit`, 1.0.3) — none = every position. */
+export interface PlaybackQuery {
+  /** Started and not finished — Home's Continue listening. */
+  inProgress?: boolean
+  /** Only these episodes. */
+  slugs?: string[]
+  limit: number
+}
+
+export async function getPlaybackList(query?: PlaybackQuery): Promise<PlaybackPosition[]> {
   try {
-    return (await getJSON<{ items: PlaybackPosition[] }>("/playback")).items
+    if (!query) return (await getJSON<{ items: PlaybackPosition[] }>("/playback")).items
+    const params = new URLSearchParams({ limit: String(query.limit) })
+    if (query.inProgress) params.set("in_progress", "true")
+    for (const s of query.slugs ?? []) params.append("slugs", s)
+    const resp = await getJSON<{ items: PlaybackPosition[]; total?: number }>(`/playback?${params}`)
+    if (resp.total !== undefined) return resp.items
+    // An older server ignores the parameters and answers with everything: filter here.
+    const wanted = new Set(query.slugs ?? [])
+    return resp.items
+      .filter((p) => !wanted.size || wanted.has(p.slug))
+      .filter((p) => !query.inProgress || (p.position_seconds > 1 && !p.finished))
+      .slice(0, query.limit)
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return []
     throw err
@@ -1809,6 +1830,51 @@ export async function exportObsidian(since: number, epoch?: string): Promise<Obs
 // --- P3 Consolidation: spaced resurfacing (RFC-101 §5) ---
 
 /** Highlights due to resurface (+ reflection prompt + paused flag); empty signed out (401). */
+/**
+ * What is due, a page of EPISODES at a time (`GET /resurfacing` with `limit`). Against a server
+ * that predates paging (no `total` in its answer) the full list is grouped and cut here.
+ */
+export async function getResurfacingPage(query: {
+  offset?: number
+  limit: number
+  perEpisode?: number
+}): Promise<Required<ResurfacingResponse>> {
+  let resp: ResurfacingResponse
+  try {
+    resp = await getJSON<ResurfacingResponse>("/resurfacing", {
+      offset: query.offset ?? 0,
+      limit: query.limit,
+      per_episode: query.perEpisode ?? 100,
+    })
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) resp = { items: [], paused: false }
+    else throw err
+  }
+  if (resp.total !== undefined) return resp as Required<ResurfacingResponse>
+  return pageResurfacingLocally(resp, query)
+}
+
+export function pageResurfacingLocally(
+  resp: ResurfacingResponse,
+  query: { offset?: number; limit: number; perEpisode?: number },
+): Required<ResurfacingResponse> {
+  const groups = new Map<string, ResurfacingItem[]>()
+  for (const it of resp.items) {
+    const slug = it.highlight.episode_slug
+    groups.set(slug, [...(groups.get(slug) ?? []), it])
+  }
+  const order = [...groups.keys()]
+  const start = query.offset ?? 0
+  const page = order.slice(start, start + query.limit)
+  return {
+    items: page.flatMap((slug) => groups.get(slug)!.slice(0, query.perEpisode ?? 100)),
+    paused: resp.paused,
+    total: resp.items.length,
+    episode_total: order.length,
+    episode_counts: Object.fromEntries(page.map((slug) => [slug, groups.get(slug)!.length])),
+  }
+}
+
 export async function getResurfacing(): Promise<ResurfacingResponse> {
   try {
     return await getJSON<ResurfacingResponse>("/resurfacing")
@@ -2130,6 +2196,39 @@ function withAbsoluteCovers(items: Collection[]): Collection[] {
 
 export async function getCollection(id: string): Promise<CollectionDetail> {
   return getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`)
+}
+
+/**
+ * One page of a board's items (`GET /collections/{id}` with `limit`, 1.0.3), optionally of one
+ * kind. Against an older server (no `total`) the whole board is cut here.
+ */
+export async function getCollectionPage(
+  id: string,
+  query: { limit: number; offset?: number; kind?: string },
+): Promise<Required<CollectionDetail>> {
+  const resp = await getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`, {
+    limit: query.limit,
+    offset: query.offset ?? 0,
+    kind: query.kind,
+  })
+  if (resp.total !== undefined) return resp as Required<CollectionDetail>
+  return pageCollectionLocally(resp, query)
+}
+
+export function pageCollectionLocally(
+  resp: CollectionDetail,
+  query: { limit: number; offset?: number; kind?: string },
+): Required<CollectionDetail> {
+  const kindCounts: Record<string, number> = {}
+  for (const it of resp.items) kindCounts[it.kind] = (kindCounts[it.kind] ?? 0) + 1
+  const selected = query.kind ? resp.items.filter((i) => i.kind === query.kind) : resp.items
+  const start = query.offset ?? 0
+  return {
+    collection: resp.collection,
+    items: selected.slice(start, start + query.limit),
+    total: selected.length,
+    kind_counts: kindCounts,
+  }
 }
 
 // `clientId` (a `col_…` id minted offline) makes the create idempotent: a replay returns the

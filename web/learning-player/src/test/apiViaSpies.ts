@@ -56,3 +56,17 @@ export function capturesViaFullLists(): void {
     ),
   )
 }
+
+/** Answer `getResurfacingPage` from the test's own `getResurfacing` spy (older-server paging). */
+export function resurfacingViaGetResurfacing(): void {
+  vi.spyOn(api, 'getResurfacingPage').mockImplementation(async (query) =>
+    api.pageResurfacingLocally(await api.getResurfacing(), query),
+  )
+}
+
+/** Answer `getCollectionPage` from the test's own `getCollection` spy (older-server paging). */
+export function collectionsViaGetCollection(): void {
+  vi.spyOn(api, 'getCollectionPage').mockImplementation(async (id, query) =>
+    api.pageCollectionLocally(await api.getCollection(id), query),
+  )
+}

@@ -72,9 +72,18 @@ export function useFavoritesPage(kind: FavoriteKind, filters: SavedFilters) {
     return fetchRange(0, wanted, false)
   }
 
-  function showMore(): Promise<void> {
+  let moreInFlight = false
+  async function showMore(): Promise<void> {
+    // A tap while the NEXT PAGE is on its way would supersede it (and a run of taps, every one).
+    // Only a "more" blocks a "more": a background revalidation must not swallow the tap.
+    if (moreInFlight) return
     wanted = shown.value + PAGE
-    return fetchRange(shown.value, PAGE, true)
+    moreInFlight = true
+    try {
+      await fetchRange(shown.value, PAGE, true)
+    } finally {
+      moreInFlight = false
+    }
   }
 
   /** Back to the first five ("Show less"), without a request. */

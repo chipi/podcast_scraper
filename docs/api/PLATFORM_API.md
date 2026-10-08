@@ -139,7 +139,7 @@ use `artwork_url` when present.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/app/playback` | All saved positions, newest-updated first (Home "Continue"): `{items[{slug, position_seconds, updated_at?}]}`. |
+| GET | `/api/app/playback` | All saved positions, newest-updated first (Home "Continue"): `{items[{slug, position_seconds, updated_at?}]}`. **Opt-in paging** (1.0.3): with `limit` (≤100), filtered by `in_progress=true` (started, not finished) and repeated `slugs`, plus `offset` and `total`. Without `limit`, unchanged. |
 | GET, PUT | `/api/app/playback/{slug}` | Resume position `{slug, position_seconds, updated_at?}`; GET returns 0 when unset. |
 | GET, PUT | `/api/app/queue` | Play queue `{items: [slug, …]}`. |
 | GET, POST, DELETE | `/api/app/library` (+ `/{feed_id}`) | Subscriptions — list / subscribe (idempotent on `feed_id`) / unsubscribe. |
@@ -229,7 +229,7 @@ Named, ordered sets of the user's highlights (the curation surface). Per-user fi
 | Method | Path | Description |
 | --- | --- | --- |
 | GET, POST | `/api/app/collections` | List (`CollectionsResponse`) / create (**201**, body `{name}` → `Collection`). |
-| GET, DELETE | `/api/app/collections/{id}` | Detail with hydrated items (`CollectionDetail`) / delete (returns remaining). |
+| GET, DELETE | `/api/app/collections/{id}` | Detail with hydrated items (`CollectionDetail`) / delete (returns remaining). `GET` with `limit` (1.0.3): one page of items, optionally one `kind`, plus `offset`, `total` and `kind_counts`; without it, every item as before. |
 | POST | `/api/app/collections/{id}/items` | Add a highlight `{highlight_id}` (idempotent) → the updated `Collection`. |
 | DELETE | `/api/app/collections/{id}/items/{highlight_id}` | Remove a highlight from the collection. |
 
@@ -267,7 +267,7 @@ capture (RFC-101 §1).
 | --- | --- | --- |
 | GET | `/api/app/episodes/{slug}/enrichment` | Per-episode enrichment signals `{slug, signals{<enricher_id>: data}}` for the viewed episode (RFC-088 envelopes; only OK enrichers). **404** unknown slug. |
 | GET | `/api/app/corpus/enrichment` | Corpus-scope signals `{signals{<enricher_id>: data}}` (temporal velocity, topic similarity, …). |
-| GET | `/api/app/resurfacing` | Highlights due to resurface, grouped by episode, most recently engaged episode first (`max(listened_at, newest capture)` — 2026-09-18, replacing most-overdue-first): `{items[{highlight, reflection_prompt}], paused}`. Read-time ladder (2d/1w/1mo/3mo on `created_at`/`last_surfaced`); empty when paused. **Auth-gated.** |
+| GET | `/api/app/resurfacing` | Highlights due to resurface, grouped by episode, most recently engaged episode first (`max(listened_at, newest capture)` — 2026-09-18, replacing most-overdue-first): `{items[{highlight, reflection_prompt}], paused}`. Read-time ladder (2d/1w/1mo/3mo on `created_at`/`last_surfaced`); empty when paused. **Auth-gated.** With `limit` (1.0.3) it pages by EPISODE in the same order (`offset`, `per_episode`), plus `total`, `episode_total`, `episode_counts`; without it, unchanged. |
 | POST | `/api/app/resurfacing/{id}/surfaced` | Record a resurfaced highlight as seen (advances its ladder). **204.** |
 | GET, PUT | `/api/app/resurfacing/settings` | Pacing `{paused}` (`PUT` to pause/resume). |
 | GET | `/api/app/interests/derived` | Implicit interests ranked by occurrence across the user's corpus: `{items[{token, kind, label, count}]}` — `person:`/`topic:` tokens, beside explicit follows. **Auth-gated.** |
