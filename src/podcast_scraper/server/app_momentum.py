@@ -21,13 +21,10 @@ from pathlib import Path
 from typing import Any
 
 from podcast_scraper import perf_cache
+from podcast_scraper.extensions import engagement_series
 from podcast_scraper.search.storylines import load_storylines_payload, storyline_anchor
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import cached_json_artifact
-from podcast_scraper.server.app_engagement_series import (
-    DEFAULT_WEIGHTS as DEFAULT_ENGAGEMENT_WEIGHTS,
-    engagement_series,
-)
 from podcast_scraper.server.app_kg_index import get_kg_index
 from podcast_scraper.server.corpus_catalog import aggregate_feeds
 
@@ -70,10 +67,9 @@ class MomentumConfig:
     # Engagement identifiability floor (corpus scope only), in DISTINCT LISTENERS (ADR-163 §5): one
     # listener's activity never surfaces corpus-wide, however many times they act.
     min_listeners_corpus: int = 2
-    # Weight per engagement signal, each counted once per listener per entity per week.
-    engagement_weights: dict[str, int] = field(
-        default_factory=lambda: dict(DEFAULT_ENGAGEMENT_WEIGHTS)
-    )
+    # Weight per engagement signal, each counted once per listener per entity per week. Only the
+    # operator's overrides: the engagement source (the player) holds the defaults.
+    engagement_weights: dict[str, int] = field(default_factory=dict)
     # RFC-103 R2 — monthly window trending.
     default_window: str = "3m"  # 1m | 3m | 6m | 1y — the browse/catch-up cadence
     new_entity_velocity: float = (
@@ -109,10 +105,7 @@ class MomentumConfig:
             # R2: min_total is the list-inclusion floor; `trend.min_total` overrides the default.
             min_total=int(trend.get("min_total", heat.get("min_total", 3))),
             min_listeners_corpus=int(eng.get("min_listeners_corpus", 2)),
-            engagement_weights={
-                **DEFAULT_ENGAGEMENT_WEIGHTS,
-                **{str(k): int(v) for k, v in (eng.get("weights") or {}).items()},
-            },
+            engagement_weights={str(k): int(v) for k, v in (eng.get("weights") or {}).items()},
             default_window=str(trend.get("default_window", "3m")),
             new_entity_velocity=float(trend.get("new_entity_velocity", 6.0)),
             blend_default=(
@@ -372,10 +365,12 @@ def _add_cluster_series(
 def _engagement_weekly_by_entity(
     data_dir: Path | None, user_id: str | None, weights: dict[str, int] | None = None
 ) -> tuple[dict[tuple[str, str], dict[str, int]], dict[tuple[str, str], int]]:
-    """``((kind, id) → weekly engagement scores, (kind, id) → distinct listeners)``."""
-    if data_dir is None:
+    """``((kind, id) → weekly engagement scores, (kind, id) → distinct listeners)`` from the
+    installed engagement source (the player); none installed means trending is content-only."""
+    source = engagement_series()
+    if data_dir is None or source is None:
         return {}, {}
-    data = engagement_series(data_dir, user_id=user_id, weights=weights)
+    data = source(data_dir, user_id, weights)
     weekly, listeners = {}, {}
     for e in data.get("entities") or []:
         key = (str(e["kind"]), str(e["entity_id"]))

@@ -8,8 +8,9 @@ wherever extensions are, including the pipeline, which has no web stack.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
-from typing import Sequence, TYPE_CHECKING
+from typing import Any, Sequence, TYPE_CHECKING
 
 from podcast_scraper.extensions import Extension, RouterMount
 
@@ -40,4 +41,15 @@ def _forget_user(data_dir: Path, user: User) -> dict[str, int]:
     }
 
 
-EXTENSION = Extension(name="mcp", routers=_routers, account_deleted=(_forget_user,))
+def _internal_token(app: Any) -> None:
+    """Shared token for the internal MCP verify seam (RFC-112 §4, #1471): the MCP server process
+    authenticates with it over the tailnet. Empty → ``/internal/mcp/verify`` 503s (disabled)."""
+    app.state.internal_mcp_token = os.environ.get("INTERNAL_MCP_TOKEN", "")
+
+
+EXTENSION = Extension(
+    name="mcp",
+    routers=_routers,
+    account_deleted=(_forget_user,),
+    app_configured=(_internal_token,),
+)
