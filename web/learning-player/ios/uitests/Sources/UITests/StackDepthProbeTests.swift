@@ -114,10 +114,20 @@ final class HostShowLinkTests: UITestCase {
         sleep(3)
       }
     }
-    _ = Journey.scrollTo(app, labels: ["Open Dr. Elena Fischer", "Open Sam"])
-    guard Journey.tap(app, labels: ["Open Dr. Elena Fischer", "Open Sam"], contains: true, timeout: 10)
+    // The HOST, by name: only a host's card carries the "Host of …" sentence. Since 2026-10-07 the
+    // notes' first chips put the guest ahead of hosts (and hosts behind "+N more"), so taking the
+    // first person found opened the guest, Dr. Elena Fischer, whose card has no show link.
+    if Journey.find(app, labels: ["Open Sam"], contains: true, timeout: 4) == nil {
+      let more = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '+' AND label ENDSWITH ' more'")).firstMatch
+      if more.waitForExistence(timeout: 6) {
+        _ = Journey.tap(app, labels: [more.label], timeout: 6)
+        sleep(2)
+      }
+    }
+    _ = Journey.scrollTo(app, labels: ["Open Sam"])
+    guard Journey.tap(app, labels: ["Open Sam"], contains: true, timeout: 10)
     else {
-      Journey.inventory(app, "no-person-row"); XCTFail("no person to open"); return
+      Journey.inventory(app, "no-host-row"); XCTFail("no host (Sam) to open"); return
     }
     sleep(5)
 
