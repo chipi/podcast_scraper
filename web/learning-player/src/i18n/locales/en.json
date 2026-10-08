@@ -319,6 +319,8 @@
     "help": "Help & support",
     "helpDesc": "Open closelistening.app",
     "copyDiagnostics": "Copy build info",
+    "copyDebug": "Copy debug info",
+    "copyDebugHint": "Something looks wrong? Copy debug info right then and send it to us — it has your phone, system and graphics details.",
     "copied": "Copied"
   },
   "auth": {

@@ -36,8 +36,20 @@ interface AppProcessPlugin {
   exitLog(): Promise<{ entries: AppExitEntry[]; historyThrough?: number }>
   /** Clear what was delivered: iOS by `count`, Android by `historyThrough`. */
   clearExitLog(opts: { count: number; historyThrough?: number }): Promise<void>
+  /** "Copy debug info": memory and device facts only native code can read (operator 2026-10-08). */
+  memoryInfo(): Promise<Record<string, string | number | boolean>>
 }
 const AppProcess = registerPlugin<AppProcessPlugin>('AppProcess')
+
+/** Native memory + device facts, or null on the web / an older native build without the method. */
+export async function nativeMemoryInfo(): Promise<Record<string, string | number | boolean> | null> {
+  if (!isNative()) return null
+  try {
+    return await AppProcess.memoryInfo()
+  } catch {
+    return null
+  }
+}
 
 /**
  * A page booted within this long of its process is a cold launch. Generous on purpose: the gap is

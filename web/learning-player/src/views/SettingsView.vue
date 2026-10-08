@@ -22,6 +22,7 @@ import { usePlayerStore } from '../stores/player'
 import Tabs from '../components/Tabs.vue'
 import type { TabSpec } from '../components/tabs'
 import { RouterLink, useRouter } from 'vue-router'
+import { collectDebugInfo } from '../utils/debugInfo'
 import { useGuidedStart } from '../composables/useGuidedStart'
 import { Capacitor } from '@capacitor/core'
 import { isNative } from '../services/native'
@@ -163,6 +164,32 @@ async function copyDiagnostics(): Promise<void> {
     window.setTimeout(() => (copied.value = false), 1500)
   } catch {
     /* clipboard blocked (insecure context / denied) — no-op, the info is still on screen */
+  }
+}
+
+/**
+ * "Copy debug info" (operator 2026-10-08): device, OS, WebView, GPU and memory as one pasteable block,
+ * so a tester who sees something odd sends it straight from here. The screen recorded is the one
+ * they CAME FROM — the one that misbehaved — not Settings.
+ */
+const debugCopied = ref(false)
+async function copyDebugInfo(): Promise<void> {
+  const back = (window.history.state as { back?: string } | null)?.back ?? '(unknown)'
+  const text = await collectDebugInfo({
+    version,
+    sha: sha || '—',
+    builtAt: String(__BUILD_TIME__),
+    platform,
+    target,
+    route: back,
+    userId: auth.user?.user_id ?? null,
+  })
+  try {
+    await navigator.clipboard.writeText(text)
+    debugCopied.value = true
+    window.setTimeout(() => (debugCopied.value = false), 1500)
+  } catch {
+    /* clipboard blocked — nothing to fall back to without showing the block */
   }
 }
 
@@ -402,7 +429,16 @@ async function openHelp(): Promise<void> {
         >
           {{ copied ? t('settings.copied') : t('settings.copyDiagnostics') }}
         </button>
+        <button
+          type="button"
+          class="rounded-full border border-border px-4 py-1.5 text-sm font-bold transition hover:bg-overlay"
+          data-testid="settings-copy-debug"
+          @click="copyDebugInfo"
+        >
+          {{ debugCopied ? t('settings.copied') : t('settings.copyDebug') }}
+        </button>
       </div>
+      <p class="mt-2 text-xs text-muted">{{ t('settings.copyDebugHint') }}</p>
     </section>
 
     <section class="mt-6 rounded-2xl border border-border p-5">
