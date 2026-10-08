@@ -66,6 +66,10 @@ MODEL_INPUT_TOKEN_LIMIT = 2048
 #: constant that was fractionally optimistic.
 _PESSIMISTIC_CHARS_PER_TOKEN = 2.2
 
+#: Tokens kept free between prompt + completion and the served context, so a prompt count that
+#: is off by a few tokens cannot push a request over the edge.
+CONTEXT_MARGIN_TOKENS = 32
+
 _VLLM_DUMMY_BEARER = "EMPTY"
 
 
@@ -96,6 +100,9 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         # (model, hash, len) -> exact token count. The same unit is budgeted then sent, and the
         # answer cannot change between them.
         self._token_count_cache: Dict[Tuple[str, int, int], int] = {}
+        # The served model's context (prompt + completion), read once from /v1/models; False
+        # once a lookup failed, so an unreachable endpoint is not asked again per unit.
+        self._served_context: Optional[int] | bool = None
 
     # -- identity / auth -------------------------------------------------------------------
     def _authenticate(self, cfg: "config.Config") -> None:
@@ -161,6 +168,30 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         self._served_verified = True
 
     # -- token budgeting -------------------------------------------------------------------
+    def served_context_tokens(self) -> Optional[int]:
+        """The served model's ``max_model_len`` (prompt + completion), or None when unknown.
+
+        Read from the server, not from a document: ADR-157 records 8192 while the endpoint
+        reported 4096 on 2026-10-08, and a request sized for the documented window was refused
+        ("maximum context length is 4096 tokens") — failing the episode's translation.
+        """
+        if self._served_context is None:
+            self._served_context = False
+            try:
+                for m in self.client.models.list().data:
+                    if str(getattr(m, "id", "")).casefold() == str(self.translate_model).casefold():
+                        n = getattr(m, "max_model_len", None)
+                        if n is None:
+                            n = (getattr(m, "model_extra", None) or {}).get("max_model_len")
+                        if n:
+                            self._served_context = int(n)
+                        break
+            except Exception as exc:  # noqa: BLE001 — unknown context: budget as before
+                logger.warning(
+                    "translate: could not read the served context length (%s)", type(exc).__name__
+                )
+        return self._served_context or None
+
     def count_tokens(self, text: str) -> Optional[int]:
         """Exact token count from vLLM's own ``POST /tokenize`` (the same override VLLMProvider
         has, against this provider's endpoint and model).
@@ -304,6 +335,16 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         # Generous by default: a translation's length is bounded by its input's, and a cap that
         # truncates produces a silently short translation rather than an error.
         budget = int(overrides.get("max_tokens") or max(256, len(text) // 2))
+        # ...but never past what the served context leaves after the prompt: the server refuses
+        # the whole request rather than shortening it (V.6b es, 2026-10-08: 1,144 prompt + 2,953
+        # requested = 4,097 > 4,096, two units failed, so did the episode's translation). A
+        # translation that truly does not fit is then cut off and reported as truncated below.
+        served = self.served_context_tokens()
+        if served:
+            room = served - prompt_tokens - CONTEXT_MARGIN_TOKENS
+            if budget > room:
+                meta["max_tokens_capped_from"] = budget
+                budget = max(1, room)
 
         started = time.monotonic()
         try:

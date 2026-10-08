@@ -484,3 +484,47 @@ class TestNumberedParsing:
         from podcast_scraper.providers.vllm.translate_provider import _parse_numbered
 
         assert _parse_numbered("Just a paragraph with no numbers.") == []
+
+
+class TestTheOutputBudgetFitsTheServedContext:
+    """V.6b es (2026-10-08): units packed to ~1,144 prompt tokens asked for len(text)//2 ~= 2,953
+    completion tokens; the server's context is 4,096, so it refused both requests and the
+    episode's translation failed. The budget is capped at what the context leaves."""
+
+    class _Models:
+        def __init__(self, ctx: Optional[int], raises: bool = False) -> None:
+            self.ctx, self.raises, self.calls = ctx, raises, 0
+
+        def list(self) -> Any:
+            self.calls += 1
+            if self.raises:
+                raise ConnectionError("down")
+            ctx = self.ctx
+
+            class _D:
+                data = [type("M", (), {"id": MODEL, "max_model_len": ctx})()]
+
+            return _D()
+
+    def _call(self, models: Any, text: str) -> Dict[str, Any]:
+        p = _provider(models=models)
+        p.estimate_prompt_tokens = lambda prompt: (1144, "tokenizer")  # type: ignore[method-assign]
+        p.translate(text, source_language="es", target_language="en")
+        return p.client.completions.calls[-1]  # type: ignore[attr-defined]
+
+    def test_the_budget_is_capped_at_the_room_the_context_leaves(self) -> None:
+        call = self._call(self._Models(4096), "x" * 5906)
+        assert call["max_tokens"] == 4096 - 1144 - 32
+
+    def test_a_budget_that_fits_is_left_alone(self) -> None:
+        assert self._call(self._Models(8192), "x" * 5906)["max_tokens"] == 2953
+
+    def test_an_unknown_context_budgets_as_before_and_is_asked_once(self) -> None:
+        models = self._Models(None, raises=True)
+        p = _provider(models=models)
+        p.estimate_prompt_tokens = lambda prompt: (1144, "tokenizer")  # type: ignore[method-assign]
+        for _ in range(3):
+            p.translate("x" * 5906, source_language="es", target_language="en")
+        calls = p.client.completions.calls  # type: ignore[attr-defined]
+        assert [c["max_tokens"] for c in calls] == [2953] * 3
+        assert p._served_context is False, "the failed lookup is cached, not repeated per unit"
