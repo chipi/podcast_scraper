@@ -117,8 +117,9 @@ def _assert_offsets_hold(p: Dict[str, Path]) -> None:
 
 def test_registered_after_0023() -> None:
     ids = [m.id for m in get_migrations()]
-    assert ids.index("0024_shared_removed_speaker_prefixes") == len(ids) - 1
-    assert ids.index("0023_transcript_speaker_prefixes_resynced") == len(ids) - 2
+    assert ids.index("0024_shared_removed_speaker_prefixes") == (
+        ids.index("0023_transcript_speaker_prefixes_resynced") + 1
+    )
 
 
 def test_a_name_on_two_voices_becomes_speaker_and_nothing_is_split(tmp_path: Path) -> None:

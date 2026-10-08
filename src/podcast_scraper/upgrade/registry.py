@@ -44,6 +44,7 @@ from .migrations.m0023_transcript_speaker_prefixes_resynced import (
 from .migrations.m0024_shared_removed_speaker_prefixes import (
     SharedRemovedSpeakerPrefixesMigration,
 )
+from .migrations.m0025_one_person_one_entry import OnePersonOneEntryMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -98,6 +99,8 @@ _MIGRATIONS: List[Migration] = [
     TranscriptSpeakerPrefixesResyncedMigration(),
     # 0024 renames what 0023 refused: a removed name on 2+ voices becomes SPEAKER (#2294).
     SharedRemovedSpeakerPrefixesMigration(),
+    # 0025 repairs one person published twice (a title or a respelling) as c05cc0273 now avoids.
+    OnePersonOneEntryMigration(),
 ]
 
 
