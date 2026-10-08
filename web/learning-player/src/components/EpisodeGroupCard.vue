@@ -81,7 +81,7 @@ const art = computed(() => episodeArtwork(props.episode))
         <!-- Siblings of the link, never inside it: an interactive inside an interactive loses its
              accessible name (ShowTile's 2026-09-26 Android audit). -->
         <div class="flex shrink-0 flex-col items-center gap-1">
-          <EpisodeActions :slug="episode.slug" hide-favorite hide-queue />
+          <EpisodeActions :slug="episode.slug" :share-title="episode.title" hide-favorite hide-queue />
         </div>
       </div>
       <!-- The fold sits on the BOTTOM row, beside the count of what it folds (operator 2026-10-08):

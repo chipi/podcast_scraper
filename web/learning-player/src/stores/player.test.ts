@@ -853,21 +853,13 @@ describe('output routing — the system picker, never our own device list (opera
     expect(p.playingRemotely).toBe(false)
   })
 
-  it('iOS: availability follows the webkit event', () => {
+  it('iOS: the picker is always offered, AirPlay receivers or not (operator 2026-10-08)', () => {
+    // It followed `webkitplaybacktargetavailabilitychanged`, which only reports AirPlay receivers;
+    // away from one the button disappeared. The system sheet always has the iPhone and Bluetooth.
     const el = stubAudio({ webkitShowPlaybackTargetPicker: vi.fn() } as never)
     const p = usePlayerStore()
     loaded(p, el)
-
-    // The event carries `availability`, and WebKit fires it once on subscribe with the current
-    // state — which is what lets the button appear without polling.
-    const handler = (el as never as { addEventListener: { mock: { calls: [string, (e: unknown) => void][] } } })
-      .addEventListener.mock.calls.find(([k]) => k === 'webkitplaybacktargetavailabilitychanged')?.[1]
-    expect(handler, 'the store never subscribed to the webkit availability event').toBeTruthy()
-
-    handler!({ availability: 'available' })
     expect(p.routeAvailable).toBe(true)
-    handler!({ availability: 'not-available' })
-    expect(p.routeAvailable).toBe(false)
   })
 
   it('iOS: the picker call is delegated to the element, not reimplemented', () => {
