@@ -212,7 +212,10 @@ watch(
           <span class="lp-speaker">{{ speakerLabel(para.speaker) }}</span>
         </template>
       </div>
-      <div class="flex items-start" :class="canCapture ? 'pr-8' : ''">
+      <!-- `relative` HERE, not on the row: the save glyph is placed against the PARAGRAPH, so it sits
+           level with the first line of text rather than with the time · speaker line above it
+           (operator 2026-10-08). The 24px button centres on the ~23px first line at top-0. -->
+      <div class="relative flex items-start" :class="canCapture ? 'pr-8' : ''">
         <!-- Flowing paragraph: segments are inline, the active one highlighted, each tap-to-seek. -->
         <p
           :ref="(el) => { if (el) paraEls[pi] = el as HTMLElement }"
@@ -247,7 +250,7 @@ watch(
              affordance's; the glyph, the naming and the a11y text belong to the component. -->
         <HighlightToggle
           v-if="canCapture"
-          class="absolute right-0 top-1 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+          class="absolute right-0 top-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
           :class="{ 'opacity-100': paraSaved(para) }"
           context="line"
           :saved="paraSaved(para)"
