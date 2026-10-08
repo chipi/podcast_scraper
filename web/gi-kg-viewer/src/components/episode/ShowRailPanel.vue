@@ -26,7 +26,9 @@ import {
   type CorpusFeedSignalsResponse,
 } from '../../api/corpusLibraryApi'
 import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
+import LanguageBadge from '../shared/LanguageBadge.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
+import { spansLanguages } from '../../utils/language'
 
 const emit = defineEmits<{
   (e: 'switch-main-tab', tab: 'digest' | 'library' | 'graph' | 'dashboard'): void
@@ -46,6 +48,9 @@ async function ensureDefaultCorpusGraphIfNeeded(): Promise<void> {
 }
 
 const feed = ref<CorpusFeedItem | null>(null)
+// The language badge renders only in a multilingual corpus (PRD-047 FR7.5), decided from the same
+// feed list this panel already loads — the grid applies the identical rule.
+const corpusSpansLanguages = ref(false)
 const episodes = ref<CorpusEpisodeListItem[]>([])
 const signals = ref<CorpusFeedSignalsResponse | null>(null)
 const loading = ref(false)
@@ -116,8 +121,10 @@ async function loadFeed(): Promise<void> {
   try {
     const body = await fetchCorpusFeeds(path)
     feed.value = body.feeds.find((f) => f.feed_id === id) ?? null
+    corpusSpansLanguages.value = spansLanguages(body.feeds.map((f) => f.language))
   } catch {
     feed.value = null
+    corpusSpansLanguages.value = false
   }
 }
 
@@ -286,7 +293,11 @@ watch(
             </button>
           </div>
           <p class="mt-0.5 text-xs text-muted">
-            {{ episodeCount }} {{ episodeCount === 1 ? 'episode' : 'episodes' }}
+            <LanguageBadge
+              v-if="corpusSpansLanguages"
+              :lang="feed?.language"
+              class="mr-1 align-[1px]"
+            />{{ episodeCount }} {{ episodeCount === 1 ? 'episode' : 'episodes' }}
             <template v-if="feed?.rss_url">
               ·
               <a

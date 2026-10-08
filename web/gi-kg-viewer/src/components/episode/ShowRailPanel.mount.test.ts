@@ -95,6 +95,7 @@ let lastEpisodesUrl = ''
 function stubApi(
   nextCursor: string | null = null,
   signals: unknown = SIGNALS,
+  feeds: unknown[] = [FEED],
 ): void {
   lastEpisodesUrl = ''
   vi.stubGlobal(
@@ -102,7 +103,7 @@ function stubApi(
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes('/api/corpus/feed-signals')) return res(signals)
-      if (url.includes('/api/corpus/feeds')) return res({ path: '/corpus', feeds: [FEED] })
+      if (url.includes('/api/corpus/feeds')) return res({ path: '/corpus', feeds })
       if (url.includes('/api/corpus/episodes')) {
         lastEpisodesUrl = url
         return res({ path: '/corpus', feed_id: 'alpha', items: EPISODES, next_cursor: nextCursor })
@@ -120,6 +121,25 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+describe('ShowRailPanel — language badge (V2-C.1)', () => {
+  const OTHER = { feed_id: 'beta', display_title: 'Beta', episode_count: 1, language: 'es' }
+
+  it('labels the show when the corpus spans more than one language', async () => {
+    stubApi(null, SIGNALS, [{ ...(FEED as object), language: 'en-US' }, OTHER])
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+    const badge = w.find('[data-testid="show-rail-panel"] [data-testid="language-badge"]')
+    expect(badge.attributes('data-lang')).toBe('en')
+  })
+
+  it('shows no badge in a single-language corpus (FR7.5)', async () => {
+    stubApi(null, SIGNALS, [{ ...(FEED as object), language: 'en' }, { ...OTHER, language: 'en' }])
+    const w = mount(ShowRailPanel)
+    await flushPromises()
+    expect(w.find('[data-testid="language-badge"]').exists()).toBe(false)
+  })
 })
 
 describe('ShowRailPanel — header + episodes', () => {
