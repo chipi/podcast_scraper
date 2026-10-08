@@ -1,4 +1,4 @@
-"""An incremental index build that is killed keeps the work it finished (root cause of #2299).
+"""An incremental index build that is killed keeps the work it finished.
 
 Prod 2026-10-07: the post-run update had 367 changed episodes, hit its time limit, and — because
 fingerprints were written only at the end — recorded none of its work, so every later run started

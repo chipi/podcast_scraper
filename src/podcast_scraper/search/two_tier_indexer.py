@@ -54,7 +54,7 @@ DEFAULT_OVERLAP_TOKENS = 32
 # truth in config_constants so the Config field + profiles share the same default.
 DEFAULT_UPSERT_BATCH_SIZE = _config_constants.DEFAULT_VECTOR_UPSERT_BATCH_SIZE
 
-#: An INCREMENTAL build saves its progress every this many re-embedded episodes (#2299 root cause):
+#: An INCREMENTAL build saves its progress every this many re-embedded episodes:
 #: flush every buffer, prune the superseded rows of the episodes done so far, persist their
 #: fingerprints. Fingerprints used to be written only at the very end, so an update killed by its
 #: time limit recorded none of its work and the next run re-embedded all of it again — on prod
