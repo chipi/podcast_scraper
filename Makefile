@@ -2718,6 +2718,18 @@ perf-android:
 		--out $(abspath $(PERF_OUT)) --cpu $(PERF_CPU) --adb $(ADB) --package $(ANDROID_PKG); \
 	rc=$$?; $(ADB) forward --remove tcp:9333 >/dev/null 2>&1; exit $$rc
 
+# The iOS half (2026-10-08): MemoryWalkTests walks the app ALREADY INSTALLED on the booted
+# simulator by deep link, and `footprint` samples its WebKit content process and the app at each
+# step. PERF_IOS_TOKEN signs it in (any backend, prod included); PERF_IOS_WALK is a comma list of
+# deep-link paths (episode/<slug>, episode/<slug>?panel=notes, topic/<id>, person/<id>, ...).
+#   make perf-ios PERF_IOS_TOKEN=... PERF_IOS_WALK=...   → .test_outputs/perf/ios-<timestamp>/report.md
+PERF_IOS_OUT ?= .test_outputs/perf/ios-$(shell date +%Y%m%d-%H%M%S)
+PERF_IOS_TOKEN ?=
+PERF_IOS_WALK ?=
+perf-ios:
+	@IOS_SIM="$(IOS_SIM)" $(APP_DIR)/scripts/perf/ios-memory-walk.sh $(abspath $(PERF_IOS_OUT)) \
+		$(IOS_DD)-uitests "$(PERF_IOS_TOKEN)" "$(PERF_IOS_WALK)"
+
 android-contact-sheet: android-app-install
 	@echo "--> seeding data so the tour photographs a populated app (as $(ANDROID_SEED_IDENTITY))"
 	@# SAME ACCOUNT as the tour, stated at the call site rather than left to two defaults agreeing.
@@ -5323,7 +5335,7 @@ docker-clean:
 
 # --- Observability control plane (podcast_obs, #803) ---
 # android tiers
-.PHONY: android-app-install android-contact-sheet perf-android
+.PHONY: android-app-install android-contact-sheet perf-android perf-ios
 
 .PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-sync obs-verify-dashboard obs-umami-views obs-umami-views-check
 
