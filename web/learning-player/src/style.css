@@ -13,6 +13,15 @@
     height: 100%;
   }
 
+  /* Where every overlay sheet's TOP sits: just below the masthead, so the app's logo stays in view
+     behind it and a sheet reads as a layer over the page (operator 2026-10-08). The masthead is its
+     top padding — max(0.55rem, safe-area-top), the expression App.vue's <header> uses — plus ~43px
+     of tagline and title; 52px keeps the logo whole with a small gap. ONE definition: the entity
+     sheets and the Episode notes dialog both read it, so they cannot drift apart again. */
+  :root {
+    --lp-sheet-top: calc(max(0.55rem, env(safe-area-inset-top)) + 52px);
+  }
+
   body {
     margin: 0;
     background: var(--lp-canvas);
@@ -214,7 +223,7 @@
        like a new page. The masthead is its top padding — max(0.55rem, safe-area-top), the same
        expression App.vue's <header> uses — plus ~43px of tagline and title; 52px leaves the logo
        whole with a small gap, on any phone. */
-    --lp-sheet-ceiling: calc(100dvh - max(0.55rem, env(safe-area-inset-top)) - 52px);
+    --lp-sheet-ceiling: calc(100dvh - var(--lp-sheet-top));
     max-height: var(--lp-sheet-ceiling);
     /* The BOTTOM INSET, on phones, where the sheet is anchored to the screen edge (operator
        2026-10-05). Android 15+ draws the app edge-to-edge, under its navigation bar — three buttons

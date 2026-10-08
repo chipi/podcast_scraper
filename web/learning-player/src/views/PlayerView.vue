@@ -1994,7 +1994,7 @@ onBeforeUnmount(() => {
         ref="panelDialog"
         data-testid="knowledge-panel"
         :aria-label="t('kp.title')"
-        class="m-0 h-[calc(100dvh-2rem)] max-h-none max-w-none border-0 bg-transparent p-0 text-canvas-foreground backdrop:bg-black/50 fixed inset-x-0 bottom-0 top-8 z-40 w-full lg:static lg:top-auto lg:z-auto lg:h-auto lg:w-auto lg:backdrop:bg-transparent"
+        class="m-0 h-[calc(100dvh-var(--lp-sheet-top))] max-h-none max-w-none border-0 bg-transparent p-0 text-canvas-foreground backdrop:bg-black/50 fixed inset-x-0 bottom-0 top-[var(--lp-sheet-top)] z-40 w-full lg:static lg:top-auto lg:z-auto lg:h-auto lg:w-auto lg:backdrop:bg-transparent"
         @close="onPanelClose"
         @click="onPanelBackdropClick"
       >

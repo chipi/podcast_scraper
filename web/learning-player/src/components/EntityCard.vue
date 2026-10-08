@@ -91,11 +91,9 @@ if (props.depth > 0) {
 // Resolved at mount: a sheet opened from inside the Knowledge Panel's modal <dialog> must render
 // INSIDE it, or the panel's top layer hides it completely. See sheetTeleportTarget().
 const teleportTarget = sheetTeleportTarget()
-// The depth ladder assumes the card below is a 92dvh sheet. The Knowledge Panel is a full-height
-// dialog pinned at `top-8`, so the SAME child height leaves a taller strip of it showing — enough
-// to expose its action row, when the contract is kicker + title and nothing else. Measure the peek
-// from the panel's own top instead (operator 2026-09-16: "it is not under title").
-const stackBase = teleportTarget === "body" ? undefined : "96dvh"
+// No separate stack base inside the Knowledge Panel any more: the panel now opens at the same top
+// as every sheet (`--lp-sheet-top`, 2026-10-08), so the one ladder measures the peek correctly from
+// either (it used a 96dvh base while the panel sat higher, at `top-8`).
 </script>
 
 <template>
@@ -106,7 +104,7 @@ const stackBase = teleportTarget === "body" ? undefined : "96dvh"
         tabindex="-1"
         class="lp-sheet w-full max-w-lg lg:max-w-3xl overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
         :class="depth > 0 ? 'lp-sheet--stacked' : undefined"
-        :style="{ '--lp-depth': depth, '--lp-stack-base': stackBase }"
+        :style="{ '--lp-depth': depth }"
       >
         <EntityCardBody variant="overlay" :kind="kind" :id="id" :depth="depth" @close="emit('close')" />
       </div>
