@@ -145,6 +145,7 @@ final class ScreenshotTourTests: UITestCase {
     Journey.openTab(app, "Home")
     sleep(5)
     if Journey.tap(app, labels: ["Topics"], timeout: 10) { sleep(3) }
+    Journey.showEveryonesTrends(app)
     if Journey.tap(app, labels: ["systems thinking"], contains: true, timeout: 10) {
       sleep(5); frame("t19-topic")
     }

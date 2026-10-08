@@ -224,6 +224,14 @@ enum Journey {
     return out.isEmpty ? "<NOTHING intersecting \(region)>" : out.joined(separator: " || ")
   }
 
+  /// Switch Discover's Trends to everyone's (2026-10-07: "You" is the default, and a fresh test
+  /// account has no world of its own, so its Trends are empty). The choice is a synced preference,
+  /// so later tests on the same account start on "Everyone" and this is a no-op. Mirrors the web
+  /// e2e `showEveryonesTrends`.
+  static func showEveryonesTrends(_ app: XCUIApplication) {
+    if tap(app, labels: ["Everyone"], timeout: 10) { sleep(2) }
+  }
+
   /// Find and tap, scrolling the element clear of the bottom tab bar first (the transport/tab-bar
   /// overlap trap the playback suite documents — an unscrolled tap lands on a nav tab instead).
   @discardableResult

@@ -107,8 +107,11 @@ final class AppJourneyTests: UITestCase {
     }
 
     // Topic ids carry a `topic:` prefix, which the deep-link id validator rejects by design, so
-    // topics are reached the way a user reaches them: the Home entity rail's Topics tab.
+    // topics are reached the way a user reaches them: Home's Discover strip "Topics" chip, which
+    // opens Discover's Trends on topics. Trends default to the listener's own ("You"), empty for a
+    // fresh account, so switch to everyone's first.
     if Journey.tap(app, labels: ["Topics"], timeout: 15) { sleep(3) }
+    Journey.showEveryonesTrends(app)
     Journey.inventory(app, "home-topics-rail")
     if Journey.tap(app, labels: ["systems thinking", "risk management"], contains: true, timeout: 12) {
       sleep(5)
@@ -125,6 +128,7 @@ final class AppJourneyTests: UITestCase {
     sleep(4)
     if Journey.tap(app, labels: ["Storylines"], timeout: 15) {
       sleep(4)
+      Journey.showEveryonesTrends(app)
       Journey.inventory(app, "home-storylines-rail")
       Journey.shot(self, "03-storylines-rail")
       // The rail rows are BUTTONS, not links (the first cut of this test looked at `app.links` and

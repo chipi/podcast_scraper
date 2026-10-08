@@ -121,6 +121,9 @@ public class AppJourneyTests extends UITestCase {
         // topics are reached the way a user reaches them: the Home entity rail's Topics tab.
         Journey.tap("Topics", false, 15_000);
         Journey.sleep(3_000);
+        // Home's "Topics" chip opens Discover's Trends, which default to the listener's own
+        // ("You") — empty for a fresh account. Switch to everyone's first (2026-10-07).
+        Journey.showEveryonesTrends();
 
         // Any topic row from the rail — "systems thinking" and "risk management" are in the
         // p09 fixture but the exact ranking changes with the corpus.
@@ -163,6 +166,7 @@ public class AppJourneyTests extends UITestCase {
                     + Journey.labelledInventory(80));
         }
         Journey.sleep(4_000);
+        Journey.showEveryonesTrends();
 
         // Storyline rows: aria-label = "{label} ({count}) — {N}× momentum" (DiscoveryList
         // rowLabel). The iOS suite filtered by `contains("momentum") && contains("(")` — the

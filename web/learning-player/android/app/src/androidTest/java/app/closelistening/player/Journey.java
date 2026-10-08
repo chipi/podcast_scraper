@@ -400,6 +400,16 @@ final class Journey {
         }
     }
 
+    /**
+     * Switch Discover's Trends to everyone's (2026-10-07: "You" is the default, and a fresh test
+     * account has no world of its own, so its Trends are empty). The choice is a synced
+     * preference, so later tests on the same account start on "Everyone" and this is a no-op.
+     * Mirrors the web e2e {@code showEveryonesTrends}.
+     */
+    static void showEveryonesTrends() {
+        if (tap("Everyone", false, 10_000)) sleep(2_000);
+    }
+
     static boolean tap(String name, boolean contains, long timeoutMs) {
         return tap(Arrays.asList(name), contains, timeoutMs);
     }

@@ -106,6 +106,7 @@ final class NativeCapabilityTests: UITestCase {
     sleep(4)
     _ = Journey.tap(app, labels: ["People"], timeout: 10)
     sleep(3)
+    Journey.showEveryonesTrends(app)
     let personRow = app.buttons.allElementsBoundByIndex.first {
       $0.label.contains("momentum") && !$0.label.contains("(")
     }

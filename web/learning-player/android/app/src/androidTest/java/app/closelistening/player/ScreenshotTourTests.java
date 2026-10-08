@@ -171,6 +171,7 @@ public class ScreenshotTourTests extends UITestCase {
         Journey.openTab("Home");
         settle(5_000);
         if (Journey.tap("Topics", false, 10_000)) { settle(3_000); }
+        Journey.showEveryonesTrends();
         if (Journey.tap("systems thinking", true, 10_000)) { settle(5_000); frame("t19-topic"); }
         if (Journey.tap("Storylines", true, 8_000)) { settle(4_000); frame("t20-storyline"); }
         Journey.dismissCards();
