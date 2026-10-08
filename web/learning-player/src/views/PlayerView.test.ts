@@ -504,6 +504,14 @@ describe('arriving with ?revisit advances the spaced ladder (#35)', () => {
     expect(mark).toHaveBeenCalledWith('h1')
   })
 
+  it('a revisit consumed here re-reads the shared Revisit count (2026-10-09)', async () => {
+    vi.spyOn(api, 'markSurfaced').mockResolvedValue()
+    const due = vi.spyOn(api, 'getResurfacingPage')
+    await mountAt({ revisit: 'h1' }, true)
+    await flushPromises()
+    expect(due, 'the Revisit count and list were left counting the reviewed highlight').toHaveBeenCalled()
+  })
+
   it('marks nothing on an ordinary visit', async () => {
     // Otherwise every episode open would consume a repetition of something.
     const mark = vi.spyOn(api, 'markSurfaced').mockResolvedValue()

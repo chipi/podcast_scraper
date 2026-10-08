@@ -55,10 +55,11 @@ onMounted(async () => {
     }
 
     // The newest thirty from the server — not every position, to keep thirty (2026-10-08).
-    const positions = await getPlaybackList({ limit: 30 }).catch(() => [])
-    // No positions AND a cached copy means the request failed, not that the history is empty —
-    // overwriting with [] would discard the only copy at the moment it is the only copy.
-    if (!positions.length && cached?.length) return
+    // `null` = the request failed. An empty LIST is an answer: after "Clear listening history" the
+    // server has none, and treating that as a failure kept the cleared history on screen from the
+    // cache indefinitely (2026-10-09).
+    const positions = await getPlaybackList({ limit: 30 }).catch(() => null)
+    if (positions === null) return
     // One request for all of them (`/episodes/batch`), not one per row.
     const details = await getEpisodesBatch(positions.map((p) => p.slug)).catch(
       () => ({}) as Record<string, EpisodeDetail>,
@@ -67,7 +68,7 @@ onMounted(async () => {
       details[p.slug] ? [{ detail: details[p.slug]!, playedAt: p.updated_at }] : [],
     )
     // Same rule one level down: every hydrate failing is a network fault, not an empty history.
-    if (!rows.length && cached?.length) return
+    if (positions.length && !rows.length && cached?.length) return
     recent.value = rows
     void writeCached(RECENT_CACHE_KEY, rows)
   } finally {

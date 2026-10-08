@@ -12,7 +12,7 @@
  * section. Flip it inline with "Show more / Show less" (same preference the Your Week setting
  * writes). Hidden entirely when signed-out or nothing is due yet.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, onActivated, ref, watch } from 'vue'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import SectionHeading from './SectionHeading.vue'
@@ -113,6 +113,14 @@ watch(
   },
   { immediate: true },
 )
+// Home is kept alive, so the watch above fires once. A return to Home re-reads the week in place
+// (no skeleton — the section revalidates), or a listen since — or a cleared history — never shows
+// (2026-10-09). The first activation is the mount, already covered by the watch.
+let activatedOnce = false
+onActivated(() => {
+  if (activatedOnce && auth.isAuthenticated) void load()
+  activatedOnce = true
+})
 </script>
 
 <template>

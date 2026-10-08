@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { defineComponent, h, KeepAlive, ref, type Component } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
@@ -67,6 +68,17 @@ const RESP: YourWeekResponse = {
   ],
   period_label: 'Aug 1 – 7',
   generated_at: '2026-08-07T00:00:00Z',
+}
+
+/**
+ * Library and Home are KEPT ALIVE (App.vue), so `onMounted` runs once. This host toggles the
+ * component out and back in under a real <KeepAlive>, which is exactly a return to the tab.
+ */
+function keptAlive(comp: Component, plugins: unknown[]) {
+  const shown = ref(true)
+  const Host = defineComponent({ setup: () => () => h(KeepAlive, null, shown.value ? [h(comp)] : []) })
+  const w = mount(Host, { global: { plugins: plugins as never } })
+  return { w, leave: () => void (shown.value = false), back: () => void (shown.value = true) }
 }
 
 function mountIt(
@@ -235,5 +247,24 @@ describe('YourWeek section', () => {
     await wrapper.get('[data-testid="yourweek-toggle"]').trigger('click')
     expect(setSpy).toHaveBeenCalledWith('lp.yourweek.layout', 'full')
     expect(wrapper.text()).toContain(en.home.yourWeekSection.new_in_follows)
+  })
+})
+
+describe('a return to Home re-reads the week (2026-10-09)', () => {
+  it('re-asks the server when the kept-alive Home comes back', async () => {
+    setActivePinia(createPinia())
+    const prefs = useUserPreferencesStore()
+    vi.spyOn(prefs, 'hydrate').mockResolvedValue()
+    vi.spyOn(prefs, 'get').mockReturnValue(undefined)
+    useAuthStore().user = { user_id: 'u_1', email: 'd@l', name: 'Dev' }
+    const spy = vi.spyOn(api, 'getYourWeek').mockResolvedValue(RESP)
+    const { leave, back } = keptAlive(YourWeek, [i18n, router])
+    await flushPromises()
+    expect(spy).toHaveBeenCalledTimes(1)
+    leave()
+    await flushPromises()
+    back()
+    await flushPromises()
+    expect(spy).toHaveBeenCalledTimes(2)
   })
 })

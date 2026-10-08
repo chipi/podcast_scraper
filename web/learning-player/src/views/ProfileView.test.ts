@@ -40,13 +40,15 @@ vi.mock("../services/deviceStore", async (orig) => ({
 // ONE shared log, written by both the cache mock and the logout spy — two separate arrays could
 // only show that both ran, never in which order, which is the whole claim being tested.
 const sequence: string[] = []
+/** Every key list `clearCached` was handed, in order. */
+const clearedKeys: string[][] = []
 vi.mock("../services/contentCache", async (orig) => {
   const actual = await orig<typeof import("../services/contentCache")>()
   return {
     ...actual,
     clearCached: async (...args: unknown[]) => {
       sequence.push("clearCached")
-      void args
+      clearedKeys.push([...(args[0] as readonly string[])])
     },
   }
 })
@@ -815,6 +817,20 @@ describe("ProfileView — clear listening history (#2273)", () => {
     expect((api.getMyStats as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(
       statsCalls + 1
     )
+  })
+
+  it("the app stops showing what was cleared: played marks re-read, Recently played's copy dropped (2026-10-09)", async () => {
+    vi.spyOn(api, "clearListeningHistory").mockResolvedValue()
+    const completed = vi.spyOn(api, "getCompleted").mockResolvedValue([])
+    clearedKeys.length = 0
+    const w = mountProfile()
+    await flushPromises()
+    const before = completed.mock.calls.length
+    await w.get('[data-testid="profile-clear-history-open"]').trigger("click")
+    await w.get('[data-testid="profile-clear-history-confirm"]').trigger("click")
+    await flushPromises()
+    expect(completed.mock.calls.length, "the played marks were not re-read").toBe(before + 1)
+    expect(clearedKeys).toContainEqual(["queue.recent"])
   })
 
   it("cancel clears nothing", async () => {

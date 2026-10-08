@@ -495,7 +495,8 @@ async function addLink(): Promise<void> {
   if (!url) return
   const cid = open.value.collection.id
   try {
-    await addToCollection(cid, { kind: "link", ref: url })
+    // The new count into the shared store — the row above and Home's teaser both read it.
+    store.upsert(await addToCollection(cid, { kind: "link", ref: url }))
   } catch {
     // Keep the URL in the box: a link the user pasted must not vanish because the save failed.
     linkError.value = true
@@ -520,14 +521,16 @@ async function confirmDelete(): Promise<void> {
   const id = pendingDelete.value
   pendingDelete.value = null
   if (!id) return
-  collections.value = await deleteCollection(id)
+  // The server's remaining list goes to the shared STORE (the view mirrors it): writing only the
+  // local copy left a deleted board on Home's teaser (2026-10-09).
+  store.items = await deleteCollection(id)
   if (open.value?.collection.id === id) open.value = null
 }
 
 async function removeItem(it: CollectionItem): Promise<void> {
   if (!open.value) return
   const cid = open.value.collection.id
-  await removeFromCollection(cid, it.kind, it.ref)
+  store.upsert(await removeFromCollection(cid, it.kind, it.ref))
   // Re-resolve what was on screen so the list + count stay honest.
   open.value = await loadBoardItems(cid, Math.max(ITEM_PAGE, open.value.items.length))
   void hydrate(open.value)

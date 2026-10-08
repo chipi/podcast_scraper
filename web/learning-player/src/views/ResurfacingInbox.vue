@@ -5,7 +5,7 @@
  * (pause/resume) live here. Read-time: the server decides what's due; this just renders + dismisses.
  * Embedded in the Library "Revisit" tab. Auth-gated (empty signed out).
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import EpisodeGroupCard from '../components/EpisodeGroupCard.vue'
@@ -383,6 +383,14 @@ function jumpQuery(item: ResurfacingItem): Record<string, string> {
 }
 
 onMounted(load)
+// Library is kept alive, so `onMounted` runs once. A highlight reviewed from a Revisit link (the
+// player marks it) or one that fell due since stayed wrong here until a full reload (2026-10-09).
+// The first activation is the mount itself, already loading above.
+let activatedOnce = false
+onActivated(() => {
+  if (activatedOnce) void load()
+  activatedOnce = true
+})
 </script>
 
 <template>

@@ -254,6 +254,47 @@ describe('CollectionsView', () => {
   })
 })
 
+describe("every board write reaches the shared store Home's teaser reads (2026-10-09)", () => {
+  beforeEach(() => {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+  })
+  const mountShared = () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const w = mount(CollectionsView, { global: { plugins: [i18n, router, pinia] } })
+    return { w, store: useCollectionsStore(pinia) }
+  }
+
+  it('a deleted board leaves the store', async () => {
+    vi.spyOn(api, 'deleteCollection').mockResolvedValue([])
+    const { w, store } = mountShared()
+    await flushPromises()
+    await w.find('[aria-label="Delete board"]').trigger('click')
+    await w.get('[data-testid="confirm-accept"]').trigger('click')
+    await flushPromises()
+    expect(store.byId('col_1')).toBeUndefined()
+  })
+
+  it("removing an item updates the board's count in the store, and in the row", async () => {
+    vi.spyOn(api, 'getCollection').mockResolvedValue({
+      collection: col(),
+      items: [
+        { kind: 'episode', ref: 'ep-x', title: 'An episode', deep_link: '/episode/ep-x' },
+        { kind: 'episode', ref: 'ep-y', title: 'Another', deep_link: '/episode/ep-y' },
+      ],
+    })
+    vi.spyOn(api, 'removeFromCollection').mockResolvedValue(col({ count: 1 }))
+    const { w, store } = mountShared()
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text().includes('AI takes'))!.trigger('click')
+    await flushPromises()
+    await w.findAll('[data-testid="collection-item-remove"]')[0].trigger('click')
+    await flushPromises()
+    expect(store.byId('col_1')?.count).toBe(1)
+    expect(w.text()).toContain('1 item')
+  })
+})
+
 describe('a failed load is not an empty library (#2004 item 13)', () => {
   it('shows a retryable error instead of the "no collections yet" empty state', async () => {
     // The screen a user saw after creating a collection elsewhere: `getCollections().catch(() => [])`

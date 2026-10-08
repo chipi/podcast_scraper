@@ -25,6 +25,7 @@ import { disablePush, enablePush } from "../composables/usePushSubscription"
 import { useRoute, useRouter } from "vue-router"
 import { CACHE_KEYS, clearCached } from "../services/contentCache"
 import { useAuthStore } from "../stores/auth"
+import { useCompletedStore } from "../stores/completed"
 import { useUserPreferencesStore } from "../stores/userPreferences"
 import Tabs from "../components/Tabs.vue"
 import { panelAttrs, type TabSpec } from "../components/tabs"
@@ -213,6 +214,10 @@ async function onClearHistory(): Promise<void> {
   clearing.value = false
   clearAsk.value = false
   clearResult.value = t("deleteAccount.clearHistoryDone")
+  // What the server just deleted, the app must stop showing: the played marks (a shared store every
+  // episode row reads) and the cached Recently played list (2026-10-09).
+  void useCompletedStore().load()
+  void clearCached(["queue.recent"])
   // The stats on this page are built from exactly what was cleared.
   stats.value = await getMyStats().catch(() => null)
 }

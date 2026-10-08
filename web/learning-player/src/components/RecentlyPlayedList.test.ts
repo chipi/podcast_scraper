@@ -133,9 +133,10 @@ describe('RecentlyPlayedList (#1838, #1925)', () => {
   })
 
   it('does not wipe the cached history when the request fails', async () => {
-    // An empty answer from a FAILED request is not an empty history. Overwriting on it would throw
-    // away the only copy at the moment it is the only copy.
-    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    // A FAILED request is not an empty history. Overwriting on it would throw away the only copy at
+    // the moment it is the only copy. (`getPlaybackList` throws on a network failure; an empty
+    // array is an answer — the case below.)
+    vi.spyOn(api, 'getPlaybackList').mockRejectedValue(new Error('offline'))
     vi.spyOn(contentCache, 'readCached').mockResolvedValue([
       { detail: detail('r-1', 'Cached Ep'), playedAt: 1_760_000_000 },
     ] as never)
@@ -146,6 +147,19 @@ describe('RecentlyPlayedList (#1838, #1925)', () => {
     // By KEY: other callers cache through the same function, so a bare "was not called" would fail
     // on someone else's write and prove nothing about this one.
     expect(write.mock.calls.filter(([key]) => key === 'queue.recent')).toEqual([])
+  })
+
+  it('an EMPTY answer clears the cached history — e.g. after "Clear listening history" (2026-10-09)', async () => {
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    vi.spyOn(contentCache, 'readCached').mockResolvedValue([
+      { detail: detail('r-1', 'Cached Ep'), playedAt: 1_760_000_000 },
+    ] as never)
+    const write = vi.spyOn(contentCache, 'writeCached').mockResolvedValue(undefined)
+
+    const w = await mountIt()
+    expect(w.find('[data-testid="queue-panel-recent"]').exists()).toBe(false)
+    expect(w.text()).toContain(en.queue.recentEmpty)
+    expect(write.mock.calls.filter(([key]) => key === 'queue.recent')).toEqual([['queue.recent', []]])
   })
 
   it('caches a successful history so the next offline open has one', async () => {

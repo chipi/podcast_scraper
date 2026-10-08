@@ -1280,9 +1280,13 @@ function markRevisitFromQuery(): void {
   // however many times the trigger fires.
   if (!auth.isAuthenticated || markedRevisits.has(id)) return
   markedRevisits.add(id)
-  void markSurfaced(id).catch(() => {
-    /* the item stays due and resurfaces later — never block the player on bookkeeping */
-  })
+  void markSurfaced(id)
+    // The Revisit count and Library's list read the store; without this the reviewed highlight
+    // stayed counted until the next sign-in (2026-10-09).
+    .then(() => useResurfacingStore().load())
+    .catch(() => {
+      /* the item stays due and resurfaces later — never block the player on bookkeeping */
+    })
 }
 
 onMounted(() => {
