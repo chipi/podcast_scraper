@@ -510,7 +510,8 @@ class TestTheOutputBudgetFitsTheServedContext:
         p = _provider(models=models)
         p.estimate_prompt_tokens = lambda prompt: (1144, "tokenizer")  # type: ignore[method-assign]
         p.translate(text, source_language="es", target_language="en")
-        return p.client.completions.calls[-1]  # type: ignore[attr-defined]
+        last: Dict[str, Any] = p.client.completions.calls[-1]  # type: ignore[attr-defined]
+        return last
 
     def test_the_budget_is_capped_at_the_room_the_context_leaves(self) -> None:
         call = self._call(self._Models(4096), "x" * 5906)
