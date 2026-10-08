@@ -1,13 +1,13 @@
 # Naming decision trace — reconstruct the speaker-naming ladder for any episode
 
 | | |
-|---|---|
-| Doc version | 3 |
-| Last updated | 2026-10-04 |
+| --- | --- |
+| Doc version | 4 |
+| Last updated | 2026-10-08 |
 | Trace schema | `TRACE_VERSION = 1` (`src/podcast_scraper/providers/ml/diarization/naming_trace.py`) |
-| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276 |
-| Code content hash | `45947daab823` (see below) |
-| Status | Phase 1 on main, **not yet deployed**: prod sidecars get `decision_trace` only after the next deploy. Verified end to end on a laptop against the DGX (below). `roster_replay --trace-out` works offline today |
+| Implemented by | `448151fab` (roster trace), `dbed527d2` (rung tests), `b5923aab4` (LLM answers), `c8bda243d` + `11e75c7ab` (inside the helpers) — #2276. Rules since: `93f49482c` (`introduced` source), `c05cc0273` + this version's commit (one person, one entry) |
+| Code content hash | `2c04077820ad` (see below) |
+| Status | Phase 1 **deployed**: prod sidecars written since the deploy carry `decision_trace` (114 of 2,451 served episodes with diagnostics on 2026-10-08; older ones were never re-ingested). `roster_replay --trace-out` reconstructs the rest offline |
 
 **How to tell whether this doc matches the code.**
 
@@ -16,14 +16,21 @@
   without this doc.
 - The content hash is the first 12 hex digits of the sha256 of `naming_trace.py`, `roster.py` and
   `pipeline.py`, concatenated in that order:
+
   ```sh
   cat src/podcast_scraper/providers/ml/diarization/{naming_trace,roster,pipeline}.py | shasum -a 256 | cut -c1-12
   ```
+
   A different value means the ladder or the recorder has changed since this doc was last checked
   against it. Re-read the "Recorded" and "NOT recorded" sections before you rely on them.
 
 **Changelog**
 
+- **v4, 2026-10-08.** In line with the code again: the `host_naming_pair` rung and the
+  `address_pair` seat naming were missing; the `introduced` source (`93f49482c`) is no longer
+  pending; the trace is deployed. The one-person-one-entry rules (`c05cc0273` and the follow-up)
+  are described at the rungs where they act ("Same-person rules" below), and the record-level
+  check and m0025, which happen outside the trace, are listed under NOT recorded.
 - **v3, 2026-10-04.** v2 called phase 1 "Done"; it was not — the helpers' decisions (host-seat
   steps, forced names, guest variants, one-name groups, voice-type reasons) were listed as phase 1
   in v1 and not recorded. Now recorded, plus both LLM answers in full (moved forward from phase 3),
@@ -126,7 +133,7 @@ decisions take the same optional `trace`; `resolve_speaker_roster` passes its ow
 ### Rungs recorded, in ladder order
 
 | Rung (trace key) | Recorded as | What it captures |
-|---|---|---|
+| --- | --- | --- |
 | `inputs.detection`, `inputs.llm_resolution` | input | both LLM answers in full (above) |
 | `inputs.*` | input | `known_hosts`, `detected_guests`, `metadata_named`, `stated_voice_names`, `llm_voice_names`, `llm_voice_roles`, `ad_voices`, `conversation_roles`, `host_pool` |
 | `guest_host_pool` | episode note | a guest host the episode text added to the pool |
@@ -142,7 +149,8 @@ decisions take the same optional `trace`; `resolve_speaker_roster` passes its ow
 | `host_seat_opener`, `host_seat_step_4` | episode notes | the opener; step 4's arithmetic (empty seats, unclaimed / said-absent hosts, fillable, candidates, guest present, third-party excess, co-host said present) |
 | `host_seats` / `host_seat` | episode note, per voice `order` | final seats in order |
 | `host_naming_forced_gates` | episode note | spare names before/after the feed-history and said-absent filters, unnamed seats, guest-hosted episode, one-name-one-seat, seat owns the talk, better presenter elsewhere |
-| `host_naming` | per seat `named_from_earlier_rung` / `forced_pool_name` / `unnamed` (`intro_name_taken`), plus `forced_name_vetoes` (guest act, greeted by that name, rescued from bleed, forced) | how each seat was named or why not |
+| `host_naming_pair` | episode note (`performs_guest_act`, `named`) | two unnamed seats and two unclaimed pool names, each seat addressing the other's host by name (`_pair_by_address`, The Rest Is History) |
+| `host_naming` | per seat `named_from_earlier_rung` / `forced_pool_name` (`by: address_pair` when the pair rule named it) / `unnamed` (`intro_name_taken`), plus `forced_name_vetoes` (guest act, greeted by that name, rescued from bleed, forced) | how each seat was named or why not |
 | `host_introduction_harvest`, `two_voice_interview` | per name `added` / `refused` | guest names harvested from the host's introduction |
 | `guest_pool` | per name `excluded` (reason), episode note | the guest pool and why declared names left it |
 | `guest_naming_forced` | episode note | spare names, candidates above the cameo floor, forced name, `forced_by` = `one_name_one_voice` / `only_voice_left_below_cameo_floor` / `dominant_unassigned_voice` / `host_elimination`, forced voice |
@@ -153,6 +161,39 @@ decisions take the same optional `trace`; `resolve_speaker_roster` passes its ow
 | `nameable` | episode note | nameable voices, leftover / unbound names |
 | `voice_types` | per voice `typed` (`voice_type`, `reason` = `edge_ad` (+`name_demoted`) / `named` / `mostly_inside_ads` / `brief` / `no_source_names_them` / `a_name_existed_and_we_failed`, `talk_s`, `classified_by`) | every voice's type and why |
 | `non_regression`, `inputs.baseline_without_llm` | pipeline | names the additive contract restored; the rules-only roster |
+
+**Sources a voice's name can carry** (`voices[].source`). `_NAME_EVIDENCE_RANK` ranks four of them,
+used when one person's voices disagree: `self_intro`, `introduced`, `publisher_transcript` = 3,
+`llm_resolution` = 2.
+
+- `publisher_transcript` — the publisher's own speaker label.
+- `llm_resolution` — the post-diarization LLM's closed-list match.
+- `introduced` — the HOST's words, read by the introduction reader (`93f49482c`). Counts as
+  host-copresence evidence, not as the voice's own words.
+- `self_intro` — every other name in the intro map: the voice's own introduction (opening,
+  sign-off, or a weak one the metadata vouches for or anchors) and the co-host formula's names.
+- A host seat named from the pool keeps the pool entry's source (`feed`, `known_hosts`, …).
+- `forced` — placed by arithmetic. `raw` — unnamed.
+
+### Same-person rules, and the rungs they act at
+
+One person is one entry (2026-10-08, `c05cc0273` and its follow-up). Two predicates, by scope:
+
+- **Across sources** — `_same_person`: same surname, and a matching given name or initial (or a
+  title + surname). A missing generation ("Jr.") is not a disagreement.
+- **Within one episode** — `_same_person_on_one_episode`: titles stripped, whole-name similarity
+  >= 0.91, or one differing token with similarity >= 0.70 (`_TOKEN_RESPELLING_SIMILARITY`); a
+  generation difference IS a different person.
+
+Where each acts:
+
+| Rung | Rule |
+| --- | --- |
+| `self_intro`, `host_seat_guards` (`stated_non_host`) | A leading title is not the given name (`_core_name_tokens` drops it while a given name and a surname remain). `_snap_near_identical_host` maps a self-introduction to the stated host when they differ only by a title, by one letter (5+ letter surname), or by two adjacent swapped letters ("Wiesenthal" / "Weisenthal"). A voice that says "I'm Professor Hannah Fry" on Hannah Fry's show is therefore not a stated non-host. |
+| `recover_stated_names` | A guest never takes a stated HOST's spelling (N1, "Kevin Ross" / "Kevin Roose") — unless the episode also names that person as a participant (`detected_guests` / `metadata_named`): then the host pool is the polluted source ("Lucas Kaiser" -> Lukasz Kaiser, guest, The a16z Show). When the fuzzy canonicaliser finds nothing, `_stated_participant_spelling` gives the voice the ONE stated participant it is a respelling of by the one-episode rule, if no other voice holds that name ("Scholastic Gatobu" -> "Schola Gatobu", "Charming Lai" -> "Chiamin Lai"). A name the episode already states is never re-spelt. |
+| `guest_pool` (`same_person_as_a_named_voice`) | A declared guest name is not spare when it is the same person as a voice's name by `_same_spoken_person` OR the one-episode rule ("Andy Ratcliffe" beside "Andy Rachleff", The Long Run). |
+| `one_name_per_person` | Voices grouped by the one-episode rule take one name and one role. |
+| record (`metadata_generation._unplaced_speakers`) | An unplaced entry is dropped when it is the same person as a placed or earlier entry by EITHER predicate. Not a roster rung: not in the trace. |
 
 ## What is NOT recorded yet
 
@@ -172,9 +213,18 @@ Do not read an absence in a trace as "did not happen".
 - **Host-pool sub-source** beyond the single `source` tag (feed statement / author tag /
   description / config / recurrence).
 - **Detection on non-LLM detectors** (spaCy) has no `raw`; `returned` is its answer.
-- **`post_hoc`.** Migrations m0012–m0020 never write the diagnostics sidecar; a migrated episode's
-  trace can disagree with its published roster.
-- **`source` is still lossy** (the `self_intro` split is a behaviour change, phase 4).
+- **`post_hoc`.** Migrations m0012–m0020 never write the diagnostics sidecar. m0022 and m0025 make
+  `voices[]` follow the repaired segments (name, `named`, `source: raw` when unnamed; m0025 also
+  `role`), but no migration writes `decision_trace`: a migrated episode's trace describes the
+  roster as ingested, not as published. m0025's own record is its receipts
+  (`one_person_one_entry.jsonl`: each episode's renames, voice-by-voice swaps, unnamings, dropped
+  entries). `scripts/measure/m0025_parity.py` checks, on a copy, that m0025 publishes per voice
+  what the fixed roster publishes wherever the stored record is today's code's product.
+- **The record's de-duplication** (`_unplaced_speakers`, above) runs in metadata generation, after
+  the roster; the trace does not show which unplaced name it dropped as a twin.
+- **`source` is less lossy than before**: the introduction reader's names are `introduced`
+  (`93f49482c`), but `self_intro` still mixes a voice's own words with metadata-vouched weak
+  intros and the co-host formula (see "Sources" above).
 - **Offline replays stay lossy for the LLM rung**: `roster_replay` rebuilds LLM inputs only from
   voices whose final `source` is `llm_resolution`. Full LLM answers exist only in traces written
   at ingest (after the deploy).
@@ -233,7 +283,6 @@ reusing an existing roster test's scenario with a trace injected), `test_llm_ans
   `PYTHONPATH=src` is set (the borrowed venv's editable install points at a removed worktree);
   with it they pass.
 
-
 ## Phases
 
 1. **Trace (roster, helpers, both LLM answers) + `roster_replay --trace-out`.** Code on main;
@@ -247,5 +296,5 @@ reusing an existing roster test's scenario with a trace injected), `test_llm_ans
    every voice that moved. Candidates already visible: title/description guest phrases ("X on …",
    "— X", "with X") as corroboration; an LLM name may not take a second voice once the episode bound
    it by self-introduction; an LLM-inferred host name should not count as step 1's "named as a
-   stated host" the way a spoken self-introduction does (seen on the first DGX run); the
-   `self_intro` source split.
+   stated host" the way a spoken self-introduction does (seen on the first DGX run); the rest of
+   the `self_intro` source split (the reader's half is done, `93f49482c`).

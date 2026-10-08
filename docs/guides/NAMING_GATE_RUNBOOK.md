@@ -120,6 +120,14 @@ the pre-listening hint names, and many stored records were written by older code
 matches the stored record on 238 of 364 episodes (2026-10-08 run); how the other 126 split between
 those two causes was not measured.
 
+**Proving a repair migration.** A migration that rewrites published names must publish what the
+fixed roster publishes. `scripts/measure/m0025_parity.py` applies m0025 to a COPY of every episode
+it touches (plus every episode a `roster_replay.py` run changed), then compares per voice: where the
+stored record equals the OLD roster's replay, the migrated label must equal the NEW roster's. It
+also checks every quote, ad-free segment and turn offset on the copy, `verify`, a second apply,
+`undo`, and that the live files did not change; exit 1 on any failure. Records written by older
+code are listed separately for reading.
+
 **Where to run.** Today the replay runs inside the api container on the box. A read-only local
 snapshot of the needed artifacts (metadata, segments, speaker diagnostics — no audio) into
 `.test_outputs/` would let it run on the workstation without touching prod; planned.
