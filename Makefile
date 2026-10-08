@@ -2704,8 +2704,8 @@ android-contact-sheet: android-app-install
 	@# `-e identity` is read by `UITestCase.accountIdentity()`. Without it the seeders populate
 	@# `appjourneytests` / `personalisationtests` while the tour reads `simtest`, and the sheet is a
 	@# wall of empty states — which is exactly how the iOS sheet regressed in silence (#2091).
-	@$(MAKE) android-suite SUITE=AppJourneyTests ANDROID_EXTRA_ARGS="-e identity $(ANDROID_SEED_IDENTITY)" || true
-	@$(MAKE) android-suite SUITE=PersonalisationTests ANDROID_EXTRA_ARGS="-e identity $(ANDROID_SEED_IDENTITY)" || true
+	@# Through the API, as for iOS — the journey suites took most of an hour to do the same (2026-10-08).
+	@$(PYTHON) scripts/dev/seed_contact_sheet.py --api http://127.0.0.1:$(APP_E2E_PORT) --identity $(ANDROID_SEED_IDENTITY)
 	@echo "--> touring every surface"
 	@$(MAKE) android-suite SUITE=ScreenshotTourTests ANDROID_EXTRA_ARGS="-e identity $(ANDROID_SEED_IDENTITY)"
 	@echo "--> pulling shots"
@@ -3286,30 +3286,16 @@ ios-contact-sheet: ios-app-install
 	@# then comes back empty and the seeding suites fail as "element not found", which reads like a
 	@# UI regression rather than a wiped backend (2026-09-16).
 	@$(MAKE) ios-journey-signin
-	@# SEED FIRST. The tour shoots whatever is on screen, and a freshly-signed-in account has an
-	@# empty Library, no collections, no favourites and no listening history — so half the sheet was
-	@# empty states, which is exactly the half a visual review cannot judge (operator 2026-09-16).
-	@# The journey + personalisation suites already CREATE that data as a side effect of asserting
-	@# on it (boards, favourites, played episodes, chosen interests), so running them first is both
-	@# the seed and a check that the seeding path still works.
-	@#
-	@# SAME ACCOUNT, stated explicitly. This step stopped seeding anything the tour could see when
-	@# per-suite identities landed (#2091): the seeders moved to `appjourneytests` /
-	@# `personalisationtests` while `ScreenshotTourTests` overrides to `simtest`, so the tour
-	@# photographed an account nobody had populated — straight back to the empty states this step was
-	@# added to remove. Nothing asserts on a contact sheet, so it regressed in silence for weeks.
-	@# `TEST_RUNNER_LP_FORCE_IDENTITY` puts the seeders on the tour's account; `UITestCase`
-	@# reads it. Deliberately explicit here rather than a default, so the sharing is visible at the
-	@# call site that depends on it.
+	@# SEED FIRST, THROUGH THE API (2026-10-08). The tour shoots whatever is on screen, and a fresh
+	@# account is all empty states — the half a visual review cannot judge (operator 2026-09-16).
+	@# This used to run the AppJourney + Personalisation suites as the seed: ~80 minutes of tapping,
+	@# and since per-suite identities (#2091) it seeded THEIR accounts, not the tour's — the
+	@# `TEST_RUNNER_LP_FORCE_IDENTITY=` it passed is a build setting there, not the env var Xcode
+	@# forwards, so the tour photographed an account nobody had filled. The script writes the data
+	@# the tour needs (follows, interests, listens, queue, favourites, highlights, a note, a board)
+	@# straight to the e2e api as the tour's own account, in under a second.
 	@echo "--> seeding data so the tour photographs a populated app (as $(IOS_SEED_IDENTITY))"
-	@cd $(IOS_UITESTS_DIR) && xcodegen generate >/dev/null && \
-		xcodebuild test -project OfflineSpike.xcodeproj -scheme OfflineSpikeUITests \
-			-destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
-			-only-testing:OfflineSpikeUITests/AppJourneyTests \
-			-only-testing:OfflineSpikeUITests/PersonalisationTests \
-			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
-			TEST_RUNNER_LP_FORCE_IDENTITY=$(IOS_SEED_IDENTITY) \
-			2>&1 | grep -E '=====|Test Case.*(passed|failed)|error:|XCTAssert|TEST (SUCCEEDED|FAILED)' || true
+	@$(PYTHON) scripts/dev/seed_contact_sheet.py --api http://127.0.0.1:$(APP_E2E_PORT) --identity $(IOS_SEED_IDENTITY)
 	@echo "--> touring every surface"
 	@# PIPESTATUS, not the pipeline's status (2026-10-03, measured). Piping xcodebuild into grep
 	@# makes `make` see GREP's exit code, so a tour that printed "** TEST FAILED **" and captured 2
@@ -3323,8 +3309,10 @@ ios-contact-sheet: ios-app-install
 			-derivedDataPath $(IOS_DD)-uitests CODE_SIGNING_ALLOWED=NO \
 			2>&1 | grep -E '=====|Test Case|error:|TEST (SUCCEEDED|FAILED)'; \
 		rc=$${PIPESTATUS[0]}; \
-		[ $$rc -eq 0 ] || echo "WARNING: the tour FAILED — the sheet below is partial. rc=$$rc"; \
-		exit $$rc
+		echo $$rc > $(IOS_DD)-tour-rc; \
+		[ $$rc -eq 0 ] || echo "WARNING: the tour FAILED — the sheet below is partial. rc=$$rc"
+	@# The sheet is built EVEN WHEN the tour failed (2026-10-08): a partial sheet shows where it
+	@# stopped; exiting first left nothing to look at. The tour's status is still the exit code.
 	@$(MAKE) ios-journey-shots
 	@# tile-width 0 = NATIVE device pixels, so the sheet can be inspected at 1:1 and shows exactly
 	@# what the device rendered. Resampling — even a good downscale — softens hairline borders and
@@ -3332,6 +3320,7 @@ ios-contact-sheet: ios-app-install
 	@$(PYTHON) scripts/tools/contact_sheet.py \
 		--in $(IOS_SHOTS_DIR)/named --out $(IOS_SHOTS_DIR)/contact-sheet.png \
 		--cols $(IOS_SHEET_COLS) --tile-width $(IOS_SHEET_TILE_W)
+	@exit $$(cat $(IOS_DD)-tour-rc)
 
 # Screenshots live as attachments inside the .xcresult; this pulls them out under their logical
 # names (01-profile-account.png, 05-add-to-collection.png, …) for review.

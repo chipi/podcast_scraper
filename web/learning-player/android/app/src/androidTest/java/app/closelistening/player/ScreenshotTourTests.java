@@ -66,7 +66,7 @@ public class ScreenshotTourTests extends UITestCase {
     private static final List<String> EXPECTED_FRAMES = Arrays.asList(
             "t01-home", "t02-discover", "t03-search",
             "t04-library-following", "t05-library-saved", "t06-library-boards", "t07-library-revisit",
-            "t08-profile-account", "t09-profile-topics", "t10-profile-stats",
+            "t08-profile-account", "t09-profile-interests", "t10-profile-stats",
             "t11-settings", "t12-settings-config",
             "t13-episode", "t14-episode-insights", "t15-episode-keypoints", "t16-episode-entities",
             "t17-share-popover", "t18-add-to-collection",
@@ -110,6 +110,9 @@ public class ScreenshotTourTests extends UITestCase {
         // --- library, every tab ---------------------------------------------------------------
         if (Journey.openTab("Library")) {
             settle(4_000);
+            // Library opens on Saved, so the Following frame needs its own tap.
+            Journey.tap("Following", false, 8_000);
+            settle(3_000);
             frame("t04-library-following");
             String[][] tabs = {
                 { "Saved", "t05-library-saved" },
@@ -147,8 +150,14 @@ public class ScreenshotTourTests extends UITestCase {
         if (Journey.tap("Episode notes", true, 12_000)) {
             settle(4_000);
             frame("t14-episode-insights");
-            if (Journey.tap("Key points", true, 8_000)) { settle(3_000); frame("t15-episode-keypoints"); }
-            if (Journey.tap("Topics & People", true, 8_000)) { settle(3_000); frame("t16-episode-entities"); }
+            // SCROLL to these sections, never tap their headers: they are <details> that are OPEN by
+            // default, so a tap CLOSES them and the frames came out collapsed (2026-10-08, iOS tour).
+            if (Journey.scrollTo(java.util.Arrays.asList("Key points"), true, 8) != null) {
+                settle(2_000); frame("t15-episode-keypoints");
+            }
+            if (Journey.scrollTo(java.util.Arrays.asList("Topics & People"), true, 8) != null) {
+                settle(2_000); frame("t16-episode-entities");
+            }
         }
 
         // --- the overlays, which only a picture can confirm render correctly -------------------
@@ -160,30 +169,31 @@ public class ScreenshotTourTests extends UITestCase {
             frame("t17-share-popover");
             Journey.tap(Arrays.asList("Close", "Cancel"), true, 4_000);
         }
-        if (Journey.tap(Arrays.asList("Add to board", "Add"), true, 10_000)) {
+        // Reopen the episode first: the share menu has no Close, so it stayed open over the page and
+        // swallowed this tap — t18 was never shot (2026-10-08). And exactly "Add to board":
+        // `contains "Add"` matches other controls.
+        AppSession.openEpisode(EPISODE_SLUG);
+        settle(4_000);
+        if (Journey.tap(Arrays.asList("Add to board"), false, 10_000)) {
             settle(3_000);
             frame("t18-add-to-collection");
             Journey.tap(Arrays.asList("Close", "Cancel"), true, 4_000);
         }
 
         // --- entity surfaces --------------------------------------------------------------------
+        // By DEEP LINK (2026-10-08): walking Home's chips landed on the wrong page — Search, the
+        // queue, the notes export — and one stray tap stranded the rest of the tour. Same ids as the
+        // fixture corpus serves.
         Journey.dismissCards();
-        Journey.openTab("Home");
+        AppSession.openLink("topic/topic:systems-thinking");
         settle(5_000);
-        if (Journey.tap("Topics", false, 10_000)) { settle(3_000); }
-        Journey.showEveryonesTrends();
-        if (Journey.tap("systems thinking", true, 10_000)) { settle(5_000); frame("t19-topic"); }
-        if (Journey.tap("Storylines", true, 8_000)) { settle(4_000); frame("t20-storyline"); }
-        Journey.dismissCards();
-        Journey.openTab("Home");
-        settle(4_000);
-        if (Journey.tap("People", false, 8_000)) {
-            settle(3_000);
-            // Any person row; the fixture's top-voice chips carry the bare name as their label.
-            for (String person : Arrays.asList("Dr. Elena Fischer", "Sam", "Alex Morgan")) {
-                if (Journey.tap(person, true, 6_000)) { settle(4_000); frame("t21-person"); break; }
-            }
-        }
+        frame("t19-topic");
+        AppSession.openLink("storyline/thc:managing-risk");
+        settle(5_000);
+        frame("t20-storyline");
+        AppSession.openLink("person/person:dr-elena-fischer");
+        settle(5_000);
+        frame("t21-person");
 
         // --- offline, then back ------------------------------------------------------------------
         Journey.dismissCards();

@@ -412,13 +412,32 @@ final class Journey {
     }
 
     /**
-     * Switch Discover's Trends to everyone's (2026-10-07: "You" is the default, and a fresh test
+     * Switch Discover's Trends to everyone's (2026-10-07: "Mine" is the default, and a fresh test
      * account has no world of its own, so its Trends are empty). The choice is a synced
-     * preference, so later tests on the same account start on "Everyone" and this is a no-op.
+     * preference, so later tests on the same account already show everyone's and this is a no-op.
      * Mirrors the web e2e {@code showEveryonesTrends}.
+     *
+     * The scope is ONE icon toggle named "Trending scope" (2026-10-08: the labelled "You /
+     * Everyone" switch was reverted), so its name never says the state. The caption under the
+     * Trends does — "Your trends …" or "Everyone's trends …" — so that decides whether to tap.
      */
     static void showEveryonesTrends() {
-        if (tap("Everyone", false, 10_000)) sleep(2_000);
+        long deadline = System.currentTimeMillis() + 10_000;
+        boolean mine = false;
+        while (System.currentTimeMillis() < deadline) {
+            if (find("Your trends", true, 0) != null) { mine = true; break; }
+            if (find("Everyone's trends", true, 0) != null) break;
+            sleep(400);
+        }
+        if (!mine) {
+            mark("=====TREND_SCOPE already everyone, or caption not found=====");
+            return;
+        }
+        if (tap("Trending scope", false, 5_000)) {
+            boolean switched = find("Everyone's trends", true, 5_000) != null;
+            mark("=====TREND_SCOPE switched, everyone=" + switched + "=====");
+            sleep(1_000);
+        }
     }
 
     static boolean tap(String name, boolean contains, long timeoutMs) {
