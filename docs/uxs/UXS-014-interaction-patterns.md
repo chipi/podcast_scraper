@@ -365,8 +365,9 @@ because the only question that matters is whether a mark is instantly *not the o
 findings worth keeping:
 
 - **The `+` was the cost, not the shape.** Every "add" glyph tested got busier for it, and it buys
-  nothing: the pill variant already reads "+ Collection" in words and the icon variant carries
-  `collections.addTo` as its accessible name. Same conclusion the folded-corner-plus-plus glyph
+  nothing: the icon carries `collections.addTo` as its accessible name. (Entity cards, storyline and
+  theme pages used a labelled "+ Board" pill until 2026-10-08; the operator asked for the one icon
+  the episode surfaces use, everywhere.) Same conclusion the folded-corner-plus-plus glyph
   reached on 2026-09-13 — reached twice now, which is why the guard asserts its absence.
 - **Legibility at the shipping size beats the better metaphor.** Offset stacked cards say "a set
   kept together" more precisely and were the first recommendation; but their meaning *is* the

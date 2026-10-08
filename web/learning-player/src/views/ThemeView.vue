@@ -205,7 +205,7 @@ function goBack(): void {
            offered an action the API rejects. Both contracts now carry it end to end. -->
       <div class="mt-3 flex flex-wrap items-center gap-2">
         <FavoriteButton :item="{ kind: 'theme', ref: id, label: label || id }" />
-        <AddToCollectionButton :item="{ kind: 'theme', ref: id }" variant="pill" />
+        <AddToCollectionButton :item="{ kind: 'theme', ref: id }" />
         <!-- Shares as a THEME — its own server card and link (operator 2026-10-05); it used to share
              as a topic. Analytics has no theme bucket, so `target-kind` stays topic. -->
         <ShareMenu kind="theme" :id="id" :title="label || id" target-kind="topic" />

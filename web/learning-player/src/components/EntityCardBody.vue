@@ -289,7 +289,7 @@ const isTopic = computed(() => current.value.kind === "topic")
           <!-- Save (heart) — the ONE save affordance; distinct from Follow (F2.2). -->
           <FavoriteButton :item="{ kind: current.kind, ref: current.id, label }" />
           <!-- Pin this topic/person into a collection (RFC-119) — self-gates when signed out. -->
-          <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" variant="pill" />
+          <AddToCollectionButton :item="{ kind: current.kind, ref: current.id }" />
         </template>
         <!-- Share (card / link / text) — #2036. -->
         <!-- The server's card for this entity (operator 2026-10-05) — the menu needs only what it is. -->

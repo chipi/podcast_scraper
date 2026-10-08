@@ -211,7 +211,7 @@ function goBack(): void {
              other kind (F2.2). Distinct from Follow, which subscribes to the theme cluster. -->
         <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
         <!-- Share (card / link / text) — #2036. -->
-        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" variant="pill" />
+        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" />
         <ShareMenu kind="storyline" :id="id" :title="label || id" target-kind="storyline" />
         <FollowButton
           v-if="auth.isAuthenticated && storylineId"

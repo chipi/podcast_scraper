@@ -271,7 +271,7 @@ async function createAndAdd(): Promise<void> {
         ref="panelEl"
         role="dialog"
         :aria-label="t('collections.sheetTitle')"
-        class="lp-sheet w-full max-w-lg overflow-y-auto rounded-t-2xl border border-border bg-surface text-canvas-foreground shadow-xl sm:rounded-2xl"
+        class="lp-sheet lp-sheet--half w-full max-w-lg overflow-y-auto rounded-t-2xl border border-border bg-surface text-canvas-foreground shadow-xl sm:rounded-2xl"
         data-testid="add-to-collection-menu"
         @click.stop
       >

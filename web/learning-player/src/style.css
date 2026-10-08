@@ -228,6 +228,14 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
+  /* A SHORT sheet: content-sized, at most half the screen (operator 2026-10-08). "Save to board"
+     with one board took 70% of the screen for one row. Pickers and quick actions use this; detail
+     sheets keep the tall floor above, which is what makes their top edge predictable. */
+  .lp-sheet.lp-sheet--half {
+    min-height: 0;
+    max-height: 50dvh;
+  }
+
   @media (min-width: 640px) {
     .lp-sheet {
       min-height: 0;
