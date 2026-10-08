@@ -213,11 +213,11 @@ dropped).
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/app/highlights?episode=` | The user's highlights (`{items[Highlight]}`), optionally scoped to one episode slug. `Highlight` = `{id, episode_slug, kind(span\|moment\|insight), start_ms?, end_ms?, char_start?, char_end?, segment_ids[], quote_text?, speaker?, source_insight_id?, color?, created_at, anchor_status?}`. |
+| GET | `/api/app/highlights?episode=` | The user's highlights (`{items[Highlight]}`), optionally scoped to one episode slug. `Highlight` = `{id, episode_slug, kind(span\|moment\|insight), start_ms?, end_ms?, char_start?, char_end?, segment_ids[], quote_text?, speaker?, source_insight_id?, color?, created_at, anchor_status?}`. **Paging is opt-in** (1.0.3): with `limit` (≤100) it pages by EPISODE — `offset`/`limit` count episodes, `per_episode` caps each one's highlights (default 5), filtered by `q` (quote / speaker), `color`, `muted=true` (stopped resurfacing) and ordered `sort=recent\|title` — and adds `total`, `episode_total`, `episode_counts` and the `notes` on the page's highlights. Only the page is re-anchored. Without `limit` the response is unchanged. |
 | POST | `/api/app/highlights` | Capture a highlight (**201**); body `HighlightCreate`. |
 | PATCH | `/api/app/highlights/{id}` | Edit `color` / `quote_text` (`exclude_unset` — explicit `color:null` clears it); **404** if absent. |
 | DELETE | `/api/app/highlights/{id}` | Remove; returns the remaining `{items[]}`. |
-| GET, POST, PATCH, DELETE | `/api/app/notes` (+ `/{id}`) | Free-text notes targeting `highlight\|insight\|episode`. `GET ?target=&target_id=` scopes; `POST` (**201**) `{target, target_id, text}` (`text` min length 1 → **422**); `PATCH {text}`; `DELETE`. |
+| GET, POST, PATCH, DELETE | `/api/app/notes` (+ `/{id}`) | Free-text notes targeting `highlight\|insight\|episode`. `GET ?target=&target_id=` scopes; `POST` (**201**) `{target, target_id, text}` (`text` min length 1 → **422**); `PATCH {text}`; `DELETE`. `GET` with `limit` (1.0.3): newest first, `q` on the text, `offset`, plus `total`, per-target `counts`, and the `highlights` the page's highlight-notes are on. Without `limit`, unchanged. |
 | GET | `/api/app/highlights/export.md` | Markdown export of all highlights + attached notes (grouped by episode; `text/markdown` attachment). |
 
 ---

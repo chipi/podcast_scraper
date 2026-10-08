@@ -1334,9 +1334,29 @@ class Highlight(BaseModel):
 
 
 class HighlightsResponse(BaseModel):
-    """The user's highlights (GET/POST/PATCH/DELETE /api/app/highlights)."""
+    """The user's highlights (GET/POST/PATCH/DELETE /api/app/highlights).
+
+    GET with ``limit`` (1.0.3) pages by EPISODE: ``items`` are the highlights of one page of
+    episodes, and the four paging fields below are filled. Without it they are left out.
+    """
 
     items: list[Highlight] = Field(default_factory=list)
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: matching highlights, all pages."
+    )
+    episode_total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: episodes with a match."
+    )
+    episode_counts: dict[str, int] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: matching highlights per episode on this page (items may hold fewer).",
+    )
+    notes: list[Note] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: the notes on the highlights in ``items``.",
+    )
 
 
 class NoteCreate(BaseModel):
@@ -1376,9 +1396,29 @@ class Note(BaseModel):
 
 
 class NotesResponse(BaseModel):
-    """The user's notes (GET/POST/PATCH/DELETE /api/app/notes)."""
+    """The user's notes (GET/POST/PATCH/DELETE /api/app/notes).
+
+    GET with ``limit`` (1.0.3) returns one page and fills ``total`` and ``counts``; without it they
+    are left out.
+    """
 
     items: list[Note] = Field(default_factory=list)
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: matching notes, all pages."
+    )
+    counts: dict[str, int] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: matches per target kind under the same q, ignoring ``target``.",
+    )
+    highlights: list[Highlight] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description=(
+            "Paged: the highlights the page's highlight-notes are on — where such a note links "
+            "to (episode + moment) and what it is about, without loading every highlight."
+        ),
+    )
 
 
 # --- P3 Consolidation: consumer enrichment read surface (RFC-088 envelopes / #1121) ---
