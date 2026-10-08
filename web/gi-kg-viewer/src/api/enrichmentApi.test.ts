@@ -117,7 +117,7 @@ describe('enrichmentApi — URL + param shape', () => {
     )
     const s = await getCorpusEntitySignals('/c', 'person', 'person:jane')
     expect(s.grounding_rate?.persons?.[0]?.person_id).toBe('person:jane')
-    expect(s.temporal_velocity).toBeUndefined()
+    expect(s.guest_coappearance).toBeUndefined()
   })
 
   it('getCorpusEnrichmentEnvelope returns null on 404', async () => {

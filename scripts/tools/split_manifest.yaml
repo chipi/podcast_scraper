@@ -221,8 +221,8 @@ common:
 
 # Studio is the full operator viewer as a private app (ADR-158 decision 2). The public
 # repo keeps its own viewer, stripped of the tier-A features (consensus and cluster search,
-# storylines, themes, the private lenses, trending, the MCP panel); Studio keeps all of
-# them, with the UI, unit tests, e2e specs and fixtures its first copy brought.
+# storylines, themes, the private lenses, trending, the MCP panel, the enriched answer and the
+# panels on velocity, consensus and topic similarity); Studio keeps all of them, with the UI, unit tests, e2e specs and fixtures its first copy brought.
 studio:
   package: closelistening_studio
   # Seeded from web/gi-kg-viewer (first copy at 47aa1bcbe, last sync at d78e5e501). Since the

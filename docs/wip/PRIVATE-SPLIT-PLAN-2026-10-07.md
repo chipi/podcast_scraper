@@ -130,6 +130,13 @@ Viewer (public copy only; Studio keeps everything): MOVE `api/corpusTrendingApi.
 Not yet verified line by line: `topicClustersOverlay.ts`, `graphFilters.ts`, `themeRegionPalette.ts`,
 `TopicLandscape.vue`, and `scripts/` consumers.
 
+The public viewer also drops the panels fed by the private enrichers `temporal_velocity`,
+`topic_consensus` and `topic_similarity` (operator decision 2026-10-08): `EnrichmentEdgesPanel`,
+the velocity and consensus rows in `NodeEnrichmentSection`, the Digest band trend arrows, and the
+enriched answer (`EnrichedAnswerHero`, the Enriched search chip, the related-topic chips on
+`ResultCard`), whose only source is `query_topic_relatedness`. The server routes that serve them
+stay as they are, since Studio and Player read them when Common is installed.
+
 ### Plan review — risks the probe surfaced (2026-10-07)
 
 1. **Entry points need an install.** The probe runs on `PYTHONPATH`, which cannot see entry

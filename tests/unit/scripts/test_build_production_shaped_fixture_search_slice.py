@@ -5,8 +5,8 @@ Two responsibilities:
 1. The hand-authored ``search-v3/mocks.json`` under
    ``web/gi-kg-viewer/e2e/fixtures/production-shaped/`` is well-formed and its
    scenarios cover the public shapes RFC-107 / UXS-016 spec (compound-lift,
-   enriched-answer, temporal-intent). The cluster and consensus operators are private
-   (ADR-158) and have no scenario here.
+   temporal-intent). The cluster and consensus operators and the enriched answer read
+   private enrichers (ADR-158) and have no scenario here.
 2. Every ``episode_id`` the mocks reference exists in the parent fixture's
    ``manifest.json`` — so hit-card handoffs to Library / Graph resolve
    cleanly against the same fixture and don't break spec-time.
@@ -27,7 +27,6 @@ PARENT_MANIFEST = FIXTURE_ROOT / "manifest.json"
 
 EXPECTED_SCENARIOS = {
     "compound-lift",
-    "enriched-answer",
     "temporal-intent",
 }
 
@@ -94,26 +93,6 @@ def test_compound_lift_scenario_carries_lifted_block(mocks: dict[str, Any]) -> N
         for k in ("insight", "speaker", "topic", "quote"):
             assert k in lifted, f"compound-lift hit missing lifted.{k}"
         assert lifted["insight"].get("grounded") is True, "lifted.insight must be grounded"
-
-
-def test_enriched_answer_scenario_has_grounded_sources(mocks: dict[str, Any]) -> None:
-    # Enrichment moved from a top-level ``enriched`` block to per-hit
-    # ``metadata.query_enrichments.related_topics`` (RFC-088 QueryEnricher
-    # chain, wired in commit a26e0a5e). "Grounded" here means: at least one
-    # hit is an ``insight`` doc_type (the only tier that carries grounded
-    # claims) AND at least one hit carries a related_topics decoration.
-    resp = mocks["scenarios"]["enriched-answer"]["response"]
-    hits = resp.get("results", [])
-    assert hits, "enriched-answer scenario has no hits"
-    grounded_hits = [h for h in hits if h.get("metadata", {}).get("doc_type") == "insight"]
-    assert grounded_hits, "enriched-answer scenario has no insight-tier (grounded) hits"
-    decorated = [
-        h
-        for h in hits
-        if isinstance(h.get("metadata", {}).get("query_enrichments"), dict)
-        and h["metadata"]["query_enrichments"].get("related_topics")
-    ]
-    assert decorated, "no hit carries metadata.query_enrichments.related_topics"
 
 
 def test_temporal_intent_scenario_has_query_type(mocks: dict[str, Any]) -> None:
