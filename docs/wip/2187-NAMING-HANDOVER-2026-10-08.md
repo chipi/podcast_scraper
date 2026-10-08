@@ -50,13 +50,28 @@ them for coming.
 - **Direction**: do not snap a name that is itself in the episode's stated names
   (`metadata_named` holds the co-host here) — a stated name is a person, not a misspelling.
 
-## Open 3 (verify first): the fr host and guest may be swapped
+## Resolved by this branch: the fr host and guest were swapped
 
 The self-introduction ("I am <host>") was hidden under invented subtitle-credit lines until
-ADR-160/159 recovered it on this branch. Recovered, it is spoken by SPEAKER_02, while production
-published the host's name on SPEAKER_01 (66% of talk; the guest is the long-answer voice in this
-format). Recovery runs before speaker alignment and naming, so the end-to-end V.6b re-run on this
-branch shows whether the naming now resolves on its own; check that run before working on it.
+ADR-160/159 recovered it. Production published the host's name on SPEAKER_01 (66% of talk; the
+guest is the long-answer voice in this format). In the end-to-end V.6b re-run on this branch
+(2026-10-08) the recovered introduction sits on SPEAKER_02 at 41-69 s, and naming resolves
+SPEAKER_02 = host (`known_hosts`), SPEAKER_01 = guest (`llm_resolution`) — checked against the
+transcript. Nothing to hand over.
+
+## End-to-end re-run, 2026-10-08 (this branch, all six feeds)
+
+| Feed | Named correctly | Left unnamed | Wrong |
+| --- | --- | --- | --- |
+| es | — | — | both hosts, swapped (Open 1, unchanged) |
+| it | host (self-introduction) | two main voices, 25% and 21% of talk | — |
+| fr | host and guest | — | — |
+| de | host (self-introduction) | co-host, 79% of talk (Open 2, unchanged) | — |
+| pt-PT | host (`known_hosts`) | guest, 61% of talk | — |
+| pt-BR | both hosts (one by self-introduction, one by `llm_resolution`) | — | — |
+
+"Left unnamed" is not a wrong name, but it is most of the talk time in three feeds; whether the
+it and pt-PT guests are nameable from the episode text has not been examined.
 
 ## Not a naming defect (checked)
 
