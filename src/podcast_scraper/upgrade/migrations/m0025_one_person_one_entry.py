@@ -27,8 +27,9 @@ diagnostics' ``tried.known_hosts``):
      0014: Hannah Fry back on her own voice, Paige Bailey on the guest's);
    * a FORCED name (arithmetic) that is the same person as a name another voice holds by evidence
      is removed from its voice (The Long Run: "Andy Ratcliffe" forced onto the co-guest Yung Lie);
-   * two ad reads the fixed roster leaves unnamed but whose stored files no longer show why
-     (``FORCED_AD_TWINS``, each read in the replay);
+   * voices OLDER code named wrongly where today's roster, already fixed, names them right
+     (``REPLAYED_VOICES``: two ad reads, three guests stored as the host, a co-host stored
+     unnamed; each read in the replay and in the transcript);
    * two placed voices left with two spellings of one person go to the pipeline's own
      ``roster._one_name_per_person``, fed the stored labels, roles, talk and turn alternations; a
      pair it keeps apart (they converse) stays listed in ``left``.
@@ -241,20 +242,61 @@ def _quote_voices(
     return out
 
 
-#: Voices the fixed roster leaves UNNAMED that the stored record names by arithmetic, where the
-#: stored files no longer show why (the forced name was a host's respelling, merged into the stated
-#: spelling before it was written; sidecars this old carry no decision trace). Each was read in the
-#: 2026-10-08 roster replay of the fixed code against main; both voices are ad reads. Keyed by
-#: episode id and voice.
-FORCED_AD_TWINS: Dict[Tuple[str, str], str] = {
+#: Voices OLDER code named wrongly whose stored name today's roster replaces — every one of them a
+#: defect already fixed going forward, so this is a one-time cleanup of old data, closed at these
+#: entries. ``(episode id, voice): (name today's roster gives, its role, evidence)``; a ``None``
+#: name leaves the voice unnamed. Each was read in the 2026-10-08 roster replay (today's code vs
+#: the stored record) AND against the voice's own transcript lines. Voices where today's roster is
+#: itself wrong (Hard Fork, In Our Time's interviewer) are deliberately absent: those need a code
+#: fix, not a data one.
+REPLAYED_VOICES: Dict[Tuple[str, str], Tuple[Optional[str], Optional[str], str]] = {
     ("a4f76752-381a-11f1-a32d-2b6d4bd14e72", "SPEAKER_05"): (
+        None,
+        None,
         "The Gray Area 'Is starting a family becoming impossible?': an ad read ('Support for the "
-        "show comes from Talk High'), forced 'Anna-Louise Sussman', the host's spoken form of the "
-        "stated guest, whose own voice SPEAKER_08 the LLM named"
+        "show comes from Talk High'), forced the host's spoken 'Anna-Louise Sussman' (2b7aab46e)",
     ),
     ("718445c2-4032-448e-9b6f-4d8b71d947cb", "SPEAKER_00"): (
+        None,
+        None,
         "Made In Africa 'Sustainable Elegance': an EY ad read (gold label v050: ad), forced "
-        "'SCHOLA GATOBU' while her own voice SPEAKER_01 introduced herself"
+        "'SCHOLA GATOBU' (2b7aab46e)",
+    ),
+    ("a040ea0b-b59d-4b7a-a380-c5473ef78107", "SPEAKER_01"): (
+        None,
+        None,
+        "Talk Eastern Europe 'How Europe Can Stay Competitive': an EESC guest ('to follow on from "
+        "what Sandra has been saying'), stored as the host Alexandra Karppi",
+    ),
+    ("13ef2838-f5e8-4985-acd5-f5445d847000", "SPEAKER_00"): (
+        None,
+        None,
+        "Analyse 'We Never Left the Industrial Age': the guest ('war correspondent with CNN', "
+        "'speechwriter for Gavin Newsom'), stored as the host Bernard Leong",
+    ),
+    ("5e78d393-0409-45d6-940e-843e8008bf26", "SPEAKER_01"): (
+        None,
+        None,
+        "Analyse 'If AI Models Have No Moat': the guest Benedict Evans ('Benedict, welcome back'), "
+        "stored as the host Bernard Leong",
+    ),
+    ("c9a0b23a-bca8-11f1-963d-9ba4b3b6b413", "SPEAKER_01"): (
+        "William Dalrymple",
+        "host",
+        "Empire '400. Stalin': the co-host introducing the guest ('we've got you someone who's "
+        "actually sat in the room with Vladimir Putin'), stored unnamed",
+    ),
+    ("bcecac98-430a-4361-9737-bfebe7ca9ad5", "SPEAKER_00"): (
+        None,
+        None,
+        "DeepMind 'From deepfakes to DNA': the guest answering Hannah Fry's watermarking "
+        "questions, stored as 'Hannah Fry'",
+    ),
+    ("e743621b-19a7-49c7-907e-07dd965ebd30", "SPEAKER_05"): (
+        None,
+        None,
+        "DeepMind 'AI for Science': John Jumper and others answering ('John?', the AlphaFold "
+        "release), stored as 'Sir Paul Nurse'",
     ),
 }
 
@@ -347,6 +389,33 @@ class _Episode:
         if n:
             self.counts[key] = self.counts.get(key, 0) + n
 
+    def _apply_replayed(self, meta: dict, rel: str) -> None:
+        """``REPLAYED_VOICES`` for this episode — each only while its label still differs, so a
+        second run finds nothing to do."""
+        episode_id = str((meta.get("episode") or {}).get("episode_id") or "")
+        voices = self._all_voices(rel)
+        label_of = {v: lab for lab, vs in self._seg_voices.items() for v in vs}
+        for (eid, voice), (name, role, _why) in REPLAYED_VOICES.items():
+            if eid != episode_id or voice not in voices or label_of.get(voice) == name:
+                continue
+            self.voice_names[voice] = name
+            if name and role:
+                self.voice_roles[voice] = role
+
+    def _live(self, entry: Any) -> List[str]:
+        """The entry's voices that keep a name (not unnamed by ``REPLAYED_VOICES``)."""
+        return [
+            v
+            for v in self._voices(entry)
+            if not (v in self.voice_names and self.voice_names[v] is None)
+        ]
+
+    def _all_voices(self, rel: str) -> Set[str]:
+        """Every diarized voice the episode's segments carry."""
+        payload = _load(self.meta.parent.parent / rel.replace(".txt", ".segments.json"))
+        rows = payload if isinstance(payload, list) else (payload or {}).get("segments")
+        return {str(r["speaker"]) for r in rows or [] if isinstance(r, dict) and r.get("speaker")}
+
     def _voices(self, entry: Any) -> List[str]:
         """The voices a record entry is placed on: its own list, or for an older record's entry
         (no ``voices`` field, not marked unplaced) the voices whose segment label is its name."""
@@ -382,11 +451,13 @@ class _Episode:
             + list(tried.get("detected_guests") or [])
             if n
         ]
-        placed = [s for s in speakers if self._voices(s) and isinstance(s.get("name"), str)]
+        self._apply_replayed(meta, rel)
+        # An entry whose every voice is being unnamed is, from here on, nobody's voice.
+        placed = [s for s in speakers if self._live(s) and isinstance(s.get("name"), str)]
         unplaced_lower = {
             str(s.get("name")).lower()
             for s in speakers
-            if not self._voices(s) and isinstance(s.get("name"), str)
+            if not self._live(s) and isinstance(s.get("name"), str)
         }
         role_of = {str(s["name"]): s.get("role") for s in placed}
         claimed: Dict[str, str] = {}
@@ -416,11 +487,6 @@ class _Episode:
             self.renames[name] = target
             if as_host and s.get("role") != "host":
                 self.promote.add(target)
-        episode_id = str((meta.get("episode") or {}).get("episode_id") or "")
-        for s in placed:
-            for v in self._voices(s) or []:
-                if (episode_id, str(v)) in FORCED_AD_TWINS and len(self._voices(s) or []) > 1:
-                    self.voice_names[str(v)] = None
         self._dedupe(speakers)
         if self.left and not self.refused:
             self._unify_left(meta, rel, diag, hosts, participants, placed)
@@ -848,6 +914,35 @@ class _Episode:
                     continue
                 e["name"], e["role"] = name, self.voice_roles.get(voices[0], e.get("role"))
             out.append(e)
+        # A voice that GAINS a name (stored unnamed): the unplaced entry for that person takes it,
+        # or a new entry is added — in the record's own format (older records carry no voices).
+        new_format = any("voices" in e for e in out if isinstance(e, dict))
+        for v, name in self.voice_names.items():
+            if not name or any(v in self._voices(e) for e in out if isinstance(e, dict)):
+                continue
+            role = self.voice_roles.get(v, "guest")
+            twin = next(
+                (
+                    e
+                    for e in out
+                    if isinstance(e, dict)
+                    and not self._voices(e)
+                    and isinstance(e.get("name"), str)
+                    and same_person(name, str(e["name"]))
+                ),
+                None,
+            )
+            entry = twin if twin is not None else {"id": "", "name": name, "role": role}
+            entry.update(name=name, role=role)
+            if new_format:
+                entry.update(placed=True, voices=[v], source=entry.get("source") or "roster")
+                if twin is not None:
+                    entry["source"] = "roster"
+            elif twin is not None:
+                entry.pop("placed", None)
+            if twin is None:
+                out.append(entry)
+            self._bump("voices_named")
         content["speakers"] = out
         self._record(meta, set())
 

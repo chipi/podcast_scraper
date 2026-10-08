@@ -797,7 +797,7 @@ def test_an_older_record_without_voices_is_read_through_its_segments(tmp_path: P
 def test_a_listed_forced_ad_voice_is_unnamed(tmp_path: Path, monkeypatch) -> None:
     from podcast_scraper.upgrade.migrations import m0025_one_person_one_entry as m25
 
-    monkeypatch.setattr(m25, "FORCED_AD_TWINS", {("ep", "SPEAKER_02"): "an ad read"})
+    monkeypatch.setattr(m25, "REPLAYED_VOICES", {("ep", "SPEAKER_02"): (None, None, "an ad read")})
     p = _corpus(
         tmp_path,
         speakers=[
@@ -854,3 +854,121 @@ def test_a_listed_forced_ad_voice_is_unnamed(tmp_path: Path, monkeypatch) -> Non
     assert credited["Support for the show comes from an advertiser."] is None
     kg = {n["id"] for n in _r(p["kg"])["nodes"]}
     assert _pid("Anna Louie Sussman") in kg
+
+
+def test_a_listed_voice_older_code_left_unnamed_takes_the_replayed_name(
+    tmp_path: Path, monkeypatch
+) -> None:
+    # Empire '400. Stalin': the co-host's voice was stored unnamed; today's roster names him.
+    from podcast_scraper.upgrade.migrations import m0025_one_person_one_entry as m25
+
+    monkeypatch.setattr(
+        m25, "REPLAYED_VOICES", {("ep", "SPEAKER_01"): ("William Dalrymple", "host", "co-host")}
+    )
+    p = _corpus(
+        tmp_path,
+        speakers=[
+            _speaker("Anita Anand", "host", ["SPEAKER_00"], "self_intro", "host"),
+            _speaker("Fiona Hill", "guest", ["SPEAKER_02"], "self_intro", "guest"),
+        ],
+        turns=[
+            ("SPEAKER_00", "Anita Anand", "host", "Welcome to Empire."),
+            ("SPEAKER_01", "SPEAKER_01", "host", "And we've got you someone who sat with Putin."),
+            ("SPEAKER_02", "Fiona Hill", "guest", "Thank you for having me."),
+        ],
+        known_hosts=["Anita Anand", "William Dalrymple"],
+    )
+    _apply(tmp_path)
+    speakers = _r(p["meta"])["content"]["speakers"]
+    assert [(s["name"], s["role"], s["voices"]) for s in speakers] == [
+        ("Anita Anand", "host", ["SPEAKER_00"]),
+        ("William Dalrymple", "host", ["SPEAKER_01"]),
+        ("Fiona Hill", "guest", ["SPEAKER_02"]),
+    ]
+    row = next(r for r in _r(p["seg"]) if r["speaker"] == "SPEAKER_01")
+    assert (row["speaker_label"], row["speaker_role"]) == ("William Dalrymple", "host")
+    assert "\nWilliam Dalrymple: And we've got you" in p["txt"].read_text(encoding="utf-8")
+    _quotes_hold(p)
+
+
+def test_the_unplaced_entry_for_that_person_takes_the_named_voice(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from podcast_scraper.upgrade.migrations import m0025_one_person_one_entry as m25
+
+    monkeypatch.setattr(
+        m25, "REPLAYED_VOICES", {("ep", "SPEAKER_01"): ("William Dalrymple", "host", "co-host")}
+    )
+    p = _corpus(
+        tmp_path,
+        speakers=[
+            _speaker("Anita Anand", "host", ["SPEAKER_00"], "self_intro", "host"),
+            _speaker("Fiona Hill", "guest", ["SPEAKER_02"], "self_intro", "guest"),
+            _speaker("William Dalrymple", "host", [], "feed_statement", "unplaced_1"),
+        ],
+        turns=[
+            ("SPEAKER_00", "Anita Anand", "host", "Welcome to Empire."),
+            ("SPEAKER_01", "SPEAKER_01", "host", "And we've got you someone who sat with Putin."),
+            ("SPEAKER_02", "Fiona Hill", "guest", "Thank you for having me."),
+        ],
+        known_hosts=["Anita Anand", "William Dalrymple"],
+    )
+    _apply(tmp_path)
+    speakers = _r(p["meta"])["content"]["speakers"]
+    assert [(s["name"], s["role"], s["voices"]) for s in speakers] == [
+        ("Anita Anand", "host", ["SPEAKER_00"]),
+        ("William Dalrymple", "host", ["SPEAKER_01"]),
+        ("Fiona Hill", "guest", ["SPEAKER_02"]),
+    ]
+
+
+def test_a_replayed_voice_is_applied_once(tmp_path: Path, monkeypatch) -> None:
+    from podcast_scraper.upgrade.migrations import m0025_one_person_one_entry as m25
+
+    monkeypatch.setattr(
+        m25, "REPLAYED_VOICES", {("ep", "SPEAKER_01"): ("William Dalrymple", "host", "co-host")}
+    )
+    _corpus(
+        tmp_path,
+        speakers=[_speaker("Anita Anand", "host", ["SPEAKER_00"], "self_intro", "host")],
+        turns=[
+            ("SPEAKER_00", "Anita Anand", "host", "Welcome to Empire."),
+            ("SPEAKER_01", "SPEAKER_01", "host", "And we've got you someone who sat with Putin."),
+        ],
+        known_hosts=["Anita Anand", "William Dalrymple"],
+    )
+    assert _apply(tmp_path).details["files_written"] > 0
+    assert _apply(tmp_path).details["files_written"] == 0
+    assert OnePersonOneEntryMigration().verify(MigrationContext(corpus_root=tmp_path))[0]
+
+
+def test_the_host_takes_its_spelling_once_its_name_leaves_the_guests_voice(
+    tmp_path: Path, monkeypatch
+) -> None:
+    # Analyse: the guest's voice was stored as the host "Bernard Leong" (unnamed by the replayed
+    # list); the host's own voice said "Bernard Leung" and takes the feed's spelling.
+    from podcast_scraper.upgrade.migrations import m0025_one_person_one_entry as m25
+
+    monkeypatch.setattr(m25, "REPLAYED_VOICES", {("ep", "SPEAKER_00"): (None, None, "the guest")})
+    p = _corpus(
+        tmp_path,
+        speakers=[
+            {"id": "host", "name": "Bernard Leong", "role": "host"},
+            {"id": "guest", "name": "Bernard Leung", "role": "guest"},
+        ],
+        turns=[
+            ("SPEAKER_00", "Bernard Leong", "host", "I started my career as a journalist."),
+            (
+                "SPEAKER_01",
+                "Bernard Leung",
+                "guest",
+                "Welcome to Analyse Podcast. I'm Bernard Leung.",
+            ),
+        ],
+        known_hosts=["Bernard Leong"],
+    )
+    _apply(tmp_path)
+    labels = {r["speaker"]: r.get("speaker_label") for r in _r(p["seg"])}
+    assert labels == {"SPEAKER_00": None, "SPEAKER_01": "Bernard Leong"}
+    assert [s["name"] for s in _r(p["meta"])["content"]["speakers"]] == ["Bernard Leong"]
+    _quotes_hold(p)
