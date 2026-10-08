@@ -10,12 +10,8 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from podcast_scraper.server.app_oauth import (
-    GoogleProvider,
-    MockOAuthProvider,
-    OAuthIdentity,
-    provider_from_env,
-)
+from podcast_scraper.server.app_oauth import MockOAuthProvider, OAuthIdentity, provider_from_env
+from podcast_scraper.server.app_oauth_providers import GoogleProvider
 
 
 def test_mock_authorization_url_round_trips_code_and_state() -> None:
@@ -119,3 +115,16 @@ def test_provider_from_env_ignores_unknown_selector(monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("APP_OAUTH_GOOGLE_CLIENT_ID", "cid")
     monkeypatch.setenv("APP_OAUTH_GOOGLE_CLIENT_SECRET", "csecret")
     assert provider_from_env() is None
+
+
+@pytest.mark.parametrize(
+    "present", ["APP_OAUTH_GOOGLE_CLIENT_ID", "APP_OAUTH_GOOGLE_CLIENT_SECRET"]
+)
+def test_google_needs_both_halves_of_its_credentials(
+    monkeypatch: pytest.MonkeyPatch, present: str
+) -> None:
+    """A half-set env must not go live (the id without the secret, or the reverse)."""
+    monkeypatch.delenv("APP_OAUTH_GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("APP_OAUTH_GOOGLE_CLIENT_SECRET", raising=False)
+    monkeypatch.setenv(present, "x")
+    assert GoogleProvider.from_env() is None

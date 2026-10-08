@@ -4,8 +4,8 @@
 # verbatim. Everything not listed stays public.
 #
 # Kept public on purpose (do not add here): the corpus read-models
-# (app_kg_view, app_gi_view, app_relational_view, app_catalog_cache,
-# app_corpus_access, app_content_source, app_slugs, app_artwork, app_kg_index), the
+# (kg_view, gi_view, relational_view, catalog_cache, corpus_access, content_source,
+# slugs, artwork, kg_index; renamed out of the app_ namespace), the
 # kernel (sessions, users, roles, csrf, access, magic link, outbox, push, audit,
 # operator guard, account deletion, user seed and CLI, oauth protocol + mock, comms
 # consent store, released-app-version store), and
@@ -149,6 +149,7 @@ common:
     identity:
       modules:
         podcast_scraper.server:
+          - app_oauth_providers
           - app_mcp_tokens
           - app_oauth_server
           - app_rate_limit

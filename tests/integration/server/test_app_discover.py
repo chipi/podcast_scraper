@@ -170,8 +170,8 @@ def _client(root: Path, *, personalized: bool, derived: bool = False) -> TestCli
 
 def _sign_in_heard(client: TestClient, root: Path, heard_episode_ids: list[str]) -> None:
     """Sign in a user with NO explicit interests, but who has *heard* the given episodes."""
-    from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+    from podcast_scraper.server.slugs import slug_for_row
 
     _sign_in(client, root, [])  # same user (subject 's1'), no explicit interests
     data_dir = root / "appdata"

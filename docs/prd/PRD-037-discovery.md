@@ -26,7 +26,7 @@ sources (OPML, manual RSS) can be added without touching core logic.
 > real persistence + the PWA + real users):** the consumer self-serve surface — Podcast Index
 > `DiscoverySource` (FR1), user-triggered scrape (FR2 / FR4), and the guardrail implementations
 > (rate / quota / cost / abuse). The FRs below describe the full Phase-2 target; the
-> `DiscoverySource` seam (`app_content_source`) is scaffolded now so Phase 2 adds no API reshape.
+> `DiscoverySource` seam (`content_source`) is scaffolded now so Phase 2 adds no API reshape.
 
 ## Background & Context
 

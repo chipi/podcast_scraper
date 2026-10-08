@@ -7,7 +7,7 @@ from typing import Dict
 
 from fastapi import APIRouter, Query, Request
 
-from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.catalog_cache import cached_catalog
 from podcast_scraper.server.pathutil import resolved_corpus_root_str
 from podcast_scraper.server.routes.corpus_library import _resolve_corpus_root
 from podcast_scraper.server.schemas import (

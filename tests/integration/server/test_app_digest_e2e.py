@@ -15,8 +15,8 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from podcast_scraper.server import app_comms_store, app_digest_personal, app_user_state
-from podcast_scraper.server.app_slugs import episode_slug
 from podcast_scraper.server.app_user_store import get_or_create_user
+from podcast_scraper.server.slugs import episode_slug
 
 pytestmark = pytest.mark.integration
 

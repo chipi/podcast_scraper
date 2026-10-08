@@ -226,7 +226,7 @@ class TestScopedIdsDisappearFromEverySurface:
 
     Marko: "let's not make them clickable. But then why do they exist in the first place?" —
     scoping alone does not answer that. `is_unresolved_speaker_placeholder` is consulted in
-    twelve modules INCLUDING `app_kg_view.entities_from_kg`, which is the single source for
+    twelve modules INCLUDING `kg_view.entities_from_kg`, which is the single source for
     entity cards, discover ranking rows AND derived interests. Extending its pattern is what
     makes a scoped id stop being a followable person everywhere at once.
 

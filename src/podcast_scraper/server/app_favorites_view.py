@@ -11,14 +11,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Sequence
 
-from podcast_scraper.server.app_content_source import row_to_summary
-from podcast_scraper.server.app_slugs import resolve_slug
+from podcast_scraper.server.content_source import row_to_summary
 from podcast_scraper.server.schemas import (
     AppFavoriteEntity,
     AppFavoriteRef,
     AppFavoriteRefsResponse,
     AppFavoritesResponse,
 )
+from podcast_scraper.server.slugs import resolve_slug
 
 # A saved THEME hydrates like any other grouping. Absent from this set a theme favourite would be
 # accepted by the API, stored, and then silently dropped on the way back out — present in the file,

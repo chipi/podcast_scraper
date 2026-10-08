@@ -19,7 +19,7 @@ from collections import Counter
 from pathlib import Path
 
 from podcast_scraper import perf_cache
-from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.catalog_cache import cached_catalog
 
 #: A followed interest, or a listed subject, reaching at least this share of episodes is an
 #: umbrella. Re-exported by ``app_user_corpus`` for "Mine" (#1669).

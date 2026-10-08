@@ -25,7 +25,7 @@ mis-attributed.
 | 6 | **QUOTES** | `gi.json` → `SPOKEN_BY`, `speaker_id` | `gi/pipeline.py` on ingest; `gi/speakers.py` ONLY under `enrich-edges` |
 | 7 | **MENTIONS** | `gi.json` → `MENTIONS_PERSON` | `gi/relational_edges.py` |
 | 8 | **IDENTITY** | `person:<slug>` / `person:unresolved-<name>-<ep>` | `identity/bare_name_scope.py`, `identity/intra_episode_merge.py` |
-| 9 | **SURFACES** | cards, search, related-people | `server/app_kg_index.py`, `search/corpus_graph.py`, `server/cil_queries.py` |
+| 9 | **SURFACES** | cards, search, related-people | `server/kg_index.py`, `search/corpus_graph.py`, `server/cil_queries.py` |
 
 ### Three corrections to the table above, because the table is a simplification
 
@@ -43,8 +43,8 @@ roster naming the show yields a demoted KG node and a GI node that still holds `
 Measured on production: 53 `SPOKEN_BY` edges target a Person named `Machine Learning Street`, and
 61 target one named `Host`.
 
-**Layer 9 is not one behaviour.** `app_kg_index` reads KG and applies the canonical id map;
-`corpus_graph` lets a GI name overwrite a KG name on the same id; `app_gi_view` reads
+**Layer 9 is not one behaviour.** `kg_index` reads KG and applies the canonical id map;
+`corpus_graph` lets a GI name overwrite a KG name on the same id; `gi_view` reads
 `quote.speaker_name` FIRST and applies no id map and no placeholder filter;
 `/api/corpus/persons/top` applies no id map at all. Two surfaces can legitimately disagree about
 one person's name — see §5.
@@ -170,7 +170,7 @@ Corpus-derived projections are cached in-process. After a migration or a re-enri
 
 | cache | token |
 | --- | --- |
-| `app_kg_index`, catalog, momentum person-roles, top-people, per-artifact loader, slug index | `perf_cache.corpus_mtime` |
+| `kg_index`, catalog, momentum person-roles, top-people, per-artifact loader, slug index | `perf_cache.corpus_mtime` |
 | `search/corpus_graph.get_corpus_graph` | same token (added #2069) |
 | `server/cil_queries._cil_entity_id_map` | same token (added #2069) |
 

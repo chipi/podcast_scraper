@@ -108,8 +108,8 @@ def _real_slug(root: Path, episode_id: str = "ep1") -> str:
     capture that cannot carry the graph. Testing the ladder against a non-existent episode meant
     testing it in a state the product is not supposed to reach.
     """
-    from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+    from podcast_scraper.server.slugs import slug_for_row
 
     for row in build_catalog_rows_cumulative(root):
         if row.episode_id == episode_id:
@@ -154,8 +154,8 @@ def _client(root: Path) -> TestClient:
 
 
 def _slug(root: Path, episode_id: str) -> str:
-    from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+    from podcast_scraper.server.slugs import slug_for_row
 
     for row in build_catalog_rows_cumulative(root):
         if row.episode_id == episode_id:
