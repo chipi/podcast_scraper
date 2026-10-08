@@ -54,6 +54,24 @@ DEFAULT_OVERLAP_TOKENS = 32
 # truth in config_constants so the Config field + profiles share the same default.
 DEFAULT_UPSERT_BATCH_SIZE = _config_constants.DEFAULT_VECTOR_UPSERT_BATCH_SIZE
 
+#: An INCREMENTAL build saves its progress every this many re-embedded episodes (#2299 root cause):
+#: flush every buffer, prune the superseded rows of the episodes done so far, persist their
+#: fingerprints. Fingerprints used to be written only at the very end, so an update killed by its
+#: time limit recorded none of its work and the next run re-embedded all of it again — on prod
+#: 2026-10-07 the backlog grew to 367 episodes and search stayed stale. Override with
+#: ``PODCAST_INDEX_CHECKPOINT_EPISODES``.
+DEFAULT_CHECKPOINT_EPISODES = 25
+
+
+def _checkpoint_every() -> int:
+    raw = os.environ.get("PODCAST_INDEX_CHECKPOINT_EPISODES", "").strip()
+    try:
+        value = int(raw) if raw else DEFAULT_CHECKPOINT_EPISODES
+    except ValueError:
+        return DEFAULT_CHECKPOINT_EPISODES
+    return value if value > 0 else DEFAULT_CHECKPOINT_EPISODES
+
+
 # Non-tiered corpus surfaces indexed into the aux tier for full coverage.
 # 2026-07-22: added ``episode_title`` / ``episode_description`` /
 # ``summary_short`` (episode-level metadata surfaces from indexer.py) so the
@@ -535,6 +553,62 @@ def _prune_superseded_rows(
     return pruned
 
 
+class _ProgressCheckpointer:
+    """Saves an incremental build's progress every ``every`` re-embedded episodes.
+
+    ``tick`` is called BETWEEN episodes, after one was fully buffered. Once every buffer is
+    flushed, each walked episode's rows are all written, so its emitted-id set is complete and the
+    prune the end of the build runs (#1969, with its partial-emission guard) is correct for it now;
+    those episodes are then forgotten so the final prune does not repeat them. The fingerprints
+    written are the last build's, updated with every episode walked so far — so a build killed
+    after this point does not redo that work. Episodes that left the corpus drop out at the final
+    write, as before.
+
+    Disabled for a full/stale rebuild (tables are cleared at the end; it cannot be resumed) and
+    for a limited walk (which never writes fingerprints).
+    """
+
+    def __init__(
+        self,
+        *,
+        enabled: bool,
+        every: int,
+        flushes: Tuple[Callable[[], None], ...],
+        prune: Callable[[], int],
+        reindexed_episode_ids: set,
+        emitted_ids: Dict[str, Dict[str, set]],
+        save: Callable[[], None],
+    ) -> None:
+        self.enabled = enabled
+        self.every = every
+        self._flushes = flushes
+        self._prune = prune
+        self._reindexed = reindexed_episode_ids
+        self._emitted = emitted_ids
+        self._save = save
+        self._since = 0
+
+    def tick(self, episodes_walked: int) -> int:
+        """Count one episode; at the interval, flush + prune + save. Returns rows pruned."""
+        if not self.enabled:
+            return 0
+        self._since += 1
+        if self._since < self.every:
+            return 0
+        self._since = 0
+        for flush in self._flushes:
+            flush()
+        pruned = self._prune()
+        self._reindexed.clear()
+        for by_episode in self._emitted.values():
+            by_episode.clear()
+        self._save()
+        logger.info(
+            "two-tier index: checkpoint — %d episode(s) walked, progress saved", episodes_walked
+        )
+        return pruned
+
+
 def build_two_tier_index(
     corpus_dir: str | Path,
     lance_path: str | Path,
@@ -649,6 +723,19 @@ def build_two_tier_index(
             lambda be, r: be.replace_auxes(r),
             lambda be, r: be.upsert_auxes(r),
         )
+
+    # Saves progress every N re-embedded episodes on an incremental full walk (see the class).
+    checkpointer = _ProgressCheckpointer(
+        enabled=not clear_requested and limit_episodes is None,
+        every=_checkpoint_every(),
+        flushes=(_flush_segments, _flush_insights, _flush_auxes),
+        prune=lambda: _prune_superseded_rows(
+            backend, emitted_ids, reindexed_episode_ids, clear_requested
+        ),
+        reindexed_episode_ids=reindexed_episode_ids,
+        emitted_ids=emitted_ids,
+        save=lambda: _write_episode_fingerprints(lance_path, {**stored_fps, **result_fps}),
+    )
 
     for meta_path in discover_metadata_files(out):
         if limit_episodes is not None and stats.episodes >= limit_episodes:
@@ -784,6 +871,7 @@ def build_two_tier_index(
             _flush_insights()
         if len(aux_buf) >= batch:
             _flush_auxes()
+        stats.stale_rows_pruned += checkpointer.tick(stats.episodes)
 
     storyline_added, storyline_ids = _append_storyline_rows(
         out,
@@ -802,7 +890,7 @@ def build_two_tier_index(
     _flush_insights()
     _flush_auxes()
 
-    stats.stale_rows_pruned = _prune_superseded_rows(
+    stats.stale_rows_pruned += _prune_superseded_rows(
         backend, emitted_ids, reindexed_episode_ids, clear_requested
     )
     stats.stale_rows_pruned += _prune_orphaned_storylines(backend, storyline_ids, clear_requested)
