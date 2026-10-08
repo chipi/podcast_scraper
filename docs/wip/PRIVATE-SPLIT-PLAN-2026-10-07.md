@@ -57,7 +57,8 @@ private on top of public (import every private module, with `PYTHONPATH`, nothin
 | Baseline, unpruned tree | 0 import failures (after deleting the eval split's leftover `search/llm_judge.py`) |
 | Copied | Player: 53 modules, 68 tests, 786 web files, 67 docs. Common: 38 modules (two subpackages, `identity` and `intelligence`), 57 tests, 16 docs. Studio: the whole viewer, 670 files (forked: the public repo keeps its own) |
 | Copy check | 0 stale references (AST verifier; it catches a planted stale import and `mock.patch` string) |
-| Public without private | 27 of 575 modules fail; roots: MCP tokens via account deletion (13), enricher registry (6), query-enricher registry (3), engagement series via momentum (2), scorer registry, discovery ranking, enrichment route function (1 each). 65 imports in 20 files still name moved code |
+| After the tier-A moves (2026-10-08) | Public without private: 40 of 556 fail — storylines 15, MCP tokens 13, temporal_velocity 5, topic_clusters 2, query enricher 2, scorer 1, consensus provider 1, enrichment route 1; 89 imports in 30 files. Private on top of public: 22 of 120 fail. identity → intelligence: 0 |
+| Before them | 27 of 575 modules fail; roots: MCP tokens via account deletion (13), enricher registry (6), query-enricher registry (3), engagement series via momentum (2), scorer registry, discovery ranking, enrichment route function (1 each). 65 imports in 20 files still name moved code |
 | Private on top of public | 20 of 102 modules fail, all on a public module broken by a seam |
 | Common `identity` → `intelligence` | 0 imports cross the line (check mutation-tested: absolute, relative and package-`__init__` crossings are each caught) |
 | Eval-repo references (2026-10-08) | 289 lines → 31 kept on purpose: mount tooling (`.gitignore`, `.flake8`, `pyproject.toml`, `Makefile`, `check_doc_structure.py`, its test, the two mount guides, one README row), ADR-158, the registry guard test, the fixture test that reads the mount, and the two workflow files (`release.yml`, `secret-scan.yml`, held until PR #2138 merges). Registry citations moved to the eval repo's evidence map |
@@ -74,7 +75,7 @@ private on top of public (import every private module, with `PYTHONPATH`, nothin
 | 4 | `tests/conftest.py:1070` imports `person_web` | the fixture moves to Common's tests | 2 |
 | 5 | `server/app_account_deletion.py:32` deletes MCP tokens and OAuth grants | account-deleted hook per package | 3 |
 | 6 | `server/routes/app_auth.py:392,871` writes `append_account_created` into player state | account-created hook | 3 |
-| 7 | `server/app_momentum.py:25` reads the player's engagement series | registered data source; absent, content signals only | 3 |
+| 7 | `server/app_momentum.py:25` reads the player's engagement series | registered data source (momentum moves to Common, which must not import Player); absent, content signals only | 3 |
 | 8 | `server/app.py:30` mounts 17 player and 3 Common routers | registered routers | 4 |
 | 9 | `server/app.py:497` cache warmer, `:663` digest-health metrics | startup hooks | 4 |
 | 10 | `server/scheduler.py:424` digest dispatch | registered scheduled jobs | 4 |
@@ -88,6 +89,38 @@ private on top of public (import every private module, with `PYTHONPATH`, nothin
 Order 1 is the extension interface itself (protocol, entry-point loader, a fake app in tests
 exercising every hook). Then 2–4 as numbered, then the OAuth-provider split and the read-model
 renames, which no import depends on.
+
+### Tier-A consumers (read and classified 2026-10-08)
+
+The four tier-A outputs and the features on them move to Common `intelligence` (ADR-158
+decision 5). The MOVE modules are in the manifest. These public modules stay and need a seam:
+each reads a tier-A output or a moved module in a few places and must work without it.
+
+| Module | Where | Without Common |
+| --- | --- | --- |
+| `search/corpus_search.py` | 22-26 storylines import, 128-169 storyline join, 232; 27 and 109-125 topic-cluster join | plain hits, no storyline or cluster metadata |
+| `search/two_tier_indexer.py` | 42, 65, 366-467, 788-808 storyline rows | no storyline rows; Common adds them through an index hook |
+| `search/quality_metrics.py` | 174-187, 202, 221-257, 280 consensus precision | metric is null (already handled) |
+| `server/feed_signals.py` | 184-285 storylines, velocity, trending; 467-514 | empty lists, `velocity=None` (reader already copes) |
+| `server/app_relational_view.py` | 20-25, 215-335, 385-416, 743-958 storyline fields and card | `storyline_*` empty; `build_storyline_card` can move |
+| `server/og/build.py` | 110-138 trend map, 191-201, 229, 421, 450; 27, 67, 406-434 `storyline` kind | no trend stat; `storyline` kind returns 404 |
+| `server/routes/search.py` | 19, 37, 107-125, 202-239 operators and query enrichment | `operator=consensus` and `cluster` rejected; `enrich_results` no-op |
+| `server/query_enricher_helper.py` | 17-19, 38 | registry fed by entry points |
+| `server/routes/health.py` | 29-46, 188 enriched-search probe | `enriched_search_available=false` or a hook |
+| `server/routes/corpus_enrichments.py` | 206, 290-309; 36 imports a Player route function | that function moves into the platform (seam 5) |
+| `server/routes/enrichment_config.py`, `enrichment/eval/admission.py`, `enrichment/eval/scorers/__init__.py`, `enrichment/provider_types/__init__.py` | class imports by name | look up by id in the registry |
+| `capability_audit.py` | 37, 92, 619-623, 965-1043 storylines and momentum checks | checks registered by Common |
+| `server/schemas.py` | storyline, trending, consensus, velocity fields | optional, or move with their routes |
+
+Viewer (public copy only; Studio keeps everything): MOVE `api/corpusTrendingApi.ts`,
+`DashboardTrendingTopics.vue`, `TrendingGlobal.vue`, `EnrichmentEdgesPanel.vue`,
+`GraphThemeLegend.vue`, `stores/graphStorylineFocus.ts`, `stores/graphTopDown.ts`,
+`utils/topDownSlice.ts`, and the semantic topic-cluster code; SEAM `GraphCanvas.vue`,
+`GraphLensesChip.vue`, `stores/graphLenses.ts`, `stores/artifacts.ts`, `NodeEnrichmentSection.vue`,
+`DigestView.vue`, `ResultSetOperatorBar.vue`, `ResultCard.vue`, `cyGraphLensOverlays.ts`,
+`cyGraphStylesheet.ts`, `searchApi.ts`, `enrichmentApi.ts`, `corpusLibraryApi.ts`, `ShowRailPanel.vue`.
+Not yet verified line by line: `topicClustersOverlay.ts`, `graphFilters.ts`, `themeRegionPalette.ts`,
+`TopicLandscape.vue`, and `scripts/` consumers.
 
 ### Plan review — risks the probe surfaced (2026-10-07)
 
@@ -173,7 +206,7 @@ leaves the public part.
 | Document | Why mixed |
 | --- | --- |
 | RFC-088, `ENRICHMENT_LAYER_GUIDE`, `api/ENRICHMENT_LAYER_API`, ADR-104 | enrichment framework stays public, enrichers move |
-| RFC-103 Momentum | `app_momentum` is a public read-model (OG cards); trending surfaces are player and MCP |
+| RFC-103 Momentum | `app_momentum` moves to Common (operator decision 2026-10-08); trending surfaces are player, Studio and MCP |
 | RFC-110, ADR-144, ADR-145 (outbox and delivery seam) | outbox is public kernel; digests and recaps are player |
 | ADR-125 (user-scoped UI state) | applies to the operator viewer and the player |
 | UXS-017 Shareable cards, `TOKEN-VOCABULARY-CROSSMAP` | operator viewer and consumer app |
