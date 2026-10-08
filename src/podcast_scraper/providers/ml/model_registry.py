@@ -865,8 +865,7 @@ _TRANSCRIPTION_OPTIONS: Dict[str, StageOption] = {
             "On REAL human ground truth (80k Hours, n=10) turbo is mid-pack accuracy (13.5% WER, "
             "3rd) — slightly behind MOSS (12.5%), well ahead of large-v3 (16.3%). Speed/accuracy "
             "tradeoff: turbo is primary for throughput; MOSS is the accurate-but-slow fallback. "
-            "Long-episode coverage drop handled by the ADR-123/#1258 gate. "
-            "See EVAL_ASR_5MODEL_BAKEOFF_2026_07.md."
+            "Long-episode coverage drop handled by the ADR-123/#1258 gate."
         ),
         measured_at="2026-07-22",
         tier="primary",
@@ -1127,7 +1126,7 @@ _SUMMARY_OPTIONS: Dict[str, StageOption] = {
         model="hermes3:8b",
         headline_metric=(
             "laptop-default summary per #949 finale; ~50× realtime on Ollama CPU. "
-            "Trade vs base llama3.1:8b documented in EVAL_SMOKE_V2_DGX_REFRESH_2026_06."
+            "Trade vs base llama3.1:8b measured in the DGX smoke-v2 refresh."
         ),
         measured_at="2026-06-10",
         tier="primary",
@@ -1365,10 +1364,10 @@ _GI_OPTIONS: Dict[str, StageOption] = {
             "Reintroduced max_insights=12 / min_tier=3 — the very values "
             "provider_n12_grounded_bundled was deprecated for on 2026-07-14 ('never measured; "
             "providers clamped to 10 regardless'). The v2.5 finale that created this option was a "
-            "MODEL-ARM judging study (EVAL_FINALE_METHODOLOGY, #932); it never tested insight "
+            "MODEL-ARM judging study (#932); it never tested insight "
             "counts or gate tiers — those params rode along as configuration, not as findings. "
             "provider_chunked_gated_v3 remains the researched GI configuration "
-            "(EVAL_GEMINI_VS_QWEN_10EP_2026_07, every value cited). The three profiles still on "
+            "(every value cited in its evidence). The three profiles still on "
             "this option (cloud_balanced / cloud_openrouter / cloud_qwen) moved to v3 on "
             "2026-08-30; the other thirteen were already there."
         ),
@@ -1395,7 +1394,7 @@ _GI_OPTIONS: Dict[str, StageOption] = {
         headline_metric=(
             "summary-derived provider mode beats direct-from-transcript by "
             "~60pp on v2 silver (72% vs 10%); n=12 historic default holds; "
-            "bundled per EVAL_GIL_BUNDLING_2026_05"
+            "bundled per the GIL bundling eval (2026-05)"
         ),
         measured_at="2026-06-13",
     ),
@@ -1866,8 +1865,8 @@ class ProfilePreset:
 # NAMING, because the old name is what caused the bug: this is NOT a "judge". A judge adjudicates
 # between competing model arms in an autoresearch bake-off, where #939's vendor-disjointness is the
 # governing rule — a model grading its own family collects a free pass and we would report our judge
-# assignment as model quality. That rule belongs to evaluation and is enforced there (see
-# autoresearch/JUDGING.md). This is a per-insight tier rater inside the production pipeline: a small
+# assignment as model quality. That rule belongs to evaluation and is enforced there.
+# This is a per-insight tier rater inside the production pipeline: a small
 # inline classification, not a competition. Applying the eval rule here is what sent every
 # litellm-routed profile out to the Anthropic API mid-pipeline.
 #
@@ -2112,7 +2111,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="litellm_speaker_detector",
         clustering="topic_clusters_corpus_0_70",
         # v3, not v25 (2026-08-30): v25's max_insights=12 is the value
-        # provider_chunked_gated_v3 superseded, citing EVAL_GEMINI_VS_QWEN_10EP_2026_07.
+        # provider_chunked_gated_v3 superseded.
         gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # Same primary as cloud_balanced (``cloud_or_deepseek_flash`` -> OpenRouter) and, until
@@ -2131,7 +2130,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="qwen_speaker_detector",
         clustering="topic_clusters_corpus_0_70",
         # v3, not v25 (2026-08-30): v25's max_insights=12 is the value
-        # provider_chunked_gated_v3 superseded, citing EVAL_GEMINI_VS_QWEN_10EP_2026_07.
+        # provider_chunked_gated_v3 superseded.
         gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # Native DashScope rather than OpenRouter, so it does not share that account's budget —
@@ -2155,7 +2154,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
         ner="litellm_speaker_detector",
         clustering="topic_clusters_corpus_0_70",
         # v3, not v25 (2026-08-30): v25's max_insights=12 is the value
-        # provider_chunked_gated_v3 superseded, citing EVAL_GEMINI_VS_QWEN_10EP_2026_07.
+        # provider_chunked_gated_v3 superseded.
         gi="provider_chunked_gated_v3",
         diarization="no_diarization",
         # RFC-111 (#1482): a homelab:4001 gateway CONNECTION outage must fail over to direct
@@ -2472,7 +2471,7 @@ _PROFILE_PRESETS: Dict[str, ProfilePreset] = {
             "summary-only, so the provider-side GI/KG paths are no-ops on "
             "this profile (KG/GI are effectively disabled until an LLM "
             "summary_provider replaces summllama). #571 / #652 / #653 — "
-            "EVAL_DEV_TIER_REGISTRY_2026_06_23.md re-measured on smoke_v2."
+            "re-measured on smoke_v2."
         ),
     ),
     "airgapped_thin": ProfilePreset(

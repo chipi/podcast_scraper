@@ -19,8 +19,7 @@ artifacts in place:
    weren't in the original fingerprint. Rather than reprocess each run,
    the rerun stamped each affected `payload.json` with a `_retro_audit`
    entry recording the marker, the rerun timestamp, and the
-   `unknown_fields` list. Documented in
-   `docs/guides/eval-reports/CHUNK7_RETRO_FINGERPRINT_AUDIT_2026_06_22.md`.
+   `unknown_fields` list.
 
 2. **#1076 NER post-pass retro sweep** (`.test_outputs/manual/prod-v2/corpus`,
    2026-06-24) — the spaCy NER pass was switched on for two airgapped
@@ -181,7 +180,5 @@ This ADR codifies existing behavior; nothing to validate beyond:
 
 - `src/podcast_scraper/search/cli_handlers.py:1505-1623` — the
   enrich-edges retro-audit hook (reference implementation).
-- `docs/guides/eval-reports/CHUNK7_RETRO_FINGERPRINT_AUDIT_2026_06_22.md`
-  — earlier surface using `unknown_fields` instead of `changes`.
 - `scripts/dev/revert_gi_v3_to_v2.py` — reverse path; strips the
   marker as part of reverting content.

@@ -6,7 +6,7 @@ ignore-words-list = rouge,fo,Exting,AKS,UE,patter,Speaches,speaches,retuned,stin
 # coo: the job title COO in the stated-name trailing job tokens (speaker_detectors/hosts.py)
 # canonicalizations: legitimate plural (a count of host-identity canonicalization steps, RFC-109); codespell false-positives -izations plurals
 # covert: real word ("a covert vLLM shim" — hidden/disguised, ADR-147); not a typo of "convert"
-# disjointness: real word ("vendor disjointness" — the state of being disjoint, ADR-149/JUDGING.md); not a typo
+# disjointness: real word ("vendor disjointness" — the state of being disjoint, ADR-149); not a typo
 # mot: local variable name (max_output_tokens abbrev, gemini_provider.py); not a typo of "not"
 # Wege: German for "paths/ways" — the p13 fixture's literal episode title
 # (`Wege Bauen, Die Bleiben`), quoted in workflow/translation_stage.py as the measured

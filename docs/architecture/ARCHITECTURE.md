@@ -826,7 +826,7 @@ and summarization.
 - **Core**: `openai` (OpenAI, DeepSeek, Grok OpenAI-compat)
 - **Optional `[llm]` extra**: `google-genai`, `google-api-core`, `anthropic`, `mistralai`, `httpx` (Ollama health checks; Ollama itself is a separate local server)
 
-**Other optional extras:** `[compare]` (Streamlit run comparison, RFC-047), `[dev]` (tooling, typecheck, security, and **FastAPI / uvicorn** for the RFC-062 viewer API), `[monitor]` (optional profiling, RFC-065)
+**Other optional extras:** `[compare]` (Streamlit run comparison), `[dev]` (tooling, typecheck, security, and **FastAPI / uvicorn** for the RFC-062 viewer API), `[monitor]` (optional profiling, RFC-065)
 
 **Search dependencies** (included in `[ml]`):
 `sentence-transformers` (embeddings), `lancedb`
@@ -1081,7 +1081,7 @@ Beyond the core `src/` package, the repository includes
 standalone tools and scripts that support development,
 evaluation, and operations.
 
-### `tools/run_compare/` (RFC-047, RFC-066)
+### `tools/run_compare/`
 
 Streamlit UI for comparing ML evaluation runs from
 `data/eval/` artifacts (`metrics.json`,
@@ -1126,7 +1126,7 @@ Runtime configuration organized by use case.
 | `examples/` | Example YAML/JSON configs and `.env.example` for onboarding |
 | `manual/` | Manual/benchmark-oriented configs (GI/KG, multi-feed variants) |
 | `playground/` | Experimental user-specific configs |
-| `profiles/` | Deployment YAML; `profiles/freeze/` for RFC-064 capture presets; frozen snapshots in `data/profiles/` |
+| `profiles/` | Deployment YAML; `profiles/freeze/` for capture presets; frozen snapshots in `data/profiles/` |
 
 Root files: `digest_topics.yaml` (Corpus Digest
 topic-band config, RFC-068),

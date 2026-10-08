@@ -138,8 +138,7 @@ RUN /home/ubuntu/speaches/.venv/bin/python -m ensurepip --upgrade && \
 # changes, which is cheap drift protection.
 #
 # Post-fix measurements on the same v2 sweep: mean WER 0.066 (5× better),
-# max WER 0.104 (bimodal disaster gone). Docs:
-# docs/guides/eval-reports/EVAL_SPEACHES_COMPUTE_TYPE_2026_06.md.
+# max WER 0.104 (bimodal disaster gone).
 USER root
 RUN set -eux ; \
     if [ -f /home/ubuntu/speaches/src/speaches/executors/whisper.py ]; then \

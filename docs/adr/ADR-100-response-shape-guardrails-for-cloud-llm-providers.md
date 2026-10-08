@@ -23,8 +23,7 @@ DeepSeek, Mistral, Grok) have the same structurally-invalid-response
 failure modes as the self-hosted ones — we have direct evidence in our own
 eval data:
 
-- **Gemini-2.5-flash** with thinking mode: wildly inconsistent short outputs
-  during `EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14` — had to switch to
+- **Gemini-2.5-flash** with thinking mode: wildly inconsistent short outputs — had to switch to
   `gemini-2.5-flash-lite` (production default) for stable measurements.
 - **OpenAI / gpt-4o**: hits `finish_reason="length"` when prompts spill the
   budget. Surfaces as malformed JSON / mid-truncation at the next stage.
@@ -379,11 +378,6 @@ catch-and-degrade path returns the original transcript.
 
 - ADR-099 — the self-hosted precedent
 - ADR-096 — the cloud fallback contract this builds on
-- Originating eval reports:
-  - `docs/guides/eval-reports/EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14.md`
-    (Gemini flash inconsistency, DeepSeek mixed)
-  - `docs/guides/eval-reports/EVAL_REAL90_2026_06.md` (qwen3.5 thinking-budget;
-    Ollama precedent but same shape across cloud thinking models)
 - Code:
   - `providers/guardrails/chat.py` (the helper)
   - `providers/guardrails/exceptions.py` (`GuardrailViolation`)

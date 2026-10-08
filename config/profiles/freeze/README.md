@@ -1,4 +1,4 @@
-# Performance capture profiles (RFC-064)
+# Performance capture profiles
 
 Used by `make profile-freeze` to capture per-provider timing and cost profiles
 under a fixed E2E fixture. Frozen outputs land in

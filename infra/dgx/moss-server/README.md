@@ -27,7 +27,7 @@ that fits the model's 128k context in one pass. A single MOSS pass truncates pas
   (`build_transcription_messages` / `generate_transcription` / `parse_transcript`) — the model's real
   API, verified during the bake-off (the earlier hand-rolled `_infer` + `sats.py` were wrong and are
   gone).
-- **Quality/speed** (`EVAL_MOSS_BAKEOFF_2026_07.md`): transcription beats faster-whisper on real prod
+- **Quality/speed**: transcription beats faster-whisper on real prod
   audio (WER 5.2% vs 8.5% vs Deepgram silver); diarization loses to pyannote on real audio; ~2.1–3.8×
   realtime in bare transformers (no speed win vs large-v3's 7.8×).
 

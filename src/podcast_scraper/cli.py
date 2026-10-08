@@ -4086,7 +4086,7 @@ GIL_TUNING_KEYS = (
 )
 """Profile keys forwarded from YAML to ``Config`` on the ``--config`` path.
 
-THE ALLOWLIST (ADR-111). A key that is not on this list is not rejected — it is silently
+THE ALLOWLIST. A key that is not on this list is not rejected — it is silently
 DROPPED, and ``Config`` falls back to its default. The defaults are mostly "off", so omitting a
 key does not break a run; it quietly disables a stage and the run still looks fine. That is how
 ``gi_value_gate_enabled`` shipped switched off, and how ``gi_insight_temperature`` let every

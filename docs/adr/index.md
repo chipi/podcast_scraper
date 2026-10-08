@@ -234,17 +234,17 @@ are **Yes**; **ADR-064**–**ADR-066** are implemented; **ADR-021** is reflected
 
 | Situation | Guidance |
 | --- | --- |
-| **Prefer a new ADR** | Irreversible stack boundary, cross-cutting protocol, frozen empirical default, heavy optional extra, or closure of a large program (e.g. **ADR-073**). |
-| **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. Full-stack Compose + stack-test gate: **ADR-084**, **ADR-085**. CIL + `bridge.json`: **ADR-086**. Autoresearch Track A v2: **ADR-087**. macOS ML `make` safety: **ADR-088**. **Prod failover** design: **[RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)**; decisions **ADR-089**–**ADR-091**. Corpus **snapshot** backup manifest + restore defaults: **[RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md)**; **ADR-092**. **Cross-surface stack contract vs adapters:** **ADR-093** ([#762](https://github.com/chipi/podcast_scraper/issues/762)). |
-| **Proposed ADRs** | Promote **ADR-055** to **Accepted** (or supersede) when **RFC-053** ships end-to-end. **ADR-056** already Superseded (2026-06-26) — the centralized router this ADR drafted was replaced by per-provider mock clients + per-concern unit suites; no further action needed. **ADR-109**, **ADR-110**, **ADR-111** are Pending — promote each when the corresponding implementation lands. |
+| **Prefer a new ADR** | Irreversible stack boundary, cross-cutting protocol, frozen empirical default, heavy optional extra, or closure of a large program. |
+| **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest: **ADR-074**. Full-stack Compose + stack-test gate: **ADR-084**, **ADR-085**. CIL + `bridge.json`: **ADR-086**. macOS ML `make` safety: **ADR-088**. **Prod failover** design: **[RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)**; decisions **ADR-089**–**ADR-091**. Corpus **snapshot** backup manifest + restore defaults: **[RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md)**; **ADR-092**. **Cross-surface stack contract vs adapters:** **ADR-093** ([#762](https://github.com/chipi/podcast_scraper/issues/762)). |
+| **Proposed ADRs** | Promote **ADR-055** to **Accepted** (or supersede) when **RFC-053** ships end-to-end. **ADR-056** already Superseded (2026-06-26) — the centralized router this ADR drafted was replaced by per-provider mock clients + per-concern unit suites; no further action needed. **ADR-109**, **ADR-110** are Pending — promote each when the corresponding implementation lands. |
 
 ### Future triggers
 
 - **Multi-feed manifest** as an **immutable external contract** beyond [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) — partially addressed by **ADR-074**.
 - **`.pipeline_status.json` schema** if external monitors depend on it and breaking changes need versioning.
-- **Profile YAML** for **non-Python** consumers beyond `tools/run_compare` / **`make profile-diff`** — partially addressed by **ADR-075**.
+- **Profile YAML** for **non-Python** consumers beyond `tools/run_compare` / **`make profile-diff`**.
 - **RFC-070** + **ADR-060** when platform vector backends land materially.
-- **Full-stack Compose, stack-test, CIL or bridge, autoresearch v2, macOS ML process safety** — see **ADR-084**–**ADR-088** (normative detail remains in **RFC-072**, **RFC-073** v2 file, **RFC-074**, **RFC-078**, **RFC-079**).
+- **Full-stack Compose, stack-test, CIL or bridge, macOS ML process safety** — see **ADR-084**–**ADR-088** (normative detail remains in **RFC-072**, **RFC-074**, **RFC-078**, **RFC-079**).
 - **Prod failover (stand up spare, validate, gated cutover)** — **[RFC-083](../rfc/RFC-083-prod-failover-orchestration-and-cutover.md)** (Draft); decisions **ADR-089**–**ADR-091**; GitHub #764.
 - **Corpus snapshot tarball metadata + version-aware restore** — **[RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md)** (Completed); **ADR-092**; GitHub #763.
 

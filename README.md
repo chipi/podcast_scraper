@@ -144,7 +144,7 @@ Choose the installation method based on your use case:
 | **OpenAI only** | `pip install -e ".[llm]"` | Core + OpenAI, Gemini, Anthropic, Mistral SDKs | ~50MB |
 | **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper, spaCy, torch, transformers, LanceDB, **llama-cpp-python** (GGUF), etc. | ~1-3GB |
 | **Both** (recommended) | `pip install -e ".[ml,llm]"` | Local ML + all LLM API SDKs | ~1-3GB |
-| **Run comparison UI** (eval runs) | `pip install -e ".[compare]"` | Streamlit compare tool (RFC-047; `make run-compare`) | moderate |
+| **Run comparison UI** (eval runs) | `pip install -e ".[compare]"` | Streamlit compare tool (`make run-compare`) | moderate |
 | **GI/KG viewer API** | `pip install -e ".[dev]"` | FastAPI + uvicorn for `python -m podcast_scraper.cli serve` | small |
 | **Monitor profiling extras** (optional) | `pip install -e ".[monitor]"` | `py-spy` + `memray` integrated with `--monitor` / `--memray` (RFC-065); **not** required for `--monitor` alone | small |
 

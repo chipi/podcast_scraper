@@ -128,9 +128,6 @@ extra capacity is unused since the chunking strategy is constrained by the small
 - **Champion config**: `data/eval/configs/ml/baseline_ml_hybrid_bart_llama32_3b_autoresearch_v1.yaml`
 - **Registry entry**: `src/podcast_scraper/providers/ml/model_registry.py` →
   `_mode_registry["ml_hybrid_bart_llama32_3b_autoresearch_v1"]`
-- **Sweep TSVs**: `autoresearch/ml_param_tuning/results/bart_llama32_3b_sweep_*.tsv`
-- **LongT5 sweep TSVs**: `autoresearch/ml_param_tuning/results/longt5_llama32_3b_sweep_*.tsv`,
-  `autoresearch/ml_param_tuning/results/longt5_led_sweep_*.tsv`
 
 ## References
 

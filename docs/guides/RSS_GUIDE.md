@@ -164,7 +164,7 @@ RSS fetch semantics, only which episodes are skipped after selection.
 - **Logs:** Feed title and item counts after fetch/selection; cache hits log at INFO when using
   `PODCAST_SCRAPER_RSS_CACHE_DIR`.
 - **Metrics:** Stage timings **`scraping`** and **`parsing`**; download-resilience counters in
-  **`metrics.json`** (see `Experiment Guide`).
+  **`metrics.json`**.
 - **Run artifacts:** **`failure_summary`** in **`run.json`** aggregates episode failures after the
   full pipeline; RSS fetch failure aborts before episode processing.
 

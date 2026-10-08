@@ -5,7 +5,6 @@
 - **Authors**: Marko
 - **Stakeholders**: Core Pipeline, Providers, DGX Infra, Cost/Resilience
 - **Related work**:
-  - `docs/guides/eval-reports/EVAL_MOSS_BAKEOFF_2026_07.md` (MOSS promoted as DGX transcription; #1174)
   - `#926` (the original lazy DGX-diarization → local fallback)
   - `#1177` (MOSS service) · `#952` (faster-whisper on :8000)
 
@@ -74,7 +73,7 @@ reports down, skip straight to the next tier instead of eating the request timeo
 
 The failover ladder is **registry-governed data**, exactly like the primary provider — not a
 runtime default. This keeps the "profiles are views, the registry is the source of truth"
-invariant (RFC-046) intact for fallback too.
+invariant intact for fallback too.
 
 - **`ProfilePreset`** gains a per-stage **`<stage>_fallback: list[str]`** — an ordered list of
   `StageOption` ids after the primary. Example (a DGX prod preset):

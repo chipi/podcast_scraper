@@ -504,7 +504,6 @@ sentinel.
 
 - `tests/**` — assert literal FQDNs to prove resolver behaviour; scrubbing
   breaks the suite.
-- `docs/wip/EVAL_1016_metrics/**` — raw captured logs.
 - `tailscale/policy.hujson` — live ACL GitOps source; editing may break
   the deploy pipeline.
 

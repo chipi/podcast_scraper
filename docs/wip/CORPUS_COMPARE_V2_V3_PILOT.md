@@ -3,7 +3,7 @@
 Shared episodes (joined by GUID): **9**
 
 Deterministic metrics only — no LLM judge. Summary/insight *text* quality needs a
-cross-vendor judge panel (autoresearch/JUDGING.md) and is scored separately.
+cross-vendor judge panel and is scored separately.
 
 | metric | v2-cloud | n | v3-dgx | n | delta |
 | --- | ---: | ---: | ---: | ---: | ---: |

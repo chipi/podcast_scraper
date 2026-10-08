@@ -34,8 +34,8 @@ of what was addressed and why.
 **Category:** perf
 **Estimated cost:** M — L (depends on approach)
 **Blocking:** closing the last +408 ms (+7%) regression vs main on prod-v2 graph settle
-**Context:** PR #1207's perf work landed 1137 ms of savings (bridge cache/debounce + #1211 fast path + fcose label opt-out), leaving a residual +408 ms (+7%) on graph time-to-canvas vs main. Diagnostic in
-``docs/guides/perf-traces/reports/graph-v3-tuning-2026-07-19.md`` attributed the residual to wave 1's fcose layout on 833 nodes on prod-v2 — now the single largest cost on the critical path.
+**Context:** PR #1207's perf work landed 1137 ms of savings (bridge cache/debounce + #1211 fast path + fcose label opt-out), leaving a residual +408 ms (+7%) on graph time-to-canvas vs main. The diagnostic
+attributed the residual to wave 1's fcose layout on 833 nodes on prod-v2 — now the single largest cost on the critical path.
 
 Empirical tuning (documented in the traces README + #1211 comment) tried
 every obvious fcose lever without breaking layout: numIter, nodeRepulsion,
@@ -51,11 +51,10 @@ layout (one dense clump, empty half of canvas — screenshot at
 - **Alternative layout algorithm.** Explore cola / dagre / other — unknown cost/quality trade-off; would need a full head-to-head evaluation.
   Estimated M.
 
-**Measurement path:** `scripts/dev/capture-graph-lcp.sh` (private eval repo) +
-`GRAPH_PERF_TRACE_RUNBOOK.md` (moved to the private eval repo) are the reusable measurement
+**Measurement path:** the graph LCP capture script and its runbook are the reusable measurement
 contract landed in PR #1207. Median-of-3 on prod-v2 is the metric.
 
-**Related:** #1211 (delivered narrow-scope fast path), #1207 (PR context), `docs/guides/perf-traces/reports/graph-v3-tuning-2026-07-19.md` (diagnostic evidence + tuning session log).
+**Related:** #1211 (delivered narrow-scope fast path), #1207 (PR context).
 
 ---
 
@@ -98,8 +97,7 @@ coverage — not something to smuggle into the current PR.
   keeps the current `displayArtifact` shape, just moves the fetch
   off the critical path.
 
-**Measurement path:** (private eval repo) `scripts/dev/capture-graph-lcp.sh --load-mode
-topDown`. See `GRAPH_PERF_TRACE_RUNBOOK.md` (moved to the private eval repo).
+**Measurement path:** the graph LCP capture script with `--load-mode topDown`.
 
 **Related:** #1207, `graph-tech-debt.md` wave-1 fcose item above,
 `docs/wip/graph-v3/SUMMARY.md § Tier 8`.
@@ -157,8 +155,8 @@ delta-add + preserved positions).
 
 Either variant needs playwright coverage of the wave-1 → wave-2 → fast-path handoff (production-shaped fixture).
 
-**Measurement path:** (private eval repo) `scripts/dev/capture-graph-lcp.sh
---load-mode everything --wait-ms 10000`. Look for `flp:total` calls
+**Measurement path:** the graph LCP capture script with `--load-mode
+everything --wait-ms 10000`. Look for `flp:total` calls
 in the metrics — should drop from 2 → 1 when the fast path fires.
 
 **Related:** [#1219](https://github.com/chipi/podcast_scraper/issues/1219)
@@ -190,8 +188,7 @@ skips fcose. UX is already good.
 Nothing to do. This entry stays as a diary note so a future
 reader doesn't chase the same ghost.
 
-**Related:** HD22, HD23, `docs/guides/perf-traces/reports/graph-v3-tuning-2026-07-19.md`
-§ Expand-on-tap probe.
+**Related:** HD22, HD23.
 
 ---
 

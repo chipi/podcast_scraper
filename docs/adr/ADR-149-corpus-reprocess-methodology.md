@@ -77,7 +77,7 @@ guards the scale run against regressions.
   4-GPU-day run and two.
 - Judge-panel-only (vs adding human-GT to the gate) keeps the LLM-swap gate scalable and
   un-blocked on the #1189 fixture ladder; the vendor-disjoint + scalar constraints are what
-  make the panel trustworthy (see the trust-matrix finding in `autoresearch/JUDGING.md`).
+  make the panel trustworthy (see the judge trust-matrix finding).
 
 ## Alternatives Considered
 
@@ -105,8 +105,7 @@ guards the scale run against regressions.
 
 - **Acceptance harness**: `scripts/backfill/relabel_corpus.py` (`--llm none` = deterministic,
   no GPU) over the frozen prod-v2 corpus.
-- **Judge panel**: `autoresearch/` (`JUDGING.md`, `PER_MODEL_OPTIMAL_PARAMS.md`,
-  `bundled_prompt_tuning/`).
+- **Judge panel**: `autoresearch/` (`bundled_prompt_tuning/`).
 - **Profiles**: `config/profiles/prod_dgx_*.yaml`, `cloud_with_dgx_primary.yaml` select the
   producing models per version.
 - **LLM serving is external** (DGX / homelab) and its topology is operationally transient —
@@ -116,5 +115,4 @@ guards the scale run against regressions.
 
 - [ADR-123: quality-gate transcription failover](ADR-123-quality-gate-transcription-failover.md)
 - [ADR-135: v2.4 GI route-and-tag + KG voice node](ADR-135-v2.4-gi-route-and-tag-and-kg-voice-node.md)
-- `autoresearch/JUDGING.md` — judge-panel trust methodology (scalar > pairwise; vendor disjointness)
 - Issues: #1335 (v2.2), #1355 (v2.4), #1189 (fixture acceptance gate), #630 (expansion vehicle)

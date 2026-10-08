@@ -83,7 +83,7 @@ dependencies = [
 #   search    — Minimum local ML for the vector index (sentence-transformers + lancedb + torch CPU).
 #               Pulled into the cloud-API pipeline image alongside [llm] so cloud_balanced can
 #               build its LanceDB index without dragging in spaCy/Whisper/Pegasus from [ml].
-#   compare   — Streamlit compare UI (RFC-047)
+#   compare   — Streamlit compare UI
 #   monitor   — py-spy + memray optional profiling (RFC-065; `--monitor` needs no extra)
 #   (FastAPI / uvicorn / metrics / scheduler for ``podcast serve`` live in [dev], not a separate extra.)
 #   observability — standalone prod control plane (#803, ``podcast_obs``). LIGHT by design.
@@ -208,7 +208,7 @@ ml = [
   "torchcodec<0.15; sys_platform != 'darwin'",
   "torchcodec>=0.16,<0.17; sys_platform == 'darwin'",
 ]
-# Streamlit run comparison UI (RFC-047, Issue #373)
+# Streamlit run comparison UI (Issue #373)
 compare = [
   "streamlit>=1.41.0,<2.0.0",
   # tornado (pulled by streamlit, no upper bound there) had three advisories in 6.5.8 fixed by

@@ -48,7 +48,7 @@ without the `v`**:
 Releases that change providers, default models, or quality-sensitive pipeline behavior are
 defensible on **two** axes:
 
-1. **Evaluation (quality)** — `Experiment Guide`, baselines under `data/eval/`,
+1. **Evaluation (quality)** — baselines under `data/eval/`,
    `Evaluation reports`.
 2. **Performance (resource / wall time)** — `make profile-freeze` / `make profile-diff`, artifacts under `data/profiles/`, companion
    `*.stage_truth.json`, `Performance reports`.
@@ -92,9 +92,9 @@ matrix table for major.
 **Steps — eval (quality):**
 
 ```bash
-# Per Experiment Guide workflow: dataset, baseline, experiment run
+# Dataset, baseline, experiment run
 make experiment-run CONFIG=data/eval/configs/<release_eval>.yaml
-# Publish or link eval report under docs/guides/eval-reports/
+# Publish or link the eval report
 ```
 
 **Steps — profiles (resource cost):**

@@ -35,7 +35,7 @@ dgx_tailnet_host: ${DGX_TAILNET_HOST:-dgx-llm-1}
 # `Systran/faster-whisper-large-v3` on :8000 (Speaches).
 #
 # History — the routing went :8000 → :8002 on 2026-06-10/12 based on
-# `EVAL_TRANSCRIPTION_3WAY_2026_06.md` (v2 fixtures), which reported
+# the 3-way transcription eval (v2 fixtures), which reported
 # whisper-openai at 4.6× realtime vs Speaches at 0.93× realtime.
 # That decision predated the Speaches int8 pin (#948) and the
 # `v0.9.0-rc.3-cuda` image bump (#920) — Speaches was on the slow

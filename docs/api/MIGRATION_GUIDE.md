@@ -197,7 +197,7 @@ count, summary = podcast_scraper.run_pipeline(config)
 | Version | Date | Highlights |
 | ------- | ---- | ---------- |
 | **v2.7.0** | 2026-07 | Two-tier LanceDB hybrid retrieval (RFC-090 / ADR-099, FAISS retired), v3 GI schema with typed mentions (RFC-097), RFC-088 enrichment layer, `make export-corpus` / `import-corpus` (#1175), upgrade-check gates in restore paths (#1176). |
-| **v2.6.0** | 2026-04 | Corpus Library `/api/corpus/*`, index rebuild API, viewer Library UX, RFC-064 profile tooling. |
+| **v2.6.0** | 2026-04 | Corpus Library `/api/corpus/*`, index rebuild API, viewer Library UX, profile tooling. |
 | **v2.5.0** | 2026-02 | LLM provider expansion, production hardening, MPS exclusive mode, LLM metrics. |
 | **v2.4.0** | 2026-01 | Multi-provider ecosystem, production defaults, cache CLI. |
 | **v2.3.0** | 2025-11 | Added service API and episode summarization. |

@@ -169,8 +169,7 @@ that never made it into a release.
   `code` (which is coder-next, off-limits).
 - **Silver/judge vendor disjoint from candidates.** Re-baseline must
   not pick a silver+judge vendor that matches any single candidate
-  (#939 Sonnet-mimicry lesson; documented in
-  `autoresearch/JUDGING.md`).
+  (#939 Sonnet-mimicry lesson).
 
 **Assumptions:**
 

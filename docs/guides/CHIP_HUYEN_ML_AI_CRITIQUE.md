@@ -272,5 +272,4 @@ unbounded agents. Name the risk, tie it to a theme above, and propose a **specif
 
 - [Tufte Chart Critique](TUFTE_CHART_CRITIQUE.md)
 - [SRE Book Infra Critique](SRE_BOOK_INFRA_CRITIQUE.md)
-- `Experiment Guide`
 - [Provider Deep Dives](PROVIDER_DEEP_DIVES.md)

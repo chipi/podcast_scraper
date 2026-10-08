@@ -97,5 +97,4 @@ borderline on insight count but functional).
 
 ## Related
 
-- EVAL_HELDOUT_V2_2026_04.md §Local models (full 11-model matrix)
 - #591 (pipeline validation — uses Core 5)

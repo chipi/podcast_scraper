@@ -61,7 +61,7 @@ frozen YAML.
 
 ## Stage strings
 
-Names follow the **RFC-064** stage model where hooks exist in `workflow/orchestration.py`, for
+Names follow the stage model where hooks exist in `workflow/orchestration.py`, for
 example: `rss_feed_fetch`, `speaker_detection`, `media_download`, `transcript_cleaning` (when
 metadata generation runs), `transcription` (when the Whisper concurrent path runs),
 `audio_preprocessing`, `summarization` (parallel summarization path only), `vector_indexing`,

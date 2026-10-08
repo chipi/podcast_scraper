@@ -61,7 +61,7 @@ private on top of public (import every private module, with `PYTHONPATH`, nothin
 | Private on top of public | 20 of 102 modules fail, all on a public module broken by a seam |
 | Common `identity` → `intelligence` | 0 imports cross the line (check mutation-tested: absolute, relative and package-`__init__` crossings are each caught) |
 | Eval-repo references (2026-10-08) | 289 lines → 31 kept on purpose: mount tooling (`.gitignore`, `.flake8`, `pyproject.toml`, `Makefile`, `check_doc_structure.py`, its test, the two mount guides, one README row), ADR-158, the registry guard test, the fixture test that reads the mount, and the two workflow files (`release.yml`, `secret-scan.yml`, held until PR #2138 merges). Registry citations moved to the eval repo's evidence map |
-| Still naming private eval docs by ID | 94 lines name eval reports (`EVAL_*`) with no repo marker, and the doc agents left bare private IDs (RFC-057, RFC-015, Experiment Guide, …) on unmarked lines; not in the accepted count, operator to decide |
+| Private eval documents named by ID or path (2026-10-08) | Removed too (operator decision): eval report names, the old public IDs of moved documents, and paths to files under `autoresearch/` and `data/eval/`. Bare directory names and runtime default paths stay. RFC-073 was two documents; the enrichment-layer one is RFC-088 now, so those references were re-pointed, not removed |
 | Not yet in the manifest | tier A features (ADR-158 decision 5): 46 public `src/` files and 25 operator-viewer files read the four tier-A outputs; to be read and listed |
 
 ### Seams

@@ -863,11 +863,7 @@ extraction tiers (ML-only, Hybrid, Cloud LLM).
 Quality evaluation is integrated into the
 **[AI Quality & Experimentation Platform](../prd/PRD-007-ai-quality-experiment-platform.md)**
 (PRD-007), which uses these metrics to gate new model
-deployments and configuration changes. The complete
-evaluation loop (runner, scorer, comparator) is
-documented in the
-**`Experiment Guide`**
-(Step 4: Evaluate Results).
+deployments and configuration changes.
 
 ## CI/CD Integration
 

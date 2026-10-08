@@ -662,7 +662,7 @@ or a rendering issue.
 **Boundary:** this covers browser-visible HTTP traffic only. If the bottleneck is
 inside a Python function that Streamlit calls synchronously (e.g., a slow model
 inference), the agent sees a slow response but not *why* it's slow internally — that
-is `py-spy` territory (RFC-064).
+is `py-spy` territory.
 
 ### UC-5: Catching silent failures in pipeline output UI
 
@@ -805,7 +805,7 @@ small set of routes/states.
 | Regression testing UI flows | `make test-ui-e2e` / Playwright MCP | This guide |
 | Python pipeline timing and resources | `.monitor.log`, `metrics.json` | [Agent-Pipeline Loop](AGENT_PIPELINE_LOOP_GUIDE.md) |
 | CI failure diagnosis | Terminal output, test logs | [Agent-Pipeline Loop](AGENT_PIPELINE_LOOP_GUIDE.md) |
-| Python process CPU/memory profiling | `py-spy`, memray, RFC-064 profiles | [Agent-Pipeline Loop](AGENT_PIPELINE_LOOP_GUIDE.md) |
+| Python process CPU/memory profiling | `py-spy`, memray, performance profiles | [Agent-Pipeline Loop](AGENT_PIPELINE_LOOP_GUIDE.md) |
 
 The clean split: anything that crosses the HTTP boundary → this guide (browser
 tools). Anything inside a Python process →

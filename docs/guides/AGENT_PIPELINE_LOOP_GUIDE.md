@@ -13,7 +13,7 @@ This guide documents the **closed feedback loop between an AI coding agent and t
 Python pipeline**. The goal: the agent gets structured, real-time feedback from
 pipeline runs instead of you copy-pasting terminal output.
 
-The pipeline and monitor system (RFC-064, RFC-065) produce structured artifacts —
+The pipeline and monitor system (RFC-065) produce structured artifacts —
 `.pipeline_status.json`, `.monitor.log`, `metrics.json`, and more. The agent reads
 these directly as files. During long runs with `--monitor`, the agent can observe
 stage progress and resource usage in real time. After a run, the agent performs a
@@ -136,7 +136,7 @@ Agent compares metrics.json (run 1 vs run 2):
 ```
 
 For visual comparison across many runs, the Streamlit run comparison tool
-(`make run-compare`, RFC-047/066) provides charts and delta tables.
+(`make run-compare`) provides charts and delta tables.
 
 ---
 
@@ -295,7 +295,7 @@ make run-compare
 | [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) | `--monitor`, `.pipeline_status.json`, `.monitor.log` (RFC-065) |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | Pipeline stages, module roles, `metrics.json` |
 | [Testing Guide](TESTING_GUIDE.md) | `make ci-fast`, `make test`, test commands |
-| [Run Comparison Tool](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md) | Streamlit UI for comparing runs (RFC-047/066) |
+| [Run Comparison Tool](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md) | Streamlit UI for comparing runs |
 
 ### RFCs
 

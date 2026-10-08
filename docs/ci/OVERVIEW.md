@@ -493,7 +493,7 @@ The system now passes the "minimal docs CI/CD" requirement:
 
 ### Planned Enhancements
 
-1. **AI Experiment Pipeline CI/CD** (See PRD-007, RFC-015)
+1. **AI Experiment Pipeline CI/CD** (See PRD-007)
    - Layer A: Fast smoke tests on every push/PR
    - Layer B: Full evaluation pipeline (nightly/on-demand)
    - Integration with experiment runner

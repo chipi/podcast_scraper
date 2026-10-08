@@ -80,7 +80,7 @@ tests/stack-test/node_modules/
 tests/stack-test/test-results/
 tests/stack-test/playwright-report/
 
-# RFC-064 profile capture runs (metrics + artifacts; frozen YAML goes under data/profiles/)
+# Profile capture runs (metrics + artifacts; frozen YAML goes under data/profiles/)
 .tmp/
 # CI metrics bundles downloaded for local validation (see scripts/dashboard/fetch_ci_metrics_artifacts.sh)
 artifacts/ci-metrics-runs/

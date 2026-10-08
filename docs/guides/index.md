@@ -91,11 +91,7 @@ Practical guides for using and developing Podcast Scraper.
 | Guide | Description |
 | ------- | ----------- |
 | [Chip Huyen ML / AI critique](CHIP_HUYEN_ML_AI_CRITIQUE.md) | ML/AI rubric (seven themes); **experiments vs production** lenses and optional short output tables — inspired by *Designing Machine Learning Systems* and *AI Engineering* |
-| `Experiment Guide` | Datasets, baselines, experiments, promotion, metrics, and quality evaluation (RFC-041) |
-| `Evaluation Reports` | Quality sweeps: ROUGE, embeddings, report library |
-| `Optimization Workflow` | Data-driven process for investigating and solving performance/cost problems |
 | [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) | Dev tooling: `--monitor`, RSS/CPU/stage dashboard or `.monitor.log`, `.pipeline_status.json`; optional `.[monitor]` memray + py-spy (RFC-065, #512) |
-| `Performance Reports` | Published profile snapshots (tables, caveats) |
 
 ## AI Coding
 

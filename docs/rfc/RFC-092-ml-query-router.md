@@ -68,7 +68,7 @@ robust and improves continuously as query patterns emerge from the eval loop.
 
 **Assumptions:**
 
-- The eval loop (RFC-057) and viewer Search usage can produce ≥500 labeled queries before training
+- The eval loop and viewer Search usage can produce ≥500 labeled queries before training
   is worthwhile.
 - A ~100M-parameter encoder with a classification head is sufficient for 5-class short-text
   routing.
@@ -206,7 +206,6 @@ rate trends down after the switch.
 | RFC | Relationship |
 | --- | --- |
 | RFC-090 | Defines `QueryRouter`, `SIGNAL_WEIGHTS`, `TIER_WEIGHTS_BY_QUERY`; this RFC swaps `classify()` |
-| RFC-057 | Autoresearch eval loop is the training-data source |
 
 ## Benefits
 

@@ -11,15 +11,15 @@
 
 The `tailnet_dgx.resilience` layer (#956) handles **connection-level failures** from self-deployed inference services on the DGX — timeouts, connection resets, circuit-breaker tripping. That's the right shape for the failure modes it was designed for, and the contract is documented in ADR-096 (DGX-as-primary with cloud fallback).
 
-The 2026-06-15 #996 catastrophic-tail sweep (`EVAL_WHISPER_CONTENTION_AUTORESEARCH_2026_06_15.md`) measured **20% catastrophic failures** under vLLM contention on the GB10 box. Of those failures, **two of three failure modes are caught by the resilience layer** (hang, connection reset). The third — **"successful HTTP 200 response containing semantically corrupted content"** — is structurally invisible to the resilience layer because the transport completed normally.
+The 2026-06-15 #996 catastrophic-tail sweep measured **20% catastrophic failures** under vLLM contention on the GB10 box. Of those failures, **two of three failure modes are caught by the resilience layer** (hang, connection reset). The third — **"successful HTTP 200 response containing semantically corrupted content"** — is structurally invisible to the resilience layer because the transport completed normally.
 
 The same systemic gap exists across every self-deployed inference service:
 
 | Service | Observed silent-corruption mode | Source |
 | --- | --- | --- |
-| DGX whisper-openai | WER=1.000 garbage transcript under GPU contention | `EVAL_WHISPER_CONTENTION_2026_06` p03_e01; `EVAL_WHISPER_CONTENTION_AUTORESEARCH_2026_06_15` p08_e01 (in-band catastrophic) |
-| DGX Ollama (qwen3.5 family) | Empty `content` because thinking-budget consumed all `num_predict` tokens before output emission | `EVAL_REAL90_2026_06`; `EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14` Ollama re-run |
-| DGX vLLM autoresearch | Malformed JSON, mid-truncation, prepended reasoning prose | `EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14` cross-provider sweep |
+| DGX whisper-openai | WER=1.000 garbage transcript under GPU contention | — |
+| DGX Ollama (qwen3.5 family) | Empty `content` because thinking-budget consumed all `num_predict` tokens before output emission | — |
+| DGX vLLM autoresearch | Malformed JSON, mid-truncation, prepended reasoning prose | — |
 | DGX pyannote | Hypothetical: single-speaker labels for multi-speaker audio under load | Not yet observed; preventive |
 
 The pattern: **structurally-valid HTTP responses with semantically-wrong content propagate downstream as if real.** Whisper garbage → summarizer summarizes garbage → GI extracts entities from hallucinations → KG builds a graph from invented facts. The client at any layer of the stack has no way to know without a content-aware check.
@@ -159,8 +159,7 @@ Other shapes were considered:
   (`tests/unit/podcast_scraper/providers/test_resilience_and_guardrails.py`).
 - [x] Integration tests: `test_tailnet_dgx_*.py` patterns extended with
   guardrail scenarios.
-- [x] E2E test: end-to-end fallback proven on real DGX, see
-  `docs/guides/eval-reports/EVAL_DGX_GUARDRAILS_REAL_VALIDATION_2026_06_15.md`.
+- [x] E2E test: end-to-end fallback proven on real DGX.
 - [x] ADR-105 referenced from implementation sites
   (`providers/guardrails/__init__.py`, `exceptions.py`, `_telemetry.py`,
   `tailnet_dgx/diarization_provider.py`).
@@ -200,11 +199,6 @@ old name need a one-character update.
 
 ## References
 
-- Originating eval reports:
-  - `docs/guides/eval-reports/EVAL_WHISPER_CONTENTION_2026_06.md` § "2026-06-14 re-run"
-  - `docs/guides/eval-reports/EVAL_WHISPER_CONTENTION_AUTORESEARCH_2026_06_15.md`
-  - `docs/guides/eval-reports/EVAL_REAL90_2026_06.md` § "qwen3.5 burns budget on thinking"
-  - `docs/guides/eval-reports/EVAL_PROMPT_LONG_V2_CROSS_PROVIDER_2026_06_14.md` § "Ollama"
 - Existing resilience contract:
   - `docs/adr/ADR-096-dgx-spark-prod-primary-with-fallback.md`
   - `src/podcast_scraper/providers/tailnet_dgx/resilience.py`

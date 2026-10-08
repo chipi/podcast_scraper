@@ -24,7 +24,7 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
 | **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, **pyannote.audio + torchaudio** (speaker diarization, RFC-058), transformers, sentence-transformers, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. **LanceDB is NOT here** — it is search-only; an ML pipeline that also indexes composes `.[ml,search]` (#1019). |
 | **`search`** | Corpus vector + FTS search (RFC-090): **LanceDB** two-tier store + sentence-transformers / torch / transformers (embeddings). The cloud-deployment set — independently installable without `[ml]`; `[ml]` and `[search]` share the torch/transformers base because both genuinely import it, not as a subset. |
 | **`dev`** | Tests, lint, typecheck, security, **FastAPI + uvicorn + prometheus-fastapi-instrumentator + apscheduler** (GI/KG viewer API, RFC-062), text eval helpers (ROUGE, BLEU, WER), MCP SDK + httpx (TestClient), and **pyannote.audio + torchaudio** pins aligned with `[ml]` for CI/dev venv parity. The server pins are mirrored in `docker/api/Dockerfile` (installed there without full `[dev]` to keep test tooling out of prod) — **keep the two in sync**. Embedding cosine in `evaluation/scorer.py` needs sentence-transformers (`[ml]` or `[search]`). |
-| **`compare`** | Streamlit run comparison UI (RFC-047; `make run-compare`). |
+| **`compare`** | Streamlit run comparison UI (`make run-compare`). |
 | **`llm`** | API client SDKs bundled for CI/dev: Gemini (`google-genai`), Anthropic, Mistral, **httpx** (Ollama health checks). The **OpenAI** SDK ships with **core** dependencies. |
 | **`monitor`** | Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil). |
 
@@ -316,7 +316,7 @@ pip cache (for example some CI jobs) can still re-download the large `.whl` file
 
 ## Run comparison UI (optional, `compare` extra)
 
-- **Purpose**: Streamlit tool to compare evaluation runs side by side (RFC-047, `tools/run_compare/`).
+- **Purpose**: Streamlit tool to compare evaluation runs side by side (`tools/run_compare/`).
 - **Install**: `pip install -e ".[compare]"` (Streamlit, plotly, pandas, rouge-score).
 - **Run**: `make run-compare` or `python -m streamlit run tools/run_compare/app.py` (see `tools/run_compare/README.md`).
 

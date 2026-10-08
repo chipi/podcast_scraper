@@ -22,7 +22,6 @@ For comprehensive testing information, see the dedicated testing documentation:
 
 - **[Testing Strategy](../architecture/TESTING_STRATEGY.md)** - Testing philosophy, test pyramid, decision criteria
 - **[Testing Guide](TESTING_GUIDE.md)** - Quick reference, test execution commands
-- **`Experiment Guide`** — Complete guide: datasets, baselines, experiments, and evaluation
 - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test guidelines
 - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models
@@ -242,8 +241,6 @@ make experiment-run \
   BASELINE=baseline_prod_authority_v1 \
   REFERENCE=silver_gpt52_v1
 ```
-
-For details, see the **`Experiment Guide`** (Step 4: Evaluate Results).
 
 ## Environment Setup
 
@@ -711,7 +708,7 @@ Playwright or MCP clicking the wrong **Search**):
 Guide](GROUNDED_INSIGHTS_GUIDE.md) · [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) ·
 [CLI API](../api/CLI.md) (`gi` / `kg` / `search` / `index` subcommands).
 
-## Run Comparison Tool (RFC-047 / RFC-066)
+## Run Comparison Tool
 
 Streamlit UI for comparing ML evaluation runs and
 performance profiles. Lives in `tools/run_compare/`
@@ -773,12 +770,11 @@ make runs-list
 ```
 
 **Full guide:**
-`Experiment Guide` and
 `data/eval/README.md`.
 
 ## Performance profiles (`data/profiles/`)
 
-RFC-064 frozen performance snapshots per
+Frozen performance snapshots per
 provider/release. Each YAML captures per-stage
 wall time, peak RSS, CPU usage, and environment
 metadata for a specific provider configuration.

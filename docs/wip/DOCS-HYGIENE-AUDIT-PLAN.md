@@ -14,7 +14,6 @@ were only touched to remove their WIP references.
 - **Permanent-doc + code references to WIP removed** (this is what "released" the 11):
   - `docs/api/PLATFORM_API.md`, `docs/prd/PRD-037-discovery.md`, `docs/prd/PRD-035-learning-platform.md`,
     `docs/releases/RELEASE_v2.6.1.md`, `docs/adr/ADR-135-*.md`,
-    `docs/guides/eval-reports/EVAL_AUTORESEARCH_JUDGE_TRUST_MATRIX_2026_07.md`,
     `docs/rfc/RFC-098/100/101-*.md`.
   - Code/tests/README: `src/podcast_scraper/net/__init__.py`, `config.py`, `utils/runtime_env.py`,
     `tests/conftest.py`, `tests/integration/eval/test_v3_fixtures.py`, `web/learning-player/README.md`.
@@ -34,7 +33,7 @@ cleaned. Resolved this pass:
    archaeology specs **deleted** (history in git). `SPEC_KG_GI_ONTOLOGY_V3_WISHLIST` (deferred future
    ideas) stays as a pure WIP doc, no longer referenced by RFC-097.
 2. **`POST_RFC097_DEV_PROD_REMOVAL.md`** — a decision record a **frozen** eval artifact
-   (`data/eval/runs/_PRE_FIX_NOTE.md`) cites. → **Promoted** to
+   (a note under `data/eval/runs/`) cites. → **Promoted** to
    `docs/guides/DEV_PROD_ENV_DETECT_REMOVAL.md` (added to the mkdocs nav). The frozen note keeps its
    old `docs/wip/…` path (never edit `data/eval/runs/` — `feedback_never_mutate_historical_artifacts`);
    that stale link lives outside the docs build and is the one accepted exception.

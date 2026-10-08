@@ -6,7 +6,7 @@
   autoresearch programme keeps surfacing). Living design — append new failure modes here.
 - **Authors**: Marko Dragoljevic (chipi), Claude
 - **Stakeholders**: Operator (sign-off), corpus / eval / fixture maintainers
-- **Related Documents**: `docs/guides/eval-reports/EVAL_FIXTURES_V3.md` (v2→v3 delta + failure-mode coverage), `scripts/build_v3_fixtures.py` (the generator)
+- **Related Documents**: `scripts/build_v3_fixtures.py` (the generator)
 - **Anchors**: [#921](https://github.com/chipi/podcast_scraper/issues/921) (v3 fixtures rebuild), [#907](https://github.com/chipi/podcast_scraper/issues/907) (autoresearch programme)
 
 > Promoted from a WIP rolling-notes doc (2026-08-02). Each #907 child contributes real-prod
@@ -15,9 +15,7 @@
 > 10k-episode scale, decides which defects the eval harness must reproduce.
 
 **Status (2026-06-09):** the v3 text/transcript/manifest side has landed
-via `scripts/build_v3_fixtures.py`. See
-`docs/guides/eval-reports/EVAL_FIXTURES_V3.md` for the v2→v3 delta report
-and the failure-mode → episode coverage map. Per-failure-mode landing
+via `scripts/build_v3_fixtures.py`. Per-failure-mode landing
 status is tracked inline below (LANDED IN V3 / DEFERRED tags).
 
 Audio (multi-voice TTS) is a separate operator PR. The v3 generator emits
@@ -111,7 +109,6 @@ Silva) vs p05 (Marco Bianchi). Two-Daniels: p04 (Daniel Olufemi) vs p05
 - `_TOKEN_RATIO`: 0.78 → **0.65**
 - `_OVERALL_RATIO`: 0.85 → **0.70**
 - Recall 0.31 → 0.49 at preserved 1.00 precision.
-- Eval report: `docs/guides/eval-reports/EVAL_ENTITY_CANON_2026_06_08.md`.
 
 **Structural recall ceiling (predicate redesign → #904):**
 
@@ -445,8 +442,7 @@ across four transcription backends (MPS / CPU / DGX `whisper-openai`
 on `:8002` / DGX faster-whisper on `:8000`), three summary backends
 (Ollama qwen3.5:35b at Q4 / vLLM R1-Distill-32B at bf16 / vLLM
 Qwen3.6-35B-A3B at bf16 added via Cell C), and a 3-way pyannote
-diarization run (MPS / CUDA / CPU). Reports under
-`docs/guides/eval-reports/EVAL_{DIARIZATION,SUMMARY,TRANSCRIPTION,HYBRID_ROUTING}_*_2026_06.md`.
+diarization run (MPS / CUDA / CPU).
 
 **Real-prod failure-mode catalogue surfaced (v3-relevant):**
 
@@ -581,8 +577,6 @@ now that the temperature bug is fixed), **#964** (Wave audio
 hardening umbrella from the WIP audit).
 
 ### #952 — faster-whisper vs openai-whisper engine drift (2026-06-16)
-
-**Eval report:** `docs/guides/eval-reports/EVAL_WHISPER_ENGINE_DRIFT_2026_06_16.md`
 
 **Question:** is the community `faster-whisper` library (via Speaches)
 WER-equivalent to OpenAI's reference `openai-whisper` on real podcast

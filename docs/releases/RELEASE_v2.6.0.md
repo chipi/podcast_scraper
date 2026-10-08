@@ -12,7 +12,7 @@ v2.6.0 is a **minor release** that ships three substantial bodies of work on top
 2. **A hardened pipeline-to-viewer experience** — **graph handoff orchestrator** (8-state FSM with envelope contract and generation-token concurrency across 13 entry points, ADR-094 / RFC-085), **viewer test pyramid** (Tier-1 mocks → Tier-2 production-shaped fixtures → Tier-3 real corpus, ADR-095 / RFC-086), and viewer performance tail trims (#767/#768/#769).
 3. **Operator and hosting maturity** — **always-on hosting** design and the Hetzner VPS playbook (RFC-082), **corpus snapshot backup manifest + version-aware restore** (RFC-084, ADR-092, `make restore-corpus` / `restore-corpus-prod`), **canonical stack contract + environment adapters** (ADR-093), prod-failover decisions (ADR-089/090/091), and the **AGENTS.md** canonicalization (PR #786 — single source of truth across all AI assistants).
 
-On the **provider and evaluation** side, the release tightens how you **compare quality and cost**: the **Run Comparison** Streamlit app gains a **Performance** tab tied to **frozen YAML profiles** (RFC-064 / RFC-066), sitting on top of the **seven LLM providers** and **hybrid ML** stack delivered in v2.5.0.
+On the **provider and evaluation** side, the release tightens how you **compare quality and cost**: the **Run Comparison** Streamlit app gains a **Performance** tab tied to **frozen YAML profiles**, sitting on top of the **seven LLM providers** and **hybrid ML** stack delivered in v2.5.0.
 
 The **Python library** surface (`Config`, `run_pipeline`, `service.run`) stays backward compatible. HTTP, the SPA, and server-only routes are **additive** behind `pip install -e '.[dev]'`. **GIL** and **KG** reach **Completed** status for **single-layer** artifacts and consumption (RFC-049 / RFC-050, RFC-055 / RFC-056); **cross-layer identity** remains future work (Draft RFC-072). **Multi-feed** corpus layout, manifest, and unified indexing ship per RFC-063.
 
@@ -105,9 +105,9 @@ v2.5.0 added **five** cloud LLM families plus **Ollama** on top of OpenAI and Ge
 
 **3. Tooling new in the v2.6.0 track**
 
-- **Run Comparison — Performance tab (RFC-066)** — Streamlit **`?page=performance`** joins **run metrics** from experiments with **frozen RFC-064 YAML profiles** so you can relate **summary quality** (eval runs under `data/eval/`) to **resource shape** (RSS, CPU, wall time by stage) on comparable fixtures.
-- **Performance profiling framework (RFC-064)** — `config/profiles/`, captured artifacts under `data/profiles/`, `make profile-freeze` / `make profile-diff`.
-- **AutoResearch closure (RFC-057 / ADR-073)** — optimization loop and eval matrix work brought to a documented closure; silver references and broad config sweeps support **evidence-backed** model and prompt choices.
+- **Run Comparison — Performance tab** — Streamlit **`?page=performance`** joins **run metrics** from experiments with **frozen YAML profiles** so you can relate **summary quality** (eval runs under `data/eval/`) to **resource shape** (RSS, CPU, wall time by stage) on comparable fixtures.
+- **Performance profiling framework** — `config/profiles/`, captured artifacts under `data/profiles/`, `make profile-freeze` / `make profile-diff`.
+- **AutoResearch closure** — optimization loop and eval matrix work brought to a documented closure; silver references and broad config sweeps support **evidence-backed** model and prompt choices.
 
 **4. Live pipeline visibility (developers)**
 
@@ -127,7 +127,7 @@ Together, the v2.5.0 **provider breadth** and v2.6.0 **Performance tab + frozen 
 
 - **Configurable HTTP retries** for media, transcripts, and RSS (`http_*`, `rss_*` on `Config`), plus **application-level episode retries** (`episode_retry_max`, `episode_retry_delay_sec`) after urllib3 exhaustion.
 - **CLI** — `--http-retry-total`, `--http-backoff-factor`, `--rss-retry-total`, `--rss-backoff-factor`, `--episode-retry-max`, `--episode-retry-delay-sec` ([CLI](../api/CLI.md#control-options)).
-- **`metrics.json`** — `http_urllib3_retry_events`, `episode_download_retries`, `episode_download_retry_sleep_seconds` (`Experiment Guide`).
+- **`metrics.json`** — `http_urllib3_retry_events`, `episode_download_retries`, `episode_download_retry_sleep_seconds`.
 - **Optional Issue #522-class extensions** — per-host throttling, `Retry-After`, circuit breaker, RSS conditional GET; fields and flags documented under [CONFIGURATION — Download resilience](../api/CONFIGURATION.md#download-resilience).
 - **`failure_summary`** in `run.json` when episodes fail (counts by error type, failed episode identifiers).
 - Download resilience: documented canonically under [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience) (inline YAML presets; no separate example file required).
@@ -136,7 +136,7 @@ Together, the v2.5.0 **provider breadth** and v2.6.0 **Performance tab + frozen 
 
 ## Operational observability (partial PRD-016)
 
-Shipped in this release train: **test metrics** and **GitHub Pages** dashboards (RFC-025 / RFC-026), **live monitor** (RFC-065), **frozen profiles** and **Run Compare Performance** (RFC-064 / RFC-066). **RFC-027** items (for example CSV export) remain open.
+Shipped in this release train: **test metrics** and **GitHub Pages** dashboards (RFC-025 / RFC-026), **live monitor** (RFC-065), **frozen profiles** and **Run Compare Performance**. **RFC-027** items (for example CSV export) remain open.
 
 ---
 
@@ -231,8 +231,7 @@ and `.cursorrules` are now thin, assistant-specific overlays that import from AG
 - [Server Guide](../guides/SERVER_GUIDE.md)
 - [Migration Guide — v2.6.0](../api/MIGRATION_GUIDE.md#v260-viewer-and-http)
 - [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)
-- `Experiment Guide` — pipeline `metrics.json` and download resilience
-- [RFC index — v2.6.0 rows](../rfc/index.md) — RFC-049, 050, 055, 056, 057, 061–071
+- [RFC index — v2.6.0 rows](../rfc/index.md) — RFC-049, 050, 055, 056, 061–071
 
 ---
 

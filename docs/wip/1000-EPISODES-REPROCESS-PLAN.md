@@ -6,7 +6,7 @@ corpus is the current stage of *this* plan, not a separate north star). This is
 the single canonical arc doc.
 
 Umbrella sequencing plan. Not authoritative for component detail — the component
-specs (`TEST_CORPUS_FIXTURE_LADDER.md`, the issue bodies, `autoresearch/JUDGING.md`)
+specs (`TEST_CORPUS_FIXTURE_LADDER.md`, the issue bodies)
 are. This doc carries the ordering and the gates. The durable **methodology**
 (single-variable validation, reprocess-once economics, the judge-panel parity gate)
 lives permanently in **ADR-143** (`docs/adr/ADR-149-corpus-reprocess-methodology.md`) —
@@ -97,13 +97,12 @@ plate. The remaining single-variable step is the **naming/summarization LLM swap
 ### The v2.5 sub-sequence
 
 - **D — Autoresearch prompt-tuning + bake-off (the pivot, BEFORE the swap).** Stand up
-  the bake-off in the autoresearch harness (`autoresearch/`, `JUDGING.md`,
+  the bake-off in the autoresearch harness (`autoresearch/`,
   `bundled_prompt_tuning/`). **Serving:** bring the autoresearch vLLM up on `:8003` via
   `ssh ops@dgx-llm-1 /usr/local/bin/gpu-mode-swap.sh research` (GPU sits idle until then — see
   decision 5 + `docs/architecture/DGX_SERVING.md`). Serve the local LLM candidate set (Cohere
   Command, Qwen3-30B-A3B, DeepSeek — the Llama-class replacements for Gemini); deep-research each
-  model's knobs (`feedback_deep_research_per_model`) and update
-  `autoresearch/PER_MODEL_OPTIMAL_PARAMS.md`. Metric = judge-panel parity vs the 2.4-Gemini
+  model's knobs (`feedback_deep_research_per_model`). Metric = judge-panel parity vs the 2.4-Gemini
   baseline (the naming-4 relabel defect/named metrics from #1355 + the panel). Output:
   (a) winning DGX model, (b) tuned per-provider prompts, (c) recorded parity result.
   **This is critical-path gap #1.**

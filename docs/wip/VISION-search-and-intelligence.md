@@ -39,7 +39,7 @@ Podcast is the first domain to prove this model. It's a controlled corpus (known
 
 ## What the current stack can and cannot do
 
-The current platform — GIL, KG, FAISS, enrichment layer, MCP tools — is sophisticated. The grounding invariants in GIL are a genuine architectural innovation. The canonical identity layer (RFC-072) solves a hard entity disambiguation problem cleanly. The enrichment pipeline (RFC-073) is well-designed.
+The current platform — GIL, KG, FAISS, enrichment layer, MCP tools — is sophisticated. The grounding invariants in GIL are a genuine architectural innovation. The canonical identity layer (RFC-072) solves a hard entity disambiguation problem cleanly. The enrichment pipeline (RFC-088) is well-designed.
 
 But the retrieval layer is a ceiling. Single-signal FAISS over insight nodes only means:
 

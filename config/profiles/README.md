@@ -85,7 +85,7 @@ stages; both are now user-configurable from deployment profiles (#634).
 
 ## `config/profiles/freeze/*.yaml` — performance capture profiles
 
-Companion profiles used by `make profile-freeze` (RFC-064) to capture
+Companion profiles used by `make profile-freeze` to capture
 per-provider timing and cost profiles under a fixed E2E fixture. Each freeze
 profile is **maximally oriented toward its provider** (filename = provider)
 and is merged with [`freeze/_defaults.yaml`](freeze/_defaults.yaml) at

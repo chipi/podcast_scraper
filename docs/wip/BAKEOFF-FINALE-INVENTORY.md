@@ -27,7 +27,7 @@ Kind: FIX / IMPROVE / RESEARCH.
 | PA5 | INFRA | FIX | **Finale-corpus build tooling.** Building the v2.5 copy from relabel-fixed by hand is error-prone — two bugs bit this session (cp trailing-slash flattening; `--profile path` vs name silently ignored → summarization disabled). Add a make target / guarded script. | both bugs caught only by monitoring | MED |
 | DS1 | DS? | RESEARCH | **nvidia-ai feed weakness.** deepseek summary 7.2 / topics 6.6 and its only episode losses on NVIDIA's technical/product-dense feed. Reclassify to PA if qwen is also weak there. | nvidia-ai 4-1 (only feed with a deepseek loss) at n=5 | MED |
 | DS2 | DS | WATCH | **Summary below bake-off.** 8.18 vs 8.44 at 39 eps — watch whether it stabilizes or is a real scale regression. | cumulative summary 8.18 | LOW |
-| AR1 | PA | RESEARCH | **Topics canonicalization auto-research loop.** The weak, provider-agnostic dimension is a natural RFC-057-style prompt-tuning target (silver+judge from a disjoint vendor). | follows PA2 | LATER |
+| AR1 | PA | RESEARCH | **Topics canonicalization auto-research loop.** The weak, provider-agnostic dimension is a natural prompt-tuning target (silver+judge from a disjoint vendor). | follows PA2 | LATER |
 | AR2 | PA | RESEARCH | **Per-feed adaptive config.** Technical vs interview feeds want different cleaning/summary caps + insight counts; the per-feed spread suggests one global config is suboptimal. | feed spread: nvidia vs nopriors/acast | LATER |
 
 ## DECIDED PLAN (operator, 2026-08-05) — stabilize deepseek first, then head-to-head
