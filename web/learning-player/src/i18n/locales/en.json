@@ -1120,10 +1120,14 @@
     "step2Body": "Their new episodes come to your Home first. Follow one or more.",
     "allShows": "See all shows",
     "doneKicker": "All set",
-    "doneTitle": "Your Home is ready",
-    "doneBody": "{interests} and {shows}. We'll keep shaping your Home as you listen.",
+    "doneTitle": "You're all set",
+    "doneBody": "{interests} and {shows}. Here is what Home does with them:",
+    "doneRecommended": "Recommended for you picks episodes from what you follow.",
+    "doneWhatsNew": "What's new brings the latest episodes from your shows and topics.",
+    "doneYourWeek": "Your Week fills in with what you listen to and save.",
+    "doneMore": "The more you listen and save, the better your picks get. Change what you follow any time from your profile.",
     "interestCount": "No interests yet | 1 interest | {count} interests",
     "showCount": "no shows yet | 1 show | {count} shows",
-    "finish": "Show my Home"
+    "finish": "Got it"
   }
 }

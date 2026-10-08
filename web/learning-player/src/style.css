@@ -208,7 +208,14 @@
     display: flex;
     flex-direction: column;
     min-height: 70dvh;
-    max-height: 92dvh;
+    /* The ceiling sits just BELOW THE MASTHEAD, not at a share of the screen (operator 2026-10-08:
+       "more space in the back so I can see the logo and understand this is a layer over"). 92dvh put
+       the top at 68pt on an iPhone 15 Pro, over a masthead that ends at 102pt, so the card looked
+       like a new page. The masthead is its top padding — max(0.55rem, safe-area-top), the same
+       expression App.vue's <header> uses — plus ~43px of tagline and title; 52px leaves the logo
+       whole with a small gap, on any phone. */
+    --lp-sheet-ceiling: calc(100dvh - max(0.55rem, env(safe-area-inset-top)) - 52px);
+    max-height: var(--lp-sheet-ceiling);
     /* The BOTTOM INSET, on phones, where the sheet is anchored to the screen edge (operator
        2026-10-05). Android 15+ draws the app edge-to-edge, under its navigation bar — three buttons
        on a transparent strip — so a sheet scrolled to its end put its last control BEHIND the bar:
@@ -262,7 +269,7 @@
        Follow / favourite / Collection row hidden, which the operator asked for explicitly. 70px
        sits in that window with ~3px either side. */
     --lp-peek: 70px;
-    --lp-stack-base: 92dvh;
+    --lp-stack-base: var(--lp-sheet-ceiling);
     --lp-depth: 0;
   }
 

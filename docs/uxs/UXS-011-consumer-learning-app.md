@@ -364,7 +364,7 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   …", theme / storyline member topics, notes (newest first, in every notes box and under a
   highlight), Search's "Your notes", and Library's saved topics / themes / storylines / people.
 - **Ten at a time:** followed interests per kind (the cap lifts while that kind's search is open),
-  an open board's items, and entity episode lists (`EntityEpisodeList`, "Show 10 more").
+  an open board's items, and entity episode lists (`EntityEpisodeList`, "Show 5 more"; five per page since 2026-10-08).
 - **All episodes** keeps "Load more" (20, or 10 in Discover) while a search, sort or filter is
   active: every page is fetched — the filter needs the whole list — but the matches are revealed a
   page at a time.

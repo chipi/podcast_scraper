@@ -219,3 +219,16 @@ test('every other search / filter row ends where its area ends', async ({ page }
     expect(Math.abs(await gap(selector)), `${url} ${selector}`).toBeLessThanOrEqual(1)
   }
 })
+
+test("What's new \"Browse all\" lands ON the episode list, not the top of Discover", async ({ page }, testInfo) => {
+  // Operator 2026-10-08, on the phone: the link opened Discover at the top, the episode list two
+  // screens down — it read as going to the wrong page. Twice, because Discover is kept alive and the
+  // second arrival changes no query.
+  await signInIsolated(page, 'browse-all-lands', testInfo)
+  for (let i = 0; i < 2; i++) {
+    await page.goto('/')
+    await page.getByRole('link', { name: /Browse all/ }).first().click()
+    await expect(page).toHaveURL(/\/browse\?tab=episodes/)
+    await expect(page.getByTestId('browse-panel-episodes')).toBeInViewport()
+  }
+})

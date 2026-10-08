@@ -673,7 +673,9 @@ gives back ~70pt and puts the whole transport on screen. Desktop has the height 
     rail uses);
   - **one muted meta line** under it: date · N matches (Search), date · N items (Saved), Listened
     {date} · N moments (Revisit — the listened part omitted, not guessed, with no playback history);
-  - **one ⋯** carrying the episode's actions, and the **fold as a chevron** in the header;
+  - **one ⋯** carrying the episode's actions, and the **fold as a chevron at the end of the meta
+    line** (operator 2026-10-08: beside the count it folds, so it reads as "open / close these", not
+    as one of the episode's actions);
   - **no frame** — a divider ends the header and the items follow.
 
   Groups start **expanded**: folding is an affordance for a long page, not a default that hides what

@@ -86,18 +86,10 @@ const recommended = computed(() => {
   const inWhatsNew = new Set(latest.value.map((e) => e.slug))
   return recSection.data.value.items.filter((e) => !inWhatsNew.has(e.slug))
 })
-// Four visible, then four more per tap (operator 2026-09-19) — one grid row at both breakpoints.
-// The fetch asks for 12 rather than the api default of 6, so "show more" is worth the tap; the
-// route's own ceiling is 25 and the similarity merge caps at 50, so 12 is well inside both.
-const RECOMMENDED_PAGE = 4
+// One rail of up to 12 (operator 2026-10-08: a horizontal rail, like every other Home row). The
+// fetch asks for 12 rather than the api default of 6; the route's own ceiling is 25 and the
+// similarity merge caps at 50, so 12 is well inside both.
 const RECOMMENDED_FETCH = 12
-const recommendedShown = ref(RECOMMENDED_PAGE)
-const visibleRecommended = computed(() => recommended.value.slice(0, recommendedShown.value))
-// Re-collapse when the set itself changes — it is keyed off the most recent play, so it changes
-// under you as you listen, and leaving it expanded would silently grow the page.
-watch(recommended, () => {
-  recommendedShown.value = RECOMMENDED_PAGE
-})
 // A played episode is finished — it drops out of Continue (PL.6). Reactive: it disappears the
 // moment mark-as-played toggles, no refetch.
 // `isPlayed`, not `completed.has`: the server rail still offers an episode whose last position was
@@ -537,47 +529,21 @@ async function loadContinue(): Promise<void> {
          nothing to look back on. -->
     <RecapPrompt />
 
-    <!-- Recommended — no-scroll responsive grid. Up here, right after the look back, and What's
-         new at the bottom (operator 2026-10-07): picks for YOU lead, the corpus-wide feed follows. -->
+    <!-- Recommended — up here, right after the look back, and What's new at the bottom (operator
+         2026-10-07): picks for YOU lead, the corpus-wide feed follows. A horizontal rail of the same
+         EpisodeTile every rail uses (operator 2026-10-08): the 2-column grid with "Show 4 more"
+         spent two screens on a phone, and the rail keeps it to one row. -->
     <section v-if="recommended.length" class="mt-7" data-testid="home-recommended">
       <SectionHeading
         :title="t('home.recommended')"
         :kicker="recBasis === 'listening' ? t('home.recommendedKicker') : t('home.recommendedFromFollows')"
       />
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
-      <!-- The SAME tile the Discover grid uses (operator 2026-09-17), not a second copy of it.
-           This grid was hand-rolled here: square artwork, overlaid actions, show name and title —
-           EpisodeTile's shape, re-implemented. Keeping two of them is how they drifted apart in the
-           first place (title-above-show here, show-above-title there; clamped there, unclamped
-           here). One component, so a change to the tile reaches every grid that uses it. -->
-      <!-- 2 on a phone, 4 on desktop (operator 2026-09-17). Deliberately NOT the browse grids' 3/4:
-           Recommended is a short curated set on the home screen, so its tiles stay large enough to
-           read at a glance rather than matching a dense catalogue.
-
-           FOUR to begin with — one row on both breakpoints — then a control that reveals the rest
-           in place (operator 2026-09-19). There is no "see all" here because there is nowhere for
-           it to go: nothing in the app is a recommendations page, and inventing a route to satisfy
-           the shape of a link would be worse than expanding where you already are. -->
-      <ul class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <li v-for="ep in visibleRecommended" :key="ep.slug" class="h-full">
+      <CardRail>
+        <li v-for="ep in recommended" :key="ep.slug" class="lp-rail-item">
           <EpisodeTile :episode="ep" />
         </li>
-      </ul>
-      <button
-        v-if="recommended.length > visibleRecommended.length"
-        type="button"
-        class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay"
-        data-testid="home-recommended-more"
-        @click="recommendedShown += RECOMMENDED_PAGE"
-      >
-        <!-- What the tap will ACTUALLY reveal, not what remains. It said "Show 8 more" and then
-             revealed four, which is a control describing someone else's behaviour. -->
-        {{
-          t("ec.moreEpisodes", {
-            count: Math.min(recommended.length - visibleRecommended.length, RECOMMENDED_PAGE),
-          })
-        }}
-      </button>
+      </CardRail>
     </section>
 
     <!-- Discover entry points: a small title line over one row of four chips, each deep-linking
@@ -628,7 +594,7 @@ async function loadContinue(): Promise<void> {
       >
         <template #action>
           <RouterLink
-            :to="{ name: 'browse', query: { tab: 'episodes' } }"
+            :to="{ name: 'browse', query: { tab: 'episodes' }, hash: '#catalog' }"
             class="text-sm font-bold text-accent no-underline"
           >
             {{ t("home.browseAll") }} →

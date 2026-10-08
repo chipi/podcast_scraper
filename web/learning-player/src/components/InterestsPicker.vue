@@ -11,7 +11,7 @@
  * and Cancel has to mean nothing changed. Pure overlay: backdrop / ESC / ✕ dismiss, focus trap,
  * restore focus on close.
  */
-import { onMounted, ref } from "vue"
+import { onBeforeUnmount, onMounted, ref } from "vue"
 import { toCountBucket, track } from "../services/analytics"
 import CloseIcon from "./CloseIcon.vue"
 import InterestSections from "./InterestSections.vue"
@@ -88,6 +88,17 @@ function closeSheet(): void {
   if (!didSave) track("interests_dismissed")
   emit("close")
 }
+
+/**
+ * Give the page back where it was (operator 2026-10-08). Opening a section lifts its search box
+ * above the keyboard with `scrollIntoView`, and on iOS that — and the keyboard itself — scrolls the
+ * PAGE behind the sheet too. Nothing scrolled it back, so saving interests from Home's guided start
+ * returned the listener to a Home scrolled down past the guide.
+ */
+const pageScrollY = typeof window !== "undefined" ? window.scrollY : 0
+onBeforeUnmount(() => {
+  if (typeof window !== "undefined" && window.scrollY !== pageScrollY) window.scrollTo(0, pageScrollY)
+})
 
 onMounted(async () => {
   // Before the fetch, like landing_view: a listener whose interests never load still opened the

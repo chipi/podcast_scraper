@@ -208,8 +208,11 @@ header cannot outlive its content.
 Since 2026-10-07 (operator): Home on a first visit was two screens of not much, so a new listener
 (no interests yet) gets a short flow of cards in place of the single welcome card: **1** choose at
 least three interests (the interests picker, with progress), **2** follow at least one show (the
-followable show tiles, in the card), **3** "Your Home is ready", which closes the flow and reloads
-What's new and Recommended from the choices. Each step can be skipped ("Skip step"); "Not now"
+followable show tiles, in the card; it stays until "Next", so several can be followed), **3** "You're
+all set": what Home does with the choices (Recommended, What's new, Your Week) and how it improves,
+then "Got it", which closes the flow and reloads What's new and Recommended (operator 2026-10-08: the
+listener is already on Home, so the button confirms rather than "shows" Home). Saving interests in
+the picker returns Home to where it was, not scrolled down. Each step can be skipped ("Skip step"); "Not now"
 snoozes the whole guide for three days (operator 2026-10-08), and Settings' "Show the getting-started
 guide again" restarts it from step 1 at any time, walking every step with "Next" even when its
 minimum is already met. Step 2's shows are ranked by the server (`GET /api/app/podcasts/suggested`):

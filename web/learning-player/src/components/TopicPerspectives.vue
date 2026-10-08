@@ -189,15 +189,15 @@ function toggle(personId: string): void {
           class="rounded-lg border border-border bg-overlay p-3"
           data-testid="topic-perspective"
         >
-          <!-- Avatar in its own left column; everything else (name + count, then the insights and the
-               show-more) lives in the right column so it all aligns to where the NAME starts and
-               nothing tucks under the avatar. -->
-          <div class="flex gap-2.5">
+          <!-- Avatar + name is the card's header row; the insights run the card's full width under it,
+               flush left (operator 2026-10-08: "we don't need indentation"). Kept in the name's column
+               they started a full avatar-width in, which on a phone cost every line ~35px. -->
+          <div class="flex items-center gap-2.5">
             <ProfileAvatar
               :name="p.person_name"
               :src="p.image_url"
               :size="24"
-              class="mt-0.5 shrink-0"
+              class="shrink-0"
             />
             <div class="min-w-0 flex-1">
               <!-- Name + count share ONE baseline. -->
@@ -213,48 +213,48 @@ function toggle(personId: string): void {
                   t("ec.perspectiveInsights", p.insight_count, { named: { count: p.insight_count } })
                 }}</span>
               </div>
-              <ul class="mt-1 flex flex-col gap-1">
-                <li
-                  v-for="ins in expanded.has(p.person_id) ? p.insights : p.insights.slice(0, PREVIEW)"
-                  :key="ins.id"
-                  class="flex items-baseline gap-1.5 text-sm text-canvas-foreground"
-                >
-                  <span aria-hidden="true" class="text-muted">•</span>
-                  <!-- #2032: topic → insight → episode-moment. Grounded insights carry their source
-                       episode + the supporting quote's start, so the take jumps into the player AT
-                       the moment. Ungrounded/quote-less insights render with no ▶ (stays honest).
-                       INLINE at the end of the text (operator 2026-10-07): as its own column beside
-                       the text it took a third of a phone row and stacked every insight into a
-                       word-wide strip. -->
-                  <span class="min-w-0 flex-1">{{ ins.text }}<template v-if="ins.episode_slug && ins.start_ms != null">&#32;</template><PlayFrom
-                    v-if="ins.episode_slug && ins.start_ms != null"
-                    :seconds="ins.start_ms / 1000"
-                    :to="{
-                      name: 'player',
-                      params: { slug: ins.episode_slug },
-                      query: { t: String(Math.floor(ins.start_ms / 1000)) },
-                    }"
-                    data-testid="perspective-jump"
-                    :aria-label="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
-                    :title="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
-                    class="ml-1"
-                  /></span>
-                </li>
-              </ul>
-              <button
-                v-if="p.insights.length > PREVIEW"
-                type="button"
-                class="mt-1 text-xs font-semibold text-accent hover:underline"
-                @click="toggle(p.person_id)"
-              >
-                {{
-                  expanded.has(p.person_id)
-                    ? t("ec.perspectiveLess")
-                    : t("ec.perspectiveMore", { count: p.insights.length - PREVIEW })
-                }}
-              </button>
             </div>
           </div>
+          <ul class="mt-1.5 flex flex-col gap-1">
+            <li
+              v-for="ins in expanded.has(p.person_id) ? p.insights : p.insights.slice(0, PREVIEW)"
+              :key="ins.id"
+              class="flex items-baseline gap-1.5 text-sm text-canvas-foreground"
+            >
+              <span aria-hidden="true" class="text-muted">•</span>
+              <!-- #2032: topic → insight → episode-moment. Grounded insights carry their source
+                   episode + the supporting quote's start, so the take jumps into the player AT
+                   the moment. Ungrounded/quote-less insights render with no ▶ (stays honest).
+                   INLINE at the end of the text (operator 2026-10-07): as its own column beside
+                   the text it took a third of a phone row and stacked every insight into a
+                   word-wide strip. -->
+              <span class="min-w-0 flex-1">{{ ins.text }}<template v-if="ins.episode_slug && ins.start_ms != null">&#32;</template><PlayFrom
+                v-if="ins.episode_slug && ins.start_ms != null"
+                :seconds="ins.start_ms / 1000"
+                :to="{
+                  name: 'player',
+                  params: { slug: ins.episode_slug },
+                  query: { t: String(Math.floor(ins.start_ms / 1000)) },
+                }"
+                data-testid="perspective-jump"
+                :aria-label="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
+                :title="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
+                class="ml-1"
+              /></span>
+            </li>
+          </ul>
+          <button
+            v-if="p.insights.length > PREVIEW"
+            type="button"
+            class="mt-1 text-xs font-semibold text-accent hover:underline"
+            @click="toggle(p.person_id)"
+          >
+            {{
+              expanded.has(p.person_id)
+                ? t("ec.perspectiveLess")
+                : t("ec.perspectiveMore", { count: p.insights.length - PREVIEW })
+            }}
+          </button>
         </li>
       </ul>
       <!-- One control for the whole section, under the list — a grouping's speaker count is the thing

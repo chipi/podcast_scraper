@@ -34,7 +34,9 @@ import { useI18n } from "vue-i18n"
 import EpisodeRow from "./EpisodeRow.vue"
 import type { EpisodeSummary } from "../services/types"
 
-const PAGE = 10
+// Five, then five more per press (operator 2026-10-08: every entity episode list, topic / person /
+// org / storyline / theme). Ten filled a phone screen before the next section could be seen.
+const PAGE = 5
 
 const props = defineProps<{ episodes: EpisodeSummary[] }>()
 

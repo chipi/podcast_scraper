@@ -90,3 +90,24 @@ test('Settings brings the getting-started guide back, from step 1, after "Not no
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByTestId('interests-welcome')).toHaveAttribute('data-step', '1')
 })
+
+test('saving interests from the guided start leaves Home at the top', async ({ page }, testInfo) => {
+  // Operator 2026-10-08, on the phone: after choosing interests and saving, Home came back scrolled
+  // down. The guide moves on to step 2 at the top of Home, so the listener must land there.
+  await signInIsolated(page, `guided-scroll-${Date.now()}`, testInfo)
+  await page.goto('/')
+  await page.getByTestId('interests-choose').click()
+  await page.getByTestId('interest-add-topic').click()
+  const suggestions = page.getByTestId('interest-add-panel-topic').getByTestId('interest-suggestion')
+  for (let i = 0; i < 3; i++) {
+    await suggestions.first().click()
+  }
+  // On iOS, lifting the search box above the keyboard (and the keyboard itself) also scrolls the
+  // PAGE behind the sheet. Chrome has no on-screen keyboard, so do what iOS does to the page.
+  await page.evaluate(() => window.scrollTo(0, 600))
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+  await page.getByTestId('interests-save').click()
+  await expect(page.getByTestId('interests-welcome')).toHaveAttribute('data-step', '2')
+  await page.waitForTimeout(1500) // let What's new / Recommended finish re-rendering
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+})

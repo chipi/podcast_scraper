@@ -56,6 +56,12 @@ describe('EpisodeGroupCard', () => {
     expect(card({ itemCount: 0 }).find('[data-testid="episode-group-toggle"]').exists()).toBe(false)
   })
 
+  it('the chevron sits on the bottom row beside the count it folds (operator 2026-10-08)', () => {
+    const w = card()
+    const meta = w.get('[data-testid="episode-group-meta"]')
+    expect(meta.element.parentElement?.contains(w.get('[data-testid="episode-group-toggle"]').element)).toBe(true)
+  })
+
   it('the ⋯ and the chevron are siblings of the link, not inside it', () => {
     const link = card().get('[data-testid="episode-group-link"]')
     expect(link.findAll('button')).toHaveLength(0)

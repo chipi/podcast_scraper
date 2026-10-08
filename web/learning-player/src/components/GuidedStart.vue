@@ -48,11 +48,20 @@ const skippedShows = ref(false)
 const interestCount = computed(() => interests.ids.length)
 const showCount = computed(() => library.feedIds.length)
 
+/**
+ * Step 2 stays until "Next" or "Skip step" (operator 2026-10-08): following the first show used to
+ * jump straight to the last step, so nobody could follow a second. Once the listener has
+ * seen step 2 it is theirs to leave.
+ */
+const seenShowsStep = ref(false)
 const step = computed<1 | 2 | 3>(() => {
   if ((props.restart || interestCount.value < MIN_INTERESTS) && !skippedInterests.value) return 1
-  if ((props.restart || showCount.value < MIN_SHOWS) && !skippedShows.value) return 2
+  if ((props.restart || seenShowsStep.value || showCount.value < MIN_SHOWS) && !skippedShows.value) return 2
   return 3
 })
+watch(step, (s) => {
+  if (s === 2) seenShowsStep.value = true
+}, { immediate: true })
 /** "Next" once the step's minimum is met (a restarted run), else "Skip step". */
 const passLabel = computed(() => {
   const met = step.value === 1 ? interestCount.value >= MIN_INTERESTS : showCount.value >= MIN_SHOWS
@@ -148,7 +157,7 @@ watch(
       </CardRail>
       <div class="mt-4 flex flex-nowrap items-center gap-1">
         <RouterLink
-          :to="{ name: 'browse', query: { tab: 'shows' } }"
+          :to="{ name: 'browse', query: { tab: 'shows' }, hash: '#catalog' }"
           class="inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full border border-border px-4 text-sm font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
           data-testid="interests-follow-shows"
         >
@@ -176,6 +185,14 @@ watch(
           })
         }}
       </p>
+      <!-- What to expect, not "show my Home": the listener is ON Home (operator 2026-10-08). The
+           button only confirms the guide is done; Home's sections reload behind it. -->
+      <ul class="mt-3 max-w-prose list-disc space-y-1 pl-5 text-sm leading-relaxed text-canvas-foreground" data-testid="guided-explain">
+        <li>{{ t("guided.doneRecommended") }}</li>
+        <li>{{ t("guided.doneWhatsNew") }}</li>
+        <li>{{ t("guided.doneYourWeek") }}</li>
+      </ul>
+      <p class="mt-3 max-w-prose text-sm leading-relaxed text-muted">{{ t("guided.doneMore") }}</p>
       <div class="mt-4">
         <button
           type="button"

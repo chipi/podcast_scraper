@@ -125,6 +125,7 @@ watch(
     if (TAB_KEYS.some((tb) => tb.key === q)) tab.value = q as Tab
   }
 )
+
 </script>
 
 <template>
@@ -163,7 +164,10 @@ watch(
     <!-- Content band below the dashboard: the things you actually play. Two tabs spread equally
          across the row (operator 2026-09-14) rather than sitting cramped on the left. `scroll-mt`
          leaves a little breathing room when "See all" scrolls this into view. -->
-    <div ref="bandEl" class="scroll-mt-4">
+    <!-- `#catalog` is the anchor links into the band use (operator 2026-10-08: Home's "Browse all"
+         landed at the top of Discover, two screens above the list). A hash lets the router wait for
+         the band, land on it and hold it while the rails above load; a query alone scrolls to top. -->
+    <div id="catalog" ref="bandEl" class="scroll-mt-4">
       <!-- A section heading over the Episodes · Shows tabs, parallel to "Trends" above (operator
            2026-09-14). -->
       <h2 class="lp-section mb-3 mt-8">{{ t('browse.catalogTitle') }}</h2>

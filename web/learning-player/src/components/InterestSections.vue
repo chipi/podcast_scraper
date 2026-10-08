@@ -39,8 +39,9 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const KINDS: InterestKind[] = ["topic", "person", "theme", "storyline"]
-/** How many suggestions a section shows once followed ones are taken out. */
-const SHOWN = 8
+/** At most this many suggestions per section once followed ones are taken out (operator
+ *  2026-10-08: five at most, fewer is fine). */
+const SHOWN = 5
 /** Shorter queries match most of the corpus, which is a list, not an answer. */
 const MIN_QUERY = 2
 

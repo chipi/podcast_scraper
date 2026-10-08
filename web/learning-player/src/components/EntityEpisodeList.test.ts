@@ -61,20 +61,20 @@ const rows = (w: ReturnType<typeof mountList>) => w.findAll('[data-testid="episo
 const more = (w: ReturnType<typeof mountList>) => w.find('[data-testid="entity-episodes-more"]')
 
 describe("EntityEpisodeList", () => {
-  it("shows ten rows and offers the rest, rather than rendering the whole list", async () => {
+  it("shows five rows and offers the rest, rather than rendering the whole list", async () => {
     const w = mountList(25)
-    expect(rows(w)).toHaveLength(10)
+    expect(rows(w)).toHaveLength(5)
     expect(more(w).exists()).toBe(true)
   })
 
-  it("reveals ten more per press, then stops offering", async () => {
-    const w = mountList(25)
+  it("reveals five more per press, then stops offering", async () => {
+    const w = mountList(13)
 
     await more(w).trigger("click")
-    expect(rows(w)).toHaveLength(20)
+    expect(rows(w)).toHaveLength(10)
 
     await more(w).trigger("click")
-    expect(rows(w)).toHaveLength(25)
+    expect(rows(w)).toHaveLength(13)
     // Everything is out — the control must go, not sit there doing nothing. That is the exact
     // shape of the bug this whole round started from.
     expect(more(w).exists()).toBe(false)
@@ -84,23 +84,23 @@ describe("EntityEpisodeList", () => {
     // Recommended shipped saying "Show 8 more" and then revealing four — a control describing
     // someone else's behaviour. The page size, not the remainder, is the honest number.
     const w = mountList(25)
-    expect(more(w).text()).toContain("10")
+    expect(more(w).text()).toContain("5")
 
-    // The DISCRIMINATING case: 15 items, so 5 are hidden — fewer than a page. Above, "what
-    // remains" and "what this press reveals" are both 10, so that assertion cannot tell the two
-    // readings apart, and the regression being guarded ("Show 8 more" revealing four) lives
-    // exactly in the gap between them. Read the LABEL, and read it while the control still exists.
-    const w2 = mountList(15)
-    expect(more(w2).text(), "the label should promise the 5 it can actually reveal").toContain("5")
+    // The DISCRIMINATING case: 8 items, so 3 are hidden — fewer than a page. Above, "what
+    // remains" (20) and "what this press reveals" (5) differ only in that one number, and the
+    // regression being guarded ("Show 8 more" revealing four) lives exactly in the gap between
+    // them. Read the LABEL, and read it while the control still exists.
+    const w2 = mountList(8)
+    expect(more(w2).text(), "the label should promise the 3 it can actually reveal").toContain("3")
 
     await more(w2).trigger("click")
-    expect(rows(w2)).toHaveLength(15)
+    expect(rows(w2)).toHaveLength(8)
     expect(more(w2).exists(), "nothing left to reveal").toBe(false)
   })
 
   it("offers nothing when the list already fits", () => {
-    const w = mountList(10)
-    expect(rows(w)).toHaveLength(10)
+    const w = mountList(5)
+    expect(rows(w)).toHaveLength(5)
     expect(more(w).exists()).toBe(false)
   })
 
@@ -113,20 +113,20 @@ describe("EntityEpisodeList", () => {
   it("re-collapses when it is handed a DIFFERENT entity's episodes", async () => {
     // These surfaces drill in place: opening a sibling topic from a chip hands the SAME component
     // instance a different entity's list. Without the reset you land on the new topic already
-    // twenty rows deep, having never asked to expand it.
+    // ten rows deep, having never asked to expand it.
     const w = mountList(25)
     await more(w).trigger("click")
-    expect(rows(w)).toHaveLength(20)
+    expect(rows(w)).toHaveLength(10)
 
     await w.setProps({ episodes: Array.from({ length: 25 }, (_, i) => ep(100 + i)) })
-    expect(rows(w)).toHaveLength(10)
+    expect(rows(w)).toHaveLength(5)
     expect(rows(w)[0].text()).toContain("Episode 100")
   })
 
   it("says nothing on mount, then announces only what a press revealed", async () => {
     // Two failure modes, and the first fix traded one for the other. Without any live region a
     // screen-reader user presses "show more" and hears nothing — indistinguishable from a dead
-    // button. But wrapping the LIST in the live region announces all ten initial episodes at
+    // button. But wrapping the LIST in the live region announces all five initial episodes at
     // mount, before the user has done anything, which is worse than the silence it replaced.
     const w = mountList(25)
     const status = w.find('[aria-live="polite"]')
@@ -138,7 +138,7 @@ describe("EntityEpisodeList", () => {
     expect(w.find("ul").attributes("aria-live")).toBeUndefined()
 
     await more(w).trigger("click")
-    expect(status.text()).toContain("10")
+    expect(status.text()).toContain("5")
   })
 
   it("stops announcing the previous entity when it is handed a new one", async () => {
@@ -147,7 +147,7 @@ describe("EntityEpisodeList", () => {
     expect(w.find('[aria-live="polite"]').text()).not.toBe("")
 
     await w.setProps({ episodes: Array.from({ length: 25 }, (_, i) => ep(100 + i)) })
-    // A stale "10 more episodes shown" hanging over a list that just collapsed is a lie.
+    // A stale "5 more episodes shown" hanging over a list that just collapsed is a lie.
     expect(w.find('[aria-live="polite"]').text()).toBe("")
   })
 })

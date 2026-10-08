@@ -473,6 +473,24 @@ describe('HomeView interests card (3.5)', () => {
     expect(rail.text()).toContain('Active Show')
   })
 
+  it('step 2 waits for "Next": following one show does not end it (operator 2026-10-08)', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['tc:ai', 'tc:science', 'topic:risk'] as never)
+    vi.spyOn(api, 'getSuggestedShows').mockResolvedValue([])
+    signIn()
+    void useUserPreferencesStore().set(GUIDED_START_PREF, 'active') // a run already under way
+    const w = mountKeptAlive()
+    await flushPromises()
+    const card = () => w.get('[data-testid="interests-welcome"]')
+    expect(card().attributes('data-step')).toBe('2')
+    useLibraryStore().items = [{ feed_id: 'f1' } as never]
+    await flushPromises()
+    // Still on step 2, so a second and third show can be followed; the way on is now "Next".
+    expect(card().attributes('data-step')).toBe('2')
+    expect(card().get('[data-testid="guided-skip"]').text()).toBe('Next')
+    await card().get('[data-testid="guided-skip"]').trigger('click')
+    expect(card().attributes('data-step')).toBe('3')
+  })
+
   it('restarted from Settings, the guide walks every step even when the minimums are met', async () => {
     vi.spyOn(api, 'getUserInterests').mockResolvedValue(['tc:ai', 'tc:science', 'topic:risk'] as never)
     vi.spyOn(api, 'getSuggestedShows').mockResolvedValue([])
