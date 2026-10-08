@@ -15,13 +15,11 @@ import BriefingCard from './BriefingCard.vue'
 import CoverageByMonthChart from './CoverageByMonthChart.vue'
 import FeedCoverageTable from './FeedCoverageTable.vue'
 import DashboardTopicPerspectives from './DashboardTopicPerspectives.vue'
-import DashboardTrendingTopics from './DashboardTrendingTopics.vue'
 import IndexStatusCard from './IndexStatusCard.vue'
 import CostRollupCard from './CostRollupCard.vue'
 import IntelligenceSnapshot from './IntelligenceSnapshot.vue'
 import TopicBriefingCards from './TopicBriefingCards.vue'
 import QueryActivityChart from './QueryActivityChart.vue'
-import TopicClustersStatusBlock from './TopicClustersStatusBlock.vue'
 import PipelineAdExcisionMetrics from './PipelineAdExcisionMetrics.vue'
 import PipelineCleanupMetrics from './PipelineCleanupMetrics.vue'
 import PipelineFeedHistoryGrid from './PipelineFeedHistoryGrid.vue'
@@ -30,9 +28,7 @@ import PipelineJobLogDialog from './PipelineJobLogDialog.vue'
 import PipelineJobsCard from './PipelineJobsCard.vue'
 import PipelineRunHistoryStrip from './PipelineRunHistoryStrip.vue'
 import PipelineStageChart from './PipelineStageChart.vue'
-import TopicLandscape from './TopicLandscape.vue'
 import TopVoices from './TopVoices.vue'
-import TrendingGlobal from './TrendingGlobal.vue'
 import VerticalBarChart from './VerticalBarChart.vue'
 
 const emit = defineEmits<{
@@ -397,10 +393,6 @@ function openLibraryFailures(): void {
         @open-digest="emit('open-digest')"
       />
 
-      <!-- Global momentum (RFC-103): what's hot corpus-wide across every kind, with per-kind
-           sparklines. Backed by GET /api/corpus/trending. -->
-      <TrendingGlobal />
-
       <!-- Topic intelligence — the topic-related widgets grouped together (#1), laid out on a
            standard 4-col grid with per-widget spans (#2): wide/tall cards span 2 cols, compact
            cards 1. Each widget is a self-contained card; the grid cell sizes it. -->
@@ -412,16 +404,8 @@ function openLibraryFailures(): void {
           Topics
         </h3>
         <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div class="xl:col-span-2"><DashboardTrendingTopics /></div>
           <div class="xl:col-span-2"><DashboardTopicPerspectives /></div>
-          <div class="xl:col-span-2">
-            <TopicLandscape @go-graph="(id, fb) => emit('go-graph', id, fb)" />
-          </div>
-          <div class="xl:col-span-2">
-            <TopicLandscape source="themes" @go-graph="(id, fb) => emit('go-graph', id, fb)" />
-          </div>
           <div class="xl:col-span-2"><TopicBriefingCards :digest="digestIntel" /></div>
-          <div class="xl:col-span-2"><TopicClustersStatusBlock /></div>
         </div>
       </section>
 

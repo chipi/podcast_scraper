@@ -19,30 +19,18 @@
  */
 
 import type { Core, EdgeSingular, NodeSingular } from 'cytoscape'
-import { trendDirection } from './trend'
 
 /** ---------------------------------------------------------------- */
 /** Class names + edge type tags — kept in constants so the           */
 /** stylesheet + the apply functions share one source of truth.       */
 /** ---------------------------------------------------------------- */
-export const VELOCITY_CLASSES = ['velocity-up', 'velocity-down', 'velocity-steady'] as const
 export const CREDIBILITY_CLASSES = ['credibility-high', 'credibility-med', 'credibility-low'] as const
-export const CONSENSUS_EDGE_CLASS = 'lens-consensus-edge'
 export const COGUEST_EDGE_CLASS = 'lens-coguest-edge'
-export const CONSENSUS_EDGE_TYPE = '_lens_consensus'
 export const COGUEST_EDGE_TYPE = '_lens_coguest'
 
 /** ---------------------------------------------------------------- */
 /** Envelope shapes — narrow subsets so callers can type payloads.   */
 /** ---------------------------------------------------------------- */
-
-export interface VelocityTopicRow {
-  topic_id?: string
-  velocity_last_over_6mo?: number
-}
-export interface VelocityEnvelopeData {
-  topics?: VelocityTopicRow[]
-}
 
 export interface GroundingPersonRow {
   person_id?: string
@@ -67,15 +55,6 @@ export interface CoGuestEnvelopeData {
   pairs?: CoGuestPairRow[]
   /* graph-v3 tier 7-4 — enricher v1.1.0+ optional field. */
   communities?: CoGuestCommunityRow[]
-}
-
-export interface ConsensusRow {
-  topic_id?: string
-  person_a_id?: string
-  person_b_id?: string
-}
-export interface ConsensusEnvelopeData {
-  consensus?: ConsensusRow[]
 }
 
 /** ---------------------------------------------------------------- */
@@ -114,38 +93,6 @@ function findNodeByBareId(core: Core, bareId: string): NodeSingular | null {
 }
 
 /** ---------------------------------------------------------------- */
-/** Tier 5C-1 — Velocity halo (temporal_velocity enricher).          */
-/** ---------------------------------------------------------------- */
-
-export function applyVelocityHalo(
-  core: Core,
-  envelope: VelocityEnvelopeData | null | undefined,
-): void {
-  clearVelocityHalo(core)
-  if (!envelope?.topics?.length) return
-  core.batch(() => {
-    for (const row of envelope.topics ?? []) {
-      const tid = typeof row?.topic_id === 'string' ? row.topic_id.trim() : ''
-      if (!tid) continue
-      const v = typeof row?.velocity_last_over_6mo === 'number' ? row.velocity_last_over_6mo : NaN
-      if (!Number.isFinite(v)) continue
-      const node = findNodeByBareId(core, tid)
-      if (!node || node.empty()) continue
-      const dir = trendDirection(v)
-      const cls =
-        dir === 'up' ? 'velocity-up' : dir === 'down' ? 'velocity-down' : 'velocity-steady'
-      node.addClass(cls)
-    }
-  })
-}
-
-export function clearVelocityHalo(core: Core): void {
-  core.batch(() => {
-    for (const c of VELOCITY_CLASSES) core.nodes().removeClass(c)
-  })
-}
-
-/** ---------------------------------------------------------------- */
 /** Tier 5C-2 — Person credibility border (grounding_rate enricher). */
 /** ---------------------------------------------------------------- */
 
@@ -180,70 +127,6 @@ export function applyCredibilityBorder(
 export function clearCredibilityBorder(core: Core): void {
   core.batch(() => {
     for (const c of CREDIBILITY_CLASSES) core.nodes().removeClass(c)
-  })
-}
-
-/** ---------------------------------------------------------------- */
-/** Tier 5D-1 — Consensus edges (topic_consensus enricher).          */
-/** Adds a virtual Person↔Person edge per consensus row. Deduped by  */
-/** unordered pair + topic so a pair agreeing on the same topic in   */
-/** multiple insights only paints one edge.                           */
-/** ---------------------------------------------------------------- */
-
-export function applyConsensusEdges(
-  core: Core,
-  envelope: ConsensusEnvelopeData | null | undefined,
-): void {
-  clearConsensusEdges(core)
-  if (!envelope?.consensus?.length) return
-  const seen = new Set<string>()
-  const toAdd: Array<{ id: string; source: string; target: string; topic: string }> = []
-  for (const row of envelope.consensus ?? []) {
-    const aRaw = typeof row?.person_a_id === 'string' ? row.person_a_id.trim() : ''
-    const bRaw = typeof row?.person_b_id === 'string' ? row.person_b_id.trim() : ''
-    const topic = typeof row?.topic_id === 'string' ? row.topic_id.trim() : ''
-    if (!aRaw || !bRaw || !topic) continue
-    const aNode = findNodeByBareId(core, aRaw)
-    const bNode = findNodeByBareId(core, bRaw)
-    if (!aNode || aNode.empty() || !bNode || bNode.empty()) continue
-    const aId = aNode.id()
-    const bId = bNode.id()
-    if (aId === bId) continue
-    const [lo, hi] = aId < bId ? [aId, bId] : [bId, aId]
-    const dedupeKey = `${lo}|${hi}|${topic}`
-    if (seen.has(dedupeKey)) continue
-    seen.add(dedupeKey)
-    toAdd.push({
-      id: `${CONSENSUS_EDGE_TYPE}::${lo}::${hi}::${topic}`,
-      source: lo,
-      target: hi,
-      topic,
-    })
-  }
-  core.batch(() => {
-    for (const e of toAdd) {
-      core.add({
-        group: 'edges',
-        data: {
-          id: e.id,
-          source: e.source,
-          target: e.target,
-          edgeType: CONSENSUS_EDGE_TYPE,
-          topic: e.topic,
-        },
-        classes: CONSENSUS_EDGE_CLASS,
-      })
-    }
-  })
-}
-
-export function clearConsensusEdges(core: Core): void {
-  core.batch(() => {
-    core
-      .edges(`.${CONSENSUS_EDGE_CLASS}`)
-      .forEach((e: EdgeSingular) => {
-        core.remove(e)
-      })
   })
 }
 

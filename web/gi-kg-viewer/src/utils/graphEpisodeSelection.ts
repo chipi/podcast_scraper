@@ -1,7 +1,6 @@
 /**
  * Graph initial load: filter artifact list rows by graph time lens, score episodes, then cap.
  */
-import type { TopicClustersDocument } from '../api/corpusTopicClustersApi'
 import { formatLocalYmd } from './localCalendarDate'
 import type { ParsedArtifact } from '../types/artifact'
 
@@ -31,8 +30,6 @@ export const GRAPH_DEFAULT_EPISODE_CAP = 22
 export const GRAPH_SCORE_RECENCY_MIN = 0.2
 /** Tunable: recency component for the newest episode in the active decay window. */
 export const GRAPH_SCORE_RECENCY_MAX = 1.0
-/** Tunable: additive score when the episode appears in ≥1 topic cluster (cross-episode connectivity). */
-export const GRAPH_SCORE_TOPIC_CLUSTER_BONUS = 0.4
 /**
  * Tunable: for **all time** graph lens, recency decays linearly over this many calendar days
  * ending at the newest corpus publish date; older episodes receive {@link GRAPH_SCORE_RECENCY_MIN}.
@@ -77,64 +74,6 @@ function publishDayMs(ymd: string): number {
     return NaN
   }
   return Date.parse(`${t}T12:00:00`)
-}
-
-/**
- * Every ``episode_id`` listed on a topic-cluster member (``topic_clusters.json``), for graph-load scoring.
- */
-export function episodeIdsInTopicClustersForGraphScoring(
-  doc: TopicClustersDocument | null | undefined,
-): Set<string> {
-  const out = new Set<string>()
-  const clusters = doc?.clusters
-  if (!Array.isArray(clusters)) {
-    return out
-  }
-  for (const cl of clusters) {
-    const members = cl?.members
-    if (!Array.isArray(members)) {
-      continue
-    }
-    for (const m of members) {
-      const eps = m?.episode_ids
-      if (!Array.isArray(eps)) {
-        continue
-      }
-      for (const e of eps) {
-        const id = typeof e === 'string' ? e.trim() : ''
-        if (id) {
-          out.add(id)
-        }
-      }
-    }
-  }
-  return out
-}
-
-/**
- * Whether ``stem`` (GI/KG/bridge path stem) likely matches a cluster ``episode_id``.
- * Conservative: full stem, ``…/id`` suffix, or basename equals id (covers common corpus layouts).
- */
-export function stemMatchesTopicClusterEpisodeId(stem: string, clusterEpisodeIds: Set<string>): boolean {
-  const n = stem.replace(/\\/g, '/').trim()
-  if (!n || clusterEpisodeIds.size === 0) {
-    return false
-  }
-  for (const raw of clusterEpisodeIds) {
-    const e = raw.trim()
-    if (!e) {
-      continue
-    }
-    if (n === e || n.endsWith(`/${e}`)) {
-      return true
-    }
-    const slash = n.lastIndexOf('/')
-    const base = slash >= 0 ? n.slice(slash + 1) : n
-    if (base === e) {
-      return true
-    }
-  }
-  return false
 }
 
 function recencyWeightLinear(
@@ -182,20 +121,18 @@ type StemBlock = { publishYmd: string; paths: Set<string>; publishMs: number }
  * window from the newest publish date). Non-empty = publish_date >= since (local YYYY-MM-DD).
  * Returns relative paths for GI, KG, and bridge rows belonging to selected episode stems.
  *
- * Selection: ``score = recency_weight + cluster_bonus`` (see UXS-001 tunables). Tie-break: newer publish,
+ * Selection: ``score = recency_weight`` (see UXS-001 tunables). Tie-break: newer publish,
  * then stem id ascending.
  */
 export function selectRelPathsForGraphLoad(
   artifactRows: ArtifactListRowForGraph[],
   sinceYmd: string,
   cap: number,
-  topicClustersDoc?: TopicClustersDocument | null,
 ): { selectedRelPaths: string[]; wasCapped: boolean; episodeCount: number } {
   const capN = Math.max(1, cap)
   const since = sinceYmd.trim()
   const datedWindow = since.length > 0
   const lensMode: 'dated' | 'all_time' = datedWindow ? 'dated' : 'all_time'
-  const clusterIds = episodeIdsInTopicClustersForGraphScoring(topicClustersDoc ?? null)
 
   const byStem = new Map<string, StemBlock>()
 
@@ -239,10 +176,7 @@ export function selectRelPathsForGraphLoad(
   type Scored = { stem: string; block: StemBlock; score: number }
   const scored: Scored[] = stems.map(([stem, block]) => {
     const rec = recencyWeightLinear(block.publishMs, poolMinMs, poolMaxMs, lensMode)
-    const bonus = stemMatchesTopicClusterEpisodeId(stem, clusterIds)
-      ? GRAPH_SCORE_TOPIC_CLUSTER_BONUS
-      : 0
-    return { stem, block, score: rec + bonus }
+    return { stem, block, score: rec }
   })
 
   scored.sort((a, b) => {
@@ -308,19 +242,17 @@ type LocalStemBlock = { publishYmd: string; arts: ParsedArtifact[]; maxMtime: nu
 
 /**
  * After parsing local files, cap by graph lens (``sinceYmd`` empty = all) and ``cap`` episodes.
- * Uses the same scoring as {@link selectRelPathsForGraphLoad} when ``topicClustersDoc`` is provided.
+ * Uses the same scoring as {@link selectRelPathsForGraphLoad}.
  */
 export function selectParsedArtifactsForGraphLoad(
   candidates: LocalArtifactCandidate[],
   sinceYmd: string,
   cap: number,
-  topicClustersDoc?: TopicClustersDocument | null,
 ): { kept: ParsedArtifact[]; wasCapped: boolean; episodeCount: number } {
   const capN = Math.max(1, cap)
   const since = sinceYmd.trim()
   const datedWindow = since.length > 0
   const lensMode: 'dated' | 'all_time' = datedWindow ? 'dated' : 'all_time'
-  const clusterIds = episodeIdsInTopicClustersForGraphScoring(topicClustersDoc ?? null)
 
   const byStem = new Map<string, LocalStemBlock>()
 
@@ -368,8 +300,7 @@ export function selectParsedArtifactsForGraphLoad(
   type Scored = { stem: string; block: LocalStemBlock; score: number }
   const scored: Scored[] = stems.map(([stem, block]) => {
     const rec = recencyWeightLinear(block.publishMs, poolMinMs, poolMaxMs, lensMode)
-    const bonus = stemMatchesTopicClusterEpisodeId(stem, clusterIds) ? GRAPH_SCORE_TOPIC_CLUSTER_BONUS : 0
-    return { stem, block, score: rec + bonus }
+    return { stem, block, score: rec }
   })
 
   scored.sort((a, b) => {

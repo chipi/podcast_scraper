@@ -18,7 +18,6 @@ function noopDeps(overrides: Partial<PaletteCommandDeps> = {}): PaletteCommandDe
     openConfiguration: vi.fn(),
     openHealth: vi.fn(),
     rebuildIndex: vi.fn(),
-    runOperatorOnLastQuery: vi.fn(),
     openTimelineForLastQuery: vi.fn(),
     openCompareForLastQuery: vi.fn(),
     isAdmin: false,
@@ -120,11 +119,9 @@ describe('buildPaletteCommands', () => {
     await byId.get('admin.rebuild-index')!.run()
     expect(deps.rebuildIndex).toHaveBeenCalled()
 
-    await byId.get('operator.cluster-last')!.run()
-    expect(deps.runOperatorOnLastQuery).toHaveBeenCalledWith('cluster')
-
-    await byId.get('operator.consensus-last')!.run()
-    expect(deps.runOperatorOnLastQuery).toHaveBeenCalledWith('consensus')
+    // The private Cluster / Consensus operators have no command here (ADR-158).
+    expect(byId.has('operator.cluster-last')).toBe(false)
+    expect(byId.has('operator.consensus-last')).toBe(false)
 
     await byId.get('operator.timeline-last')!.run()
     expect(deps.openTimelineForLastQuery).toHaveBeenCalled()

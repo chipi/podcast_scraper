@@ -42,16 +42,14 @@ const emit = defineEmits<{
 /**
  * Operator bar mode; ``null`` when no operator is active (results render
  * plain). ``'timeline'`` shows the histogram inline; ``'graph'`` fires the
- * ``focus-set`` emit (App handles the tab switch + camera fit). Cluster /
- * consensus land in S4b.
+ * ``focus-set`` emit (App handles the tab switch + camera fit); ``'compare'``
+ * opens the Compare picker.
  */
 // #1259-4 followup: the active operator lives on the search store now
 // so external surfaces (Cmd-K palette operator kickers) can toggle the
 // panel without also clicking the chip. The v-model binding on
 // ``ResultSetOperatorBar`` writes back through this ref.
-const activeOperator = computed<
-  'cluster' | 'timeline' | 'graph' | 'consensus' | 'compare' | null
->({
+const activeOperator = computed<'timeline' | 'graph' | 'compare' | null>({
   get: () => search.activeOperator,
   set: (v) => {
     search.activeOperator = v
@@ -672,16 +670,10 @@ const advancedFeedCombinedTitle = computed(() =>
         <ResultSetOperatorBar
           v-model:active="activeOperator"
           :visible-hits="visibleResults"
-          :clusters="search.clusters"
-          :consensus-pairs="search.consensusPairs"
-          :operator-loading="search.operatorLoading"
-          :operator-error="search.operatorError"
           :compare-result="search.compareResult"
           :compare-loading="search.compareLoading"
           :compare-error="search.compareError"
           @focus-set="(ids: string[]) => emit('focus-set', ids)"
-          @run-cluster="() => void search.runOperator(shell.corpusPath, 'cluster')"
-          @run-consensus="() => void search.runOperator(shell.corpusPath, 'consensus')"
           @run-compare="(payload) => void search.runCompare(shell.corpusPath, payload.subjectA, payload.subjectB, { insightTypes: payload.insightTypes })"
           @clear-compare="() => search.clearCompare()"
         />

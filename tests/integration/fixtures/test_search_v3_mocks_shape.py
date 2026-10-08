@@ -58,8 +58,6 @@ def test_fixture_file_exists_and_is_valid_json(fixture_doc: dict) -> None:
 SEARCH_SCENARIOS = [
     "compound-lift",
     "enriched-answer",
-    "operator-cluster",
-    "operator-consensus",
     "temporal-intent",
 ]
 
@@ -76,51 +74,6 @@ def test_get_search_scenario_validates_against_response_model(
     scenario = scenarios[scenario_key]
     response = scenario["response"]
     CorpusSearchApiResponse.model_validate(response)
-
-
-def test_operator_cluster_scenario_carries_hit_indices_matching_results(
-    fixture_doc: dict,
-) -> None:
-    """``clusters[].hit_indices`` must reference positions in ``results``
-    — the client indexes back into the returned hit page. Empty
-    ``results`` + non-empty ``clusters`` is a fixture bug (that's what
-    the schema_version 1 fixture had)."""
-    scenario = fixture_doc["scenarios"]["operator-cluster"]
-    response = scenario["response"]
-    results = response.get("results") or []
-    clusters = response.get("clusters") or []
-    assert results, "operator-cluster response must include the hit page"
-    assert clusters, "operator-cluster response must include clusters"
-    max_index = len(results) - 1
-    for cluster in clusters:
-        for idx in cluster.get("hit_indices") or []:
-            assert 0 <= idx <= max_index, (
-                f"cluster {cluster.get('cluster_id')!r} hit_index {idx} out of range "
-                f"for results (len={len(results)})"
-            )
-
-
-def test_operator_consensus_scenario_carries_flat_pair_schema(fixture_doc: dict) -> None:
-    """``consensus_pairs[]`` must carry the flat SearchConsensusPairModel
-    fields — schema_version 1 wrapped them under ``operator_result.pairs``
-    with different key names."""
-    scenario = fixture_doc["scenarios"]["operator-consensus"]
-    response = scenario["response"]
-    pairs = response.get("consensus_pairs") or []
-    assert pairs, "operator-consensus response must include consensus_pairs"
-    required_keys = {
-        "topic_id",
-        "person_a_id",
-        "person_b_id",
-        "insight_a_id",
-        "insight_b_id",
-        "insight_a_text",
-        "insight_b_text",
-        "contradiction_score",
-    }
-    for pair in pairs:
-        missing = required_keys - set(pair.keys())
-        assert not missing, f"consensus pair missing keys: {missing}"
 
 
 def test_enriched_answer_scenario_uses_per_hit_query_enrichments(fixture_doc: dict) -> None:

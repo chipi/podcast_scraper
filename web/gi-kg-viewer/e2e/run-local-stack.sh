@@ -153,4 +153,8 @@ case " $* " in
   *) WORKER_ARGS=(--workers=1) ;;
 esac
 
+# Run from the viewer so npx finds its own pinned Playwright and config. From anywhere else
+# (`make test-ui-e2e-live` runs at the repo root) npx fetched an unpinned Playwright and collected
+# every spec in the repo.
+cd "$VIEWER_ROOT"
 VITE_API_TARGET="http://127.0.0.1:$PORT" npx playwright test "${WORKER_ARGS[@]}" "$@"

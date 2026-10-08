@@ -126,17 +126,6 @@ test.describe('Show rail (UXS-015, live)', () => {
   test('with the Graph already open, show A then show B both land on the graph', async ({
     page,
   }) => {
-    /* The topic-cluster sibling merge (POST resolve-episode-artifacts, +10 episodes after every
-     * load) would otherwise put nearly the whole 40-episode corpus on the canvas after one show,
-     * leaving no second show to prove anything with (measured). It is a separate feature
-     * (`sibling-merge-cluster-mocks.spec.ts`); answering it with nothing isolates "Open in graph". */
-    await page.route('**/api/corpus/resolve-episode-artifacts', (r) =>
-      r.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ resolved: [], missing_episode_ids: [] }),
-      }),
-    )
     // Take the first-visit auto-load out of the picture (see the test above).
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })

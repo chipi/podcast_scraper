@@ -1,35 +1,11 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { fetchArtifactJson } from '../api/artifactsApi'
-import type { TopicClustersDocument, TopicClustersFetchResult } from '../api/corpusTopicClustersApi'
-import {
-  fetchStorylinesFromApi,
-  fetchTopicClustersFromApi,
-  postTopicClustersRebuild,
-} from '../api/corpusTopicClustersApi'
 import type { BridgeDocument } from '../types/bridge'
 import type { ArtifactData, ParsedArtifact } from '../types/artifact'
 import { parseBridgeDocument } from '../utils/bridgeDocument'
-import { findRawNodeInArtifact, parseArtifact } from '../utils/parsing'
-import { fetchResolveEpisodeArtifacts } from '../api/corpusLibraryApi'
+import { parseArtifact } from '../utils/parsing'
 import { buildDisplayArtifact } from '../utils/mergeGiKg'
-import {
-  allEpisodeIdsListedForCluster,
-  artifactRelPathsForResolvedRow,
-  clusterSiblingEpisodeCap,
-  clusterSiblingEpisodeIdCandidates,
-  episodeIdsFromParsedArtifacts,
-  sortResolvedArtifactsNewestFirst,
-} from '../utils/clusterSiblingMerge'
-import {
-  findClusterByCompoundId,
-  withStorylinesOnDisplay,
-  withTopicClustersOnDisplay,
-} from '../utils/topicClustersOverlay'
-import { buildTopDownSlice } from '../utils/topDownSlice'
-import { useGraphLoadModeStore } from './graphLoadMode'
-import { useGraphTopDownStore } from './graphTopDown'
-import { visualNodeTypeCounts } from '../utils/visualGroup'
 import { StaleGeneration } from '../utils/staleGeneration'
 import { useGraphExpansionStore } from './graphExpansion'
 import { useGraphExplorerStore } from './graphExplorer'
@@ -47,24 +23,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   const parsedList = ref<ParsedArtifact[]>([])
   /** bridge.json for the current corpus selection (optional). */
   const bridgeDocument = ref<BridgeDocument | null>(null)
-  /** ``topic_clusters.json`` from the API when present (API load only). */
-  const topicClustersDoc = ref<TopicClustersDocument | null>(null)
-  /** ``topic_theme_clusters.json`` (co-occurrence THEME clusters) — decorates Topic
-   *  nodes with a teal ring (--lp-theme), coexisting with the semantic compound
-   *  boxes. Best-effort; null when the corpus has no theme clusters. */
-  const storylinesDoc = ref<TopicClustersDocument | null>(null)
-  /**
-   * How the last load obtained topic clusters: API success, 404, error, local file picker (no API JSON),
-   * or idle (cleared / not yet loaded).
-   */
-  const topicClustersLoadState = ref<
-    'idle' | 'ok' | 'missing' | 'error' | 'local_files'
-  >('idle')
-  const topicClustersErrorDetail = ref<string | null>(null)
-  /** Soft schema warning (unknown ``schema_version``); non-blocking. */
-  const topicClustersSchemaWarning = ref<string | null>(null)
-  /** True while a server-side topic_clusters rebuild is in flight (drives the dashboard button). */
-  const topicClustersRebuilding = ref(false)
   const loadError = ref<string | null>(null)
   const loading = ref(false)
   const loadGate = new StaleGeneration()
@@ -73,13 +31,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
    * explicit ``loadRelativeArtifacts`` or local file picker owns ``selectedRelPaths``).
    */
   const manualGraphSelection = ref(false)
-  /** Inline status after cluster sibling auto-merge (graph tab); errors use ``siblingMergeError`` + banner. */
-  const siblingMergeLine = ref<string | null>(null)
-  /** True when ``siblingMergeLine`` is from a failed resolve/load (shown as a top alert). */
-  const siblingMergeError = ref(false)
-  let siblingMergeInFlight: Promise<void> | null = null
-  /** Tracks selected paths snapshot when auto-merge last ran; prevents re-running on tab switch. */
-  let lastAutoMergeSnapshotKey = ''
   /** 
    * Tracks the source of the last artifact load to determine if auto-merge should run.
    * 'digest-external' or 'subject-external' = user clicked from outside graph → NO auto-merge
@@ -106,151 +57,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   const giArts = computed(() => parsedList.value.filter((p) => p.kind === 'gi'))
   const kgArts = computed(() => parsedList.value.filter((p) => p.kind === 'kg'))
 
-  const displayArtifact = computed(() =>
-    withStorylinesOnDisplay(
-      withTopicClustersOnDisplay(
-        buildDisplayArtifact(giArts.value, kgArts.value),
-        topicClustersDoc.value,
-      ),
-      storylinesDoc.value,
-    ),
-  )
-
-  /* graph-v3 tier 8-1 — top-down synthetic slice. Derived from the theme
-   * clusters doc (super_theme_id rollup) + the full displayArtifact (for
-   * future bridge-derived cross-super-theme edges). Consumed by
-   * GraphCanvas only when `useGraphLoadModeStore().isTopDown`. Null when
-   * the theme doc hasn't loaded yet or has no super-themes. */
-  const topDown = useGraphTopDownStore()
-  const topDownDisplayArtifact = computed<ParsedArtifact | null>(() => {
-    const storylineDoc = storylinesDoc.value
-    if (!storylineDoc || !Array.isArray(storylineDoc.clusters) || storylineDoc.clusters.length === 0) {
-      return null
-    }
-    const data = buildTopDownSlice({
-      storylineDoc,
-      fullArtifact: displayArtifact.value?.data ?? null,
-      expandedSuperThemeIds: topDown.expandedSuperThemeIds,
-    })
-    /* ``ArtifactData.nodes/edges`` are typed as optional even though
-     * ``buildTopDownSlice`` always fills them — normalize once so
-     * downstream reads (visualNodeTypeCounts + the counts below) don't
-     * need their own ``?? []`` gymnastics. */
-    const nodes = data.nodes ?? []
-    const edges = data.edges ?? []
-    if (nodes.length === 0) return null
-    return {
-      name: 'top-down',
-      kind: 'both',
-      episodeId: null,
-      nodes: nodes.length,
-      edges: edges.length,
-      nodeTypes: visualNodeTypeCounts(nodes),
-      data,
-    }
-  })
-
-  // #769 — memoize the topic-clusters HTTP fetch per corpus root.
-  //
-  // ``ensureTopicClusterCompoundVisible`` calls ``syncTopicClustersForCurrentCorpus``
-  // at the top of every invocation, and on first-open graph paths the
-  // App.vue ``activateGraphTab`` orchestrator can invoke
-  // ``ensureTopicClusterCompoundVisible`` up to 3 times per click (bootstrap
-  // path + post-bootstrap call + watcher cascade). The HTTP fetch is
-  // identical each time. Memoizing it via this sentinel saves 100-400 ms
-  // per redundant call.
-  //
-  // Invalidation contract: ``topicClustersFetchedForRoot`` is set ONLY by
-  // ``applyTopicClustersFetchResult`` on a successful 'ok' result, and
-  // cleared at every site that nulls ``topicClustersDoc.value``. The
-  // sentinel + doc form the cache key; the memoize path is taken only
-  // when BOTH the root matches AND the doc is still populated.
-  let topicClustersFetchedForRoot: string | null = null
-
-  function applyTopicClustersFetchResult(tc: TopicClustersFetchResult, root: string): void {
-    if (tc.status === 'ok') {
-      topicClustersDoc.value = tc.document
-      topicClustersFetchedForRoot = root
-      topicClustersLoadState.value = 'ok'
-      topicClustersErrorDetail.value = null
-      topicClustersSchemaWarning.value = tc.schemaWarning ?? null
-    } else if (tc.status === 'missing') {
-      topicClustersDoc.value = null
-      topicClustersFetchedForRoot = null
-      topicClustersLoadState.value = 'missing'
-      topicClustersErrorDetail.value = null
-      topicClustersSchemaWarning.value = null
-    } else {
-      topicClustersDoc.value = null
-      topicClustersFetchedForRoot = null
-      topicClustersLoadState.value = 'error'
-      topicClustersErrorDetail.value = tc.message
-      topicClustersSchemaWarning.value = null
-    }
-  }
-
-  /**
-   * Fetch ``/api/corpus/topic-clusters`` for the current ``corpusPath`` (no artifact load required).
-   * Safe to call as soon as corpus root + healthy API are known so the Dashboard corpus workspace can show status.
-   *
-   * #769 memoized: if the most recent successful fetch was for the same
-   * root AND the doc is still populated, the HTTP call is skipped.
-   */
-  async function syncTopicClustersForCurrentCorpus(): Promise<void> {
-    const root = corpusPath.value.trim()
-    if (!root) {
-      return
-    }
-    if (topicClustersFetchedForRoot === root && topicClustersDoc.value !== null) {
-      return
-    }
-    try {
-      const tc = await fetchTopicClustersFromApi(root)
-      applyTopicClustersFetchResult(tc, root)
-    } catch (e) {
-      topicClustersDoc.value = null
-      topicClustersFetchedForRoot = null
-      topicClustersLoadState.value = 'error'
-      topicClustersErrorDetail.value = e instanceof Error ? e.message : String(e)
-      topicClustersSchemaWarning.value = null
-    }
-    // Theme clusters (co-occurrence) decorate Topic nodes with a teal ring —
-    // fully independent + best-effort, so a missing/errored fetch just means
-    // "no rings" and never disturbs the semantic topic-cluster state above.
-    try {
-      const th = await fetchStorylinesFromApi(root)
-      storylinesDoc.value = th.status === 'ok' ? th.document : null
-    } catch {
-      storylinesDoc.value = null
-    }
-  }
-
-  /**
-   * Trigger a server-side topic_clusters rebuild (operator surface), then poll the reader until
-   * the clusters appear so the dashboard card flips to "Loaded" with no CLI/SSH step (task-#14).
-   */
-  async function rebuildTopicClusters(): Promise<void> {
-    const root = corpusPath.value.trim()
-    if (!root || topicClustersRebuilding.value) return
-    topicClustersRebuilding.value = true
-    try {
-      await postTopicClustersRebuild(root)
-      // Poll the reader (build runs in a background thread server-side); force a real re-fetch
-      // each tick by clearing the #769 memo. Give up after ~30s — the card just stays as-is.
-      for (let i = 0; i < 20; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 1500))
-        topicClustersFetchedForRoot = null
-        topicClustersDoc.value = null
-        await syncTopicClustersForCurrentCorpus()
-        if (topicClustersLoadState.value === 'ok') break
-      }
-    } catch (e) {
-      topicClustersLoadState.value = 'error'
-      topicClustersErrorDetail.value = e instanceof Error ? e.message : String(e)
-    } finally {
-      topicClustersRebuilding.value = false
-    }
-  }
+  const displayArtifact = computed(() => buildDisplayArtifact(giArts.value, kgArts.value))
 
   /** Offline / no-backend: parse selected .gi.json / .kg.json files in the browser. */
   async function loadFromLocalFiles(files: FileList | null): Promise<void> {
@@ -259,12 +66,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     loadError.value = null
     parsedList.value = []
     bridgeDocument.value = null
-    topicClustersDoc.value = null
-    storylinesDoc.value = null
-    topicClustersFetchedForRoot = null
-    topicClustersLoadState.value = 'idle'
-    topicClustersErrorDetail.value = null
-    topicClustersSchemaWarning.value = null
     selectedRelPaths.value = []
     void import('./graphExpansion').then((m) => {
       m.useGraphExpansionStore().resetExpansionState()
@@ -343,11 +144,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       }
       parsedList.value = kept
       selectedRelPaths.value = kept.map((p) => p.name)
-      topicClustersDoc.value = null
-      topicClustersFetchedForRoot = null
-      topicClustersLoadState.value = 'local_files'
-      topicClustersErrorDetail.value = null
-      topicClustersSchemaWarning.value = null
     } catch (e) {
       if (loadGate.isStale(seq)) {
         return
@@ -379,10 +175,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
    */
   async function loadSelected(opts?: { preserveExpansion?: boolean }): Promise<void> {
     loadError.value = null
-    // Clear auto-merge snapshot only on full reloads (not expansion/append)
-    if (!opts?.preserveExpansion) {
-      lastAutoMergeSnapshotKey = ''
-    }
     // #586 fix: do NOT clear parsedList at the start. An intermediate
     // ``parsedList = []`` triggers the GraphCanvas ``filteredArtifact``
     // watcher → ``redraw()`` on an empty graph while the previous
@@ -485,12 +277,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         return
       }
 
-      /** Align topic-cluster catalog with the artifact slice before assigning ``parsedList``. */
-      await syncTopicClustersForCurrentCorpus()
-      if (loadGate.isStale(seq)) {
-        return
-      }
-
       parsedList.value = out
       // In-selection bridge WINS over sibling-bridge fallback. The
       // sibling fetch already fired in parallel; its result is only
@@ -517,15 +303,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   }
 
   function setCorpusPath(p: string): void {
-    const next = String(p)
-    // #769 — invalidate the topic-clusters cache whenever the corpus
-    // root changes. The sentinel is also reset by clearSelection /
-    // loadFromLocalFiles / fetch-error paths; this handles the direct
-    // ``setCorpusPath`` case (operator typed a new path).
-    if (next.trim() !== corpusPath.value.trim()) {
-      topicClustersFetchedForRoot = null
-    }
-    corpusPath.value = next
+    corpusPath.value = String(p)
   }
 
   function toggleSelection(rel: string): void {
@@ -542,11 +320,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     selectedRelPaths.value = []
     parsedList.value = []
     bridgeDocument.value = null
-    topicClustersDoc.value = null
-    topicClustersFetchedForRoot = null
-    topicClustersLoadState.value = 'idle'
-    topicClustersErrorDetail.value = null
-    topicClustersSchemaWarning.value = null
     loadError.value = null
     void import('./graphExpansion').then((m) => {
       m.useGraphExpansionStore().resetExpansionState()
@@ -616,235 +389,6 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   }
 
   /**
-   * After a successful graph artifact load: pull in sibling episodes from ``topic_clusters.json``
-   * (catalog-backed), newest first, up to cap. No-op off-graph or without topic clusters.
-   */
-  function clearSiblingMergeBanner(): void {
-    siblingMergeLine.value = null
-    siblingMergeError.value = false
-  }
-
-  async function maybeMergeClusterSiblingEpisodes(graphTabActive: boolean): Promise<void> {
-    siblingMergeLine.value = null
-    siblingMergeError.value = false
-    // Skip if last load was from external source (Digest/Library) - user wants focused view only
-    // Don't clear the flag here - let the caller clear it after all their operations complete
-    if (lastLoadSource.value === 'digest-external' || lastLoadSource.value === 'subject-external') {
-      return
-    }
-    if (!graphTabActive) {
-      return
-    }
-    /* graph-v3 tier 8-6 — in top-down mode with nothing expanded, the
-     * user is on the super-theme preview; auto-pulling sibling episodes
-     * just to append them to a preview they haven't drilled into is
-     * noise. Wait until they've expanded at least one super-theme. */
-    const loadMode = useGraphLoadModeStore()
-    const topDown = useGraphTopDownStore()
-    if (loadMode.isTopDown && !topDown.hasExpansions) {
-      return
-    }
-    const root = corpusPath.value.trim()
-    if (!root || !topicClustersDoc.value) {
-      return
-    }
-    const cap = clusterSiblingEpisodeCap()
-    if (cap === 0) {
-      return
-    }
-    // Don't auto-merge on tab switch if we already ran for this exact artifact set
-    const currentSnapshotKey = selectedRelPaths.value.slice().sort().join('|')
-    if (currentSnapshotKey === lastAutoMergeSnapshotKey) {
-      return
-    }
-    
-    if (siblingMergeInFlight) {
-      await siblingMergeInFlight
-      return
-    }
-
-    const loadedIds = episodeIdsFromParsedArtifacts(parsedList.value)
-    const { candidateIds, mTotal } = clusterSiblingEpisodeIdCandidates(
-      topicClustersDoc.value,
-      loadedIds,
-    )
-    if (candidateIds.length === 0) {
-      // No candidates found, update snapshot to current state
-      lastAutoMergeSnapshotKey = currentSnapshotKey
-      return
-    }
-
-    const run = async (): Promise<void> => {
-      try {
-        const res = await fetchResolveEpisodeArtifacts(root, candidateIds)
-        const sorted = sortResolvedArtifactsNewestFirst(res.resolved)
-        const selected = new Set(selectedRelPaths.value.map((p) => p.replace(/\\/g, '/')))
-        const pathsToAdd: string[] = []
-        let addedEpisodes = 0
-        for (const row of sorted) {
-          if (addedEpisodes >= cap) {
-            break
-          }
-          const rels = artifactRelPathsForResolvedRow(row)
-          if (rels.length === 0) {
-            continue
-          }
-          let anyNew = false
-          for (const rel of rels) {
-            const norm = rel.replace(/\\/g, '/')
-            if (!selected.has(norm)) {
-              anyNew = true
-              break
-            }
-          }
-          if (!anyNew) {
-            continue
-          }
-          for (const rel of rels) {
-            const norm = rel.replace(/\\/g, '/')
-            if (!selected.has(norm)) {
-              selected.add(norm)
-              pathsToAdd.push(rel)
-            }
-          }
-          addedEpisodes += 1
-        }
-        const z = res.missing_episode_ids.length
-        siblingMergeError.value = false
-        const miss = z > 0 ? ` · ${z} miss${z === 1 ? '' : 'es'}` : ''
-        siblingMergeLine.value =
-          `+${addedEpisodes} new · ${mTotal} in cluster · cap ${cap}${miss}`
-        if (pathsToAdd.length > 0) {
-          await appendRelativeArtifacts(pathsToAdd)
-          // Update snapshot AFTER successful append with the NEW state
-          lastAutoMergeSnapshotKey = selectedRelPaths.value.slice().sort().join('|')
-        } else {
-          // No paths added, keep current snapshot
-          lastAutoMergeSnapshotKey = currentSnapshotKey
-        }
-      } catch (e) {
-        siblingMergeError.value = true
-        siblingMergeLine.value = e instanceof Error ? e.message : String(e)
-      }
-    }
-
-    siblingMergeInFlight = run().finally(() => {
-      siblingMergeInFlight = null
-    })
-    await siblingMergeInFlight
-  }
-
-  /**
-   * Append GI/KG for ``topic_clusters.json`` member ``episode_ids`` until the TopicCluster
-   * compound exists in the merged + overlay graph — same catalog path as **Load** on a member
-   * row, without replacing the whole corpus selection.
-   */
-  async function ensureTopicClusterCompoundVisible(compoundParentId: string): Promise<boolean> {
-    const cid = compoundParentId.trim()
-    if (!cid) {
-      return true
-    }
-    const root = corpusPath.value.trim()
-    if (!root) {
-      return false
-    }
-    await syncTopicClustersForCurrentCorpus()
-    const doc = topicClustersDoc.value
-    const cluster = doc?.clusters?.length
-      ? findClusterByCompoundId(doc, cid)
-      : null
-    if (!cluster) {
-      return true
-    }
-
-    const mergedHasCompound = (): boolean => {
-      const da = displayArtifact.value
-      return Boolean(da && findRawNodeInArtifact(da, cid))
-    }
-    if (mergedHasCompound()) {
-      return true
-    }
-
-    const cap = clusterSiblingEpisodeCap()
-    let pool = allEpisodeIdsListedForCluster(cluster)
-    if (pool.length === 0) {
-      return false
-    }
-    let wave = 0
-    while (!mergedHasCompound() && pool.length > 0 && wave < 16) {
-      wave += 1
-      const loaded = episodeIdsFromParsedArtifacts(parsedList.value)
-      const candidateIds = pool.filter((e) => !loaded.has(e))
-      if (candidateIds.length === 0) {
-        break
-      }
-      const res = await fetchResolveEpisodeArtifacts(root, candidateIds)
-      const sorted = sortResolvedArtifactsNewestFirst(res.resolved)
-      const selected = new Set(selectedRelPaths.value.map((p) => p.replace(/\\/g, '/')))
-      const pathsToAdd: string[] = []
-      let addedEpisodes = 0
-      for (const row of sorted) {
-        if (addedEpisodes >= cap) {
-          break
-        }
-        const rels = artifactRelPathsForResolvedRow(row)
-        if (rels.length === 0) {
-          continue
-        }
-        let anyNew = false
-        for (const rel of rels) {
-          const norm = rel.replace(/\\/g, '/')
-          if (!selected.has(norm)) {
-            anyNew = true
-            break
-          }
-        }
-        if (!anyNew) {
-          continue
-        }
-        for (const rel of rels) {
-          const norm = rel.replace(/\\/g, '/')
-          if (!selected.has(norm)) {
-            selected.add(norm)
-            pathsToAdd.push(rel)
-          }
-        }
-        addedEpisodes += 1
-      }
-      if (pathsToAdd.length === 0) {
-        break
-      }
-      await appendRelativeArtifacts(pathsToAdd)
-      const loaded2 = episodeIdsFromParsedArtifacts(parsedList.value)
-      pool = allEpisodeIdsListedForCluster(cluster).filter((e) => !loaded2.has(e))
-    }
-    return mergedHasCompound()
-  }
-
-  /**
-   * When ``parsedList`` is empty and the user focuses a TopicCluster compound, try to populate
-   * the graph **only** from that cluster's ``members[].episode_ids`` (catalog resolve + append).
-   * Returns true if at least one GI/KG file was loaded — then App can **skip** the default
-   * capped corpus-wide ``syncMergedGraphFromCorpusApi`` sweep (avoids clear + full reload flash).
-   */
-  async function maybeBootstrapGraphFromTopicClusterOnly(
-    compoundParentId: string,
-  ): Promise<boolean> {
-    const cid = compoundParentId.trim()
-    if (!cid) {
-      return false
-    }
-    await syncTopicClustersForCurrentCorpus()
-    const doc = topicClustersDoc.value
-    const cluster = doc?.clusters?.length ? findClusterByCompoundId(doc, cid) : null
-    if (!cluster || allEpisodeIdsListedForCluster(cluster).length === 0) {
-      return false
-    }
-    await ensureTopicClusterCompoundVisible(cid)
-    return parsedList.value.length > 0
-  }
-
-  /**
    * Set the source of the current artifact load to control auto-merge behavior.
    * External loads (from Digest/Library) suppress auto-merge for focused views.
    */
@@ -870,22 +414,11 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     selectedRelPaths,
     parsedList,
     bridgeDocument,
-    topicClustersDoc,
-    storylinesDoc,
-    topicClustersLoadState,
-    topicClustersErrorDetail,
-    topicClustersSchemaWarning,
-    topicClustersRebuilding,
-    rebuildTopicClusters,
     loadError,
     loading,
-    siblingMergeLine,
-    siblingMergeError,
-    clearSiblingMergeBanner,
     giArts,
     kgArts,
     displayArtifact,
-    topDownDisplayArtifact,
     loadSelected,
     loadRelativeArtifacts,
     loadFromLocalFiles,
@@ -896,14 +429,10 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     markManualGraphSelection,
     selectAllListed,
     deselectAllListed,
-    syncTopicClustersForCurrentCorpus,
     appendRelativeArtifacts,
     removeRelativeArtifacts,
-    maybeMergeClusterSiblingEpisodes,
     setLoadSource,
     clearLoadSource,
     currentLoadSource,  // Readonly getter for lastLoadSource
-    ensureTopicClusterCompoundVisible,
-    maybeBootstrapGraphFromTopicClusterOnly,
   }
 })

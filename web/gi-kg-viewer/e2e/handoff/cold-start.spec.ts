@@ -186,82 +186,6 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     expect(subj?.episodeId).toBeTruthy()
   })
 
-  test('H1.8 — Dashboard TopicLandscape → graph (O1)', async ({ page }) => {
-    // O1 — UI-driven: click a topic-cluster chip in the Dashboard's
-    // Intelligence tab. Triggers ``TopicLandscape.onClusterActivate`` →
-    // ``emit('go-graph', 'tc:ci-policy-cluster', undefined)`` →
-    // ``App.activateGraphTab(target, fallback, 'dashboard')`` →
-    // ``handoffRequested({source:'dashboard', kind:'graph-node',
-    // cyId:'tc:ci-policy-cluster', loadSource:'subject-external',
-    // camera:'center-on-target'})``. Mocks `clusters: true` so the
-    // chip renders, plus minimum Dashboard endpoints so the Dashboard
-    // tab paints (briefing-card + intelligence tab).
-    const errs = captureConsoleErrors(page)
-    await setupHandoffMatrixMocks(page, { clusters: true })
-    // Minimum extra mocks for Dashboard tab to render. The matrix mocks
-    // already cover ``/api/health``, ``/api/artifacts?``, digest, feeds,
-    // topic-clusters. Stub the remaining endpoints Dashboard reads from.
-    await page.route('**/api/corpus/stats?**', (r) =>
-      r.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          path: '/mock/corpus',
-          publish_month_histogram: { '2024-06': 1 },
-          catalog_episode_count: 1,
-          catalog_feed_count: 1,
-          digest_topics_configured: 1,
-        }),
-      }),
-    )
-    await page.route('**/api/corpus/coverage?**', (r) =>
-      r.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        // Shape must match CorpusCoverageResponse (by_month/by_feed) — NOT `items`.
-        // A wrong shape leaves coverage.by_month undefined and CoverageByMonthChart
-        // throws on props.rows.filter(), aborting the Dashboard tab render.
-        body: JSON.stringify({ path: '/mock/corpus', by_month: [], by_feed: [] }),
-      }),
-    )
-    await page.route('**/api/corpus/persons/top?**', (r) =>
-      r.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
-      }),
-    )
-    await page.route('**/api/corpus/runs/summary?**', (r) =>
-      r.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
-      }),
-    )
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await statusBarCorpusPathInput(page).fill('/mock/corpus')
-
-    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
-    await page.getByTestId('briefing-card').waitFor({ state: 'visible', timeout: 15_000 })
-    await page
-      .getByRole('tablist', { name: 'Dashboard tabs' })
-      .getByRole('tab', { name: 'Intelligence' })
-      .click()
-    // The TopicLandscape renders a button-list of clusters. Wait for the
-    // first cluster chip then click it.
-    const chip = page
-      .getByTestId('intelligence-topic-landscape')
-      .getByRole('listitem')
-      .first()
-    await chip.waitFor({ state: 'visible', timeout: 10_000 })
-    await chip.click()
-
-    // Full outcome contract — UI-driven path reaches L2+L3+L5+L6 for the
-    // topic-cluster compound cy id.
-    await assertHandoffApplied(page, 'tc:ci-policy-cluster', { errors: errs })
-  })
-
   test('H1.9 — SubjectRail @go-graph (O5)', async ({ page }) => {
     // SubjectRail emits @go-graph with no target id → App.activateGraphTab
     // passes source='subject-rail'. Tests the FSM-side observation
@@ -464,73 +388,18 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
     expect(errs.errors).toEqual([])
   })
 
-  test('H1.7 — NodeDetail Load (cold start) [F4b]', async ({ page }) => {
-    // O3 — UI-driven: navigate to a topic-cluster compound node via the
-    // Dashboard, which opens NodeDetail for the compound. Click "Focus"
-    // on a cluster member to fire ``expansionRequested({source:
-    // 'node-detail', kind:'graph-node', cyId:<member>, loadSource:
-    // 'graph-internal'})``. Definition X — NodeDetail Load preserves
-    // layout (graph-internal load source).
+  test('H1.7 — NodeDetail neighbour "show on graph" (cold start) [F4b]', async ({ page }) => {
+    // O3 — UI-driven: open the fixture insight in the graph rail and click its related topic,
+    // which fires ``expansionRequested({source:'node-detail', kind:'graph-node', cyId:<topic>,
+    // loadSource:'graph-internal'})``. Definition X — a NodeDetail expansion preserves layout.
     const errs = captureConsoleErrors(page)
-    await setupHandoffMatrixMocks(page, { clusters: true })
-    // Dashboard's minimum mocks (same as H1.8) so we can click into the
-    // topic-cluster compound from the Intelligence tab.
-    await page.route('**/api/corpus/stats?**', (r) =>
-      r.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          path: '/mock/corpus',
-          publish_month_histogram: { '2024-06': 1 },
-          catalog_episode_count: 1,
-          catalog_feed_count: 1,
-          digest_topics_configured: 1,
-        }),
-      }),
-    )
-    await page.route('**/api/corpus/coverage?**', (r) =>
-      r.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        // Shape must match CorpusCoverageResponse (by_month/by_feed) — NOT `items`.
-        // A wrong shape leaves coverage.by_month undefined and CoverageByMonthChart
-        // throws on props.rows.filter(), aborting the Dashboard tab render.
-        body: JSON.stringify({ path: '/mock/corpus', by_month: [], by_feed: [] }),
-      }),
-    )
-    await page.route('**/api/corpus/persons/top?**', (r) =>
-      r.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
-      }),
-    )
-    await page.route('**/api/corpus/runs/summary?**', (r) =>
-      r.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ path: '/mock/corpus', items: [] }),
-      }),
-    )
+    await setupHandoffMatrixMocks(page)
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await statusBarCorpusPathInput(page).fill('/mock/corpus')
-
-    // Land on the topic-cluster compound by activating it from Dashboard
-    // (already exercised in H1.8). This opens NodeDetail for the compound
-    // node and renders the cluster-members list.
-    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
-    await page.getByTestId('briefing-card').waitFor({ state: 'visible', timeout: 15_000 })
-    await page
-      .getByRole('tablist', { name: 'Dashboard tabs' })
-      .getByRole('tab', { name: 'Intelligence' })
-      .click()
-    const chip = page
-      .getByTestId('intelligence-topic-landscape')
-      .getByRole('listitem')
-      .first()
-    await chip.click()
-    // Wait for the compound to settle (Dashboard handoff lands).
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    await page.getByRole('button', { name: 'Open in graph' }).click()
     await page.waitForFunction(
       () => {
         const fsm = (window as unknown as { __GIKG_FSM__?: { state: string } }).__GIKG_FSM__
@@ -540,14 +409,13 @@ test.describe('Handoff matrix § Section 1 — Cold-start', () => {
       { timeout: 15_000 },
     )
 
-    // The per-member "Focus" button (graph-internal load via
-    // ``focusTopicClusterMember``) now lives in the compound view's Advanced
-    // disclosure; the Simple default lists member labels only. Open Advanced,
-    // then click "Focus" → ``expansionRequested({source:'node-detail'})``.
-    await page.getByTestId('node-detail-cluster-advanced-toggle').click()
-    await page.getByRole('button', { name: 'Focus', exact: true }).first().click()
+    await page.evaluate(() => {
+      ;(
+        window as unknown as { __GIKG_SUBJECT__: { focusEntity: (i: string) => void } }
+      ).__GIKG_SUBJECT__.focusEntity('insight:b72dafa3f874480d')
+    })
+    await page.getByTestId('node-detail-insight-related-topic-row').first().click()
 
-    // Full outcome contract for the cluster member topic node.
     await assertHandoffApplied(page, 'g:topic:ci-policy', { errors: errs })
   })
 })

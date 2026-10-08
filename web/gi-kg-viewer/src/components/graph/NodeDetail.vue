@@ -13,7 +13,6 @@ import { formatCalendarDateForDisplay, truncate } from "../../utils/formatting"
 import { quoteAttributionDisplayFromId } from "../../utils/parsing"
 import {
   fetchTopicTimeline,
-  fetchTopicTimelineMerged,
   type CilArcEpisodeBlock,
   type CilTopicTimelineMergedResponse,
   type CilTopicTimelineResponse,
@@ -49,18 +48,6 @@ import {
   resolveGiPathForTranscript,
   resolveTranscriptCorpusRelpath,
 } from "../../utils/transcriptSourceDisplay"
-import type { TopicClustersCluster } from "../../api/corpusTopicClustersApi"
-import { fetchResolveEpisodeArtifacts } from "../../api/corpusLibraryApi"
-import { useArtifactsStore } from "../../stores/artifacts"
-import { graphNeighborsForMemberGraphIds } from "../../utils/graphNeighbors"
-import {
-  findClusterByCompoundId,
-  findTopicClusterContextForGraphNode,
-  clusterTimelineCilTopicIdsForCluster,
-  storylineMemberTopicIdsForTopic,
-  storylineInfoForTopic,
-  topicClusterMemberRowsForDetail,
-} from "../../utils/topicClustersOverlay"
 import GraphConnectionsSection from "./GraphConnectionsSection.vue"
 import NodeEnrichmentSection from "./NodeEnrichmentSection.vue"
 import TopicEntityView from "../subject/TopicEntityView.vue"
@@ -75,13 +62,6 @@ import {
 } from "../../utils/subjectMentionsTimeline"
 import TranscriptViewerDialog from "../shared/TranscriptViewerDialog.vue"
 import PodcastCover from "../shared/PodcastCover.vue"
-import {
-  artifactRelPathsForResolvedRow,
-  clusterSiblingEpisodeCap,
-  episodeIdsForClusterMember,
-  episodeIdsFromParsedArtifacts,
-  sortResolvedArtifactsNewestFirst,
-} from "../../utils/clusterSiblingMerge"
 
 const emit = defineEmits<{
   close: []
@@ -109,7 +89,6 @@ const props = defineProps<{
 const shell = useShellStore()
 const graphNav = useGraphNavigationStore()
 const graphAnalytics = useGraphAnalyticsStore()
-const artifacts = useArtifactsStore()
 const graphFilters = useGraphFilterStore()
 const graphHandoff = useGraphHandoffStore()
 const subject = useSubjectStore()
@@ -120,9 +99,6 @@ const fullMergedArtifactForMetadata = computed(
 )
 
 const transcriptViewerRef = ref<InstanceType<typeof TranscriptViewerDialog> | null>(null)
-/** Per-row catalog load for cluster members missing from the merge. */
-const clusterMemberLoadBusyTopicId = ref<string | null>(null)
-const clusterMemberLoadMessage = ref<string | null>(null)
 
 /** Shown in **Where this appears**; omit from the generic property list. */
 const TRANSCRIPT_ANCHOR_PROP_KEYS = new Set([
@@ -261,151 +237,10 @@ const podcastCover = ref<{ imageUrl: string | null; imageLocalRelpath: string | 
 // emits it up so the header shows the claim (not the opaque insight: hash).
 const insightHeaderText = ref("")
 
-const isTopicClusterNode = computed(() => nodeType.value.trim().toLowerCase() === "topiccluster")
-
-/**
- * Cluster row from ``topic_clusters.json`` whether the user selected the **compound** or a
- * **member Topic** (same panel: TC chrome, members, merged connections).
- */
-const topicClusterDocEntry = computed((): TopicClustersCluster | null => {
-  const doc = artifacts.topicClustersDoc
-  const id = props.nodeId?.trim()
-  if (!doc || !id) {
-    return null
-  }
-  const direct = findClusterByCompoundId(doc, id)
-  if (direct) {
-    return direct
-  }
-  const ctx = findTopicClusterContextForGraphNode(id, doc)
-  const parent = ctx?.compoundParentId?.trim()
-  if (!parent) {
-    return null
-  }
-  return findClusterByCompoundId(doc, parent)
-})
-
-/** Corpus TopicCluster compound id (``tc:…``) for collapse/minimap; null if not in a cluster. */
-const topicClusterCompoundId = computed((): string | null => {
-  const id = props.nodeId?.trim()
-  if (!id) {
-    return null
-  }
-  if (isTopicClusterNode.value) {
-    return id
-  }
-  return (
-    findTopicClusterContextForGraphNode(id, artifacts.topicClustersDoc)?.compoundParentId?.trim() ??
-    null
-  )
-})
-
-const hasTopicClusterJson = computed(() => topicClusterDocEntry.value != null)
-
-/**
- * Full merged graph (all loaded GI/KG) for topic-cluster corpus alignment. The ego slice in
- * ``viewArtifact`` can omit Topic children under a ``tc:…`` compound (parent is not an edge), so
- * member resolution and cluster timelines use the display artifact when available.
- */
-const artifactForTopicClusterCorpusMatch = computed(
-  () => artifacts.displayArtifact ?? props.viewArtifact
-)
-
-const topicClusterMemberRows = computed(() =>
-  topicClusterMemberRowsForDetail(
-    artifactForTopicClusterCorpusMatch.value,
-    topicClusterDocEntry.value
-  )
-)
-
-/** CIL topic ids for merged cluster timeline (prefer Topic children under compound, then members,
- *  then the cluster doc's own member topic_ids so an ego slice that omits the members still loads). */
-const clusterTimelineTopicIds = computed((): string[] =>
-  clusterTimelineCilTopicIdsForCluster(
-    artifactForTopicClusterCorpusMatch.value,
-    topicClusterCompoundId.value,
-    topicClusterMemberRows.value,
-    topicClusterDocEntry.value?.members ?? null
-  )
-)
-
-const clusterTimelineUnavailable = computed(
-  () =>
-    (hasTopicClusterJson.value || isTopicClusterNode.value) &&
-    clusterTimelineTopicIds.value.length === 0
-)
-
-const topicClusterMembersMissingFromLoadedGraph = computed(() =>
-  topicClusterMemberRows.value.some((r) => !r.graphNodeId)
-)
-
-const topicClusterMemberGraphIds = computed((): string[] =>
-  topicClusterMemberRows.value.map((r) => r.graphNodeId).filter((x): x is string => x != null)
-)
-
-const topicClusterAggregatedNeighbors = computed(() =>
-  graphNeighborsForMemberGraphIds(props.viewArtifact, topicClusterMemberGraphIds.value)
-)
-
-/** Merged edges + cluster minimap when JSON lists members with graph ids in this view. */
-const useTopicClusterAggregatedConnections = computed(
-  () =>
-    (hasTopicClusterJson.value || isTopicClusterNode.value) &&
-    topicClusterMemberGraphIds.value.length > 0
-)
-
-const topicClusterNeighborhoodForMap = computed(
-  ():
-    | {
-        compoundId: string
-        memberIds: string[]
-      }
-    | undefined => {
-    if (!useTopicClusterAggregatedConnections.value) {
-      return undefined
-    }
-    const cid = topicClusterCompoundId.value?.trim()
-    if (!cid) {
-      return undefined
-    }
-    return { compoundId: cid, memberIds: topicClusterMemberGraphIds.value }
-  }
-)
-
-/** Always the corpus compound id when collapsing member topics on canvas (topic clusters). */
-const topicClusterCollapseCyId = computed((): string => {
-  const c = topicClusterCompoundId.value?.trim()
-  if (c) {
-    return c
-  }
-  return props.nodeId?.trim() ?? ""
-})
-
-const TOPIC_CLUSTER_CONNECTIONS_EMPTY =
-  "No edges from member topics in this graph view (adjust filters or ego view)."
-
 /**
  * Full quote/insight text in the rail — not ``nodeLabel`` (that caps at ~40 chars for on-canvas labels).
- * For topic clusters with JSON, the header matches the **cluster** (same for compound and member).
  */
 const displayName = computed(() => {
-  const cl = topicClusterDocEntry.value
-  if (cl) {
-    const raw = cl.canonical_label
-    if (typeof raw === "string" && raw.trim()) {
-      return raw.trim()
-    }
-  }
-  const art = props.viewArtifact
-  if (cl && art) {
-    const cid = topicClusterCompoundId.value?.trim()
-    if (cid) {
-      const pn = findRawNodeInArtifact(art, cid)
-      if (pn) {
-        return fullPrimaryNodeLabel(pn)
-      }
-    }
-  }
   const n = node.value
   if (!n) {
     // Out-of-slice node (e.g. a co-speaker from the full relational graph):
@@ -423,120 +258,6 @@ const displayName = computed(() => {
   }
   return fullPrimaryNodeLabel(n)
 })
-
-function focusTopicClusterMember(graphNodeId: string): void {
-  const id = graphNodeId.trim()
-  if (!id) {
-    return
-  }
-  // F1.6 — fire FSM ``expansionRequested`` so the NodeDetail Load surface is
-  // observable on ``__GIKG_FSM_EVENT_LOG__``. Decision #3 / Definition X:
-  // node-detail expansion preserves the existing graph layout
-  // (``loadSource: 'graph-internal'``); camera centres on the targeted
-  // cluster member.
-  graphHandoff.expansionRequested({
-    kind: "graph-node",
-    cyId: id,
-    source: "node-detail",
-    loadSource: "graph-internal",
-    camera: { kind: "center-on-target" },
-  })
-  graphNav.requestFocusNode(id)
-  emit("go-graph")
-}
-
-const canLoadClusterMembersFromCatalog = computed(
-  () =>
-    Boolean(shell.healthStatus) && shell.corpusLibraryApiAvailable !== false && shell.hasCorpusPath
-)
-
-function clusterMemberEpisodeIdsListed(topicId: string): string[] {
-  return episodeIdsForClusterMember(topicClusterDocEntry.value, topicId)
-}
-
-async function loadClusterMemberEpisodes(topicId: string): Promise<void> {
-  const tid = topicId.trim()
-  clusterMemberLoadMessage.value = null
-  const root = (shell.resolvedCorpusPath ?? shell.corpusPath).trim()
-  if (!root) {
-    clusterMemberLoadMessage.value = "Set a corpus path first."
-    return
-  }
-  if (!shell.healthStatus || shell.corpusLibraryApiAvailable === false) {
-    clusterMemberLoadMessage.value = "Corpus catalog API is not available."
-    return
-  }
-  const cl = topicClusterDocEntry.value
-  if (!cl) {
-    return
-  }
-  const fromJson = episodeIdsForClusterMember(cl, tid)
-  if (fromJson.length === 0) {
-    clusterMemberLoadMessage.value =
-      "No episode_ids for this member in topic_clusters.json — add them to load from the catalog."
-    return
-  }
-  const loaded = episodeIdsFromParsedArtifacts(artifacts.parsedList)
-  const candidateIds = fromJson.filter((id) => !loaded.has(id))
-  if (candidateIds.length === 0) {
-    clusterMemberLoadMessage.value = "Those episodes are already in the graph selection."
-    return
-  }
-
-  clusterMemberLoadBusyTopicId.value = tid
-  try {
-    const res = await fetchResolveEpisodeArtifacts(root, candidateIds)
-    const sorted = sortResolvedArtifactsNewestFirst(res.resolved)
-    const cap = clusterSiblingEpisodeCap()
-    const selected = new Set(artifacts.selectedRelPaths.map((p) => p.replace(/\\/g, "/")))
-    const pathsToAdd: string[] = []
-    let addedEpisodes = 0
-    for (const row of sorted) {
-      if (addedEpisodes >= cap) {
-        break
-      }
-      const rels = artifactRelPathsForResolvedRow(row)
-      if (rels.length === 0) {
-        continue
-      }
-      let anyNew = false
-      for (const rel of rels) {
-        const norm = rel.replace(/\\/g, "/")
-        if (!selected.has(norm)) {
-          anyNew = true
-          break
-        }
-      }
-      if (!anyNew) {
-        continue
-      }
-      for (const rel of rels) {
-        const norm = rel.replace(/\\/g, "/")
-        if (!selected.has(norm)) {
-          selected.add(norm)
-          pathsToAdd.push(rel)
-        }
-      }
-      addedEpisodes += 1
-    }
-    const z = res.missing_episode_ids.length
-    if (pathsToAdd.length === 0) {
-      clusterMemberLoadMessage.value =
-        z > 0 ? `Catalog had no GI paths for ${z} episode id(s).` : "No new artifact paths to add."
-      return
-    }
-    // Mark as graph-internal load to allow auto-merge for cluster expansion
-    artifacts.setLoadSource("graph-internal")
-    await artifacts.appendRelativeArtifacts(pathsToAdd)
-    clusterMemberLoadMessage.value =
-      `Loaded ${addedEpisodes} episode(s) (cap ${cap}).` + (z > 0 ? ` ${z} not in catalog.` : "")
-  } catch (e) {
-    clusterMemberLoadMessage.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    artifacts.clearLoadSource()
-    clusterMemberLoadBusyTopicId.value = null
-  }
-}
 
 /** Full passage for copy/paste; header may still clamp visually. */
 const quoteFullPassage = computed((): string | null => {
@@ -749,7 +470,6 @@ watch(
   () => props.nodeId,
   () => {
     insightQuotesExpanded.value = false
-    clusterMemberLoadMessage.value = null
   }
 )
 
@@ -821,8 +541,7 @@ function focusNeighborOnGraph(nbId: string, ev: MouseEvent): void {
   ev.stopPropagation()
   const id = nbId.trim()
   if (!id) return
-  // F1.6 — same as ``focusTopicClusterMember``: NodeDetail "neighbour
-  // go-graph" is a graph-internal expansion (preserves layout) targeted at
+  // F1.6 — NodeDetail "neighbour go-graph" is a graph-internal expansion (preserves layout) targeted at
   // a specific neighbour node.
   graphHandoff.expansionRequested({
     kind: "graph-node",
@@ -835,23 +554,16 @@ function focusNeighborOnGraph(nbId: string, ev: MouseEvent): void {
   emit("go-graph")
 }
 
-/** Shared gate for CIL timeline API (single-topic GET or merged cluster POST). */
+/** Gate for the CIL timeline API. */
 const cilTimelineApiUnavailable = computed(
   (): boolean =>
     !shell.healthStatus || shell.cilQueriesApiAvailable === false || !shell.hasCorpusPath
 )
 
-/** Merged CIL timeline for TopicCluster (member topic ids from JSON). */
-const clusterTimelineDisabled = computed((): boolean => {
-  if (clusterTimelineTopicIds.value.length === 0) return true
-  return cilTimelineApiUnavailable.value
-})
-
-type InlineTimelineMode = "single" | "cluster" | null
+type InlineTimelineMode = "single" | null
 
 const inlineTimelineMode = ref<InlineTimelineMode>(null)
 const inlineTimelineTopicId = ref("")
-const inlineTimelineClusterTopicIds = ref<string[]>([])
 const inlineTimelineLoading = ref(false)
 const inlineTimelineError = ref<string | null>(null)
 const inlineTimelinePayload = ref<CilTopicTimelineResponse | CilTopicTimelineMergedResponse | null>(
@@ -860,75 +572,8 @@ const inlineTimelinePayload = ref<CilTopicTimelineResponse | CilTopicTimelineMer
 const inlineTimelineSortOrder = ref<"asc" | "desc">("desc")
 
 const showInlineTopicTimeline = computed(
-  () => isTopicNode.value && Boolean(props.nodeId?.trim()) && !hasTopicClusterJson.value
+  () => isTopicNode.value && Boolean(props.nodeId?.trim())
 )
-
-const showInlineClusterTimeline = computed(
-  () =>
-    (hasTopicClusterJson.value || isTopicClusterNode.value) &&
-    clusterTimelineTopicIds.value.length > 0
-)
-
-// Theme-cluster timeline (co-occurrence): a topic node can toggle its inline
-// timeline from just-this-topic to the whole THEME's members merged over time —
-// a theme is a storyline, so its members' activity is the theme's lifespan.
-// Reuses the cluster-mode merge path with the theme members' topic ids.
-const themeTimelineMemberTopicIds = computed((): string[] =>
-  storylineMemberTopicIdsForTopic(artifacts.storylinesDoc, props.nodeId ?? "")
-)
-// Theme-cluster IDENTITY (label + "discussed together" members) for the Details
-// tab's Theme block — mirrors the player entity card. Topic nodes only.
-const storylineInfo = computed(() =>
-  isTopicNode.value
-    ? storylineInfoForTopic(artifacts.storylinesDoc, props.nodeId ?? "")
-    : null
-)
-
-// graph-v3 Tier 5A-2 — for NON-Topic nodes tagged by the region propagation
-// walk (Insight / Episode / Person / Org / Podcast), surface the human label
-// of the theme region they're painted as. Answers "why is this node this
-// colour" without needing the graph legend. Topic nodes already carry the
-// full theme identity via storylineInfo above. Propagation runs artifact-
-// side in applyStorylinesOverlay so storylineId is on the raw node.
-const propagatedThemeRegionLabel = computed<string | null>(() => {
-  if (isTopicNode.value) return null
-  const raw = node.value as { storylineId?: unknown } | null
-  const id = typeof raw?.storylineId === "string" ? raw.storylineId.trim() : ""
-  if (!id) return null
-  const doc = artifacts.storylinesDoc
-  const clusters = doc?.clusters ?? []
-  for (const cl of clusters) {
-    const cid =
-      typeof cl?.graph_compound_parent_id === "string" ? cl.graph_compound_parent_id.trim() : ""
-    if (cid === id) {
-      const lbl =
-        typeof cl?.canonical_label === "string" && cl.canonical_label.trim()
-          ? cl.canonical_label.trim()
-          : cid
-      return lbl
-    }
-  }
-  return null
-})
-// Cluster panel: simple member chips by default (like the theme block); the
-// graph ops + per-member Load/Focus rows + warnings live behind an Advanced
-// toggle, collapsed by default.
-const clusterAdvancedOpen = ref(false)
-function focusClusterMember(row: {
-  topicId: string
-  graphNodeId: string | null
-  label: string
-}): void {
-  // Unify with theme-member + related-topic clicks: always full-re-focus the
-  // rail onto the member topic (so it reloads the detail panel and Back works),
-  // rather than the prior in-graph expansion that only updated part of the view.
-  const id = row.topicId || row.graphNodeId
-  if (id) subject.focusTopic(id)
-}
-const hasThemeTimeline = computed(
-  () => showInlineTopicTimeline.value && themeTimelineMemberTopicIds.value.length > 1
-)
-const timelineShowTheme = ref(false)
 
 // Corpus-wide timeline data, de-duplicated to ONE row per episode. The API
 // yields one row per bundle, so an episode processed in multiple runs shows up
@@ -1073,12 +718,7 @@ const timelineChartData = computed<SubjectMentionsTimeline>(() => {
   }
 })
 
-const inlineTimelineTopicIdsLabel = computed((): string => {
-  if (inlineTimelineMode.value === "cluster") {
-    return inlineTimelineClusterTopicIds.value.join(", ")
-  }
-  return inlineTimelineTopicId.value
-})
+const inlineTimelineTopicIdsLabel = computed((): string => inlineTimelineTopicId.value)
 
 const corpusPathForCovers = computed(() =>
   (shell.resolvedCorpusPath ?? shell.corpusPath ?? "").trim()
@@ -1161,13 +801,6 @@ async function loadInlineTimeline(): Promise<void> {
   inlineTimelineError.value = null
   inlineTimelinePayload.value = null
   try {
-    if (inlineTimelineMode.value === "cluster") {
-      inlineTimelinePayload.value = await fetchTopicTimelineMerged(
-        path,
-        inlineTimelineClusterTopicIds.value
-      )
-      return
-    }
     if (!inlineTimelineTopicId.value) {
       inlineTimelineError.value = "Missing topic id."
       return
@@ -1249,13 +882,7 @@ const visualType = computed(() => {
   return visualGroupForNode(node.value)
 })
 
-/** TC glyph when the row is a TopicCluster node or a corpus cluster member (JSON-backed). */
-const avatarVisualGroup = computed(() => {
-  if (hasTopicClusterJson.value || isTopicClusterNode.value) {
-    return "TopicCluster"
-  }
-  return visualType.value
-})
+const avatarVisualGroup = computed(() => visualType.value)
 
 const personEntityExploreUsesSpeakerFilter = computed(
   () => visualType.value !== "Entity_organization"
@@ -1502,26 +1129,16 @@ const crossLayerBridgeLine = computed(() => {
   return crossLayerPresenceLabel(row.sources)
 })
 
-/** Corpus topic cluster label when this Topic is a member (API-loaded clusters only). */
-const topicClusterContext = computed(() => {
-  if (!isTopicNode.value || !props.nodeId) {
-    return null
-  }
-  return findTopicClusterContextForGraphNode(props.nodeId, artifacts.topicClustersDoc)
-})
-
 type GraphRailDetailTab =
   "details" | "timeline" | "position_tracker" | "enrichment" | "neighbourhood" | "perspectives"
 
 const graphRailDetailTab = ref<GraphRailDetailTab>("details")
 
 // The Timeline tab (corpus-wide Episodes + Mentions) exists only for topic /
-// cluster nodes that actually have a timeline; a segmented toggle inside it
+// nodes that actually have a timeline; a segmented toggle inside it
 // switches between the two views. If it empties on a node switch, fall back.
 const timelineView = ref<"episodes" | "mentions">("episodes")
-const hasTimelineTab = computed(
-  () => showInlineTopicTimeline.value || showInlineClusterTimeline.value
-)
+const hasTimelineTab = computed(() => showInlineTopicTimeline.value)
 watch(hasTimelineTab, (has) => {
   if (!has && graphRailDetailTab.value === "timeline") {
     graphRailDetailTab.value = "details"
@@ -1590,7 +1207,6 @@ watch(
     graphRailDetailTab.value = "details"
     timelineView.value = "episodes"
     mentionsEpisodeFilter.value = null
-    timelineShowTheme.value = false
     // #6 L0 — in the graph rail only, record each navigated-to node on the breadcrumb trail so the
     // graph loads + shows it. addToTrail skips the pinned ego origin; a new origin resets the trail.
     const t = newId?.trim()
@@ -1613,39 +1229,19 @@ watch(
       shell.resolvedCorpusPath,
       shell.healthStatus,
       shell.cilQueriesApiAvailable,
-      clusterTimelineTopicIds.value.join("|"),
-      timelineShowTheme.value,
-      themeTimelineMemberTopicIds.value.join("|"),
     ] as const,
   () => {
     inlineTimelineSortOrder.value = "desc"
     inlineTimelineError.value = null
     inlineTimelinePayload.value = null
     if (showInlineTopicTimeline.value) {
-      // Theme toggle on → merge the theme cluster's members over time (the theme's
-      // lifespan); otherwise the single focused topic.
-      if (timelineShowTheme.value && themeTimelineMemberTopicIds.value.length > 1) {
-        inlineTimelineMode.value = "cluster"
-        inlineTimelineTopicId.value = ""
-        inlineTimelineClusterTopicIds.value = [...themeTimelineMemberTopicIds.value]
-      } else {
-        inlineTimelineMode.value = "single"
-        inlineTimelineTopicId.value = props.nodeId?.trim() ?? ""
-        inlineTimelineClusterTopicIds.value = []
-      }
-      void loadInlineTimeline()
-      return
-    }
-    if (showInlineClusterTimeline.value) {
-      inlineTimelineMode.value = "cluster"
-      inlineTimelineTopicId.value = ""
-      inlineTimelineClusterTopicIds.value = [...clusterTimelineTopicIds.value]
+      inlineTimelineMode.value = "single"
+      inlineTimelineTopicId.value = props.nodeId?.trim() ?? ""
       void loadInlineTimeline()
       return
     }
     inlineTimelineMode.value = null
     inlineTimelineTopicId.value = ""
-    inlineTimelineClusterTopicIds.value = []
   },
   { immediate: true }
 )
@@ -1660,7 +1256,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
 
 <template>
   <aside
-    v-if="nodeId && (node || hasTopicClusterJson || inferredKindFromId)"
+    v-if="nodeId && (node || inferredKindFromId)"
     class="relative z-20 text-surface-foreground"
     :class="
       props.embedInRail
@@ -1677,8 +1273,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
     >
       <div class="flex min-w-0 flex-1 gap-3">
         <div
-          class="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-2xl font-black leading-none shadow-md ring-1 ring-black/15 dark:ring-white/15"
-          :class="hasTopicClusterJson || isTopicClusterNode ? 'text-xl tracking-tight' : 'text-2xl'"
+          class="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-2xl text-2xl font-black leading-none shadow-md ring-1 ring-black/15 dark:ring-white/15"
           :style="
             isPodcastNode && (podcastCover?.imageUrl || podcastCover?.imageLocalRelpath)
               ? undefined
@@ -1764,19 +1359,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
               </button>
             </div>
           </div>
-          <p
-            v-if="(hasTopicClusterJson || isTopicClusterNode) && !props.embedInRail"
-            class="mt-1.5 text-[10px] leading-snug text-muted"
-          >
-            <span
-              class="inline-block rounded bg-primary/12 px-1.5 py-0.5 font-semibold uppercase tracking-wide text-primary"
-              >Topic cluster</span
-            >
-            <span class="ml-1.5"
-              >Corpus grouping from <span class="font-mono text-[9px]">topic_clusters.json</span>;
-              members share one compound on the graph.</span
-            >
-          </p>
         </div>
       </div>
     </div>
@@ -1996,182 +1578,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
               </p>
             </HelpTip>
           </div>
-          <template v-if="hasTopicClusterJson || isTopicClusterNode">
-            <section
-              class="mb-3 min-w-0 text-[10px]"
-              data-testid="node-detail-topic-cluster-members"
-              aria-label="Topic cluster members"
-            >
-              <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
-                <div
-                  class="flex min-w-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-kg"
-                >
-                  <span class="min-w-0 truncate"
-                    >Cluster<template v-if="topicClusterContext?.canonicalLabel">
-                      · {{ topicClusterContext.canonicalLabel }}</template
-                    ></span
-                  >
-                  <HelpTip :pref-width="270" button-aria-label="About topic clusters">
-                    <p
-                      class="font-sans text-[10px] normal-case leading-snug tracking-normal text-muted"
-                    >
-                      Topics grouped by
-                      <strong class="font-medium text-surface-foreground"
-                        >semantic similarity</strong
-                      >
-                      — near-duplicate topics merged into one cluster in corpus clustering (<span
-                        class="font-mono"
-                        >topic_clusters.json</span
-                      >). Distinct from
-                      <strong class="font-medium text-surface-foreground">Theme</strong>
-                      (discussed-together).
-                    </p>
-                  </HelpTip>
-                </div>
-                <button
-                  type="button"
-                  class="shrink-0 rounded border border-border px-2 py-0.5 text-[10px] text-muted hover:bg-overlay"
-                  data-testid="node-detail-cluster-advanced-toggle"
-                  :aria-expanded="clusterAdvancedOpen"
-                  @click="clusterAdvancedOpen = !clusterAdvancedOpen"
-                >
-                  {{ clusterAdvancedOpen ? "Simple" : "Advanced" }}
-                </button>
-              </div>
-
-              <!-- Simple (default): members as chips, mirroring the theme block. -->
-              <div v-if="!clusterAdvancedOpen" class="mt-2">
-                <div
-                  v-if="topicClusterMemberRows.length"
-                  class="flex flex-wrap gap-1.5"
-                  data-testid="node-detail-cluster-member-chips"
-                >
-                  <button
-                    v-for="(row, ri) in topicClusterMemberRows"
-                    :key="`chip-${row.topicId}-${ri}`"
-                    type="button"
-                    class="rounded-full border border-transparent px-2 py-0.5 text-[10px] text-surface-foreground hover:opacity-90"
-                    :style="{
-                      backgroundColor: 'color-mix(in srgb, var(--ps-kg) 22%, transparent)',
-                    }"
-                    :title="
-                      row.graphNodeId
-                        ? `Focus ${row.label}`
-                        : `${row.label} — not in this graph view`
-                    "
-                    @click="focusClusterMember(row)"
-                  >
-                    {{ row.label }}
-                  </button>
-                </div>
-                <p v-else class="mt-1 text-[10px] text-muted">
-                  No members listed in topic_clusters.json for this cluster.
-                </p>
-              </div>
-
-              <!-- Advanced (collapsed by default): graph ops + per-member Load/Focus + warnings. -->
-              <div v-show="clusterAdvancedOpen" class="mt-2">
-                <div class="flex flex-wrap items-center justify-end gap-2">
-                  <button
-                    v-if="topicClusterCollapseCyId"
-                    type="button"
-                    class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay"
-                    :aria-pressed="graphNav.isTopicClusterCanvasCollapsed(topicClusterCollapseCyId)"
-                    @click="graphNav.toggleTopicClusterCanvasCollapsed(topicClusterCollapseCyId)"
-                  >
-                    {{
-                      graphNav.isTopicClusterCanvasCollapsed(topicClusterCollapseCyId)
-                        ? "Show topics on graph"
-                        : "Hide topics on graph"
-                    }}
-                  </button>
-                </div>
-                <p class="mt-1 leading-snug text-muted">
-                  Connections below merge edges from every member topic in this cluster.
-                </p>
-                <p
-                  v-if="clusterTimelineUnavailable"
-                  class="mt-1.5 text-[10px] leading-snug text-warning"
-                  data-testid="node-detail-cluster-timeline-unavailable"
-                >
-                  Cluster timeline is unavailable: no member topic ids were found. Add
-                  <span class="font-mono">members</span> in
-                  <span class="font-mono">topic_clusters.json</span>, or load a merged graph where
-                  Topic nodes are parented to this compound.
-                </p>
-                <p
-                  v-if="topicClusterMembersMissingFromLoadedGraph"
-                  class="mt-1.5 leading-snug text-warning"
-                >
-                  Some members are not in the loaded graph: use per-row <strong>Load</strong> (when
-                  <span class="font-mono">episode_ids</span> are listed in
-                  <span class="font-mono">topic_clusters.json</span>),
-                  <strong>Load selected</strong> in the corpus list, or a broader corpus so those
-                  topic nodes exist in the merge.
-                </p>
-                <p
-                  v-if="clusterMemberLoadMessage"
-                  class="mt-1.5 text-[9px] leading-snug text-muted"
-                  data-testid="node-detail-cluster-member-load-message"
-                >
-                  {{ clusterMemberLoadMessage }}
-                </p>
-                <ul v-if="topicClusterMemberRows.length" class="mt-2 w-full space-y-1.5">
-                  <li
-                    v-for="(row, ri) in topicClusterMemberRows"
-                    :key="`${row.topicId}-${ri}`"
-                    class="flex items-start justify-between gap-2 rounded px-1 py-0.5 hover:bg-overlay/50"
-                  >
-                    <div class="min-w-0 flex-1">
-                      <span class="block font-medium leading-snug text-surface-foreground">{{
-                        row.label
-                      }}</span>
-                      <code class="mt-0.5 block font-mono text-[9px] text-muted">{{
-                        row.topicId
-                      }}</code>
-                      <span v-if="!row.graphNodeId" class="mt-0.5 block text-[9px] text-warning">
-                        Not in this graph view
-                      </span>
-                    </div>
-                    <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
-                      <button
-                        v-if="!row.graphNodeId && hasTopicClusterJson"
-                        type="button"
-                        class="rounded border border-border bg-gi/15 px-1.5 py-0.5 text-[10px] font-medium text-gi-foreground hover:bg-gi/25 disabled:opacity-40"
-                        data-testid="node-detail-cluster-member-load"
-                        :disabled="
-                          !canLoadClusterMembersFromCatalog ||
-                          artifacts.loading ||
-                          clusterMemberLoadBusyTopicId === row.topicId ||
-                          clusterMemberEpisodeIdsListed(row.topicId).length === 0
-                        "
-                        :title="
-                          clusterMemberEpisodeIdsListed(row.topicId).length === 0
-                            ? 'Add episode_ids for this member in topic_clusters.json'
-                            : `Load up to ${clusterSiblingEpisodeCap()} episodes from the catalog (newest first)`
-                        "
-                        @click="loadClusterMemberEpisodes(row.topicId)"
-                      >
-                        {{ clusterMemberLoadBusyTopicId === row.topicId ? "Loading…" : "Load" }}
-                      </button>
-                      <button
-                        v-if="row.graphNodeId"
-                        type="button"
-                        class="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary"
-                        @click="focusTopicClusterMember(row.graphNodeId)"
-                      >
-                        Focus
-                      </button>
-                    </div>
-                  </li>
-                </ul>
-                <p v-else class="mt-2 text-[10px] text-muted">
-                  No members listed in topic_clusters.json for this cluster.
-                </p>
-              </div>
-            </section>
-          </template>
-
           <template v-if="isPersonEntityRailNode">
             <p
               v-if="personEntityRoleLabel"
@@ -2422,83 +1828,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
             {{ topicAliasesLine }}
           </p>
 
-          <!-- Theme (co-occurrence "discussed together") identity + members. The API names
-           this data "storylines" (artifacts.storylinesDoc); the visible name, and the colour
-           token `--ps-theme`, follow the UI (#2280). -->
-          <div
-            v-if="isTopicNode && storylineInfo"
-            class="mb-2"
-            data-testid="node-detail-theme-cluster"
-          >
-            <div
-              class="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-theme"
-            >
-              <span class="min-w-0 truncate">Theme · {{ storylineInfo.label }}</span>
-              <HelpTip :pref-width="270" button-aria-label="About themes">
-                <p
-                  class="font-sans text-[10px] normal-case leading-snug tracking-normal text-muted"
-                >
-                  Topics that are
-                  <strong class="font-medium text-surface-foreground">discussed together</strong>
-                  (co-occurrence across episodes). Distinct from
-                  <strong class="font-medium text-surface-foreground">Cluster</strong> (semantic
-                  near-duplicates).
-                </p>
-              </HelpTip>
-            </div>
-            <div v-if="storylineInfo.members.length" class="flex flex-wrap gap-1.5">
-              <button
-                v-for="m in storylineInfo.members"
-                :key="m.topic_id"
-                type="button"
-                class="rounded-full border border-transparent px-2 py-0.5 text-[10px] text-surface-foreground hover:opacity-90"
-                :style="{ backgroundColor: 'color-mix(in srgb, var(--ps-theme) 22%, transparent)' }"
-                :data-testid="`node-detail-theme-member-${m.topic_id}`"
-                :title="`Discussed together: ${m.label}`"
-                @click="subject.focusTopic(m.topic_id)"
-              >
-                {{ m.label }}
-              </button>
-            </div>
-          </div>
-
-          <!-- graph-v3 Tier 5A-2 — for NON-Topic nodes that inherited a theme
-           region via propagation (Insight / Episode / Person / Org / Podcast),
-           surface the label so users can trace why the node is a given colour
-           on the graph. Topic nodes render the richer Theme block above. -->
-          <p
-            v-if="!isTopicNode && propagatedThemeRegionLabel"
-            class="mb-3 text-[10px] leading-snug text-muted"
-            data-testid="node-detail-theme-region"
-          >
-            <span class="font-medium text-surface-foreground/80">Theme region:</span>
-            {{ propagatedThemeRegionLabel }}
-          </p>
-
-          <p
-            v-if="isTopicNode && topicClusterContext && !hasTopicClusterJson"
-            class="mb-3 text-[10px] leading-snug text-muted"
-            data-testid="node-detail-topic-cluster-context"
-          >
-            <span class="font-medium text-surface-foreground/80">Topic cluster:</span>
-            {{ topicClusterContext.canonicalLabel }}
-            <HelpTip
-              class="ml-1 inline-flex align-middle"
-              :pref-width="280"
-              button-aria-label="About topic clusters"
-            >
-              <p class="font-sans text-[10px] leading-snug text-muted">
-                This topic is grouped with similar
-                <span class="font-mono">topic:…</span> ids in corpus clustering (<strong
-                  class="font-medium text-surface-foreground"
-                  >search/topic_clusters.json</strong
-                >). The graph can show a
-                <strong class="font-medium text-surface-foreground">TopicCluster</strong> compound
-                parent when that file is loaded. Detail and selection stay on this topic node.
-              </p>
-            </HelpTip>
-          </p>
-
           <!-- Topic overview folds in directly (no "open full profile" hop) — the
            subject overview that used to live in the separate TopicEntityView rail
            now renders inline in this Details tab. (Non-person entities keep the
@@ -2602,27 +1931,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
               </button>
             </div>
             <div class="flex shrink-0 items-center gap-1.5">
-              <button
-                v-if="timelineView === 'episodes' && hasThemeTimeline"
-                type="button"
-                class="shrink-0 rounded border border-default px-1.5 py-0.5 text-[10px] transition hover:bg-overlay"
-                :class="{ 'bg-overlay': timelineShowTheme }"
-                :style="
-                  timelineShowTheme
-                    ? { color: 'var(--ps-theme)', borderColor: 'var(--ps-theme)' }
-                    : {}
-                "
-                data-testid="node-detail-timeline-theme-toggle"
-                :aria-pressed="timelineShowTheme"
-                :title="
-                  timelineShowTheme
-                    ? 'Showing the whole theme over time; click for just this topic'
-                    : 'Show the whole theme over time (all member topics merged)'
-                "
-                @click="timelineShowTheme = !timelineShowTheme"
-              >
-                Theme
-              </button>
               <HelpTip
                 class="shrink-0"
                 :pref-width="360"
@@ -2631,20 +1939,18 @@ const graphConnectionsCenterInView = computed((): boolean => {
                 <p class="font-sans text-[10px] leading-snug text-muted">
                   <strong class="font-medium text-surface-foreground">Corpus-wide</strong> — every
                   episode and insight about this
-                  {{ showInlineClusterTimeline ? "cluster" : "topic" }}, from CIL + bridge + GI.
+                  topic, from CIL + bridge + GI.
                   <strong class="font-medium text-surface-foreground">Episodes</strong> groups by
                   episode (with our summary);
                   <strong class="font-medium text-surface-foreground">Mentions</strong> lists every
-                  individual insight / quote.{{
-                    showInlineClusterTimeline ? " Cluster mode merges all member topic ids." : ""
-                  }}
+                  individual insight / quote.
                 </p>
                 <p
                   v-if="inlineTimelineTopicIdsLabel"
                   class="mt-2 border-t border-border pt-2 text-[10px] leading-snug text-muted"
                 >
                   <span class="mb-1 block font-medium text-surface-foreground">
-                    {{ showInlineClusterTimeline ? "Topic ids (cluster)" : "Topic id" }}
+                    Topic id
                   </span>
                   <span class="block break-all font-mono text-[10px] text-surface-foreground">
                     {{ inlineTimelineTopicIdsLabel }}
@@ -2654,9 +1960,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
               <button
                 type="button"
                 class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay disabled:opacity-40"
-                :disabled="
-                  inlineTimelineLoading || (showInlineClusterTimeline && clusterTimelineDisabled)
-                "
+:disabled="inlineTimelineLoading"
                 @click="loadInlineTimeline"
               >
                 Refresh
@@ -2666,7 +1970,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
 
           <section
             v-show="timelineView === 'episodes'"
-            v-if="showInlineTopicTimeline || showInlineClusterTimeline"
+            v-if="showInlineTopicTimeline"
             class="min-w-0 w-full overflow-x-clip overflow-y-visible"
             data-testid="node-detail-inline-timeline"
           >
@@ -2702,7 +2006,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
                 {{ inlineTimelineEpisodeCount }}
                 {{ inlineTimelineEpisodeCount === 1 ? "episode" : "episodes" }}
                 with insights about
-                {{ showInlineClusterTimeline ? "this cluster" : "this topic" }}.
+                this topic.
               </p>
               <div class="mb-1 flex items-center gap-1.5">
                 <span class="text-[10px] text-muted">Date</span>
@@ -2838,7 +2142,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
            timeline API as Episodes above) — mentions + episodes, two views, one source. -->
           <section
             v-show="timelineView === 'mentions'"
-            v-if="(showInlineTopicTimeline || showInlineClusterTimeline) && flatMentions.length"
+            v-if="showInlineTopicTimeline && flatMentions.length"
             class="min-w-0 w-full"
             data-testid="node-detail-mentions"
             aria-label="Mentions"
@@ -3158,13 +2462,6 @@ const graphConnectionsCenterInView = computed((): boolean => {
           class="mt-2"
           :view-artifact="props.viewArtifact"
           :node-id="props.nodeId"
-          :aggregated-neighbor-rows="
-            useTopicClusterAggregatedConnections ? topicClusterAggregatedNeighbors : undefined
-          "
-          :topic-cluster-neighborhood="topicClusterNeighborhoodForMap"
-          :connections-empty-hint="
-            useTopicClusterAggregatedConnections ? TOPIC_CLUSTER_CONNECTIONS_EMPTY : undefined
-          "
           :dense-neighbor-list="!props.embedInRail"
           @go-graph="emit('go-graph')"
           @open-library-episode="emit('open-library-episode', $event)"

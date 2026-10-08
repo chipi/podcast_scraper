@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Response } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import {
   dismissGraphGestureOverlayIfPresent,
   liveCorpusRoot,
@@ -33,20 +33,16 @@ async function openGraph(page: Page): Promise<void> {
   await dismissGraphGestureOverlayIfPresent(page)
 }
 
-const isSiblingMerge = (r: Response): boolean =>
-  r.url().endsWith('/api/corpus/resolve-episode-artifacts') && r.request().method() === 'POST'
-
 /**
  * Apply a lens change and return the episode count once the graph has settled. The label flips at
- * once, but the reload — and the topic-cluster sibling merge that follows every reload
- * (`maybeMergeClusterSiblingEpisodes`, up to 10 extra episodes) — land later. Waiting for the
- * merge's POST is what makes the number deterministic; a quiet-network heuristic alone read the
- * count between the reload and the merge in 1 of 3 runs.
+ * once but the reload lands later, so wait for the count to move off its old value, then for it
+ * to hold still. Every change this test makes moves the count.
  */
 async function lensChange(page: Page, act: () => Promise<void>): Promise<number> {
-  const merged = page.waitForResponse(isSiblingMerge, { timeout: 30_000 })
+  const count = page.getByTestId('graph-status-episode-count')
+  const before = await count.innerText()
   await act()
-  await merged
+  await expect(count).not.toHaveText(before, { timeout: 30_000 })
   return stableEpisodeCount(page)
 }
 
@@ -111,7 +107,6 @@ test.describe('Graph time lens and counts strip (UXS-004)', () => {
     // 2026-01-01 and p10_e03 on 2026-01-19 are two of them).
     expect(nSince).toBe(n90 + 5)
 
-    // All time is capped, so it can leave no sibling to merge — don't wait for one.
     await lens.getByRole('button', { name: 'All', exact: true }).click()
     await expect(label).toHaveText('Showing all time')
     await expect(page.getByTestId('graph-status-capped')).toBeVisible()

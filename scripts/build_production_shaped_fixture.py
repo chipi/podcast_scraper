@@ -93,22 +93,6 @@ _SEARCH_V3_SLICE_SPECS: list[tuple[str, str, str, dict[str, Any]]] = [
         },
     ),
     (
-        "operator-cluster",
-        "/api/search",
-        "post",
-        {"q": "supply chain risk", "top_k": 30, "operator": "cluster"},
-    ),
-    (
-        "operator-consensus",
-        "/api/search",
-        "post",
-        {
-            "q": "regulation vs innovation",
-            "top_k": 20,
-            "operator": "consensus",
-        },
-    ),
-    (
         "temporal-intent",
         "/api/search",
         "get",
@@ -370,10 +354,9 @@ def main() -> int:
             copied += 1
     print(f"artifacts copied: {copied}")
 
-    # 7. Digest, topic clusters, stats, coverage, persons/top, runs/summary, index/stats.
+    # 7. Digest, stats, coverage, persons/top, runs/summary, index/stats.
     for path, name in [
         ("/api/corpus/digest", "digest.json"),
-        ("/api/corpus/topic-clusters", "topic-clusters.json"),
         ("/api/corpus/stats", "stats.json"),
         ("/api/corpus/coverage", "coverage.json"),
         ("/api/corpus/persons/top", "persons-top.json"),

@@ -2,36 +2,24 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import type { GraphFilterState, ParsedArtifact } from '../types/artifact'
 import { useArtifactsStore } from './artifacts'
-import { useGraphLoadModeStore } from './graphLoadMode'
 import {
   applyGraphDefaultNodeTypeVisibility,
   applyGraphFilters,
   defaultFilterState,
+  filterArtifactEgoOneHop,
   filtersActive,
   graphTypesDeviateFromGraphSpec,
 } from '../utils/parsing'
-import { expandFilteredArtifactEgoWithTopicClusterNeighbors } from '../utils/topicClustersOverlay'
 import { augmentArtifactWithTrail } from '../utils/graphTrail'
 import { useGraphNavigationStore } from './graphNavigation'
 
 export const useGraphFilterStore = defineStore('graphFilters', () => {
   const artifacts = useArtifactsStore()
-  const loadMode = useGraphLoadModeStore()
   const nav = useGraphNavigationStore()
   const state = ref<GraphFilterState | null>(null)
 
-  /* graph-v3 tier 8-1 — the full artifact the graph builds against
-   * picks between the top-down synthetic slice (super-theme nodes
-   * only, ~6-8 nodes) and the merged display artifact based on the
-   * load-mode opt-in. Falls back to the display artifact when the
-   * top-down slice isn't available (no storylines doc yet). */
-  const fullArtifact = computed<ParsedArtifact | null>(() => {
-    if (loadMode.isTopDown) {
-      const td = artifacts.topDownDisplayArtifact
-      if (td) return td
-    }
-    return artifacts.displayArtifact
-  })
+  /* The full artifact the graph builds against. */
+  const fullArtifact = computed<ParsedArtifact | null>(() => artifacts.displayArtifact)
 
   watch(
     fullArtifact,
@@ -53,21 +41,6 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     const full = fullArtifact.value
     const st = state.value
     if (!full || !st) return null
-    /* graph-v3 tier 8-4 — in top-down mode we still run the type filter
-     * but always let `SuperTheme` and the synthetic `_topdown_link`
-     * edges through, regardless of the user's `allowedTypes` toggles.
-     * The rationale: the SuperTheme bubbles ARE the navigation surface
-     * in top-down mode; hiding them via the Types chip would strand
-     * the user with an empty canvas. Everything else (Topic / Insight /
-     * Person / …) filters normally so users can, say, toggle Insights
-     * off and read the underlying topic map. */
-    if (loadMode.isTopDown && artifacts.topDownDisplayArtifact === full) {
-      const forced = {
-        ...st,
-        allowedTypes: { ...st.allowedTypes, SuperTheme: true },
-      }
-      return applyGraphFilters(full, forced)
-    }
     return applyGraphFilters(full, st)
   })
 
@@ -82,11 +55,7 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
   function viewWithEgo(focusId: string | null): ParsedArtifact | null {
     const base = filteredArtifact.value
     if (!base) return null
-    const ego = expandFilteredArtifactEgoWithTopicClusterNeighbors(
-      base,
-      focusId,
-      artifacts.topicClustersDoc,
-    )
+    const ego = filterArtifactEgoOneHop(base, focusId)
     // #6 L0 — union in the navigation breadcrumb trail (default-empty → unchanged). Trail nodes are
     // pulled from ``base`` (the full type-filtered graph), so hidden types stay hidden.
     return augmentArtifactWithTrail(ego, nav.trailNodeIds, base)
