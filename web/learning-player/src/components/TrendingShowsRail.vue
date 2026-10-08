@@ -6,13 +6,14 @@
  * Home. Every rail is one shape now — `CardRail`, one slot width, three reserved title lines — and
  * Home no longer carries trending shows (operator 2026-10-05), so the slices went with it.
  *
- * A trending show's entity_id IS its feed_id; artwork joins from the catalogue the caller passes.
+ * A trending show's entity_id IS its feed_id; artwork joins from the shows SHOWN, looked up by id
+ * (2026-10-08 — the caller used to pass the whole catalogue for five tiles).
  */
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
-import { getTrending } from '../services/api'
+import { getPodcastsByIds, getTrending } from '../services/api'
 import type { Podcast, TrendingEntity } from '../services/types'
 import CardRail from './CardRail.vue'
 import SectionHeading from './SectionHeading.vue'
@@ -21,7 +22,8 @@ import ShowTile from './ShowTile.vue'
 const props = withDefaults(
   defineProps<{
     title: string
-    podcasts: Podcast[]
+    /** Records to join from; looked up by id when not given. */
+    podcasts?: Podcast[]
     scope?: 'corpus' | 'mine'
     top?: number
     // Discover surfaces this rail above the dashboard with a "See all →" into the Shows tab (operator
@@ -47,8 +49,17 @@ const hasAny = computed(() => shown.value.length > 0)
 
 // The standard ShowTile needs a full Podcast, so resolve each from the catalogue; a show that has
 // left the catalogue still renders from its trending label rather than vanishing.
+const looked = ref<Podcast[]>([])
+watch(
+  () => shown.value.map((e) => e.entity_id),
+  async (ids) => {
+    if (props.podcasts || !ids.length) return
+    looked.value = await getPodcastsByIds(ids).catch(() => [] as Podcast[])
+  },
+  { immediate: true },
+)
 const shownPodcasts = computed<Podcast[]>(() => {
-  const byId = new Map(props.podcasts.map((p) => [p.feed_id, p]))
+  const byId = new Map((props.podcasts ?? looked.value).map((p) => [p.feed_id, p]))
   return shown.value.map(
     (e) =>
       byId.get(e.entity_id) ?? {

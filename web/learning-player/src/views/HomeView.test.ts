@@ -1,14 +1,19 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { kindPill } from '../utils/interests'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { batchViaGetEpisode, resurfacingViaGetResurfacing } from '../test/apiViaSpies'
 import en from '../i18n/locales/en.json'
 import type { EpisodeSummary, Me, Podcast } from '../services/types'
 import { resetStaleness } from '../composables/useSectionState'
 import { useDownloadsStore } from '../stores/downloads'
 import { useInterestsStore } from '../stores/interests'
+import { useLibraryStore } from '../stores/library'
+import { useUserPreferencesStore } from '../stores/userPreferences'
+import { GUIDED_SNOOZED_PREF, GUIDED_START_PREF } from '../composables/useGuidedStart'
 import HomeView from './HomeView.vue'
 
 // Defaults to "nothing cached", so every test above keeps the behaviour it was written for.
@@ -77,6 +82,8 @@ function ep(slug: string, title: string): EpisodeSummary {
 }
 
 beforeEach(() => {
+  resurfacingViaGetResurfacing()
+  batchViaGetEpisode()
   setActivePinia(createPinia())
   // The embedded TrendingTopics + Storylines fetch trending topics / theme clusters; keep these
   // tests off the network (their own coverage lives in TrendingTopics.test.ts / Storylines.test.ts).
@@ -246,6 +253,59 @@ describe('HomeView (discover state, signed out)', () => {
     expect(w.find('[data-testid="home-browse-nav"]').exists()).toBe(true)
   })
 
+  it('the Discover strip links all four Trends kinds, Themes included (operator 2026-10-07)', async () => {
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    const w = mountKeptAlive()
+    await flushPromises()
+    const nav = w.get('[data-testid="home-browse-nav"]')
+    expect(nav.findAll('a').map((a) => a.attributes('href'))).toEqual([
+      '/browse?trends=topic',
+      '/browse?trends=person',
+      '/browse?trends=theme',
+      '/browse?trends=storyline',
+    ])
+  })
+
+  it('each Discover chip wears its kind colour, the one Interests uses (operator 2026-10-08)', async () => {
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    const w = mountKeptAlive()
+    await flushPromises()
+    for (const kind of ['topic', 'person', 'theme', 'storyline'] as const) {
+      const chip = w.get(`[data-testid="home-discover-${kind === 'topic' ? 'topics' : kind === 'person' ? 'people' : `${kind}s`}"]`)
+      for (const cls of kindPill(kind).split(' ')) expect(chip.classes()).toContain(cls)
+    }
+    // One row: the lead-in is a title line above the chips, not a chip-row sibling.
+    expect(w.get('[data-testid="home-browse-nav"] > div').classes()).toContain('flex-nowrap')
+  })
+
+  it("Recommended is absent until there is a basis for it (operator 2026-10-07)", async () => {
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({ items: [ep('n-1', 'New One')], scope: 'all' })
+    vi.spyOn(api, 'getRecommended').mockResolvedValue({ items: [], basis: 'none' })
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    expect(w.find('[data-testid="home-recommended"]').exists()).toBe(false)
+  })
+
+  it("with no listen yet, Recommended comes from what you follow, and never repeats What's new", async () => {
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({ items: [ep('dup', 'Already New')], scope: 'yours' })
+    vi.spyOn(api, 'getRecommended').mockResolvedValue({
+      items: [ep('dup', 'Already New'), ep('pick-1', 'A Pick')],
+      basis: 'interests',
+    })
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    const rec = w.get('[data-testid="home-recommended"]')
+    expect(rec.text()).toContain('Picked from what you follow')
+    expect(rec.text()).toContain('A Pick')
+    expect(rec.text()).not.toContain('Already New')
+  })
+
   it("puts Recommended above What's new (operator 2026-10-07)", () => {
     const tpl = homeViewSource.slice(homeViewSource.indexOf('<template>'))
     const rec = tpl.indexOf(":title=\"t('home.recommended')\"")
@@ -360,6 +420,10 @@ describe('HomeView interests card (3.5)', () => {
     // Buttons, with the labels the device journeys find them by.
     expect(card.get('[data-testid="interests-choose"]').text()).toBe('Choose interests')
     expect(card.get('[data-testid="interests-not-now"]').text()).toBe('Not now')
+    // Step 1 of the guided start (operator 2026-10-07): shows are step 2, reached by Skip or by
+    // choosing three interests.
+    expect(card.attributes('data-step')).toBe('1')
+    expect(card.get('[data-testid="guided-skip"]').text()).toBe('Skip step')
   })
 
   it('does not greet an email-link account by its address', async () => {
@@ -372,8 +436,9 @@ describe('HomeView interests card (3.5)', () => {
     expect(card.text()).not.toContain('m@x.com')
   })
 
-  it('hides Your Week while the welcome card shows; it appears once interests exist (operator 2026-10-07)', async () => {
-    // A week digest for someone who follows nothing is empty by construction.
+  it('an empty Your Week stays hidden during and after the guided start (operator 2026-10-08)', async () => {
+    // A week in review for someone who has done nothing yet is empty by construction, and an
+    // empty one is skipped, not explained.
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
     vi.spyOn(api, 'getYourWeek').mockResolvedValue({ sections: [] } as never)
     signIn()
@@ -381,22 +446,95 @@ describe('HomeView interests card (3.5)', () => {
     await flushPromises()
     expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(true)
     expect(w.find('[data-testid="your-week"]').exists()).toBe(false)
-    // Saving interests from the picker fills the store; the card goes and Your Week comes.
-    useInterestsStore().ids = ['tc:ai']
+    // Three interests and a followed show reach the last step; finishing closes the flow.
+    useInterestsStore().ids = ['tc:ai', 'tc:science', 'topic:risk']
+    useLibraryStore().items = [{ feed_id: 'f1' } as never]
+    await flushPromises()
+    expect(w.get('[data-testid="interests-welcome"]').attributes('data-step')).toBe('3')
+    await w.get('[data-testid="guided-finish"]').trigger('click')
     await flushPromises()
     expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(false)
-    expect(w.find('[data-testid="your-week"]').exists()).toBe(true)
+    expect(w.find('[data-testid="your-week"]').exists()).toBe(false)
   })
 
-  it('"Not now" also brings Your Week back', async () => {
+  it('step 2 offers the server-ranked suggested shows, loaded when the step opens (operator 2026-10-08)', async () => {
     vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
-    vi.spyOn(api, 'getYourWeek').mockResolvedValue({ sections: [] } as never)
+    const suggested = vi.spyOn(api, 'getSuggestedShows').mockResolvedValue([
+      { feed_id: 'f-active', title: 'Active Show' } as never,
+      { feed_id: 'f-loved', title: 'Loved Show' } as never,
+    ])
     signIn()
     const w = mountKeptAlive()
     await flushPromises()
-    expect(w.find('[data-testid="your-week"]').exists()).toBe(false)
+    // Not at step 1: the interests chosen there are what lifts a show, so they must be saved first.
+    expect(suggested).not.toHaveBeenCalled()
+    await w.get('[data-testid="guided-skip"]').trigger('click')
+    await flushPromises()
+    expect(suggested).toHaveBeenCalledWith(8)
+    const rail = w.get('[data-testid="guided-shows"]')
+    expect(rail.findAll('li')).toHaveLength(2)
+    expect(rail.text()).toContain('Active Show')
+  })
+
+  it('step 2 waits for "Next": following one show does not end it (operator 2026-10-08)', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['tc:ai', 'tc:science', 'topic:risk'] as never)
+    vi.spyOn(api, 'getSuggestedShows').mockResolvedValue([])
+    signIn()
+    void useUserPreferencesStore().set(GUIDED_START_PREF, 'active') // a run already under way
+    const w = mountKeptAlive()
+    await flushPromises()
+    const card = () => w.get('[data-testid="interests-welcome"]')
+    expect(card().attributes('data-step')).toBe('2')
+    useLibraryStore().items = [{ feed_id: 'f1' } as never]
+    await flushPromises()
+    // Still on step 2, so a second and third show can be followed; the way on is now "Next".
+    expect(card().attributes('data-step')).toBe('2')
+    expect(card().get('[data-testid="guided-skip"]').text()).toBe('Next')
+    await card().get('[data-testid="guided-skip"]').trigger('click')
+    expect(card().attributes('data-step')).toBe('3')
+  })
+
+  it('restarted from Settings, the guide walks every step even when the minimums are met', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['tc:ai', 'tc:science', 'topic:risk'] as never)
+    vi.spyOn(api, 'getSuggestedShows').mockResolvedValue([])
+    signIn()
+    useLibraryStore().items = [{ feed_id: 'f1' } as never]
+    void useUserPreferencesStore().set(GUIDED_START_PREF, 'restart')
+    const w = mountKeptAlive()
+    await flushPromises()
+    const card = () => w.get('[data-testid="interests-welcome"]')
+    expect(card().attributes('data-step')).toBe('1')
+    // The minimum is met, so the way on is "Next", not "Skip step".
+    expect(card().get('[data-testid="guided-skip"]').text()).toBe('Next')
+    await card().get('[data-testid="guided-skip"]').trigger('click')
+    expect(card().attributes('data-step')).toBe('2')
+    await card().get('[data-testid="guided-skip"]').trigger('click')
+    expect(card().attributes('data-step')).toBe('3')
+  })
+
+  it('"Not now" snoozes the guide rather than ending it (operator 2026-10-08)', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
     await w.get('[data-testid="interests-not-now"]').trigger('click')
-    expect(w.find('[data-testid="your-week"]').exists()).toBe(true)
+    await flushPromises()
+    expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(false)
+    // A time, so it can expire — not the old permanent `true`.
+    expect(typeof useUserPreferencesStore().get(GUIDED_SNOOZED_PREF)).toBe('number')
+  })
+
+  it('"Not now" closes the whole guide; "Skip step" only moves past the step', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    await w.get('[data-testid="guided-skip"]').trigger('click')
+    expect(w.get('[data-testid="interests-welcome"]').attributes('data-step')).toBe('2')
+    await w.get('[data-testid="interests-not-now"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(false)
   })
 
   it('Your Week with content shows even beside the welcome card (followed a show, no interests)', async () => {
@@ -437,7 +575,7 @@ describe('HomeView interests card (3.5)', () => {
     expect(w.text()).not.toContain('Personalize your Home')
   })
 
-  it('stops prompting once interests are SAVED IN SESSION, not only when present at load', async () => {
+  it('reflects interests SAVED IN SESSION, not only those present at load', async () => {
     // iOS-F1, caught by `PersonalisationTests.test10` on device and by nothing here.
     //
     // The test above loads an account that ALREADY has interests, which the store gets right for
@@ -470,13 +608,15 @@ describe('HomeView interests card (3.5)', () => {
     await flushPromises()
 
     expect(useInterestsStore().ids).toEqual(['tc:ai'])
-    expect(w.text()).not.toContain('Personalize your Home')
+    // The card reads the STORE: one saved interest shows as progress toward the three the guided
+    // start asks for (operator 2026-10-07), rather than a card still asking from zero.
+    expect(w.get('[data-testid="guided-interests-to-go"]').text()).toBe('2 more to go')
     // And NOT because we marked the offer declined — that would suppress it forever, so a user who
     // later cleared their interests would never be offered it again.
     expect(localStorage.getItem('lp.interests.dismissed')).toBeNull()
   })
 
-  // Compact "Discover" strip (renamed from Browse topics/people, operator 2026-09-14): three chips
+  // Compact Discover strip (renamed from Browse topics/people, operator 2026-09-14): chips
   // deep-linking into Browse's Trends section on the matching kind. The standalone /trends page
   // they used to open was a thinner copy of that section and is deleted (operator 2026-09-18).
   it('renders the compact "Discover" strip as Browse trends deep links', async () => {
@@ -488,7 +628,7 @@ describe('HomeView interests card (3.5)', () => {
     expect(hrefs).toContain('/browse?trends=topic')
     expect(hrefs).toContain('/browse?trends=storyline')
     expect(hrefs).toContain('/browse?trends=person')
-    expect(nav.text()).toContain('Discover')
+    expect(nav.text()).toContain('Explore what people are talking about')
   })
 
   it('carries no Trending shows section — it lives on Discover (operator 2026-10-05)', async () => {

@@ -107,8 +107,11 @@ final class AppJourneyTests: UITestCase {
     }
 
     // Topic ids carry a `topic:` prefix, which the deep-link id validator rejects by design, so
-    // topics are reached the way a user reaches them: the Home entity rail's Topics tab.
+    // topics are reached the way a user reaches them: Home's Discover strip "Topics" chip, which
+    // opens Discover's Trends on topics. Trends default to the listener's own ("You"), empty for a
+    // fresh account, so switch to everyone's first.
     if Journey.tap(app, labels: ["Topics"], timeout: 15) { sleep(3) }
+    Journey.showEveryonesTrends(app)
     Journey.inventory(app, "home-topics-rail")
     if Journey.tap(app, labels: ["systems thinking", "risk management"], contains: true, timeout: 12) {
       sleep(5)
@@ -125,6 +128,7 @@ final class AppJourneyTests: UITestCase {
     sleep(4)
     if Journey.tap(app, labels: ["Storylines"], timeout: 15) {
       sleep(4)
+      Journey.showEveryonesTrends(app)
       Journey.inventory(app, "home-storylines-rail")
       Journey.shot(self, "03-storylines-rail")
       // The rail rows are BUTTONS, not links (the first cut of this test looked at `app.links` and
@@ -136,8 +140,10 @@ final class AppJourneyTests: UITestCase {
         return l.contains("momentum") && l.contains("(") && l.contains(")")
       }
       print("=====STORYLINE_ROWS \(rows.prefix(8).map { $0.label })=====")
-      if let first = rows.first, first.isHittable {
-        first.tap()
+      // Through `Journey.tap`, which lifts the row clear of the bottom bars first. On Discover the
+      // storyline rows sit low enough that a raw `first.tap()` hit the mini-player and opened the
+      // episode player instead (2026-10-08: the inventory after the tap was the player's controls).
+      if let first = rows.first, Journey.tap(app, labels: [first.label], timeout: 5) {
         sleep(5)
         Journey.shot(self, "03-storyline")
         Journey.inventory(app, "storyline-page")
@@ -248,7 +254,7 @@ final class AppJourneyTests: UITestCase {
     Journey.shot(self, "05-collections-before")
 
     for name in ["Test Board A", "Test Board B"] {
-      guard let field = Journey.find(app, labels: ["New collection name"], contains: true, timeout: 12)
+      guard let field = Journey.find(app, labels: ["Board name"], contains: true, timeout: 12)
         ?? app.textFields.firstMatch as XCUIElement?
       else { XCTFail("no collection-name field"); break }
       guard field.waitForExistence(timeout: 8) else { XCTFail("no collection-name field"); break }

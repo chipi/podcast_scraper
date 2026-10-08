@@ -316,9 +316,23 @@ def reorder_collections(
 
 @router.get("/collections/{collection_id}", response_model=CollectionDetail)
 def collection_detail(
-    request: Request, collection_id: str, user: User = Depends(get_current_user)
+    request: Request,
+    collection_id: str,
+    kind: str | None = Query(default=None, max_length=32, description="Paged: only this kind."),
+    offset: int = Query(default=0, ge=0),
+    limit: int | None = Query(
+        default=None,
+        ge=1,
+        le=100,
+        description="Page size. Absent: every item, as before 1.0.3.",
+    ),
+    user: User = Depends(get_current_user),
 ) -> CollectionDetail:
-    """A collection + its resolved typed items (dangling highlights dropped)."""
+    """A collection + its resolved typed items (dangling highlights dropped).
+
+    Paging is opt-in: with ``limit`` one page (optionally one ``kind``), plus ``total`` and
+    ``kind_counts``.
+    """
     data_dir = _data_dir(request)
     by_id = {h["id"]: h for h in app_user_state.get_highlights(data_dir, user.user_id)}
     rows = app_collections_store.list_collections(data_dir, user.user_id, live_item_ids=set(by_id))
@@ -326,8 +340,22 @@ def collection_detail(
     if meta is None:
         raise HTTPException(status_code=404, detail="collection not found")
     stored = app_collections_store.get_items(data_dir, user.user_id, collection_id)
-    items = [it for it in (_resolve_item(m, by_id) for m in stored) if it is not None]
-    return CollectionDetail(collection=Collection(**meta), items=items)
+    if limit is None:
+        items = [it for it in (_resolve_item(m, by_id) for m in stored) if it is not None]
+        return CollectionDetail(collection=Collection(**meta), items=items)
+    # Counted on the stored rows; a highlight whose capture is gone is dropped here as below.
+    live = [m for m in stored if m.get("kind") != "highlight" or m.get("ref") in by_id]
+    kind_counts: dict[str, int] = {}
+    for m in live:
+        kind_counts[str(m.get("kind"))] = kind_counts.get(str(m.get("kind")), 0) + 1
+    selected = [m for m in live if kind is None or m.get("kind") == kind]
+    page = [_resolve_item(m, by_id) for m in selected[offset : offset + limit]]
+    return CollectionDetail(
+        collection=Collection(**meta),
+        items=[it for it in page if it is not None],
+        total=len(selected),
+        kind_counts=kind_counts,
+    )
 
 
 @router.post("/collections/{collection_id}/items", response_model=Collection)

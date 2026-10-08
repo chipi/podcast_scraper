@@ -12,7 +12,7 @@ import EpisodeCard from "../components/EpisodeCard.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
 import ListToolbar from "../components/ListToolbar.vue"
 import SectionStatus from "../components/SectionStatus.vue"
-import { getPodcasts, listEpisodes } from "../services/api"
+import { getPodcastsPage, listEpisodes } from "../services/api"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import { useCompletedStore } from "../stores/completed"
 import { usePlayed } from "../composables/usePlayed"
@@ -219,7 +219,12 @@ onMounted(async () => {
   if (auth.isAuthenticated) void completed.ensureLoaded().catch(() => {})
   if (isNative()) void downloads.ensureLoaded().catch(() => {})
   await loadMore()
-  shows.value = (await getPodcasts().catch(() => []))
+  // The filter's show names only — every show, without descriptions (2026-10-08).
+  shows.value = (
+    await getPodcastsPage({ compact: true, limit: 200, sort: "az" })
+      .then((p) => p.items)
+      .catch(() => [])
+  )
     .filter((p) => p.feed_id)
     .map((p) => ({ id: p.feed_id, label: p.title ?? p.feed_id }))
 })
@@ -257,6 +262,7 @@ onMounted(async () => {
         :filter-options="filterOptions"
         :sort-options="sortOptions"
         :count="countLabel"
+        :search-placeholder="t('browse.filterEpisodes')"
       />
 
       <p v-if="visible.length === 0" class="text-muted">{{ t("list.noMatches") }}</p>

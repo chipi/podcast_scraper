@@ -71,9 +71,8 @@ test('the player insight density band shows where the insights sit', async ({ pa
   // than decorative.
   expect(await page.getByTestId('player-density-tick').count()).toBeGreaterThan(1)
 
-  // NOTE: `density-early|mid|late` belong to `EpisodeDensity`, a DIFFERENT component on a
-  // different surface (asserted by `consolidation.spec.ts`). Conflating the two here would have
-  // this spec fail for a reason that has nothing to do with the player band.
+  // The episode notes no longer carry their own early/mid/late density box (operator 2026-10-08);
+  // this band is the one place the app shows where the insights sit.
 })
 
 test('tapping the density band seeks there, like the scrubber (operator 2026-09-30)', async ({ page }, testInfo) => {

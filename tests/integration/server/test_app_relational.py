@@ -156,6 +156,32 @@ def test_topic_card_episodes_siblings_and_people(tmp_path: Path) -> None:
     assert people_ids == {"person:jane-doe", "person:bob", "person:carol"}
 
 
+def test_card_episodes_are_paged_on_the_server_and_the_count_stays_the_total(
+    tmp_path: Path,
+) -> None:
+    """2026-10-08: cards returned every episode (a storyline 99, 1.29 MB on prod) and the client
+    sliced five. Paged on the server; with no limit the full list still comes back (1.0.2)."""
+    _two_episode_corpus(tmp_path)
+    client = _client(tmp_path)
+    full = client.get("/api/app/topics/topic:ai").json()
+    assert full["episode_count"] == 2 and len(full["episodes"]) == 2
+    first = client.get("/api/app/topics/topic:ai?episodes_limit=1").json()
+    second = client.get("/api/app/topics/topic:ai?episodes_limit=1&episodes_offset=1").json()
+    assert first["episode_count"] == 2 and len(first["episodes"]) == 1
+    assert first["episodes_total"] == 2
+    # The sparkline and top shows are over ALL episodes, not the page of one.
+    assert sum(m["count"] for m in first["episode_months"]) == sum(
+        m["count"] for m in full["episode_months"]
+    )
+    assert first["top_shows"] == full["top_shows"]
+    assert sum(sh["count"] for sh in first["top_shows"]) == 2
+    assert full.get("episodes_total") is None  # the full list is not "paged"
+    assert len(second["episodes"]) == 1
+    assert first["episodes"][0]["slug"] != second["episodes"][0]["slug"]
+    person = client.get("/api/app/persons/person:jane-doe?episodes_limit=1").json()
+    assert len(person["episodes"]) == 1 and person["episode_count"] >= 1
+
+
 def test_topic_card_without_clusters_has_no_siblings(tmp_path: Path) -> None:
     _two_episode_corpus(tmp_path)
     body = _client(tmp_path).get("/api/app/topics/topic:ml").json()
@@ -360,6 +386,25 @@ def test_grouping_perspectives_routes_serve_the_union(tmp_path: Path) -> None:
     story = client.get("/api/app/storylines/topic:risk-management/perspectives")
     assert story.status_code == 200, story.text
     assert story.json()["topic_label"] == "Managing risk across domains"
+
+
+def test_perspectives_are_paged_on_the_server(tmp_path: Path) -> None:
+    """2026-10-08: a storyline's perspectives were 160 KB / 1.1 s on prod — every speaker with every
+    take — for a section showing three speakers with two takes. Paged; no params = the full list."""
+    client = _fixture_client(tmp_path)
+    url = "/api/app/storylines/topic:risk-management/perspectives"
+    full = client.get(url).json()
+    capped = client.get(f"{url}?insights_per_speaker=1").json()
+    assert capped["perspective_count"] == full["perspective_count"]
+    assert len(capped["perspectives"]) == len(full["perspectives"])
+    assert all(len(p["insights"]) <= 1 for p in capped["perspectives"])
+    # insight_count stays each speaker's TOTAL, so "all N from this speaker" is still right.
+    assert [p["insight_count"] for p in capped["perspectives"]] == [
+        p["insight_count"] for p in full["perspectives"]
+    ]
+    one = client.get(f"{url}?speakers_offset=1&speakers_limit=1").json()
+    assert [p["person_id"] for p in one["perspectives"]] == [full["perspectives"][1]["person_id"]]
+    assert one["perspectives"][0]["insights"] == full["perspectives"][1]["insights"]
 
 
 def test_grouping_perspectives_404_on_an_absence_not_a_fault(tmp_path: Path) -> None:

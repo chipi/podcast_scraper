@@ -10,7 +10,7 @@
  * transcribed nothing), and the built-in `SpeechRecognition` in a real browser. The mic shows only
  * when the Settings opt-in is on AND the platform can dictate.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCaptureStore } from '../stores/capture'
 import { useSignInGate } from '../composables/useSignInGate'
@@ -36,9 +36,12 @@ const noteCaps = useCappedSections(5, 5)
 const shownNotes = computed(() => noteCaps.visible('notes', notes.value))
 const draft = ref('')
 
-// Self-hydrate so the note list works on surfaces that don't already load captures (entity cards,
-// the show page). No-op after the first load; caught so a signed-out/offline fetch stays quiet.
-onMounted(() => void capture.ensureLoaded().catch(() => {}))
+// Self-hydrate THIS target's notes (2026-10-08: the store no longer loads every note), on mount
+// and when the composer is reused for another target. Caught so a signed-out/offline fetch stays
+// quiet; offline the cached notes stand.
+const loadNotes = (): void => void capture.ensureNotesFor(props.target, props.targetId).catch(() => {})
+onMounted(loadNotes)
+watch(() => [props.target, props.targetId], loadNotes)
 
 const save = gated(async () => {
   const text = draft.value.trim()

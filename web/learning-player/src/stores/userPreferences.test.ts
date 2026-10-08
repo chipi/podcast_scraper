@@ -61,6 +61,23 @@ describe('learning-player useUserPreferencesStore (USERPREFS-1 gh #1213)', () =>
     expect(store.get('other')).toBe('x') // and the rest of the snapshot still arrives
   })
 
+  it('a write made BEFORE the hydrate, whose PATCH is still out, survives the hydrate', async () => {
+    // Tap "Everyone" on Trends before preferences loaded: the local value is set and the PATCH sent;
+    // the hydrate's GET then reads the server before the PATCH lands and finds no value. The merge
+    // only kept writes made after the GET began, so the switch flipped back to "You" (e2e
+    // storyline.spec, 2026-10-08).
+    let resolvePatch!: (r: Response) => void
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((r) => (resolvePatch = r))) // PATCH
+    fetchMock.mockResolvedValueOnce(makeResponse({ preferences: { other: 'x' } })) // GET, stale
+    const store = useUserPreferencesStore()
+    const writing = store.set('lp.trendingScope', 'corpus')
+    await store.hydrate()
+    expect(store.get('lp.trendingScope')).toBe('corpus')
+    expect(store.get('other')).toBe('x')
+    resolvePatch(makeResponse({}, 200))
+    await writing
+  })
+
   it('hydrate() silently marks unavailable on non-2xx response', async () => {
     fetchMock.mockResolvedValueOnce(makeResponse(null, 401))
     const store = useUserPreferencesStore()

@@ -30,7 +30,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { getResurfacing, markSurfaced, retireHighlight } from '../services/api'
+import { getResurfacingPage, markSurfaced, retireHighlight } from '../services/api'
 import type { ResurfacingItem } from '../services/types'
 
 interface State {
@@ -47,6 +47,9 @@ interface State {
   paused: boolean
   loaded: boolean
 }
+
+/** Episodes the store reads for the Home rail (it shows at most four). */
+const RAIL_EPISODES = 6
 
 export const useResurfacingStore = defineStore('resurfacing', {
   state: (): State => ({ due: 0, items: [], paused: false, loaded: false }),
@@ -96,8 +99,10 @@ export const useResurfacingStore = defineStore('resurfacing', {
      */
     async load(): Promise<void> {
       try {
-        const resp = await getResurfacing()
-        this.due = resp.items.length
+        // The COUNT and a few episodes' worth for the Home rail — not everything due (2026-10-08).
+        // Three per episode so reviewing one can bring up that episode's next, as before.
+        const resp = await getResurfacingPage({ limit: RAIL_EPISODES, perEpisode: 3 })
+        this.due = resp.total
         this.items = resp.items
         this.paused = resp.paused
       } catch {

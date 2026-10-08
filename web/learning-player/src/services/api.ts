@@ -7,6 +7,10 @@
  */
 
 import type {
+  EpisodeSummary,
+  FavoriteKind,
+  FavoriteRef,
+  ResurfacingItem,
   WhatsNewResponse,
   RecapResponse,
   RecapWindow,
@@ -266,6 +270,37 @@ export function getEpisode(slug: string): Promise<EpisodeDetail> {
   return getJSON<EpisodeDetail>(`/episodes/${encodeURIComponent(slug)}`)
 }
 
+/** At most this many slugs per batch request — the server's cap (`_BATCH_MAX`). */
+const EPISODE_BATCH_MAX = 100
+
+/**
+ * Several episode details in one request each 100 — the queue, recently played and the other
+ * lists of saved slugs. Returns a map by slug; unknown slugs are simply absent.
+ *
+ * A server that predates `/episodes/batch` reads "batch" as a slug and answers 404: the 1.0.3 app
+ * is published before the deploy, so for a while it talks to that server. On 404 this falls back to
+ * one `getEpisode` per slug, which is what every screen did before.
+ */
+export async function getEpisodesBatch(slugs: string[]): Promise<Record<string, EpisodeDetail>> {
+  const unique = [...new Set(slugs.filter(Boolean))]
+  const out: Record<string, EpisodeDetail> = {}
+  for (let i = 0; i < unique.length; i += EPISODE_BATCH_MAX) {
+    const chunk = unique.slice(i, i + EPISODE_BATCH_MAX)
+    const query = chunk.map((s) => `slugs=${encodeURIComponent(s)}`).join("&")
+    try {
+      const body = await getJSON<{ items: EpisodeDetail[]; missing: string[] }>(
+        `/episodes/batch?${query}`
+      )
+      for (const d of body.items) out[d.slug] = d
+    } catch (err) {
+      if (!(err instanceof ApiError) || err.status !== 404) throw err
+      const each = await Promise.all(chunk.map((s) => getEpisode(s).catch(() => null)))
+      for (const d of each) if (d) out[d.slug] = d
+    }
+  }
+  return out
+}
+
 /** Transcript segments for the sync engine.
  *
  *  `lang` selects the ALTERNATIVE rendering, it does not pick the default: omit it and the
@@ -381,11 +416,29 @@ function withAbsoluteEntityImages<T>(card: T): T {
   return c as T
 }
 
+/**
+ * One page of an entity card's episodes (server paging, 2026-10-08). The cards returned every
+ * episode — a storyline 99, 1.29 MB on prod — and the client showed five. Omit for the whole list.
+ */
+export interface EpisodePage {
+  limit?: number
+  offset?: number
+  /** Person card: leave out the shows they host (their back-catalogue), on the server. */
+  excludeHostShows?: boolean
+}
+function pageParams(p?: EpisodePage): Record<string, string | number | undefined> {
+  return {
+    episodes_limit: p?.limit,
+    episodes_offset: p?.offset || undefined,
+    exclude_host_shows: p?.excludeHostShows ? "true" : undefined,
+  }
+}
+
 /** Person profile card — appears-in episodes + related people/topics (KG co-occurrence). */
-export async function getPersonCard(id: string, scope?: "all" | "mine"): Promise<PersonCard> {
+export async function getPersonCard(id: string, scope?: "all" | "mine", page?: EpisodePage): Promise<PersonCard> {
   // scope='mine' = the guest across the episodes the signed-in user has heard (P3 #1122).
   return withAbsoluteEntityImages(
-    await getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`, { scope })
+    await getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`, { scope, ...pageParams(page) })
   )
 }
 
@@ -395,8 +448,10 @@ export async function getPersonCard(id: string, scope?: "all" | "mine"): Promise
  * No `scope` parameter: the topic card has one, but a personally-filtered union answers a different
  * question than "what is this grouping, across the corpus".
  */
-export async function getThemeCard(id: string): Promise<ClusterCard> {
-  return withAbsoluteEntityImages(await getJSON<ClusterCard>(`/themes/${encodeURIComponent(id)}`))
+export async function getThemeCard(id: string, page?: EpisodePage): Promise<ClusterCard> {
+  return withAbsoluteEntityImages(
+    await getJSON<ClusterCard>(`/themes/${encodeURIComponent(id)}`, pageParams(page))
+  )
 }
 
 /**
@@ -406,23 +461,23 @@ export async function getThemeCard(id: string): Promise<ClusterCard> {
  * replaces deriving the page from the anchor's TOPIC card, whose `episodes` are the anchor's alone:
  * the page said "Discussed in 30 episodes" for a storyline spanning 40.
  */
-export async function getStorylineCard(id: string): Promise<ClusterCard> {
+export async function getStorylineCard(id: string, page?: EpisodePage): Promise<ClusterCard> {
   return withAbsoluteEntityImages(
-    await getJSON<ClusterCard>(`/storylines/${encodeURIComponent(id)}`)
+    await getJSON<ClusterCard>(`/storylines/${encodeURIComponent(id)}`, pageParams(page))
   )
 }
 
 /** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
-export async function getTopicCard(id: string, scope?: "all" | "mine"): Promise<TopicCard> {
+export async function getTopicCard(id: string, scope?: "all" | "mine", page?: EpisodePage): Promise<TopicCard> {
   return withAbsoluteEntityImages(
-    await getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
+    await getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope, ...pageParams(page) })
   )
 }
 
 /** Organization card (#2031) — mentioned-in episodes + co-occurring people/orgs/topics. */
-export async function getOrgCard(id: string): Promise<OrgCard> {
+export async function getOrgCard(id: string, page?: EpisodePage): Promise<OrgCard> {
   return withAbsoluteEntityImages(
-    await getJSON<OrgCard>(`/organizations/${encodeURIComponent(id)}`)
+    await getJSON<OrgCard>(`/organizations/${encodeURIComponent(id)}`, pageParams(page))
   )
 }
 
@@ -437,11 +492,33 @@ export async function getOrgCard(id: string): Promise<OrgCard> {
  * Found by sweeping every endpoint that can carry a person photo after the same bug turned up on
  * the key-voices rail (operator 2026-09-27). This was the last one still raw.
  */
+/**
+ * A page of perspectives (server paging, 2026-10-08: a storyline's were 160 KB, every speaker with
+ * every take, for a section showing three speakers with two takes). Omit for the full response.
+ */
+export interface PerspectivesPage {
+  /** At most this many takes per speaker; `insight_count` stays their total. */
+  perSpeaker?: number
+  offset?: number
+  limit?: number
+}
+function perspectivesParams(p?: PerspectivesPage): Record<string, string | number | undefined> {
+  return {
+    insights_per_speaker: p?.perSpeaker,
+    speakers_offset: p?.offset || undefined,
+    speakers_limit: p?.limit,
+  }
+}
+
 export async function getTopicPerspectives(
   id: string,
-  scope?: "all" | "mine"
+  scope?: "all" | "mine",
+  page?: PerspectivesPage
 ): Promise<TopicPerspectivesResponse> {
-  return perspectivesFrom(`/topics/${encodeURIComponent(id)}/perspectives`, { scope })
+  return perspectivesFrom(`/topics/${encodeURIComponent(id)}/perspectives`, {
+    scope,
+    ...perspectivesParams(page),
+  })
 }
 
 /**
@@ -455,12 +532,12 @@ export async function getTopicPerspectives(
  * No `scope`, matching the grouping card routes: a theme page asks what the grouping is across the
  * corpus, and a personally-filtered union would quietly answer a different question.
  */
-export function getThemePerspectives(id: string): Promise<TopicPerspectivesResponse> {
-  return perspectivesFrom(`/themes/${encodeURIComponent(id)}/perspectives`)
+export function getThemePerspectives(id: string, page?: PerspectivesPage): Promise<TopicPerspectivesResponse> {
+  return perspectivesFrom(`/themes/${encodeURIComponent(id)}/perspectives`, perspectivesParams(page))
 }
 
-export function getStorylinePerspectives(id: string): Promise<TopicPerspectivesResponse> {
-  return perspectivesFrom(`/storylines/${encodeURIComponent(id)}/perspectives`)
+export function getStorylinePerspectives(id: string, page?: PerspectivesPage): Promise<TopicPerspectivesResponse> {
+  return perspectivesFrom(`/storylines/${encodeURIComponent(id)}/perspectives`, perspectivesParams(page))
 }
 
 /**
@@ -600,6 +677,13 @@ export function getWhatsNew(limit = 5): Promise<WhatsNewResponse> {
   return getJSON<WhatsNewResponse>("/whats-new", { limit })
 }
 
+/** Home's Recommended without listening history (operator 2026-10-07): episodes carrying what the
+ *  listener follows or their listening implies, minus what they played. `basis: "none"` = nothing to
+ *  base it on, and no items. */
+export function getRecommended(limit = 12): Promise<{ items: EpisodeSummary[]; basis: "interests" | "none" }> {
+  return getJSON("/recommended", { limit })
+}
+
 /** Fire-and-forget: log a click on a discovery-feed episode (its shown rank position) for
  *  ranking telemetry (#11). Silent no-op when signed out or on any network error. */
 export function recordDiscoverClick(slug: string, position: number): void {
@@ -683,6 +767,77 @@ export async function getFavorites(): Promise<FavoritesResponse> {
   return await getJSON<FavoritesResponse>("/favorites")
 }
 
+/** Query for one page of the Saved list (`GET /favorites` with `limit`). */
+export interface FavoritesPageQuery {
+  kind?: FavoriteKind
+  q?: string
+  color?: string | null
+  sort?: "recent" | "title"
+  offset?: number
+  limit: number
+}
+
+/**
+ * One page of one kind of favourite, filtered and sorted on the server.
+ *
+ * A server that predates paging ignores the parameters and returns every favourite with no
+ * `total`; this then does the same filtering and slicing here, so the screen behaves the same on
+ * either server.
+ */
+export async function getFavoritesPage(query: FavoritesPageQuery): Promise<FavoritesResponse> {
+  const resp = await getJSON<FavoritesResponse>("/favorites", {
+    kind: query.kind,
+    q: query.q?.trim() || undefined,
+    color: query.color ?? undefined,
+    sort: query.sort,
+    offset: query.offset ?? 0,
+    limit: query.limit,
+  })
+  return resp.total === undefined ? pageFavoritesLocally(resp, query) : resp
+}
+
+export function pageFavoritesLocally(all: FavoritesResponse, query: FavoritesPageQuery): FavoritesResponse {
+  const needle = (query.q ?? "").trim().toLocaleLowerCase()
+  const has = (...texts: (string | null | undefined)[]) =>
+    !needle || texts.some((t) => (t ?? "").toLocaleLowerCase().includes(needle))
+  const colourOk = (c?: string | null) => !query.color || c === query.color
+  const eps = all.episodes.filter((e) => colourOk(e.color) && has(e.title, e.podcast_title))
+  const ents = (all.entities ?? []).filter((e) => colourOk(e.color) && has(e.label))
+  const counts: Partial<Record<FavoriteKind, number>> = { episode: eps.length }
+  for (const e of ents) counts[e.kind] = (counts[e.kind] ?? 0) + 1
+  const byTitle = query.sort === "title"
+  const start = query.offset ?? 0
+  const end = start + query.limit
+  if (query.kind === "episode") {
+    const list = byTitle ? [...eps].sort((a, b) => a.title.localeCompare(b.title)) : eps
+    return { episodes: list.slice(start, end), entities: [], total: list.length, counts }
+  }
+  const list = query.kind ? ents.filter((e) => e.kind === query.kind) : ents
+  const sorted = byTitle ? [...list].sort((a, b) => a.label.localeCompare(b.label)) : list
+  return { episodes: [], entities: sorted.slice(start, end), total: sorted.length, counts }
+}
+
+/**
+ * Which items are saved — identity only, for the hearts. Falls back to deriving it from the full
+ * list on a server that predates `/favorites/refs` (404).
+ */
+export async function getFavoriteRefs(): Promise<FavoriteRef[]> {
+  try {
+    return (await getJSON<{ items: FavoriteRef[] }>("/favorites/refs")).items
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 404) throw err
+    return favoriteRefsOf(await getFavorites())
+  }
+}
+
+/** The identities in a full favourites response (what every write still answers with). */
+export function favoriteRefsOf(f: FavoritesResponse): FavoriteRef[] {
+  return [
+    ...f.episodes.map((e) => ({ kind: "episode" as const, ref: e.slug, color: e.color ?? null })),
+    ...(f.entities ?? []).map((e) => ({ kind: e.kind, ref: e.ref, color: e.color ?? null })),
+  ]
+}
+
 /** Save an item (auth-gated); returns the updated favorites. */
 export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse> {
   const resp = await apiFetch(`${BASE}/favorites`, {
@@ -760,8 +915,116 @@ export async function putUserInterests(clusterIds: string[]): Promise<string[]> 
 }
 
 /** Distinct shows in the corpus (public, not per-user). */
-export async function getPodcasts(): Promise<Podcast[]> {
-  return (await getJSON<{ items: Podcast[] }>("/podcasts")).items
+/**
+ * The whole show catalogue (~80 KB on prod). Shared and kept for a minute (2026-10-08): seven
+ * surfaces ask for it, and Library → Following alone fetched it three times in one open. It is the
+ * same for every listener and changes only when a show is added, so one request serves them all; a
+ * failed request is not kept, so the next caller retries.
+ */
+let podcastsCache: { at: number; promise: Promise<Podcast[]> } | null = null
+const PODCASTS_TTL_MS = 60_000
+export function getPodcasts(): Promise<Podcast[]> {
+  if (podcastsCache && Date.now() - podcastsCache.at < PODCASTS_TTL_MS) return podcastsCache.promise
+  const promise = getJSON<{ items: Podcast[] }>("/podcasts").then((r) => r.items)
+  podcastsCache = { at: Date.now(), promise }
+  promise.catch(() => {
+    if (podcastsCache?.promise === promise) podcastsCache = null
+  })
+  return promise
+}
+
+/** One page of the show catalogue (`GET /podcasts` with `limit`, 1.0.3). */
+export interface PodcastsPage {
+  items: Podcast[]
+  total: number
+  /** Every category in the catalogue (the filter's options). */
+  categories: string[]
+}
+
+export interface PodcastsQuery {
+  q?: string
+  category?: string
+  sort?: "newest" | "oldest" | "az" | "za" | "trending"
+  offset?: number
+  limit: number
+  /** Only these shows — a lookup by id. */
+  feedIds?: string[]
+  /** Leave out descriptions (a list of names). */
+  compact?: boolean
+}
+
+/**
+ * A page of the catalogue, filtered and sorted on the server. Against an older server (no `total`)
+ * the full list is cut here; "trending" then reads A-Z, as it does when no velocity is known.
+ */
+export async function getPodcastsPage(query: PodcastsQuery): Promise<PodcastsPage> {
+  const params = new URLSearchParams({ limit: String(query.limit), offset: String(query.offset ?? 0) })
+  if (query.q?.trim()) params.set("q", query.q.trim())
+  if (query.category) params.set("category", query.category)
+  if (query.sort) params.set("sort", query.sort)
+  if (query.compact) params.set("compact", "true")
+  for (const id of query.feedIds ?? []) params.append("feed_ids", id)
+  const resp = await getJSON<{ items: Podcast[]; total?: number; categories?: string[] }>(
+    `/podcasts?${params}`,
+  )
+  if (resp.total !== undefined) return resp as PodcastsPage
+  return pagePodcastsLocally(resp.items, query)
+}
+
+export function pagePodcastsLocally(all: Podcast[], query: PodcastsQuery): PodcastsPage {
+  const ids = new Set(query.feedIds ?? [])
+  const words = (query.q ?? "").toLowerCase().split(/\s+/).filter(Boolean)
+  const title = (p: Podcast) => (p.title ?? p.feed_id).toLowerCase()
+  const hay = (p: Podcast) => [title(p), ...(p.authors ?? [])].join(" ").toLowerCase()
+  let list = all.filter(
+    (p) =>
+      p.feed_id &&
+      (!ids.size || ids.has(p.feed_id)) &&
+      (!query.category || p.category === query.category) &&
+      words.every((w) => hay(p).includes(w)),
+  )
+  const byTitle = (a: Podcast, b: Podcast) => title(a).localeCompare(title(b))
+  if (query.sort === "za") list = [...list].sort((a, b) => byTitle(b, a))
+  else if (query.sort === "az" || query.sort === "trending") list = [...list].sort(byTitle)
+  else {
+    const dated = list.filter((p) => p.last_updated)
+    const undated = list.filter((p) => !p.last_updated).sort(byTitle)
+    dated.sort((a, b) => {
+      const c = (a.last_updated ?? "").localeCompare(b.last_updated ?? "") || byTitle(a, b)
+      return query.sort === "oldest" ? c : -c
+    })
+    list = [...dated, ...undated]
+  }
+  const start = query.offset ?? 0
+  return {
+    items: list.slice(start, start + query.limit),
+    total: list.length,
+    categories: [...new Set(all.map((p) => p.category).filter((c): c is string => !!c))].sort(),
+  }
+}
+
+/** These shows, by id — what a board, a show page or a followed list needs, not the catalogue. */
+export async function getPodcastsByIds(ids: string[]): Promise<Podcast[]> {
+  const unique = [...new Set(ids.filter(Boolean))]
+  const out: Podcast[] = []
+  for (let i = 0; i < unique.length; i += 200) {
+    const chunk = unique.slice(i, i + 200)
+    out.push(...(await getPodcastsPage({ feedIds: chunk, limit: chunk.length, sort: "az" })).items)
+  }
+  return out
+}
+
+/** Test seam: forget the shared show catalogue. */
+export function __resetPodcastsCache(): void {
+  podcastsCache = null
+}
+
+/**
+ * Shows for the guided start's "follow a few shows" step (operator 2026-10-08): active in the last
+ * month first, then the most loved, lifted by the listener's interests, minus shows they follow.
+ */
+export async function getSuggestedShows(limit = 8): Promise<Podcast[]> {
+  return (await getJSON<{ items: Podcast[] }>(`/podcasts/suggested?limit=${limit}`)).items
 }
 
 // --- Feed subscriptions ("follow a show") — the library the Your Week digest reads for its
@@ -820,9 +1083,29 @@ export function getPodcastSignals(feedId: string, topK?: number): Promise<Podcas
 }
 
 /** Saved playback positions, newest-first (Home "Continue"); `[]` when signed out. */
-export async function getPlaybackList(): Promise<PlaybackPosition[]> {
+/** Which positions to read (`GET /playback` with `limit`, 1.0.3) — none = every position. */
+export interface PlaybackQuery {
+  /** Started and not finished — Home's Continue listening. */
+  inProgress?: boolean
+  /** Only these episodes. */
+  slugs?: string[]
+  limit: number
+}
+
+export async function getPlaybackList(query?: PlaybackQuery): Promise<PlaybackPosition[]> {
   try {
-    return (await getJSON<{ items: PlaybackPosition[] }>("/playback")).items
+    if (!query) return (await getJSON<{ items: PlaybackPosition[] }>("/playback")).items
+    const params = new URLSearchParams({ limit: String(query.limit) })
+    if (query.inProgress) params.set("in_progress", "true")
+    for (const s of query.slugs ?? []) params.append("slugs", s)
+    const resp = await getJSON<{ items: PlaybackPosition[]; total?: number }>(`/playback?${params}`)
+    if (resp.total !== undefined) return resp.items
+    // An older server ignores the parameters and answers with everything: filter here.
+    const wanted = new Set(query.slugs ?? [])
+    return resp.items
+      .filter((p) => !wanted.size || wanted.has(p.slug))
+      .filter((p) => !query.inProgress || (p.position_seconds > 1 && !p.finished))
+      .slice(0, query.limit)
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return []
     throw err
@@ -1265,6 +1548,139 @@ export async function getHighlights(episode?: string): Promise<Highlight[]> {
   return (await getJSON<{ items: Highlight[] }>("/highlights", { episode })).items
 }
 
+/** One page of the Saved highlights — whole EPISODES, each with its first few highlights. */
+export interface HighlightsPage {
+  items: Highlight[]
+  /** Matching highlights across all pages. */
+  total: number
+  /** Episodes with a match, across all pages. */
+  episode_total: number
+  /** Matching highlights per episode on this page (`items` holds at most `perEpisode` each). */
+  episode_counts: Record<string, number>
+  /** The notes on the highlights in `items`. */
+  notes: Note[]
+}
+
+export interface HighlightsPageQuery {
+  q?: string
+  color?: string | null
+  muted?: boolean
+  sort?: "recent" | "title"
+  /** Episodes to skip. */
+  offset?: number
+  /** Episodes per page. */
+  limit: number
+  perEpisode?: number
+  /** One episode only — its next highlights. */
+  episode?: string
+}
+
+/**
+ * The Saved highlights a page of EPISODES at a time, filtered on the server (`GET /highlights`
+ * with `limit`). Against a server that predates paging (no `total` in its answer) the full list is
+ * grouped and cut here instead, the way the Saved tab used to — same result either way.
+ */
+export async function getHighlightsPage(query: HighlightsPageQuery): Promise<HighlightsPage> {
+  const resp = await getJSON<Partial<HighlightsPage> & { items: Highlight[] }>("/highlights", {
+    episode: query.episode,
+    q: query.q?.trim() || undefined,
+    color: query.color ?? undefined,
+    muted: query.muted ? "true" : undefined,
+    sort: query.sort,
+    offset: query.offset ?? 0,
+    limit: query.limit,
+    per_episode: query.perEpisode ?? 5,
+  })
+  if (resp.total !== undefined) return resp as HighlightsPage
+  return pageHighlightsLocally(resp.items, await getNotes("highlight").catch(() => []), query)
+}
+
+export function pageHighlightsLocally(
+  all: Highlight[],
+  notes: Note[],
+  query: HighlightsPageQuery,
+): HighlightsPage {
+  const needle = (query.q ?? "").trim().toLocaleLowerCase()
+  const has = (...texts: (string | null | undefined)[]) =>
+    !needle || texts.some((t) => (t ?? "").toLocaleLowerCase().includes(needle))
+  const groups = new Map<string, Highlight[]>()
+  let total = 0
+  for (const h of all) {
+    if (query.episode && h.episode_slug !== query.episode) continue
+    if (query.color && h.color !== query.color) continue
+    if (query.muted && !h.retired) continue
+    if (!has(h.quote_text, h.speaker)) continue
+    total++
+    groups.set(h.episode_slug, [...(groups.get(h.episode_slug) ?? []), h])
+  }
+  const newest = (hs: Highlight[]) => Math.max(...hs.map((h) => h.created_at ?? 0))
+  for (const hs of groups.values()) hs.sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))
+  // An older server has no titles to sort by here; A–Z falls back to the slug.
+  const order = [...groups.keys()].sort((a, b) =>
+    query.sort === "title" ? a.localeCompare(b) : newest(groups.get(b)!) - newest(groups.get(a)!),
+  )
+  const start = query.offset ?? 0
+  const page = order.slice(start, start + query.limit)
+  const items = page.flatMap((slug) => groups.get(slug)!.slice(0, query.perEpisode ?? 5))
+  const ids = new Set(items.map((h) => h.id))
+  return {
+    items,
+    total,
+    episode_total: order.length,
+    episode_counts: Object.fromEntries(page.map((slug) => [slug, groups.get(slug)!.length])),
+    notes: notes.filter((n) => n.target === "highlight" && ids.has(n.target_id)),
+  }
+}
+
+/** One page of notes. */
+export interface NotesPage {
+  items: Note[]
+  total: number
+  /** Matches per target kind under the same q, ignoring the kind filter. */
+  counts: Record<string, number>
+  /** The highlights the page's highlight-notes are on (their links need the episode). */
+  highlights: Highlight[]
+}
+
+export interface NotesPageQuery {
+  q?: string
+  /** Only these target kinds; none = all. */
+  kinds?: string[]
+  /** Every word of `q`, in any order (Search) — rather than `q` as one phrase. */
+  words?: boolean
+  offset?: number
+  limit: number
+}
+
+/** Notes newest first, a page at a time (`GET /notes` with `limit`); an older server pages here. */
+export async function getNotesPage(query: NotesPageQuery): Promise<NotesPage> {
+  const params = new URLSearchParams()
+  if (query.q?.trim()) params.set("q", query.q.trim())
+  for (const k of query.kinds ?? []) params.append("kinds", k)
+  if (query.words) params.set("match", "words")
+  params.set("offset", String(query.offset ?? 0))
+  params.set("limit", String(query.limit))
+  const resp = await getJSON<Partial<NotesPage> & { items: Note[] }>(`/notes?${params}`)
+  if (resp.total !== undefined) return resp as NotesPage
+  return pageNotesLocally(resp.items, await getHighlights().catch(() => []), query)
+}
+
+export function pageNotesLocally(all: Note[], highlights: Highlight[], query: NotesPageQuery): NotesPage {
+  const needle = (query.q ?? "").trim().toLocaleLowerCase()
+  const words = query.words ? needle.split(/\s+/).filter(Boolean) : [needle]
+  const hits = [...all]
+    .sort((a, b) => b.created_at - a.created_at)
+    .filter((n) => words.every((w) => !w || n.text.toLocaleLowerCase().includes(w)))
+  const counts: Record<string, number> = {}
+  for (const n of hits) counts[n.target] = (counts[n.target] ?? 0) + 1
+  const kinds = query.kinds ?? []
+  const selected = kinds.length ? hits.filter((n) => kinds.includes(n.target)) : hits
+  const start = query.offset ?? 0
+  const items = selected.slice(start, start + query.limit)
+  const on = new Set(items.filter((n) => n.target === "highlight").map((n) => n.target_id))
+  return { items, total: selected.length, counts, highlights: highlights.filter((h) => on.has(h.id)) }
+}
+
 /** Capture a highlight (auth-gated); returns the created record. */
 export async function createHighlight(body: HighlightCreate): Promise<Highlight> {
   // #2267 — one of the spec's four Umami goals, and part of "learning actions per active day".
@@ -1495,6 +1911,51 @@ export async function exportObsidian(since: number, epoch?: string): Promise<Obs
 // --- P3 Consolidation: spaced resurfacing (RFC-101 §5) ---
 
 /** Highlights due to resurface (+ reflection prompt + paused flag); empty signed out (401). */
+/**
+ * What is due, a page of EPISODES at a time (`GET /resurfacing` with `limit`). Against a server
+ * that predates paging (no `total` in its answer) the full list is grouped and cut here.
+ */
+export async function getResurfacingPage(query: {
+  offset?: number
+  limit: number
+  perEpisode?: number
+}): Promise<Required<ResurfacingResponse>> {
+  let resp: ResurfacingResponse
+  try {
+    resp = await getJSON<ResurfacingResponse>("/resurfacing", {
+      offset: query.offset ?? 0,
+      limit: query.limit,
+      per_episode: query.perEpisode ?? 100,
+    })
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) resp = { items: [], paused: false }
+    else throw err
+  }
+  if (resp.total !== undefined) return resp as Required<ResurfacingResponse>
+  return pageResurfacingLocally(resp, query)
+}
+
+export function pageResurfacingLocally(
+  resp: ResurfacingResponse,
+  query: { offset?: number; limit: number; perEpisode?: number },
+): Required<ResurfacingResponse> {
+  const groups = new Map<string, ResurfacingItem[]>()
+  for (const it of resp.items) {
+    const slug = it.highlight.episode_slug
+    groups.set(slug, [...(groups.get(slug) ?? []), it])
+  }
+  const order = [...groups.keys()]
+  const start = query.offset ?? 0
+  const page = order.slice(start, start + query.limit)
+  return {
+    items: page.flatMap((slug) => groups.get(slug)!.slice(0, query.perEpisode ?? 100)),
+    paused: resp.paused,
+    total: resp.items.length,
+    episode_total: order.length,
+    episode_counts: Object.fromEntries(page.map((slug) => [slug, groups.get(slug)!.length])),
+  }
+}
+
 export async function getResurfacing(): Promise<ResurfacingResponse> {
   try {
     return await getJSON<ResurfacingResponse>("/resurfacing")
@@ -1816,6 +2277,39 @@ function withAbsoluteCovers(items: Collection[]): Collection[] {
 
 export async function getCollection(id: string): Promise<CollectionDetail> {
   return getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`)
+}
+
+/**
+ * One page of a board's items (`GET /collections/{id}` with `limit`, 1.0.3), optionally of one
+ * kind. Against an older server (no `total`) the whole board is cut here.
+ */
+export async function getCollectionPage(
+  id: string,
+  query: { limit: number; offset?: number; kind?: string },
+): Promise<Required<CollectionDetail>> {
+  const resp = await getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`, {
+    limit: query.limit,
+    offset: query.offset ?? 0,
+    kind: query.kind,
+  })
+  if (resp.total !== undefined) return resp as Required<CollectionDetail>
+  return pageCollectionLocally(resp, query)
+}
+
+export function pageCollectionLocally(
+  resp: CollectionDetail,
+  query: { limit: number; offset?: number; kind?: string },
+): Required<CollectionDetail> {
+  const kindCounts: Record<string, number> = {}
+  for (const it of resp.items) kindCounts[it.kind] = (kindCounts[it.kind] ?? 0) + 1
+  const selected = query.kind ? resp.items.filter((i) => i.kind === query.kind) : resp.items
+  const start = query.offset ?? 0
+  return {
+    collection: resp.collection,
+    items: selected.slice(start, start + query.limit),
+    total: selected.length,
+    kind_counts: kindCounts,
+  }
 }
 
 // `clientId` (a `col_…` id minted offline) makes the create idempotent: a replay returns the

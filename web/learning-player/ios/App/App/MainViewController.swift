@@ -2,6 +2,7 @@ import UIKit
 import Capacitor
 import MetricKit
 import WebKit
+import os
 
 /**
  * Capacitor bridge view controller (#1310). Capacitor auto-registers only the plugins listed in
@@ -152,6 +153,7 @@ public class AppProcess: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "uptime", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "exitLog", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearExitLog", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "memoryInfo", returnType: CAPPluginReturnPromise),
     ]
 
     /** The kernel's start time for this pid; read once, it never changes. */
@@ -175,6 +177,36 @@ public class AppProcess: CAPPlugin, CAPBridgedPlugin {
     /// The pending exit records (#2279), oldest first. Not cleared until `clearExitLog`.
     @objc func exitLog(_ call: CAPPluginCall) {
         call.resolve(["entries": ExitLog.peek()])
+    }
+
+    /// For "Copy debug info" (operator 2026-10-08): how much memory iOS will still let this app use
+    /// before it is killed, the app's own footprint, total RAM, thermal state and Low Power Mode. iOS
+    /// gives no figure for free GPU memory; the WebContent process's memory is not in the footprint.
+    @objc func memoryInfo(_ call: CAPPluginCall) {
+        var result: [String: Any] = [
+            "totalMb": Int(ProcessInfo.processInfo.physicalMemory / 1_048_576),
+            "thermalState": ProcessInfo.processInfo.thermalState.rawValue,
+            "lowPowerMode": ProcessInfo.processInfo.isLowPowerModeEnabled,
+        ]
+        if #available(iOS 13.0, *) {
+            result["availMb"] = Int(os_proc_available_memory() / 1_048_576)
+        }
+        var vm = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let kr = withUnsafeMutablePointer(to: &vm) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        if kr == KERN_SUCCESS { result["appFootprintMb"] = Int(vm.phys_footprint / 1_048_576) }
+        var sys = utsname()
+        uname(&sys)
+        let machine = withUnsafePointer(to: &sys.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 1) { String(cString: $0) }
+        }
+        result["model"] = machine
+        result["osVersion"] = UIDevice.current.systemVersion
+        call.resolve(result)
     }
 
     @objc func clearExitLog(_ call: CAPPluginCall) {

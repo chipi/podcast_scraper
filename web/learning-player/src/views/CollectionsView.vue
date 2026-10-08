@@ -13,6 +13,7 @@ import SectionStatus from "../components/SectionStatus.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
 import TypeFilterBar from "../components/TypeFilterBar.vue"
 import { useCappedSections } from "../composables/useCappedSections"
+import { useNotesPage } from "../composables/useNotesPage"
 import { noteRoute as resolveNoteRoute } from "../composables/noteTarget"
 import { useCollectionsStore } from "../stores/collections"
 import { scrollBehavior } from "../utils/motion"
@@ -22,12 +23,12 @@ import {
   addToCollection,
   createCollection,
   deleteCollection,
-  getCollection,
-  getEpisode,
-  getPodcasts,
+  getCollectionPage,
+  getEpisodesBatch,
+  getPodcastsByIds,
   removeFromCollection,
 } from "../services/api"
-import type { Collection, CollectionDetail, CollectionItem } from "../services/types"
+import type { Collection, CollectionDetail, CollectionItem, EpisodeDetail } from "../services/types"
 import { useQueueStore } from "../stores/queue"
 import { useSignInGate } from "../composables/useSignInGate"
 import { formatPublishDate } from "../utils/format"
@@ -208,6 +209,8 @@ const NOTE_KIND_ORDER = [
   "theme",
 ] as const
 const noteTypes = ref<string[]>([])
+// Every note the user took, paged on the server (2026-10-08) — it used to load them all.
+const notesPage = useNotesPage(search, noteTypes)
 /** The kind in words. Falls back to the raw target so an unknown kind still labels its row. */
 function noteKindLabel(target: string): string {
   const key = `notes.kind_${target}`
@@ -219,8 +222,9 @@ const availableNoteTypes = computed(() => {
   // Saved section headings and the Knowledge Panel's insight chips already use. Counted over ALL
   // notes, not the search-filtered set: a chip that changed its number as you typed would be
   // answering a different question from the one it asks.
-  const byKind = new Map<string, number>()
-  for (const n of capture.notes) byKind.set(n.target, (byKind.get(n.target) ?? 0) + 1)
+  const byKind = new Map<string, number>(
+    Object.entries(notesPage.counts.value).filter(([, n]) => n > 0),
+  )
   return NOTE_KIND_ORDER.filter((k) => byKind.has(k)).map((k) => ({
     key: k,
     // Same words as the row's own kicker, so a chip and the rows it governs name the same thing.
@@ -235,21 +239,45 @@ watch(availableNoteTypes, (types) => {
   if (kept.length !== noteTypes.value.length) noteTypes.value = kept
 })
 
-// Notes newest-first, filtered by the same search box (NT.4 + CO.5) and the kind chips.
-const visibleNotes = computed(() => {
-  const q = search.value.trim().toLowerCase()
-  let base = [...capture.notes].sort((a, b) => b.created_at - a.created_at)
-  if (noteTypes.value.length) base = base.filter((n) => noteTypes.value.includes(n.target))
-  return q ? base.filter((n) => n.text.toLowerCase().includes(q)) : base
-})
-
 // Per-section caps + "Show all" (#2042 pattern, operator): boards and notes each show the top N and
 // expand in place, so 50 boards / 100 notes stay scannable. A search lifts the caps (a match is
 // never hidden behind "Show all") — the same rule the Library Saved sections use.
 const caps = useCappedSections()
 const searchActive = computed(() => search.value.trim() !== "")
-// An open board's items: ten, then ten more (operator 2026-10-05) — a board holds up to 1,000.
-const itemCaps = useCappedSections(10, 10)
+// An open board's items: ten, then ten more (operator 2026-10-05) — a board holds up to 1,000, and
+// since 2026-10-08 each ten is a server page: the open board holds what has been LOADED.
+const ITEM_PAGE = 10
+/** The open board's item count and per-kind counts (the server's, across all pages). */
+const openTotal = ref(0)
+const openKindCounts = ref<Record<string, number>>({})
+const itemsLoading = ref(false)
+async function loadBoardItems(id: string, limit: number): Promise<CollectionDetail> {
+  const page = await getCollectionPage(id, { limit })
+  openTotal.value = page.total
+  openKindCounts.value = page.kind_counts
+  return { collection: page.collection, items: page.items }
+}
+/** "Show more": the next ten from the server; "Show less": back to ten, no request. */
+async function toggleItems(): Promise<void> {
+  const board = open.value
+  if (!board || itemsLoading.value) return
+  if (board.items.length >= openTotal.value) {
+    open.value = { ...board, items: board.items.slice(0, ITEM_PAGE) }
+    return
+  }
+  itemsLoading.value = true
+  try {
+    const page = await getCollectionPage(board.collection.id, {
+      limit: ITEM_PAGE,
+      offset: board.items.length,
+    })
+    if (open.value?.collection.id !== board.collection.id) return
+    open.value = { ...open.value, items: [...open.value.items, ...page.items] }
+    void hydrate(open.value)
+  } finally {
+    itemsLoading.value = false
+  }
+}
 
 /**
  * Display data for the items the server does not resolve.
@@ -278,13 +306,27 @@ function itemKey(it: CollectionItem): string {
  * Shows resolve from the podcasts list — one request for the whole board rather than one per row,
  * since a board of eight shows from one feed would otherwise be eight identical lookups.
  */
-async function hydrate(detail: CollectionDetail): Promise<void> {
-  const items = detail.items.filter((i) => HYDRATES.has(i.kind))
-  if (!items.length) return
+/** Rows already asked for, so a second trigger while the first is in flight does not refetch. */
+const requestedItems = new Set<string>()
 
-  const wantShows = items.some((i) => i.kind === "show")
-  const podcasts = wantShows ? await getPodcasts().catch(() => []) : []
+async function hydrate(detail: CollectionDetail): Promise<void> {
+  // Only the rows ON SCREEN — ten, then ten more per "Show more" (watch below). It used to resolve
+  // every item on the board, up to 1,000, to show ten (2026-10-08). A row resolved once stays so.
+  const items = detail.items.filter(
+    (i) => HYDRATES.has(i.kind) && !shown.value[itemKey(i)] && !requestedItems.has(itemKey(i)),
+  )
+  if (!items.length) return
+  items.forEach((i) => requestedItems.add(itemKey(i)))
+
+  // The board's shows on screen, by id — not the whole catalogue (2026-10-08).
+  const showIds = items.filter((i) => i.kind === "show").map((i) => i.ref)
+  const podcasts = showIds.length ? await getPodcastsByIds(showIds).catch(() => []) : []
   const byFeed = new Map(podcasts.map((p) => [p.feed_id, p]))
+  // Every episode row on screen in ONE request (`/episodes/batch`), not one each.
+  const episodeRefs = items.filter((i) => i.kind !== "show").map((i) => i.ref)
+  const episodes = episodeRefs.length
+    ? await getEpisodesBatch(episodeRefs).catch(() => ({}) as Record<string, EpisodeDetail>)
+    : {}
 
   await Promise.all(
     items.map(async (it) => {
@@ -304,16 +346,13 @@ async function hydrate(detail: CollectionDetail): Promise<void> {
         }
         return
       }
-      try {
-        const ep = await getEpisode(it.ref)
-        if (!stillOpen()) return
-        shown.value[itemKey(it)] = {
-          title: ep.title,
-          subtitle: ep.podcast_title ?? undefined,
-          artwork: episodeArtwork(ep) ?? undefined,
-        }
-      } catch {
-        /* leave the row on its fallback — see the docstring */
+      const ep = episodes[it.ref]
+      // Unresolved: the row stays on its fallback — see the docstring.
+      if (!ep || !stillOpen()) return
+      shown.value[itemKey(it)] = {
+        title: ep.title,
+        subtitle: ep.podcast_title ?? undefined,
+        artwork: episodeArtwork(ep) ?? undefined,
       }
     })
   )
@@ -336,7 +375,8 @@ const newName = ref("")
 const newLink = ref("")
 const loaded = ref(false)
 
-const episodeItems = computed(() => open.value?.items.filter((i) => i.kind === "episode") ?? [])
+/** Episodes on the open board (the server's count — the items loaded may be fewer). */
+const episodeCount = computed(() => openKindCounts.value.episode ?? 0)
 
 /**
  * A failed load is NOT an empty library (#2004 item 13).
@@ -384,7 +424,7 @@ async function openCollection(id: string): Promise<void> {
   // Clear immediately so a slow fetch cannot leave the previous board expanded under a different
   // row's header.
   open.value = null
-  const detail = await getCollection(id)
+  const detail = await loadBoardItems(id, ITEM_PAGE)
   open.value = detail
   void hydrate(detail)
 }
@@ -421,7 +461,20 @@ watch(
 
 /** Queue every episode in this collection, oldest-pinned first, and open the first (#1839 P4). */
 const playAll = gated(async () => {
-  const eps = episodeItems.value
+  const board = open.value
+  if (!board || !episodeCount.value) return
+  // Every episode on the board, asked for now (a page of 100 at a time — a board holds up to
+  // 1,000), rather than kept loaded for a button that may never be pressed.
+  const eps: CollectionItem[] = []
+  while (eps.length < episodeCount.value) {
+    const page = await getCollectionPage(board.collection.id, {
+      kind: "episode",
+      limit: 100,
+      offset: eps.length,
+    })
+    if (!page.items.length) break
+    eps.push(...page.items)
+  }
   if (!eps.length) return
   for (const it of eps) await queue.add(it.ref)
   void router.push({ name: "player", params: { slug: eps[0].ref } })
@@ -447,7 +500,7 @@ async function addLink(): Promise<void> {
   }
   linkError.value = false
   newLink.value = ""
-  open.value = await getCollection(cid)
+  open.value = await loadBoardItems(cid, Math.max(ITEM_PAGE, open.value?.items.length ?? 0))
   void hydrate(open.value)
 }
 
@@ -472,11 +525,13 @@ async function removeItem(it: CollectionItem): Promise<void> {
   if (!open.value) return
   const cid = open.value.collection.id
   await removeFromCollection(cid, it.kind, it.ref)
-  open.value = await getCollection(cid) // re-resolve so the list + count stay honest
+  // Re-resolve what was on screen so the list + count stay honest.
+  open.value = await loadBoardItems(cid, Math.max(ITEM_PAGE, open.value.items.length))
   void hydrate(open.value)
 }
 
 onMounted(() => {
+  void notesPage.reload()
   void load()
   void capture.ensureLoaded().catch(() => {})
 })
@@ -488,7 +543,7 @@ onMounted(() => {
          the notes below, so they belong above the collections section, not inside it. Only shown
          when there's something to filter. -->
     <div
-      v-if="collections.length || capture.notes.length"
+      v-if="collections.length || notesPage.anyNotes.value"
       class="mb-4 flex flex-wrap items-center gap-2"
     >
       <input
@@ -580,7 +635,7 @@ onMounted(() => {
          that row is present, so a fresh empty account doesn't show a stray line at the very top. -->
     <h2
       class="lp-section mb-2"
-      :class="collections.length || capture.notes.length ? 'border-t border-border pt-6' : ''"
+      :class="collections.length || notesPage.anyNotes.value ? 'border-t border-border pt-6' : ''"
     >
       {{ t("collections.sectionTitle") }}
       <!-- The tally, in the same `lp-kicker` slot every Saved and Following heading uses (operator
@@ -720,7 +775,7 @@ onMounted(() => {
             </span>
           </button>
           <button
-            v-if="open?.collection.id === c.id && episodeItems.length"
+            v-if="open?.collection.id === c.id && episodeCount"
             type="button"
             class="shrink-0 rounded-full bg-accent px-3 py-1 text-sm font-bold text-accent-foreground"
             data-testid="collection-play-all"
@@ -735,6 +790,7 @@ onMounted(() => {
             v-if="c.cover_url && !brokenCovers.has(c.id)"
             :src="c.cover_url"
             alt=""
+            loading="lazy"
             class="h-9 w-9 shrink-0 rounded-md bg-elevated object-cover"
             data-testid="collection-thumb"
             @error="brokenCovers.add(c.id)"
@@ -797,7 +853,7 @@ onMounted(() => {
             thing telling a topic from a search from a link at a glance.
           -->
             <li
-              v-for="it in itemCaps.visible(open.collection.id, open.items)"
+              v-for="it in open.items"
               :key="itemKey(it)"
               class="flex items-center gap-3 rounded-xl border border-border p-3"
               data-testid="collection-item"
@@ -853,12 +909,12 @@ onMounted(() => {
             </li>
           </ul>
           <ShowAllToggle
-            v-if="itemCaps.overflows(open.items.length, false, open.collection.id)"
-            :expanded="itemCaps.remaining(open.collection.id, open.items.length) === 0"
-            :count="open.items.length"
-            :remaining="itemCaps.remaining(open.collection.id, open.items.length)"
+            v-if="openTotal > ITEM_PAGE"
+            :expanded="open.items.length >= openTotal"
+            :count="openTotal"
+            :remaining="Math.max(0, openTotal - open.items.length)"
             data-testid="collection-items-more"
-            @toggle="itemCaps.toggle(open.collection.id, open.items.length)"
+            @toggle="toggleItems"
           />
 
           <!-- Pin an external link (an article / blog post found while researching) — URL only (RFC-119). -->
@@ -902,7 +958,7 @@ onMounted(() => {
     <!-- Notes (NT.4) — every note the user has taken, beside their boards in this tab. A divider +
          the heading separate them clearly from the boards above (operator). -->
     <section
-      v-if="capture.notes.length"
+      v-if="notesPage.anyNotes.value"
       class="mt-8 border-t border-border pt-6"
       data-testid="collections-notes"
     >
@@ -913,10 +969,10 @@ onMounted(() => {
              count was made filter-aware to fix, reintroduced here by adding a count to a heading
              whose list was already filtered. The chips keep their unfiltered numbers on purpose:
              a chip's count answers "how many would this leave", which must not move as you type. -->
-        <span class="lp-kicker ml-1 font-normal">{{ visibleNotes.length }}</span>
+        <span class="lp-kicker ml-1 font-normal">{{ notesPage.total.value }}</span>
       </h2>
       <!-- Kind chips at the TOP of the section (operator 2026-09-17), filtering by the entity a note
-           is ON. The section is gated on `capture.notes.length`, not on the filtered list: gating on
+           is ON. The section is gated on whether ANY note exists, not on the filtered list: gating on
            the result would delete the filter bar the moment a chip matched nothing, stranding the
            user with no way back. An empty result says so instead. -->
       <TypeFilterBar
@@ -926,12 +982,12 @@ onMounted(() => {
         testid-prefix="notes-type"
         class="mb-3"
       />
-      <p v-if="!visibleNotes.length" class="text-sm text-muted" data-testid="collections-notes-empty">
+      <p v-if="!notesPage.items.value.length && !notesPage.loading.value" class="text-sm text-muted" data-testid="collections-notes-empty">
         {{ t("notes.noneMatch") }}
       </p>
       <ul v-else class="flex flex-col gap-2">
         <li
-          v-for="n in caps.visible('notes', visibleNotes, searchActive)"
+          v-for="n in notesPage.items.value"
           :key="n.id"
           class="rounded-xl border border-border p-3"
           data-testid="collections-note"
@@ -960,10 +1016,11 @@ onMounted(() => {
         </li>
       </ul>
       <ShowAllToggle
-        v-if="caps.overflows(visibleNotes.length, searchActive)"
-        :expanded="caps.expanded.has('notes')"
-        :count="visibleNotes.length"
-        @toggle="caps.toggle('notes')"
+        v-if="notesPage.total.value > 5"
+        :expanded="notesPage.remaining.value === 0"
+        :count="notesPage.total.value"
+        :remaining="notesPage.remaining.value"
+        @toggle="notesPage.toggle()"
       />
     </section>
 

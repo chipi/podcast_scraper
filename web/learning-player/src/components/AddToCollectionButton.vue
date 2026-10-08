@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * Add-to-collection control (RFC-119) — a compact icon button that pins ANY typed item (episode /
- * show / search / topic / person / link / highlight) into one of the user's collections. Opens a
- * small menu of collections (loaded on first open) with an inline "new collection" create. Sign-in
- * gated, like the queue / favourite controls. Reusable across every surface that pins.
+ * Add-to-board control (RFC-119) — a compact icon button that pins ANY typed item (episode / show /
+ * search / topic / person / link / highlight) into one of the user's boards. Opens the "Save to
+ * board" sheet: every board with its picture and count, ⊕ / ✓ per row, and a "New board" create.
+ * Sign-in gated, like the queue / favourite controls. Reusable across every surface that pins.
  */
-import { ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   addToCollection,
@@ -42,6 +42,18 @@ const holds = (id: string): boolean => membershipKnown.value && holdingIds.value
 const loaded = ref(false)
 const newName = ref('')
 const addedTo = ref<string | null>(null)
+/** The "New board" field is folded until asked for: the sheet leads with the boards themselves. */
+const creating = ref(false)
+const nameEl = ref<HTMLInputElement | null>(null)
+async function startCreate(): Promise<void> {
+  creating.value = !creating.value
+  if (creating.value) {
+    await nextTick()
+    nameEl.value?.focus()
+  }
+}
+/** Boards whose cover failed to load fall back to the board glyph rather than a broken image. */
+const brokenCovers = ref<Set<string>>(new Set())
 
 /**
  * The last failure, shown in the panel (#2004 item 13).
@@ -65,12 +77,18 @@ const error = ref<string | null>(null)
  */
 const triggerEl = ref<HTMLElement | null>(null)
 const panelEl = ref<HTMLElement | null>(null)
-const { open, toggle, close, teleportTarget } = useAnchoredMenu(triggerEl, panelEl, { align: 'end' })
+const { open, toggle, close, teleportTarget } = useAnchoredMenu(
+  triggerEl,
+  panelEl,
+  { align: 'end' },
+  { anchored: false },
+)
 
 // Load collections on first open; clear the transient "added" receipt whenever it closes.
 watch(open, async (isOpen) => {
   if (!isOpen) {
     addedTo.value = null
+    creating.value = false
     return
   }
   // Refetch on EVERY open, keeping the current list visible while it runs. The old
@@ -235,117 +253,134 @@ async function createAndAdd(): Promise<void> {
       <span v-if="variant === 'menuitem'">{{ t('collections.addTo') }}</span>
     </button>
 
+    <!-- A SHEET, not a 224px menu (operator 2026-10-07, after Instagram's save-to-collection sheet):
+         bigger rows, each board's picture, its count, and one clear state per row — ⊕ to add, a
+         filled ✓ where the item already is. A bottom sheet on a phone, a centred panel from `sm`.
+         Same open/close shell (`useAnchoredMenu`) for Escape, outside-tap and the teleport target;
+         its anchor placement does not apply to a sheet, so the panel is positioned by its classes. -->
     <Teleport :to="teleportTarget">
+      <!-- The app's shared sheet scrim: dims the page, bottom-anchors the sheet on a phone and
+           centres it from `sm`. A tap on the scrim itself closes, like every other sheet. -->
       <div
         v-if="open"
+        class="lp-sheet-scrim"
+        data-testid="add-to-collection-backdrop"
+        @click.self.stop="close(false)"
+      >
+      <div
         ref="panelEl"
-        class="invisible fixed left-0 top-0 z-50 w-56 max-w-[calc(100vw-1rem)] rounded-xl border border-border bg-surface p-2 shadow-lg"
+        role="dialog"
+        :aria-label="t('collections.sheetTitle')"
+        class="lp-sheet lp-sheet--half w-full max-w-lg overflow-y-auto rounded-t-2xl border border-border bg-surface text-canvas-foreground shadow-xl sm:rounded-2xl"
         data-testid="add-to-collection-menu"
         @click.stop
       >
-      <p class="px-2 pb-1 text-xs font-bold uppercase tracking-wide text-muted">
-        {{ t('collections.addTo') }}
-      </p>
-      <!-- A board that ALREADY holds this item says so (operator 2026-09-19). Every row used to
-           look identical, so the only way to find out where something already lived was to add it
-           again and watch nothing happen — the add is idempotent, so that tap is silent.
-
-           `holds()` is false when the lookup did not happen, so a failed membership read renders
-           nothing rather than a confident "not in this one". The word "Added" carries the state,
-           not the tick alone — a bare ✓ beside a name reads as "selected", which is the opposite
-           of what it means here. -->
-      <ul class="max-h-48 overflow-y-auto">
-        <li v-for="c in collections" :key="c.id">
-          <!--
-            The row states its own colour and its own width (operator 2026-09-27: the board NAMES
-            did not render on device — "✓ Added" was there, the name beside it was not).
-
-            NOT REPRODUCED, so this is the two ways it could happen removed, not a diagnosis. What
-            was ruled out, each by measurement rather than by reading: the stored rows on prod carry
-            their names (`AI`, `Investments`, `Tech`); the Vue DOM renders all three with the right
-            classes; the compiled CSS paints them at full width and full contrast in Chromium, both
-            standalone and underneath the sheet this was opened from; and prod runs this exact file.
-            What is left is the iOS WKWebView the screenshot came from, which is not reachable here.
-
-            So both remaining candidates are closed off by construction:
-
-            1. COLOUR was inherited. The name was the ONLY text in this teleported panel with no
-               colour of its own — the header, the "✓ Added", the input and Create all state theirs,
-               which is why they survived and it did not. The panel teleports to `<body>` or into an
-               open `<dialog>`, and a `<dialog>`'s UA style sets `color: CanvasText`, so a control
-               relying on inheritance can land black-on-black through no fault of the theme. Both
-               branches are explicit now.
-            2. WIDTH was `flex-basis: auto` plus `min-w-0`, which lets this span — and only this
-               span, since its sibling is `shrink-0` — be shrunk to zero by the flex algorithm.
-               At zero width `truncate` (`overflow: hidden`) renders nothing at all: no text, not
-               even an ellipsis. Exactly the symptom. `flex-1` gives it a definite basis and the
-               remaining space instead.
-          -->
+      <!-- Padding on an inner box: `.lp-sheet` owns height and the bottom safe-area inset, and a
+           padding utility on the sheet itself would override that inset. -->
+      <div class="px-4 pb-4 pt-2">
+        <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-border sm:hidden" aria-hidden="true" />
+        <div class="mb-2 flex items-center justify-between gap-3">
+          <h2 class="font-display text-lg font-bold text-canvas-foreground">{{ t('collections.sheetTitle') }}</h2>
           <button
             type="button"
-            class="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-overlay"
-            :class="holds(c.id) ? 'text-grounded' : 'text-canvas-foreground'"
-            data-testid="add-to-collection-pick"
-            :data-contains="holds(c.id) ? 'true' : undefined"
-            @click="pick(c.id)"
-          >
-            <!--
-              NO TRUNCATION. The board name wraps rather than being clipped (operator 2026-09-27,
-              after three wrong fixes and a diagnostic build).
+            class="shrink-0 text-sm font-bold text-accent"
+            data-testid="add-to-collection-new"
+            :aria-expanded="creating"
+            @click="startCreate"
+          >+ {{ t('collections.newBoard') }}</button>
+        </div>
 
-              The bug: on the SECOND open of this menu the names vanished, leaving only "✓ Added".
-              It read as a colour problem for three attempts and it was a LAYOUT problem.
-
-              Proven on device by tinting this span's box. First open: full-width box, names
-              visible. Second open: the box collapsed to a sliver, wide enough only for the
-              diagnostic's character count, with the name clipped away. The discriminator is the
-              `shrink-0` "✓ Added" sibling, which only exists once the item is in that board — i.e.
-              from the second open onwards. With no sibling the name is the row's only child and
-              gets full width whatever the flex maths says; with one, the distribution matters, and
-              it was being computed against the wrong container width — `place()` forces a
-              synchronous layout while the panel is still `visibility:hidden` at `left:0;top:0`,
-              and nothing invalidates it after the reveal.
-
-              `flex-1` did not save it: `flex: 1 1 0%` distributes FREE SPACE, and there was none to
-              distribute. `truncate`'s `overflow:hidden` then hid the text instead of letting it
-              spill, which is precisely what made a layout fault look like an invisible colour.
-
-              So the fix removes the need for the measurement to be right rather than trying to fix
-              the measurement: no `overflow:hidden`, no `nowrap`, no `flex-1`. A 224px panel with
-              short board names has room to wrap, and a wrapped name is legible where a clipped one
-              is nothing. `break-words` keeps a pathological name from widening the panel.
-
-              Deliberately NOT touched: `useAnchoredMenu`'s invisible-measure-reveal flow. Every
-              menu in the app shares it and it exists to prevent a focus-blur and an off-position
-              flash. If it needs fixing it should be fixed in `place()`, for all of them, not worked
-              around here.
-            -->
-            <span class="min-w-0 flex-1 break-words">{{ c.name }}</span>
-            <span
-              v-if="addedTo === c.id || holds(c.id)"
-              class="shrink-0 whitespace-nowrap text-xs text-grounded"
-              >✓ {{ t('collections.alreadyIn') }}</span
-            >
+        <form
+          v-if="creating"
+          class="mb-3 flex gap-2"
+          data-testid="add-to-collection-create"
+          @submit.prevent="createAndAdd"
+        >
+          <input
+            ref="nameEl"
+            v-model="newName"
+            type="text"
+            :placeholder="t('collections.namePlaceholder')"
+            :aria-label="t('collections.namePlaceholder')"
+            class="min-w-0 flex-1 rounded-xl border border-border bg-canvas px-3 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
+            data-testid="add-to-collection-name"
+          />
+          <button type="submit" class="shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-accent-foreground">
+            {{ t('collections.create') }}
           </button>
-        </li>
-      </ul>
-      <p
-        v-if="error"
-        data-testid="collection-error"
-        class="px-2 pb-1 text-xs font-semibold text-danger"
-        role="alert"
-      >{{ error }}</p>
-      <form class="mt-1 flex gap-1 border-t border-border pt-2" @submit.prevent="createAndAdd">
-        <input
-          v-model="newName"
-          type="text"
-          :placeholder="t('collections.namePlaceholder')"
-          class="min-w-0 flex-1 rounded-lg border border-border bg-canvas px-2 py-1 text-sm outline-none focus:border-accent"
-        />
-        <button type="submit" class="shrink-0 rounded-lg bg-accent px-2 py-1 text-sm font-bold text-accent-foreground">
-          {{ t('collections.create') }}
-        </button>
-      </form>
+        </form>
+
+        <p
+          v-if="error"
+          data-testid="collection-error"
+          class="mb-2 text-sm font-semibold text-danger"
+          role="alert"
+        >{{ error }}</p>
+
+        <!-- Rows state their own colour and wrap their names rather than clip them: the two
+             fixes the old menu needed on device (2026-09-27) — an inherited colour inside a
+             teleported `<dialog>` went black-on-black, and `truncate` hid a name the flex maths
+             had squeezed to nothing. Neither can recur here: explicit colour, no clipping. -->
+        <ul class="flex flex-col">
+          <li v-for="c in collections" :key="c.id">
+            <button
+              type="button"
+              class="flex w-full items-center gap-3 rounded-xl px-1 py-2 text-left transition hover:bg-overlay"
+              :class="holds(c.id) ? 'text-grounded' : 'text-canvas-foreground'"
+              data-testid="add-to-collection-pick"
+              :data-contains="holds(c.id) ? 'true' : undefined"
+              :aria-pressed="addedTo === c.id || holds(c.id)"
+              @click="pick(c.id)"
+            >
+              <img
+                v-if="c.cover_url && !brokenCovers.has(c.id)"
+                :src="c.cover_url"
+                alt=""
+                loading="lazy"
+                class="h-14 w-14 shrink-0 rounded-xl bg-elevated object-cover"
+                data-testid="add-to-collection-thumb"
+                @error="brokenCovers = new Set(brokenCovers).add(c.id)"
+              />
+              <!-- No picture yet: the board's initial, so picture-less boards are told apart at a glance
+                   (a repeated icon would make them identical), and the trigger keeps the one board
+                   glyph in this file (save-affordances.test). -->
+              <span
+                v-else
+                class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-elevated font-display text-xl font-bold text-muted"
+                aria-hidden="true"
+                data-testid="add-to-collection-thumb"
+              >{{ (c.name.trim()[0] || '#').toUpperCase() }}</span>
+              <span class="min-w-0 flex-1">
+                <span class="block break-words font-semibold" data-testid="add-to-collection-board-name">{{ c.name }}</span>
+                <span class="block text-sm text-muted">{{
+                  addedTo === c.id || holds(c.id) ? t('collections.savedHere') : t('collections.count', c.count, { named: { count: c.count } })
+                }}</span>
+              </span>
+              <!-- The state, drawn: a filled ✓ where the item already is, an outlined ⊕ where it
+                   could go. "Added" in words beside the name carries it for a screen reader. -->
+              <span
+                v-if="addedTo === c.id || holds(c.id)"
+                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-canvas-foreground text-canvas"
+                aria-hidden="true"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+              </span>
+              <span
+                v-else
+                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-canvas-foreground/70 text-canvas-foreground"
+                aria-hidden="true"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="h-4 w-4"><path d="M12 6v12M6 12h12" /></svg>
+              </span>
+              <span v-if="addedTo === c.id || holds(c.id)" class="sr-only">{{ t('collections.alreadyIn') }}</span>
+            </button>
+          </li>
+        </ul>
+        <p v-if="loaded && !collections.length && !creating" class="py-2 text-sm text-muted" data-testid="add-to-collection-none">
+          {{ t('collections.empty') }}
+        </p>
+      </div>
+      </div>
       </div>
     </Teleport>
   </div>

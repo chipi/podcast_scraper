@@ -5,7 +5,7 @@
  * sits in the header (the single export format, REMEMBER-half-scope §4). Embedded in the Library
  * "Highlights" tab. Auth-gated (the store no-ops + stays empty when signed out).
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { track } from '../services/analytics'
 import BellOffIcon from "../components/BellOffIcon.vue"
 import BookmarkIcon from "../components/BookmarkIcon.vue"
@@ -13,14 +13,12 @@ import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import {
-  addToCollection,
   exportObsidian,
   fetchHighlightsExport,
-  getCollections,
-  getEpisode,
+  getEpisodesBatch,
   highlightsExportUrl,
 } from '../services/api'
-import type { Collection } from '../services/types'
+import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import { deliverFile, isNative } from '../services/native'
 import ExportViewer from '../components/ExportViewer.vue'
 import { sheetTeleportTarget } from '../composables/sheetStack'
@@ -35,8 +33,8 @@ import { newestFirst } from '../utils/newestFirst'
 import { useCaptureStore } from '../stores/capture'
 import { borderClass } from '../utils/highlightColors'
 import { summaryFromDetail } from '../utils/episode'
-import { matchesQuery } from '../utils/textFilter'
 import { useCappedSections } from '../composables/useCappedSections'
+import type { HighlightsPageState } from '../composables/useHighlightsPage'
 import { shareHighlightCard } from '../composables/shareCard'
 import ShareIcon from '../components/ShareIcon.vue'
 
@@ -56,19 +54,17 @@ function hlNotes(id: string) {
  * the pre-lift behaviour (all colours, grouped by episode) for any standalone mount.
  */
 const props = defineProps<{
+  /**
+   * The episodes on screen — paged on the SERVER since 2026-10-08 (`useHighlightsPage`), owned by
+   * the Saved tab because its filter bar drives it.
+   */
+  page: HighlightsPageState
   filterColor?: string | null
   sort?: string
   search?: string
   /** `true` = only captures the user stopped resurfacing; default/false = everything. */
   mutedOnly?: boolean
 }>()
-
-// Episode groups are capped like every other Library section (#2042 follow-up); a search lifts it.
-// Episode groups AND the captures inside each one page 10 at a time (operator 2026-09-18). A heavy
-// listener has dozens of captures on a single episode, and "Show all" on that is not a page — it is
-// a scroll with no landmarks. Separate instances so walking one episode does not move the others.
-const groupCaps = useCappedSections(10, 10)
-const itemCaps = useCappedSections(10, 10)
 
 /**
  * Episode groups the user has folded away (operator 2026-09-18).
@@ -83,7 +79,6 @@ function toggleGroup(slug: string): void {
   if (!next.delete(slug)) next.add(slug)
   collapsed.value = next
 }
-const searchActive = computed(() => (props.search ?? '').trim() !== '')
 
 /**
  * The episode behind each group heading (slug → detail), hydrated lazily.
@@ -120,51 +115,6 @@ function headingEpisode(slug: string): EpisodeSummary {
     status: 'ready',
   } as unknown as EpisodeSummary
 }
-
-interface Group {
-  slug: string
-  title: string
-  highlights: Highlight[]
-}
-
-const byRecent = (a: Highlight, b: Highlight): number => (b.created_at ?? 0) - (a.created_at ?? 0)
-
-const groups = computed<Group[]>(() => {
-  const sort = props.sort ?? 'recent'
-  const query = props.search ?? ''
-  const bySlug = new Map<string, Highlight[]>()
-  for (const h of capture.highlights) {
-    if (props.filterColor && h.color !== props.filterColor) continue
-    // Muted filter (operator 2026-09-18): sits beside the colour filter and reads the same way
-    // — unset shows everything, set narrows. `retired` is optional on the type, so the coerce
-    // keeps an older cached payload (no field) out of the muted bucket rather than in it.
-    if (props.mutedOnly && !h.retired) continue
-    // Search matches a highlight's own text (quote / speaker); episode titles are findable through
-    // the Episodes section. Mirrors LibraryView's count predicate so the two agree.
-    if (!(matchesQuery(h.quote_text, query) || matchesQuery(h.speaker, query))) continue
-    const list = bySlug.get(h.episode_slug) ?? []
-    list.push(h)
-    bySlug.set(h.episode_slug, list)
-  }
-  // Highlights stay grouped by episode (structural); the shared sort only orders things. Within a
-  // group, newest first. Group ORDER: A–Z by episode title for 'title', else most-recent group first.
-  const out = [...bySlug.entries()].map(([slug, highlights]) => ({
-    slug,
-    title: titleFor(slug),
-    highlights: [...highlights].sort(byRecent),
-  }))
-  if (sort === 'title') {
-    out.sort((a, b) => a.title.localeCompare(b.title))
-  } else {
-    const latest = (g: Group): number => Math.max(...g.highlights.map((h) => h.created_at ?? 0), 0)
-    out.sort((a, b) => latest(b) - latest(a))
-  }
-  return out
-})
-
-const visibleGroups = computed<Group[]>(() =>
-  groupCaps.visible('groups', groups.value, searchActive.value),
-)
 
 // The count that used to sit on the export row lived here. It is gone (operator 2026-09-19): this
 // view has exactly one host — Library's Saved tab — and that heading already renders the tally, one
@@ -234,19 +184,6 @@ async function save(): Promise<void> {
     await capture.editNote(key, text)
   }
   cancel()
-}
-
-// Collections a highlight can be filed into (#1417). Loaded lazily; the per-highlight
-// "Add to…" select adds on change then resets to its placeholder.
-const collections = ref<Collection[]>([])
-/** A failed collections load must not read as 'you have none' (#2004 item 13). */
-const collectionsError = ref(false)
-
-async function addHighlightTo(highlightId: string, collectionId: string): Promise<void> {
-  if (!collectionId) return
-  const updated = await addToCollection(collectionId, { kind: 'highlight', ref: highlightId })
-  const i = collections.value.findIndex((c) => c.id === updated.id)
-  if (i >= 0) collections.value[i] = updated
 }
 
 // Share a highlight as a text/quote card (#1418) — no audio (bridge-only).
@@ -340,22 +277,28 @@ onMounted(async () => {
   // Tolerated, not awaited blindly: this view's whole job is to show captures, so a load failure
   // renders the empty state rather than tearing down the rest of the mount (collections, titles).
   await capture.ensureLoaded().catch(() => {})
-  // Third caller of getCollections (#2004 item 13). Swallowing here reproduced the same lie the
-  // other two stopped telling: a failed load renders as "you have no collections".
-  try {
-    collections.value = await getCollections()
-  } catch {
-    collections.value = []
-    collectionsError.value = true
-  }
-  const slugs = [...new Set(capture.highlights.map((h) => h.episode_slug))]
-  await Promise.all(
-    slugs.map(async (slug) => {
-      const d = await getEpisode(slug).catch(() => null)
-      if (d) details.value[slug] = d
-    }),
-  )
 })
+
+/**
+ * Fetch the episode of each group ON SCREEN — the page's episodes, in one batch request. The A–Z
+ * order is the server's now, so no title is needed off screen.
+ */
+const requested = new Set<string>()
+watch(
+  () => props.page.groups.value.map((g) => g.slug),
+  (wanted) => {
+    const slugs = [...new Set(wanted)].filter((slug) => !details.value[slug] && !requested.has(slug))
+    if (!slugs.length) return
+    for (const slug of slugs) requested.add(slug)
+    // One request for every episode on screen (`/episodes/batch`), not one each.
+    void getEpisodesBatch(slugs)
+      .then((got) => {
+        for (const [slug, d] of Object.entries(got)) details.value[slug] = d
+      })
+      .catch(() => {})
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -458,10 +401,10 @@ onMounted(async () => {
          open: collapsing tidies a long Saved list, it is not a default that hides your captures. -->
     <ul class="flex flex-col gap-6">
     <EpisodeGroupCard
-      v-for="g in visibleGroups"
+      v-for="g in page.groups.value"
       :key="g.slug"
       :episode="headingEpisode(g.slug)"
-      :item-count="g.highlights.length"
+      :item-count="g.total"
       :expanded="!collapsed.has(g.slug)"
       testid="highlight-group"
       toggle-testid="highlight-group-collapse"
@@ -470,11 +413,11 @@ onMounted(async () => {
       <template #meta>
         <template v-if="formatPublishDate(headingEpisode(g.slug).publish_date, locale)">{{
           formatPublishDate(headingEpisode(g.slug).publish_date, locale)
-        }} · </template>{{ t('collections.count', g.highlights.length) }}
+        }} · </template>{{ t('collections.count', g.total) }}
       </template>
       <ul class="flex flex-col gap-3">
         <li
-          v-for="h in itemCaps.visible(g.slug, g.highlights, searchActive)"
+          v-for="h in g.highlights"
           :key="h.id"
           class="rounded-xl border border-l-4 border-border p-3"
           :class="borderClass(h.color)"
@@ -536,27 +479,7 @@ onMounted(async () => {
                    already says while pushing the text itself down. -->
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-2">
-              <!-- The failed-load case is SAID, not implied by an absent control. Hiding the
-                   select on error reads as "you have no collections", which is the exact reading
-                   the ref was added to prevent — and then it was never rendered (review
-                   2026-09-18). -->
-              <span
-                v-if="collectionsError"
-                class="text-xs text-muted"
-                data-testid="collections-unavailable"
-                :title="t('collections.loadFailedHint')"
-              >{{ t('collections.loadFailed') }}</span>
-              <select
-                v-else-if="collections.length"
-                class="max-w-[9rem] rounded-lg border border-border bg-overlay px-1.5 py-1 text-xs"
-                :aria-label="t('collections.addTo')"
-                @change="addHighlightTo(h.id, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
-              >
-                <option value="">{{ t('collections.addTo') }}</option>
-                <option v-for="c in collections" :key="c.id" :value="c.id">{{ c.name }}</option>
-              </select>
-              <!-- Add a note — same control weight + placement as Add-to-collection (opens the
-                   inline editor below), so the two "annotate this" actions read as a pair. -->
+              <!-- Add a note — opens the inline editor below. -->
               <button
                 type="button"
                 class="rounded-lg border border-border bg-overlay px-1.5 py-1 text-xs text-muted transition hover:text-accent"
@@ -606,6 +529,10 @@ onMounted(async () => {
                   data-testid="highlight-delete"
                   @click="pendingHighlight = h.id"
                 ><BookmarkIcon filled /></button>
+                <!-- The standard board control (operator 2026-10-08), the one every other surface uses:
+                     its sheet lists the boards, creates one, and says when they could not load. This
+                     card had its own "Add to board" dropdown, a second way to do one thing. -->
+                <AddToCollectionButton :item="{ kind: 'highlight', ref: h.id }" />
                 <button
                   type="button"
                   class="rounded-full p-1 text-muted transition hover:text-accent"
@@ -683,22 +610,22 @@ onMounted(async () => {
       <!-- Captures WITHIN this episode page 10 at a time, keyed by slug so each episode is walked
            independently. A search lifts it, same rule as everywhere else. -->
       <ShowAllToggle
-        v-if="!collapsed.has(g.slug) && itemCaps.overflows(g.highlights.length, searchActive, g.slug)"
-        :expanded="itemCaps.remaining(g.slug, g.highlights.length) === 0"
-        :count="g.highlights.length"
-        :remaining="itemCaps.remaining(g.slug, g.highlights.length)"
-        @toggle="itemCaps.toggle(g.slug, g.highlights.length)"
+        v-if="!collapsed.has(g.slug) && g.total > 5"
+        :expanded="g.highlights.length >= g.total"
+        :count="g.total"
+        :remaining="Math.max(0, g.total - g.highlights.length)"
+        @toggle="page.toggleIn(g.slug)"
       />
     </EpisodeGroupCard>
     </ul>
 
     <!-- Episode groups page 10 at a time; a search lifts it (#2042 follow-up). -->
     <ShowAllToggle
-      v-if="groupCaps.overflows(groups.length, searchActive, 'groups')"
-      :expanded="groupCaps.remaining('groups', groups.length) === 0"
-      :count="groups.length"
-      :remaining="groupCaps.remaining('groups', groups.length)"
-      @toggle="groupCaps.toggle('groups', groups.length)"
+      v-if="page.episodeTotal.value > 5"
+      :expanded="page.remainingGroups.value === 0"
+      :count="page.episodeTotal.value"
+      :remaining="page.remainingGroups.value"
+      @toggle="page.toggleGroups()"
     />
 
     <ConfirmDialog

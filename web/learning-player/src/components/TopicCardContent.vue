@@ -12,6 +12,7 @@
  * with the transcript search, the episode list and two analysis panels buried the people at the
  * very bottom, where a reader had already decided whether the topic was worth their time.
  */
+import { getTopicCard } from "../services/api"
 import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed, defineAsyncComponent, ref } from "vue"
 import { useI18n } from "vue-i18n"
@@ -144,6 +145,20 @@ const topicMomentum = computed(() => {
 // own episodes (monthly counts across their span), so it needs NO backend series and makes no
 // "rising" claim; the trending pill above is the only rising signal, and only when earned.
 const activitySeries = computed<number[]>(() => {
+  // The server's month counts cover EVERY episode; `episodes` is only the first page now.
+  const serverMonths = props.topic.episode_months
+  if (serverMonths && serverMonths.length) {
+    const idx = serverMonths.map((m) => {
+      const [y, mo] = m.month.split("-").map(Number)
+      return { i: y * 12 + (mo - 1), c: m.count }
+    })
+    const min = Math.min(...idx.map((x) => x.i))
+    const max = Math.max(...idx.map((x) => x.i))
+    if (max - min + 1 < 2) return []
+    const buckets = new Array(Math.min(max - min + 1, 36)).fill(0)
+    for (const { i, c } of idx) buckets[Math.max(0, buckets.length - 1 - (max - i))] += c
+    return buckets
+  }
   const months = episodes.value
     .map((e) => e.publish_date)
     .filter((d): d is string => !!d)
@@ -173,6 +188,15 @@ const activitySeries = computed<number[]>(() => {
 // Strongest shows (TD.6): which shows cover this topic most, from the discussed episodes grouped by
 // feed. Only worth showing when the topic spans MORE THAN ONE show.
 const topShows = computed(() => {
+  // Server-computed over ALL episodes when present (the list here is paged).
+  if (props.topic.top_shows && props.topic.top_shows.length) {
+    return props.topic.top_shows.map((sh) => ({
+      feed_id: sh.feed_id,
+      title: sh.title ?? sh.feed_id,
+      count: sh.count,
+      art: resolveMediaUrl(sh.artwork_url || sh.image_url),
+    }))
+  }
   const byFeed = new Map<string, { feed_id: string; title: string; count: number; art: string | null }>()
   for (const e of episodes.value) {
     if (!e.feed_id) continue
@@ -433,7 +457,11 @@ function searchLibrary(): void {
         <span>{{ t("ec.topicEpisodes", episodeCount, { named: { count: episodeCount } }) }}</span>
         <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
       </template>
-      <EntityEpisodeList :episodes="episodes" />
+      <EntityEpisodeList
+        :episodes="episodes"
+        :total="topic.episodes_total ?? episodes.length"
+        :load-more="(offset, limit) => getTopicCard(topic.id, undefined, { offset, limit }).then((c) => c.episodes)"
+      />
     </CollapsibleSection>
   </section>
 

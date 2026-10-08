@@ -38,7 +38,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { track } from '../services/analytics'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { getEpisode, getMyStats } from '../services/api'
+import { getEpisodesBatch, getMyStats } from '../services/api'
 import type { EpisodeDetail } from '../services/types'
 import BellOffIcon from './BellOffIcon.vue'
 import CheckIcon from './CheckIcon.vue'
@@ -112,12 +112,9 @@ watch(
     const slugs = [...new Set(list.map((i) => i.highlight.episode_slug))].filter(
       (s) => s && !details.value[s],
     )
-    await Promise.all(
-      slugs.map(async (slug) => {
-        const d = await getEpisode(slug).catch(() => null)
-        if (d) details.value[slug] = d
-      }),
-    )
+    if (!slugs.length) return
+    const got = await getEpisodesBatch(slugs).catch(() => ({}) as Record<string, EpisodeDetail>)
+    for (const [slug, d] of Object.entries(got)) details.value[slug] = d
   },
   { immediate: true },
 )

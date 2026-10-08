@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { batchViaGetEpisode, resurfacingViaGetResurfacing } from '../test/apiViaSpies'
 import en from '../i18n/locales/en.json'
 import type { Highlight, ResurfacingItem } from '../services/types'
 import ResurfacingInbox from './ResurfacingInbox.vue'
@@ -35,6 +36,8 @@ const mountInbox = () => {
 }
 
 beforeEach(() => {
+  resurfacingViaGetResurfacing()
+  batchViaGetEpisode()
   vi.spyOn(api, 'markSurfaced').mockResolvedValue()
   vi.spyOn(api, 'putResurfacingSettings').mockResolvedValue({ paused: true })
 })
@@ -338,4 +341,21 @@ describe('ResurfacingInbox', () => {
     expect(w.find('[data-testid="revisit-load-error"]').exists()).toBe(false)
     expect(w.find('[data-testid="revisit-item"]').exists()).toBe(true)
   })
+
+  it('fetches the episodes of the groups it SHOWS, and the rest only on Show all (2026-10-08)', async () => {
+    // 9 due moments from 9 episodes: the first page shows six groups, so six fetches — not nine.
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({
+      items: Array.from({ length: 9 }, (_, i) => item({ highlight: hl({ id: `h${i}`, episode_slug: `ep-${i}` }) })),
+      paused: false,
+    })
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    const get = vi.spyOn(api, 'getEpisode').mockRejectedValue(new Error('not needed'))
+    const w = mountInbox()
+    await flushPromises()
+    expect(get.mock.calls.map((c) => c[0]).sort()).toEqual(['ep-0', 'ep-1', 'ep-2', 'ep-3', 'ep-4', 'ep-5'])
+    await w.get('[data-testid="show-all-toggle"]').trigger('click')
+    await flushPromises()
+    expect(get).toHaveBeenCalledTimes(9)
+  })
 })
+

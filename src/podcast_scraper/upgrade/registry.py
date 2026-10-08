@@ -45,6 +45,8 @@ from .migrations.m0024_shared_removed_speaker_prefixes import (
     SharedRemovedSpeakerPrefixesMigration,
 )
 from .migrations.m0025_one_person_one_entry import OnePersonOneEntryMigration
+from .migrations.m0026_artwork_medium import ArtworkMediumMigration
+from .migrations.m0027_missing_covers_stored import MissingCoversStoredMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -101,6 +103,10 @@ _MIGRATIONS: List[Migration] = [
     SharedRemovedSpeakerPrefixesMigration(),
     # 0025 repairs one person published twice (a title or a respelling) as c05cc0273 now avoids.
     OnePersonOneEntryMigration(),
+    # 0026 writes the ≤1024px player copy of every stored cover (originals run to 3000px).
+    ArtworkMediumMigration(),
+    # 0027 stores covers that were only a feed-host URL (FETCHES), so every slot gets a downscale.
+    MissingCoversStoredMigration(),
 ]
 
 

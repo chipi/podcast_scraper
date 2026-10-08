@@ -12,7 +12,8 @@ defineOptions({ name: "HomeView" }) // stable name for <keep-alive :include> (Ap
 import { RouterLink } from "vue-router"
 import {
   getWhatsNew,
-  getEpisode,
+  getRecommended,
+  getEpisodesBatch,
   getPlaybackList,
   getRelated,
 } from "../services/api"
@@ -21,8 +22,10 @@ import { formatTime } from "../player/transcriptSync"
 import { formatDuration } from "../utils/format"
 import { formatPublishDate } from '../utils/format'
 import { episodeArtwork } from "../utils/episode"
+import { kindPill, type InterestKind } from "../utils/interests"
+import { GUIDED_START_PREF, useGuidedStart } from "../composables/useGuidedStart"
 import { useAuthStore } from "../stores/auth"
-import BrandGlyph from "../components/BrandGlyph.vue"
+import GuidedStart from "../components/GuidedStart.vue"
 import { useLibraryStore } from "../stores/library"
 import { allPositions } from "../services/playbackPositions"
 import { localArtworkFor, localKnowledgeFor } from "../services/downloads"
@@ -46,8 +49,6 @@ import SectionStatus from "../components/SectionStatus.vue"
 import RecapPrompt from "../components/RecapPrompt.vue"
 import YourWeek from "../components/YourWeek.vue"
 
-const INTERESTS_DISMISSED_KEY = "lp.interests.dismissed"
-
 const { t, locale } = useI18n()
 const auth = useAuthStore()
 const library = useLibraryStore()
@@ -55,10 +56,6 @@ const userPrefs = useUserPreferencesStore()
 const interests = useInterestsStore()
 const completed = useCompletedStore()
 const { isPlayed } = usePlayed()
-
-// USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
-// localStorage remains the fast-path fallback until the server responds.
-const INTERESTS_DISMISSED_PREF_KEY = "lp.interests.dismissed"
 
 // What's new is the listener's own world, newest first (operator 2026-10-07) — `scope` says
 // whether it is (`yours`) or the every-show fallback (`all`), and the kicker says the same.
@@ -75,20 +72,24 @@ const latest = computed(() => whatsNew.data.value.items)
 const continueSection = useSectionState<{ detail: EpisodeDetail; position: number }[]>([], {
   cacheKey: "home.continue",
 })
-const recSection = useSectionState<EpisodeSummary[]>([], { cacheKey: "home.recommended" })
-const recommended = computed(() => recSection.data.value)
-// Four visible, then four more per tap (operator 2026-09-19) — one grid row at both breakpoints.
-// The fetch asks for 12 rather than the api default of 6, so "show more" is worth the tap; the
-// route's own ceiling is 25 and the similarity merge caps at 50, so 12 is well inside both.
-const RECOMMENDED_PAGE = 4
-const RECOMMENDED_FETCH = 12
-const recommendedShown = ref(RECOMMENDED_PAGE)
-const visibleRecommended = computed(() => recommended.value.slice(0, recommendedShown.value))
-// Re-collapse when the set itself changes — it is keyed off the most recent play, so it changes
-// under you as you listen, and leaving it expanded would silently grow the page.
-watch(recommended, () => {
-  recommendedShown.value = RECOMMENDED_PAGE
+/**
+ * Recommended, from the best basis there is (operator 2026-10-07): "more like" the latest in-progress
+ * listen, else picks from what the listener follows (`/recommended`), else nothing — the section does
+ * not render without a basis. It never repeats What's new: an episode already there is dropped here.
+ */
+const recSection = useSectionState<{ items: EpisodeSummary[]; basis: "listening" | "interests" | "none" }>(
+  { items: [], basis: "none" },
+  { cacheKey: "home.recommended.v2" },
+)
+const recBasis = computed(() => recSection.data.value.basis)
+const recommended = computed(() => {
+  const inWhatsNew = new Set(latest.value.map((e) => e.slug))
+  return recSection.data.value.items.filter((e) => !inWhatsNew.has(e.slug))
 })
+// One rail of up to 12 (operator 2026-10-08: a horizontal rail, like every other Home row). The
+// fetch asks for 12 rather than the api default of 6; the route's own ceiling is 25 and the
+// similarity merge caps at 50, so 12 is well inside both.
+const RECOMMENDED_FETCH = 12
 // A played episode is finished — it drops out of Continue (PL.6). Reactive: it disappears the
 // moment mark-as-played toggles, no refetch.
 // `isPlayed`, not `completed.has`: the server rail still offers an episode whose last position was
@@ -98,19 +99,45 @@ const continueItems = computed(() =>
   continueSection.data.value.filter((x) => !isPlayed(x.detail.slug))
 )
 
+/** Home's Discover strip: one chip per Trends kind, in the Interests page's order. */
+const DISCOVER_CHIPS: { kind: InterestKind; label: string; testid: string }[] = [
+  { kind: "topic", label: "home.tabTopics", testid: "home-discover-topics" },
+  { kind: "person", label: "home.tabPeople", testid: "home-discover-people" },
+  { kind: "theme", label: "home.themes", testid: "home-discover-themes" },
+  { kind: "storyline", label: "home.storylines", testid: "home-discover-storylines" },
+]
+
 // First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
-const interestsDismissed = ref(false)
 const pickerOpen = ref(false)
 // Only offer the "choose interests" card to users who have NOT already picked any — the bug was it
 // showed even to users with a full interest set. Gate on the store being loaded so it never flashes
 // before we know, and it hides the instant interests exist.
+/**
+ * The guided start (operator 2026-10-07) — for a NEW listener (no interests yet), and for as long as
+ * a run they started is not finished, so following through step 1 does not make step 2 vanish.
+ * State lives in `useGuidedStart` (synced): `active` once shown, `done` once finished, `restart` when
+ * Settings asked for it again (then it runs from step 1 whatever the listener already has). "Not now"
+ * snoozes it for three days (operator 2026-10-08). An account that already chose interests before
+ * this existed never sees it unless it is restarted.
+ */
+const guided = useGuidedStart()
+const guidedState = guided.state
 const showInterestsCard = computed(
   () =>
     auth.isAuthenticated &&
     interests.loaded &&
-    interests.ids.length === 0 &&
-    !interestsDismissed.value
+    !guided.isSnoozed() &&
+    guidedState.value !== "done" &&
+    (interests.ids.length === 0 || guidedState.value === "active" || guidedState.value === "restart")
 )
+watch(showInterestsCard, (on) => {
+  if (on && guidedState.value === undefined) void userPrefs.set(GUIDED_START_PREF, "active")
+})
+/** Close the flow and rebuild Home from what was just chosen. */
+async function finishGuidedStart(): Promise<void> {
+  await userPrefs.set(GUIDED_START_PREF, "done")
+  await Promise.all([loadWhatsNew(), loadRecommended()])
+}
 
 /**
  * The first name for the welcome, or null. An email-link account's `name` can be the address
@@ -122,16 +149,9 @@ const welcomeName = computed<string | null>(() => {
   return raw.split(/\s+/)[0] ?? null
 })
 
+/** "Not now": snooze the guide (synced across devices), it comes back in three days. */
 function dismissInterests(): void {
-  interestsDismissed.value = true
-  try {
-    localStorage.setItem(INTERESTS_DISMISSED_KEY, "1")
-  } catch {
-    /* private mode / storage disabled — the card just reappears next load */
-  }
-  // USERPREFS-1 (#1213) — write-through so the dismissal syncs across devices.
-  // silent-degrade: userPrefs.set is no-op when the server is unavailable.
-  void userPrefs.set(INTERESTS_DISMISSED_PREF_KEY, true)
+  guided.snooze()
 }
 
 async function onInterestsSaved(): Promise<void> {
@@ -150,6 +170,8 @@ async function onInterestsSaved(): Promise<void> {
   //
   // Re-pull discovery so a personalized order (when the flag is on) takes effect immediately.
   await loadWhatsNew()
+  // Interests are a basis for Recommended: it can appear the moment they are saved.
+  await loadRecommended()
 }
 
 /**
@@ -163,9 +185,15 @@ function loadWhatsNew(): Promise<void> {
 
 /** #1591 — Recommended, same contract: a rejection is an error phase, not an empty list. */
 function loadRecommended(): Promise<void> {
+  if (!auth.isAuthenticated) return Promise.resolve()
   const top = continueItems.value[0]
-  if (!top) return Promise.resolve()
-  return recSection.load(async () => (await getRelated(top.detail.slug, RECOMMENDED_FETCH)).items)
+  return recSection.load(async () => {
+    if (top) {
+      return { items: (await getRelated(top.detail.slug, RECOMMENDED_FETCH)).items, basis: "listening" as const }
+    }
+    const r = await getRecommended(RECOMMENDED_FETCH)
+    return { items: r.items, basis: r.basis }
+  })
 }
 
 /**
@@ -183,7 +211,7 @@ async function retryStale(): Promise<void> {
   railKey.value += 1
   try {
     await Promise.all([loadWhatsNew(), loadContinue()])
-    if (continueItems.value[0]) await loadRecommended()
+    await loadRecommended()
   } finally {
     retrying.value = false
   }
@@ -228,17 +256,6 @@ const resumeArt = episodeArtwork
 const epArt = episodeArtwork
 
 onMounted(async () => {
-  try {
-    interestsDismissed.value = localStorage.getItem(INTERESTS_DISMISSED_KEY) === "1"
-  } catch {
-    interestsDismissed.value = false
-  }
-  // USERPREFS-1 (#1213) — read the server preferences (hydrated once at
-  // app init in main.ts). Server value wins over localStorage. Reading
-  // is synchronous; if the payload arrives later, the value is picked up
-  // on the next Home mount.
-  const remote = userPrefs.get<boolean>(INTERESTS_DISMISSED_PREF_KEY)
-  if (remote === true) interestsDismissed.value = true
   // Load the user's chosen interests so the "choose interests" card only shows when there are none
   // (fire-and-forget: the card stays hidden until this resolves, then appears only if empty).
   if (auth.isAuthenticated) void interests.ensureLoaded()
@@ -269,9 +286,15 @@ onActivated(async () => {
   // FAILED quiet refresh left the rail looking current — no stale flag, and therefore no notice
   // and no retry. The section's own failure handling is exactly what should run here.
   await loadContinue()
+  // What's new follows what you follow, so a return to Home re-reads it (operator 2026-10-07): a
+  // listener sent to Discover by the welcome card's "Follow shows" comes back to their own shows,
+  // not the every-show fallback they left. In place — only the first load shows a skeleton.
+  if (whatsNew.isReady.value) void loadWhatsNew()
   // Recommended = peers of the most-recent play (v1 heuristic; PRD-041 supersedes). Only compute it
   // when we don't already have it, so returning to Home doesn't re-flicker it either.
-  if (continueItems.value[0] && !recSection.isReady.value) await loadRecommended()
+  // Every return re-reads it, in place: interests chosen or an episode started elsewhere changes the
+  // basis, and the section must appear (or move to "more like") without a reload.
+  await loadRecommended()
 })
 
 type ContinueItem = { detail: EpisodeDetail; position: number }
@@ -328,7 +351,8 @@ async function fetchContinue(): Promise<ContinueItem[]> {
   // anything went wrong.
   let positions
   try {
-    positions = await getPlaybackList()
+    // Only what Continue listening shows (2026-10-08): the in-progress ones, newest first.
+    positions = await getPlaybackList({ inProgress: true, limit: 6 })
   } catch (err) {
     // The device knows where you are. Falling back to it beats an empty rail, and beats a cached
     // copy of the server's answer — this is the record, not a copy of one.
@@ -340,15 +364,13 @@ async function fetchContinue(): Promise<ContinueItem[]> {
   // forever — the last cadence save left it parked seconds from its end — and reopening it resumed
   // at end-epsilon and immediately auto-advanced away again.
   const inProgress = positions.filter((p) => p.position_seconds > 1 && !p.finished).slice(0, 6)
-  const hydrated = await Promise.all(
-    inProgress.map(
-      (p) =>
-        getEpisode(p.slug)
-          .then((detail) => ({ detail, position: p.position_seconds }))
-          .catch(() => null) // one unreadable episode is not an outage
-    )
+  // One request for all of them (`/episodes/batch`); an unreadable episode is simply absent.
+  const details = await getEpisodesBatch(inProgress.map((p) => p.slug)).catch(
+    () => ({}) as Record<string, EpisodeDetail>
   )
-  return hydrated.filter((x): x is ContinueItem => !!x)
+  return inProgress.flatMap((p) =>
+    details[p.slug] ? [{ detail: details[p.slug]!, position: p.position_seconds }] : []
+  )
 }
 
 /** Extracted so the error state can offer a real retry rather than a dead end. */
@@ -438,41 +460,14 @@ async function loadContinue(): Promise<void> {
          what choosing interests changes, and two real buttons. (It was reduced to a line in #1964
          for competing with the Search button; a designed card that leads the page is the answer to
          that, not a quieter line.) Button labels are unchanged: device journeys find them by text. -->
-    <section
+    <GuidedStart
       v-if="showInterestsCard"
-      class="relative mt-4 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-accent/20 via-elevated to-surface p-5 sm:p-6"
-      data-testid="interests-welcome"
-    >
-      <BrandGlyph
-        class="pointer-events-none absolute -right-4 -top-4 h-28 w-28 opacity-15"
-        aria-hidden="true"
-      />
-      <p class="lp-kicker mb-2">{{ t("interests.cardTitle") }}</p>
-      <h2 class="font-display text-2xl font-extrabold tracking-tight text-canvas-foreground">
-        {{ welcomeName ? t("interests.welcome", { name: welcomeName }) : t("interests.welcomeNoName") }}
-      </h2>
-      <p class="mt-2 max-w-prose text-sm leading-relaxed text-muted">
-        {{ t("interests.welcomeBody") }}
-      </p>
-      <div class="mt-4 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          class="inline-flex h-11 items-center rounded-full bg-accent px-5 text-sm font-bold text-accent-foreground shadow-sm transition hover:opacity-90"
-          data-testid="interests-choose"
-          @click="pickerOpen = true"
-        >
-          {{ t("interests.cardCta") }}
-        </button>
-        <button
-          type="button"
-          class="inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold text-canvas-foreground transition hover:bg-overlay"
-          data-testid="interests-not-now"
-          @click="dismissInterests"
-        >
-          {{ t("interests.dismiss") }}
-        </button>
-      </div>
-    </section>
+      :welcome-name="welcomeName"
+      :restart="guidedState === 'restart'"
+      @choose-interests="pickerOpen = true"
+      @dismiss="dismissInterests"
+      @finish="finishGuidedStart"
+    />
 
     <!-- Your Week — the personal digest, in-app (#1412). The first curated, personalized block.
          Self-hides when signed-out. Compact/full is a synced per-user preference.
@@ -513,10 +508,8 @@ async function loadContinue(): Promise<void> {
 
     <!-- Your Week — the personal digest LEADS the content, right under Continue / Jump-back-in
          (operator review): the forward-looking "what to play next" is the reason to open Home.
-         While the welcome card asks a new listener for interests, an EMPTY Your Week stays hidden:
-         the card is the teaching (operator 2026-10-07). It appears once they save interests or
-         decline with "Not now" — or as soon as it has content, e.g. after following a show. -->
-    <YourWeek :key="railKey" :hide-when-empty="showInterestsCard" />
+         It renders only once the week has something to review (operator 2026-10-08). -->
+    <YourWeek :key="railKey" />
 
     <!-- Search — the same section Discover renders (operator 2026-10-05: one screen family). Trends
          left Home (operator 2026-10-07) and lives on Discover only. Left half on `lg`, with the
@@ -535,80 +528,45 @@ async function loadContinue(): Promise<void> {
          nothing to look back on. -->
     <RecapPrompt />
 
-    <!-- Recommended — no-scroll responsive grid. Up here, right after the look back, and What's
-         new at the bottom (operator 2026-10-07): picks for YOU lead, the corpus-wide feed follows. -->
-    <section v-if="recommended.length || (resumeState && !recSection.isReady.value)" class="mt-7">
-      <SectionHeading :title="t('home.recommended')" :kicker="t('home.recommendedKicker')" />
+    <!-- Recommended — up here, right after the look back, and What's new at the bottom (operator
+         2026-10-07): picks for YOU lead, the corpus-wide feed follows. A horizontal rail of the same
+         EpisodeTile every rail uses (operator 2026-10-08): the 2-column grid with "Show 4 more"
+         spent two screens on a phone, and the rail keeps it to one row. -->
+    <section v-if="recommended.length" class="mt-7" data-testid="home-recommended">
+      <SectionHeading
+        :title="t('home.recommended')"
+        :kicker="recBasis === 'listening' ? t('home.recommendedKicker') : t('home.recommendedFromFollows')"
+      />
       <SectionStatus :phase="recSection.phase.value" :rows="2" @retry="loadRecommended" />
-      <!-- The SAME tile the Discover grid uses (operator 2026-09-17), not a second copy of it.
-           This grid was hand-rolled here: square artwork, overlaid actions, show name and title —
-           EpisodeTile's shape, re-implemented. Keeping two of them is how they drifted apart in the
-           first place (title-above-show here, show-above-title there; clamped there, unclamped
-           here). One component, so a change to the tile reaches every grid that uses it. -->
-      <!-- 2 on a phone, 4 on desktop (operator 2026-09-17). Deliberately NOT the browse grids' 3/4:
-           Recommended is a short curated set on the home screen, so its tiles stay large enough to
-           read at a glance rather than matching a dense catalogue.
-
-           FOUR to begin with — one row on both breakpoints — then a control that reveals the rest
-           in place (operator 2026-09-19). There is no "see all" here because there is nowhere for
-           it to go: nothing in the app is a recommendations page, and inventing a route to satisfy
-           the shape of a link would be worse than expanding where you already are. -->
-      <ul class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <li v-for="ep in visibleRecommended" :key="ep.slug" class="h-full">
+      <CardRail>
+        <li v-for="ep in recommended" :key="ep.slug" class="lp-rail-item">
           <EpisodeTile :episode="ep" />
         </li>
-      </ul>
-      <button
-        v-if="recommended.length > visibleRecommended.length"
-        type="button"
-        class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay"
-        data-testid="home-recommended-more"
-        @click="recommendedShown += RECOMMENDED_PAGE"
-      >
-        <!-- What the tap will ACTUALLY reveal, not what remains. It said "Show 8 more" and then
-             revealed four, which is a control describing someone else's behaviour. -->
-        {{
-          t("ec.moreEpisodes", {
-            count: Math.min(recommended.length - visibleRecommended.length, RECOMMENDED_PAGE),
-          })
-        }}
-      </button>
+      </CardRail>
     </section>
 
-    <!-- Discover entry points (operator 2026-09-14): a compact one-line strip — a "Discover" lead-in
-         + three chips deep-linking into Browse's Trends section on the matching kind.
+    <!-- Discover entry points: a small title line over one row of four chips, each deep-linking
+         into Browse's Trends section on its kind (`?trends=<kind>` selects and scrolls to it).
 
-         These pointed at a separate /trends page, which was a second, thinner copy of a section
-         Browse already renders — tapping a chip left the hub for a page with the same three tabs and
-         less around them. The operator called it "small pages that should not exist" (2026-09-18).
-         /trends is deleted; `?trends=<kind>` selects the kind and scrolls it into view. -->
-    <nav
-      class="mt-6 flex flex-wrap items-center gap-2 text-sm"
-      :aria-label="t('home.browseNavLabel')"
-      data-testid="home-browse-nav"
-    >
-      <span class="font-bold text-muted">{{ t("home.discoverLabel") }}</span>
-      <RouterLink
-        :to="{ name: 'browse', query: { trends: 'topic' } }"
-        data-testid="home-discover-topics"
-        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
-      >
-        {{ t("home.tabTopics") }}
-      </RouterLink>
-      <RouterLink
-        :to="{ name: 'browse', query: { trends: 'storyline' } }"
-        data-testid="home-discover-storylines"
-        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
-      >
-        {{ t("home.storylines") }}
-      </RouterLink>
-      <RouterLink
-        :to="{ name: 'browse', query: { trends: 'person' } }"
-        data-testid="home-discover-people"
-        class="rounded-full border border-border bg-surface px-3 py-1 font-semibold text-canvas-foreground no-underline transition hover:bg-overlay"
-      >
-        {{ t("home.tabPeople") }}
-      </RouterLink>
+         Operator 2026-10-08: the inline "Discover" lead-in pushed the fourth chip onto a second
+         row, and plain grey chips said nothing about the kind. The lead-in is now a title above, so
+         the chips get the whole width, and each chip wears its kind's colour from `kindPill` — the
+         same pill the Interests page and episode notes use, so the colour already means "topic" or
+         "storyline" wherever the listener meets it. -->
+    <nav class="mt-6" :aria-label="t('home.browseNavLabel')" data-testid="home-browse-nav">
+      <p class="lp-kicker mb-2">{{ t("home.discoverLabel") }}</p>
+      <div class="flex flex-nowrap items-center gap-2 overflow-x-auto text-sm [scrollbar-width:none]">
+        <RouterLink
+          v-for="chip in DISCOVER_CHIPS"
+          :key="chip.kind"
+          :to="{ name: 'browse', query: { trends: chip.kind } }"
+          :data-testid="chip.testid"
+          class="shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 font-semibold no-underline transition hover:brightness-125"
+          :class="kindPill(chip.kind)"
+        >
+          {{ t(chip.label) }}
+        </RouterLink>
+      </div>
     </nav>
 
     <!-- Key voices (wave-G): the people most present in your corpus. Moved up to sit right after
@@ -635,7 +593,7 @@ async function loadContinue(): Promise<void> {
       >
         <template #action>
           <RouterLink
-            :to="{ name: 'browse', query: { tab: 'episodes' } }"
+            :to="{ name: 'browse', query: { tab: 'episodes' }, hash: '#catalog' }"
             class="text-sm font-bold text-accent no-underline"
           >
             {{ t("home.browseAll") }} →

@@ -37,6 +37,7 @@ const EntityCard = defineAsyncComponent(() => import("../components/EntityCard.v
 const StorylineCard = defineAsyncComponent(() => import("../components/StorylineCard.vue"))
 import { useInterestsStore } from "../stores/interests"
 import type { InterestKind } from "../utils/interests"
+import { useVisitedTabs } from "../composables/useVisitedTabs"
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -140,6 +141,8 @@ watch(
 )
 
 const tab = ref<ProfileTab>(tabFromQuery(route.query.tab) ?? "account")
+// Panels mount on first visit, then stay (v-show): a tab never opened fetches and decodes nothing.
+const visitedTabs = useVisitedTabs(tab)
 // ProfileView is kept alive (KEEP_ALIVE_TABS), so setup runs once — re-navigating with a new `?tab=`
 // (e.g. tapping "see my stats" while Profile is already cached) must still switch the tab.
 watch(
@@ -619,6 +622,7 @@ onActivated(() => {
 
     <!-- STATS tab: listening analytics + the recap. -->
     <div v-show="tab === 'stats'" v-bind="panelAttrs('profile', 'stats')">
+      <template v-if="visitedTabs.has('stats')">
       <!-- Listening analytics (UXS-014) — derived entirely from this user's own play history. -->
       <!-- Always rendered. A conditional was tried and reverted (operator 2026-09-18): "Start
            listening to build your stats" appeared above a kept block reading 12 captures, which
@@ -740,10 +744,12 @@ onActivated(() => {
       <!-- The recap (#1914): time actually listened, the listener's own days, what recurred, and the
          line they kept. -->
       <ListeningRecap class="mt-6" />
+      </template>
     </div>
 
     <!-- INTERESTS tab: one section per kind, each editable in place (beta feedback 2026-10-04). -->
     <div v-show="tab === 'interests'" v-bind="panelAttrs('profile', 'interests')">
+      <template v-if="visitedTabs.has('interests')">
       <p class="mb-4 text-sm text-muted" data-testid="interests-help">{{ t("profile.interestsHelp") }}</p>
       <!-- Failed to load, the sections would offer "Follow" on things already followed and a Stop
            button on nothing — so say so instead of rendering a confidently wrong list (#1591). -->
@@ -762,10 +768,12 @@ onActivated(() => {
         @toggle="(id) => void interests.toggle(id)"
         @open="openInterest"
       />
+      </template>
     </div>
 
     <!-- ACCOUNT tab: delivery/notifications + sign out. -->
     <div v-show="tab === 'account'" v-bind="panelAttrs('profile', 'account')">
+      <template v-if="visitedTabs.has('account')">
       <!-- Delivery consent (PRD-046 FR1 / #1414) — the "Your Week" digest + push nudges. -->
       <section v-if="comms" class="rounded-2xl border border-border p-5">
         <h2 class="lp-section mb-1">{{ t("profile.notifications") }}</h2>
@@ -899,55 +907,60 @@ onActivated(() => {
       >
         {{ t("auth.signOut") }}
       </button>
-      <!-- Clear listening history (#2273): Google Play's "delete some data without deleting the
-           account". Two steps — the first tap only explains what goes and what stays. -->
-      <div v-if="auth.isAuthenticated" class="mt-6 text-center" data-testid="profile-clear-history">
-        <button
-          v-if="!clearAsk"
-          type="button"
-          class="text-xs text-muted underline"
-          data-testid="profile-clear-history-open"
-          @click="clearAsk = true"
-        >
-          {{ t("deleteAccount.clearHistoryLink") }}
-        </button>
-        <div v-else class="rounded-2xl border border-border p-4 text-left text-sm">
-          <p class="mb-3">{{ t("deleteAccount.clearHistoryBody") }}</p>
-          <div class="flex gap-2">
-            <button
-              type="button"
-              class="rounded-full bg-danger px-4 py-2 text-sm font-bold text-canvas disabled:opacity-40"
-              :disabled="clearing"
-              data-testid="profile-clear-history-confirm"
-              @click="onClearHistory"
-            >
-              {{ t("deleteAccount.clearHistoryConfirm") }}
-            </button>
-            <button
-              type="button"
-              class="rounded-full border border-border px-4 py-2 text-sm"
-              data-testid="profile-clear-history-cancel"
-              @click="clearAsk = false"
-            >
-              {{ t("deleteAccount.clearHistoryCancel") }}
-            </button>
-          </div>
+      <!-- Clear listening history and Delete account (#2273): two smaller buttons side by side under
+           Sign out (operator 2026-10-08), not two underlined links. Both stay two-step — clearing
+           first explains what goes and what stays (below the row); deleting opens a page that asks
+           for a typed confirmation (App Store 5.1.1(v)). -->
+      <div v-if="auth.isAuthenticated" class="mt-3 grid grid-cols-2 gap-2" data-testid="profile-danger-row">
+        <div data-testid="profile-clear-history">
+          <button
+            type="button"
+            class="w-full rounded-2xl border border-border px-2 py-2.5 text-xs font-semibold text-muted transition hover:text-canvas-foreground"
+            :aria-expanded="clearAsk"
+            data-testid="profile-clear-history-open"
+            @click="clearAsk = !clearAsk"
+          >
+            {{ t("deleteAccount.clearHistoryLink") }}
+          </button>
         </div>
-        <p v-if="clearResult" role="status" class="mt-2 text-xs" data-testid="profile-clear-history-result">
-          {{ clearResult }}
-        </p>
+        <RouterLink
+          :to="{ name: 'account-delete' }"
+          class="flex items-center justify-center rounded-2xl border border-border px-2 py-2.5 text-center text-xs font-semibold text-muted no-underline transition hover:text-danger"
+          data-testid="profile-delete-account"
+        >
+          {{ t("deleteAccount.link") }}
+        </RouterLink>
       </div>
-      <!-- Account deletion (#2273, App Store 5.1.1(v)): reachable from inside the app, quieter
-           still than Sign out, and never a one-tap action — it opens a page that explains and
-           asks for a typed confirmation. -->
-      <RouterLink
-        v-if="auth.isAuthenticated"
-        :to="{ name: 'account-delete' }"
-        class="mt-4 block text-center text-xs text-muted underline"
-        data-testid="profile-delete-account"
+      <div
+        v-if="auth.isAuthenticated && clearAsk"
+        class="mt-3 rounded-2xl border border-border p-4 text-left text-sm"
+        data-testid="profile-clear-history-panel"
       >
-        {{ t("deleteAccount.link") }}
-      </RouterLink>
+        <p class="mb-3">{{ t("deleteAccount.clearHistoryBody") }}</p>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="rounded-full bg-danger px-4 py-2 text-sm font-bold text-canvas disabled:opacity-40"
+            :disabled="clearing"
+            data-testid="profile-clear-history-confirm"
+            @click="onClearHistory"
+          >
+            {{ t("deleteAccount.clearHistoryConfirm") }}
+          </button>
+          <button
+            type="button"
+            class="rounded-full border border-border px-4 py-2 text-sm"
+            data-testid="profile-clear-history-cancel"
+            @click="clearAsk = false"
+          >
+            {{ t("deleteAccount.clearHistoryCancel") }}
+          </button>
+        </div>
+      </div>
+      <p v-if="clearResult" role="status" class="mt-2 text-center text-xs" data-testid="profile-clear-history-result">
+        {{ clearResult }}
+      </p>
+      </template>
     </div>
 
 

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createI18n } from "vue-i18n"
 import { createMemoryHistory, createRouter } from "vue-router"
 import * as api from "../services/api"
+import { capturesViaFullLists, podcastsViaGetPodcasts } from "../test/apiViaSpies"
 import en from "../i18n/locales/en.json"
 import { useAuthStore } from "../stores/auth"
 import { clearCached } from "../services/contentCache"
@@ -62,6 +63,8 @@ beforeEach(async () => {
   // the namespace at write time is not the one a bare clear touches.)
   vi.spyOn(api, "getNotes").mockResolvedValue([])
   vi.spyOn(api, "getHighlights").mockResolvedValue([])
+  capturesViaFullLists()
+  podcastsViaGetPodcasts()
 })
 // Let a test's in-flight work SETTLE before its mocks are pulled. This view fires several unawaited
 // fetches from `onMounted` (captures, storylines) plus the search itself; restoring mocks while one
@@ -323,7 +326,7 @@ describe("SearchView", () => {
       .find((b) => b.text().includes("View"))!
       .trigger("click")
     await flushPromises()
-    expect(getPerson).toHaveBeenCalledWith("person:jane-doe")
+    expect(getPerson).toHaveBeenCalledWith("person:jane-doe", undefined, { limit: 5, excludeHostShows: true })
     expect(w.find('[role="dialog"]').exists()).toBe(true)
   })
 
@@ -671,7 +674,7 @@ describe("SearchView", () => {
     expect(chipButtons[0].text()).toBe("Machine Learning")
     await chipButtons[0].trigger("click")
     await flushPromises()
-    expect(getTopic).toHaveBeenCalledWith("topic:ml")
+    expect(getTopic).toHaveBeenCalledWith("topic:ml", undefined, { limit: 5 })
     expect(w.find('[role="dialog"]').exists()).toBe(true)
   })
 

@@ -7,6 +7,7 @@ import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.BySelector;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
+import androidx.test.uiautomator.Until;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -332,7 +333,18 @@ final class Journey {
     static boolean tap(List<String> names, boolean contains, long timeoutMs) {
         UiObject2 el = find(names, contains, timeoutMs);
         if (el == null) return false;
+        // The floor is the bottom nav — AND the mini-player docked above it, when one is open
+        // (2026-10-08). On iOS a Discover storyline row that cleared the tab bar but sat under the
+        // mini-player took the tap and opened the episode player. The mini-player's own close
+        // control ("Close player", player.closeMini) marks it.
         int floor = device().getDisplayHeight() - 220;
+        UiObject2 mini = find(Arrays.asList("Close player"), false, 500);
+        if (mini != null) {
+            Rect mb = attr(mini, UiObject2::getVisibleBounds);
+            if (mb != null && mb.top > device().getDisplayHeight() / 2) {
+                floor = Math.min(floor, mb.top - 60);
+            }
+        }
         Rect lastGood = attr(el, UiObject2::getVisibleBounds);
         for (int i = 0; i < 6; i++) {
             Rect b = attr(el, UiObject2::getVisibleBounds);
@@ -397,6 +409,43 @@ final class Journey {
                 }
             }
             return false;
+        }
+    }
+
+    /**
+     * Switch Discover's Trends to everyone's (2026-10-07: "Mine" is the default, and a fresh test
+     * account has no world of its own, so its Trends are empty). The choice is a synced
+     * preference, so later tests on the same account already show everyone's and this is a no-op.
+     * Mirrors the web e2e {@code showEveryonesTrends}.
+     *
+     * The scope is ONE icon toggle named "Trending scope" (2026-10-08: the labelled "You /
+     * Everyone" switch was reverted), so its name never says the state. The caption under the
+     * Trends does — "Your trends …" or "Everyone's trends …" — so that decides whether to tap.
+     *
+     * ON ANDROID ITS NAME IS THE sr-only TEXT, NOT THE aria-label (2026-10-08). Chromium drops an
+     * `aria-label` whose subtree is all hidden (DiscoveryExplorer.vue says so for both icon
+     * toggles), so the node reads "My listening" while the scope is mine. Asking for "Trending
+     * scope" alone matched nothing, the miss was silent, and test03 then hunted storyline rows in
+     * an empty "mine" list.
+     */
+    static void showEveryonesTrends() {
+        long deadline = System.currentTimeMillis() + 10_000;
+        boolean mine = false;
+        while (System.currentTimeMillis() < deadline) {
+            if (find("Your trends", true, 0) != null) { mine = true; break; }
+            if (find("Everyone's trends", true, 0) != null) break;
+            sleep(400);
+        }
+        if (!mine) {
+            mark("=====TREND_SCOPE already everyone, or caption not found=====");
+            return;
+        }
+        if (tap(Arrays.asList("My listening", "Trending scope"), false, 5_000)) {
+            boolean switched = find("Everyone's trends", true, 5_000) != null;
+            mark("=====TREND_SCOPE switched, everyone=" + switched + "=====");
+            sleep(1_000);
+        } else {
+            mark("=====TREND_SCOPE toggle not found :: " + labelledInventory(60) + "=====");
         }
     }
 
@@ -508,8 +557,13 @@ final class Journey {
         }
         UiObject2 last = find(names, contains, 1_500);
         if (last != null) return last;
-        for (int i = 0; i < 12; i++) swipeDown();
+        rewind();
         return null;
+    }
+
+    /** Back to the top of the page — the rewind `scrollTo` does on a miss, for callers to reuse. */
+    static void rewind() {
+        for (int i = 0; i < 12; i++) swipeDown();
     }
 
     static UiObject2 scrollTo(String name, boolean contains) {
@@ -579,6 +633,44 @@ final class Journey {
     /** Bottom tab bar. */
     static boolean openTab(String name) {
         return tap(name, false, 20_000);
+    }
+
+    /**
+     * Discover's search box → a results page, the route a phone takes (no Search tab, no header
+     * magnifier). The twin of iOS `searchFromDiscover`, and like it the field is found by CLASS, not
+     * by label: the label is an sr-only text node, and typing into it does nothing. Tapping Search
+     * with the box empty also does nothing — the tour's t03 came back as a copy of t02 (2026-10-08).
+     *
+     * Submitted with ENTER: a tap on the Search button with the keyboard up did not submit (the
+     * frame showed the query typed on Discover), while Enter did, by hand over adb. The button is
+     * the fallback. True only once Discover's heading is gone, i.e. the results page is showing.
+     */
+    static boolean searchFromDiscover(String query) {
+        if (!openTab("Discover")) return false;
+        UiObject2 field = device().wait(
+                Until.findObject(By.clazz("android.widget.EditText")), 10_000);
+        if (field == null) {
+            mark("SEARCH no text field on Discover");
+            return false;
+        }
+        field.click();
+        field.setText(query);
+        device().pressEnter();
+        if (leftDiscover(6_000)) return true;
+        tap("Search", false, 4_000);
+        if (leftDiscover(6_000)) return true;
+        mark("SEARCH still on Discover after Enter and the Search button");
+        return false;
+    }
+
+    /** Polls until Discover's own heading is gone — `find` returns on PRESENCE, so it cannot. */
+    private static boolean leftDiscover(long timeoutMs) {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        do {
+            if (find("Find what's worth hearing", false, 0) == null) return true;
+            sleep(400);
+        } while (System.currentTimeMillis() < deadline);
+        return false;
     }
 
     /**

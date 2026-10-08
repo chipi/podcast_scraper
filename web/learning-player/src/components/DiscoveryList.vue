@@ -70,6 +70,8 @@ const emit = defineEmits<{
   // How many rows this kind actually has. The header's expand control needs it: a control that
   // toggles when there is nothing hidden is the bug this whole change is fixing.
   (e: "count", total: number): void
+  // "Mine" had nothing to rank and the reader asked for everyone's trends instead.
+  (e: "show-everyone"): void
 }>()
 
 const { t } = useI18n()
@@ -214,6 +216,22 @@ function rowLabel(r: Row): string {
       </p>
     </div>
     <SectionStatus :phase="section.phase.value" :rows="4" @retry="load" />
+    <!-- "Mine" with nothing in it yet (operator 2026-10-07): it ranks only what the listener heard,
+         saved or follows, so a new account has none. Say so, and offer everyone's trends — an empty
+         list with the toggle still lit reads as broken. -->
+    <div
+      v-if="scope === 'mine' && section.isReady.value && !hasAny"
+      class="rounded-xl border border-border px-4 py-3 text-sm text-muted"
+      data-testid="discovery-mine-empty"
+    >
+      <p>{{ t("home.trendsMineEmpty") }}</p>
+      <button
+        type="button"
+        class="mt-2 font-bold text-accent"
+        data-testid="discovery-show-everyone"
+        @click="emit('show-everyone')"
+      >{{ t("home.trendsShowEveryone") }}</button>
+    </div>
     <!-- Says WHY nothing opens, once, instead of leaving the reader to infer it from N dimmed
          rows. The momentum is real and still followable, so the list stays. -->
     <p v-if="allInert" class="mb-2 text-xs text-muted" data-testid="discovery-all-inert">

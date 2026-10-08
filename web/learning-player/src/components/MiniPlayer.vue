@@ -24,6 +24,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute } from 'vue-router'
 import { usePlayerStore } from '../stores/player'
+import { artworkThumb } from '../utils/episode'
 import FavoriteButton from './FavoriteButton.vue'
 import RouteButton from './RouteButton.vue'
 import AddToCollectionButton from './AddToCollectionButton.vue'
@@ -87,7 +88,7 @@ const progress = computed(() =>
       >
         <img
           v-if="currentArtwork"
-          :src="currentArtwork"
+          :src="artworkThumb(currentArtwork) ?? undefined"
           alt=""
           class="h-9 w-9 shrink-0 rounded bg-canvas object-cover"
         />
@@ -109,6 +110,12 @@ const progress = computed(() =>
         </span>
       </RouterLink>
 
+      <!-- ONE right-aligned group, every control the same 32px circle on the same 12px gap
+           (operator 2026-10-08: with the close button added, five uneven controls — play and close
+           were 44px boxes — spread across the bar and squeezed the show and title to a few letters).
+           12px is the smallest gap that keeps each control's 44px touch area (`lp-tap`) clear of its
+           neighbour's. -->
+      <div class="flex shrink-0 items-center gap-[12px]" data-testid="mini-player-actions">
       <!-- Save and collect, on the line itself (operator 2026-09-23).
            The SHARED components, not a local copy: grey when off, filled when on, identical to the
            heart on every card and on the player page. A hand-rolled pair here is exactly how the
@@ -133,7 +140,7 @@ const progress = computed(() =>
       <button
         type="button"
         data-testid="mini-player-toggle"
-        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-canvas-foreground transition hover:bg-overlay disabled:opacity-40"
+        class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-canvas-foreground transition hover:bg-overlay disabled:opacity-40"
         :disabled="audioError"
         :aria-label="audioError ? t('player.audioErrorShort') : playing ? t('player.pause') : t('player.play')"
         @click="player.toggle()"
@@ -153,7 +160,7 @@ const progress = computed(() =>
       <button
         type="button"
         data-testid="mini-player-close"
-        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-overlay hover:text-canvas-foreground"
+        class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-overlay hover:text-canvas-foreground"
         :aria-label="t('player.closeMini')"
         @click="player.close()"
       >
@@ -161,6 +168,7 @@ const progress = computed(() =>
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>
       </button>
+      </div>
     </div>
   </div>
 </template>

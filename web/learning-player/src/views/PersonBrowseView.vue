@@ -23,7 +23,7 @@ import {
   type TopicTheme,
 } from "../components/trending"
 import { getTrending, type TrendWindow } from "../services/api"
-import { useTrendingScope } from "../composables/useTrendingScope"
+import type { TrendingScope } from "../composables/useTrendingScope"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import type { TrendingEntity } from "../services/types"
 
@@ -73,8 +73,9 @@ function openPerson(id: string): void {
 
 // RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches.
 const window = ref<TrendWindow>("3m")
-// #2030 — Browse › People reflects the app-level trending lens set on Home (read-only here).
-const { scope } = useTrendingScope()
+// Corpus-wide, not the Trends lens: "mine" is strictly the listener's own world (2026-10-07),
+// and a Browse index of everything must not empty itself for a new account.
+const scope = computed<TrendingScope>(() => "corpus")
 /** Same contract as the Topics tab: a failure is not an empty corpus (#1591/#1909). */
 const stale = ref(false)
 async function loadTrending(): Promise<void> {

@@ -40,7 +40,6 @@ if (props.depth > 0) {
 // A sheet opened from inside the Knowledge Panel's modal <dialog> must render INSIDE it, or the
 // panel's top layer hides it completely. See sheetTeleportTarget().
 const teleportTarget = sheetTeleportTarget()
-const stackBase = teleportTarget === "body" ? undefined : "96dvh"
 </script>
 
 <template>
@@ -51,7 +50,7 @@ const stackBase = teleportTarget === "body" ? undefined : "96dvh"
         tabindex="-1"
         class="lp-sheet relative w-full max-w-lg lg:max-w-3xl overflow-hidden rounded-t-2xl bg-surface outline-none sm:rounded-2xl"
         :class="depth > 0 ? 'lp-sheet--stacked' : undefined"
-        :style="{ '--lp-depth': depth, '--lp-stack-base': stackBase }"
+        :style="{ '--lp-depth': depth }"
         data-testid="theme-card"
       >
         <!-- The ✕ rides ThemeView's header row (embedded), unified with the topic/person card. -->

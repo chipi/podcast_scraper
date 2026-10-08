@@ -67,6 +67,7 @@ const hue = computed(() => {
       v-if="showImg"
       :src="src!"
       alt=""
+      loading="lazy"
       class="h-full w-full object-cover object-[50%_10%]"
       @error="failed = true"
     />

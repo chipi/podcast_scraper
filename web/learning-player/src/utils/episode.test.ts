@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EpisodeDetail } from '../services/types'
-import { summaryFromDetail } from './episode'
+import { episodeArtwork, episodePlayerArtwork, summaryFromDetail } from './episode'
 
 const detail: EpisodeDetail = {
   slug: 'ep-1',
@@ -34,5 +34,23 @@ describe('summaryFromDetail', () => {
     expect(s.topics).toEqual([])
     expect(s.has_gi).toBe(true)
     expect(s.has_kg).toBe(false)
+  })
+})
+
+describe('artwork size by surface (Pixel 8 blank-render fix, 2026-10-08)', () => {
+  const sized = { ...detail, artwork_url: '/api/app/artwork?ref=x&size=medium', artwork_thumb_url: '/api/app/artwork?ref=x&size=thumb' }
+
+  it('a card built from a detail gets the thumb, never the player-size image', () => {
+    expect(episodeArtwork(sized)).toContain('size=thumb')
+    expect(summaryFromDetail(sized).artwork_url).toContain('size=thumb')
+  })
+
+  it('the player, lock screen and offline copy get the player size', () => {
+    expect(episodePlayerArtwork(sized)).toContain('size=medium')
+  })
+
+  it('a detail without a thumb (offline record, older server) keeps its own artwork', () => {
+    expect(episodeArtwork(detail)).toContain('a.jpg')
+    expect(summaryFromDetail(detail).artwork_url).toBe('a.jpg')
   })
 })

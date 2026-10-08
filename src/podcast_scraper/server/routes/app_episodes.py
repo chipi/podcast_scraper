@@ -14,7 +14,10 @@ import json
 import logging
 import os
 import time
+from collections import Counter, OrderedDict
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
@@ -36,12 +39,18 @@ from podcast_scraper.server.app_content_source import (
     transcript_relpath,
 )
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
+from podcast_scraper.server.app_discover_view import interest_relpaths
 from podcast_scraper.server.app_episode_notes import (
     build_episode_notes,
     render_episode_notes_html,
     render_episode_notes_markdown,
 )
 from podcast_scraper.server.app_gi_view import insights_from_gi
+from podcast_scraper.server.app_guided_shows import (
+    guided_show_signals,
+    rank_guided_shows,
+    ShowSignals,
+)
 from podcast_scraper.server.app_kg_view import entities_from_kg, objects_from_kg
 from podcast_scraper.server.app_pkm_export import episode_url
 from podcast_scraper.server.app_recap_view import build_episode_recap
@@ -59,6 +68,7 @@ from podcast_scraper.server.feed_signals import compute_feed_signals
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppEntitiesResponse,
+    AppEpisodeBatchResponse,
     AppEpisodeDetail,
     AppEpisodeRecap,
     AppEpisodesResponse,
@@ -140,28 +150,141 @@ def episodes_list(
     return _episodes_page(request, feed_id=feed_id, status=status, page=page, page_size=page_size)
 
 
+def _podcast_item(f: dict) -> AppPodcastItem:
+    return AppPodcastItem(
+        feed_id=f["feed_id"],
+        title=f.get("display_title"),
+        artwork_url=artwork_url(f.get("image_local_relpath"), "thumb"),
+        image_url=f.get("image_url"),
+        description=f.get("description"),
+        category=f.get("category"),
+        episode_count=int(f.get("episode_count", 0)),
+        authors=list(f.get("authors") or ()),
+        language=f.get("language"),
+        last_updated=f.get("last_updated"),
+    )
+
+
 @router.get("/podcasts", response_model=AppPodcastsResponse)
-def podcasts_list(request: Request, _user: User = Depends(get_current_user)) -> AppPodcastsResponse:
-    """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6)."""
+def podcasts_list(
+    request: Request,
+    feed_ids: list[str] = Query(
+        default_factory=list, max_length=200, description="Paged: only these shows (lookups)."
+    ),
+    q: str | None = Query(default=None, max_length=200, description="Paged: title / host words."),
+    category: str | None = Query(default=None, max_length=100),
+    sort: Literal["newest", "oldest", "az", "za", "trending"] = Query(default="newest"),
+    compact: bool = Query(
+        default=False, description="Paged: leave out descriptions (a name list, e.g. a filter)."
+    ),
+    offset: int = Query(default=0, ge=0),
+    limit: int | None = Query(
+        default=None, ge=1, le=200, description="Page size. Absent: every show, as before 1.0.3."
+    ),
+    _user: User = Depends(get_current_user),
+) -> AppPodcastsResponse:
+    """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6).
+
+    Paging is opt-in: with ``limit`` the catalogue is filtered (``feed_ids``, ``q`` — every word,
+    any order, over title and hosts — ``category``), sorted and paged on the server.
+    """
     root = corpus_root_or_503(request)
-    feeds = aggregate_feeds(cached_catalog(root))
-    items = [
-        AppPodcastItem(
-            feed_id=f["feed_id"],
-            title=f.get("display_title"),
-            artwork_url=artwork_url(f.get("image_local_relpath"), "thumb"),
-            image_url=f.get("image_url"),
-            description=f.get("description"),
-            category=f.get("category"),
-            episode_count=int(f.get("episode_count", 0)),
-            authors=list(f.get("authors") or ()),
-            language=f.get("language"),
-            last_updated=f.get("last_updated"),
-        )
+    feeds = [f for f in aggregate_feeds(cached_catalog(root)) if f.get("feed_id")]
+    if limit is None:
+        return AppPodcastsResponse(items=[_podcast_item(f) for f in feeds])
+    wanted = set(feed_ids)
+    words = (q or "").casefold().split()
+
+    def title(f: dict) -> str:
+        return str(f.get("display_title") or f.get("feed_id")).casefold()
+
+    def hay(f: dict) -> str:
+        return " ".join([title(f), *(str(a) for a in f.get("authors") or ())]).casefold()
+
+    selected = [
+        f
         for f in feeds
-        if f.get("feed_id")
+        if (not wanted or f["feed_id"] in wanted)
+        and (not category or f.get("category") == category)
+        and all(w in hay(f) for w in words)
     ]
-    return AppPodcastsResponse(items=items)
+    if sort in ("az", "za"):
+        selected.sort(key=title, reverse=sort == "za")
+    elif sort == "trending":
+        from podcast_scraper.server.routes.app_discover import app_trending
+
+        velocity = {
+            t.entity_id: t.velocity or 0.0
+            for t in app_trending(
+                request, kind="show", scope="corpus", window="3m", limit=50, user=_user
+            ).items
+        }
+        selected.sort(key=lambda f: (-velocity.get(f["feed_id"], 0.0), title(f)))
+    else:
+        # By the feed's last update; a feed with none goes last, then A-Z (ShowBrowseView's rule).
+        dated = [f for f in selected if f.get("last_updated")]
+        undated = sorted((f for f in selected if not f.get("last_updated")), key=title)
+        dated.sort(key=lambda f: (str(f["last_updated"]), title(f)), reverse=sort == "newest")
+        selected = dated + undated
+    page = []
+    for f in selected[offset : offset + limit]:
+        item = _podcast_item(f)
+        if compact:
+            item.description = None
+        page.append(item)
+    return AppPodcastsResponse(
+        items=page,
+        total=len(selected),
+        categories=sorted({str(f["category"]) for f in feeds if f.get("category")}),
+    )
+
+
+@router.get("/podcasts/suggested", response_model=AppPodcastsResponse)
+def podcasts_suggested(
+    request: Request,
+    limit: int = Query(default=8, ge=1, le=24, description="Shows to return."),
+    user: User = Depends(get_current_user),
+) -> AppPodcastsResponse:
+    """Shows to offer in Home's guided start (operator 2026-10-08): active in the last month first,
+    then the most loved across listeners, lifted by the interests just chosen, minus shows already
+    followed, categories mixed. See ``app_guided_shows``.
+    """
+    root = corpus_root_or_503(request)
+    rows = cached_catalog(root)
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    data_dir = Path(raw_dir) if raw_dir is not None else None
+    followed: set[str] = set()
+    matching: set[str] = set()
+    if data_dir is not None:
+        followed = {
+            str(x.get("feed_id") or "") for x in app_user_state.get_library(data_dir, user.user_id)
+        }
+        matching = interest_relpaths(root, app_user_state.get_interests(data_dir, user.user_id))
+        signals = guided_show_signals(data_dir, rows)
+    else:
+        signals = ShowSignals(Counter(), Counter(), Counter(), Counter())
+    order = rank_guided_shows(
+        rows,
+        signals=signals,
+        now=_guided_now(),
+        followed=followed,
+        matching_relpaths=matching,
+        limit=limit,
+    )
+    feeds = {f["feed_id"]: f for f in aggregate_feeds(rows) if f.get("feed_id")}
+    return AppPodcastsResponse(items=[_podcast_item(feeds[fid]) for fid in order if fid in feeds])
+
+
+def _guided_now() -> datetime:
+    """Real now, unless ``APP_TRENDING_NOW`` pins the clock (tests), as Trends does."""
+    raw = os.environ.get("APP_TRENDING_NOW")
+    if raw:
+        try:
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+    return datetime.now(timezone.utc)
 
 
 @router.get("/podcasts/{feed_id}/episodes", response_model=AppEpisodesResponse)
@@ -205,12 +328,52 @@ def podcast_signals(
     )
 
 
+# A batch is a screen's worth of saved slugs, not a crawl: the queue, the last 30 plays.
+_BATCH_MAX = 100
+
+
+@router.get("/episodes/batch", response_model=AppEpisodeBatchResponse)
+def episode_batch(
+    request: Request,
+    slugs: list[str] = Query(
+        default_factory=list,
+        max_length=_BATCH_MAX,
+        description=f"Episode slugs, repeated (`?slugs=a&slugs=b`), at most {_BATCH_MAX}.",
+    ),
+    _user: User = Depends(get_current_user),
+) -> AppEpisodeBatchResponse:
+    """Several episode details in one request — what the queue and recently played need.
+
+    Declared BEFORE ``/episodes/{slug}`` so "batch" is never read as a slug. Each item is exactly
+    what ``/episodes/{slug}`` returns; that route stays for clients that predate this one.
+    """
+    root = corpus_root_or_503(request)
+    items: list[AppEpisodeDetail] = []
+    missing: list[str] = []
+    seen: set[str] = set()
+    for slug in slugs:
+        if slug in seen:
+            continue
+        seen.add(slug)
+        row = resolve_slug(root, slug)
+        if row is None:
+            missing.append(slug)
+        else:
+            items.append(_episode_detail(root, row, slug))
+    return AppEpisodeBatchResponse(items=items, missing=missing)
+
+
 @router.get("/episodes/{slug}", response_model=AppEpisodeDetail)
 def episode_detail(
     request: Request, slug: str, _user: User = Depends(get_current_user)
 ) -> AppEpisodeDetail:
     """Consumer episode detail (metadata + summary + artifact-availability flags)."""
     root, row = _resolve(request, slug)
+    return _episode_detail(root, row, slug)
+
+
+def _episode_detail(root: Path, row: CatalogEpisodeRow, slug: str) -> AppEpisodeDetail:
+    """One episode's detail — shared by the single and the batch route."""
     transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
     has_transcript = transcript_rel is not None
     has_summary = bool(row.summary_title or row.summary_bullets or row.summary_text)
@@ -235,7 +398,8 @@ def episode_detail(
         duration_seconds=row.duration_seconds,
         episode_image_url=row.episode_image_url,
         feed_image_url=row.feed_image_url,
-        artwork_url=artwork_url(local_art, "large"),
+        artwork_url=artwork_url(local_art, "medium"),
+        artwork_thumb_url=artwork_url(local_art, "thumb"),
         summary_title=row.summary_title,
         summary_bullets=list(row.summary_bullets),
         summary_text=row.summary_text,
@@ -246,6 +410,46 @@ def episode_detail(
         has_kg=row.has_kg,
         has_bridge=row.has_bridge,
     )
+
+
+# "More like this" peers, cached per (corpus, episode, top_k). The lookup embeds the summary with
+# MiniLM on the API's CPU and queries LanceDB: 2.4-3.2 s per request on prod (measured 2026-10-08,
+# three runs), paid on EVERY Episode page open, and the answer only changes when the index is
+# rebuilt. An hour's TTL bounds how stale a rebuilt index can look; 512 entries bound the memory.
+_RELATED_TTL_S = 3600
+_RELATED_MAX = 512
+_related_cache: OrderedDict[tuple[str, str, int], tuple[float, AppEpisodesResponse]] = OrderedDict()
+_related_counts = {"hits": 0, "misses": 0}
+
+
+def _related_cached(key: tuple[str, str, int]) -> AppEpisodesResponse | None:
+    hit = _related_cache.get(key)
+    if hit is None or time.monotonic() - hit[0] > _RELATED_TTL_S:
+        _related_counts["misses"] += 1
+        return None
+    _related_counts["hits"] += 1
+    _related_cache.move_to_end(key)
+    return hit[1]
+
+
+def related_cache_stats() -> dict[str, float | int]:
+    """The "More like this" cache, for ``/api/ops/cache-stats`` (not a perf_cache namespace)."""
+    looked = _related_counts["hits"] + _related_counts["misses"]
+    return {
+        "entries": len(_related_cache),
+        "max_entries": _RELATED_MAX,
+        "ttl_seconds": _RELATED_TTL_S,
+        "hits": _related_counts["hits"],
+        "misses": _related_counts["misses"],
+        "hit_rate_pct": round(100.0 * _related_counts["hits"] / looked, 1) if looked else 0.0,
+    }
+
+
+def _related_store(key: tuple[str, str, int], value: AppEpisodesResponse) -> None:
+    _related_cache[key] = (time.monotonic(), value)
+    _related_cache.move_to_end(key)
+    while len(_related_cache) > _RELATED_MAX:
+        _related_cache.popitem(last=False)
 
 
 @router.get("/episodes/{slug}/related", response_model=AppEpisodesResponse)
@@ -262,6 +466,10 @@ async def episode_related(
     no-index search) so the panel section simply hides.
     """
     root, row = _resolve(request, slug)
+    cache_key = (str(root), slug, top_k)
+    cached = _related_cached(cache_key)
+    if cached is not None:
+        return cached
     # Offload off the event loop — the episode page fires this "more like this" call on load;
     # running the blocking embed + LanceDB read inline froze concurrent requests (e.g. the topic
     # card's /perspectives) while MiniLM lazy-loaded. Safe via the warm, shared index_pool backend.
@@ -287,9 +495,13 @@ async def episode_related(
         if peer is not None and peer.metadata_relative_path not in seen:
             seen.add(peer.metadata_relative_path)
             items.append(row_to_summary(root, peer))
-    return AppEpisodesResponse(
+    response = AppEpisodesResponse(
         items=items, page=1, page_size=top_k, total=len(items), has_more=False
     )
+    # Only a real answer is kept: an index error above returns early, so a transient outage is
+    # not served from the cache for an hour.
+    _related_store(cache_key, response)
+    return response
 
 
 @router.get("/episodes/{slug}/insights", response_model=AppInsightsResponse)

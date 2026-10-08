@@ -1,9 +1,10 @@
 """Consumer artwork route — ``GET /api/app/artwork`` (RFC-099).
 
 Serves the locally-stored podcast art (downloaded at ingest), so the consumer app never
-re-fetches graphics from the origin host. ``size=large`` returns the original; ``size=thumb``
-returns a cached downscale. Content-addressed → served ``immutable`` so the browser + PWA SW
-cache it after the first fetch. Open read (consistent with the other ``/api/app`` reads).
+re-fetches graphics from the origin host. ``size=thumb`` (≤320px) and ``size=medium`` (≤1024px)
+return stored downscales; ``size=large`` returns the original. Content-addressed → served
+``immutable`` so the browser + PWA SW cache it after the first fetch. Open read (consistent with
+the other ``/api/app`` reads).
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
-from podcast_scraper.server.app_artwork import ensure_thumbnail, safe_artwork_target
+from podcast_scraper.server.app_artwork import ensure_medium, ensure_thumbnail, safe_artwork_target
 
 router = APIRouter(tags=["app"])
 
@@ -34,10 +35,12 @@ def app_artwork(
     request: Request,
     ref: str = Query(..., description="Corpus-relative artwork path (under the corpus-art store)."),
     size: str = Query(
-        "large", pattern="^(thumb|large)$", description="thumb (lists) or large (player)."
+        "large",
+        pattern="^(thumb|medium|large)$",
+        description="thumb (lists, ≤320px), medium (player, ≤1024px) or large (original).",
     ),
 ) -> FileResponse:
-    """Serve stored podcast art at the requested size (large=original, thumb=downscale)."""
+    """Serve stored podcast art at the requested size (thumb/medium downscale, large=original)."""
     root = _corpus_root(request)
     target = safe_artwork_target(root, ref)
     if not target:
@@ -48,6 +51,8 @@ def app_artwork(
 
     if size == "thumb":
         serve_path, media_type = ensure_thumbnail(root, target)
+    elif size == "medium":
+        serve_path, media_type = ensure_medium(root, target)
     else:
         guessed, _ = mimetypes.guess_type(os.path.basename(target))
         serve_path, media_type = target, (guessed or "application/octet-stream")

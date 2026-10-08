@@ -58,7 +58,7 @@ const UPDATED = '4 October 2026'
           profile picture if you add one or your Google account has one.
         </li>
         <li>
-          <strong>What you create:</strong> highlights, notes, collections, your queue, saved
+          <strong>What you create:</strong> highlights, notes, boards, your queue, saved
           items, the shows, people and topics you follow, and your interests.
         </li>
         <li>
@@ -129,7 +129,7 @@ const UPDATED = '4 October 2026'
       <h2 class="mb-1 text-base font-bold">Your choices and rights</h2>
       <ul class="list-disc space-y-1 pl-5">
         <li><strong>Delete your account</strong> at any time: <em>Profile › Account › Delete account</em>. It takes effect immediately.</li>
-        <li><strong>Delete some data</strong> without deleting the account: highlights, notes, collections, saved items and follows where they appear, and <em>Profile › Account › Clear listening history</em>.</li>
+        <li><strong>Delete some data</strong> without deleting the account: highlights, notes, boards, saved items and follows where they appear, and <em>Profile › Account › Clear listening history</em>.</li>
         <li><strong>Turn off</strong> usage statistics (Settings › Privacy), emails and push notifications (Profile).</li>
         <li><strong>Correct</strong> your name in Profile.</li>
         <li>

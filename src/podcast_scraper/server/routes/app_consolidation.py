@@ -11,7 +11,7 @@ import logging
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from podcast_scraper.server import app_graph_refs, app_user_corpus, app_user_state
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
@@ -37,7 +37,18 @@ def _data_dir(request: Request) -> Path:
 
 
 @router.get("/resurfacing", response_model=ResurfacingResponse)
-def resurfacing(request: Request, user: User = Depends(get_current_user)) -> ResurfacingResponse:
+def resurfacing(
+    request: Request,
+    offset: int = Query(default=0, ge=0, description="Paged: episodes to skip."),
+    limit: int | None = Query(
+        default=None,
+        ge=1,
+        le=100,
+        description="EPISODES per page. Absent: everything due, as before 1.0.3.",
+    ),
+    per_episode: int = Query(default=100, ge=1, le=100, description="Paged: items per episode."),
+    user: User = Depends(get_current_user),
+) -> ResurfacingResponse:
     """Highlights due to resurface + a reflection prompt; honours pacing.
 
     Ordered by episode, most recently listened-or-captured first — NOT most-overdue-first,
@@ -91,7 +102,21 @@ def resurfacing(request: Request, user: User = Depends(get_current_user)) -> Res
             len(due),
             user.user_id,
         )
-    return ResurfacingResponse(items=items, paused=paused)
+    if limit is None:
+        return ResurfacingResponse(items=items, paused=paused)
+    # Paged by EPISODE, in the order select_due already gives (episodes, then captures).
+    groups: dict[str, list[ResurfacingItem]] = {}
+    for it in items:
+        groups.setdefault(it.highlight.episode_slug, []).append(it)
+    order = list(groups)
+    page = order[offset : offset + limit]
+    return ResurfacingResponse(
+        items=[it for slug in page for it in groups[slug][:per_episode]],
+        paused=paused,
+        total=len(items),
+        episode_total=len(order),
+        episode_counts={slug: len(groups[slug]) for slug in page},
+    )
 
 
 @router.post("/resurfacing/{highlight_id}/surfaced", status_code=204)

@@ -41,4 +41,23 @@ describe('YourWeekCard', () => {
     })
     expect(w.text()).toContain('Topic Z')
   })
+
+  it('names the show under a display-size title, like Continue listening (operator 2026-10-08)', () => {
+    const w = mount(YourWeekCard, {
+      props: { item: { episode_slug: 'ep-c', episode_title: 'Episode C', podcast_title: 'Show C', deep_link: '/episode/ep-c' } },
+      global: { plugins: [i18n, router] },
+    })
+    expect(w.get('[data-testid="yourweek-card-title"]').classes()).toContain('font-display')
+    expect(w.get('[data-testid="yourweek-card-show"]').text()).toBe('Show C')
+    const text = w.text()
+    expect(text.indexOf('Episode C')).toBeLessThan(text.indexOf('Show C'))
+  })
+
+  it('shows no empty show line when the show is unknown', () => {
+    const w = mount(YourWeekCard, {
+      props: { item: { episode_slug: 'ep-d', episode_title: 'Episode D', deep_link: '/episode/ep-d' } },
+      global: { plugins: [i18n, router] },
+    })
+    expect(w.find('[data-testid="yourweek-card-show"]').exists()).toBe(false)
+  })
 })

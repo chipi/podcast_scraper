@@ -256,6 +256,31 @@ def test_detail_returns_metadata_and_flags(tmp_path: Path) -> None:
     assert body["has_kg"] is True
 
 
+def test_batch_returns_each_detail_as_the_single_route_does(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    client = _client(tmp_path)
+    single = client.get(f"/api/app/episodes/{slug}").json()
+    body = client.get(
+        "/api/app/episodes/batch", params=[("slugs", "nope"), ("slugs", slug), ("slugs", slug)]
+    ).json()
+    # Same detail, unknown slugs reported rather than failing the batch, duplicates collapsed.
+    assert body["items"] == [single]
+    assert body["missing"] == ["nope"]
+
+
+def test_batch_without_slugs_is_empty_not_an_error(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    body = _client(tmp_path).get("/api/app/episodes/batch").json()
+    assert body == {"items": [], "missing": []}
+
+
+def test_batch_caps_the_slug_count(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    params = [("slugs", f"s{i}") for i in range(101)]
+    assert _client(tmp_path).get("/api/app/episodes/batch", params=params).status_code == 422
+
+
 def test_insights_endpoint_returns_grounded(tmp_path: Path) -> None:
     _write_corpus(tmp_path)
     slug = _only_slug(tmp_path)
@@ -664,6 +689,38 @@ def test_related_returns_peers_when_index_has_neighbours(
     assert body["items"][0]["feed_id"] == "myfeed"
 
 
+def test_related_is_cached_and_an_index_error_is_not(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The lookup embeds + queries LanceDB: 2.4-3.2 s per call on prod (2026-10-08). A second open of
+    the same episode must not pay it again — but a failed lookup must not be served for an hour."""
+    import types
+
+    from podcast_scraper.server.routes import app_episodes
+
+    app_episodes._related_cache.clear()
+    _write_corpus(tmp_path, stem="0001-a", episode_id="ep1")
+    _write_corpus(tmp_path, stem="0002-b", episode_id="ep2")
+    calls = {"n": 0, "fail": True}
+
+    def fake(*_a: object, **_k: object) -> object:
+        calls["n"] += 1
+        if calls["fail"]:
+            return types.SimpleNamespace(error="index unavailable", items=[])
+        return types.SimpleNamespace(
+            error=None, items=[{"metadata": {"feed_id": "myfeed", "episode_id": "ep2"}}]
+        )
+
+    monkeypatch.setattr("podcast_scraper.server.routes.app_episodes.run_similar_episodes", fake)
+    src = _slug_for(tmp_path, "ep1")
+    client = _client(tmp_path)
+    assert client.get(f"/api/app/episodes/{src}/related").json()["total"] == 0
+    calls["fail"] = False
+    assert client.get(f"/api/app/episodes/{src}/related").json()["total"] == 1  # error not cached
+    assert client.get(f"/api/app/episodes/{src}/related").json()["total"] == 1
+    assert calls["n"] == 2  # the third call was served from the cache
+
+
 def test_segments_unreadable_file_returns_500(tmp_path: Path) -> None:
     _write_corpus(tmp_path)
     # Corrupt the segments JSON the resolver will pick → 500, not a silent empty transcript.
@@ -733,3 +790,18 @@ def test_entities_topics_flat_without_cluster_artifact(tmp_path: Path) -> None:
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/entities").json()
     topic = next(t for t in body["topics"] if t["id"] == "topic:ai")
     assert topic["cluster_id"] is None and topic["cluster_size"] == 0
+
+
+def test_related_cache_reports_its_lookups(tmp_path: Path) -> None:
+    # /api/ops/cache-stats carries this cache under `related` (it is not a perf_cache namespace).
+    from podcast_scraper.server.routes import app_episodes
+
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    before = app_episodes.related_cache_stats()
+    client = _client(tmp_path)
+    client.get(f"/api/app/episodes/{slug}/related")
+    client.get(f"/api/app/episodes/{slug}/related")
+    after = app_episodes.related_cache_stats()
+    assert after["hits"] + after["misses"] == before["hits"] + before["misses"] + 2
+    assert set(after) >= {"entries", "max_entries", "ttl_seconds", "hit_rate_pct"}

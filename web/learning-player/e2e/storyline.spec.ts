@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { signInIsolated, tapAndRecordTop } from './helpers'
+import { signInIsolated, tapAndRecordTop, showEveryonesTrends } from './helpers'
 
 /**
  * StorylineView (F4.5), reached from the "Storylines" tab of Discover's Trends. REAL API over the
@@ -54,6 +54,7 @@ test('a Discover storyline row opens the storyline page — members and episodes
 }, testInfo) => {
   await signInIsolated(page, 'storyline', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
 
   await page.getByTestId('discovery-tab-storyline').click()
   // The first OPENABLE row, not `.first()` — see `firstOpenableStorylineRow`.
@@ -85,6 +86,7 @@ test('a storyline opened from Discover can be followed', async ({ page }, testIn
   // for a run that had checked nothing (2026-09-25).
   await signInIsolated(page, 'storyline-follow', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   await page.getByTestId('discovery-tab-storyline').click()
   const row = await firstOpenableStorylineRow(page)
   const label = (await row.innerText()).split('\n')[0]
@@ -109,6 +111,7 @@ test('the storyline PAGE shows its people as Top voices — the topic card\'s gr
   // The people section is PAGE-only (the overlay stays a compact preview); Discover opens the page.
   await signInIsolated(page, 'storyline-voices', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   await page.getByTestId('discovery-tab-storyline').click()
   const row = await firstOpenableStorylineRow(page)
   await row.click()
@@ -134,6 +137,7 @@ test('Back from a person opened in Top voices returns to Top voices, not the top
   await page.setViewportSize({ width: 390, height: 760 })
   await signInIsolated(page, 'storyline-back-scroll', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   await page.getByTestId('discovery-tab-storyline').click()
   const row = await firstOpenableStorylineRow(page)
   await row.click()

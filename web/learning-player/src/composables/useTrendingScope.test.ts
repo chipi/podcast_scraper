@@ -31,9 +31,15 @@ describe('useTrendingScope (#2030)', () => {
     expect(useTrendingScope().scope.value).toBe('corpus')
   })
 
-  it('is corpus when signed in with no stored lens', () => {
+  it('is MINE when signed in with no stored lens — on by default (operator 2026-10-07)', () => {
     state.authed = true
     state.pref = undefined
+    expect(useTrendingScope().scope.value).toBe('mine')
+  })
+
+  it('is corpus once the listener switches it off, and that sticks', () => {
+    state.authed = true
+    state.pref = 'corpus'
     expect(useTrendingScope().scope.value).toBe('corpus')
   })
 

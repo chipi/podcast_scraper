@@ -9,7 +9,7 @@ import { signInIsolated } from './helpers'
  * Collections shipped broken and every test layer was green. The unit tests mock the API, so a
  * broken real flow still passes. The post-deploy live check exercises the endpoints via `request` —
  * API only, never the UI. And the sole UI assertion anywhere was `library-saved.spec.ts` checking
- * that "No collections yet" is visible: a test that only ever asserts the EMPTY state cannot tell
+ * that "No boards yet" is visible: a test that only ever asserts the EMPTY state cannot tell
  * "you have none" from "we lost them", which is exactly the bug.
  *
  * So this drives the real interface against the real server through the whole loop, which is the
@@ -52,6 +52,8 @@ test('add to a collection, create another, and find both with their items', asyn
   }
 
   const menu = await openCollectionMenu()
+  // The create field opens from "New board" in the sheet (operator 2026-10-07).
+  await menu.getByTestId('add-to-collection-new').click()
   await menu.locator('input').fill(A)
   await menu.locator('form button[type="submit"]').click()
   await expect(page.getByTestId('add-to-collection-menu')).toBeHidden({ timeout: 5000 })
@@ -62,6 +64,7 @@ test('add to a collection, create another, and find both with their items', asyn
 
   // --- 2. a SECOND collection, from the same control -----------------------------------------
   const menu2 = await openCollectionMenu()
+  await menu2.getByTestId('add-to-collection-new').click()
   await menu2.locator('input').fill(B)
   await menu2.locator('form button[type="submit"]').click()
   await expect(page.getByTestId('add-to-collection-menu')).toBeHidden({ timeout: 5000 })
@@ -110,6 +113,8 @@ test('the episode page can pin the episode you are listening to (#2013 follow-up
   const menu = page.getByTestId('add-to-collection-menu')
   await expect(menu).toBeVisible()
   const name = `From the player ${Date.now().toString(36)}`
+  // The create field opens from "New board" in the sheet (operator 2026-10-07).
+  await menu.getByTestId('add-to-collection-new').click()
   await menu.locator('input').fill(name)
   await menu.locator('form button[type="submit"]').click()
   await expect(page.getByTestId('add-to-collection-menu')).toBeHidden({ timeout: 5000 })

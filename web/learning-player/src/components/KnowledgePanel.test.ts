@@ -29,8 +29,7 @@ beforeEach(() => {
   setActivePinia(createPinia()) // FavoriteButton (on insights) resolves the favorites/auth stores
   // Default: no related peers (index unavailable) so the section hides.
   vi.spyOn(api, "getRelated").mockResolvedValue(emptyPage)
-  // The embedded EpisodeDensity fetches episode enrichment; keep tests off the
-  // network (its own coverage lives in EpisodeDensity.test.ts).
+  // Keep tests off the network should anything in the panel ask for episode enrichment.
   vi.spyOn(api, "getEpisodeEnrichment").mockResolvedValue({})
 })
 afterEach(() => {
@@ -144,7 +143,7 @@ describe("KnowledgePanel", () => {
     await flushPromises()
     // Replace-in-panel (UXS-014): the card renders INLINE in the panel (no overlay), with a ‹ Back
     // (glyph-only dismiss control, aria-label "Back" when nested).
-    expect(getPerson).toHaveBeenCalledWith("person:matthew-walker")
+    expect(getPerson).toHaveBeenCalledWith("person:matthew-walker", undefined, { limit: 5, excludeHostShows: true })
     expect(w.text()).toContain("Matthew Walker")
     expect(w.find('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Back")
   })
@@ -223,7 +222,7 @@ describe("KnowledgePanel", () => {
       .find((b) => chipName(b) === "memory")!
       .trigger("click")
     await flushPromises()
-    expect(getTopic).toHaveBeenCalledWith("topic:memory")
+    expect(getTopic).toHaveBeenCalledWith("topic:memory", undefined, { limit: 5 })
     expect(push).not.toHaveBeenCalled() // search now lives inside the card, not on chip-tap
   })
 
@@ -493,17 +492,16 @@ describe("KnowledgePanel — #1191 route-and-tag surfacing", () => {
     expect(w.text()).not.toContain("CCC dropped filler")
   })
 
-  it("caps at 8 surface insights behind a show-more fold, then reveals the rest", async () => {
+  it("caps at 4 surface insights behind 'Show N more', then reveals the rest (operator 2026-10-07)", async () => {
     const many = Array.from({ length: 10 }, (_, i) =>
       insight({ id: "i" + i, text: "INSIGHT_" + i, routing_tag: "surface" as const })
     )
     const w = mountPanel({ insights: many })
-    // first 8 visible (INSIGHT_0..7), #8 and #9 folded
-    expect(w.text()).toContain("INSIGHT_7")
-    expect(w.text()).not.toContain("INSIGHT_8")
+    expect(w.text()).toContain("INSIGHT_3")
+    expect(w.text()).not.toContain("INSIGHT_4")
     expect(w.text()).not.toContain("INSIGHT_9")
     const showMore = w.find('[data-testid="kp-insights-show-all"]')
-    expect(showMore.exists()).toBe(true)
+    expect(showMore.text()).toBe("Show 6 more")
     await showMore.trigger("click")
     expect(w.text()).toContain("INSIGHT_8")
     expect(w.text()).toContain("INSIGHT_9")
@@ -552,22 +550,66 @@ describe("KnowledgePanel — #1191 route-and-tag surfacing", () => {
   })
 })
 
-describe("Topics & People render in full (#2004 item 15)", () => {
-  it('shows every tag, with no "+N" expander', () => {
-    // Was clipped at 6 behind `+N …`. Tags are chips — they wrap, so the collapse hid most of the
-    // list to save a couple of rows on the panel whose job is saying what the episode is about.
-    const topics = Array.from({ length: 14 }, (_, i) => ({ id: `t${i}`, label: `topic ${i}` }))
-    const w = mountPanel({ topics } as never)
-    for (const t of topics) expect(w.text()).toContain(t.label)
-    expect(w.text()).not.toMatch(/\+\d+ …/)
+describe("Topics & People: five, mixed, then '+N more' (operator 2026-10-07)", () => {
+  // Reverses #2004 item 15 ("render every chip") on the operator's call: the panel opens on a gist.
+  const people = [
+    { id: "person:h", name: "Hosty", kind: "person", role: "host" },
+    { id: "person:g", name: "Guesty", kind: "person", role: "guest" },
+    { id: "person:m", name: "Mentiony", kind: "person", role: "mentioned" },
+    { id: "person:m2", name: "Another", kind: "person", role: "mentioned" },
+  ] as Entity[]
+  const topics = Array.from({ length: 8 }, (_, i) => ({ id: `topic:t${i}`, label: `topic ${i}` })) as Topic[]
+
+  it("shows five: the guest and one other person (never the host), then topics", () => {
+    const w = mountPanel({ topics, persons: people })
+    const row = w.get('[data-testid="kp-tags-row"]')
+    const persons = row.findAll('[data-testid="kp-person-chip"]').map((c) => c.text())
+    expect(persons.some((t) => t.includes("Guesty"))).toBe(true)
+    expect(persons.some((t) => t.includes("Mentiony"))).toBe(true)
+    expect(persons.some((t) => t.includes("Hosty"))).toBe(false)
+    expect(row.findAll('[data-testid="kp-topic-chip"]')).toHaveLength(3)
+    // 4 people + 8 topics = 12; 5 shown.
+    expect(w.get('[data-testid="kp-tags-more"]').text()).toBe("+7 more")
   })
 
-  it("still collapses the INSIGHT list, which is a different shape", () => {
-    // Guards against a future "make it consistent" pass removing the collapse that earns its keep:
-    // insights are full cards, and an episode with 36 would bury everything below them.
-    const src = knowledgePanelSource
-    expect(src).toContain("INSIGHT_COLLAPSED")
-    expect(src).not.toContain("TAG_COLLAPSED")
+  it("'+N more' reveals every chip, host included", async () => {
+    const w = mountPanel({ topics, persons: people })
+    await w.get('[data-testid="kp-tags-more"]').trigger("click")
+    for (const t of topics) expect(w.text()).toContain(t.label)
+    expect(w.text()).toContain("Hosty")
+    expect(w.find('[data-testid="kp-tags-more"]').exists()).toBe(false)
+  })
+
+  it("leads with the storyline and the theme when the episode has them, and counts them in the five", () => {
+    const clustered = topics.map((tp, i) =>
+      i < 3 ? { ...tp, cluster_id: "tc:x", cluster_label: "Theme X", storyline_id: "thc:s", storyline_label: "Story S" } : tp,
+    ) as Topic[]
+    const w = mountPanel({ topics: clustered, persons: [] })
+    const row = w.get('[data-testid="kp-tags-row"]')
+    expect(row.find('[data-testid="kp-theme-link"]').exists()).toBe(true)
+    expect(row.find('[data-testid="kp-storyline-link"]').exists()).toBe(true)
+    expect(row.findAll('[data-testid="kp-topic-chip"]')).toHaveLength(3)
+    // The header counts what the row holds — the pills too — so "5 + N more" adds up to it.
+    expect(w.text()).toContain("· 10")
+    expect(w.get('[data-testid="kp-tags-more"]').text()).toBe("+5 more")
+  })
+
+  it("no '+N more' when everything already fits", () => {
+    const w = mountPanel({ topics: topics.slice(0, 2), persons: [people[1]] })
+    expect(w.find('[data-testid="kp-tags-more"]').exists()).toBe(false)
+  })
+})
+
+describe("Key points: two, then 'Show N more' (operator 2026-10-07)", () => {
+  it("shows the first two, then the rest on tap", async () => {
+    const bullets = ["P1", "P2", "P3", "P4", "P5"]
+    const w = mountPanel({ episode: { ...episode(), summary_bullets: bullets } } as never)
+    const list = () => w.get('[data-testid="summary-bullets"]').findAll("li").map((l) => l.text())
+    expect(list()).toEqual(["P1", "P2"])
+    const more = w.get('[data-testid="kp-key-points-more"]')
+    expect(more.text()).toBe("Show 3 more")
+    await more.trigger("click")
+    expect(list()).toEqual(bullets)
   })
 })
 
@@ -709,11 +751,13 @@ describe("insight types are distinguishable (#2004 item 8)", () => {
       expect(w.find('[data-testid="summary-bullets"]').exists()).toBe(false)
     })
 
-    it("renders a localized speaker-role badge on a person chip (BE.4/PL.2)", () => {
+    it("renders a localized speaker-role badge on a person chip (BE.4/PL.2)", async () => {
       const w = mountPanel({
         topics: [],
         persons: [{ id: "person:jane", name: "Jane", kind: "person", role: "host" } as Entity],
       })
+      // The host is not among the five shown first (they are named in the room line above).
+      await w.get('[data-testid="kp-tags-more"]').trigger("click")
       const badge = w.get('[data-testid="kp-person-role"]')
       expect(badge.text()).toBe("Host") // localized via ec.roleHost, not the raw 'host'
       expect(badge.attributes("data-role")).toBe("host")
@@ -766,7 +810,7 @@ describe("the people in the room, at the top of the panel", () => {
     const w = mountPanel({ persons: [host] })
     await w.get('[data-testid="kp-dossier-person"]').trigger("click")
     await flushPromises()
-    expect(getPerson).toHaveBeenCalledWith("person:jane")
+    expect(getPerson).toHaveBeenCalledWith("person:jane", undefined, { limit: 5, excludeHostShows: true })
     expect(w.find('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Back")
     expect(w.find('[data-testid="kp-episode-dossier"]').exists()).toBe(false)
   })
@@ -804,8 +848,9 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     expect(labels.some((t) => t.includes("Twiggy"))).toBe(true)
   })
 
-  it("every chip in the mixed group names its kind, like the storyline pill does", () => {
+  it("every chip in the mixed group names its kind, like the storyline pill does", async () => {
     const w = mountPanel({ persons: [host, twiggy] })
+    await w.get('[data-testid="kp-tags-more"]').trigger("click")
     const kinds = w.findAll('[data-testid="kp-person-chip"]').map((c) => c.get('[data-testid="kp-chip-kind"]').text())
     expect(kinds).toEqual(["Person", "Person"])
   })
@@ -824,8 +869,9 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     expect(chip.attributes("data-episode-scoped")).toBe("true")
   })
 
-  it("still renders a globally-identified person as a button", () => {
+  it("still renders a globally-identified person as a button", async () => {
     const w = mountPanel({ persons: [host] })
+    await w.get('[data-testid="kp-tags-more"]').trigger("click")
     const chip = w.find('[data-testid="kp-person-chip"]')
     expect(chip.element.tagName).toBe("BUTTON")
     expect(chip.attributes("data-episode-scoped")).toBeUndefined()
@@ -1086,6 +1132,30 @@ describe("episode-scoped people (#1685 / #2062)", () => {
    * saw the "Insights" heading, the chip strip, and nothing under it, with no explanation and no
    * obvious escape (review 2026-09-19).
    */
+  it("explains insights to a first-time listener: an intro, the picked type's meaning, a legend (operator 2026-10-08)", async () => {
+    const w = mountPanel({
+      insights: [
+        insight({ id: "i1", insight_type: "claim", text: "a claim" }),
+        insight({ id: "i2", insight_type: "observation", text: "an observation" }),
+      ],
+      persons: [],
+    })
+    await flushPromises()
+    expect(w.get('[data-testid="kp-insights-intro"]').text()).toMatch(/tied to the moment/)
+    // "All": no single meaning, but a legend on tap listing each type present.
+    expect(w.find('[data-testid="kp-insight-type-meaning"]').exists()).toBe(false)
+    expect(w.find('[data-testid="kp-insight-types-legend"]').exists()).toBe(false)
+    await w.get('[data-testid="kp-insight-types-explain"]').trigger("click")
+    const legend = w.get('[data-testid="kp-insight-types-legend"]').text()
+    expect(legend).toContain("something the speaker asserts as true")
+    expect(legend).toContain("noticed or described")
+    // A picked type says what it means, in place of the legend.
+    const chip = w.findAll('[data-testid="insight-type-filter"] button').find((c) => c.text().toLowerCase().includes("claim"))!
+    await chip.trigger("click")
+    expect(w.get('[data-testid="kp-insight-type-meaning"]').text()).toContain("something the speaker asserts as true")
+    expect(w.find('[data-testid="kp-insight-types-explain"]').exists()).toBe(false)
+  })
+
   it("clears the insight-type filter when the episode changes", async () => {
     // Episode A has claims and predictions; the user filters to predictions.
     const a = [

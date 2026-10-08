@@ -4,12 +4,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const fetchOpsSummary = vi.fn()
 const fetchResilience = vi.fn()
+const fetchCacheStats = vi.fn().mockResolvedValue({ namespaces: {} })
 const resetResilience = vi.fn()
 const fetchUsage = vi.fn()
 const fetchLlmGateway = vi.fn()
 vi.mock('../../api/opsApi', () => ({
   fetchOpsSummary: (...a: unknown[]) => fetchOpsSummary(...a),
   fetchResilience: (...a: unknown[]) => fetchResilience(...a),
+  fetchCacheStats: (...a: unknown[]) => fetchCacheStats(...a),
   resetResilience: (...a: unknown[]) => resetResilience(...a),
   fetchUsage: (...a: unknown[]) => fetchUsage(...a),
   fetchLlmGateway: (...a: unknown[]) => fetchLlmGateway(...a),
@@ -58,6 +60,7 @@ const USAGE = {
 afterEach(() => {
   fetchOpsSummary.mockReset()
   fetchResilience.mockReset()
+  fetchCacheStats.mockReset().mockResolvedValue({ namespaces: {} })
   resetResilience.mockReset()
   fetchUsage.mockReset()
   fetchLlmGateway.mockReset()
@@ -247,5 +250,37 @@ describe('OpsView usage panel (token/cost)', () => {
     const w = mount(OpsView)
     await flushPromises()
     expect(w.find('[data-testid="usage-uninstrumented"]').exists()).toBe(true)
+  })
+})
+
+describe('OpsView caches panel (2026-10-08)', () => {
+  it('lists each server cache, busiest first, with the related cache as a row', async () => {
+    fetchOpsSummary.mockResolvedValue({ target: 't', live: [], unconfigured: [], failed: [], sources: {} })
+    fetchResilience.mockResolvedValue(CLEAR_RESILIENCE)
+    fetchCacheStats.mockResolvedValue({
+      namespaces: {
+        app_catalog_rows: { hits: 90, misses: 10, entries: 1, hit_rate_pct: 90, avg_build_ms: 812.5, est_saved_seconds: 73.1 },
+        app_trending_corpus: { hits: 1, misses: 1, entries: 1, hit_rate_pct: 50 },
+      },
+      related: { hits: 4, misses: 6, entries: 6, hit_rate_pct: 40, max_entries: 512, ttl_seconds: 3600 },
+    })
+    const w = mount(OpsView)
+    await flushPromises()
+    const rows = w.findAll('[data-testid^="cache-stats-row-"]').map((r) => r.attributes('data-testid'))
+    expect(rows).toEqual([
+      'cache-stats-row-app_catalog_rows',
+      'cache-stats-row-episode_related',
+      'cache-stats-row-app_trending_corpus',
+    ])
+    expect(w.get('[data-testid="cache-stats-row-app_catalog_rows"]').text()).toContain('812.5 ms')
+  })
+
+  it('says so when the stats cannot be read', async () => {
+    fetchOpsSummary.mockResolvedValue({ target: 't', live: [], unconfigured: [], failed: [], sources: {} })
+    fetchResilience.mockResolvedValue(CLEAR_RESILIENCE)
+    fetchCacheStats.mockRejectedValue(new Error('403 operator only'))
+    const w = mount(OpsView)
+    await flushPromises()
+    expect(w.get('[data-testid="cache-stats-error"]').text()).toContain('403 operator only')
   })
 })

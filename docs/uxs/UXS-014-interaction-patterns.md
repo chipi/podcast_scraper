@@ -123,6 +123,10 @@ still clamp; show names do not.)
   character `‹` (U+2039), kept because it rendered — but it rendered as a sliver beside the drawn ✕,
   so the two dismiss controls looked unrelated (operator 2026-10-04). Every `lp-nav` back control
   uses it; the visible "Back" labels beside it are unchanged.
+- Trends' two small icon toggles (sort: rising / most talked about; scope: you / everyone) stay on
+  the kind pills' row, and a caption under the row says what they are set to ("Your trends · rising
+  fastest"), changing with each tap (operator 2026-10-08). A labelled two-way switch replaced them
+  for a day and was reverted: the operator wanted hints on the icons, not a second row.
 - Share is **`ShareIcon`** — three joined nodes, the glyph the episode page's `ShareMenu` always
   drew — on every share control: `ShareMenu` (episode, show, storyline, theme, entity card), a
   saved highlight's share, and the export viewer's Share button. Highlights drew a bare `↗`, which
@@ -362,8 +366,9 @@ because the only question that matters is whether a mark is instantly *not the o
 findings worth keeping:
 
 - **The `+` was the cost, not the shape.** Every "add" glyph tested got busier for it, and it buys
-  nothing: the pill variant already reads "+ Collection" in words and the icon variant carries
-  `collections.addTo` as its accessible name. Same conclusion the folded-corner-plus-plus glyph
+  nothing: the icon carries `collections.addTo` as its accessible name. (Entity cards, storyline and
+  theme pages used a labelled "+ Board" pill until 2026-10-08; the operator asked for the one icon
+  the episode surfaces use, everywhere.) Same conclusion the folded-corner-plus-plus glyph
   reached on 2026-09-13 — reached twice now, which is why the guard asserts its absence.
 - **Legibility at the shipping size beats the better metaphor.** Offset stacked cards say "a set
   kept together" more precisely and were the first recommendation; but their meaning *is* the
@@ -670,7 +675,9 @@ gives back ~70pt and puts the whole transport on screen. Desktop has the height 
     rail uses);
   - **one muted meta line** under it: date · N matches (Search), date · N items (Saved), Listened
     {date} · N moments (Revisit — the listened part omitted, not guessed, with no playback history);
-  - **one ⋯** carrying the episode's actions, and the **fold as a chevron** in the header;
+  - **one ⋯** carrying the episode's actions, and the **fold as a chevron at the end of the meta
+    line** (operator 2026-10-08: beside the count it folds, so it reads as "open / close these", not
+    as one of the episode's actions);
   - **no frame** — a divider ends the header and the items follow.
 
   Groups start **expanded**: folding is an affordance for a long page, not a default that hides what

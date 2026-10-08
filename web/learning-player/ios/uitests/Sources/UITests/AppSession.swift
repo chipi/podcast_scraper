@@ -103,8 +103,15 @@ enum AppSession {
   /// the link is FOR; the test is now exercising a product capability rather than working around
   /// the lack of one.
   static func openEpisode(_ app: XCUIApplication, slug: String) {
-    guard let url = URL(string: "closelistening://episode/\(slug)") else {
-      XCTFail("could not build a deep link for \(slug)")
+    openLink(app, "episode/\(slug)")
+  }
+
+  /// Any in-app target by deep link — `topic/<id>`, `person/<id>`, `storyline/<id>`, … — the forms
+  /// `deepLinks.ts` serves. Same path a shared link takes, so a screen can be reached directly
+  /// instead of by walking menus (2026-10-08: the tour's Home → Topics walk landed on Search).
+  static func openLink(_ app: XCUIApplication, _ path: String) {
+    guard let url = URL(string: "closelistening://\(path)") else {
+      XCTFail("could not build a deep link for \(path)")
       return
     }
     // `XCUIDevice.system.openURL` hands the URL to the OS, which is the real path a shared link

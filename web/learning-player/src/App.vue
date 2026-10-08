@@ -79,6 +79,7 @@ import {
 } from './services/playbackPositions'
 import { Network } from '@capacitor/network'
 import { deriveShowAccent } from './theme/accent'
+import { artworkThumb } from './utils/episode'
 import type { NextUp } from './stores/player'
 import { useFavoritesStore } from './stores/favorites'
 import { purgeAnonymousState } from './services/anonState'
@@ -439,7 +440,9 @@ watch(forcedOffline, (isOffline, wasOffline) => {
 watch(
   () => player.currentArtwork,
   (url) => {
-    void deriveShowAccent(url)
+    // The thumb: the sampler reads a few pixels, and decoding the player-size image for that is a
+    // second full-size copy in memory.
+    void deriveShowAccent(artworkThumb(url))
   },
   { immediate: true },
 )
@@ -518,6 +521,15 @@ const mainBottomPadding = computed(() =>
     <AppSplash v-if="booting" :version="appVersion" />
   </Transition>
   <div class="min-h-dvh bg-canvas text-canvas-foreground font-sans">
+    <!-- The status-bar strip stays the app's own: the masthead scrolls away and the app draws
+         edge-to-edge, so scrolled text ran behind the clock (iOS, 2026-10-08). Zero-height where
+         there is no inset. Above page content and the entity sheets (z-40), below menus, modals,
+         the export viewer and the splash. -->
+    <div
+      data-testid="status-bar-scrim"
+      aria-hidden="true"
+      class="pointer-events-none fixed inset-x-0 top-0 z-[45] h-[env(safe-area-inset-top)] bg-canvas"
+    />
     <!-- dvh (not vh) avoids the iOS 100vh over-report; safe-area top so the nav clears the
          notch / Dynamic Island, and side insets for landscape rounded corners. -->
     <header class="border-b border-border px-4 pb-2 pt-[max(0.55rem,env(safe-area-inset-top))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:px-5 sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))]">

@@ -108,7 +108,7 @@ const canExpand = computed(() => !!description.value && (descClipped.value || de
              overlay; `.prevent.stop` so acting never also opens the show. -->
         <div
           v-if="$slots.actions && !actionsBelow"
-          class="absolute right-1.5 top-1.5 z-30 flex flex-col items-end gap-1.5 [&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:shadow-lg [&>button]:backdrop-blur-sm"
+          class="absolute right-1.5 top-1.5 z-30 flex flex-col items-end gap-1.5 [&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:shadow-lg"
           @click.prevent.stop
         >
           <slot name="actions" />

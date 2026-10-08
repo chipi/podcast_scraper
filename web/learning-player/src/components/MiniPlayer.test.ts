@@ -140,6 +140,22 @@ describe('MiniPlayer line composition (operator 2026-09-23)', () => {
     expect(w.find('[data-testid="mini-player-toggle"]').exists()).toBe(true)
   })
 
+  it('every control is one size on one gap, grouped at the right (operator 2026-10-08)', async () => {
+    // Play and close were 44px boxes beside 32px circles, so five controls spread unevenly across
+    // the bar and left the show and title a few letters. Same 32px circle, same 12px gap — the
+    // smallest that keeps the 44px touch areas (`lp-tap`) apart — and the title takes the rest.
+    nowPlaying('ep-42')
+    const w = await mountMini()
+    const group = w.get('[data-testid="mini-player-actions"]')
+    expect(group.classes()).toContain('gap-[12px]')
+    expect(group.find('[data-testid="mini-player-toggle"]').exists()).toBe(true)
+    expect(group.find('[data-testid="mini-player-close"]').exists()).toBe(true)
+    for (const id of ['mini-player-toggle', 'mini-player-close']) {
+      const c = group.get(`[data-testid="${id}"]`).classes()
+      expect(c, id).toEqual(expect.arrayContaining(['lp-tap', 'h-8', 'w-8']))
+    }
+  })
+
   it('reads as a compact ROW — show above, episode below', async () => {
     const player = nowPlaying()
     player.currentShowTitle = 'The Show'

@@ -20,7 +20,7 @@ import ShowAllToggle from "./ShowAllToggle.vue"
 import { useCappedSections } from "../composables/useCappedSections"
 import { getStorylines, getTopClusters, getTrending, searchInterests } from "../services/api"
 import type { InterestHit, TrendingEntity } from "../services/types"
-import { dedupeByLabel, interestKind, interestLabel, type InterestKind } from "../utils/interests"
+import { dedupeByLabel, interestKind, interestLabel, kindPill, type InterestKind } from "../utils/interests"
 import { scrollBehavior } from "../utils/motion"
 
 const props = withDefaults(
@@ -39,8 +39,9 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const KINDS: InterestKind[] = ["topic", "person", "theme", "storyline"]
-/** How many suggestions a section shows once followed ones are taken out. */
-const SHOWN = 8
+/** At most this many suggestions per section once followed ones are taken out (operator
+ *  2026-10-08: five at most, fewer is fine). */
+const SHOWN = 5
 /** Shorter queries match most of the corpus, which is a list, not an answer. */
 const MIN_QUERY = 2
 
@@ -227,21 +228,6 @@ onBeforeUnmount(() => {
   for (const timer of timers.values()) clearTimeout(timer)
 })
 
-/**
- * Each kind wears its own hue (`--lp-topic` / `--lp-person` / `--lp-theme` / `--lp-storyline`, the
- * shared palette set 2026-10-04) and its own shape: a topic filled, a person and a theme outlined,
- * a storyline tinted. Followed, suggested and found items all wear their kind's pill, so the colour
- * teaches the kind; what differs between them is the mark — ×, + or ✓. Never the accent: that
- * means "you can act on this", not "storyline".
- */
-function kindPill(kind: InterestKind): string {
-  return {
-    storyline: "lp-storyline-chip font-semibold text-storyline",
-    person: "bg-overlay text-person ring-1 ring-inset ring-person/30",
-    theme: "bg-overlay text-theme ring-1 ring-inset ring-theme/30",
-    topic: "bg-overlay text-topic",
-  }[kind]
-}
 </script>
 
 <template>

@@ -2,11 +2,14 @@
 import { onMounted, ref } from 'vue'
 
 import {
+  fetchCacheStats,
   fetchLlmGateway,
   fetchOpsSummary,
   fetchResilience,
   fetchUsage,
   resetResilience,
+  type CacheNamespaceStats,
+  type CacheStatsSnapshot,
   type LlmGatewaySnapshot,
   type OpsSourceEnvelope,
   type OpsSummary,
@@ -152,6 +155,26 @@ async function refreshLlmGateway(): Promise<void> {
   }
 }
 
+// Server caches (operator 2026-10-08: "easy access to cache stats") — the same numbers the obs
+// MCP's `prod_cache_stats` reads, without leaving the viewer.
+const cacheStats = ref<CacheStatsSnapshot | null>(null)
+const cacheStatsError = ref<string | null>(null)
+async function refreshCacheStats(): Promise<void> {
+  cacheStatsError.value = null
+  try {
+    cacheStats.value = await fetchCacheStats()
+  } catch (e) {
+    cacheStatsError.value = e instanceof Error ? e.message : String(e)
+  }
+}
+/** Rows for the table, busiest first; the related cache rides as one more row. */
+function cacheRows(): [string, CacheNamespaceStats][] {
+  if (!cacheStats.value) return []
+  const rows = Object.entries(cacheStats.value.namespaces)
+  if (cacheStats.value.related) rows.push(['episode_related', cacheStats.value.related])
+  return rows.sort((a, b) => b[1].hits + b[1].misses - (a[1].hits + a[1].misses))
+}
+
 async function refresh(): Promise<void> {
   loading.value = true
   error.value = null
@@ -163,6 +186,7 @@ async function refresh(): Promise<void> {
     loading.value = false
   }
   void refreshResilience()
+  void refreshCacheStats()
   void refreshUsage()
   void refreshLlmGateway()
 }
@@ -286,6 +310,37 @@ onMounted(() => {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Server caches: hits, misses and what they save, per namespace (2026-10-08). -->
+    <div class="rounded-sm border border-border bg-elevated p-3" data-testid="cache-stats-panel">
+      <span class="text-xs font-semibold text-surface-foreground">Caches</span>
+      <p v-if="cacheStatsError" class="mt-1 text-xs text-danger" data-testid="cache-stats-error">
+        {{ cacheStatsError }}
+      </p>
+      <table v-else-if="cacheRows().length" class="mt-2 w-full text-xs">
+        <thead>
+          <tr class="text-left text-muted">
+            <th class="font-normal">Cache</th>
+            <th class="font-normal">Entries</th>
+            <th class="font-normal">Hits / misses</th>
+            <th class="font-normal">Hit rate</th>
+            <th class="font-normal">Avg build</th>
+            <th class="font-normal">Saved</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="[ns, st] in cacheRows()" :key="ns" :data-testid="`cache-stats-row-${ns}`">
+            <td class="font-mono">{{ ns }}</td>
+            <td>{{ st.entries }}</td>
+            <td>{{ st.hits }} / {{ st.misses }}</td>
+            <td>{{ st.hit_rate_pct }}%</td>
+            <td>{{ st.avg_build_ms != null ? `${st.avg_build_ms} ms` : '—' }}</td>
+            <td>{{ st.est_saved_seconds != null ? `${st.est_saved_seconds} s` : '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="mt-1 text-xs text-muted" data-testid="cache-stats-empty">No cache activity yet.</p>
     </div>
 
     <!-- Resilience (ADR-113): circuit breakers + call-fuse budgets, with an operator reset. -->

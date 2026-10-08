@@ -81,25 +81,30 @@ const art = computed(() => episodeArtwork(props.episode))
         <!-- Siblings of the link, never inside it: an interactive inside an interactive loses its
              accessible name (ShowTile's 2026-09-26 Android audit). -->
         <div class="flex shrink-0 flex-col items-center gap-1">
-          <EpisodeActions :slug="episode.slug" hide-favorite hide-queue />
-          <button
-            v-if="itemCount > 0"
-            type="button"
-            class="lp-tap flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-accent"
-            :aria-expanded="expanded"
-            :aria-label="
-              expanded
-                ? t('highlights.collapseGroup', { title: episode.title })
-                : t('highlights.expandGroup', { title: episode.title })
-            "
-            :data-testid="toggleTestid ?? 'episode-group-toggle'"
-            @click="expanded = !expanded"
-          >{{ expanded ? "▲" : "▼" }}</button>
+          <EpisodeActions :slug="episode.slug" :share-title="episode.title" hide-favorite hide-queue />
         </div>
       </div>
-      <p v-if="$slots.meta" class="lp-kicker mt-1.5" data-testid="episode-group-meta">
-        <slot name="meta" />
-      </p>
+      <!-- The fold sits on the BOTTOM row, beside the count of what it folds (operator 2026-10-08):
+           up in the side column, under the ⋯ menu and level with "Matched:", it read as part of the
+           episode's actions rather than as "open / close these matches". -->
+      <div v-if="$slots.meta || itemCount > 0" class="mt-1.5 flex items-center gap-2">
+        <p v-if="$slots.meta" class="lp-kicker min-w-0 flex-1" data-testid="episode-group-meta">
+          <slot name="meta" />
+        </p>
+        <button
+          v-if="itemCount > 0"
+          type="button"
+          class="lp-tap ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-accent"
+          :aria-expanded="expanded"
+          :aria-label="
+            expanded
+              ? t('highlights.collapseGroup', { title: episode.title })
+              : t('highlights.expandGroup', { title: episode.title })
+          "
+          :data-testid="toggleTestid ?? 'episode-group-toggle'"
+          @click="expanded = !expanded"
+        >{{ expanded ? "▲" : "▼" }}</button>
+      </div>
     </div>
     <!-- `v-show`, not `v-if`: collapsing keeps the state of what is inside (Search's folded clusters
          expand in place), and re-opening is instant. -->

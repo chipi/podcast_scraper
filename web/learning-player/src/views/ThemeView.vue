@@ -101,12 +101,21 @@ const memberCaps = useCappedSections(5, 5)
 const pagedTopics = computed(() => memberCaps.visible("members", topics.value))
 const people = ref<Entity[]>([])
 const episodes = ref<EpisodeSummary[]>([])
+/** The card's total episodes, and its id for fetching more pages. */
+const episodeCount = ref(0)
+const episodesTotal = ref(0)
+const pagedFrom = ref('')
+const moreEpisodes = (offset: number, limit: number) =>
+  getThemeCard(pagedFrom.value, { offset, limit }).then((c) => c.episodes)
 
 async function load(themeId: string): Promise<void> {
   loading.value = true
   failed.value = false
   try {
-    const card = await getThemeCard(themeId)
+    // The FIRST PAGE of episodes; the list fetches the rest on Show more (server paging, 2026-10-08:
+    // a storyline returned 99 episodes, 1.29 MB on prod, to show five).
+    const card = await getThemeCard(themeId, { limit: 5 })
+    pagedFrom.value = themeId
     label.value = card.label
     // No `anchor` and no pair line, unlike the storyline. A theme groups topics that MEAN the same
     // thing — symmetric, no centre — so flagging one member or claiming a co-occurrence would both
@@ -122,6 +131,8 @@ async function load(themeId: string): Promise<void> {
     }))
     people.value = card.related_people ?? []
     episodes.value = card.episodes ?? []
+    episodeCount.value = card.episode_count ?? episodes.value.length
+    episodesTotal.value = card.episodes_total ?? episodes.value.length
   } catch {
     failed.value = true
   } finally {
@@ -205,7 +216,7 @@ function goBack(): void {
            offered an action the API rejects. Both contracts now carry it end to end. -->
       <div class="mt-3 flex flex-wrap items-center gap-2">
         <FavoriteButton :item="{ kind: 'theme', ref: id, label: label || id }" />
-        <AddToCollectionButton :item="{ kind: 'theme', ref: id }" variant="pill" />
+        <AddToCollectionButton :item="{ kind: 'theme', ref: id }" />
         <!-- Shares as a THEME — its own server card and link (operator 2026-10-05); it used to share
              as a topic. Analytics has no theme bucket, so `target-kind` stays topic. -->
         <ShareMenu kind="theme" :id="id" :title="label || id" target-kind="topic" />
@@ -313,11 +324,11 @@ function goBack(): void {
         <CollapsibleSection section-key="theme-episodes" :level="2">
           <template #title>
             <span>{{
-              t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } })
+              t("ec.topicEpisodes", episodeCount, { named: { count: episodeCount } })
             }}</span>
             <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
           </template>
-          <EntityEpisodeList :episodes="episodes" />
+          <EntityEpisodeList :episodes="episodes" :total="episodesTotal" :load-more="moreEpisodes" />
         </CollapsibleSection>
       </section>
 

@@ -60,8 +60,16 @@ function initialOpen(): boolean {
 }
 
 const open = ref(initialOpen())
+/**
+ * Whether the content has ever been shown. A closed `<details>` still RENDERS its content — it only
+ * hides it — so a section folded last week fetched and decoded its avatars and artwork on every
+ * visit (2026-10-08). The content mounts on first open and then stays, so folding again keeps its
+ * state rather than rebuilding it.
+ */
+const everOpen = ref(open.value)
 
 watch(open, (isOpen) => {
+  if (isOpen) everOpen.value = true
   try {
     localStorage.setItem(STORAGE_PREFIX + props.sectionKey, isOpen ? 'open' : 'closed')
   } catch {
@@ -99,7 +107,7 @@ watch(open, (isOpen) => {
         <slot name="title">{{ title }}</slot><template v-if="count !== undefined"> · {{ count }}</template>
       </component>
     </summary>
-    <div class="pt-1">
+    <div v-if="everOpen" class="pt-1">
       <slot />
     </div>
   </details>

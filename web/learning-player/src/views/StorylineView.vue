@@ -101,6 +101,12 @@ const memberCaps = useCappedSections(5, 5)
 const pagedTopics = computed(() => memberCaps.visible("members", topics.value))
 const people = ref<Entity[]>([])
 const episodes = ref<EpisodeSummary[]>([])
+/** The card's total episodes, and its id for fetching more pages. */
+const episodeCount = ref(0)
+const episodesTotal = ref(0)
+const pagedFrom = ref('')
+const moreEpisodes = (offset: number, limit: number) =>
+  getStorylineCard(pagedFrom.value, { offset, limit }).then((c) => c.episodes)
 const storylineId = ref<string | null>(null)
 /** The most co-occurring pair — the storyline's evidence, in one line. */
 const pair = ref<ClusterPair | null>(null)
@@ -119,7 +125,10 @@ async function load(anchorTopicId: string): Promise<void> {
     //
     // The route still passes an anchor TOPIC id (there was no endpoint when it was built); the
     // endpoint accepts either that or the `thc:` id.
-    const card = await getStorylineCard(anchorTopicId)
+    // The FIRST PAGE of episodes; the list fetches the rest on Show more (server paging, 2026-10-08:
+    // a storyline returned 99 episodes, 1.29 MB on prod, to show five).
+    const card = await getStorylineCard(anchorTopicId, { limit: 5 })
+    pagedFrom.value = anchorTopicId
     label.value = card.label
     storylineId.value = card.id
     topics.value = card.member_topics.map((tp) => ({
@@ -134,6 +143,8 @@ async function load(anchorTopicId: string): Promise<void> {
     pair.value = card.strongest_pair ?? null
     people.value = card.related_people ?? []
     episodes.value = card.episodes ?? []
+    episodeCount.value = card.episode_count ?? episodes.value.length
+    episodesTotal.value = card.episodes_total ?? episodes.value.length
   } catch {
     failed.value = true
   } finally {
@@ -211,7 +222,7 @@ function goBack(): void {
              other kind (F2.2). Distinct from Follow, which subscribes to the theme cluster. -->
         <FavoriteButton :item="{ kind: 'storyline', ref: id, label: label || id }" />
         <!-- Share (card / link / text) — #2036. -->
-        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" variant="pill" />
+        <AddToCollectionButton :item="{ kind: 'storyline', ref: id }" />
         <ShareMenu kind="storyline" :id="id" :title="label || id" target-kind="storyline" />
         <FollowButton
           v-if="auth.isAuthenticated && storylineId"
@@ -349,10 +360,10 @@ function goBack(): void {
                `EntityEpisodeList` exists to stop repeating. -->
         <CollapsibleSection section-key="storyline-episodes" :level="2">
           <template #title>
-            <span>{{ t("ec.topicEpisodes", episodes.length, { named: { count: episodes.length } }) }}</span>
+            <span>{{ t("ec.topicEpisodes", episodeCount, { named: { count: episodeCount } }) }}</span>
             <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
           </template>
-          <EntityEpisodeList :episodes="episodes" />
+          <EntityEpisodeList :episodes="episodes" :total="episodesTotal" :load-more="moreEpisodes" />
         </CollapsibleSection>
       </section>
 

@@ -27,7 +27,7 @@ test('Library tabs show real empty states for a fresh user', async ({ page }, te
   await expect(page.getByRole('link', { name: /Find something to listen to/ })).toBeVisible()
 
   await page.getByRole('tab', { name: 'Boards' }).click()
-  await expect(page.getByText('No collections yet', { exact: false })).toBeVisible()
+  await expect(page.getByText('No boards yet', { exact: false })).toBeVisible()
 })
 
 test('favouriting an episode + an insight fills the Saved per-kind sections', async ({

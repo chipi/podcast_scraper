@@ -6,6 +6,15 @@ import {
   createNote,
   deleteHighlight,
   getEpisode,
+  getEpisodesBatch,
+  getCollectionPage,
+  getFavoriteRefs,
+  getPlaybackList,
+  getPodcastsByIds,
+  getPodcastsPage,
+  getHighlightsPage,
+  getNotesPage,
+  getFavoritesPage,
   getEpisodeStats,
   getLibrary,
   getHighlights,
@@ -116,6 +125,184 @@ describe('getEpisode', () => {
     mockFetch(404, { detail: 'Unknown episode slug.' })
     await expect(getEpisode('nope')).rejects.toMatchObject({ status: 404 })
     await expect(getEpisode('nope')).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('getEpisodesBatch', () => {
+  const urls = (): string[] =>
+    (globalThis.fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map((c) => String(c[0]))
+
+  it('asks once for all the slugs, de-duplicated, and maps the answer by slug', async () => {
+    mockFetch(200, { items: [{ slug: 'a', title: 'A' }, { slug: 'b', title: 'B' }], missing: ['x'] })
+    const got = await getEpisodesBatch(['a', 'b', 'a', 'x', ''])
+    expect(Object.keys(got)).toEqual(['a', 'b'])
+    expect(urls()).toHaveLength(1)
+    expect(urls()[0]).toContain('/episodes/batch?slugs=a&slugs=b&slugs=x')
+  })
+
+  it('splits more than 100 slugs into requests of 100 (the server cap)', async () => {
+    mockFetch(200, { items: [], missing: [] })
+    await getEpisodesBatch(Array.from({ length: 205 }, (_, i) => `s${i}`))
+    expect(urls()).toHaveLength(3)
+    expect(urls()[0]!.match(/slugs=/g)).toHaveLength(100)
+    expect(urls()[2]!.match(/slugs=/g)).toHaveLength(5)
+  })
+
+  it('falls back to one getEpisode per slug on a server without the batch route (404)', async () => {
+    // An older server reads "batch" as a slug: 404. The per-slug route still answers.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        String(url).includes('/episodes/batch')
+          ? { ok: false, status: 404, json: async () => ({ detail: 'Unknown episode slug.' }) }
+          : String(url).endsWith('/episodes/gone')
+            ? { ok: false, status: 404, json: async () => ({}) }
+            : { ok: true, status: 200, json: async () => ({ slug: String(url).split('/').pop(), title: 'T' }) },
+      ),
+    )
+    const got = await getEpisodesBatch(['a', 'gone'])
+    expect(Object.keys(got)).toEqual(['a'])
+    expect(urls().filter((u) => /\/episodes\/(a|gone)$/.test(u))).toHaveLength(2)
+  })
+
+  it('does NOT fall back on other errors — a 500 is not a missing route', async () => {
+    mockFetch(500, {})
+    await expect(getEpisodesBatch(['a'])).rejects.toMatchObject({ status: 500 })
+  })
+})
+
+describe('getFavoritesPage', () => {
+  const lastUrl = (): string => {
+    const calls = (globalThis.fetch as unknown as { mock: { calls: [string][] } }).mock.calls
+    return String(calls[calls.length - 1]![0])
+  }
+
+  it('sends the page and filters, and returns a paging server\'s answer as is', async () => {
+    mockFetch(200, { episodes: [{ slug: 'a', title: 'A' }], entities: [], total: 9, counts: {} })
+    const got = await getFavoritesPage({
+      kind: 'episode', q: ' sleep ', color: 'red', sort: 'title', offset: 5, limit: 5,
+    })
+    expect(got.total).toBe(9)
+    const url = lastUrl()
+    for (const part of ['kind=episode', 'q=sleep', 'color=red', 'sort=title', 'offset=5', 'limit=5'])
+      expect(url).toContain(part)
+  })
+
+  it('pages an OLDER server\'s full list here, with the same filters (no `total` in its answer)', async () => {
+    const eps = ['Zed', 'Alpha sleep', 'Beta sleep', 'Gamma'].map((title, i) => ({
+      slug: `e${i}`, title, podcast_title: 'S', color: i === 2 ? 'red' : null,
+    }))
+    mockFetch(200, { episodes: eps, entities: [{ kind: 'topic', ref: 't', label: 'Sleep' }] })
+    const page = await getFavoritesPage({ kind: 'episode', q: 'sleep', sort: 'title', limit: 1 })
+    expect(page.episodes.map((e) => e.title)).toEqual(['Alpha sleep'])
+    expect(page.total).toBe(2)
+    expect(page.counts).toEqual({ episode: 2, topic: 1 })
+    const red = await getFavoritesPage({ kind: 'episode', color: 'red', limit: 5 })
+    expect(red.episodes.map((e) => e.slug)).toEqual(['e2'])
+  })
+})
+
+describe('getHighlightsPage / getNotesPage', () => {
+  const lastUrl = (): string => {
+    const calls = (globalThis.fetch as unknown as { mock: { calls: [string][] } }).mock.calls
+    return String(calls[calls.length - 1]![0])
+  }
+
+  it('sends the highlight filters and returns a paging server\'s answer', async () => {
+    mockFetch(200, { items: [], total: 4, episode_total: 2, episode_counts: {}, notes: [] })
+    const page = await getHighlightsPage({
+      q: 'sleep', color: 'red', muted: true, sort: 'title', offset: 5, limit: 5, perEpisode: 10,
+    })
+    expect(page.episode_total).toBe(2)
+    for (const part of ['q=sleep', 'color=red', 'muted=true', 'sort=title', 'offset=5', 'limit=5', 'per_episode=10'])
+      expect(lastUrl()).toContain(part)
+  })
+
+  it('sends repeated kinds and match=words for notes', async () => {
+    mockFetch(200, { items: [], total: 0, counts: {}, highlights: [] })
+    await getNotesPage({ q: 'a b', kinds: ['topic', 'episode'], words: true, limit: 5 })
+    const url = lastUrl()
+    expect(url).toContain('kinds=topic&kinds=episode')
+    expect(url).toContain('match=words')
+  })
+})
+
+describe('getPlaybackList / getCollectionPage (1.0.3 paging)', () => {
+  const lastUrl = (): string => {
+    const calls = (globalThis.fetch as unknown as { mock: { calls: [string][] } }).mock.calls
+    return String(calls[calls.length - 1]![0])
+  }
+
+  it('playback: sends the filters, and filters an older server\'s full list here', async () => {
+    const all = [
+      { slug: 'a', position_seconds: 0.5, finished: false },
+      { slug: 'b', position_seconds: 90, finished: false },
+      { slug: 'c', position_seconds: 300, finished: true },
+    ]
+    mockFetch(200, { items: all }) // no `total`: an older server
+    const got = await getPlaybackList({ inProgress: true, slugs: ['a', 'b', 'c'], limit: 5 })
+    expect(lastUrl()).toContain('in_progress=true')
+    expect(lastUrl()).toContain('slugs=a&slugs=b&slugs=c')
+    expect(got.map((p) => p.slug)).toEqual(['b'])
+  })
+
+  it('board: sends limit/offset/kind and returns a paging server\'s answer', async () => {
+    mockFetch(200, { collection: { id: 'c' }, items: [], total: 12, kind_counts: { episode: 12 } })
+    const page = await getCollectionPage('c', { limit: 10, offset: 10, kind: 'episode' })
+    expect(page.total).toBe(12)
+    for (const part of ['limit=10', 'offset=10', 'kind=episode']) expect(lastUrl()).toContain(part)
+  })
+})
+
+describe('getPodcastsPage / getPodcastsByIds (1.0.3 paging)', () => {
+  const urls = (): string[] =>
+    (globalThis.fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map((c) => String(c[0]))
+  const pod = (feed_id: string, title: string, extra: Record<string, unknown> = {}) => ({
+    feed_id, title, artwork_url: null, image_url: null, description: 'd', episode_count: 1, ...extra,
+  })
+
+  it('sends the query, and pages an older server\'s full catalogue here', async () => {
+    mockFetch(200, {
+      items: [pod('z', 'Zeta Talks', { authors: ['Ann'] }), pod('a', 'Alpha Hour'), pod('m', 'Middle')],
+    })
+    const page = await getPodcastsPage({ q: 'ann', sort: 'az', limit: 5, category: 'Sci', compact: true })
+    for (const part of ['q=ann', 'sort=az', 'limit=5', 'category=Sci', 'compact=true'])
+      expect(urls()[0]).toContain(part)
+    // The category filter left nothing; without it, "ann" matches the host of Zeta Talks.
+    expect(page.items).toEqual([])
+    const byHost = await getPodcastsPage({ q: 'ann', limit: 5 })
+    expect(byHost.items.map((p) => p.feed_id)).toEqual(['z'])
+  })
+
+  it('looks shows up by id, a request per 200', async () => {
+    mockFetch(200, { items: [], total: 0, categories: [] })
+    await getPodcastsByIds(Array.from({ length: 250 }, (_, i) => `f${i}`))
+    expect(urls()).toHaveLength(2)
+    expect(urls()[0]!.match(/feed_ids=/g)).toHaveLength(200)
+  })
+})
+
+describe('getFavoriteRefs', () => {
+  it('derives identities from the full list on a server without /favorites/refs (404)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        String(url).includes('/favorites/refs')
+          ? { ok: false, status: 404, json: async () => ({}) }
+          : {
+              ok: true,
+              status: 200,
+              json: async () => ({
+                episodes: [{ slug: 'a', color: 'red' }],
+                entities: [{ kind: 'show', ref: 'p1', label: 'P' }],
+              }),
+            },
+      ),
+    )
+    expect(await getFavoriteRefs()).toEqual([
+      { kind: 'episode', ref: 'a', color: 'red' },
+      { kind: 'show', ref: 'p1', color: null },
+    ])
   })
 })
 

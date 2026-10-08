@@ -132,8 +132,10 @@ export interface EpisodeDetail {
   duration_seconds: number | null
   episode_image_url: string | null
   feed_image_url: string | null
-  /** Preferred artwork (our locally-stored copy, large size for the player) when present. */
+  /** Preferred artwork (our locally-stored copy, ≤1024px, for the player) when present. */
   artwork_url: string | null
+  /** The same artwork at thumb size (≤320px) — what any card built from a detail shows. */
+  artwork_thumb_url?: string | null
   summary_title: string | null
   summary_bullets: string[]
   summary_text: string | null
@@ -419,6 +421,17 @@ export interface FavoriteEntity {
 export interface FavoritesResponse {
   episodes: EpisodeSummary[]
   entities?: FavoriteEntity[]
+  /** Paged requests only (`limit` sent): matches for the query, across all pages. */
+  total?: number
+  /** Paged requests only: matches per kind under the same q + colour, ignoring `kind`. */
+  counts?: Partial<Record<FavoriteKind, number>>
+}
+
+/** One saved item's identity — `GET /favorites/refs`, for "is this saved?" anywhere. */
+export interface FavoriteRef {
+  kind: FavoriteKind
+  ref: string
+  color?: string | null
 }
 
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---
@@ -530,6 +543,12 @@ export interface ResurfacingItem {
 export interface ResurfacingResponse {
   items: ResurfacingItem[]
   paused: boolean
+  /** Paged requests only (1.0.3): everything due, across all pages. */
+  total?: number
+  /** Paged: episodes with something due. */
+  episode_total?: number
+  /** Paged: due items per episode on this page. */
+  episode_counts?: Record<string, number>
 }
 
 export interface ResurfacingSettings {
@@ -586,6 +605,10 @@ export interface CollectionItem {
 export interface CollectionDetail {
   collection: Collection
   items: CollectionItem[]
+  /** Paged requests only (1.0.3): the matching items across all pages. */
+  total?: number
+  /** Paged: the board's items per kind. */
+  kind_counts?: Record<string, number>
 }
 
 // --- Delivery consent: per-TYPE × per-CHANNEL notification matrix (#1414 → wave-I) ---
@@ -708,6 +731,8 @@ export interface YourWeekItem {
   highlight_id?: string
   /** Episode/show artwork used as the card backdrop (in-app enrichment; absent → flat card). */
   image_url?: string | null
+  /** The show's name, under the title (in-app enrichment; absent when the slug no longer resolves). */
+  podcast_title?: string | null
 }
 
 export type YourWeekSectionKind =
@@ -715,6 +740,9 @@ export type YourWeekSectionKind =
   | "new_in_follows"
   | "new_in_interests"
   | "trending_in_your_corpus"
+  // The week in review (operator 2026-10-07): what you played and saved in the last 7 days.
+  | "listened_this_week"
+  | "saved_this_week"
 
 export interface YourWeekSection {
   kind: YourWeekSectionKind
@@ -829,6 +857,8 @@ export interface PersonCard {
   shows?: PersonShow[]
   episode_count: number
   episodes: EpisodeSummary[]
+  /** Length of the paged episode list (server paging); absent when `episodes` is whole. */
+  episodes_total?: number | null
   related_people: Entity[]
   related_topics: Topic[]
   /** Optional external bio + attribution; absent unless the person_web enricher matched. */
@@ -857,6 +887,8 @@ export interface OrgCard {
   label: string
   episode_count: number
   episodes: EpisodeSummary[]
+  /** Length of the paged episode list (server paging); absent when `episodes` is whole. */
+  episodes_total?: number | null
   related_people: Entity[]
   related_orgs: Entity[]
   related_topics: Topic[]
@@ -904,6 +936,8 @@ export interface ClusterCard {
   member_topics: ClusterMember[]
   episode_count: number
   episodes: EpisodeSummary[]
+  /** Length of the paged episode list (server paging); absent when `episodes` is whole. */
+  episodes_total?: number | null
   related_people: Entity[]
   /** Null for a theme: "means the same thing" makes no co-occurrence claim to evidence. */
   strongest_pair?: ClusterPair | null
@@ -923,6 +957,12 @@ export interface TopicCard {
   storyline_sibling_topics?: Topic[]
   episode_count: number
   episodes: EpisodeSummary[]
+  /** Length of the paged episode list (server paging); absent when `episodes` is whole. */
+  episodes_total?: number | null
+  /** Episodes per month over ALL the topic's episodes (the sparkline), before paging. */
+  episode_months?: { month: string; count: number }[]
+  /** The shows covering the topic most, over ALL its episodes. */
+  top_shows?: { feed_id: string; title: string | null; count: number; artwork_url: string | null; image_url: string | null }[]
   related_people: Entity[]
   /** Weeks in the topic's conversation arc (#2202), so the card knows before fetching it. Absent
    *  from a server older than the field. Always 0 under scope=mine. */

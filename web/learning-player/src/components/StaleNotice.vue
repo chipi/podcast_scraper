@@ -17,6 +17,14 @@
  * Deliberately calm: muted, no icon, no colour. It reports a condition the user can do nothing
  * about except retry, and an alarm-coloured banner over content that is perfectly readable would
  * overstate it.
+ *
+ * ## Not in forced offline (operator 2026-10-09)
+ *
+ * With Offline mode switched on, the app-wide strip (OfflineBanner) already says "Offline mode is on
+ * — showing saved", and this had nothing to add: the read gate refuses every request while the
+ * switch is on, so it carried no retry either. Home showed the same sentence twice, one under the
+ * other. It stays for a real outage (`network`, `server`), where the retry is the only one the page
+ * has.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -36,8 +44,6 @@ const { offlineReason } = useOnline()
  */
 const message = computed(() => {
   switch (offlineReason.value) {
-    case 'forced':
-      return t('home.staleForced')
     case 'network':
       return t('home.staleNetwork')
     case 'server':
@@ -49,23 +55,18 @@ const message = computed(() => {
   }
 })
 
-/**
- * Retry is hidden in FORCED offline only. The read gate refuses the request while the switch is on,
- * so the button could never succeed — an affordance that cannot work is worse than none. Every
- * other reason keeps it, including `server`, where retrying is exactly the right move.
- */
-const canRetry = computed(() => offlineReason.value !== 'forced')
+const shown = computed(() => offlineReason.value !== 'forced')
 </script>
 
 <template>
   <div
+    v-if="shown"
     class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border px-3 py-2"
     data-testid="stale-notice"
     role="status"
   >
     <p class="text-sm text-muted">{{ message }}</p>
     <button
-      v-if="canRetry"
       type="button"
       class="shrink-0 rounded-full border border-border px-3 py-1 text-xs font-bold text-canvas-foreground transition hover:bg-overlay disabled:opacity-50"
       data-testid="stale-retry"

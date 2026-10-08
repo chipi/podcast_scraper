@@ -106,11 +106,14 @@ final class NativeCapabilityTests: UITestCase {
     sleep(4)
     _ = Journey.tap(app, labels: ["People"], timeout: 10)
     sleep(3)
+    Journey.showEveryonesTrends(app)
     let personRow = app.buttons.allElementsBoundByIndex.first {
       $0.label.contains("momentum") && !$0.label.contains("(")
     }
-    if let row = personRow, row.isHittable {
-      row.tap()
+    // Taps go through `Journey.tap`, which lifts the target clear of the tab bar and mini-player:
+    // raw taps here landed on the bottom nav once Trends moved to Discover (2026-10-08).
+    if let row = personRow, Journey.tap(app, labels: [row.label], timeout: 5) {
+      // opened
     } else {
       // The People rail depends on trending state a previous test may have changed. Any entity card
       // carries a note composer, so fall back to a topic rather than failing on the route taken.
@@ -128,12 +131,16 @@ final class NativeCapabilityTests: UITestCase {
     // name. Matching the PLACEHOLDER ("Add a note…") found nothing, because an aria-label wins over
     // a placeholder. Notes are also the LAST section of a long card, so this needs more swipes than
     // the default (2026-09-16).
-    guard let composer = Journey.scrollTo(app, labels: ["Your notes"], maxSwipes: 16) else {
+    guard Journey.scrollTo(app, labels: ["Your notes"], maxSwipes: 16) != nil else {
       Journey.inventory(app, "topic-no-note-composer")
       XCTFail("no note composer on the topic card")
       return
     }
-    composer.tap()
+    guard Journey.tap(app, labels: ["Your notes"], timeout: 8) else {
+      Journey.inventory(app, "note-composer-untappable")
+      XCTFail("the note composer was found but could not be tapped")
+      return
+    }
     sleep(2)
     Journey.inventory(app, "note-composer")
     Journey.shot(self, "n1-b-note-composer")

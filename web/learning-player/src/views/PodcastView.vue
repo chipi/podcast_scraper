@@ -22,7 +22,7 @@ import FollowButton from '../components/FollowButton.vue'
 import ShareMenu from '../components/ShareMenu.vue'
 import { formatPublishDate } from '../utils/format'
 import { scrollBehavior } from '../utils/motion'
-import { getPodcasts, listPodcastEpisodes } from '../services/api'
+import { getPodcastsByIds, listPodcastEpisodes } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
 import { useCompletedStore } from '../stores/completed'
@@ -204,8 +204,9 @@ const showArt = showArtwork
 const showResolved = ref(false)
 async function loadShow(): Promise<void> {
   try {
-    const all = await getPodcasts().catch(() => [] as Podcast[])
-    show.value = all.find((p) => p.feed_id === props.feedId) ?? null
+    // THIS show only (2026-10-08) — it used to load the whole catalogue to find one entry.
+    const found = await getPodcastsByIds([props.feedId]).catch(() => [] as Podcast[])
+    show.value = found.find((p) => p.feed_id === props.feedId) ?? null
   } finally {
     showResolved.value = true
   }

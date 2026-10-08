@@ -27,7 +27,13 @@ async function seedNotes(page: Page, target: string, targetId: string, n: number
 async function walk(page: Page, items: ReturnType<Page['getByTestId']>, more: ReturnType<Page['getByTestId']>, first: number, total: number) {
   await expect(items).toHaveCount(first)
   await expect(more).toHaveText(`Show more (${Math.min(total - first, total)})`)
-  while ((await more.innerText()) !== 'Show less') await more.click()
+  // One tap, then wait for the answer: a page now comes from the SERVER (2026-10-08). Re-reading
+  // the label and tapping at once could land a tap on "Show less" just after the page arrived,
+  // fold the list back, and bounce like that for the whole timeout under load.
+  for (let label = await more.innerText(); label !== 'Show less'; label = await more.innerText()) {
+    await more.click()
+    await expect(more).not.toHaveText(label)
+  }
   await expect(items).toHaveCount(total)
   await more.click()
   await expect(items).toHaveCount(first)

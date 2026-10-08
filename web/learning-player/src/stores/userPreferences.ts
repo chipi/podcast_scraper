@@ -48,6 +48,8 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
   /** Local writes, in order — so a hydrate can tell which keys changed while it was in flight. */
   let writeCount = 0
   const writtenAt = new Map<string, number>()
+  /** Keys with a PATCH still out: the server may not hold their value yet. */
+  const inFlight = new Map<string, number>()
 
   function get<T = unknown>(key: string): T | undefined {
     const v = preferences.value[key]
@@ -63,6 +65,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     if (!useAuthStore().isAuthenticated) return
     hydrating.value = true
     const startedAt = writeCount
+    const unsaved = new Set(inFlight.keys())
     try {
       const res = await fetch(PREFS_URL, {
         method: 'GET',
@@ -80,9 +83,12 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
       // taps: Save, un-Save, then a snapshot taken between the two landed and the search read
       // "Saved ✓" again (e2e flake, 2026-10-04 — the savedQueries guards could not see it, because
       // both of their writes had already settled when the stale snapshot arrived).
+      // The same goes for a key written just BEFORE the fetch whose PATCH had not landed yet: the
+      // snapshot cannot hold it, and taking the snapshot flipped Trends' "Everyone" back to "You"
+      // when it was tapped before preferences loaded (e2e flake, 2026-10-08).
       const merged: Record<string, unknown> = { ...(parsed?.preferences ?? {}) }
       for (const [key, at] of writtenAt) {
-        if (at > startedAt) merged[key] = preferences.value[key]
+        if (at > startedAt || unsaved.has(key)) merged[key] = preferences.value[key]
       }
       preferences.value = merged
       hydrated.value = true
@@ -113,6 +119,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     preferences.value = { ...preferences.value, [key]: value }
     writtenAt.set(key, ++writeCount)
     if (!available.value) return
+    inFlight.set(key, (inFlight.get(key) ?? 0) + 1)
     try {
       const res = await fetch(PREFS_URL, {
         method: 'PATCH',
@@ -127,6 +134,10 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
       if (!res.ok) available.value = false
     } catch {
       available.value = false
+    } finally {
+      const n = (inFlight.get(key) ?? 1) - 1
+      if (n > 0) inFlight.set(key, n)
+      else inFlight.delete(key)
     }
   }
 
@@ -152,6 +163,7 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
     hydrating.value = false
     available.value = true
     writtenAt.clear()
+    inFlight.clear()
   }
 
   return {

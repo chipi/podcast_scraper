@@ -65,7 +65,8 @@ lazily from the per-episode endpoints, not the list.
 | --- | --- | --- |
 | GET | `/api/app/episodes?page=&page_size=&status=&feed_id=` | Catalog across the corpus, newest-first. `{items[{slug, title, feed_id, podcast_title, publish_date, duration_seconds, episode_image_url, feed_image_url, artwork_url, status, summary_preview, summary_bullets[], topics[], has_transcript, has_summary, has_gi, has_kg, has_bridge}], page, page_size, total, has_more}`. `summary_preview` = short clean lede; `summary_bullets[]` = full summary (card expand-on-demand). `page≥1`, `1≤page_size≤100` (**422** otherwise). `status` ∈ `ready`\|`pending`. |
 | GET | `/api/app/podcasts/{feed_id}/episodes?page=&page_size=&status=` | Same shape, scoped to one feed. |
-| GET | `/api/app/podcasts` | Distinct shows in the corpus (Home "Your shows" + show-page header): `{items[{feed_id, title, artwork_url, image_url, description, episode_count}]}`. |
+| GET | `/api/app/podcasts` | Distinct shows in the corpus (Home "Your shows" + show-page header): `{items[{feed_id, title, artwork_url, image_url, description, episode_count}]}`. **Opt-in paging** (1.0.3): with `limit` (≤200) filtered by `feed_ids` (repeated; lookups), `q` (every word over title and hosts), `category`, sorted `sort=newest\|oldest\|az\|za\|trending`, `offset`, `compact=true` (no descriptions), plus `total` and every `categories`. Without `limit`, unchanged. |
+| GET | `/api/app/podcasts/suggested?limit=` | Shows for Home's guided start (operator 2026-10-08), same item shape: active in the last 30 days first (clock pinned by `APP_TRENDING_NOW` in tests), then most loved across listeners (follows, show and episode favourites, listens — each listener once per show), lifted by the caller's interests, minus shows they follow, at most 2 per category up front. `limit` 1–24, default 8; session. |
 
 `status`: `ready` when a transcript exists (playable), else `pending`. Local-content MVP yields
 `ready`; richer states (not-scraped/processing) arrive with scrape-on-demand (`#1069`).
@@ -79,6 +80,7 @@ deterministically and stable across re-scrapes.
 
 | Method | Path | Description |
 | --- | --- | --- |
+| GET | `/api/app/episodes/batch?slugs=a&slugs=b` | Several details in one request, for lists of saved slugs (queue, recently played, boards, revisit, highlights): `{items[EpisodeDetail], missing[slug]}`, in the requested order; unknown slugs are listed in `missing`, duplicates collapsed; at most 100 slugs (**422** above). Added for 1.0.3 — `/episodes/{slug}` is unchanged; the client falls back to it when this route answers 404 (an older server). |
 | GET | `/api/app/episodes/{slug}` | Detail: `{slug, title, feed_id, podcast_title, publish_date, duration_seconds, episode_image_url, feed_image_url, summary_title, summary_bullets, summary_text, has_transcript, has_summary, has_gi, has_kg, has_bridge}`. **404** unknown slug. |
 | GET | `/api/app/episodes/{slug}/segments` | The frozen `segments.json` contract: `{version, episode_slug, segments[{id, start, end, text, speaker?}]}`. **404** when no transcript/segments. |
 | GET | `/api/app/episodes/{slug}/insights` | Grounded GIL insights: `{episode_slug, insights[{id, text, grounded, insight_type?, confidence?, position_hint?, quotes[{text, speaker?, char_start?, char_end?, start_ms?, end_ms?}]}]}`. Empty list when no GI. |
@@ -137,7 +139,7 @@ use `artwork_url` when present.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/app/playback` | All saved positions, newest-updated first (Home "Continue"): `{items[{slug, position_seconds, updated_at?}]}`. |
+| GET | `/api/app/playback` | All saved positions, newest-updated first (Home "Continue"): `{items[{slug, position_seconds, updated_at?}]}`. **Opt-in paging** (1.0.3): with `limit` (≤100), filtered by `in_progress=true` (started, not finished) and repeated `slugs`, plus `offset` and `total`. Without `limit`, unchanged. |
 | GET, PUT | `/api/app/playback/{slug}` | Resume position `{slug, position_seconds, updated_at?}`; GET returns 0 when unset. |
 | GET, PUT | `/api/app/queue` | Play queue `{items: [slug, …]}`. |
 | GET, POST, DELETE | `/api/app/library` (+ `/{feed_id}`) | Subscriptions — list / subscribe (idempotent on `feed_id`) / unsubscribe. |
@@ -152,8 +154,9 @@ discovery (`rank_discover`, which scores cluster + topic + person overlap; see P
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/app/favorites` | Saved items grouped by kind: `{episodes[{…EpisodeSummary}], insights[{ref, text, episode_slug?, podcast_title?, start_ms?}]}` (`AppFavoritesResponse`). Episodes are hydrated from the corpus; insights are a stored snapshot (no global detail route). |
-| PUT | `/api/app/favorites` | Save an item (idempotent on `kind`+`ref`); body `{kind: episode\|insight\|person\|topic, ref, label?, sublabel?, slug?, start_ms?}` (`FavoriteAdd`). Returns the updated favorites. |
+| GET | `/api/app/favorites` | Saved items grouped by kind: `{episodes[{…EpisodeSummary}], entities[{kind, ref, label, sublabel?, color?}]}` (`AppFavoritesResponse`). Episodes are hydrated from the corpus; entities (show / topic / person / storyline / theme) are the label snapshot from the save. Insights are not favourites (highlights). **Paging is opt-in** (1.0.3): with `limit` (≤100) the response is one page of ONE list — `kind`, `q` (case-insensitive substring of title / show / label), `color`, `sort=recent\|title`, `offset` — plus `total` (matches, all pages) and `counts` (matches per kind under the same `q` + `color`). Without `limit` the response is unchanged and carries neither field. |
+| GET | `/api/app/favorites/refs` | Identity of every saved item, newest first: `{items[{kind, ref, color?}]}` — "is this saved?" anywhere in the app without hydrating a card per episode. Added for 1.0.3. |
+| PUT | `/api/app/favorites` | Save an item (idempotent on `kind`+`ref`); body `{kind: episode\|show\|topic\|person\|storyline\|theme, ref, label?, sublabel?, slug?}` (`FavoriteAdd`; `insight` is a **422**). Returns the updated favorites (the full, unpaged shape). |
 | DELETE | `/api/app/favorites/{kind}/{ref}` | Remove a saved item by `kind`+`ref` (`ref` URL-encoded; no-op if absent). Returns the updated favorites. |
 | GET, PUT | `/api/app/interests` | The user's interest token list `{items: [token, …]}` (`InterestsResponse`); `PUT` replaces it `{items}` (`InterestsUpdate`). Tokens are a mixed set (`tc:` / `topic:` / `person:`). |
 | POST | `/api/app/interests/{token}` | Follow one token (cluster `tc:` / topic `topic:` / person `person:`), idempotent; returns `{items[]}`. |
@@ -186,6 +189,20 @@ heard∪captured (the _appears-in_ list + `episode_count` are filtered).
 | GET | `/api/app/topics/{id}/conversation-arc` | Topic conversation arc (ADR-108) — `{topic_id, weeks[{week, volume, negative, neutral, positive, avg_compound}]}` (`AppTopicConversationArcResponse`): ISO-week buckets of insight volume × VADER sentiment mix, oldest first. **200 + empty `weeks`** when the topic has no dated insights (never 404). Drives the consumer topic-card weekly-bar surface. |
 | GET | `/api/app/entities/search?q=` | Resolve a query to a person/topic card (exact/near-exact); `{query, entity}` or `entity:null`. |
 
+**Episode paging on every entity card** (persons, topics, organizations, storylines, themes —
+2026-10-08): `episodes_limit` (1–100) and `episodes_offset` page the `episodes` list on the server,
+and the response then carries `episodes_total` (the length of the list being paged); `episode_count`
+stays the entity's total. With neither, the full list is returned (older app builds ask that way).
+The person card also takes `exclude_host_shows=true` (leave out the shows they host, before paging).
+The topic card always carries `episode_months[{month, count}]` and `top_shows[]`, computed over ALL
+its episodes, because the sparkline and the "strongest shows" row cannot come from one page.
+
+**Perspectives paging** (topics, storylines, themes `/…/{id}/perspectives` — 2026-10-08):
+`insights_per_speaker` caps each speaker's takes (`insight_count` stays their total);
+`speakers_offset`/`speakers_limit` page the speakers (`perspective_count` stays the total). The app
+loads every speaker with two takes and fetches one speaker's full list (`speakers_offset=i&
+speakers_limit=1`) when its "show all" opens.
+
 ---
 
 ## Capture — highlights & notes (P2; PRD-040 / RFC-098 §7)
@@ -196,11 +213,11 @@ dropped).
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/app/highlights?episode=` | The user's highlights (`{items[Highlight]}`), optionally scoped to one episode slug. `Highlight` = `{id, episode_slug, kind(span\|moment\|insight), start_ms?, end_ms?, char_start?, char_end?, segment_ids[], quote_text?, speaker?, source_insight_id?, color?, created_at, anchor_status?}`. |
+| GET | `/api/app/highlights?episode=` | The user's highlights (`{items[Highlight]}`), optionally scoped to one episode slug. `Highlight` = `{id, episode_slug, kind(span\|moment\|insight), start_ms?, end_ms?, char_start?, char_end?, segment_ids[], quote_text?, speaker?, source_insight_id?, color?, created_at, anchor_status?}`. **Paging is opt-in** (1.0.3): with `limit` (≤100) it pages by EPISODE — `offset`/`limit` count episodes, `per_episode` caps each one's highlights (default 5), filtered by `q` (quote / speaker), `color`, `muted=true` (stopped resurfacing) and ordered `sort=recent\|title` — and adds `total`, `episode_total`, `episode_counts` and the `notes` on the page's highlights. Only the page is re-anchored. Without `limit` the response is unchanged. |
 | POST | `/api/app/highlights` | Capture a highlight (**201**); body `HighlightCreate`. |
 | PATCH | `/api/app/highlights/{id}` | Edit `color` / `quote_text` (`exclude_unset` — explicit `color:null` clears it); **404** if absent. |
 | DELETE | `/api/app/highlights/{id}` | Remove; returns the remaining `{items[]}`. |
-| GET, POST, PATCH, DELETE | `/api/app/notes` (+ `/{id}`) | Free-text notes targeting `highlight\|insight\|episode`. `GET ?target=&target_id=` scopes; `POST` (**201**) `{target, target_id, text}` (`text` min length 1 → **422**); `PATCH {text}`; `DELETE`. |
+| GET, POST, PATCH, DELETE | `/api/app/notes` (+ `/{id}`) | Free-text notes targeting `highlight\|insight\|episode`. `GET ?target=&target_id=` scopes; `POST` (**201**) `{target, target_id, text}` (`text` min length 1 → **422**); `PATCH {text}`; `DELETE`. `GET` with `limit` (1.0.3): newest first, `q` on the text, `offset`, plus `total`, per-target `counts`, and the `highlights` the page's highlight-notes are on. Without `limit`, unchanged. |
 | GET | `/api/app/highlights/export.md` | Markdown export of all highlights + attached notes (grouped by episode; `text/markdown` attachment). |
 
 ---
@@ -212,7 +229,7 @@ Named, ordered sets of the user's highlights (the curation surface). Per-user fi
 | Method | Path | Description |
 | --- | --- | --- |
 | GET, POST | `/api/app/collections` | List (`CollectionsResponse`) / create (**201**, body `{name}` → `Collection`). |
-| GET, DELETE | `/api/app/collections/{id}` | Detail with hydrated items (`CollectionDetail`) / delete (returns remaining). |
+| GET, DELETE | `/api/app/collections/{id}` | Detail with hydrated items (`CollectionDetail`) / delete (returns remaining). `GET` with `limit` (1.0.3): one page of items, optionally one `kind`, plus `offset`, `total` and `kind_counts`; without it, every item as before. |
 | POST | `/api/app/collections/{id}/items` | Add a highlight `{highlight_id}` (idempotent) → the updated `Collection`. |
 | DELETE | `/api/app/collections/{id}/items/{highlight_id}` | Remove a highlight from the collection. |
 
@@ -227,7 +244,7 @@ request-time LLM (D6). **Auth-gated** except the unsubscribe GET (one-click, tok
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/app/your-week` | The in-app **"Your Week"** view (`YourWeekResponse` `{sections[{kind, items[]}], period_label, generated_at}`, #1412) — the SAME rollup the email sends, served live and **decoupled from email consent** (visible in-app even with the digest email off; the `comms.digest.enabled` toggle governs only the outbound email edge). Items are enriched **in-app** with artwork (`image_url` — the stored local thumb, else the RSS url) + a backfilled `episode_title` for topic-centric items — route-local fields, **not** part of the `DeliveryEnvelope` contract. Empty `sections` when nothing is due yet. |
+| GET | `/api/app/your-week` | The in-app **"Your Week"** view (`YourWeekResponse` `{sections[{kind, items[]}], period_label, generated_at}`, #1412) — your week in review since 2026-10-07: `listened_this_week` and `saved_this_week` (the listener's own last 7 days) plus the email rollup's `trending_in_your_corpus` and `revisit`; the email's `new_in_follows` / `new_in_interests` are left out (they are `/api/app/whats-new`), served live and **decoupled from email consent** (visible in-app even with the digest email off; the `comms.digest.enabled` toggle governs only the outbound email edge). Items are enriched **in-app** with artwork (`image_url` — the stored local thumb, else the RSS url) + a backfilled `episode_title` for topic-centric items + the show name (`podcast_title`, 2026-10-08) — route-local fields, **not** part of the `DeliveryEnvelope` contract. Empty `sections` when nothing is due yet. |
 | GET, PUT | `/api/app/comms` | Delivery settings `{digest{enabled, cadence(weekly\|daily), day_of_week, hour, paused}, push{enabled}, email_verified, unsubscribe_ref}` (`CommsSettings`). `PUT` a whole section (server fills defaults — never send a partial). |
 | GET | `/api/app/comms/unsubscribe?ref=` | One-click unsubscribe landing (HTML) — the `ref` is the opaque per-user token from the digest footer (RFC-110). |
 | POST | `/api/app/comms/unsubscribe` | Confirm unsubscribe (turns the digest off). |
@@ -250,7 +267,7 @@ capture (RFC-101 §1).
 | --- | --- | --- |
 | GET | `/api/app/episodes/{slug}/enrichment` | Per-episode enrichment signals `{slug, signals{<enricher_id>: data}}` for the viewed episode (RFC-088 envelopes; only OK enrichers). **404** unknown slug. |
 | GET | `/api/app/corpus/enrichment` | Corpus-scope signals `{signals{<enricher_id>: data}}` (temporal velocity, topic similarity, …). |
-| GET | `/api/app/resurfacing` | Highlights due to resurface, grouped by episode, most recently engaged episode first (`max(listened_at, newest capture)` — 2026-09-18, replacing most-overdue-first): `{items[{highlight, reflection_prompt}], paused}`. Read-time ladder (2d/1w/1mo/3mo on `created_at`/`last_surfaced`); empty when paused. **Auth-gated.** |
+| GET | `/api/app/resurfacing` | Highlights due to resurface, grouped by episode, most recently engaged episode first (`max(listened_at, newest capture)` — 2026-09-18, replacing most-overdue-first): `{items[{highlight, reflection_prompt}], paused}`. Read-time ladder (2d/1w/1mo/3mo on `created_at`/`last_surfaced`); empty when paused. **Auth-gated.** With `limit` (1.0.3) it pages by EPISODE in the same order (`offset`, `per_episode`), plus `total`, `episode_total`, `episode_counts`; without it, unchanged. |
 | POST | `/api/app/resurfacing/{id}/surfaced` | Record a resurfaced highlight as seen (advances its ladder). **204.** |
 | GET, PUT | `/api/app/resurfacing/settings` | Pacing `{paused}` (`PUT` to pause/resume). |
 | GET | `/api/app/interests/derived` | Implicit interests ranked by occurrence across the user's corpus: `{items[{token, kind, label, count}]}` — `person:`/`topic:` tokens, beside explicit follows. **Auth-gated.** |
@@ -417,6 +434,7 @@ class names resolve against `server/schemas.py`.
 | Method | Path | Response model | Auth | Params | Purpose |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/app/discover` | `AppEpisodesResponse` | optional session | `limit` | Discovery feed (the signed-out landing). When signed in AND `APP_PERSONALIZED_RANKING=true`, interest-ranked via the user's followed clusters; otherwise recency. |
+| GET | `/api/app/recommended` | `AppRecommendedResponse` | session | `limit` (1–20, default 8) | Home's Recommended without listening history: episodes carrying a followed topic / person / theme / storyline or what the listener's listening implies, ranked by the discover ranker (independent of `APP_PERSONALIZED_RANKING`), minus episodes already played. `basis: "interests"`; with nothing to base it on, no items and `basis: "none"` (Home hides the section). With an in-progress listen Home uses "more like" that episode instead. |
 | GET | `/api/app/whats-new` | `AppWhatsNewResponse` | session | `limit` (1–20, default 5) | Home's What's new: newest first from the shows the listener follows plus episodes carrying a followed topic / person / theme / storyline (themes and storylines expand to their member topics). `scope: "yours"`; with nothing followed or nothing matching, the newest across every show with `scope: "all"`. Ordered by time only — Recommended is the relevance-first section. |
 | POST | `/api/app/discover/click` | 204 | optional session | JSON body: `slug`, `position` | Fire-and-forget click telemetry for ranking feedback. Silent no-op signed out or on network error. |
 | GET | `/api/app/storylines` | `AppStorylinesResponse` | open | `limit` | Home "Storylines" — topics discussed together. |

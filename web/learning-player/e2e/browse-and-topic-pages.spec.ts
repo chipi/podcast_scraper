@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { signInIsolated, showEveryonesTrends } from './helpers'
 
 /**
  * Browse hub + standalone Topic/Person deep-links (#1261-6, #1261-9, #14). Real API +
@@ -27,6 +27,15 @@ test('Home surfaces the compact "Discover" strip and each chip deep-links into t
   await expect(nav.getByTestId('home-discover-topics')).toBeVisible()
   await expect(nav.getByTestId('home-discover-storylines')).toBeVisible()
   await expect(nav.getByTestId('home-discover-people')).toBeVisible()
+  await expect(nav.getByTestId('home-discover-themes')).toBeVisible()
+
+  // ONE row (operator 2026-10-08): the four chips share a top edge at phone width too.
+  const tops = await Promise.all(
+    ['topics', 'people', 'themes', 'storylines'].map(async (k) =>
+      Math.round((await nav.getByTestId(`home-discover-${k}`).boundingBox())!.y),
+    ),
+  )
+  expect(new Set(tops).size).toBe(1)
 
   await nav.getByTestId('home-discover-topics').click()
   await expect(page).toHaveURL(/\/browse\?trends=topic/)
@@ -61,6 +70,7 @@ test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async
   // the window control always renders (so an empty window can be switched away from). Assert the
   // control's default + that a pick updates the selection; the refetch is covered by unit tests.
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   await expect(page.getByTestId('browse-discovery')).toBeVisible()
   const section = page.getByTestId('browse-discovery')
   // `aria-checked`, not `aria-selected` (#1594 item 7): the window selector is a radiogroup.
@@ -90,6 +100,7 @@ test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async
 test('the catalogue groups by time, and stops when time is not the order', async ({ page }, testInfo) => {
   await signInIsolated(page, 'catalogue-time-groups', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   await page.waitForLoadState('networkidle')
 
   const headings = page.locator('h2.lp-kicker')
@@ -127,6 +138,7 @@ for (const viewport of [
     await page.setViewportSize(viewport)
     await signInIsolated(page, `trending-header-${viewport.width}`, testInfo)
     await page.goto('/browse')
+    await showEveryonesTrends(page)
     const rail = page.getByTestId('trending-shows-rail')
     const tiles = rail.getByTestId('trending-show-card')
     await expect(tiles.first()).toBeVisible()
@@ -152,7 +164,7 @@ for (const viewport of [
     await page.setViewportSize(viewport)
     const right = (b: { x: number; width: number } | null) => Math.round((b?.x ?? 0) + (b?.width ?? 0))
     for (const [url, placeholder, rowXpath] of [
-      ['/catalog', 'Filter this list…', 'xpath=..'],
+      ['/catalog', 'Filter episodes…', 'xpath=..'],
       ['/search?q=reliability', 'Search across every episode…', 'xpath=ancestor::form[1]'],
     ] as const) {
       await page.goto(url)
@@ -205,5 +217,18 @@ test('every other search / filter row ends where its area ends', async ({ page }
     await open()
     await page.locator(selector).first().waitFor()
     expect(Math.abs(await gap(selector)), `${url} ${selector}`).toBeLessThanOrEqual(1)
+  }
+})
+
+test("What's new \"Browse all\" lands ON the episode list, not the top of Discover", async ({ page }, testInfo) => {
+  // Operator 2026-10-08, on the phone: the link opened Discover at the top, the episode list two
+  // screens down — it read as going to the wrong page. Twice, because Discover is kept alive and the
+  // second arrival changes no query.
+  await signInIsolated(page, 'browse-all-lands', testInfo)
+  for (let i = 0; i < 2; i++) {
+    await page.goto('/')
+    await page.getByRole('link', { name: /Browse all/ }).first().click()
+    await expect(page).toHaveURL(/\/browse\?tab=episodes/)
+    await expect(page.getByTestId('browse-panel-episodes')).toBeInViewport()
   }
 })

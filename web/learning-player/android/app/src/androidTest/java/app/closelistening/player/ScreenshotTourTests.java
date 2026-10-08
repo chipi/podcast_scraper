@@ -66,12 +66,21 @@ public class ScreenshotTourTests extends UITestCase {
     private static final List<String> EXPECTED_FRAMES = Arrays.asList(
             "t01-home", "t02-discover", "t03-search",
             "t04-library-following", "t05-library-saved", "t06-library-boards", "t07-library-revisit",
-            "t08-profile-account", "t09-profile-topics", "t10-profile-stats",
+            "t08-profile-account", "t09-profile-interests", "t10-profile-stats",
             "t11-settings", "t12-settings-config",
             "t13-episode", "t14-episode-insights", "t15-episode-keypoints", "t16-episode-entities",
             "t17-share-popover", "t18-add-to-collection",
-            "t19-topic", "t20-storyline", "t21-person",
+            "t19-topic", "t20-storyline", "t20b-storyline-content", "t20c-storyline-topic-layered",
+            "t20d-person-over-topic-over-storyline",
+            "t21-person",
+            "t22a-topic-sheet", "t22b-person-over-topic", "t22c-storyline-over-topic",
+            "t22d-person-over-storyline-over-topic",
+            "t23-saved-row", "t24-colour-popover",
             "t25-home-offline", "t26-home-final");
+
+    /** People in the v3 fixture's Top voices / Related people — exact names, as iOS uses. */
+    private static final List<String> FIXTURE_PEOPLE = Arrays.asList(
+            "Dr. Elena Fischer", "Sam", "Skanda Amarnath", "Alex Morgan");
 
     private final Set<String> shotFrames = new LinkedHashSet<>();
 
@@ -84,6 +93,19 @@ public class ScreenshotTourTests extends UITestCase {
     /** Give the WebView time to paint before the shutter. Software GLES on CI is not fast. */
     private void settle(long ms) {
         Journey.sleep(ms);
+    }
+
+    /** Episode → notes → a topic from Topics & People, which opens it as a SHEET. */
+    private boolean openTopicSheet() {
+        AppSession.openEpisode(EPISODE_SLUG);
+        settle(5_000);
+        Journey.tap("Episode notes", true, 10_000);
+        settle(2_000);
+        List<String> topics = Arrays.asList("Open risk management", "Open systems thinking");
+        Journey.scrollTo(topics, true, 10);
+        boolean opened = Journey.tap(topics, true, 6_000);
+        if (opened) settle(4_000);
+        return opened;
     }
 
     @Test
@@ -100,8 +122,9 @@ public class ScreenshotTourTests extends UITestCase {
             settle(5_000);
             frame("t02-discover");
             // Search from Discover's own box: phones have no Search tab and no header magnifier,
-            // so this is the route a person actually takes.
-            if (Journey.tap("Search", false, 8_000)) {
+            // so this is the route a person actually takes. With a query — Search on an empty box
+            // does nothing, and t03 came back identical to t02.
+            if (Journey.searchFromDiscover("risk")) {
                 settle(4_000);
                 frame("t03-search");
             }
@@ -110,6 +133,9 @@ public class ScreenshotTourTests extends UITestCase {
         // --- library, every tab ---------------------------------------------------------------
         if (Journey.openTab("Library")) {
             settle(4_000);
+            // Library opens on Saved, so the Following frame needs its own tap.
+            Journey.tap("Following", false, 8_000);
+            settle(3_000);
             frame("t04-library-following");
             String[][] tabs = {
                 { "Saved", "t05-library-saved" },
@@ -132,6 +158,10 @@ public class ScreenshotTourTests extends UITestCase {
             if (Journey.tap("Stats", false, 10_000)) { settle(3_000); frame("t10-profile-stats"); }
         }
         if (Journey.openSettings(profileLabels())) {
+            // `openSettings` proves it arrived by scrolling to "Offline mode", so it leaves the page
+            // at Config: t11 came out mid-page and t12 was the same frame (2026-10-08). Back to the
+            // top for t11; t12 scrolls down itself.
+            Journey.rewind();
             settle(3_000);
             frame("t11-settings");
             // Config lives at the bottom — the offline switch and space reclaim.
@@ -147,40 +177,117 @@ public class ScreenshotTourTests extends UITestCase {
         if (Journey.tap("Episode notes", true, 12_000)) {
             settle(4_000);
             frame("t14-episode-insights");
-            if (Journey.tap("Key points", true, 8_000)) { settle(3_000); frame("t15-episode-keypoints"); }
-            if (Journey.tap("Topics & People", true, 8_000)) { settle(3_000); frame("t16-episode-entities"); }
+            // SCROLL to these sections, never tap their headers: they are <details> that are OPEN by
+            // default, so a tap CLOSES them and the frames came out collapsed (2026-10-08, iOS tour).
+            if (Journey.scrollTo(java.util.Arrays.asList("Key points"), true, 8) != null) {
+                settle(2_000); frame("t15-episode-keypoints");
+            }
+            if (Journey.scrollTo(java.util.Arrays.asList("Topics & People"), true, 8) != null) {
+                settle(2_000); frame("t16-episode-entities");
+            }
+            // Close the notes sheet by name ("Close panel", kp.close): `dismissCards` taps only an
+            // exact "Close"/"Back", so the sheet stayed over the page and hid the Share and Add to
+            // board controls the next two frames need (2026-10-08).
+            Journey.tap(Arrays.asList("Close panel"), false, 4_000);
+            settle(1_500);
         }
 
         // --- the overlays, which only a picture can confirm render correctly -------------------
         Journey.dismissCards();
         AppSession.openEpisode(EPISODE_SLUG);
         settle(5_000);
-        if (Journey.tap("Share", true, 10_000)) {
+        // EXACTLY "Share": a contains-match also hits the notes export button ("Open these episode
+        // notes to download or share them"), and t17 photographed the export viewer (2026-10-08).
+        if (Journey.tap("Share", false, 10_000)) {
             settle(3_000);
             frame("t17-share-popover");
             Journey.tap(Arrays.asList("Close", "Cancel"), true, 4_000);
         }
-        if (Journey.tap(Arrays.asList("Add to board", "Add"), true, 10_000)) {
+        // Reopen the episode first: the share menu has no Close, so it stayed open over the page and
+        // swallowed this tap — t18 was never shot (2026-10-08). And exactly "Add to board":
+        // `contains "Add"` matches other controls.
+        AppSession.openEpisode(EPISODE_SLUG);
+        settle(4_000);
+        if (Journey.tap(Arrays.asList("Add to board"), false, 10_000)) {
             settle(3_000);
             frame("t18-add-to-collection");
             Journey.tap(Arrays.asList("Close", "Cancel"), true, 4_000);
         }
 
         // --- entity surfaces --------------------------------------------------------------------
+        // By DEEP LINK (2026-10-08): walking Home's chips landed on the wrong page — Search, the
+        // queue, the notes export — and one stray tap stranded the rest of the tour. Same ids as the
+        // fixture corpus serves.
         Journey.dismissCards();
-        Journey.openTab("Home");
+        AppSession.openLink("topic/topic:systems-thinking");
         settle(5_000);
-        if (Journey.tap("Topics", false, 10_000)) { settle(3_000); }
-        if (Journey.tap("systems thinking", true, 10_000)) { settle(5_000); frame("t19-topic"); }
-        if (Journey.tap("Storylines", true, 8_000)) { settle(4_000); frame("t20-storyline"); }
+        frame("t19-topic");
+        AppSession.openLink("storyline/thc:managing-risk");
+        settle(5_000);
+        frame("t20-storyline");
+        // Storyline content, then a member topic ON TOP of it, then a person on top of that — the
+        // same three frames as iOS, so the two sheets can be read side by side (2026-10-08).
+        if (Journey.scrollTo(Arrays.asList("Topics discussed together"), true, 6) != null) {
+            settle(1_500);
+            frame("t20b-storyline-content");
+        }
+        List<String> memberTopics = Arrays.asList("risk management", "systems thinking");
+        Journey.scrollTo(memberTopics, true, 6);
+        if (Journey.tap(memberTopics, true, 8_000)) {
+            settle(5_000);
+            frame("t20c-storyline-topic-layered");
+            Journey.scrollTo(Arrays.asList("Top voices"), true, 6);
+            if (Journey.tap(FIXTURE_PEOPLE, false, 8_000)) {
+                settle(5_000);
+                frame("t20d-person-over-topic-over-storyline");
+            }
+        }
         Journey.dismissCards();
-        Journey.openTab("Home");
-        settle(4_000);
-        if (Journey.tap("People", false, 8_000)) {
+        AppSession.openLink("person/person:dr-elena-fischer");
+        settle(5_000);
+        frame("t21-person");
+        Journey.dismissCards();
+
+        // --- the stacking sequence, TOPIC at the bottom (iOS t22a-d) ----------------------------
+        // Entered from the episode's Topics & People, so the topic is a SHEET that the next cards
+        // stack on; opened as a page, a person would cover it entirely.
+        if (openTopicSheet()) {
+            frame("t22a-topic-sheet");
+            Journey.scrollTo(Arrays.asList("Top voices"), true, 6);
+            if (Journey.tap(FIXTURE_PEOPLE, false, 8_000)) {
+                settle(5_000);
+                frame("t22b-person-over-topic");
+            }
+        }
+        Journey.dismissCards();
+        if (openTopicSheet()) {
+            List<String> storyline = Arrays.asList("Managing risk across domains");
+            Journey.scrollTo(storyline, true, 6);
+            if (Journey.tap(storyline, true, 10_000)) {
+                settle(5_000);
+                frame("t22c-storyline-over-topic");
+                Journey.scrollTo(Arrays.asList("Topics discussed together", "Related people"), true, 6);
+                if (Journey.tap(FIXTURE_PEOPLE, false, 8_000)) {
+                    settle(5_000);
+                    frame("t22d-person-over-storyline-over-topic");
+                }
+            }
+        }
+        Journey.dismissCards();
+        // The topic sheets were opened from the notes panel, which is still open underneath.
+        Journey.tap(Arrays.asList("Close panel"), false, 3_000);
+        settle(1_000);
+
+        // --- the saved row and its colour picker ---------------------------------------------------
+        if (Journey.openTab("Library") && Journey.tap("Saved", false, 10_000)) {
             settle(3_000);
-            // Any person row; the fixture's top-voice chips carry the bare name as their label.
-            for (String person : Arrays.asList("Dr. Elena Fischer", "Sam", "Alex Morgan")) {
-                if (Journey.tap(person, true, 6_000)) { settle(4_000); frame("t21-person"); break; }
+            frame("t23-saved-row");
+            // EXACT: the per-item picker is "Colour"; "Filter by colour" would match a contains.
+            if (Journey.tap(Arrays.asList("Colour", "Color"), false, 8_000)) {
+                settle(3_000);
+                frame("t24-colour-popover");
+                Journey.device().pressBack();
+                settle(1_000);
             }
         }
 

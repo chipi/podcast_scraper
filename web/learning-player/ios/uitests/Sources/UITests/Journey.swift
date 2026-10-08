@@ -87,8 +87,18 @@ enum Journey {
     let deadline = Date().addingTimeInterval(timeout)
     repeat {
       for q in queries {
-        let el = q.matching(predicate).firstMatch
+        let matches = q.matching(predicate)
+        let el = matches.firstMatch
         if el.exists && el.isHittable { return el }
+        // `firstMatch` is TREE order, so a control UNDER an open sheet comes first: a topic page's
+        // own Back, covered by a storyline and a person sheet whose ✕ buttons are right there and
+        // tappable (2026-10-08 tour: "only a NON-hittable match exists", eleven times, then every
+        // later screen missed). Look past it before giving up on this element type.
+        if el.exists {
+          for other in matches.allElementsBoundByIndex.dropFirst().prefix(8) where other.isHittable {
+            return other
+          }
+        }
       }
       // SAY SO when only a non-hittable match exists.
       //
@@ -224,6 +234,30 @@ enum Journey {
     return out.isEmpty ? "<NOTHING intersecting \(region)>" : out.joined(separator: " || ")
   }
 
+  /// Switch Discover's Trends to everyone's (2026-10-07: "Mine" is the default, and a fresh test
+  /// account has no world of its own, so its Trends are empty). The choice is a synced preference,
+  /// so later tests on the same account already show everyone's and this is a no-op. Mirrors the
+  /// web e2e `showEveryonesTrends`.
+  ///
+  /// The scope is ONE icon toggle named "Trending scope" (2026-10-08: the labelled "You / Everyone"
+  /// switch was reverted), so its name never says the state. The caption under the Trends does —
+  /// "Your trends …" or "Everyone's trends …" — so that is what decides whether to tap.
+  static func showEveryonesTrends(_ app: XCUIApplication) {
+    let mine = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Your trends")).firstMatch
+    let everyone = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Everyone's trends")).firstMatch
+    let deadline = Date().addingTimeInterval(10)
+    while Date() < deadline && !mine.exists && !everyone.exists { usleep(250_000) }
+    guard mine.exists else {
+      print("=====TREND_SCOPE \(everyone.exists ? "already everyone" : "caption not found")=====")
+      return
+    }
+    if tap(app, labels: ["Trending scope"], timeout: 5) {
+      _ = everyone.waitForExistence(timeout: 5)
+      print("=====TREND_SCOPE switched, everyone=\(everyone.exists)=====")
+      sleep(1)
+    }
+  }
+
   /// Find and tap, scrolling the element clear of the bottom tab bar first (the transport/tab-bar
   /// overlap trap the playback suite documents — an unscrolled tap lands on a nav tab instead).
   @discardableResult
@@ -237,8 +271,18 @@ enum Journey {
       print("=====TAP_MISS \(labels)=====")
       return false
     }
+    // The floor is the tab bar — AND the mini-player docked above it, when one is open
+    // (2026-10-08). With only the tab bar's 90pt allowed for, a row that cleared the tab bar but sat
+    // under the mini-player took the tap: Discover's storyline row opened the episode player
+    // instead. The mini-player's own close control ("Close player", player.closeMini) marks it.
+    var floor = app.frame.height - 90
+    let mini = app.buttons["Close player"].firstMatch
+    if mini.exists {
+      let top = mini.frame.minY
+      if top > app.frame.height / 2 { floor = min(floor, top - 24) }
+    }
     var tries = 0
-    while el.frame.maxY > app.frame.height - 90 && tries < 6 {
+    while el.frame.maxY > floor && tries < 6 {
       app.swipeUp(); usleep(700_000); tries += 1
     }
     // ...and the MIRROR CASE, which was missing (2026-09-25). An element scrolled ABOVE the

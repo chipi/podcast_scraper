@@ -100,11 +100,16 @@ Region order, top to bottom:
    `discovery-tab-{key}`, `rising` default). The **active tab's label IS the section heading** — the
    rails no longer render a duplicate `<h2>`. `v-show` keeps each panel mounted (no refetch on
    switch).
-6. **New in topics & people you follow (#1836)** — recent UNHEARD episodes about a followed topic or
-   featuring a followed person (deterministic; no ranking score). Also a **Your-Week** digest section.
-7. **Discover strip** — a compact `home-browse-nav` "Discover" strip (**Topics** / **Storylines** /
-   **People** chips) that deep-link into Discover's own Trends section
-   (`/browse?trends=topic`/`storyline`/`person`), selecting that kind and scrolling it into view.
+6. **What's new** — the newest episodes from the shows you follow and about the topics, people,
+   themes and storylines you follow ("New in your shows and topics"); with nothing followed, the newest
+   across every show ("New across all shows"). At the bottom of Home since 2026-10-07; it absorbed
+   Your Week's new-in-follows / new-in-interests.
+7. **Discover strip** — `home-browse-nav`: a title line ("Explore what people are talking about")
+   over ONE row of chips, **Topics** / **People** / **Themes** / **Storylines** (Themes added
+   2026-10-07), each in its kind's colour — the same `kindPill` the Interests page uses, so the colour
+   means the kind everywhere (operator 2026-10-08; the inline "Discover" lead-in had pushed a chip onto
+   a second row). They deep-link into Discover's own Trends section
+   (`/browse?trends=topic`/`person`/`theme`/`storyline`), selecting that kind and scrolling it into view.
    *(Renamed from the old "Browse topics/people" links — operator 2026-09-14. They then pointed at a
    standalone `/trends` page, which was a thinner second copy of a section `/browse` already renders;
    that page is deleted — operator 2026-09-18.)*
@@ -177,9 +182,9 @@ corpus, a brand-new account and **a total API outage** render the same page.
   there is no action available. Hide; an empty shell is noise. *Storylines, Trending topics,
   Trending shows, Momentum, Recommended.*
 - **User-empty** — empty because of an action the user has not taken yet. **Render, and the empty
-  state must carry that action** — not a description of it, the action itself. *"Your Week" shows
-  one first-run line (#1978 replaced the per-section rows) — "fills as you follow shows, topics and
-  people" — carrying the one action that starts it, a link to the Shows index.*
+  state must carry that action** — not a description of it, the action itself. *Your Week was the
+  example here until 2026-10-08, when the operator ruled that an empty week in review is skipped,
+  not explained: it is now system-empty and hides.*
 
 A section that merely *describes* what the user could do is the failure mode this rule exists to
 prevent: it makes the reader go and find the control it is telling them about.
@@ -198,18 +203,38 @@ cleanly.** No empty panel, no skeleton that never resolves, no "0 results" row t
 say nothing happened. `SectionStatus` (#1591) owns the loading/empty/error triad so a section
 header cannot outlive its content.
 
-### `YourWeek` — the personal digest, in-app
+### `GuidedStart` — a new listener's first Home
 
-The same rollup the weekly email sends (new-in-follows + new-in-interests + trending-in-your-corpus),
-served live and **decoupled from email consent**. The email's **revisit** section is deliberately NOT
-shown here (2026-09-30): this block is "what's new", and due highlights have their own Home section,
-`RevisitRail` ("Highlights to revisit"), with the reviewed / stop / unsave actions that belong to them
-— showing them in both put the same highlights on Home twice. The server still sends the section, so
-the email and the push nudge keep it — turning the email off must never cost the capability;
-the email is only the edge for someone who does not visit. Two layouts behind a per-user synced
-preference: `compact` (one rail of the week's top items) and `full` (a labelled rail per section),
-flipped inline with "Show more / Show less". Hidden entirely when signed out or when nothing is due
-— a digest with nothing in it is not a digest.
+Since 2026-10-07 (operator): Home on a first visit was two screens of not much, so a new listener
+(no interests yet) gets a short flow of cards in place of the single welcome card: **1** choose at
+least three interests (the interests picker, with progress), **2** follow at least one show (the
+followable show tiles, in the card; it stays until "Next", so several can be followed), **3** "You're
+all set": what Home does with the choices (Recommended, What's new, Your Week) and how it improves,
+then "Got it", which closes the flow and reloads What's new and Recommended (operator 2026-10-08: the
+listener is already on Home, so the button confirms rather than "shows" Home). Saving interests in
+the picker returns Home to where it was, not scrolled down. Each step can be skipped ("Skip step"); "Not now"
+snoozes the whole guide for three days (operator 2026-10-08), and Settings' "Show the getting-started
+guide again" restarts it from step 1 at any time, walking every step with "Next" even when its
+minimum is already met. Step 2's shows are ranked by the server (`GET /api/app/podcasts/suggested`):
+active in the last month first, then the most loved across listeners, lifted by the interests just
+chosen, minus shows already followed, categories mixed. Progress is a synced preference
+(`lp.guidedStart`), so a run continues where it was left on any device; an account that already had
+interests never sees it unless it restarts it. While it runs, an empty Your Week is hidden.
+
+### `YourWeek` — your week in review
+
+Since 2026-10-07 (operator: "cut the overlap"), **what you listened to** (`listened_this_week`), **what
+you saved** (`saved_this_week`) and **what is rising in what you have heard**
+(`trending_in_your_corpus`), each for the last 7 days. It no longer shows the email's
+new-in-follows / new-in-interests: new episodes from your shows, topics and people are Home's
+**What's new** (`GET /api/app/whats-new`), and repeating them here put the same episodes on Home
+twice. The **email** keeps those sections — in an inbox, "what's new from your shows" is the point.
+The email's **revisit** section is not shown here either (2026-09-30): due highlights have their own
+Home section, `RevisitRail`. Served live and **decoupled from email consent**. Two layouts behind a
+per-user synced preference: `compact` (one rail of the week's top items) and `full` (a labelled rail
+per section), flipped inline with "Show more / Show less". Empty, it is not rendered at all (operator
+2026-10-08: "nothing to review is better than an empty section"); a failed load still shows, with
+retry, so an outage does not read as a quiet week.
 
 ### `KeyVoicesRail` — your key voices (wave-G)
 

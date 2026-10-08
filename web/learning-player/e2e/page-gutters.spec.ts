@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { signInIsolated, showEveryonesTrends } from './helpers'
 
 /**
  * Entity PAGES share one gutter (operator 2026-09-30).
@@ -54,6 +54,7 @@ test('topic, person and storyline pages inset their content by the same gutter',
 test('Trends sits at the same inset and width as the search on Discover', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trends-gutter', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   const trends = page.getByTestId('discovery-explorer')
   const search = page.getByTestId('browse-search-section')
   await expect(trends).toBeVisible()

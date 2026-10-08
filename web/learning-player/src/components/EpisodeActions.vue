@@ -29,8 +29,13 @@ import FavoriteButton from './FavoriteButton.vue'
 import DownloadButton from './DownloadButton.vue'
 import QueueButton from './QueueButton.vue'
 import AddToCollectionButton from './AddToCollectionButton.vue'
+import ShareIcon from './ShareIcon.vue'
 import OverflowMenu from './OverflowMenu.vue'
 import { useI18n } from 'vue-i18n'
+import { track } from '../services/analytics'
+import { openShareSheet } from '../services/native'
+import { copyText } from '../utils/clipboard'
+import { shareUrl } from '../utils/shareLink'
 
 defineProps<{
   slug: string
@@ -78,8 +83,25 @@ defineProps<{
    * `DownloadButton` self-hides on web, so this adds nothing to a browser row.
    */
   showDownload?: boolean
+  /**
+   * Offer "Share" in the ⋯, sending the episode's public link (operator 2026-10-08: Saved's
+   * episode groups had no way to share the episode). The title heads the share sheet. Opt-in, so the
+   * rails' menus do not grow a control nobody asked for there.
+   */
+  shareTitle?: string
 }>()
 const { t } = useI18n()
+
+/** The phone's share sheet with the episode link; where there is none, the link is copied. */
+async function shareEpisode(slug: string, title: string): Promise<void> {
+  const url = shareUrl('episode', slug)
+  try {
+    await openShareSheet(title, url)
+    track('share', { target_kind: 'episode', method: 'native_sheet' })
+  } catch {
+    if (await copyText(url)) track('share', { target_kind: 'episode', method: 'copy_link' })
+  }
+}
 </script>
 
 <template>
@@ -87,7 +109,7 @@ const { t } = useI18n()
     class="flex flex-wrap items-center gap-[12px]"
     :class="
       overlay
-        ? '[&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:shadow-lg [&>button]:backdrop-blur-sm'
+        ? '[&>button]:border-white/25 [&>button]:bg-black/55 [&>button]:shadow-lg'
         : undefined
     "
     data-testid="episode-actions"
@@ -110,6 +132,17 @@ const { t } = useI18n()
           variant="menuitem"
         />
         <QueueButton v-if="hideQueue" :slug="slug" variant="menuitem" />
+        <button
+          v-if="shareTitle"
+          type="button"
+          role="menuitem"
+          data-menuitem=""
+          class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-canvas-foreground transition hover:bg-overlay"
+          data-testid="episode-share"
+          @click="close(); shareEpisode(slug, shareTitle)"
+        >
+          <ShareIcon />{{ t('share.open') }}
+        </button>
       </template>
     </OverflowMenu>
     <!-- Extra, surface-specific controls in the same row (e.g. the queue's reorder ↑/↓). -->

@@ -3,9 +3,9 @@
  * Play queue (PRD-039 FR2.3) — reorder / remove / play. Auth-gated (meta.requiresAuth).
  * The API stores ordered slugs; this view hydrates titles via episode detail (small queues).
  */
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getEpisode } from '../services/api'
+import { getEpisodesBatch } from '../services/api'
 import { readCached, writeCached } from '../services/contentCache'
 import type { EpisodeDetail } from '../services/types'
 import { useQueueStore } from '../stores/queue'
@@ -13,6 +13,7 @@ import { summaryFromDetail } from '../utils/episode'
 import EpisodeCard from '../components/EpisodeCard.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import RecentlyPlayedList from '../components/RecentlyPlayedList.vue'
+import ShowAllToggle from '../components/ShowAllToggle.vue'
 
 // `hideTitle` lets the Library hub embed this as the "Queue" tab without a duplicate heading.
 defineProps<{ hideTitle?: boolean }>()
@@ -20,6 +21,21 @@ const { t } = useI18n()
 const queue = useQueueStore()
 const details = ref<Record<string, EpisodeDetail>>({})
 const loading = ref(true)
+
+/**
+ * Twenty at a time, then twenty more (2026-10-08). A queue holds up to 500, and the view used to
+ * fetch every queued episode to show all of them at once. The ORDER stays whole — it lives in the
+ * store, and the player's next/previous needs it — only the cards on screen are fetched.
+ */
+const QUEUE_PAGE = 20
+/** Slugs fetched (or being fetched) this session. */
+const fresh = new Set<string>()
+const shownCount = ref(QUEUE_PAGE)
+const visibleSlugs = computed(() => queue.items.slice(0, shownCount.value))
+function toggleMore(): void {
+  shownCount.value =
+    shownCount.value < queue.items.length ? shownCount.value + QUEUE_PAGE : QUEUE_PAGE
+}
 
 /**
  * The queue's episode titles, cached (operator 2026-09-19).
@@ -47,18 +63,21 @@ async function hydrate(): Promise<void> {
   const cached = await readCached<Record<string, EpisodeDetail>>(DETAILS_KEY, isDetailMap)
   if (cached) details.value = { ...cached, ...details.value }
 
-  // Revalidate EVERY queued episode, not only the uncached ones. Fetching just the missing slugs
+  // Revalidate every episode ON SCREEN, not only the uncached ones. Fetching just the missing slugs
   // meant a cached entry was never refreshed: one written before the detail carried `description`
   // painted a card with no description for as long as the episode stayed queued (operator
   // 2026-10-07, "in queue, we lost episode descriptions").
-  const fetched = await Promise.all(
-    queue.items.map((s) =>
-      getEpisode(s)
-        .then((d) => [s, d] as const)
-        .catch(() => null),
-    ),
-  )
-  for (const f of fetched) if (f) details.value[f[0]] = f[1]
+  // One request for them (`/episodes/batch`), not one per row — and each slug once a session: the
+  // mount and the store filling the queue both trigger this, and a removal moves every row up.
+  const wanted = visibleSlugs.value.filter((s) => !fresh.has(s))
+  wanted.forEach((s) => fresh.add(s))
+  const fetched = wanted.length
+    ? await getEpisodesBatch(wanted).catch(() => {
+        wanted.forEach((s) => fresh.delete(s)) // failed: the next trigger may try again
+        return {} as Record<string, EpisodeDetail>
+      })
+    : {}
+  for (const [s, d] of Object.entries(fetched)) details.value[s] = d
   loading.value = false
 
   // Keep only what is still queued, so a removed episode does not linger in the cache for ever.
@@ -75,7 +94,7 @@ function hydrateSafely(): void {
 }
 
 onMounted(hydrateSafely)
-watch(() => queue.items.slice(), hydrateSafely)
+watch(() => visibleSlugs.value.join('|'), hydrateSafely)
 </script>
 
 <template>
@@ -109,7 +128,7 @@ watch(() => queue.items.slice(), hydrateSafely)
          The card's own queue toggle is the remove affordance; reorder ↑/↓ sit in the card's icon
          row (via its #actions slot), consistent small rounded buttons — no layout-shifting side rail. -->
     <div v-else class="flex flex-col">
-      <template v-for="(slug, i) in queue.items" :key="slug">
+      <template v-for="(slug, i) in visibleSlugs" :key="slug">
         <!-- `show-download`: in Up next the question you are asking is "is this on the device?",
              usually right before losing signal. It was behind the ⋯, so the answer was invisible
              (operator 2026-09-23). Native-only — DownloadButton self-hides on web. -->
@@ -139,6 +158,14 @@ watch(() => queue.items.slice(), hydrateSafely)
         </EpisodeCard>
         <div v-else class="border-b border-border py-5 text-sm text-muted">…</div>
       </template>
+      <ShowAllToggle
+        v-if="queue.items.length > QUEUE_PAGE"
+        :expanded="shownCount >= queue.items.length"
+        :count="queue.items.length"
+        :remaining="Math.max(0, queue.items.length - shownCount)"
+        data-testid="queue-more"
+        @toggle="toggleMore"
+      />
     </div>
     <!-- Recently played, on the PAGE as well as in the panel (operator 2026-09-23).
          The masthead's queue control lands here, so this is now the queue's primary destination —

@@ -267,6 +267,35 @@ def derive_interests(
     return [row["token"] for row in counts[:k]]
 
 
+def personal_entity_ids(root: Path, data_dir: Path, user_id: str) -> set[str]:
+    """Every entity in this listener's own world — what Trends "Mine" ranks (operator 2026-10-07).
+
+    Topics and people they follow, saved, or met in episodes they heard or captured from
+    (:func:`derived_interest_counts`, all of it — not the top-k the ranker uses), plus the themes
+    (``tc:``) and storylines (``thc:``) they follow or that contain one of those topics. "Mine"
+    used to blend the user's engagement into the corpus-wide list, which for a light listener
+    left it indistinguishable from "everyone"; this is the set it filters to instead.
+    """
+    from podcast_scraper.search.storylines import storyline_map_by_topic
+    from podcast_scraper.search.topic_clusters import theme_map_by_topic
+
+    ids: set[str] = {str(t) for t in app_user_state.get_interests(data_dir, user_id) if str(t)}
+    for fav in app_user_state.get_favorites(data_dir, user_id):
+        kind, ref = str(fav.get("kind") or ""), str(fav.get("ref") or "")
+        if kind in ("topic", "person", "storyline", "theme") and ref:
+            ids.add(ref)
+    ids |= {str(row["token"]) for row in derived_interest_counts(root, data_dir, user_id)}
+    topics = {t for t in ids if t.startswith("topic:")}
+    if topics:
+        for topic_id, info in theme_map_by_topic(root).items():
+            if topic_id in topics and info.get("cluster_id"):
+                ids.add(str(info["cluster_id"]))
+        for topic_id, info in storyline_map_by_topic(root).items():
+            if topic_id in topics and info.get("storyline_id"):
+                ids.add(str(info["storyline_id"]))
+    return ids
+
+
 def interest_token(kind: str, ent_id: str) -> str:
     """``kind:id``, without doubling a prefix the id already carries.
 

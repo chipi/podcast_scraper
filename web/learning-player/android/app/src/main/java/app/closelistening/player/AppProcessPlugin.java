@@ -4,7 +4,10 @@ import android.app.ActivityManager;
 import android.app.ApplicationExitInfo;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
 import android.os.Build;
+import android.os.Debug;
+import android.os.PowerManager;
 import android.os.Process;
 import android.os.SystemClock;
 import android.webkit.RenderProcessGoneDetail;
@@ -31,6 +34,12 @@ import org.json.JSONObject;
  *
  * `uptime` (#2277): how long THIS process has been alive; a page booting inside a much older
  * process is a WebView reload, not a cold launch.
+ *
+ * `memoryInfo` (operator 2026-10-08): the memory and device facts "Copy debug info" in Settings
+ * cannot read from the page — free / total RAM, the low-memory flag, this process's footprint,
+ * thermal status and the WebView package actually in use. NOT included, because Android offers no
+ * API for it: free GPU memory. The WebView renderer is a separate process, so its memory is not in
+ * `appPssMb` either.
  *
  * `exitLog` / `clearExitLog` (#2279): why the app or its WebView ended — the system's own
  * {@link ApplicationExitInfo} history (Android 11+) and the WebView renderer dying — so the web
@@ -64,6 +73,35 @@ public class AppProcessPlugin extends Plugin {
         JSObject result = new JSObject();
         result.put("ms", SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime());
         call.resolve(result);
+    }
+
+    @PluginMethod
+    public void memoryInfo(PluginCall call) {
+        JSObject r = new JSObject();
+        ActivityManager am = (ActivityManager) getContext().getSystemService(Context.ACTIVITY_SERVICE);
+        ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+        am.getMemoryInfo(mi);
+        r.put("availMb", mi.availMem / 1048576);
+        r.put("totalMb", mi.totalMem / 1048576);
+        r.put("thresholdMb", mi.threshold / 1048576);
+        r.put("lowMemory", mi.lowMemory);
+        r.put("lowRamDevice", am.isLowRamDevice());
+        r.put("memoryClassMb", am.getMemoryClass());
+        Debug.MemoryInfo own = new Debug.MemoryInfo();
+        Debug.getMemoryInfo(own);
+        r.put("appPssMb", own.getTotalPss() / 1024);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            PowerManager pm = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+            r.put("thermalStatus", pm.getCurrentThermalStatus());
+        }
+        r.put("manufacturer", Build.MANUFACTURER);
+        r.put("model", Build.MODEL);
+        r.put("osVersion", Build.VERSION.RELEASE + " (SDK " + Build.VERSION.SDK_INT + ")");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PackageInfo wv = WebView.getCurrentWebViewPackage();
+            if (wv != null) r.put("webView", wv.packageName + " " + wv.versionName);
+        }
+        call.resolve(r);
     }
 
     /** Pending records, oldest first: the stored ones, then system exit history not yet delivered. */

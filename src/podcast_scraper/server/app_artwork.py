@@ -6,13 +6,15 @@ is the deliberate counterpart to *bridge-never-rehost* for audio: audio is the l
 licensed product we stream from origin every play; cover art is a small promotional asset
 that every player caches, so we store it once and serve our copy, cached hard.
 
-Two sizes, both derived from the local original (we downscale, never upscale):
+Three sizes, all from the local original (we downscale, never upscale):
 
-- ``large`` — the original bytes. Podcast cover art is ≥1400² at the source (Apple spec), so
-  the original is big enough for the Player's hero zone.
-- ``thumb`` — a ≤320px downscale for list density, generated on first request and cached
-  under ``corpus-art/derived/thumb/`` (content-addressed → immutable). Falls back to the
-  original if Pillow/resize is unavailable or the source can't be decoded.
+- ``thumb`` — a ≤320px downscale for every list, card and tile.
+- ``medium`` — a ≤1024px downscale for the Player's hero, the lock screen and offline copies.
+- ``large`` — the original bytes. No consumer screen asks for it: originals run to 3000², which a
+  phone decodes to ~36 MB, and Android's WebView stopped drawing under that load (2026-10-08).
+
+Downscales live under ``corpus-art/derived/<kind>/`` (content-addressed → immutable). The writer
+makes them; the API mounts the corpus read-only, so a missing one falls back to the original.
 
 URLs are content-addressed (sha256 store), so responses carry ``immutable`` cache headers
 and the browser + PWA service worker keep them on-device after the first fetch.
@@ -27,7 +29,9 @@ from urllib.parse import quote
 
 from podcast_scraper.utils.corpus_artwork import (
     CORPUS_ART_REL_PREFIX,
+    medium_path,
     thumbnail_path,
+    write_medium,
     write_thumbnail,
 )
 from podcast_scraper.utils.path_validation import (
@@ -40,10 +44,10 @@ logger = logging.getLogger(__name__)
 _ART_PREFIX = f"{CORPUS_ART_REL_PREFIX}/"
 
 
-def artwork_url(relpath: str | None, size: str = "large") -> str | None:
+def artwork_url(relpath: str | None, size: str = "thumb") -> str | None:
     """Build the consumer artwork URL for a corpus-relative art path, or ``None``.
 
-    ``size`` is ``thumb`` (lists/cards) or ``large`` (player). Returns ``None`` when there is
+    ``size`` is ``thumb`` (lists/cards) or ``medium`` (player). Returns ``None`` when there is
     no local art, so callers fall back to the remote feed image URL.
     """
     if not relpath or not str(relpath).strip():
@@ -85,6 +89,18 @@ def ensure_thumbnail(corpus_root: Path, original_abs: str) -> tuple[str, str]:
     dst = _thumb_target(corpus_root, original_abs)
     if os.path.isfile(dst) or write_thumbnail(corpus_root, original_abs):
         return dst, "image/jpeg"
+    return _original(original_abs)
+
+
+def ensure_medium(corpus_root: Path, original_abs: str) -> tuple[str, str]:
+    """Return ``(path, media_type)`` for the player-sized copy, with the same fallback."""
+    dst = os.path.normpath(str(medium_path(corpus_root, original_abs)))
+    if os.path.isfile(dst) or write_medium(corpus_root, original_abs):
+        return dst, "image/jpeg"
+    return _original(original_abs)
+
+
+def _original(original_abs: str) -> tuple[str, str]:
     import mimetypes
 
     media_type, _ = mimetypes.guess_type(os.path.basename(original_abs))

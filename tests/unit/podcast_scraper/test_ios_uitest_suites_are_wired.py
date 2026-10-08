@@ -49,6 +49,12 @@ _OUTSIDE_THE_TIER: dict[str, str] = {
         "it in would make every run fail for want of a link. "
         "`make test-app-ios-magic-link PHASE=M1|M2|M3`, run deliberately (#2272)."
     ),
+    "MemoryWalkTests": (
+        "A MEASUREMENT, not an assertion suite: it walks deep links and holds each screen while "
+        "`ios-memory-walk.sh` samples the WebKit process with `footprint` from the host. It "
+        "asserts nothing, and its numbers mean something only against a chosen backend and token. "
+        "`make perf-ios`."
+    ),
     "ProdTourTests": (
         "Points at the REAL production backend and wants NO session, where every step of the tier "
         "wants the fixture api and a seeded one. Folding it in would mean a prod outage reads as a "

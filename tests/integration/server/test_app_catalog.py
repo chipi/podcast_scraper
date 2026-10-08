@@ -200,3 +200,40 @@ def test_podcasts_surfaces_category_end_to_end(tmp_path: Path) -> None:
     feeds = {p["feed_id"]: p for p in _client(tmp_path).get("/api/app/podcasts").json()["items"]}
     assert feeds["withcat"]["category"] == "Business"
     assert feeds["nocat"]["category"] is None
+
+
+def test_podcasts_page_filter_sort_when_asked(tmp_path: Path) -> None:
+    # 1.0.3 opt-in paging; without `limit` the list is unchanged (no paging fields at all).
+    for i, (fid, title, cat, pub) in enumerate(
+        [
+            ("zeta", "Zeta Talks", "Science", "2024-03-01"),
+            ("alpha", "Alpha Hour", "Business", "2024-01-01"),
+            ("mid", "Middle Ground", "Science", "2024-02-01"),
+        ]
+    ):
+        _write_episode(
+            tmp_path,
+            stem=f"e{i}",
+            feed_id=fid,
+            feed_title=title,
+            episode_id=str(i),
+            title=f"Ep {i}",
+            published=pub,
+            category=cat,
+        )
+    client = _client(tmp_path)
+    assert set(client.get("/api/app/podcasts").json()) == {"items"}
+    az = client.get("/api/app/podcasts", params={"limit": 2, "sort": "az"}).json()
+    assert [p["feed_id"] for p in az["items"]] == ["alpha", "mid"]
+    assert az["total"] == 3 and az["categories"] == ["Business", "Science"]
+    sci = client.get(
+        "/api/app/podcasts", params={"limit": 10, "category": "Science", "sort": "za"}
+    ).json()
+    assert [p["feed_id"] for p in sci["items"]] == ["zeta", "mid"]
+    found = client.get("/api/app/podcasts", params={"limit": 10, "q": "talks zeta"}).json()
+    assert [p["feed_id"] for p in found["items"]] == ["zeta"]
+    some = client.get(
+        "/api/app/podcasts", params=[("limit", 10), ("feed_ids", "mid"), ("compact", "true")]
+    ).json()
+    assert [p["feed_id"] for p in some["items"]] == ["mid"]
+    assert some["items"][0]["description"] is None

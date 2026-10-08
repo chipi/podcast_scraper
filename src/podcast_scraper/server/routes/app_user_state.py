@@ -11,15 +11,20 @@ import time
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from podcast_scraper.server import app_recap, app_stats, app_user_corpus, app_user_state
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503
-from podcast_scraper.server.app_favorites_view import hydrate_favorites
+from podcast_scraper.server.app_favorites_view import (
+    favorite_refs,
+    hydrate_favorites,
+    query_favorites,
+)
 from podcast_scraper.server.app_slugs import resolve_slug
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
+    AppFavoriteRefsResponse,
     AppFavoritesResponse,
     CompletedResponse,
     FavoriteAdd,
@@ -65,20 +70,48 @@ def _library_items(rows: list[dict]) -> list[LibraryItem]:
 
 
 @router.get("/playback", response_model=PlaybackListResponse)
-def list_playback(request: Request, user: User = Depends(get_current_user)) -> PlaybackListResponse:
-    """All saved playback positions, newest-updated first (Home 'Continue listening')."""
+def list_playback(
+    request: Request,
+    in_progress: bool = Query(
+        default=False, description="Paged: only started-and-unfinished (Continue listening)."
+    ),
+    slugs: list[str] = Query(
+        default_factory=list, max_length=100, description="Paged: only these episodes."
+    ),
+    offset: int = Query(default=0, ge=0),
+    limit: int | None = Query(
+        default=None,
+        ge=1,
+        le=100,
+        description="Page size. Absent: every position, as before 1.0.3.",
+    ),
+    user: User = Depends(get_current_user),
+) -> PlaybackListResponse:
+    """All saved playback positions, newest-updated first (Home 'Continue listening').
+
+    Paging is opt-in: with ``limit`` the list is filtered (``in_progress``, ``slugs``) and paged.
+    """
     rows = app_user_state.list_playback(_data_dir(request), user.user_id)
-    return PlaybackListResponse(
-        items=[
-            PlaybackPosition(
-                slug=r["slug"],
-                position_seconds=float(r["position_seconds"]),
-                updated_at=r.get("updated_at"),
-                finished=bool(r.get("finished", False)),
-            )
-            for r in rows
-        ]
-    )
+    items = [
+        PlaybackPosition(
+            slug=r["slug"],
+            position_seconds=float(r["position_seconds"]),
+            updated_at=r.get("updated_at"),
+            finished=bool(r.get("finished", False)),
+        )
+        for r in rows
+    ]
+    if limit is None:
+        return PlaybackListResponse(items=items)
+    wanted = set(slugs)
+    # "In progress" is Home's rule: past the first second and not finished.
+    selected = [
+        p
+        for p in items
+        if (not wanted or p.slug in wanted)
+        and (not in_progress or (p.position_seconds > 1 and not p.finished))
+    ]
+    return PlaybackListResponse(items=selected[offset : offset + limit], total=len(selected))
 
 
 @router.get("/playback/{slug}", response_model=PlaybackPosition)
@@ -362,9 +395,48 @@ def _favorites(request: Request, user: User) -> AppFavoritesResponse:
 
 
 @router.get("/favorites", response_model=AppFavoritesResponse)
-def get_favorites(request: Request, user: User = Depends(get_current_user)) -> AppFavoritesResponse:
-    """The user's saved items, grouped by kind (episodes hydrated, insights from snapshot)."""
-    return _favorites(request, user)
+def get_favorites(
+    request: Request,
+    kind: Literal["episode", "show", "topic", "person", "theme", "storyline"] | None = Query(
+        default=None, description="Paged requests: only this kind."
+    ),
+    q: str | None = Query(default=None, max_length=200, description="Case-insensitive match."),
+    color: str | None = Query(default=None, max_length=32, description="Only this colour."),
+    sort: Literal["recent", "title"] = Query(default="recent"),
+    offset: int = Query(default=0, ge=0),
+    limit: int | None = Query(
+        default=None,
+        ge=1,
+        le=100,
+        description="Page size. Absent: every favourite, unfiltered (clients before 1.0.3).",
+    ),
+    user: User = Depends(get_current_user),
+) -> AppFavoritesResponse:
+    """The user's saved items, grouped by kind (episodes hydrated, insights from snapshot).
+
+    Paging is opt-in: only a request that sends ``limit`` is filtered, sorted and paged.
+    """
+    if limit is None:
+        return _favorites(request, user)
+    raw = app_user_state.get_favorites(_data_dir(request), user.user_id)
+    return query_favorites(
+        corpus_root_or_503(request),
+        raw,
+        kind=kind,
+        q=q,
+        color=color,
+        sort=sort,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@router.get("/favorites/refs", response_model=AppFavoriteRefsResponse)
+def get_favorite_refs(
+    request: Request, user: User = Depends(get_current_user)
+) -> AppFavoriteRefsResponse:
+    """Which items are saved (kind + ref + colour) — for hearts anywhere in the app."""
+    return favorite_refs(app_user_state.get_favorites(_data_dir(request), user.user_id))
 
 
 @router.put("/favorites", response_model=AppFavoritesResponse)

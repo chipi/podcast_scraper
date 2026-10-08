@@ -154,3 +154,41 @@ def test_requires_a_signed_in_listener(tmp_path: Path) -> None:
     client = _client(tmp_path, interests=[], follows=[])
     client.cookies.clear()
     assert client.get("/api/app/whats-new").status_code == 401
+
+
+# --- GET /api/app/recommended (operator 2026-10-07) -------------------------------------------
+
+
+def test_recommended_is_empty_with_nothing_to_base_it_on(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    body = _client(tmp_path, interests=[], follows=[]).get("/api/app/recommended").json()
+    assert body == {"items": [], "basis": "none"}
+
+
+def test_recommended_ranks_what_the_listener_follows(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    body = _client(tmp_path, interests=["topic:ai"], follows=[]).get("/api/app/recommended").json()
+    assert body["basis"] == "interests"
+    assert _ids(body) == ["c"]  # the only episode carrying topic:ai
+
+
+def test_recommended_reaches_episodes_through_a_followed_theme(tmp_path: Path) -> None:
+    _corpus(tmp_path)
+    body = (
+        _client(tmp_path, interests=["tc:machines"], follows=[]).get("/api/app/recommended").json()
+    )
+    assert _ids(body) == ["c"]
+
+
+def test_recommended_leaves_out_what_was_already_played(tmp_path: Path) -> None:
+    from podcast_scraper.server.app_slugs import slug_for_row
+
+    _corpus(tmp_path)
+    client = _client(tmp_path, interests=["topic:ai"], follows=[])
+    data_dir = tmp_path / "appdata"
+    user = get_or_create_user(data_dir, provider="stub", subject="s1", email="j@x.com", name="J")
+    slug = next(
+        slug_for_row(r) for r in build_catalog_rows_cumulative(tmp_path) if r.episode_id == "c"
+    )
+    app_user_state.set_playback(data_dir, user.user_id, slug, 900.0, int(time.time()))  # heard
+    assert _ids(client.get("/api/app/recommended").json()) == []

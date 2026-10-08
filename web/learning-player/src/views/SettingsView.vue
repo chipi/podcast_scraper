@@ -21,7 +21,9 @@ import { useOnline } from '../composables/useOnline'
 import { usePlayerStore } from '../stores/player'
 import Tabs from '../components/Tabs.vue'
 import type { TabSpec } from '../components/tabs'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
+import { collectDebugInfo } from '../utils/debugInfo'
+import { useGuidedStart } from '../composables/useGuidedStart'
 import { Capacitor } from '@capacitor/core'
 import { isNative } from '../services/native'
 import { Browser } from '@capacitor/browser'
@@ -35,6 +37,14 @@ const { t, locale } = useI18n()
 const auth = useAuthStore()
 const { enabled: voiceEnabled, setEnabled: setVoiceEnabled } = useVoiceInput()
 const { forcedOffline, setForcedOffline } = useOnline()
+const router = useRouter()
+const guided = useGuidedStart()
+
+/** Run Home's guided start again from step 1 (operator 2026-10-08), then go to Home to do it. */
+async function restartGuidedStart(): Promise<void> {
+  await guided.restart()
+  await router.push({ name: 'home' })
+}
 
 // Usage analytics (#2265). The toggle is ON by default; OFF writes Umami's own `umami.disabled`
 // flag, which silences the tracker both through our gate and inside its own bundle.
@@ -154,6 +164,32 @@ async function copyDiagnostics(): Promise<void> {
     window.setTimeout(() => (copied.value = false), 1500)
   } catch {
     /* clipboard blocked (insecure context / denied) — no-op, the info is still on screen */
+  }
+}
+
+/**
+ * "Copy debug info" (operator 2026-10-08): device, OS, WebView, GPU and memory as one pasteable block,
+ * so a tester who sees something odd sends it straight from here. The screen recorded is the one
+ * they CAME FROM — the one that misbehaved — not Settings.
+ */
+const debugCopied = ref(false)
+async function copyDebugInfo(): Promise<void> {
+  const back = (window.history.state as { back?: string } | null)?.back ?? '(unknown)'
+  const text = await collectDebugInfo({
+    version,
+    sha: sha || '—',
+    builtAt: String(__BUILD_TIME__),
+    platform,
+    target,
+    route: back,
+    userId: auth.user?.user_id ?? null,
+  })
+  try {
+    await navigator.clipboard.writeText(text)
+    debugCopied.value = true
+    window.setTimeout(() => (debugCopied.value = false), 1500)
+  } catch {
+    /* clipboard blocked — nothing to fall back to without showing the block */
   }
 }
 
@@ -306,26 +342,43 @@ async function openHelp(): Promise<void> {
 
       <div class="mt-4 flex flex-col gap-2 border-t border-border pt-4">
         <button
+          v-if="auth.isAuthenticated"
           type="button"
-          class="flex items-center justify-between gap-3 text-left text-sm font-semibold text-canvas-foreground disabled:opacity-50"
-          data-testid="settings-clear-cache"
-          :disabled="busy === 'cache'"
-          @click="clearCache"
+          class="flex items-center justify-between gap-3 text-left text-sm font-semibold text-canvas-foreground"
+          data-testid="settings-guided-restart"
+          @click="restartGuidedStart"
         >
-          <span>{{ t('settings.clearCache') }}</span>
-          <span class="shrink-0 text-xs font-normal text-muted">{{ cleared === 'cache' ? t('settings.cleared') : t('settings.clearCacheHint') }}</span>
+          <span>{{ t('settings.guidedRestart') }}</span>
+          <span class="shrink-0 text-xs font-normal text-muted">{{ t('settings.guidedRestartHint') }}</span>
         </button>
-        <button
-          v-if="native"
-          type="button"
-          class="flex items-center justify-between gap-3 text-left text-sm font-semibold text-canvas-foreground disabled:opacity-50"
-          data-testid="settings-clear-downloads"
-          :disabled="busy === 'downloads'"
-          @click="clearDownloads"
-        >
-          <span>{{ t('settings.clearDownloads') }}</span>
-          <span class="shrink-0 text-xs font-normal text-muted">{{ cleared === 'downloads' ? t('settings.cleared') : t('settings.clearDownloadsHint') }}</span>
-        </button>
+      </div>
+      <!-- Clear cache and Remove downloads: two small buttons side by side (operator 2026-10-08), each
+           with its one-line consequence under it; the label says "Cleared" once done. -->
+      <div class="mt-3 grid gap-2" :class="native ? 'grid-cols-2' : 'grid-cols-1'" data-testid="settings-reclaim-row">
+        <div>
+          <button
+            type="button"
+            class="w-full rounded-2xl border border-border px-2 py-2.5 text-xs font-semibold text-muted transition hover:text-canvas-foreground disabled:opacity-50"
+            data-testid="settings-clear-cache"
+            :disabled="busy === 'cache'"
+            @click="clearCache"
+          >
+            {{ cleared === 'cache' ? t('settings.cleared') : t('settings.clearCache') }}
+          </button>
+          <p class="mt-1 text-center text-[11px] leading-snug text-muted">{{ t('settings.clearCacheHint') }}</p>
+        </div>
+        <div v-if="native">
+          <button
+            type="button"
+            class="w-full rounded-2xl border border-border px-2 py-2.5 text-xs font-semibold text-muted transition hover:text-danger disabled:opacity-50"
+            data-testid="settings-clear-downloads"
+            :disabled="busy === 'downloads'"
+            @click="clearDownloads"
+          >
+            {{ cleared === 'downloads' ? t('settings.cleared') : t('settings.clearDownloads') }}
+          </button>
+          <p class="mt-1 text-center text-[11px] leading-snug text-muted">{{ t('settings.clearDownloadsHint') }}</p>
+        </div>
       </div>
     </section>
 
@@ -365,15 +418,27 @@ async function openHelp(): Promise<void> {
       <!-- The switch that CHANGES the target shown above, next to the target itself. `component
            :is` because the import is build-gated to null on a release build; `v-if` on the value,
            not on `internal`, so there is exactly one condition rather than two that can disagree. -->
-      <component :is="TierSwitch" v-if="TierSwitch" class="mt-4" />
-      <button
-        type="button"
-        class="mt-4 rounded-full border border-border px-4 py-1.5 text-sm font-bold transition hover:bg-overlay"
-        data-testid="settings-copy"
-        @click="copyDiagnostics"
-      >
-        {{ copied ? t('settings.copied') : t('settings.copyDiagnostics') }}
-      </button>
+      <!-- The tier switch and Copy build info on one row, the same size (operator 2026-10-08). -->
+      <div class="mt-4 flex flex-wrap items-center gap-2">
+        <component :is="TierSwitch" v-if="TierSwitch" />
+        <button
+          type="button"
+          class="rounded-full border border-border px-4 py-1.5 text-sm font-bold transition hover:bg-overlay"
+          data-testid="settings-copy"
+          @click="copyDiagnostics"
+        >
+          {{ copied ? t('settings.copied') : t('settings.copyDiagnostics') }}
+        </button>
+        <button
+          type="button"
+          class="rounded-full border border-border px-4 py-1.5 text-sm font-bold transition hover:bg-overlay"
+          data-testid="settings-copy-debug"
+          @click="copyDebugInfo"
+        >
+          {{ debugCopied ? t('settings.copied') : t('settings.copyDebug') }}
+        </button>
+      </div>
+      <p class="mt-2 text-xs text-muted">{{ t('settings.copyDebugHint') }}</p>
     </section>
 
     <section class="mt-6 rounded-2xl border border-border p-5">

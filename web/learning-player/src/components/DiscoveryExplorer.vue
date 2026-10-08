@@ -76,6 +76,17 @@ watch(discoveryTab, () => {
 })
 
 const discoverySort = ref<"rising" | "trending">("rising")
+/**
+ * What the two icons are set to, in words, under the row (operator 2026-10-08: "add hints to those
+ * buttons" — the icons stay as they were, on the pills' row). A phone shows no hover title, so the
+ * caption is the hint, and it changes with every tap.
+ */
+const stateHint = computed(() => {
+  const sort = discoverySort.value === "rising" ? t("home.trendsHintRising") : t("home.trendsHintTrending")
+  if (!auth.isAuthenticated) return sort
+  const scope = trendingScope.value === "mine" ? t("home.trendsHintMine") : t("home.trendsHintAll")
+  return `${scope} · ${sort}`
+})
 const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
   DISCOVERY_TABS.map((tb) => ({ key: tb.key, label: t(tb.labelKey), testid: `discovery-tab-${tb.key}` }))
 )
@@ -163,6 +174,9 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
         </button>
       </div>
     </div>
+    <p class="-mt-2 mb-3 text-right text-xs text-muted" aria-live="polite" data-testid="discovery-state-hint">
+      {{ stateHint }}
+    </p>
 
     <!-- `panelAttrs` already mints this panel's id; the header's expand control points
          `aria-controls` at THAT one. A second hardcoded id here would be dropped by Vue (duplicate
@@ -178,6 +192,7 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
         :expanded="expandedAll"
         @open="emit('open', $event)"
         @count="total = $event"
+        @show-everyone="setTrendingScope('corpus')"
       />
     </div>
   </div>

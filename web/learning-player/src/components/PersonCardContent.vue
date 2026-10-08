@@ -7,8 +7,9 @@
  * `PersonCard`. Graph navigation (tapping a related chip / a signal) emits `open`; `close` dismisses
  * the whole card (the shell re-emits it upward).
  */
+import { getPersonCard } from "../services/api"
 import CollapsibleSection from "./CollapsibleSection.vue"
-import { computed, ref } from "vue"
+import { computed, ref, watch } from "vue"
 import { useClampedProse } from "../composables/useClampedProse"
 import { useI18n } from "vue-i18n"
 import { RouterLink, useRouter } from "vue-router"
@@ -80,6 +81,9 @@ const shownEpisodes = computed<EpisodeSummary[]>(() =>
     ? episodes.value.filter((e) => !hostFeedIds.value.has(e.feed_id))
     : episodes.value
 )
+// The server pages the list (and has already left out the host shows when asked); its total is
+// the length of THAT list. Without it, the list is whole and its own length is the total.
+const shownTotal = computed(() => props.person.episodes_total ?? shownEpisodes.value.length)
 const relatedPeople = computed<Entity[]>(() => props.person.related_people ?? [])
 
 /**
@@ -115,6 +119,37 @@ const relatedStorylines = computed(() => {
       seen.set(tp.storyline_id, { id: tp.storyline_id, label: tp.storyline_label, topicId: tp.id })
   return [...seen.values()]
 })
+/**
+ * Five pills, then "+N more" (operator 2026-10-08), the episode notes' rule for a mixed group: the
+ * storyline when there is one, the theme when there is one, then topics fill what is left. A person
+ * with a dozen themes and topics filled a phone screen with pills before anything else was visible.
+ */
+const RELATED_COLLAPSED = 5
+const relatedExpanded = ref(false)
+watch(
+  () => props.person.id,
+  () => (relatedExpanded.value = false),
+)
+const shownStorylines = computed(() =>
+  relatedExpanded.value ? relatedStorylines.value : relatedStorylines.value.slice(0, 1),
+)
+const shownThemes = computed(() =>
+  relatedExpanded.value ? relatedThemes.value : relatedThemes.value.slice(0, 1),
+)
+const shownRelatedTopics = computed(() =>
+  relatedExpanded.value
+    ? relatedTopics.value
+    : relatedTopics.value.slice(
+        0,
+        Math.max(0, RELATED_COLLAPSED - shownStorylines.value.length - shownThemes.value.length),
+      ),
+)
+const relatedTotal = computed(
+  () => relatedThemes.value.length + relatedStorylines.value.length + relatedTopics.value.length,
+)
+const relatedShown = computed(
+  () => shownThemes.value.length + shownStorylines.value.length + shownRelatedTopics.value.length,
+)
 const themeOpenId = ref<string | null>(null)
 const storylineOpenTopicId = ref<string | null>(null)
 
@@ -282,7 +317,7 @@ function searchLibrary(): void {
     <CollapsibleSection :title="t('ec.relatedTopics')" section-key="person-related-topics" :level="3">
       <div class="flex flex-wrap gap-1.5">
         <button
-          v-for="th in relatedThemes"
+          v-for="th in shownThemes"
           :key="th.id"
           type="button"
           data-testid="ec-person-related-theme"
@@ -292,7 +327,7 @@ function searchLibrary(): void {
           <span class="mr-1.5 font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.themeKind") }}</span>{{ th.label }}
         </button>
         <button
-          v-for="sl in relatedStorylines"
+          v-for="sl in shownStorylines"
           :key="sl.id"
           type="button"
           data-testid="ec-person-related-storyline"
@@ -302,7 +337,7 @@ function searchLibrary(): void {
           <span class="mr-1.5 font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("kp.storylineKind") }}</span>{{ sl.label }}
         </button>
         <button
-          v-for="tp in relatedTopics"
+          v-for="tp in shownRelatedTopics"
           :key="tp.id"
           type="button"
           data-testid="ec-person-related-topic"
@@ -310,6 +345,15 @@ function searchLibrary(): void {
           @click="emit('open', { kind: 'topic', id: tp.id })"
         >
           <span class="mr-1.5 font-mono text-[10px] uppercase tracking-wide opacity-80">{{ t("notes.kind_topic") }}</span>{{ tp.label }}
+        </button>
+        <button
+          v-if="relatedTotal > relatedShown"
+          type="button"
+          data-testid="ec-person-related-more"
+          class="rounded-full px-2.5 py-1 text-xs font-bold text-accent hover:bg-overlay"
+          @click="relatedExpanded = true"
+        >
+          {{ t("kp.moreTags", { count: relatedTotal - relatedShown }) }}
         </button>
       </div>
     </CollapsibleSection>
@@ -342,14 +386,18 @@ function searchLibrary(): void {
       <template #title>
         <span>{{
           hostShows.length
-            ? t("ec.personOtherEpisodes", shownEpisodes.length, {
-                named: { count: shownEpisodes.length },
+            ? t("ec.personOtherEpisodes", shownTotal, {
+                named: { count: shownTotal },
               })
             : t("ec.personEpisodes", episodeCount, { named: { count: episodeCount } })
         }}</span>
         <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
       </template>
-      <EntityEpisodeList :episodes="shownEpisodes" />
+      <EntityEpisodeList
+        :episodes="shownEpisodes"
+        :total="shownTotal"
+        :load-more="(offset, limit) => getPersonCard(person.id, undefined, { offset, limit, excludeHostShows: true }).then((c) => c.episodes)"
+      />
     </CollapsibleSection>
   </section>
 

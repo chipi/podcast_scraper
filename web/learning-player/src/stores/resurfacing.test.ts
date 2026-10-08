@@ -1,17 +1,31 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../services/api'
+import { resurfacingViaGetResurfacing } from '../test/apiViaSpies'
 import { useResurfacingStore } from './resurfacing'
 import type { ResurfacingItem } from '../services/types'
 
 function items(n: number): ResurfacingItem[] {
-  return Array.from({ length: n }, (_, i) => ({ id: `h${i}` }) as unknown as ResurfacingItem)
+  return Array.from(
+    { length: n },
+    (_, i) => ({ highlight: { id: `h${i}`, episode_slug: `ep-${i}` } }) as unknown as ResurfacingItem,
+  )
 }
 
 describe('resurfacing store (#1592)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.restoreAllMocks()
+    resurfacingViaGetResurfacing()
+  })
+
+  it('reads the COUNT and a few episodes, not everything due (2026-10-08)', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ items: items(9), paused: false })
+    const s = useResurfacingStore()
+    await s.load()
+    expect(api.getResurfacingPage).toHaveBeenCalledWith(expect.objectContaining({ limit: 6 }))
+    expect(s.dueCount).toBe(9)
+    expect(s.items).toHaveLength(6)
   })
 
   it('counts the due items', async () => {

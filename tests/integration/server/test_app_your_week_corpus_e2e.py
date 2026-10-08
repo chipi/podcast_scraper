@@ -145,9 +145,11 @@ def test_your_week_route_surfaces_real_graph_content(tmp_path: Path) -> None:
     # In-app route enriches items with the show/episode art for the card backdrop.
     assert revisit["image_url"] == "https://img.example/fa.jpg"
 
-    nif = kinds["new_in_follows"][0]
-    assert nif["episode_slug"] == followed
-    assert nif["graph_refs"] == [{"id": "topic:ml", "kind": "topic", "label": "ML"}]
+    # The followed show's new episode is NOT here any more (operator 2026-10-07: "cut the overlap"):
+    # it is Home's What's new. The email digest, built by the same assembler, still carries it.
+    assert "new_in_follows" not in kinds
+    assert "new_in_interests" not in kinds
+    assert followed  # the follow exists; only this surface stopped repeating it
 
     assert body["period_label"] and body["generated_at"].endswith("Z")
 
@@ -194,6 +196,7 @@ def test_your_week_route_backfills_trending_episode_title(tmp_path: Path) -> Non
     assert resp.status_code == 200
     trend = _kinds(resp.json())["trending_in_your_corpus"][0]
     assert trend["episode_title"] == "Episode e1"  # backfilled — the assembler omits it
+    assert trend["podcast_title"] == "Show fa"  # the card names the show (operator 2026-10-08)
     assert trend["image_url"] == "https://img.example/fa.jpg"
     assert trend["graph_refs"] == [{"id": "topic:ai", "kind": "topic", "label": "AI"}]
 
@@ -216,6 +219,55 @@ def test_new_in_follows_honors_passed_catalog(tmp_path: Path) -> None:
     )
 
 
+def test_your_week_is_a_week_in_review_listened_and_saved(tmp_path: Path) -> None:
+    """In-app Your Week (operator 2026-10-07): what you listened to and what you saved THIS week,
+    newest first; older listening and retired highlights are left out."""
+    root, data_dir = tmp_path / "corpus", tmp_path / "app"
+    user = get_or_create_user(
+        data_dir, provider="google", subject="s", email="u@gmail.com", name="U"
+    )
+    now = int(time.time())
+    recent = _write_ep(
+        root, stem="0001", feed_id="fa", episode_id="e1", topics=[("topic:ai", "AI")]
+    )
+    older = _write_ep(root, stem="0002", feed_id="fa", episode_id="e2", topics=[("topic:ai", "AI")])
+    app_user_state.set_playback(data_dir, user.user_id, recent, 120.0, now - 3600)
+    app_user_state.set_playback(data_dir, user.user_id, older, 120.0, now - 30 * 86400)
+    app_user_state.add_highlight(
+        data_dir,
+        user.user_id,
+        {
+            "id": "h1",
+            "episode_slug": recent,
+            "kind": "moment",
+            "start_ms": 65_000,
+            "quote_text": "worth keeping",
+            "created_at": now - 60,
+        },
+    )
+    app_user_state.add_highlight(
+        data_dir,
+        user.user_id,
+        {
+            "id": "h2",
+            "episode_slug": older,
+            "kind": "moment",
+            "start_ms": 1000,
+            "created_at": now - 30 * 86400,
+        },
+    )
+
+    kinds = _kinds(_client(root, data_dir, user.user_id).get("/api/app/your-week").json())
+
+    assert [i["episode_slug"] for i in kinds["listened_this_week"]] == [recent]
+    saved = kinds["saved_this_week"]
+    assert [i["episode_slug"] for i in saved] == [recent]
+    assert saved[0]["quote"] == "worth keeping"
+    assert saved[0]["deep_link"] == f"/episode/{recent}?t=65"
+    # Enriched like every other card: title and artwork from the catalog.
+    assert saved[0]["episode_title"]
+
+
 def test_home_reads_scan_the_corpus_once_not_per_request(tmp_path: Path, monkeypatch) -> None:
     """/your-week and the bell's new-episode sweep share the cached catalog.
 
@@ -233,6 +285,9 @@ def test_home_reads_scan_the_corpus_once_not_per_request(tmp_path: Path, monkeyp
         root, stem="0002", feed_id="fb", episode_id="e2", topics=[("topic:ml", "ML")]
     )
     app_user_state.add_subscription(data_dir, user.user_id, {"feed_id": "fb"})
+    # Played this week, so the in-app Your Week has content to check: since 2026-10-07 it is a week
+    # in review and no longer carries new_in_follows (What's new does). The bell still sweeps follows.
+    app_user_state.set_playback(data_dir, user.user_id, followed, 120.0, int(time.time()))
 
     # Spied at the corpus walk itself, so ANY catalog build counts — cached or not.
     scans: list = []
@@ -247,6 +302,6 @@ def test_home_reads_scan_the_corpus_once_not_per_request(tmp_path: Path, monkeyp
     for _ in range(2):
         resp = client.get("/api/app/your-week")
         assert resp.status_code == 200
-        assert _kinds(resp.json())["new_in_follows"][0]["episode_slug"] == followed
+        assert _kinds(resp.json())["listened_this_week"][0]["episode_slug"] == followed
     assert client.get("/api/app/notifications").status_code == 200
     assert len(scans) == 1

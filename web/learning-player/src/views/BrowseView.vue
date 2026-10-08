@@ -6,23 +6,22 @@
  * view in `embedded` mode, which drops its page heading and — for Topics/People — its back-to-Home
  * button (that button is only meaningful on the standalone routes reached from Home, not here).
  *
- * v-show (not v-if) keeps each panel mounted so switching tabs never refetches; supports ?tab= for
- * deep links.
+ * A panel's content mounts the first time its tab opens and then stays (v-show), so switching back
+ * never refetches and a tab never opened loads nothing (useVisitedTabs). Supports ?tab= for deep links.
  */
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 defineOptions({ name: 'BrowseView' }) // stable name for <keep-alive :include> (App.vue)
 import Tabs from '../components/Tabs.vue'
-import { track } from '../services/analytics'
+import { toRankBucket, track } from '../services/analytics'
 import { panelAttrs, type TabSpec } from '../components/tabs'
 import CatalogView from './CatalogView.vue'
 import ShowBrowseView from './ShowBrowseView.vue'
+import { useVisitedTabs } from '../composables/useVisitedTabs'
 import SearchSection from '../components/SearchSection.vue'
 import TrendsSection from '../components/TrendsSection.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
-import { getPodcasts } from '../services/api'
-import type { Podcast } from '../services/types'
 import { scrollBehavior } from '../utils/motion'
 
 const { t } = useI18n()
@@ -30,13 +29,9 @@ const route = useRoute()
 const router = useRouter()
 
 
-// Trending-shows area at the very top of Discover (operator 2026-09-14): the catalogue supplies the
-// cover art the rail joins by feed_id (same as Home). "See all →" drops into the Shows tab below,
-// where the trending sort + sparklines let you see how each is trending.
-const catalogue = ref<Podcast[]>([])
-void getPodcasts()
-  .then((rows) => (catalogue.value = rows))
-  .catch(() => (catalogue.value = []))
+// Trending-shows area at the very top of Discover (operator 2026-09-14): the rail looks up the
+// covers of the shows it shows. "See all →" drops into the Shows tab below, where the trending
+// sort + sparklines let you see how each is trending.
 
 // "See all →" on the trending-shows rail lands on the Shows tab pre-sorted by Trending, so the
 // destination matches the rail you came from (operator 2026-09-14).
@@ -65,6 +60,7 @@ function onEntityOpen(p: { kind: Kind; id: string; rank: number }): void {
     p.kind === 'topic' ? 'topic' : p.kind === 'person' ? 'person' : p.kind === 'theme' ? 'theme' : 'storyline'
   // `presentation: 'page'`: Trends opens entities as full pages (Home's overlay-card Trends went
   // away 2026-10-07).
+  track('trends_row_click', { kind: p.kind, rank: toRankBucket(p.rank) })
   track('entity_open', { kind: p.kind, presentation: 'page', source: 'browse' })
   void router.push({ name, params: { id: p.id } })
 }
@@ -109,6 +105,8 @@ watch(
 
 const initial = String(route.query.tab || '')
 const tab = ref<Tab>(TAB_KEYS.some((tb) => tb.key === initial) ? (initial as Tab) : 'episodes')
+// Panels mount on first visit, then stay (v-show): a tab never opened fetches and decodes nothing.
+const visitedTabs = useVisitedTabs(tab)
 // Which browse surface people actually use (#2267). Reported on CHANGE rather than on mount, so
 // arriving at the hub is not counted as choosing the default tab — otherwise `episodes` would
 // always lead simply because it is first.
@@ -124,6 +122,7 @@ watch(
     if (TAB_KEYS.some((tb) => tb.key === q)) tab.value = q as Tab
   }
 )
+
 </script>
 
 <template>
@@ -139,7 +138,6 @@ watch(
          standard ShowTiles, top 5. Each links to its show; "See all →" opens the Shows tab below. -->
     <TrendingShowsRail
       :title="t('home.trendingShows')"
-      :podcasts="catalogue"
       :top="5"
       see-all
       @see-all="onShowsSeeAll"
@@ -162,7 +160,10 @@ watch(
     <!-- Content band below the dashboard: the things you actually play. Two tabs spread equally
          across the row (operator 2026-09-14) rather than sitting cramped on the left. `scroll-mt`
          leaves a little breathing room when "See all" scrolls this into view. -->
-    <div ref="bandEl" class="scroll-mt-4">
+    <!-- `#catalog` is the anchor links into the band use (operator 2026-10-08: Home's "Browse all"
+         landed at the top of Discover, two screens above the list). A hash lets the router wait for
+         the band, land on it and hold it while the rails above load; a query alone scrolls to top. -->
+    <div id="catalog" ref="bandEl" class="scroll-mt-4">
       <!-- A section heading over the Episodes · Shows tabs, parallel to "Trends" above (operator
            2026-09-14). -->
       <h2 class="lp-section mb-3 mt-8">{{ t('browse.catalogTitle') }}</h2>
@@ -175,8 +176,8 @@ watch(
         class="mb-6"
       />
 
-      <div v-show="tab === 'episodes'" v-bind="panelAttrs('browse', 'episodes')" data-testid="browse-panel-episodes"><CatalogView embedded /></div>
-      <div v-show="tab === 'shows'" v-bind="panelAttrs('browse', 'shows')" data-testid="browse-panel-shows"><ShowBrowseView embedded :initial-sort="showsSort" :initial-view="showsView" /></div>
+      <div v-show="tab === 'episodes'" v-bind="panelAttrs('browse', 'episodes')" data-testid="browse-panel-episodes"><template v-if="visitedTabs.has('episodes')"><CatalogView embedded /></template></div>
+      <div v-show="tab === 'shows'" v-bind="panelAttrs('browse', 'shows')" data-testid="browse-panel-shows"><template v-if="visitedTabs.has('shows')"><ShowBrowseView embedded :initial-sort="showsSort" :initial-view="showsView" /></template></div>
     </div>
   </section>
 </template>

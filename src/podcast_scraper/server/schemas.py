@@ -136,8 +136,13 @@ class AppEpisodeDetail(BaseModel):
     )
     artwork_url: str | None = Field(
         default=None,
-        description="Preferred artwork: our locally-stored copy (large size for the player) "
+        description="Preferred artwork: our locally-stored copy (medium size, for the player) "
         "when present. Clients use this, falling back to the remote image URLs.",
+    )
+    artwork_thumb_url: str | None = Field(
+        default=None,
+        description="The same artwork at thumb size, for any card or tile built from this "
+        "detail. Never put ``artwork_url`` in a card: it is decoded at full player size.",
     )
     summary_title: str | None = Field(default=None, description="Summary title when present.")
     summary_bullets: list[str] = Field(default_factory=list, description="Summary bullet points.")
@@ -153,6 +158,22 @@ class AppEpisodeDetail(BaseModel):
     has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
     has_kg: bool = Field(description="Whether a knowledge-graph artifact exists.")
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
+
+
+class AppEpisodeBatchResponse(BaseModel):
+    """Response for GET /api/app/episodes/batch — several episode details in one request.
+
+    For lists of saved slugs (the queue, recently played, boards, revisit): one request instead of
+    one per row. Items keep the requested order; unknown slugs are listed in ``missing`` rather
+    than failing the whole batch.
+    """
+
+    items: list[AppEpisodeDetail] = Field(
+        default_factory=list, description="Details for the known slugs, in the requested order."
+    )
+    missing: list[str] = Field(
+        default_factory=list, description="Requested slugs the corpus does not know."
+    )
 
 
 class AppEpisodeSummary(BaseModel):
@@ -266,6 +287,18 @@ class AppWhatsNewResponse(BaseModel):
         description=(
             "'yours' = newest from the shows, topics, people, themes and storylines the listener "
             "follows; 'all' = the fallback when that is empty: newest across every show."
+        )
+    )
+
+
+class AppRecommendedResponse(BaseModel):
+    """Response for GET /api/app/recommended — Home's Recommended without listening history."""
+
+    items: list[AppEpisodeSummary] = Field(default_factory=list)
+    basis: Literal["interests", "none"] = Field(
+        description=(
+            "'interests' = ranked against what the listener follows and what their listening "
+            "implies; 'none' = nothing to base picks on yet, and `items` is empty."
         )
     )
 
@@ -458,7 +491,7 @@ class AppEpisodeRecap(BaseModel):
     title: str | None = Field(default=None, description="Episode title.")
     podcast_title: str | None = Field(default=None, description="Feed/show display title.")
     artwork_url: str | None = Field(
-        default=None, description="Preferred artwork (our local copy, large size) when present."
+        default=None, description="Preferred artwork (our local copy, medium size) when present."
     )
     key_points: list[str] = Field(
         default_factory=list, description="Summary bullet points — the gist to consolidate."
@@ -620,6 +653,14 @@ class AppPersonCard(BaseModel):
     episodes: list[AppEpisodeSummary] = Field(
         default_factory=list, description="Appears-in episode cards (newest-first)."
     )
+    episodes_total: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Length of the episode list being paged (``episodes_limit``/``episodes_offset``), so "
+            "a client knows whether to ask for more. None when the full list was returned."
+        ),
+    )
     related_people: list[AppEntity] = Field(
         default_factory=list, description="People co-appearing most often (descending)."
     )
@@ -677,6 +718,14 @@ class AppOrgCard(BaseModel):
     episode_count: int = Field(ge=0, description="Episodes this org is mentioned in.")
     episodes: list[AppEpisodeSummary] = Field(
         default_factory=list, description="Mentioned-in episode cards (newest-first)."
+    )
+    episodes_total: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Length of the episode list being paged (``episodes_limit``/``episodes_offset``), so "
+            "a client knows whether to ask for more. None when the full list was returned."
+        ),
     )
     related_people: list[AppEntity] = Field(
         default_factory=list, description="People co-occurring most often (descending)."
@@ -780,6 +829,14 @@ class AppClusterCard(BaseModel):
     episodes: list[AppEpisodeSummary] = Field(
         default_factory=list, description="Episodes discussing ANY member topic, newest first."
     )
+    episodes_total: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Length of the episode list being paged (``episodes_limit``/``episodes_offset``), so "
+            "a client knows whether to ask for more. None when the full list was returned."
+        ),
+    )
     related_people: list[AppEntity] = Field(
         default_factory=list,
         description="People co-occurring most often across the grouping's episodes (descending).",
@@ -791,6 +848,23 @@ class AppClusterCard(BaseModel):
             "exists ('these two keep turning up together'), which is not what a theme claims."
         ),
     )
+
+
+class AppMonthCount(BaseModel):
+    """Episodes published in one calendar month (``YYYY-MM``)."""
+
+    month: str = Field(description="Calendar month, YYYY-MM.")
+    count: int = Field(ge=0, description="Episodes in that month.")
+
+
+class AppTopShow(BaseModel):
+    """A show covering a topic, with how many of its episodes discuss it."""
+
+    feed_id: str = Field(description="Show feed id.")
+    title: str | None = Field(default=None, description="Show title.")
+    count: int = Field(ge=0, description="Episodes of this show discussing the topic.")
+    artwork_url: str | None = Field(default=None, description="The show's stored artwork, thumb.")
+    image_url: str | None = Field(default=None, description="Feed-hosted image — fallback only.")
 
 
 class AppTopicCard(BaseModel):
@@ -838,6 +912,25 @@ class AppTopicCard(BaseModel):
     )
     related_people: list[AppEntity] = Field(
         default_factory=list, description="People co-occurring most often (descending)."
+    )
+    episode_months: list[AppMonthCount] = Field(
+        default_factory=list,
+        description=(
+            "Episodes per month across ALL of the topic's episodes (the activity sparkline), "
+            "computed before paging so a paged card still draws the whole shape."
+        ),
+    )
+    top_shows: list[AppTopShow] = Field(
+        default_factory=list,
+        description="The (up to 5) shows covering the topic most, over ALL its episodes.",
+    )
+    episodes_total: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Length of the episode list being paged (``episodes_limit``/``episodes_offset``), so "
+            "a client knows whether to ask for more. None when the full list was returned."
+        ),
     )
     conversation_arc_weeks: int = Field(
         default=0,
@@ -1065,13 +1158,54 @@ class FavoriteColorUpdate(BaseModel):
     )
 
 
+def _paged_only(value: Any) -> bool:
+    """``exclude_if`` for fields that exist only on a PAGED response.
+
+    An unpaged response is what clients before 1.0.3 read, and it stays exactly what it was: the
+    paging fields are left out, not sent as null.
+    """
+    return value is None
+
+
 class AppFavoritesResponse(BaseModel):
-    """The user's favorites (GET/PUT/DELETE /api/app/favorites)."""
+    """The user's favorites (GET/PUT/DELETE /api/app/favorites).
+
+    Without query parameters GET returns every favourite, as it always has. With ``limit`` it
+    returns one page of ONE filtered, sorted list, and fills ``total`` and ``counts``.
+    """
 
     episodes: list[AppEpisodeSummary] = Field(default_factory=list)
     entities: list[AppFavoriteEntity] = Field(
         default_factory=list, description="Saved shows / topics / people / storylines."
     )
+    total: int | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged requests only: how many favourites match the query (all pages).",
+    )
+    counts: dict[str, int] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description=(
+            "Paged requests only: matches per kind (episode / show / topic / person / theme / "
+            "storyline) under the same q and colour, ignoring ``kind`` — what the type chips "
+            "and section headings show."
+        ),
+    )
+
+
+class AppFavoriteRef(BaseModel):
+    """One saved item, identity only (GET /api/app/favorites/refs)."""
+
+    kind: str = Field(description="episode / show / topic / person / theme / storyline.")
+    ref: str = Field(description="Episode slug or entity id.")
+    color: str | None = Field(default=None, description="Per-user saved-item colour token.")
+
+
+class AppFavoriteRefsResponse(BaseModel):
+    """Every saved item's identity — for "is this saved?" anywhere in the app, without hydrating."""
+
+    items: list[AppFavoriteRef] = Field(default_factory=list, description="Newest first.")
 
 
 class InterestsResponse(BaseModel):
@@ -1200,9 +1334,29 @@ class Highlight(BaseModel):
 
 
 class HighlightsResponse(BaseModel):
-    """The user's highlights (GET/POST/PATCH/DELETE /api/app/highlights)."""
+    """The user's highlights (GET/POST/PATCH/DELETE /api/app/highlights).
+
+    GET with ``limit`` (1.0.3) pages by EPISODE: ``items`` are the highlights of one page of
+    episodes, and the four paging fields below are filled. Without it they are left out.
+    """
 
     items: list[Highlight] = Field(default_factory=list)
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: matching highlights, all pages."
+    )
+    episode_total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: episodes with a match."
+    )
+    episode_counts: dict[str, int] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: matching highlights per episode on this page (items may hold fewer).",
+    )
+    notes: list[Note] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: the notes on the highlights in ``items``.",
+    )
 
 
 class NoteCreate(BaseModel):
@@ -1242,9 +1396,29 @@ class Note(BaseModel):
 
 
 class NotesResponse(BaseModel):
-    """The user's notes (GET/POST/PATCH/DELETE /api/app/notes)."""
+    """The user's notes (GET/POST/PATCH/DELETE /api/app/notes).
+
+    GET with ``limit`` (1.0.3) returns one page and fills ``total`` and ``counts``; without it they
+    are left out.
+    """
 
     items: list[Note] = Field(default_factory=list)
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: matching notes, all pages."
+    )
+    counts: dict[str, int] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: matches per target kind under the same q, ignoring ``target``.",
+    )
+    highlights: list[Highlight] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description=(
+            "Paged: the highlights the page's highlight-notes are on — where such a note links "
+            "to (episode + moment) and what it is about, without loading every highlight."
+        ),
+    )
 
 
 # --- P3 Consolidation: consumer enrichment read surface (RFC-088 envelopes / #1121) ---
@@ -1369,6 +1543,17 @@ class ResurfacingResponse(BaseModel):
 
     items: list[ResurfacingItem] = Field(default_factory=list)
     paused: bool = Field(default=False, description="Whether the user has paused resurfacing.")
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged (1.0.3): due items, all pages."
+    )
+    episode_total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: episodes with something due."
+    )
+    episode_counts: dict[str, int] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: due items per episode on this page (items may hold fewer).",
+    )
 
 
 class ResurfacingSettings(BaseModel):
@@ -1823,10 +2008,22 @@ class CollectionItem(BaseModel):
 
 
 class CollectionDetail(BaseModel):
-    """A collection with its resolved, typed items (GET /api/app/collections/{id})."""
+    """A collection with its resolved, typed items (GET /api/app/collections/{id}).
+
+    With ``limit`` (1.0.3) ``items`` is one page and ``total`` / ``kind_counts`` are filled;
+    without it every item, and neither field.
+    """
 
     collection: Collection
     items: list[CollectionItem] = Field(default_factory=list)
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: matching items, all pages."
+    )
+    kind_counts: dict[str, int] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: the board's items per kind (Play all needs the episode count).",
+    )
 
 
 # --- The delivery outbox seam (#1415, RFC-110 §2 / ADR-145) — internal, worker-facing ---
@@ -1933,9 +2130,15 @@ class PlaybackUpdate(BaseModel):
 
 
 class PlaybackListResponse(BaseModel):
-    """All saved playback positions (Home 'Continue listening')."""
+    """All saved playback positions (Home 'Continue listening').
+
+    With ``limit`` (1.0.3) one page of the filtered list, plus ``total``; without it, unchanged.
+    """
 
     items: list[PlaybackPosition] = Field(default_factory=list)
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: matching positions, all pages."
+    )
 
 
 class UserPreferencesResponse(BaseModel):
@@ -2055,9 +2258,21 @@ class AppPodcastItem(BaseModel):
 
 
 class AppPodcastsResponse(BaseModel):
-    """Response for GET /api/app/podcasts — distinct shows in the corpus."""
+    """Response for GET /api/app/podcasts — distinct shows in the corpus.
+
+    With ``limit`` (1.0.3) one filtered, sorted page plus ``total`` and ``categories``; without it
+    every show, and neither field.
+    """
 
     items: list[AppPodcastItem] = Field(default_factory=list)
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: matching shows, all pages."
+    )
+    categories: list[str] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: every category in the catalogue (the filter's options), A-Z.",
+    )
 
 
 class QueueResponse(BaseModel):

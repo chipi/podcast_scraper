@@ -22,7 +22,7 @@ import {
   type TopicTheme,
 } from "../components/trending"
 import { getStorylines, getTrending, type TrendWindow } from "../services/api"
-import { useTrendingScope } from "../composables/useTrendingScope"
+import type { TrendingScope } from "../composables/useTrendingScope"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import type { Storyline, TrendingEntity } from "../services/types"
 
@@ -81,8 +81,9 @@ function openStoryline(s: Storyline): void {
 
 // RFC-103 R2 — the trend window (1m/3m/6m/1y); default 3m. Changing it refetches trending only.
 const window = ref<TrendWindow>("3m")
-// #2030 — Browse › Topics reflects the app-level trending lens set on Home (read-only here).
-const { scope } = useTrendingScope()
+// Corpus-wide, not the Trends lens: "mine" is strictly the listener's own world (2026-10-07),
+// and a Browse index of everything must not empty itself for a new account.
+const scope = computed<TrendingScope>(() => "corpus")
 /**
  * `.catch(() => [])` collapsed a FAILURE into emptiness — the #1591 defect, which meant Browse →
  * Topics offline rendered as a corpus with no topics rather than as a page we could not load

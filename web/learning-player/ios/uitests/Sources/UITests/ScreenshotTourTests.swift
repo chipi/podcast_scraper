@@ -35,7 +35,7 @@ final class ScreenshotTourTests: UITestCase {
   private static let expectedFrames = [
     "t01-home", "t02-discover", "t03-search",
     "t04-library-following", "t05-library-saved", "t06-library-boards", "t07-library-revisit",
-    "t08-profile-account", "t09-profile-topics", "t10-profile-stats",
+    "t08-profile-account", "t09-profile-interests", "t10-profile-stats",
     "t11-settings", "t12-settings-config",
     "t13-episode", "t14-episode-insights", "t15-episode-keypoints", "t16-episode-entities",
     "t17-share-popover", "t18-add-to-collection",
@@ -57,6 +57,19 @@ final class ScreenshotTourTests: UITestCase {
     "Dr. Elena Fischer", "Sam", "Skanda Amarnath", "Alex Morgan",
   ]
 
+  /// Tap a chip in the Episode notes' "Topics & People" section. The section is a <details> that is
+  /// open by default and REMEMBERS being closed, so: scroll to the chip; only if it is not there,
+  /// open the header and look again. Tapping the header first is what closed it (2026-10-08).
+  private static func openFromTopicsAndPeople(_ app: XCUIApplication, _ labels: [String]) -> Bool {
+    _ = Journey.scrollTo(app, labels: labels, maxSwipes: 10)
+    if Journey.tap(app, labels: labels, contains: true, timeout: 4) { return true }
+    _ = Journey.scrollTo(app, labels: ["Topics & People"], maxSwipes: 10)
+    _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 4)
+    sleep(2)
+    _ = Journey.scrollTo(app, labels: labels, maxSwipes: 10)
+    return Journey.tap(app, labels: labels, contains: true, timeout: 6)
+  }
+
   private var shotFrames: Set<String> = []
 
   /// Shoot the current screen. Records the name so the tour can report what it never reached.
@@ -77,6 +90,13 @@ final class ScreenshotTourTests: UITestCase {
 
   func testTourEverySurface() {
     let app = Journey.launch()
+    // SIGN IN AS `simtest`, the account `scripts/dev/seed_contact_sheet.py` fills. The tour used to
+    // photograph whichever session the device was left in — after the seeding suites, their own
+    // per-suite accounts — so the profile tap looked for "simtest" and missed (2026-10-08).
+    guard startClean(app) else {
+      XCTFail("could not sign in as \(accountIdentity) before the tour")
+      return
+    }
 
     // --- primary tabs -------------------------------------------------------------------------
     frame("t01-home")
@@ -88,6 +108,9 @@ final class ScreenshotTourTests: UITestCase {
     // --- library, every tab -------------------------------------------------------------------
     if Journey.openTab(app, "Library") {
       sleep(4)
+      // Library opens on Saved, so the Following frame needs its own tap (it was a second Saved).
+      _ = Journey.tap(app, labels: ["Following"], timeout: 8)
+      sleep(3)
       frame("t04-library-following")
       for (i, tab) in ["Saved", "Boards", "Revisit"].enumerated() {
         if Journey.tap(app, labels: [tab], timeout: 10) {
@@ -119,11 +142,14 @@ final class ScreenshotTourTests: UITestCase {
     if Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 12) {
       sleep(4)
       frame("t14-episode-insights")
-      if Journey.tap(app, labels: ["Key points"], contains: true, timeout: 8) {
-        sleep(3); frame("t15-episode-keypoints")
+      // SCROLL to these sections, never tap their headers: they are <details> that are OPEN by
+      // default, so a tap CLOSES them — the frames came out collapsed and the topic chips the later
+      // steps need were gone (2026-10-08).
+      if Journey.scrollTo(app, labels: ["Key points"], maxSwipes: 8) != nil {
+        sleep(2); frame("t15-episode-keypoints")
       }
-      if Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 8) {
-        sleep(3); frame("t16-episode-entities")
+      if Journey.scrollTo(app, labels: ["Topics & People"], maxSwipes: 8) != nil {
+        sleep(2); frame("t16-episode-entities")
       }
     }
 
@@ -135,7 +161,12 @@ final class ScreenshotTourTests: UITestCase {
       sleep(3); frame("t17-share-popover")
       _ = Journey.tap(app, labels: ["Close", "Cancel"], contains: true, timeout: 4)
     }
-    if Journey.tap(app, labels: ["Add to board", "Add"], contains: true, timeout: 10) {
+    // Reopen the episode first: the share menu has no Close, so it stayed open and swallowed the
+    // next tap. And exactly "Add to board": `contains "Add"` matched other controls and photographed
+    // Home (2026-10-08).
+    AppSession.openEpisode(app, slug: episodeSlug)
+    sleep(4)
+    if Journey.tap(app, labels: ["Add to board"], contains: false, timeout: 10) {
       sleep(3); frame("t18-add-to-collection")
       _ = Journey.tap(app, labels: ["Close", "Cancel"], contains: true, timeout: 4)
     }
@@ -144,10 +175,11 @@ final class ScreenshotTourTests: UITestCase {
     Journey.dismissSheets(app)
     Journey.openTab(app, "Home")
     sleep(5)
-    if Journey.tap(app, labels: ["Topics"], timeout: 10) { sleep(3) }
-    if Journey.tap(app, labels: ["systems thinking"], contains: true, timeout: 10) {
-      sleep(5); frame("t19-topic")
-    }
+    // The topic PAGE by deep link: Home's Topics chip sits below the fold, and the tap fell through
+    // to Search (2026-10-08 sheet: t19 was a search results page).
+    Journey.showEveryonesTrends(app)
+    AppSession.openLink(app, "topic/topic:systems-thinking")
+    sleep(5); frame("t19-topic")
     Journey.openTab(app, "Home")
     sleep(4)
     if Journey.tap(app, labels: ["Storylines"], timeout: 10) {
@@ -165,11 +197,10 @@ final class ScreenshotTourTests: UITestCase {
         // navigating away. Shoot the layered state — it is the part nobody has actually looked at.
         _ = Journey.scrollTo(app, labels: ["Topics discussed together"], maxSwipes: 4)
         frame("t20b-storyline-content")
-        let topicRow = app.links.allElementsBoundByIndex.first {
-          !$0.label.isEmpty && $0.label.count < 40 && $0.isHittable
-        }
-        if let row = topicRow {
-          row.tap()
+        // A member topic BY NAME. "The first short hittable link" used to be a topic row; once the
+        // masthead grew a queue link it was that, and t20c photographed the Queue (2026-10-08).
+        _ = Journey.scrollTo(app, labels: ["risk management", "systems thinking"], maxSwipes: 6)
+        if Journey.tap(app, labels: ["risk management", "systems thinking"], contains: true, timeout: 8) {
           sleep(5)
           frame("t20c-storyline-topic-layered")
 
@@ -191,10 +222,7 @@ final class ScreenshotTourTests: UITestCase {
     sleep(5)
     _ = Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 10)
     sleep(2)
-    _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 8)
-    sleep(2)
-    _ = Journey.scrollTo(app, labels: ["Open Dr. Elena Fischer", "Open Sam"])
-    if Journey.tap(app, labels: ["Open Dr. Elena Fischer", "Open Sam"], contains: true, timeout: 8) {
+    if Self.openFromTopicsAndPeople(app, ["Open Dr. Elena Fischer", "Open Sam"]) {
       sleep(5); frame("t21-person")
     }
     Journey.dismissSheets(app)
@@ -218,11 +246,7 @@ final class ScreenshotTourTests: UITestCase {
       sleep(5)
       _ = Journey.tap(app, labels: ["Episode notes"], contains: true, timeout: 10)
       sleep(2)
-      _ = Journey.tap(app, labels: ["Topics & People"], contains: true, timeout: 8)
-      sleep(2)
-      let opened = Journey.tap(
-        app, labels: ["Open risk management", "Open systems thinking"], contains: true, timeout: 10
-      )
+      let opened = Self.openFromTopicsAndPeople(app, ["Open risk management", "Open systems thinking"])
       if opened { sleep(4) }
       return opened
     }

@@ -663,8 +663,18 @@ final class AppSession {
      * a product capability rather than working around the lack of one.
      */
     static void openEpisode(String slug) {
+        openLink("episode/" + slug);
+    }
+
+    /**
+     * Any in-app target by deep link — {@code topic/<id>}, {@code person/<id>},
+     * {@code storyline/<id>} — the forms {@code deepLinks.ts} serves. Reaches a screen directly
+     * instead of by walking menus, which is where the tour kept landing on the wrong page
+     * (2026-10-08).
+     */
+    static void openLink(String path) {
         Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        Intent view = new Intent(Intent.ACTION_VIEW, Uri.parse("closelistening://episode/" + slug));
+        Intent view = new Intent(Intent.ACTION_VIEW, Uri.parse("closelistening://" + path));
         view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         view.setPackage(Journey.PKG);
         ctx.startActivity(view);

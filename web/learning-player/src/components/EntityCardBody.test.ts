@@ -293,7 +293,7 @@ describe("EntityCardBody — your-corpus lens (P3 #1125)", () => {
     const getPerson = vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
     const w = mountAuthed({ kind: "person", id: "person:jane-doe" })
     await flushPromises()
-    expect(getPerson).toHaveBeenLastCalledWith("person:jane-doe")
+    expect(getPerson).toHaveBeenLastCalledWith("person:jane-doe", undefined, { limit: 5, excludeHostShows: true })
     // no scope radiogroup anywhere on the card
     expect(w.find('[role="radiogroup"]').exists()).toBe(false)
     expect(w.findAll('[role="radio"]').some((b) => b.text() === "My listening")).toBe(false)

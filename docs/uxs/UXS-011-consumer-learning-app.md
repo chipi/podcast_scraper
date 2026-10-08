@@ -364,7 +364,7 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   …", theme / storyline member topics, notes (newest first, in every notes box and under a
   highlight), Search's "Your notes", and Library's saved topics / themes / storylines / people.
 - **Ten at a time:** followed interests per kind (the cap lifts while that kind's search is open),
-  an open board's items, and entity episode lists (`EntityEpisodeList`, "Show 10 more").
+  an open board's items, and entity episode lists (`EntityEpisodeList`, "Show 5 more"; five per page since 2026-10-08).
 - **All episodes** keeps "Load more" (20, or 10 in Discover) while a search, sort or filter is
   active: every page is fetched — the filter needs the whole list — but the matches are revealed a
   page at a time.
@@ -777,7 +777,7 @@ is a branch nobody will verify again.
 **Every Home section uses one header: `SectionHeading` (operator 2026-09-18).**
 
 ```text
-KICKER              small caps, muted, ONE line — a count or a date
+KICKER              small caps, muted, ONE line — a count, a date, or what the list is built from
 Title    [action]   lp-section, ONE line; the action sits at the far right of the same row
 ```
 
@@ -785,7 +785,7 @@ Home had grown three headers by hand: the kicker above the title on some section
 others, three different title fonts (`h1` display, `h2` display, `h2 lp-section`), and nothing
 stopping either line wrapping. It read as several designs sharing a page.
 
-**The kicker is a NUMBER or a DATE, never a restatement.** Two eyebrows said the title again in
+**The kicker is a NUMBER or a DATE, never a restatement** — with one named exception: Recommended's kicker says what it is built from ("Picked from what you listen to" / "…follow", operator 2026-10-07), the label that tells it apart from What's new. Two eyebrows said the title again in
 weaker words — "For you" above *Your Week*, and "Ask across every episode" above *Find any moment
 you've heard.* The first became a count, the second was removed. Sections with no honest number
 (Trends, Trending shows, Recommended) carry no kicker: an invented metric to fill a slot is worse

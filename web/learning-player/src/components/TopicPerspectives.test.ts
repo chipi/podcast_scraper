@@ -48,7 +48,7 @@ const RESP: TopicPerspectivesResponse = {
 afterEach(() => vi.restoreAllMocks())
 
 describe('TopicPerspectives', () => {
-  it('pages speakers five at a time on a topic too, then folds back', async () => {
+  it('shows three voices, then "Show more voices" pages three more, then folds back (operator 2026-10-07)', async () => {
     const speaker = (i: number) => ({
       person_id: `person:p${i}`,
       person_name: `Person ${i}`,
@@ -65,11 +65,13 @@ describe('TopicPerspectives', () => {
     await flushPromises()
     const cards = () => w.findAll('[data-testid="topic-perspective"]').length
     const more = () => w.get('[data-testid="perspectives-more-speakers"]')
-    expect([cards(), more().text()]).toEqual([5, 'Show more (2)'])
+    expect([cards(), more().text()]).toEqual([3, 'Show more voices (4)'])
+    await more().trigger('click')
+    expect([cards(), more().text()]).toEqual([6, 'Show more voices (1)'])
     await more().trigger('click')
     expect([cards(), more().text()]).toEqual([7, 'Show less'])
     await more().trigger('click')
-    expect(cards()).toBe(5)
+    expect(cards()).toBe(3)
   })
 
   it("names the topic in its heading: '2 perspectives on AI'", async () => {
@@ -88,10 +90,10 @@ describe('TopicPerspectives', () => {
     expect(cards).toHaveLength(2)
     expect(cards[0].text()).toContain('Jack Clark')
     expect(cards[0].text()).toContain('5 insights')
-    // preview caps at 3; the rest sit behind "show more"
-    expect(cards[0].text()).toContain('Take three')
-    expect(cards[0].text()).not.toContain('Take four')
-    expect(cards[0].text()).toContain('Show 2 more')
+    // preview caps at 2 (operator 2026-10-07); the rest sit behind "show more"
+    expect(cards[0].text()).toContain('Take two')
+    expect(cards[0].text()).not.toContain('Take three')
+    expect(cards[0].text()).toContain('Show 3 more')
   })
 
   it('expands a speaker on "show more"', async () => {
@@ -100,6 +102,26 @@ describe('TopicPerspectives', () => {
     await flushPromises()
     await w.findAll('[data-testid="topic-perspective"]')[0].get('button.text-accent').trigger('click')
     expect(w.findAll('[data-testid="topic-perspective"]')[0].text()).toContain('Take four')
+  })
+
+  it('loads a speaker\'s preview only, and their full takes when "show all" opens (2026-10-08)', async () => {
+    // A storyline's perspectives were 160 KB / 1.1 s on prod: every speaker with every take.
+    const preview: TopicPerspectivesResponse = {
+      ...RESP,
+      perspectives: RESP.perspectives.map((p) => ({ ...p, insights: p.insights.slice(0, 2) })),
+    }
+    const spy = vi.spyOn(api, 'getTopicPerspectives').mockImplementation(async (_id, _scope, page) =>
+      page?.limit === 1 ? { ...RESP, perspectives: [RESP.perspectives[page.offset ?? 0]] } : preview
+    )
+    const w = mountIt('topic:ai')
+    await flushPromises()
+    expect(spy).toHaveBeenCalledWith('topic:ai', undefined, { perSpeaker: 2 })
+    const first = () => w.findAll('[data-testid="topic-perspective"]')[0]
+    expect(first().text()).not.toContain('Take four')
+    await first().get('button.text-accent').trigger('click')
+    await flushPromises()
+    expect(spy).toHaveBeenLastCalledWith('topic:ai', undefined, { offset: 0, limit: 1 })
+    expect(first().text()).toContain('Take four')
   })
 
   it('emits open with the person when a speaker name is clicked', async () => {
@@ -141,7 +163,7 @@ describe('TopicPerspectives', () => {
     const spy = vi.spyOn(api, 'getTopicPerspectives').mockResolvedValue(RESP)
     mount(TopicPerspectives, { props: { id: 'topic:ai', scope: 'mine' }, global: { plugins: [i18n] } })
     await flushPromises()
-    expect(spy).toHaveBeenCalledWith('topic:ai', 'mine')
+    expect(spy).toHaveBeenCalledWith('topic:ai', 'mine', { perSpeaker: 2 })
   })
 
   it('refetches when the scope prop changes (#1149)', async () => {
@@ -151,10 +173,10 @@ describe('TopicPerspectives', () => {
       global: { plugins: [i18n] },
     })
     await flushPromises()
-    expect(spy).toHaveBeenLastCalledWith('topic:ai', 'all')
+    expect(spy).toHaveBeenLastCalledWith('topic:ai', 'all', { perSpeaker: 2 })
     await w.setProps({ scope: 'mine' })
     await flushPromises()
-    expect(spy).toHaveBeenLastCalledWith('topic:ai', 'mine')
+    expect(spy).toHaveBeenLastCalledWith('topic:ai', 'mine', { perSpeaker: 2 })
   })
 
   it('gives a grounded insight a ▶ jump into the episode moment, and none without one (#2032)', async () => {

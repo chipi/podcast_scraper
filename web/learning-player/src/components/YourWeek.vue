@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * "Your Week" — the in-app personal digest (#1412), the highlight of the home page.
+ * "Your Week" — your week in review (#1412; operator 2026-10-07): what you listened to, what you saved,
+ * and what is rising in what you have heard. New episodes from your follows are What's new now.
  *
- * The SAME rollup the email sends (new-in-follows + new-in-interests + trending-in-your-corpus;
- * the email's revisit section is left to Home's own RevisitRail — see `sections`), served
- * live and decoupled from email consent — so turning the email off never loses the capability;
- * the email is just the edge for when you don't visit.
+ * Read from the same digest the email sends — it keeps only its trending section, and adds the two
+ * review sections; the email's revisit is left to Home's RevisitRail (see `sections`). Served live
+ * and decoupled from email consent, so turning the email off never loses it.
  *
  * Two layouts, a per-user preference (synced via userPreferences, so it follows the user across
  * devices): `compact` = one rail of the week's top highlights; `full` = a labelled rail per
@@ -16,7 +16,6 @@ import { computed, ref, watch } from 'vue'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import SectionHeading from './SectionHeading.vue'
-import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getYourWeek } from '../services/api'
 import type { YourWeekItem, YourWeekResponse, YourWeekSectionKind } from '../services/types'
@@ -50,25 +49,13 @@ const itemCount = computed(() =>
   nonEmptySections.value.reduce((n, s) => n + s.items.length, 0),
 )
 /**
- * Renders for ANY signed-in user (#1591), not only when something is due.
- *
- * It used to self-hide whenever every section was empty, which meant a brand-new user — the person
- * most in need of learning that a weekly digest exists — got no hint of it, and an API outage was
- * indistinguishable from a quiet week. Now the section persists and explains, per row, what will
- * appear there and how to earn it.
+ * Renders only when the week has something in it (operator 2026-10-08). #1591 kept an empty section
+ * on Home to teach a new listener that a digest exists; the operator reversed it: a week in review
+ * with nothing to review is an empty heading, and Home is better without it. A failed load still
+ * shows, with its retry — an outage is not a quiet week.
  */
-const props = withDefaults(defineProps<{
-  /**
-   * Render nothing until there is something to show. Home sets it while the welcome card is asking
-   * a new listener for interests (operator 2026-10-07): that card is the teaching, and a first-run
-   * line beneath it promising a digest for someone who follows nothing was noise. Content still
-   * wins — a listener who followed a show but chose no interests sees their rollup.
-   */
-  hideWhenEmpty?: boolean
-}>(), { hideWhenEmpty: false })
-
 const hasContent = computed(() => nonEmptySections.value.length > 0)
-const show = computed(() => auth.isAuthenticated && (hasContent.value || !props.hideWhenEmpty))
+const show = computed(() => auth.isAuthenticated && (hasContent.value || section.isError.value))
 
 
 
@@ -150,32 +137,6 @@ watch(
     </div>
 
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
-
-    <!-- First run: the digest exists before it has anything in it (#1591 — it TEACHES rather than
-         self-hiding, and that stands).
-
-         ONE LINE, not four rows (#1978). Measured on a brand-new account, the four-row bordered
-         list rendered 373px tall with zero episode links, sitting between the hero and "What's
-         new" — roughly 44% of the first viewport spent promising future value to the only audience
-         that has no history yet, which is every tester on their first run. The four rows also said
-         the same thing four ways ("… will land here"), and two of them offered the identical
-         "Find shows →" link.
-
-         So the teaching survives and the real estate does not: what it is, and the one action that
-         starts filling it. Same move the set-your-interests offer made in #1964 — an explanation is
-         a line, not an announcement. Once there IS content this branch never renders and the full
-         digest returns unchanged. -->
-    <p
-      v-if="section.isReady.value && !hasContent"
-      class="text-sm text-muted"
-      data-testid="yourweek-firstrun"
-    >
-      {{ t('home.yourWeekFirstRunLine') }}
-      <RouterLink
-        :to="{ name: 'browse', query: { tab: 'shows' } }"
-        class="font-bold text-accent no-underline"
-      >{{ t('home.yourWeekFindShows') }}</RouterLink>
-    </p>
 
     <!-- SQUARE cards in both rails (operator 2026-09-16). The compact rail was `h-48 w-60` and the
          expanded rails carried NO height at all, so each section sized itself to its own longest

@@ -250,9 +250,12 @@ export const usePlayerStore = defineStore('player', () => {
     const wk = audio as WebKitRoutableMedia
     try {
       if (typeof wk.webkitShowPlaybackTargetPicker === 'function') {
-        audio.addEventListener('webkitplaybacktargetavailabilitychanged', (e: Event) => {
-          routeAvailable.value = (e as Event & { availability?: string }).availability === 'available'
-        })
+        // ALWAYS offered on iOS (operator 2026-10-08: "we should always show the audio button").
+        // It used to follow `webkitplaybacktargetavailabilitychanged`, which reports AirPlay
+        // receivers on the network — so away from an Apple TV / HomePod the button vanished, and it
+        // read as missing. The system sheet is never empty: it always lists the iPhone itself and any
+        // connected Bluetooth output.
+        routeAvailable.value = true
         audio.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', () => {
           playingRemotely.value = wk.webkitCurrentPlaybackTargetIsWireless === true
         })

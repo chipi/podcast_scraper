@@ -69,6 +69,7 @@ function artFor(e: { slug: string; artworkUrl?: string }): string | null {
           v-if="artFor(e)"
           :src="artFor(e) ?? undefined"
           alt=""
+          loading="lazy"
           class="h-10 w-10 shrink-0 rounded object-cover"
         />
         <RouterLink

@@ -4,11 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { batchViaGetEpisode, capturesViaFullLists } from '../test/apiViaSpies'
 import * as shareCard from '../composables/shareCard'
 import * as native from '../services/native'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, Highlight, Note } from '../services/types'
 import HighlightsView from './HighlightsView.vue'
+import { useHighlightsPage } from '../composables/useHighlightsPage'
+import { defineComponent, h, onMounted, ref } from 'vue'
 
 // jsdom does not implement `<dialog>`: without these, mounting the confirm throws.
 if (!('showModal' in HTMLDialogElement.prototype)) {
@@ -47,12 +50,32 @@ function detail(slug: string, title: string): EpisodeDetail {
   }
 }
 
+/**
+ * HighlightsView renders a page its HOST owns (the Saved tab, in the app): this host builds it from
+ * the same props the tab's filter bar would pass, and loads it on mount, as the tab does.
+ */
 const mountView = (props: Record<string, unknown> = {}) =>
   // stub teleport so the SavedColorControl palette (teleported to <body> via the shared shell) renders
   // inline for `find`.
-  mount(HighlightsView, { props, global: { plugins: [i18n, router], stubs: { teleport: true } } })
+  mount(
+    defineComponent({
+      setup() {
+        const page = useHighlightsPage({
+          search: ref((props.search as string | undefined) ?? ''),
+          color: ref((props.filterColor as string | null | undefined) ?? null),
+          sort: ref((props.sort as string | undefined) ?? 'recent'),
+          mutedOnly: ref(Boolean(props.mutedOnly)),
+        })
+        onMounted(() => void page.reload())
+        return () => h(HighlightsView, { ...props, page })
+      },
+    }),
+    { global: { plugins: [i18n, router], stubs: { teleport: true } } },
+  )
 
 beforeEach(() => {
+  batchViaGetEpisode()
+  capturesViaFullLists()
   setActivePinia(createPinia())
   vi.spyOn(api, 'getNotes').mockResolvedValue([])
   vi.spyOn(api, 'getCollections').mockResolvedValue([])
@@ -403,28 +426,61 @@ describe('HighlightsView', () => {
     expect(on.text()).not.toContain('still resurfacing')
   })
 
-  it('a failed collections load SAYS so — it does not read as "you have no boards"', async () => {
-    // `collectionsError` was declared and set and never rendered, so the "Add to…" select simply
-    // vanished on a transient failure. Its own comment said that must not read as having none,
-    // which is precisely what it did (review 2026-09-18).
-    vi.spyOn(api, 'getCollections').mockRejectedValue(new Error('500'))
-    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
-    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
+  it('pages five at a time: five highlights per episode, five episodes, latest saved first (operator 2026-10-08)', async () => {
+    // One episode with 7 captures, then 6 more episodes with one each = 7 episodes.
+    const many = [
+      ...Array.from({ length: 7 }, (_, i) => hl({ id: `a${i}`, episode_slug: 'ep-a', created_at: 100 + i, quote_text: `a line ${i}` })),
+      ...Array.from({ length: 6 }, (_, i) => hl({ id: `b${i}`, episode_slug: `ep-b${i}`, created_at: 10 + i })),
+    ]
+    vi.spyOn(api, 'getHighlights').mockResolvedValue(many)
+    vi.spyOn(api, 'getEpisode').mockImplementation(async (slug: string) => detail(slug, slug))
     const w = mountView()
     await flushPromises()
-
-    expect(w.find('[data-testid="collections-unavailable"]').exists()).toBe(true)
-    // And the control that would silently mislead is not offered.
-    expect(w.find('select[aria-label]').exists()).toBe(false)
+    const groups = w.findAll('[data-testid="highlight-group"]')
+    expect(groups).toHaveLength(5)
+    // The episode saved into most recently leads, and shows its newest five captures.
+    const first = groups[0]
+    expect(first.findAll('[data-testid="highlight-card"]')).toHaveLength(5)
+    expect(first.text()).toContain('a line 6')
+    expect(first.text()).not.toContain('a line 1')
+    // Show more is offered for the episode's captures and for the episodes.
+    expect(w.findAll('[data-testid="show-all-toggle"]').length).toBeGreaterThanOrEqual(2)
   })
 
-  it('no boards and a FAILED load are different states', async () => {
-    vi.spyOn(api, 'getCollections').mockResolvedValue([])
+  it('files a highlight with the standard board control, not a dropdown of its own (operator 2026-10-08)', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
     const w = mountView()
     await flushPromises()
-    // Genuinely empty: no error marker, and no select either.
-    expect(w.find('[data-testid="collections-unavailable"]').exists()).toBe(false)
+    // The same button every surface uses; its sheet owns listing, creating and load failures.
+    expect(w.findAll('[data-testid="add-to-collection"]')).toHaveLength(1)
+    expect(w.find('select[aria-label="Add to board"]').exists()).toBe(false)
+  })
+
+  it('fetches the episodes it SHOWS, and the next five only on Show more (2026-10-08)', async () => {
+    // 7 episodes, one capture each: five groups on screen, so five episode fetches — not seven.
+    vi.spyOn(api, 'getHighlights').mockResolvedValue(
+      Array.from({ length: 7 }, (_, i) => hl({ id: `h${i}`, episode_slug: `ep-${i}`, created_at: 100 - i })),
+    )
+    const get = vi.spyOn(api, 'getEpisode').mockImplementation(async (slug: string) => detail(slug, slug))
+    const w = mountView()
+    await flushPromises()
+    expect(get.mock.calls.map((c) => c[0]).sort()).toEqual(['ep-0', 'ep-1', 'ep-2', 'ep-3', 'ep-4'])
+    const more = w.findAll('[data-testid="show-all-toggle"]').find((b) => !b.element.closest('[data-testid="highlight-group"]'))
+    await more!.trigger('click')
+    await flushPromises()
+    expect(get.mock.calls.map((c) => c[0]).sort()).toEqual(['ep-0', 'ep-1', 'ep-2', 'ep-3', 'ep-4', 'ep-5', 'ep-6'])
+  })
+
+  it('A–Z is the SERVER\'s order, so only the episodes on screen are fetched (2026-10-08)', async () => {
+    // It used to fetch every highlighted episode under A–Z, because the client sorted by title.
+    vi.spyOn(api, 'getHighlights').mockResolvedValue(
+      Array.from({ length: 7 }, (_, i) => hl({ id: `h${i}`, episode_slug: `ep-${i}`, created_at: 100 - i })),
+    )
+    const get = vi.spyOn(api, 'getEpisode').mockImplementation(async (slug: string) => detail(slug, slug))
+    mountView({ sort: 'title' })
+    await flushPromises()
+    expect(api.getHighlightsPage).toHaveBeenCalledWith(expect.objectContaining({ sort: 'title' }))
+    expect(get).toHaveBeenCalledTimes(5)
   })
 })

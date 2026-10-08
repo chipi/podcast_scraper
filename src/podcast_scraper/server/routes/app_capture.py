@@ -12,6 +12,7 @@ import time
 import uuid
 from collections import OrderedDict
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse, PlainTextResponse
@@ -138,9 +139,101 @@ def _reanchored(root: Path, rows: list[dict]) -> list[dict]:
     return sorted(out, key=lambda r: order.get(id(by_id.get(str(r.get("id")))), 0))
 
 
+def _matches(needle: str, *texts: object) -> bool:
+    """Case-insensitive substring, the client's ``matchesQuery``; an empty needle matches all."""
+    return not needle or any(needle in str(t or "").casefold() for t in texts)
+
+
+def _paged_highlights(
+    request: Request,
+    rows: list[dict],
+    user: User,
+    *,
+    q: str | None,
+    color: str | None,
+    muted: bool,
+    sort: str,
+    offset: int,
+    limit: int,
+    per_episode: int,
+) -> HighlightsResponse:
+    """One page of EPISODES with their highlights — Saved's Highlights section, on the server.
+
+    Filtering and grouping read only the stored rows; re-anchoring (a transcript load per episode)
+    runs for the page alone, which is what made the full list expensive.
+    """
+    data_dir = _data_dir(request)
+    state = app_user_state.get_resurfacing_state(data_dir, user.user_id)
+    needle = (q or "").strip().casefold()
+    groups: dict[str, list[dict]] = {}
+    matched = 0
+    # Newest first by (created_at, position): seconds are coarse, and of two same-second captures
+    # the later-stored one is newer — the client's `newestFirst` rule, so page and store agree.
+    position = {id(r): i for i, r in enumerate(rows)}
+
+    def newest(r: dict) -> tuple[int, int]:
+        return (int(r.get("created_at") or 0), position[id(r)])
+
+    for row in rows:
+        st = state.get(str(row.get("id") or ""))
+        row["retired"] = bool(st.get("retired")) if isinstance(st, dict) else False
+        if color and row.get("color") != color:
+            continue
+        if muted and not row["retired"]:
+            continue
+        if not _matches(needle, row.get("quote_text"), row.get("speaker")):
+            continue
+        matched += 1
+        groups.setdefault(str(row.get("episode_slug") or ""), []).append(row)
+    for group in groups.values():
+        group.sort(key=newest, reverse=True)
+    root = _corpus_root_opt(request)
+    order = list(groups)
+    if sort == "title":
+
+        def title(slug: str) -> str:
+            row = resolve_slug(root, slug) if root is not None and slug else None
+            return (row.episode_title if row is not None else slug).casefold()
+
+        order.sort(key=title)
+    else:
+        order.sort(key=lambda slug: newest(groups[slug][0]), reverse=True)
+    page = order[offset : offset + limit]
+    items = [row for slug in page for row in groups[slug][:per_episode]]
+    if root is not None and items:
+        items = _reanchored(root, items)
+    ids = {str(r.get("id")) for r in items}
+    notes = [
+        Note(**n)
+        for n in app_user_state.get_notes(data_dir, user.user_id, "highlight")
+        if str(n.get("target_id")) in ids
+    ]
+    return HighlightsResponse(
+        items=[Highlight(**r) for r in items],
+        total=matched,
+        episode_total=len(order),
+        episode_counts={slug: len(groups[slug]) for slug in page},
+        notes=notes,
+    )
+
+
 @router.get("/highlights", response_model=HighlightsResponse)
 def list_highlights(
-    request: Request, episode: str | None = None, user: User = Depends(get_current_user)
+    request: Request,
+    episode: str | None = None,
+    q: str | None = Query(default=None, max_length=200, description="Paged: quote or speaker."),
+    color: str | None = Query(default=None, max_length=32, description="Paged: only this colour."),
+    muted: bool = Query(default=False, description="Paged: only highlights stopped resurfacing."),
+    sort: Literal["recent", "title"] = Query(default="recent", description="Paged: episode order."),
+    offset: int = Query(default=0, ge=0, description="Paged: episodes to skip."),
+    limit: int | None = Query(
+        default=None,
+        ge=1,
+        le=100,
+        description="EPISODES per page. Absent: every highlight, unfiltered (before 1.0.3).",
+    ),
+    per_episode: int = Query(default=5, ge=1, le=100, description="Paged: highlights per episode."),
+    user: User = Depends(get_current_user),
 ) -> HighlightsResponse:
     """The user's highlights, optionally scoped to one episode (``?episode=<slug>``).
 
@@ -154,6 +247,19 @@ def list_highlights(
     """
     data_dir = _data_dir(request)
     rows = app_user_state.get_highlights(data_dir, user.user_id, episode)
+    if limit is not None:
+        return _paged_highlights(
+            request,
+            rows,
+            user,
+            q=q,
+            color=color,
+            muted=muted,
+            sort=sort,
+            offset=offset,
+            limit=limit,
+            per_episode=per_episode,
+        )
     root = _corpus_root_opt(request)
     if root is not None and rows:
         rows = _reanchored(root, rows)
@@ -290,11 +396,69 @@ def list_notes(
     request: Request,
     target: str | None = None,
     target_id: str | None = None,
+    q: str | None = Query(default=None, max_length=200, description="Paged: text match."),
+    kinds: list[str] = Query(
+        default_factory=list,
+        max_length=10,
+        description="Paged: only notes on these target kinds (repeat the param); none = all.",
+    ),
+    match: Literal["phrase", "words"] = Query(
+        default="phrase",
+        description="Paged: `q` as one phrase, or every word of it in any order (Search).",
+    ),
+    offset: int = Query(default=0, ge=0),
+    limit: int | None = Query(
+        default=None,
+        ge=1,
+        le=100,
+        description="Page size. Absent: every note (scoped by target), as before 1.0.3.",
+    ),
     user: User = Depends(get_current_user),
 ) -> NotesResponse:
-    """The user's notes, optionally scoped to one ``?target=&target_id=``."""
-    rows = app_user_state.get_notes(_data_dir(request), user.user_id, target, target_id)
-    return NotesResponse(items=[Note(**r) for r in rows])
+    """The user's notes, optionally scoped to one ``?target=&target_id=``.
+
+    With ``limit``: newest first, matched on ``q``, one page, plus ``total`` and per-target
+    ``counts`` (under the same ``q`` and ``target_id``, ignoring ``target``).
+    """
+    if limit is None:
+        rows = app_user_state.get_notes(_data_dir(request), user.user_id, target, target_id)
+        return NotesResponse(items=[Note(**r) for r in rows])
+    needle = (q or "").strip().casefold()
+    words = needle.split() if match == "words" else [needle]
+    every = app_user_state.get_notes(_data_dir(request), user.user_id, None, target_id)
+    # Newest first, ties on position (the later-stored is newer) — the client's `newestFirst`.
+    ordered = [
+        n
+        for _, n in sorted(
+            enumerate(every), key=lambda p: (int(p[1].get("created_at") or 0), p[0]), reverse=True
+        )
+    ]
+    hits = [n for n in ordered if all(_matches(w, n.get("text")) for w in words)]
+    counts: dict[str, int] = {}
+    for n in hits:
+        counts[str(n.get("target"))] = counts.get(str(n.get("target")), 0) + 1
+    selected = [
+        n
+        for n in hits
+        if (target is None or n.get("target") == target) and (not kinds or n.get("target") in kinds)
+    ]
+    page = selected[offset : offset + limit]
+    on = {str(n.get("target_id")) for n in page if n.get("target") == "highlight"}
+    highlights = (
+        [
+            Highlight(**h)
+            for h in app_user_state.get_highlights(_data_dir(request), user.user_id, None)
+            if str(h.get("id")) in on
+        ]
+        if on
+        else []
+    )
+    return NotesResponse(
+        items=[Note(**n) for n in page],
+        total=len(selected),
+        counts=counts,
+        highlights=highlights,
+    )
 
 
 @router.post("/notes", response_model=Note, status_code=201)

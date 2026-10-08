@@ -17,12 +17,12 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { useCaptureStore } from '../stores/capture'
 import { useSignInGate } from '../composables/useSignInGate'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
-import { useCappedSections } from '../composables/useCappedSections'
+import { SECTION_CAP, useCappedSections } from '../composables/useCappedSections'
 import { summaryFromDetail } from '../utils/episode'
 import {
-  getEpisode,
+  getEpisodesBatch,
   getPlaybackList,
-  getResurfacing,
+  getResurfacingPage,
   markSurfaced,
   putResurfacingSettings,
   retireHighlight,
@@ -72,6 +72,8 @@ const details = ref<Record<string, EpisodeDetail>>({})
 const listenedAt = ref<Record<string, number>>({})
 
 const loadError = ref(false)
+/** Episodes with something due, across all pages (the server's count). */
+const episodeTotal = ref(0)
 
 async function load(): Promise<void> {
   // A throw here used to leave `loaded` false FOREVER: neither the items branch nor the empty-state
@@ -80,23 +82,29 @@ async function load(): Promise<void> {
   // unavailable, so a restart blanked Revisit for everyone with no retry (review 2026-09-18).
   loadError.value = false
   try {
-    const resp = await getResurfacing()
+    // The first page of EPISODES (2026-10-08); "Show all" asks for the rest.
+    const resp = await getResurfacingPage({ limit: SECTION_CAP })
     items.value = resp.items
     paused.value = resp.paused
+    episodeTotal.value = resp.episode_total
   } catch {
     loadError.value = true
     return
   } finally {
     loaded.value = true
   }
-  void hydrateEpisodes()
   void hydrateListenedAt()
 }
 
-/** Tolerated like the episode hydration: no playback history just means no "listened" line. */
+/**
+ * Tolerated like the episode hydration: no playback history just means no "listened" line. Only
+ * the episodes on screen (2026-10-08) — it read the whole playback history for a few dates.
+ */
 async function hydrateListenedAt(): Promise<void> {
-  const positions = await getPlaybackList().catch(() => [])
-  const next: Record<string, number> = {}
+  const slugs = [...new Set(items.value.map((i) => i.highlight.episode_slug))].slice(0, 100)
+  if (!slugs.length) return
+  const positions = await getPlaybackList({ slugs, limit: 100 }).catch(() => [])
+  const next: Record<string, number> = { ...listenedAt.value }
   for (const p of positions) {
     if (p.updated_at) next[p.slug] = p.updated_at
   }
@@ -104,22 +112,22 @@ async function hydrateListenedAt(): Promise<void> {
 }
 
 /**
- * Resolve the episode each due item came from.
+ * Resolve the episode of each group ON SCREEN — the capped first page, then each page "Show all"
+ * reveals (2026-10-08). It used to fetch every due episode up front while showing six groups.
  *
- * Not awaited by `load`: the list is useful before the episodes arrive (each group falls back to a
+ * Not awaited: the list is useful before the episodes arrive (each group falls back to a
  * slug-titled card), and one unresolvable episode must not hold up the rest. Failures are silent per
  * slug for the same reason.
  */
-async function hydrateEpisodes(): Promise<void> {
-  const slugs = [...new Set(items.value.map((i) => i.highlight.episode_slug))].filter(
-    (s) => s && !details.value[s],
-  )
-  await Promise.all(
-    slugs.map(async (slug) => {
-      const d = await getEpisode(slug).catch(() => null)
-      if (d) details.value[slug] = d
-    }),
-  )
+const requested = new Set<string>()
+async function hydrateEpisodes(wanted: string[]): Promise<void> {
+  // `requested`, not just `details`: the groups recompute when a detail lands, which re-fires the
+  // watch below while the rest are still in flight.
+  const slugs = [...new Set(wanted)].filter((s) => s && !details.value[s] && !requested.has(s))
+  slugs.forEach((s) => requested.add(s))
+  if (!slugs.length) return
+  const got = await getEpisodesBatch(slugs).catch(() => ({}) as Record<string, EpisodeDetail>)
+  for (const [slug, d] of Object.entries(got)) details.value[slug] = d
 }
 
 interface RevisitGroup {
@@ -197,6 +205,25 @@ function toggleGroup(slug: string): void {
   collapsed.value = next
 }
 const visibleGroups = computed(() => caps.visible('revisit-groups', groups.value))
+
+/** "Show all": fetch the episodes not loaded yet, then expand; "Show less" just collapses. */
+async function toggleAll(): Promise<void> {
+  if (!caps.expanded.has('revisit-groups') && episodeTotal.value > groups.value.length) {
+    try {
+      const rest = await getResurfacingPage({ offset: groups.value.length, limit: 100 })
+      items.value = [...items.value, ...rest.items]
+      void hydrateListenedAt()
+    } catch {
+      return
+    }
+  }
+  caps.toggle('revisit-groups')
+}
+watch(
+  () => visibleGroups.value.map((g) => g.slug),
+  (slugs) => void hydrateEpisodes(slugs),
+  { immediate: true },
+)
 
 /** "Listened 14 Sep 2026" for an episode with playback history; null when never played. */
 function listenedLabel(slug: string): string | null {
@@ -545,10 +572,10 @@ onMounted(load)
       </EpisodeGroupCard>
       </ul>
       <ShowAllToggle
-        v-if="caps.overflows(groups.length)"
+        v-if="Math.max(episodeTotal, groups.length) > SECTION_CAP"
         :expanded="caps.expanded.has('revisit-groups')"
-        :count="groups.length"
-        @toggle="caps.toggle('revisit-groups')"
+        :count="Math.max(episodeTotal, groups.length)"
+        @toggle="toggleAll"
       />
     </template>
 

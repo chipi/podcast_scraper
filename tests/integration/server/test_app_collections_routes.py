@@ -237,6 +237,23 @@ def test_cover_recomputed_when_its_source_highlight_is_deleted(tmp_path: Path, m
     assert client.get("/api/app/collections").json()["items"][0]["cover_url"] is None
 
 
+def test_board_items_page_when_asked(tmp_path: Path) -> None:
+    client, data_dir, uid = _authed(tmp_path)
+    cid = client.post("/api/app/collections", json={"name": "Big"}).json()["id"]
+    for i in range(12):
+        client.post(f"/api/app/collections/{cid}/items", json={"kind": "episode", "ref": f"ep{i}"})
+    client.post(f"/api/app/collections/{cid}/items", json={"kind": "link", "ref": "https://x.y"})
+    full = client.get(f"/api/app/collections/{cid}").json()
+    assert set(full) == {"collection", "items"} and len(full["items"]) == 13
+    page = client.get(f"/api/app/collections/{cid}", params={"limit": 10}).json()
+    assert len(page["items"]) == 10 and page["total"] == 13
+    assert page["kind_counts"] == {"episode": 12, "link": 1}
+    rest = client.get(f"/api/app/collections/{cid}", params={"limit": 10, "offset": 10}).json()
+    assert len(rest["items"]) == 3
+    eps = client.get(f"/api/app/collections/{cid}", params={"limit": 100, "kind": "episode"}).json()
+    assert len(eps["items"]) == 12 and eps["total"] == 12
+
+
 def test_add_item_to_unknown_collection_404(tmp_path: Path) -> None:
     client, _, _ = _authed(tmp_path)
     resp = client.post(

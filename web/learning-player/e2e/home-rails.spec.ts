@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { signInIsolated, showEveryonesTrends } from './helpers'
 
 /**
  * The Home rails that had unit tests and no e2e (E2E_SURFACE_MAP coverage gaps, closed 2026-09-03),
@@ -10,25 +10,15 @@ import { signInIsolated } from './helpers'
  * asserting in a browser: a rail with nothing to show **omits itself**. A unit test can prove a
  * component renders chips from props; only a real render against a real API can prove the section
  * does not leave an empty shell behind when the API returns nothing.
+ *
+ * Your Week's render-and-expand lives in `your-week.spec.ts`, against a listener with a real play:
+ * an empty Your Week is not rendered at all (operator 2026-10-08).
  */
-
-test('Your Week renders for a signed-in listener and can expand', async ({ page }, testInfo) => {
-  await signInIsolated(page, 'home-yourweek', testInfo)
-  await page.goto('/')
-
-  const week = page.getByTestId('your-week')
-  await expect(week).toBeVisible()
-  // compact ↔ full is a synced per-user preference; the inline control is the only way to reach it.
-  const toggle = week.getByRole('button', { name: /show more|show less/i }).first()
-  if (await toggle.isVisible().catch(() => false)) {
-    await toggle.click()
-    await expect(week).toBeVisible()
-  }
-})
 
 test('the discovery list lists rows and each one can be followed', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-momentum', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
 
   // Topics tab is the default; Rising sort is the default — no extra click needed.
   await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
@@ -50,6 +40,7 @@ test('the trend window tabs re-query rather than re-rendering the same series', 
 }, testInfo) => {
   await signInIsolated(page, 'home-trend-window', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   // Topics tab (Rising sort by default) — the window tabs belong to the discovery section.
   await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
   await expect(page.getByTestId('trend-window-tabs')).toBeVisible()
@@ -69,6 +60,7 @@ test('the trend window tabs re-query rather than re-rendering the same series', 
 test('the storylines tab renders rows and follows one', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-storylines', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   await page.getByTestId('discovery-tab-storyline').click()
 
   const list = page.getByTestId('discovery-list-storyline')
@@ -84,6 +76,7 @@ test('the storylines tab renders rows and follows one', async ({ page }, testInf
 test('the Trends kind tabs are in order and fit the phone row', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-themes', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   // Topics, Themes, Storylines, People — the order every surface lists the kinds in (2026-10-05).
   await expect(page.locator('[data-testid^="discovery-tab-"]')).toHaveText(['Topics', 'Themes', 'Storylines', 'People'])
   // All four kind pills fit the phone row beside the two switches — none clipped off the edge.
@@ -101,6 +94,7 @@ test('the Trends kind tabs are in order and fit the phone row', async ({ page },
 test('Discover lists themes too, and a theme opens its page', async ({ page }, testInfo) => {
   await signInIsolated(page, 'browse-themes', testInfo)
   await page.goto('/browse?trends=theme')
+  await showEveryonesTrends(page)
   const list = page.getByTestId('discovery-list-theme')
   await expect(list).toBeVisible()
   await list.getByTestId('discovery-row').first().locator('button').first().click()
@@ -113,6 +107,7 @@ test('the discovery tabs switch between topics, themes, storylines and people', 
 }, testInfo) => {
   await signInIsolated(page, 'home-discovery', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
 
   await expect(page.getByTestId('browse-discovery')).toBeVisible()
   for (const tab of ['discovery-tab-topic', 'discovery-tab-theme', 'discovery-tab-storyline', 'discovery-tab-person']) {
@@ -180,6 +175,7 @@ test('closing the card with Escape does not leave a dead Back press behind', asy
 test('a theme row says how many topics it holds, and can be followed', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trends-theme-row', testInfo)
   await page.goto('/browse')
+  await showEveryonesTrends(page)
   await page.getByTestId('discovery-tab-theme').click()
   const row = page.getByTestId('discovery-list-theme').getByTestId('discovery-row').first()
   await expect(row).toBeVisible()
@@ -204,6 +200,7 @@ for (const viewport of [
     await page.setViewportSize(viewport)
     await signInIsolated(page, `trends-block-${viewport.width}`, testInfo)
     await page.goto('/browse')
+    await showEveryonesTrends(page)
     const block = page.getByTestId('browse-discovery')
     const rows = block.getByTestId('discovery-list-topic').getByTestId('discovery-row')
     await expect(rows).toHaveCount(viewport.rows)

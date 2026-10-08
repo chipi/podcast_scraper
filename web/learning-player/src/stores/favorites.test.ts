@@ -45,6 +45,11 @@ function episode(slug: string): EpisodeSummary {
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [] })
+  // The store reads identities only; answer from the per-test `getFavorites` so each test states
+  // its server once.
+  vi.spyOn(api, 'getFavoriteRefs').mockImplementation(async () =>
+    api.favoriteRefsOf(await api.getFavorites()),
+  )
 })
 afterEach(() => {
   vi.restoreAllMocks()
@@ -57,12 +62,20 @@ describe('favorites store', () => {
     const f = useFavoritesStore()
     await f.toggle({ kind: 'episode', ref: 'a' })
     expect(f.has('episode', 'a')).toBe(true)
-    expect(f.episodes).toHaveLength(1)
+    expect(f.items).toEqual([{ kind: 'episode', ref: 'a', color: null }])
+  })
+
+  it('moves `version` on every confirmed change, so the Saved lists refetch', async () => {
+    vi.spyOn(api, 'addFavorite').mockResolvedValue({ episodes: [episode('a')] })
+    const f = useFavoritesStore()
+    const before = f.version
+    await f.toggle({ kind: 'episode', ref: 'a' })
+    expect(f.version).toBeGreaterThan(before)
   })
 
   it('falls back to the cached copy and marks it stale (#1909)', async () => {
-    cached.favorites = { episodes: [episode('a')] }
-    vi.spyOn(api, 'getFavorites').mockRejectedValue(new Error('offline'))
+    cached['favorite-refs'] = { items: [{ kind: 'episode', ref: 'a' }] }
+    vi.spyOn(api, 'getFavoriteRefs').mockRejectedValue(new Error('offline'))
     const f = useFavoritesStore()
     await f.load()
     expect(f.has('episode', 'a')).toBe(true)
@@ -84,9 +97,8 @@ describe('favorites offline (#1910)', () => {
 
     expect(f.has('episode', 'a')).toBe(true)
     expect(enqueue).toHaveBeenCalledWith({ op: 'favorite.add', kind: 'episode', ref: 'a' })
-    // No EpisodeSummary exists offline, so the LIST waits for the server rather than showing a
-    // card with a blank title.
-    expect(f.episodes).toHaveLength(0)
+    // Nothing is invented offline: the saved list waits for the server; only the heart flips.
+    expect(f.items).toHaveLength(0)
   })
 
   it('removes from the list too — an unfavourite we can represent exactly', async () => {
@@ -98,7 +110,7 @@ describe('favorites offline (#1910)', () => {
 
     await f.toggle({ kind: 'episode', ref: 'a' })
     expect(f.has('episode', 'a')).toBe(false)
-    expect(f.episodes).toHaveLength(0)
+    expect(f.items).toHaveLength(0)
     expect(enqueue).toHaveBeenCalledWith({ op: 'favorite.remove', kind: 'episode', ref: 'a' })
   })
 
@@ -138,7 +150,7 @@ describe('favorites colour', () => {
     const f = useFavoritesStore()
     await f.load()
     await f.setColor('episode', 'a', 'amber')
-    expect(f.episodes[0].color).toBe('amber')
+    expect(f.items[0]!.color).toBe('amber')
     expect(api.setFavoriteColor).toHaveBeenCalledWith('episode', 'a', 'amber')
   })
 
@@ -150,7 +162,7 @@ describe('favorites colour', () => {
     await f.load()
     await f.setColor('episode', 'a', 'sky')
     // The optimistic paint stands until reconnect...
-    expect(f.episodes[0].color).toBe('sky')
+    expect(f.items[0]!.color).toBe('sky')
     // ...and the edit queues under favorite.color, NOT favorite.add.
     expect(enqueue).toHaveBeenCalledWith({
       op: 'favorite.color',

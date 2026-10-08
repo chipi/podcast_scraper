@@ -9,7 +9,7 @@
 import { getAudioSource, getEpisode } from './api'
 import { localArtworkFor, localSourceFor } from './downloads'
 import { useDownloadsStore } from '../stores/downloads'
-import { episodeArtwork } from '../utils/episode'
+import { episodePlayerArtwork } from '../utils/episode'
 import type { NextUp } from '../stores/player'
 
 export async function resolveNextUpFor(
@@ -38,6 +38,6 @@ export async function resolveNextUpFor(
     // Metadata comes from the registry when the API cannot answer: auto-advance runs with no view
     // mounted, so without a title here the lock screen keeps showing the PREVIOUS episode.
     title: detail?.title ?? entry?.title ?? null,
-    artwork: (detail ? episodeArtwork(detail) : null) ?? localArtworkFor(next),
+    artwork: (detail ? episodePlayerArtwork(detail) : null) ?? localArtworkFor(next),
   }
 }

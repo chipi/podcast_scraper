@@ -121,6 +121,9 @@ public class AppJourneyTests extends UITestCase {
         // topics are reached the way a user reaches them: the Home entity rail's Topics tab.
         Journey.tap("Topics", false, 15_000);
         Journey.sleep(3_000);
+        // Home's "Topics" chip opens Discover's Trends, which default to the listener's own
+        // ("You") — empty for a fresh account. Switch to everyone's first (2026-10-07).
+        Journey.showEveryonesTrends();
 
         // Any topic row from the rail — "systems thinking" and "risk management" are in the
         // p09 fixture but the exact ranking changes with the corpus.
@@ -156,21 +159,48 @@ public class AppJourneyTests extends UITestCase {
         // The tier's `pm clear` resets the DEVICE, not the server-side ACCOUNT, so this test sees a
         // short Home on a fresh account and a long one after anything has played — which is why it
         // passed all day and then failed deterministically once the account had been used.
-        Journey.scrollTo("Trends", false);
-        boolean storylinesTab = Journey.tap("Storylines", false, 15_000);
+        //
+        // THE CHIP, NOT THE RAIL (2026-10-08). Trends left Home on 2026-10-07; what Home has now is
+        // the Discover strip — a kicker over four chips that deep-link into Discover's Trends. So
+        // `scrollTo("Trends")` found nothing and rewound to the top, and the bare "Storylines" tap
+        // then took whatever was on screen by that name: in the tier run it landed on something
+        // that did not navigate and the row hunt swiped down to Home's What's new; alone, nothing
+        // by that name was on screen at all. Scroll to the strip's own kicker and tap the chip
+        // BELOW it.
+        //
+        // AND LIFT IT FIRST. `scrollTo` returns the moment the kicker enters the tree, which can be
+        // the bottom edge — the chips are then under the bottom nav or the mini-player, the tap
+        // lands on the Home tab, and the page never leaves Home (tier run 2026-10-08: the dump
+        // after the row hunt was this very strip over What's new). Bring the kicker into the top
+        // half, then tap, then require Discover's Trends caption.
+        List<String> kicker = Arrays.asList("Explore what people are talking about");
+        UiObject2 strip = Journey.scrollTo(kicker, true, 40);
+        int half = Journey.device().getDisplayHeight() / 2;
+        for (int i = 0; i < 3 && strip != null; i++) {
+            android.graphics.Rect b = strip.getVisibleBounds();
+            if (b.top < half) break;
+            Journey.swipeUp();
+            Journey.sleep(800);
+            strip = Journey.find(kicker, true, 3_000);
+        }
+        boolean storylinesTab = strip != null && Journey.tapBelow("Storylines", strip, 15_000);
         if (!storylinesTab) {
-            fail("Storylines tab not found on the Home rail. On screen: "
+            fail("Storylines chip not found in Home's Discover strip. On screen: "
                     + Journey.labelledInventory(80));
         }
+        assertNotNull("the Storylines chip did not open Discover's Trends. On screen: "
+                        + Journey.labelledInventory(80),
+                Journey.find(Arrays.asList("Your trends", "Everyone's trends"), true, 15_000));
         Journey.sleep(4_000);
+        Journey.showEveryonesTrends();
 
         // Storyline rows: aria-label = "{label} ({count}) — {N}× momentum" (DiscoveryList
         // rowLabel). The iOS suite filtered by `contains("momentum") && contains("(")` — the
-        // SAME strings appear here. Pick the topmost openable one.
+        // SAME strings appear here.
         //
         // ANDROID DIFFERENCE: XCTest `.buttons.allElementsBoundByIndex.filter` is not available.
-        // Instead, find all controls whose name contains "momentum" and tap the one closest to
-        // the top of the screen (tapTopmost). The visible set is the same because DiscoveryList
+        // Instead, find a control whose name contains "momentum" and tap it by that name through
+        // `Journey.tap` (below). The visible set is the same because DiscoveryList
         // renders these as `<button>` with the same accessible name pattern on both platforms.
         // SCROLL THE RAIL INTO VIEW FIRST. Android's accessibility tree contains only ON-SCREEN
         // nodes, so a rail below the fold is not merely hard to reach — it is absent, and
@@ -215,7 +245,10 @@ public class AppJourneyTests extends UITestCase {
             fail("no storyline row on Home after 12 scroll-and-wait rounds. On screen: "
                     + Journey.labelledInventory(80));
         }
-        boolean storylineTapped = tapTopmost(Arrays.asList("momentum"), true);
+        // Through `Journey.tap`, which lifts the row clear of the bottom nav first. On Discover the
+        // storyline rows sit low, and on iOS a raw tap at the row hit the mini-player and opened
+        // the episode player instead (2026-10-08).
+        boolean storylineTapped = Journey.tap(Journey.nameOf(storylineRow), false, 5_000);
         if (!storylineTapped) {
             fail("storyline rows are on screen but none was tappable. On screen: "
                     + Journey.labelledInventory(80));
@@ -306,9 +339,9 @@ public class AppJourneyTests extends UITestCase {
         Journey.sleep(3_000);
 
         for (String name : Arrays.asList("Test Board A", "Test Board B")) {
-            // The name field: collections.namePlaceholder = 'New collection name'. On Android the
-            // placeholder lands as the contentDescription on the EditText.
-            UiObject2 field = Journey.find("New collection name", true, 12_000);
+            // The name field: collections.namePlaceholder = 'Board name' (was 'New collection
+            // name' until 2026-10-07). On Android the placeholder lands as the contentDescription.
+            UiObject2 field = Journey.find("Board name", true, 12_000);
             if (field == null) {
                 // Fallback: the text field without a name — only present when no named field exists.
                 field = Journey.device().findObject(
@@ -598,58 +631,4 @@ public class AppJourneyTests extends UITestCase {
      *
      * Returns false when no matching, clickable element is found.
      */
-    /**
-     * ENUMERATES. Do not put a `BySelector` back here (2026-09-26).
-     *
-     * This used `By.pkg(PKG).descContains(s)` with a `textContains` fallback, and BOTH are blind to
-     * what it is looking for. `By.desc` DOES NOT MATCH WEBVIEW CONTENT — the measurement that
-     * opened this whole arc, recorded at length on {@link Journey#find} — and the fallback cannot
-     * help because these rows are named by `aria-label`, which arrives as a contentDescription and
-     * never as text.
-     *
-     * So this could never find a storyline row, and said "no storyline row was tappable" about a
-     * rail that was rendering them. `Journey.find` and `AppSession.waitForField` were converted to
-     * enumeration when that was discovered; this one was missed, and nothing ran it until tonight.
-     * `StackDepthProbeTests` calls it too.
-     */
-    private boolean tapTopmost(List<String> substrings, boolean requiresContains) {
-        UiObject2 best     = null;
-        int        bestTop = Integer.MAX_VALUE;
-        java.util.List<UiObject2> all;
-        try {
-            all = Journey.device().findObjects(By.pkg(Journey.PKG));
-        } catch (Throwable t) {
-            return false;
-        }
-        for (UiObject2 o : all) {
-            Boolean clickable = Journey.attr(o, UiObject2::isClickable);
-            if (!Boolean.TRUE.equals(clickable)) continue;
-            String name = Journey.nameOf(o);
-            if (name.isEmpty()) continue;
-            boolean matches = false;
-            for (String s : substrings) {
-                if (requiresContains
-                        ? name.toLowerCase().contains(s.toLowerCase())
-                        : name.equalsIgnoreCase(s)) {
-                    matches = true;
-                    break;
-                }
-            }
-            if (!matches) continue;
-            android.graphics.Rect b;
-            try { b = o.getVisibleBounds(); } catch (Throwable t) { continue; }
-            if (b == null) continue;
-            if (b.centerY() < bestTop) {
-                bestTop = b.centerY();
-                best = o;
-            }
-        }
-        if (best == null) return false;
-        try {
-            best.click();
-            return true;
-        } catch (Throwable t) {
-            return false;
-        }
-    }
 }

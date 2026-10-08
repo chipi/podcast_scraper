@@ -146,7 +146,10 @@ test('UXS-012 §Section state: a failed What\'s new says so and Retry recovers i
   // Sign-in lands on Home, which loads What's new and CACHES it (offline-first, per account). With
   // that cache present a failed load correctly shows the cached rows under "Showing what you had
   // last time" — not the section error this test is about — so it passed or failed on whether the
-  // sign-in's own load had finished (2026-10-06). Drop that one cache entry first.
+  // sign-in's own load had finished (2026-10-06). Drop that one cache entry first — once that load
+  // has SETTLED: dropped while it was still in flight, its late write put the entry straight back
+  // and the section showed the cached rows (repro 2026-10-08, 1 in 150 under load).
+  await page.waitForLoadState('networkidle')
   await page.evaluate(() => {
     for (const k of Object.keys(localStorage)) {
       if (k.endsWith('.home.whatsnew.v2')) localStorage.removeItem(k)

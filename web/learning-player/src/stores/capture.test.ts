@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../services/api'
+import { capturesViaFullLists } from '../test/apiViaSpies'
 import { ApiError } from '../services/api'
 import * as outbox from '../services/outbox'
 import { __resetIdentityEpoch, bumpIdentityEpoch } from '../services/identity'
@@ -46,16 +47,36 @@ beforeEach(() => {
   setActivePinia(createPinia())
   __resetIdentityEpoch()
   vi.spyOn(api, 'getNotes').mockResolvedValue([])
+  capturesViaFullLists()
 })
 afterEach(() => vi.restoreAllMocks())
 
 describe('capture store', () => {
-  it('load() pulls highlights from the API', async () => {
+  it('load() asks the server HOW MANY, without loading them (2026-10-08)', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl(), hl({ id: 'h2' })])
     const c = useCaptureStore()
     await c.load()
     expect(c.count).toBe(2)
     expect(c.loaded).toBe(true)
+    expect(api.getHighlightsPage).toHaveBeenCalledWith(expect.objectContaining({ limit: 1 }))
+  })
+
+  it('ensureEpisode loads ONE episode, and keeps a capture still on its way', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl({ id: 'h1' })])
+    const c = useCaptureStore()
+    c.highlights = [hl({ id: 'hc_local', episode_slug: 'show-ep01' }), hl({ id: 'gone' })]
+    await c.ensureEpisode('show-ep01')
+    expect(api.getHighlights).toHaveBeenCalledWith('show-ep01')
+    // The server's row replaces the stale one; the unanswered local capture stays.
+    expect(c.highlights.map((h) => h.id).sort()).toEqual(['h1', 'hc_local'])
+  })
+
+  it('a change moves `version`, so the paged lists refetch', async () => {
+    vi.spyOn(api, 'createHighlight').mockResolvedValue(hl({ id: 'h9' }))
+    const c = useCaptureStore()
+    const before = c.version
+    await c.captureMoment('show-ep01', 1)
+    expect(c.version).toBeGreaterThan(before)
   })
 
   it('captureMoment() appends a moment highlight', async () => {
@@ -144,13 +165,13 @@ describe('capture store', () => {
     expect(c.count).toBe(1)
   })
 
-  it('load() pulls highlights and notes together', async () => {
-    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
+  it('ensureNotesFor loads one target\'s notes', async () => {
     vi.spyOn(api, 'getNotes').mockResolvedValue([
       { id: 'n1', target: 'highlight', target_id: 'h1', text: 'note', created_at: 1, updated_at: 1 },
     ])
     const c = useCaptureStore()
-    await c.load()
+    await c.ensureNotesFor('highlight', 'h1')
+    expect(api.getNotes).toHaveBeenCalledWith('highlight', 'h1')
     expect(c.notesFor('highlight', 'h1')).toHaveLength(1)
   })
 
@@ -378,11 +399,12 @@ describe('undoing an offline capture', () => {
       writeCached.mockReset().mockResolvedValue(undefined)
     })
 
-    it('snapshots highlights and notes on a successful load', async () => {
+    it('snapshots what it loaded, for the next offline open', async () => {
       vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
       vi.spyOn(api, 'getNotes').mockResolvedValue([])
       const s = useCaptureStore()
       await s.load()
+      await s.ensureEpisode('show-ep01')
       expect(writeCached).toHaveBeenCalledWith('captures', { highlights: [hl()], notes: [] })
       expect(s.stale).toBe(false)
       expect(s.unavailable).toBe(false)
@@ -462,7 +484,7 @@ describe('undoing an offline capture', () => {
       vi.spyOn(api, 'patchHighlight').mockRejectedValue(new ApiError(503, 'bad gateway'))
       const enq = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
       const s = useCaptureStore()
-      await s.load()
+      await s.ensureEpisode('show-ep01')
       await s.setColor('h1', 'rose')
       expect(s.highlights.find((h) => h.id === 'h1')?.color).toBe('rose')
       expect(enq).toHaveBeenCalledWith({ op: 'highlight.edit', id: 'h1', color: 'rose' })
@@ -473,7 +495,7 @@ describe('undoing an offline capture', () => {
       vi.spyOn(api, 'patchHighlight').mockRejectedValue(new ApiError(404, 'gone'))
       const enq = vi.spyOn(outbox, 'enqueue').mockImplementation(() => {})
       const s = useCaptureStore()
-      await s.load()
+      await s.ensureEpisode('show-ep01')
       await s.setColor('h1', 'rose')
       expect(s.highlights.find((h) => h.id === 'h1')?.color).toBe(null)
       expect(enq).not.toHaveBeenCalled()

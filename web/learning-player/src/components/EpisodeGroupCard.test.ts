@@ -1,6 +1,8 @@
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import * as native from '../services/native'
+import { flushPromises } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import EpisodeGroupCard from './EpisodeGroupCard.vue'
@@ -56,8 +58,31 @@ describe('EpisodeGroupCard', () => {
     expect(card({ itemCount: 0 }).find('[data-testid="episode-group-toggle"]').exists()).toBe(false)
   })
 
+  it('the chevron sits on the bottom row beside the count it folds (operator 2026-10-08)', () => {
+    const w = card()
+    const meta = w.get('[data-testid="episode-group-meta"]')
+    expect(meta.element.parentElement?.contains(w.get('[data-testid="episode-group-toggle"]').element)).toBe(true)
+  })
+
   it('the ⋯ and the chevron are siblings of the link, not inside it', () => {
     const link = card().get('[data-testid="episode-group-link"]')
     expect(link.findAll('button')).toHaveLength(0)
+  })
+
+  it('its ⋯ offers Share, sending the episode link to the share sheet (operator 2026-10-08)', async () => {
+    const sheet = vi.spyOn(native, 'openShareSheet').mockResolvedValue()
+    setActivePinia(createPinia())
+    const w = mount(EpisodeGroupCard, {
+      props: { episode, itemCount: 2 },
+      global: { plugins: [i18n, router, createPinia()], stubs: { teleport: true } },
+    })
+    await w.get('[data-testid="overflow-trigger"]').trigger('click')
+    await w.get('[data-testid="episode-share"]').trigger('click')
+    await flushPromises()
+    expect(sheet).toHaveBeenCalledOnce()
+    const [title, url] = sheet.mock.calls[0]
+    expect(title).toBe('An Episode')
+    expect(url).toMatch(/\/episode\/ep-1$/)
+    vi.restoreAllMocks()
   })
 })

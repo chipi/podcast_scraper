@@ -565,6 +565,118 @@ def test_highlight_create_list_patch_delete(tmp_path: Path) -> None:
     assert client.delete(f"/api/app/highlights/{hid}").json()["items"] == []
 
 
+def _seed_highlights(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, dict]:
+    """Three episodes' highlights, one second apart (newest = the last posted)."""
+    import itertools
+
+    from podcast_scraper.server.routes import app_capture
+
+    tick = itertools.count(1_700_000_000)
+    monkeypatch.setattr(app_capture.time, "time", lambda: float(next(tick)))
+    client = _authed(tmp_path)
+    ids: dict[str, str] = {}
+    for name, slug, quote, color in [
+        ("a1", "ep-a", "alpha one", "red"),
+        ("b1", "ep-b", "beta one", None),
+        ("a2", "ep-a", "alpha two", None),
+        ("c1", "ep-c", "gamma sleep", None),
+        ("a3", "ep-a", "alpha sleep", None),
+    ]:
+        body = {"episode_slug": slug, "kind": "moment", "start_ms": 0, "quote_text": quote}
+        if color:
+            body["color"] = color
+        ids[name] = client.post("/api/app/highlights", json=body).json()["id"]
+    return client, ids
+
+
+def test_highlights_unpaged_response_is_unchanged_for_old_clients(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, ids = _seed_highlights(tmp_path, monkeypatch)
+    body = client.get("/api/app/highlights").json()
+    assert set(body) == {"items"}
+    assert len(body["items"]) == 5
+
+
+def test_highlights_page_by_episode_newest_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, ids = _seed_highlights(tmp_path, monkeypatch)
+    client.post("/api/app/notes", json={"target": "highlight", "target_id": ids["a3"], "text": "n"})
+    page = client.get("/api/app/highlights", params={"limit": 2, "per_episode": 2}).json()
+    # Episodes ordered by their newest highlight: ep-a (a3), then ep-c (c1); ep-b is page 2.
+    assert [h["id"] for h in page["items"]] == [ids["a3"], ids["a2"], ids["c1"]]
+    assert page["total"] == 5 and page["episode_total"] == 3
+    assert page["episode_counts"] == {"ep-a": 3, "ep-c": 1}
+    assert [n["target_id"] for n in page["notes"]] == [ids["a3"]]
+    nxt = client.get("/api/app/highlights", params={"limit": 2, "offset": 2}).json()
+    assert [h["id"] for h in nxt["items"]] == [ids["b1"]]
+    # The rest of one episode: scope + a bigger per_episode.
+    rest = client.get(
+        "/api/app/highlights", params={"episode": "ep-a", "limit": 1, "per_episode": 10}
+    ).json()
+    assert [h["id"] for h in rest["items"]] == [ids["a3"], ids["a2"], ids["a1"]]
+
+
+def test_highlights_page_filters(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    client, ids = _seed_highlights(tmp_path, monkeypatch)
+    sleep = client.get("/api/app/highlights", params={"limit": 10, "q": "SLEEP"}).json()
+    assert {h["id"] for h in sleep["items"]} == {ids["a3"], ids["c1"]}
+    assert sleep["total"] == 2 and sleep["episode_total"] == 2
+    red = client.get("/api/app/highlights", params={"limit": 10, "color": "red"}).json()
+    assert [h["id"] for h in red["items"]] == [ids["a1"]]
+    assert (
+        client.get("/api/app/highlights", params={"limit": 10, "muted": True}).json()["total"] == 0
+    )
+
+
+def test_same_second_notes_and_highlights_page_newest_first(tmp_path: Path) -> None:
+    # No clock patch: these land in the same second, and the later-stored must still lead.
+    client = _authed(tmp_path)
+    for i in range(3):
+        client.post("/api/app/notes", json={"target": "topic", "target_id": "t", "text": f"n{i}"})
+        client.post(
+            "/api/app/highlights",
+            json={"episode_slug": "ep", "kind": "moment", "start_ms": i, "quote_text": f"h{i}"},
+        )
+    notes = client.get("/api/app/notes", params={"limit": 10}).json()["items"]
+    assert [n["text"] for n in notes] == ["n2", "n1", "n0"]
+    hls = client.get("/api/app/highlights", params={"limit": 1, "per_episode": 10}).json()
+    assert [h["quote_text"] for h in hls["items"]] == ["h2", "h1", "h0"]
+
+
+def test_notes_paged_with_counts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    client, ids = _seed_highlights(tmp_path, monkeypatch)
+    for target, tid, text in [
+        ("episode", "ep-a", "first thought"),
+        ("highlight", ids["a1"], "on a quote"),
+        ("topic", "topic:risk", "risk is a property"),
+    ]:
+        client.post("/api/app/notes", json={"target": target, "target_id": tid, "text": text})
+    assert set(client.get("/api/app/notes").json()) == {"items"}
+    page = client.get("/api/app/notes", params={"limit": 2}).json()
+    assert [n["text"] for n in page["items"]] == ["risk is a property", "on a quote"]
+    assert page["total"] == 3
+    assert page["counts"] == {"episode": 1, "highlight": 1, "topic": 1}
+    phrase = client.get("/api/app/notes", params={"limit": 10, "q": "property risk"}).json()
+    assert phrase["items"] == []
+    words = client.get(
+        "/api/app/notes", params={"limit": 10, "q": "property risk", "match": "words"}
+    ).json()
+    assert [n["text"] for n in words["items"]] == ["risk is a property"]
+    q = client.get("/api/app/notes", params={"limit": 10, "q": "QUOTE"}).json()
+    assert [n["text"] for n in q["items"]] == ["on a quote"]
+    # The highlight a page's highlight-note is on comes with it (its link needs the episode).
+    assert [h["id"] for h in q["highlights"]] == [ids["a1"]]
+    assert q["highlights"][0]["episode_slug"] == "ep-a"
+    two = client.get(
+        "/api/app/notes", params=[("limit", 10), ("kinds", "episode"), ("kinds", "topic")]
+    ).json()
+    assert [n["target"] for n in two["items"]] == ["topic", "episode"] and two["total"] == 2
+    only = client.get("/api/app/notes", params={"limit": 10, "target": "episode"}).json()
+    assert [n["text"] for n in only["items"]] == ["first thought"] and only["total"] == 1
+
+
 def test_highlight_capture_persists_graph_refs(tmp_path: Path) -> None:
     # #1419: a captured highlight resolves + stores its episode's canonical person/topic refs.
     _corpus(tmp_path)
@@ -1128,6 +1240,36 @@ def test_resurfacing_due_then_pause_then_mark_surfaced(tmp_path: Path) -> None:
     assert client.post(f"/api/app/resurfacing/{old['id']}/surfaced").status_code == 204
     state = _json.loads((user_dir / "resurfacing.json").read_text())
     assert state[old["id"]]["count"] == 1
+
+
+def test_resurfacing_pages_by_episode_when_asked(tmp_path: Path) -> None:
+    import json as _json
+
+    _corpus(tmp_path)
+    client = _authed(tmp_path)
+    slug = _real_slug(tmp_path)
+    for i in range(3):
+        client.post(
+            "/api/app/highlights", json={"episode_slug": slug, "kind": "moment", "start_ms": i}
+        )
+    user_dir = next(p for p in (tmp_path / "appdata" / "users").iterdir() if p.is_dir())
+    hl_file = user_dir / "highlights.json"
+    rows = _json.loads(hl_file.read_text())
+    for r in rows:
+        r["created_at"] = 1  # far past: all three are due
+    hl_file.write_text(_json.dumps(rows))
+
+    # 1.0.2 sends nothing: everything due, and no paging fields.
+    full = client.get("/api/app/resurfacing").json()
+    assert set(full) == {"items", "paused"} and len(full["items"]) == 3
+
+    page = client.get("/api/app/resurfacing", params={"limit": 1, "per_episode": 2}).json()
+    assert len(page["items"]) == 2
+    assert page["total"] == 3 and page["episode_total"] == 1
+    assert page["episode_counts"] == {slug: 3}
+    assert (
+        client.get("/api/app/resurfacing", params={"limit": 1, "offset": 1}).json()["items"] == []
+    )
 
 
 def test_marking_an_id_you_do_not_own_is_a_404(tmp_path: Path) -> None:

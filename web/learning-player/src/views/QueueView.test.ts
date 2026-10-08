@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { batchViaGetEpisode } from '../test/apiViaSpies'
 import * as contentCache from '../services/contentCache'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail } from '../services/types'
@@ -31,6 +32,7 @@ function detail(slug: string, title: string): EpisodeDetail {
 }
 
 beforeEach(() => {
+  batchViaGetEpisode()
   setActivePinia(createPinia())
   vi.spyOn(api, 'putQueue').mockResolvedValue()
   // Removal is an ITEM-level call now (#1925), not a whole-list PUT.
@@ -82,6 +84,20 @@ describe('QueueView', () => {
     await flushPromises()
     expect(api.getEpisode).toHaveBeenCalledWith('a-1')
     expect(w.text()).toContain('What the publisher says this episode is about.')
+  })
+
+  it('fetches the twenty cards it shows, and the next twenty only on Show more (2026-10-08)', async () => {
+    const slugs = Array.from({ length: 25 }, (_, i) => `q-${i}`)
+    vi.spyOn(api, 'getQueue').mockResolvedValue(slugs)
+    const get = vi.spyOn(api, 'getEpisode').mockImplementation(async (s: string) => detail(s, `T ${s}`))
+    const w = mount(QueueView, { global: { plugins: [i18n, router] } })
+    await flushPromises()
+    expect(get).toHaveBeenCalledTimes(20)
+    expect(w.text()).not.toContain('T q-24')
+    await w.get('[data-testid="queue-more"]').trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('T q-24')
+    expect(new Set(get.mock.calls.map(([s]) => s)).size).toBe(25)
   })
 
   it('shows the empty state with no queue', async () => {

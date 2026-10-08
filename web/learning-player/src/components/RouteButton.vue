@@ -16,9 +16,11 @@
  *
  * ## Why it can be absent
  *
- * Rendered only when the platform reports a route is AVAILABLE, which is the one thing both APIs do
- * tell us (`webkitplaybacktargetavailabilitychanged` / `remote.watchAvailability`). A speaker icon
- * that opens an empty sheet is worse than no icon: it offers a capability the room cannot provide.
+ * Rendered whenever the platform can open a picker. On iOS that is ALWAYS (operator 2026-10-08): it
+ * used to follow `webkitplaybacktargetavailabilitychanged`, which reports AirPlay receivers only, so
+ * away from an Apple TV or HomePod the button vanished and read as missing — and the AirPlay sheet is
+ * never empty anyway (the iPhone itself and any Bluetooth output are always listed). On the web it
+ * still follows `remote.watchAvailability`, where an empty Cast prompt is a real dead end.
  * ANDROID carries neither API in its WebView, so on Android 14+ the button opens the system output
  * switcher natively instead (BackgroundAudioPlugin → MediaRouter2, operator 2026-10-05). Below 14 it
  * stays hidden; the switcher is still on the media notification, which the native session

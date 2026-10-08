@@ -21,9 +21,10 @@ import {
   getStorylinePerspectives,
   getThemePerspectives,
   getTopicPerspectives,
+  type PerspectivesPage,
 } from "../services/api"
 import { formatTime } from "../player/transcriptSync"
-import type { TopicPerspective } from "../services/types"
+import type { Insight, TopicPerspective, TopicPerspectivesResponse } from "../services/types"
 
 const props = withDefaults(
   defineProps<{
@@ -62,6 +63,11 @@ const section = useSectionState<TopicPerspective[]>([])
  * how a render crash presents when it happens between tests rather than inside one.
  */
 const perspectives = computed(() => section.data.value ?? [])
+// Takes shown per speaker before "show all" (declared ABOVE load(): the immediate watch below runs it
+// during setup, before anything declared further down exists).
+const PREVIEW = 2
+/** A speaker's FULL takes, fetched the first time their "show all" opens. */
+const full = ref<Record<string, Insight[]>>({})
 /** Guards against a slow reply for a topic the reader has already navigated away from. */
 const requestSeq = ref(0)
 
@@ -74,12 +80,10 @@ async function load(): Promise<void> {
     // the alternative is showing an error over content that was actually available.
     for (let attempt = 0; ; attempt += 1) {
       try {
-        const r =
-          props.kind === "theme"
-            ? await getThemePerspectives(props.id)
-            : props.kind === "storyline"
-              ? await getStorylinePerspectives(props.id)
-              : await getTopicPerspectives(props.id, props.scope)
+        // Every speaker, but only the PREVIEW takes each: the rest load per speaker on "show all"
+        // (server paging, 2026-10-08 — a storyline's full response was 160 KB, 1.1 s on prod).
+        full.value = {}
+        const r = await fetchPage({ perSpeaker: PREVIEW })
         if (mine !== requestSeq.value) throw new Error("superseded")
         // Normalised HERE too, at the boundary: the section's contract is an array, and handing it
         // `undefined` makes every later reader defend itself.
@@ -137,22 +141,48 @@ const heading = computed(() =>
     : headingTitle.value
 )
 
-// Show up to PREVIEW insights per speaker; the rest sit behind a per-speaker toggle.
-const PREVIEW = 3
+// Show up to PREVIEW insights per speaker; the rest sit behind a per-speaker toggle. Two, and three
+// speakers at a time (operator 2026-10-07): one person with 59 takes filled a phone screen alone.
 
 /**
- * Speakers are PAGED, five at a time, on every surface (operator 2026-10-05: "page those with show
- * more in chunks of 5"). A grouping is the union over its members — the storyline fixture returns
+ * Speakers are PAGED, three at a time, on every surface (operator 2026-10-05 set five; 2026-10-07
+ * three, each with two takes). A grouping is the union over its members — the storyline fixture returns
  * 11 speakers, which unfolded took the page from ~2,200px to 11,185px — and a topic reached 10.
  * Speakers arrive ranked most-takes-first, so each page is the next-most-engaged five.
  */
-const caps = useCappedSections(5, 5)
+const caps = useCappedSections(3, 3)
+
+function fetchPage(page: PerspectivesPage): Promise<TopicPerspectivesResponse> {
+  return props.kind === "theme"
+    ? getThemePerspectives(props.id, page)
+    : props.kind === "storyline"
+      ? getStorylinePerspectives(props.id, page)
+      : getTopicPerspectives(props.id, props.scope, page)
+}
+
+async function loadAll(personId: string): Promise<void> {
+  const i = perspectives.value.findIndex((p) => p.person_id === personId)
+  const p = perspectives.value[i]
+  if (i < 0 || !p || full.value[personId] || p.insights.length >= p.insight_count) return
+  try {
+    const r = await fetchPage({ offset: i, limit: 1 })
+    const got = r.perspectives?.[0]
+    if (got && got.person_id === personId) full.value = { ...full.value, [personId]: got.insights }
+  } catch {
+    /* the preview stays; the toggle can be pressed again */
+  }
+}
+const takesOf = (p: { person_id: string; insights: Insight[] }): Insight[] =>
+  full.value[p.person_id] ?? p.insights
 const visible = computed(() => caps.visible("speakers", perspectives.value))
 const expanded = ref<Set<string>>(new Set())
 function toggle(personId: string): void {
   const next = new Set(expanded.value)
   if (next.has(personId)) next.delete(personId)
-  else next.add(personId)
+  else {
+    next.add(personId)
+    void loadAll(personId)
+  }
   expanded.value = next
 }
 </script>
@@ -188,15 +218,15 @@ function toggle(personId: string): void {
           class="rounded-lg border border-border bg-overlay p-3"
           data-testid="topic-perspective"
         >
-          <!-- Avatar in its own left column; everything else (name + count, then the insights and the
-               show-more) lives in the right column so it all aligns to where the NAME starts and
-               nothing tucks under the avatar. -->
-          <div class="flex gap-2.5">
+          <!-- Avatar + name is the card's header row; the insights run the card's full width under it,
+               flush left (operator 2026-10-08: "we don't need indentation"). Kept in the name's column
+               they started a full avatar-width in, which on a phone cost every line ~35px. -->
+          <div class="flex items-center gap-2.5">
             <ProfileAvatar
               :name="p.person_name"
               :src="p.image_url"
               :size="24"
-              class="mt-0.5 shrink-0"
+              class="shrink-0"
             />
             <div class="min-w-0 flex-1">
               <!-- Name + count share ONE baseline. -->
@@ -212,48 +242,48 @@ function toggle(personId: string): void {
                   t("ec.perspectiveInsights", p.insight_count, { named: { count: p.insight_count } })
                 }}</span>
               </div>
-              <ul class="mt-1 flex flex-col gap-1">
-                <li
-                  v-for="ins in expanded.has(p.person_id) ? p.insights : p.insights.slice(0, PREVIEW)"
-                  :key="ins.id"
-                  class="flex items-baseline gap-1.5 text-sm text-canvas-foreground"
-                >
-                  <span aria-hidden="true" class="text-muted">•</span>
-                  <!-- #2032: topic → insight → episode-moment. Grounded insights carry their source
-                       episode + the supporting quote's start, so the take jumps into the player AT
-                       the moment. Ungrounded/quote-less insights render with no ▶ (stays honest).
-                       INLINE at the end of the text (operator 2026-10-07): as its own column beside
-                       the text it took a third of a phone row and stacked every insight into a
-                       word-wide strip. -->
-                  <span class="min-w-0 flex-1">{{ ins.text }}<template v-if="ins.episode_slug && ins.start_ms != null">&#32;</template><PlayFrom
-                    v-if="ins.episode_slug && ins.start_ms != null"
-                    :seconds="ins.start_ms / 1000"
-                    :to="{
-                      name: 'player',
-                      params: { slug: ins.episode_slug },
-                      query: { t: String(Math.floor(ins.start_ms / 1000)) },
-                    }"
-                    data-testid="perspective-jump"
-                    :aria-label="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
-                    :title="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
-                    class="ml-1"
-                  /></span>
-                </li>
-              </ul>
-              <button
-                v-if="p.insights.length > PREVIEW"
-                type="button"
-                class="mt-1 text-xs font-semibold text-accent hover:underline"
-                @click="toggle(p.person_id)"
-              >
-                {{
-                  expanded.has(p.person_id)
-                    ? t("ec.perspectiveLess")
-                    : t("ec.perspectiveMore", { count: p.insights.length - PREVIEW })
-                }}
-              </button>
             </div>
           </div>
+          <ul class="mt-1.5 flex flex-col gap-1">
+            <li
+              v-for="ins in expanded.has(p.person_id) ? takesOf(p) : p.insights.slice(0, PREVIEW)"
+              :key="ins.id"
+              class="flex items-baseline gap-1.5 text-sm text-canvas-foreground"
+            >
+              <span aria-hidden="true" class="text-muted">•</span>
+              <!-- #2032: topic → insight → episode-moment. Grounded insights carry their source
+                   episode + the supporting quote's start, so the take jumps into the player AT
+                   the moment. Ungrounded/quote-less insights render with no ▶ (stays honest).
+                   INLINE at the end of the text (operator 2026-10-07): as its own column beside
+                   the text it took a third of a phone row and stacked every insight into a
+                   word-wide strip. -->
+              <span class="min-w-0 flex-1">{{ ins.text }}<template v-if="ins.episode_slug && ins.start_ms != null">&#32;</template><PlayFrom
+                v-if="ins.episode_slug && ins.start_ms != null"
+                :seconds="ins.start_ms / 1000"
+                :to="{
+                  name: 'player',
+                  params: { slug: ins.episode_slug },
+                  query: { t: String(Math.floor(ins.start_ms / 1000)) },
+                }"
+                data-testid="perspective-jump"
+                :aria-label="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
+                :title="t('kp.jumpToMoment', { time: formatTime(ins.start_ms / 1000) })"
+                class="ml-1"
+              /></span>
+            </li>
+          </ul>
+          <button
+            v-if="p.insight_count > PREVIEW"
+            type="button"
+            class="mt-1 text-xs font-semibold text-accent hover:underline"
+            @click="toggle(p.person_id)"
+          >
+            {{
+              expanded.has(p.person_id)
+                ? t("ec.perspectiveLess")
+                : t("ec.perspectiveMore", { count: p.insight_count - PREVIEW })
+            }}
+          </button>
         </li>
       </ul>
       <!-- One control for the whole section, under the list — a grouping's speaker count is the thing
@@ -263,6 +293,7 @@ function toggle(personId: string): void {
         :expanded="caps.remaining('speakers', perspectives.length) === 0"
         :count="perspectives.length"
         :remaining="caps.remaining('speakers', perspectives.length)"
+        :more-label="t('ec.moreVoices', { count: caps.remaining('speakers', perspectives.length) })"
         data-testid="perspectives-more-speakers"
         @toggle="caps.toggle('speakers', perspectives.length)"
       />

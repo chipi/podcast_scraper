@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { batchViaGetEpisode, capturesViaFullLists, collectionsViaGetCollection, podcastsViaGetPodcasts } from '../test/apiViaSpies'
 import en from '../i18n/locales/en.json'
 import type { Collection, CollectionDetail, Note } from '../services/types'
 import { useAuthStore } from '../stores/auth'
@@ -65,6 +66,10 @@ const mountView = () => {
 
 // File-level: every test starts with an empty cache, so no test inherits another's writes.
 beforeEach(() => {
+  podcastsViaGetPodcasts()
+  capturesViaFullLists()
+  collectionsViaGetCollection()
+  batchViaGetEpisode()
   cached = {}
 })
 afterEach(() => vi.restoreAllMocks())
@@ -81,7 +86,7 @@ describe('CollectionsView', () => {
     expect(w.text()).toContain('2 items')
   })
 
-  it('titles the section "Your collections"', async () => {
+  it('titles the section "Your boards"', async () => {
     const w = mountView()
     await flushPromises()
     expect(w.text()).toContain(en.collections.sectionTitle)
@@ -210,11 +215,11 @@ describe('CollectionsView', () => {
     const del = vi.spyOn(api, 'deleteCollection').mockResolvedValue([])
     const w = mountView()
     await flushPromises()
-    await w.find('[aria-label="Delete collection"]').trigger('click')
+    await w.find('[aria-label="Delete board"]').trigger('click')
     await w.get('[data-testid="confirm-accept"]').trigger('click')
     await flushPromises()
     expect(del).toHaveBeenCalledWith('col_1')
-    expect(w.text()).toContain('No collections yet')
+    expect(w.text()).toContain('No boards yet')
   })
 })
 
@@ -393,6 +398,26 @@ describe('a board renders its items, not their refs', () => {
     expect(w.text()).toContain('Good Episode')
     expect(w.findAll('[data-testid="collection-item"]')).toHaveLength(2)
   })
+
+  it('resolves the ten rows it shows, and the next ten only on Show more (2026-10-08)', async () => {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    vi.spyOn(api, 'getCollection').mockResolvedValue({
+      collection: col(),
+      items: Array.from({ length: 14 }, (_, i) => ({ kind: 'episode', ref: `ep-${i}` })),
+    } as CollectionDetail)
+    const get = vi.spyOn(api, 'getEpisode').mockImplementation(
+      async (slug: string) => ({ slug, title: slug, podcast_title: 'Show' }) as never,
+    )
+    const w = mountView()
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text().includes('AI takes'))!.trigger('click')
+    await flushPromises()
+    expect(get).toHaveBeenCalledTimes(10)
+    await w.get('[data-testid="collection-items-more"]').trigger('click')
+    await flushPromises()
+    expect(get).toHaveBeenCalledTimes(14)
+    expect(new Set(get.mock.calls.map((c) => c[0])).size).toBe(14) // none fetched twice
+  })
 })
 
 describe('collections open as an accordion (#2004 follow-up)', () => {
@@ -504,10 +529,13 @@ describe('notes kind filter', () => {
       note({ id: 'n1', target: 'person', text: 'about a person' }),
       note({ id: 'n2', target: 'highlight', target_id: 'h1', text: 'about a moment' }),
     ])
+    // Each chip is a server request now (the notes are paged there), so let it land.
     await w.get('[data-testid="notes-type-highlight"]').trigger('click')
+    await flushPromises()
     expect(w.text()).toContain('about a moment')
     expect(w.text()).not.toContain('about a person')
     await w.get('[data-testid="notes-type-all"]').trigger('click')
+    await flushPromises()
     expect(w.text()).toContain('about a person')
   })
 
@@ -521,7 +549,11 @@ describe('notes kind filter', () => {
       note({ id: 'n2', target: 'highlight', target_id: 'h1', text: 'about a moment' }),
     ])
     await w.get('[data-testid="notes-type-highlight"]').trigger('click')
+    await flushPromises()
     await w.get('[data-testid="collections-search"]').setValue('zzzz-no-match')
+    // The search waits for typing to pause (250 ms) before asking the server.
+    await new Promise((r) => setTimeout(r, 300))
+    await flushPromises()
     expect(w.find('[data-testid="collections-note"]').exists()).toBe(false)
     expect(w.get('[data-testid="collections-notes-empty"]').text()).toBe('No notes of that kind.')
     expect(w.find('[data-testid="notes-type-filter"]').exists()).toBe(true)

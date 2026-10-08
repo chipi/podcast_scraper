@@ -27,7 +27,7 @@
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { useDownloadsStore } from '../stores/downloads'
-import { episodeArtwork } from '../utils/episode'
+import { episodePlayerArtwork } from '../utils/episode'
 import { ApiError, getAudioSource, getEntities, getEpisode, getInsights, getSegments } from './api'
 import { track } from './analytics'
 import type { Entity, EpisodeDetail, Insight, SegmentsResponse, Topic } from './types'
@@ -410,11 +410,11 @@ async function correctImageExtension(path: string): Promise<string> {
 
 async function cacheArtwork(
   slug: string,
-  detail: Parameters<typeof episodeArtwork>[0],
+  detail: Parameters<typeof episodePlayerArtwork>[0],
   epoch: number,
 ): Promise<void> {
   try {
-    const raw = episodeArtwork(detail)
+    const raw = episodePlayerArtwork(detail)
     if (!raw) return
     const url = absolutize(raw)
     const downloadedTo = artworkPathFor(slug, url)
@@ -544,7 +544,7 @@ export async function captureDisplayMetadata(slug: string): Promise<void> {
       showTitle: detail.podcast_title ?? undefined,
       feedId: detail.feed_id || undefined,
       durationSeconds: detail.duration_seconds ?? undefined,
-      artworkUrl: episodeArtwork(detail) ?? undefined,
+      artworkUrl: episodePlayerArtwork(detail) ?? undefined,
     })
   } catch {
     // No network, or the episode is gone. The row keeps its slug rather than inventing a title.

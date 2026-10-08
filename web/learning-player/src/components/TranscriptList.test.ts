@@ -104,6 +104,17 @@ describe('TranscriptList', () => {
     expect(w.emitted('seek')?.at(-1)).toEqual([2.5])
   })
 
+  it('places the save control against the paragraph, level with its first line (operator 2026-10-08)', () => {
+    const w = mountList({ segments, activeIndex: 0, canCapture: true })
+    const save = w.findAll('[aria-label="Save highlight — your selected text, or this whole line"]')[0]
+    const anchor = save.element.parentElement!
+    // Positioned (`relative`) on the paragraph's own box — the one holding the text — not on the row
+    // that also holds the time · speaker line, so `top-0` lands on the first line of text.
+    expect(anchor.classList.contains('relative')).toBe(true)
+    expect(anchor.querySelector('[data-testid="seg"]')).not.toBeNull()
+    expect(save.classes()).toContain('top-0')
+  })
+
   it('captures the selected phrase (sub-range) when text is selected in the paragraph (FR1.2)', async () => {
     const w = mountList({ segments, activeIndex: 0, canCapture: true })
     // Select "world" (chars 6–11) within the first paragraph's rendered text node.
