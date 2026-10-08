@@ -43,6 +43,7 @@ import {
 } from './utils/graphEpisodeSelection'
 import { localYmdDaysAgo } from './utils/localCalendarDate'
 import { findRawNodeInArtifactByIdOrPrefixed } from './utils/parsing'
+import { stripLayerPrefixesForCil } from './utils/mergeGiKg'
 import { topicHandoffArtifactPaths } from './utils/topicHandoffEpisodes'
 import { fetchTopicTimeline } from './api/cilApi'
 import { fetchResolveEpisodeArtifacts } from './api/corpusLibraryApi'
@@ -338,7 +339,10 @@ async function handOffTopic(
   source: EnvelopeSource,
 ): Promise<void> {
   await loadTopicEpisodesIfAbsent(topicId)
-  if (subject.graphNodeCyId && subject.graphNodeCyId !== topicId) return // another subject was picked meanwhile
+  // Another subject was picked meanwhile. Compared without the layer prefix: once the topic's
+  // episodes load, the canvas re-focuses the same topic under its node id (`g:topic:…`).
+  const focused = subject.graphNodeCyId
+  if (focused && stripLayerPrefixesForCil(focused) !== stripLayerPrefixesForCil(topicId)) return
   graphHandoff.handoffRequested({
     kind: 'topic',
     cyId: topicId,
