@@ -8,6 +8,8 @@ import {
   getEpisode,
   getEpisodesBatch,
   getFavoriteRefs,
+  getHighlightsPage,
+  getNotesPage,
   getFavoritesPage,
   getEpisodeStats,
   getLibrary,
@@ -193,6 +195,31 @@ describe('getFavoritesPage', () => {
     expect(page.counts).toEqual({ episode: 2, topic: 1 })
     const red = await getFavoritesPage({ kind: 'episode', color: 'red', limit: 5 })
     expect(red.episodes.map((e) => e.slug)).toEqual(['e2'])
+  })
+})
+
+describe('getHighlightsPage / getNotesPage', () => {
+  const lastUrl = (): string => {
+    const calls = (globalThis.fetch as unknown as { mock: { calls: [string][] } }).mock.calls
+    return String(calls[calls.length - 1]![0])
+  }
+
+  it('sends the highlight filters and returns a paging server\'s answer', async () => {
+    mockFetch(200, { items: [], total: 4, episode_total: 2, episode_counts: {}, notes: [] })
+    const page = await getHighlightsPage({
+      q: 'sleep', color: 'red', muted: true, sort: 'title', offset: 5, limit: 5, perEpisode: 10,
+    })
+    expect(page.episode_total).toBe(2)
+    for (const part of ['q=sleep', 'color=red', 'muted=true', 'sort=title', 'offset=5', 'limit=5', 'per_episode=10'])
+      expect(lastUrl()).toContain(part)
+  })
+
+  it('sends repeated kinds and match=words for notes', async () => {
+    mockFetch(200, { items: [], total: 0, counts: {}, highlights: [] })
+    await getNotesPage({ q: 'a b', kinds: ['topic', 'episode'], words: true, limit: 5 })
+    const url = lastUrl()
+    expect(url).toContain('kinds=topic&kinds=episode')
+    expect(url).toContain('match=words')
   })
 })
 

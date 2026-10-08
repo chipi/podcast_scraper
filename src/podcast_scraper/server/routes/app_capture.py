@@ -390,6 +390,15 @@ def list_notes(
     target: str | None = None,
     target_id: str | None = None,
     q: str | None = Query(default=None, max_length=200, description="Paged: text match."),
+    kinds: list[str] = Query(
+        default_factory=list,
+        max_length=10,
+        description="Paged: only notes on these target kinds (repeat the param); none = all.",
+    ),
+    match: Literal["phrase", "words"] = Query(
+        default="phrase",
+        description="Paged: `q` as one phrase, or every word of it in any order (Search).",
+    ),
     offset: int = Query(default=0, ge=0),
     limit: int | None = Query(
         default=None,
@@ -408,16 +417,21 @@ def list_notes(
         rows = app_user_state.get_notes(_data_dir(request), user.user_id, target, target_id)
         return NotesResponse(items=[Note(**r) for r in rows])
     needle = (q or "").strip().casefold()
+    words = needle.split() if match == "words" else [needle]
     every = app_user_state.get_notes(_data_dir(request), user.user_id, None, target_id)
     hits = [
         n
         for n in sorted(every, key=lambda n: int(n.get("created_at") or 0), reverse=True)
-        if _matches(needle, n.get("text"))
+        if all(_matches(w, n.get("text")) for w in words)
     ]
     counts: dict[str, int] = {}
     for n in hits:
         counts[str(n.get("target"))] = counts.get(str(n.get("target")), 0) + 1
-    selected = [n for n in hits if target is None or n.get("target") == target]
+    selected = [
+        n
+        for n in hits
+        if (target is None or n.get("target") == target) and (not kinds or n.get("target") in kinds)
+    ]
     page = selected[offset : offset + limit]
     on = {str(n.get("target_id")) for n in page if n.get("target") == "highlight"}
     highlights = (

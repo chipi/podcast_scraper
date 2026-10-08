@@ -13,6 +13,7 @@ import SectionStatus from "../components/SectionStatus.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
 import TypeFilterBar from "../components/TypeFilterBar.vue"
 import { useCappedSections } from "../composables/useCappedSections"
+import { useNotesPage } from "../composables/useNotesPage"
 import { noteRoute as resolveNoteRoute } from "../composables/noteTarget"
 import { useCollectionsStore } from "../stores/collections"
 import { scrollBehavior } from "../utils/motion"
@@ -208,6 +209,8 @@ const NOTE_KIND_ORDER = [
   "theme",
 ] as const
 const noteTypes = ref<string[]>([])
+// Every note the user took, paged on the server (2026-10-08) — it used to load them all.
+const notesPage = useNotesPage(search, noteTypes)
 /** The kind in words. Falls back to the raw target so an unknown kind still labels its row. */
 function noteKindLabel(target: string): string {
   const key = `notes.kind_${target}`
@@ -219,8 +222,9 @@ const availableNoteTypes = computed(() => {
   // Saved section headings and the Knowledge Panel's insight chips already use. Counted over ALL
   // notes, not the search-filtered set: a chip that changed its number as you typed would be
   // answering a different question from the one it asks.
-  const byKind = new Map<string, number>()
-  for (const n of capture.notes) byKind.set(n.target, (byKind.get(n.target) ?? 0) + 1)
+  const byKind = new Map<string, number>(
+    Object.entries(notesPage.counts.value).filter(([, n]) => n > 0),
+  )
   return NOTE_KIND_ORDER.filter((k) => byKind.has(k)).map((k) => ({
     key: k,
     // Same words as the row's own kicker, so a chip and the rows it governs name the same thing.
@@ -233,14 +237,6 @@ watch(availableNoteTypes, (types) => {
   const keys = new Set<string>(types.map((x) => x.key))
   const kept = noteTypes.value.filter((k) => keys.has(k))
   if (kept.length !== noteTypes.value.length) noteTypes.value = kept
-})
-
-// Notes newest-first, filtered by the same search box (NT.4 + CO.5) and the kind chips.
-const visibleNotes = computed(() => {
-  const q = search.value.trim().toLowerCase()
-  let base = [...capture.notes].sort((a, b) => b.created_at - a.created_at)
-  if (noteTypes.value.length) base = base.filter((n) => noteTypes.value.includes(n.target))
-  return q ? base.filter((n) => n.text.toLowerCase().includes(q)) : base
 })
 
 // Per-section caps + "Show all" (#2042 pattern, operator): boards and notes each show the top N and
@@ -494,6 +490,7 @@ async function removeItem(it: CollectionItem): Promise<void> {
 }
 
 onMounted(() => {
+  void notesPage.reload()
   void load()
   void capture.ensureLoaded().catch(() => {})
 })
@@ -505,7 +502,7 @@ onMounted(() => {
          the notes below, so they belong above the collections section, not inside it. Only shown
          when there's something to filter. -->
     <div
-      v-if="collections.length || capture.notes.length"
+      v-if="collections.length || notesPage.anyNotes.value"
       class="mb-4 flex flex-wrap items-center gap-2"
     >
       <input
@@ -597,7 +594,7 @@ onMounted(() => {
          that row is present, so a fresh empty account doesn't show a stray line at the very top. -->
     <h2
       class="lp-section mb-2"
-      :class="collections.length || capture.notes.length ? 'border-t border-border pt-6' : ''"
+      :class="collections.length || notesPage.anyNotes.value ? 'border-t border-border pt-6' : ''"
     >
       {{ t("collections.sectionTitle") }}
       <!-- The tally, in the same `lp-kicker` slot every Saved and Following heading uses (operator
@@ -920,7 +917,7 @@ onMounted(() => {
     <!-- Notes (NT.4) — every note the user has taken, beside their boards in this tab. A divider +
          the heading separate them clearly from the boards above (operator). -->
     <section
-      v-if="capture.notes.length"
+      v-if="notesPage.anyNotes.value"
       class="mt-8 border-t border-border pt-6"
       data-testid="collections-notes"
     >
@@ -931,10 +928,10 @@ onMounted(() => {
              count was made filter-aware to fix, reintroduced here by adding a count to a heading
              whose list was already filtered. The chips keep their unfiltered numbers on purpose:
              a chip's count answers "how many would this leave", which must not move as you type. -->
-        <span class="lp-kicker ml-1 font-normal">{{ visibleNotes.length }}</span>
+        <span class="lp-kicker ml-1 font-normal">{{ notesPage.total.value }}</span>
       </h2>
       <!-- Kind chips at the TOP of the section (operator 2026-09-17), filtering by the entity a note
-           is ON. The section is gated on `capture.notes.length`, not on the filtered list: gating on
+           is ON. The section is gated on whether ANY note exists, not on the filtered list: gating on
            the result would delete the filter bar the moment a chip matched nothing, stranding the
            user with no way back. An empty result says so instead. -->
       <TypeFilterBar
@@ -944,12 +941,12 @@ onMounted(() => {
         testid-prefix="notes-type"
         class="mb-3"
       />
-      <p v-if="!visibleNotes.length" class="text-sm text-muted" data-testid="collections-notes-empty">
+      <p v-if="!notesPage.items.value.length && !notesPage.loading.value" class="text-sm text-muted" data-testid="collections-notes-empty">
         {{ t("notes.noneMatch") }}
       </p>
       <ul v-else class="flex flex-col gap-2">
         <li
-          v-for="n in caps.visible('notes', visibleNotes, searchActive)"
+          v-for="n in notesPage.items.value"
           :key="n.id"
           class="rounded-xl border border-border p-3"
           data-testid="collections-note"
@@ -978,10 +975,11 @@ onMounted(() => {
         </li>
       </ul>
       <ShowAllToggle
-        v-if="caps.overflows(visibleNotes.length, searchActive)"
-        :expanded="caps.expanded.has('notes')"
-        :count="visibleNotes.length"
-        @toggle="caps.toggle('notes')"
+        v-if="notesPage.total.value > 5"
+        :expanded="notesPage.remaining.value === 0"
+        :count="notesPage.total.value"
+        :remaining="notesPage.remaining.value"
+        @toggle="notesPage.toggle()"
       />
     </section>
 

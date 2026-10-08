@@ -190,7 +190,9 @@ describe('auth gate coverage (#1590)', () => {
       for (const m of text.matchAll(/async (\w+)\s*\(/g)) {
         const action = m[1]
         // Reads, and internals a component can never call directly (leading underscore).
-        if (['ensureLoaded', 'load', 'refresh'].includes(action) || action.startsWith('_')) continue
+        // `ensureEpisode` / `ensureNotesFor`: the capture store's per-episode and per-target reads.
+        const reads = ['ensureLoaded', 'load', 'refresh', 'ensureEpisode', 'ensureNotesFor']
+        if (reads.includes(action) || action.startsWith('_')) continue
         const key = `${alias}.${action}(`
         if (!GATED_WRITES.includes(key)) missing.push(key)
       }

@@ -612,7 +612,8 @@ async function loadRelated(slug: string): Promise<void> {
 // rejection in the browser. Nothing here awaits it — the panel renders from an empty store — so
 // catch and leave it un-loaded, which lets the next call retry.
 const loadCaptures = (): void => {
-  if (auth.isAuthenticated) void capture.ensureLoaded().catch(() => {})
+  // This episode's highlights (2026-10-08) — the store holds what was asked for, not everything.
+  if (auth.isAuthenticated) void capture.ensureEpisode(props.slug).catch(() => {})
 }
 onMounted(() => {
   loadRelated(props.slug)
@@ -629,6 +630,7 @@ watch(
     // only escape was tapping "All", which nobody would think to do. The filter is a property of
     // the episode you are reading, not of the session (review 2026-09-19).
     insightTypeFilter.value = null
+    loadCaptures()
     return loadRelated(s)
   }
 )

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
-import { batchViaGetEpisode } from '../test/episodeBatch'
+import { batchViaGetEpisode, capturesViaFullLists } from '../test/apiViaSpies'
 import en from '../i18n/locales/en.json'
 import type { Collection, CollectionDetail, Note } from '../services/types'
 import { useAuthStore } from '../stores/auth'
@@ -66,6 +66,7 @@ const mountView = () => {
 
 // File-level: every test starts with an empty cache, so no test inherits another's writes.
 beforeEach(() => {
+  capturesViaFullLists()
   batchViaGetEpisode()
   cached = {}
 })
@@ -526,10 +527,13 @@ describe('notes kind filter', () => {
       note({ id: 'n1', target: 'person', text: 'about a person' }),
       note({ id: 'n2', target: 'highlight', target_id: 'h1', text: 'about a moment' }),
     ])
+    // Each chip is a server request now (the notes are paged there), so let it land.
     await w.get('[data-testid="notes-type-highlight"]').trigger('click')
+    await flushPromises()
     expect(w.text()).toContain('about a moment')
     expect(w.text()).not.toContain('about a person')
     await w.get('[data-testid="notes-type-all"]').trigger('click')
+    await flushPromises()
     expect(w.text()).toContain('about a person')
   })
 
@@ -543,7 +547,11 @@ describe('notes kind filter', () => {
       note({ id: 'n2', target: 'highlight', target_id: 'h1', text: 'about a moment' }),
     ])
     await w.get('[data-testid="notes-type-highlight"]').trigger('click')
+    await flushPromises()
     await w.get('[data-testid="collections-search"]').setValue('zzzz-no-match')
+    // The search waits for typing to pause (250 ms) before asking the server.
+    await new Promise((r) => setTimeout(r, 300))
+    await flushPromises()
     expect(w.find('[data-testid="collections-note"]').exists()).toBe(false)
     expect(w.get('[data-testid="collections-notes-empty"]').text()).toBe('No notes of that kind.')
     expect(w.find('[data-testid="notes-type-filter"]').exists()).toBe(true)

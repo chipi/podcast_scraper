@@ -33,8 +33,8 @@ import { newestFirst } from '../utils/newestFirst'
 import { useCaptureStore } from '../stores/capture'
 import { borderClass } from '../utils/highlightColors'
 import { summaryFromDetail } from '../utils/episode'
-import { matchesQuery } from '../utils/textFilter'
 import { useCappedSections } from '../composables/useCappedSections'
+import type { HighlightsPageState } from '../composables/useHighlightsPage'
 import { shareHighlightCard } from '../composables/shareCard'
 import ShareIcon from '../components/ShareIcon.vue'
 
@@ -54,20 +54,17 @@ function hlNotes(id: string) {
  * the pre-lift behaviour (all colours, grouped by episode) for any standalone mount.
  */
 const props = defineProps<{
+  /**
+   * The episodes on screen — paged on the SERVER since 2026-10-08 (`useHighlightsPage`), owned by
+   * the Saved tab because its filter bar drives it.
+   */
+  page: HighlightsPageState
   filterColor?: string | null
   sort?: string
   search?: string
   /** `true` = only captures the user stopped resurfacing; default/false = everything. */
   mutedOnly?: boolean
 }>()
-
-// Episode groups are capped like every other Library section (#2042 follow-up); a search lifts it.
-// Episode groups AND the captures inside each one page FIVE at a time (operator 2026-10-08; was 10
-// since 2026-09-18). A heavy listener has dozens of captures on a single episode, and "Show all" on
-// that is not a page — it is a scroll with no landmarks. Separate instances so walking one episode
-// does not move the others. Order is unchanged: latest saved first, episodes and captures alike.
-const groupCaps = useCappedSections(5, 5)
-const itemCaps = useCappedSections(5, 5)
 
 /**
  * Episode groups the user has folded away (operator 2026-09-18).
@@ -82,7 +79,6 @@ function toggleGroup(slug: string): void {
   if (!next.delete(slug)) next.add(slug)
   collapsed.value = next
 }
-const searchActive = computed(() => (props.search ?? '').trim() !== '')
 
 /**
  * The episode behind each group heading (slug → detail), hydrated lazily.
@@ -119,51 +115,6 @@ function headingEpisode(slug: string): EpisodeSummary {
     status: 'ready',
   } as unknown as EpisodeSummary
 }
-
-interface Group {
-  slug: string
-  title: string
-  highlights: Highlight[]
-}
-
-const byRecent = (a: Highlight, b: Highlight): number => (b.created_at ?? 0) - (a.created_at ?? 0)
-
-const groups = computed<Group[]>(() => {
-  const sort = props.sort ?? 'recent'
-  const query = props.search ?? ''
-  const bySlug = new Map<string, Highlight[]>()
-  for (const h of capture.highlights) {
-    if (props.filterColor && h.color !== props.filterColor) continue
-    // Muted filter (operator 2026-09-18): sits beside the colour filter and reads the same way
-    // — unset shows everything, set narrows. `retired` is optional on the type, so the coerce
-    // keeps an older cached payload (no field) out of the muted bucket rather than in it.
-    if (props.mutedOnly && !h.retired) continue
-    // Search matches a highlight's own text (quote / speaker); episode titles are findable through
-    // the Episodes section. Mirrors LibraryView's count predicate so the two agree.
-    if (!(matchesQuery(h.quote_text, query) || matchesQuery(h.speaker, query))) continue
-    const list = bySlug.get(h.episode_slug) ?? []
-    list.push(h)
-    bySlug.set(h.episode_slug, list)
-  }
-  // Highlights stay grouped by episode (structural); the shared sort only orders things. Within a
-  // group, newest first. Group ORDER: A–Z by episode title for 'title', else most-recent group first.
-  const out = [...bySlug.entries()].map(([slug, highlights]) => ({
-    slug,
-    title: titleFor(slug),
-    highlights: [...highlights].sort(byRecent),
-  }))
-  if (sort === 'title') {
-    out.sort((a, b) => a.title.localeCompare(b.title))
-  } else {
-    const latest = (g: Group): number => Math.max(...g.highlights.map((h) => h.created_at ?? 0), 0)
-    out.sort((a, b) => latest(b) - latest(a))
-  }
-  return out
-})
-
-const visibleGroups = computed<Group[]>(() =>
-  groupCaps.visible('groups', groups.value, searchActive.value),
-)
 
 // The count that used to sit on the export row lived here. It is gone (operator 2026-09-19): this
 // view has exactly one host — Library's Saved tab — and that heading already renders the tally, one
@@ -329,17 +280,13 @@ onMounted(async () => {
 })
 
 /**
- * Fetch the episode of each group ON SCREEN — five, then five more per "Show more" (2026-10-08). It
- * used to fetch every highlighted episode on mount while showing five.
- *
- * Except under the A–Z sort, which orders groups by episode TITLE: that needs every title, or an
- * unfetched group would sort by its slug.
+ * Fetch the episode of each group ON SCREEN — the page's episodes, in one batch request. The A–Z
+ * order is the server's now, so no title is needed off screen.
  */
 const requested = new Set<string>()
 watch(
-  () => ((props.sort ?? 'recent') === 'title' ? groups.value : visibleGroups.value).map((g) => g.slug),
+  () => props.page.groups.value.map((g) => g.slug),
   (wanted) => {
-    // `requested`, not just `details`: groups recompute as each detail lands, re-firing this watch.
     const slugs = [...new Set(wanted)].filter((slug) => !details.value[slug] && !requested.has(slug))
     if (!slugs.length) return
     for (const slug of slugs) requested.add(slug)
@@ -454,10 +401,10 @@ watch(
          open: collapsing tidies a long Saved list, it is not a default that hides your captures. -->
     <ul class="flex flex-col gap-6">
     <EpisodeGroupCard
-      v-for="g in visibleGroups"
+      v-for="g in page.groups.value"
       :key="g.slug"
       :episode="headingEpisode(g.slug)"
-      :item-count="g.highlights.length"
+      :item-count="g.total"
       :expanded="!collapsed.has(g.slug)"
       testid="highlight-group"
       toggle-testid="highlight-group-collapse"
@@ -466,11 +413,11 @@ watch(
       <template #meta>
         <template v-if="formatPublishDate(headingEpisode(g.slug).publish_date, locale)">{{
           formatPublishDate(headingEpisode(g.slug).publish_date, locale)
-        }} · </template>{{ t('collections.count', g.highlights.length) }}
+        }} · </template>{{ t('collections.count', g.total) }}
       </template>
       <ul class="flex flex-col gap-3">
         <li
-          v-for="h in itemCaps.visible(g.slug, g.highlights, searchActive)"
+          v-for="h in g.highlights"
           :key="h.id"
           class="rounded-xl border border-l-4 border-border p-3"
           :class="borderClass(h.color)"
@@ -663,22 +610,22 @@ watch(
       <!-- Captures WITHIN this episode page 10 at a time, keyed by slug so each episode is walked
            independently. A search lifts it, same rule as everywhere else. -->
       <ShowAllToggle
-        v-if="!collapsed.has(g.slug) && itemCaps.overflows(g.highlights.length, searchActive, g.slug)"
-        :expanded="itemCaps.remaining(g.slug, g.highlights.length) === 0"
-        :count="g.highlights.length"
-        :remaining="itemCaps.remaining(g.slug, g.highlights.length)"
-        @toggle="itemCaps.toggle(g.slug, g.highlights.length)"
+        v-if="!collapsed.has(g.slug) && g.total > 5"
+        :expanded="g.highlights.length >= g.total"
+        :count="g.total"
+        :remaining="Math.max(0, g.total - g.highlights.length)"
+        @toggle="page.toggleIn(g.slug)"
       />
     </EpisodeGroupCard>
     </ul>
 
     <!-- Episode groups page 10 at a time; a search lifts it (#2042 follow-up). -->
     <ShowAllToggle
-      v-if="groupCaps.overflows(groups.length, searchActive, 'groups')"
-      :expanded="groupCaps.remaining('groups', groups.length) === 0"
-      :count="groups.length"
-      :remaining="groupCaps.remaining('groups', groups.length)"
-      @toggle="groupCaps.toggle('groups', groups.length)"
+      v-if="page.episodeTotal.value > 5"
+      :expanded="page.remainingGroups.value === 0"
+      :count="page.episodeTotal.value"
+      :remaining="page.remainingGroups.value"
+      @toggle="page.toggleGroups()"
     />
 
     <ConfirmDialog

@@ -4,12 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
-import { batchViaGetEpisode } from '../test/episodeBatch'
+import { batchViaGetEpisode, capturesViaFullLists } from '../test/apiViaSpies'
 import * as shareCard from '../composables/shareCard'
 import * as native from '../services/native'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, Highlight, Note } from '../services/types'
 import HighlightsView from './HighlightsView.vue'
+import { useHighlightsPage } from '../composables/useHighlightsPage'
+import { defineComponent, h, onMounted, ref } from 'vue'
 
 // jsdom does not implement `<dialog>`: without these, mounting the confirm throws.
 if (!('showModal' in HTMLDialogElement.prototype)) {
@@ -48,13 +50,32 @@ function detail(slug: string, title: string): EpisodeDetail {
   }
 }
 
+/**
+ * HighlightsView renders a page its HOST owns (the Saved tab, in the app): this host builds it from
+ * the same props the tab's filter bar would pass, and loads it on mount, as the tab does.
+ */
 const mountView = (props: Record<string, unknown> = {}) =>
   // stub teleport so the SavedColorControl palette (teleported to <body> via the shared shell) renders
   // inline for `find`.
-  mount(HighlightsView, { props, global: { plugins: [i18n, router], stubs: { teleport: true } } })
+  mount(
+    defineComponent({
+      setup() {
+        const page = useHighlightsPage({
+          search: ref((props.search as string | undefined) ?? ''),
+          color: ref((props.filterColor as string | null | undefined) ?? null),
+          sort: ref((props.sort as string | undefined) ?? 'recent'),
+          mutedOnly: ref(Boolean(props.mutedOnly)),
+        })
+        onMounted(() => void page.reload())
+        return () => h(HighlightsView, { ...props, page })
+      },
+    }),
+    { global: { plugins: [i18n, router], stubs: { teleport: true } } },
+  )
 
 beforeEach(() => {
   batchViaGetEpisode()
+  capturesViaFullLists()
   setActivePinia(createPinia())
   vi.spyOn(api, 'getNotes').mockResolvedValue([])
   vi.spyOn(api, 'getCollections').mockResolvedValue([])
@@ -451,13 +472,15 @@ describe('HighlightsView', () => {
     expect(get.mock.calls.map((c) => c[0]).sort()).toEqual(['ep-0', 'ep-1', 'ep-2', 'ep-3', 'ep-4', 'ep-5', 'ep-6'])
   })
 
-  it('A–Z by title fetches every episode, because the order needs every title', async () => {
+  it('A–Z is the SERVER\'s order, so only the episodes on screen are fetched (2026-10-08)', async () => {
+    // It used to fetch every highlighted episode under A–Z, because the client sorted by title.
     vi.spyOn(api, 'getHighlights').mockResolvedValue(
       Array.from({ length: 7 }, (_, i) => hl({ id: `h${i}`, episode_slug: `ep-${i}`, created_at: 100 - i })),
     )
     const get = vi.spyOn(api, 'getEpisode').mockImplementation(async (slug: string) => detail(slug, slug))
     mountView({ sort: 'title' })
     await flushPromises()
-    expect(get).toHaveBeenCalledTimes(7)
+    expect(api.getHighlightsPage).toHaveBeenCalledWith(expect.objectContaining({ sort: 'title' }))
+    expect(get).toHaveBeenCalledTimes(5)
   })
 })

@@ -38,3 +38,21 @@ export function favoritesViaGetFavorites(): void {
     api.pageFavoritesLocally(await api.getFavorites(), query),
   )
 }
+
+/**
+ * Answer the paged capture reads from the test's own `getNotes` / `getHighlights` spies, cut by the
+ * same code an older server's full list goes through (`pageNotesLocally` / `pageHighlightsLocally`).
+ * The server's own paging is tested in the API's integration tests.
+ */
+export function capturesViaFullLists(): void {
+  vi.spyOn(api, 'getNotesPage').mockImplementation(async (query) =>
+    api.pageNotesLocally(await api.getNotes(), await api.getHighlights().catch(() => []), query),
+  )
+  vi.spyOn(api, 'getHighlightsPage').mockImplementation(async (query) =>
+    api.pageHighlightsLocally(
+      await api.getHighlights(),
+      await api.getNotes('highlight').catch(() => []),
+      query,
+    ),
+  )
+}

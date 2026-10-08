@@ -4,6 +4,11 @@
  * and reconciles from the server response (no optimistic drift). Holds the signed-in user's
  * highlights; the Library Highlights view (#1117) reads the same store.
  *
+ * Since 2026-10-08 it is a CACHE of what has been loaded, not the whole library: the player asks for
+ * its episode (`ensureEpisode`), a note composer for its target (`ensureNotesFor`), and the Saved
+ * and Boards lists read server PAGES (`getHighlightsPage` / `getNotesPage`) and `merge` them in.
+ * `count` is the server's total. Every change moves `version`, so the paged lists refetch.
+ *
  * Offline (#1925): a capture is shown immediately under a CLIENT-minted id and queued in the
  * outbox. That id is the whole mechanism — the optimistic row and the row the server eventually
  * stores are the same row, so a replay cannot duplicate it. Before this, a capture made with no
@@ -16,6 +21,7 @@ import {
   deleteHighlight,
   deleteNote,
   getHighlights,
+  getHighlightsPage,
   getNotes,
   patchHighlight,
   patchNote,
@@ -38,13 +44,38 @@ import type { Highlight, HighlightCreate, Note, NoteCreate } from '../services/t
 import type { ParagraphSpan } from '../player/transcriptCapture'
 
 interface CaptureState {
+  /** Every highlight loaded so far — the open episodes', and the rows the lists merged in. */
   highlights: Highlight[]
+  /** Every note loaded so far. */
   notes: Note[]
+  /** The server's count of ALL the user's highlights (null until asked). */
+  total: number | null
+  /** Moves on every change — the paged lists refetch. */
+  version: number
+  /** Episodes and note targets loaded, so `load()` can revalidate exactly those. */
+  episodes: string[]
+  noteTargets: string[]
   loaded: boolean
   /** Showing a cached copy the server has not confirmed this session. */
   stale: boolean
   /** Nothing fetched AND nothing cached — an unknown library, not an empty one. */
   unavailable: boolean
+}
+
+/** `a` wins over `b` on the same id; order: `b`'s rows that `a` does not replace, then `a`. */
+function mergeById<T extends { id: string }>(a: T[], b: T[]): T[] {
+  const ids = new Set(a.map((x) => x.id))
+  return [...b.filter((x) => !ids.has(x.id)), ...a]
+}
+
+/** A row minted here (`newCaptureId`: hc_ / nc_) that the server has not answered for yet. */
+function isLocalOnly(id: string): boolean {
+  return /^[hn]c_/.test(id) && !serverIdFor.has(id)
+}
+
+function splitTarget(key: string): [string, string] {
+  const i = key.indexOf('\u0000')
+  return [key.slice(0, i), key.slice(i + 1)]
 }
 
 /** Seconds → integer milliseconds (the highlight anchor unit). */
@@ -79,7 +110,17 @@ const serverIdFor = new Map<string, string>()
 const refusedCreates = new Set<string>()
 
 export const useCaptureStore = defineStore('capture', {
-  state: (): CaptureState => ({ highlights: [], notes: [], loaded: false, stale: false, unavailable: false }),
+  state: (): CaptureState => ({
+    highlights: [],
+    notes: [],
+    total: null,
+    version: 0,
+    episodes: [],
+    noteTargets: [],
+    loaded: false,
+    stale: false,
+    unavailable: false,
+  }),
   getters: {
     /** Highlights for one episode (newest-last as stored). */
     forEpisode:
@@ -100,37 +141,36 @@ export const useCaptureStore = defineStore('capture', {
       for (const h of s.highlights) for (const sid of h.segment_ids) out.add(sid)
       return out
     },
-    count: (s): number => s.highlights.length,
+    /** How many highlights the user has — the server's total once asked, else what is loaded. */
+    count: (s): number => s.total ?? s.highlights.length,
   },
   actions: {
     /**
-     * Highlights and notes, cached per account like favourites, library and the queue (#1909).
-     *
-     * This one was missed, and the miss was invisible because the failure LOOKED like an answer:
-     * offline the load rejected, `count` stayed 0, and the Saved tab rendered its "Episodes you
-     * favourite, insights you keep, and moments you mark all live here" empty state — telling a
-     * user with highlights that they had none. Same shape as the Profile stats bug, one tab over.
+     * How many highlights the user has (one row from the server), and a revalidation of whatever
+     * episodes and note targets are already loaded. Cached per account (#1909): offline, the
+     * cached copy stands and is marked stale; with nothing cached the library is UNKNOWN, not empty.
      *
      * Does not reject once it has recovered from cache: every caller treats this as fire-and-forget.
      */
     async load(): Promise<void> {
-      // Guard the account switch, like every sibling store (favorites/library/queue/completed/
-      // collections): a load in flight across an A-logout/B-login must not assign A's private notes
-      // and highlights into B's store — nor writeCached them under B's namespace (a cross-account
-      // leak). A response that lands after the switch belongs to nobody now, so drop it.
+      // A load in flight across an account switch must not write A's captures into B's store, nor
+      // cache them under B's namespace. A response that lands after the switch belongs to nobody.
       const generation = identityEpoch()
       try {
-        // `fresh`: a save/unsave made while this is in flight must not be undone by it.
-        const [highlights, notes] = await writes.fresh(() =>
-          Promise.all([getHighlights(), getNotes()]),
-        )
+        const page = await writes.fresh(() => getHighlightsPage({ limit: 1, perEpisode: 1 }))
         if (identityChangedSince(generation)) return
-        this.highlights = highlights
-        this.notes = notes
+        this.total = page.total
         this.loaded = true
         this.stale = false
         this.unavailable = false
-        void writeCached('captures', { highlights, notes })
+        await Promise.all([
+          ...this.episodes.map((slug) => this._fetchEpisode(slug)),
+          ...this.noteTargets.map((key) => {
+            const [target, id] = splitTarget(key)
+            return this._fetchNotes(target, id)
+          }),
+        ])
+        this._bump()
       } catch {
         if (identityChangedSince(generation)) return
         const cached = await readCached<{ highlights: Highlight[]; notes: Note[] }>(
@@ -139,8 +179,8 @@ export const useCaptureStore = defineStore('capture', {
         )
         if (identityChangedSince(generation)) return
         if (cached) {
-          this.highlights = cached.highlights
-          this.notes = cached.notes
+          this.highlights = mergeById(cached.highlights, this.highlights)
+          this.notes = mergeById(cached.notes, this.notes)
           this.loaded = true
           this.stale = true
           this.unavailable = false
@@ -153,15 +193,91 @@ export const useCaptureStore = defineStore('capture', {
     },
     async ensureLoaded(): Promise<void> {
       if (this.loaded) return
-      // Share ONE in-flight load so a mutation awaiting this cannot be clobbered by a second fetch
-      // resolving after its optimistic write (see `loadPromise`).
+      // Share ONE in-flight load (see `loadPromise`).
       if (!loadPromise) loadPromise = this.load().finally(() => (loadPromise = null))
       await loadPromise
     },
-    /** Replace local state from a server list (after a mutation). */
-    _sync(items: Highlight[]): void {
-      this.highlights = items
-      this.loaded = true
+    /**
+     * One episode's highlights — the player and its notes panel. Replaces that episode's loaded
+     * rows with the server's, keeping a capture still on its way (outbox, or not yet answered).
+     * Offline, the cached rows stand.
+     */
+    async ensureEpisode(slug: string): Promise<void> {
+      if (!slug) return
+      if (!this.episodes.includes(slug)) this.episodes = [...this.episodes, slug]
+      await this._fetchEpisode(slug)
+    },
+    async _fetchEpisode(slug: string): Promise<void> {
+      const generation = identityEpoch()
+      try {
+        const rows = await writes.fresh(() => getHighlights(slug))
+        if (identityChangedSince(generation)) return
+        const keep = this.highlights.filter(
+          (h) => h.episode_slug !== slug || hasPendingHighlightCreate(h.id) || isLocalOnly(h.id),
+        )
+        this.highlights = mergeById(rows, keep)
+        this.loaded = true
+        this._cache()
+      } catch {
+        if (identityChangedSince(generation)) return
+        const cached = await readCached<{ highlights: Highlight[]; notes: Note[] }>(
+          'captures',
+          hasArrayFields('highlights', 'notes'),
+        )
+        if (cached) {
+          this.highlights = mergeById(
+            cached.highlights.filter((h) => h.episode_slug === slug),
+            this.highlights,
+          )
+          this.stale = true
+        }
+      }
+    },
+    /** Notes on one target — a note composer. Same rules as `ensureEpisode`. */
+    async ensureNotesFor(target: string, targetId: string): Promise<void> {
+      if (!targetId) return
+      const key = `${target}\u0000${targetId}`
+      if (!this.noteTargets.includes(key)) this.noteTargets = [...this.noteTargets, key]
+      await this._fetchNotes(target, targetId)
+    },
+    async _fetchNotes(target: string, targetId: string): Promise<void> {
+      const generation = identityEpoch()
+      try {
+        const rows = await writes.fresh(() => getNotes(target, targetId))
+        if (identityChangedSince(generation)) return
+        const keep = this.notes.filter(
+          (n) =>
+            !(n.target === target && n.target_id === targetId) ||
+            hasPendingNoteCreate(n.id) ||
+            isLocalOnly(n.id),
+        )
+        this.notes = mergeById(rows, keep)
+        this._cache()
+      } catch {
+        if (identityChangedSince(generation)) return
+        const cached = await readCached<{ highlights: Highlight[]; notes: Note[] }>(
+          'captures',
+          hasArrayFields('highlights', 'notes'),
+        )
+        if (cached) {
+          this.notes = mergeById(
+            cached.notes.filter((n) => n.target === target && n.target_id === targetId),
+            this.notes,
+          )
+          this.stale = true
+        }
+      }
+    },
+    /** Rows a paged list fetched — kept so their edits, colours and note links work like any. */
+    merge(highlights: Highlight[], notes: Note[] = []): void {
+      this.highlights = mergeById(highlights, this.highlights)
+      this.notes = mergeById(notes, this.notes)
+    },
+    _bump(): void {
+      this.version++
+    },
+    _cache(): void {
+      void writeCached('captures', { highlights: this.highlights, notes: this.notes })
     },
     /**
      * Capture one highlight, surviving an offline moment (#1925).
@@ -198,6 +314,8 @@ export const useCaptureStore = defineStore('capture', {
           // Row-level: replaces only this capture's own row (a no-op if the user already unsaved
           // it — the delete queued behind this write will remove the server's row).
           this.highlights = this.highlights.map((h) => (h.id === client_id ? saved : h))
+          if (this.total !== null) this.total++
+          this._bump()
           return true
         } catch (err: unknown) {
           if (identityChangedSince(generation)) return false
@@ -242,10 +360,12 @@ export const useCaptureStore = defineStore('capture', {
         }
         const target = serverIdFor.get(id) ?? id
         try {
-          const items = await deleteHighlight(target)
+          await deleteHighlight(target)
           if (identityChangedSince(generation)) return false
-          // A whole list: adopt it only when no later tap is showing its own state.
-          if (isLatest()) this._sync(items)
+          // The answer is the WHOLE remaining list (the contract older clients read); this store
+          // holds only what it loaded, so the row it already removed is the whole change.
+          if (this.total !== null) this.total = Math.max(0, this.total - 1)
+          if (isLatest()) this._bump()
           return true
         } catch (err: unknown) {
           if (identityChangedSince(generation)) return false
@@ -326,6 +446,7 @@ export const useCaptureStore = defineStore('capture', {
         const updated = await patchHighlight(id, { color })
         if (identityChangedSince(generation)) return
         this.highlights = this.highlights.map((h) => (h.id === id ? updated : h))
+        this._bump()
       } catch (err: unknown) {
         if (identityChangedSince(generation)) return
         if (isPermanent(err)) this.highlights = prev
@@ -347,6 +468,7 @@ export const useCaptureStore = defineStore('capture', {
       this.highlights = this.highlights.map((h) => (h.id === id ? { ...h, retired: false } : h))
       try {
         await unretireHighlight(id)
+        this._bump()
       } catch {
         this.highlights = prev
       }
@@ -371,6 +493,7 @@ export const useCaptureStore = defineStore('capture', {
         const saved = await createNote(body)
         if (identityChangedSince(generation)) return
         this.notes = this.notes.map((n) => (n.id === client_id ? saved : n))
+        this._bump()
       } catch (err: unknown) {
         if (identityChangedSince(generation)) return
         // A refusal drops it; anything else keeps it and queues the write.
@@ -393,6 +516,7 @@ export const useCaptureStore = defineStore('capture', {
         const updated = await patchNote(id, text)
         if (identityChangedSince(generation)) return
         this.notes = this.notes.map((n) => (n.id === id ? updated : n))
+        this._bump()
       } catch (err: unknown) {
         if (identityChangedSince(generation)) return
         // A refusal reverts; a transient error keeps the optimistic edit AND queues it to replay on
@@ -423,9 +547,10 @@ export const useCaptureStore = defineStore('capture', {
         return
       }
       try {
-        const items = await deleteNote(id)
+        await deleteNote(id)
         if (identityChangedSince(generation)) return
-        this.notes = items
+        // The answer is every remaining note; the one removed above is the whole change here.
+        this._bump()
       } catch (err: unknown) {
         if (identityChangedSince(generation)) return
         if (isPermanent(err)) this.notes = prev

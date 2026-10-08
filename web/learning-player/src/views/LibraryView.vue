@@ -40,6 +40,7 @@ import SavedColorControl from '../components/SavedColorControl.vue'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCappedSections } from '../composables/useCappedSections'
 import { useFavoritesPage } from '../composables/useFavoritesPage'
+import { useHighlightsPage } from '../composables/useHighlightsPage'
 import { useVisitedTabs } from '../composables/useVisitedTabs'
 import { matchesQuery } from '../utils/textFilter'
 
@@ -157,12 +158,14 @@ const savedEntityPages = {
   person: reactive(useFavoritesPage('person', savedFilters)),
 }
 const savedPagesAll = [savedEpisodesPage, ...Object.values(savedEntityPages)]
+// The Highlights section, paged by episode on the server under the same bar (plus "muted").
+const highlightsPage = useHighlightsPage({
+  search: savedSearch,
+  color: savedColor,
+  sort: savedSort,
+  mutedOnly: savedMutedOnly,
+})
 
-/** A highlight matches the search on its own text (quote / speaker) — episode titles are findable
- *  through the Episodes section. Shared predicate so the count here and HighlightsView agree. */
-function highlightMatches(h: { quote_text?: string | null; speaker?: string | null }): boolean {
-  return matchesQuery(h.quote_text, savedSearch.value) || matchesQuery(h.speaker, savedSearch.value)
-}
 
 /** Type chips render only for kinds that actually have items (the #1962 presence rule). */
 const availableTypes = computed<{ key: string; label: string }[]>(() => {
@@ -249,21 +252,10 @@ const savedShowPodcasts = computed(() => {
 })
 
 /**
- * Colour-, muted- and search-filtered highlight count, so the Highlights section hides when empty.
- *
- * Must apply EVERY filter `HighlightsView` applies. Adding the muted filter to the list but not
- * here put "Highlights 6" directly above a list of 2 — the same class of disagreement the count
- * was made filter-aware to fix in the first place.
+ * The Highlights heading's count — the server's, under every filter `HighlightsView` shows, so the
+ * heading and the list cannot disagree (the reason this count was made filter-aware, #2042).
  */
-const visibleHighlightCount = computed(
-  () =>
-    capture.highlights.filter(
-      (h) =>
-        (!savedColor.value || h.color === savedColor.value) &&
-        (!savedMutedOnly.value || h.retired) &&
-        highlightMatches(h),
-    ).length,
-)
+const visibleHighlightCount = computed(() => highlightsPage.total.value)
 
 /** Anything to show at all under the current filters? Drives the "no match" note. */
 const nothingMatchesFilter = computed(
@@ -441,7 +433,10 @@ onActivated(() => {
 watch(
   () => tab.value === 'saved' || visitedTabs.has('saved'),
   (open, was) => {
-    if (open && !was) for (const p of savedPagesAll) void p.reload()
+    if (open && !was) {
+      for (const p of savedPagesAll) void p.reload()
+      void highlightsPage.reload()
+    }
   },
   { immediate: true },
 )
@@ -759,6 +754,7 @@ onMounted(async () => {
             <span class="lp-kicker ml-1 font-normal">{{ visibleHighlightCount }}</span>
           </h2>
           <HighlightsView
+            :page="highlightsPage"
             :filter-color="savedColor"
             :sort="savedSort"
             :search="savedSearch"

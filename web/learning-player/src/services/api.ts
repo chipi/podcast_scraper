@@ -1446,6 +1446,139 @@ export async function getHighlights(episode?: string): Promise<Highlight[]> {
   return (await getJSON<{ items: Highlight[] }>("/highlights", { episode })).items
 }
 
+/** One page of the Saved highlights — whole EPISODES, each with its first few highlights. */
+export interface HighlightsPage {
+  items: Highlight[]
+  /** Matching highlights across all pages. */
+  total: number
+  /** Episodes with a match, across all pages. */
+  episode_total: number
+  /** Matching highlights per episode on this page (`items` holds at most `perEpisode` each). */
+  episode_counts: Record<string, number>
+  /** The notes on the highlights in `items`. */
+  notes: Note[]
+}
+
+export interface HighlightsPageQuery {
+  q?: string
+  color?: string | null
+  muted?: boolean
+  sort?: "recent" | "title"
+  /** Episodes to skip. */
+  offset?: number
+  /** Episodes per page. */
+  limit: number
+  perEpisode?: number
+  /** One episode only — its next highlights. */
+  episode?: string
+}
+
+/**
+ * The Saved highlights a page of EPISODES at a time, filtered on the server (`GET /highlights`
+ * with `limit`). Against a server that predates paging (no `total` in its answer) the full list is
+ * grouped and cut here instead, the way the Saved tab used to — same result either way.
+ */
+export async function getHighlightsPage(query: HighlightsPageQuery): Promise<HighlightsPage> {
+  const resp = await getJSON<Partial<HighlightsPage> & { items: Highlight[] }>("/highlights", {
+    episode: query.episode,
+    q: query.q?.trim() || undefined,
+    color: query.color ?? undefined,
+    muted: query.muted ? "true" : undefined,
+    sort: query.sort,
+    offset: query.offset ?? 0,
+    limit: query.limit,
+    per_episode: query.perEpisode ?? 5,
+  })
+  if (resp.total !== undefined) return resp as HighlightsPage
+  return pageHighlightsLocally(resp.items, await getNotes("highlight").catch(() => []), query)
+}
+
+export function pageHighlightsLocally(
+  all: Highlight[],
+  notes: Note[],
+  query: HighlightsPageQuery,
+): HighlightsPage {
+  const needle = (query.q ?? "").trim().toLocaleLowerCase()
+  const has = (...texts: (string | null | undefined)[]) =>
+    !needle || texts.some((t) => (t ?? "").toLocaleLowerCase().includes(needle))
+  const groups = new Map<string, Highlight[]>()
+  let total = 0
+  for (const h of all) {
+    if (query.episode && h.episode_slug !== query.episode) continue
+    if (query.color && h.color !== query.color) continue
+    if (query.muted && !h.retired) continue
+    if (!has(h.quote_text, h.speaker)) continue
+    total++
+    groups.set(h.episode_slug, [...(groups.get(h.episode_slug) ?? []), h])
+  }
+  const newest = (hs: Highlight[]) => Math.max(...hs.map((h) => h.created_at ?? 0))
+  for (const hs of groups.values()) hs.sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))
+  // An older server has no titles to sort by here; A–Z falls back to the slug.
+  const order = [...groups.keys()].sort((a, b) =>
+    query.sort === "title" ? a.localeCompare(b) : newest(groups.get(b)!) - newest(groups.get(a)!),
+  )
+  const start = query.offset ?? 0
+  const page = order.slice(start, start + query.limit)
+  const items = page.flatMap((slug) => groups.get(slug)!.slice(0, query.perEpisode ?? 5))
+  const ids = new Set(items.map((h) => h.id))
+  return {
+    items,
+    total,
+    episode_total: order.length,
+    episode_counts: Object.fromEntries(page.map((slug) => [slug, groups.get(slug)!.length])),
+    notes: notes.filter((n) => n.target === "highlight" && ids.has(n.target_id)),
+  }
+}
+
+/** One page of notes. */
+export interface NotesPage {
+  items: Note[]
+  total: number
+  /** Matches per target kind under the same q, ignoring the kind filter. */
+  counts: Record<string, number>
+  /** The highlights the page's highlight-notes are on (their links need the episode). */
+  highlights: Highlight[]
+}
+
+export interface NotesPageQuery {
+  q?: string
+  /** Only these target kinds; none = all. */
+  kinds?: string[]
+  /** Every word of `q`, in any order (Search) — rather than `q` as one phrase. */
+  words?: boolean
+  offset?: number
+  limit: number
+}
+
+/** Notes newest first, a page at a time (`GET /notes` with `limit`); an older server pages here. */
+export async function getNotesPage(query: NotesPageQuery): Promise<NotesPage> {
+  const params = new URLSearchParams()
+  if (query.q?.trim()) params.set("q", query.q.trim())
+  for (const k of query.kinds ?? []) params.append("kinds", k)
+  if (query.words) params.set("match", "words")
+  params.set("offset", String(query.offset ?? 0))
+  params.set("limit", String(query.limit))
+  const resp = await getJSON<Partial<NotesPage> & { items: Note[] }>(`/notes?${params}`)
+  if (resp.total !== undefined) return resp as NotesPage
+  return pageNotesLocally(resp.items, await getHighlights().catch(() => []), query)
+}
+
+export function pageNotesLocally(all: Note[], highlights: Highlight[], query: NotesPageQuery): NotesPage {
+  const needle = (query.q ?? "").trim().toLocaleLowerCase()
+  const words = query.words ? needle.split(/\s+/).filter(Boolean) : [needle]
+  const hits = [...all]
+    .sort((a, b) => b.created_at - a.created_at)
+    .filter((n) => words.every((w) => !w || n.text.toLocaleLowerCase().includes(w)))
+  const counts: Record<string, number> = {}
+  for (const n of hits) counts[n.target] = (counts[n.target] ?? 0) + 1
+  const kinds = query.kinds ?? []
+  const selected = kinds.length ? hits.filter((n) => kinds.includes(n.target)) : hits
+  const start = query.offset ?? 0
+  const items = selected.slice(start, start + query.limit)
+  const on = new Set(items.filter((n) => n.target === "highlight").map((n) => n.target_id))
+  return { items, total: selected.length, counts, highlights: highlights.filter((h) => on.has(h.id)) }
+}
+
 /** Capture a highlight (auth-gated); returns the created record. */
 export async function createHighlight(body: HighlightCreate): Promise<Highlight> {
   // #2267 — one of the spec's four Umami goals, and part of "learning actions per active day".

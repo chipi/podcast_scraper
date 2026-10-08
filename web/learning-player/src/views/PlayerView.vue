@@ -1251,7 +1251,8 @@ function ensureCaptureLoaded(): void {
   // expired session) became an UNHANDLED rejection in the browser, not only in tests. Nothing
   // depends on this resolving — the capture controls render from an empty store and the page is
   // fully usable — so a failure is caught and left un-loaded, which lets the next call retry.
-  void capture.ensureLoaded().catch(() => {})
+  // THIS episode's highlights only (2026-10-08): the store no longer loads the whole library.
+  void capture.ensureEpisode(props.slug).catch(() => {})
   void completed.ensureLoaded().catch(() => {})
 }
 
@@ -1300,7 +1301,13 @@ onMounted(() => {
     },
   })
 })
-watch(() => props.slug, (s) => load(s))
+watch(
+  () => props.slug,
+  (s) => {
+    load(s)
+    ensureCaptureLoaded()
+  },
+)
 // Snapshot the loaded surface per slug so reopening this episode paints instantly (#16). Records
 // only once the critical path has painted (loading === false) and there is an episode to show; the
 // streamed rails each reassign their ref as they arrive, keeping the snapshot current.

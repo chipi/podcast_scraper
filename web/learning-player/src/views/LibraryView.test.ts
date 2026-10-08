@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
-import { favoritesViaGetFavorites } from '../test/episodeBatch'
+import { favoritesViaGetFavorites, capturesViaFullLists } from '../test/apiViaSpies'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, EpisodeSummary } from '../services/types'
 import { useSavedQueriesStore } from '../stores/savedQueries'
@@ -114,6 +114,7 @@ function tabButton(w: ReturnType<typeof mount>, label: string) {
 }
 
 beforeEach(() => {
+  capturesViaFullLists()
   setActivePinia(createPinia())
   // QueueView (embedded) hydrates the queue; EpisodeCards embed FavoriteButton.
   vi.spyOn(api, 'getQueue').mockResolvedValue([])

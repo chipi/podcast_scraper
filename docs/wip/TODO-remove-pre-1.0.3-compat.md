@@ -13,8 +13,21 @@ the released-version floor in the operator viewer and the app-version mix in the
 | `GET /topics/{id}/perspectives`, storyline and theme perspectives | no `speakers_offset` / `per_speaker` → every speaker, every take | paged when sent | same |
 | `GET /favorites`, `/highlights`, `/notes`, `/collections`, `/collections/{id}`, `/resurfacing`, `/playback`, `/queue` | no paging params → the whole list | paged + server-side search / filter / sort when sent | same |
 
+## Server: write responses that still answer with the WHOLE list
+
+1.0.2 reads its new state from these answers.
+
+- `PUT` / `DELETE` / `PATCH /favorites…` answer with every favourite, each episode hydrated.
+  1.0.3 still reads them, but only for the identities (`favoriteRefsOf`). Once 1.0.2 is gone,
+  answer with the refs (`/favorites/refs` shape) and drop the hydration.
+- `DELETE /highlights/{id}` answers with every remaining highlight, each re-anchored; `DELETE
+  /notes/{id}` with every remaining note. 1.0.3 ignores both answers (it removes the row it has).
+  Once 1.0.2 is gone, answer 204.
+
 ## Client: fallbacks for a server that predates the batch route
 
+- `getFavoritesPage`, `getFavoriteRefs`, `getHighlightsPage`, `getNotesPage` page (or derive)
+  locally when the server ignores the paging parameters (no `total` in the answer, or 404).
 - `getEpisodesBatch` (`web/learning-player/src/services/api.ts`) falls back to one
   `GET /episodes/{slug}` per slug when `/episodes/batch` answers 404. That is only for the window
   where 1.0.3 is in the store and the server is not yet deployed. Delete the fallback after the

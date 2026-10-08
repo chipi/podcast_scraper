@@ -32,8 +32,7 @@ import { useSavedQueriesStore } from "../stores/savedQueries"
 import { useCaptureStore } from "../stores/capture"
 import EntityCard from "../components/EntityCard.vue"
 import ShowAllToggle from "../components/ShowAllToggle.vue"
-import { newestFirst } from "../utils/newestFirst"
-import { useCappedSections } from "../composables/useCappedSections"
+import { useNotesPage } from "../composables/useNotesPage"
 import EpisodeGroupCard from "../components/EpisodeGroupCard.vue"
 import PlayFrom from "../components/PlayFrom.vue"
 import AddToCollectionButton from "../components/AddToCollectionButton.vue"
@@ -78,18 +77,6 @@ const noteLabel = (target: string, id: string) =>
 // SR.1 — search the listener's OWN notes alongside the corpus. Notes are per-user and client-side,
 // so this is a local text match, shown as its own "Your notes" section rather than interleaved with
 // the corpus passages (a note is not a transcript hit).
-onMounted(() => void capture.ensureLoaded().catch(() => {}))
-const noteMatches = computed<Note[]>(() => {
-  const q = query.value.trim().toLowerCase()
-  if (!ran.value || !q) return []
-  // `?? []`: the async ensureLoaded() from onMounted can resolve after the store is disposed (test
-  // teardown), re-running this computed against a torn-down store whose `notes` is undefined. A
-  // computed must be total, so read defensively rather than throw into Vue's flush.
-  return newestFirst((capture.notes ?? []).filter((n) => matchesAllWords(n.text, q)))
-})
-// Newest first, five at a time (operator 2026-10-05).
-const noteCaps = useCappedSections(5, 5)
-const shownNoteMatches = computed(() => noteCaps.visible("notes", noteMatches.value))
 /** The term the results on screen were found for — the box can be edited without re-running. */
 const ranTerm = ref("")
 
@@ -156,6 +143,15 @@ const cardTarget = ref<{ kind: "person" | "topic" | "organization"; id: string }
 const searching = ref(false)
 const error = ref(false)
 const ran = ref(false)
+// Matched on the SERVER since 2026-10-08 (every word, any order — the same rule as before), five
+// at a time, newest first: the store no longer holds every note to search through.
+const notesTerm = computed(() => (ran.value ? ranTerm.value.trim() : ""))
+const notesPage = useNotesPage(notesTerm, ref<string[]>([]), {
+  words: true,
+  enabled: () => notesTerm.value !== "",
+  debounceMs: 0,
+})
+const noteMatches = computed<Note[]>(() => (notesTerm.value ? notesPage.items.value : []))
 // The `term::scope` currently on screen, so a kept-alive re-entry can tell "same results" from a
 // genuinely new query and skip a redundant re-fetch.
 const lastRunSig = ref("")
@@ -877,11 +873,11 @@ const showEmpty = computed(
     >
       <h2 class="lp-section mb-1">{{ t("notes.title") }}</h2>
       <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-        {{ t("search.notesSummary", { count: noteMatches.length }, noteMatches.length) }}
+        {{ t("search.notesSummary", { count: notesPage.total.value }, notesPage.total.value) }}
       </p>
       <ul class="flex flex-col gap-2">
         <li
-          v-for="n in shownNoteMatches"
+          v-for="n in noteMatches"
           :key="n.id"
           class="rounded-xl border border-border p-3"
           data-testid="search-note"
@@ -911,12 +907,12 @@ const showEmpty = computed(
         </li>
       </ul>
       <ShowAllToggle
-        v-if="noteCaps.overflows(noteMatches.length, false, 'notes')"
-        :expanded="noteCaps.remaining('notes', noteMatches.length) === 0"
-        :count="noteMatches.length"
-        :remaining="noteCaps.remaining('notes', noteMatches.length)"
+        v-if="notesPage.total.value > 5"
+        :expanded="notesPage.remaining.value === 0"
+        :count="notesPage.total.value"
+        :remaining="notesPage.remaining.value"
         data-testid="search-notes-more"
-        @toggle="noteCaps.toggle('notes', noteMatches.length)"
+        @toggle="notesPage.toggle()"
       />
     </section>
 

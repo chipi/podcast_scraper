@@ -643,11 +643,21 @@ def test_notes_paged_with_counts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert [n["text"] for n in page["items"]] == ["risk is a property", "on a quote"]
     assert page["total"] == 3
     assert page["counts"] == {"episode": 1, "highlight": 1, "topic": 1}
+    phrase = client.get("/api/app/notes", params={"limit": 10, "q": "property risk"}).json()
+    assert phrase["items"] == []
+    words = client.get(
+        "/api/app/notes", params={"limit": 10, "q": "property risk", "match": "words"}
+    ).json()
+    assert [n["text"] for n in words["items"]] == ["risk is a property"]
     q = client.get("/api/app/notes", params={"limit": 10, "q": "QUOTE"}).json()
     assert [n["text"] for n in q["items"]] == ["on a quote"]
     # The highlight a page's highlight-note is on comes with it (its link needs the episode).
     assert [h["id"] for h in q["highlights"]] == [ids["a1"]]
     assert q["highlights"][0]["episode_slug"] == "ep-a"
+    two = client.get(
+        "/api/app/notes", params=[("limit", 10), ("kinds", "episode"), ("kinds", "topic")]
+    ).json()
+    assert [n["target"] for n in two["items"]] == ["topic", "episode"] and two["total"] == 2
     only = client.get("/api/app/notes", params={"limit": 10, "target": "episode"}).json()
     assert [n["text"] for n in only["items"]] == ["first thought"] and only["total"] == 1
 

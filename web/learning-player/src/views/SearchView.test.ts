@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createI18n } from "vue-i18n"
 import { createMemoryHistory, createRouter } from "vue-router"
 import * as api from "../services/api"
+import { capturesViaFullLists } from "../test/apiViaSpies"
 import en from "../i18n/locales/en.json"
 import { useAuthStore } from "../stores/auth"
 import { clearCached } from "../services/contentCache"
@@ -62,6 +63,7 @@ beforeEach(async () => {
   // the namespace at write time is not the one a bare clear touches.)
   vi.spyOn(api, "getNotes").mockResolvedValue([])
   vi.spyOn(api, "getHighlights").mockResolvedValue([])
+  capturesViaFullLists()
 })
 // Let a test's in-flight work SETTLE before its mocks are pulled. This view fires several unawaited
 // fetches from `onMounted` (captures, storylines) plus the search itself; restoring mocks while one
