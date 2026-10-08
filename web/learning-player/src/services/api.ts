@@ -458,11 +458,33 @@ export async function getOrgCard(id: string, page?: EpisodePage): Promise<OrgCar
  * Found by sweeping every endpoint that can carry a person photo after the same bug turned up on
  * the key-voices rail (operator 2026-09-27). This was the last one still raw.
  */
+/**
+ * A page of perspectives (server paging, 2026-10-08: a storyline's were 160 KB, every speaker with
+ * every take, for a section showing three speakers with two takes). Omit for the full response.
+ */
+export interface PerspectivesPage {
+  /** At most this many takes per speaker; `insight_count` stays their total. */
+  perSpeaker?: number
+  offset?: number
+  limit?: number
+}
+function perspectivesParams(p?: PerspectivesPage): Record<string, string | number | undefined> {
+  return {
+    insights_per_speaker: p?.perSpeaker,
+    speakers_offset: p?.offset || undefined,
+    speakers_limit: p?.limit,
+  }
+}
+
 export async function getTopicPerspectives(
   id: string,
-  scope?: "all" | "mine"
+  scope?: "all" | "mine",
+  page?: PerspectivesPage
 ): Promise<TopicPerspectivesResponse> {
-  return perspectivesFrom(`/topics/${encodeURIComponent(id)}/perspectives`, { scope })
+  return perspectivesFrom(`/topics/${encodeURIComponent(id)}/perspectives`, {
+    scope,
+    ...perspectivesParams(page),
+  })
 }
 
 /**
@@ -476,12 +498,12 @@ export async function getTopicPerspectives(
  * No `scope`, matching the grouping card routes: a theme page asks what the grouping is across the
  * corpus, and a personally-filtered union would quietly answer a different question.
  */
-export function getThemePerspectives(id: string): Promise<TopicPerspectivesResponse> {
-  return perspectivesFrom(`/themes/${encodeURIComponent(id)}/perspectives`)
+export function getThemePerspectives(id: string, page?: PerspectivesPage): Promise<TopicPerspectivesResponse> {
+  return perspectivesFrom(`/themes/${encodeURIComponent(id)}/perspectives`, perspectivesParams(page))
 }
 
-export function getStorylinePerspectives(id: string): Promise<TopicPerspectivesResponse> {
-  return perspectivesFrom(`/storylines/${encodeURIComponent(id)}/perspectives`)
+export function getStorylinePerspectives(id: string, page?: PerspectivesPage): Promise<TopicPerspectivesResponse> {
+  return perspectivesFrom(`/storylines/${encodeURIComponent(id)}/perspectives`, perspectivesParams(page))
 }
 
 /**

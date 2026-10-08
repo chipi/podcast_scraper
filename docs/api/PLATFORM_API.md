@@ -195,6 +195,12 @@ The person card also takes `exclude_host_shows=true` (leave out the shows they h
 The topic card always carries `episode_months[{month, count}]` and `top_shows[]`, computed over ALL
 its episodes, because the sparkline and the "strongest shows" row cannot come from one page.
 
+**Perspectives paging** (topics, storylines, themes `/…/{id}/perspectives` — 2026-10-08):
+`insights_per_speaker` caps each speaker's takes (`insight_count` stays their total);
+`speakers_offset`/`speakers_limit` page the speakers (`perspective_count` stays the total). The app
+loads every speaker with two takes and fetches one speaker's full list (`speakers_offset=i&
+speakers_limit=1`) when its "show all" opens.
+
 ---
 
 ## Capture — highlights & notes (P2; PRD-040 / RFC-098 §7)

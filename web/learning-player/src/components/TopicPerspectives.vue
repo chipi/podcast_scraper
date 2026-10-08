@@ -21,9 +21,10 @@ import {
   getStorylinePerspectives,
   getThemePerspectives,
   getTopicPerspectives,
+  type PerspectivesPage,
 } from "../services/api"
 import { formatTime } from "../player/transcriptSync"
-import type { TopicPerspective } from "../services/types"
+import type { Insight, TopicPerspective, TopicPerspectivesResponse } from "../services/types"
 
 const props = withDefaults(
   defineProps<{
@@ -62,6 +63,11 @@ const section = useSectionState<TopicPerspective[]>([])
  * how a render crash presents when it happens between tests rather than inside one.
  */
 const perspectives = computed(() => section.data.value ?? [])
+// Takes shown per speaker before "show all" (declared ABOVE load(): the immediate watch below runs it
+// during setup, before anything declared further down exists).
+const PREVIEW = 2
+/** A speaker's FULL takes, fetched the first time their "show all" opens. */
+const full = ref<Record<string, Insight[]>>({})
 /** Guards against a slow reply for a topic the reader has already navigated away from. */
 const requestSeq = ref(0)
 
@@ -74,12 +80,10 @@ async function load(): Promise<void> {
     // the alternative is showing an error over content that was actually available.
     for (let attempt = 0; ; attempt += 1) {
       try {
-        const r =
-          props.kind === "theme"
-            ? await getThemePerspectives(props.id)
-            : props.kind === "storyline"
-              ? await getStorylinePerspectives(props.id)
-              : await getTopicPerspectives(props.id, props.scope)
+        // Every speaker, but only the PREVIEW takes each: the rest load per speaker on "show all"
+        // (server paging, 2026-10-08 — a storyline's full response was 160 KB, 1.1 s on prod).
+        full.value = {}
+        const r = await fetchPage({ perSpeaker: PREVIEW })
         if (mine !== requestSeq.value) throw new Error("superseded")
         // Normalised HERE too, at the boundary: the section's contract is an array, and handing it
         // `undefined` makes every later reader defend itself.
@@ -139,7 +143,6 @@ const heading = computed(() =>
 
 // Show up to PREVIEW insights per speaker; the rest sit behind a per-speaker toggle. Two, and three
 // speakers at a time (operator 2026-10-07): one person with 59 takes filled a phone screen alone.
-const PREVIEW = 2
 
 /**
  * Speakers are PAGED, three at a time, on every surface (operator 2026-10-05 set five; 2026-10-07
@@ -148,12 +151,38 @@ const PREVIEW = 2
  * Speakers arrive ranked most-takes-first, so each page is the next-most-engaged five.
  */
 const caps = useCappedSections(3, 3)
+
+function fetchPage(page: PerspectivesPage): Promise<TopicPerspectivesResponse> {
+  return props.kind === "theme"
+    ? getThemePerspectives(props.id, page)
+    : props.kind === "storyline"
+      ? getStorylinePerspectives(props.id, page)
+      : getTopicPerspectives(props.id, props.scope, page)
+}
+
+async function loadAll(personId: string): Promise<void> {
+  const i = perspectives.value.findIndex((p) => p.person_id === personId)
+  const p = perspectives.value[i]
+  if (i < 0 || !p || full.value[personId] || p.insights.length >= p.insight_count) return
+  try {
+    const r = await fetchPage({ offset: i, limit: 1 })
+    const got = r.perspectives?.[0]
+    if (got && got.person_id === personId) full.value = { ...full.value, [personId]: got.insights }
+  } catch {
+    /* the preview stays; the toggle can be pressed again */
+  }
+}
+const takesOf = (p: { person_id: string; insights: Insight[] }): Insight[] =>
+  full.value[p.person_id] ?? p.insights
 const visible = computed(() => caps.visible("speakers", perspectives.value))
 const expanded = ref<Set<string>>(new Set())
 function toggle(personId: string): void {
   const next = new Set(expanded.value)
   if (next.has(personId)) next.delete(personId)
-  else next.add(personId)
+  else {
+    next.add(personId)
+    void loadAll(personId)
+  }
   expanded.value = next
 }
 </script>
@@ -217,7 +246,7 @@ function toggle(personId: string): void {
           </div>
           <ul class="mt-1.5 flex flex-col gap-1">
             <li
-              v-for="ins in expanded.has(p.person_id) ? p.insights : p.insights.slice(0, PREVIEW)"
+              v-for="ins in expanded.has(p.person_id) ? takesOf(p) : p.insights.slice(0, PREVIEW)"
               :key="ins.id"
               class="flex items-baseline gap-1.5 text-sm text-canvas-foreground"
             >
@@ -244,7 +273,7 @@ function toggle(personId: string): void {
             </li>
           </ul>
           <button
-            v-if="p.insights.length > PREVIEW"
+            v-if="p.insight_count > PREVIEW"
             type="button"
             class="mt-1 text-xs font-semibold text-accent hover:underline"
             @click="toggle(p.person_id)"
@@ -252,7 +281,7 @@ function toggle(personId: string): void {
             {{
               expanded.has(p.person_id)
                 ? t("ec.perspectiveLess")
-                : t("ec.perspectiveMore", { count: p.insights.length - PREVIEW })
+                : t("ec.perspectiveMore", { count: p.insight_count - PREVIEW })
             }}
           </button>
         </li>

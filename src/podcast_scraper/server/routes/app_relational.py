@@ -114,6 +114,30 @@ def _with_topic_aggregates(card: AppTopicCard) -> AppTopicCard:
     )
 
 
+# Perspectives PAGED (2026-10-08): a storyline's perspectives were 160 KB and 1.1 s on prod — every
+# speaker with every take — for a section that shows three speakers with two takes each.
+# `insights_per_speaker` caps each speaker's takes (insight_count stays their total);
+# `speakers_offset`/`speakers_limit` page the speakers (perspective_count stays the total). With
+# none of them the full response is returned, as before.
+_SpeakersOffset = Query(default=0, ge=0, description="Skip this many speakers (paging).")
+_SpeakersLimit = Query(default=None, ge=1, le=100, description="At most this many speakers.")
+_PerSpeaker = Query(
+    default=None, ge=1, le=100, description="At most this many insights per speaker."
+)
+
+
+def _page_perspectives(
+    resp: AppTopicPerspectivesResponse, offset: int, limit: int | None, per_speaker: int | None
+) -> AppTopicPerspectivesResponse:
+    if offset == 0 and limit is None and per_speaker is None:
+        return resp
+    end = None if limit is None else offset + limit
+    speakers = resp.perspectives[offset:end]
+    if per_speaker is not None:
+        speakers = [p.model_copy(update={"insights": p.insights[:per_speaker]}) for p in speakers]
+    return resp.model_copy(update={"perspectives": speakers})
+
+
 def _scope_to_corpus(card: _Card, mine: set[str]) -> _Card:
     """Filter a card's appears-in episodes to the user's set (the "you heard X in …" lens),
     recomputing ``episode_count`` so the card reads honestly per RFC-101 §4. For a person card the
@@ -253,6 +277,9 @@ async def topic_perspectives_route(
     request: Request,
     topic_id: str,
     scope: Literal["all", "mine"] = Query(default="all"),
+    speakers_offset: int = _SpeakersOffset,
+    speakers_limit: int | None = _SpeakersLimit,
+    insights_per_speaker: int | None = _PerSpeaker,
     user: User = Depends(get_current_user),
 ) -> AppTopicPerspectivesResponse:
     """Multi-perspective synthesis — each speaker's take on the topic (#1146).
@@ -267,7 +294,7 @@ async def topic_perspectives_route(
     )
     if resp is None:
         raise HTTPException(status_code=404, detail="No perspectives for this topic.")
-    return resp
+    return _page_perspectives(resp, speakers_offset, speakers_limit, insights_per_speaker)
 
 
 @router.get(
@@ -394,6 +421,9 @@ async def theme_card(
 async def storyline_perspectives_route(
     request: Request,
     storyline_id: str,
+    speakers_offset: int = _SpeakersOffset,
+    speakers_limit: int | None = _SpeakersLimit,
+    insights_per_speaker: int | None = _PerSpeaker,
     user: User = Depends(get_current_user),
 ) -> AppTopicPerspectivesResponse:
     """What is SAID across a storyline — its members' insights, grouped by speaker.
@@ -411,13 +441,16 @@ async def storyline_perspectives_route(
     )
     if resp is None:
         raise HTTPException(status_code=404, detail="No perspectives for this storyline.")
-    return resp
+    return _page_perspectives(resp, speakers_offset, speakers_limit, insights_per_speaker)
 
 
 @router.get("/themes/{theme_id}/perspectives", response_model=AppTopicPerspectivesResponse)
 async def theme_perspectives_route(
     request: Request,
     theme_id: str,
+    speakers_offset: int = _SpeakersOffset,
+    speakers_limit: int | None = _SpeakersLimit,
+    insights_per_speaker: int | None = _PerSpeaker,
     user: User = Depends(get_current_user),
 ) -> AppTopicPerspectivesResponse:
     """What is SAID across a theme — its members' insights, grouped by speaker.
@@ -431,7 +464,7 @@ async def theme_perspectives_route(
     resp = await asyncio.to_thread(build_cluster_perspectives, root, theme_id.strip(), "theme")
     if resp is None:
         raise HTTPException(status_code=404, detail="No perspectives for this theme.")
-    return resp
+    return _page_perspectives(resp, speakers_offset, speakers_limit, insights_per_speaker)
 
 
 @router.get("/topics/{topic_id}", response_model=AppTopicCard)

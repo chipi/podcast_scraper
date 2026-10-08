@@ -388,6 +388,25 @@ def test_grouping_perspectives_routes_serve_the_union(tmp_path: Path) -> None:
     assert story.json()["topic_label"] == "Managing risk across domains"
 
 
+def test_perspectives_are_paged_on_the_server(tmp_path: Path) -> None:
+    """2026-10-08: a storyline's perspectives were 160 KB / 1.1 s on prod — every speaker with every
+    take — for a section showing three speakers with two takes. Paged; no params = the full list."""
+    client = _fixture_client(tmp_path)
+    url = "/api/app/storylines/topic:risk-management/perspectives"
+    full = client.get(url).json()
+    capped = client.get(f"{url}?insights_per_speaker=1").json()
+    assert capped["perspective_count"] == full["perspective_count"]
+    assert len(capped["perspectives"]) == len(full["perspectives"])
+    assert all(len(p["insights"]) <= 1 for p in capped["perspectives"])
+    # insight_count stays each speaker's TOTAL, so "all N from this speaker" is still right.
+    assert [p["insight_count"] for p in capped["perspectives"]] == [
+        p["insight_count"] for p in full["perspectives"]
+    ]
+    one = client.get(f"{url}?speakers_offset=1&speakers_limit=1").json()
+    assert [p["person_id"] for p in one["perspectives"]] == [full["perspectives"][1]["person_id"]]
+    assert one["perspectives"][0]["insights"] == full["perspectives"][1]["insights"]
+
+
 def test_grouping_perspectives_404_on_an_absence_not_a_fault(tmp_path: Path) -> None:
     """A grouping nobody speaks to is a 404, which the client renders as nothing at all.
 
