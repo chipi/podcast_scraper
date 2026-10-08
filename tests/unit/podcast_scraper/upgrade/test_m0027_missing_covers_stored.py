@@ -16,8 +16,8 @@ import pytest
 from PIL import Image
 
 from podcast_scraper.upgrade.migration import MigrationContext
-from podcast_scraper.upgrade.migrations import m0026_missing_covers_stored as m0026
-from podcast_scraper.upgrade.migrations.m0026_missing_covers_stored import (
+from podcast_scraper.upgrade.migrations import m0027_missing_covers_stored as m0027
+from podcast_scraper.upgrade.migrations.m0027_missing_covers_stored import (
     MissingCoversStoredMigration,
 )
 from podcast_scraper.upgrade.registry import get_migrations
@@ -116,11 +116,11 @@ def test_a_stored_cover_is_left_alone_and_undo_restores_the_metadata(tmp_path: P
         MissingCoversStoredMigration().apply(_ctx(tmp_path))
     with patch("podcast_scraper.utils.corpus_artwork.http_get", side_effect=AssertionError):
         assert MissingCoversStoredMigration().apply(_ctx(tmp_path)).details["to_fetch"] == 0
-    restored, _errors = m0026.undo(tmp_path)
+    restored, _errors = m0027.undo(tmp_path)
     assert restored == 1
     assert path.read_text() == original_text
 
 
-def test_registered_after_0025() -> None:
+def test_registered_after_0026() -> None:
     ids = [m.id for m in get_migrations()]
-    assert ids.index("0026_missing_covers_stored") == ids.index("0025_artwork_medium") + 1
+    assert ids.index("0027_missing_covers_stored") == ids.index("0026_artwork_medium") + 1

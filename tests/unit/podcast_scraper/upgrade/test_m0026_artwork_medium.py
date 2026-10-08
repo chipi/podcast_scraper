@@ -17,7 +17,7 @@ from PIL import Image
 
 from podcast_scraper.server.app_artwork import artwork_url, ensure_medium
 from podcast_scraper.upgrade.migration import MigrationContext
-from podcast_scraper.upgrade.migrations.m0025_artwork_medium import ArtworkMediumMigration
+from podcast_scraper.upgrade.migrations.m0026_artwork_medium import ArtworkMediumMigration
 from podcast_scraper.upgrade.registry import get_migrations
 from podcast_scraper.utils.corpus_artwork import (
     download_podcast_artwork,
@@ -114,6 +114,6 @@ def test_the_default_url_size_is_the_thumb() -> None:
     )
 
 
-def test_registered_after_0024() -> None:
+def test_registered_after_0025() -> None:
     ids = [m.id for m in get_migrations()]
-    assert ids.index("0025_artwork_medium") == ids.index("0024_shared_removed_speaker_prefixes") + 1
+    assert ids.index("0026_artwork_medium") == ids.index("0025_one_person_one_entry") + 1

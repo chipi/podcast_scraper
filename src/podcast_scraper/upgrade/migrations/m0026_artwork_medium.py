@@ -1,4 +1,4 @@
-"""0025 — every stored cover has its player-sized (≤1024px) copy on disk.
+"""0026 — every stored cover has its player-sized (≤1024px) copy on disk.
 
 The player, the lock screen and offline downloads were served the ORIGINAL artwork: on prod
 (2026-10-08) 677 of 1,318 originals are 2001-3000px, ~19 MB each once a phone decodes them, and the
@@ -45,8 +45,8 @@ def _failed(root: Path) -> set:
 class ArtworkMediumMigration(Migration):
     """Write the missing player-sized copies of stored artwork."""
 
-    id = "0025_artwork_medium"
-    to_version = "2.7.19"
+    id = "0026_artwork_medium"
+    to_version = "2.7.20"
     description = (
         "Write corpus-art/derived/medium/<sha>.jpg (≤1024px) for every stored cover that lacks "
         "one: the player was served originals of up to 3000px"

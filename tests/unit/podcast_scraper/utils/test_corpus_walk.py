@@ -82,7 +82,7 @@ _NOT_A_CORPUS = {
     "utils/usage_status.py": "run/cost logs, not artifacts",
     "upgrade/migrations/m0011_shared_artwork_store.py": "the artwork store dir",
     "upgrade/migrations/m0013_artwork_thumbnails.py": "the artwork store dir",
-    "upgrade/migrations/m0025_artwork_medium.py": "the artwork store dir",
+    "upgrade/migrations/m0026_artwork_medium.py": "the artwork store dir",
 }
 
 

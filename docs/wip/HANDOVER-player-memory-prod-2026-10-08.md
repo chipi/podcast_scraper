@@ -11,7 +11,9 @@ one. Background: `docs/wip/player-memory-analysis-2026-10-08.md`.
    half an hour.
 2. Deploy the server (this PR) — **only after step 1 is confirmed**. The deploy changes what 1.0.2
    shows (below), so it must not go out while there is no 1.0.3 to update to.
-3. `0024`, then `0025` (step 2 below), each with the operator's OK.
+3. `0024`, `0025`, `0026` (step 2 below), then `0027` (step 2b), each with the operator's OK.
+   Strict id order: `0025_one_person_one_entry` (the naming repair, merged to main separately; its
+   own review is in `docs/guides/NAMING_GATE_RUNBOOK.md`) must be applied before this PR's two.
 4. Set the released version to **1.0.3** in the operator viewer. 1.0.2 then shows the update
    prompt; this needs the deploy, because #2296 (`9f8a8605b`) is not in `sha-0f63257`.
 5. The operator tells testers to update.
@@ -31,7 +33,7 @@ one. Background: `docs/wip/player-memory-analysis-2026-10-08.md`.
   (`upgrade status` in `compose-api-1`).
 - `0024_shared_removed_speaker_prefixes` (2.7.18, #2294) is **not** in that image. It has its own
   review — dry-run and read its frozen set name by name, then apply — **before** `0025` (strict id
-  order).
+  order). `0025_one_person_one_entry` (2.7.19) is not in that image either.
 - 96 GB free on `/`. Every `upgrade run` takes a whole-corpus snapshot (13 GB on 2026-10-03).
 
 ## 1. The server half: check after the deploy
@@ -49,7 +51,7 @@ Until step 2 runs, `size=medium` falls back to the original — the API mounts t
 and cannot make the copy. **Cards are fixed immediately**: their 320px thumbnails already exist
 (m0013). The player hero keeps the original until step 2.
 
-## 2. `m0025_artwork_medium` — the 1024px player copies (needs the operator's OK)
+## 2. `m0026_artwork_medium` — the 1024px player copies (needs the operator's OK)
 
 Writes `corpus-art/derived/medium/<sha>.jpg` (≤1024px, never upscaled) for every stored cover. It
 is derived data only: no artifact text changes, no LLM, no fetch. 1,318 stored images on
@@ -58,10 +60,10 @@ with `du` after apply.
 
 ```bash
 docker exec compose-api-1 python -m podcast_scraper.cli upgrade status --corpus-dir /app/output
-# after 0024 is applied:
-docker exec compose-api-1 python -m podcast_scraper.cli upgrade run --to 2.7.19 --dry-run --corpus-dir /app/output
+# after 0024 and 0025 are applied:
+docker exec compose-api-1 python -m podcast_scraper.cli upgrade run --to 2.7.20 --dry-run --corpus-dir /app/output
 #   expect: "would write ~1318 medium copy(ies) of 1318 stored image(s); 0 undecodable"
-docker exec compose-api-1 python -m podcast_scraper.cli upgrade run --to 2.7.19 --corpus-dir /app/output
+docker exec compose-api-1 python -m podcast_scraper.cli upgrade run --to 2.7.20 --corpus-dir /app/output
 docker exec compose-api-1 python -m podcast_scraper.cli upgrade verify --corpus-dir /app/output
 ```
 
@@ -78,7 +80,7 @@ for s in medium large; do curl -s -o /dev/null -w "$s %{size_download}\n" \
 the originals, which is today's behaviour. Undecodable images are listed in
 `artwork_medium_failed.jsonl` and keep being served as originals.
 
-## 2b. `m0026_missing_covers_stored` — covers that were only a feed-host URL (needs the operator's OK)
+## 2b. `m0027_missing_covers_stored` — covers that were only a feed-host URL (needs the operator's OK)
 
 One show ("The China-Global South Podcast") has no stored cover. Its 3000x3000 PNG is 11.9 MB and
 the writer's cap was 8 MB (now 32 MB), so phones download the original for a 116 px tile.
@@ -87,9 +89,9 @@ and medium copies, and records `image_local_relpath` on the affected episodes. E
 rewrite is backed up and receipted; `undo` restores them.
 
 ```bash
-docker exec compose-api-1 python -m podcast_scraper.cli upgrade run --to 2.7.20 --dry-run --corpus-dir /app/output
+docker exec compose-api-1 python -m podcast_scraper.cli upgrade run --to 2.7.21 --dry-run --corpus-dir /app/output
 #   expect: 1 cover to fetch (the libsyn PNG) for that show's episodes
-docker exec compose-api-1 python -m podcast_scraper.cli upgrade run --to 2.7.20 --corpus-dir /app/output
+docker exec compose-api-1 python -m podcast_scraper.cli upgrade run --to 2.7.21 --corpus-dir /app/output
 docker exec compose-api-1 python -m podcast_scraper.cli upgrade verify --corpus-dir /app/output
 ```
 
@@ -120,8 +122,9 @@ and scroll it, the case that reproduced 3 of 3 on 1.0.2.
 
 ## Not done here (for the operator to decide)
 
-- Shows with no stored cover still load their feed's remote image, up to 3000px (one on Discover's
-  trending rail). Fixing it needs a migration that downloads and stores those covers. Not built.
-- Several endpoints return everything for the client to page: the entity cards' episodes,
-  `/your-week`, `/favorites`, `/collections`, `/resurfacing`, `/playback`, `/podcasts`. Images are
-  paged; these JSON payloads are not. Planned for the performance scan.
+- The per-user lists still return everything for the client to page: `/favorites`, `/collections`,
+  `/resurfacing`, `/playback`, `/your-week`. Paging them on the server needs server-side search,
+  filter and sort, because the client filters the whole list today. Queue and Recently played
+  fetch each episode separately (one request per row); a batch endpoint would fix that. Both wait
+  on the operator. Entity cards' episodes and the speakers' takes ARE paged in this PR
+  (`docs/api/PLATFORM_API.md`), and covers that were only a feed URL are stored by `0027`.

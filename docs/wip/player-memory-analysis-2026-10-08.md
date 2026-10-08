@@ -111,5 +111,5 @@ the only thing left drawn in both photos; it is not separately proven for that c
 
 **Images:** cards built from an episode detail now take `artwork_thumb_url` (320px); the player,
 lock screen and offline copy take `size=medium` (≤1024px). On prod the medium copies exist only
-after `m0025` runs; until then `medium` falls back to the original, so the player is unchanged and
+after `m0026` runs; until then `medium` falls back to the original, so the player is unchanged and
 the cards are fixed by the thumbs that already exist.

@@ -1,4 +1,4 @@
-"""0026 — store the covers the corpus only points at, so phones are never sent an original.
+"""0027 — store the covers the corpus only points at, so phones are never sent an original.
 
 The app serves artwork from our own store (``/api/app/artwork``), downscaled for every slot. A
 cover the pipeline did not store has no store path, so the app falls back to the feed host's URL —
@@ -33,10 +33,10 @@ from ..file_rewrite import append_receipts, undo_from_receipts, write_with_backu
 from ..migration import Migration, MigrationContext, MigrationResult
 from ..ownership import created_dirs, match_corpus_owner
 
-MIGRATION_ID = "0026_missing_covers_stored"
+MIGRATION_ID = "0027_missing_covers_stored"
 RECEIPTS_FILE = "missing_covers_stored.jsonl"
 FAILED_FILE = "missing_covers_failed.jsonl"
-BACKUP_TAG = "0026"
+BACKUP_TAG = "0027"
 DEFAULT_FETCH_TIMEOUT = 30.0
 _BLOCKS = ("feed", "episode")
 
@@ -92,7 +92,7 @@ class MissingCoversStoredMigration(Migration):
     """Download and record the covers the corpus only links to."""
 
     id = MIGRATION_ID
-    to_version = "2.7.20"
+    to_version = "2.7.21"
     description = (
         "Store covers that only exist as a feed-host URL (one was an 11.9 MB PNG sent to phones "
         "in full) and record their store path, so every slot gets a downscale"

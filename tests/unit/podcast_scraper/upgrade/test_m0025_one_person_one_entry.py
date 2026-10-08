@@ -169,10 +169,11 @@ TITLED = [
 ]
 
 
-def test_registered_last_after_0024() -> None:
+def test_registered_after_0024() -> None:
     ids = [m.id for m in get_migrations()]
-    assert ids.index("0025_one_person_one_entry") == len(ids) - 1
-    assert ids.index("0024_shared_removed_speaker_prefixes") == len(ids) - 2
+    assert ids.index("0025_one_person_one_entry") == (
+        ids.index("0024_shared_removed_speaker_prefixes") + 1
+    )
 
 
 def test_a_titled_host_takes_the_stated_spelling_on_every_surface(tmp_path: Path) -> None:
