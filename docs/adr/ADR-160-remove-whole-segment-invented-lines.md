@@ -38,7 +38,8 @@ recovered like any other (ADR-159).
   opening's real speech comes back through recovery.
 - **Negative**: a real speaker who says exactly "Thank you for watching." as a whole Whisper
   segment loses those words. The one prod candidate was a real sign-off at the end of a longer
-  Whisper segment, so it stays.
+  Whisper segment, so it stays. **Accepted by the operator, 2026-10-09**: an invented line can
+  reach a summary, an insight or a quote; a lost whole-segment sign-off reaches nothing.
 - **Neutral**: the list grows by observation, not by guessing; it holds the observed lines, the
   Amara.org community credits, and the common sign-offs.
 
