@@ -403,6 +403,27 @@ describe('HighlightsView', () => {
     expect(on.text()).not.toContain('still resurfacing')
   })
 
+  it('pages five at a time: five highlights per episode, five episodes, latest saved first (operator 2026-10-08)', async () => {
+    // One episode with 7 captures, then 6 more episodes with one each = 7 episodes.
+    const many = [
+      ...Array.from({ length: 7 }, (_, i) => hl({ id: `a${i}`, episode_slug: 'ep-a', created_at: 100 + i, quote_text: `a line ${i}` })),
+      ...Array.from({ length: 6 }, (_, i) => hl({ id: `b${i}`, episode_slug: `ep-b${i}`, created_at: 10 + i })),
+    ]
+    vi.spyOn(api, 'getHighlights').mockResolvedValue(many)
+    vi.spyOn(api, 'getEpisode').mockImplementation(async (slug: string) => detail(slug, slug))
+    const w = mountView()
+    await flushPromises()
+    const groups = w.findAll('[data-testid="highlight-group"]')
+    expect(groups).toHaveLength(5)
+    // The episode saved into most recently leads, and shows its newest five captures.
+    const first = groups[0]
+    expect(first.findAll('[data-testid="highlight-card"]')).toHaveLength(5)
+    expect(first.text()).toContain('a line 6')
+    expect(first.text()).not.toContain('a line 1')
+    // Show more is offered for the episode's captures and for the episodes.
+    expect(w.findAll('[data-testid="show-all-toggle"]').length).toBeGreaterThanOrEqual(2)
+  })
+
   it('files a highlight with the standard board control, not a dropdown of its own (operator 2026-10-08)', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))

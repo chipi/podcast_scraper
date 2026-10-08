@@ -62,11 +62,12 @@ const props = defineProps<{
 }>()
 
 // Episode groups are capped like every other Library section (#2042 follow-up); a search lifts it.
-// Episode groups AND the captures inside each one page 10 at a time (operator 2026-09-18). A heavy
-// listener has dozens of captures on a single episode, and "Show all" on that is not a page — it is
-// a scroll with no landmarks. Separate instances so walking one episode does not move the others.
-const groupCaps = useCappedSections(10, 10)
-const itemCaps = useCappedSections(10, 10)
+// Episode groups AND the captures inside each one page FIVE at a time (operator 2026-10-08; was 10
+// since 2026-09-18). A heavy listener has dozens of captures on a single episode, and "Show all" on
+// that is not a page — it is a scroll with no landmarks. Separate instances so walking one episode
+// does not move the others. Order is unchanged: latest saved first, episodes and captures alike.
+const groupCaps = useCappedSections(5, 5)
+const itemCaps = useCappedSections(5, 5)
 
 /**
  * Episode groups the user has folded away (operator 2026-09-18).
