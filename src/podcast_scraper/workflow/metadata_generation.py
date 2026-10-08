@@ -1089,9 +1089,17 @@ def _unplaced_speakers(
     (``Dr. Rafael Prieto-Curiel`` beside ``Rafael Prieto-Curiel``) is the same human and is not
     listed twice.
     """
-    from ..providers.ml.diarization.roster import _same_person
+    from ..providers.ml.diarization.roster import _same_person, _same_person_on_one_episode
     from ..speaker_detectors.hosts import names_the_show
     from ..speaker_detectors.normalization import is_default_speaker_name
+
+    def _one_person_on_this_record(a: str, b: str) -> bool:
+        # Every name here is one EPISODE's, so the one-episode respelling rule applies too: the
+        # feed's "Hannah Fry" and a voice's "Professor Hannah Frye", or the show notes' "Bernard
+        # Leong" and the hint's "Bernard Leung", are one person listed twice otherwise (12
+        # episodes, 2026-10-08). `_same_person` stays: across sources a missing "Jr." is no
+        # disagreement, which the one-episode rule reads as a father and a son.
+        return a.lower() == b.lower() or _same_person(a, b) or _same_person_on_one_episode(a, b)
 
     tried_raw = diagnostics.get("tried")
     tried: Mapping[str, Any] = tried_raw if isinstance(tried_raw, dict) else {}
@@ -1132,9 +1140,9 @@ def _unplaced_speakers(
         # The record publishes the canonical spelling (#2130: `Ali Ghodsi)`, `Peter Attia, MD`).
         # Only AFTER the filters above, which keep judging the stated string exactly as before.
         name = canonical_person_name(name) or name
-        if any(name.lower() == p.name.lower() or _same_person(name, p.name) for p in placed):
+        if any(_one_person_on_this_record(name, p.name) for p in placed):
             continue
-        if any(name.lower() == k.name.lower() or _same_person(name, k.name) for k in kept):
+        if any(_one_person_on_this_record(name, k.name) for k in kept):
             continue
         kept.append(
             SpeakerInfo(

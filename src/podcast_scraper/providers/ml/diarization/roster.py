@@ -889,11 +889,19 @@ def _core_name_tokens(name: str) -> List[str]:
     # writes exactly the same way. A language argument here would be ceremony with no effect, and
     # it has sixteen call sites that would each have to acquire one to deliver it.
     toks = [t.strip(".,'’") for t in (name or "").split()]
-    return [
+    toks = [
         t
         for t in toks
         if t and t.lower() not in _NAME_SUFFIXES and t.lower() not in _CREDENTIAL_SUFFIXES
     ]
+    # A LEADING TITLE IS NOT THE GIVEN NAME. Kept, it was: "I'm Professor Hannah Frye" compared its
+    # "Professor" against the feed host's "Hannah", so the voice could never snap to the stated
+    # Hannah Fry and she was listed twice (Google DeepMind, 2026-10-08). Dropped only while a given
+    # name and a surname remain: "Professor Pape" keeps its title, since without it the surname
+    # would read as a given name.
+    while len(toks) > 2 and toks[0].lower() in HONORIFIC_TITLES:
+        toks = toks[1:]
+    return toks
 
 
 def _surname_token(name: str) -> Optional[str]:
@@ -3367,6 +3375,21 @@ def _intro_people(names: Sequence[str]) -> int:
     return len(people)
 
 
+def _one_swap_apart(a: str, b: str) -> bool:
+    """Two adjacent letters swapped, and nothing else ("wiesenthal" / "weisenthal").
+
+    One slip of the ASR, though plain edit distance counts it as two.
+    """
+    diff = [i for i, (x, y) in enumerate(zip(a, b)) if x != y]
+    return (
+        len(a) == len(b)
+        and len(diff) == 2
+        and diff[1] == diff[0] + 1
+        and a[diff[0]] == b[diff[1]]
+        and a[diff[1]] == b[diff[0]]
+    )
+
+
 def _snap_near_identical_host(
     name: str, known_hosts: Sequence[str], taken: AbstractSet[str] = frozenset()
 ) -> str:
@@ -3377,7 +3400,9 @@ def _snap_near_identical_host(
     missed wearing the ASR's spelling: Odd Lots' "I'm Tracy Allaway" stayed `Tracy Allaway`, which
     the resolver then discarded as a name nobody stated, and she was cast as a guest of her own
     show. An exact first name plus a surname one edit away is far narrower than the host-candidate
-    rule (edit <= 3 or soundex) and leaves "Kevin Ross" alone.
+    rule (edit <= 3 or soundex) and leaves "Kevin Ross" alone. Two swapped letters count as one
+    edit: Odd Lots' "I'm Joe Wiesenthal" otherwise stayed a guest of his own show beside the feed's
+    Joe Weisenthal (2026-10-08).
 
     The mirror case is just as narrow: an EXACT surname of at least 5 letters with a given name one
     letter off ("I'm Tracey Alloway" for Tracy Alloway, gold-labelled validation set 2026-10-02:
@@ -3397,7 +3422,13 @@ def _snap_near_identical_host(
         if len(h) < 2:
             continue
         h_first, h_last = h[0].lower(), h[-1].lower()
-        if h_first == first and len(last) >= 5 and _edit_distance(last, h_last) <= 1:
+        if [t.lower() for t in h] == [t.lower() for t in toks]:
+            return host  # the same name but for a title ("Professor Hannah Fry")
+        if (
+            h_first == first
+            and len(last) >= 5
+            and (_edit_distance(last, h_last) <= 1 or _one_swap_apart(last, h_last))
+        ):
             return host
         if (
             last == h_last

@@ -109,6 +109,17 @@ numbers exactly (`lost 69, renamed 4, gained 1`). Limits: stored LLM answers are
 model's raw verdicts, so a rule keyed on LLM verdicts is only partly measurable; a change to what
 the LLM is ASKED cannot be measured offline at all.
 
+**The published record, not only the voices.** The gate and `roster_replay.py` score names per
+voice. One person listed twice on an episode, once on a voice as the transcript spelt them and once
+unplaced as the feed spells them ("Professor Hannah Frye" beside "Hannah Fry"), is not a per-voice
+change, so neither shows it. `scripts/measure/speaker_record_replay.py` rebuilds the record
+(placed people, then `_unplaced_speakers`) for each side, prints every episode whose record changed
+or still lists someone twice, and exits 1 when the new side lists someone twice where the old side
+did not. It cannot reproduce the corpus organisation vote, the show-name filter on placed names or
+the pre-listening hint names, and many stored records were written by older code, so its old side
+matches the stored record on 238 of 364 episodes (2026-10-08 run); how the other 126 split between
+those two causes was not measured.
+
 **Where to run.** Today the replay runs inside the api container on the box. A read-only local
 snapshot of the needed artifacts (metadata, segments, speaker diagnostics — no audio) into
 `.test_outputs/` would let it run on the workstation without touching prod; planned.
