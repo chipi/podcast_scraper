@@ -14,6 +14,8 @@ import json
 import logging
 import os
 import time
+from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -36,12 +38,18 @@ from podcast_scraper.server.app_content_source import (
     transcript_relpath,
 )
 from podcast_scraper.server.app_corpus_access import corpus_root_or_503, load_json_artifact
+from podcast_scraper.server.app_discover_view import interest_relpaths
 from podcast_scraper.server.app_episode_notes import (
     build_episode_notes,
     render_episode_notes_html,
     render_episode_notes_markdown,
 )
 from podcast_scraper.server.app_gi_view import insights_from_gi
+from podcast_scraper.server.app_guided_shows import (
+    guided_show_signals,
+    rank_guided_shows,
+    ShowSignals,
+)
 from podcast_scraper.server.app_kg_view import entities_from_kg, objects_from_kg
 from podcast_scraper.server.app_pkm_export import episode_url
 from podcast_scraper.server.app_recap_view import build_episode_recap
@@ -140,28 +148,75 @@ def episodes_list(
     return _episodes_page(request, feed_id=feed_id, status=status, page=page, page_size=page_size)
 
 
+def _podcast_item(f: dict) -> AppPodcastItem:
+    return AppPodcastItem(
+        feed_id=f["feed_id"],
+        title=f.get("display_title"),
+        artwork_url=artwork_url(f.get("image_local_relpath"), "thumb"),
+        image_url=f.get("image_url"),
+        description=f.get("description"),
+        category=f.get("category"),
+        episode_count=int(f.get("episode_count", 0)),
+        authors=list(f.get("authors") or ()),
+        language=f.get("language"),
+        last_updated=f.get("last_updated"),
+    )
+
+
 @router.get("/podcasts", response_model=AppPodcastsResponse)
 def podcasts_list(request: Request, _user: User = Depends(get_current_user)) -> AppPodcastsResponse:
     """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6)."""
     root = corpus_root_or_503(request)
     feeds = aggregate_feeds(cached_catalog(root))
-    items = [
-        AppPodcastItem(
-            feed_id=f["feed_id"],
-            title=f.get("display_title"),
-            artwork_url=artwork_url(f.get("image_local_relpath"), "thumb"),
-            image_url=f.get("image_url"),
-            description=f.get("description"),
-            category=f.get("category"),
-            episode_count=int(f.get("episode_count", 0)),
-            authors=list(f.get("authors") or ()),
-            language=f.get("language"),
-            last_updated=f.get("last_updated"),
-        )
-        for f in feeds
-        if f.get("feed_id")
-    ]
-    return AppPodcastsResponse(items=items)
+    return AppPodcastsResponse(items=[_podcast_item(f) for f in feeds if f.get("feed_id")])
+
+
+@router.get("/podcasts/suggested", response_model=AppPodcastsResponse)
+def podcasts_suggested(
+    request: Request,
+    limit: int = Query(default=8, ge=1, le=24, description="Shows to return."),
+    user: User = Depends(get_current_user),
+) -> AppPodcastsResponse:
+    """Shows to offer in Home's guided start (operator 2026-10-08): active in the last month first,
+    then the most loved across listeners, lifted by the interests just chosen, minus shows already
+    followed, categories mixed. See ``app_guided_shows``.
+    """
+    root = corpus_root_or_503(request)
+    rows = cached_catalog(root)
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    data_dir = Path(raw_dir) if raw_dir is not None else None
+    followed: set[str] = set()
+    matching: set[str] = set()
+    if data_dir is not None:
+        followed = {
+            str(x.get("feed_id") or "") for x in app_user_state.get_library(data_dir, user.user_id)
+        }
+        matching = interest_relpaths(root, app_user_state.get_interests(data_dir, user.user_id))
+        signals = guided_show_signals(data_dir, rows)
+    else:
+        signals = ShowSignals(Counter(), Counter(), Counter(), Counter())
+    order = rank_guided_shows(
+        rows,
+        signals=signals,
+        now=_guided_now(),
+        followed=followed,
+        matching_relpaths=matching,
+        limit=limit,
+    )
+    feeds = {f["feed_id"]: f for f in aggregate_feeds(rows) if f.get("feed_id")}
+    return AppPodcastsResponse(items=[_podcast_item(feeds[fid]) for fid in order if fid in feeds])
+
+
+def _guided_now() -> datetime:
+    """Real now, unless ``APP_TRENDING_NOW`` pins the clock (tests), as Trends does."""
+    raw = os.environ.get("APP_TRENDING_NOW")
+    if raw:
+        try:
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+    return datetime.now(timezone.utc)
 
 
 @router.get("/podcasts/{feed_id}/episodes", response_model=AppEpisodesResponse)

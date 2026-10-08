@@ -5,6 +5,9 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 import { useOnline } from '../composables/useOnline'
+import { useAuthStore } from '../stores/auth'
+import { useUserPreferencesStore } from '../stores/userPreferences'
+import { flushPromises } from '@vue/test-utils'
 // DeviceSettings renders nothing off-native — on the web there is no offline audio to configure —
 // so without this the placement assertions below would pass or fail for the wrong reason.
 vi.mock('../services/native', () => ({ isNative: () => true }))
@@ -28,6 +31,7 @@ const router = createRouter({
   routes: [
     { path: '/settings', name: 'settings', component: SettingsView },
     { path: '/profile', name: 'profile', component: stub },
+    { path: '/', name: 'home', component: stub },
     { path: '/about/:page', name: 'about-page', component: stub, props: true },
   ],
 })
@@ -70,6 +74,22 @@ describe('SettingsView (#8)', () => {
     expect(w.get('[data-testid="settings-copy"]').text()).toContain('Copy build info')
     expect(w.find('[data-testid="settings-help"]').exists()).toBe(true)
     expect(w.text()).toContain('web') // platform; capitalize is CSS-only, DOM text stays 'web'
+  })
+
+  it('can bring the getting-started guide back, and goes Home to show it (operator 2026-10-08)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}) }))
+    useAuthStore().user = { user_id: 'u', email: 'e@x.com', name: 'N' } as never
+    const w = await mountView()
+    await w.get('[data-testid="settings-guided-restart"]').trigger('click')
+    await flushPromises()
+    expect(useUserPreferencesStore().get('lp.guidedStart')).toBe('restart')
+    expect(router.currentRoute.value.name).toBe('home')
+    vi.unstubAllGlobals()
+  })
+
+  it('offers no guide restart when signed out', async () => {
+    const w = await mountView()
+    expect(w.find('[data-testid="settings-guided-restart"]').exists()).toBe(false)
   })
 
   it('links back to Profile', async () => {

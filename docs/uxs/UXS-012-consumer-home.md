@@ -209,9 +209,14 @@ Since 2026-10-07 (operator): Home on a first visit was two screens of not much, 
 (no interests yet) gets a short flow of cards in place of the single welcome card: **1** choose at
 least three interests (the interests picker, with progress), **2** follow at least one show (the
 followable show tiles, in the card), **3** "Your Home is ready", which closes the flow and reloads
-What's new and Recommended from the choices. Each step can be skipped; "Not now" dismisses it. Progress
-is a synced preference (`lp.guidedStart`), so a run continues where it was left on any device; an
-account that already had interests never sees it. While it runs, an empty Your Week is hidden.
+What's new and Recommended from the choices. Each step can be skipped ("Skip step"); "Not now"
+snoozes the whole guide for three days (operator 2026-10-08), and Settings' "Show the getting-started
+guide again" restarts it from step 1 at any time, walking every step with "Next" even when its
+minimum is already met. Step 2's shows are ranked by the server (`GET /api/app/podcasts/suggested`):
+active in the last month first, then the most loved across listeners, lifted by the interests just
+chosen, minus shows already followed, categories mixed. Progress is a synced preference
+(`lp.guidedStart`), so a run continues where it was left on any device; an account that already had
+interests never sees it unless it restarts it. While it runs, an empty Your Week is hidden.
 
 ### `YourWeek` — your week in review
 

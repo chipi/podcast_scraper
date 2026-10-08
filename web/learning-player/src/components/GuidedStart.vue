@@ -9,9 +9,9 @@
  * step 2 while no show is followed, then done. A skip moves past a step for this run. Home decides
  * when the flow is shown and stores that it ran (see `GUIDED_START_PREF`).
  */
-import { computed, onMounted, ref } from "vue"
+import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
-import { getPodcasts } from "../services/api"
+import { getSuggestedShows } from "../services/api"
 import type { Podcast } from "../services/types"
 import { useInterestsStore } from "../stores/interests"
 import { useLibraryStore } from "../stores/library"
@@ -22,7 +22,17 @@ import ShowTile from "./ShowTile.vue"
 const MIN_INTERESTS = 3
 const MIN_SHOWS = 1
 
-defineProps<{ welcomeName: string | null }>()
+const props = withDefaults(
+  defineProps<{
+    welcomeName: string | null
+    /**
+     * Restarted from Settings: walk every step even if its minimum is already met, so the listener
+     * can add interests and shows. Each step then waits for "Next" rather than closing itself.
+     */
+    restart?: boolean
+  }>(),
+  { restart: false },
+)
 const emit = defineEmits<{
   (e: "choose-interests"): void
   (e: "dismiss"): void
@@ -39,9 +49,14 @@ const interestCount = computed(() => interests.ids.length)
 const showCount = computed(() => library.feedIds.length)
 
 const step = computed<1 | 2 | 3>(() => {
-  if (interestCount.value < MIN_INTERESTS && !skippedInterests.value) return 1
-  if (showCount.value < MIN_SHOWS && !skippedShows.value) return 2
+  if ((props.restart || interestCount.value < MIN_INTERESTS) && !skippedInterests.value) return 1
+  if ((props.restart || showCount.value < MIN_SHOWS) && !skippedShows.value) return 2
   return 3
+})
+/** "Next" once the step's minimum is met (a restarted run), else "Skip step". */
+const passLabel = computed(() => {
+  const met = step.value === 1 ? interestCount.value >= MIN_INTERESTS : showCount.value >= MIN_SHOWS
+  return met ? t("guided.next") : t("guided.skip")
 })
 /** "Skip step" and "Not now" — the two ways out, quieter than the step's action. */
 const EXIT_BUTTON =
@@ -49,15 +64,24 @@ const EXIT_BUTTON =
 
 const interestsToGo = computed(() => Math.max(0, MIN_INTERESTS - interestCount.value))
 
-/** Shows to follow in step 2 — the first 8 of `/podcasts`, which is sorted by feed id: unranked. */
+/**
+ * Shows to follow in step 2, ranked by the server (`/podcasts/suggested`): active in the last month,
+ * then the most loved, lifted by the interests chosen in step 1. Loaded when step 2 opens, not on
+ * mount, so those interests are already saved and count.
+ */
 const shows = ref<Podcast[]>([])
-onMounted(async () => {
-  try {
-    shows.value = (await getPodcasts()).slice(0, 8)
-  } catch {
-    shows.value = []
-  }
-})
+watch(
+  () => step.value === 2,
+  async (atShows) => {
+    if (!atShows) return
+    try {
+      shows.value = await getSuggestedShows(8)
+    } catch {
+      shows.value = []
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -102,7 +126,7 @@ onMounted(async () => {
           {{ t("interests.cardCta") }}
         </button>
         <button type="button" :class="EXIT_BUTTON" data-testid="guided-skip" @click="skippedInterests = true">
-          {{ t("guided.skip") }}
+          {{ passLabel }}
         </button>
         <button type="button" :class="EXIT_BUTTON" data-testid="interests-not-now" @click="emit('dismiss')">
           {{ t("interests.dismiss") }}
@@ -131,7 +155,7 @@ onMounted(async () => {
           {{ t("guided.allShows") }}
         </RouterLink>
         <button type="button" :class="EXIT_BUTTON" data-testid="guided-skip" @click="skippedShows = true">
-          {{ t("guided.skip") }}
+          {{ passLabel }}
         </button>
         <button type="button" :class="EXIT_BUTTON" data-testid="interests-not-now" @click="emit('dismiss')">
           {{ t("interests.dismiss") }}

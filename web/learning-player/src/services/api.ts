@@ -772,6 +772,14 @@ export async function getPodcasts(): Promise<Podcast[]> {
   return (await getJSON<{ items: Podcast[] }>("/podcasts")).items
 }
 
+/**
+ * Shows for the guided start's "follow a few shows" step (operator 2026-10-08): active in the last
+ * month first, then the most loved, lifted by the listener's interests, minus shows they follow.
+ */
+export async function getSuggestedShows(limit = 8): Promise<Podcast[]> {
+  return (await getJSON<{ items: Podcast[] }>(`/podcasts/suggested?limit=${limit}`)).items
+}
+
 // --- Feed subscriptions ("follow a show") — the library the Your Week digest reads for its
 // "new in your follows" section. NOT the same store as interests (topic:/person: tokens), which
 // feed "Recommended for you".

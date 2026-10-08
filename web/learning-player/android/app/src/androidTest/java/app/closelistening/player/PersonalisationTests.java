@@ -142,15 +142,24 @@ public class PersonalisationTests extends UITestCase {
                     Journey.scrollTo(Arrays.asList(UNFOLLOW + label), false, 10));
         }
 
-        // Interests feed Home's recommendations, so Home must REFLECT them. i18n:
-        // interests.cardCta = "Choose interests" — Home stops asking once something is followed.
+        // Interests feed Home's recommendations, so Home must REFLECT them. Home's guided start
+        // (2026-10-07) asks for three: at three it moves on from the interests step, so
+        // interests.cardCta = "Choose interests" is gone; below three it stays and says how many
+        // are left — guided.interestsToGo = "One more to go" / "{count} more to go".
         Journey.openTab("Home");
         Journey.sleep(6_000);
-        boolean stillPrompting = Journey.find("Choose interests", true, 5_000) != null;
-        assertNull(
-                "Home is still prompting to choose interests after interests were chosen. On screen: "
-                        + Journey.labelledInventory(80),
-                stillPrompting ? Journey.find("Choose interests", true, 1_000) : null);
+        if (followed.size() >= 3) {
+            boolean stillPrompting = Journey.find("Choose interests", true, 5_000) != null;
+            assertNull(
+                    "Home is still on the interests step after three interests were chosen. On screen: "
+                            + Journey.labelledInventory(80),
+                    stillPrompting ? Journey.find("Choose interests", true, 1_000) : null);
+        } else {
+            assertNotNull(
+                    "Home does not show how many interests are still needed after " + followed.size()
+                            + " were chosen. On screen: " + Journey.labelledInventory(80),
+                    Journey.find("more to go", true, 5_000));
+        }
 
         // And the follows were WRITTEN, not just flipped on screen: back on Profile they are there.
         assertTrue("Profile did not open", Journey.openProfile(profileLabels()));

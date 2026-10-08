@@ -118,14 +118,23 @@ final class PersonalisationTests: UITestCase {
     }
     Journey.shot(self, "10-interests-after")
 
-    // Interests feed Home's recommendations, so Home must REFLECT them: it stops asking.
+    // Interests feed Home's recommendations, so Home must REFLECT them. Home's guided start
+    // (2026-10-07) asks for three: at three it moves on from the interests step, so "Choose
+    // interests" is gone; below three it stays and says how many are left ("… more to go").
     Journey.openTab(app, "Home")
     sleep(6)
     Journey.shot(self, "10-home-after-interests")
-    XCTAssertNil(
-      Journey.find(app, labels: ["Choose interests"], contains: true, timeout: 5),
-      "Home is still prompting to choose interests after interests were chosen"
-    )
+    if followed.count >= 3 {
+      XCTAssertNil(
+        Journey.find(app, labels: ["Choose interests"], contains: true, timeout: 5),
+        "Home is still on the interests step after three interests were chosen"
+      )
+    } else {
+      XCTAssertNotNil(
+        Journey.find(app, labels: ["more to go"], contains: true, timeout: 5),
+        "Home does not show how many interests are still needed after \(followed.count) were chosen"
+      )
+    }
 
     // And they were WRITTEN, not just flipped on screen: back on Profile they are still there.
     Journey.openProfile(app, labels: profileLabels)

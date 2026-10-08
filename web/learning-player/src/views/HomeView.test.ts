@@ -11,6 +11,8 @@ import { resetStaleness } from '../composables/useSectionState'
 import { useDownloadsStore } from '../stores/downloads'
 import { useInterestsStore } from '../stores/interests'
 import { useLibraryStore } from '../stores/library'
+import { useUserPreferencesStore } from '../stores/userPreferences'
+import { GUIDED_SNOOZED_PREF, GUIDED_START_PREF } from '../composables/useGuidedStart'
 import HomeView from './HomeView.vue'
 
 // Defaults to "nothing cached", so every test above keeps the behaviour it was written for.
@@ -450,6 +452,55 @@ describe('HomeView interests card (3.5)', () => {
     await flushPromises()
     expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(false)
     expect(w.find('[data-testid="your-week"]').exists()).toBe(false)
+  })
+
+  it('step 2 offers the server-ranked suggested shows, loaded when the step opens (operator 2026-10-08)', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    const suggested = vi.spyOn(api, 'getSuggestedShows').mockResolvedValue([
+      { feed_id: 'f-active', title: 'Active Show' } as never,
+      { feed_id: 'f-loved', title: 'Loved Show' } as never,
+    ])
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    // Not at step 1: the interests chosen there are what lifts a show, so they must be saved first.
+    expect(suggested).not.toHaveBeenCalled()
+    await w.get('[data-testid="guided-skip"]').trigger('click')
+    await flushPromises()
+    expect(suggested).toHaveBeenCalledWith(8)
+    const rail = w.get('[data-testid="guided-shows"]')
+    expect(rail.findAll('li')).toHaveLength(2)
+    expect(rail.text()).toContain('Active Show')
+  })
+
+  it('restarted from Settings, the guide walks every step even when the minimums are met', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue(['tc:ai', 'tc:science', 'topic:risk'] as never)
+    vi.spyOn(api, 'getSuggestedShows').mockResolvedValue([])
+    signIn()
+    useLibraryStore().items = [{ feed_id: 'f1' } as never]
+    void useUserPreferencesStore().set(GUIDED_START_PREF, 'restart')
+    const w = mountKeptAlive()
+    await flushPromises()
+    const card = () => w.get('[data-testid="interests-welcome"]')
+    expect(card().attributes('data-step')).toBe('1')
+    // The minimum is met, so the way on is "Next", not "Skip step".
+    expect(card().get('[data-testid="guided-skip"]').text()).toBe('Next')
+    await card().get('[data-testid="guided-skip"]').trigger('click')
+    expect(card().attributes('data-step')).toBe('2')
+    await card().get('[data-testid="guided-skip"]').trigger('click')
+    expect(card().attributes('data-step')).toBe('3')
+  })
+
+  it('"Not now" snoozes the guide rather than ending it (operator 2026-10-08)', async () => {
+    vi.spyOn(api, 'getUserInterests').mockResolvedValue([])
+    signIn()
+    const w = mountKeptAlive()
+    await flushPromises()
+    await w.get('[data-testid="interests-not-now"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-testid="interests-welcome"]').exists()).toBe(false)
+    // A time, so it can expire — not the old permanent `true`.
+    expect(typeof useUserPreferencesStore().get(GUIDED_SNOOZED_PREF)).toBe('number')
   })
 
   it('"Not now" closes the whole guide; "Skip step" only moves past the step', async () => {

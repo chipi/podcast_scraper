@@ -66,6 +66,7 @@ lazily from the per-episode endpoints, not the list.
 | GET | `/api/app/episodes?page=&page_size=&status=&feed_id=` | Catalog across the corpus, newest-first. `{items[{slug, title, feed_id, podcast_title, publish_date, duration_seconds, episode_image_url, feed_image_url, artwork_url, status, summary_preview, summary_bullets[], topics[], has_transcript, has_summary, has_gi, has_kg, has_bridge}], page, page_size, total, has_more}`. `summary_preview` = short clean lede; `summary_bullets[]` = full summary (card expand-on-demand). `page≥1`, `1≤page_size≤100` (**422** otherwise). `status` ∈ `ready`\|`pending`. |
 | GET | `/api/app/podcasts/{feed_id}/episodes?page=&page_size=&status=` | Same shape, scoped to one feed. |
 | GET | `/api/app/podcasts` | Distinct shows in the corpus (Home "Your shows" + show-page header): `{items[{feed_id, title, artwork_url, image_url, description, episode_count}]}`. |
+| GET | `/api/app/podcasts/suggested?limit=` | Shows for Home's guided start (operator 2026-10-08), same item shape: active in the last 30 days first (clock pinned by `APP_TRENDING_NOW` in tests), then most loved across listeners (follows, show and episode favourites, listens — each listener once per show), lifted by the caller's interests, minus shows they follow, at most 2 per category up front. `limit` 1–24, default 8; session. |
 
 `status`: `ready` when a transcript exists (playable), else `pending`. Local-content MVP yields
 `ready`; richer states (not-scraped/processing) arrive with scrape-on-demand (`#1069`).

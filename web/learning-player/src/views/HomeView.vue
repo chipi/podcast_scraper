@@ -23,6 +23,7 @@ import { formatDuration } from "../utils/format"
 import { formatPublishDate } from '../utils/format'
 import { episodeArtwork } from "../utils/episode"
 import { kindPill, type InterestKind } from "../utils/interests"
+import { GUIDED_START_PREF, useGuidedStart } from "../composables/useGuidedStart"
 import { useAuthStore } from "../stores/auth"
 import GuidedStart from "../components/GuidedStart.vue"
 import { useLibraryStore } from "../stores/library"
@@ -48,8 +49,6 @@ import SectionStatus from "../components/SectionStatus.vue"
 import RecapPrompt from "../components/RecapPrompt.vue"
 import YourWeek from "../components/YourWeek.vue"
 
-const INTERESTS_DISMISSED_KEY = "lp.interests.dismissed"
-
 const { t, locale } = useI18n()
 const auth = useAuthStore()
 const library = useLibraryStore()
@@ -57,10 +56,6 @@ const userPrefs = useUserPreferencesStore()
 const interests = useInterestsStore()
 const completed = useCompletedStore()
 const { isPlayed } = usePlayed()
-
-// USERPREFS-1 key for the "set your interests" dismissal (gh #1213).
-// localStorage remains the fast-path fallback until the server responds.
-const INTERESTS_DISMISSED_PREF_KEY = "lp.interests.dismissed"
 
 // What's new is the listener's own world, newest first (operator 2026-10-07) — `scope` says
 // whether it is (`yours`) or the every-show fallback (`all`), and the kicker says the same.
@@ -112,18 +107,6 @@ const continueItems = computed(() =>
   continueSection.data.value.filter((x) => !isPlayed(x.detail.slug))
 )
 
-// First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
-const interestsDismissed = ref(false)
-const pickerOpen = ref(false)
-// Only offer the "choose interests" card to users who have NOT already picked any — the bug was it
-// showed even to users with a full interest set. Gate on the store being loaded so it never flashes
-// before we know, and it hides the instant interests exist.
-/**
- * The guided start (operator 2026-10-07) — for a NEW listener (no interests yet), and for as long as
- * a run they started is not finished, so following through step 1 does not make step 2 vanish.
- * `GUIDED_START_PREF` is synced: `active` once shown, `done` once finished. "Not now" still dismisses.
- * A beta account that already chose interests before this existed never sees it.
- */
 /** Home's Discover strip: one chip per Trends kind, in the Interests page's order. */
 const DISCOVER_CHIPS: { kind: InterestKind; label: string; testid: string }[] = [
   { kind: "topic", label: "home.tabTopics", testid: "home-discover-topics" },
@@ -132,18 +115,31 @@ const DISCOVER_CHIPS: { kind: InterestKind; label: string; testid: string }[] = 
   { kind: "storyline", label: "home.storylines", testid: "home-discover-storylines" },
 ]
 
-const GUIDED_START_PREF = "lp.guidedStart"
-const guidedState = computed(() => userPrefs.get<string>(GUIDED_START_PREF))
+// First-Home dismissible "set your interests" card → opens the picker (PRD-043 FR4 / 3.5).
+const pickerOpen = ref(false)
+// Only offer the "choose interests" card to users who have NOT already picked any — the bug was it
+// showed even to users with a full interest set. Gate on the store being loaded so it never flashes
+// before we know, and it hides the instant interests exist.
+/**
+ * The guided start (operator 2026-10-07) — for a NEW listener (no interests yet), and for as long as
+ * a run they started is not finished, so following through step 1 does not make step 2 vanish.
+ * State lives in `useGuidedStart` (synced): `active` once shown, `done` once finished, `restart` when
+ * Settings asked for it again (then it runs from step 1 whatever the listener already has). "Not now"
+ * snoozes it for three days (operator 2026-10-08). An account that already chose interests before
+ * this existed never sees it unless it is restarted.
+ */
+const guided = useGuidedStart()
+const guidedState = guided.state
 const showInterestsCard = computed(
   () =>
     auth.isAuthenticated &&
     interests.loaded &&
-    !interestsDismissed.value &&
+    !guided.isSnoozed() &&
     guidedState.value !== "done" &&
-    (interests.ids.length === 0 || guidedState.value === "active")
+    (interests.ids.length === 0 || guidedState.value === "active" || guidedState.value === "restart")
 )
 watch(showInterestsCard, (on) => {
-  if (on && guidedState.value !== "active") void userPrefs.set(GUIDED_START_PREF, "active")
+  if (on && guidedState.value === undefined) void userPrefs.set(GUIDED_START_PREF, "active")
 })
 /** Close the flow and rebuild Home from what was just chosen. */
 async function finishGuidedStart(): Promise<void> {
@@ -161,16 +157,9 @@ const welcomeName = computed<string | null>(() => {
   return raw.split(/\s+/)[0] ?? null
 })
 
+/** "Not now": snooze the guide (synced across devices), it comes back in three days. */
 function dismissInterests(): void {
-  interestsDismissed.value = true
-  try {
-    localStorage.setItem(INTERESTS_DISMISSED_KEY, "1")
-  } catch {
-    /* private mode / storage disabled — the card just reappears next load */
-  }
-  // USERPREFS-1 (#1213) — write-through so the dismissal syncs across devices.
-  // silent-degrade: userPrefs.set is no-op when the server is unavailable.
-  void userPrefs.set(INTERESTS_DISMISSED_PREF_KEY, true)
+  guided.snooze()
 }
 
 async function onInterestsSaved(): Promise<void> {
@@ -275,17 +264,6 @@ const resumeArt = episodeArtwork
 const epArt = episodeArtwork
 
 onMounted(async () => {
-  try {
-    interestsDismissed.value = localStorage.getItem(INTERESTS_DISMISSED_KEY) === "1"
-  } catch {
-    interestsDismissed.value = false
-  }
-  // USERPREFS-1 (#1213) — read the server preferences (hydrated once at
-  // app init in main.ts). Server value wins over localStorage. Reading
-  // is synchronous; if the payload arrives later, the value is picked up
-  // on the next Home mount.
-  const remote = userPrefs.get<boolean>(INTERESTS_DISMISSED_PREF_KEY)
-  if (remote === true) interestsDismissed.value = true
   // Load the user's chosen interests so the "choose interests" card only shows when there are none
   // (fire-and-forget: the card stays hidden until this resolves, then appears only if empty).
   if (auth.isAuthenticated) void interests.ensureLoaded()
@@ -494,6 +472,7 @@ async function loadContinue(): Promise<void> {
     <GuidedStart
       v-if="showInterestsCard"
       :welcome-name="welcomeName"
+      :restart="guidedState === 'restart'"
       @choose-interests="pickerOpen = true"
       @dismiss="dismissInterests"
       @finish="finishGuidedStart"

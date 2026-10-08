@@ -25,9 +25,18 @@ test("Follow shows from the welcome card, and What's new becomes yours on return
   )
   expect(new Set(tops).size).toBe(1)
 
-  // Shows are step 2 of the guided start (operator 2026-10-07): skip interests to reach it.
-  await page.getByTestId('guided-skip').click()
+  // Shows are step 2 of the guided start (operator 2026-10-07): skip interests to reach it. The
+  // shows come from the server's ranking (`/podcasts/suggested`, operator 2026-10-08), fetched as the
+  // step opens.
+  const [suggested] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/api/app/podcasts/suggested')),
+    page.getByTestId('guided-skip').click(),
+  ])
   await expect(page.getByTestId('interests-welcome')).toHaveAttribute('data-step', '2')
+  const ranked = ((await suggested.json()).items as Array<{ feed_id: string }>).map((p) => p.feed_id)
+  expect(ranked.length).toBeGreaterThan(0)
+  const tiles = page.getByTestId('guided-shows').locator('li')
+  await expect(tiles).toHaveCount(ranked.length)
   await page.getByTestId('interests-follow-shows').click()
   await expect(page).toHaveURL(/\/browse\?tab=shows/)
 
@@ -61,4 +70,23 @@ test('with no listening yet, Recommended appears once there is something to base
   const rec = page.getByTestId('home-recommended')
   await expect(rec).toBeVisible()
   await expect(rec).toContainText('Picked from what you follow')
+})
+
+test('Settings brings the getting-started guide back, from step 1, after "Not now"', async ({
+  page,
+}, testInfo) => {
+  await signInIsolated(page, `guided-restart-${Date.now()}`, testInfo)
+  await page.goto('/')
+  await expect(page.getByTestId('interests-welcome')).toBeVisible()
+  await page.getByTestId('interests-not-now').click()
+  await expect(page.getByTestId('interests-welcome')).toHaveCount(0)
+  // Snoozed, not gone for the session only: a reload keeps it away (operator 2026-10-08).
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 2 }).first()).toBeVisible()
+  await expect(page.getByTestId('interests-welcome')).toHaveCount(0)
+
+  await page.goto('/settings')
+  await page.getByTestId('settings-guided-restart').click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByTestId('interests-welcome')).toHaveAttribute('data-step', '1')
 })

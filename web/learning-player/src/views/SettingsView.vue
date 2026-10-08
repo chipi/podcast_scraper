@@ -21,7 +21,8 @@ import { useOnline } from '../composables/useOnline'
 import { usePlayerStore } from '../stores/player'
 import Tabs from '../components/Tabs.vue'
 import type { TabSpec } from '../components/tabs'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
+import { useGuidedStart } from '../composables/useGuidedStart'
 import { Capacitor } from '@capacitor/core'
 import { isNative } from '../services/native'
 import { Browser } from '@capacitor/browser'
@@ -35,6 +36,14 @@ const { t, locale } = useI18n()
 const auth = useAuthStore()
 const { enabled: voiceEnabled, setEnabled: setVoiceEnabled } = useVoiceInput()
 const { forcedOffline, setForcedOffline } = useOnline()
+const router = useRouter()
+const guided = useGuidedStart()
+
+/** Run Home's guided start again from step 1 (operator 2026-10-08), then go to Home to do it. */
+async function restartGuidedStart(): Promise<void> {
+  await guided.restart()
+  await router.push({ name: 'home' })
+}
 
 // Usage analytics (#2265). The toggle is ON by default; OFF writes Umami's own `umami.disabled`
 // flag, which silences the tracker both through our gate and inside its own bundle.
@@ -305,6 +314,16 @@ async function openHelp(): Promise<void> {
       </label>
 
       <div class="mt-4 flex flex-col gap-2 border-t border-border pt-4">
+        <button
+          v-if="auth.isAuthenticated"
+          type="button"
+          class="flex items-center justify-between gap-3 text-left text-sm font-semibold text-canvas-foreground"
+          data-testid="settings-guided-restart"
+          @click="restartGuidedStart"
+        >
+          <span>{{ t('settings.guidedRestart') }}</span>
+          <span class="shrink-0 text-xs font-normal text-muted">{{ t('settings.guidedRestartHint') }}</span>
+        </button>
         <button
           type="button"
           class="flex items-center justify-between gap-3 text-left text-sm font-semibold text-canvas-foreground disabled:opacity-50"
