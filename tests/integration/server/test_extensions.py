@@ -46,7 +46,7 @@ def _fake(deleted: list[tuple[str, bool]] | None = None) -> Extension:
 
     return Extension(
         name="fake",
-        routers=(
+        routers=lambda: (
             RouterMount(_router("/fake/app"), "app"),
             RouterMount(_router("/fake/op"), "operator"),
             RouterMount(_router("/fake/op-public"), "operator", operator_public=True),
@@ -204,8 +204,8 @@ def test_a_broken_import_inside_an_extension_is_not_hidden(tmp_path: Path, monke
 def test_an_extension_found_twice_loads_once_and_the_in_tree_copy_wins(monkeypatch) -> None:
     """Before the cutover a dev checkout has both the in-tree module and the private package's
     entry point; mounting both would register every route twice."""
-    in_tree = Extension(name="fake", routers=(RouterMount(_router("/in-tree"), "app"),))
-    installed = Extension(name="fake", routers=(RouterMount(_router("/installed"), "app"),))
+    in_tree = Extension(name="fake", routers=lambda: (RouterMount(_router("/in-tree"), "app"),))
+    installed = Extension(name="fake", routers=lambda: (RouterMount(_router("/installed"), "app"),))
 
     class _EP:
         name = "fake"
@@ -244,3 +244,19 @@ def test_the_player_extension_records_the_sign_up_in_the_users_event_log(tmp_pat
         uid = _login(app, "ada").get("/api/app/me").json()["user_id"]
     events = list((tmp_path / "appdata" / "users" / uid).glob("*.jsonl"))
     assert any("account_created" in p.read_text() for p in events), [p.name for p in events]
+
+
+def test_loading_every_in_tree_extension_imports_no_web_stack() -> None:
+    """The pipeline image has no FastAPI, and enrichment loads extensions too."""
+    import subprocess
+
+    code = (
+        "import sys\n"
+        "from podcast_scraper import extensions\n"
+        "exts = extensions.load_extensions()\n"
+        "assert {e.name for e in exts} >= {'mcp', 'player'}, [e.name for e in exts]\n"
+        "web = sorted(m for m in sys.modules if m.split('.')[0] in ('fastapi', 'starlette'))\n"
+        "assert not web, web\n"
+    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert out.returncode == 0, out.stderr

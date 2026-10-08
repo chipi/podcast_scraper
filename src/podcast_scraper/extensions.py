@@ -5,6 +5,10 @@ deletion publishes an :class:`Extension` under the ``podcast_scraper.extensions`
 the server and the account-deletion path read :func:`load_extensions` and act on what they find.
 Absent package, absent feature — the platform runs, tests and deploys without any of them.
 
+An extension module must import with the platform's core dependencies only: the pipeline image
+has no web stack, and enrichment loads extensions too. So routers are a callable the server invokes,
+and hooks import what they need inside their own bodies.
+
 Until the cutover the modules that will become those packages still live in this tree, listed in
 ``_IN_TREE``. Each is optional: a module the split has already removed is skipped, which is exactly
 what ``scripts/tools/split_probe.py`` checks. An extension found both in-tree and through an entry
@@ -70,10 +74,15 @@ class RouterMount:
         return _PREFIX[self.plane]
 
 
+def _no_routers() -> Sequence[RouterMount]:
+    return ()
+
+
 @dataclass(frozen=True)
 class Extension:
     name: str
-    routers: Sequence[RouterMount] = ()
+    #: Called by the server only, so building the routers may import the web stack.
+    routers: Callable[[], Sequence[RouterMount]] = _no_routers
     account_deleted: Sequence[AccountDeletedHook] = field(default_factory=tuple)
     account_created: Sequence[AccountCreatedHook] = field(default_factory=tuple)
 
