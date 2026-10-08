@@ -28,6 +28,7 @@ import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import EpisodeActions from "./EpisodeActions.vue"
 import LanguageBadge from "./LanguageBadge.vue"
+import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import { episodeArtwork } from "../utils/episode"
 import type { EpisodeSummary } from "../services/types"
 
@@ -51,6 +52,8 @@ const expanded = defineModel<boolean>("expanded", { default: true })
 
 const { t } = useI18n()
 const art = computed(() => episodeArtwork(props.episode))
+// Containers whose only content may be the badge gate on what the badge itself shows.
+const { badgeShown } = useCorpusLanguages()
 </script>
 
 <template>
@@ -73,7 +76,7 @@ const art = computed(() => episodeArtwork(props.episode))
           <span class="min-w-0 flex-1">
             <!-- ONE line: the show is context; the title is what the row is for. The language
                  leads it, as on EpisodeRow (V2-C.1). -->
-            <span v-if="episode.podcast_title || episode.language" class="flex min-w-0 items-center gap-1.5">
+            <span v-if="episode.podcast_title || badgeShown(episode.language)" class="flex min-w-0 items-center gap-1.5">
               <LanguageBadge :lang="episode.language" />
               <span
                 v-if="episode.podcast_title"

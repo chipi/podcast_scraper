@@ -38,7 +38,12 @@ function load(): void {
 
 export function useCorpusLanguages() {
   load()
-  return { multilingual: computed(() => (languages.value?.size ?? 0) > 1) }
+  const multilingual = computed(() => (languages.value?.size ?? 0) > 1)
+  /** Whether a badge for `tag` renders — what a CONTAINER whose only content may be the badge must
+   *  gate on. Gating on `tag` alone left an empty row wherever the badge itself stays hidden. */
+  const badgeShown = (tag: string | null | undefined): boolean =>
+    multilingual.value && primaryLanguage(tag) !== null
+  return { multilingual, badgeShown }
 }
 
 /** Test seam: forget the cached answer so each test starts from an unloaded catalogue. */

@@ -21,7 +21,7 @@ import { primaryLanguage, useCorpusLanguages } from '../composables/useCorpusLan
 
 const props = defineProps<{ lang?: string | null; overlay?: boolean }>()
 const { t, locale } = useI18n()
-const { multilingual } = useCorpusLanguages()
+const { badgeShown } = useCorpusLanguages()
 
 const code = computed(() => primaryLanguage(props.lang))
 
@@ -38,7 +38,7 @@ const name = computed(() => {
 
 <template>
   <span
-    v-if="multilingual && code"
+    v-if="badgeShown(code)"
     role="img"
     :aria-label="t('language.badgeLabel', { name })"
     :title="name"

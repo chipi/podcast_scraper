@@ -25,6 +25,7 @@ import { useClampedProse } from '../composables/useClampedProse'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import LanguageBadge from './LanguageBadge.vue'
+import { useCorpusLanguages } from '../composables/useCorpusLanguages'
 import type { Podcast } from '../services/types'
 import { showArtwork } from '../utils/episode'
 import { formatPublishDate } from '../utils/format'
@@ -79,6 +80,8 @@ const descEl = ref<HTMLElement | null>(null)
 const { clipped: descClipped } = useClampedProse(descEl, descExpanded)
 
 const canExpand = computed(() => !!description.value && (descClipped.value || descExpanded.value))
+// Containers whose only content may be the badge gate on what the badge itself shows.
+const { badgeShown } = useCorpusLanguages()
 </script>
 
 <template>
@@ -118,7 +121,7 @@ const canExpand = computed(() => !!description.value && (descClipped.value || de
       <!-- Facts about the feed as an object, under the artwork — the slot the episode card gives its
            date and duration. Stacked rather than joined with separators: the column is 128px, so one
            line would wrap anyway and wrap in the wrong places. -->
-      <div v-if="show.episode_count || updated || show.language" class="text-xs font-medium leading-snug text-muted">
+      <div v-if="show.episode_count || updated || badgeShown(show.language)" class="text-xs font-medium leading-snug text-muted">
         <div v-if="show.episode_count">
           {{ t('podcast.episodeCount', { count: show.episode_count }, show.episode_count) }}
         </div>

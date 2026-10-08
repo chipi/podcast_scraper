@@ -578,9 +578,12 @@ property. Same muted colour, different shape, so the two do not read as one fami
 | Player | Leading the date · duration line under the title |
 
 **Only when it says something** (FR7.5). In a single-language corpus every badge would read the same
-code — the constant #2115 deleted for costing a wrap and saying nothing. One catalogue fetch per page
-decides it; until that answers, or if it fails, no badge renders. English is labelled like any other
-language once there is a second one: in a mixed corpus `EN` is information.
+code — the constant #2115 deleted for costing a wrap and saying nothing. One catalogue fetch per app
+session decides it (a failed fetch is retried by the next badge); until it answers, no badge renders,
+and a container whose only content would be the badge does not render either. The answer is kept for
+the session, so a corpus that gains its second language while the app is open shows badges after the
+next reload. English is labelled like any other language once there is a second one: in a mixed corpus
+`EN` is information.
 
 **Unknown is omitted, never guessed.** No badge is better than a wrong one.
 

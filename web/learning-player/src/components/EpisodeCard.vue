@@ -46,6 +46,7 @@ import { borderClass } from "../utils/highlightColors"
 import { episodeArtwork } from "../utils/episode"
 import EpisodeActions from "./EpisodeActions.vue"
 import LanguageBadge from "./LanguageBadge.vue"
+import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import PlayedBadge from "./PlayedBadge.vue"
 
 const props = defineProps<{
@@ -129,6 +130,8 @@ const { clipped: summaryClipped } = useClampedProse(summaryEl, summaryExpanded)
 const canExpandSummary = computed(
   () => !!summaryFull.value.trim() && (summaryClipped.value || summaryExpanded.value)
 )
+// Containers whose only content may be the badge gate on what the badge itself shows.
+const { badgeShown } = useCorpusLanguages()
 </script>
 
 <template>
@@ -170,7 +173,7 @@ const canExpandSummary = computed(
       />
       <!-- Facts directly under the artwork (operator: date/duration UP). -->
       <div
-        v-if="!compact && (date || duration || episode.language)"
+        v-if="!compact && (date || duration || badgeShown(episode.language))"
         class="flex items-center gap-1.5 text-xs font-medium text-muted"
       >
         <span v-if="date">{{ date }}</span>

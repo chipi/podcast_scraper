@@ -21,6 +21,7 @@ import SectionStatus from '../components/SectionStatus.vue'
 import FollowButton from '../components/FollowButton.vue'
 import ShareMenu from '../components/ShareMenu.vue'
 import LanguageBadge from '../components/LanguageBadge.vue'
+import { useCorpusLanguages } from '../composables/useCorpusLanguages'
 import { formatPublishDate } from '../utils/format'
 import { scrollBehavior } from '../utils/motion'
 import { getPodcastsByIds, listPodcastEpisodes } from '../services/api'
@@ -284,6 +285,8 @@ onMounted(() => {
   }
 })
 watch(() => props.feedId, reset)
+// Containers whose only content may be the badge gate on what the badge itself shows.
+const { badgeShown } = useCorpusLanguages()
 </script>
 
 <template>
@@ -336,7 +339,7 @@ watch(() => props.feedId, reset)
              sit on one line in a 224px gutter, and three wrapped lines in a narrow column beside
              900px of empty space is the desktop bug this fixes (operator 2026-09-17). -->
         <p
-          v-if="metaLine.length || show?.language"
+          v-if="metaLine.length || badgeShown(show?.language)"
           class="text-xs leading-relaxed text-muted sm:hidden"
           data-testid="podcast-feed-meta"
         >
@@ -389,7 +392,7 @@ watch(() => props.feedId, reset)
         <!-- DESKTOP: the same facts on ONE line under the title, where there is room for them.
              Same `metaLine` source as the phone copy above — one computed, two placements. -->
         <p
-          v-if="metaLine.length || show?.language"
+          v-if="metaLine.length || badgeShown(show?.language)"
           class="mt-1 hidden text-xs leading-relaxed text-muted sm:block"
           data-testid="podcast-feed-meta-wide"
         >
