@@ -549,8 +549,13 @@ final class Journey {
         }
         UiObject2 last = find(names, contains, 1_500);
         if (last != null) return last;
-        for (int i = 0; i < 12; i++) swipeDown();
+        rewind();
         return null;
+    }
+
+    /** Back to the top of the page — the rewind `scrollTo` does on a miss, for callers to reuse. */
+    static void rewind() {
+        for (int i = 0; i < 12; i++) swipeDown();
     }
 
     static UiObject2 scrollTo(String name, boolean contains) {

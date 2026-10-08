@@ -299,4 +299,31 @@ describe('native-shell invariants (guardrail #1310)', () => {
     // ...and the tab bar is mobile-only, so the two never coexist.
     expect(components['../components/BottomNav.vue'] ?? '').toContain('sm:hidden')
   })
+
+  it('nothing scrolls under the status bar: a fixed scrim covers the top inset (contact sheet 2026-10-08)', () => {
+    /*
+     * The masthead scrolls with the page, and the app draws edge-to-edge, so once a page scrolled
+     * its text ran behind the clock and battery on iOS (Settings, a layered storyline). A fixed band
+     * the height of `safe-area-inset-top`, in the canvas colour, keeps that strip the app's own —
+     * zero-height wherever there is no inset (desktop, a browser tab).
+     */
+    const app = components['../App.vue'] ?? ''
+    const scrim = app.match(/<div[^>]*data-testid="status-bar-scrim"[^>]*>/)?.[0] ?? ''
+    expect(scrim, 'App.vue must render the status-bar scrim').not.toBe('')
+    for (const cls of ['fixed', 'top-0', 'h-[env(safe-area-inset-top)]', 'bg-canvas', 'pointer-events-none']) {
+      expect(scrim, `the scrim needs ${cls}`).toContain(cls)
+    }
+    expect(scrim, 'decoration only — hidden from screen readers').toContain('aria-hidden="true"')
+  })
+
+  it('the status bar draws LIGHT icons over the dark app (contact sheet 2026-10-08)', () => {
+    /*
+     * Capacitor's SystemBars defaults to the PHONE's theme at runtime: in light mode it chose dark
+     * icons, and over this app's near-black masthead the clock and battery all but vanished on
+     * every Android screen. The app is dark whatever the phone says, so the style is pinned. In
+     * Capacitor's naming 'DARK' means light content for a dark background (SystemBars.java:
+     * setAppearanceLightStatusBars(!style.equals(STYLE_DARK))).
+     */
+    expect(capacitorConfigSrc).toMatch(/SystemBars:\s*\{\s*style:\s*'DARK'\s*\}/)
+  })
 })

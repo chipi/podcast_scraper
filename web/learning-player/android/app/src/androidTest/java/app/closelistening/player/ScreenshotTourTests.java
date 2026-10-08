@@ -70,8 +70,17 @@ public class ScreenshotTourTests extends UITestCase {
             "t11-settings", "t12-settings-config",
             "t13-episode", "t14-episode-insights", "t15-episode-keypoints", "t16-episode-entities",
             "t17-share-popover", "t18-add-to-collection",
-            "t19-topic", "t20-storyline", "t21-person",
+            "t19-topic", "t20-storyline", "t20b-storyline-content", "t20c-storyline-topic-layered",
+            "t20d-person-over-topic-over-storyline",
+            "t21-person",
+            "t22a-topic-sheet", "t22b-person-over-topic", "t22c-storyline-over-topic",
+            "t22d-person-over-storyline-over-topic",
+            "t23-saved-row", "t24-colour-popover",
             "t25-home-offline", "t26-home-final");
+
+    /** People in the v3 fixture's Top voices / Related people — exact names, as iOS uses. */
+    private static final List<String> FIXTURE_PEOPLE = Arrays.asList(
+            "Dr. Elena Fischer", "Sam", "Skanda Amarnath", "Alex Morgan");
 
     private final Set<String> shotFrames = new LinkedHashSet<>();
 
@@ -84,6 +93,19 @@ public class ScreenshotTourTests extends UITestCase {
     /** Give the WebView time to paint before the shutter. Software GLES on CI is not fast. */
     private void settle(long ms) {
         Journey.sleep(ms);
+    }
+
+    /** Episode → notes → a topic from Topics & People, which opens it as a SHEET. */
+    private boolean openTopicSheet() {
+        AppSession.openEpisode(EPISODE_SLUG);
+        settle(5_000);
+        Journey.tap("Episode notes", true, 10_000);
+        settle(2_000);
+        List<String> topics = Arrays.asList("Open risk management", "Open systems thinking");
+        Journey.scrollTo(topics, true, 10);
+        boolean opened = Journey.tap(topics, true, 6_000);
+        if (opened) settle(4_000);
+        return opened;
     }
 
     @Test
@@ -136,6 +158,10 @@ public class ScreenshotTourTests extends UITestCase {
             if (Journey.tap("Stats", false, 10_000)) { settle(3_000); frame("t10-profile-stats"); }
         }
         if (Journey.openSettings(profileLabels())) {
+            // `openSettings` proves it arrived by scrolling to "Offline mode", so it leaves the page
+            // at Config: t11 came out mid-page and t12 was the same frame (2026-10-08). Back to the
+            // top for t11; t12 scrolls down itself.
+            Journey.rewind();
             settle(3_000);
             frame("t11-settings");
             // Config lives at the bottom — the offline switch and space reclaim.
@@ -199,9 +225,71 @@ public class ScreenshotTourTests extends UITestCase {
         AppSession.openLink("storyline/thc:managing-risk");
         settle(5_000);
         frame("t20-storyline");
+        // Storyline content, then a member topic ON TOP of it, then a person on top of that — the
+        // same three frames as iOS, so the two sheets can be read side by side (2026-10-08).
+        if (Journey.scrollTo(Arrays.asList("Topics discussed together"), true, 6) != null) {
+            settle(1_500);
+            frame("t20b-storyline-content");
+        }
+        List<String> memberTopics = Arrays.asList("risk management", "systems thinking");
+        Journey.scrollTo(memberTopics, true, 6);
+        if (Journey.tap(memberTopics, true, 8_000)) {
+            settle(5_000);
+            frame("t20c-storyline-topic-layered");
+            Journey.scrollTo(Arrays.asList("Top voices"), true, 6);
+            if (Journey.tap(FIXTURE_PEOPLE, false, 8_000)) {
+                settle(5_000);
+                frame("t20d-person-over-topic-over-storyline");
+            }
+        }
+        Journey.dismissCards();
         AppSession.openLink("person/person:dr-elena-fischer");
         settle(5_000);
         frame("t21-person");
+        Journey.dismissCards();
+
+        // --- the stacking sequence, TOPIC at the bottom (iOS t22a-d) ----------------------------
+        // Entered from the episode's Topics & People, so the topic is a SHEET that the next cards
+        // stack on; opened as a page, a person would cover it entirely.
+        if (openTopicSheet()) {
+            frame("t22a-topic-sheet");
+            Journey.scrollTo(Arrays.asList("Top voices"), true, 6);
+            if (Journey.tap(FIXTURE_PEOPLE, false, 8_000)) {
+                settle(5_000);
+                frame("t22b-person-over-topic");
+            }
+        }
+        Journey.dismissCards();
+        if (openTopicSheet()) {
+            List<String> storyline = Arrays.asList("Managing risk across domains");
+            Journey.scrollTo(storyline, true, 6);
+            if (Journey.tap(storyline, true, 10_000)) {
+                settle(5_000);
+                frame("t22c-storyline-over-topic");
+                Journey.scrollTo(Arrays.asList("Topics discussed together", "Related people"), true, 6);
+                if (Journey.tap(FIXTURE_PEOPLE, false, 8_000)) {
+                    settle(5_000);
+                    frame("t22d-person-over-storyline-over-topic");
+                }
+            }
+        }
+        Journey.dismissCards();
+        // The topic sheets were opened from the notes panel, which is still open underneath.
+        Journey.tap(Arrays.asList("Close panel"), false, 3_000);
+        settle(1_000);
+
+        // --- the saved row and its colour picker ---------------------------------------------------
+        if (Journey.openTab("Library") && Journey.tap("Saved", false, 10_000)) {
+            settle(3_000);
+            frame("t23-saved-row");
+            // EXACT: the per-item picker is "Colour"; "Filter by colour" would match a contains.
+            if (Journey.tap(Arrays.asList("Colour", "Color"), false, 8_000)) {
+                settle(3_000);
+                frame("t24-colour-popover");
+                Journey.device().pressBack();
+                settle(1_000);
+            }
+        }
 
         // --- offline, then back ------------------------------------------------------------------
         Journey.dismissCards();
