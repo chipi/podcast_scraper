@@ -143,7 +143,7 @@ describe("KnowledgePanel", () => {
     await flushPromises()
     // Replace-in-panel (UXS-014): the card renders INLINE in the panel (no overlay), with a ‹ Back
     // (glyph-only dismiss control, aria-label "Back" when nested).
-    expect(getPerson).toHaveBeenCalledWith("person:matthew-walker")
+    expect(getPerson).toHaveBeenCalledWith("person:matthew-walker", undefined, { limit: 5, excludeHostShows: true })
     expect(w.text()).toContain("Matthew Walker")
     expect(w.find('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Back")
   })
@@ -222,7 +222,7 @@ describe("KnowledgePanel", () => {
       .find((b) => chipName(b) === "memory")!
       .trigger("click")
     await flushPromises()
-    expect(getTopic).toHaveBeenCalledWith("topic:memory")
+    expect(getTopic).toHaveBeenCalledWith("topic:memory", undefined, { limit: 5 })
     expect(push).not.toHaveBeenCalled() // search now lives inside the card, not on chip-tap
   })
 
@@ -810,7 +810,7 @@ describe("the people in the room, at the top of the panel", () => {
     const w = mountPanel({ persons: [host] })
     await w.get('[data-testid="kp-dossier-person"]').trigger("click")
     await flushPromises()
-    expect(getPerson).toHaveBeenCalledWith("person:jane")
+    expect(getPerson).toHaveBeenCalledWith("person:jane", undefined, { limit: 5, excludeHostShows: true })
     expect(w.find('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Back")
     expect(w.find('[data-testid="kp-episode-dossier"]').exists()).toBe(false)
   })

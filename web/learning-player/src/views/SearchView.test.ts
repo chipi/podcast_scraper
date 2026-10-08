@@ -323,7 +323,7 @@ describe("SearchView", () => {
       .find((b) => b.text().includes("View"))!
       .trigger("click")
     await flushPromises()
-    expect(getPerson).toHaveBeenCalledWith("person:jane-doe")
+    expect(getPerson).toHaveBeenCalledWith("person:jane-doe", undefined, { limit: 5, excludeHostShows: true })
     expect(w.find('[role="dialog"]').exists()).toBe(true)
   })
 
@@ -671,7 +671,7 @@ describe("SearchView", () => {
     expect(chipButtons[0].text()).toBe("Machine Learning")
     await chipButtons[0].trigger("click")
     await flushPromises()
-    expect(getTopic).toHaveBeenCalledWith("topic:ml")
+    expect(getTopic).toHaveBeenCalledWith("topic:ml", undefined, { limit: 5 })
     expect(w.find('[role="dialog"]').exists()).toBe(true)
   })
 

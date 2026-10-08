@@ -80,7 +80,7 @@ async function mountTopic(id = "topic:ai") {
 describe("TopicView (#1261-6)", () => {
   it("fetches the topic card via the route param and renders the topic label", async () => {
     const { w } = await mountTopic()
-    expect(api.getTopicCard).toHaveBeenCalledWith("topic:ai")
+    expect(api.getTopicCard).toHaveBeenCalledWith("topic:ai", undefined, { limit: 5 })
     expect(w.find('[data-testid="topic-view"]').exists()).toBe(true)
     expect(w.text()).toContain("Artificial Intelligence")
   })

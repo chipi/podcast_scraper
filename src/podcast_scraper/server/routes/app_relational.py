@@ -34,11 +34,13 @@ from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppClusterCard,
     AppEntitySearchResponse,
+    AppMonthCount,
     AppOrgCard,
     AppPersonCard,
     AppTopicCard,
     AppTopicConversationArcResponse,
     AppTopicPerspectivesResponse,
+    AppTopShow,
     CilTopicConversationArcWeek,
 )
 
@@ -58,6 +60,58 @@ def _user_set(request: Request, user: User | None) -> set[str]:
     if data_dir is None:
         raise HTTPException(status_code=503, detail="User store is not configured.")
     return user_episode_set(root, Path(data_dir), user.user_id)
+
+
+# Episodes PAGED on the server (operator 2026-10-08: "what's the point of paging if you're not
+# actually paging?"). The cards returned every episode — a storyline 99 (1.29 MB on prod), a person
+# 70 (416 KB) — and the client sliced to five. `episodes_limit` + `episodes_offset` page the list;
+# `episode_count` stays the TOTAL, so "Show more (N)" is still right. With neither, the full list
+# is returned as before (1.0.2 clients ask that way).
+_EpisodesOffset = Query(default=0, ge=0, description="Skip this many episodes (paging).")
+_EpisodesLimit = Query(
+    default=None, ge=1, le=100, description="Return at most this many episodes; omit for all."
+)
+
+
+_Paged = TypeVar("_Paged", AppTopicCard, AppPersonCard, AppOrgCard, AppClusterCard)
+
+
+def _page_episodes(card: _Paged, offset: int, limit: int | None) -> _Paged:
+    if limit is None and offset == 0:
+        return card
+    end = None if limit is None else offset + limit
+    return card.model_copy(
+        update={"episodes": card.episodes[offset:end], "episodes_total": len(card.episodes)}
+    )
+
+
+def _with_topic_aggregates(card: AppTopicCard) -> AppTopicCard:
+    """Month counts and top shows over ALL the topic's episodes — the client drew both from the
+    full list it no longer gets once the list is paged."""
+    months: Counter[str] = Counter()
+    shows: dict[str, AppTopShow] = {}
+    for e in card.episodes:
+        if e.publish_date and len(e.publish_date) >= 7:
+            months[e.publish_date[:7]] += 1
+        if e.feed_id:
+            cur = shows.get(e.feed_id)
+            if cur is None:
+                shows[e.feed_id] = AppTopShow(
+                    feed_id=e.feed_id,
+                    title=e.podcast_title,
+                    count=1,
+                    artwork_url=e.feed_artwork_url,
+                    image_url=e.feed_image_url,
+                )
+            else:
+                cur.count += 1
+                cur.artwork_url = cur.artwork_url or e.feed_artwork_url
+    return card.model_copy(
+        update={
+            "episode_months": [AppMonthCount(month=m, count=c) for m, c in sorted(months.items())],
+            "top_shows": sorted(shows.values(), key=lambda s: -s.count)[:5],
+        }
+    )
 
 
 def _scope_to_corpus(card: _Card, mine: set[str]) -> _Card:
@@ -81,6 +135,13 @@ async def person_card(
     request: Request,
     person_id: str,
     scope: Literal["all", "mine"] = Query(default="all"),
+    episodes_offset: int = _EpisodesOffset,
+    episodes_limit: int | None = _EpisodesLimit,
+    exclude_host_shows: bool = Query(
+        default=False,
+        description="Leave out episodes of the shows this person HOSTS (their back-catalogue), "
+        "before paging — the card lists their appearances elsewhere.",
+    ),
     user: User = Depends(get_current_user),
 ) -> AppPersonCard:
     """Person profile card: appears-in episodes + related people/topics (KG co-occurrence).
@@ -99,13 +160,21 @@ async def person_card(
         raise HTTPException(status_code=404, detail="Unknown person id.")
     if scope == "mine":
         card = _scope_to_corpus(card, _user_set(request, user))
-    return card
+    if exclude_host_shows:
+        hosted = {sh.feed_id for sh in card.shows if (sh.role or "").lower() == "host"}
+        if hosted:
+            card = card.model_copy(
+                update={"episodes": [e for e in card.episodes if e.feed_id not in hosted]}
+            )
+    return _page_episodes(card, episodes_offset, episodes_limit)
 
 
 @router.get("/organizations/{org_id}", response_model=AppOrgCard)
 async def org_card(
     request: Request,
     org_id: str,
+    episodes_offset: int = _EpisodesOffset,
+    episodes_limit: int | None = _EpisodesLimit,
     _user: User = Depends(get_current_user),
 ) -> AppOrgCard:
     """Organization card (#2031): mentioned-in episodes + co-occurring people/orgs/topics.
@@ -119,7 +188,7 @@ async def org_card(
     card = await asyncio.to_thread(build_org_card, root, org_id.strip())
     if card is None:
         raise HTTPException(status_code=404, detail="Unknown org id.")
-    return card
+    return _page_episodes(card, episodes_offset, episodes_limit)
 
 
 @router.get("/organizations/{org_id}/logo")
@@ -270,6 +339,8 @@ def _conversation_arc(root: str, topic_id: str) -> list[dict]:
 async def storyline_card(
     request: Request,
     storyline_id: str,
+    episodes_offset: int = _EpisodesOffset,
+    episodes_limit: int | None = _EpisodesLimit,
     user: User = Depends(get_current_user),
 ) -> AppClusterCard:
     """Storyline card: the member topics, their MERGED episodes, and the people across them.
@@ -288,13 +359,15 @@ async def storyline_card(
     card = await asyncio.to_thread(build_storyline_card, root, storyline_id.strip())
     if card is None:
         raise HTTPException(status_code=404, detail="Unknown storyline id.")
-    return card
+    return _page_episodes(card, episodes_offset, episodes_limit)
 
 
 @router.get("/themes/{theme_id}", response_model=AppClusterCard)
 async def theme_card(
     request: Request,
     theme_id: str,
+    episodes_offset: int = _EpisodesOffset,
+    episodes_limit: int | None = _EpisodesLimit,
     user: User = Depends(get_current_user),
 ) -> AppClusterCard:
     """Theme card: the member topics, their MERGED episodes, and the people across them.
@@ -314,7 +387,7 @@ async def theme_card(
     card = await asyncio.to_thread(build_theme_card, root, theme_id.strip())
     if card is None:
         raise HTTPException(status_code=404, detail="Unknown theme id.")
-    return card
+    return _page_episodes(card, episodes_offset, episodes_limit)
 
 
 @router.get("/storylines/{storyline_id}/perspectives", response_model=AppTopicPerspectivesResponse)
@@ -366,6 +439,8 @@ async def topic_card(
     request: Request,
     topic_id: str,
     scope: Literal["all", "mine"] = Query(default="all"),
+    episodes_offset: int = _EpisodesOffset,
+    episodes_limit: int | None = _EpisodesLimit,
     user: User = Depends(get_current_user),
 ) -> AppTopicCard:
     """Topic card: episodes-about + cluster siblings + related people (KG-grounded).
@@ -387,5 +462,7 @@ async def topic_card(
         raise HTTPException(status_code=404, detail="Unknown topic id.")
     if scope == "mine":
         # The arc is corpus-wide with no per-user cut; under "My corpus" the card shows none.
-        return _scope_to_corpus(card, _user_set(request, user))
-    return card.model_copy(update={"conversation_arc_weeks": len(arc)})
+        scoped = _with_topic_aggregates(_scope_to_corpus(card, _user_set(request, user)))
+        return _page_episodes(scoped, episodes_offset, episodes_limit)
+    card = _with_topic_aggregates(card.model_copy(update={"conversation_arc_weeks": len(arc)}))
+    return _page_episodes(card, episodes_offset, episodes_limit)

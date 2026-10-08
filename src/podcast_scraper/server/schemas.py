@@ -637,6 +637,14 @@ class AppPersonCard(BaseModel):
     episodes: list[AppEpisodeSummary] = Field(
         default_factory=list, description="Appears-in episode cards (newest-first)."
     )
+    episodes_total: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Length of the episode list being paged (``episodes_limit``/``episodes_offset``), so "
+            "a client knows whether to ask for more. None when the full list was returned."
+        ),
+    )
     related_people: list[AppEntity] = Field(
         default_factory=list, description="People co-appearing most often (descending)."
     )
@@ -694,6 +702,14 @@ class AppOrgCard(BaseModel):
     episode_count: int = Field(ge=0, description="Episodes this org is mentioned in.")
     episodes: list[AppEpisodeSummary] = Field(
         default_factory=list, description="Mentioned-in episode cards (newest-first)."
+    )
+    episodes_total: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Length of the episode list being paged (``episodes_limit``/``episodes_offset``), so "
+            "a client knows whether to ask for more. None when the full list was returned."
+        ),
     )
     related_people: list[AppEntity] = Field(
         default_factory=list, description="People co-occurring most often (descending)."
@@ -797,6 +813,14 @@ class AppClusterCard(BaseModel):
     episodes: list[AppEpisodeSummary] = Field(
         default_factory=list, description="Episodes discussing ANY member topic, newest first."
     )
+    episodes_total: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Length of the episode list being paged (``episodes_limit``/``episodes_offset``), so "
+            "a client knows whether to ask for more. None when the full list was returned."
+        ),
+    )
     related_people: list[AppEntity] = Field(
         default_factory=list,
         description="People co-occurring most often across the grouping's episodes (descending).",
@@ -808,6 +832,23 @@ class AppClusterCard(BaseModel):
             "exists ('these two keep turning up together'), which is not what a theme claims."
         ),
     )
+
+
+class AppMonthCount(BaseModel):
+    """Episodes published in one calendar month (``YYYY-MM``)."""
+
+    month: str = Field(description="Calendar month, YYYY-MM.")
+    count: int = Field(ge=0, description="Episodes in that month.")
+
+
+class AppTopShow(BaseModel):
+    """A show covering a topic, with how many of its episodes discuss it."""
+
+    feed_id: str = Field(description="Show feed id.")
+    title: str | None = Field(default=None, description="Show title.")
+    count: int = Field(ge=0, description="Episodes of this show discussing the topic.")
+    artwork_url: str | None = Field(default=None, description="The show's stored artwork, thumb.")
+    image_url: str | None = Field(default=None, description="Feed-hosted image — fallback only.")
 
 
 class AppTopicCard(BaseModel):
@@ -855,6 +896,25 @@ class AppTopicCard(BaseModel):
     )
     related_people: list[AppEntity] = Field(
         default_factory=list, description="People co-occurring most often (descending)."
+    )
+    episode_months: list[AppMonthCount] = Field(
+        default_factory=list,
+        description=(
+            "Episodes per month across ALL of the topic's episodes (the activity sparkline), "
+            "computed before paging so a paged card still draws the whole shape."
+        ),
+    )
+    top_shows: list[AppTopShow] = Field(
+        default_factory=list,
+        description="The (up to 5) shows covering the topic most, over ALL its episodes.",
+    )
+    episodes_total: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Length of the episode list being paged (``episodes_limit``/``episodes_offset``), so "
+            "a client knows whether to ask for more. None when the full list was returned."
+        ),
     )
     conversation_arc_weeks: int = Field(
         default=0,

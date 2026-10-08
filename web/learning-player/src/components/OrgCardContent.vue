@@ -7,6 +7,7 @@
  * the back-stack, header and load; this renders the loaded `OrgCard`. Graph navigation (tapping a
  * chip) emits `open`; `close` dismisses the whole card.
  */
+import { getOrgCard } from "../services/api"
 import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
@@ -117,10 +118,14 @@ function searchLibrary(): void {
   <section v-if="episodes.length" class="mb-4">
     <CollapsibleSection section-key="org-episodes" :level="3">
       <template #title>
-        <span>{{ t("ec.orgEpisodes", episodes.length, { named: { count: episodes.length } }) }}</span>
+        <span>{{ t("ec.orgEpisodes", org.episode_count, { named: { count: org.episode_count } }) }}</span>
         <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
       </template>
-      <EntityEpisodeList :episodes="episodes" />
+      <EntityEpisodeList
+        :episodes="episodes"
+        :total="org.episodes_total ?? episodes.length"
+        :load-more="(offset, limit) => getOrgCard(org.id, { offset, limit }).then((c) => c.episodes)"
+      />
     </CollapsibleSection>
   </section>
 

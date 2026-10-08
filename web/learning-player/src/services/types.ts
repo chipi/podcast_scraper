@@ -836,6 +836,8 @@ export interface PersonCard {
   shows?: PersonShow[]
   episode_count: number
   episodes: EpisodeSummary[]
+  /** Length of the paged episode list (server paging); absent when `episodes` is whole. */
+  episodes_total?: number | null
   related_people: Entity[]
   related_topics: Topic[]
   /** Optional external bio + attribution; absent unless the person_web enricher matched. */
@@ -864,6 +866,8 @@ export interface OrgCard {
   label: string
   episode_count: number
   episodes: EpisodeSummary[]
+  /** Length of the paged episode list (server paging); absent when `episodes` is whole. */
+  episodes_total?: number | null
   related_people: Entity[]
   related_orgs: Entity[]
   related_topics: Topic[]
@@ -911,6 +915,8 @@ export interface ClusterCard {
   member_topics: ClusterMember[]
   episode_count: number
   episodes: EpisodeSummary[]
+  /** Length of the paged episode list (server paging); absent when `episodes` is whole. */
+  episodes_total?: number | null
   related_people: Entity[]
   /** Null for a theme: "means the same thing" makes no co-occurrence claim to evidence. */
   strongest_pair?: ClusterPair | null
@@ -930,6 +936,12 @@ export interface TopicCard {
   storyline_sibling_topics?: Topic[]
   episode_count: number
   episodes: EpisodeSummary[]
+  /** Length of the paged episode list (server paging); absent when `episodes` is whole. */
+  episodes_total?: number | null
+  /** Episodes per month over ALL the topic's episodes (the sparkline), before paging. */
+  episode_months?: { month: string; count: number }[]
+  /** The shows covering the topic most, over ALL its episodes. */
+  top_shows?: { feed_id: string; title: string | null; count: number; artwork_url: string | null; image_url: string | null }[]
   related_people: Entity[]
   /** Weeks in the topic's conversation arc (#2202), so the card knows before fetching it. Absent
    *  from a server older than the field. Always 0 under scope=mine. */

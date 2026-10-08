@@ -61,7 +61,7 @@ async function mountPerson(id = "person:jane-doe") {
 describe("PersonView (#1261-6)", () => {
   it("fetches the person card via the route param and renders the person label", async () => {
     const { w } = await mountPerson()
-    expect(api.getPersonCard).toHaveBeenCalledWith("person:jane-doe")
+    expect(api.getPersonCard).toHaveBeenCalledWith("person:jane-doe", undefined, { limit: 5, excludeHostShows: true })
     expect(w.find('[data-testid="person-view"]').exists()).toBe(true)
     expect(w.text()).toContain("Jane Doe")
   })

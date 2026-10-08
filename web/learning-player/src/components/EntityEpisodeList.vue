@@ -38,32 +38,58 @@ import type { EpisodeSummary } from "../services/types"
 // org / storyline / theme). Ten filled a phone screen before the next section could be seen.
 const PAGE = 5
 
-const props = defineProps<{ episodes: EpisodeSummary[] }>()
+const props = defineProps<{
+  episodes: EpisodeSummary[]
+  /**
+   * PAGED ON THE SERVER (2026-10-08): the full list's length when `episodes` is only its first
+   * page, with `loadMore` fetching the rest a page at a time. The cards used to return every
+   * episode — a storyline 99, 1.29 MB on prod — to show five. Omit both for a list that is whole.
+   */
+  total?: number
+  loadMore?: (offset: number, limit: number) => Promise<EpisodeSummary[]>
+}>()
 
 const { t } = useI18n()
 
 const shown = ref(PAGE)
+const loaded = ref<EpisodeSummary[]>([...props.episodes])
+const loading = ref(false)
 // Re-collapse when the list itself changes. These surfaces drill in place — open a sibling topic
 // from a chip and the same component instance is handed a different entity's episodes — so without
 // this you would land on the new topic already scrolled twenty rows deep.
 watch(
   () => props.episodes,
-  () => {
+  (eps) => {
+    loaded.value = [...eps]
     shown.value = PAGE
     announcement.value = ""
   }
 )
 
-const visible = computed(() => props.episodes.slice(0, shown.value))
+const total = computed(() => Math.max(props.total ?? 0, loaded.value.length))
+const visible = computed(() => loaded.value.slice(0, shown.value))
 // Empty until the user presses, so nothing is announced on mount.
 const announcement = ref("")
 
-function reveal(): void {
+async function reveal(): Promise<void> {
   const before = visible.value.length
-  shown.value += PAGE
+  const want = shown.value + PAGE
+  if (props.loadMore && loaded.value.length < Math.min(want, total.value)) {
+    loading.value = true
+    try {
+      const next = await props.loadMore(loaded.value.length, PAGE)
+      const seen = new Set(loaded.value.map((e) => e.slug))
+      loaded.value = [...loaded.value, ...next.filter((e) => !seen.has(e.slug))]
+    } catch {
+      // Nothing more arrived; the button stays so the listener can try again.
+    } finally {
+      loading.value = false
+    }
+  }
+  shown.value = want
   announcement.value = t("ec.moreEpisodesShown", { count: visible.value.length - before })
 }
-const remaining = computed(() => Math.max(0, props.episodes.length - visible.value.length))
+const remaining = computed(() => Math.max(0, total.value - visible.value.length))
 </script>
 
 <template>
@@ -84,6 +110,7 @@ const remaining = computed(() => Math.max(0, props.episodes.length - visible.val
     type="button"
     class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay"
     data-testid="entity-episodes-more"
+    :disabled="loading"
     @click="reveal"
   >
     {{ t("ec.moreEpisodes", { count: Math.min(remaining, PAGE) }) }}

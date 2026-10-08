@@ -382,11 +382,29 @@ function withAbsoluteEntityImages<T>(card: T): T {
   return c as T
 }
 
+/**
+ * One page of an entity card's episodes (server paging, 2026-10-08). The cards returned every
+ * episode — a storyline 99, 1.29 MB on prod — and the client showed five. Omit for the whole list.
+ */
+export interface EpisodePage {
+  limit?: number
+  offset?: number
+  /** Person card: leave out the shows they host (their back-catalogue), on the server. */
+  excludeHostShows?: boolean
+}
+function pageParams(p?: EpisodePage): Record<string, string | number | undefined> {
+  return {
+    episodes_limit: p?.limit,
+    episodes_offset: p?.offset || undefined,
+    exclude_host_shows: p?.excludeHostShows ? "true" : undefined,
+  }
+}
+
 /** Person profile card — appears-in episodes + related people/topics (KG co-occurrence). */
-export async function getPersonCard(id: string, scope?: "all" | "mine"): Promise<PersonCard> {
+export async function getPersonCard(id: string, scope?: "all" | "mine", page?: EpisodePage): Promise<PersonCard> {
   // scope='mine' = the guest across the episodes the signed-in user has heard (P3 #1122).
   return withAbsoluteEntityImages(
-    await getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`, { scope })
+    await getJSON<PersonCard>(`/persons/${encodeURIComponent(id)}`, { scope, ...pageParams(page) })
   )
 }
 
@@ -396,8 +414,10 @@ export async function getPersonCard(id: string, scope?: "all" | "mine"): Promise
  * No `scope` parameter: the topic card has one, but a personally-filtered union answers a different
  * question than "what is this grouping, across the corpus".
  */
-export async function getThemeCard(id: string): Promise<ClusterCard> {
-  return withAbsoluteEntityImages(await getJSON<ClusterCard>(`/themes/${encodeURIComponent(id)}`))
+export async function getThemeCard(id: string, page?: EpisodePage): Promise<ClusterCard> {
+  return withAbsoluteEntityImages(
+    await getJSON<ClusterCard>(`/themes/${encodeURIComponent(id)}`, pageParams(page))
+  )
 }
 
 /**
@@ -407,23 +427,23 @@ export async function getThemeCard(id: string): Promise<ClusterCard> {
  * replaces deriving the page from the anchor's TOPIC card, whose `episodes` are the anchor's alone:
  * the page said "Discussed in 30 episodes" for a storyline spanning 40.
  */
-export async function getStorylineCard(id: string): Promise<ClusterCard> {
+export async function getStorylineCard(id: string, page?: EpisodePage): Promise<ClusterCard> {
   return withAbsoluteEntityImages(
-    await getJSON<ClusterCard>(`/storylines/${encodeURIComponent(id)}`)
+    await getJSON<ClusterCard>(`/storylines/${encodeURIComponent(id)}`, pageParams(page))
   )
 }
 
 /** Topic card — episodes-about + cluster siblings + related people (KG-grounded). */
-export async function getTopicCard(id: string, scope?: "all" | "mine"): Promise<TopicCard> {
+export async function getTopicCard(id: string, scope?: "all" | "mine", page?: EpisodePage): Promise<TopicCard> {
   return withAbsoluteEntityImages(
-    await getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope })
+    await getJSON<TopicCard>(`/topics/${encodeURIComponent(id)}`, { scope, ...pageParams(page) })
   )
 }
 
 /** Organization card (#2031) — mentioned-in episodes + co-occurring people/orgs/topics. */
-export async function getOrgCard(id: string): Promise<OrgCard> {
+export async function getOrgCard(id: string, page?: EpisodePage): Promise<OrgCard> {
   return withAbsoluteEntityImages(
-    await getJSON<OrgCard>(`/organizations/${encodeURIComponent(id)}`)
+    await getJSON<OrgCard>(`/organizations/${encodeURIComponent(id)}`, pageParams(page))
   )
 }
 

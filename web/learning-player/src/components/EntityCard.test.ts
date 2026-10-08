@@ -215,7 +215,7 @@ describe("EntityCard", () => {
       .find((b) => b.text().endsWith("AI"))!
       .trigger("click")
     await flushPromises()
-    expect(getTopic).toHaveBeenCalledWith("topic:ai")
+    expect(getTopic).toHaveBeenCalledWith("topic:ai", undefined, { limit: 5 })
     expect(w.text()).toContain("1 similar topic") // topic view now shown
     // Back → returns to the person.
     await w.find('button[aria-label="Back"]').trigger("click")

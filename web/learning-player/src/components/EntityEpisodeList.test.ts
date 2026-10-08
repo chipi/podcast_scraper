@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils"
-import { describe, expect, it } from "vitest"
+import { flushPromises } from "@vue/test-utils"
+import { describe, expect, it, vi } from "vitest"
 import { createI18n } from "vue-i18n"
 import { createRouter, createMemoryHistory } from "vue-router"
 import EntityEpisodeList from "./EntityEpisodeList.vue"
@@ -151,3 +152,35 @@ describe("EntityEpisodeList", () => {
     expect(w.find('[aria-live="polite"]').text()).toBe("")
   })
 })
+
+describe("EntityEpisodeList paged on the server (2026-10-08)", () => {
+  it("shows the first page, offers the TOTAL, and fetches the next page on Show more", async () => {
+    // A storyline returned 99 episodes (1.29 MB on prod) to show five; now it returns five.
+    const loadMore = vi.fn(async (offset: number, limit: number) =>
+      Array.from({ length: Math.min(limit, 12 - offset) }, (_, i) => ep(offset + i))
+    )
+    const w = mount(EntityEpisodeList, {
+      props: { episodes: Array.from({ length: 5 }, (_, i) => ep(i)), total: 12, loadMore },
+      global: { plugins: [i18n, router] },
+    })
+    expect(rows(w)).toHaveLength(5)
+    expect(w.get('[data-testid="entity-episodes-more"]').text()).toContain("5")
+    await w.get('[data-testid="entity-episodes-more"]').trigger("click")
+    await flushPromises()
+    expect(loadMore).toHaveBeenCalledWith(5, 5)
+    expect(rows(w)).toHaveLength(10)
+    await w.get('[data-testid="entity-episodes-more"]').trigger("click")
+    await flushPromises()
+    expect(loadMore).toHaveBeenLastCalledWith(10, 5)
+    expect(rows(w)).toHaveLength(12)
+    expect(w.find('[data-testid="entity-episodes-more"]').exists()).toBe(false)
+  })
+
+  it("without loadMore it pages what it was given, as before", async () => {
+    const w = mountList(7)
+    expect(rows(w)).toHaveLength(5)
+    await w.get('[data-testid="entity-episodes-more"]').trigger("click")
+    expect(rows(w)).toHaveLength(7)
+  })
+})
+

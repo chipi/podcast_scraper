@@ -7,6 +7,7 @@
  * `PersonCard`. Graph navigation (tapping a related chip / a signal) emits `open`; `close` dismisses
  * the whole card (the shell re-emits it upward).
  */
+import { getPersonCard } from "../services/api"
 import CollapsibleSection from "./CollapsibleSection.vue"
 import { computed, ref, watch } from "vue"
 import { useClampedProse } from "../composables/useClampedProse"
@@ -80,6 +81,9 @@ const shownEpisodes = computed<EpisodeSummary[]>(() =>
     ? episodes.value.filter((e) => !hostFeedIds.value.has(e.feed_id))
     : episodes.value
 )
+// The server pages the list (and has already left out the host shows when asked); its total is
+// the length of THAT list. Without it, the list is whole and its own length is the total.
+const shownTotal = computed(() => props.person.episodes_total ?? shownEpisodes.value.length)
 const relatedPeople = computed<Entity[]>(() => props.person.related_people ?? [])
 
 /**
@@ -382,14 +386,18 @@ function searchLibrary(): void {
       <template #title>
         <span>{{
           hostShows.length
-            ? t("ec.personOtherEpisodes", shownEpisodes.length, {
-                named: { count: shownEpisodes.length },
+            ? t("ec.personOtherEpisodes", shownTotal, {
+                named: { count: shownTotal },
               })
             : t("ec.personEpisodes", episodeCount, { named: { count: episodeCount } })
         }}</span>
         <span class="lp-kicker" data-testid="episodes-order">{{ t("ec.newestFirst") }}</span>
       </template>
-      <EntityEpisodeList :episodes="shownEpisodes" />
+      <EntityEpisodeList
+        :episodes="shownEpisodes"
+        :total="shownTotal"
+        :load-more="(offset, limit) => getPersonCard(person.id, undefined, { offset, limit, excludeHostShows: true }).then((c) => c.episodes)"
+      />
     </CollapsibleSection>
   </section>
 

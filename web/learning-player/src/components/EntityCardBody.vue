@@ -123,6 +123,7 @@ const dismissAtRoot = computed(
 const person = ref<PersonCard | null>(null)
 const topic = ref<TopicCard | null>(null)
 const org = ref<OrgCard | null>(null)
+const EPISODE_PAGE = 5
 const loading = ref(false)
 const failed = ref(false)
 
@@ -133,9 +134,11 @@ async function load(target: Target): Promise<void> {
   topic.value = null
   org.value = null
   try {
-    if (target.kind === "person") person.value = await getPersonCard(target.id)
-    else if (target.kind === "organization") org.value = await getOrgCard(target.id)
-    else topic.value = await getTopicCard(target.id)
+    // The FIRST PAGE of episodes; each list fetches the rest on Show more (server paging, 2026-10-08).
+    if (target.kind === "person")
+      person.value = await getPersonCard(target.id, undefined, { limit: EPISODE_PAGE, excludeHostShows: true })
+    else if (target.kind === "organization") org.value = await getOrgCard(target.id, { limit: EPISODE_PAGE })
+    else topic.value = await getTopicCard(target.id, undefined, { limit: EPISODE_PAGE })
   } catch {
     failed.value = true
   } finally {

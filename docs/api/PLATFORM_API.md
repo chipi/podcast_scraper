@@ -187,6 +187,14 @@ heard∪captured (the _appears-in_ list + `episode_count` are filtered).
 | GET | `/api/app/topics/{id}/conversation-arc` | Topic conversation arc (ADR-108) — `{topic_id, weeks[{week, volume, negative, neutral, positive, avg_compound}]}` (`AppTopicConversationArcResponse`): ISO-week buckets of insight volume × VADER sentiment mix, oldest first. **200 + empty `weeks`** when the topic has no dated insights (never 404). Drives the consumer topic-card weekly-bar surface. |
 | GET | `/api/app/entities/search?q=` | Resolve a query to a person/topic card (exact/near-exact); `{query, entity}` or `entity:null`. |
 
+**Episode paging on every entity card** (persons, topics, organizations, storylines, themes —
+2026-10-08): `episodes_limit` (1–100) and `episodes_offset` page the `episodes` list on the server,
+and the response then carries `episodes_total` (the length of the list being paged); `episode_count`
+stays the entity's total. With neither, the full list is returned (older app builds ask that way).
+The person card also takes `exclude_host_shows=true` (leave out the shows they host, before paging).
+The topic card always carries `episode_months[{month, count}]` and `top_shows[]`, computed over ALL
+its episodes, because the sparkline and the "strongest shows" row cannot come from one page.
+
 ---
 
 ## Capture — highlights & notes (P2; PRD-040 / RFC-098 §7)
