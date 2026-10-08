@@ -78,6 +78,32 @@ for s in medium large; do curl -s -o /dev/null -w "$s %{size_download}\n" \
 the originals, which is today's behaviour. Undecodable images are listed in
 `artwork_medium_failed.jsonl` and keep being served as originals.
 
+## 2b. `m0026_missing_covers_stored` — covers that were only a feed-host URL (needs the operator's OK)
+
+One show ("The China-Global South Podcast") has no stored cover. Its 3000x3000 PNG is 11.9 MB and
+the writer's cap was 8 MB (now 32 MB), so phones download the original for a 116 px tile.
+**FETCHES**, like 0021: it downloads each missing image once, writes the original plus its thumb
+and medium copies, and records `image_local_relpath` on the affected episodes. Each metadata
+rewrite is backed up and receipted; `undo` restores them.
+
+```bash
+docker exec compose-api-1 python -m podcast_scraper.cli upgrade run --to 2.7.20 --dry-run --corpus-dir /app/output
+#   expect: 1 cover to fetch (the libsyn PNG) for that show's episodes
+docker exec compose-api-1 python -m podcast_scraper.cli upgrade run --to 2.7.20 --corpus-dir /app/output
+docker exec compose-api-1 python -m podcast_scraper.cli upgrade verify --corpus-dir /app/output
+```
+
+An unfetchable image is recorded in `missing_covers_failed.jsonl` and keeps its remote URL.
+
+## 2c. After the deploy: re-measure
+
+- `curl` `/your-week` with a token: about 3 s on `sha-0f63257`; `f5ab549a9` should bring it to
+  0.2–0.6 s.
+- Open an episode twice: `/episodes/{slug}/related` is now cached, so the second open should not
+  take 2.4 s.
+- `make perf-android` on the release-tier app, and `make perf-ios` (1.0.2 and 1.0.3 walks), to
+  compare with `docs/wip/perf-scan-2026-10-08.md`.
+
 ## 3. The phone half needs a store build (1.0.3), not the deploy
 
 The Android fix — no backdrop blur, the paging changes and Copy debug info — lives in the web
