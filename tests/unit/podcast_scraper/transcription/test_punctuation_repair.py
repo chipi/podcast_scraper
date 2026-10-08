@@ -171,9 +171,7 @@ def test_after_a_failed_call_the_remaining_windows_are_skipped(no_ffmpeg: List[t
 
     before = _result()
     before["segments"] += [{"start": 1300.0 + i, "end": 1300.5 + i, "text": FLAT} for i in range(3)]
-    out = R.repair_unpunctuated_windows(
-        before, WINDOW + [[1300.0, 1400.0]], "a.mp3", boom, PROMPT
-    )
+    out = R.repair_unpunctuated_windows(before, WINDOW + [[1300.0, 1400.0]], "a.mp3", boom, PROMPT)
     assert len(calls) == 1, "one failed call, then no more"
     assert [e["status"] for e in out["asr_punctuation_repair"]] == ["failed", "skipped"]
     assert out["asr_punctuation_repair"][1]["reason"] == "earlier_call_failed"
@@ -206,7 +204,5 @@ def test_a_failed_cut_does_not_stop_the_other_windows(monkeypatch: pytest.Monkey
 def test_a_segment_without_times_is_left_alone(no_ffmpeg: List[tuple]) -> None:
     before = _result()
     before["segments"].insert(1, {"text": "no times on this one"})
-    out = R.repair_unpunctuated_windows(
-        before, WINDOW, "a.mp3", lambda p, pr: _repair(), PROMPT
-    )
+    out = R.repair_unpunctuated_windows(before, WINDOW, "a.mp3", lambda p, pr: _repair(), PROMPT)
     assert {"text": "no times on this one"} in out["segments"]
