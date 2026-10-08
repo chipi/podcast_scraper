@@ -224,6 +224,30 @@ class TestRecoverUntranscribedSpeech:
         assert out["segments"] == self.RESULT["segments"]
         assert out["asr_speech_recovery"][0]["status"] == "empty"
 
+    def test_an_invented_credit_is_not_spliced_in(self, no_ffmpeg: List[tuple]) -> None:
+        """V.6b French: the credit came back at avg_logprob -0.16, so only its text betrays it."""
+        credit = self._clip("Sous-titrage Société Radio-Canada")
+        out = G.recover_untranscribed_speech(self.RESULT, self.GAP, "a.mp3", lambda p: credit)
+        assert out["segments"] == self.RESULT["segments"]
+        assert out["asr_speech_recovery"][0]["status"] == "rejected"
+        assert out["asr_speech_recovery"][0]["rejected"] == ["invented_line"]
+
+    def test_a_credit_cut_by_the_gap_edge_is_still_rejected(self) -> None:
+        """Only "Radio-Canada" falls inside the gap; the whole clip segment is what is judged."""
+        seg = {
+            "start": 0.0,
+            "end": 4.0,
+            "text": " Sous-titrage Société Radio-Canada",
+            "avg_logprob": -0.16,
+            "words": [
+                _w(" Sous-titrage", 0.0, 1.5),
+                _w(" Société", 1.5, 2.5),
+                _w(" Radio-Canada", 2.6, 4.0),
+            ],
+        }
+        kept, rejected = G.segments_inside_gap([seg], clip_start=0.0, gap_start=2.55, gap_end=4.0)
+        assert kept == [] and rejected == ["invented_line"]
+
 
 @pytest.mark.skipif(not AUDIO.is_file(), reason="fixture audio missing")
 def test_cut_clip_cuts_the_requested_span(tmp_path: Path) -> None:

@@ -116,6 +116,60 @@ def merged_speech_seconds(segments: Sequence[Any]) -> float:
 #: same run: a whole ad read Whisper skipped in long-form decoding). Tune on real data, not on
 #: fixtures — measured only on V.6b so far.
 UNTRANSCRIBED_SPEECH_MIN_S = 3.0
+#: A word timed this long is suspect: across 18k words of real English the longest ordinary word is
+#: 1.4 s, across the six V.6b real feeds 2.4 s. Equal to the gap floor.
+STRETCHED_WORD_MIN_S = UNTRANSCRIBED_SPEECH_MIN_S
+
+
+def _stretched_words(asr_segments: Sequence[Any]) -> List[Tuple[float, float, str]]:
+    """``(start, end, word)`` of every word timed at least ``STRETCHED_WORD_MIN_S`` long."""
+    out: List[Tuple[float, float, str]] = []
+    for seg in asr_segments:
+        words = seg.get("words") if isinstance(seg, dict) else getattr(seg, "words", None)
+        for w in words or ():
+            try:
+                if isinstance(w, dict):
+                    ws, we, text = float(w["start"]), float(w["end"]), str(w.get("word", ""))
+                else:
+                    ws, we, text = float(w.start), float(w.end), str(getattr(w, "word", ""))
+            except (AttributeError, KeyError, TypeError, ValueError):
+                continue
+            if we - ws >= STRETCHED_WORD_MIN_S:
+                out.append((ws, we, text.strip()))
+    return out
+
+
+def stretched_words_over_speech(
+    diarization_segments: Sequence[Any], asr_segments: Sequence[Any]
+) -> List[Dict[str, Any]]:
+    """Words timed ``STRETCHED_WORD_MIN_S`` or longer while the diarizer heard speech under them.
+
+    EVIDENCE, NOT A GAP. Re-transcribing 11 of these (80k_06, one V.6b Italian, nine on the prod
+    snapshot; 2026-10-08) found lost speech under 3 — 80k_06's "case," sits over 15 words of a
+    quote — and under 6 only the word itself, a stutter or fillers ("uh different uh different
+    things"); 2 were unclear. So they are recorded for inspection and never counted as
+    untranscribed speech, flagged, or re-transcribed: a splice would duplicate the word in most
+    cases and, where speech was lost, put it in the wrong place (the stretched word's real position
+    inside its span is unknown).
+
+    Returns ``[{"start", "end", "duration_s", "word", "speech_s"}]`` in time order, ``speech_s``
+    being the diarized speech inside the word's span (at least ``STRETCHED_WORD_MIN_S``).
+    """
+    turns = sorted(b for b in (_bounds(t) for t in diarization_segments) if b and b[1] > b[0])
+    out: List[Dict[str, Any]] = []
+    for ws, we, word in sorted(_stretched_words(asr_segments)):
+        speech = sum(max(0.0, min(we, b) - max(ws, a)) for a, b in turns)
+        if speech >= STRETCHED_WORD_MIN_S:
+            out.append(
+                {
+                    "start": round(ws, 3),
+                    "end": round(we, 3),
+                    "duration_s": round(we - ws, 3),
+                    "word": word,
+                    "speech_s": round(speech, 3),
+                }
+            )
+    return out
 
 
 def untranscribed_speech(
@@ -131,23 +185,40 @@ def untranscribed_speech(
     the ad read was skipped in long-form decoding, while the same clip transcribed on its own.
     Detection only: nothing here changes the transcript.
 
+    A segment covers its whole span even when one of its words is stretched over speech Whisper
+    skipped; those words are reported separately (``stretched_words_over_speech``), not here.
+
     Returns ``[{"start", "end", "duration_s", "speaker"}]`` in time order. Provider-agnostic: any
     segment with ``start``/``end`` (attrs or keys); ``speaker`` from the diarization turn.
     """
+    bounds = [b for b in (_bounds(s) for s in asr_segments) if b is not None and b[1] > b[0]]
+    return [
+        {"start": round(a, 3), "end": round(b, 3), "duration_s": round(b - a, 3), "speaker": spk}
+        for a, b, spk in sorted(
+            _gaps_between(diarization_segments, sorted(bounds)), key=lambda g: g[0]
+        )
+        if b - a >= min_gap_s
+    ]
 
-    def _bounds(s: Any) -> Optional[Tuple[float, float]]:
-        try:
-            if isinstance(s, dict):
-                return float(s["start"]), float(s["end"])
-            return float(s.start), float(s.end)
-        except (AttributeError, KeyError, TypeError, ValueError):
-            return None
 
-    def _speaker(s: Any) -> Optional[str]:
-        value = s.get("speaker") if isinstance(s, dict) else getattr(s, "speaker", None)
-        return None if value is None else str(value)
+def _bounds(s: Any) -> Optional[Tuple[float, float]]:
+    try:
+        if isinstance(s, dict):
+            return float(s["start"]), float(s["end"])
+        return float(s.start), float(s.end)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return None
 
-    covered = sorted(b for b in (_bounds(s) for s in asr_segments) if b is not None and b[1] > b[0])
+
+def _speaker(s: Any) -> Optional[str]:
+    value = s.get("speaker") if isinstance(s, dict) else getattr(s, "speaker", None)
+    return None if value is None else str(value)
+
+
+def _gaps_between(
+    diarization_segments: Sequence[Any], covered: Sequence[Tuple[float, float]]
+) -> List[Tuple[float, float, Optional[str]]]:
+    """Every stretch of each diarization turn that ``covered`` (sorted) does not reach."""
     gaps: List[Tuple[float, float, Optional[str]]] = []
     for turn in diarization_segments:
         bounds = _bounds(turn)
@@ -167,11 +238,7 @@ def untranscribed_speech(
                 break
         if cursor < end:
             gaps.append((cursor, end, _speaker(turn)))
-    return [
-        {"start": round(a, 3), "end": round(b, 3), "duration_s": round(b - a, 3), "speaker": spk}
-        for a, b, spk in sorted(gaps, key=lambda g: g[0])
-        if b - a >= min_gap_s
-    ]
+    return gaps
 
 
 def _segment_end(s: Any) -> Optional[float]:
@@ -975,6 +1042,9 @@ def apply_diarization_to_result(
     enriched_result["diarization_speech_seconds"] = merged_speech_seconds(diarization.segments)
     # #2187: speech the diarizer heard and the ASR transcript has no segment for (detection only).
     enriched_result["asr_untranscribed_speech"] = untranscribed_speech(
+        diarization.segments, list(result.get("segments") or [])
+    )
+    enriched_result["asr_stretched_words"] = stretched_words_over_speech(
         diarization.segments, list(result.get("segments") or [])
     )
     # RFC-109 / ADR-132: per-episode diarization cost. Cloud diarizers (Deepgram/Gemini) bill per

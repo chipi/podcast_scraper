@@ -41,7 +41,11 @@ class TestTheRefutationIsEvidenceNotJustAVeto:
         assert (
             out["SPEAKER_01"].name == "Alison Gopnik"
         ), "the refutation says she is not SPEAKER_00; on two voices that names SPEAKER_01"
-        assert out["SPEAKER_00"].name is None, "the refused voice must still not carry the name"
+        refused = out.get("SPEAKER_00")
+        assert refused is None or refused.name is None, "the refused voice must not carry the name"
+        assert (
+            refused is None or refused.role != "guest"
+        ), "SPEAKER_00 is Tyler, the host: the refused answer's 'guest' must not stay on him"
 
     def test_three_voices_do_not_complement(self) -> None:
         """THE GUARD ON THE GUARD. 90.5% vs 98.0% is the whole reason this is two-voice only."""

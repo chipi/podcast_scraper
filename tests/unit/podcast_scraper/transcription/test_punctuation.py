@@ -11,6 +11,7 @@ from podcast_scraper.transcription.punctuation import (
     prompt_suits_language,
     PUNCTUATION_PROMPT,
     sentence_ends_per_1000_words,
+    unpunctuated_windows,
 )
 
 pytestmark = pytest.mark.unit
@@ -76,3 +77,40 @@ def test_a_prompt_echo_is_recognised() -> None:
 )
 def test_the_english_prompt_is_only_sent_for_english(language, suits) -> None:
     assert prompt_suits_language(language) is suits
+
+
+class TestUnpunctuatedWindows:
+    """V.6b real feeds (2026-10-08): punctuated for the first 10-40 minutes, then 0-3 sentence ends
+    per 1,000 words to the end, while the whole episode (10-30) passed ``is_unpunctuated``."""
+
+    @staticmethod
+    def _episode(styles: list) -> list:
+        """One segment per minute; ``styles`` gives each 10-minute window's text."""
+        segs = []
+        for w, text in enumerate(styles):
+            for m in range(10):
+                segs.append(
+                    {"start": (w * 10 + m) * 60.0, "end": (w * 10 + m) * 60.0 + 59, "text": text}
+                )
+        return segs
+
+    def test_the_v6b_shape_names_the_windows_where_it_broke(self) -> None:
+        segs = self._episode([PUNCTUATED[:900]] * 3 + [UNPUNCTUATED[:400]])
+        assert not is_unpunctuated(" ".join(s["text"] for s in segs))
+        assert unpunctuated_windows(segs) == [[1800.0, 2400.0]]
+
+    def test_a_punctuated_episode_has_none(self) -> None:
+        assert unpunctuated_windows(self._episode([PUNCTUATED[:900]] * 4)) == []
+
+    def test_a_wholly_unpunctuated_episode_is_the_whole_case_not_this_one(self) -> None:
+        assert unpunctuated_windows(self._episode([UNPUNCTUATED[:400]] * 4)) == []
+
+    def test_a_quiet_window_is_not_judged(self) -> None:
+        segs = self._episode([PUNCTUATED[:900]] * 3) + [
+            {"start": 1850.0, "end": 1855.0, "text": "and so the ports moved north"}
+        ]
+        assert unpunctuated_windows(segs) == []
+
+    def test_segments_without_a_start_are_ignored(self) -> None:
+        segs = self._episode([PUNCTUATED[:900]] * 2) + [{"text": "x"}, {"start": "?", "text": "y"}]
+        assert unpunctuated_windows(segs) == []

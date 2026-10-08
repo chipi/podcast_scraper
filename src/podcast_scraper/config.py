@@ -1474,6 +1474,28 @@ class Config(BaseModel):
             "diarization runs (they should not both be active)."
         ),
     )
+    transcription_recover_untranscribed_speech: bool = Field(
+        default=True,
+        alias="transcription_recover_untranscribed_speech",
+        description=(
+            "#2187 A2 -- when diarization hears speech the transcript has no words for (3 s or "
+            "more), cut that stretch from the audio, transcribe it again with the same provider "
+            "and language, and splice what it says into the transcript as segments tagged "
+            "recovered. One extra ASR call per stretch. False = detect and record the stretches "
+            "only (untranscribed_speech in .asr.json), never re-transcribe."
+        ),
+    )
+    transcription_repair_unpunctuated_windows: bool = Field(
+        default=True,
+        alias="transcription_repair_unpunctuated_windows",
+        description=(
+            "#2187 -- when a 10-minute window of the transcript has lost its punctuation (the "
+            "rest has it), transcribe that window again on its own with a punctuated prompt in "
+            "the episode's language and use it if it is punctuated and carries 90-130% of the "
+            "words. One extra ASR call per such window, providers with a clip call only (the DGX "
+            "Whisper provider). False = record the windows only (unpunctuated_windows)."
+        ),
+    )
     transcription_coverage_failover_model: Optional[str] = Field(
         default=None,
         alias="transcription_coverage_failover_model",

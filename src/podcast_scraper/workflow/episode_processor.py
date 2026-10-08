@@ -16,6 +16,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Mapping,
     NamedTuple,
     Optional,
     Sequence,
@@ -929,6 +930,22 @@ def _save_asr_provenance_file(
     if recovery is not None:
         # #2187 A2: each stretch that was re-transcribed, and what came of it.
         provenance["speech_recovery"] = recovery
+    stretched = result.get("asr_stretched_words")
+    if stretched:
+        # #2187: words timed 3 s+ over diarized speech -- evidence for inspection, not a gap.
+        provenance["stretched_words"] = stretched
+    invented = result.get("asr_invented_lines")
+    if invented:
+        # #2187: lines Whisper wrote that nobody said (subtitle credits), removed from the text.
+        provenance["invented_lines_removed"] = invented
+    unpunct_windows = result.get("asr_unpunctuated_windows")
+    if unpunct_windows:
+        # #2187: 10-minute windows still unpunctuated after any repair (the whole text passed).
+        provenance["unpunctuated_windows"] = unpunct_windows
+    repair = result.get("asr_punctuation_repair")
+    if repair:
+        # #2187: each window re-transcribed for punctuation, and what came of it.
+        provenance["punctuation_repair"] = repair
     full_path = os.path.join(effective_output_dir, rel_transcript_path)
     base, _ = os.path.splitext(full_path)
     asr_path = base + ".asr.json"
@@ -1012,6 +1029,16 @@ def _write_processing_manifest(
         if _recovery and any(r.get("status") == "recovered" for r in _recovery):
             # #2187 A2: the transcript carries re-transcribed segments (tagged ``recovered``).
             asr_flags.append("asr_speech_recovered")
+        _invented = result.get("asr_invented_lines")
+        if _invented:
+            asr_flags.append("asr_invented_lines_removed")
+        _unpunct_windows = result.get("asr_unpunctuated_windows")
+        if _unpunct_windows:
+            asr_flags.append("asr_partly_unpunctuated")
+        _repair = result.get("asr_punctuation_repair") or []
+        _repaired = sum(1 for r in _repair if r.get("status") == "repaired")
+        if _repaired:
+            asr_flags.append("asr_punctuation_repaired")
         # Total ASR cost = primary call + any failover re-transcription (both 0 for local models;
         # a cloud ASR that failed over billed twice — RFC-109).
         _primary_cost = getattr(asr_call_metrics, "estimated_cost", None)
@@ -1056,6 +1083,9 @@ def _write_processing_manifest(
                     if _recovery is not None
                     else None
                 ),
+                "invented_lines_removed": len(_invented or []),
+                "unpunctuated_windows": len(_unpunct_windows or []),
+                "punctuation_windows_repaired": _repaired,
             },
             failover=failover or None,
         )
@@ -2795,32 +2825,123 @@ def _transcribe_with_segments_maybe_chunked(
                 "diarization speaker ids are chunk-local and not reconciled across chunks.",
                 job.idx,
             )
-        return transcribe_file_in_chunks(
+        result, elapsed = transcribe_file_in_chunks(
             media_for_transcription,
             chunker=chunker,
             transcribe_fn=_transcribe_one,
         )
+        return _inspect_asr_result(
+            result,
+            elapsed,
+            media_path=media_for_transcription,
+            cfg=cfg,
+            provider=transcription_provider,
+        )
 
     try:
-        return _transcribe_one(media_for_transcription)
+        result, elapsed = _transcribe_one(media_for_transcription)
     except TimeoutError:
         raise
+    return _inspect_asr_result(
+        result,
+        elapsed,
+        media_path=media_for_transcription,
+        cfg=cfg,
+        provider=transcription_provider,
+    )
+
+
+def _inspect_asr_result(
+    result: Dict[str, Any],
+    elapsed: float,
+    *,
+    media_path: Optional[str] = None,
+    cfg: Optional[config.Config] = None,
+    provider: Any = None,
+) -> Tuple[Dict[str, Any], float]:
+    """#2187: drop the lines Whisper invents, repair windows whose punctuation broke off.
+
+    Runs on every fresh ASR result (primary and failover, chunked or not) before anything reads
+    the text. Invented lines are removed (``asr_invented_lines``). Each 10-minute window that lost
+    its punctuation is re-transcribed with a prompt in the episode's language and replaced when
+    that is a real repair (``asr_punctuation_repair``); windows still unpunctuated afterwards are
+    recorded (``asr_unpunctuated_windows``). No repair without the media, a clip-capable provider,
+    a prompt for the language, or with ``transcription_repair_unpunctuated_windows`` off.
+    """
+    from ..transcription.invented_lines import drop_invented_lines
+    from ..transcription.punctuation import unpunctuated_windows
+
+    result = drop_invented_lines(result)
+    if result.get("asr_invented_lines"):
+        logger.info(
+            "removed %d line(s) Whisper invented (subtitle credits, sign-offs) from the transcript",
+            len(result["asr_invented_lines"]),
+        )
+    windows = unpunctuated_windows(
+        [s for s in (result.get("segments") or []) if isinstance(s, Mapping)]
+    )
+    if windows and media_path and cfg is not None:
+        result = _repair_punctuation_windows(result, windows, media_path, cfg, provider)
+        # A repaired window is a fresh decode: it can carry an invented line of its own.
+        result = drop_invented_lines(result)
+        windows = unpunctuated_windows(
+            [s for s in (result.get("segments") or []) if isinstance(s, Mapping)]
+        )
+    if windows:
+        result = {**result, "asr_unpunctuated_windows": windows}
+        logger.warning(
+            "transcript loses its punctuation part-way: %d of its 10-minute windows are "
+            "unpunctuated, from %.0f min",
+            len(windows),
+            windows[0][0] / 60,
+        )
+    return result, elapsed
+
+
+def _repair_punctuation_windows(
+    result: Dict[str, Any],
+    windows: List[List[float]],
+    media_path: str,
+    cfg: config.Config,
+    provider: Any,
+) -> Dict[str, Any]:
+    """Re-transcribe the flagged windows through the provider's clip call (see
+    ``punctuation_repair``); unchanged when repair is off or not possible here."""
+    from ..transcription.punctuation import window_prompt
+    from ..transcription.punctuation_repair import repair_unpunctuated_windows
+
+    clip_call = getattr(provider, "transcribe_clip", None)
+    language = transcription_language(cfg)
+    prompt = window_prompt(language)
+    if (
+        not getattr(cfg, "transcription_repair_unpunctuated_windows", False)
+        or not callable(clip_call)
+        or prompt is None
+    ):
+        return result
+
+    def _window(clip_path: str, window_prompt_text: str) -> Dict[str, Any]:
+        return dict(clip_call(clip_path, language=language, prompt=window_prompt_text))
+
+    return repair_unpunctuated_windows(result, windows, media_path, _window, prompt)
 
 
 def _gap_clip_transcriber(
     cfg: config.Config, transcription_provider: Any
-) -> Callable[[str], Dict[str, Any]]:
+) -> Optional[Callable[[str], Dict[str, Any]]]:
     """#2187 A2: transcribe one gap clip with the provider and language the episode used.
 
-    No metrics are passed: a recovery call is not the episode's transcription, and counting it
-    there would inflate the per-episode ASR time and audio-seconds.
+    Only through the provider's ``transcribe_clip``, never ``transcribe_with_segments``: the
+    episode path's guardrails, retries and breaker treat a near-empty clip as an outage (and
+    held the DGX lock for up to 900 s doing so). A provider without ``transcribe_clip`` gets no
+    recovery (None). No metrics are passed: a recovery call is not the episode's transcription.
     """
+    transcribe_clip = getattr(transcription_provider, "transcribe_clip", None)
+    if not callable(transcribe_clip):
+        return None
 
     def _transcribe(clip_path: str) -> Dict[str, Any]:
-        result, _elapsed = transcription_provider.transcribe_with_segments(
-            clip_path, language=transcription_language(cfg)
-        )
-        return dict(result)
+        return dict(transcribe_clip(clip_path, language=transcription_language(cfg)))
 
     return _transcribe
 
@@ -4396,7 +4517,11 @@ def transcribe_media_to_text(
                     episode_description=getattr(job.episode, "description", None),
                     detection_report=_detection_report_of(job),
                     speaker_renames=_operator_renames(job),
-                    transcribe_clip=_gap_clip_transcriber(cfg, transcription_provider),
+                    transcribe_clip=(
+                        _gap_clip_transcriber(cfg, transcription_provider)
+                        if cfg.transcription_recover_untranscribed_speech
+                        else None
+                    ),
                 )
             except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
                 # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).

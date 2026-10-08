@@ -409,3 +409,18 @@ class TestHostGuestRoleDetermination:
 
         got = resolve_voices_and_roles([], {"SPEAKER_00": HOST_TEXT}, spy)
         assert got == {} and not calls, "no candidates AND no role context → do not call the model"
+
+    def test_a_refused_guest_answer_takes_its_role_with_it(self) -> None:
+        """V.6b 45 Graus (2026-10-08): the host introduced the guest by name, the model called the
+        host "Ana Drago, guest", the name was refused — and the kept "guest" unseated the host the
+        feed names, leaving the episode with no named voice. Speaking the guest's name without
+        being them is what a host does, so the refused answer's "guest" goes with its name."""
+        from podcast_scraper.speaker_detectors.resolution import resolve_voices_and_roles
+
+        got = resolve_voices_and_roles(
+            ["Jia Li"],
+            {"SPEAKER_00": HOST_TEXT},
+            _canned({"SPEAKER_00": {"name": "Jia Li", "role": "guest"}}),
+            ordered_turns=TURNS,
+        )
+        assert "SPEAKER_00" not in got

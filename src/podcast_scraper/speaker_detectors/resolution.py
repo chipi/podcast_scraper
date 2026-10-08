@@ -542,6 +542,19 @@ def refuted_by_third_person(
     ) and not _introduces_itself_as(voice_text, name)
 
 
+def _role_after_third_person_refusal(role: Optional[str]) -> Optional[str]:
+    """The role a voice keeps when the name the model gave it is refuted in the third person.
+
+    "guest" goes with the name. A voice that speaks the guest's name without being them is how a
+    host introduces a guest, so the role is wrong there, and kept it demotes the host. Every case
+    on record agrees: both refused "<name>, guest" verdicts sat on the host (Conversations with
+    Tyler, "Alison Gopnik"; V.6b 45 Graus, 2026-10-08, "Ana Drago" -- which unseated the host the
+    feed names), and the three refused "<name>, host" verdicts on the six V.6b real feeds each sat
+    on a real host.
+    """
+    return None if role == "guest" else role
+
+
 def resolve_voices_and_roles(
     stated_names: Sequence[str],
     voice_texts: Dict[str, str],
@@ -563,7 +576,8 @@ def resolve_voices_and_roles(
     a classifier*, never an author: a name nobody stated is discarded (that is the #876 failure this
     exists to prevent), a name a voice only speaks in the third person is discarded, and a role
     outside {host, guest} is dropped. Name and role are independent: a voice may keep its role even
-    if its name is refuted, and vice-versa.
+    if its name is refuted, and vice-versa — except a "guest" role whose name is refuted in the
+    third person (``_role_after_third_person_refusal``).
 
     ``report`` (#2276), when given, is filled with the model's FULL answer and what became of each
     part of it — the raw text, every per-voice verdict with its outcome (``accepted`` /
@@ -640,6 +654,7 @@ def resolve_voices_and_roles(
     # (voice, name) for each refutation, so the refusal can be USED rather than only counted —
     # see the complement pass below.
     refuted_pairs: List[Tuple[str, str]] = []
+    refuted_roles: Dict[str, Optional[str]] = {}
 
     for said_voice, verdict in _parse(raw).items():
         voice = _voice_id_in(said_voice, voice_texts)
@@ -654,6 +669,7 @@ def resolve_voices_and_roles(
             seen["outcome"] = "unmapped_voice"
             continue
         canonical: Optional[str] = None
+        role = verdict.role
         if verdict.name:
             match = _stated_match(verdict.name)
             seen["matched"] = match
@@ -664,6 +680,9 @@ def resolve_voices_and_roles(
                 refuted.append(f"{voice}={match}")
                 refuted_pairs.append((voice, match))
                 seen["outcome"] = "third_person"
+                # Kept for a swap below, which moves it to the voice the name lands on.
+                refuted_roles[voice] = verdict.role
+                role = _role_after_third_person_refusal(verdict.role)
             elif match.lower() in used:  # rule 5 — one person, one voice
                 seen["outcome"] = "duplicate"
             else:
@@ -672,8 +691,8 @@ def resolve_voices_and_roles(
                 seen["outcome"] = "accepted"
         else:
             seen["outcome"] = "role_only" if verdict.role else "abstained"
-        if canonical or verdict.role:
-            out[voice] = LLMVoice(name=canonical, role=verdict.role)
+        if canonical or role:
+            out[voice] = LLMVoice(name=canonical, role=role)
 
     # ---- COMPLEMENT PASS: a refutation is EVIDENCE, not just a veto -------------------------
     #
@@ -743,8 +762,7 @@ def resolve_voices_and_roles(
                 # of the error the swap exists to undo — measured on Ground Truths, it published
                 # `Matthew Cobb` as the host and `Eric Topol`, the one name in `known_hosts`, as
                 # the guest. Moving each role alongside its name makes both halves agree.
-                refuted_voice = out.get(bad_voice)
-                out[other] = LLMVoice(name=name, role=refuted_voice.role if refuted_voice else None)
+                out[other] = LLMVoice(name=name, role=refuted_roles.get(bad_voice))
                 out[bad_voice] = LLMVoice(name=other_name, role=existing.role)
                 rep_["complement"].append(
                     {"kind": "swap", "name": name, "voice": other, "other_name": other_name}

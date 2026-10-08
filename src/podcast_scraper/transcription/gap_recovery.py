@@ -14,7 +14,9 @@ What a recovered clip must pass, because a short clip is where Whisper invents t
 
 - confidence: ``avg_logprob`` at or above ``RECOVERY_MIN_AVG_LOGPROB``;
 - not a loop: ``compression_ratio`` at or below ``RECOVERY_MAX_COMPRESSION_RATIO`` and no run of
-  the same short phrase repeated (``is_repetitive``).
+  the same short phrase repeated (``is_repetitive``);
+- not an invented line: a subtitle credit or video sign-off (``invented_lines``), which passes
+  both checks above (V.6b French feed: avg_logprob -0.1 to -0.3).
 
 ``no_speech_prob`` is NOT used: the DGX faster-whisper server returns 0.0 for every segment (all
 six 80k A/B responses, 2026-10-08), so it cannot tell speech from silence there. The diarizer's
@@ -31,6 +33,7 @@ import tempfile
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from podcast_scraper.preprocessing.audio.ffmpeg_processor import _run_text_subprocess
+from podcast_scraper.transcription.invented_lines import is_invented_line
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +107,10 @@ def _inside(start: Optional[float], end: Optional[float], lo: float, hi: float) 
 
 
 def _rejection(seg: Mapping[str, Any], text: str) -> Optional[str]:
+    # The WHOLE clip segment, not the words inside the gap: a credit line sliced by the gap edges
+    # no longer reads as one.
+    if is_invented_line(seg.get("text")):
+        return "invented_line"
     logprob = _f(seg.get("avg_logprob"))
     if logprob is not None and logprob < RECOVERY_MIN_AVG_LOGPROB:
         return "low_confidence"

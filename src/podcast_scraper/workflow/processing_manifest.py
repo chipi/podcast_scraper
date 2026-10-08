@@ -78,6 +78,9 @@ QUALITY_FLAGS = frozenset(
         "asr_language_mismatch",  # #2187
         "asr_untranscribed_speech",  # #2187
         "asr_speech_recovered",  # #2187 A2
+        "asr_invented_lines_removed",  # #2187
+        "asr_partly_unpunctuated",  # #2187
+        "asr_punctuation_repaired",  # #2187
         "unnamed_dominant_voice",
         "guest_in_title_not_placed",
         "empty_host_anchor",

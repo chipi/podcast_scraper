@@ -14,8 +14,9 @@ from types import SimpleNamespace
 import pytest
 
 from podcast_scraper.providers.ml.diarization.pipeline import (
-    UNTRANSCRIBED_SPEECH_MIN_S,
+    stretched_words_over_speech,
     untranscribed_speech,
+    UNTRANSCRIBED_SPEECH_MIN_S,
 )
 
 pytestmark = pytest.mark.unit
@@ -85,3 +86,46 @@ class TestTheArithmetic:
         turns = [{"start": 0, "end": 5, "speaker": "A"}, {"start": 9, "end": 9}, {"bad": True}]
         gaps = untranscribed_speech(turns, [{"start": "x"}])
         assert [(g["start"], g["end"], g["speaker"]) for g in gaps] == [(0.0, 5.0, "A")]
+
+
+class TestStretchedWordsAreEvidenceNotGaps:
+    """A word Whisper stretched over seconds of speech (80k_06: "case," 209.5-213.98 s over a
+    skipped quote). Re-transcribing 11 such spans (2026-10-08) found lost speech under 3 and only
+    the word, a stutter or fillers under 6 — so they are recorded on their own, never as gaps."""
+
+    TURNS = [_turn(189.2, 212.76, "SPEAKER_00"), _turn(213.47, 218.8, "SPEAKER_00")]
+
+    def _segs(self, case_end: float) -> list:
+        words = [
+            {"start": 208.62, "end": 209.06, "word": " In"},
+            {"start": 209.06, "end": 209.5, "word": " another"},
+            {"start": 209.5, "end": case_end, "word": " case,"},
+            {"start": case_end + 0.28, "end": case_end + 0.42, "word": " rather"},
+        ]
+        return [
+            {"start": 189.2, "end": 208.6, "text": "x"},
+            {"start": 208.62, "end": 218.8, "text": "In this case, though", "words": words},
+        ]
+
+    def test_a_stretched_word_is_not_untranscribed_speech(self) -> None:
+        assert untranscribed_speech(self.TURNS, self._segs(213.98)) == []
+
+    def test_it_is_reported_with_the_speech_under_it(self) -> None:
+        assert stretched_words_over_speech(self.TURNS, self._segs(213.98)) == [
+            {"start": 209.5, "end": 213.98, "duration_s": 4.48, "word": "case,", "speech_s": 3.77}
+        ]
+
+    def test_an_ordinary_long_word_is_not_reported(self) -> None:
+        """The longest ordinary word on the six V.6b real feeds was 2.4 s."""
+        assert stretched_words_over_speech(self.TURNS, self._segs(209.5 + 2.9)) == []
+
+    def test_a_stretched_word_over_silence_is_not_reported(self) -> None:
+        turns = [_turn(189.2, 209.5, "SPEAKER_00"), _turn(214.0, 218.8, "SPEAKER_00")]
+        assert stretched_words_over_speech(turns, self._segs(213.98)) == []
+
+    def test_word_objects_are_read_too(self) -> None:
+        word = SimpleNamespace(start=2.0, end=9.0, word="so")
+        seg = SimpleNamespace(start=0.0, end=10.0, words=[word])
+        got = stretched_words_over_speech([_turn(0, 10, "A")], [seg])
+        assert [(g["start"], g["end"], g["word"]) for g in got] == [(2.0, 9.0, "so")]
+        assert untranscribed_speech([_turn(0, 10, "A")], [seg]) == []

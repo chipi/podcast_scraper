@@ -99,7 +99,7 @@ class TestThePipelineRefusesTheEpisode:
     """Behaviour through ``transcribe_media_to_text``: refused after ASR, before diarization,
     with nothing written, and countable like every other refusal."""
 
-    def _run(self, monkeypatch, text: str, requested: str) -> Dict[str, Any]:
+    def _run(self, monkeypatch, text: str, requested: str, **overrides: Any) -> Dict[str, Any]:
         from podcast_scraper.workflow import episode_processor as ep
 
         seen: Dict[str, Any] = {"recorded": [], "incidents": [], "saved": False}
@@ -146,7 +146,7 @@ class TestThePipelineRefusesTheEpisode:
             _diarization,
         )
         cfg = config_mod.Config(rss="https://example.com/f.xml").model_copy(
-            update={"feed_declared_language": requested, "diarize": True}
+            update={"feed_declared_language": requested, "diarize": True, **overrides}
         )
         job = MagicMock()
         job.idx = 1
@@ -183,3 +183,12 @@ class TestThePipelineRefusesTheEpisode:
         assert seen["incidents"] == []
         # #2187 A2: the fresh-transcription path hands diarization a way to re-transcribe gaps.
         assert callable(seen["transcribe_clip"])
+
+    def test_recovery_switched_off_hands_diarization_no_transcriber(self, monkeypatch) -> None:
+        """#2187 A2 off-switch: gaps are still detected (diarization runs), never re-transcribed."""
+        _, _, english = next(f for f in FIXTURES if f[1] == "en")
+        seen = self._run(
+            monkeypatch, english, "en", transcription_recover_untranscribed_speech=False
+        )
+        assert seen["diarized"] is True
+        assert seen["transcribe_clip"] is None
