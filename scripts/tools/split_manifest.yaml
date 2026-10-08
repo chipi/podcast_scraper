@@ -16,8 +16,11 @@
 
 player:
   package: closelistening_player
+  entry_points:
+    player: podcast_scraper.server.app_player_extension:EXTENSION
   modules:
     podcast_scraper.server:
+      - app_player_extension
       - app_audio_bridge
       - app_auto_picks
       - app_cache_warm

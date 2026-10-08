@@ -220,3 +220,27 @@ def test_an_extension_found_twice_loads_once_and_the_in_tree_copy_wins(monkeypat
     monkeypatch.setattr(extensions, "_IN_TREE", ("podcast_scraper._fake_ext",))
     monkeypatch.setattr(extensions.metadata, "entry_points", lambda group: [_EP()])
     assert extensions.load_extensions() == [in_tree]
+
+
+def test_account_created_runs_once_at_sign_up_not_at_later_sign_ins(tmp_path: Path) -> None:
+    created: list[tuple[str, str]] = []
+    ext = Extension(
+        name="fake",
+        account_created=(lambda data_dir, user, provider: created.append((user.email, provider)),),
+    )
+    with use_extensions([ext]):
+        app = _app(tmp_path)
+        _login(app, "ada")
+        _login(app, "ada")
+    assert created == [("ada@e2e.local", "mock")]
+
+
+def test_the_player_extension_records_the_sign_up_in_the_users_event_log(tmp_path: Path) -> None:
+    """The in-tree player extension keeps today's behaviour: one account_created event per user."""
+    player = extensions._from_module("podcast_scraper.server.app_player_extension")
+    assert player is not None
+    with use_extensions([player]):
+        app = _app(tmp_path)
+        uid = _login(app, "ada").get("/api/app/me").json()["user_id"]
+    events = list((tmp_path / "appdata" / "users" / uid).glob("*.jsonl"))
+    assert any("account_created" in p.read_text() for p in events), [p.name for p in events]

@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
+from podcast_scraper.extensions import run_account_created
 from podcast_scraper.server import (
     app_access_store,
     app_account_deletion,
@@ -27,7 +28,6 @@ from podcast_scraper.server import (
     app_outbox_store,
     app_roles,
     app_sessions,
-    app_user_state,
 )
 from podcast_scraper.server.app_audit import audit_event
 from podcast_scraper.server.app_oauth import OAuthError, OAuthProvider
@@ -389,7 +389,7 @@ def _complete_callback(
 
     def _on_created(new_user: User) -> None:
         created.append(new_user.user_id)
-        app_user_state.append_account_created(data_dir, new_user.user_id, identity.provider)
+        run_account_created(data_dir, new_user, identity.provider)
 
     user = get_or_create_user(
         data_dir,
@@ -867,7 +867,7 @@ def app_auth_magic_verify(
     def _on_created(fresh: User) -> None:
         nonlocal was_created
         was_created = True
-        app_user_state.append_account_created(data_dir, fresh.user_id, "email")
+        run_account_created(data_dir, fresh, "email")
 
     user = get_or_create_user(
         data_dir,

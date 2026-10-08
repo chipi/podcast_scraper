@@ -47,8 +47,15 @@ _PREFIX: dict[str, str] = {
 #: idempotent. The counts reach the deletion log and the admin response, never an address or token.
 AccountDeletedHook = Callable[[Path, "User"], dict[str, int]]
 
+#: ``(data_dir, user, provider)``. Runs once, right after sign-up creates the account (Google, Apple
+#: or email link). An app records its own first-use state here.
+AccountCreatedHook = Callable[[Path, "User", str], None]
+
 #: Modules that become private packages at the cutover, each exposing ``EXTENSION``.
-_IN_TREE: tuple[str, ...] = ("podcast_scraper.server.app_mcp_extension",)
+_IN_TREE: tuple[str, ...] = (
+    "podcast_scraper.server.app_mcp_extension",
+    "podcast_scraper.server.app_player_extension",
+)
 
 
 @dataclass(frozen=True)
@@ -68,6 +75,7 @@ class Extension:
     name: str
     routers: Sequence[RouterMount] = ()
     account_deleted: Sequence[AccountDeletedHook] = field(default_factory=tuple)
+    account_created: Sequence[AccountCreatedHook] = field(default_factory=tuple)
 
 
 _override: list[Extension] | None = None
@@ -108,6 +116,13 @@ def load_extensions() -> list[Extension]:
     return list(found.values())
 
 
+def run_account_created(data_dir: Path, user: User, provider: str) -> None:
+    """Every extension's ``account_created`` hook, in load order."""
+    for ext in load_extensions():
+        for hook in ext.account_created:
+            hook(data_dir, user, provider)
+
+
 @contextmanager
 def use_extensions(extensions: Sequence[Extension]) -> Iterator[None]:
     """Replace discovery with *extensions* for the duration (tests: a fake app, or none)."""
@@ -121,11 +136,13 @@ def use_extensions(extensions: Sequence[Extension]) -> Iterator[None]:
 
 
 __all__ = [
+    "AccountCreatedHook",
     "AccountDeletedHook",
     "ENTRY_POINT_GROUP",
     "Extension",
     "Plane",
     "RouterMount",
     "load_extensions",
+    "run_account_created",
     "use_extensions",
 ]

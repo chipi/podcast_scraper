@@ -19,6 +19,7 @@ Usage::
     python scripts/tools/split_copy.py
     python scripts/tools/split_probe.py            # summary
     python scripts/tools/split_probe.py --edges    # plus every edge with file:line
+    python scripts/tools/split_probe.py --fails    # plus every failing module and why
 """
 
 from __future__ import annotations
@@ -184,6 +185,7 @@ def roots(fails: dict[str, str]) -> collections.Counter:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--edges", action="store_true", help="print every edge with file:line")
+    ap.add_argument("--fails", action="store_true", help="print every failing module and why")
     args = ap.parse_args()
 
     manifest = yaml.safe_load(sc.MANIFEST.read_text())
@@ -216,6 +218,9 @@ def main() -> int:
     print(f"public without private: {len(public['fails'])} of {public['modules']} modules fail")
     for cause, n in roots(public["fails"]).most_common():
         print(f"  {n:3}  {cause}")
+    if args.fails:
+        for module, msg in sorted(public["fails"].items()):
+            print(f"    {module}: {msg}")
     files = {f for f, _, _ in found}
     print(f"edges into moved code: {len(found)} in {len(files)} files")
     if args.edges:
@@ -224,6 +229,9 @@ def main() -> int:
     print(f"private on top of public: {len(private['fails'])} of {private['modules']} modules fail")
     for cause, n in roots(private["fails"]).most_common():
         print(f"  {n:3}  {cause}")
+    if args.fails:
+        for module, msg in sorted(private["fails"].items()):
+            print(f"    {module}: {msg}")
     crossings = forbidden_imports(manifest)
     print(f"forbidden imports between private subpackages: {len(crossings)}")
     for f, line, target in crossings:
