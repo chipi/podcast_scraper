@@ -21,8 +21,11 @@ logger = logging.getLogger(__name__)
 # Relative to corpus / output root (POSIX).
 CORPUS_ART_REL_PREFIX = ".podcast_scraper/corpus-art"
 
-# Podcast cover images; reject HTML error pages and huge responses.
-_MAX_ARTWORK_BYTES = 8 * 1024 * 1024
+# Podcast cover images; reject HTML error pages and runaway responses. 32 MB, not 8 (2026-10-08):
+# originals are stored in full by design, and one show's 3000x3000 PNG cover is 11.9 MB — at 8 MB it
+# was never stored, so the app fell back to the feed host's URL and every phone downloaded the
+# 11.9 MB file to show it in a 116 px tile (no thumbnail can exist for art we do not store).
+_MAX_ARTWORK_BYTES = 32 * 1024 * 1024
 
 
 def _guess_extension(content_type: str, url: str) -> str:

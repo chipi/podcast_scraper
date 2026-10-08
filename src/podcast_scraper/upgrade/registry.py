@@ -46,6 +46,7 @@ from .migrations.m0024_shared_removed_speaker_prefixes import (
 )
 from .migrations.m0025_one_person_one_entry import OnePersonOneEntryMigration
 from .migrations.m0025_artwork_medium import ArtworkMediumMigration
+from .migrations.m0026_missing_covers_stored import MissingCoversStoredMigration
 
 # Source of truth, declared in intended apply order. 0001 migrates from FAISS when
 # present; 0002 builds natively only when 0001 left no index — together they
@@ -104,6 +105,8 @@ _MIGRATIONS: List[Migration] = [
     OnePersonOneEntryMigration(),
     # 0025 writes the ≤1024px player copy of every stored cover (originals run to 3000px).
     ArtworkMediumMigration(),
+    # 0026 stores covers that were only a feed-host URL (FETCHES), so every slot gets a downscale.
+    MissingCoversStoredMigration(),
 ]
 
 
