@@ -17,6 +17,7 @@ import time
 from collections import Counter, OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
@@ -165,11 +166,77 @@ def _podcast_item(f: dict) -> AppPodcastItem:
 
 
 @router.get("/podcasts", response_model=AppPodcastsResponse)
-def podcasts_list(request: Request, _user: User = Depends(get_current_user)) -> AppPodcastsResponse:
-    """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6)."""
+def podcasts_list(
+    request: Request,
+    feed_ids: list[str] = Query(
+        default_factory=list, max_length=200, description="Paged: only these shows (lookups)."
+    ),
+    q: str | None = Query(default=None, max_length=200, description="Paged: title / host words."),
+    category: str | None = Query(default=None, max_length=100),
+    sort: Literal["newest", "oldest", "az", "za", "trending"] = Query(default="newest"),
+    compact: bool = Query(
+        default=False, description="Paged: leave out descriptions (a name list, e.g. a filter)."
+    ),
+    offset: int = Query(default=0, ge=0),
+    limit: int | None = Query(
+        default=None, ge=1, le=200, description="Page size. Absent: every show, as before 1.0.3."
+    ),
+    _user: User = Depends(get_current_user),
+) -> AppPodcastsResponse:
+    """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6).
+
+    Paging is opt-in: with ``limit`` the catalogue is filtered (``feed_ids``, ``q`` — every word,
+    any order, over title and hosts — ``category``), sorted and paged on the server.
+    """
     root = corpus_root_or_503(request)
-    feeds = aggregate_feeds(cached_catalog(root))
-    return AppPodcastsResponse(items=[_podcast_item(f) for f in feeds if f.get("feed_id")])
+    feeds = [f for f in aggregate_feeds(cached_catalog(root)) if f.get("feed_id")]
+    if limit is None:
+        return AppPodcastsResponse(items=[_podcast_item(f) for f in feeds])
+    wanted = set(feed_ids)
+    words = (q or "").casefold().split()
+
+    def title(f: dict) -> str:
+        return str(f.get("display_title") or f.get("feed_id")).casefold()
+
+    def hay(f: dict) -> str:
+        return " ".join([title(f), *(str(a) for a in f.get("authors") or ())]).casefold()
+
+    selected = [
+        f
+        for f in feeds
+        if (not wanted or f["feed_id"] in wanted)
+        and (not category or f.get("category") == category)
+        and all(w in hay(f) for w in words)
+    ]
+    if sort in ("az", "za"):
+        selected.sort(key=title, reverse=sort == "za")
+    elif sort == "trending":
+        from podcast_scraper.server.routes.app_discover import app_trending
+
+        velocity = {
+            t.entity_id: t.velocity or 0.0
+            for t in app_trending(
+                request, kind="show", scope="corpus", window="3m", limit=50, user=_user
+            ).items
+        }
+        selected.sort(key=lambda f: (-velocity.get(f["feed_id"], 0.0), title(f)))
+    else:
+        # By the feed's last update; a feed with none goes last, then A-Z (ShowBrowseView's rule).
+        dated = [f for f in selected if f.get("last_updated")]
+        undated = sorted((f for f in selected if not f.get("last_updated")), key=title)
+        dated.sort(key=lambda f: (str(f["last_updated"]), title(f)), reverse=sort == "newest")
+        selected = dated + undated
+    page = []
+    for f in selected[offset : offset + limit]:
+        item = _podcast_item(f)
+        if compact:
+            item.description = None
+        page.append(item)
+    return AppPodcastsResponse(
+        items=page,
+        total=len(selected),
+        categories=sorted({str(f["category"]) for f in feeds if f.get("category")}),
+    )
 
 
 @router.get("/podcasts/suggested", response_model=AppPodcastsResponse)

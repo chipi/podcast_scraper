@@ -2258,9 +2258,21 @@ class AppPodcastItem(BaseModel):
 
 
 class AppPodcastsResponse(BaseModel):
-    """Response for GET /api/app/podcasts — distinct shows in the corpus."""
+    """Response for GET /api/app/podcasts — distinct shows in the corpus.
+
+    With ``limit`` (1.0.3) one filtered, sorted page plus ``total`` and ``categories``; without it
+    every show, and neither field.
+    """
 
     items: list[AppPodcastItem] = Field(default_factory=list)
+    total: int | None = Field(
+        default=None, exclude_if=_paged_only, description="Paged: matching shows, all pages."
+    )
+    categories: list[str] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged: every category in the catalogue (the filter's options), A-Z.",
+    )
 
 
 class QueueResponse(BaseModel):
