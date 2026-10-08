@@ -310,7 +310,7 @@ def _mount_extension_routers(app: FastAPI, *, app_only: bool, operator_public: b
     tailnet operator serve.
     """
     for ext in load_extensions():
-        for mount in ext.routers:
+        for mount in ext.routers():
             if mount.plane != "operator":
                 app.include_router(mount.router, prefix=mount.prefix)
             elif operator_public:
