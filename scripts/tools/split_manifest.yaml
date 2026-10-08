@@ -129,6 +129,10 @@ player:
 # it on its own; split_probe.py checks that.
 common:
   package: closelistening_common
+  # Registered under the podcast_scraper.extensions entry-point group (ADR-158 decision 4);
+  # the module path is rewritten like any moved module.
+  entry_points:
+    mcp: podcast_scraper.server.app_mcp_extension:EXTENSION
   subpackages:
     identity:
       modules:
@@ -136,6 +140,7 @@ common:
           - app_mcp_tokens
           - app_oauth_server
           - app_rate_limit
+          - app_mcp_extension
         podcast_scraper.server.routes:
           - app_mcp
           - mcp_oauth

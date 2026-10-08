@@ -520,8 +520,7 @@ def delete_user_account(request: Request, user: User) -> dict[str, object]:
         "apple_revoked": apple_revoked,
         "apple_reason": apple_reason,
         "outbox_envelopes": report.outbox_envelopes,
-        "mcp_token_index": report.mcp_token_index,
-        "mcp_oauth_records": report.mcp_oauth_records,
+        **report.extensions,
         "user_dir": report.user_dir,
     }
 

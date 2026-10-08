@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from podcast_scraper import __version__
+from podcast_scraper.extensions import load_extensions
 from podcast_scraper.server import app_access_store, app_roles
 from podcast_scraper.server.app_access import policy_from_env
 from podcast_scraper.server.app_csrf import CrossSiteWriteGuard
@@ -43,7 +44,6 @@ from podcast_scraper.server.routes import (
     app_export,
     app_graph_events,
     app_key_voices,
-    app_mcp,
     app_notifications,
     app_og,
     app_profile,
@@ -75,11 +75,9 @@ from podcast_scraper.server.routes import (
     health,
     index_rebuild,
     index_stats,
-    internal_mcp,
     internal_outbox,
     jobs,
     llm_gateway,
-    mcp_oauth,
     operator_config,
     ops,
     query_activity,
@@ -269,8 +267,6 @@ _APP_ROUTES = (
     app_your_week,
     app_corpus,
     app_export,
-    app_mcp,
-    mcp_oauth,
     app_enrichment,
     app_consolidation,
 )
@@ -303,10 +299,26 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
     app.include_router(app_og.router)
     # The internal delivery-outbox seam (#1415) — service-to-service, token-gated, tailnet-only.
     app.include_router(internal_outbox.router, prefix="/internal")
-    # The internal MCP verify seam (#1471) — service-to-service, token-gated, tailnet-only.
-    app.include_router(internal_mcp.router, prefix="/internal")
-    # MCP OAuth 2.1 authorization-server metadata at the app ROOT (RFC 8414 discovery, #1471).
-    app.include_router(mcp_oauth.wellknown_router)
+    _mount_extension_routers(app, app_only=app_only, operator_public=operator_public)
+
+
+def _mount_extension_routers(app: FastAPI, *, app_only: bool, operator_public: bool) -> None:
+    """Routers from installed extensions (ADR-158), under the same serve postures as the core.
+
+    Operator-plane routers follow ``_OPERATOR_READ_ROUTES``: none on the player, the gated curated
+    set on the public operator surface (only those marked ``operator_public``), all of them on the
+    tailnet operator serve.
+    """
+    for ext in load_extensions():
+        for mount in ext.routers:
+            if mount.plane != "operator":
+                app.include_router(mount.router, prefix=mount.prefix)
+            elif operator_public:
+                if mount.operator_public:
+                    gate = [Depends(app_auth.require_viewer_access)]
+                    app.include_router(mount.router, prefix=mount.prefix, dependencies=gate)
+            elif not app_only:
+                app.include_router(mount.router, prefix=mount.prefix)
 
 
 class _AccessLogMiddleware:
