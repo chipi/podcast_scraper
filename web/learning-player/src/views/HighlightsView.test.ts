@@ -403,28 +403,13 @@ describe('HighlightsView', () => {
     expect(on.text()).not.toContain('still resurfacing')
   })
 
-  it('a failed collections load SAYS so — it does not read as "you have no boards"', async () => {
-    // `collectionsError` was declared and set and never rendered, so the "Add to…" select simply
-    // vanished on a transient failure. Its own comment said that must not read as having none,
-    // which is precisely what it did (review 2026-09-18).
-    vi.spyOn(api, 'getCollections').mockRejectedValue(new Error('500'))
+  it('files a highlight with the standard board control, not a dropdown of its own (operator 2026-10-08)', async () => {
     vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
     vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
     const w = mountView()
     await flushPromises()
-
-    expect(w.find('[data-testid="collections-unavailable"]').exists()).toBe(true)
-    // And the control that would silently mislead is not offered.
-    expect(w.find('select[aria-label]').exists()).toBe(false)
-  })
-
-  it('no boards and a FAILED load are different states', async () => {
-    vi.spyOn(api, 'getCollections').mockResolvedValue([])
-    vi.spyOn(api, 'getHighlights').mockResolvedValue([hl()])
-    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail('show-ep01', 'Ep'))
-    const w = mountView()
-    await flushPromises()
-    // Genuinely empty: no error marker, and no select either.
-    expect(w.find('[data-testid="collections-unavailable"]').exists()).toBe(false)
+    // The same button every surface uses; its sheet owns listing, creating and load failures.
+    expect(w.findAll('[data-testid="add-to-collection"]')).toHaveLength(1)
+    expect(w.find('select[aria-label="Add to board"]').exists()).toBe(false)
   })
 })

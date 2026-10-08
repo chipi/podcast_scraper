@@ -46,9 +46,12 @@ function pick(token: string): void {
       :aria-expanded="open"
       @click.stop="toggle"
     >
+      <!-- No colour yet: a ring in the icons' own grey (operator 2026-10-08). It was drawn in the
+           divider colour, which on the dark canvas is all but invisible — people did not see it. -->
       <span
         class="h-4 w-4 rounded-full"
-        :class="swatchClass(color) || 'border border-border'"
+        :class="swatchClass(color) || 'border-2 border-muted'"
+        data-testid="saved-color-dot"
       />
       <!-- A non-hidden accessible name INSIDE the trigger (2026-09-24, Android device tier).
            `aria-haspopup` PLUS a fully hidden subtree leaves the button UNNAMED on Android System

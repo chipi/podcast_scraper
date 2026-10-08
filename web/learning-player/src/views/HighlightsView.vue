@@ -13,14 +13,12 @@ import CloseIcon from "../components/CloseIcon.vue"
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import {
-  addToCollection,
   exportObsidian,
   fetchHighlightsExport,
-  getCollections,
   getEpisode,
   highlightsExportUrl,
 } from '../services/api'
-import type { Collection } from '../services/types'
+import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import { deliverFile, isNative } from '../services/native'
 import ExportViewer from '../components/ExportViewer.vue'
 import { sheetTeleportTarget } from '../composables/sheetStack'
@@ -236,19 +234,6 @@ async function save(): Promise<void> {
   cancel()
 }
 
-// Collections a highlight can be filed into (#1417). Loaded lazily; the per-highlight
-// "Add to…" select adds on change then resets to its placeholder.
-const collections = ref<Collection[]>([])
-/** A failed collections load must not read as 'you have none' (#2004 item 13). */
-const collectionsError = ref(false)
-
-async function addHighlightTo(highlightId: string, collectionId: string): Promise<void> {
-  if (!collectionId) return
-  const updated = await addToCollection(collectionId, { kind: 'highlight', ref: highlightId })
-  const i = collections.value.findIndex((c) => c.id === updated.id)
-  if (i >= 0) collections.value[i] = updated
-}
-
 // Share a highlight as a text/quote card (#1418) — no audio (bridge-only).
 /** Undo a retire. Only reachable from a row that IS retired, so there is no toggle to reason about. */
 /**
@@ -340,14 +325,6 @@ onMounted(async () => {
   // Tolerated, not awaited blindly: this view's whole job is to show captures, so a load failure
   // renders the empty state rather than tearing down the rest of the mount (collections, titles).
   await capture.ensureLoaded().catch(() => {})
-  // Third caller of getCollections (#2004 item 13). Swallowing here reproduced the same lie the
-  // other two stopped telling: a failed load renders as "you have no collections".
-  try {
-    collections.value = await getCollections()
-  } catch {
-    collections.value = []
-    collectionsError.value = true
-  }
   const slugs = [...new Set(capture.highlights.map((h) => h.episode_slug))]
   await Promise.all(
     slugs.map(async (slug) => {
@@ -536,27 +513,7 @@ onMounted(async () => {
                    already says while pushing the text itself down. -->
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-2">
-              <!-- The failed-load case is SAID, not implied by an absent control. Hiding the
-                   select on error reads as "you have no collections", which is the exact reading
-                   the ref was added to prevent — and then it was never rendered (review
-                   2026-09-18). -->
-              <span
-                v-if="collectionsError"
-                class="text-xs text-muted"
-                data-testid="collections-unavailable"
-                :title="t('collections.loadFailedHint')"
-              >{{ t('collections.loadFailed') }}</span>
-              <select
-                v-else-if="collections.length"
-                class="max-w-[9rem] rounded-lg border border-border bg-overlay px-1.5 py-1 text-xs"
-                :aria-label="t('collections.addTo')"
-                @change="addHighlightTo(h.id, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
-              >
-                <option value="">{{ t('collections.addTo') }}</option>
-                <option v-for="c in collections" :key="c.id" :value="c.id">{{ c.name }}</option>
-              </select>
-              <!-- Add a note — same control weight + placement as Add-to-collection (opens the
-                   inline editor below), so the two "annotate this" actions read as a pair. -->
+              <!-- Add a note — opens the inline editor below. -->
               <button
                 type="button"
                 class="rounded-lg border border-border bg-overlay px-1.5 py-1 text-xs text-muted transition hover:text-accent"
@@ -606,6 +563,10 @@ onMounted(async () => {
                   data-testid="highlight-delete"
                   @click="pendingHighlight = h.id"
                 ><BookmarkIcon filled /></button>
+                <!-- The standard board control (operator 2026-10-08), the one every other surface uses:
+                     its sheet lists the boards, creates one, and says when they could not load. This
+                     card had its own "Add to board" dropdown, a second way to do one thing. -->
+                <AddToCollectionButton :item="{ kind: 'highlight', ref: h.id }" />
                 <button
                   type="button"
                   class="rounded-full p-1 text-muted transition hover:text-accent"
