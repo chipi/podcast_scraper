@@ -119,3 +119,19 @@ describe("DiscoveryExplorer — the Trends expand control", () => {
     expect(allBtn(w).attributes("aria-expanded")).toBe("false")
   })
 })
+
+describe("DiscoveryExplorer — the icon toggles say what they are set to (operator 2026-10-08)", () => {
+  it("keeps the icons on the pills' row and states sort (and scope, signed in) in a caption", async () => {
+    vi.spyOn(api, "getTrending").mockResolvedValue(trending(3))
+    vi.spyOn(api, "getStorylines").mockResolvedValue([])
+    const w = mountExplorer()
+    await flushPromises()
+    const hint = () => w.get('[data-testid="discovery-state-hint"]').text()
+    // Signed out: only the sort applies.
+    expect(hint()).toBe("rising fastest")
+    await w.get('[data-testid="discovery-sort"]').trigger("click")
+    expect(hint()).toBe("most talked about")
+    // The toggle is an icon button again, not a labelled two-option switch.
+    expect(w.find('[data-testid="discovery-sort-trending"]').exists()).toBe(false)
+  })
+})

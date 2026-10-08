@@ -168,12 +168,12 @@ export async function tapAndRecordTop(el: Locator): Promise<number> {
  * preference, and only when it is on — so a spec reads the corpus-wide list it is written about.
  */
 export async function showEveryonesTrends(page: Page): Promise<void> {
-  const you = page.getByTestId('home-trending-scope')
-  await expect(you).toBeVisible()
+  const toggle = page.getByTestId('home-trending-scope')
+  await expect(toggle).toBeVisible()
   // The lens resolves from the synced preferences after mount; wait for it to settle on "mine".
-  await expect(you).toHaveAttribute('aria-pressed', 'true')
-  await page.getByTestId('home-trending-scope-everyone').click()
-  await expect(you).toHaveAttribute('aria-pressed', 'false')
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
 }
 
 /** Play an episode the way the player does: two saves, two minutes apart in position. */
