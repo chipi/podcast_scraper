@@ -199,8 +199,9 @@ def test_admission_pure_no_gate_admits_gated_drops() -> None:
 
 def test_known_manifests_cover_all_and_gated_ml_declare_gates() -> None:
     mans = known_enricher_manifests()
-    # 7 deterministic (incl. insight_sentiment) + topic_similarity + topic_consensus + person_web.
-    assert len(mans) == 10
+    # 7 deterministic (incl. insight_sentiment) + topic_similarity + topic_consensus + person_web
+    # + org_web (its sibling; the old hand-written list left it out although profiles select it).
+    assert len(mans) == 11
     assert "person_web" in mans  # WEB tier (wave-G)
     gate = mans["topic_consensus"].accuracy_gate  # the one gated ML enricher
     assert gate is not None

@@ -23,7 +23,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
-from typing import Callable, Iterator, Literal, Sequence, TYPE_CHECKING
+from typing import Any, Callable, Iterator, Literal, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi import APIRouter
@@ -59,11 +59,14 @@ AccountCreatedHook = Callable[[Path, "User", str], None]
 _IN_TREE: tuple[str, ...] = (
     "podcast_scraper.server.app_mcp_extension",
     "podcast_scraper.server.app_player_extension",
+    "podcast_scraper.enrichment.intelligence_extension",
 )
 
 
 @dataclass(frozen=True)
 class RouterMount:
+    """One router and the plane it mounts on."""
+
     router: APIRouter
     plane: Plane
     #: Operator-plane routers only: also mount on the curated public operator surface (RFC-108).
@@ -78,13 +81,46 @@ def _no_routers() -> Sequence[RouterMount]:
     return ()
 
 
+def _none() -> Sequence[Any]:
+    return ()
+
+
+def _no_query_enrichers(corpus_root_provider: Callable[[], Path]) -> Sequence[Any]:
+    return ()
+
+
+@dataclass(frozen=True)
+class EnrichmentContribution:
+    """Enrichers an extension adds (ADR-158 decision 5). Each part is a callable so importing the
+    extension stays cheap; the enrichment code calls them where it builds its registries."""
+
+    #: Every enricher class the extension owns. Their class-level ``manifest`` feeds the accuracy
+    #: gate, the config schema and the profile sets, without instantiating anything.
+    enricher_classes: Callable[[], Sequence[type]] = _none
+    #: Deterministic enricher instances, registered wherever the platform registers its own.
+    deterministic: Callable[[], Sequence[Any]] = _none
+    #: ``--with-ml`` wiring: ``(enricher_registry, enricher_set) -> None``.
+    ml_wiring: Callable[[Any, Any], None] | None = None
+    #: WEB-tier enricher instances (registered always; profile membership decides if they run).
+    web: Callable[[], Sequence[Any]] = _none
+    #: Query enricher instances, built per search registry: ``(corpus_root_provider) -> [...]``.
+    query_enrichers: Callable[[Callable[[], Path]], Sequence[Any]] = _no_query_enrichers
+    #: Accuracy scorer instances for the eval gate.
+    scorers: Callable[[], Sequence[Any]] = _none
+    #: Registers the extension's provider types on the global provider-type registry.
+    provider_types: Callable[[], None] | None = None
+
+
 @dataclass(frozen=True)
 class Extension:
+    """What one installed package adds to the platform. Every part is optional."""
+
     name: str
     #: Called by the server only, so building the routers may import the web stack.
     routers: Callable[[], Sequence[RouterMount]] = _no_routers
     account_deleted: Sequence[AccountDeletedHook] = field(default_factory=tuple)
     account_created: Sequence[AccountCreatedHook] = field(default_factory=tuple)
+    enrichment: EnrichmentContribution | None = None
 
 
 _override: list[Extension] | None = None
@@ -125,6 +161,11 @@ def load_extensions() -> list[Extension]:
     return list(found.values())
 
 
+def enrichment_contributions() -> list[EnrichmentContribution]:
+    """Every installed extension's enrichment contribution, in load order."""
+    return [ext.enrichment for ext in load_extensions() if ext.enrichment is not None]
+
+
 def run_account_created(data_dir: Path, user: User, provider: str) -> None:
     """Every extension's ``account_created`` hook, in load order."""
     for ext in load_extensions():
@@ -148,9 +189,11 @@ __all__ = [
     "AccountCreatedHook",
     "AccountDeletedHook",
     "ENTRY_POINT_GROUP",
+    "EnrichmentContribution",
     "Extension",
     "Plane",
     "RouterMount",
+    "enrichment_contributions",
     "load_extensions",
     "run_account_created",
     "use_extensions",

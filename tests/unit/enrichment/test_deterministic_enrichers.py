@@ -19,10 +19,10 @@ from podcast_scraper.enrichment.enrichers import (
     GuestCoappearanceEnricher,
     InsightDensityEnricher,
     register_deterministic_enrichers,
-    TemporalVelocityEnricher,
     TopicCooccurrenceCorpusEnricher,
-    TopicThemeClustersEnricher,
 )
+from podcast_scraper.enrichment.enrichers.temporal_velocity import TemporalVelocityEnricher
+from podcast_scraper.enrichment.enrichers.topic_theme_clusters import TopicThemeClustersEnricher
 from podcast_scraper.enrichment.protocol import (
     EnricherScope,
     EnricherTier,
