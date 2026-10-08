@@ -8,6 +8,7 @@ import { batchViaGetEpisode, capturesViaFullLists, collectionsViaGetCollection, 
 import en from '../i18n/locales/en.json'
 import type { Collection, CollectionDetail, Note } from '../services/types'
 import { useAuthStore } from '../stores/auth'
+import { useCollectionsStore } from '../stores/collections'
 import CollectionsView from './CollectionsView.vue'
 
 // Explicit, per-test cache. Without this, an earlier test's `writeCached` leaks into a later one:
@@ -133,6 +134,36 @@ describe('CollectionsView', () => {
     await flushPromises()
     expect(getDetail).toHaveBeenCalledWith('col_1')
     expect(w.find('[data-testid="collection-open"]').exists()).toBe(true)
+  })
+
+  it('a board created or added to ELSEWHERE shows here while this tab stays mounted (2026-10-09)', async () => {
+    // Library keeps this view alive between tabs, and it loads once. The Save-to-board sheet writes
+    // through the shared store; before, it kept a private list, so the new board never appeared.
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const w = mount(CollectionsView, { global: { plugins: [i18n, router, pinia] } })
+    await flushPromises()
+    const store = useCollectionsStore(pinia)
+    store.upsert(col({ id: 'col_9', name: 'Made in the sheet', count: 1 }))
+    store.upsert(col({ count: 3 }))
+    await flushPromises()
+    expect(w.text()).toContain('Made in the sheet')
+    expect(w.text()).toContain('3 items')
+  })
+
+  it('a board created here survives a later change made elsewhere', async () => {
+    vi.spyOn(api, 'createCollection').mockResolvedValue(col({ id: 'col_2', name: 'ML', count: 0 }))
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const w = mount(CollectionsView, { global: { plugins: [i18n, router, pinia] } })
+    await flushPromises()
+    await w.find('input[type="text"]').setValue('ML')
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    useCollectionsStore(pinia).upsert(col({ count: 3 }))
+    await flushPromises()
+    expect(w.text()).toContain('ML')
+    expect(w.text()).toContain('3 items')
   })
 
   it('creates a collection and prepends it', async () => {

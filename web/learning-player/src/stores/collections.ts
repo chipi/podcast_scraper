@@ -131,9 +131,13 @@ export const useCollectionsStore = defineStore('collections', {
 
     /** Reflect a collection the UI just created or changed, without a round-trip. */
     upsert(collection: Collection): void {
+      // A NEW array either way: CollectionsView mirrors `items` through a shallow watch, which an
+      // in-place `items[i] = …` does not fire.
       const i = this.items.findIndex((c) => c.id === collection.id)
-      if (i >= 0) this.items[i] = collection
-      else this.items = [collection, ...this.items]
+      this.items =
+        i >= 0
+          ? this.items.map((c, j) => (j === i ? collection : c))
+          : [collection, ...this.items]
       this.loaded = true
       void writeCached('collections', { items: this.items })
     },

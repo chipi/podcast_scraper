@@ -8,6 +8,7 @@ import * as outbox from '../services/outbox'
 import en from '../i18n/locales/en.json'
 import type { Collection } from '../services/types'
 import { useAuthStore } from '../stores/auth'
+import { useCollectionsStore } from '../stores/collections'
 import AddToCollectionButton from './AddToCollectionButton.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -147,6 +148,40 @@ describe('AddToCollectionButton (#1839)', () => {
     await flushPromises()
     expect(w.find('[data-testid="add-to-collection-menu"]').exists()).toBe(false)
     expect(push).toHaveBeenCalledWith(expect.objectContaining({ name: 'login' }))
+  })
+})
+
+/**
+ * Library's Boards tab reads the SHARED collections store, and stays mounted between tab switches.
+ * The sheet kept its own private list, so a board created here — and the count of one added to —
+ * never reached Library until a full reload (operator on device, 2026-10-09: "I add an episode to a
+ * board I created and it won't show in Boards in Library").
+ */
+describe('the boards the rest of the app sees (2026-10-09)', () => {
+  it('a board created here, with the item in it, is in the shared store', async () => {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([])
+    vi.spyOn(api, 'createCollection').mockResolvedValue(col({ id: 'col_2', name: 'New' }))
+    vi.spyOn(api, 'addToCollection').mockResolvedValue(col({ id: 'col_2', name: 'New', count: 1 }))
+    const w = await mountIt()
+    await w.get('[data-testid="add-to-collection"]').trigger('click')
+    await flushPromises()
+    await w.get('[data-testid="add-to-collection-new"]').trigger('click')
+    await w.find('input[type="text"]').setValue('New')
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(useCollectionsStore().byId('col_2')?.count).toBe(1)
+  })
+
+  it('adding to an existing board updates its count in the shared store', async () => {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    vi.spyOn(api, 'addToCollection').mockResolvedValue(col({ count: 1 }))
+    const w = await mountIt()
+    useCollectionsStore().upsert(col())
+    await w.get('[data-testid="add-to-collection"]').trigger('click')
+    await flushPromises()
+    await w.get('[data-testid="add-to-collection-pick"]').trigger('click')
+    await flushPromises()
+    expect(useCollectionsStore().byId('col_1')?.count).toBe(1)
   })
 })
 

@@ -405,6 +405,9 @@ async function create(): Promise<void> {
   if (!name) return
   const created = await createCollection(name)
   collections.value = [created, ...collections.value]
+  // Into the shared store as well: the list here re-syncs from it (the watch above), so a board only
+  // in the local copy would vanish on the next store change, and Home's teaser would never see it.
+  store.upsert(created)
   newName.value = ""
 }
 

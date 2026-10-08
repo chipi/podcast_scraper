@@ -17,6 +17,7 @@ import { enqueue, isPermanent } from '../services/outbox'
 import type { Collection, CollectionItemRef } from '../services/types'
 import { useSignInGate } from '../composables/useSignInGate'
 import { useAnchoredMenu } from '../composables/useAnchoredMenu'
+import { useCollectionsStore } from '../stores/collections'
 
 const props = withDefaults(
   defineProps<{
@@ -35,6 +36,13 @@ const { t } = useI18n()
 const { isGated, gated } = useSignInGate()
 
 const collections = ref<Collection[]>([])
+/**
+ * The SHARED list, which Library's Boards tab renders and which stays mounted between tab switches.
+ * Every board this sheet creates or adds to goes there too: the sheet used to update only its own
+ * `collections`, so a new board — or a new count — never reached Library until a full reload
+ * (operator on device, 2026-10-09).
+ */
+const store = useCollectionsStore()
 /** Collection ids holding `props.item`. Empty AND `membershipKnown=false` means "we could not look". */
 const holdingIds = ref<Set<string>>(new Set())
 const membershipKnown = ref(false)
@@ -149,6 +157,7 @@ async function pick(id: string): Promise<void> {
   membershipKnown.value = true
   const i = collections.value.findIndex((c) => c.id === updated.id)
   if (i >= 0) collections.value[i] = updated
+  store.upsert(updated)
   addedTo.value = id
   window.setTimeout(() => {
     open.value = false
@@ -175,13 +184,16 @@ async function createAndAdd(): Promise<void> {
     const clientId = `col_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
     enqueue({ op: 'collection.create', name, clientId })
     enqueue({ op: 'collection.addItem', collectionId: clientId, item: props.item })
-    collections.value = [{ id: clientId, name, created_at: Date.now() / 1000, count: 1 }, ...collections.value]
+    const pending: Collection = { id: clientId, name, created_at: Date.now() / 1000, count: 1 }
+    collections.value = [pending, ...collections.value]
+    store.upsert(pending)
     newName.value = ''
     addedTo.value = clientId
     window.setTimeout(() => close(false), 800)
     return
   }
   collections.value = [created, ...collections.value]
+  store.upsert(created)
   newName.value = ''
   await pick(created.id)
 }
