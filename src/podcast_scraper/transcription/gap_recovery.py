@@ -201,6 +201,10 @@ def recover_untranscribed_speech(
     report: List[Dict[str, Any]] = []
     added: List[Dict[str, Any]] = []
     work_dir = tempfile.mkdtemp(prefix="gap_recovery_")
+    # A failed CALL means the endpoint is not answering, and every further clip would wait out its
+    # own timeout while holding the DGX lock; the rest are skipped. A failed CUT is local to its
+    # clip and says nothing about the endpoint.
+    call_failed = False
     try:
         for i, gap in enumerate(gaps):
             gap_start, gap_end = float(gap["start"]), float(gap["end"])
@@ -210,18 +214,30 @@ def recover_untranscribed_speech(
                 "end": gap_end,
                 "speaker": gap.get("speaker"),
             }
+            if call_failed:
+                report.append({**entry, "status": "skipped", "reason": "earlier_call_failed"})
+                continue
+            clip = os.path.join(work_dir, f"gap_{i:03d}.wav")
             try:
-                clip = os.path.join(work_dir, f"gap_{i:03d}.wav")
                 cut_clip(audio_path, clip_start, gap_end + RECOVERY_PAD_S, clip)
+            except Exception as exc:  # noqa: BLE001 - never lose the transcript to a recovery call
+                logger.warning(
+                    "gap recovery: %.1f-%.1fs could not be cut: %s", gap_start, gap_end, exc
+                )
+                report.append({**entry, "status": "failed", "error": type(exc).__name__})
+                continue
+            try:
                 clip_result = transcribe_clip(clip)
             except Exception as exc:  # noqa: BLE001 - never lose the transcript to a recovery call
                 logger.warning(
-                    "gap recovery: %.1f-%.1fs could not be re-transcribed: %s",
+                    "gap recovery: %.1f-%.1fs could not be re-transcribed (%s); skipping the "
+                    "remaining gaps",
                     gap_start,
                     gap_end,
                     exc,
                 )
                 report.append({**entry, "status": "failed", "error": type(exc).__name__})
+                call_failed = True
                 continue
             kept, rejected = segments_inside_gap(
                 [s for s in (clip_result.get("segments") or []) if isinstance(s, Mapping)],

@@ -184,7 +184,12 @@ class TailnetDgxWhisperTranscriptionProvider:
         self._ensure_init()
         with _dgx_single_flight:
             text, segments, _duration = self._transcribe_dgx(
-                audio_path, language, CLIP_TIMEOUT_SEC, prompt=prompt, check_response=False
+                audio_path,
+                language,
+                CLIP_TIMEOUT_SEC,
+                prompt=prompt,
+                check_response=False,
+                record_language=False,
             )
         return {"text": text, "segments": segments}
 
@@ -570,6 +575,10 @@ class TailnetDgxWhisperTranscriptionProvider:
         prompt: str | None = None,
         # #2187 A2 — False for a gap clip, where few or no words is a real answer.
         check_response: bool = True,
+        # False for a clip: `_last_detected_language` belongs to the EPISODE call, which reads it
+        # after releasing the lock — a clip writing it could stamp another episode's record when
+        # transcription_parallelism > 1.
+        record_language: bool = True,
     ) -> tuple[str, list[dict[str, object]], float]:
         """Call faster-whisper-server's OpenAI-compatible transcribe endpoint.
 
@@ -628,7 +637,8 @@ class TailnetDgxWhisperTranscriptionProvider:
         # element; each provider instance serves one call at a time, and the reader is the very
         # next statement after the call.
         detected = payload.get("language")
-        self._last_detected_language = (
-            str(detected).strip() or None if isinstance(detected, str) else None
-        )
+        if record_language:
+            self._last_detected_language = (
+                str(detected).strip() or None if isinstance(detected, str) else None
+            )
         return text, segments, duration

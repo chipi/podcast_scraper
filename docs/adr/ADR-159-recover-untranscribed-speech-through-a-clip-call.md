@@ -45,6 +45,14 @@ the pipeline.
   Episodes with no gap are untouched.
 - **Negative**: one extra ASR request per gap. Recovered speech can be an inserted ad in another
   language (the V.6b French download carried a Dutch ad); ad handling stays downstream.
+- **Failure shape**: a failed CLIP CALL stops the episode's remaining clips (reported
+  `skipped`, reason `earlier_call_failed`): the endpoint is not answering, and each further clip
+  would wait out its own 600 s timeout while holding the DGX lock. A failed local cut stays
+  per-clip.
+- **Where it does not run**: only a provider with `transcribe_clip` recovers gaps — today the DGX
+  provider, used directly. The coverage-gate and failover wrappers do not forward it (under
+  failover the primary may be the dead endpoint), so a profile that wraps the DGX provider, and the
+  failover re-transcription path, get no recovery; this is logged once per provider type.
 - **Neutral**: `no_speech_prob` is not used: the DGX server returns 0.0 for every segment, so it
   cannot tell speech from silence there. The diarizer's turn is the speech evidence.
 

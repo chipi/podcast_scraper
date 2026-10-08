@@ -2898,6 +2898,32 @@ def _inspect_asr_result(
     return result, elapsed
 
 
+_CLIPLESS_PROVIDERS_REPORTED: Set[Tuple[str, str]] = set()
+
+
+def _clip_call_of(provider: Any, feature: str) -> Optional[Callable[..., Any]]:
+    """The provider's ``transcribe_clip``, or None — said ONCE per provider type and feature.
+
+    Only the DGX provider has one, and the coverage-gate and failover wrappers do not forward it
+    (deliberately: under failover the primary may be the dead endpoint, and every clip would then
+    wait out its timeout). Without this line a profile change turned gap recovery and punctuation
+    repair off with no trace.
+    """
+    clip: Optional[Callable[..., Any]] = getattr(provider, "transcribe_clip", None)
+    if callable(clip):
+        return clip
+    kind = type(provider).__name__
+    if (kind, feature) not in _CLIPLESS_PROVIDERS_REPORTED:
+        _CLIPLESS_PROVIDERS_REPORTED.add((kind, feature))
+        logger.info(
+            "%s is off for this run: %s has no transcribe_clip (only the DGX provider does, "
+            "and provider wrappers do not forward it)",
+            feature,
+            kind,
+        )
+    return None
+
+
 def _repair_punctuation_windows(
     result: Dict[str, Any],
     windows: List[List[float]],
@@ -2910,14 +2936,12 @@ def _repair_punctuation_windows(
     from ..transcription.punctuation import window_prompt
     from ..transcription.punctuation_repair import repair_unpunctuated_windows
 
-    clip_call = getattr(provider, "transcribe_clip", None)
+    if not getattr(cfg, "transcription_repair_unpunctuated_windows", False):
+        return result
     language = transcription_language(cfg)
     prompt = window_prompt(language)
-    if (
-        not getattr(cfg, "transcription_repair_unpunctuated_windows", False)
-        or not callable(clip_call)
-        or prompt is None
-    ):
+    clip_call = _clip_call_of(provider, "punctuation repair")
+    if clip_call is None or prompt is None:
         return result
 
     def _window(clip_path: str, window_prompt_text: str) -> Dict[str, Any]:
@@ -2936,8 +2960,8 @@ def _gap_clip_transcriber(
     held the DGX lock for up to 900 s doing so). A provider without ``transcribe_clip`` gets no
     recovery (None). No metrics are passed: a recovery call is not the episode's transcription.
     """
-    transcribe_clip = getattr(transcription_provider, "transcribe_clip", None)
-    if not callable(transcribe_clip):
+    transcribe_clip = _clip_call_of(transcription_provider, "gap recovery")
+    if transcribe_clip is None:
         return None
 
     def _transcribe(clip_path: str) -> Dict[str, Any]:

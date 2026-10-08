@@ -57,7 +57,10 @@ degrades on the broken part.
   measured — only on episodes that break (~5% of prod by the snapshot). A repaired window is a
   fresh decode and Whisper's output there is not deterministic: the one refused English window
   carried a looping segment in one decode and none in the next, so it stays as it was.
-- **Neutral**: a language without a window prompt is detected and recorded, not repaired.
+- **Neutral**: a language without a window prompt is detected and recorded, not repaired. As
+  with gap recovery (ADR-159), a failed call stops the episode's remaining windows (`skipped`),
+  and a provider without `transcribe_clip` — including a wrapped DGX provider — does not repair,
+  which is logged once per provider type.
 
 ## Alternatives Considered
 

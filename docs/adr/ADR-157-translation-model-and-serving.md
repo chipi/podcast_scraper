@@ -195,6 +195,15 @@ unit. The count comes from vLLM's own `/tokenize`; when that is unreachable the 
 **2.2 chars/token — the FEWEST measured over 141 real Spanish units** (p05 2.88, median 4.06),
 so the estimate over-counts and the guard errs toward refusing.
 
+**Measured 2026-10-08 (#2187): the served endpoint reports `max_model_len` 4096, not 8192.** With
+4096 a unit near the 2K input limit cannot also be given a ~2K completion: on the V.6b Spanish
+feed two units asked for 1,144 + 2,953 = 4,097 tokens and the server refused both, failing the
+episode's translation. The provider now reads the served value from `/v1/models` once and caps
+each request's output budget at what the context leaves (`CONTEXT_MARGIN_TOKENS` = 32), logging
+every cap; a translation that genuinely does not fit is then cut off and reported as truncated
+rather than refused. Whether 4096 is the intended deployment value (memory headroom) or a drift
+from this ADR is an operator decision this note does not make.
+
 ## Licence
 
 Gemma terms, accepted 2026-09-29. **§4.3: "Google claims no rights in Outputs you generate."**

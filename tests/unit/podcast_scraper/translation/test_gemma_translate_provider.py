@@ -520,6 +520,13 @@ class TestTheOutputBudgetFitsTheServedContext:
     def test_a_budget_that_fits_is_left_alone(self) -> None:
         assert self._call(self._Models(8192), "x" * 5906)["max_tokens"] == 2953
 
+    def test_a_cap_is_logged_so_a_run_can_show_it_fired(self, caplog: Any) -> None:
+        # The V.6b es rerun passed with no way to tell whether the cap was why: the meta key is not
+        # persisted to translation.json. The log line is the run's evidence.
+        with caplog.at_level("INFO", logger="podcast_scraper.providers.vllm.translate_provider"):
+            self._call(self._Models(4096), "x" * 5906)
+        assert any("output budget capped 2953 -> 2920" in r.getMessage() for r in caplog.records)
+
     def test_an_unknown_context_budgets_as_before_and_is_asked_once(self) -> None:
         models = self._Models(None, raises=True)
         p = _provider(models=models)

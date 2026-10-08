@@ -59,6 +59,12 @@ def _f(value: Any) -> Optional[float]:
         return None
 
 
+def _starts_in(seg: Mapping[str, Any], lo: float, hi: float) -> bool:
+    """A segment with usable times that starts in ``[lo, hi)``; one without is left alone."""
+    start, end = _f(seg.get("start")), _f(seg.get("end"))
+    return start is not None and end is not None and lo <= start < hi
+
+
 def _shift(seg: Mapping[str, Any], offset: float) -> Dict[str, Any]:
     out = dict(seg)
     for key in ("start", "end"):
@@ -157,9 +163,12 @@ def repair_unpunctuated_windows(
     segments = [s for s in (result.get("segments") or []) if isinstance(s, Mapping)]
     report: List[Dict[str, Any]] = []
     work_dir = tempfile.mkdtemp(prefix="punct_repair_")
+    # As in gap recovery: after a failed CALL the endpoint is not answering, so the remaining
+    # windows are skipped rather than each waiting out a timeout under the DGX lock.
+    call_failed = False
     try:
         for i, (w_start, w_end) in enumerate(windows):
-            inside = [s for s in segments if w_start <= float(s["start"]) < w_end]
+            inside = [s for s in segments if _starts_in(s, w_start, w_end)]
             if not inside:
                 continue
             a, b = float(inside[0]["start"]), max(float(s["end"]) for s in inside)
@@ -172,13 +181,27 @@ def repair_unpunctuated_windows(
                 ),
                 "words_before": len(old_text.split()),
             }
+            if call_failed:
+                report.append({**entry, "status": "skipped", "reason": "earlier_call_failed"})
+                continue
+            clip = os.path.join(work_dir, f"window_{i:03d}.wav")
             try:
-                clip = os.path.join(work_dir, f"window_{i:03d}.wav")
                 cut_clip(audio_path, a, b, clip)
+            except Exception as exc:  # noqa: BLE001 - never lose the transcript to a repair call
+                logger.warning("punctuation repair: %.0f-%.0fs could not be cut: %s", a, b, exc)
+                report.append({**entry, "status": "failed", "error": type(exc).__name__})
+                continue
+            try:
                 new = transcribe_window(clip, prompt)
             except Exception as exc:  # noqa: BLE001 - never lose the transcript to a repair call
-                logger.warning("punctuation repair: %.0f-%.0fs failed: %s", a, b, exc)
+                logger.warning(
+                    "punctuation repair: %.0f-%.0fs failed (%s); skipping the remaining windows",
+                    a,
+                    b,
+                    exc,
+                )
                 report.append({**entry, "status": "failed", "error": type(exc).__name__})
+                call_failed = True
                 continue
             new_text = str(new.get("text") or "")
             entry["sentence_ends_per_1000_words_after"] = round(

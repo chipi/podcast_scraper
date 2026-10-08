@@ -344,6 +344,14 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
             room = served - prompt_tokens - CONTEXT_MARGIN_TOKENS
             if budget > room:
                 meta["max_tokens_capped_from"] = budget
+                logger.info(
+                    "translate: output budget capped %d -> %d to fit the served context "
+                    "(%d tokens, prompt %d)",
+                    budget,
+                    max(1, room),
+                    served,
+                    prompt_tokens,
+                )
                 budget = max(1, room)
 
         started = time.monotonic()

@@ -158,3 +158,55 @@ def test_the_input_is_not_mutated(no_ffmpeg: List[tuple]) -> None:
     R.repair_unpunctuated_windows(before, WINDOW, "a.mp3", lambda p, pr: _repair(), PROMPT)
     assert before["segments"] == snapshot
     assert "asr_punctuation_repair" not in before
+
+
+def test_after_a_failed_call_the_remaining_windows_are_skipped(no_ffmpeg: List[tuple]) -> None:
+    """A failed call means the endpoint is not answering; each further window would wait out its
+    own timeout under the DGX lock, so the rest are skipped and reported, not attempted."""
+    calls: List[str] = []
+
+    def boom(path: str, prompt: str) -> Dict[str, Any]:
+        calls.append(path)
+        raise TimeoutError("dgx wedged")
+
+    before = _result()
+    before["segments"] += [{"start": 1300.0 + i, "end": 1300.5 + i, "text": FLAT} for i in range(3)]
+    out = R.repair_unpunctuated_windows(
+        before, WINDOW + [[1300.0, 1400.0]], "a.mp3", boom, PROMPT
+    )
+    assert len(calls) == 1, "one failed call, then no more"
+    assert [e["status"] for e in out["asr_punctuation_repair"]] == ["failed", "skipped"]
+    assert out["asr_punctuation_repair"][1]["reason"] == "earlier_call_failed"
+    assert out["segments"] == before["segments"]
+
+
+def test_a_failed_cut_does_not_stop_the_other_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A cut failure is local to its clip — it says nothing about the endpoint."""
+    cuts: List[float] = []
+
+    def cut(audio: str, a: float, b: float, out: str) -> None:
+        cuts.append(a)
+        if len(cuts) == 1:
+            raise OSError("ffmpeg")
+
+    monkeypatch.setattr(R, "cut_clip", cut)
+    calls: List[str] = []
+
+    def ok(path: str, prompt: str) -> Dict[str, Any]:
+        calls.append(path)
+        return {"text": "", "segments": []}
+
+    before = _result()
+    before["segments"] += [{"start": 1300.0 + i, "end": 1300.5 + i, "text": FLAT} for i in range(3)]
+    out = R.repair_unpunctuated_windows(before, WINDOW + [[1300.0, 1400.0]], "a.mp3", ok, PROMPT)
+    assert [e["status"] for e in out["asr_punctuation_repair"]][0] == "failed"
+    assert len(calls) == 1, "the second window was still attempted"
+
+
+def test_a_segment_without_times_is_left_alone(no_ffmpeg: List[tuple]) -> None:
+    before = _result()
+    before["segments"].insert(1, {"text": "no times on this one"})
+    out = R.repair_unpunctuated_windows(
+        before, WINDOW, "a.mp3", lambda p, pr: _repair(), PROMPT
+    )
+    assert {"text": "no times on this one"} in out["segments"]

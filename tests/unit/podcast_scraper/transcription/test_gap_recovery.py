@@ -328,3 +328,52 @@ class TestThroughTheDiarizationPipeline:
         assert not any(s.get("recovered") for s in out["segments"])
         assert "asr_speech_recovery" not in out
         assert [(g["start"], g["end"]) for g in out["asr_untranscribed_speech"]] == [(30.0, 50.0)]
+
+
+class TestAFailedCallStopsTheRest:
+    RESULT = TestRecoverUntranscribedSpeech.RESULT
+    GAPS = [
+        {"start": 99.5, "end": 105.0, "duration_s": 5.5, "speaker": "SPEAKER_01"},
+        {"start": 200.0, "end": 206.0, "duration_s": 6.0, "speaker": "SPEAKER_01"},
+        {"start": 300.0, "end": 305.0, "duration_s": 5.0, "speaker": "SPEAKER_00"},
+    ]
+
+    def test_after_a_failed_call_the_remaining_gaps_are_skipped(
+        self, no_ffmpeg: List[tuple]
+    ) -> None:
+        """Each further clip would wait out its own timeout while holding the DGX lock."""
+        calls: List[str] = []
+
+        def boom(path: str) -> Dict[str, Any]:
+            calls.append(path)
+            raise TimeoutError("dgx wedged")
+
+        out = G.recover_untranscribed_speech(self.RESULT, self.GAPS, "a.mp3", boom)
+        assert len(calls) == 1
+        assert [e["status"] for e in out["asr_speech_recovery"]] == [
+            "failed",
+            "skipped",
+            "skipped",
+        ]
+        assert out["segments"] == self.RESULT["segments"]
+
+    def test_a_failed_cut_does_not_stop_the_other_gaps(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cuts: List[float] = []
+
+        def cut(audio: str, a: float, b: float, out: str) -> None:
+            cuts.append(a)
+            if len(cuts) == 1:
+                raise OSError("ffmpeg")
+
+        monkeypatch.setattr(G, "cut_clip", cut)
+        calls: List[str] = []
+
+        def empty(path: str) -> Dict[str, Any]:
+            calls.append(path)
+            return {"segments": []}
+
+        out = G.recover_untranscribed_speech(self.RESULT, self.GAPS, "a.mp3", empty)
+        assert [e["status"] for e in out["asr_speech_recovery"]] == ["failed", "empty", "empty"]
+        assert len(calls) == 2

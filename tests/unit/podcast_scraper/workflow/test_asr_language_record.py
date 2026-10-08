@@ -290,6 +290,20 @@ class TestSpeechRecoveryIsRecorded:
         cfg = Config(rss="https://example.com/f.xml")
         assert episode_processor._gap_clip_transcriber(cfg, _Provider()) is None
 
+    def test_a_provider_without_a_clip_call_is_said_once_per_feature(self, caplog) -> None:
+        # Review A3: the coverage-gate and failover wrappers do not forward transcribe_clip, so a
+        # profile change turned both features off with no trace.
+        class _Wrapped:
+            pass
+
+        episode_processor._CLIPLESS_PROVIDERS_REPORTED.discard(("_Wrapped", "gap recovery"))
+        cfg = Config(rss="https://example.com/f.xml")
+        with caplog.at_level("INFO", logger=episode_processor.logger.name):
+            for _ in range(3):
+                episode_processor._gap_clip_transcriber(cfg, _Wrapped())
+        said = [r for r in caplog.records if "gap recovery is off" in r.getMessage()]
+        assert len(said) == 1 and "_Wrapped has no transcribe_clip" in said[0].getMessage()
+
 
 class TestTheDgxClipCall:
     """The DGX provider's ``transcribe_clip`` makes one request and nothing else."""
@@ -340,6 +354,38 @@ class TestTheDgxClipCall:
         # 1 word for 5.5 s is under the episode floor (6): through the episode path this raised.
         assert [s["text"] for s in out["segments"]] == ["Merci."]
         assert len(sent) == 1 and sent[0]["language"] == "fr" and "prompt" not in sent[0]
+
+    def test_a_clip_does_not_overwrite_the_episodes_detected_language(self, tmp_path) -> None:
+        # `_last_detected_language` is read by the EPISODE call after it releases the lock; a clip
+        # (another episode's, at transcription_parallelism > 1) must not be able to stamp it.
+        clip = tmp_path / "gap.wav"
+        clip.write_bytes(b"\0" * 64)
+        provider = self._provider()
+        provider._last_detected_language = "es"
+
+        class _Resp:
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict:
+                return {"text": "Hello.", "segments": [], "language": "en"}
+
+        class _Client:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a) -> None:
+                return None
+
+            def post(self, url, data=None, files=None):
+                return _Resp()
+
+        with (
+            patch.object(wp, "hardened_http_client", lambda *a, **k: _Client()),
+            patch.object(wp.resilience, "probe_audio_duration_sec", lambda p: 2.0),
+        ):
+            provider.transcribe_clip(str(clip), language="es")
+        assert provider._last_detected_language == "es"
 
     def test_a_transport_error_propagates_once(self, tmp_path) -> None:
         clip = tmp_path / "gap.wav"
