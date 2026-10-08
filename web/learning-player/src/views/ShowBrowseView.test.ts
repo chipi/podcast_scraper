@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { podcastsViaGetPodcasts } from '../test/apiViaSpies'
 import en from '../i18n/locales/en.json'
 import type { Podcast } from '../services/types'
 const readCached = vi.fn(async (_k: string): Promise<unknown> => null)
@@ -53,6 +54,10 @@ async function mountView(props: Record<string, unknown> = {}) {
 
 afterEach(() => vi.restoreAllMocks())
 
+beforeEach(() => {
+  podcastsViaGetPodcasts()
+})
+
 describe('ShowBrowseView', () => {
   it('lists all shows alphabetically, each linking to its podcast page', async () => {
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([show('f-z', 'Zebra Cast'), show('f-a', 'Acme Show')])
@@ -73,9 +78,12 @@ describe('ShowBrowseView', () => {
     // Sort Z–A → Zebra leads Acme. Sort is a ToolbarMenu (Newest/Oldest/A–Z/Z–A): open, pick.
     await w.get('[data-testid="show-browse-sort"]').trigger('click')
     await w.get('[data-testid="show-browse-sort-opt-za"]').trigger('click')
+    await flushPromises() // the order is the server's now (a request per sort)
     expect(w.findAll('a[href^="/podcast/"]')[0].attributes('href')).toBe('/podcast/f-z')
-    // Filter narrows to matches only.
+    // Filter narrows to matches only — asked of the server once typing pauses (250 ms).
     await w.get('[data-testid="show-browse-search"]').setValue('acme')
+    await new Promise((r) => setTimeout(r, 300))
+    await flushPromises()
     const links = w.findAll('a[href^="/podcast/"]')
     expect(links.length).toBe(1)
     expect(links[0].attributes('href')).toBe('/podcast/f-a')
@@ -100,6 +108,7 @@ describe('ShowBrowseView', () => {
     // Distinct categories only (the null one is excluded), plus the "All" reset.
     expect(opts).toEqual(['All', 'Business', 'Technology'])
     await w.get('[data-testid="show-browse-category-opt-Business"]').trigger('click')
+    await flushPromises()
     expect(w.text()).toContain('Biz Cast')
     expect(w.text()).not.toContain('Tech Cast')
     expect(w.text()).not.toContain('No Cat')

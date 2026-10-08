@@ -70,3 +70,16 @@ export function collectionsViaGetCollection(): void {
     api.pageCollectionLocally(await api.getCollection(id), query),
   )
 }
+
+/**
+ * Answer the paged catalogue reads (`getPodcastsPage`, `getPodcastsByIds`) from the test's own
+ * `getPodcasts` spy, cut by `pagePodcastsLocally` — the older-server path.
+ */
+export function podcastsViaGetPodcasts(): void {
+  vi.spyOn(api, 'getPodcastsPage').mockImplementation(async (query) =>
+    api.pagePodcastsLocally(await api.getPodcasts(), query),
+  )
+  vi.spyOn(api, 'getPodcastsByIds').mockImplementation(async (ids) =>
+    api.pagePodcastsLocally(await api.getPodcasts(), { feedIds: ids, limit: ids.length || 1 }).items,
+  )
+}

@@ -22,8 +22,6 @@ import { useVisitedTabs } from '../composables/useVisitedTabs'
 import SearchSection from '../components/SearchSection.vue'
 import TrendsSection from '../components/TrendsSection.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
-import { getPodcasts } from '../services/api'
-import type { Podcast } from '../services/types'
 import { scrollBehavior } from '../utils/motion'
 
 const { t } = useI18n()
@@ -31,13 +29,9 @@ const route = useRoute()
 const router = useRouter()
 
 
-// Trending-shows area at the very top of Discover (operator 2026-09-14): the catalogue supplies the
-// cover art the rail joins by feed_id (same as Home). "See all →" drops into the Shows tab below,
-// where the trending sort + sparklines let you see how each is trending.
-const catalogue = ref<Podcast[]>([])
-void getPodcasts()
-  .then((rows) => (catalogue.value = rows))
-  .catch(() => (catalogue.value = []))
+// Trending-shows area at the very top of Discover (operator 2026-09-14): the rail looks up the
+// covers of the shows it shows. "See all →" drops into the Shows tab below, where the trending
+// sort + sparklines let you see how each is trending.
 
 // "See all →" on the trending-shows rail lands on the Shows tab pre-sorted by Trending, so the
 // destination matches the rail you came from (operator 2026-09-14).
@@ -144,7 +138,6 @@ watch(
          standard ShowTiles, top 5. Each links to its show; "See all →" opens the Shows tab below. -->
     <TrendingShowsRail
       :title="t('home.trendingShows')"
-      :podcasts="catalogue"
       :top="5"
       see-all
       @see-all="onShowsSeeAll"

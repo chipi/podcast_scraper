@@ -933,6 +933,87 @@ export function getPodcasts(): Promise<Podcast[]> {
   return promise
 }
 
+/** One page of the show catalogue (`GET /podcasts` with `limit`, 1.0.3). */
+export interface PodcastsPage {
+  items: Podcast[]
+  total: number
+  /** Every category in the catalogue (the filter's options). */
+  categories: string[]
+}
+
+export interface PodcastsQuery {
+  q?: string
+  category?: string
+  sort?: "newest" | "oldest" | "az" | "za" | "trending"
+  offset?: number
+  limit: number
+  /** Only these shows — a lookup by id. */
+  feedIds?: string[]
+  /** Leave out descriptions (a list of names). */
+  compact?: boolean
+}
+
+/**
+ * A page of the catalogue, filtered and sorted on the server. Against an older server (no `total`)
+ * the full list is cut here; "trending" then reads A-Z, as it does when no velocity is known.
+ */
+export async function getPodcastsPage(query: PodcastsQuery): Promise<PodcastsPage> {
+  const params = new URLSearchParams({ limit: String(query.limit), offset: String(query.offset ?? 0) })
+  if (query.q?.trim()) params.set("q", query.q.trim())
+  if (query.category) params.set("category", query.category)
+  if (query.sort) params.set("sort", query.sort)
+  if (query.compact) params.set("compact", "true")
+  for (const id of query.feedIds ?? []) params.append("feed_ids", id)
+  const resp = await getJSON<{ items: Podcast[]; total?: number; categories?: string[] }>(
+    `/podcasts?${params}`,
+  )
+  if (resp.total !== undefined) return resp as PodcastsPage
+  return pagePodcastsLocally(resp.items, query)
+}
+
+export function pagePodcastsLocally(all: Podcast[], query: PodcastsQuery): PodcastsPage {
+  const ids = new Set(query.feedIds ?? [])
+  const words = (query.q ?? "").toLowerCase().split(/\s+/).filter(Boolean)
+  const title = (p: Podcast) => (p.title ?? p.feed_id).toLowerCase()
+  const hay = (p: Podcast) => [title(p), ...(p.authors ?? [])].join(" ").toLowerCase()
+  let list = all.filter(
+    (p) =>
+      p.feed_id &&
+      (!ids.size || ids.has(p.feed_id)) &&
+      (!query.category || p.category === query.category) &&
+      words.every((w) => hay(p).includes(w)),
+  )
+  const byTitle = (a: Podcast, b: Podcast) => title(a).localeCompare(title(b))
+  if (query.sort === "za") list = [...list].sort((a, b) => byTitle(b, a))
+  else if (query.sort === "az" || query.sort === "trending") list = [...list].sort(byTitle)
+  else {
+    const dated = list.filter((p) => p.last_updated)
+    const undated = list.filter((p) => !p.last_updated).sort(byTitle)
+    dated.sort((a, b) => {
+      const c = (a.last_updated ?? "").localeCompare(b.last_updated ?? "") || byTitle(a, b)
+      return query.sort === "oldest" ? c : -c
+    })
+    list = [...dated, ...undated]
+  }
+  const start = query.offset ?? 0
+  return {
+    items: list.slice(start, start + query.limit),
+    total: list.length,
+    categories: [...new Set(all.map((p) => p.category).filter((c): c is string => !!c))].sort(),
+  }
+}
+
+/** These shows, by id — what a board, a show page or a followed list needs, not the catalogue. */
+export async function getPodcastsByIds(ids: string[]): Promise<Podcast[]> {
+  const unique = [...new Set(ids.filter(Boolean))]
+  const out: Podcast[] = []
+  for (let i = 0; i < unique.length; i += 200) {
+    const chunk = unique.slice(i, i + 200)
+    out.push(...(await getPodcastsPage({ feedIds: chunk, limit: chunk.length, sort: "az" })).items)
+  }
+  return out
+}
+
 /** Test seam: forget the shared show catalogue. */
 export function __resetPodcastsCache(): void {
   podcastsCache = null

@@ -10,6 +10,8 @@ import {
   getCollectionPage,
   getFavoriteRefs,
   getPlaybackList,
+  getPodcastsByIds,
+  getPodcastsPage,
   getHighlightsPage,
   getNotesPage,
   getFavoritesPage,
@@ -249,6 +251,34 @@ describe('getPlaybackList / getCollectionPage (1.0.3 paging)', () => {
     const page = await getCollectionPage('c', { limit: 10, offset: 10, kind: 'episode' })
     expect(page.total).toBe(12)
     for (const part of ['limit=10', 'offset=10', 'kind=episode']) expect(lastUrl()).toContain(part)
+  })
+})
+
+describe('getPodcastsPage / getPodcastsByIds (1.0.3 paging)', () => {
+  const urls = (): string[] =>
+    (globalThis.fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map((c) => String(c[0]))
+  const pod = (feed_id: string, title: string, extra: Record<string, unknown> = {}) => ({
+    feed_id, title, artwork_url: null, image_url: null, description: 'd', episode_count: 1, ...extra,
+  })
+
+  it('sends the query, and pages an older server\'s full catalogue here', async () => {
+    mockFetch(200, {
+      items: [pod('z', 'Zeta Talks', { authors: ['Ann'] }), pod('a', 'Alpha Hour'), pod('m', 'Middle')],
+    })
+    const page = await getPodcastsPage({ q: 'ann', sort: 'az', limit: 5, category: 'Sci', compact: true })
+    for (const part of ['q=ann', 'sort=az', 'limit=5', 'category=Sci', 'compact=true'])
+      expect(urls()[0]).toContain(part)
+    // The category filter left nothing; without it, "ann" matches the host of Zeta Talks.
+    expect(page.items).toEqual([])
+    const byHost = await getPodcastsPage({ q: 'ann', limit: 5 })
+    expect(byHost.items.map((p) => p.feed_id)).toEqual(['z'])
+  })
+
+  it('looks shows up by id, a request per 200', async () => {
+    mockFetch(200, { items: [], total: 0, categories: [] })
+    await getPodcastsByIds(Array.from({ length: 250 }, (_, i) => `f${i}`))
+    expect(urls()).toHaveLength(2)
+    expect(urls()[0]!.match(/feed_ids=/g)).toHaveLength(200)
   })
 })
 

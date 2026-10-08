@@ -6,13 +6,13 @@
  * labelled by kind (Insight / Transcript / Topic). A "Play from …" jump appears only when the
  * passage carries a real timestamp — otherwise we open the episode rather than fake a 0:00.
  */
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 import { toCountBucket, toRankBucket, track } from "../services/analytics"
 import { useI18n } from "vue-i18n"
 import { noteRoute as resolveNoteRoute, noteTargetLabel } from "../composables/noteTarget"
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
-import { getPodcasts, resolveEntity, searchCorpus } from "../services/api"
+import { getPodcastsPage, resolveEntity, searchCorpus } from "../services/api"
 import { resolveMediaUrl } from "../services/tier"
 import type { EntityRef, EpisodeSummary, Note, Podcast, SearchHit } from "../services/types"
 import { hitStartSeconds } from "../player/insights"
@@ -40,7 +40,6 @@ import SectionStatus from "../components/SectionStatus.vue"
 import TypeFilterBar from "../components/TypeFilterBar.vue"
 import ShowRow from "../components/ShowRow.vue"
 import ShowMenu from "../components/ShowMenu.vue"
-import { matchesAllWords } from "../utils/textMatch"
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -88,17 +87,8 @@ const ranTerm = ref("")
  * description: a word like "engineer" is in many shows' blurbs, and that would bury the one show
  * the listener named.
  */
-const catalogue = ref<Podcast[]>([])
-onMounted(() => {
-  void getPodcasts()
-    .then((rows) => (catalogue.value = rows))
-    .catch(() => (catalogue.value = []))
-})
-const showMatches = computed<Podcast[]>(() => {
-  const q = ranTerm.value
-  if (!ran.value || !q) return []
-  return catalogue.value.filter((p) => matchesAllWords([p.title ?? "", ...(p.authors ?? [])].join(" "), q))
-})
+/** The matching shows — asked of the server per search since 2026-10-08 (same every-word rule). */
+const showMatches = ref<Podcast[]>([])
 
 // USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
 // watch reacts when the payload arrives so the Save button flips to
@@ -143,6 +133,21 @@ const cardTarget = ref<{ kind: "person" | "topic" | "organization"; id: string }
 const searching = ref(false)
 const error = ref(false)
 const ran = ref(false)
+// Shows for the term that RAN, from the server (`q`: every word over title and hosts).
+let showSeq = 0
+watch(
+  () => (ran.value ? ranTerm.value.trim() : ""),
+  async (term) => {
+    const mine = ++showSeq
+    if (!term) {
+      showMatches.value = []
+      return
+    }
+    const page = await getPodcastsPage({ q: term, limit: 50, sort: "az" }).catch(() => null)
+    if (mine === showSeq) showMatches.value = page?.items ?? []
+  },
+  { immediate: true },
+)
 // Matched on the SERVER since 2026-10-08 (every word, any order — the same rule as before), five
 // at a time, newest first: the store no longer holds every note to search through.
 const notesTerm = computed(() => (ran.value ? ranTerm.value.trim() : ""))

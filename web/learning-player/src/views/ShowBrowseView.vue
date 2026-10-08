@@ -17,7 +17,7 @@ import FollowButton from "../components/FollowButton.vue"
 import FavoriteButton from "../components/FavoriteButton.vue"
 import { trendColor } from "../components/trending"
 import { listSortOptions, type ListSortValue } from "../utils/listSort"
-import { getPodcasts, getTrending } from "../services/api"
+import { getPodcastsPage, getTrending } from "../services/api"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import { useLibraryStore } from "../stores/library"
 import { useSignInGate } from "../composables/useSignInGate"
@@ -37,12 +37,22 @@ const props = withDefaults(
 )
 
 // Embedded in the Discover band, the grid is a dispatch surface, not the full index: reveal in
-// chunks of 10 with a "Show more" (operator 2026-09-14). The standalone page shows everything.
+// chunks of 10 with a "Show more" (operator 2026-09-14). The standalone page shows everything (a
+// page of 200, the server's cap). Since 2026-10-08 each chunk is a SERVER page under the bar's
+// search, sort and category, instead of the whole catalogue filtered here.
 const CHUNK = 10
+const PAGE = computed(() => (props.embedded ? CHUNK : 200))
 
 const { t } = useI18n()
 
+/** The shows loaded so far under the current search / sort / category. */
 const shows = ref<Podcast[]>([])
+/** How many match, across all pages (the server's count). */
+const total = ref(0)
+/** Whether the catalogue has any show at all — the bar stays even when a search matches nothing. */
+const catalogueSize = ref(0)
+/** Every category in the catalogue (the filter's options). */
+const allCategories = ref<string[]>([])
 const trendById = ref<Map<string, TrendingEntity>>(new Map())
 const loading = ref(true)
 const error = ref(false)
@@ -88,11 +98,7 @@ const titleOf = (s: Podcast) => s.title ?? s.feed_id
 // Category facet (BS.1) — the distinct categories present in the catalogue, alphabetized. The
 // picker only renders when at least one show carries a category, so a corpus without any is unchanged.
 const categoryFilter = ref<string>("")
-const categories = computed(() =>
-  [...new Set(shows.value.map((s) => s.category).filter((c): c is string => !!c))].sort((a, b) =>
-    a.localeCompare(b)
-  )
-)
+const categories = computed(() => allCategories.value)
 // The shared four-way sort (Newest / Oldest / A–Z / Z–A) plus a Shows-only "Trending" (velocity).
 const sortOptions = computed(() => [
   ...listSortOptions(t),
@@ -103,65 +109,79 @@ const categoryOptions = computed(() => [
   ...categories.value.map((c) => ({ value: c, label: c })),
 ])
 
-const visible = computed(() => {
-  let list = shows.value.filter((s) => s.feed_id)
-  const q = search.value.trim().toLowerCase()
-  if (q) list = list.filter((s) => titleOf(s).toLowerCase().includes(q))
-  if (categoryFilter.value) list = list.filter((s) => s.category === categoryFilter.value)
-  const byTitle = (a: Podcast, b: Podcast) => titleOf(a).localeCompare(titleOf(b))
-  // Newest/oldest sort by the feed's last_updated; a feed with none sorts last, then by title so
-  // the order is stable (a corpus with no dates reads alphabetically rather than at random).
-  const byDate = (s: Podcast) => s.last_updated ?? ""
-  const velocityOf = (s: Podcast) => trendById.value.get(s.feed_id)?.velocity ?? -Infinity
-  return [...list].sort((a, b) => {
-    // Trending: highest momentum velocity first; shows with no trend series fall to the end by title.
-    if (sort.value === "trending") return velocityOf(b) - velocityOf(a) || byTitle(a, b)
-    if (sort.value === "az") return byTitle(a, b)
-    if (sort.value === "za") return byTitle(b, a)
-    const cmp =
-      sort.value === "newest"
-        ? byDate(b).localeCompare(byDate(a))
-        : byDate(a).localeCompare(byDate(b))
-    return cmp || byTitle(a, b)
-  })
-})
+/** The rows on screen — exactly what the server returned, in its order. */
+const visible = computed(() => shows.value)
+const capped = visible
+const hasMore = computed(() => shows.value.length < total.value)
 
-// Reveal `visible` in chunks when embedded; standalone shows all. Reset to one chunk whenever the
-// filtered set changes so a narrowed search never hides behind a "Show more" from a prior query.
-const shownCount = ref(CHUNK)
-const capped = computed(() =>
-  props.embedded ? visible.value.slice(0, shownCount.value) : visible.value
-)
-const hasMore = computed(() => capped.value.length < visible.value.length)
-watch([search, sort, categoryFilter], () => {
-  shownCount.value = CHUNK
-})
+function pageQuery(offset: number, limit: number) {
+  return {
+    q: search.value,
+    category: categoryFilter.value || undefined,
+    sort: sort.value,
+    offset,
+    limit,
+  }
+}
 
+/** The next chunk from the server. */
+async function showMore(): Promise<void> {
+  if (moreLoading.value) return
+  moreLoading.value = true
+  try {
+    const page = await getPodcastsPage(pageQuery(shows.value.length, PAGE.value))
+    shows.value = [...shows.value, ...page.items]
+    total.value = page.total
+  } finally {
+    moreLoading.value = false
+  }
+}
+const moreLoading = ref(false)
+
+let debounce: ReturnType<typeof setTimeout> | null = null
+watch(search, () => {
+  if (debounce) clearTimeout(debounce)
+  debounce = setTimeout(() => void load(), 250)
+})
+watch([sort, categoryFilter], () => void load())
+
+let seq = 0
 async function load(): Promise<void> {
-  loading.value = true
+  const mine = ++seq
+  // A re-query keeps the rows on screen until the answer lands (no skeleton flash per keystroke).
+  if (!shows.value.length) loading.value = true
   error.value = false
   try {
-    const [rows, trend] = await Promise.all([
-      getPodcasts(),
+    const [page, trend] = await Promise.all([
+      getPodcastsPage(pageQuery(0, PAGE.value)),
       // Best-effort: the committed corpus ships no velocity, so this is often empty — the Trending
       // sort then just reads alphabetically and no sparklines render, which is honest.
       getTrending("show", "corpus", 50).catch(() => [] as TrendingEntity[]),
     ])
-    shows.value = rows
+    if (mine !== seq) return
+    shows.value = page.items
+    total.value = page.total
+    allCategories.value = page.categories
+    if (!search.value.trim() && !categoryFilter.value) catalogueSize.value = page.total
+    else catalogueSize.value = Math.max(catalogueSize.value, page.total)
+    stale.value = false
     trendById.value = new Map(trend.map((e) => [e.entity_id, e]))
-    void writeCached("browse.shows", rows)
+    void writeCached("browse.shows", page.items)
   } catch {
     // The show list we last saw beats "couldn't load" — this one at least reported the failure
     // rather than pretending the corpus was empty, but it still had nothing to show (#1909).
     const cached = await readCached<typeof shows.value>("browse.shows", isArrayCache)
+    if (mine !== seq) return
     if (cached?.length) {
       shows.value = cached
+      total.value = cached.length
+      catalogueSize.value = Math.max(catalogueSize.value, cached.length)
       stale.value = true
     } else {
       error.value = true
     }
   } finally {
-    loading.value = false
+    if (mine === seq) loading.value = false
   }
 }
 onMounted(load)
@@ -196,7 +216,7 @@ onMounted(load)
       :rows="6"
       @retry="load"
     />
-    <template v-else-if="shows.length">
+    <template v-else-if="catalogueSize">
       <!-- The SAME shared bar as Browse › Episodes (operator 2026-09-14): search + sort + category
            facet + view toggle, one compact row. The category facet (BS.1) is passed as the optional
            filter only when the catalogue carries categories. -->
@@ -262,7 +282,7 @@ onMounted(load)
           type="button"
           class="mt-4 w-full rounded-xl border border-border py-2.5 text-sm font-bold text-accent transition hover:bg-overlay"
           data-testid="show-browse-more"
-          @click="shownCount += CHUNK"
+          @click="showMore"
         >
           {{ t("catalog.loadMore") }}
         </button>

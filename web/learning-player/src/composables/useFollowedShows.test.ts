@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../services/api'
+import { podcastsViaGetPodcasts } from '../test/apiViaSpies'
 import { useFollowedShows } from './useFollowedShows'
 import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
@@ -56,6 +57,7 @@ function signIn(): void {
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.restoreAllMocks()
+  podcastsViaGetPodcasts()
 })
 
 describe('useFollowedShows', () => {
@@ -87,6 +89,8 @@ describe('useFollowedShows', () => {
     signIn()
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([podcast('f1')])
     vi.spyOn(api, 'getLibrary').mockResolvedValue([])
+    // Suggestions are the server's (`/podcasts/suggested`) since 2026-10-08, not catalogue[0..6].
+    vi.spyOn(api, 'getSuggestedShows').mockResolvedValue([podcast('f1')])
     const { load, shows, suggested } = useFollowedShows()
     await expect(load()).resolves.toBeUndefined()
     expect(shows.value).toEqual([])
@@ -99,9 +103,22 @@ describe('useFollowedShows', () => {
     signIn()
     vi.spyOn(api, 'getPodcasts').mockResolvedValue([podcast('f1'), podcast('f2')])
     vi.spyOn(api, 'getLibrary').mockResolvedValue([follow('f1')])
+    // Even if the server's answer still carried a followed show, it is not offered.
+    vi.spyOn(api, 'getSuggestedShows').mockResolvedValue([podcast('f1'), podcast('f2')])
     const { load, suggested } = useFollowedShows()
     await load()
     expect(suggested.value.map((p) => p.feed_id)).toEqual(['f2'])
+  })
+
+  it('looks up only the FOLLOWED shows, by id — not the catalogue (2026-10-08)', async () => {
+    signIn()
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([podcast('f1'), podcast('f2')])
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([follow('f2')])
+    vi.spyOn(api, 'getSuggestedShows').mockResolvedValue([])
+    const { load, shows } = useFollowedShows()
+    await load()
+    expect(api.getPodcastsByIds).toHaveBeenCalledWith(['f2'])
+    expect(shows.value.map((p) => p.feed_id)).toEqual(['f2'])
   })
 
   it('signed out, there is nothing to show and nothing to fail', async () => {

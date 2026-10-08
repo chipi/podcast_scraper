@@ -18,7 +18,8 @@ import StaleNotice from '../components/StaleNotice.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import { useFavoritesStore } from '../stores/favorites'
 import FavoriteButton from '../components/FavoriteButton.vue'
-import type { FavoriteEntity } from '../services/types'
+import type { FavoriteEntity, Podcast } from '../services/types'
+import { getPodcastsByIds } from '../services/api'
 import { useSavedQueriesStore } from '../stores/savedQueries'
 import { useUserPreferencesStore } from '../stores/userPreferences'
 import { useFollowedShows } from '../composables/useFollowedShows'
@@ -236,8 +237,20 @@ const savedEntityGroups = [
 ] as const
 const entityTypeVisible = (kind: string) => typeVisible(ENTITY_TYPE_KEY[kind] ?? 'entities')
 
+/** Catalogue records for the saved shows on screen, looked up by id (2026-10-08). */
+const savedShowRecords = ref<Podcast[]>([])
+watch(
+  () => savedEntityPages.show.entities.map((e) => e.ref),
+  async (ids) => {
+    const have = new Set(savedShowRecords.value.map((p) => p.feed_id))
+    const missing = ids.filter((id) => !have.has(id))
+    if (!missing.length) return
+    const got = await getPodcastsByIds(missing).catch(() => [] as Podcast[])
+    savedShowRecords.value = [...savedShowRecords.value, ...got]
+  },
+)
 const savedShowPodcasts = computed(() => {
-  const byId = new Map(catalogue.value.map((p) => [p.feed_id, p]))
+  const byId = new Map(savedShowRecords.value.map((p) => [p.feed_id, p]))
   return savedEntityPages.show.entities.map((e) => ({
     entity: e,
     show: byId.get(e.ref) ?? {
@@ -324,7 +337,6 @@ const {
   shows: followedShows,
   suggested: suggestedShows,
   load: loadFollows,
-  catalogue,
 } = useFollowedShows()
 
 // Unfollowing from the Following list. `ShowTile` owned this internally; `ShowRow` takes its

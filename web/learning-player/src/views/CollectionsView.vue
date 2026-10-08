@@ -25,7 +25,7 @@ import {
   deleteCollection,
   getCollectionPage,
   getEpisodesBatch,
-  getPodcasts,
+  getPodcastsByIds,
   removeFromCollection,
 } from "../services/api"
 import type { Collection, CollectionDetail, CollectionItem, EpisodeDetail } from "../services/types"
@@ -318,8 +318,9 @@ async function hydrate(detail: CollectionDetail): Promise<void> {
   if (!items.length) return
   items.forEach((i) => requestedItems.add(itemKey(i)))
 
-  const wantShows = items.some((i) => i.kind === "show")
-  const podcasts = wantShows ? await getPodcasts().catch(() => []) : []
+  // The board's shows on screen, by id — not the whole catalogue (2026-10-08).
+  const showIds = items.filter((i) => i.kind === "show").map((i) => i.ref)
+  const podcasts = showIds.length ? await getPodcastsByIds(showIds).catch(() => []) : []
   const byFeed = new Map(podcasts.map((p) => [p.feed_id, p]))
   // Every episode row on screen in ONE request (`/episodes/batch`), not one each.
   const episodeRefs = items.filter((i) => i.kind !== "show").map((i) => i.ref)

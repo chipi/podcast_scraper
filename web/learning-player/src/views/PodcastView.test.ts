@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { podcastsViaGetPodcasts } from '../test/apiViaSpies'
 import en from '../i18n/locales/en.json'
 import { useAuthStore } from '../stores/auth'
 import type { EpisodeSummary, LibraryItem, Podcast } from '../services/types'
@@ -53,6 +54,7 @@ function libItem(feedId = FEED): LibraryItem {
 }
 
 beforeEach(() => {
+  podcastsViaGetPodcasts()
   setActivePinia(createPinia())
   vi.spyOn(api, 'getPodcasts').mockResolvedValue([show()])
   vi.spyOn(api, 'listPodcastEpisodes').mockResolvedValue({
