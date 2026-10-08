@@ -77,7 +77,7 @@ Player.
   comms consent (`app_comms_store`), released-app version (`app_release_store`), audit, operator
   guard, account deletion, user seed and CLI, the `OAuthProvider` protocol, the provider registry
   and `MockOAuthProvider`. `GoogleProvider` and `AppleProvider` move to Common.
-- **Read-models:** `app_kg_view`, `app_gi_view`, `app_relational_view`, `app_momentum`,
+- **Read-models:** `app_kg_view`, `app_gi_view`, `app_relational_view`,
   `app_catalog_cache`, `app_corpus_access`, `app_content_source`, `app_slugs`, `app_artwork`,
   `app_kg_index`. They leave the `app_` namespace (rename only); the private helpers
   `feed_signals.py` imports (`_role_of`, `_aggregate_role`, `_ROLE_RANK`) become public names.
@@ -109,7 +109,7 @@ The probe's seams, and what each becomes (file:line in the plan note):
 | `routes/corpus_enrichments.py` imports `filtered_entity_signals` from a player route | the function moves into the platform |
 | `app_account_deletion.py` deletes player state and MCP tokens and grants | account-deleted hook, one per package |
 | `routes/app_auth.py` writes `account_created` into player state on sign-up | account-created hook |
-| `app_momentum.py` (public read-model) reads the player's engagement series | engagement is a registered data source; absent, momentum uses content signals only |
+| `app_momentum.py` reads the player's engagement series | engagement is a registered data source, because momentum now lives in Common and Common must not import Player; absent, momentum uses content signals only |
 | `cli.py` imports the MCP CLI handlers | registered CLI subcommands |
 | `enrichers/__init__.py` and `query_enrichers/__init__.py` import every enricher | registry fed by entry points |
 | `ml_wiring.py`, `web_wiring.py`, `routes/enrichment_config.py`, `enrichment/eval/admission.py` name enricher classes | wiring looks enrichers up by id |
@@ -149,10 +149,25 @@ So outputs are tiered by who consumes them, and the consumer moves with the prod
   ids appear in 46 public `src/` files (search operators, storylines, topic clusters,
   `routes/corpus_storylines.py`, `routes/search.py`, `og/build.py`, schemas, enrichment wiring)
   and 25 operator-viewer files (graph lenses, the search operator bar, dashboard trending, the
-  theme legend, enrichment panels). Which of those move and which only stop reading the output is
-  the next manifest step. **The public viewer loses these features; Studio keeps them** (operator
-  decision 2026-10-07): the viewer is copied whole into Studio, and the tier-A panels are then
-  removed from the public copy only.
+  theme legend, enrichment panels). **The public viewer loses these features; Studio keeps them**
+  (operator decision 2026-10-07): the viewer is copied whole into Studio, and the tier-A panels
+  are then removed from the public copy only.
+
+  Each consumer was read and classified (plan note, "Tier-A consumers"). Operator decisions
+  2026-10-08:
+  - **Semantic topic clusters move too**, although `search/topic_clusters.json` is built from
+    search embeddings, not from a tier-A output: the themes product is IP.
+  - **Momentum moves** (`app_momentum`, `/api/corpus/trending`). It was listed as a public
+    read-model, but all its content signal is `temporal_velocity`.
+  - **OG cards stay public; only their tier-A parts move**: the trend stat and the `storyline`
+    card kind come from Common when installed. Episode, show, person, org and highlight cards
+    read nothing private.
+
+  Moving to Common `intelligence`: `search/storylines`, `search/operators` (consensus and cluster),
+  `search/topic_clusters`, `server/app_momentum`, the routes `corpus_storylines`,
+  `corpus_trending`, `corpus_topic_clusters`, `enrichment/scorers/consensus`, the
+  `provider_types/consensus` package and `enrichment/ml_wiring`. Plain search keeps working but
+  needs hooks: the indexer and `corpus_search` join storyline and topic-cluster rows today.
 - **Tier B, outputs only private code consumes:** `person_web`, `org_web`. Their schemas
   (`AppPersonWeb`, `AppOrgWeb`), fixtures and the two image-path helpers move to Common.
 - **Tier C, pipeline IP:** prompts, GI and KG extraction. Untouched by this split; it is the later

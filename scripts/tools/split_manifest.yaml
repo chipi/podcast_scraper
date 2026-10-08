@@ -4,7 +4,7 @@
 # verbatim. Everything not listed stays public.
 #
 # Kept public on purpose (do not add here): the corpus read-models
-# (app_kg_view, app_gi_view, app_relational_view, app_momentum, app_catalog_cache,
+# (app_kg_view, app_gi_view, app_relational_view, app_catalog_cache,
 # app_corpus_access, app_content_source, app_slugs, app_artwork, app_kg_index), the
 # kernel (sessions, users, roles, csrf, access, magic link, outbox, push, audit,
 # operator guard, account deletion, user seed and CLI, oauth protocol + mock, comms
@@ -153,6 +153,22 @@ common:
           - query_topic_relatedness
         podcast_scraper.enrichment.eval.scorers:
           - topic_similarity
+        podcast_scraper.enrichment.scorers:
+          - consensus
+        podcast_scraper.enrichment:
+          - ml_wiring
+        # Tier-A features (ADR-158 decision 5, operator decisions 2026-10-08): storylines,
+        # consensus and cluster search operators, semantic topic clusters, momentum/trending.
+        podcast_scraper.search:
+          - storylines
+          - operators
+          - topic_clusters
+        podcast_scraper.server:
+          - app_momentum
+        podcast_scraper.server.routes:
+          - corpus_storylines
+          - corpus_trending
+          - corpus_topic_clusters
         # ADR-158 decision 3: the observability data layer (config, result, _http,
         # sources, aggregate) stays public for the operator Ops view; the MCP server,
         # its CLI and its auth move.
@@ -163,6 +179,7 @@ common:
           - __main__
       packages:
         podcast_scraper.mcp: mcp
+        podcast_scraper.enrichment.provider_types.consensus: provider_types.consensus
   files:
     - docs/prd/PRD-034-generic-mcp-server.md
     - docs/rfc/RFC-093-litm-context-packs.md
