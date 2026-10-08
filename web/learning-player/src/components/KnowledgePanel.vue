@@ -43,7 +43,6 @@ import { personName } from "../utils/personName"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import StorylineCard from "./StorylineCard.vue"
 import ThemeCard from "./ThemeCard.vue"
-import EpisodeDensity from "./EpisodeDensity.vue"
 import ExportViewer from "./ExportViewer.vue"
 import { exportFilename } from "../utils/exportFilename"
 
@@ -969,8 +968,8 @@ watch(() => auth.isAuthenticated, loadCaptures)
           section-key="insights"
           data-testid="kp-insights"
         >
-          <!-- Where the substance sits (early/mid/late), tap to jump. Hides if absent. -->
-          <EpisodeDensity :slug="slug" @seek="emit('seek', $event)" />
+          <!-- No early/mid/late density box here any more (operator 2026-10-08): it took a screen
+               before the first insight. The player's own density band still shows where they sit. -->
           <!-- Per-type filter (IN.3) — only shown when the episode has more than one insight type. -->
           <!-- ONE row that scrolls, not a wrapping block (operator 2026-09-19). The per-type counts
                widened every chip, so a fourth type pushed "Claim 9" alone onto a second line and

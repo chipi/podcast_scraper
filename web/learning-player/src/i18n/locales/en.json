@@ -504,12 +504,6 @@
     "openEntity": "Open {term}",
     "close": "Close panel",
     "empty": "Insights appear once this episode is processed.",
-    "density": "Insight density",
-    "density_early": "Early",
-    "density_mid": "Mid",
-    "density_late": "Late",
-    "densityPeak": "Most insight-dense: {third}",
-    "densitySeek": "Jump to {third} — {count} insights",
     "insightType": {
       "claim": "Claim — something the speaker asserts as true",
       "observation": "Observation — something noticed or described, not argued",

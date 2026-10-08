@@ -85,6 +85,39 @@ describe("PersonView (#1261-6)", () => {
     expect(roleBadge.text().toLowerCase()).toContain("host")
   })
 
+  it("related pills: five at most — a storyline, a theme, then topics — and \"+N more\" for the rest (operator 2026-10-08)", async () => {
+    const topics = Array.from({ length: 8 }, (_, i) => ({
+      id: `topic:t${i}`,
+      label: `T${i}`,
+      cluster_id: i < 3 ? `tc:c${i}` : null,
+      cluster_label: i < 3 ? `C${i}` : null,
+      cluster_size: 2,
+      storyline_id: i === 0 ? "thc:s0" : null,
+      storyline_label: i === 0 ? "S0" : null,
+    }))
+    vi.spyOn(api, "getPersonCard").mockResolvedValue({
+      id: "person:jane-doe",
+      label: "Jane Doe",
+      role: "host",
+      episode_count: 5,
+      episodes: [],
+      related_people: [],
+      related_topics: topics,
+    } as never)
+    const { w } = await mountPerson()
+    const count = (id: string) => w.findAll(`[data-testid="${id}"]`).length
+    expect(count("ec-person-related-storyline")).toBe(1)
+    expect(count("ec-person-related-theme")).toBe(1)
+    expect(count("ec-person-related-topic")).toBe(3)
+    // 1 storyline + 3 themes + 8 topics = 12, five shown.
+    const more = w.get('[data-testid="ec-person-related-more"]')
+    expect(more.text()).toContain("7")
+    await more.trigger("click")
+    expect(count("ec-person-related-theme")).toBe(3)
+    expect(count("ec-person-related-topic")).toBe(8)
+    expect(w.find('[data-testid="ec-person-related-more"]').exists()).toBe(false)
+  })
+
   it("renders related-topic chips linking (via internal open() stack push) to a topic card", async () => {
     vi.spyOn(api, "getTopicCard").mockResolvedValue({
       id: "topic:ai",

@@ -271,12 +271,12 @@ the data question in #2202, not a UI one.
 Episodes over time on a show page. It answers "is this alive?" — a question a listener asks before
 following, and one an episode list buried in dates answers badly.
 
-### `EpisodeDensity` / player insight band
+### Player insight band
 
-Where the insights sit inside an episode, as `early` / `mid` / `late` segments with ticks. It gives
-a listener a reason to scrub somewhere specific rather than sampling blindly. `density-peak` is a
-caption element, **not** a fourth segment — a distinction worth stating because it has been read as
-one.
+Where the insights sit inside an episode, as ticks on the player's band. It gives a listener a reason
+to scrub somewhere specific rather than sampling blindly. The episode notes' own `EpisodeDensity`
+box (early / mid / late) was removed on 2026-10-08 (operator): it took a screen before the first
+insight and repeated what the band already shows.
 
 ## Decisions (operator, 2026-06-25)
 

@@ -458,13 +458,13 @@ Storylines surface in `DiscoveryList` when `kind="storyline"` — each row is `d
 | Sheet: load failed | `interests-load-failed` — Save disabled |
 | Sheet modal | `role="dialog"` `aria-modal="true"`; backdrop click / **Esc** / **✕** dismiss (focus trap) |
 
-### Player ([PlayerView](../src/views/PlayerView.vue) + [EpisodeDensity](../src/components/EpisodeDensity.vue))
+### Player ([PlayerView](../src/views/PlayerView.vue))
 
 | Element | Hook |
 | ------- | ---- |
 | Transcript toggle (mobile) | `data-testid="transcript-toggle"` (in the controls panel; `aria-expanded`). Transcript is **opt-in on mobile** — closed by default, this opens/closes it. Hidden on desktop (transcript is the always-visible side column). |
 | Transcript language (S3.1) | `data-testid="transcript-language-control"` wraps `transcript-lang-en` and `transcript-lang-source`, each carrying `aria-pressed`. **Renders only for a TRANSLATED episode** — the API has to report a `source_language` other than `en`, so an English-native episode has no control at all and a spec must not wait for one there. English is pressed by default (D-38); the source button is labelled with the tag itself (`ES`, `DE`, …). `aria-pressed` tracks the language ACTUALLY SERVED, not the one requested, so "asked for English, none exists" shows the source as pressed. |
-| Insight density | `data-testid="episode-density"` / `player-insight-density`; bands `player-density-band`, ticks `player-density-tick`, segments `density-{early,mid,late,peak}` |
+| Insight density | `player-insight-density`; bands `player-density-band`, ticks `player-density-tick`. The episode notes' own early/mid/late box (`episode-density`, `EpisodeDensity`) was removed 2026-10-08 (operator); `consolidation.spec.ts` asserts it is gone |
 | Capture | `aria-label` `capture.markMoment` → `capture.marked` |
 | Sync controls | **Hidden** (`SHOW_SYNC_CONTROL=false`) pending a better sync fix — the `player.syncEarlier`/`syncLater`/`syncReset` UI is off; the offset machinery still applies any stored value. |
 | Episode notes entry | `data-testid="player-open-insights"` — a LABELLED control ("✦ Episode notes"), not the old `💡 N` chip (#1595); specs open the panel by this testid, not by label |

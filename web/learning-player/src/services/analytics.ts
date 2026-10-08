@@ -287,7 +287,7 @@ export type EventProps = {
    * `density_tick` removed (2026-10-03): there is no such opener.
    *
    * The spec offers `button | density_tick`, but the panel has exactly one opener — the pill in
-   * PlayerView — and `EpisodeDensity` emits `seek`, not a panel open. An enum value that can never
+   * PlayerView. An enum value that can never
    * be emitted is the same failure as a diagnostic that looks like it is recording something: it
    * makes a dashboard look like it is answering "how do people get in" when only one answer was
    * ever possible. Add it back together with the affordance, if one is built.
