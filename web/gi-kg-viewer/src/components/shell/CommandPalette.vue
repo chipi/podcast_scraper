@@ -159,7 +159,6 @@ function runResetFilters(): void {
   search.filters.topic = ''
   search.filters.minConfidence = ''
   search.filters.episodeId = ''
-  search.filters.enrichResults = null
 }
 
 const paletteCommands = computed<PaletteCommand[]>(() =>

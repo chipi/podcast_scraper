@@ -12,7 +12,6 @@ import {
 import { useGraphNavigationStore } from './graphNavigation'
 import { useActiveSearchContextStore } from './activeSearchContext'
 import { useSavedQueriesStore } from './savedQueries'
-import { useShellStore } from './shell'
 import { normalizeFeedIdForViewer } from '../utils/feedId'
 import { StaleGeneration } from '../utils/staleGeneration'
 
@@ -39,8 +38,6 @@ export const useSearchStore = defineStore('search', () => {
   const liftStats = ref<CorpusSearchLiftStats | null>(null)
   /** Detected query intent for the last run (PRD-033 FR1.4); null until a run. */
   const queryType = ref<string | null>(null)
-  /** UXS-008: last search reported enrichment failure (server `enrichment_error`). */
-  const enrichmentCallFailed = ref(false)
 
   /**
    * Search v3 §S4a/S8 — which operator panel is currently open on
@@ -133,20 +130,6 @@ export const useSearchStore = defineStore('search', () => {
      * not client-side (drops non-matching hits before top-k slice).
      */
     episodeId: '',
-    /**
-     * Search v3 §S5 — request the server-side QueryEnricher chain
-     * (RFC-088 chunk 5). When on, ``searchCorpus`` adds
-     * ``enrich_results=true`` and hits come back decorated with
-     * ``metadata.query_enrichments.related_topics``; the workspace hero
-     * renders an aggregated summary of the top related topics.
-     *
-     * Default is ``null`` so the UI can auto-adopt the server's
-     * capability signal (``shell.enrichedSearchAvailable``): when the
-     * server advertises enrichment, we default the chip on; when it
-     * doesn't, we default off. The user can still explicitly toggle.
-     * Boolean once the user (or the auto-adopt) sets it.
-     */
-    enrichResults: null as boolean | null,
   })
 
   /**
@@ -224,7 +207,6 @@ export const useSearchStore = defineStore('search', () => {
     results.value = []
     liftStats.value = null
     queryType.value = null
-    enrichmentCallFailed.value = false
     try {
       const body = await searchCorpus(q, {
         path: root,
@@ -238,15 +220,6 @@ export const useSearchStore = defineStore('search', () => {
         topK: filters.topK,
         embeddingModel: filters.embeddingModel.trim() || undefined,
         dedupeKgSurfaces: filters.dedupeKgSurfaces,
-        // Search v3 §S5 — request enrichment when effectively on.
-        // Tri-state resolution: explicit ``true``/``false`` from the user
-        // wins; ``null`` (default) auto-adopts the server's advertised
-        // capability so first-time users see enricher output without
-        // hunting for a toggle.
-        enrichResults:
-          filters.enrichResults === null
-            ? Boolean(useShellStore().enrichedSearchAvailable)
-            : filters.enrichResults === true,
       })
       if (searchRunGate.isStale(seq)) {
         return
@@ -267,9 +240,6 @@ export const useSearchStore = defineStore('search', () => {
       // never blocks the user-visible search flow. Runs off-path so the
       // async PATCH doesn't tack onto the runSearch latency budget.
       void useSavedQueriesStore().pushRecent(q)
-      enrichmentCallFailed.value = Boolean(
-        body.enrichment_error && String(body.enrichment_error).trim(),
-      )
       track('search_run', {
         query_length: q.length,
         result_count: body.results.length,
@@ -279,7 +249,6 @@ export const useSearchStore = defineStore('search', () => {
         has_since_filter: Boolean(filters.since),
         grounded_only: filters.groundedOnly,
         top_k: filters.topK,
-        enrichment_failed: Boolean(body.enrichment_error && String(body.enrichment_error).trim()),
       })
     } catch (e) {
       if (searchRunGate.isStale(seq)) {
@@ -300,7 +269,6 @@ export const useSearchStore = defineStore('search', () => {
     apiError.value = null
     error.value = null
     queryType.value = null
-    enrichmentCallFailed.value = false
     useActiveSearchContextStore().clear()
     useGraphNavigationStore().clearLibraryEpisodeHighlights()
   }
@@ -373,7 +341,6 @@ export const useSearchStore = defineStore('search', () => {
     filteredResults,
     liftStats,
     queryType,
-    enrichmentCallFailed,
     filters,
     feedFilterDisplayLabel,
     feedFilterHandoffPristine,

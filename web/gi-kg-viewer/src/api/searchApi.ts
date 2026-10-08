@@ -41,8 +41,6 @@ export interface SearchResponse {
    */
   query_type?: string | null
   lift_stats?: CorpusSearchLiftStats | null
-  /** Optional server hint when enrichment was requested but failed (non-fatal). */
-  enrichment_error?: string | null
 }
 
 export interface SearchRequestOptions {
@@ -62,11 +60,6 @@ export interface SearchRequestOptions {
   embeddingModel?: string
   /** Default true: collapse duplicate kg_entity/kg_topic surfaces server-side. */
   dedupeKgSurfaces?: boolean
-  /** Search v3 §S5: request the shipped QueryEnricher chain (RFC-088 chunk 5).
-   * Server decorates each hit's ``metadata.query_enrichments.related_topics``
-   * when the enrichment output is available; response also carries
-   * ``enrichment_error`` when the chain failed non-fatally. */
-  enrichResults?: boolean
 }
 
 export async function searchCorpus(
@@ -91,9 +84,6 @@ export async function searchCorpus(
   }
   if (options.dedupeKgSurfaces === false) {
     params.set('dedupe_kg_surfaces', 'false')
-  }
-  if (options.enrichResults) {
-    params.set('enrich_results', 'true')
   }
   const res = await fetchWithTimeout(`/api/search?${params.toString()}`)
   if (!res.ok) {

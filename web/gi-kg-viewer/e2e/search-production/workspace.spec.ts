@@ -14,17 +14,15 @@ import {
  * This spec exercises the entire Search v3 arc in one flow:
  *
  *   S2 (workspace) → S1 (chip filters) → S4a (Timeline)
- *      → S5 (enriched hero from decorated hits)
  *      → S7 (Recent auto-write) → S3 (palette rehydration)
  *
  * The point of a Tier-2 walk is to catch cross-slice regressions the per-slice specs don't see —
- * Recent's ring buffer fighting the palette's live-fetch, the operator bar's over-fetch conflicting
- * with the enriched hero's aggregation, and so on.
+ * Recent's ring buffer fighting the palette's live-fetch, and so on.
  *
  * #1619 — migrated to the live stack, which is the whole point of a Tier-2 walk.
  *
  * The previous version was "production-shaped": a route handler that reproduced what the shipped
- * `/api/search` returns, branching on `operator` and `enrich_results`. It was carefully built and
+ * `/api/search` returns, branching on `operator`. It was carefully built and
  * still could not catch a cross-slice regression, because every slice was reading from the same
  * hand-written object — the walk exercised the mock's consistency, not the system's. It also
  * carried a standing TODO to regenerate the fixture against the shipped shape, which is exactly
@@ -35,7 +33,7 @@ import {
 const QUERY = 'systems thinking'
 
 test.describe('Search v3 Tier-2 — Query Workspace end-to-end walk', () => {
-  test('Workspace walk: results → timeline → enriched hero → recent write', async ({
+  test('Workspace walk: results → timeline → recent write', async ({
     page,
   }, testInfo) => {
     /* Real session with clean prefs: S7/S3 assert USERPREFS-1 writes, so a stubbed auth (no
@@ -68,16 +66,6 @@ test.describe('Search v3 Tier-2 — Query Workspace end-to-end walk', () => {
     await expect(timelinePanel).toBeVisible()
     await page.getByTestId('operator-chip-timeline').click()
     await expect(timelinePanel).toHaveCount(0)
-
-    // ---- S5: Enriched hero renders topic chips from the enrichment decoration ----
-    // The initial search already fired enrich_results=true because the chip auto-adopts the
-    // server capability, so hits carry query_enrichments.
-    const hero = page.getByTestId('enriched-answer-hero')
-    await expect(hero).toBeVisible({ timeout: 30_000 })
-    const heroChips = page.getByTestId('enriched-answer-topics').locator('li')
-    const chipCount = await heroChips.count()
-    expect(chipCount).toBeGreaterThan(0)
-    expect(chipCount).toBeLessThanOrEqual(6) // UXS-008 cap
 
     // ---- S7: Recent auto-populated after the search ----
     await expect(page.getByTestId('left-panel-recent-list')).toBeVisible()

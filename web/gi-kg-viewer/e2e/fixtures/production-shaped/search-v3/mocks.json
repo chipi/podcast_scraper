@@ -8,7 +8,7 @@
     "Schema-v1 predated the S4/S5 landing (RFC-107 planned enriched.answer + operator_result.clusters); v2 matches what the code actually returns.",
     "The build-script --search-slice mode captures these same shapes from a real corpus + running API when the operator regenerates locally (see README.md).",
     "Anchored to episode_ids present in the parent fixture's manifest.json so hit-card handoffs to Library / Graph resolve cleanly.",
-    "Shape contract sources: RFC-107 §2 (SearchResponse), RFC-072 §6 (lifted compound), RFC-088 chunk 5 (per-hit metadata.query_enrichments.related_topics), ADR-108 (consensus_pairs), RFC-093 (build_briefing_pack for compare), server/schemas.py (CorpusSearchApiResponse / SearchCompareResponse)."
+    "Shape contract sources: RFC-107 §2 (SearchResponse), RFC-072 §6 (lifted compound), ADR-108 (consensus_pairs), RFC-093 (build_briefing_pack for compare), server/schemas.py (CorpusSearchApiResponse / SearchCompareResponse)."
   ],
   "anchor_feeds": [
     {
@@ -78,60 +78,6 @@
               "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
               "feed_title": "Odd Lots (fixture-mock)",
               "publish_date": "2026-04-30"
-            }
-          }
-        ]
-      }
-    },
-    "enriched-answer": {
-      "description": "Enriched-answer hero (Search v3 §S5). Shipped shape: NO top-level enriched.answer text — the QueryEnricher chain (RFC-088 chunk 5) decorates each hit's ``metadata.query_enrichments.related_topics[]`` with topic_id / topic_label / similarity. The client's EnrichedAnswerHero aggregates decorated hits into a ranked chip list; there is no synthesized answer surface yet (deferred to a later chunk of RFC-088). Server flag: ?enrich_results=true.",
-      "request": {
-        "endpoint": "GET /api/search",
-        "params": {"q": "why does Taiwan matter to AI compute", "top_k": 5, "enrich_results": true, "path": "<corpus>"}
-      },
-      "response": {
-        "query": "why does Taiwan matter to AI compute",
-        "query_type": "cross_show_synthesis",
-        "results": [
-          {
-            "doc_id": "insight:4cec22d8__silicon-supply-0002",
-            "text": "The concentration of AI-relevant fab capacity in Taiwan makes silicon supply a national-security concern for every G7.",
-            "score": 0.891,
-            "source_tier": "insight",
-            "metadata": {
-              "doc_type": "insight",
-              "episode_id": "4cec22d8-717e-46c6-ab87-b43b01512ecb",
-              "episode_title": "BlackRock's Rob Goldstein on the New Rules",
-              "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
-              "feed_title": "Odd Lots (fixture-mock)",
-              "publish_date": "2026-04-30",
-              "query_enrichments": {
-                "related_topics": [
-                  {"topic_id": "topic:silicon-supply", "topic_label": "Silicon Supply", "similarity": 0.94},
-                  {"topic_id": "topic:national-security", "topic_label": "National Security", "similarity": 0.78},
-                  {"topic_id": "topic:taiwan", "topic_label": "Taiwan", "similarity": 0.72}
-                ]
-              }
-            }
-          },
-          {
-            "doc_id": "insight:74a9745d__compute-governance-0001",
-            "text": "Compute governance is being determined by private-sector datacenter siting decisions rather than public regulation.",
-            "score": 0.855,
-            "source_tier": "insight",
-            "metadata": {
-              "doc_type": "insight",
-              "episode_id": "74a9745d-6825-4bfc-abc3-b43601639f72",
-              "episode_title": "What's Actually Going On With Prompt Engineering",
-              "feed_id": "sha256:1cd6aecdd31c0ae82c2c76efdb6327b54e6026924b47852c51ffb406a9f2b19c",
-              "feed_title": "Odd Lots (fixture-mock)",
-              "publish_date": "2026-04-27",
-              "query_enrichments": {
-                "related_topics": [
-                  {"topic_id": "topic:compute-governance", "topic_label": "Compute Governance", "similarity": 0.88},
-                  {"topic_id": "topic:silicon-supply", "topic_label": "Silicon Supply", "similarity": 0.61}
-                ]
-              }
             }
           }
         ]

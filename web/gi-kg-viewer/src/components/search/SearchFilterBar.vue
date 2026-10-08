@@ -16,7 +16,6 @@ import SearchMoreChip from './chips/SearchMoreChip.vue'
 import SearchTopicChip from './chips/SearchTopicChip.vue'
 import SearchSpeakerChip from './chips/SearchSpeakerChip.vue'
 import SearchMinConfidenceChip from './chips/SearchMinConfidenceChip.vue'
-import SearchEnrichedChip from './chips/SearchEnrichedChip.vue'
 import SearchEpisodeChip from './chips/SearchEpisodeChip.vue'
 import SearchGroundedChip from './chips/SearchGroundedChip.vue'
 
@@ -74,9 +73,6 @@ const sinceModel = computed({
     </div>
     <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
       <SearchGroundedChip />
-    </div>
-    <div :class="enabled ? '' : 'pointer-events-none opacity-50'">
-      <SearchEnrichedChip />
     </div>
     <SearchEpisodeChip />
     <div :class="enabled ? '' : 'pointer-events-none opacity-50'">

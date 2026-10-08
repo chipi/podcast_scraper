@@ -366,63 +366,6 @@ Chip behaviour:
 Owning specs: ``search-operator-bar.spec.ts`` (live index) and
 ``search-operator-bar-edges.spec.ts`` (mocked: the no-graph-ids state).
 
-**Search v3 enriched-answer hero (§S5 — #1235, RFC-107 §S5, UXS-016 +
-UXS-008)**:
-
-Sits directly above ``result-set-operator-bar`` on the Search main tab.
-Renders an aggregated summary of the shipped QueryEnricher chain
-(RFC-088 chunk 5); today the chain only decorates hits with
-``metadata.query_enrichments.related_topics``, so the hero surfaces the
-top related topics by summed similarity across the hit page. Shape is
-open — future ``synthesized_answer`` fields plug in without a schema
-change.
-
-| Element | testid |
-| ---- | ----- |
-| Enriched-answer chip on filter bar | ``search-chip-enriched`` |
-| Hero container (region) | ``enriched-answer-hero`` |
-| Loading skeleton | ``enriched-answer-skeleton`` |
-| Error alert (server ``enrichment_error``) | ``enriched-answer-error`` |
-| Topic chip list | ``enriched-answer-topics`` |
-| Per-topic chip | ``enriched-answer-topic-<topic_id>`` |
-| Overflow count (>6 topics) | ``enriched-answer-overflow`` |
-
-State machine (UXS-008):
-
-- **Hidden** — enrichment effectively off (chip disabled + no explicit
-  opt-in) OR no hits carry ``query_enrichments.related_topics`` AND
-  no ``enrichment_error`` AND not loading. Section renders nothing.
-- **Skeleton** — enrichment on AND ``search.loading === true`` AND no
-  content yet AND no error. Placeholder rows so layout doesn't jump.
-- **Error** — server sent ``enrichment_error`` (non-fatal). Muted
-  ``role="alert"`` line: the QueryEnricher chain failed but vector
-  hits above are still valid.
-- **Rendered** — one or more hits carried decorations. Chips are
-  clickable — click routes through ``subject.focusTopic`` to the
-  Topic subject rail (same handoff other Topic entry points use).
-  Chip title tooltip shows ``hitCount / total`` and summed similarity
-  score for auditability.
-
-Chip semantics:
-
-- Tri-state field ``search.filters.enrichResults``:
-  ``null`` = auto (mirrors ``shell.enrichedSearchAvailable``);
-  ``true`` / ``false`` = explicit user choice.
-- ``search-chip-enriched`` is disabled with tooltip "Enrichment not
-  configured on this server" when
-  ``!shell.enrichedSearchAvailable``.
-- Toggle flips the effective state — first click when auto-on writes
-  ``false``; first click when auto-off writes ``true``.
-
-Store integration: ``runSearch`` resolves the tri-state at fire time
-and sends ``enrich_results=true`` on the URL when effectively on; the
-server's ``enrichment_error`` field surfaces via
-``search.enrichmentCallFailed``.
-
-Owning spec: ``search-enriched-hero.spec.ts`` (mocks ``/api/search``
-with a route callback that branches on the ``enrich_results`` query
-param and only decorates hits when the flag is on).
-
 **Search v3 rail launchers + episode scope (§S6 — #1236, RFC-107 §S6)**:
 
 Rail launchers switch to the Search main tab, pre-apply scope on
@@ -536,13 +479,12 @@ Owning specs:
 | **Corpus Digest** | Panel **`h2` Digest** (`#digest-main-heading`) **left** + **`?`** **About Digest** **`HelpTip`** (topic bands → **Graph** / **Search topic** / **Recent** / CIL **topic pills** / **Library**). **Recent** row **click** → **Episode** subject rail without leaving **Digest**; **topic band** **title**, **hit row** **click**, and **Recent** **CIL pills** (`digest-recent-cil-pills`, **`topic_id`**) → **Graph** when the digest row includes CIL topics (focus digest **`graph_topic_id`** / **`topic_id`** when that **`topic:`** node exists in the merged slice, else episode). **No** summary-bullet pill row on **Recent**. **Digest** ↔ **Library** retains rail selection when the episode is still in the digest payload and still listed under Library for current filters (see UXS). **Recent** list rows use **`bg-overlay`** when selected in the **Episode** subject rail (same cue as **Library**); **Recent** rows share **Library**-style list chrome (no bordered **`bg-elevated`** card wrapper). Toolbar: first row — **`h2` Digest** + **`?`** **About Digest** **left**, **Published on or after** + presets **right**; second row when loaded — rolling **range** (human-readable UTC via `<time datetime="ISO">` · **N** **episodes** / **1 episode**). `GET /api/corpus/digest` + **`GET /api/corpus/feeds`**; **`region` `Topic bands`** wraps the topic **grid** without an outer **max-height** scrollbar: **first three** bands by default, then **`data-testid="digest-topic-bands-show-more"`** when more exist; **first** band **elevated** + **`border-primary/20`**; topic titles **`text-sm`** (**bold** on first band, **semibold** on others); **`region` `Recent episodes`** (accessible name **`Recent episodes, N items`** / **`1 item`**): **`h2` Recent** (`#digest-recent-heading`, **`text-sm`** semibold) + tabular **`(N)`** count (same **N** as the rolling-window line · **N episodes**) + **`?`** (**About the Recent digest list**); episode row **meta** (**right** of title): **feed**, **publish date**, **E#**, **duration** on one **`text-[10px]`** baseline-wrap line; tight gap before recap. **Topic band** cards: compact padding; each **hit row** is **`role="button"`** (same **`episode_title`, `feed`** pattern as **Recent**), **click** → **Episode** subject rail + **Graph** as above; **grid** left column **`h-9`** **cover** only (**`w-9`**), right column full-width **title**; recap **`col-span-2`** (**semantic match** label when **`score`** present — **Strong** / **Good** / **Weak**; raw score on that label’s **`title`**); row **`title`**: publish date, **E#**, duration, feed, description, RSS (no duplicate vector block). **Search topic** opens Search with the topic **`query`** and **Since (date)** set only when the shared corpus lens has a valid **YYYY-MM-DD** (omitted for all time). **Truncated** feed + hover on **Recent** rows as above. **episode rows** — `h-9` cover, recap **2-line clamp** when unselected (**`line-clamp-2`**), **full** when selected; optional **`success`** **recency dot** before titles when publish day is within rolling **24h** (local midnight parse); **CIL pills** (**`kg`** cluster tint on Digest Recent) → **Graph** when present; no **GI/KG** chips | Default main tab on `goto('/')` | `digest.spec.ts` (mocked health + digest + **`feeds`** + optional `**/api/artifacts/metadata/...gi.json**`) |
 | **Corpus Library** | **Filters** are the #669 chip bar (`library-filter-bar`, UXS-003): **Feed** chip (`library-chip-feed`) opens a popover (`library-popover-feed`) with the feed list (`library-feed-filter-list`), a client-side **`library-feed-filter-search`** when there are more than **15** feeds, and **Clear** only while a feed is selected; **Date** chip (`library-chip-date`, shared `DateChip` on the corpus lens); **Clustered** toggle chip (`library-topic-cluster-toggle`, `aria-pressed`, reads **Clustered ✓** when on) — **`GET /api/corpus/episodes`** **`topic_cluster_only=true`**; **× reset** (`library-chip-reset`) only while a chip is active. Under the bar: **Title contains…** (`library-filter-title`) and **Summary or bullets contain…** (`library-filter-summary`), **Enter** applies. Feed row **`title`** hover adds **RSS** + **description** when `GET /api/corpus/feeds` includes them. **Episodes** heading + **?** **HelpTip**; **Episodes** list — **cursor pagination** + **Load more** + **scroll-to-load**; per-row **meta** like Digest **Recent**; recap **2-line clamp** when unselected, **full** when selected; optional **recency dot**; **no** topic chips on list rows. **Episode** subject rail unchanged for detail chrome. **No** embedded **24h digest** strip — use **Digest** tab for discovery. | **Library** tab + corpus path; mock corpus + optional `index/stats` / `similar` | `library.spec.ts` |
 | **Theme tokens** | `--ps-canvas` matches asserted dark/light hex in [theme.spec.ts](theme.spec.ts) | `goto('/')` + `emulateMedia` and/or `localStorage` | `theme.spec.ts` |
-| **Search v3 result-set operator bar** | ``result-set-operator-bar`` above the hit cards on Search main tab. Chips: Cluster (S4b, server ``operator=cluster`` top_k×3 over-fetch) / Timeline (S4a, client YYYY-MM histogram over ``metadata.publish_date``) / On graph (S4a, App-level ``activateGraphTab`` + yellow-ring highlight set) / Consensus (S4b, server ``operator=consensus`` reads ``enrichments/topic_consensus.json``). Panels: ``operator-{cluster,timeline,consensus}-panel`` with ``-loading`` / ``-empty`` / ``-list`` states. See the **Search v3 result-set operator bar** section above for the full testid contract. | `goto('/')` + Search tab + submit query → bar renders once response has ≥ 1 hit | `search-operator-bar.spec.ts` |
-| **Search v3 enriched-answer hero** | ``enriched-answer-hero`` above the operator bar on Search main tab. Renders the shipped QueryEnricher chain output (RFC-088 chunk 5) — today that's ``related_topics`` per hit, aggregated + ranked by summed similarity and surfaced as clickable Topic chips. Chip on filter bar: ``search-chip-enriched`` (tri-state; auto-adopts ``shell.enrichedSearchAvailable``). Hero states: hidden / ``enriched-answer-skeleton`` / ``enriched-answer-error`` / ``enriched-answer-topics`` list (with ``enriched-answer-overflow`` when >6 topics). See the **Search v3 enriched-answer hero** section above. | `goto('/')` + Search tab + Enriched chip on + submit query with enrichment-decorated hits | `search-enriched-hero.spec.ts` |
+| **Search v3 result-set operator bar** | ``result-set-operator-bar`` above the hit cards on Search main tab. Chips: Timeline (S4a, client YYYY-MM histogram over ``metadata.publish_date``) / On graph (S4a, App-level ``activateGraphTab`` + yellow-ring highlight set) / Compare (S8, ``POST /api/search/compare``). The Cluster and Consensus operators are private (ADR-158). See the **Search v3 result-set operator bar** section above for the full testid contract. | `goto('/')` + Search tab + submit query → bar renders once response has ≥ 1 hit | `search-operator-bar.spec.ts` |
 | **Search v3 rail launcher: "Search within this episode"** | ``episode-detail-search-in-episode`` button on ``EpisodeDetailPanel`` (right rail); ``search-chip-episode`` active-scope chip on the filter bar (visible only when ``search.filters.episodeId`` is set). Server route accepts ``/api/search?episode_id=…`` (Search v3 §S6). Rail click switches to Search tab, sets episode scope, clears sibling scope (feed / topic / speaker), pre-fills the query, runs. Show-scoped launcher clears any lingering episode scope. See the **Search v3 rail launchers + episode scope** section above. | `goto('/')` + Library tab + row click → Episode rail visible → click "Search within episode" | `search-rail-in-episode.spec.ts` |
 | **Search v3 Saved queries + Recent writers** | ``search-save-query`` button on ``SearchPanel`` (disabled on empty query, flips to "Saved ✓" once the current query is saved). ``search.runSearch`` also auto-pushes onto USERPREFS-1 ``search.recentQueries`` (ring buffer, 20 max, dedupe on ``q``). Writes land in ``useSavedQueriesStore`` → ``useUserPreferencesStore`` → ``/api/app/preferences``. LeftPanel Saved + Recent (§S4-shell) and CommandPalette Recent (§S3) auto-populate. See the **Search v3 Saved queries + Recent writers** section above. | `goto('/')` + Search tab + submit a query (auto Recent write) OR click "Save query" | `search-saved-queries.spec.ts` |
 | **Search v3 command palette (§S3 Tier-1 walk)** | Full Cmd-K / `/` shell overlay flow — summon from Digest / Library / Search, empty state (Recent + Saved), debounced live-fetch, three-action rows (Open in Workspace / Pin to rail / Show on graph), no-results state, close on Escape. Complements the mount-level unit specs in ``CommandPalette.test.ts`` with the shell-integrated flow. | `goto('/')` + set corpus path + blur body + `/` | `search-command-palette.spec.ts` |
 | **Search v3 workspace tab surface (§S2 Tier-1 walk)** | Search main tab as a first-class shell surface — nav-button ordering (Digest / Library / Search / Graph is the guaranteed left-four), keyboard shortcut `3`, `search-workspace` region mount, LeftPanel Saved+Recent rail visible on Search tab (post-§S4-shell), operator bar / hero absent on empty state, `keep-alive` preservation on tab round-trip. Complements the mount-level `SearchTab.test.ts` unit specs. | `goto('/')` + nav-button click / keyboard `3` | `search-workspace-tab.spec.ts` |
-| **Search v3 Tier-2 workspace walk** | Cross-slice production-shaped walk (mocks match the shipped shape, not the RFC-107 fixture): S2 workspace → S1 chip filters → S4b cluster + consensus operator round-trips → S4a Timeline → S5 enriched hero rehydration through operator toggles → S7 Recent auto-populate → S3 palette rehydration in one flow. Catches regressions the per-slice Tier-1 specs don't see. Shipped fixture at ``fixtures/production-shaped/search-v3/mocks.json`` predates S4/S5 shape and needs regeneration; spec mocks inline for now. | `goto('/')` + Search tab + submit "compute governance" | `search-production/workspace.spec.ts` |
+| **Search v3 Tier-2 workspace walk** | Cross-slice walk on the live stack: S2 workspace → S1 chip filters → S4a Timeline → S7 Recent auto-populate → S3 palette rehydration in one flow. Catches regressions the per-slice Tier-1 specs don't see. | `goto('/')` + Search tab + submit "systems thinking" | `search-production/workspace.spec.ts` |
 | **Search v3 Compare (§S8)** | ``operator-chip-compare`` on ``ResultSetOperatorBar`` — enabled when ≥ 2 comparable subjects (persons / topics / episodes / feeds) are discoverable across the current visible hits' metadata; disabled otherwise. Toggling opens ``operator-compare-panel`` with ``operator-compare-picker`` (2 slots — ``operator-compare-slot-a`` / ``operator-compare-slot-b``), ``operator-compare-insight-types`` (RFC-072 GIL v1.1 filter chip row — ``operator-compare-insight-type-{claim,recommendation,observation,question,unknown}`` — narrows both sides symmetrically on the server via ``SearchCompareRequest.insight_types``), ``operator-compare-alias-hint`` (muted RFC-072 KL2 / KL3 hint — visible when both picker slots resolve to the same kind in {person, topic}), ``operator-compare-run``, ``operator-compare-clear`` (renders only when a result exists), ``operator-compare-empty`` (fewer than 2 candidates), ``operator-compare-error`` (server error string). Result view: ``operator-compare-columns`` with ``operator-compare-pack-a`` / ``operator-compare-pack-b`` (each with ``-top-insight`` / ``-ungrounded`` badge), ``operator-compare-judge`` (visible only when both packs report ``grounded=true``). Server: ``POST /api/search/compare`` wrapping ``build_briefing_pack`` twice (RFC-093, no LLM call), with optional ``insight_types`` filter forwarded to ``compare_subjects``. | `goto('/')` + Search tab + submit query with ≥ 2 comparable subjects → Compare chip → optional insight-type chips → Run compare | `search-operator-compare.spec.ts` |
 
 ### Offline graph load (shared helper)
@@ -758,8 +700,7 @@ the fixture-bootstrapped API; "mocked" = `page.route`, with the reason recorded 
 | `digest-library-lens.spec.ts` | Shared corpus lens: `digest-chip-date` ↔ `library-chip-date` both ways (+ digest refetch with `since=`); Digest **Search topic** → `search-chip-since` "Since: ≥ …"; `corpus_digest_api: false` copy. | live + mocked (bands) |
 | `library-pagination-ranking-keyboard.spec.ts` | Library **Load more** + heading `(N+)` / `(N of T)`; FR2.2 matched rows first with `library-row-why`; ArrowDown / End / Home on `[data-library-episode-row]` and `[data-digest-recent-row]` drive the Episode rail. | mocked + live |
 | `search-header-chips.spec.ts` | `search-chip-topic-contains`, `-speaker-contains`, `-grounded-only`, `-topk`, `-doctypes` labels and the `/api/search` params they add; `search-chip-min-confidence` client-side filter. | live; min-conf mocked |
-| `search-enriched-hero-states.spec.ts` | UXS-008 `enriched-answer-skeleton`, `-provenance` ("Deterministic"), six-chip cap + `enriched-answer-overflow`, `enriched-answer-topic-<id>` → topic view, `enriched-answer-error`, `search-chip-enriched` disabled without the capability. | mocked |
-| `search-operator-bar-edges.spec.ts` | `operator-chip-graph` "On graph (no ids)", `operator-cluster-empty`, `operator-consensus-empty`, `operator-error` on a 500. | mocked |
+| `search-operator-bar-edges.spec.ts` | `operator-chip-graph` "On graph (no ids)". | mocked |
 | `show-rail.spec.ts` | UXS-015 `show-rail-topic` / `show-rail-person` → rail with `subject-rail-back` to `show-rail-panel`; `show-rail-open-graph` (first Graph visit, and show A then show B); `show-rail-load-more`; `shows-grid-empty`. | live + mocked |
 | `shell-chrome-persistence.spec.ts` | `left-panel-collapse-toggle` / `right-rail-edge-toggle` collapse survives reload; Shift+Enter in `#search-q`; `graph-bottom-bar` toggle, **Alt+B**, persistence; gesture overlay **Escape**. | live + offline fixture |
 

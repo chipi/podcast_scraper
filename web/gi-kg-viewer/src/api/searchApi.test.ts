@@ -171,7 +171,6 @@ describe('searchApi', () => {
         ],
         query_type: 'semantic',
         lift_stats: { transcript_hits_returned: 3, lift_applied: 1 },
-        enrichment_error: null,
       }
       mockFetchJson(true, payload)
       await expect(searchCorpus('climate', { path: '/c' })).resolves.toEqual(payload)

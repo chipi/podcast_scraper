@@ -10,7 +10,6 @@ import { useSubjectStore } from '../../stores/subject'
 import type { SearchHit } from '../../api/searchApi'
 import { episodeFallbackForSearchHit, graphNodeIdFromSearchHit } from '../../utils/searchFocus'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
-import EnrichedAnswerHero from './EnrichedAnswerHero.vue'
 import ResultCard from './ResultCard.vue'
 import TranscriptClusterCard from './TranscriptClusterCard.vue'
 import TranscriptViewerDialog from '../shared/TranscriptViewerDialog.vue'
@@ -223,15 +222,6 @@ const searchFieldDisabledTitle = computed(() => {
   return ''
 })
 
-const enhancedSearchChipClass = computed(() => {
-  const base =
-    'inline-flex items-center rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide'
-  if (search.enrichmentCallFailed) {
-    return `${base} border-warning text-warning`
-  }
-  return `${base} border-gi text-gi`
-})
-
 /** Optional ``tc:…`` compound to widen the graph camera bbox (selection stays on the leaf). */
 function topicClusterCompoundIdForCamera(hit: SearchHit): string | null {
   const tc = hit.metadata?.topic_cluster
@@ -359,18 +349,6 @@ const advancedFeedCombinedTitle = computed(() =>
       <h2 class="text-sm font-medium text-surface-foreground">
         Semantic search
       </h2>
-      <span
-        v-if="shell.enrichedSearchAvailable"
-        data-testid="search-enhanced-chip"
-        :class="enhancedSearchChipClass"
-        :title="
-          search.enrichmentCallFailed
-            ? 'Last search reported enrichment failure — vector hits are still shown.'
-            : 'Semantic search enrichment is available on this server.'
-        "
-      >
-        Enhanced
-      </span>
       <HelpTip>
         <p class="font-medium text-surface-foreground">
           How semantic search works
@@ -602,13 +580,6 @@ const advancedFeedCombinedTitle = computed(() =>
       >
         {{ search.apiError }}
       </p>
-      <!-- Search v3 §S5 — EnrichedAnswerHero sits ABOVE the operator bar
-           and the hit cards. Renders nothing when enrichment is off or
-           no decorated hits came back; renders skeleton on loading;
-           renders muted error on non-fatal chain failure. Mounted OUTSIDE
-           the results block: a search clears `results` before it loads, so
-           inside it the loading skeleton could never render. -->
-      <EnrichedAnswerHero class="mt-3" />
       <div
         v-if="search.results.length"
         class="mt-3 space-y-2"
