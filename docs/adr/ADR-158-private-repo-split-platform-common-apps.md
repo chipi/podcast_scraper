@@ -98,6 +98,14 @@ routers, scheduled jobs, startup hooks, CLI subcommands, capability-audit checks
 hooks (account created, account deleted), sign-in providers, enrichers, data sources for public
 read-models, and its data folder. Absent package, absent feature.
 
+As built (`src/podcast_scraper/extensions.py`), an `Extension` carries: routers per plane
+(operator, app, internal, root); account-created and account-deleted hooks; app-configured and
+server-started hooks; scheduled-job kinds; CLI subcommands; sign-in providers by name; an
+enrichment contribution (enricher classes, deterministic, ML and web wiring, query enrichers,
+scorers, provider types); themes and storylines (`search.groupings`: readers, index rows, the
+builder, search operators); share-card extras (trend stat, photos, logos); and the listener
+engagement series. Every part is optional and every reader has an empty default.
+
 The probe's seams, and what each becomes (file:line in the plan note):
 
 | Seam | Becomes |
@@ -105,7 +113,7 @@ The probe's seams, and what each becomes (file:line in the plan note):
 | `server/app.py` mounts 17 player routers and 3 Common routers | registered routers |
 | `server/app.py` starts the player cache warmer and digest-health metrics | startup hooks |
 | `server/scheduler.py` imports the digest dispatcher | registered scheduled jobs |
-| `capability_audit.py` imports discovery ranking | registered audit checks |
+| `capability_audit.py` imports discovery ranking | moves to Player whole: every section walks the corpus through the player's Discover feature extraction, so there is no platform half to keep |
 | `routes/corpus_enrichments.py` imports `filtered_entity_signals` from a player route | the function moves into the platform |
 | `app_account_deletion.py` deletes player state and MCP tokens and grants | account-deleted hook, one per package |
 | `routes/app_auth.py` writes `account_created` into player state on sign-up | account-created hook |
@@ -113,7 +121,7 @@ The probe's seams, and what each becomes (file:line in the plan note):
 | `cli.py` imports the MCP CLI handlers | registered CLI subcommands |
 | `enrichers/__init__.py` and `query_enrichers/__init__.py` import every enricher | registry fed by entry points |
 | `ml_wiring.py`, `web_wiring.py`, `routes/enrichment_config.py`, `enrichment/eval/admission.py` name enricher classes | wiring looks enrichers up by id |
-| `og/build.py` calls image-path helpers that live inside `person_web` and `org_web` | the helpers move into the platform |
+| `og/build.py` calls image-path helpers that live inside `person_web` and `org_web`, and momentum for the trend stat | a share-card contribution supplies the trend stat, photos and logos; absent, the cards carry none |
 | `tests/conftest.py` imports `person_web` | the fixture moves to Common's tests |
 | `scripts/eval/score/rank_*.py` import player ranking | move to Player |
 | `scripts/mcp_e2e_pivot_chain.py` imports MCP tools | moves to Common |
@@ -250,12 +258,15 @@ References across the boundary run one way only:
 
 ## Sequence
 
-1. This ADR, the mount, the copy script, the probe, and the private repos. **Done** for Common and
-   Player (first copy pushed); Studio's repo is not created yet.
+1. This ADR, the mount, the copy script, the probe, and the private repos. **Done** for Common,
+   Player and Studio (first copies pushed).
 2. Fix the seams in public, one slice at a time, re-running the probe after each. Order: the
    extension interface with a fake app in tests; the enricher registry and wiring; the
    user-lifecycle hooks; router, startup, job, CLI and audit registration; the `podcast_obs` and
    OAuth-provider splits; the read-model renames. Done when both probe directions import cleanly.
+   **Done 2026-10-08**: no public module fails without the private code and no private module
+   fails on top of the public tree. What still names moved code is the in-tree extension list
+   (removed at the cutover) and tests that move with their packages.
 3. Run the test suites in both directions and fix what fails.
 4. Per-app data folders and the prod migration.
 5. Read the round-1 documents; adjust the manifest. Remove the public references to moved
