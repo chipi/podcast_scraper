@@ -159,12 +159,38 @@ public class AppJourneyTests extends UITestCase {
         // The tier's `pm clear` resets the DEVICE, not the server-side ACCOUNT, so this test sees a
         // short Home on a fresh account and a long one after anything has played — which is why it
         // passed all day and then failed deterministically once the account had been used.
-        Journey.scrollTo("Trends", false);
-        boolean storylinesTab = Journey.tap("Storylines", false, 15_000);
+        //
+        // THE CHIP, NOT THE RAIL (2026-10-08). Trends left Home on 2026-10-07; what Home has now is
+        // the Discover strip — a kicker over four chips that deep-link into Discover's Trends. So
+        // `scrollTo("Trends")` found nothing and rewound to the top, and the bare "Storylines" tap
+        // then took whatever was on screen by that name: in the tier run it landed on something
+        // that did not navigate and the row hunt swiped down to Home's What's new; alone, nothing
+        // by that name was on screen at all. Scroll to the strip's own kicker and tap the chip
+        // BELOW it.
+        //
+        // AND LIFT IT FIRST. `scrollTo` returns the moment the kicker enters the tree, which can be
+        // the bottom edge — the chips are then under the bottom nav or the mini-player, the tap
+        // lands on the Home tab, and the page never leaves Home (tier run 2026-10-08: the dump
+        // after the row hunt was this very strip over What's new). Bring the kicker into the top
+        // half, then tap, then require Discover's Trends caption.
+        List<String> kicker = Arrays.asList("Explore what people are talking about");
+        UiObject2 strip = Journey.scrollTo(kicker, true, 40);
+        int half = Journey.device().getDisplayHeight() / 2;
+        for (int i = 0; i < 3 && strip != null; i++) {
+            android.graphics.Rect b = strip.getVisibleBounds();
+            if (b.top < half) break;
+            Journey.swipeUp();
+            Journey.sleep(800);
+            strip = Journey.find(kicker, true, 3_000);
+        }
+        boolean storylinesTab = strip != null && Journey.tapBelow("Storylines", strip, 15_000);
         if (!storylinesTab) {
-            fail("Storylines tab not found on the Home rail. On screen: "
+            fail("Storylines chip not found in Home's Discover strip. On screen: "
                     + Journey.labelledInventory(80));
         }
+        assertNotNull("the Storylines chip did not open Discover's Trends. On screen: "
+                        + Journey.labelledInventory(80),
+                Journey.find(Arrays.asList("Your trends", "Everyone's trends"), true, 15_000));
         Journey.sleep(4_000);
         Journey.showEveryonesTrends();
 

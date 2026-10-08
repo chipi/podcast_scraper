@@ -421,6 +421,12 @@ final class Journey {
      * The scope is ONE icon toggle named "Trending scope" (2026-10-08: the labelled "You /
      * Everyone" switch was reverted), so its name never says the state. The caption under the
      * Trends does — "Your trends …" or "Everyone's trends …" — so that decides whether to tap.
+     *
+     * ON ANDROID ITS NAME IS THE sr-only TEXT, NOT THE aria-label (2026-10-08). Chromium drops an
+     * `aria-label` whose subtree is all hidden (DiscoveryExplorer.vue says so for both icon
+     * toggles), so the node reads "My listening" while the scope is mine. Asking for "Trending
+     * scope" alone matched nothing, the miss was silent, and test03 then hunted storyline rows in
+     * an empty "mine" list.
      */
     static void showEveryonesTrends() {
         long deadline = System.currentTimeMillis() + 10_000;
@@ -434,10 +440,12 @@ final class Journey {
             mark("=====TREND_SCOPE already everyone, or caption not found=====");
             return;
         }
-        if (tap("Trending scope", false, 5_000)) {
+        if (tap(Arrays.asList("My listening", "Trending scope"), false, 5_000)) {
             boolean switched = find("Everyone's trends", true, 5_000) != null;
             mark("=====TREND_SCOPE switched, everyone=" + switched + "=====");
             sleep(1_000);
+        } else {
+            mark("=====TREND_SCOPE toggle not found :: " + labelledInventory(60) + "=====");
         }
     }
 
