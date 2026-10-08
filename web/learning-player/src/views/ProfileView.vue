@@ -899,55 +899,59 @@ onActivated(() => {
       >
         {{ t("auth.signOut") }}
       </button>
-      <!-- Clear listening history (#2273): Google Play's "delete some data without deleting the
-           account". Two steps — the first tap only explains what goes and what stays. -->
-      <div v-if="auth.isAuthenticated" class="mt-6 text-center" data-testid="profile-clear-history">
-        <button
-          v-if="!clearAsk"
-          type="button"
-          class="text-xs text-muted underline"
-          data-testid="profile-clear-history-open"
-          @click="clearAsk = true"
-        >
-          {{ t("deleteAccount.clearHistoryLink") }}
-        </button>
-        <div v-else class="rounded-2xl border border-border p-4 text-left text-sm">
-          <p class="mb-3">{{ t("deleteAccount.clearHistoryBody") }}</p>
-          <div class="flex gap-2">
-            <button
-              type="button"
-              class="rounded-full bg-danger px-4 py-2 text-sm font-bold text-canvas disabled:opacity-40"
-              :disabled="clearing"
-              data-testid="profile-clear-history-confirm"
-              @click="onClearHistory"
-            >
-              {{ t("deleteAccount.clearHistoryConfirm") }}
-            </button>
-            <button
-              type="button"
-              class="rounded-full border border-border px-4 py-2 text-sm"
-              data-testid="profile-clear-history-cancel"
-              @click="clearAsk = false"
-            >
-              {{ t("deleteAccount.clearHistoryCancel") }}
-            </button>
-          </div>
+      <!-- Clear listening history and Delete account (#2273): two smaller buttons side by side under
+           Sign out (operator 2026-10-08), not two underlined links. Both stay two-step — clearing
+           first explains what goes and what stays (below the row); deleting opens a page that asks
+           for a typed confirmation (App Store 5.1.1(v)). -->
+      <div v-if="auth.isAuthenticated" class="mt-3 grid grid-cols-2 gap-2" data-testid="profile-danger-row">
+        <div data-testid="profile-clear-history">
+          <button
+            type="button"
+            class="w-full rounded-2xl border border-border px-2 py-2.5 text-xs font-semibold text-muted transition hover:text-canvas-foreground"
+            :aria-expanded="clearAsk"
+            data-testid="profile-clear-history-open"
+            @click="clearAsk = !clearAsk"
+          >
+            {{ t("deleteAccount.clearHistoryLink") }}
+          </button>
         </div>
-        <p v-if="clearResult" role="status" class="mt-2 text-xs" data-testid="profile-clear-history-result">
-          {{ clearResult }}
-        </p>
+        <RouterLink
+          :to="{ name: 'account-delete' }"
+          class="flex items-center justify-center rounded-2xl border border-border px-2 py-2.5 text-center text-xs font-semibold text-muted no-underline transition hover:text-danger"
+          data-testid="profile-delete-account"
+        >
+          {{ t("deleteAccount.link") }}
+        </RouterLink>
       </div>
-      <!-- Account deletion (#2273, App Store 5.1.1(v)): reachable from inside the app, quieter
-           still than Sign out, and never a one-tap action — it opens a page that explains and
-           asks for a typed confirmation. -->
-      <RouterLink
-        v-if="auth.isAuthenticated"
-        :to="{ name: 'account-delete' }"
-        class="mt-4 block text-center text-xs text-muted underline"
-        data-testid="profile-delete-account"
+      <div
+        v-if="auth.isAuthenticated && clearAsk"
+        class="mt-3 rounded-2xl border border-border p-4 text-left text-sm"
+        data-testid="profile-clear-history-panel"
       >
-        {{ t("deleteAccount.link") }}
-      </RouterLink>
+        <p class="mb-3">{{ t("deleteAccount.clearHistoryBody") }}</p>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="rounded-full bg-danger px-4 py-2 text-sm font-bold text-canvas disabled:opacity-40"
+            :disabled="clearing"
+            data-testid="profile-clear-history-confirm"
+            @click="onClearHistory"
+          >
+            {{ t("deleteAccount.clearHistoryConfirm") }}
+          </button>
+          <button
+            type="button"
+            class="rounded-full border border-border px-4 py-2 text-sm"
+            data-testid="profile-clear-history-cancel"
+            @click="clearAsk = false"
+          >
+            {{ t("deleteAccount.clearHistoryCancel") }}
+          </button>
+        </div>
+      </div>
+      <p v-if="clearResult" role="status" class="mt-2 text-center text-xs" data-testid="profile-clear-history-result">
+        {{ clearResult }}
+      </p>
     </div>
 
 

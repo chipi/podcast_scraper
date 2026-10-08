@@ -775,7 +775,7 @@ describe("ProfileView — clear listening history (#2273)", () => {
     await flushPromises()
     expect(w.find('[data-testid="profile-clear-history-confirm"]').exists()).toBe(false)
     await w.get('[data-testid="profile-clear-history-open"]').trigger("click")
-    expect(w.get('[data-testid="profile-clear-history"]').text()).toContain("library, queue")
+    expect(w.get('[data-testid="profile-clear-history-panel"]').text()).toContain("library, queue")
     expect(clear).not.toHaveBeenCalled()
     const statsCalls = (api.getMyStats as unknown as { mock: { calls: unknown[] } }).mock.calls.length
     await w.get('[data-testid="profile-clear-history-confirm"]').trigger("click")

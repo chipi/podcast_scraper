@@ -44,7 +44,7 @@ test('clear listening history asks first, then clears, and the account stays', a
   await signInIsolated(page, 'clear-history', testInfo)
   await page.goto('/profile?tab=account')
   await page.getByTestId('profile-clear-history-open').click()
-  await expect(page.getByTestId('profile-clear-history')).toContainText('library, queue')
+  await expect(page.getByTestId('profile-clear-history-panel')).toContainText('library, queue')
   await page.getByTestId('profile-clear-history-confirm').click()
   await expect(page.getByTestId('profile-clear-history-result')).toHaveText(
     'Your listening history was cleared.',
