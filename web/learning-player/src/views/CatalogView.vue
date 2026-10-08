@@ -257,6 +257,7 @@ onMounted(async () => {
         :filter-options="filterOptions"
         :sort-options="sortOptions"
         :count="countLabel"
+        :search-placeholder="t('browse.filterEpisodes')"
       />
 
       <p v-if="visible.length === 0" class="text-muted">{{ t("list.noMatches") }}</p>

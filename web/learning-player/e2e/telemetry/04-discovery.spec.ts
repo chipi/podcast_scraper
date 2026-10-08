@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { attachSink } from './sink'
+import { showEveryonesTrends } from '../helpers'
 import './settle'
 
 /**
@@ -46,7 +47,7 @@ test.describe('browse', () => {
     await expect(page.getByTestId('browse-view')).toBeVisible()
 
     // Mine is the default and this account has no world yet: read everyone's.
-    await page.getByTestId('home-trending-scope-everyone').click()
+    await showEveryonesTrends(page)
     const row = page.locator('#trends [data-testid="discovery-row"]').first()
     await expect(
       row,

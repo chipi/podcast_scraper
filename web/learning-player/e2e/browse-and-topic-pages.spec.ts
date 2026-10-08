@@ -164,7 +164,7 @@ for (const viewport of [
     await page.setViewportSize(viewport)
     const right = (b: { x: number; width: number } | null) => Math.round((b?.x ?? 0) + (b?.width ?? 0))
     for (const [url, placeholder, rowXpath] of [
-      ['/catalog', 'Filter this list…', 'xpath=..'],
+      ['/catalog', 'Filter episodes…', 'xpath=..'],
       ['/search?q=reliability', 'Search across every episode…', 'xpath=ancestor::form[1]'],
     ] as const) {
       await page.goto(url)
