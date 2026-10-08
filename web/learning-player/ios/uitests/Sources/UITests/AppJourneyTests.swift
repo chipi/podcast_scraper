@@ -140,8 +140,10 @@ final class AppJourneyTests: UITestCase {
         return l.contains("momentum") && l.contains("(") && l.contains(")")
       }
       print("=====STORYLINE_ROWS \(rows.prefix(8).map { $0.label })=====")
-      if let first = rows.first, first.isHittable {
-        first.tap()
+      // Through `Journey.tap`, which lifts the row clear of the bottom bars first. On Discover the
+      // storyline rows sit low enough that a raw `first.tap()` hit the mini-player and opened the
+      // episode player instead (2026-10-08: the inventory after the tap was the player's controls).
+      if let first = rows.first, Journey.tap(app, labels: [first.label], timeout: 5) {
         sleep(5)
         Journey.shot(self, "03-storyline")
         Journey.inventory(app, "storyline-page")

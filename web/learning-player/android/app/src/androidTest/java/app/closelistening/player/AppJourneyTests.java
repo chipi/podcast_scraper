@@ -170,11 +170,11 @@ public class AppJourneyTests extends UITestCase {
 
         // Storyline rows: aria-label = "{label} ({count}) — {N}× momentum" (DiscoveryList
         // rowLabel). The iOS suite filtered by `contains("momentum") && contains("(")` — the
-        // SAME strings appear here. Pick the topmost openable one.
+        // SAME strings appear here.
         //
         // ANDROID DIFFERENCE: XCTest `.buttons.allElementsBoundByIndex.filter` is not available.
-        // Instead, find all controls whose name contains "momentum" and tap the one closest to
-        // the top of the screen (tapTopmost). The visible set is the same because DiscoveryList
+        // Instead, find a control whose name contains "momentum" and tap it by that name through
+        // `Journey.tap` (below). The visible set is the same because DiscoveryList
         // renders these as `<button>` with the same accessible name pattern on both platforms.
         // SCROLL THE RAIL INTO VIEW FIRST. Android's accessibility tree contains only ON-SCREEN
         // nodes, so a rail below the fold is not merely hard to reach — it is absent, and
@@ -219,7 +219,10 @@ public class AppJourneyTests extends UITestCase {
             fail("no storyline row on Home after 12 scroll-and-wait rounds. On screen: "
                     + Journey.labelledInventory(80));
         }
-        boolean storylineTapped = tapTopmost(Arrays.asList("momentum"), true);
+        // Through `Journey.tap`, which lifts the row clear of the bottom nav first. On Discover the
+        // storyline rows sit low, and on iOS a raw tap at the row hit the mini-player and opened
+        // the episode player instead (2026-10-08).
+        boolean storylineTapped = Journey.tap(Journey.nameOf(storylineRow), false, 5_000);
         if (!storylineTapped) {
             fail("storyline rows are on screen but none was tappable. On screen: "
                     + Journey.labelledInventory(80));
@@ -602,58 +605,4 @@ public class AppJourneyTests extends UITestCase {
      *
      * Returns false when no matching, clickable element is found.
      */
-    /**
-     * ENUMERATES. Do not put a `BySelector` back here (2026-09-26).
-     *
-     * This used `By.pkg(PKG).descContains(s)` with a `textContains` fallback, and BOTH are blind to
-     * what it is looking for. `By.desc` DOES NOT MATCH WEBVIEW CONTENT — the measurement that
-     * opened this whole arc, recorded at length on {@link Journey#find} — and the fallback cannot
-     * help because these rows are named by `aria-label`, which arrives as a contentDescription and
-     * never as text.
-     *
-     * So this could never find a storyline row, and said "no storyline row was tappable" about a
-     * rail that was rendering them. `Journey.find` and `AppSession.waitForField` were converted to
-     * enumeration when that was discovered; this one was missed, and nothing ran it until tonight.
-     * `StackDepthProbeTests` calls it too.
-     */
-    private boolean tapTopmost(List<String> substrings, boolean requiresContains) {
-        UiObject2 best     = null;
-        int        bestTop = Integer.MAX_VALUE;
-        java.util.List<UiObject2> all;
-        try {
-            all = Journey.device().findObjects(By.pkg(Journey.PKG));
-        } catch (Throwable t) {
-            return false;
-        }
-        for (UiObject2 o : all) {
-            Boolean clickable = Journey.attr(o, UiObject2::isClickable);
-            if (!Boolean.TRUE.equals(clickable)) continue;
-            String name = Journey.nameOf(o);
-            if (name.isEmpty()) continue;
-            boolean matches = false;
-            for (String s : substrings) {
-                if (requiresContains
-                        ? name.toLowerCase().contains(s.toLowerCase())
-                        : name.equalsIgnoreCase(s)) {
-                    matches = true;
-                    break;
-                }
-            }
-            if (!matches) continue;
-            android.graphics.Rect b;
-            try { b = o.getVisibleBounds(); } catch (Throwable t) { continue; }
-            if (b == null) continue;
-            if (b.centerY() < bestTop) {
-                bestTop = b.centerY();
-                best = o;
-            }
-        }
-        if (best == null) return false;
-        try {
-            best.click();
-            return true;
-        } catch (Throwable t) {
-            return false;
-        }
-    }
 }
