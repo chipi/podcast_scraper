@@ -792,7 +792,6 @@ Following the modularization plan's incremental approach:
 
 ## References
 
-- RFC-015: AI Experiment Pipeline
 - RFC-013: OpenAI Provider Implementation
 - RFC-016: Modularization for AI Experiments
 - RFC-021: Modularization Refactoring Plan - Overall modularization strategy (historical reference)

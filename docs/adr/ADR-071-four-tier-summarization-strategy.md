@@ -10,7 +10,7 @@
 
 ## Context & Problem Statement
 
-RFC-057 Track B autoresearch produced multiple promoted summarization modes across different
+Track B autoresearch produced multiple promoted summarization modes across different
 architectural families: pure ML (HuggingFace MAP+REDUCE), hybrid ML (HF MAP + Ollama REDUCE),
 direct LLM (full transcript → Ollama), and cloud LLM. A direct comparison experiment
 (`direct_llama32_3b_benchmark_paragraph_v1`) revealed that the hybrid MAP stage is not

@@ -11,9 +11,10 @@ head-to-head credited gemini with 9.3 unique insights/episode over qwen — and 
 that was the random number generator, not the model. We were within one step of spending ten vendor
 arms measuring sampling noise and calling it a leaderboard.
 
-The bug is ADR-111's allowlist, exactly: a key nobody copies does not error, it takes its default,
-and the default is "off". So these tests do NOT check that a field exists. They check that a pinned
-value SURVIVES the trip to the thing that actually samples — through both hand-maintained allowlists
+The bug is the profile-key allowlist, exactly: a key nobody copies does not error, it takes its
+default, and the default is "off". So these tests do NOT check that a field exists. They check
+that a pinned value SURVIVES the trip to the thing that actually samples — through both
+hand-maintained allowlists
 (the eval's ``params:`` mapping and the CLI's profile-forwarding tuple), for every provider.
 """
 

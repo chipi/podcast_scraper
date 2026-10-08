@@ -9,7 +9,7 @@
 ## Context & Problem Statement
 
 Pegasus/CNN-DailyMail + LED-base-16384 (`ml_prod_authority_v1`) was the production summarization
-mode for podcast content. During RFC-057 Track B autoresearch, empirical evaluation on
+mode for podcast content. During Track B autoresearch, empirical evaluation on
 `curated_5feeds_smoke_v1` revealed a fundamental architectural mismatch that cannot be resolved
 through parameter tuning.
 
@@ -84,7 +84,7 @@ modifications. Its architectural properties are correct for that domain.
 2. **Replace LED reduce with Ollama LLM** — Rejected as a Pegasus fix. This becomes the hybrid
    ML architecture (see ADR-069), which uses BART not Pegasus as the map model.
 
-3. **Fine-tune Pegasus on podcast data** — Not evaluated. Out of scope for RFC-057 Track B,
+3. **Fine-tune Pegasus on podcast data** — Not evaluated. Out of scope for Track B,
    which focuses on production-ready zero-shot models.
 
 ## Consequences
@@ -103,7 +103,6 @@ modifications. Its architectural properties are correct for that domain.
 - **Registry**: `src/podcast_scraper/providers/ml/model_registry.py` — `ml_prod_authority_v1`
   marked with `deprecated_at="2026-04-03"` and `deprecation_reason` pointing to news content type.
 - **Tombstone experiment**: `data/eval/baselines/baseline_ml_pegasus_retirement_smoke_v1/`
-  with `RETIREMENT.md` documenting the full root cause.
 - **Tombstone config**: `data/eval/configs/ml/baseline_ml_pegasus_retirement_smoke_v1.yaml`
 - **Default**: `PROD_DEFAULT_SUMMARY_MODE_ID` updated to `ml_bart_led_autoresearch_v1`
   in `src/podcast_scraper/config_constants.py`.
@@ -112,4 +111,3 @@ modifications. Its architectural properties are correct for that domain.
 
 - [ADR-010: Hierarchical Summarization Pattern](ADR-010-hierarchical-summarization-pattern.md)
 - [ADR-043: Hybrid MAP-REDUCE Summarization](ADR-043-hybrid-map-reduce-summarization.md)
-- Tombstone: `data/eval/baselines/baseline_ml_pegasus_retirement_smoke_v1/RETIREMENT.md`

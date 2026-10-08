@@ -76,11 +76,11 @@
 
 ## Abstract
 
-** Quick Summary:** This RFC is **complete**. All phases are implemented: provider protocols, implementations, factories, comprehensive fingerprinting, preprocessing profiles, and evaluation infrastructure. The system is production-ready and fully supports the experiment pipeline (RFC-015). Legacy module cleanup is optional and low priority.
+** Quick Summary:** This RFC is **complete**. All phases are implemented: provider protocols, implementations, factories, comprehensive fingerprinting, preprocessing profiles, and evaluation infrastructure. The system is production-ready and fully supports the experiment pipeline. Legacy module cleanup is optional and low priority.
 
 ---
 
-This RFC identifies the refactoring and modularization needed to support the AI experiment pipeline (RFC-015) while maintaining the existing production workflow. **This refactoring aligns with and builds upon the modularization already completed in RFC-029 (Provider Refactoring Consolidation)**. The goal is to create clean abstractions that allow the experiment pipeline to run independently without duplicating code or interfering with the main pipeline.
+This RFC identifies the refactoring and modularization needed to support the AI experiment pipeline while maintaining the existing production workflow. **This refactoring aligns with and builds upon the modularization already completed in RFC-029 (Provider Refactoring Consolidation)**. The goal is to create clean abstractions that allow the experiment pipeline to run independently without duplicating code or interfering with the main pipeline.
 
 **Key Concept**: The experiment pipeline wraps existing pieces (gold data, HF baseline, eval scripts) in a repeatable pipeline. The provider system enables this by allowing the experiment runner to reuse production providers without code duplication. Once the structure is in place, adding new providers is just "add config + small backend class".
 

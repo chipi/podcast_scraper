@@ -1144,14 +1144,14 @@ cloud summarization, or cloud transcription + local GIL.
 
 ### D.9 Evaluation workloads (`data/eval/`)
 
-The evaluation infrastructure (`data/eval/`, `evaluation/scorer.py`, RFC-041, RFC-057) has its
+The evaluation infrastructure (`data/eval/`, `evaluation/scorer.py`) has its
 own resource considerations:
 
 | Workload | Resource needs | Where it runs |
 | --- | --- | --- |
 | **Scoring** (`score_run`) | ROUGE/BLEU (CPU), embedding similarity (sentence-transformers) | CPU-only OK |
 | **Baseline comparison** | CPU-only (file comparison) | CI |
-| **AutoResearch** (RFC-057) | Many experiment iterations; needs efficient model loading | Dev machine with GPU |
+| **AutoResearch** | Many experiment iterations; needs efficient model loading | Dev machine with GPU |
 
 **Recommendation:** Evaluation does **not** need the distributed topology (Part D.5). It runs
 on a developer's machine or in CI. However, `model_registry.py` preloading and caching

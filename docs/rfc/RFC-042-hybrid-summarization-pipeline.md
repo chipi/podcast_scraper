@@ -258,7 +258,7 @@ Raw transcript
   YAML/config file uses the same field names. DEBUG config logging prints transcript
   cleaning and the hybrid internal profile when `summary_provider` is `hybrid_ml`.
 
-**Trade-offs (qualitative here; quantitative under RFC-041):**
+**Trade-offs (qualitative here; quantitative benchmarking separately):**
 
 - **More preprocessing before MAP** — Fewer tokens into MAP/REDUCE and less junk for classic
   models; costs CPU and must stay idempotent-safe where layered.
@@ -1421,15 +1421,15 @@ The hybrid provider is considered successful if:
 
 ### 17.3 Out of Scope (Phase 1)
 
-- Quantitative metrics (ROUGE, BLEU, BERTScore) - defer to RFC-041
-- Cost/performance benchmarks - defer to RFC-041
+- Quantitative metrics (ROUGE, BLEU, BERTScore) - deferred
+- Cost/performance benchmarks - deferred
 - **Full vs layered preprocessing A/B** (e.g. internal `cleaning_v4` vs
-  `cleaning_hybrid_after_pattern` after pattern workflow cleaning) — defer to RFC-041;
+  `cleaning_hybrid_after_pattern` after pattern workflow cleaning) — deferred;
   fingerprint `transcript_cleaning_strategy`, internal preprocessing profile, and mode ID in
   experiment metadata
 - User studies - defer to future work
 
-**Rationale:** Keep Phase 1 focused on qualitative validation. Quantitative benchmarking can leverage RFC-041 infrastructure once implemented.
+**Rationale:** Keep Phase 1 focused on qualitative validation. Quantitative benchmarking can leverage benchmarking infrastructure once implemented.
 
 ---
 

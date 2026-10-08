@@ -328,7 +328,6 @@ RUN_ID=my_experiment python3 -m podcast_scraper.cli ...
 #### New Guides
 
 - **ML Provider Tuning Guide** - Complete guide for fine-tuning local ML providers
-- **AI Provider Comparison Guide** - Detailed comparison of all 8 providers (cost, quality, speed, privacy)
 - **Provider Configuration Quick Reference** - Quick config examples
 - **Provider Implementation Guide** - Guide for implementing new providers
 

@@ -15,7 +15,7 @@
     catalog + digest data mixed into dashboard copy
 - **Related PRDs** (adjacent product surfaces):
   - [PRD-016: Operational observability](../prd/PRD-016-operational-observability-pipeline-intelligence.md) —
-    **distinct** from this PRD: PRD-016 covers CI metrics, GitHub Pages, frozen profiles (RFC-064/066),
+    **distinct** from this PRD: PRD-016 covers CI metrics, GitHub Pages, frozen profiles,
     live monitor (RFC-065). **This** PRD is **corpus-local** analytics in the **viewer** only.
   - [PRD-017](../prd/PRD-017-grounded-insight-layer.md), [PRD-019](../prd/PRD-019-knowledge-graph-layer.md) —
     GI/KG artifacts summarized in charts
@@ -47,7 +47,7 @@ Before the Dashboard tab, operators relied on **API · Data** left-panel cards (
 **List** / **Load into graph** now live on the **status bar** (**VIEWER_IA**), while **Dashboard** focuses on
 **briefing** + **Coverage** / **Intelligence** / **Pipeline** charts, or on ad hoc **`cat`**, or on external
 tools to correlate **run.json**, **corpus_manifest.json**, catalog stats, and index health. The
-Dashboard does not replace **RFC-064** frozen profiles or **RFC-066** Streamlit run compare; it answers
+Dashboard does not replace frozen profiles or Streamlit run compare; it answers
 **“what does this corpus root look like right now?”** inside the same session as graph and search.
 
 ## Goals

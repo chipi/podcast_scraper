@@ -348,7 +348,6 @@ On **`main`**, GitHub Actions runs **`stack-test.yml`** against the same topolog
 - [Development Guide](DEVELOPMENT_GUIDE.md) - Full development workflow
 - [Testing Guide](TESTING_GUIDE.md) - Detailed test information
 - [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) - Per-provider benchmarks
-- `Experiment Guide` - Eval datasets and baselines
 - [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) - Docker usage and deployment
 - [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) - LLM-only vs ML-enabled
 - [CLI Reference](../api/CLI.md) - All CLI options

@@ -40,7 +40,7 @@ shared Tufte-style defaults from `chartRegister.ts`.
 1. **Briefing card** (`data-testid="briefing-card"`) — last run / health / short actions; always above tabs.
 2. **Tablist** `aria-label="Dashboard tabs"` — **Coverage** | **Intelligence** | **Pipeline**.
 3. **Coverage** — coverage by month, feed coverage table, artifact activity (from listed artifacts), **Index status** (`data-testid="index-status-card"`) — status-only; index facts + rebuild actions moved to the Configuration dialog's **Index** section, reached via **Manage in Configuration** (`index-status-manage`).
-4. **Intelligence** — digest snapshot, **Topic briefings** (`topic-briefing-cards`, PRD-033 FR6.1 #888 — retrieval-grounded `topic-briefing-card` per top topic, see §5), **Topic clusters** status (`topic-clusters-status-block`), topic landscape, top voices (when API available). Topic momentum / emerging connections **omitted** until RFC-073 data ships (no placeholder UI). **Search activity** (`query-activity-chart`, PRD-033 FR6.2 — daily search-volume bar chart, see §5). Topic momentum stays omitted.
+4. **Intelligence** — digest snapshot, **Topic briefings** (`topic-briefing-cards`, PRD-033 FR6.1 #888 — retrieval-grounded `topic-briefing-card` per top topic, see §5), **Topic clusters** status (`topic-clusters-status-block`), topic landscape, top voices (when API available). Topic momentum / emerging connections **omitted** until RFC-088 data ships (no placeholder UI). **Search activity** (`query-activity-chart`, PRD-033 FR6.2 — daily search-volume bar chart, see §5). Topic momentum stays omitted.
 5. **Pipeline** — run history strip, duration trend, stage timings, numeric outcomes, episodes per run; optional per-feed run heatmap only when server exposes stable per-feed fields.
 
 The legacy **CorpusDataWorkspace** / **Pipeline | Content intelligence** split on Dashboard is removed; those components are not part of this surface.
@@ -315,7 +315,7 @@ Action item rules:
 
 - Primary action link: the most direct next step
 - Max one secondary action link
-- Never says "run enrich" or references RFC-073 enrichers — out of scope
+- Never says "run enrich" or references RFC-088 enrichers — out of scope
 
 **Possible items (ordered by priority):**
 
@@ -618,7 +618,7 @@ leads with N insights across M episodes."
 
 **Enricher-gated — degrades gracefully.**
 
-Available when `temporal_velocity` enricher data is present (RFC-073).
+Available when `temporal_velocity` enricher data is present (RFC-088).
 
 Top 5 topics by recent activity. Each row:
 
@@ -646,7 +646,7 @@ low-volume topics invisible).
 **Degraded state:** `muted` text — "Topic momentum data not available
 for this corpus." No enricher prompt.
 
-**Source:** RFC-073 enricher output (not yet available).
+**Source:** RFC-088 enricher output (not yet available).
 
 `data-testid="intelligence-topic-momentum"`
 
@@ -654,7 +654,7 @@ for this corpus." No enricher prompt.
 
 **Enricher-gated — degrades gracefully.**
 
-Available when `topic_cooccurrence` enricher data is present (RFC-073).
+Available when `topic_cooccurrence` enricher data is present (RFC-088).
 
 Top 4 topic pairs by unexpected co-occurrence strength. Each row:
 
@@ -669,7 +669,7 @@ their individual frequency."
 **Degraded state:** `muted` text — "Topic co-occurrence data not
 available for this corpus." No enricher prompt.
 
-**Source:** RFC-073 enricher output (not yet available).
+**Source:** RFC-088 enricher output (not yet available).
 
 `data-testid="intelligence-emerging-connections"`
 

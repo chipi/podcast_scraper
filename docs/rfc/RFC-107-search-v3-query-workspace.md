@@ -25,7 +25,7 @@
 
 ## Abstract
 
-Promote search in the operator viewer from a 288 px sidebar into a **first-class main tab (Query Workspace, UXS-016)** and a **shell-wide command palette (Cmd-K)**, and merge the current Search + Explore mode-switch into one query surface. Add **result-set operators** (cluster / on-graph / timeline / compare / consensus) that unlock existing shipped backend capability (`insight_clusters`, `theme_clusters`, `context_pack.build_briefing_pack`, `topic_consensus`). Add **search-launch handoffs** from every subject rail (publishing to the shipped `activeSearchContext` store from RFC-094), and **in-episode search** on `EpisodeDetailPanel`. Add **saved queries + query history** as a user-scoped surface — **via USERPREFS-1** (`/api/app/preferences`), NOT per-corpus (ADR-119). Adopt the three-tier test pyramid (ADR-095) for search coverage; add a **quality-eval harness** with a labelled query set and a **CDP-based perf-capture harness** mirroring `capture-graph-lcp.{sh,mjs}`. Enforce the #1205 SIGSEGV guardrails (Python-side `search_bm25 + search_vector + rrf_fuse` fan-out; no `_combine_hybrid_results`) as first-class review gates.
+Promote search in the operator viewer from a 288 px sidebar into a **first-class main tab (Query Workspace, UXS-016)** and a **shell-wide command palette (Cmd-K)**, and merge the current Search + Explore mode-switch into one query surface. Add **result-set operators** (cluster / on-graph / timeline / compare / consensus) that unlock existing shipped backend capability (`insight_clusters`, `theme_clusters`, `context_pack.build_briefing_pack`, `topic_consensus`). Add **search-launch handoffs** from every subject rail (publishing to the shipped `activeSearchContext` store from RFC-094), and **in-episode search** on `EpisodeDetailPanel`. Add **saved queries + query history** as a user-scoped surface — **via USERPREFS-1** (`/api/app/preferences`), NOT per-corpus (ADR-119). Adopt the three-tier test pyramid (ADR-095) for search coverage; add a **quality-eval harness** with a labelled query set and a **CDP-based perf-capture harness**. Enforce the #1205 SIGSEGV guardrails (Python-side `search_bm25 + search_vector + rrf_fuse` fan-out; no `_combine_hybrid_results`) as first-class review gates.
 
 ## Problem
 
@@ -249,8 +249,6 @@ Standard vitest + pytest at:
 - **SIGSEGV regression** (see §S): `tests/integration/search/test_lancedb_concurrent_no_native_combine.py` — extends the #1205 repro harness.
 
 ## Perf capture harness
-
-Mirrors `scripts/dev/capture-graph-lcp.{sh,mjs}` — same shape, same output contract, different targets.
 
 > The capture scripts in this section are no longer in this repository.
 

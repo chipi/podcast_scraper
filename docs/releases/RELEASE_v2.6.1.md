@@ -74,7 +74,7 @@ override). Fixed identically.
    `data/eval/runs/` were captured during the bug window and used
    silent TEST defaults. **Comparing pre-v2.6.1 scoreboards to
    post-v2.6.1 runs is not apples-to-apples** for any of the 10
-   meaningfully-flipped knobs above. A `_PRE_FIX_NOTE.md` is added
+   meaningfully-flipped knobs above. A note is added
    to `data/eval/runs/` (this release) to flag this for
    future-you.
 

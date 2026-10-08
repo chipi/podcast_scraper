@@ -69,7 +69,6 @@ over `bundled_ab` (72.5%). Operator pushed back: more calls = more rate
 limit pressure + higher cost + higher latency under contention. Champion
 selection was redone treating call-count as a primary axis, accepting up
 to 5pp coverage drop in exchange for 92% call cut on cloud providers.
-This re-derivation is recorded in `autoresearch/gil_evidence_bundling/results.tsv`.
 
 **Mistral exception.** Layer A (bundled extract) on Mistral regressed
 coverage from 70% (staged) → 67.5% (`bundled_ab`). Layer B alone held
@@ -172,7 +171,4 @@ mistral-small3.2 silently truncated and timed out. The fix is in
 
 - [#698 — GIL evidence stack bundling](https://github.com/chipi/podcast_scraper/issues/698)
 - [PR #711 — implementation + matrix results](https://github.com/chipi/podcast_scraper/pull/711)
-- `Eval report — EVAL_GIL_BUNDLING_2026_05.md`
-- [autoresearch/gil_evidence_bundling/](https://github.com/chipi/podcast_scraper/tree/main/autoresearch/gil_evidence_bundling/)
-  — full results.tsv, scaffolds, and per-cell experiment YAMLs
 - [ADR-077 — Local Ollama model selection](ADR-077-local-ollama-model-selection.md)

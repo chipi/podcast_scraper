@@ -10,7 +10,7 @@ profile: cloud_quality
 # Uses the best provider per stage based on autoresearch findings.
 # ~2x cost of cloud_balanced but highest quality ceiling.
 #
-# Research references (EVAL_HELDOUT_V2, EVAL_CROSS_DATASET_BASELINE_2026_04):
+# Research references (held-out v2 and cross-dataset baseline evals):
 #   Summary:   DeepSeek 0.586 bullets / 0.541 paragraph (#1 quality, v2 held-out)
 #              Refreshed 2026-04-23 post-#652/#653 (non-bundled, no judge re-run):
 #              bullets ROUGE-L 0.422 / cosine 0.887 / 14.3s/ep
@@ -50,7 +50,7 @@ audio_preprocessing_profile: speech_optimal_v1
 # entity-recognition-on-transcript, not the speaker-from-RSS-metadata task
 # the speaker_detector actually performs. On v3 (22 episodes), Gemini
 # extracts guests faithfully from title/description 77% of the time vs
-# spaCy's 4.5% — see EVAL_SPEAKER_DETECTION_NAMING_2026_06_15.md.
+# spaCy's 4.5%.
 # All other cloud_* profiles already use gemini for the same reason.
 speaker_detector_provider: gemini
 auto_speakers: true
@@ -98,7 +98,7 @@ gi_require_grounding: true
 
 # #698 GIL evidence bundling — Layer A + Layer B both bundled.
 # Coverage vs Sonnet-4.6 silver: 77.5% (staged) → 82.5% (+5pp). 92% calls cut.
-# ADR-078; results in autoresearch/gil_evidence_bundling/results.tsv.
+# ADR-078.
 gil_evidence_quote_mode: bundled
 gil_evidence_nli_mode: bundled
 

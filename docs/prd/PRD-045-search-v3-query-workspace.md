@@ -42,7 +42,7 @@ Promote **Search** in the operator viewer from a 288 px left-column sidebar into
 8. **In-episode search** on `EpisodeDetailPanel` — episode-scoped search inline in the rail.
 9. **Three-tier test coverage** (Tier 1 mocked / Tier 2 production-shaped fixture / Tier 3 real-corpus Playwright), mirroring ADR-095.
 10. **Quality eval harness** for search outcomes on a well-defined text corpus (nDCG, MRR, tier coverage, intent-router accuracy, compound-lift rate, enriched-answer groundedness, `topic_consensus` precision on the labelled set).
-11. **Perf baseline + regeneration harness**, mirroring `capture-graph-lcp.{sh,mjs}` — first for the API (structured search endpoint per intent), then for the UI (Workspace TTI, filter-apply, cmd-K open, result-set operator latency).
+11. **Perf baseline + regeneration harness**, first for the API (structured search endpoint per intent), then for the UI (Workspace TTI, filter-apply, cmd-K open, result-set operator latency).
 12. **No SIGSEGV regression** — inherit and enforce the #1205 guardrails (Python-side fan-out; no native `_combine_hybrid_results`).
 
 ## Non-Goals
@@ -159,10 +159,10 @@ Every rail launcher publishes the pre-filled scope to `activeSearchContext` (RFC
 
 > The capture scripts in FR11 are no longer in this repository.
 
-- **FR11.1** New scripts `scripts/dev/capture-search-perf.{sh,mjs}` mirroring `capture-graph-lcp.{sh,mjs}`:
+- **FR11.1** New scripts `scripts/dev/capture-search-perf.{sh,mjs}`:
   - **API surface** — an HTTP capturer that records p50/p95/p99 for `/api/search`, `/api/app/search`, `/api/corpus/search` per intent class + per top_k, over the query set from FR10.
   - **UI surface** — Chrome DevTools/CDP trace of: Workspace-open (TTI), cmd-K-open latency, filter-apply, result-set operator ("Cluster", "Show on graph"), enriched-answer paint.
-- **FR11.2** Median-of-3 (same fair-comparison rule as GRAPH_PERF_TRACE_RUNBOOK); outputs `.metrics.json` + gzipped trace per label; committed under `docs/guides/perf-traces/`.
+- **FR11.2** Median-of-3 (fair-comparison rule); outputs `.metrics.json` + gzipped trace per label; committed under `docs/guides/perf-traces/`.
 - **FR11.3** Baseline against `main` captured on branch tip **before** slice 1; re-captured per slice; deltas reported in each PR body.
 - **FR11.4** After baseline, a **deep-review pass** (backend + frontend) surfaces optimization candidates — issues opened, not silently applied.
 

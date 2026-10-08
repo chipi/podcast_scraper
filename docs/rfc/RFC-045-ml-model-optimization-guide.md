@@ -17,7 +17,7 @@
 
 This RFC provides a comprehensive guide for maximizing ML model quality in podcast_scraper through two orthogonal approaches: **preprocessing optimization** (model-agnostic text cleaning) and **generation parameter tuning** (model-specific settings). The goal is to extract maximum quality from smaller, faster models before graduating to larger, more expensive alternatives.
 
-**Architecture Alignment:** This RFC builds on RFC-016's modular provider architecture and RFC-041's benchmarking framework, providing concrete optimization strategies that apply across all ML providers.
+**Architecture Alignment:** This RFC builds on RFC-016's modular provider architecture, providing concrete optimization strategies that apply across all ML providers.
 
 ## Problem Statement
 
@@ -813,13 +813,11 @@ make experiment-run CONFIG=data/eval/configs/baseline_bart_v7_cleaning_v4.yaml
 This RFC (RFC-045) complements the ML quality improvement initiative:
 
 1. **RFC-012: Episode Summarization** - Core summarization implementation
-2. **RFC-041: ML Benchmarking Framework** - Measurement infrastructure
-3. **RFC-044: Model Registry** - Model configuration management
+2. **RFC-044: Model Registry** - Model configuration management
 
 **Key Distinction:**
 
 - **This RFC (045)**: *How* to optimize ML quality (preprocessing + parameters)
-- **RFC-041**: *How* to measure ML quality (benchmarking framework)
 - **RFC-044**: *How* to configure ML models (registry)
 
 Together, these RFCs provide a complete ML quality management system.

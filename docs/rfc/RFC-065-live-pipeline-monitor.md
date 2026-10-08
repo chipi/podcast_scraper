@@ -5,7 +5,7 @@
 - **Stakeholders**: Developers and operators debugging long pipeline runs
 - **Related PRDs**:
   - [PRD-016: Operational Observability & Pipeline Intelligence](../prd/PRD-016-operational-observability-pipeline-intelligence.md) —
-    live visibility into runs (with RFC-027 / RFC-064 family)
+    live visibility into runs (with RFC-027 family)
 - **Related ADRs**:
   - [ADR-027: Unified Provider Metrics Contract](../adr/ADR-027-unified-provider-metrics-contract.md)
 - **Related Documents**:
@@ -13,7 +13,6 @@
     multi-feed, stderr vs log, optional **memray** / **py-spy**
   - [CLI.md](../api/CLI.md), [CONFIGURATION.md](../api/CONFIGURATION.md#live-pipeline-monitor-rfc-065-512)
   - [GitHub #512](https://github.com/chipi/podcast_scraper/issues/512) — tracking
-  - [GitHub #510](https://github.com/chipi/podcast_scraper/issues/510) — RFC-064 epic (profiles)
 - **Updated**: 2026-04-09 (stub), 2026-04-10 (expanded), 2026-04-12 (delivered-scope + style alignment),
   2026-04-11 (terminal-split deferred + implementation record + lifecycle accuracy)
 
@@ -29,7 +28,7 @@ summary** table. Core stack uses only **`psutil`**, **`rich`**, and stdlib (**no
 **`memray_output`**) and parent-TTY **`f`** → **`py-spy record`** flamegraph under **`debug/`** (see
 guide for SIP / **`sudo`** notes on macOS).
 
-This complements **RFC-064** (frozen release profiles): RFC-064 is a **static** capture; this RFC is
+This complements frozen release profiles, which are a **static** capture; this RFC is
 a **live** view during development. **Not shipped:** automatic **tmux** / **Terminal.app** split
 (**`terminal_split.py`** was designed but is **not in the tree** — use an external split terminal or
 **`tail -f .monitor.log`**).
@@ -44,7 +43,7 @@ a **live** view during development. **Not shipped:** automatic **tmux** / **Term
 | **Status file** | **`<output_dir>/.pipeline_status.json`** — atomic writes on stage transitions (**`monitor/status.py`**) |
 | **Dashboard** | **`rich.Live`** on stderr when TTY; else **`.monitor.log`** one line per tick (**same fields**) |
 | **Profiling (optional)** | **`memray_util.py`**: **`PODCAST_SCRAPER_MEMRAY_ACTIVE=1`** guard; **`py_spy_listener`**: stdin **`f`** in **parent** (orchestration), **`debug/flamegraph_*.svg`** |
-| **Orchestration hooks** | **`maybe_update_pipeline_status()`** at RFC-064-aligned stage names; **no-op** when **`monitor`** is false |
+| **Orchestration hooks** | **`maybe_update_pipeline_status()`** at profile-aligned stage names; **no-op** when **`monitor`** is false |
 | **Tests** | **`tests/unit/podcast_scraper/monitor/`** (status, sampler, dashboard pieces, memray, py-spy listener); integration coverage as in guide |
 | **Deferred** | **`terminal_split.py`** (tmux / **osascript** auto-window) — **not implemented**; finer-grained **GI** / **KG** stage lines in status file (work largely inside concurrent metadata path — monitor may show **`transcript_cleaning`** through **`summarization`** / **`vector_indexing`**; see [LIVE_PIPELINE_MONITOR.md](../guides/LIVE_PIPELINE_MONITOR.md)) |
 

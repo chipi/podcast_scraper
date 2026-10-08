@@ -9,7 +9,7 @@
 
 ## Context & Problem Statement
 
-RFC-057 Track B required selecting the best Ollama model for the LLM reduce stage of the
+Track B required selecting the best Ollama model for the LLM reduce stage of the
 hybrid pipeline (and later, direct LLM inference). Multiple models were evaluated across
 the 3B–12B parameter range. The selection needed to balance ROUGE-L quality, latency,
 and local resource constraints (Apple Silicon MPS, no GPU).
@@ -118,5 +118,4 @@ params:
 - [ADR-069: Hybrid ML Pipeline as Production Direction](ADR-069-hybrid-ml-pipeline-as-production-direction.md)
 - [ADR-070: BART-base as Hybrid MAP Stage](ADR-070-bart-base-as-hybrid-map-stage.md)
 - [ADR-071: Four-Tier Summarization Strategy](ADR-071-four-tier-summarization-strategy.md)
-- Sweep TSV: `autoresearch/ml_param_tuning/results/direct_llama32_3b_sweep_20260404_183918.tsv`
 - Canonical config: `data/eval/configs/summarization/direct_llama32_3b_autoresearch_v1.yaml`

@@ -10,7 +10,7 @@
 
 The **AI Quality & Experimentation Platform** is a unified system for managing, measuring, and driving the evolution of the podcast processing pipeline. It transforms the project from a set of script-driven tasks into a data-first product where quality is objective, progress is measurable, and the management of AI models and data is a first-class capability.
 
-By combining an **Experiment Runner** (RFC-015), **Modular Providers** (RFC-016), a **Benchmarking Framework** (RFC-041), and **Proactive Alerting** (RFC-043), we establish the management layer needed to govern the evolution of the AI pipeline. The platform serves as the **universal evaluation harness** for all evaluable AI changes, ensuring that every model, prompt, or preprocessing update is driven by objective data.
+By combining an **Experiment Runner** **Modular Providers** (RFC-016), a **Benchmarking Framework**, and **Proactive Alerting** (RFC-043), we establish the management layer needed to govern the evolution of the AI pipeline. The platform serves as the **universal evaluation harness** for all evaluable AI changes, ensuring that every model, prompt, or preprocessing update is driven by objective data.
 
 ## Background & Context
 
@@ -33,7 +33,6 @@ As the project scales from simple transcript downloads to complex summarization 
 ## Core Pillars
 
 ### 1. The Experiment Runner (The Lab)
-- **RFC Reference**: RFC-015
 - **Capability**: A repeatable pipeline that executes model configurations against datasets.
 - **Driving Value**: The experiment runner is the **single execution path** for all evaluable AI changes (models, prompts, preprocessing, chunking, ASR). It enables data-driven experimentation by decoupling execution from scoring.
 
@@ -43,7 +42,6 @@ As the project scales from simple transcript downloads to complex summarization 
 - **Driving Value**: Provides the management flexibility to swap and compare providers without code changes.
 
 ### 3. Benchmarking Framework (The Judge)
-- **RFC Reference**: RFC-041
 - **Capability**: Automated scoring against "Golden" standards using defined metrics and quality gates.
 - **Driving Value**: Establishes the objective "Scoreboard" that drives decision-making.
 
@@ -108,7 +106,7 @@ This prevents the "Invalid Comparison" anti-pattern (e.g., comparing The Indicat
 - **FR2.2**: **Speaker Leak Detection**: Fail if speaker labels (e.g., "Host 1:") appear in the final summary.
 - **FR2.3**: **Content Integrity**: Measure "Numbers Retained" to ensure quantitative data isn't lost.
 - **FR2.4**: **Stability Check**: Measure variance across 3 runs of the same input to detect hallucination/instability.
-- **FR2.5**: **Stability Thresholds**: Thresholds (cosine similarity, variance) are defined and versioned by the benchmarking framework (RFC-041), not per experiment.
+- **FR2.5**: **Stability Thresholds**: Thresholds (cosine similarity, variance) are defined and versioned by the benchmarking framework, not per experiment.
 
 ### PR3: Platform Reproducibility (The Product Contract)
 - **FR3.1**: **Full Provider Fingerprinting**: Every experiment result MUST record a full provider fingerprint: `model`, `version`, `device`, `precision`, `preprocessing_profile`, and `git_commit`.
@@ -127,12 +125,12 @@ This prevents the "Invalid Comparison" anti-pattern (e.g., comparing The Indicat
 
 ### Phase 1: Core Execution & Data
 
-- **RFC-015 Phase 1 (Runner)**: Implementation of the runner with `baseline_id` and `dataset_id` enforcement.
-- **RFC-041 Phase 0 (Datasets)**: Freezing the first "Golden" datasets and establishing initial baselines.
+- **Phase 1 (Runner)**: Implementation of the runner with `baseline_id` and `dataset_id` enforcement.
+- **Phase 0 (Datasets)**: Freezing the first "Golden" datasets and establishing initial baselines.
 
 ### Phase 2: Full Benchmarking & Automation
 
-- **RFC-041 (Full Suite)**: Integration of quality gates and ROUGE/WER metrics.
+- **Full Suite**: Integration of quality gates and ROUGE/WER metrics.
 - **RFC-043 (Alerts)**: CI integration for proactive alerting.
 
 ## Success Criteria

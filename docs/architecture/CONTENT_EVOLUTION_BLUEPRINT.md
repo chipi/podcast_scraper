@@ -1318,7 +1318,7 @@ content identity:
   feature UXS files; shared tokens and layout primitives are reused. New
   server routes for enrichment (PRD-026, PRD-027) and CIL queries
   (`/api/persons/*`, `/api/topics/*`) are content-agnostic.
-- **Evaluation framework** (RFC-041/057) -- runs experiments on pipeline output;
+- **Evaluation framework** -- runs experiments on pipeline output;
   content-type-aware evaluation is a v3.x concern
 
 ---
@@ -1336,7 +1336,7 @@ them, except for the four anticipations noted in Part 6.
 | Semantic search | RFC-061 | Shipped | **None.** Operates on text + embeddings, already generic. |
 | Canonical Identity Layer + bridge | RFC-072 | Shipped | **PRECURSOR.** `person:{slug}`, `org:{slug}`, `topic:{slug}` are content-agnostic canonical IDs. The bridge artifact and CIL patterns are the **implemented foundation** for cross-content-type entity resolution (Phase 3 / F.3). Postgres schema (Anticipation #1) should use these canonical IDs directly. |
 | Enrichment layer | RFC-088 | In progress | **None.** Enricher protocol is content-agnostic -- reads core artifacts (GIL, KG, bridge), produces derived signals. Works unchanged for any content type that produces the same artifact shapes. First consumers: PRD-026 (Topic Entity View), PRD-027 (Enriched Search). |
-| Evaluation framework | RFC-041/057 | In progress | **None.** Needed later for content-type prompt tuning. |
+| Evaluation framework | — | In progress | **None.** Needed later for content-type prompt tuning. |
 | Postgres projection | RFC-051, Phase C | Next major | **ANTICIPATE** -- see Anticipation #1 and #2 in Part 6. RFC-072 canonical IDs (`person:{slug}`, `topic:{slug}`) should be the identity columns, not ad-hoc slugs. |
 | Catalog + subscriptions | Part A, Phase A | Planned | **ANTICIPATE** -- see Anticipation #2 in Part 6. |
 | Workers + queues | Part B, simple tier | Planned | **ANTICIPATE** -- see Anticipation #3 in Part 6. |
@@ -1465,7 +1465,7 @@ PR-A4  Enrichment layer (RFC-088)                           [IN PROGRESS]
               reads core artifacts via EpisodeArtifactBundle, produces
               derived signals. Works unchanged for any content type.
 
-PR-A5  Evaluation framework maturity (RFC-041/057)
+PR-A5  Evaluation framework maturity
        ────────────────────────────────────────────
        Scope: Scorer, baseline comparison, experiment runner,
               golden dataset management.
