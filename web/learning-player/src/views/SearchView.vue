@@ -710,10 +710,12 @@ const showEmpty = computed(
            and the input is labelled. -->
       <!-- #1261-8: save the current query+scope to the listener's saved list.
            Only surfaces once the query is non-empty. -->
+      <!-- The same size as the Mine toggle beside it (operator 2026-10-08: Save stood taller than its
+           neighbours) — text-xs and py-2.5 make the same ~38px as Mine's padded pill. -->
       <button
         v-if="query.trim()"
         type="button"
-        class="shrink-0 rounded-full border border-border px-4 py-3 text-sm font-bold text-muted transition hover:text-canvas-foreground"
+        class="shrink-0 rounded-full border border-border px-3.5 py-2.5 text-xs font-bold text-muted transition hover:text-canvas-foreground"
         :aria-label="
           isGated
             ? t('auth.signInToSave')
