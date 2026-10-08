@@ -8,6 +8,8 @@
 
 import type {
   EpisodeSummary,
+  FavoriteKind,
+  FavoriteRef,
   WhatsNewResponse,
   RecapResponse,
   RecapWindow,
@@ -265,6 +267,37 @@ export function listPodcastEpisodes(
 /** Episode detail by slug. */
 export function getEpisode(slug: string): Promise<EpisodeDetail> {
   return getJSON<EpisodeDetail>(`/episodes/${encodeURIComponent(slug)}`)
+}
+
+/** At most this many slugs per batch request — the server's cap (`_BATCH_MAX`). */
+const EPISODE_BATCH_MAX = 100
+
+/**
+ * Several episode details in one request each 100 — the queue, recently played and the other
+ * lists of saved slugs. Returns a map by slug; unknown slugs are simply absent.
+ *
+ * A server that predates `/episodes/batch` reads "batch" as a slug and answers 404: the 1.0.3 app
+ * is published before the deploy, so for a while it talks to that server. On 404 this falls back to
+ * one `getEpisode` per slug, which is what every screen did before.
+ */
+export async function getEpisodesBatch(slugs: string[]): Promise<Record<string, EpisodeDetail>> {
+  const unique = [...new Set(slugs.filter(Boolean))]
+  const out: Record<string, EpisodeDetail> = {}
+  for (let i = 0; i < unique.length; i += EPISODE_BATCH_MAX) {
+    const chunk = unique.slice(i, i + EPISODE_BATCH_MAX)
+    const query = chunk.map((s) => `slugs=${encodeURIComponent(s)}`).join("&")
+    try {
+      const body = await getJSON<{ items: EpisodeDetail[]; missing: string[] }>(
+        `/episodes/batch?${query}`
+      )
+      for (const d of body.items) out[d.slug] = d
+    } catch (err) {
+      if (!(err instanceof ApiError) || err.status !== 404) throw err
+      const each = await Promise.all(chunk.map((s) => getEpisode(s).catch(() => null)))
+      for (const d of each) if (d) out[d.slug] = d
+    }
+  }
+  return out
 }
 
 /** Transcript segments for the sync engine.
@@ -731,6 +764,77 @@ export async function getUserInterests(): Promise<string[]> {
  *  back to its cache instead of persisting an empty list as truth. Sole caller: stores/favorites. */
 export async function getFavorites(): Promise<FavoritesResponse> {
   return await getJSON<FavoritesResponse>("/favorites")
+}
+
+/** Query for one page of the Saved list (`GET /favorites` with `limit`). */
+export interface FavoritesPageQuery {
+  kind?: FavoriteKind
+  q?: string
+  color?: string | null
+  sort?: "recent" | "title"
+  offset?: number
+  limit: number
+}
+
+/**
+ * One page of one kind of favourite, filtered and sorted on the server.
+ *
+ * A server that predates paging ignores the parameters and returns every favourite with no
+ * `total`; this then does the same filtering and slicing here, so the screen behaves the same on
+ * either server.
+ */
+export async function getFavoritesPage(query: FavoritesPageQuery): Promise<FavoritesResponse> {
+  const resp = await getJSON<FavoritesResponse>("/favorites", {
+    kind: query.kind,
+    q: query.q?.trim() || undefined,
+    color: query.color ?? undefined,
+    sort: query.sort,
+    offset: query.offset ?? 0,
+    limit: query.limit,
+  })
+  return resp.total === undefined ? pageFavoritesLocally(resp, query) : resp
+}
+
+export function pageFavoritesLocally(all: FavoritesResponse, query: FavoritesPageQuery): FavoritesResponse {
+  const needle = (query.q ?? "").trim().toLocaleLowerCase()
+  const has = (...texts: (string | null | undefined)[]) =>
+    !needle || texts.some((t) => (t ?? "").toLocaleLowerCase().includes(needle))
+  const colourOk = (c?: string | null) => !query.color || c === query.color
+  const eps = all.episodes.filter((e) => colourOk(e.color) && has(e.title, e.podcast_title))
+  const ents = (all.entities ?? []).filter((e) => colourOk(e.color) && has(e.label))
+  const counts: Partial<Record<FavoriteKind, number>> = { episode: eps.length }
+  for (const e of ents) counts[e.kind] = (counts[e.kind] ?? 0) + 1
+  const byTitle = query.sort === "title"
+  const start = query.offset ?? 0
+  const end = start + query.limit
+  if (query.kind === "episode") {
+    const list = byTitle ? [...eps].sort((a, b) => a.title.localeCompare(b.title)) : eps
+    return { episodes: list.slice(start, end), entities: [], total: list.length, counts }
+  }
+  const list = query.kind ? ents.filter((e) => e.kind === query.kind) : ents
+  const sorted = byTitle ? [...list].sort((a, b) => a.label.localeCompare(b.label)) : list
+  return { episodes: [], entities: sorted.slice(start, end), total: sorted.length, counts }
+}
+
+/**
+ * Which items are saved — identity only, for the hearts. Falls back to deriving it from the full
+ * list on a server that predates `/favorites/refs` (404).
+ */
+export async function getFavoriteRefs(): Promise<FavoriteRef[]> {
+  try {
+    return (await getJSON<{ items: FavoriteRef[] }>("/favorites/refs")).items
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 404) throw err
+    return favoriteRefsOf(await getFavorites())
+  }
+}
+
+/** The identities in a full favourites response (what every write still answers with). */
+export function favoriteRefsOf(f: FavoritesResponse): FavoriteRef[] {
+  return [
+    ...f.episodes.map((e) => ({ kind: "episode" as const, ref: e.slug, color: e.color ?? null })),
+    ...(f.entities ?? []).map((e) => ({ kind: e.kind, ref: e.ref, color: e.color ?? null })),
+  ]
 }
 
 /** Save an item (auth-gated); returns the updated favorites. */

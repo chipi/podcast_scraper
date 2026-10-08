@@ -5,7 +5,7 @@
  */
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getEpisode } from '../services/api'
+import { getEpisodesBatch } from '../services/api'
 import { readCached, writeCached } from '../services/contentCache'
 import type { EpisodeDetail } from '../services/types'
 import { useQueueStore } from '../stores/queue'
@@ -51,14 +51,9 @@ async function hydrate(): Promise<void> {
   // meant a cached entry was never refreshed: one written before the detail carried `description`
   // painted a card with no description for as long as the episode stayed queued (operator
   // 2026-10-07, "in queue, we lost episode descriptions").
-  const fetched = await Promise.all(
-    queue.items.map((s) =>
-      getEpisode(s)
-        .then((d) => [s, d] as const)
-        .catch(() => null),
-    ),
-  )
-  for (const f of fetched) if (f) details.value[f[0]] = f[1]
+  // One request for the whole queue (`/episodes/batch`), not one per row.
+  const fetched = await getEpisodesBatch(queue.items).catch(() => ({}) as Record<string, EpisodeDetail>)
+  for (const [s, d] of Object.entries(fetched)) details.value[s] = d
   loading.value = false
 
   // Keep only what is still queued, so a removed episode does not linger in the cache for ever.

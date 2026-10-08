@@ -260,6 +260,82 @@ def test_favorites_entity_roundtrip(tmp_path: Path) -> None:
     assert [e["kind"] for e in after["entities"]] == ["show"]
 
 
+def _two_saved_episodes(tmp_path: Path) -> tuple[TestClient, str, str]:
+    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+
+    _write_kg_episode(tmp_path, stem="0001-hello", episode_id="ep1")
+    doc_path = tmp_path / "metadata" / "0002-zebra.metadata.json"
+    _write_kg_episode(tmp_path, stem="0002-zebra", episode_id="ep2")
+    doc = json.loads(doc_path.read_text(encoding="utf-8"))
+    doc["episode"]["title"] = "Apple Orchard"
+    doc_path.write_text(json.dumps(doc), encoding="utf-8")
+    slugs = {r.episode_title: slug_for_row(r) for r in build_catalog_rows_cumulative(tmp_path)}
+    client = _authed_client(tmp_path)
+    hello, apple = slugs["Hello"], slugs["Apple Orchard"]
+    client.put("/api/app/favorites", json={"kind": "episode", "ref": hello, "label": "Hello"})
+    client.put("/api/app/favorites", json={"kind": "episode", "ref": apple, "label": "Apple"})
+    client.put("/api/app/favorites", json={"kind": "topic", "ref": "topic:ai", "label": "AI"})
+    client.put("/api/app/favorites", json={"kind": "show", "ref": "p05", "label": "The Drift"})
+    client.patch(f"/api/app/favorites/episode/{hello}", json={"color": "red"})
+    return client, hello, apple
+
+
+def test_favorites_unpaged_response_is_unchanged_for_old_clients(tmp_path: Path) -> None:
+    # 1.0.2 sends no paging params: every favourite, and NO paging fields (not even as null).
+    client, hello, apple = _two_saved_episodes(tmp_path)
+    body = client.get("/api/app/favorites").json()
+    assert set(body) == {"episodes", "entities"}
+    assert [e["slug"] for e in body["episodes"]] == [apple, hello]  # newest first
+    assert {e["kind"] for e in body["entities"]} == {"topic", "show"}
+
+
+def test_favorites_paged_by_kind_with_counts(tmp_path: Path) -> None:
+    client, hello, apple = _two_saved_episodes(tmp_path)
+    page = client.get("/api/app/favorites", params={"kind": "episode", "limit": 1}).json()
+    assert [e["slug"] for e in page["episodes"]] == [apple]
+    assert page["entities"] == []
+    assert page["total"] == 2
+    assert page["counts"] == {
+        "episode": 2,
+        "show": 1,
+        "topic": 1,
+        "person": 0,
+        "theme": 0,
+        "storyline": 0,
+    }
+    nxt = client.get(
+        "/api/app/favorites", params={"kind": "episode", "limit": 1, "offset": 1}
+    ).json()
+    assert [e["slug"] for e in nxt["episodes"]] == [hello]
+
+
+def test_favorites_paged_search_colour_and_sort(tmp_path: Path) -> None:
+    client, hello, apple = _two_saved_episodes(tmp_path)
+    by_title = client.get(
+        "/api/app/favorites", params={"kind": "episode", "sort": "title", "limit": 10}
+    ).json()
+    assert [e["title"] for e in by_title["episodes"]] == ["Apple Orchard", "Hello"]
+    searched = client.get("/api/app/favorites", params={"q": "ORCH", "limit": 10}).json()
+    assert [e["slug"] for e in searched["episodes"]] == [apple]
+    assert searched["entities"] == []
+    assert searched["counts"]["episode"] == 1 and searched["counts"]["topic"] == 0
+    red = client.get("/api/app/favorites", params={"color": "red", "limit": 10}).json()
+    assert [e["slug"] for e in red["episodes"]] == [hello]
+    assert red["total"] == 1
+
+
+def test_favorite_refs_lists_identity_only(tmp_path: Path) -> None:
+    client, hello, apple = _two_saved_episodes(tmp_path)
+    items = client.get("/api/app/favorites/refs").json()["items"]
+    assert items == [
+        {"kind": "show", "ref": "p05", "color": None},
+        {"kind": "topic", "ref": "topic:ai", "color": None},
+        {"kind": "episode", "ref": apple, "color": None},
+        {"kind": "episode", "ref": hello, "color": "red"},
+    ]
+
+
 def test_favorites_write_rejects_insight_kind(tmp_path: Path) -> None:
     """RFC-121 / #1593: an insight is saved via the highlights path, never as a favorite.
 

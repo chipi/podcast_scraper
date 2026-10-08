@@ -67,6 +67,7 @@ from podcast_scraper.server.feed_signals import compute_feed_signals
 from podcast_scraper.server.routes.app_auth import get_current_user
 from podcast_scraper.server.schemas import (
     AppEntitiesResponse,
+    AppEpisodeBatchResponse,
     AppEpisodeDetail,
     AppEpisodeRecap,
     AppEpisodesResponse,
@@ -260,12 +261,52 @@ def podcast_signals(
     )
 
 
+# A batch is a screen's worth of saved slugs, not a crawl: the queue, the last 30 plays.
+_BATCH_MAX = 100
+
+
+@router.get("/episodes/batch", response_model=AppEpisodeBatchResponse)
+def episode_batch(
+    request: Request,
+    slugs: list[str] = Query(
+        default_factory=list,
+        max_length=_BATCH_MAX,
+        description=f"Episode slugs, repeated (`?slugs=a&slugs=b`), at most {_BATCH_MAX}.",
+    ),
+    _user: User = Depends(get_current_user),
+) -> AppEpisodeBatchResponse:
+    """Several episode details in one request — what the queue and recently played need.
+
+    Declared BEFORE ``/episodes/{slug}`` so "batch" is never read as a slug. Each item is exactly
+    what ``/episodes/{slug}`` returns; that route stays for clients that predate this one.
+    """
+    root = corpus_root_or_503(request)
+    items: list[AppEpisodeDetail] = []
+    missing: list[str] = []
+    seen: set[str] = set()
+    for slug in slugs:
+        if slug in seen:
+            continue
+        seen.add(slug)
+        row = resolve_slug(root, slug)
+        if row is None:
+            missing.append(slug)
+        else:
+            items.append(_episode_detail(root, row, slug))
+    return AppEpisodeBatchResponse(items=items, missing=missing)
+
+
 @router.get("/episodes/{slug}", response_model=AppEpisodeDetail)
 def episode_detail(
     request: Request, slug: str, _user: User = Depends(get_current_user)
 ) -> AppEpisodeDetail:
     """Consumer episode detail (metadata + summary + artifact-availability flags)."""
     root, row = _resolve(request, slug)
+    return _episode_detail(root, row, slug)
+
+
+def _episode_detail(root: Path, row: CatalogEpisodeRow, slug: str) -> AppEpisodeDetail:
+    """One episode's detail — shared by the single and the batch route."""
     transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
     has_transcript = transcript_rel is not None
     has_summary = bool(row.summary_title or row.summary_bullets or row.summary_text)

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { batchViaGetEpisode } from '../test/episodeBatch'
 import * as contentCache from '../services/contentCache'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail } from '../services/types'
@@ -31,6 +32,7 @@ function detail(slug: string, title: string): EpisodeDetail {
 }
 
 beforeEach(() => {
+  batchViaGetEpisode()
   setActivePinia(createPinia())
   vi.spyOn(api, 'putQueue').mockResolvedValue()
   // Removal is an ITEM-level call now (#1925), not a whole-list PUT.

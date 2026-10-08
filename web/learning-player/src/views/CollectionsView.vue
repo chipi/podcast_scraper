@@ -23,11 +23,11 @@ import {
   createCollection,
   deleteCollection,
   getCollection,
-  getEpisode,
+  getEpisodesBatch,
   getPodcasts,
   removeFromCollection,
 } from "../services/api"
-import type { Collection, CollectionDetail, CollectionItem } from "../services/types"
+import type { Collection, CollectionDetail, CollectionItem, EpisodeDetail } from "../services/types"
 import { useQueueStore } from "../stores/queue"
 import { useSignInGate } from "../composables/useSignInGate"
 import { formatPublishDate } from "../utils/format"
@@ -300,6 +300,11 @@ async function hydrate(detail: CollectionDetail): Promise<void> {
   const wantShows = items.some((i) => i.kind === "show")
   const podcasts = wantShows ? await getPodcasts().catch(() => []) : []
   const byFeed = new Map(podcasts.map((p) => [p.feed_id, p]))
+  // Every episode row on screen in ONE request (`/episodes/batch`), not one each.
+  const episodeRefs = items.filter((i) => i.kind !== "show").map((i) => i.ref)
+  const episodes = episodeRefs.length
+    ? await getEpisodesBatch(episodeRefs).catch(() => ({}) as Record<string, EpisodeDetail>)
+    : {}
 
   await Promise.all(
     items.map(async (it) => {
@@ -319,16 +324,13 @@ async function hydrate(detail: CollectionDetail): Promise<void> {
         }
         return
       }
-      try {
-        const ep = await getEpisode(it.ref)
-        if (!stillOpen()) return
-        shown.value[itemKey(it)] = {
-          title: ep.title,
-          subtitle: ep.podcast_title ?? undefined,
-          artwork: episodeArtwork(ep) ?? undefined,
-        }
-      } catch {
-        /* leave the row on its fallback — see the docstring */
+      const ep = episodes[it.ref]
+      // Unresolved: the row stays on its fallback — see the docstring.
+      if (!ep || !stillOpen()) return
+      shown.value[itemKey(it)] = {
+        title: ep.title,
+        subtitle: ep.podcast_title ?? undefined,
+        artwork: episodeArtwork(ep) ?? undefined,
       }
     })
   )

@@ -19,7 +19,7 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import EpisodeCard from './EpisodeCard.vue'
-import { getEpisode, getPlaybackList } from '../services/api'
+import { getEpisodesBatch, getPlaybackList } from '../services/api'
 import { isArrayCache, readCached, writeCached } from '../services/contentCache'
 import type { EpisodeDetail } from '../services/types'
 import { summaryFromDetail } from '../utils/episode'
@@ -58,13 +58,13 @@ onMounted(async () => {
     // No positions AND a cached copy means the request failed, not that the history is empty —
     // overwriting with [] would discard the only copy at the moment it is the only copy.
     if (!positions.length && cached?.length) return
-    const hydrated = await Promise.all(
-      positions.map(async (p) => {
-        const detail = await getEpisode(p.slug).catch(() => null)
-        return detail ? { detail, playedAt: p.updated_at } : null
-      }),
+    // One request for all of them (`/episodes/batch`), not one per row.
+    const details = await getEpisodesBatch(positions.map((p) => p.slug)).catch(
+      () => ({}) as Record<string, EpisodeDetail>,
     )
-    const rows = hydrated.filter((r): r is RecentRow => !!r)
+    const rows: RecentRow[] = positions.flatMap((p) =>
+      details[p.slug] ? [{ detail: details[p.slug]!, playedAt: p.updated_at }] : [],
+    )
     // Same rule one level down: every hydrate failing is a network fault, not an empty history.
     if (!rows.length && cached?.length) return
     recent.value = rows

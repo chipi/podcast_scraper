@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { batchViaGetEpisode } from '../test/episodeBatch'
 import * as shareCard from '../composables/shareCard'
 import * as native from '../services/native'
 import en from '../i18n/locales/en.json'
@@ -53,6 +54,7 @@ const mountView = (props: Record<string, unknown> = {}) =>
   mount(HighlightsView, { props, global: { plugins: [i18n, router], stubs: { teleport: true } } })
 
 beforeEach(() => {
+  batchViaGetEpisode()
   setActivePinia(createPinia())
   vi.spyOn(api, 'getNotes').mockResolvedValue([])
   vi.spyOn(api, 'getCollections').mockResolvedValue([])

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { batchViaGetEpisode } from '../test/episodeBatch'
 import en from '../i18n/locales/en.json'
 import type { Highlight, ResurfacingItem } from '../services/types'
 import ResurfacingInbox from './ResurfacingInbox.vue'
@@ -35,6 +36,7 @@ const mountInbox = () => {
 }
 
 beforeEach(() => {
+  batchViaGetEpisode()
   vi.spyOn(api, 'markSurfaced').mockResolvedValue()
   vi.spyOn(api, 'putResurfacingSettings').mockResolvedValue({ paused: true })
 })

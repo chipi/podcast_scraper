@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { batchViaGetEpisode } from '../test/episodeBatch'
 import en from '../i18n/locales/en.json'
 import type { Collection, CollectionDetail, Note } from '../services/types'
 import { useAuthStore } from '../stores/auth'
@@ -65,6 +66,7 @@ const mountView = () => {
 
 // File-level: every test starts with an empty cache, so no test inherits another's writes.
 beforeEach(() => {
+  batchViaGetEpisode()
   cached = {}
 })
 afterEach(() => vi.restoreAllMocks())

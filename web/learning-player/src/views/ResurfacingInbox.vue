@@ -20,7 +20,7 @@ import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCappedSections } from '../composables/useCappedSections'
 import { summaryFromDetail } from '../utils/episode'
 import {
-  getEpisode,
+  getEpisodesBatch,
   getPlaybackList,
   getResurfacing,
   markSurfaced,
@@ -116,12 +116,9 @@ async function hydrateEpisodes(wanted: string[]): Promise<void> {
   // watch below while the rest are still in flight.
   const slugs = [...new Set(wanted)].filter((s) => s && !details.value[s] && !requested.has(s))
   slugs.forEach((s) => requested.add(s))
-  await Promise.all(
-    slugs.map(async (slug) => {
-      const d = await getEpisode(slug).catch(() => null)
-      if (d) details.value[slug] = d
-    }),
-  )
+  if (!slugs.length) return
+  const got = await getEpisodesBatch(slugs).catch(() => ({}) as Record<string, EpisodeDetail>)
+  for (const [slug, d] of Object.entries(got)) details.value[slug] = d
 }
 
 interface RevisitGroup {

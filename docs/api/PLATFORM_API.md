@@ -80,6 +80,7 @@ deterministically and stable across re-scrapes.
 
 | Method | Path | Description |
 | --- | --- | --- |
+| GET | `/api/app/episodes/batch?slugs=a&slugs=b` | Several details in one request, for lists of saved slugs (queue, recently played, boards, revisit, highlights): `{items[EpisodeDetail], missing[slug]}`, in the requested order; unknown slugs are listed in `missing`, duplicates collapsed; at most 100 slugs (**422** above). Added for 1.0.3 — `/episodes/{slug}` is unchanged; the client falls back to it when this route answers 404 (an older server). |
 | GET | `/api/app/episodes/{slug}` | Detail: `{slug, title, feed_id, podcast_title, publish_date, duration_seconds, episode_image_url, feed_image_url, summary_title, summary_bullets, summary_text, has_transcript, has_summary, has_gi, has_kg, has_bridge}`. **404** unknown slug. |
 | GET | `/api/app/episodes/{slug}/segments` | The frozen `segments.json` contract: `{version, episode_slug, segments[{id, start, end, text, speaker?}]}`. **404** when no transcript/segments. |
 | GET | `/api/app/episodes/{slug}/insights` | Grounded GIL insights: `{episode_slug, insights[{id, text, grounded, insight_type?, confidence?, position_hint?, quotes[{text, speaker?, char_start?, char_end?, start_ms?, end_ms?}]}]}`. Empty list when no GI. |
@@ -153,8 +154,9 @@ discovery (`rank_discover`, which scores cluster + topic + person overlap; see P
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/app/favorites` | Saved items grouped by kind: `{episodes[{…EpisodeSummary}], insights[{ref, text, episode_slug?, podcast_title?, start_ms?}]}` (`AppFavoritesResponse`). Episodes are hydrated from the corpus; insights are a stored snapshot (no global detail route). |
-| PUT | `/api/app/favorites` | Save an item (idempotent on `kind`+`ref`); body `{kind: episode\|insight\|person\|topic, ref, label?, sublabel?, slug?, start_ms?}` (`FavoriteAdd`). Returns the updated favorites. |
+| GET | `/api/app/favorites` | Saved items grouped by kind: `{episodes[{…EpisodeSummary}], entities[{kind, ref, label, sublabel?, color?}]}` (`AppFavoritesResponse`). Episodes are hydrated from the corpus; entities (show / topic / person / storyline / theme) are the label snapshot from the save. Insights are not favourites (highlights). **Paging is opt-in** (1.0.3): with `limit` (≤100) the response is one page of ONE list — `kind`, `q` (case-insensitive substring of title / show / label), `color`, `sort=recent\|title`, `offset` — plus `total` (matches, all pages) and `counts` (matches per kind under the same `q` + `color`). Without `limit` the response is unchanged and carries neither field. |
+| GET | `/api/app/favorites/refs` | Identity of every saved item, newest first: `{items[{kind, ref, color?}]}` — "is this saved?" anywhere in the app without hydrating a card per episode. Added for 1.0.3. |
+| PUT | `/api/app/favorites` | Save an item (idempotent on `kind`+`ref`); body `{kind: episode\|show\|topic\|person\|storyline\|theme, ref, label?, sublabel?, slug?}` (`FavoriteAdd`; `insight` is a **422**). Returns the updated favorites (the full, unpaged shape). |
 | DELETE | `/api/app/favorites/{kind}/{ref}` | Remove a saved item by `kind`+`ref` (`ref` URL-encoded; no-op if absent). Returns the updated favorites. |
 | GET, PUT | `/api/app/interests` | The user's interest token list `{items: [token, …]}` (`InterestsResponse`); `PUT` replaces it `{items}` (`InterestsUpdate`). Tokens are a mixed set (`tc:` / `topic:` / `person:`). |
 | POST | `/api/app/interests/{token}` | Follow one token (cluster `tc:` / topic `topic:` / person `person:`), idempotent; returns `{items[]}`. |

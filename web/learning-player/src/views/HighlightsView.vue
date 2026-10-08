@@ -15,7 +15,7 @@ import { RouterLink } from 'vue-router'
 import {
   exportObsidian,
   fetchHighlightsExport,
-  getEpisode,
+  getEpisodesBatch,
   highlightsExportUrl,
 } from '../services/api'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
@@ -341,14 +341,14 @@ watch(
   (wanted) => {
     // `requested`, not just `details`: groups recompute as each detail lands, re-firing this watch.
     const slugs = [...new Set(wanted)].filter((slug) => !details.value[slug] && !requested.has(slug))
-    for (const slug of slugs) {
-      requested.add(slug)
-      void getEpisode(slug)
-        .then((d) => {
-          details.value[slug] = d
-        })
-        .catch(() => {})
-    }
+    if (!slugs.length) return
+    for (const slug of slugs) requested.add(slug)
+    // One request for every episode on screen (`/episodes/batch`), not one each.
+    void getEpisodesBatch(slugs)
+      .then((got) => {
+        for (const [slug, d] of Object.entries(got)) details.value[slug] = d
+      })
+      .catch(() => {})
   },
   { immediate: true },
 )

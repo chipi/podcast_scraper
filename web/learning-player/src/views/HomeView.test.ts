@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { batchViaGetEpisode } from '../test/episodeBatch'
 import en from '../i18n/locales/en.json'
 import type { EpisodeSummary, Me, Podcast } from '../services/types'
 import { resetStaleness } from '../composables/useSectionState'
@@ -81,6 +82,7 @@ function ep(slug: string, title: string): EpisodeSummary {
 }
 
 beforeEach(() => {
+  batchViaGetEpisode()
   setActivePinia(createPinia())
   // The embedded TrendingTopics + Storylines fetch trending topics / theme clusters; keep these
   // tests off the network (their own coverage lives in TrendingTopics.test.ts / Storylines.test.ts).

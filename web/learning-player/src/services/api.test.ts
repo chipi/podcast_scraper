@@ -6,6 +6,9 @@ import {
   createNote,
   deleteHighlight,
   getEpisode,
+  getEpisodesBatch,
+  getFavoriteRefs,
+  getFavoritesPage,
   getEpisodeStats,
   getLibrary,
   getHighlights,
@@ -116,6 +119,104 @@ describe('getEpisode', () => {
     mockFetch(404, { detail: 'Unknown episode slug.' })
     await expect(getEpisode('nope')).rejects.toMatchObject({ status: 404 })
     await expect(getEpisode('nope')).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
+describe('getEpisodesBatch', () => {
+  const urls = (): string[] =>
+    (globalThis.fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map((c) => String(c[0]))
+
+  it('asks once for all the slugs, de-duplicated, and maps the answer by slug', async () => {
+    mockFetch(200, { items: [{ slug: 'a', title: 'A' }, { slug: 'b', title: 'B' }], missing: ['x'] })
+    const got = await getEpisodesBatch(['a', 'b', 'a', 'x', ''])
+    expect(Object.keys(got)).toEqual(['a', 'b'])
+    expect(urls()).toHaveLength(1)
+    expect(urls()[0]).toContain('/episodes/batch?slugs=a&slugs=b&slugs=x')
+  })
+
+  it('splits more than 100 slugs into requests of 100 (the server cap)', async () => {
+    mockFetch(200, { items: [], missing: [] })
+    await getEpisodesBatch(Array.from({ length: 205 }, (_, i) => `s${i}`))
+    expect(urls()).toHaveLength(3)
+    expect(urls()[0]!.match(/slugs=/g)).toHaveLength(100)
+    expect(urls()[2]!.match(/slugs=/g)).toHaveLength(5)
+  })
+
+  it('falls back to one getEpisode per slug on a server without the batch route (404)', async () => {
+    // An older server reads "batch" as a slug: 404. The per-slug route still answers.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        String(url).includes('/episodes/batch')
+          ? { ok: false, status: 404, json: async () => ({ detail: 'Unknown episode slug.' }) }
+          : String(url).endsWith('/episodes/gone')
+            ? { ok: false, status: 404, json: async () => ({}) }
+            : { ok: true, status: 200, json: async () => ({ slug: String(url).split('/').pop(), title: 'T' }) },
+      ),
+    )
+    const got = await getEpisodesBatch(['a', 'gone'])
+    expect(Object.keys(got)).toEqual(['a'])
+    expect(urls().filter((u) => /\/episodes\/(a|gone)$/.test(u))).toHaveLength(2)
+  })
+
+  it('does NOT fall back on other errors — a 500 is not a missing route', async () => {
+    mockFetch(500, {})
+    await expect(getEpisodesBatch(['a'])).rejects.toMatchObject({ status: 500 })
+  })
+})
+
+describe('getFavoritesPage', () => {
+  const lastUrl = (): string => {
+    const calls = (globalThis.fetch as unknown as { mock: { calls: [string][] } }).mock.calls
+    return String(calls[calls.length - 1]![0])
+  }
+
+  it('sends the page and filters, and returns a paging server\'s answer as is', async () => {
+    mockFetch(200, { episodes: [{ slug: 'a', title: 'A' }], entities: [], total: 9, counts: {} })
+    const got = await getFavoritesPage({
+      kind: 'episode', q: ' sleep ', color: 'red', sort: 'title', offset: 5, limit: 5,
+    })
+    expect(got.total).toBe(9)
+    const url = lastUrl()
+    for (const part of ['kind=episode', 'q=sleep', 'color=red', 'sort=title', 'offset=5', 'limit=5'])
+      expect(url).toContain(part)
+  })
+
+  it('pages an OLDER server\'s full list here, with the same filters (no `total` in its answer)', async () => {
+    const eps = ['Zed', 'Alpha sleep', 'Beta sleep', 'Gamma'].map((title, i) => ({
+      slug: `e${i}`, title, podcast_title: 'S', color: i === 2 ? 'red' : null,
+    }))
+    mockFetch(200, { episodes: eps, entities: [{ kind: 'topic', ref: 't', label: 'Sleep' }] })
+    const page = await getFavoritesPage({ kind: 'episode', q: 'sleep', sort: 'title', limit: 1 })
+    expect(page.episodes.map((e) => e.title)).toEqual(['Alpha sleep'])
+    expect(page.total).toBe(2)
+    expect(page.counts).toEqual({ episode: 2, topic: 1 })
+    const red = await getFavoritesPage({ kind: 'episode', color: 'red', limit: 5 })
+    expect(red.episodes.map((e) => e.slug)).toEqual(['e2'])
+  })
+})
+
+describe('getFavoriteRefs', () => {
+  it('derives identities from the full list on a server without /favorites/refs (404)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        String(url).includes('/favorites/refs')
+          ? { ok: false, status: 404, json: async () => ({}) }
+          : {
+              ok: true,
+              status: 200,
+              json: async () => ({
+                episodes: [{ slug: 'a', color: 'red' }],
+                entities: [{ kind: 'show', ref: 'p1', label: 'P' }],
+              }),
+            },
+      ),
+    )
+    expect(await getFavoriteRefs()).toEqual([
+      { kind: 'episode', ref: 'a', color: 'red' },
+      { kind: 'show', ref: 'p1', color: null },
+    ])
   })
 })
 

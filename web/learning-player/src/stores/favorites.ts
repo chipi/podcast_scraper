@@ -1,21 +1,32 @@
 /**
- * Favorites store (Pinia ↔ GET/PUT/DELETE /api/app/favorites) — the "saved things" the user
- * collects (episodes; later people/topics/shows/storylines per RFC-121). Insights are NOT favorites
- * — they save via the highlights/capture path. Mirrors the queue store: auth-gated (empty + no-op
- * signed out), every mutation persists and refreshes from the server response.
+ * Favorites store (Pinia ↔ /api/app/favorites) — WHICH things the user saved (episodes, shows,
+ * topics, people, storylines, themes). Insights are NOT favorites — they save via the
+ * highlights/capture path. Mirrors the queue store: auth-gated (empty + no-op signed out), every
+ * mutation persists and refreshes from the server response.
+ *
+ * Identity only (kind + ref + colour), since 2026-10-08: the hearts need to know what is saved, not
+ * every saved episode's card. The Saved tab reads its own pages from the server
+ * (`useFavoritesPage`) and refetches when `version` moves.
  */
 import { defineStore } from 'pinia'
-import { addFavorite, getFavorites, removeFavorite, setFavoriteColor } from '../services/api'
+import {
+  addFavorite,
+  favoriteRefsOf,
+  getFavoriteRefs,
+  removeFavorite,
+  setFavoriteColor,
+} from '../services/api'
 import { hasArrayFields, readCached, writeCached } from '../services/contentCache'
 import { identityChangedSince, identityEpoch } from '../services/identity'
 import { enqueue, isPermanent } from '../services/outbox'
 import { serialWrites } from '../services/serialWrites'
-import type { EpisodeSummary, FavoriteAdd, FavoriteEntity, FavoriteKind } from '../services/types'
+import type { FavoriteAdd, FavoriteKind, FavoriteRef } from '../services/types'
 
 interface FavoritesState {
-  episodes: EpisodeSummary[]
-  /** Saved non-episode favorites (show / topic / person / storyline). */
-  entities: FavoriteEntity[]
+  /** Every saved item's identity, newest first. */
+  items: FavoriteRef[]
+  /** Moves on every change the server confirms (or a removal applied locally) — lists refetch. */
+  version: number
   loaded: boolean
   /** Showing a cached copy not yet revalidated (#1909). */
   stale: boolean
@@ -47,8 +58,8 @@ function flipKey(kind: string, ref: string): string {
 
 export const useFavoritesStore = defineStore('favorites', {
   state: (): FavoritesState => ({
-    episodes: [],
-    entities: [],
+    items: [],
+    version: 0,
     loaded: false,
     stale: false,
     pendingFlips: {},
@@ -61,11 +72,14 @@ export const useFavoritesStore = defineStore('favorites', {
         // An unconfirmed offline toggle wins over the list: it is the newer of the two truths.
         const pending = s.pendingFlips[flipKey(kind, ref)]
         if (pending !== undefined) return pending
-        return kind === 'episode'
-          ? s.episodes.some((e) => e.slug === ref)
-          : s.entities.some((e) => e.kind === kind && e.ref === ref)
+        return s.items.some((i) => i.kind === kind && i.ref === ref)
       },
-    count: (s): number => s.episodes.length + s.entities.length,
+    count: (s): number => s.items.length,
+    /** How many of one kind are saved (drives which Saved sections and type chips exist). */
+    countOf:
+      (s) =>
+      (kind: FavoriteKind): number =>
+        s.items.filter((i) => i.kind === kind).length,
   },
   actions: {
     /** Revalidate, falling back to the cached copy when the request never lands (#1909). */
@@ -73,25 +87,23 @@ export const useFavoritesStore = defineStore('favorites', {
       const generation = identityEpoch()
       try {
         // `fresh`: a tap made while this is in flight must not be undone by it (serialWrites).
-        const f = await writes.fresh(getFavorites)
+        const items = await writes.fresh(getFavoriteRefs)
         if (identityChangedSince(generation)) return
-        this.episodes = f.episodes
-        this.entities = f.entities ?? []
+        this._set(items)
         this.loaded = true
         this.stale = false
         // A successful read is the server's answer, and the outbox is flushed BEFORE the reconnect
         // revalidation (App.vue), so anything still pending here has already been applied.
         this.pendingFlips = {}
         queuedFlips.clear()
-        void writeCached('favorites', { episodes: f.episodes, entities: this.entities })
+        void writeCached('favorite-refs', { items })
       } catch {
-        const cached = await readCached<Pick<FavoritesState, 'episodes' | 'entities'>>(
-          'favorites',
-          hasArrayFields('episodes', 'entities'),
+        const cached = await readCached<Pick<FavoritesState, 'items'>>(
+          'favorite-refs',
+          hasArrayFields('items'),
         )
         if (cached) {
-          this.episodes = cached.episodes
-          this.entities = cached.entities ?? []
+          this._set(cached.items)
           this.loaded = true
           this.stale = true
         }
@@ -119,8 +131,7 @@ export const useFavoritesStore = defineStore('favorites', {
           if (identityChangedSince(generation)) return
           // A later tap is already showing its own state; its answer will settle it.
           if (!isLatest()) return
-          this.episodes = f.episodes
-          this.entities = f.entities ?? []
+          this._set(favoriteRefsOf(f))
           this.loaded = true
           // Every earlier write has finished (they are serialised), so this list reflects them all;
           // only flips still waiting in the outbox say more than it does.
@@ -142,10 +153,7 @@ export const useFavoritesStore = defineStore('favorites', {
           // state (#1910). The flip stays; the LIST waits for the server, except for a removal,
           // which we can represent exactly.
           if (wasFavorite) {
-            this.episodes = this.episodes.filter((e) => e.slug !== item.ref)
-            this.entities = this.entities.filter(
-              (e) => !(e.kind === item.kind && e.ref === item.ref),
-            )
+            this._set(this.items.filter((i) => !(i.kind === item.kind && i.ref === item.ref)))
           }
           queuedFlips.add(key)
           enqueue(
@@ -156,15 +164,14 @@ export const useFavoritesStore = defineStore('favorites', {
         }
       })
     },
-    /** Paint a colour onto the matching in-memory row (optimistic; server response reconciles). */
+    /** Replace the identities and tell every Saved list to refetch. */
+    _set(items: FavoriteRef[]): void {
+      this.items = items
+      this.version++
+    },
+    /** Paint a colour onto the matching item (optimistic; the server response reconciles). */
     _paintColor(kind: FavoriteKind, ref: string, color: string | null): void {
-      if (kind === 'episode') {
-        const ep = this.episodes.find((e) => e.slug === ref)
-        if (ep) ep.color = color
-      } else {
-        const ent = this.entities.find((e) => e.kind === kind && e.ref === ref)
-        if (ent) ent.color = color
-      }
+      this._set(this.items.map((i) => (i.kind === kind && i.ref === ref ? { ...i, color } : i)))
     },
     /** Set (token) or clear (null) a saved item's colour (RFC-121 ph. 4).
      *
@@ -177,8 +184,7 @@ export const useFavoritesStore = defineStore('favorites', {
       try {
         const f = await setFavoriteColor(kind, ref, color)
         if (identityChangedSince(generation)) return
-        this.episodes = f.episodes
-        this.entities = f.entities ?? []
+        this._set(favoriteRefsOf(f))
         this.loaded = true
       } catch (err: unknown) {
         if (identityChangedSince(generation)) return

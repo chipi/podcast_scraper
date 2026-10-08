@@ -4,7 +4,7 @@
  * per-kind sections — episodes, insights, …) · Highlights · Revisit · Queue · Recent. One place,
  * tabbed; the Saved tab grows a new section as new favourite kinds arrive. Auth-gated.
  */
-import { computed, onActivated, onMounted, ref, watch } from 'vue'
+import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue'
 import { interestKind } from '../utils/interests'
 import { useI18n } from 'vue-i18n'
 defineOptions({ name: 'LibraryView' }) // stable name for <keep-alive :include> (App.vue)
@@ -39,6 +39,7 @@ import SavedFilterBar from '../components/SavedFilterBar.vue'
 import SavedColorControl from '../components/SavedColorControl.vue'
 import ShowAllToggle from '../components/ShowAllToggle.vue'
 import { useCappedSections } from '../composables/useCappedSections'
+import { useFavoritesPage } from '../composables/useFavoritesPage'
 import { useVisitedTabs } from '../composables/useVisitedTabs'
 import { matchesQuery } from '../utils/textFilter'
 
@@ -119,7 +120,7 @@ async function retryLibrary(): Promise<void> {
  * "Episodes you favourite, insights you keep, and moments you mark all live here": emptiness is a
  * claim about the ACCOUNT, and that one was a claim about the network.
  */
-const savedIsEmpty = computed(() => !favorites.episodes.length && !capture.count)
+const savedIsEmpty = computed(() => !favorites.count && !capture.count)
 const savedQueries = useSavedQueriesStore()
 const userPrefs = useUserPreferencesStore()
 
@@ -141,13 +142,21 @@ const savedSort = ref<string>('recent')
 const savedMutedOnly = ref(false)
 const savedSearch = ref('')
 const savedSearchActive = computed(() => savedSearch.value.trim() !== '')
-// Saved's per-type sections page 10 at a time (operator 2026-09-18) rather than the default 6 with
-// an all-or-nothing expand: at a hundred saved episodes "Show all" produces a scroll with no
-// landmarks, so each press adds another ten.
-// Five, then five more per press (operator 2026-09-19). It was ten-and-ten: on a phone that is
-// most of a screen per section before you reach the next one, and Saved is a hub you scan rather
-// than a list you read. Shows joins Episodes on the same cap — it had none at all.
-const savedCaps = useCappedSections(5, 5)
+// Saved's sections page five at a time (operator 2026-09-19), and since 2026-10-08 the paging is
+// the SERVER's: each section asks for its next five under the filter bar's search, colour and
+// sort, instead of loading every favourite with its card and filtering on the phone.
+const savedFilters = { search: savedSearch, color: savedColor, sort: savedSort }
+// `reactive` so the template reads `page.total`, not `page.total.value` (refs nested in a plain
+// object are not unwrapped there).
+const savedEpisodesPage = reactive(useFavoritesPage('episode', savedFilters))
+const savedEntityPages = {
+  show: reactive(useFavoritesPage('show', savedFilters)),
+  topic: reactive(useFavoritesPage('topic', savedFilters)),
+  theme: reactive(useFavoritesPage('theme', savedFilters)),
+  storyline: reactive(useFavoritesPage('storyline', savedFilters)),
+  person: reactive(useFavoritesPage('person', savedFilters)),
+}
+const savedPagesAll = [savedEpisodesPage, ...Object.values(savedEntityPages)]
 
 /** A highlight matches the search on its own text (quote / speaker) — episode titles are findable
  *  through the Episodes section. Shared predicate so the count here and HighlightsView agree. */
@@ -155,20 +164,13 @@ function highlightMatches(h: { quote_text?: string | null; speaker?: string | nu
   return matchesQuery(h.quote_text, savedSearch.value) || matchesQuery(h.speaker, savedSearch.value)
 }
 
-/** Apply the unified sort: A–Z by the given key, or 'recent' (leave the as-stored newest-first). */
-function arrangeSaved<T>(items: T[], key: (i: T) => string): T[] {
-  return savedSort.value === 'title'
-    ? [...items].sort((a, b) => key(a).localeCompare(key(b)))
-    : items
-}
-
 /** Type chips render only for kinds that actually have items (the #1962 presence rule). */
 const availableTypes = computed<{ key: string; label: string }[]>(() => {
   const out: { key: string; label: string }[] = []
   if (savedQueries.count) out.push({ key: 'searches', label: t('library.savedTypeSearches') })
-  if (favorites.episodes.length) out.push({ key: 'episodes', label: t('library.savedTypeEpisodes') })
+  if (favorites.countOf('episode')) out.push({ key: 'episodes', label: t('library.savedTypeEpisodes') })
   if (capture.count) out.push({ key: 'highlights', label: t('library.savedTypeHighlights') })
-  const kinds = new Set(favorites.entities.map((e) => e.kind))
+  const kinds = new Set(favorites.items.map((e) => e.kind))
   if (kinds.has('show')) out.push({ key: 'shows', label: t('library.savedTypeShows') })
   if (kinds.has('topic')) out.push({ key: 'topics', label: t('library.savedTypeTopics') })
   if (kinds.has('person')) out.push({ key: 'people', label: t('library.savedTypePeople') })
@@ -192,36 +194,11 @@ const ENTITY_TYPE_KEY: Record<string, string> = {
   theme: 'themes',
 }
 
-const filteredEpisodes = computed(() => {
-  const eps = favorites.episodes.filter(
-    (e) =>
-      (!savedColor.value || e.color === savedColor.value) &&
-      (matchesQuery(e.title, savedSearch.value) ||
-        matchesQuery(e.podcast_title, savedSearch.value)),
-  )
-  return arrangeSaved(eps, (e) => e.title)
-})
-const filteredEntities = computed(() => {
-  const ents = favorites.entities.filter(
-    (e) =>
-      (!savedColor.value || e.color === savedColor.value) &&
-      typeVisible(ENTITY_TYPE_KEY[e.kind] ?? 'entities') &&
-      matchesQuery(e.label, savedSearch.value),
-  )
-  return arrangeSaved(ents, (e) => e.label)
-})
 // Saved searches match on the query text; a colour filter hides them (searches carry no colour).
 const filteredSearches = computed(() =>
   savedColor.value ? [] : savedQueries.list.filter((q) => matchesQuery(q.q, savedSearch.value)),
 )
 
-// Cap each section to the top N (lifted while searching), with a "Show all" expand in place.
-const visibleEpisodes = computed(() =>
-  savedCaps.visible('episodes', filteredEpisodes.value, savedSearchActive.value),
-)
-const visibleSavedShows = computed(() =>
-  savedCaps.visible('shows', savedShowPodcasts.value, savedSearchActive.value),
-)
 /**
  * Saved entities, split ONE SECTION PER KIND (operator 2026-09-17).
  *
@@ -232,12 +209,6 @@ const visibleSavedShows = computed(() =>
  * Split, each kind can be presented as itself: shows get artwork like every other show surface,
  * while topics / storylines / people stay as text rows, which is all they have.
  */
-const savedByKind = (kind: string) => computed(() => filteredEntities.value.filter((e) => e.kind === kind))
-const savedShowEntities = savedByKind('show')
-const savedTopicEntities = savedByKind('topic')
-const savedStorylineEntities = savedByKind('storyline')
-const savedThemeEntities = savedByKind('theme')
-const savedPersonEntities = savedByKind('person')
 
 /**
  * Saved shows resolved to full catalogue records, so the section can render the SAME row Discover's
@@ -254,16 +225,17 @@ const savedPersonEntities = savedByKind('person')
  * nowhere, because no group named it. The chip would have appeared above a section that did not
  * exist.
  */
-const savedEntityGroups = computed(() => [
-  { kind: 'topic', labelKey: 'library.savedTypeTopics', items: savedTopicEntities.value },
-  { kind: 'theme', labelKey: 'library.savedTypeThemes', items: savedThemeEntities.value },
-  { kind: 'storyline', labelKey: 'library.savedTypeStorylines', items: savedStorylineEntities.value },
-  { kind: 'person', labelKey: 'library.savedTypePeople', items: savedPersonEntities.value },
-])
+const savedEntityGroups = [
+  { kind: 'topic', labelKey: 'library.savedTypeTopics', page: savedEntityPages.topic },
+  { kind: 'theme', labelKey: 'library.savedTypeThemes', page: savedEntityPages.theme },
+  { kind: 'storyline', labelKey: 'library.savedTypeStorylines', page: savedEntityPages.storyline },
+  { kind: 'person', labelKey: 'library.savedTypePeople', page: savedEntityPages.person },
+] as const
+const entityTypeVisible = (kind: string) => typeVisible(ENTITY_TYPE_KEY[kind] ?? 'entities')
 
 const savedShowPodcasts = computed(() => {
   const byId = new Map(catalogue.value.map((p) => [p.feed_id, p]))
-  return savedShowEntities.value.map((e) => ({
+  return savedEntityPages.show.entities.map((e) => ({
     entity: e,
     show: byId.get(e.ref) ?? {
       feed_id: e.ref,
@@ -299,9 +271,9 @@ const nothingMatchesFilter = computed(
     !savedIsEmpty.value &&
     (savedTypes.value.length > 0 || savedColor.value !== null || savedSearchActive.value) &&
     !(typeVisible('searches') && filteredSearches.value.length) &&
-    !(typeVisible('episodes') && filteredEpisodes.value.length) &&
+    !(typeVisible('episodes') && savedEpisodesPage.total) &&
     !(typeVisible('highlights') && visibleHighlightCount.value) &&
-    !filteredEntities.value.length,
+    !Object.entries(savedEntityPages).some(([k, p]) => entityTypeVisible(k) && p.total),
 )
 
 // Tabs: Shows (the feeds you follow) · Saved · Revisit · Queue · Recent — five fit a phone row with
@@ -463,6 +435,16 @@ onActivated(() => {
     void loadFollowedShows()
   }
 })
+
+// The Saved sections load the first time the tab is opened (and on every later change — see
+// `useFavoritesPage`), not with the page: Following is just as likely to be the tab in view.
+watch(
+  () => tab.value === 'saved' || visitedTabs.has('saved'),
+  (open, was) => {
+    if (open && !was) for (const p of savedPagesAll) void p.reload()
+  },
+  { immediate: true },
+)
 
 onMounted(async () => {
   // The Revisit tab is one tap away, so the nav badge must not disagree with what the user is
@@ -665,14 +647,14 @@ onMounted(async () => {
              topics, storylines, people), and a block of artwork tiles in the middle of them breaks
              that column. The row keeps the section reading as one more list while still showing the
              cover, which is how a show is actually recognised. -->
-        <section v-if="savedShowPodcasts.length" class="mb-6">
+        <section v-if="entityTypeVisible('show') && savedShowPodcasts.length" class="mb-6">
           <h2 class="lp-section mb-2">
             {{ t('library.savedTypeShows') }}
-            <span class="lp-kicker ml-1 font-normal">{{ savedShowPodcasts.length }}</span>
+            <span class="lp-kicker ml-1 font-normal">{{ savedEntityPages.show.total }}</span>
           </h2>
           <ul class="flex flex-col" data-testid="saved-shows-list">
             <li
-              v-for="{ entity, show } in visibleSavedShows"
+              v-for="{ entity, show } in savedShowPodcasts"
               :key="show.feed_id"
               data-testid="saved-entity"
             >
@@ -690,27 +672,27 @@ onMounted(async () => {
             </li>
           </ul>
           <ShowAllToggle
-            v-if="savedCaps.overflows(savedShowPodcasts.length, savedSearchActive, 'shows')"
-            :expanded="savedCaps.remaining('shows', savedShowPodcasts.length) === 0"
-            :count="savedShowPodcasts.length"
-            :remaining="savedCaps.remaining('shows', savedShowPodcasts.length)"
-            @toggle="savedCaps.toggle('shows', savedShowPodcasts.length)"
+            v-if="savedEntityPages.show.total > 5"
+            :expanded="savedEntityPages.show.remaining === 0"
+            :count="savedEntityPages.show.total"
+            :remaining="savedEntityPages.show.remaining"
+            @toggle="savedEntityPages.show.toggle()"
           />
         </section>
 
         <!-- Episodes — each carries the shared colour control (phase B) in the card's action row.
              Capped to the top N with "Show all" (#2042 follow-up); search lifts the cap. -->
-        <section v-if="typeVisible('episodes') && filteredEpisodes.length" class="mb-6">
+        <section v-if="typeVisible('episodes') && savedEpisodesPage.total" class="mb-6">
           <h2 class="lp-section mb-2">
             {{ t('library.savedEpisodes') }}
-            <span class="lp-kicker ml-1 font-normal">{{ filteredEpisodes.length }}</span>
+            <span class="lp-kicker ml-1 font-normal">{{ savedEpisodesPage.total }}</span>
           </h2>
           <div class="flex flex-col">
             <!-- Colour, heart, ⋯ (operator 2026-10-07): the heart is the one-tap unsave here, like
                  the show rows above it, and the queue toggle moves into the ⋯ (`hide-queue`) — three
                  targets in the 128px column, so nothing wraps. The colour control leads via
                  `lead-action`. -->
-            <EpisodeCard v-for="e in visibleEpisodes" :key="e.slug" :episode="e" hide-queue>
+            <EpisodeCard v-for="e in savedEpisodesPage.episodes" :key="e.slug" :episode="e" hide-queue>
               <template #lead-action>
                 <SavedColorControl
                   :color="e.color"
@@ -720,11 +702,11 @@ onMounted(async () => {
             </EpisodeCard>
           </div>
           <ShowAllToggle
-            v-if="savedCaps.overflows(filteredEpisodes.length, savedSearchActive, 'episodes')"
-            :expanded="savedCaps.remaining('episodes', filteredEpisodes.length) === 0"
-            :count="filteredEpisodes.length"
-            :remaining="savedCaps.remaining('episodes', filteredEpisodes.length)"
-            @toggle="savedCaps.toggle('episodes', filteredEpisodes.length)"
+            v-if="savedEpisodesPage.total > 5"
+            :expanded="savedEpisodesPage.remaining === 0"
+            :count="savedEpisodesPage.total"
+            :remaining="savedEpisodesPage.remaining"
+            @toggle="savedEpisodesPage.toggle()"
           />
         </section>
         <!-- Topics, then storylines, then people — each its own section (operator 2026-09-17).
@@ -733,15 +715,15 @@ onMounted(async () => {
         <!-- `<template v-for>` with the v-if INSIDE: in Vue 3 `v-if` wins on the same element and
              would be evaluated before `grp` exists. -->
         <template v-for="grp in savedEntityGroups" :key="grp.kind">
-          <section v-if="grp.items.length" class="mb-6">
+          <section v-if="entityTypeVisible(grp.kind) && grp.page.total" class="mb-6">
             <h2 class="lp-section mb-2">
               {{ t(grp.labelKey) }}
-              <span class="lp-kicker ml-1 font-normal">{{ grp.items.length }}</span>
+              <span class="lp-kicker ml-1 font-normal">{{ grp.page.total }}</span>
             </h2>
             <ul class="flex flex-col">
               <!-- Capped like saved episodes and shows (operator 2026-10-05): five, then five more. -->
               <li
-                v-for="e in savedCaps.visible(grp.kind, grp.items, savedSearchActive)"
+                v-for="e in grp.page.entities"
                 :key="e.kind + ':' + e.ref"
                 class="flex items-center gap-2 border-b border-border py-2"
                 data-testid="saved-entity"
@@ -757,11 +739,11 @@ onMounted(async () => {
               </li>
             </ul>
             <ShowAllToggle
-              v-if="savedCaps.overflows(grp.items.length, savedSearchActive, grp.kind)"
-              :expanded="savedCaps.remaining(grp.kind, grp.items.length) === 0"
-              :count="grp.items.length"
-              :remaining="savedCaps.remaining(grp.kind, grp.items.length)"
-              @toggle="savedCaps.toggle(grp.kind, grp.items.length)"
+              v-if="grp.page.total > 5"
+              :expanded="grp.page.remaining === 0"
+              :count="grp.page.total"
+              :remaining="grp.page.remaining"
+              @toggle="grp.page.toggle()"
             />
           </section>
         </template>

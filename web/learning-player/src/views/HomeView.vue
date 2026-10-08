@@ -13,7 +13,7 @@ import { RouterLink } from "vue-router"
 import {
   getWhatsNew,
   getRecommended,
-  getEpisode,
+  getEpisodesBatch,
   getPlaybackList,
   getRelated,
 } from "../services/api"
@@ -363,15 +363,13 @@ async function fetchContinue(): Promise<ContinueItem[]> {
   // forever — the last cadence save left it parked seconds from its end — and reopening it resumed
   // at end-epsilon and immediately auto-advanced away again.
   const inProgress = positions.filter((p) => p.position_seconds > 1 && !p.finished).slice(0, 6)
-  const hydrated = await Promise.all(
-    inProgress.map(
-      (p) =>
-        getEpisode(p.slug)
-          .then((detail) => ({ detail, position: p.position_seconds }))
-          .catch(() => null) // one unreadable episode is not an outage
-    )
+  // One request for all of them (`/episodes/batch`); an unreadable episode is simply absent.
+  const details = await getEpisodesBatch(inProgress.map((p) => p.slug)).catch(
+    () => ({}) as Record<string, EpisodeDetail>
   )
-  return hydrated.filter((x): x is ContinueItem => !!x)
+  return inProgress.flatMap((p) =>
+    details[p.slug] ? [{ detail: details[p.slug]!, position: p.position_seconds }] : []
+  )
 }
 
 /** Extracted so the error state can offer a real retry rather than a dead end. */

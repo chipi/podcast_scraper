@@ -1,9 +1,10 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { batchViaGetEpisode } from '../test/episodeBatch'
 import * as contentCache from '../services/contentCache'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, PlaybackPosition } from '../services/types'
@@ -65,6 +66,10 @@ async function mountIt() {
 }
 
 afterEach(() => vi.restoreAllMocks())
+
+beforeEach(() => {
+  batchViaGetEpisode()
+})
 
 describe('RecentlyPlayedList (#1838, #1925)', () => {
   it('lists the playback history under its own heading', async () => {

@@ -160,6 +160,22 @@ class AppEpisodeDetail(BaseModel):
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
 
 
+class AppEpisodeBatchResponse(BaseModel):
+    """Response for GET /api/app/episodes/batch — several episode details in one request.
+
+    For lists of saved slugs (the queue, recently played, boards, revisit): one request instead of
+    one per row. Items keep the requested order; unknown slugs are listed in ``missing`` rather
+    than failing the whole batch.
+    """
+
+    items: list[AppEpisodeDetail] = Field(
+        default_factory=list, description="Details for the known slugs, in the requested order."
+    )
+    missing: list[str] = Field(
+        default_factory=list, description="Requested slugs the corpus does not know."
+    )
+
+
 class AppEpisodeSummary(BaseModel):
     """One episode card in the consumer catalog (PRD-038; list-item shape).
 
@@ -1142,13 +1158,54 @@ class FavoriteColorUpdate(BaseModel):
     )
 
 
+def _paged_only(value: Any) -> bool:
+    """``exclude_if`` for fields that exist only on a PAGED response.
+
+    An unpaged response is what clients before 1.0.3 read, and it stays exactly what it was: the
+    paging fields are left out, not sent as null.
+    """
+    return value is None
+
+
 class AppFavoritesResponse(BaseModel):
-    """The user's favorites (GET/PUT/DELETE /api/app/favorites)."""
+    """The user's favorites (GET/PUT/DELETE /api/app/favorites).
+
+    Without query parameters GET returns every favourite, as it always has. With ``limit`` it
+    returns one page of ONE filtered, sorted list, and fills ``total`` and ``counts``.
+    """
 
     episodes: list[AppEpisodeSummary] = Field(default_factory=list)
     entities: list[AppFavoriteEntity] = Field(
         default_factory=list, description="Saved shows / topics / people / storylines."
     )
+    total: int | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description="Paged requests only: how many favourites match the query (all pages).",
+    )
+    counts: dict[str, int] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description=(
+            "Paged requests only: matches per kind (episode / show / topic / person / theme / "
+            "storyline) under the same q and colour, ignoring ``kind`` — what the type chips "
+            "and section headings show."
+        ),
+    )
+
+
+class AppFavoriteRef(BaseModel):
+    """One saved item, identity only (GET /api/app/favorites/refs)."""
+
+    kind: str = Field(description="episode / show / topic / person / theme / storyline.")
+    ref: str = Field(description="Episode slug or entity id.")
+    color: str | None = Field(default=None, description="Per-user saved-item colour token.")
+
+
+class AppFavoriteRefsResponse(BaseModel):
+    """Every saved item's identity — for "is this saved?" anywhere in the app, without hydrating."""
+
+    items: list[AppFavoriteRef] = Field(default_factory=list, description="Newest first.")
 
 
 class InterestsResponse(BaseModel):

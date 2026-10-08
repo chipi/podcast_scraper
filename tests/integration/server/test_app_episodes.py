@@ -256,6 +256,31 @@ def test_detail_returns_metadata_and_flags(tmp_path: Path) -> None:
     assert body["has_kg"] is True
 
 
+def test_batch_returns_each_detail_as_the_single_route_does(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    slug = _only_slug(tmp_path)
+    client = _client(tmp_path)
+    single = client.get(f"/api/app/episodes/{slug}").json()
+    body = client.get(
+        "/api/app/episodes/batch", params=[("slugs", "nope"), ("slugs", slug), ("slugs", slug)]
+    ).json()
+    # Same detail, unknown slugs reported rather than failing the batch, duplicates collapsed.
+    assert body["items"] == [single]
+    assert body["missing"] == ["nope"]
+
+
+def test_batch_without_slugs_is_empty_not_an_error(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    body = _client(tmp_path).get("/api/app/episodes/batch").json()
+    assert body == {"items": [], "missing": []}
+
+
+def test_batch_caps_the_slug_count(tmp_path: Path) -> None:
+    _write_corpus(tmp_path)
+    params = [("slugs", f"s{i}") for i in range(101)]
+    assert _client(tmp_path).get("/api/app/episodes/batch", params=params).status_code == 422
+
+
 def test_insights_endpoint_returns_grounded(tmp_path: Path) -> None:
     _write_corpus(tmp_path)
     slug = _only_slug(tmp_path)

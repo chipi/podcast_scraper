@@ -421,6 +421,17 @@ export interface FavoriteEntity {
 export interface FavoritesResponse {
   episodes: EpisodeSummary[]
   entities?: FavoriteEntity[]
+  /** Paged requests only (`limit` sent): matches for the query, across all pages. */
+  total?: number
+  /** Paged requests only: matches per kind under the same q + colour, ignoring `kind`. */
+  counts?: Partial<Record<FavoriteKind, number>>
+}
+
+/** One saved item's identity — `GET /favorites/refs`, for "is this saved?" anywhere. */
+export interface FavoriteRef {
+  kind: FavoriteKind
+  ref: string
+  color?: string | null
 }
 
 // --- P2 Capture: highlights + notes (PRD-040 / RFC-098 §7) ---

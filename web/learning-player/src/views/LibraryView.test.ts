@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../services/api'
+import { favoritesViaGetFavorites } from '../test/episodeBatch'
 import en from '../i18n/locales/en.json'
 import type { EpisodeDetail, EpisodeSummary } from '../services/types'
 import { useSavedQueriesStore } from '../stores/savedQueries'
@@ -72,6 +73,12 @@ function detail(over: Partial<EpisodeDetail> = {}): EpisodeDetail {
  * does: refreshing the Revisit badge on every return, and retrying the follows list when it has
  * nothing good to show. A plain mount runs neither, so those paths were invisible.
  */
+/** The Saved search is debounced (250 ms) before it asks the server. */
+async function settleSearch(): Promise<void> {
+  await new Promise((r) => setTimeout(r, 300))
+  await flushPromises()
+}
+
 function mountKeptAlive() {
   return mount(
     { components: { LibraryView }, template: '<KeepAlive><LibraryView /></KeepAlive>' },
@@ -112,6 +119,7 @@ beforeEach(() => {
   vi.spyOn(api, 'getQueue').mockResolvedValue([])
   vi.spyOn(api, 'putQueue').mockResolvedValue()
   vi.spyOn(api, 'getFavorites').mockResolvedValue({ episodes: [] })
+  favoritesViaGetFavorites()
   // Shows tab loads the public catalogue to join artwork onto follows.
   vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
   vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
@@ -224,7 +232,7 @@ describe('LibraryView', () => {
     const w = mountKeptAlive()
     await flushPromises()
     await w.find('[data-testid="saved-search"]').setValue('sleep')
-    await flushPromises()
+    await settleSearch()
     const cards = w.findAll('[data-testid="episode-card"]')
     expect(cards).toHaveLength(1)
     expect(w.text()).toContain('Unique Sleep Talk')
@@ -239,7 +247,7 @@ describe('LibraryView', () => {
     const w = mountKeptAlive()
     await flushPromises()
     await w.find('[data-testid="saved-search"]').setValue('zzzzz-nothing')
-    await flushPromises()
+    await settleSearch()
     expect(w.find('[data-testid="saved-no-match"]').exists()).toBe(true)
   })
 
@@ -373,11 +381,9 @@ describe('LibraryView', () => {
    */
   describe('staleness (#1909)', () => {
     it('says the lists are the ones it last loaded', async () => {
-      // Shape matters per key: favourites stores `{episodes, insights}`, the others store arrays.
-      // A wrong shape here makes the LibraryView render throw, because no store validates what it
-      // reads back — worth knowing, and not what this test is about.
+      // Shape matters per key: favourites stores `{items}` (identities), the others store arrays.
       readCached.mockImplementation(async (k: string) =>
-        k === 'favorites' ? { episodes: [] } : [],
+        k === 'favorite-refs' ? { items: [] } : [],
       )
       vi.spyOn(api, 'getFavorites').mockRejectedValue(new Error('offline'))
       const w = mountKeptAlive()
@@ -407,11 +413,9 @@ describe('LibraryView', () => {
     })
 
     it('the retry goes back to the network for lists already loaded from cache', async () => {
-      // Shape matters per key: favourites stores `{episodes, insights}`, the others store arrays.
-      // A wrong shape here makes the LibraryView render throw, because no store validates what it
-      // reads back — worth knowing, and not what this test is about.
+      // Shape matters per key: favourites stores `{items}` (identities), the others store arrays.
       readCached.mockImplementation(async (k: string) =>
-        k === 'favorites' ? { episodes: [] } : [],
+        k === 'favorite-refs' ? { items: [] } : [],
       )
       const spy = vi.spyOn(api, 'getFavorites').mockRejectedValue(new Error('offline'))
       const w = mountKeptAlive()
