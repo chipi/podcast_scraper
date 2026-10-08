@@ -46,7 +46,7 @@ def _cfg(corpus: Path, language: str = "es", **overrides) -> config.Config:
 
 
 def _decide(ep: Episode, cfg: config.Config) -> EP.SkipExisting:
-    return EP.media_route_skip_existing(ep, cfg, cfg.output_dir, None)
+    return EP.media_route_skip_existing(ep, cfg, str(cfg.output_dir), None)
 
 
 def test_a_refused_episode_is_skipped_while_its_language_is_unchanged(tmp_path: Path) -> None:
@@ -86,7 +86,7 @@ def test_without_skip_existing_nothing_is_skipped(tmp_path: Path) -> None:
 def test_the_early_presence_skip_agrees(tmp_path: Path) -> None:
     ep, cfg = _episode(), _cfg(tmp_path, transcribe_missing=True)
     EP._record_language_refusal(ep, cfg, "detail")
-    evidence = EP.presence_skip_evidence(ep, cfg, cfg.output_dir, None, str(tmp_path))
+    evidence = EP.presence_skip_evidence(ep, cfg, str(cfg.output_dir), None, str(tmp_path))
     assert evidence is not None and ".language_refusals" in evidence
 
 
