@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir \
       "httpx>=0.28.1,<1.0.0" \
       "PyYAML>=6.0.3,<7.0.0" \
       "mcp>=1.2.0,<2.0.0" \
-      "pyjwt>=2.14.0"
+      "pyjwt>=2.15.0"
 
 WORKDIR /app
 COPY src/podcast_obs /app/podcast_obs
