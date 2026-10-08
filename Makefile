@@ -2698,6 +2698,26 @@ ANDROID_SEED_IDENTITY ?= simtest
 # ONE image per surface of the Android app, stitched into a single sheet — the twin of
 # `ios-contact-sheet`, and meant to be read beside it. A surface that renders differently on the two
 # platforms is the whole reason both exist.
+# Device performance scan (2026-10-08): per screen — time to data, API requests and the slowest,
+# main-thread long tasks under a CPU slowdown, JS heap, images (decoded MB, hidden, >1000px),
+# composited layers, tile/GPU memory and the app's PSS — as a Markdown + JSON report.
+#
+# Runs against the app AS INSTALLED on the attached device or emulator, whatever backend it points at
+# and whoever is signed in; it does not install or sign in. For prod numbers install the release
+# tier (`make android-build`), sign in, then run this. PERF_CPU=1 for an unthrottled run.
+#   make perf-android                 → .test_outputs/perf/android-<timestamp>/report.md
+PERF_CPU ?= 4
+PERF_OUT ?= .test_outputs/perf/android-$(shell date +%Y%m%d-%H%M%S)
+perf-android:
+	@pid=$$($(ADB) shell pidof $(ANDROID_PKG) 2>/dev/null | tr -d '\r'); \
+	[ -n "$$pid" ] || { echo "FAIL: $(ANDROID_PKG) is not running on the device — open it (signed in) first."; exit 1; }; \
+	sock=$$($(ADB) shell cat /proc/net/unix | grep -o "webview_devtools_remote_$$pid" | head -1); \
+	[ -n "$$sock" ] || { echo "FAIL: no WebView devtools socket for pid $$pid — a release build disables WebView debugging; use the debug build."; exit 1; }; \
+	$(ADB) forward tcp:9333 localabstract:$$sock >/dev/null && \
+	cd $(APP_DIR) && env -u NODE_OPTIONS node scripts/perf/device-scan.mjs --cdp http://localhost:9333 \
+		--out $(abspath $(PERF_OUT)) --cpu $(PERF_CPU) --adb $(ADB) --package $(ANDROID_PKG); \
+	rc=$$?; $(ADB) forward --remove tcp:9333 >/dev/null 2>&1; exit $$rc
+
 android-contact-sheet: android-app-install
 	@echo "--> seeding data so the tour photographs a populated app (as $(ANDROID_SEED_IDENTITY))"
 	@# SAME ACCOUNT as the tour, stated at the call site rather than left to two defaults agreeing.
@@ -5303,7 +5323,7 @@ docker-clean:
 
 # --- Observability control plane (podcast_obs, #803) ---
 # android tiers
-.PHONY: android-app-install android-contact-sheet
+.PHONY: android-app-install android-contact-sheet perf-android
 
 .PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-sync obs-verify-dashboard obs-umami-views obs-umami-views-check
 

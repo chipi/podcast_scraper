@@ -15,6 +15,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 
+from podcast_scraper import perf_cache
 from podcast_scraper.search.storylines import top_storylines_by_member_count
 from podcast_scraper.search.topic_clusters import top_themes_by_member_count
 from podcast_scraper.server import (
@@ -147,6 +148,9 @@ async def interest_search(
     return AppInterestSearchResponse(query=q, kind=kind, items=items)
 
 
+_TRENDING_NS = "app_trending_corpus"
+
+
 @router.get("/trending", response_model=AppTrendingResponse)
 def app_trending(
     request: Request,
@@ -180,17 +184,31 @@ def app_trending(
         if (uid is not None and data_dir is not None)
         else None
     )
-    rows = trending(
-        root,
-        data_dir,
-        kind=kind,
-        scope=eff_scope,
-        user_id=uid,
-        limit=limit,
-        window=window,
-        config=_momentum_config(request),
-        restrict_to=mine,
-    )
+    config = _momentum_config(request)
+
+    def compute() -> list[Any]:
+        return trending(
+            root,
+            data_dir,
+            kind=kind,
+            scope=eff_scope,
+            user_id=uid,
+            limit=limit,
+            window=window,
+            config=config,
+            restrict_to=mine,
+        )
+
+    if eff_scope == "corpus":
+        # Corpus-wide trends are the same for everyone and change slowly, but each call rebuilt the
+        # series from the corpus AND every user's engagement: ~0.6 s on prod, four at once on
+        # Profile → Interests (measured 2026-10-08). Cached until the corpus changes or 5 minutes
+        # pass, whichever is first — engagement moves without the corpus changing.
+        token = float(hash((perf_cache.corpus_mtime(root), int(time.time() // 300))))
+        key = (str(root), kind, window, limit, repr(config))
+        rows = perf_cache.get_or_compute(_TRENDING_NS, key, token, compute)
+    else:
+        rows = compute()
     items = [AppTrendingEntity(**vars(r)) for r in rows]
     if kind == "person":
         # Hydrate the person avatar so the people-browse chips can show a face (value + space).

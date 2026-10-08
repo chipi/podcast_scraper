@@ -664,6 +664,38 @@ def test_related_returns_peers_when_index_has_neighbours(
     assert body["items"][0]["feed_id"] == "myfeed"
 
 
+def test_related_is_cached_and_an_index_error_is_not(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The lookup embeds + queries LanceDB: 2.4-3.2 s per call on prod (2026-10-08). A second open of
+    the same episode must not pay it again — but a failed lookup must not be served for an hour."""
+    import types
+
+    from podcast_scraper.server.routes import app_episodes
+
+    app_episodes._related_cache.clear()
+    _write_corpus(tmp_path, stem="0001-a", episode_id="ep1")
+    _write_corpus(tmp_path, stem="0002-b", episode_id="ep2")
+    calls = {"n": 0, "fail": True}
+
+    def fake(*_a: object, **_k: object) -> object:
+        calls["n"] += 1
+        if calls["fail"]:
+            return types.SimpleNamespace(error="index unavailable", items=[])
+        return types.SimpleNamespace(
+            error=None, items=[{"metadata": {"feed_id": "myfeed", "episode_id": "ep2"}}]
+        )
+
+    monkeypatch.setattr("podcast_scraper.server.routes.app_episodes.run_similar_episodes", fake)
+    src = _slug_for(tmp_path, "ep1")
+    client = _client(tmp_path)
+    assert client.get(f"/api/app/episodes/{src}/related").json()["total"] == 0
+    calls["fail"] = False
+    assert client.get(f"/api/app/episodes/{src}/related").json()["total"] == 1  # error not cached
+    assert client.get(f"/api/app/episodes/{src}/related").json()["total"] == 1
+    assert calls["n"] == 2  # the third call was served from the cache
+
+
 def test_segments_unreadable_file_returns_500(tmp_path: Path) -> None:
     _write_corpus(tmp_path)
     # Corrupt the segments JSON the resolver will pick → 500, not a silent empty transcript.

@@ -14,7 +14,7 @@ import json
 import logging
 import os
 import time
-from collections import Counter
+from collections import Counter, OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -304,6 +304,30 @@ def episode_detail(
     )
 
 
+# "More like this" peers, cached per (corpus, episode, top_k). The lookup embeds the summary with
+# MiniLM on the API's CPU and queries LanceDB: 2.4-3.2 s per request on prod (measured 2026-10-08,
+# three runs), paid on EVERY Episode page open, and the answer only changes when the index is
+# rebuilt. An hour's TTL bounds how stale a rebuilt index can look; 512 entries bound the memory.
+_RELATED_TTL_S = 3600
+_RELATED_MAX = 512
+_related_cache: OrderedDict[tuple[str, str, int], tuple[float, AppEpisodesResponse]] = OrderedDict()
+
+
+def _related_cached(key: tuple[str, str, int]) -> AppEpisodesResponse | None:
+    hit = _related_cache.get(key)
+    if hit is None or time.monotonic() - hit[0] > _RELATED_TTL_S:
+        return None
+    _related_cache.move_to_end(key)
+    return hit[1]
+
+
+def _related_store(key: tuple[str, str, int], value: AppEpisodesResponse) -> None:
+    _related_cache[key] = (time.monotonic(), value)
+    _related_cache.move_to_end(key)
+    while len(_related_cache) > _RELATED_MAX:
+        _related_cache.popitem(last=False)
+
+
 @router.get("/episodes/{slug}/related", response_model=AppEpisodesResponse)
 async def episode_related(
     request: Request,
@@ -318,6 +342,10 @@ async def episode_related(
     no-index search) so the panel section simply hides.
     """
     root, row = _resolve(request, slug)
+    cache_key = (str(root), slug, top_k)
+    cached = _related_cached(cache_key)
+    if cached is not None:
+        return cached
     # Offload off the event loop — the episode page fires this "more like this" call on load;
     # running the blocking embed + LanceDB read inline froze concurrent requests (e.g. the topic
     # card's /perspectives) while MiniLM lazy-loaded. Safe via the warm, shared index_pool backend.
@@ -343,9 +371,13 @@ async def episode_related(
         if peer is not None and peer.metadata_relative_path not in seen:
             seen.add(peer.metadata_relative_path)
             items.append(row_to_summary(root, peer))
-    return AppEpisodesResponse(
+    response = AppEpisodesResponse(
         items=items, page=1, page_size=top_k, total=len(items), has_more=False
     )
+    # Only a real answer is kept: an index error above returns early, so a transient outage is
+    # not served from the cache for an hour.
+    _related_store(cache_key, response)
+    return response
 
 
 @router.get("/episodes/{slug}/insights", response_model=AppInsightsResponse)

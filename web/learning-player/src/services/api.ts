@@ -768,8 +768,27 @@ export async function putUserInterests(clusterIds: string[]): Promise<string[]> 
 }
 
 /** Distinct shows in the corpus (public, not per-user). */
-export async function getPodcasts(): Promise<Podcast[]> {
-  return (await getJSON<{ items: Podcast[] }>("/podcasts")).items
+/**
+ * The whole show catalogue (~80 KB on prod). Shared and kept for a minute (2026-10-08): seven
+ * surfaces ask for it, and Library → Following alone fetched it three times in one open. It is the
+ * same for every listener and changes only when a show is added, so one request serves them all; a
+ * failed request is not kept, so the next caller retries.
+ */
+let podcastsCache: { at: number; promise: Promise<Podcast[]> } | null = null
+const PODCASTS_TTL_MS = 60_000
+export function getPodcasts(): Promise<Podcast[]> {
+  if (podcastsCache && Date.now() - podcastsCache.at < PODCASTS_TTL_MS) return podcastsCache.promise
+  const promise = getJSON<{ items: Podcast[] }>("/podcasts").then((r) => r.items)
+  podcastsCache = { at: Date.now(), promise }
+  promise.catch(() => {
+    if (podcastsCache?.promise === promise) podcastsCache = null
+  })
+  return promise
+}
+
+/** Test seam: forget the shared show catalogue. */
+export function __resetPodcastsCache(): void {
+  podcastsCache = null
 }
 
 /**
