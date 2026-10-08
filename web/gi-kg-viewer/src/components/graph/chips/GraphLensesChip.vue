@@ -2,10 +2,8 @@
 /**
  * graph-v3 Q — Lenses popover in the graph bottom bar.
  *
- * Renders one checkbox per RFC-080 lens (nine total after tier 5C/5D:
- * `nodeSizeByDegree`, `bridgeRing`, `storylineRegions`, `velocityHalo`,
- * `personCredibility`, `consensusEdges`, `coGuestEdges`, `personCommunities`,
- * `aggregatedEdges`). Toggles write to `useGraphLensesStore` which persists
+ * Renders one checkbox per RFC-080 lens (`nodeSizeByDegree`, `bridgeRing`,
+ * `personCredibility`, `coGuestEdges`, `personCommunities`, `aggregatedEdges`). Toggles write to `useGraphLensesStore` which persists
  * to localStorage; GraphCanvas watchers re-apply the class overlays
  * without a full re-layout so the graph responds live.
  *
@@ -35,9 +33,6 @@ const anchorRef = ref<HTMLButtonElement | null>(null)
 const panelRef = ref<HTMLDivElement | null>(null)
 const { open, toggle } = useFilterChipPopover(anchorRef, panelRef)
 
-/** Theme-cluster lens is enricher-gated. */
-const storylinesAvailable = computed(() => artifacts.storylinesDoc != null)
-
 /* aggregatedEdges lens is data-gated: it renders Episode↔Topic (`ABOUT_AGG`)
    + Episode↔Person (`SPOKE_IN_AGG`) roll-ups on top of the per-Insight
    edges. If the current display artifact has zero source Insight→Topic
@@ -60,27 +55,20 @@ const aggregatedEdgesAvailable = computed(() => {
    underlying corpus artifact is absent. Availability is probed on mount
    + on corpus-path change (each fetch is cached, so subsequent lens
    toggles reuse the same result without a re-request). */
-const velocityAvailable = ref(false)
 const credibilityAvailable = ref(false)
-const consensusAvailable = ref(false)
 const coguestAvailable = ref(false)
 
 async function probeEnricherAvailability(root: string): Promise<void> {
   const missingRoot = !root.trim()
   if (missingRoot) {
-    velocityAvailable.value = false
     credibilityAvailable.value = false
-    consensusAvailable.value = false
     coguestAvailable.value = false
     return
   }
-  const [velocity, credibility, consensus, coguest] = await Promise.all([
-    fetchCachedCorpusEnvelope(root, 'temporal_velocity').catch(() => null),
+  const [credibility, coguest] = await Promise.all([
     fetchCachedCorpusEnvelope(root, 'grounding_rate').catch(() => null),
-    fetchCachedCorpusEnvelope(root, 'topic_consensus').catch(() => null),
     fetchCachedCorpusEnvelope(root, 'guest_coappearance').catch(() => null),
   ])
-  velocityAvailable.value = velocity != null
   // #1927 — availability must mean "this lens can actually draw something", not "the file
   // exists". grounding_rate became per-EPISODE: its envelope is still written, but it no longer
   // carries `persons`, and applyCredibilityBorder returns early without them. Probing for the
@@ -92,7 +80,6 @@ async function probeEnricherAvailability(root: string): Promise<void> {
   // for the wrong reason, and would stay false if a per-episode lens ever lands.
   const credibilityPersons = (credibility?.data as { persons?: unknown } | undefined)?.persons
   credibilityAvailable.value = Array.isArray(credibilityPersons) && credibilityPersons.length > 0
-  consensusAvailable.value = consensus != null
   coguestAvailable.value = coguest != null
 }
 
@@ -111,11 +98,8 @@ interface LensRow {
   key:
     | 'aggregatedEdges'
     | 'nodeSizeByDegree'
-    | 'storylineRegions'
     | 'bridgeRing'
-    | 'velocityHalo'
     | 'personCredibility'
-    | 'consensusEdges'
     | 'coGuestEdges'
     | 'personCommunities'
   label: string
@@ -141,32 +125,11 @@ const rows = computed<LensRow[]>(() => {
       available: true,
     },
     {
-      key: 'storylineRegions',
-      label: 'Theme regions',
-      description: 'Soft underlay tint per theme cluster (needs the storylines enricher).',
-      testid: 'lens-theme-cluster-regions',
-      available: storylinesAvailable.value,
-    },
-    {
-      key: 'velocityHalo',
-      label: 'Velocity halo',
-      description: 'Green / red / amber border on Topics + Persons by 6-month trend.',
-      testid: 'lens-velocity-halo',
-      available: velocityAvailable.value,
-    },
-    {
       key: 'personCredibility',
       label: 'Person credibility',
       description: 'Border colour reflects Person grounded-insight rate (green ≥ 0.7).',
       testid: 'lens-person-credibility',
       available: credibilityAvailable.value,
-    },
-    {
-      key: 'consensusEdges',
-      label: 'Consensus edges',
-      description: 'Green arcs between Persons who corroborate on a topic (topic_consensus).',
-      testid: 'lens-consensus-edges',
-      available: consensusAvailable.value,
     },
     {
       key: 'coGuestEdges',
@@ -208,11 +171,8 @@ const chipLabel = computed(() => {
 function setLens(key: LensRow['key'], value: boolean): void {
   if (key === 'aggregatedEdges') lenses.setAggregatedEdges(value)
   else if (key === 'nodeSizeByDegree') lenses.setNodeSizeByDegree(value)
-  else if (key === 'storylineRegions') lenses.setStorylineRegions(value)
   else if (key === 'bridgeRing') lenses.setBridgeRing(value)
-  else if (key === 'velocityHalo') lenses.setVelocityHalo(value)
   else if (key === 'personCredibility') lenses.setPersonCredibility(value)
-  else if (key === 'consensusEdges') lenses.setConsensusEdges(value)
   else if (key === 'coGuestEdges') lenses.setCoGuestEdges(value)
   else if (key === 'personCommunities') lenses.setPersonCommunities(value)
 }

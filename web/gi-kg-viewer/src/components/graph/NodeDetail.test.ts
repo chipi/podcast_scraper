@@ -81,7 +81,7 @@ describe('NodeDetail', () => {
     expect(w.find('aside').exists()).toBe(false)
   })
 
-  it('renders nothing when the node is absent and there is no topic cluster', () => {
+  it('renders nothing when the node is absent', () => {
     const w = mountDetail({ viewArtifact: artifactOf([]), nodeId: 'missing' })
     expect(w.find('aside').exists()).toBe(false)
   })
@@ -556,117 +556,4 @@ describe('NodeDetail', () => {
     expect(nav.trailNodeIds).not.toContain('g:topic:b')
   })
 
-  describe('propagatedThemeRegionLabel (Tier 5A-2)', () => {
-    /* The label surfaces the human-readable theme region for NON-Topic
-     * nodes that inherited a `storylineId` via the propagation walk
-     * (Insight → Person → Podcast → Org → Episode). Topic nodes already
-     * carry the full theme identity in the themeCluster block above and
-     * must NOT render this row. Requires:
-     *   1. non-Topic node (Insight, Episode, Person, Podcast, Org)
-     *   2. `node.storylineId` matches a cluster's `graph_compound_parent_id`
-     *   3. `artifacts.storylinesDoc` is loaded */
-    async function mountWithStorylineDoc(
-      node: RawGraphNode,
-      storylinesDoc: unknown,
-    ) {
-      const { useArtifactsStore } = await import('../../stores/artifacts')
-      const artifacts = useArtifactsStore()
-      artifacts.storylinesDoc = storylinesDoc as never
-      return mountDetail({
-        viewArtifact: artifactOf([node]),
-        nodeId: String(node.id),
-        embedInRail: true,
-      })
-    }
-
-    it('renders the theme region label for a non-Topic node with a matching cluster', async () => {
-      const insight: RawGraphNode = {
-        id: 'g:insight:x',
-        type: 'Insight',
-        properties: { text: 'An insight' },
-        storylineId: 'tc:health-care',
-      }
-      const storylinesDoc = {
-        clusters: [
-          {
-            graph_compound_parent_id: 'tc:health-care',
-            canonical_label: 'Health care',
-          },
-          {
-            graph_compound_parent_id: 'tc:tech',
-            canonical_label: 'Tech',
-          },
-        ],
-      }
-      const w = await mountWithStorylineDoc(insight, storylinesDoc)
-      const el = w.find('[data-testid="node-detail-theme-region"]')
-      expect(el.exists()).toBe(true)
-      expect(el.text()).toContain('Health care')
-    })
-
-    it('does NOT render the row on a Topic node (the Topic block handles its own identity)', async () => {
-      const topic: RawGraphNode = {
-        id: 'g:topic:business',
-        type: 'Topic',
-        properties: { label: 'Business' },
-        storylineId: 'tc:business',
-      }
-      const storylinesDoc = {
-        clusters: [
-          { graph_compound_parent_id: 'tc:business', canonical_label: 'Business & markets' },
-        ],
-      }
-      const w = await mountWithStorylineDoc(topic, storylinesDoc)
-      expect(w.find('[data-testid="node-detail-theme-region"]').exists()).toBe(false)
-    })
-
-    it('does NOT render the row when the node has no storylineId (propagation missed)', async () => {
-      const insight: RawGraphNode = {
-        id: 'g:insight:y',
-        type: 'Insight',
-        properties: { text: 'Untagged' },
-      }
-      const storylinesDoc = {
-        clusters: [
-          { graph_compound_parent_id: 'tc:health-care', canonical_label: 'Health care' },
-        ],
-      }
-      const w = await mountWithStorylineDoc(insight, storylinesDoc)
-      expect(w.find('[data-testid="node-detail-theme-region"]').exists()).toBe(false)
-    })
-
-    it('does NOT render the row when the storylineId does not match any cluster in the doc', async () => {
-      const insight: RawGraphNode = {
-        id: 'g:insight:z',
-        type: 'Insight',
-        properties: { text: 'Insight with stale cluster' },
-        storylineId: 'tc:removed-cluster',
-      }
-      const storylinesDoc = {
-        clusters: [
-          { graph_compound_parent_id: 'tc:different', canonical_label: 'Different' },
-        ],
-      }
-      const w = await mountWithStorylineDoc(insight, storylinesDoc)
-      expect(w.find('[data-testid="node-detail-theme-region"]').exists()).toBe(false)
-    })
-
-    it('falls back to the compound id when canonical_label is missing', async () => {
-      const insight: RawGraphNode = {
-        id: 'g:insight:w',
-        type: 'Insight',
-        properties: { text: 'X' },
-        storylineId: 'tc:unlabelled',
-      }
-      const storylinesDoc = {
-        clusters: [
-          { graph_compound_parent_id: 'tc:unlabelled' /* no canonical_label */ },
-        ],
-      }
-      const w = await mountWithStorylineDoc(insight, storylinesDoc)
-      const el = w.find('[data-testid="node-detail-theme-region"]')
-      expect(el.exists()).toBe(true)
-      expect(el.text()).toContain('tc:unlabelled')
-    })
-  })
 })

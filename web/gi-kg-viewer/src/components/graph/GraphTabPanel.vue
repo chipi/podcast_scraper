@@ -34,13 +34,6 @@ defineExpose({
     data-testid="graph-tab-panel"
   >
     <HandoffErrorStrip />
-    <p
-      v-if="artifacts.siblingMergeLine && !artifacts.siblingMergeError"
-      class="shrink-0 border-b border-border bg-elevated/40 px-2 py-1 text-[10px] leading-snug text-muted"
-      data-testid="graph-sibling-merge-line"
-    >
-      {{ artifacts.siblingMergeLine }}
-    </p>
     <div
       v-if="graphExpansionTruncationLine"
       class="flex shrink-0 flex-wrap items-start justify-between gap-2 border-b border-border bg-elevated/30 px-2 py-1 text-[10px] leading-snug text-muted"

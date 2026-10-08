@@ -218,9 +218,6 @@ function summariseHandoff(
       errors,
     }
   }
-  // Lower bound was 0.2 — fine for the synthetic 23-episode corpus where
-  // compound fit-zoom lands around 0.4. Real-corpus topic-clusters span
-  // many more leaves; ``fit`` to a 30+ member compound lands ~0.15-0.18.
   // Cytoscape's default ``minZoom`` is 0.1; matching it keeps the floor
   // a "viewer-still-renders" sanity check rather than a corpus-size gate.
   const zoomOk = state.zoom !== null && state.zoom >= 0.1 && state.zoom <= 5
@@ -400,55 +397,6 @@ test.describe('Real-corpus validation', () => {
     expect(fsm.lastResult).not.toBeNull()
     expect(['applied', 'failed']).toContain(fsm.lastResult?.status)
     expect(errs.errors).toEqual([])
-  })
-
-  test('V4 — Dashboard topic-cluster chip (real corpus)', async ({ page }) => {
-    // Dashboard tab is admin-gated (``v-if="auth.isAdmin"`` in App.vue);
-    // signInIsolated grants only ``creator``, so this walk must sign in
-    // as the fixed admin identity that ``make serve-for-validation`` puts
-    // in ``APP_ADMIN_EMAILS``.
-    await signInAsAdmin(page)
-    const errs = captureConsoleErrors(page)
-    await fillCorpusPath(page)
-    /* USERPREFS-1 leak: V-G1 flips the graph-load-mode chip to Top-down
-     * (super-theme slice) and persists it under the shared ada-admin
-     * user's server-side preferences. When V4 signs in as the same
-     * admin its graph mounts top-down → no topic-cluster compound
-     * exists to select. Normalize the mode via the Graph tab first so
-     * V4's precondition ("full graph, cluster compound is a real
-     * node") holds regardless of run order. Chip only appears once
-     * the Graph tab renders. */
-    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
-    const modeChip = page.getByTestId('graph-load-mode-chip')
-    await modeChip.waitFor({ state: 'visible', timeout: 15_000 })
-    const modeText = (await modeChip.textContent()) ?? ''
-    if (!/Everything/.test(modeText)) {
-      await modeChip.click()
-      await expect(modeChip).toContainText(/Everything/)
-    }
-    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
-    await page.getByTestId('briefing-card').waitFor({ state: 'visible', timeout: 30_000 })
-    await page
-      .getByRole('tablist', { name: 'Dashboard tabs' })
-      .getByRole('tab', { name: 'Intelligence' })
-      .click()
-    await page.screenshot({ path: 'validation-results/v4-1-dashboard-intel.png', fullPage: false })
-
-    const chip = page
-      .getByTestId('intelligence-topic-landscape')
-      .getByRole('listitem')
-      .first()
-    await chip.waitFor({ state: 'visible', timeout: 30_000 })
-    await chip.click()
-    const state = await waitForFsmReady(page)
-    const report = summariseHandoff('V4 Dashboard chip', state, errs.errors)
-    await page.screenshot({ path: 'validation-results/v4-2-graph-applied.png', fullPage: false })
-    // eslint-disable-next-line no-console
-    console.log('[validation V4]', JSON.stringify(report, null, 2))
-    expect(report.fsmState).toBe('ready')
-    expect(report.selectedId).toBeTruthy()
-    expect(report.zoomOk).toBe(true)
-    expect(report.cameraOk).toBe(true)
   })
 
   test('V5 — Hot-state Library → Library (second click supersedes)', async ({ page }, testInfo) => {

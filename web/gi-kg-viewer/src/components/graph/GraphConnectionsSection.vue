@@ -40,8 +40,6 @@ const props = withDefaults(
     miniMapCenterId?: string | null
     /** Override empty-state copy (aggregate mode). */
     connectionsEmptyHint?: string | null
-    /** Minimap: compound + members + 1-hop from members (TopicCluster selection). */
-    topicClusterNeighborhood?: { compoundId: string; memberIds: string[] } | null
     /**
      * When true (default), neighbor rows use a capped inner scroll. When false, the list grows
      * with the parent scroll (e.g. graph rail **Neighbourhood** tab).
@@ -215,7 +213,6 @@ function neighborViaLine(nb: GraphNeighborRow): string {
     <GraphNeighborhoodMiniMap
       :view-artifact="connectionsArtifact"
       :center-id="miniMapCenterIdResolved"
-      :topic-cluster-neighborhood="topicClusterNeighborhood"
     />
     <p
       v-if="aggregatedNeighborRows !== undefined"

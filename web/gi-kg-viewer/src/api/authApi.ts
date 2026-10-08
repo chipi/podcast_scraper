@@ -15,7 +15,7 @@ export interface Me {
   name: string
   role: Role
   disabled: boolean
-  /** RFC-112: holds the MCP entitlement — gates the "Connected agents" Configuration section. */
+  /** RFC-112: holds the MCP entitlement (used by the private MCP surface, ADR-158). */
   mcp_access?: boolean
 }
 

@@ -10,7 +10,6 @@ import {
   entityDisplayNameFromId,
   findEpisodeGraphNodeIdForEpisodeKey,
   quoteAttributionDisplayFromId,
-  filterArtifactEgoAroundTopicCluster,
   filterArtifactEgoOneHop,
   filtersActive,
   filtersActiveExcludingNodeTypes,
@@ -579,36 +578,6 @@ describe('filterArtifactEgoOneHop', () => {
     const ego = filterArtifactEgoOneHop(art, 'i1')
     expect(ego.sourceCorpusRelPath).toBeNull()
     expect(ego.sourceCorpusRelPathByEpisodeId).toEqual(art.sourceCorpusRelPathByEpisodeId)
-  })
-})
-
-describe('filterArtifactEgoAroundTopicCluster', () => {
-  it('includes compound, members, and 1-hop neighbors of members', () => {
-    const art: ParsedArtifact = {
-      name: 'x',
-      kind: 'kg',
-      episodeId: null,
-      nodes: 5,
-      edges: 3,
-      nodeTypes: {},
-      data: {
-        nodes: [
-          { id: 'tc:g', type: 'TopicCluster', properties: { label: 'G' } },
-          { id: 'k:topic:a', type: 'Topic', properties: { label: 'A' }, parent: 'tc:g' },
-          { id: 'k:topic:b', type: 'Topic', properties: { label: 'B' }, parent: 'tc:g' },
-          { id: 'ep:1', type: 'Episode', properties: { title: 'E1' } },
-          { id: 'ep:2', type: 'Episode', properties: { title: 'E2' } },
-        ],
-        edges: [
-          { from: 'k:topic:a', to: 'ep:1', type: 'mentions' },
-          { from: 'k:topic:b', to: 'ep:2', type: 'mentions' },
-        ],
-      },
-    }
-    const sub = filterArtifactEgoAroundTopicCluster(art, 'tc:g', ['k:topic:a', 'k:topic:b'])
-    const ids = (sub.data.nodes ?? []).map((n) => String(n.id)).sort()
-    expect(ids).toEqual(['ep:1', 'ep:2', 'k:topic:a', 'k:topic:b', 'tc:g'])
-    expect(sub.data.edges?.length).toBe(2)
   })
 })
 

@@ -151,9 +151,8 @@ describe('useUserPreferencesStore — cross-tab BroadcastChannel (USERPREFS-1)',
       const s = useStore()
       await s.hydrate()
       await s.set('theme', 'dark')
-      // Give the browser a microtask tick to deliver the message.
-      await new Promise((r) => setTimeout(r, 20))
-      expect(received.length).toBeGreaterThan(0)
+      // Delivery is asynchronous and slower under a loaded test run: wait for it, don't guess.
+      await vi.waitFor(() => expect(received.length).toBeGreaterThan(0))
       const msg = received[0] as { key?: string; value?: unknown; senderId?: string }
       expect(msg.key).toBe('theme')
       expect(msg.value).toBe('dark')
@@ -173,8 +172,7 @@ describe('useUserPreferencesStore — cross-tab BroadcastChannel (USERPREFS-1)',
     const otherTab = new BroadcastChannel('ps_user_preferences_sync')
     try {
       otherTab.postMessage({ senderId: 'other-tab', key: 'theme', value: 'dark' })
-      await new Promise((r) => setTimeout(r, 20))
-      expect(s.get<string>('theme')).toBe('dark')
+      await vi.waitFor(() => expect(s.get<string>('theme')).toBe('dark'))
       // Cross-tab receive path must NOT re-broadcast (no additional PATCH).
       expect(api.patchUserPreferences).not.toHaveBeenCalled()
     } finally {
@@ -190,8 +188,7 @@ describe('useUserPreferencesStore — cross-tab BroadcastChannel (USERPREFS-1)',
     const otherTab = new BroadcastChannel('ps_user_preferences_sync')
     try {
       otherTab.postMessage({ senderId: 'other-tab', key: 'theme', value: null })
-      await new Promise((r) => setTimeout(r, 20))
-      expect(s.get('theme')).toBeUndefined()
+      await vi.waitFor(() => expect(s.get('theme')).toBeUndefined())
       // Other keys preserved.
       expect(s.get<string>('foo')).toBe('bar')
     } finally {
@@ -214,7 +211,7 @@ describe('useUserPreferencesStore — cross-tab BroadcastChannel (USERPREFS-1)',
       await s.resetToDefaults()
       expect(s.local).toEqual({})
       expect(api.replaceUserPreferences).toHaveBeenCalledWith({})
-      await new Promise((r) => setTimeout(r, 20))
+      await vi.waitFor(() => expect(received.length).toBeGreaterThanOrEqual(2))
       const keys = received.map((m) => m.key).sort()
       expect(keys).toEqual(['foo', 'theme'])
       expect(received.every((m) => m.value === null)).toBe(true)

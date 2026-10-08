@@ -412,11 +412,10 @@ export async function waitForFsmState(
  * #1209 H3 — reset USERPREFS-1 to an empty payload so tests don't leak
  * per-user state across walks.
  *
- * Real bite (Tier-3 walk, 2026-07-17): V-G1 as admin flipped
- * graph-load-mode to Top-down + persisted. V4 as creator inherited
- * Top-down and hit "no cluster compound" → assertion failure.
+ * Real bite (Tier-3 walk, 2026-07-17): one walk persisted a graph
+ * preference under a shared admin user and the next walk inherited it.
  * Every walk that touches USERPREFS-1-synced state (theme, panels,
- * lens flags, graph load mode, graph-legend collapsed) should call this
+ * lens flags, graph-legend collapsed) should call this
  * in ``test.beforeEach`` after ``mockSignIn`` so the server-side
  * per-user prefs start clean.
  *

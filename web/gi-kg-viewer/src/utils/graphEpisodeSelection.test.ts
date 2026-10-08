@@ -1,21 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import type { TopicClustersDocument } from '../api/corpusTopicClustersApi'
 import type { ParsedArtifact } from '../types/artifact'
 import { formatLocalYmd } from './localCalendarDate'
 import {
   GRAPH_DEFAULT_EPISODE_CAP,
   GRAPH_SCORE_RECENCY_MIN,
   GRAPH_SCORE_RECENCY_MAX,
-  GRAPH_SCORE_TOPIC_CLUSTER_BONUS,
   GRAPH_SCORE_ALL_TIME_DECAY_DAYS,
   GRAPH_SCORE_GI_DENSITY_MAX,
   calendarPublishYmdFromParsedArtifact,
-  episodeIdsInTopicClustersForGraphScoring,
   episodeStemFromArtifactRelPath,
   isValidPublishYmd,
   selectParsedArtifactsForGraphLoad,
   selectRelPathsForGraphLoad,
-  stemMatchesTopicClusterEpisodeId,
 } from './graphEpisodeSelection'
 
 describe('selectRelPathsForGraphLoad', () => {
@@ -34,7 +30,7 @@ describe('selectRelPathsForGraphLoad', () => {
     expect(r.selectedRelPaths.length).toBe(5)
   })
 
-  it('caps at N episodes for all-time lens (recency-ordered when no cluster signal)', () => {
+  it('caps at N episodes for all-time lens (recency-ordered)', () => {
     const many = [
       ...rows,
       { relative_path: 'm/c.gi.json', kind: 'gi', publish_date: '2024-03-01' },
@@ -54,87 +50,12 @@ describe('selectRelPathsForGraphLoad', () => {
     expect(r.selectedRelPaths.every((p) => p.includes('/b.'))).toBe(true)
   })
 
-  it('prefers topic-cluster episode over slightly newer non-cluster when scores tie up', () => {
-    const pool = [
-      { relative_path: 'm/new.gi.json', kind: 'gi', publish_date: '2024-06-25' },
-      { relative_path: 'm/new.kg.json', kind: 'kg', publish_date: '2024-06-25' },
-      { relative_path: 'm/mid.gi.json', kind: 'gi', publish_date: '2024-06-10' },
-      { relative_path: 'm/mid.kg.json', kind: 'kg', publish_date: '2024-06-10' },
-      { relative_path: 'm/old.gi.json', kind: 'gi', publish_date: '2024-01-05' },
-      { relative_path: 'm/old.kg.json', kind: 'kg', publish_date: '2024-01-05' },
-    ]
-    const doc: TopicClustersDocument = {
-      clusters: [
-        {
-          graph_compound_parent_id: 'tc:t',
-          members: [{ topic_id: 'topic:x', episode_ids: ['mid'] }],
-        },
-      ],
-    }
-    const r = selectRelPathsForGraphLoad(pool, '', 2, doc)
-    expect(r.episodeCount).toBe(2)
-    expect(r.selectedRelPaths.some((p) => p.includes('/mid.'))).toBe(true)
-    expect(r.selectedRelPaths.some((p) => p.includes('/new.'))).toBe(true)
-    expect(r.selectedRelPaths.some((p) => p.includes('/old.'))).toBe(false)
-  })
-
   it('uses default cap constant', () => {
     // #967 raised this 25→50 once fcose removed the O(n²) cose layout wall; later lowered to 22
     // because the 50-ep ceiling was measured on DPR-1 and felt stuck on retina (DPR-2) where the
     // same node count repaints ~4× the pixels. The cap tracks interaction cost, not layout time;
     // see the constant's doc for the rationale.
     expect(GRAPH_DEFAULT_EPISODE_CAP).toBe(22)
-  })
-})
-
-describe('topic cluster scoring helpers', () => {
-  it('collects episode ids from cluster members', () => {
-    const doc: TopicClustersDocument = {
-      clusters: [
-        {
-          members: [
-            { topic_id: 'a', episode_ids: ['e1', 'e2'] },
-            { topic_id: 'b', episode_ids: ['e3'] },
-          ],
-        },
-      ],
-    }
-    expect(episodeIdsInTopicClustersForGraphScoring(doc)).toEqual(new Set(['e1', 'e2', 'e3']))
-  })
-
-  it('matches stem basename to cluster episode id', () => {
-    const ids = new Set(['ep42'])
-    expect(stemMatchesTopicClusterEpisodeId('feeds/x/ep42', ids)).toBe(true)
-    expect(stemMatchesTopicClusterEpisodeId('ep42', ids)).toBe(true)
-    expect(stemMatchesTopicClusterEpisodeId('feeds/x/other', ids)).toBe(false)
-  })
-
-  it('adds cluster bonus so clustered episode can rank above slightly newer non-cluster', () => {
-    const pool = [
-      { relative_path: 'pods/z.gi.json', kind: 'gi', publish_date: '2024-06-30' },
-      { relative_path: 'pods/z.kg.json', kind: 'kg', publish_date: '2024-06-30' },
-      { relative_path: 'pods/y.gi.json', kind: 'gi', publish_date: '2024-06-15' },
-      { relative_path: 'pods/y.kg.json', kind: 'kg', publish_date: '2024-06-15' },
-      { relative_path: 'pods/x.gi.json', kind: 'gi', publish_date: '2024-06-10' },
-      { relative_path: 'pods/x.kg.json', kind: 'kg', publish_date: '2024-06-10' },
-    ]
-    const doc: TopicClustersDocument = {
-      clusters: [
-        {
-          members: [{ topic_id: 'topic:t', episode_ids: ['x'] }],
-        },
-      ],
-    }
-    const r = selectRelPathsForGraphLoad(pool, '', 2, doc)
-    expect(r.selectedRelPaths.some((p) => p.includes('/z.'))).toBe(true)
-    expect(r.selectedRelPaths.some((p) => p.includes('/x.'))).toBe(true)
-    expect(r.selectedRelPaths.some((p) => p.includes('/y.'))).toBe(false)
-  })
-})
-
-describe('GRAPH_SCORE_TOPIC_CLUSTER_BONUS', () => {
-  it('is the documented default cluster bonus', () => {
-    expect(GRAPH_SCORE_TOPIC_CLUSTER_BONUS).toBe(0.4)
   })
 })
 
@@ -176,72 +97,6 @@ describe('episodeStemFromArtifactRelPath', () => {
   it('returns the normalized path unchanged when no known suffix matches', () => {
     expect(episodeStemFromArtifactRelPath('feeds/x/ep.other.json')).toBe('feeds/x/ep.other.json')
     expect(episodeStemFromArtifactRelPath('feeds/x/ep')).toBe('feeds/x/ep')
-  })
-})
-
-describe('episodeIdsInTopicClustersForGraphScoring edge cases', () => {
-  it('returns an empty set for null/undefined docs', () => {
-    expect(episodeIdsInTopicClustersForGraphScoring(null)).toEqual(new Set())
-    expect(episodeIdsInTopicClustersForGraphScoring(undefined)).toEqual(new Set())
-  })
-
-  it('returns an empty set when clusters is not an array', () => {
-    const doc = { clusters: 'nope' } as unknown as TopicClustersDocument
-    expect(episodeIdsInTopicClustersForGraphScoring(doc)).toEqual(new Set())
-  })
-
-  it('skips members that are not arrays and member episode_ids that are not arrays', () => {
-    const doc = {
-      clusters: [
-        { members: 'nope' },
-        { members: [{ topic_id: 'a', episode_ids: 'nope' }, { topic_id: 'b', episode_ids: ['e1'] }] },
-        {},
-      ],
-    } as unknown as TopicClustersDocument
-    expect(episodeIdsInTopicClustersForGraphScoring(doc)).toEqual(new Set(['e1']))
-  })
-
-  it('trims ids and ignores non-string and blank entries', () => {
-    const doc = {
-      clusters: [
-        { members: [{ topic_id: 'a', episode_ids: ['  e1  ', '', '   ', 7, null] }] },
-      ],
-    } as unknown as TopicClustersDocument
-    expect(episodeIdsInTopicClustersForGraphScoring(doc)).toEqual(new Set(['e1']))
-  })
-})
-
-describe('stemMatchesTopicClusterEpisodeId edge cases', () => {
-  it('returns false for an empty stem or empty cluster id set', () => {
-    expect(stemMatchesTopicClusterEpisodeId('', new Set(['ep1']))).toBe(false)
-    expect(stemMatchesTopicClusterEpisodeId('  ', new Set(['ep1']))).toBe(false)
-    expect(stemMatchesTopicClusterEpisodeId('feeds/x/ep1', new Set())).toBe(false)
-  })
-
-  it('matches on the full-stem equality path', () => {
-    expect(stemMatchesTopicClusterEpisodeId('feeds/x/ep1', new Set(['feeds/x/ep1']))).toBe(true)
-  })
-
-  it('normalizes backslashes before matching', () => {
-    expect(stemMatchesTopicClusterEpisodeId('feeds\\x\\ep1', new Set(['ep1']))).toBe(true)
-  })
-
-  it('skips blank cluster ids while still finding a later valid match', () => {
-    expect(stemMatchesTopicClusterEpisodeId('ep1', new Set(['  ', 'ep1']))).toBe(true)
-  })
-
-  it('returns false when no cluster id matches', () => {
-    expect(stemMatchesTopicClusterEpisodeId('feeds/x/ep1', new Set(['  ', 'ep9']))).toBe(false)
-  })
-
-  it('matches a basename when the stem has no leading slash', () => {
-    expect(stemMatchesTopicClusterEpisodeId('ep1', new Set(['ep1']))).toBe(true)
-  })
-
-  it('matches on the "…/id" suffix path without a full-stem or basename equality', () => {
-    // id contains a slash, so basename comparison can never match — only the
-    // endsWith(`/${e}`) branch can succeed here.
-    expect(stemMatchesTopicClusterEpisodeId('feeds/x/sub/ep1', new Set(['sub/ep1']))).toBe(true)
   })
 })
 
@@ -533,26 +388,6 @@ describe('selectParsedArtifactsForGraphLoad', () => {
     const r = selectParsedArtifactsForGraphLoad([makeCandidate('m/loose', '2024-06-20')], '', 10)
     expect(r.episodeCount).toBe(1)
     expect(r.kept.map((a) => a.name)).toEqual(['m/loose'])
-  })
-
-  it('applies the topic-cluster bonus to outrank a slightly newer non-cluster episode', () => {
-    const doc: TopicClustersDocument = {
-      clusters: [{ members: [{ topic_id: 't', episode_ids: ['x'] }] }],
-    }
-    const r = selectParsedArtifactsForGraphLoad(
-      [
-        makeCandidate('pods/z.gi.json', '2024-06-30'),
-        makeCandidate('pods/y.gi.json', '2024-06-15'),
-        makeCandidate('pods/x.gi.json', '2024-06-10'),
-      ],
-      '',
-      2,
-      doc,
-    )
-    const names = r.kept.map((a) => a.name)
-    expect(names).toContain('pods/z.gi.json')
-    expect(names).toContain('pods/x.gi.json')
-    expect(names).not.toContain('pods/y.gi.json')
   })
 
   it('tie-breaks equal-score episodes by newer publish date', () => {

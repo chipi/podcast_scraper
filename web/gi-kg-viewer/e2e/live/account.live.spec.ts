@@ -52,7 +52,6 @@ const CREATOR_READ_ROUTES = [
   '/api/corpus/coverage',
   '/api/corpus/stats',
   '/api/index/stats',
-  '/api/corpus/trending',
   '/api/corpus/persons/top',
 ]
 

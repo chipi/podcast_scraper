@@ -7,7 +7,6 @@ import {
 } from '../../stores/graphExplorer'
 import GraphStatusLine from './GraphStatusLine.vue'
 import GraphLensesChip from './chips/GraphLensesChip.vue'
-import GraphLoadModeChip from './chips/GraphLoadModeChip.vue'
 import { useUserPreferencesStore } from '../../stores/userPreferences'
 
 const BOTTOM_BAR_COLLAPSED_KEY = 'ps_graph_bottom_bar_collapsed'
@@ -164,7 +163,7 @@ onMounted(() => {
   <div data-testid="graph-bottom-bar" :aria-expanded="collapsed ? 'false' : 'true'">
     <div
       v-if="!collapsed"
-      class="flex min-h-7 shrink-0 items-center gap-2 border-t border-border/80 bg-canvas py-0 pl-1 pr-1 text-surface-foreground"
+      class="flex min-h-7 shrink-0 flex-wrap items-center gap-2 border-t border-border/80 bg-canvas py-0 pl-1 pr-1 text-surface-foreground"
     >
       <div
         class="flex shrink-0 flex-wrap items-center gap-0.5 py-0"
@@ -200,12 +199,13 @@ onMounted(() => {
           <span class="truncate">{{ preferredLayout }}</span>
         </button>
         <GraphLensesChip />
-        <GraphLoadModeChip />
       </div>
 
+      <!-- flex-auto sizes the lens controls from their content, so a narrow canvas wraps them onto
+           their own line; with flex-1 they spilled over the left chips and the Lenses chip ate clicks. -->
       <div
         v-if="props.showLensControls"
-        class="flex min-h-0 min-w-0 flex-1 items-center justify-center border-r border-border/60 pr-1"
+        class="flex min-h-0 min-w-0 flex-auto items-center justify-center border-r border-border/60 pr-1"
         data-testid="graph-bottom-bar-centre"
       >
         <GraphStatusLine

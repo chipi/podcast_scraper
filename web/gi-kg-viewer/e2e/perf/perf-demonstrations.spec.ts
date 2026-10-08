@@ -1,15 +1,15 @@
 /**
- * Browser-observable performance demonstrations for #767 / #768 / #769.
+ * Browser-observable performance demonstrations for #767 / #768, and the ADR-158 guard that the
+ * public viewer requests no private endpoint.
  *
  * Each test below is a CONTRAST artifact: it asserts behavior that is
  * ONLY possible with the optimization in place. If the optimization is
  * reverted, the assertion goes red. Pair these with the unit-level
- * before/after demos in ``artifacts.loadSelected.test.ts``,
- * ``artifacts.topicClustersMemo.test.ts``, and
+ * before/after demos in ``artifacts.loadSelected.test.ts`` and
  * ``cyCoseLayoutOptions.test.ts``.
  *
  * Tests run against the production-shaped fixture (270 cy nodes,
- * 9 episodes × 5 feeds, 150 topic clusters) — the same fixture the
+ * 9 episodes × 5 feeds) — the same fixture the
  * Tier-2 handoff matrix uses.
  */
 
@@ -18,7 +18,7 @@ import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } 
 import { captureConsoleErrors, readFsmState } from '../handoff/_handoff-helpers'
 import { setupProductionShapedMocks } from '../handoff-production/_helpers'
 
-test.describe('Perf demonstrations (#767 / #768 / #769)', () => {
+test.describe('Perf demonstrations (#767 / #768) and the ADR-158 guard', () => {
   test.beforeEach(async ({ page }) => {
     await mockSignIn(page, 'creator')
   })
@@ -91,32 +91,18 @@ test.describe('Perf demonstrations (#767 / #768 / #769)', () => {
   })
 
   /**
-   * #769 — topic-clusters fetch memoization.
+   * ADR-158 — the public viewer asks for no private endpoint.
    *
-   * Pre-memoize, ``activateGraphTab`` could trigger up to 3
-   * ``syncTopicClustersForCurrentCorpus`` calls per first-open click,
-   * each hitting ``/api/corpus/topic-clusters``. Post-fix, only the
-   * first call performs the HTTP; subsequent calls return immediately
-   * from the in-memory sentinel.
-   *
-   * Failure mode this catches: a future change reintroduces redundant
-   * fetch paths or removes the sentinel without replacing it with an
-   * equivalent cache.
+   * Themes, storylines and trending are private features, served only when their extension is
+   * installed. The public viewer must not request them on any path, so the same three-handoff
+   * Library flow that used to exercise the #769 themes memo now counts zero such requests.
    */
-  test('#769 — repeated handoffs on the same corpus hit /topic-clusters exactly once', async ({
-    page,
-  }) => {
+  test('ADR-158 — repeated handoffs never request a private endpoint', async ({ page }) => {
     const errs = captureConsoleErrors(page)
-
-    // Counter sits BEFORE the route handler in
-    // ``setupProductionShapedMocks`` (which calls
-    // ``page.route('**/api/corpus/topic-clusters**', ...)``). Every
-    // network attempt at the endpoint increments, regardless of mock
-    // fulfillment.
-    let topicClustersFetchCount = 0
+    const privateRequests: string[] = []
     page.on('request', (req) => {
-      if (/\/api\/corpus\/topic-clusters/.test(req.url())) {
-        topicClustersFetchCount += 1
+      if (/\/api\/corpus\/(topic-clusters|storylines|trending)\b/.test(req.url())) {
+        privateRequests.push(req.url())
       }
     })
 
@@ -127,15 +113,6 @@ test.describe('Perf demonstrations (#767 / #768 / #769)', () => {
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible({ timeout: 15_000 })
 
-    // NOTE: the counter is NOT reset here. topic-clusters is now fetched
-    // eagerly as soon as the corpus root + healthy API are known (App.vue /
-    // EpisodeDetailPanel sync it so the Dashboard corpus workspace can show
-    // status), rather than lazily on the first handoff. The #769 memo contract
-    // is unchanged — ONE HTTP total across the whole flow — so we count from
-    // the start and assert exactly one, which proves both "it loads" and
-    // "repeated handoffs never refetch".
-
-    // Open three different episodes from the Library in quick succession.
     const rows = page.getByRole('button', { name: /, / })
     for (let i = 0; i < 3; i++) {
       await rows.nth(i).click({ timeout: 15_000 })
@@ -143,18 +120,13 @@ test.describe('Perf demonstrations (#767 / #768 / #769)', () => {
       await expect
         .poll(async () => (await readFsmState(page))?.state, { timeout: 20_000 })
         .toBe('ready')
-
-      // Go back to Library for the next click.
       if (i < 2) {
         await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
         await expect(page.getByTestId('library-root')).toBeVisible({ timeout: 15_000 })
       }
     }
 
-    // The hard assertion: ONE HTTP across the whole flow (eager load + THREE
-    // handoffs). Without the memo, this would have been 3+ (potentially up to
-    // 9 if the duplicate-call bug also re-fired).
-    expect(topicClustersFetchCount).toBe(1)
+    expect(privateRequests).toEqual([])
     expect(errs.errors).toEqual([])
   })
 

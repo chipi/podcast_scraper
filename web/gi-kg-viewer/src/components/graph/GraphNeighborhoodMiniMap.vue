@@ -8,7 +8,6 @@ import { giKgCoseLayoutOptionsCompact } from '../../utils/cyCoseLayoutOptions'
 import { prefersReducedMotionQuery, syncGraphLabelTierClasses } from '../../utils/cyGraphLabelTier'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
 import {
-  filterArtifactEgoAroundTopicCluster,
   filterArtifactEgoOneHop,
   findRawNodeInArtifact,
   toCytoElements,
@@ -17,19 +16,12 @@ import {
 const props = defineProps<{
   viewArtifact: ParsedArtifact | null
   centerId: string | null
-  /** When set, minimap shows compound + members + 1-hop from members (not ego of compound only). */
-  topicClusterNeighborhood?: { compoundId: string; memberIds: string[] } | null
 }>()
 
 const showMini = computed(() => {
   const a = props.viewArtifact
   if (!a) {
     return false
-  }
-  const tc = props.topicClusterNeighborhood
-  if (tc?.compoundId?.trim() && tc.memberIds.length > 0) {
-    const sub = miniArtifact()
-    return Boolean(sub?.data?.nodes?.length)
   }
   const id = props.centerId?.trim()
   return Boolean(id && findRawNodeInArtifact(a, id))
@@ -65,10 +57,6 @@ function miniArtifact(): ParsedArtifact | null {
   const art = props.viewArtifact
   if (!art) {
     return null
-  }
-  const tc = props.topicClusterNeighborhood
-  if (tc?.compoundId?.trim() && tc.memberIds.length > 0) {
-    return filterArtifactEgoAroundTopicCluster(art, tc.compoundId.trim(), tc.memberIds)
   }
   const id = props.centerId?.trim()
   if (!id || !findRawNodeInArtifact(art, id)) {
@@ -113,12 +101,7 @@ function mountCy(): void {
       wheelSensitivity: 0,
     })
     cy = core
-    const tc = props.topicClusterNeighborhood
-    const layoutId =
-      tc?.compoundId?.trim() && !core.$id(tc.compoundId.trim()).empty()
-        ? tc.compoundId.trim()
-        : tc?.memberIds[0]?.trim() || props.centerId!.trim()
-    const cid = layoutId
+    const cid = props.centerId!.trim()
     const layoutOpts: Record<string, unknown> = giKgCoseLayoutOptionsCompact()
     const layout = core.elements().layout(layoutOpts as never)
     layout.one('layoutstop', () => {
@@ -163,8 +146,6 @@ watch(
       showMini.value,
       props.viewArtifact,
       props.centerId,
-      props.topicClusterNeighborhood?.compoundId,
-      props.topicClusterNeighborhood?.memberIds?.slice(),
       themeChoice.value,
     ] as const,
   () => {
@@ -182,19 +163,14 @@ watch(
 <template>
   <div v-if="showMini" class="mb-3">
     <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
-      <template v-if="topicClusterNeighborhood?.compoundId">Cluster neighborhood</template>
-      <template v-else>Local neighborhood</template>
+      Local neighborhood
     </p>
     <div
       ref="host"
       class="h-36 w-full overflow-hidden rounded border border-border bg-canvas"
       data-testid="graph-neighborhood-mini"
       role="img"
-      :aria-label="
-        topicClusterNeighborhood?.compoundId
-          ? 'Graph around topic cluster compound and member topics'
-          : '1-hop graph around selected node'
-      "
+      aria-label="1-hop graph around selected node"
     />
   </div>
 </template>

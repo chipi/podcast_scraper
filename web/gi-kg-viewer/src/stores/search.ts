@@ -6,9 +6,7 @@ import {
   searchCorpus,
   type CompareSubjectRef,
   type CorpusSearchLiftStats,
-  type SearchClusterGroup,
   type SearchCompareResponse,
-  type SearchConsensusPair,
   type SearchHit,
 } from '../api/searchApi'
 import { useGraphNavigationStore } from './graphNavigation'
@@ -45,31 +43,18 @@ export const useSearchStore = defineStore('search', () => {
   const enrichmentCallFailed = ref(false)
 
   /**
-   * Search v3 §S4b — server operator state. Populated by ``runOperator``;
-   * plain ``runSearch`` clears both back to null so a re-run of a bare
-   * query drops any stale cluster / consensus panels the UI was showing.
-   */
-  const clusters = ref<SearchClusterGroup[] | null>(null)
-  const consensusPairs = ref<SearchConsensusPair[] | null>(null)
-  const operatorLoading = ref<'cluster' | 'consensus' | 'compare' | null>(null)
-  const operatorError = ref<string | null>(null)
-
-  /**
-   * Search v3 §S4a/S4b/S8 — which operator panel is currently open on
+   * Search v3 §S4a/S8 — which operator panel is currently open on
    * ``ResultSetOperatorBar``. Promoted from the bar's local ref
    * (#1259-4 followup) so external surfaces — the Cmd-K palette's
-   * ``operator.cluster-last`` / ``operator.consensus-last`` /
    * ``operator.timeline-last`` / ``operator.compare-last`` commands —
    * can toggle the panel visible without also clicking the chip.
    * ``null`` means no panel is open.
    */
-  const activeOperator = ref<
-    'cluster' | 'timeline' | 'graph' | 'consensus' | 'compare' | null
-  >(null)
+  const activeOperator = ref<'timeline' | 'graph' | 'compare' | null>(null)
 
   /**
    * Search v3 §S8 — Compare (2 subjects) state. Populated by ``runCompare``
-   * (POST /api/search/compare); ``runSearch`` and ``runOperator`` do NOT
+   * (POST /api/search/compare); ``runSearch`` does NOT
    * clear this so the caller can leave the panel open across a re-run of
    * the underlying query.
    */
@@ -105,7 +90,6 @@ export const useSearchStore = defineStore('search', () => {
   }
 
   const searchRunGate = new StaleGeneration()
-  const operatorRunGate = new StaleGeneration()
   const compareRunGate = new StaleGeneration()
 
   /**
@@ -241,9 +225,6 @@ export const useSearchStore = defineStore('search', () => {
     liftStats.value = null
     queryType.value = null
     enrichmentCallFailed.value = false
-    clusters.value = null
-    consensusPairs.value = null
-    operatorError.value = null
     try {
       const body = await searchCorpus(q, {
         path: root,
@@ -320,79 +301,8 @@ export const useSearchStore = defineStore('search', () => {
     error.value = null
     queryType.value = null
     enrichmentCallFailed.value = false
-    clusters.value = null
-    consensusPairs.value = null
-    operatorError.value = null
     useActiveSearchContextStore().clear()
     useGraphNavigationStore().clearLibraryEpisodeHighlights()
-  }
-
-  /**
-   * Search v3 §S4b — request a server-side operator over the current query.
-   * Re-fires the underlying /api/search endpoint with ``operator=…`` and
-   * (per RFC-107 §7.4) a ``top_k * 3`` over-fetch so the aggregation has a
-   * meaningful sample to group / filter over. The returned page REPLACES
-   * ``results`` so the caller renders the operator-scoped hit set (a plain
-   * query re-run restores the default top-k).
-   *
-   * Silent-no-op when there's no query. Never raises — errors surface via
-   * ``operatorError``.
-   */
-  async function runOperator(
-    corpusPath: string,
-    operator: 'cluster' | 'consensus',
-  ): Promise<void> {
-    const q = query.value.trim()
-    const root = corpusPath.trim()
-    if (!q || !root) return
-    const seq = operatorRunGate.bump()
-    operatorLoading.value = operator
-    operatorError.value = null
-    try {
-      const body = await searchCorpus(q, {
-        path: root,
-        types: filters.types.length ? filters.types : undefined,
-        feed: filters.feed || undefined,
-        since: filters.since || undefined,
-        speaker: filters.speaker || undefined,
-        topic: filters.topic || undefined,
-        episodeId: filters.episodeId || undefined,
-        groundedOnly: filters.groundedOnly,
-        // Over-fetch so the operator has room to group / filter over
-        // more than the default top-10. RFC-107 §7.4 sets the multiplier.
-        topK: Math.min(100, filters.topK * 3),
-        embeddingModel: filters.embeddingModel.trim() || undefined,
-        dedupeKgSurfaces: filters.dedupeKgSurfaces,
-        operator,
-        // Search v3 §S5 followup — thread the same enrichment flag runSearch
-        // uses so an operator toggle does NOT strip ``query_enrichments``
-        // off the visible hit set (the operator response REPLACES
-        // ``results``, and the enriched-answer hero re-derives from that
-        // replacement).
-        enrichResults:
-          filters.enrichResults === null
-            ? Boolean(useShellStore().enrichedSearchAvailable)
-            : filters.enrichResults === true,
-      })
-      if (operatorRunGate.isStale(seq)) return
-      if (body.error) {
-        operatorError.value = mapSearchError(body.error, body.detail)
-        return
-      }
-      // Overwrite the visible hit set with the operator page so the group
-      // ``hit_indices`` line up with what the caller renders.
-      results.value = body.results
-      liftStats.value = body.lift_stats ?? null
-      clusters.value = body.clusters ?? null
-      consensusPairs.value = body.consensus_pairs ?? null
-    } catch (e) {
-      if (operatorRunGate.isStale(seq)) return
-      operatorError.value = e instanceof Error ? e.message : String(e)
-    } finally {
-      if (operatorRunGate.isCurrent(seq)) {
-        operatorLoading.value = null
-      }
-    }
   }
 
   /**
@@ -471,12 +381,7 @@ export const useSearchStore = defineStore('search', () => {
     commitFeedFilterUiInput,
     runSearch,
     clearResults,
-    clusters,
-    consensusPairs,
-    operatorLoading,
-    operatorError,
     activeOperator,
-    runOperator,
     compareResult,
     compareLoading,
     compareError,

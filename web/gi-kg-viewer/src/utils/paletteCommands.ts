@@ -109,12 +109,6 @@ export interface PaletteCommandDeps {
   /** Trigger a corpus re-index (admin only). */
   rebuildIndex: () => void
   /**
-   * #1259-4 operator kickers — run a server-side result-set operator
-   * (Cluster / Consensus) over the most recent query. Silent no-op when
-   * there is no recent query yet.
-   */
-  runOperatorOnLastQuery: (op: 'cluster' | 'consensus') => Promise<void> | void
-  /**
    * #1259-4 timeline kicker — open the Search tab on the most recent
    * query and toggle the Timeline operator on. Silent no-op when there
    * is no recent query.
@@ -235,20 +229,6 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       run: () => deps.rebuildIndex(),
     },
     // #1259-4 operator kickers
-    {
-      id: 'operator.cluster-last',
-      label: 'Cluster last query',
-      category: 'operator',
-      keywords: ['cluster', 'group', 'theme', 'operator', 's4b', 'last'],
-      run: () => deps.runOperatorOnLastQuery('cluster'),
-    },
-    {
-      id: 'operator.consensus-last',
-      label: 'Consensus last query',
-      category: 'operator',
-      keywords: ['consensus', 'corroboration', 'agreement', 'operator', 's4b'],
-      run: () => deps.runOperatorOnLastQuery('consensus'),
-    },
     {
       id: 'operator.timeline-last',
       label: 'Timeline last query',

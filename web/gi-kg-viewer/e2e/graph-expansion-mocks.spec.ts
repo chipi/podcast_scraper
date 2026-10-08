@@ -221,20 +221,6 @@ async function mockGraphExpansionBaseline(page: Page, giArtifactBody: string = a
     })
   })
 
-  await page.route('**/api/corpus/topic-clusters**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        schema_version: '2',
-        clusters: [],
-        topic_count: 0,
-        cluster_count: 0,
-        singletons: 0,
-      }),
-    })
-  })
-
   await page.route('**/api/corpus/resolve-episode-artifacts**', async (route) => {
     if (route.request().method() !== 'POST') {
       await route.fulfill({ status: 405, body: 'method not allowed' })
@@ -1043,67 +1029,5 @@ test.describe('Graph node rail rows (UXS-004, fixture-driven)', () => {
     await openNodeInRail(page, 'person:not-in-this-graph')
     await page.getByTestId('node-detail-rail-tab-neighbourhood').click()
     await expect(page.getByTestId('node-detail-rail-neighbourhood-unavailable')).toBeVisible()
-  })
-})
-
-test.describe('Graph node rail: topic cluster members (UXS-004, fixture-driven)', () => {
-  test('members show as chips; Advanced flags the one not in the graph and Load asks the catalog for its episodes', async ({
-    page,
-  }) => {
-    await mockSignIn(page, 'creator')
-    await mockGraphExpansionBaseline(page, giJsonForNodeRailRows())
-    // Registered after the baseline, so it wins: one cluster, one member drawn, one not.
-    await page.route('**/api/corpus/topic-clusters**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          schema_version: '2',
-          clusters: [
-            {
-              graph_compound_parent_id: 'tc:ci-climate',
-              canonical_label: 'Climate',
-              members: [
-                { topic_id: 'topic:ci-policy', label: 'Climate policy', episode_ids: ['ci-fixture'] },
-                { topic_id: 'topic:ci-tariffs', label: 'Carbon tariffs', episode_ids: ['ep-tariffs'] },
-              ],
-            },
-          ],
-          topic_count: 2,
-          cluster_count: 1,
-          singletons: 0,
-        }),
-      })
-    })
-    const resolveBodies: unknown[] = []
-    await page.route('**/api/corpus/resolve-episode-artifacts**', async (route) => {
-      resolveBodies.push(route.request().postDataJSON())
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ path: '/mock/corpus', resolved: [], missing_episode_ids: ['ep-tariffs'] }),
-      })
-    })
-    await gotoGraphWithMockCorpus(page)
-    await openNodeInRail(page, 'topic:ci-policy')
-
-    const members = page.getByTestId('node-detail-topic-cluster-members')
-    await expect(members).toContainText('Cluster · Climate')
-    await expect(members.getByTestId('node-detail-cluster-member-chips').getByRole('button')).toHaveText([
-      'Climate policy',
-      'Carbon tariffs',
-    ])
-
-    await members.getByTestId('node-detail-cluster-advanced-toggle').click()
-    await expect(members).toContainText('Not in this graph view')
-    const load = members.getByTestId('node-detail-cluster-member-load')
-    await expect(load).toHaveCount(1) // only the member that is not drawn
-    const before = resolveBodies.length
-    await load.click()
-    await expect(members.getByTestId('node-detail-cluster-member-load-message')).toHaveText(
-      'Catalog had no GI paths for 1 episode id(s).',
-    )
-    const sent = resolveBodies.slice(before) as { episode_ids?: string[] }[]
-    expect(sent.map((b) => b.episode_ids)).toContainEqual(['ep-tariffs'])
   })
 })

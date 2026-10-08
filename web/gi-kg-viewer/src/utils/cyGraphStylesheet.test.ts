@@ -113,20 +113,6 @@ describe('buildGiKgCyStylesheet', () => {
     expect(Number(st['text-margin-y'])).toBeGreaterThan(0)
   })
 
-  it('includes TopicCluster compound styling rule', () => {
-    const sheet = buildGiKgCyStylesheet({ compact: false })
-    const rule = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node[type = "TopicCluster"]',
-    ) as { style: Record<string, unknown> }
-    expect(rule).toBeTruthy()
-    expect(rule.style['background-opacity']).toBe(0.06)
-    expect(rule.style['border-style']).toBe('dashed')
-    // Cytoscape's parser does not resolve CSS `var(--…)`. The stylesheet
-    // builder resolves theme tokens to hex at build time and falls back to
-    // the dark-theme palette in jsdom (no live `getComputedStyle`).
-    expect(rule.style['background-color']).toBe('#c4a8ff')
-  })
-
   it('includes cross-episode expandable and expanded-seed ring rules (full graph)', () => {
     const sheet = buildGiKgCyStylesheet({ compact: false })
     const expandable = sheet.find(
@@ -323,27 +309,6 @@ describe('RFC-097 v2 two-tier edge contract selectors', () => {
 })
 
 /* graph-v3 tier 5C/5D — enricher-lens stylesheet coverage (harden follow-up). */
-describe('Tier 5C — velocity halo selectors', () => {
-  it('emits node.velocity-up/down/steady rules with the trend.ts palette', () => {
-    const sheet = buildGiKgCyStylesheet({ compact: false })
-    const up = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node.velocity-up',
-    ) as { style: Record<string, unknown> } | undefined
-    const down = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node.velocity-down',
-    ) as { style: Record<string, unknown> } | undefined
-    const steady = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'node.velocity-steady',
-    ) as { style: Record<string, unknown> } | undefined
-    // Theme tokens shared with trendColor() (#2280); jsdom applies no tokens, so the resolver
-    // returns its dark fallbacks — the --ps-success / --ps-danger / --ps-muted dark values.
-    expect(up?.style['border-color']).toBe('#36b270')
-    expect(down?.style['border-color']).toBe('#ea7a7e')
-    expect(steady?.style['border-color']).toBe('#929cab')
-    // Border width is bumped above type-default so the halo reads at mid-zoom.
-    expect(Number(up?.style['border-width'])).toBeGreaterThan(1)
-  })
-})
 
 describe('Tier 5C — Person credibility border selectors', () => {
   it('emits node.credibility-high (solid green), .credibility-med (solid amber), .credibility-low (dashed red)', () => {
@@ -367,17 +332,6 @@ describe('Tier 5C — Person credibility border selectors', () => {
 })
 
 describe('Tier 5D — enricher-edge overlay selectors', () => {
-  it('consensus edges (edge.lens-consensus-edge) are green, no arrow, unbundled-bezier', () => {
-    const sheet = buildGiKgCyStylesheet({ compact: false })
-    const rule = sheet.find(
-      (r) => (r as { selector?: string }).selector === 'edge.lens-consensus-edge',
-    ) as { style: Record<string, unknown> } | undefined
-    expect(rule).toBeTruthy()
-    expect(rule!.style['line-color']).toBe('#22c55e')
-    expect(rule!.style['target-arrow-shape']).toBe('none')
-    expect(rule!.style['curve-style']).toBe('unbundled-bezier')
-  })
-
   it('co-guest edges (edge.lens-coguest-edge) are amber, dotted, weight-scaled width', () => {
     const sheet = buildGiKgCyStylesheet({ compact: false })
     const rule = sheet.find(

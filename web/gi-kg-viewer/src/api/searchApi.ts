@@ -29,33 +29,6 @@ export interface CorpusSearchLiftStats {
   lift_applied: number
 }
 
-/** Search v3 §S4b: one aggregated cluster over the response's hit page. */
-export interface SearchClusterGroup {
-  cluster_id: string | null
-  /** ``topic_cluster`` / ``theme_cluster`` / ``topic`` / ``ungrouped``. */
-  cluster_kind: string
-  label: string
-  size: number
-  /** Indices into ``results`` (in results order) belonging to this cluster. */
-  hit_indices: number[]
-}
-
-/** Search v3 §S4b: one cross-Person corroboration pair (ADR-108). */
-export interface SearchConsensusPair {
-  topic_id: string
-  topic_label?: string | null
-  person_a_id: string
-  person_a_label?: string | null
-  person_b_id: string
-  person_b_label?: string | null
-  insight_a_id: string
-  insight_b_id: string
-  insight_a_text: string
-  insight_b_text: string
-  contradiction_score: number
-  cosine_similarity?: number | null
-}
-
 export interface SearchResponse {
   query: string
   results: SearchHit[]
@@ -70,13 +43,6 @@ export interface SearchResponse {
   lift_stats?: CorpusSearchLiftStats | null
   /** Optional server hint when enrichment was requested but failed (non-fatal). */
   enrichment_error?: string | null
-  /** Search v3 §S4b: the operator applied (``cluster`` / ``consensus``); null when
-   * the endpoint returned the plain top-k page. */
-  operator?: string | null
-  /** Populated only when ``operator=cluster``. */
-  clusters?: SearchClusterGroup[] | null
-  /** Populated only when ``operator=consensus``. */
-  consensus_pairs?: SearchConsensusPair[] | null
 }
 
 export interface SearchRequestOptions {
@@ -96,10 +62,6 @@ export interface SearchRequestOptions {
   embeddingModel?: string
   /** Default true: collapse duplicate kg_entity/kg_topic surfaces server-side. */
   dedupeKgSurfaces?: boolean
-  /** Search v3 §S4b: request a server-side result-set operator pass. When set
-   * the server returns the top-k page AS-IS and adds ``clusters`` or
-   * ``consensus_pairs`` alongside. Passing an unknown value is a no-op. */
-  operator?: 'cluster' | 'consensus'
   /** Search v3 §S5: request the shipped QueryEnricher chain (RFC-088 chunk 5).
    * Server decorates each hit's ``metadata.query_enrichments.related_topics``
    * when the enrichment output is available; response also carries
@@ -129,9 +91,6 @@ export async function searchCorpus(
   }
   if (options.dedupeKgSurfaces === false) {
     params.set('dedupe_kg_surfaces', 'false')
-  }
-  if (options.operator) {
-    params.set('operator', options.operator)
   }
   if (options.enrichResults) {
     params.set('enrich_results', 'true')

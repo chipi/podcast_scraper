@@ -27,8 +27,6 @@ const props = withDefaults(
      * Cluster-member pill chrome: ``quote`` (amber, legacy) or ``kg`` (Digest Recent parity with graph TopicCluster).
      */
     clusterMemberAppearance?: CilClusterMemberAppearance
-    /** Bare topic ids that are THEME-cluster (co-occurrence) members — teal ring, matching the graph + player pills. */
-    themeMemberIds?: Set<string>
   }>(),
   {
     maxPillChars: 24,
@@ -37,7 +35,6 @@ const props = withDefaults(
     maxWidthClass: 'max-w-[11rem]',
     dataTestid: undefined,
     clusterMemberAppearance: 'quote',
-    themeMemberIds: () => new Set<string>(),
   },
 )
 
@@ -88,16 +85,10 @@ function buttonShapeClasses(): string {
             : 'border-2 border-transparent font-semibold text-surface-foreground shadow-sm'
           : 'border border-border bg-canvas font-normal text-muted hover:bg-overlay',
       ]"
-      :data-theme-member="themeMemberIds.has(p.topic_id) ? '' : undefined"
       :style="
-        themeMemberIds.has(p.topic_id)
-          ? {
-              backgroundColor: 'color-mix(in srgb, var(--ps-theme) 22%, transparent)',
-              color: 'var(--color-surface-foreground, inherit)',
-            }
-          : p.in_topic_cluster && clusterMemberAppearance === 'quote'
-            ? cilClusteredTopicPillChrome
-            : undefined
+        p.in_topic_cluster && clusterMemberAppearance === 'quote'
+          ? cilClusteredTopicPillChrome
+          : undefined
       "
       :title="p.label.trim() || undefined"
       :aria-label="`Open graph for topic: ${p.label}`"

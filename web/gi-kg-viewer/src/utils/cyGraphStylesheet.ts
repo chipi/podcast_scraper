@@ -3,7 +3,7 @@
  *
  * This file defines every base-layer visual rule the graph applies —
  * type-based shape + colour, edge width tiers, confidence opacity, temporal
- * recency fade, theme-region tints, degree-heat sizing, bridge ring, and
+ * recency fade, person-community tints, degree-heat sizing, bridge ring, and
  * enricher-lens class selectors. See ``docs/guides/GRAPH_VISUALIZATION_GUIDE.md``
  * for the prose reference explaining WHY each rule exists and WHEN it
  * fires. That guide is the authoritative "what does this dial do" reference;
@@ -93,7 +93,6 @@ const VISUAL_TYPES = [
 const LABEL_SHORT_TIER_TYPES = [
   'Insight',
   'Topic',
-  'TopicCluster',
   'Entity_person',
   'Entity_organization',
   'Entity_object',
@@ -105,7 +104,6 @@ const LABEL_SHORT_TIER_TYPES = [
  *  graph reads as "knowledge nodes with plumbing connectors" rather than
  *  "everyone is medium-sized":
  *
- *    Compound     TopicCluster 48   (must dominate; wraps others)
  *    Value        Insight 44, Topic 40   (the thinking + what it's about)
  *    Container    Episode 22 (aspect 1.35 → 30w × 22h card)
  *    Plumbing     Entity_person, Entity_organization, Speaker,
@@ -123,7 +121,6 @@ const LABEL_SHORT_TIER_TYPES = [
 const NODE_DIAMETER_MAIN_PX: Record<string, number> = {
   Insight: 44,
   Topic: 40,
-  TopicCluster: 48,
   Episode: 22,
   Entity_person: 12,
   Entity_organization: 12,
@@ -407,18 +404,6 @@ export function buildGiKgCyStylesheet(options?: {
       },
     },
     {
-      // Theme membership (co-occurrence; "storylines" in the API) — a teal ring on the
-      // topic node, `--ps-theme`. A ring, not a compound parent, so it coexists with
-      // the semantic cluster boxes. node:selected is declared after, so the blue selection
-      // ring wins while a node is selected.
-      selector: 'node.theme-member',
-      style: {
-        'border-width': compact ? 2 : 3,
-        'border-color': resolveThemeColor('--ps-theme', '#7dd3c0'),
-        'border-opacity': 0.95,
-      },
-    },
-    {
       selector: 'node:selected',
       style: {
         'border-width': compact ? 2 : 3,
@@ -465,8 +450,7 @@ export function buildGiKgCyStylesheet(options?: {
                                 the whole reason the kind exists is that an event is not a
                                 human and not an institution, and colour alone does not carry
                                 that for a colour-blind reader.)
-     Person + Entity_person stay ellipse (humans-as-circles default).
-     TopicCluster keeps its existing `roundrectangle` compound shape. */
+     Person + Entity_person stay ellipse (humans-as-circles default). */
   const shapeByType: Partial<Record<(typeof VISUAL_TYPES)[number], string>> = {
     Topic: 'round-rectangle',
     Insight: 'ellipse',
@@ -576,65 +560,6 @@ export function buildGiKgCyStylesheet(options?: {
       'border-width': compact ? 2 : 3,
       'border-color': '#228be6',
       'border-opacity': 1,
-    },
-  })
-
-  const tcPad = compact ? '14px' : '18px'
-  style.push({
-    selector: 'node[type = "TopicCluster"]',
-    style: {
-      'background-color': psKg,
-      'background-opacity': 0.06,
-      'border-width': compact ? 1.25 : 1.5,
-      'border-style': 'dashed',
-      'border-color': psKg,
-      'border-opacity': 0.4,
-      shape: 'roundrectangle',
-      padding: tcPad,
-    },
-  })
-
-  /* graph-v3 tier 8-1 — SuperTheme nodes.
-     Big soft filled circles labelled by super_theme_label; the whole point
-     of top-down mode is to make these bubbles the reader's first surface.
-     Colour: teal (--ps-kg) at higher opacity than TopicCluster so they
-     stand out as tier-0 anchors. Size: large (~ 3× a normal Topic). */
-  style.push({
-    selector: 'node[type = "SuperTheme"]',
-    style: {
-      'background-color': psKg,
-      'background-opacity': 0.22,
-      'border-width': compact ? 2 : 2.5,
-      'border-style': 'solid',
-      'border-color': psKg,
-      'border-opacity': 0.85,
-      shape: 'ellipse',
-      width: compact ? 100 : 140,
-      height: compact ? 100 : 140,
-      label: 'data(label)',
-      'text-valign': 'center',
-      'text-halign': 'center',
-      color: '#fff',
-      'font-size': compact ? 12 : 14,
-      'font-weight': 600,
-      'text-outline-color': psKg,
-      'text-outline-width': 2,
-      'text-outline-opacity': 0.85,
-      'text-wrap': 'wrap',
-      'text-max-width': compact ? 84 : 116,
-    },
-  })
-  /* Synthetic inter-super-theme links — dashed light lines just for
-     layout structure, not analytic edges. */
-  style.push({
-    selector: 'edge[edgeType = "_topdown_link"], edge[type = "_topdown_link"]',
-    style: {
-      'line-color': psKg,
-      'line-opacity': 0.2,
-      'line-style': 'dashed',
-      width: 1,
-      'curve-style': 'straight',
-      'target-arrow-shape': 'none',
     },
   })
 
@@ -958,38 +883,8 @@ export function buildGiKgCyStylesheet(options?: {
     },
   })
 
-  /* graph-v3 U — theme-cluster region underlay tint. Cytoscape
-     `underlay-*` renders a translucent disc BEHIND the node body, so
-     type colour + shape + size stay 100% legible on top. High padding
-     + low opacity makes adjacent same-region nodes' underlays overlap
-     into blob-like regions (InfraNodus feel).
-     Classes `theme-region-0..7` are assigned by GraphCanvas'
-     applyThemeRegionClasses via a stable hash of the cluster's
-     `graph_compound_parent_id`, so the same thc:… id always paints the
-     same colour across sessions. Palette: 8 pastel hues evenly spaced
-     around HSL, saturation ~45%, lightness ~65% — at 0.14 opacity
-     they read as soft coloured mist against the darker canvas.
-     Selectors ordered before interaction-state rules so search-hit /
-     selection borders still win visually. */
-  // graph-v3 tier 5A harden fix #2: palette imported from the shared util
-  // so legend + graph render identical hex for the same `thc:...` id.
-  // Drifting them independently would silently mismatch — see the comment
-  // in themeRegionPalette.ts.
-  const underlayOpacity = compact ? 0.1 : 0.14
-  const underlayPadding = compact ? 8 : 14
-  THEME_REGION_PALETTE.forEach((hex, i) => {
-    style.push({
-      selector: `node.theme-region-${i}`,
-      style: {
-        'underlay-color': resolveThemeColor(`--ps-region-${i + 1}`, hex),
-        'underlay-opacity': underlayOpacity,
-        'underlay-padding': underlayPadding,
-        'underlay-shape': 'ellipse',
-      },
-    })
-  })
-  /* graph-v3 tier 7-4 — Person community regions. Same palette + shape
-     as theme regions but slightly higher opacity (Person nodes are
+  /* graph-v3 tier 7-4 — Person community regions. Shared region palette,
+     slightly higher opacity (Person nodes are
      smaller than Topic hubs, so the underlay needs to read a beat more
      strongly to be visible as a group tint). Classes person-region-0..7
      assigned by applyPersonCommunityRegions from
@@ -1004,33 +899,6 @@ export function buildGiKgCyStylesheet(options?: {
         'underlay-opacity': personUnderlayOpacity,
         'underlay-padding': personUnderlayPadding,
         'underlay-shape': 'ellipse',
-      },
-    })
-  })
-
-  /* graph-v3 Tier 5C-1 — velocity halo. Bright coloured border on
-     Topic + Person nodes when the temporal_velocity envelope classes
-     them rising / cooling / steady. Uses the same tokens as the
-     Digest / Trending Topics trend arrows (`utils/trend.ts`) so the
-     app tells one story about "is this topic hot right now".
-     Border-width bump above the type default so the halo reads at
-     mid-zoom without needing a label. */
-  const velocityBorder = compact ? 1.5 : 2.25
-  // Same tokens as `trendColor()` so the graph and the trend views agree (#2280). Cytoscape needs
-  // a resolved colour, hence resolveThemeColor; the fallbacks are the dark values.
-  const velocityColours = {
-    up: resolveThemeColor('--ps-success', '#36b270'),
-    down: resolveThemeColor('--ps-danger', '#ea7a7e'),
-    steady: resolveThemeColor('--ps-muted', '#929cab'),
-  }
-  ;(['up', 'down', 'steady'] as const).forEach((dir) => {
-    style.push({
-      selector: `node.velocity-${dir}`,
-      style: {
-        'border-width': velocityBorder,
-        'border-style': 'solid',
-        'border-color': velocityColours[dir],
-        'border-opacity': dir === 'steady' ? 0.7 : 0.9,
       },
     })
   })
@@ -1065,23 +933,6 @@ export function buildGiKgCyStylesheet(options?: {
       'border-style': 'dashed',
       'border-color': resolveThemeColor('--ps-credibility-low', '#ef4444'),
       'border-opacity': 0.8,
-    },
-  })
-
-  /* graph-v3 Tier 5D-1 — consensus edges (topic_consensus). Thin
-     bright-green arcs between two Persons who corroborate on a Topic.
-     No arrow (symmetric). Distinct hue from HAS_INSIGHT primary blue
-     so the overlay doesn't blend into structural edges. */
-  style.push({
-    selector: 'edge.lens-consensus-edge',
-    style: {
-      width: compact ? 1 : 1.5,
-      'line-color': resolveThemeColor('--ps-consensus', '#22c55e'),
-      'line-style': 'solid',
-      'line-opacity': 0.65,
-      'target-arrow-shape': 'none',
-      'curve-style': 'unbundled-bezier',
-      'z-index': 4,
     },
   })
 

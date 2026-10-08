@@ -5,10 +5,6 @@ import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useSubjectStore } from '../../stores/subject'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { findRawNodeInArtifactByIdOrPrefixed } from '../../utils/parsing'
-import {
-  findClusterByCompoundId,
-  findTopicClusterContextForGraphNode,
-} from '../../utils/topicClustersOverlay'
 import NodeDetail from './NodeDetail.vue'
 
 const gf = useGraphFilterStore()
@@ -88,13 +84,6 @@ const panelHeading = computed(() => {
       if (id.includes('podcast:')) return 'Podcast'
     }
     return 'Node'
-  }
-  if (
-    id &&
-    (findClusterByCompoundId(artifacts.topicClustersDoc, id) ||
-      findTopicClusterContextForGraphNode(id, artifacts.topicClustersDoc))
-  ) {
-    return 'TopicCluster'
   }
   const t = n.type
   return typeof t === 'string' && t.trim() ? t.trim() : 'Node'

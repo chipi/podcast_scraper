@@ -28,27 +28,24 @@ describe('useGraphLensesStore (RFC-080)', () => {
     setActivePinia(createPinia())
   })
 
-  it('defaults: V1 off, V5 on (graph-v3 C), V6 off, V7 on, Tier 5C/5D off', async () => {
+  it('defaults: V1 off, V5 on (graph-v3 C), V7 on, Tier 5C/5D off', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(false)
     expect(s.nodeSizeByDegree).toBe(true)
-    expect(s.storylineRegions).toBe(false)
     expect(s.bridgeRing).toBe(true)
-    // graph-v3 Tier 5C — enricher-based decoration lenses default off.
-    expect(s.velocityHalo).toBe(false)
+    // graph-v3 Tier 5C/5D — enricher-based lenses default off.
     expect(s.personCredibility).toBe(false)
-    // graph-v3 Tier 5D — enricher-based edge overlays default off.
-    expect(s.consensusEdges).toBe(false)
     expect(s.coGuestEdges).toBe(false)
+    expect(s.personCommunities).toBe(false)
   })
 
-  it('persists all four toggles to localStorage as a single JSON blob', async () => {
+  it('persists the toggles to localStorage as a single JSON blob', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     s.setAggregatedEdges(true)
     s.setNodeSizeByDegree(false)
-    s.setStorylineRegions(true)
+    s.setPersonCredibility(true)
     s.setBridgeRing(false)
     await nextTick()
     const raw = storage.get('ps_graph_lenses')
@@ -56,17 +53,17 @@ describe('useGraphLensesStore (RFC-080)', () => {
     const parsed = JSON.parse(raw!) as Record<string, boolean>
     expect(parsed.aggregatedEdges).toBe(true)
     expect(parsed.nodeSizeByDegree).toBe(false)
-    expect(parsed.storylineRegions).toBe(true)
+    expect(parsed.personCredibility).toBe(true)
     expect(parsed.bridgeRing).toBe(false)
   })
 
-  it('rehydrates all four flags from localStorage on store creation', async () => {
+  it('rehydrates the flags from localStorage on store creation', async () => {
     storage.set(
       'ps_graph_lenses',
       JSON.stringify({
         aggregatedEdges: true,
         nodeSizeByDegree: false,
-        storylineRegions: true,
+        personCredibility: true,
         bridgeRing: false,
       }),
     )
@@ -75,56 +72,23 @@ describe('useGraphLensesStore (RFC-080)', () => {
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(true)
     expect(s.nodeSizeByDegree).toBe(false)
-    expect(s.storylineRegions).toBe(true)
+    expect(s.personCredibility).toBe(true)
     expect(s.bridgeRing).toBe(false)
   })
 
-  it('migrates legacy communityColours key into storylineRegions', async () => {
-    // graph-v3 R — the MCL iteration used communityColours; when we
-    // pivoted to theme-cluster regions the flag was renamed. Users who
-    // opted into the earlier flag keep their opt-in through the rename.
-    storage.set('ps_graph_lenses', JSON.stringify({ communityColours: true }))
-    setActivePinia(createPinia())
-    const { useGraphLensesStore } = await import('./graphLenses')
-    const s = useGraphLensesStore()
-    expect(s.storylineRegions).toBe(true)
-  })
-
-  it('storylineRegions in localStorage takes precedence over legacy communityColours', async () => {
+  it('ignores stored flags for lenses this viewer does not have', async () => {
+    // ADR-158: theme regions, velocity halo and consensus edges are private lenses. A blob saved by
+    // a viewer that had them must not resurrect them here.
     storage.set(
       'ps_graph_lenses',
-      JSON.stringify({ communityColours: true, storylineRegions: false }),
+      JSON.stringify({ storylineRegions: true, velocityHalo: true, consensusEdges: true }),
     )
     setActivePinia(createPinia())
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
-    expect(s.storylineRegions).toBe(false)
-  })
-
-  /**
-   * The storyline rename must not reset an operator's lens.
-   *
-   * `ps_graph_lenses` is a STORAGE contract, not a variable name: this flag was persisted as
-   * `themeClusterRegions` before the rename. It defaults to false, so a dropped value would not
-   * read as a reset — it would read as the lens having stopped working.
-   */
-  it('keeps a lens enabled under its pre-rename key themeClusterRegions', async () => {
-    storage.set('ps_graph_lenses', JSON.stringify({ themeClusterRegions: true }))
-    setActivePinia(createPinia())
-    const { useGraphLensesStore } = await import('./graphLenses')
-    const s = useGraphLensesStore()
-    expect(s.storylineRegions).toBe(true)
-  })
-
-  it('the current key wins over the pre-rename one', async () => {
-    storage.set(
-      'ps_graph_lenses',
-      JSON.stringify({ themeClusterRegions: true, storylineRegions: false }),
-    )
-    setActivePinia(createPinia())
-    const { useGraphLensesStore } = await import('./graphLenses')
-    const s = useGraphLensesStore()
-    expect(s.storylineRegions).toBe(false)
+    expect(Object.keys(s.flags)).not.toContain('storylineRegions')
+    expect(Object.keys(s.flags)).not.toContain('velocityHalo')
+    expect(Object.keys(s.flags)).not.toContain('consensusEdges')
   })
 
   it('falls back to defaults when localStorage payload is malformed', async () => {
@@ -134,7 +98,7 @@ describe('useGraphLensesStore (RFC-080)', () => {
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(false)
     expect(s.nodeSizeByDegree).toBe(true)
-    expect(s.storylineRegions).toBe(false)
+    expect(s.personCredibility).toBe(false)
     expect(s.bridgeRing).toBe(true)
   })
 
@@ -146,36 +110,33 @@ describe('useGraphLensesStore (RFC-080)', () => {
     const s = useGraphLensesStore()
     expect(s.aggregatedEdges).toBe(true)
     expect(s.nodeSizeByDegree).toBe(true)
-    expect(s.storylineRegions).toBe(false)
+    expect(s.personCredibility).toBe(false)
     expect(s.bridgeRing).toBe(true)
   })
 
-  it('resetToDefaults restores V5 + V7 on, V1 + V6 off', async () => {
+  it('resetToDefaults restores V5 + V7 on, V1 + Tier 5C off', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     s.setAggregatedEdges(true)
     s.setNodeSizeByDegree(false)
-    s.setStorylineRegions(true)
+    s.setPersonCredibility(true)
     s.setBridgeRing(false)
     s.resetToDefaults()
     expect(s.aggregatedEdges).toBe(false)
     expect(s.nodeSizeByDegree).toBe(true)
-    expect(s.storylineRegions).toBe(false)
+    expect(s.personCredibility).toBe(false)
     expect(s.bridgeRing).toBe(true)
   })
 
-  it('exposes a flags computed that reads all eight flags atomically', async () => {
+  it('exposes a flags computed that reads every flag atomically', async () => {
     const { useGraphLensesStore } = await import('./graphLenses')
     const s = useGraphLensesStore()
     s.setAggregatedEdges(true)
     expect(s.flags).toEqual({
       aggregatedEdges: true,
       nodeSizeByDegree: true,
-      storylineRegions: false,
       bridgeRing: true,
-      velocityHalo: false,
       personCredibility: false,
-      consensusEdges: false,
       coGuestEdges: false,
       personCommunities: false,
     })

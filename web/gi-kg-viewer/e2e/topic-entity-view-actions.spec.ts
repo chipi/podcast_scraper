@@ -12,8 +12,8 @@ import { readFsmEventLog, resetFsmEventLog } from './handoff/_handoff-helpers'
  * UXS-007 "Action buttons": the topic view offers **View in graph** (Graph tab, topic node
  * focused) and **Search this topic** (Search prefilled with the topic label).
  *
- * Driven the way `topic-entity-view.spec.ts`'s live contract test drives it — a real clustered
- * topic from the corpus, focused through the DEV `__GIKG_SUBJECT__.focusTopic` hook — but from
+ * Driven the way `topic-entity-view.spec.ts`'s live contract test drives it — a real topic from
+ * the corpus, focused through the DEV `__GIKG_SUBJECT__.focusTopic` hook — but from
  * the DIGEST tab, because both actions are about leaving where you are.
  */
 
@@ -24,11 +24,12 @@ async function openTopicRailOnDigest(page: Page): Promise<Topic> {
   await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
   await statusBarCorpusPathInput(page).fill(await liveCorpusRoot(page))
   await expect(page.getByTestId('digest-root')).toBeVisible({ timeout: 30_000 })
-  const clusters = (await (await page.request.get('/api/corpus/topic-clusters')).json()) as {
-    clusters: { members: Topic[] }[]
+  const leaders = (await (await page.request.get('/api/topics/perspective-leaders?limit=20')).json()) as {
+    topics: { topic_id: string; topic_label: string }[]
   }
-  const topic = clusters.clusters.flatMap((c) => c.members ?? []).find((m) => m.label?.trim())
-  expect(topic, 'expected the corpus to expose at least one labelled clustered topic').toBeTruthy()
+  const row = leaders.topics.find((t) => t.topic_label?.trim())
+  expect(row, 'expected the corpus to expose at least one labelled topic').toBeTruthy()
+  const topic: Topic = { topic_id: row!.topic_id, label: row!.topic_label }
   await page.evaluate((id) => {
     const subj = (window as unknown as { __GIKG_SUBJECT__?: { focusTopic: (i: string) => void } })
       .__GIKG_SUBJECT__
