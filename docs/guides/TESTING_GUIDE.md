@@ -17,7 +17,7 @@
 | **Unit** | < 100ms | Single function | Mocked | All dependencies mocked |
 | **Integration** | < 5s | Component interactions | Mocked | External services + ML/AI mocked |
 | **E2E** | < 60s | Complete workflow | Real | No mocking (real everything) |
-| **Browser UI E2E** | ~1-3 min (suite) | Vue viewer in Firefox (Playwright) | N/A | Vite + route/API mocks in specs |
+| **Browser UI E2E** | ~1-3 min (suite) | Vue viewer in Chrome (Playwright; Firefox in CI) | N/A | Vite + route/API mocks in specs |
 
 **Unit tests and `pyproject` extras:** `tests/unit/` must **only** depend on **`[dev]`** — never on `[ml]`, `[llm]`, or `[compare]` (and keep FastAPI route tests out of `tests/unit/` per policy). CI `test-unit` installs `.[dev]` only, so any test requiring a non-`[dev]` extra will be silently skipped and never validated. If a test needs real torch, spaCy, lancedb, etc., move it to `tests/integration/` (where CI installs `.[dev,ml,llm]`). Do **not** use `pytest.importorskip()` in `tests/unit/` to work around missing extras. See [Unit Testing Guide -- Pyproject extras](UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on) and [Testing Strategy -- Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject).
 
@@ -146,7 +146,7 @@ Full checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GU
 
 ```bash
 make test-ui          # Vitest unit tests (fast, no browser)
-make test-ui-e2e      # Playwright browser E2E (needs Firefox)
+make test-ui-e2e      # Playwright browser E2E (Chrome; CI runs Firefox)
 ```
 
 **`make test-ui`** runs `npm run test:coverage` (Vitest with a coverage gate, #914) in `web/gi-kg-viewer`. Tests cover pure
@@ -154,8 +154,8 @@ TypeScript logic: artifact parsing, GI+KG merge, bridge-aware dedupe where imple
 formatting, colors, visual groups,
 and search-focus mapping. No browser or DOM required — runs in ~150 ms.
 
-**`make test-ui-e2e`** runs `npm install` in `web/gi-kg-viewer`, installs the **Firefox** browser
-for Playwright, and runs `npm run test:e2e`. Playwright’s **`webServer`** starts **Vite** on
+**`make test-ui-e2e`** runs `npm install` in `web/gi-kg-viewer`, installs the **Chromium** browser
+for Playwright (the suite runs Chrome locally and Firefox under `CI`), and runs `npm run test:e2e`. Playwright’s **`webServer`** starts **Vite** on
 **127.0.0.1:5174** so it does not collide with `npm run dev` on **5173**.
 
 **What CI proves vs full stack:** That setup exercises the **Vue UI** in a real browser with
@@ -173,7 +173,7 @@ For interactive debugging: `cd web/gi-kg-viewer && npx playwright test --ui` (se
 GitHub Actions jobs:
 
 - **`viewer-unit`** — runs `npm run test:coverage` (Vitest + coverage gate, #914; thresholds in `vite.config.ts`).
-- **`viewer-e2e`** — runs `npm run test:e2e` (Playwright + Firefox) after the pytest E2E job
+- **`viewer-e2e`** — runs `npm run test:e2e` (Playwright + Firefox, which the config selects under `CI`) after the pytest E2E job
   that applies to the event (**`test-e2e-fast`** on PRs, **`test-e2e`** on push to
   `main` / `release/*`). **`coverage-unified`** waits on **`viewer-e2e`** so the merge report
   runs only after browser E2E has passed.
@@ -216,7 +216,7 @@ such a tree. Rationale: [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md).
 - **Playwright specs:** `web/gi-kg-viewer/e2e/*.spec.ts` (e.g. offline graph, search mocks,
   dashboard, theme).
 - **Playwright config:** `web/gi-kg-viewer/playwright.config.ts` (`testDir: ./e2e`,
-  **Desktop Firefox**, `baseURL` / `webServer` on **5174**).
+  **Desktop Chrome** locally and **Desktop Firefox** under `CI`, `baseURL` / `webServer` on **5174**).
 - **Shared helpers:** `e2e/fixtures.ts`, `e2e/helpers.ts`.
 
 More detail: [E2E Testing Guide — Browser E2E (Playwright)](E2E_TESTING_GUIDE.md#browser-e2e-playwright),
@@ -661,7 +661,7 @@ tests/
 web/gi-kg-viewer/            # Browser UI E2E (Playwright — not pytest)
 ├── e2e/                     # *.spec.ts
 ├── e2e/fixtures.ts          # Shared test fixtures
-├── playwright.config.ts     # webServer (Vite :5174), Firefox
+├── playwright.config.ts     # webServer (Vite :5174), Chrome (Firefox under CI)
 └── package.json             # test:e2e and other frontend scripts
 ```
 

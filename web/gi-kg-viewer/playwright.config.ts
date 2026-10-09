@@ -18,6 +18,10 @@ const pythonBin = existsSync(venvPython) ? venvPython : 'python3'
 /**
  * Browser E2E against Vite dev server (no Python API required for offline tests).
  */
+// Chrome, like the live and validation configs and the player and Orrery suites. CI stays on
+// Firefox until its workflows install Chromium: they install only Firefox for this suite today.
+const BROWSER = process.env.CI ? 'firefox' : 'chromium'
+
 export default defineConfig({
   testDir: './e2e',
   // ``e2e/validation/`` holds Tier-3 specs that require a running ``make
@@ -69,9 +73,9 @@ export default defineConfig({
     /* Dedicated port so local `npm run dev` on 5173 does not collide with E2E. */
     baseURL: 'http://127.0.0.1:5174',
     trace: process.env.CI ? 'on-first-retry' : 'retain-on-failure',
-    ...devices['Desktop Firefox'],
+    ...devices[BROWSER === 'firefox' ? 'Desktop Firefox' : 'Desktop Chrome'],
   },
-  projects: [{ name: 'firefox', use: {} }],
+  projects: [{ name: BROWSER, use: {} }],
   webServer: [
     {
       /**

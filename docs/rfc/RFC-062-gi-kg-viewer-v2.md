@@ -99,7 +99,7 @@ This follows megasketch **A.2** — **one pipeline core, multiple shells** (CLI 
 | **Semantic search** | **`#search-q`**, since / top‑k, **Advanced search** modal, **Search result insights** modal, **G** / **L** actions, merge duplicate KG surfaces | [UXS-005](../uxs/UXS-005-semantic-search.md) + [RFC-061](RFC-061-semantic-corpus-search.md) |
 | **Dashboard** | **Briefing** card; **Coverage** / **Intelligence** / **Pipeline** sub-tabs; Chart.js surfaces per **UXS-006**; corpus **List** / **Load into graph** via **status bar** (not a legacy **`CorpusDataWorkspace`** on the tab body) | [UXS-006](../uxs/UXS-006-dashboard.md) + [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md) + [VIEWER_IA](../uxs/VIEWER_IA.md) (status bar) |
 | **Server** | **`app.py`** mounts **health**, **artifacts**, **search**, **explore**, **index_stats**, **index_rebuild**, **corpus_library**, **corpus_binary**, **corpus_metrics**, **corpus_digest**, …; optional **RFC-077** **`/api/feeds`**, **`/api/operator-config`**, **`/api/jobs`** | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md), [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) |
-| **E2E** | Playwright under **`web/gi-kg-viewer/e2e/`** (Firefox; dedicated Vite port in CI) | [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md), [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) |
+| **E2E** | Playwright under **`web/gi-kg-viewer/e2e/`** (Chrome locally, Firefox in CI; dedicated Vite port) | [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md), [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) |
 
 The table documents **shipped** viewer chrome including the **#606** shell IA update.
 
@@ -604,7 +604,7 @@ cd web/gi-kg-viewer && npm run build
 | `make serve-ui` | Start Vite dev server only |
 | `cd web/gi-kg-viewer && npm run build` | Production build of frontend |
 | `make test-ui` | Vitest unit tests for TS utils |
-| `make test-ui-e2e` | Playwright browser E2E (Firefox; see **`web/gi-kg-viewer/e2e/`**) |
+| `make test-ui-e2e` | Playwright browser E2E (Chrome locally, Firefox in CI; see **`web/gi-kg-viewer/e2e/`**) |
 
 ## Key Decisions
 
@@ -813,7 +813,7 @@ web/gi-kg-viewer/
 **Playwright configuration:**
 
 See `web/gi-kg-viewer/playwright.config.ts` for the current configuration
-(Firefox, Vite on port 5174, `testDir: ./e2e`).
+(Chrome locally, Firefox in CI; Vite on port 5174, `testDir: ./e2e`).
 
 ### Test Organization
 
@@ -885,7 +885,7 @@ See `web/gi-kg-viewer/playwright.config.ts` for the current configuration
 7. Dark mode works correctly, driven by UXS-001 semantic tokens in `tokens.css`
 8. Theme presets load correctly; swapping a preset changes typography/spacing/radii
    without touching component code
-9. Playwright E2E tests pass in CI (headless Firefox)
+9. Playwright E2E tests pass in CI (headless Firefox; Chrome locally)
 10. Server architecture supports adding platform routes (#50, #347) without restructuring
 11. v1 `web/gi-kg-viz/` removed (Phase 4 complete)
 12. All documentation deliverables complete (see Definition of Done below)

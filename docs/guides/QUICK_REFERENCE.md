@@ -96,7 +96,7 @@ make ci                      # Full CI suite (+ Playwright, coverage enforce)
 | `make test` | All tests | ~8min |
 | `make test-nightly` | Nightly tests (production models) | ~4hrs |
 | `make test-ui` | Vitest unit tests for `web/gi-kg-viewer` TS utils (no browser) | ~1s |
-| `make test-ui-e2e` | Playwright E2E for `web/gi-kg-viewer` (Firefox; installs browsers) | ~1–3 min |
+| `make test-ui-e2e` | Playwright E2E for `web/gi-kg-viewer` (Chrome; installs browsers) | ~1–3 min |
 | `make test-acceptance-fixtures-fast` | Full-pipeline acceptance **fast matrix** + E2E fixtures (materializes **`MAIN_ACCEPTANCE_CONFIG.yaml`** rows) | slow (CI-scale) |
 
 Full-pipeline acceptance presets: **`make test-acceptance CONFIGS="…"`** or **`FROM_FAST_STEMS=1`** **`USE_FIXTURES=1`** — see [Testing Guide — E2E Acceptance Tests](TESTING_GUIDE.md#e2e-acceptance-tests) and **`scripts/acceptance/README.md`**.
@@ -155,7 +155,7 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 | `make serve-api SERVE_OUTPUT_DIR=…` | API only on **8000** |
 | `make serve-ui` | Vite only on **5173** (proxies `/api` → 8000) |
 | `make test-ui` | Vitest unit tests for TS utils (fast, no browser) |
-| `make test-ui-e2e` | Playwright tests (Firefox; Vite on **5174** inside config) |
+| `make test-ui-e2e` | Playwright tests (Chrome; Vite on **5174** inside config) |
 
 **Prerequisites:** `pip install -e ".[dev]"`; once per clone, `cd web/gi-kg-viewer && npm install && npm run build` to serve the built SPA from `serve`.
 

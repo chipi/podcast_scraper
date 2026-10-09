@@ -78,7 +78,7 @@ We adopt the following frontend stack for all UI work:
 - **Build**: `cd web/gi-kg-viewer && npm run build` (Vite production build to `dist/`)
 - **Dev**: `make serve-ui` (Vite dev server with proxy to FastAPI on port 5173)
 - **Unit tests**: `make test-ui` (Vitest — `src/utils/*.test.ts`)
-- **Browser E2E**: `make test-ui-e2e` (Playwright, Firefox, Vite on 5174)
+- **Browser E2E**: `make test-ui-e2e` (Playwright; Chrome locally, Firefox in CI; Vite on 5174)
 - **Graph component**: `src/components/graph/GraphCanvas.vue` wrapping Cytoscape.js
 - **Stores**: `src/stores/` — artifacts, search, explore, graphNavigation, graphFilters, shell (Pinia)
 

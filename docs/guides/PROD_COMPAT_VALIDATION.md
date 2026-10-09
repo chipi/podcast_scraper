@@ -39,7 +39,7 @@ make lint && make type
 
 cd web/gi-kg-viewer
 npm run test:unit -- src/stores/shell.health.test.ts
-./node_modules/.bin/playwright install firefox   # once per machine / CI cache miss
+./node_modules/.bin/playwright install chromium  # once per machine (CI installs firefox)
 npm run test:e2e -- e2e/corpus-version-warning.spec.ts
 
 cd ../..

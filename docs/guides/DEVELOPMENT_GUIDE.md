@@ -666,7 +666,7 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
 | `make serve-api SERVE_OUTPUT_DIR=…` | FastAPI only (default port **8000**). |
 | `make serve-ui` | Vite dev server only (`web/gi-kg-viewer`, port **5173**, proxies `/api` → 8000). |
 | `make test-ui` | Vitest unit tests for TS utility logic (parsing, merge, metrics, formatting). Fast (~150 ms), no browser. |
-| `make test-ui-e2e` | Playwright browser tests: `npm install`, `playwright install firefox`, `npm run test:e2e` (Vite on **5174** inside Playwright config — no clash with 5173). |
+| `make test-ui-e2e` | Playwright browser tests: `npm install`, `playwright install chromium`, `npm run test:e2e` (Vite on **5174** inside Playwright config — no clash with 5173). |
 | `make ci-ui-validation CORPUS=/abs/path` | **Tier-3** real-corpus matrix validation per [ADR-095](../adr/ADR-095-viewer-test-pyramid.md). Required when shipping a real-corpus bug fix — Tier-2 matrix row reproducing must land first. |
 | `make verify-gil-offsets-strict` | **Quote** vs **indexed transcript chunk** character alignment on a corpus (set **`GIL_OFFSET_VERIFY_DIR`**; optional **`GIL_OFFSET_MIN_RATE`**, default **0.95**). Supports **feed-nested** metadata. See [Semantic Search Guide — lift & verification](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528). |
 
@@ -697,7 +697,7 @@ Playwright or MCP clicking the wrong **Search**):
 
 **More contributor notes:**
 
-- UI E2E uses **Firefox** (see `web/gi-kg-viewer/playwright.config.ts`).
+- UI E2E uses **Chrome** locally and **Firefox** under `CI` (see `web/gi-kg-viewer/playwright.config.ts`).
 - Pytest coverage for the same APIs lives under `tests/unit/podcast_scraper/server/`
   and `tests/integration/server/` (e.g. `test_server_api.py` — wired app + real filesystem;
   see Server Guide for other modules).
@@ -801,7 +801,7 @@ Pipeline capture configs live in
 | Target | What it runs | When to use |
 | ------ | ------------ | ----------- |
 | `make ci-fast` | `cleanup-processes`, format-check, lint, type, security, complexity, docstrings, spelling, quality-metrics-ci, `test-fast` (critical-path unit + integration + E2E), `test-ui` (Vitest), `build-viewer` (`vue-tsc -b && vite build`), docs, build | **Default pre-commit gate.** ~6-10 min. Skips Playwright and coverage enforcement. |
-| `make ci-ui-fast` | Same chain as `ci-fast` but `test-fast-no-py-e2e` (skips Python e2e) + `test-ui-e2e` (Playwright firefox) for viewer-iteration runs. Includes `build-viewer`. | **Viewer-heavy work.** ~8-12 min. |
+| `make ci-ui-fast` | Same chain as `ci-fast` but `test-fast-no-py-e2e` (skips Python e2e) + `test-ui-e2e` (Playwright, Chrome) for viewer-iteration runs. Includes `build-viewer`. | **Viewer-heavy work.** ~8-12 min. |
 | `make ci` | Everything in `ci-fast` + full `test` suite, `test-ui-e2e` (Playwright), `build-viewer`, coverage-enforce, **and** `stack-test-ml-ci` (full Docker stack + ml pipeline + Playwright + always-teardown) | **True full local parity** with the GitHub Actions chain (Python application → Stack test). ~20-30 min. Run before merge for changes that touch pipeline / Docker / route handlers. |
 | `make test-fast` | Critical-path unit + integration + E2E tests only (no lint/format/type) | Quick test-only feedback. |
 | `make build-viewer` | `cd web/gi-kg-viewer && npm install && npm run build` (`vue-tsc -b && vite build`). Catches strict TypeScript regressions invisible to `vitest` / `playwright`. | Standalone — already wired into every `ci*` target above. |

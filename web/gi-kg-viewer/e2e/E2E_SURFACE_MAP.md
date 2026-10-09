@@ -27,7 +27,7 @@ endpoint this app calls (`/api/corpus/*`, `/api/search`, `/api/index/stats`, `/a
 | Run this suite against the real backend | [`e2e/run-local-stack.sh`](run-local-stack.sh) — starts the API on `:8012` and points Vite's `/api` proxy at it |
 | The whole picture | [`docs/guides/E2E_TESTING_GUIDE.md`](../../../docs/guides/E2E_TESTING_GUIDE.md) |
 
-> This suite runs on **Firefox**, not Chromium — `npx playwright install firefox` before the first run.
+> This suite runs on **Chrome** locally (`npx playwright install chromium` before the first run) and on **Firefox** under `CI`.
 
 **Related:** [ADR-066](../../../docs/adr/ADR-066-playwright-for-ui-e2e-testing.md). Tracked in
 [GitHub #509](https://github.com/chipi/podcast_scraper/issues/509).
@@ -150,7 +150,7 @@ as scenarios harden; link new Playwright specs here under **Surfaces and owning 
 | Config | [playwright.config.ts](../playwright.config.ts) |
 | `baseURL` | `http://127.0.0.1:5174` |
 | Dev server | Vite via Playwright `webServer` (dedicated port; avoids clashing with `npm run dev` on 5173) |
-| Browser | Firefox (single project) |
+| Browser | Chrome locally, Firefox under `CI` (single project) |
 | Specs | `e2e/*.spec.ts`, shared [fixtures.ts](fixtures.ts), [helpers.ts](helpers.ts) |
 
 ## Auth gate and roles (#1128) — read this before writing any spec

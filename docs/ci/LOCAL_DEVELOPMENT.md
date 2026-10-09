@@ -87,7 +87,7 @@ make ci-fast
 
 # Viewer-iteration CI checks (Playwright + viewer build, no Python e2e)
 
-# - test-fast-no-py-e2e + test-ui + test-ui-e2e (Playwright firefox)
+# - test-fast-no-py-e2e + test-ui + test-ui-e2e (Playwright, Chrome)
 
 # - ~8-12 min. Use for viewer-heavy PRs where Python e2e is unaffected.
 

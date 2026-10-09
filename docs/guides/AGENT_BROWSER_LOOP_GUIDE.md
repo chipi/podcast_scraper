@@ -59,18 +59,18 @@ invoke browser actions and get structured feedback. MCP is the glue.
 
 ## Browser choice
 
-**Use Chrome (or Chromium/Edge) for manual dev debugging. Firefox for automated E2E.**
+**Use Chrome (or Chromium/Edge) for manual dev debugging and for automated E2E.**
 
 The manual "agent attaches to your live session" workflow requires Chrome DevTools
 Protocol (CDP), which is Chrome-only. Firefox has no equivalent.
 
-This project's Playwright E2E suite (`make test-ui-e2e`) runs **Firefox** headlessly
-for cross-browser coverage (see `web/gi-kg-viewer/playwright.config.ts`). That is
+This project's Playwright E2E suite (`make test-ui-e2e`) runs **Chrome** headlessly
+locally and **Firefox** under `CI` (see `web/gi-kg-viewer/playwright.config.ts`). That is
 separate from the agent-browser loop described here.
 
 | Context | Browser | Why |
 | ------- | ------- | --- |
-| `make test-ui-e2e` (CI, automated) | Firefox | Cross-browser coverage, existing config |
+| `make test-ui-e2e` (automated) | Chrome locally, Firefox in CI | CI workflows install only Firefox for this suite |
 | Agent-driven exploration (MCP) | Chrome (DevTools MCP, default) or Chromium (Playwright MCP) | DevTools attaches to your Chrome; Playwright MCP launches its own Chromium when you chose that channel |
 | Live co-development | Chrome | CDP required for DevTools MCP attachment |
 
@@ -137,7 +137,7 @@ The E2E suite for the GI/KG viewer:
 | ------ | ----- |
 | Run command | `make test-ui-e2e` |
 | Config | `web/gi-kg-viewer/playwright.config.ts` |
-| Browser | Firefox (headless) |
+| Browser | Chrome (headless); Firefox under `CI` |
 | Port | `127.0.0.1:5174` (dedicated, avoids dev server on 5173) |
 | Specs | `web/gi-kg-viewer/e2e/*.spec.ts` |
 | Surface contract | `web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md` |
@@ -500,7 +500,7 @@ The two modes feed into each other naturally:
 │  AUTOMATED VALIDATION (agent alone, headless)   │
 │                                                 │
 │  Agent updates e2e/*.spec.ts                    │
-│  → make test-ui-e2e (full suite, Firefox)       │
+│  → make test-ui-e2e (full suite, Chrome)       │
 │  → failures? fix + re-run                       │
 │  → green [ok]                                      │
 └─────────────────────────────────────────────────┘
@@ -902,9 +902,8 @@ claude mcp list
 # Node.js 18+ required
 node --version
 
-# Install Playwright browsers (Chromium for MCP, Firefox for E2E suite)
+# Install Playwright browsers (Chromium for MCP and the E2E suite)
 npx playwright install chromium
-npx playwright install firefox
 ```
 
 ---
@@ -915,7 +914,7 @@ npx playwright install firefox
 # Launch Chrome with debugging port (live co-development)
 chrome-dev   # alias from .zshrc setup above
 
-# Run existing E2E suite (automated, Firefox)
+# Run existing E2E suite (automated, Chrome)
 make test-ui-e2e
 
 # Start the GI/KG viewer dev server (for manual browsing)

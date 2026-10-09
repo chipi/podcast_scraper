@@ -15,6 +15,7 @@ import {
   readFsmState,
   setupHandoffMatrixMocks,
 } from './_handoff-helpers'
+import { declareInjectedFault } from '../injected-faults'
 
 test.describe('Handoff matrix § Section 6 — Failure modes', () => {
   test.beforeEach(async ({ page }) => {
@@ -32,6 +33,7 @@ test.describe('Handoff matrix § Section 6 — Failure modes', () => {
     // A real backend over a real corpus will not 404 on demand, and no fixture version changes
     // that. Error-handling specs are the one category that stays mocked; see
     // docs/architecture/TEST_CORPUS_FIXTURE_LADDER.md section C.
+    declareInjectedFault(page, /\/api\/corpus\/episodes\/detail/)
     await page.route('**/api/corpus/episodes/detail**', (r) =>
       r.fulfill({
         status: 404,

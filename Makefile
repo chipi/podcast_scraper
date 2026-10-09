@@ -1820,10 +1820,10 @@ test-ui:
 	@echo "Vitest unit tests + coverage gate (gi-kg-viewer, #914)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:coverage
 
-# Playwright browser E2E (install browsers once: cd $(WEB_VIEWER_DIR) && npx playwright install firefox)
+# Playwright browser E2E: Chrome locally, Firefox under CI (playwright.config.ts).
 test-ui-e2e:
 	@echo "Playwright E2E (gi-kg-viewer)..."
-	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e
+	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install chromium && npm run test:e2e
 
 # API image the e2e run-local-stack scripts expect (#1619). Nothing built this before, so
 # ``e2e/run-local-stack.sh`` failed on a fresh machine with an image-not-found that read like a
@@ -1846,7 +1846,7 @@ e2e-api-image:
 # given), so this leaves the tracked fixture untouched.
 test-ui-e2e-live: e2e-api-image
 	@echo "Playwright E2E (gi-kg-viewer) against the fixture-bootstrapped API..."
-	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox
+	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install chromium
 	@$(WEB_VIEWER_DIR)/e2e/run-local-stack.sh
 
 # Production viewer bundle: ``vue-tsc -b && vite build`` (catches strict-mode TS

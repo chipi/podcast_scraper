@@ -19,7 +19,7 @@
 | Graph | Cytoscape.js | Single canvas, custom stylesheet in `cyGraphStylesheet.ts` |
 | Charts | Chart.js | Dashboard only; registered once via `chartRegister.ts` |
 | Language | TypeScript (strict) | Vitest for unit tests |
-| E2E | Playwright (Firefox) | Surface map in `e2e/E2E_SURFACE_MAP.md` |
+| E2E | Playwright (Chrome locally, Firefox in CI) | Surface map in `e2e/E2E_SURFACE_MAP.md` |
 
 No Vue Router is used. Navigation is tab-state driven (see Shell below).
 
@@ -336,7 +336,7 @@ must fire.
 | Layer | Tool | Location | Command |
 | ----- | ---- | -------- | ------- |
 | Unit (TS) | Vitest | `src/**/*.test.ts` | `make test-ui` |
-| E2E (browser) | Playwright (Firefox) | `e2e/*.spec.ts` | `make test-ui-e2e` |
+| E2E (browser) | Playwright (Chrome locally, Firefox in CI) | `e2e/*.spec.ts` | `make test-ui-e2e` |
 | API (Python) | pytest | `tests/unit/podcast_scraper/server/`, `tests/integration/server/` | `make test-fast` |
 
 The viewer applies a three-tier pyramid with production-shaped fixtures

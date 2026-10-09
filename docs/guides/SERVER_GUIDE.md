@@ -479,7 +479,7 @@ on port **5174** (separate from the dev port 5173).
 make test-ui-e2e
 ```
 
-This target installs npm dependencies, installs the Firefox browser, and
+This target installs npm dependencies, installs the Chromium browser, and
 runs `npm run test:e2e` inside `web/gi-kg-viewer/`.
 
 **CI vs `serve`:** Playwright in CI runs the SPA on **Vite** with **mocked or spec-level `/api/*`**
