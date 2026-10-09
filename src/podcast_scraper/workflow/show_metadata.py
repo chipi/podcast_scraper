@@ -286,8 +286,12 @@ def build_show_metadata(feed_dir: Path) -> Optional[Dict[str, Any]]:
     for name in refused_feed_statement_names(title, description, language):
         _add(name, "feed_statement_refused")
     for tag in authors:
-        for name in split_author_names(tag):
-            if name and not names_the_show(name, title) and not is_network_or_org_author(name):
+        for name in split_author_names(tag, language or None):
+            if (
+                name
+                and not names_the_show(name, title, language or None)
+                and not is_network_or_org_author(name, language or None)
+            ):
                 _add(name, "author_tag")
     used: Counter = Counter()
     for path, doc in episodes:
