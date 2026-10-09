@@ -468,8 +468,10 @@ security-fast: security-bandit
 		$(MAKE) security-audit; \
 	fi
 
+# ./eval-data is its own private repo cloned inside the checkout (gitignored; CI never has it),
+# with its own .venv: scanning it reported ~69k third-party findings on machines that have it.
 security-bandit:
-	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./infra/dgx/converge/.venv --skip B113,B108,B110,B310 --severity-level medium
+	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./infra/dgx/converge/.venv,./eval-data --skip B113,B108,B110,B310 --severity-level medium
 
 # Dependency vulnerability audit (pip-audit).
 #

@@ -20,6 +20,8 @@ import NoteComposer from '../components/NoteComposer.vue'
 import SectionStatus from '../components/SectionStatus.vue'
 import FollowButton from '../components/FollowButton.vue'
 import ShareMenu from '../components/ShareMenu.vue'
+import LanguageBadge from '../components/LanguageBadge.vue'
+import { useCorpusLanguages } from '../composables/useCorpusLanguages'
 import { formatPublishDate } from '../utils/format'
 import { scrollBehavior } from '../utils/motion'
 import { getPodcastsByIds, listPodcastEpisodes } from '../services/api'
@@ -283,6 +285,8 @@ onMounted(() => {
   }
 })
 watch(() => props.feedId, reset)
+// Containers whose only content may be the badge gate on what the badge itself shows.
+const { badgeShown } = useCorpusLanguages()
 </script>
 
 <template>
@@ -335,11 +339,11 @@ watch(() => props.feedId, reset)
              sit on one line in a 224px gutter, and three wrapped lines in a narrow column beside
              900px of empty space is the desktop bug this fixes (operator 2026-09-17). -->
         <p
-          v-if="metaLine.length"
+          v-if="metaLine.length || badgeShown(show?.language)"
           class="text-xs leading-relaxed text-muted sm:hidden"
           data-testid="podcast-feed-meta"
         >
-          {{ metaLine.join(' · ') }}
+          <LanguageBadge :lang="show?.language" class="mr-1.5 align-[1px]" />{{ metaLine.join(' · ') }}
         </p>
         <!-- Two aligned rows under the 144px artwork: the primary Follow pill full-width on top,
              the secondary actions as an even icon row beneath (two pills can't share a 144px row,
@@ -388,11 +392,11 @@ watch(() => props.feedId, reset)
         <!-- DESKTOP: the same facts on ONE line under the title, where there is room for them.
              Same `metaLine` source as the phone copy above — one computed, two placements. -->
         <p
-          v-if="metaLine.length"
+          v-if="metaLine.length || badgeShown(show?.language)"
           class="mt-1 hidden text-xs leading-relaxed text-muted sm:block"
           data-testid="podcast-feed-meta-wide"
         >
-          {{ metaLine.join(' · ') }}
+          <LanguageBadge :lang="show?.language" class="mr-1.5 align-[1px]" />{{ metaLine.join(' · ') }}
         </p>
         <!-- Feed by-line (#2043): host/author names straight from the RSS channel. Text for now —
              linking each to its person card is the entity-resolution follow-up (#2044). -->

@@ -107,6 +107,34 @@ export default async function globalSetup(): Promise<void> {
       TRANSFORMERS_OFFLINE: '1',
     },
   })
+  await warmSearchOnceIndexExists()
+}
+
+/**
+ * Pay the API's search cold start here, not inside the first search spec.
+ *
+ * `serve` warms search at boot, but Playwright starts it BEFORE this function builds the index, so
+ * that warmup runs against no index, returns in milliseconds and loads nothing. The embedding model
+ * then loads on the first real query — measured at 24.8 s on 2026-10-08 — and the app abandons a
+ * read after 15 s (`READ_SAFETY_MS`), so whichever search spec ran first rendered "Couldn't load"
+ * and failed. It happens exactly when the index is built during the run: every CI run and every
+ * fresh checkout, which retries then quietly absorbed.
+ *
+ * Only after a fresh build, because that is the only case where boot warmup could have missed it.
+ * A failure here is reported but not fatal: the search specs will fail with their own evidence.
+ */
+async function warmSearchOnceIndexExists(): Promise<void> {
+  const started = Date.now()
+  try {
+    const resp = await fetch('http://127.0.0.1:8011/api/search?q=warm', {
+      signal: AbortSignal.timeout(180_000),
+    })
+    // eslint-disable-next-line no-console
+    console.log(`[globalSetup] search warmed: HTTP ${resp.status} in ${Date.now() - started} ms`)
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(`[globalSetup] search warmup failed after ${Date.now() - started} ms: ${err}`)
+  }
 }
 
 /**

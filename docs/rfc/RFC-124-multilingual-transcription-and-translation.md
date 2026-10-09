@@ -15,6 +15,7 @@
   - `docs/rfc/RFC-115-transcript-prefix-caching-llm-stages.md` — LLM stages cache the analysis transcript as a prompt prefix
 - **Related ADRs**:
   - `docs/adr/ADR-155-pin-every-model-checkpoint.md` — the translation checkpoint is pinned
+  - `docs/adr/ADR-158` … `ADR-161` — the ASR decisions V.6b measured on real non-English audio (§2.2)
 - **Arc notes**: `docs/architecture/MULTILINGUAL_ARC.md` — slice plan (§4), verified code facts and the
   claims the adversarial reviews found false (§5.4), decisions D-1 … D-20
 
@@ -273,6 +274,30 @@ where the `.en.txt` branch belongs — precedence `.en.adfree.txt` → `.en.txt`
 The resolver also gains a **provenance check**: `.en.adfree.*` carries the `en_sha256` of the
 `.en.txt` it was built from, and a mismatch refuses rather than silently anchoring spans into stale
 text.
+
+**2.2 ASR on real non-English audio: what V.6b measured, and what changed (#2187).** Gate V.6b ran
+the production profile (`prod_dgx_full`, DGX faster-whisper large-v3-turbo) on one episode from
+each of six production-style shows — es, it, fr, de, pt-PT, pt-BR, 40-110 minutes each — scored
+without a reference transcript, plus the 80k English set, which has one. It found five defects
+that every language shares, English included, and each now has a decision record:
+
+| Defect, as measured | What changed | Record |
+| --- | --- | --- |
+| Whisper honours the language it is sent: Spanish audio requested as `en` came back as correct Spanish text reporting `en`, so a wrong feed tag passes silently. | The transcript must read as its declared language (function-word counts) or the episode fails loud. No auto-correction. | [ADR-158](../adr/ADR-158-transcript-must-read-as-its-declared-language.md) |
+| Long-form decoding skips speech the diarizer hears (80k_03 raw: 77 words; V.6b: 57 gaps over six episodes). | Detected (`untranscribed_speech`), then re-transcribed gap by gap through a one-request clip call and spliced in, tagged `recovered`. | [ADR-159](../adr/ADR-159-recover-untranscribed-speech-through-a-clip-call.md) |
+| Whisper invents subtitle credits: nine "Sous-titrage Société Radio-Canada" segments covered the French opening, including the host's self-introduction. | Whole-segment invented lines are removed after ASR; their time becomes a recoverable gap. | [ADR-160](../adr/ADR-160-remove-whole-segment-invented-lines.md) |
+| Punctuation breaks off part-way and stays off: 5 of 6 V.6b feeds and 121 of 2,421 prod episodes of 20+ minutes, while the whole-episode figure passes. | Judged per 10-minute window; a broken window is re-transcribed on its own with a punctuated prompt in the episode's language (25 of 25 non-English and 9 of 10 English windows repaired). | [ADR-161](../adr/ADR-161-repair-punctuation-per-window.md) |
+| Translation status `failed` for one refused 114-character unit (Spanish), which skips summary, GI and KG for the episode (§5.3). | Not changed here — recorded as an open question (below). | — |
+
+What V.6b ruled out, so it is not re-proposed: a prompt sent once with the whole file (it shapes
+only Whisper's first window; pt-PT still had 3 broken windows), VAD (it delays the break, minute
+30 instead of 10, but does not prevent it), `no_speech_prob` as speech evidence (the DGX server
+returns 0.0 for every segment), and treating a word Whisper stretched over seconds as a gap (lost
+speech under 3 of 11 measured, so they are recorded, not recovered).
+
+Naming defects V.6b surfaced belong to the speaker-naming work and are handed over there: one was
+fixed here (a refused "&lt;name&gt;, guest" answer no longer leaves its guest role on the host; V.6b
+pt-PT), two are open (Open Questions 7-8).
 
 ### 3. Stage order: translation directly after transcription, before summary
 
@@ -826,6 +851,13 @@ by language.
     requirement; cross-lingual semantics belongs with application internationalization.
 12. **Blocking analysis is an explicit gate on language + translation status**, because the resolver
     always returns something and absence cannot express refusal.
+13. **A transcript that does not read as its declared language fails loud** (ADR-158); the text is
+    the only witness, because ASR echoes the language it is sent.
+14. **Speech the diarizer hears and ASR skipped is recovered by clip, never through the episode
+    path** (ADR-159): the episode path's guardrail, retries and breaker turned one sparse clip into
+    an 18-minute stall holding the DGX lock.
+15. **Invented lines go by whole segment only** (ADR-160).
+16. **Punctuation is judged and repaired per window** (ADR-161).
 
 ## Alternatives Considered
 
@@ -946,6 +978,21 @@ Phase names match PRD-047 and the arc notes; slice ids (S0.x, S2.x) refer to the
 5. Should English episodes eventually route through the same resolver branch to pick a cleaned variant,
    unifying this with `save_cleaned_transcript`? The resolver generalizes, so this is a config question.
 6. How much Greek keyword recall does the English FTS tokenizer cost (§6.2)?
+7. **Speaker naming, first-name address (handed over, V.6b es).** The two hosts' names came out
+   swapped: each host addresses the other by first name or nickname dozens of times, and the guard
+   that refuses a name a voice only speaks about matches full names and surnames only.
+8. **Speaker naming, near-identical names (handed over, V.6b de).** A co-host whose surname differs
+   from the stated host's by two letters was snapped onto the host's name by the near-identical
+   match, so the co-host was published unnamed, as a guest.
+9. **One refused translation unit fails the whole episode's translation** (V.6b es: 1 of 102
+   units, "here's the translation" commentary), and §5.3 then skips summary, GI and KG. Retry the
+   unit, or accept a translation with a bounded share of refused units?
+10. **Non-English accuracy is unmeasured, not measured-and-good.** V.6b ran one real episode per
+    language (es, it, fr, de, pt-PT, pt-BR) with no reference transcript, so every number is a
+    proxy — coverage, punctuation, the language guard, filters — and translation quality is not
+    scored at all. English has WER on the 80k set; the non-English equivalent needs a few minutes
+    of hand-checked reference per language and more than one episode per show. Scheduled as its
+    own measurement, not part of #2187.
 
 ## References
 

@@ -21,6 +21,7 @@ from podcast_scraper.providers.ml.diarization.formatting import (
 )
 from podcast_scraper.translation.artifacts import (
     load_translation_json,
+    translation_json_path,
     translation_swap_happened,
 )
 from podcast_scraper.workflow import translation_stage as ts
@@ -321,6 +322,43 @@ class TestResume:
         assert all(u.model == model_b for u in fresh)
         assert all(u.prompt_sha256 == "0" * 64 for u in cached)
         assert all(u.prompt_sha256 == "f" * 64 for u in fresh)
+
+    def test_each_unit_records_its_token_counts_and_a_resume_keeps_them(
+        self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """ADR-157 §5: the served context is 4096, and how close real units come to it was not
+        measurable because the ledger stored no token counts. A fresh unit records the request's
+        counts and the capped budget; a resumed unit keeps the counts of the request that made
+        its text, not None."""
+        _lay_down_spanish_episode(tmp_path)
+
+        class _Counting(_StubProvider):
+            def translate_unit(self, unit: Any, **kw: Any):
+                got = super().translate_unit(unit, **kw)
+                got["metadata"].update(
+                    prompt_tokens=120, completion_tokens=95, max_tokens_capped_from=3000
+                )
+                return got
+
+        _run(monkeypatch, tmp_path, cfg, _Counting(fail_units=("t0003.u01",)))
+        first = load_translation_json(REL, str(tmp_path))
+        assert first is not None
+        assert all(
+            (u.prompt_tokens, u.completion_tokens, u.max_tokens_capped_from) == (120, 95, 3000)
+            for u in first.units
+        )
+        raw = json.loads(Path(translation_json_path(REL, str(tmp_path))).read_text())
+        assert raw["units"][0]["prompt_tokens"] == 120
+
+        _run(monkeypatch, tmp_path, cfg, _StubProvider())
+        second = load_translation_json(REL, str(tmp_path))
+        assert second is not None
+        cached = [u for u in second.units if u.unit_id != "t0003.u01"]
+        fresh = [u for u in second.units if u.unit_id == "t0003.u01"]
+        assert cached and all(u.prompt_tokens == 120 for u in cached)
+        assert fresh and all(
+            u.prompt_tokens is None for u in fresh
+        ), "the stub reported no counts on the re-run; the ledger must not invent them"
 
     def test_a_claim_spanning_two_models_records_BOTH(
         self, tmp_path: Path, cfg: config.Config, monkeypatch: pytest.MonkeyPatch

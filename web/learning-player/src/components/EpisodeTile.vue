@@ -37,6 +37,7 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import EpisodeActions from './EpisodeActions.vue'
+import LanguageBadge from './LanguageBadge.vue'
 import PlayedBadge from './PlayedBadge.vue'
 import type { EpisodeSummary } from '../services/types'
 import { episodeArtwork } from '../utils/episode'
@@ -45,7 +46,13 @@ const props = defineProps<{
   /** Only what the tile draws — Jump back in hands it an EpisodeDetail, rails an EpisodeSummary. */
   episode: Pick<
     EpisodeSummary,
-    'slug' | 'title' | 'podcast_title' | 'artwork_url' | 'episode_image_url' | 'feed_image_url'
+    | 'slug'
+    | 'title'
+    | 'podcast_title'
+    | 'artwork_url'
+    | 'episode_image_url'
+    | 'feed_image_url'
+    | 'language'
   >
   /** 0..1 — how far the listener got. Drawn under the artwork (Jump back in). */
   progress?: number
@@ -64,6 +71,12 @@ const artwork = computed(() => episodeArtwork(props.episode))
       :slug="episode.slug"
       overlay
       class="absolute right-2 top-2 z-10 max-w-[76px] justify-end"
+    />
+    <!-- Top-LEFT, opposite the actions, on the same dark plate so it reads over any artwork. -->
+    <LanguageBadge
+      :lang="episode.language"
+      overlay
+      class="pointer-events-none absolute left-2 top-2 z-10"
     />
     <RouterLink
       :to="{ name: 'player', params: { slug: episode.slug } }"

@@ -175,4 +175,22 @@ test.describe('Operator Shows Library (shows-first browse)', () => {
     await expect(page.getByTestId('shows-grid')).toBeVisible()
     await expect(page.getByTestId('library-root')).toHaveCount(0)
   })
+
+  test('every show card carries its language — the corpus is multilingual (V2-C.1)', async ({
+    page,
+  }) => {
+    await openShowsMode(page)
+    const resp = await page.request.get('/api/corpus/feeds')
+    const { feeds } = (await resp.json()) as { feeds: { feed_id: string; language?: string | null }[] }
+    const known = feeds.filter((f) => f.language)
+    // The fixture corpus spans en/es/it/fr/de/pt; without that FR7.5 hides every badge, and this
+    // test would be asserting nothing.
+    expect(new Set(known.map((f) => f.language!.split('-')[0])).size).toBeGreaterThan(1)
+
+    for (const f of known) {
+      await expect(
+        page.getByTestId(`shows-card-${f.feed_id}`).getByTestId('language-badge'),
+      ).toHaveAttribute('data-lang', f.language!.split('-')[0].toLowerCase())
+    }
+  })
 })

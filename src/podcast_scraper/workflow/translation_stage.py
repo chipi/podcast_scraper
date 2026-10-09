@@ -199,13 +199,14 @@ def run_translation_stage(
     run_id: Optional[str] = None,
     episode_title: Optional[str] = None,
 ) -> TranslationOutcome:
-    """Decide, record, and credit the deadline. Never raises into metadata generation.
+    """Decide, translate, and record. Never raises into metadata generation.
 
-    THE DEADLINE CREDIT IS THE POINT OF DOING THIS HERE RATHER THAN OUTSIDE. The seam sits
-    inside the block ``processing.py`` observes under the ``summarization_timeout`` key — the
-    block that already reports GI's overruns under the summariser's name. Translation's wall
-    time is credited back, so an overrun alert keeps meaning "summary + GI + KG were slow"
-    rather than quietly becoming "this episode was translated".
+    NO DEADLINE CREDIT IS APPLIED (checked 2026-10-07; #2230). The seam sits inside the block
+    ``processing.py`` observes under the ``summarization_timeout`` key — the block that already
+    reports GI's overruns under the summariser's name — and the design called for crediting
+    translation's wall time back so an overrun alert keeps meaning "summary + GI + KG were
+    slow". That credit was never built: only ``outcome.duration_s`` is recorded, so a long
+    translation DOES count toward "METADATA GENERATION OVERRAN".
     """
     started = time.monotonic()
     try:
@@ -616,6 +617,9 @@ def _translate_episode(
                         model=cached.model or (previous.model if previous else None),
                         prompt_sha256=cached.prompt_sha256
                         or ((previous.prompt or {}).get("sha256") if previous else None),
+                        prompt_tokens=cached.prompt_tokens,
+                        completion_tokens=cached.completion_tokens,
+                        max_tokens_capped_from=cached.max_tokens_capped_from,
                     )
                 )
                 continue
@@ -639,6 +643,9 @@ def _translate_episode(
                 # A FRESH unit is attributed to this run's model and prompt.
                 model=meta.get("model") or getattr(cfg, "translate_model", None),
                 prompt_sha256=(meta.get("prompt") or {}).get("sha256"),
+                prompt_tokens=meta.get("prompt_tokens"),
+                completion_tokens=meta.get("completion_tokens"),
+                max_tokens_capped_from=meta.get("max_tokens_capped_from"),
             )
         )
 

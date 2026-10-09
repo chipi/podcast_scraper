@@ -20,10 +20,10 @@
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Marco Bellini": 0.4
+    "Marco Bellini": 0.7
   },
   "cameo": null,
   "transcript_sha256": "fc65a2f90a5ab758842f334ebc7ae414187e5eeb1e8c0d18ac1380ec41aa9640",
-  "audio_sha256": "ce61a539c75d2ff4cad1884cc9e5f80f8129b1dc622c95fd0563d73fccd31e11",
-  "rttm_sha256": "8e6a07f41d89fe852dc0b8751a021ebe3a195618230a49187d313593adb6b91c"
+  "audio_sha256": "a7cac654f6132c398df1eeed38b951382be501a68f3c095cc457fc84384b0028",
+  "rttm_sha256": "a30b1c26aaafe9bca3c1001e86dedced5d9387bd74477191b5a1ec35bd2b0df9"
 }

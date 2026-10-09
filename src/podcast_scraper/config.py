@@ -390,8 +390,8 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
 #   relabel_only   - re-resolves speaker names on the frozen diarization; no audio, no ASR.
 #   rediarize_only - downloads audio and re-diarizes, aligning to the EXISTING ASR text.
 #   retranscript_only - re-fetches the PUBLISHER transcript and re-parses it; no audio at all.
-#   translate_only - re-translates from the on-disk source transcript, then re-names from the
-#     fresh English render. No audio, no ASR, no re-diarize.
+#   translate_only - re-translates from the on-disk source transcript. No audio, no ASR, no
+#     re-diarize. (It no longer re-names from the English render: D-34 was reverted, #2234.)
 # None can consume an ASR credential, so requiring one is a barrier, not a safeguard.
 STAGES_THAT_NEVER_TRANSCRIBE = frozenset(
     {"relabel_only", "rediarize_only", "retranscript_only", "translate_only"}
@@ -1472,6 +1472,30 @@ class Config(BaseModel):
             "off or empty it is a no-op (the raw transcription_coverage_min gate applies instead). "
             "0.0 = off; a reprocess sets ~0.85. Preferred over transcription_coverage_min when "
             "diarization runs (they should not both be active)."
+        ),
+    )
+    transcription_recover_untranscribed_speech: bool = Field(
+        default=True,
+        alias="transcription_recover_untranscribed_speech",
+        description=(
+            "#2187 A2 -- when diarization hears speech the transcript has no words for (3 s or "
+            "more), cut that stretch from the audio, transcribe it again with the same provider "
+            "and language, and splice what it says into the transcript as segments tagged "
+            "recovered. One extra ASR call per stretch. False = detect and record the stretches "
+            "only (untranscribed_speech in .asr.json), never re-transcribe."
+        ),
+    )
+    transcription_repair_unpunctuated_windows: bool = Field(
+        default=True,
+        alias="transcription_repair_unpunctuated_windows",
+        description=(
+            "#2187 -- when a 10-minute window of the transcript has lost its punctuation (the "
+            "rest has it), transcribe that window again on its own with a punctuated prompt in "
+            "the episode's language and use it if it is punctuated, does not loop, keeps 90% of "
+            "the old words, and adds at most 1.3x the words where the old decode had text and 4.5 "
+            "words/s where it had none (ADR-161). One extra ASR call per such window, providers "
+            "with a clip call only (the DGX Whisper provider). False = record the windows only "
+            "(unpunctuated_windows)."
         ),
     )
     transcription_coverage_failover_model: Optional[str] = Field(

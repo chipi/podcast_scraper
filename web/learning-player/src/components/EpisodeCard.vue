@@ -45,6 +45,8 @@ import { formatDuration, formatPublishDate } from "../utils/format"
 import { borderClass } from "../utils/highlightColors"
 import { episodeArtwork } from "../utils/episode"
 import EpisodeActions from "./EpisodeActions.vue"
+import LanguageBadge from "./LanguageBadge.vue"
+import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import PlayedBadge from "./PlayedBadge.vue"
 
 const props = defineProps<{
@@ -128,6 +130,8 @@ const { clipped: summaryClipped } = useClampedProse(summaryEl, summaryExpanded)
 const canExpandSummary = computed(
   () => !!summaryFull.value.trim() && (summaryClipped.value || summaryExpanded.value)
 )
+// Containers whose only content may be the badge gate on what the badge itself shows.
+const { badgeShown } = useCorpusLanguages()
 </script>
 
 <template>
@@ -169,13 +173,16 @@ const canExpandSummary = computed(
       />
       <!-- Facts directly under the artwork (operator: date/duration UP). -->
       <div
-        v-if="!compact && (date || duration)"
+        v-if="!compact && (date || duration || badgeShown(episode.language))"
         class="flex items-center gap-1.5 text-xs font-medium text-muted"
       >
         <span v-if="date">{{ date }}</span>
         <span v-if="date && duration" aria-hidden="true">·</span>
         <span v-if="duration">{{ duration }}</span>
+        <LanguageBadge :lang="episode.language" />
       </div>
+      <!-- Compact drops the date row, but not the language: it is what the listener reads in. -->
+      <LanguageBadge v-if="compact" :lang="episode.language" />
       <span
         v-if="episode.status !== 'ready'"
         class="w-fit rounded-full bg-overlay px-2 py-0.5 text-xs font-semibold text-warning"

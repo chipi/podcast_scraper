@@ -254,6 +254,15 @@ candidate 1a8a493f0 vs `origin/main` 712ff7ebb:
 ## Not this agent's to start (operator schedules)
 
 - **#2187** — ASR has never run on non-English audio; needs a quiet DGX window.
+- **#2187 backfill — repair the prod episodes whose punctuation broke part-way** (operator
+  decision 2026-10-09, after the #2187 branch ships so no new ones are made). Not a text-file
+  fix: the punctuation and the speech the broken decode dropped exist only in the audio
+  (ADR-161). Scope in the 2026-09-20 snapshot: 121 English episodes, 38 shows, 357 broken
+  10-minute windows (90 episodes broken to the end). Cost: about 17 s of DGX per window as
+  measured 2026-10-09 (~1.7 h), plus re-fetching audio that cold storage moved off, plus every
+  surface built from the transcript (speaker labels, summaries, GI quotes, KG, search rows) —
+  re-labelling alone is ~17 min per episode (~34 h). Start with a 1-2 episode trial that
+  measures the whole chain, then the 90 broken-to-the-end episodes first.
 - **#2251** — the translation model pick is preliminary.
 - **#2255–#2259** — the non-English detector vocabularies are unmeasured.
 

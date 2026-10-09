@@ -86,7 +86,9 @@ def _corpus(monkeypatch, tmp_path, variants: dict, embedder: _Embedder):
 def _insight_ids(lance) -> set:
     import lancedb
 
-    return set(lancedb.connect(str(lance)).open_table("insights").to_pandas()["id"])
+    # Arrow, not pandas: pandas is only in the [compare] extra, so a [dev,search] venv lacks it.
+    table = lancedb.connect(str(lance)).open_table("insights").to_arrow()
+    return set(table.column("id").to_pylist())
 
 
 def test_a_killed_update_keeps_its_finished_episodes(tmp_path, monkeypatch) -> None:

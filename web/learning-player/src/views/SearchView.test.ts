@@ -8,6 +8,7 @@ import { capturesViaFullLists, podcastsViaGetPodcasts } from "../test/apiViaSpie
 import en from "../i18n/locales/en.json"
 import { useAuthStore } from "../stores/auth"
 import { clearCached } from "../services/contentCache"
+import { resetCorpusLanguagesForTests } from "../composables/useCorpusLanguages"
 import { useSavedQueriesStore } from "../stores/savedQueries"
 import SearchView from "./SearchView.vue"
 
@@ -131,6 +132,45 @@ describe("SearchView", () => {
     const actions = w.get('[data-testid="episode-actions"]')
     expect(actions.findAll("button")).toHaveLength(1)
     expect(actions.get("button").attributes("aria-label")).toBe("More actions")
+  })
+
+  it("labels each episode result with its language — from a source-layer hit, else the show (V2-C.1)", async () => {
+    // Search hits carry `language` ONLY on source-layer chunks of a translated episode; English
+    // analysis chunks and native-English chunks have none. Hits alone would badge one Spanish
+    // episode and leave the others bare, so the card falls back to the show's catalogue language.
+    resetCorpusLanguagesForTests()
+    vi.spyOn(api, "getPodcasts").mockResolvedValue([
+      { feed_id: "fen", title: "English Show", language: "en" },
+      { feed_id: "fes", title: "Spanish Show", language: "es" },
+    ] as never)
+    const hit = (slug: string, feed: string, extra: Record<string, unknown> = {}) => ({
+      doc_id: slug,
+      score: 0.9,
+      text: `passage from ${slug}`,
+      source_tier: "segment",
+      metadata: { episode_slug: slug, episode_title: `Title ${slug}`, podcast_title: "Show", feed_id: feed, ...extra },
+    })
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "trail",
+      error: null,
+      results: [
+        hit("native-en", "fen"),
+        hit("es-analysis", "fes"), // English analysis chunk of a Spanish episode: no language
+        hit("pt-source", "not-in-catalogue", { language: "pt", index_layer: "source" }),
+        hit("unknown", "not-in-catalogue"),
+      ],
+    } as never)
+    const { w } = await mountAt("trail")
+    await flushPromises()
+    const langOf = (slug: string) =>
+      w
+        .findAll('[data-testid="episode-group"]')
+        .find((c) => c.text().includes(`Title ${slug}`))!
+        .find('[data-testid="language-badge"]')
+    expect(langOf("native-en").attributes("data-lang")).toBe("en")
+    expect(langOf("es-analysis").attributes("data-lang")).toBe("es")
+    expect(langOf("pt-source").attributes("data-lang")).toBe("pt")
+    expect(langOf("unknown").exists()).toBe(false)
   })
 
   it("shows the passages while the entity lookup is still pending, and the card when it lands", async () => {

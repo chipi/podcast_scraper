@@ -77,5 +77,8 @@ export function summaryFromDetail(d: EpisodeDetail): EpisodeSummary {
     has_gi: d.has_gi,
     has_kg: d.has_kg,
     has_bridge: d.has_bridge,
+    // Carried, not dropped: Queue, Recent, Revisit and Saved all render through this adapter, and
+    // without it none of them could show the language badge (V2-C.1).
+    language: d.language ?? null,
   }
 }

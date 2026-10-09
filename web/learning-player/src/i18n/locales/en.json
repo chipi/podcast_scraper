@@ -1041,6 +1041,9 @@
     "pending": "Pending",
     "played": "Played"
   },
+  "language": {
+    "badgeLabel": "Language: {name}"
+  },
   "route": {
     "choose": "Play on another device",
     "playingElsewhere": "Playing on another device"

@@ -35,6 +35,12 @@ describe('summaryFromDetail', () => {
     expect(s.has_gi).toBe(true)
     expect(s.has_kg).toBe(false)
   })
+
+  it('carries the language, so Queue, Recent, Revisit and Saved can badge it (V2-C.1)', () => {
+    expect(summaryFromDetail({ ...detail, language: 'es' }).language).toBe('es')
+    // Absent stays absent — never defaulted to English.
+    expect(summaryFromDetail(detail).language).toBeNull()
+  })
 })
 
 describe('artwork size by surface (Pixel 8 blank-render fix, 2026-10-08)', () => {

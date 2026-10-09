@@ -2133,15 +2133,23 @@ Common causes:
 - Profile in operator YAML names a provider whose key isn't set
 - Corpus directory has a permission issue (run owner mismatch)
 
-### "An episode was skipped: language 'xx' is not enabled"
+### "An episode was skipped: language 'xx' is not enabled" (or "no language")
 
 **What happened.** The episode's resolved language is not `enabled: true` in
-`config/languages.yaml`, so it was refused **before any transcription provider was called**
-(#2179). Nothing was transcribed and nothing was charged. Look for:
+`config/languages.yaml` — or the feed has NO usable language at all — so it was refused
+**before anything was downloaded** (#2179, #2283): `run_pipeline` gates right after the feed is
+fetched, and transcription re-checks as a backstop. Nothing was transcribed and nothing was
+charged. The language comes from an operator override if one is set, else the feed's
+`<language>` tag; there is no profile default (a feed with no usable tag is never assumed
+English). Look for one of:
 
 ```text
-[N] SKIPPING episode: language 'de' (from the profile default) is not enabled in
-    config/languages.yaml, so this episode was NOT transcribed.
+language 'de' (from the feed's declared <language> tag) is not enabled in config/languages.yaml,
+so nothing was downloaded or processed. Enable it in config/languages.yaml, or — if the
+publisher's tag is wrong — set an operator override, which outranks the tag.
+
+no language: the feed declares no <language>, so nothing was downloaded or processed. Set this
+feed's language with an operator override (#2283) to ingest it.
 ```
 
 The same sentence is in the episode ledger (`error_type: UnsupportedLanguage`) and in the
@@ -2174,7 +2182,10 @@ Then:
    ```
 
    The override outranks the feed's own tag, so it is the remedy for a mis-tagged show. A typo
-   there raises at config load rather than silently falling back.
+   there raises at config load rather than silently falling back. The same override can be set
+   without editing the spec through the operator overrides endpoint on the control plane
+   (`PUT /api/feeds/overrides/feed`, #2283; both land in `cfg.language_override`) — it is also
+   the remedy for a feed that declares no language at all.
 3. **The feed should not be ingested at all.** Leave it skipped and remove it from the feed list.
 
 **What NOT to do.** Do not set the run-global `language:` to work around one feed — that is the

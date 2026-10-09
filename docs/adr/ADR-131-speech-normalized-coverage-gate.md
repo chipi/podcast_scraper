@@ -7,6 +7,21 @@
   failover this revises), [ADR-122](ADR-122-self-hosted-model-resilience-policy.md) (`hold`)
 - **Related**: #1178/#1179 (ASR bake-off), #1258 (coverage gate)
 
+## Amendment (2026-10-07): `prod_dgx_full` opted out; the metric is recorded regardless
+
+The 2026-08-03 amendment below says the registry emits `transcription_speech_coverage_min=0.85`
+for `prod_dgx_full`. It no longer does: on 2026-08-04 that profile set the gate OFF (`0.0`, no
+failover model) because ASR on the model bake-off profile must stay constant — always the DGX
+Whisper (`model_registry.py`, the `prod_dgx_full` preset). `cloud_with_dgx_primary` keeps `0.85`.
+
+With the gate off, `speech_coverage` was recorded as `null`, because the coverage was computed only
+after the gate's early return — although the registry comment said the metric was still recorded.
+Since #2187 the coverage is computed whenever there is a speech denominator, armed or not, and a
+second, LOCAL signal is recorded beside it: `untranscribed_speech`, each stretch of diarized speech
+(≥ 3 s) that no ASR segment covers. A whole-episode ratio cannot see a short skip — V.6b's Spanish
+run lost a 19.1 s turn and still read ~95% coverage — the local signal can. Both are observation
+only; neither changes a transcript.
+
 ## Amendment (2026-08-03): the speech gate is now the *active* gate; raw coverage becomes a metric
 
 When ADR-131 landed, the registry still emitted the **raw** ADR-123 gate

@@ -14,6 +14,9 @@ import { createRouter, createMemoryHistory } from "vue-router"
 import en from "../i18n/locales/en.json"
 import type { EpisodeSummary } from "../services/types"
 import EpisodeCard from "./EpisodeCard.vue"
+import { flushPromises } from "@vue/test-utils"
+import * as api from "../services/api"
+import { resetCorpusLanguagesForTests } from "../composables/useCorpusLanguages"
 
 const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 
@@ -68,6 +71,50 @@ function makeEpisode(over: Partial<EpisodeSummary> = {}): EpisodeSummary {
 function mountCard(ep: EpisodeSummary) {
   return mount(EpisodeCard, { props: { episode: ep }, global: { plugins: [i18n, router] } })
 }
+
+describe("EpisodeCard — language badge container (V2-C.1)", () => {
+  // The facts row under the artwork used to render whenever the episode HAD a language, even when
+  // the badge inside it was hidden (single-language corpus) — an empty row with nothing in it.
+  const facts = (w: ReturnType<typeof mountCard>) =>
+    w.findAll("div").filter((d) => d.classes().includes("gap-1.5") && d.classes().includes("text-muted"))
+  const bare = { publish_date: null, duration_seconds: null, language: "en" }
+
+  it("renders no facts row when the badge would be its only content and is hidden", async () => {
+    resetCorpusLanguagesForTests()
+    vi.spyOn(api, "getPodcasts").mockResolvedValue([{ feed_id: "a", language: "en" }] as never)
+    const w = mountCard(makeEpisode(bare))
+    await flushPromises()
+    expect(w.find('[data-testid="language-badge"]').exists()).toBe(false)
+    expect(facts(w)).toHaveLength(0)
+  })
+
+  it("renders the row with the badge in a multilingual corpus", async () => {
+    resetCorpusLanguagesForTests()
+    vi.spyOn(api, "getPodcasts").mockResolvedValue([
+      { feed_id: "a", language: "en" },
+      { feed_id: "b", language: "es" },
+    ] as never)
+    const w = mountCard(makeEpisode(bare))
+    await flushPromises()
+    expect(facts(w)).toHaveLength(1)
+    expect(facts(w)[0]!.find('[data-testid="language-badge"]').attributes("data-lang")).toBe("en")
+  })
+
+  it("compact (Recently played) still shows the language, though it drops the date row", async () => {
+    resetCorpusLanguagesForTests()
+    vi.spyOn(api, "getPodcasts").mockResolvedValue([
+      { feed_id: "a", language: "en" },
+      { feed_id: "b", language: "es" },
+    ] as never)
+    const w = mount(EpisodeCard, {
+      props: { episode: makeEpisode({ language: "es" }), compact: true },
+      global: { plugins: [i18n, router] },
+    })
+    await flushPromises()
+    expect(facts(w)).toHaveLength(0)
+    expect(w.find('[data-testid="language-badge"]').attributes("data-lang")).toBe("es")
+  })
+})
 
 describe("EpisodeCard", () => {
   it("renders title, podcast, the publisher's description and duration", () => {

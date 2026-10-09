@@ -20,6 +20,8 @@ export type CorpusFeedItem = {
   image_local_relpath?: string | null
   rss_url?: string | null
   description?: string | null
+  /** Feed language as a normalized primary subtag ('en'), or null when unknown (#2176). */
+  language?: string | null
 }
 
 export type CorpusFeedsResponse = {

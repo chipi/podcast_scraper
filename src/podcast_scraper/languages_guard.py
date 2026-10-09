@@ -99,3 +99,56 @@ def refuse_unsupported_language(stage: str, language: Optional[str]) -> Optional
     )
     logger.warning("[#2169] %s", reason)
     return reason
+
+
+#: Below this many words a transcript is too short to judge (a trailer, a stinger).
+TRANSCRIPT_LANGUAGE_MIN_WORDS = 200
+#: The declared language's own function words must be at least this share of the transcript.
+#:
+#: Measured 2026-10-07 on every transcript at hand (54 v3 fixtures in six languages, three real
+#: 80,000 Hours episodes and their DGX transcripts): a CORRECTLY declared language never fell below
+#: 0.051 (Portuguese, whose unique-word list is the thinnest), and a wrongly declared one never rose
+#: above 0.032 (Spanish words in Italian prose). The floor sits well under the first; the second is
+#: caught by the confident-detection half of the check regardless.
+DECLARED_LANGUAGE_MIN_SHARE = 0.02
+
+
+def transcript_language_contradiction(text: str, declared: Optional[str]) -> Optional[str]:
+    """``None`` when the transcript reads as *declared*, else why it does not.
+
+    THE FAILURE THIS CATCHES IS SILENT. The pipeline sends the declared language to ASR, and
+    Whisper honours it: Spanish audio requested as ``en`` came back as correct SPANISH text with
+    ``language: en`` reported, because the service echoes the request (measured on p10_e01,
+    2026-10-07). So ``asr_language_mismatch`` cannot fire, and a feed whose ``<language>`` tag is
+    wrong would put source-language text through every English stage, labelled English.
+
+    The text is the only witness left, so this reads it with the function-word counts
+    :mod:`ad_signatures` already uses on the corpus. It fails on either signal:
+
+    * the text confidently reads as ANOTHER language (``detect_language``), or
+    * the declared language's own function words are under :data:`DECLARED_LANGUAGE_MIN_SHARE`
+      — which also covers a language with no word list, read under a tag that has one.
+
+    It does not judge what it cannot: a declared language with no word list, or a transcript
+    under :data:`TRANSCRIPT_LANGUAGE_MIN_WORDS`, passes.
+    """
+    from .providers.ml.diarization.ad_signatures import detect_language, FUNCTION_WORDS, words
+
+    lang = primary_language(declared)
+    if lang not in FUNCTION_WORDS:
+        return None
+    ws = words(text)
+    if len(ws) < TRANSCRIPT_LANGUAGE_MIN_WORDS:
+        return None
+    detected = detect_language(ws)
+    share = sum(w in FUNCTION_WORDS[lang] for w in ws) / len(ws)
+    if detected in (None, lang) and share >= DECLARED_LANGUAGE_MIN_SHARE:
+        return None
+    reads_as = f"reads as {detected!r}" if detected else "does not read as any known language"
+    return (
+        f"the transcript {reads_as}, but the episode's language is {lang!r} "
+        f"({share:.1%} of its {len(ws)} words are {lang!r} function words; a correctly declared "
+        f"episode measures at least 5%). The feed's <language> tag is wrong, or the audio is not "
+        "in the language it claims. Nothing was saved: set an operator override with the real "
+        "language (#2283) and re-run."
+    )

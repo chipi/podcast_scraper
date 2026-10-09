@@ -11,7 +11,19 @@ import re
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Set, Tuple, TYPE_CHECKING
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    TYPE_CHECKING,
+)
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
@@ -26,7 +38,7 @@ from podcast_scraper.utils.corpus_walk import corpus_rglob
 
 from ..exceptions import ProviderError, ProviderRuntimeError
 from ..languages import transcription_language
-from ..languages_guard import is_target_language
+from ..languages_guard import is_target_language, transcript_language_contradiction
 from ..preprocessing.audio.factory import preprocessing_fingerprint
 from ..rss import choose_transcript_url, downloader
 from ..rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
@@ -511,6 +523,17 @@ def download_media_for_transcription(
             speaker_detection_ran=detection_ran,
             episode=episode,
         )
+    elif decision.action == REFUSED:
+        logger.info(
+            "[%s] refused earlier: the transcript did not read as the declared language, which "
+            "has not changed; skipping until it does (%s)",
+            episode.idx,
+            decision.path,
+        )
+        _mark_episode_skipped_existing(
+            episode, cfg, pipeline_metrics, f"language refusal on record: {decision.path}"
+        )
+        return None
     elif decision.action == SKIP:
         prefix = "[dry-run] " if cfg.dry_run else ""
         logger.info(
@@ -850,6 +873,25 @@ def _attach_speech_audio_ratio(
         result["speech_audio_ratio"] = round(sar, 3)
 
 
+def _asr_language_record(result: Dict[str, Any], cfg: config.Config) -> Dict[str, Any]:
+    """``{requested, reported, mismatch}`` for the ASR call — the #2187 hazard-3 record.
+
+    ``requested`` is the language the pipeline sent: the provider's own echo when it gives one,
+    else the episode's resolved transcription language (the call site passes exactly that).
+    ``reported`` is what the ASR service said the audio is, and is ``None`` for a provider that
+    does not report it — never filled from ``requested``, or a mismatch could not be seen.
+    ``mismatch`` compares primary subtags and is ``None`` unless both sides are known.
+    """
+    requested = (
+        result["language_requested"] if "language_requested" in result else None
+    ) or transcription_language(cfg)
+    reported = result.get("language_reported")
+    mismatch: Optional[bool] = None
+    if requested and reported:
+        mismatch = primary_language(str(requested)) != primary_language(str(reported))
+    return {"requested": requested, "reported": reported, "mismatch": mismatch}
+
+
 def _save_asr_provenance_file(
     result: Optional[Dict[str, Any]],
     cfg: config.Config,
@@ -870,7 +912,8 @@ def _save_asr_provenance_file(
     failover = result.get("speech_coverage_failover")
     sar = result.get("speech_audio_ratio")
     punct = result.get("punctuation")
-    if cov is None and not failover and sar is None and not punct:
+    language = _asr_language_record(result, cfg)
+    if cov is None and not failover and sar is None and not punct and not language["requested"]:
         return
     provenance: Dict[str, Any] = {
         "model": (
@@ -882,12 +925,38 @@ def _save_asr_provenance_file(
         # Σ(segments)/total-audio content signal — always present, gate or not (see caller).
         "speech_audio_ratio": sar,
         "failed_over": bool(failover),
+        # What language went to the ASR service and what it said back (#2187).
+        "language": language,
     }
     if failover:
         provenance["speech_coverage_failover"] = failover
     if punct:
         # #2284: was the transcript unpunctuated, and was a prompted retry made / did it help.
         provenance["punctuation"] = punct
+    untranscribed = result.get("asr_untranscribed_speech")
+    if untranscribed is not None:
+        # #2187: diarized speech with no transcript under it — present only when diarization ran.
+        provenance["untranscribed_speech"] = untranscribed
+    recovery = result.get("asr_speech_recovery")
+    if recovery is not None:
+        # #2187 A2: each stretch that was re-transcribed, and what came of it.
+        provenance["speech_recovery"] = recovery
+    stretched = result.get("asr_stretched_words")
+    if stretched:
+        # #2187: words timed 3 s+ over diarized speech -- evidence for inspection, not a gap.
+        provenance["stretched_words"] = stretched
+    invented = result.get("asr_invented_lines")
+    if invented:
+        # #2187: lines Whisper wrote that nobody said (subtitle credits), removed from the text.
+        provenance["invented_lines_removed"] = invented
+    unpunct_windows = result.get("asr_unpunctuated_windows")
+    if unpunct_windows:
+        # #2187: 10-minute windows still unpunctuated after any repair (the whole text passed).
+        provenance["unpunctuated_windows"] = unpunct_windows
+    repair = result.get("asr_punctuation_repair")
+    if repair:
+        # #2187: each window re-transcribed for punctuation, and what came of it.
+        provenance["punctuation_repair"] = repair
     full_path = os.path.join(effective_output_dir, rel_transcript_path)
     base, _ = os.path.splitext(full_path)
     asr_path = base + ".asr.json"
@@ -959,6 +1028,28 @@ def _write_processing_manifest(
         if isinstance(_punct, dict) and _punct.get("unpunctuated"):
             # #2284: kept, never dropped -- but countable, and downstream knows.
             asr_flags.append("asr_unpunctuated")
+        _language = _asr_language_record(result, cfg)
+        if _language["mismatch"]:
+            # #2187 hazard 3: the service says the audio is not the language we asked for.
+            asr_flags.append("asr_language_mismatch")
+        _untranscribed = result.get("asr_untranscribed_speech")
+        if _untranscribed:
+            # #2187: the diarizer heard speech the transcript has no words for.
+            asr_flags.append("asr_untranscribed_speech")
+        _recovery = result.get("asr_speech_recovery")
+        if _recovery and any(r.get("status") == "recovered" for r in _recovery):
+            # #2187 A2: the transcript carries re-transcribed segments (tagged ``recovered``).
+            asr_flags.append("asr_speech_recovered")
+        _invented = result.get("asr_invented_lines")
+        if _invented:
+            asr_flags.append("asr_invented_lines_removed")
+        _unpunct_windows = result.get("asr_unpunctuated_windows")
+        if _unpunct_windows:
+            asr_flags.append("asr_partly_unpunctuated")
+        _repair = result.get("asr_punctuation_repair") or []
+        _repaired = sum(1 for r in _repair if r.get("status") == "repaired")
+        if _repaired:
+            asr_flags.append("asr_punctuation_repaired")
         # Total ASR cost = primary call + any failover re-transcription (both 0 for local models;
         # a cloud ASR that failed over billed twice — RFC-109).
         _primary_cost = getattr(asr_call_metrics, "estimated_cost", None)
@@ -980,7 +1071,33 @@ def _write_processing_manifest(
                 getattr(cfg, "transcription_provider", None),
                 pm.LOCAL_TRANSCRIPTION_PROVIDERS,
             ),
-            metrics={"speech_coverage": cov, "speech_audio_ratio": sar},
+            metrics={
+                "speech_coverage": cov,
+                "speech_audio_ratio": sar,
+                "language_requested": _language["requested"],
+                "language_reported": _language["reported"],
+                "untranscribed_speech_count": (
+                    len(_untranscribed) if _untranscribed is not None else None
+                ),
+                "untranscribed_speech_s": (
+                    round(sum(g["duration_s"] for g in _untranscribed), 3)
+                    if _untranscribed is not None
+                    else None
+                ),
+                "recovered_speech_count": (
+                    sum(1 for r in _recovery if r.get("status") == "recovered")
+                    if _recovery is not None
+                    else None
+                ),
+                "recovered_words": (
+                    sum(int(r.get("words") or 0) for r in _recovery)
+                    if _recovery is not None
+                    else None
+                ),
+                "invented_lines_removed": len(_invented or []),
+                "unpunctuated_windows": len(_unpunct_windows or []),
+                "punctuation_windows_repaired": _repaired,
+            },
             failover=failover or None,
         )
         pm.update_stage(
@@ -2719,16 +2836,149 @@ def _transcribe_with_segments_maybe_chunked(
                 "diarization speaker ids are chunk-local and not reconciled across chunks.",
                 job.idx,
             )
-        return transcribe_file_in_chunks(
+        result, elapsed = transcribe_file_in_chunks(
             media_for_transcription,
             chunker=chunker,
             transcribe_fn=_transcribe_one,
         )
+        return _inspect_asr_result(
+            result,
+            elapsed,
+            media_path=media_for_transcription,
+            cfg=cfg,
+            provider=transcription_provider,
+        )
 
     try:
-        return _transcribe_one(media_for_transcription)
+        result, elapsed = _transcribe_one(media_for_transcription)
     except TimeoutError:
         raise
+    return _inspect_asr_result(
+        result,
+        elapsed,
+        media_path=media_for_transcription,
+        cfg=cfg,
+        provider=transcription_provider,
+    )
+
+
+def _inspect_asr_result(
+    result: Dict[str, Any],
+    elapsed: float,
+    *,
+    media_path: Optional[str] = None,
+    cfg: Optional[config.Config] = None,
+    provider: Any = None,
+) -> Tuple[Dict[str, Any], float]:
+    """#2187: drop the lines Whisper invents, repair windows whose punctuation broke off.
+
+    Runs on every fresh ASR result (primary and failover, chunked or not) before anything reads
+    the text. Invented lines are removed (``asr_invented_lines``). Each 10-minute window that lost
+    its punctuation is re-transcribed with a prompt in the episode's language and replaced when
+    that is a real repair (``asr_punctuation_repair``); windows still unpunctuated afterwards are
+    recorded (``asr_unpunctuated_windows``). No repair without the media, a clip-capable provider,
+    a prompt for the language, or with ``transcription_repair_unpunctuated_windows`` off.
+    """
+    from ..transcription.invented_lines import drop_invented_lines
+    from ..transcription.punctuation import unpunctuated_windows
+
+    result = drop_invented_lines(result)
+    if result.get("asr_invented_lines"):
+        logger.info(
+            "removed %d line(s) Whisper invented (subtitle credits, sign-offs) from the transcript",
+            len(result["asr_invented_lines"]),
+        )
+    windows = unpunctuated_windows(
+        [s for s in (result.get("segments") or []) if isinstance(s, Mapping)]
+    )
+    if windows and media_path and cfg is not None:
+        result = _repair_punctuation_windows(result, windows, media_path, cfg, provider)
+        # A repaired window is a fresh decode: it can carry an invented line of its own.
+        result = drop_invented_lines(result)
+        windows = unpunctuated_windows(
+            [s for s in (result.get("segments") or []) if isinstance(s, Mapping)]
+        )
+    if windows:
+        result = {**result, "asr_unpunctuated_windows": windows}
+        logger.warning(
+            "transcript loses its punctuation part-way: %d of its 10-minute windows are "
+            "unpunctuated, from %.0f min",
+            len(windows),
+            windows[0][0] / 60,
+        )
+    return result, elapsed
+
+
+_CLIPLESS_PROVIDERS_REPORTED: Set[Tuple[str, str]] = set()
+
+
+def _clip_call_of(provider: Any, feature: str) -> Optional[Callable[..., Any]]:
+    """The provider's ``transcribe_clip``, or None — said ONCE per provider type and feature.
+
+    Only the DGX provider has one, and the coverage-gate and failover wrappers do not forward it
+    (deliberately: under failover the primary may be the dead endpoint, and every clip would then
+    wait out its timeout). Without this line a profile change turned gap recovery and punctuation
+    repair off with no trace.
+    """
+    clip: Optional[Callable[..., Any]] = getattr(provider, "transcribe_clip", None)
+    if callable(clip):
+        return clip
+    kind = type(provider).__name__
+    if (kind, feature) not in _CLIPLESS_PROVIDERS_REPORTED:
+        _CLIPLESS_PROVIDERS_REPORTED.add((kind, feature))
+        logger.info(
+            "%s is off for this run: %s has no transcribe_clip (only the DGX provider does, "
+            "and provider wrappers do not forward it)",
+            feature,
+            kind,
+        )
+    return None
+
+
+def _repair_punctuation_windows(
+    result: Dict[str, Any],
+    windows: List[List[float]],
+    media_path: str,
+    cfg: config.Config,
+    provider: Any,
+) -> Dict[str, Any]:
+    """Re-transcribe the flagged windows through the provider's clip call (see
+    ``punctuation_repair``); unchanged when repair is off or not possible here."""
+    from ..transcription.punctuation import window_prompt
+    from ..transcription.punctuation_repair import repair_unpunctuated_windows
+
+    if not getattr(cfg, "transcription_repair_unpunctuated_windows", False):
+        return result
+    language = transcription_language(cfg)
+    prompt = window_prompt(language)
+    clip_call = _clip_call_of(provider, "punctuation repair")
+    if clip_call is None or prompt is None:
+        return result
+
+    def _window(clip_path: str, window_prompt_text: str) -> Dict[str, Any]:
+        return dict(clip_call(clip_path, language=language, prompt=window_prompt_text))
+
+    return repair_unpunctuated_windows(result, windows, media_path, _window, prompt)
+
+
+def _gap_clip_transcriber(
+    cfg: config.Config, transcription_provider: Any
+) -> Optional[Callable[[str], Dict[str, Any]]]:
+    """#2187 A2: transcribe one gap clip with the provider and language the episode used.
+
+    Only through the provider's ``transcribe_clip``, never ``transcribe_with_segments``: the
+    episode path's guardrails, retries and breaker treat a near-empty clip as an outage (and
+    held the DGX lock for up to 900 s doing so). A provider without ``transcribe_clip`` gets no
+    recovery (None). No metrics are passed: a recovery call is not the episode's transcription.
+    """
+    transcribe_clip = _clip_call_of(transcription_provider, "gap recovery")
+    if transcribe_clip is None:
+        return None
+
+    def _transcribe(clip_path: str) -> Dict[str, Any]:
+        return dict(transcribe_clip(clip_path, language=transcription_language(cfg)))
+
+    return _transcribe
 
 
 def _feed_hosts_from_sibling_metadata(txt_path: Path) -> List[str]:
@@ -3921,8 +4171,6 @@ def _maybe_speech_coverage_failover(
     """
     min_cov = float(getattr(cfg, "transcription_speech_coverage_min", 0.0) or 0.0)
     fo_model = getattr(cfg, "transcription_coverage_failover_model", None)
-    if min_cov <= 0 or not fo_model:
-        return result
     speech = float(result.get("diarization_speech_seconds") or 0.0)
     if speech <= 0:
         return result  # no speech denominator — defer to the raw-coverage gate
@@ -3932,9 +4180,15 @@ def _maybe_speech_coverage_failover(
         merged_speech_seconds,
     )
 
+    # The METRIC is recorded whether or not the gate is armed (#2187). It used to be computed
+    # only past the gate's early return, so a profile that turns the gate off (prod_dgx_full:
+    # ASR must stay constant) recorded `speech_coverage: null` while its registry comment said
+    # the metric was still recorded.
     covered = merged_speech_seconds(result.get("segments") or [])
     speech_cov = min(1.0, covered / speech)
     result["asr_speech_coverage"] = round(speech_cov, 3)
+    if min_cov <= 0 or not fo_model:
+        return result
     primary_model = getattr(cfg, "dgx_whisper_model", None)
     if speech_cov >= min_cov:
         # Observable pass (ADR-131): log every evaluation so a run shows the gate ran + its
@@ -4257,6 +4511,31 @@ def transcribe_media_to_text(
                 f"[{job.idx}] Transcription timeout after {cfg.transcription_timeout}s: {e}"
             )
             raise
+        # #2187: ASR echoes the language it is asked for, so only the text can say the feed's
+        # language was wrong. Refused before diarization, and before anything is written.
+        wrong_language = transcript_language_contradiction(
+            str(result.get("text") or ""), _asr_language_record(result, cfg)["requested"]
+        )
+        if wrong_language is not None:
+            logger.error("[%s] REFUSING episode: %s", job.idx, wrong_language)
+            if job.episode is not None:
+                _record_language_refusal(job.episode, cfg, wrong_language)
+            _append_transcription_incident(
+                cfg,
+                job,
+                category="hard",
+                message=wrong_language,
+                exception_type="TranscriptLanguageMismatch",
+            )
+            _record_unresolved_transcript(
+                job,
+                cfg,
+                pipeline_metrics,
+                "transcription",
+                error_type="TranscriptLanguageMismatch",
+                detail=wrong_language,
+            )
+            return False, None, bytes_downloaded
         if cfg.diarize:
             from ..exceptions import ProviderDependencyError
             from ..providers.ml.diarization.pipeline import apply_diarization_to_result
@@ -4275,6 +4554,11 @@ def transcribe_media_to_text(
                     episode_description=getattr(job.episode, "description", None),
                     detection_report=_detection_report_of(job),
                     speaker_renames=_operator_renames(job),
+                    transcribe_clip=(
+                        _gap_clip_transcriber(cfg, transcription_provider)
+                        if cfg.transcription_recover_untranscribed_speech
+                        else None
+                    ),
                 )
             except (ProviderDependencyError, ValueError, OSError, RuntimeError) as exc:
                 # Broadened catch (Whisper-e2e diagnosis, #1180 follow-up).
@@ -4649,6 +4933,74 @@ BACKFILL = "backfill"
 REUSE = "reuse"
 #: Present; ``rederive_only`` works from it.
 REDERIVE = "rederive"
+#: Refused by the language guard under the language still declared: nothing would change, so the
+#: DGX is not asked again until the feed's language changes. ``path`` is the refusal record.
+REFUSED = "refused"
+
+
+def _language_refusal_path(
+    episode: Episode, cfg: config.Config  # type: ignore[valid-type]
+) -> Optional[str]:
+    """Where an episode's language-guard refusal is recorded: corpus-wide, by stable episode id.
+
+    A refusal writes no transcript, and skip-existing keys on the transcript, so without a record
+    every scheduled run re-downloaded and re-transcribed a mis-tagged episode on the DGX, only to
+    refuse it again. Under the corpus layout each run has a fresh run dir, so the record cannot
+    live in one; it sits under the corpus root (else the output dir), keyed by a hash of the id.
+    """
+    from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+    root = run_index.corpus_root_from_cfg(cfg) or cfg.output_dir
+    if not root:
+        # No corpus and no output dir: there is nowhere the next run would look, and "." would
+        # scatter records into whatever directory the process happens to run in.
+        return None
+    episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+    digest = hashlib.sha1(str(episode_id).encode("utf-8")).hexdigest()  # nosec B324 - a name
+    return os.path.join(root, ".language_refusals", f"{digest}.json")
+
+
+def _record_language_refusal(
+    episode: Episode, cfg: config.Config, detail: str  # type: ignore[valid-type]
+) -> None:
+    """Record the refusal so the next run does not repeat it. Never raises (a failure path)."""
+    try:
+        path = _language_refusal_path(episode, cfg)
+        if path is None:
+            return
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(
+                {
+                    "requested": primary_language(transcription_language(cfg) or ""),
+                    "detail": detail,
+                    "title": getattr(episode, "title", None),
+                },
+                fh,
+                ensure_ascii=False,
+            )
+    except Exception:  # noqa: BLE001 - the refusal itself is already recorded and logged
+        logger.warning("could not record the language refusal", exc_info=True)
+
+
+def _still_refused(
+    episode: Episode, cfg: config.Config  # type: ignore[valid-type]
+) -> Optional[str]:
+    """The refusal record's path when the episode was refused under the language declared NOW.
+
+    A changed declaration (an override, a corrected feed tag) is the operator's answer to the
+    refusal, so the episode is tried again; an unreadable record is ignored rather than trusted.
+    """
+    try:
+        path = _language_refusal_path(episode, cfg)
+        if path is None or not os.path.exists(path):
+            return None
+        with open(path, encoding="utf-8") as fh:
+            record = json.load(fh)
+    except Exception:  # noqa: BLE001 - no usable record: proceed as if none
+        return None
+    now = primary_language(transcription_language(cfg) or "")
+    return path if record.get("requested") == now else None
 
 
 def media_route_skip_existing(
@@ -4670,6 +5022,11 @@ def media_route_skip_existing(
     """
     if not cfg.skip_existing:
         return SkipExisting(NEW)
+    refusal = _still_refused(episode, cfg)
+    if refusal is not None and not _force_reprocess_for_source(
+        episode, effective_output_dir, run_suffix, cfg
+    ):
+        return SkipExisting(REFUSED, refusal)
     # Key on the STABLE guid, not the run-local idx (which shifts when the feed grows → silent
     # reprocess + duplicates). A genuinely new episode falls back to its run-local idx.
     skip_idx = run_index.resolve_ondisk_idx_for_episode(episode, effective_output_dir)
@@ -4770,7 +5127,7 @@ def presence_skip_evidence(
     if not (cfg.transcribe_missing and temp_dir):
         return None
     decision = media_route_skip_existing(episode, cfg, effective_output_dir, run_suffix)
-    return decision.path if decision.action == SKIP else None
+    return decision.path if decision.action in (SKIP, REFUSED) else None
 
 
 def audio_route_leaves_before_skip_existing(cfg: config.Config) -> bool:

@@ -13,6 +13,7 @@ import { noteRoute as resolveNoteRoute, noteTargetLabel } from "../composables/n
 defineOptions({ name: "SearchView" }) // stable name for <keep-alive :include> (App.vue)
 import { RouterLink, useRoute, useRouter } from "vue-router"
 import { getPodcastsPage, resolveEntity, searchCorpus } from "../services/api"
+import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import { resolveMediaUrl } from "../services/tier"
 import type { EntityRef, EpisodeSummary, Note, Podcast, SearchHit } from "../services/types"
 import { hitStartSeconds } from "../player/insights"
@@ -89,6 +90,7 @@ const ranTerm = ref("")
  */
 /** The matching shows — asked of the server per search since 2026-10-08 (same every-word rule). */
 const showMatches = ref<Podcast[]>([])
+const { languageOfFeed } = useCorpusLanguages()
 
 // USERPREFS-1 hydrate fires once at app init in main.ts; the savedQueries
 // watch reacts when the payload arrives so the Save button flips to
@@ -199,6 +201,7 @@ interface EpisodeGroup {
  * instead. `status: 'ready'` because a hit can only exist for an indexed episode.
  */
 function groupAsEpisode(g: EpisodeGroup): EpisodeSummary {
+  const feedId = (g.hits[0]?.metadata as Record<string, unknown> | undefined)?.feed_id ?? null
   return {
     slug: g.slug ?? "",
     title: g.title,
@@ -207,7 +210,8 @@ function groupAsEpisode(g: EpisodeGroup): EpisodeSummary {
     // `{ name: 'podcast', params: { feedId } }`, and vue-router THROWS on resolving that route with
     // an empty param. Search never tracked the feed id, so it comes off the group's first hit —
     // every hit in a group belongs to one episode, hence to one feed.
-    feed_id: (g.hits[0]?.metadata as Record<string, unknown> | undefined)?.feed_id ?? null,
+    feed_id: feedId,
+    language: groupLanguage(g, feedId),
     publish_date: g.date,
     artwork_url: g.art,
     episode_image_url: null,
@@ -215,6 +219,20 @@ function groupAsEpisode(g: EpisodeGroup): EpisodeSummary {
     duration_seconds: null,
     status: "ready",
   } as unknown as EpisodeSummary
+}
+
+/**
+ * The language for a search group's card badge (V2-C.1). A hit's own `language` is stamped only
+ * on SOURCE-layer chunks of a translated episode — the English analysis chunks and every native
+ * English chunk carry none (hybrid_search never defaults it) — so hits alone would badge some
+ * Spanish episodes and no English ones. A source-layer hit is the episode's own evidence and wins;
+ * otherwise the show's language from the catalogue, which is also what the API falls back to for an
+ * episode with no language of its own.
+ */
+function groupLanguage(g: EpisodeGroup, feedId: unknown): string | null {
+  const fromHit = g.hits.map((h) => md(h).language).find((l): l is string => typeof l === "string" && !!l)
+  if (fromHit) return fromHit
+  return languageOfFeed(feedId)
 }
 
 const md = (h: SearchHit) => h.metadata as Record<string, unknown>

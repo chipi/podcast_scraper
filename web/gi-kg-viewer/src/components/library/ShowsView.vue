@@ -7,10 +7,12 @@
  * swaps the grid for ``ShowDetailView``. Pure read over an existing endpoint —
  * no new server surface. Cover art reuses the shared ``PodcastCover``.
  */
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useShellStore } from '../../stores/shell'
 import { fetchCorpusFeeds, type CorpusFeedItem } from '../../api/corpusLibraryApi'
+import LanguageBadge from '../shared/LanguageBadge.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
+import { spansLanguages } from '../../utils/language'
 
 const emit = defineEmits<{ (e: 'select', feed: CorpusFeedItem): void }>()
 
@@ -18,6 +20,10 @@ const shell = useShellStore()
 const feeds = ref<CorpusFeedItem[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
+
+// Badges only when the corpus holds more than one language (PRD-047 FR7.5): in a one-language
+// corpus every card would carry the same code.
+const showLanguage = computed(() => spansLanguages(feeds.value.map((f) => f.language)))
 
 function showLabel(f: CorpusFeedItem): string {
   return f.display_title?.trim() || f.feed_id
@@ -107,8 +113,9 @@ defineExpose({ reload: load })
             </div>
           </div>
           <div class="flex flex-col gap-1 px-2.5 pb-2.5 pt-2">
-            <p class="text-[11px] font-medium text-muted">
-              {{ f.episode_count }} {{ f.episode_count === 1 ? 'episode' : 'episodes' }}
+            <p class="flex items-center gap-1.5 text-[11px] font-medium text-muted">
+              <span>{{ f.episode_count }} {{ f.episode_count === 1 ? 'episode' : 'episodes' }}</span>
+              <LanguageBadge v-if="showLanguage" :lang="f.language" />
             </p>
             <p v-if="f.description" class="line-clamp-4 text-xs leading-snug text-muted">
               {{ f.description }}

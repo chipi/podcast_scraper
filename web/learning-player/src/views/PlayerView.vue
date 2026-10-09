@@ -37,6 +37,8 @@ import CaptureMoment from '../components/CaptureMoment.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import OverflowMenu from '../components/OverflowMenu.vue'
 import ShareMenu from '../components/ShareMenu.vue'
+import LanguageBadge from '../components/LanguageBadge.vue'
+import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import PlayerSkeleton from '../components/PlayerSkeleton.vue'
 import { useResurfacingStore } from '../stores/resurfacing'
 import TranscriptList from '../components/TranscriptList.vue'
@@ -1363,6 +1365,8 @@ onBeforeUnmount(() => {
   // A dialog left open while its view unmounts keeps the top layer and the inert background.
   if (panelDialog.value?.open) panelDialog.value.close()
 })
+// Containers whose only content may be the badge gate on what the badge itself shows.
+const { badgeShown } = useCorpusLanguages()
 </script>
 
 <template>
@@ -1486,7 +1490,8 @@ onBeforeUnmount(() => {
         <h1 class="mt-1 font-display text-2xl font-extrabold leading-tight tracking-tight lg:text-3xl">
           {{ episode.title }}
         </h1>
-        <div v-if="metaLine || episode.has_gi" class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+        <div v-if="metaLine || episode.has_gi || badgeShown(episode.language)" class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+          <LanguageBadge :lang="episode.language" />
           <span v-if="metaLine">{{ metaLine }}</span>
           <span
             v-if="episode.has_gi"

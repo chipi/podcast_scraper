@@ -27,13 +27,21 @@ import { computed } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import EpisodeActions from "./EpisodeActions.vue"
+import LanguageBadge from "./LanguageBadge.vue"
+import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import { episodeArtwork } from "../utils/episode"
 import type { EpisodeSummary } from "../services/types"
 
 const props = defineProps<{
   episode: Pick<
     EpisodeSummary,
-    "slug" | "title" | "podcast_title" | "artwork_url" | "episode_image_url" | "feed_image_url"
+    | "slug"
+    | "title"
+    | "podcast_title"
+    | "artwork_url"
+    | "episode_image_url"
+    | "feed_image_url"
+    | "language"
   >
   /** Rows in the body. No rows, no fold control — there is nothing to collapse. */
   itemCount: number
@@ -44,6 +52,8 @@ const expanded = defineModel<boolean>("expanded", { default: true })
 
 const { t } = useI18n()
 const art = computed(() => episodeArtwork(props.episode))
+// Containers whose only content may be the badge gate on what the badge itself shows.
+const { badgeShown } = useCorpusLanguages()
 </script>
 
 <template>
@@ -64,12 +74,16 @@ const art = computed(() => episodeArtwork(props.episode))
           />
           <div v-else class="h-20 w-20 shrink-0 rounded-lg bg-elevated" />
           <span class="min-w-0 flex-1">
-            <!-- ONE line: the show is context; the title is what the row is for. -->
-            <span
-              v-if="episode.podcast_title"
-              class="lp-kicker block truncate"
-              :title="episode.podcast_title"
-            >{{ episode.podcast_title }}</span>
+            <!-- ONE line: the show is context; the title is what the row is for. The language
+                 leads it, as on EpisodeRow (V2-C.1). -->
+            <span v-if="episode.podcast_title || badgeShown(episode.language)" class="flex min-w-0 items-center gap-1.5">
+              <LanguageBadge :lang="episode.language" />
+              <span
+                v-if="episode.podcast_title"
+                class="lp-kicker block min-w-0 truncate"
+                :title="episode.podcast_title"
+              >{{ episode.podcast_title }}</span>
+            </span>
             <span
               class="mt-0.5 line-clamp-3 font-display text-base font-bold leading-snug"
               :title="episode.title"

@@ -48,6 +48,9 @@ _RETRY_BACKOFF_SEC = 5.0
 # this process so we never self-contend; a busy GPU from *other* workloads is ridden
 # out by the duration-scaled timeout + watchdog, not by piling on more requests (#876).
 _dgx_single_flight = threading.Lock()
+#: A clip is a gap (seconds) or a punctuation window (10 minutes: 127-155 s on the DGX, V.6b
+#: pt-PT 2026-10-08); a request still waiting after this is not coming back usefully.
+CLIP_TIMEOUT_SEC = 600.0
 
 # Process-wide breaker for the DGX Whisper endpoint (:8002). One hard timeout trips
 # it immediately; otherwise two failures inside the window open it for a 5-minute
@@ -162,6 +165,34 @@ class TailnetDgxWhisperTranscriptionProvider:
         text, _segments, _dur, _actual = self._transcribe_via_dgx(audio_path, language)
         return text
 
+    def transcribe_clip(
+        self, audio_path: str, language: str | None = None, prompt: str | None = None
+    ) -> dict[str, Any]:
+        """#2187 A2: transcribe a few seconds cut from an episode — ONE request, nothing else.
+
+        A gap clip is not an episode, and "few or no words" is a real answer for one (music, a
+        breath, a short remark). Through ``transcribe_with_segments`` that answer failed the
+        episode-scale length floor, was retried on the same model, tripped the breaker and then
+        held the process-wide single-flight lock through up to 900 s of pause-and-probe (V.6b
+        French feed, 2026-10-08: 3 words for a 5.5 s clip -> "circuit breaker OPEN"). So: no
+        response guardrail, no retry policy, no breaker, no punctuation retry. The lock is still
+        taken per request so a clip never piles onto an episode in flight. A transport error
+        propagates; the caller records the clip as failed and keeps the transcript.
+
+        ``prompt`` is Whisper's initial prompt (a punctuation-window repair sends one).
+        """
+        self._ensure_init()
+        with _dgx_single_flight:
+            text, segments, _duration = self._transcribe_dgx(
+                audio_path,
+                language,
+                CLIP_TIMEOUT_SEC,
+                prompt=prompt,
+                check_response=False,
+                record_language=False,
+            )
+        return {"text": text, "segments": segments}
+
     def transcribe_with_segments(
         self,
         audio_path: str,
@@ -210,6 +241,11 @@ class TailnetDgxWhisperTranscriptionProvider:
                 # never a fabricated default. `None` is an honest "nobody said", which the
                 # metadata layer can normalize or report; "en" is an assertion we cannot make.
                 "language": language or self._last_detected_language,
+                # The two halves of that, kept apart so the artifacts can show both (#2187):
+                # what the pipeline ASKED for, and what the server SAID the audio is. A mismatch
+                # is the hazard-3 signal; merged into one field it is invisible.
+                "language_requested": language,
+                "language_reported": self._last_detected_language,
                 "model_requested": (model_override or self._model),
                 "model_used": actual_model,
                 # #2284: whether the transcript came back unpunctuated and what was done about it.
@@ -448,8 +484,12 @@ class TailnetDgxWhisperTranscriptionProvider:
     ) -> tuple[str, list[dict[str, object]], float]:
         """Return ``first``, or a prompted re-transcription when ``first`` is unpunctuated (#2284).
 
-        At most ONE extra request, never a loop: the same audio at temperature 0 gives the same
-        text, so only a CHANGED request (the prompt) can change the outcome. The retry runs under
+        At most ONE extra request, never a loop: the same request mostly gives the same text, so
+        only a CHANGED request (the prompt) reliably changes the outcome. Not always identical:
+        the server falls back to sampling (temperature 0.2-1.0, #968) on a 30 s piece whose
+        greedy decode looks like a loop, and a sampled piece differs run to run — 0.09% of the
+        words in the 2026-09-20 prod snapshot, 31% of its episodes have at least one such piece
+        (#2187, 2026-10-09). The next piece starts at temperature 0 again. The retry runs under
         the caller's single-flight lock and its own watchdog; whatever happens to it -- an
         error, a timeout, a guardrail, a still-unpunctuated or prompt-echoing result -- the first
         transcript is kept, and the circuit breaker is not touched (the endpoint answered; the
@@ -537,6 +577,12 @@ class TailnetDgxWhisperTranscriptionProvider:
         model_override: str | None = None,
         # #2284 — Whisper's initial prompt; sets a punctuated, capitalised output style.
         prompt: str | None = None,
+        # #2187 A2 — False for a gap clip, where few or no words is a real answer.
+        check_response: bool = True,
+        # False for a clip: `_last_detected_language` belongs to the EPISODE call, which reads it
+        # after releasing the lock — a clip writing it could stamp another episode's record when
+        # transcription_parallelism > 1.
+        record_language: bool = True,
     ) -> tuple[str, list[dict[str, object]], float]:
         """Call faster-whisper-server's OpenAI-compatible transcribe endpoint.
 
@@ -580,8 +626,9 @@ class TailnetDgxWhisperTranscriptionProvider:
         # was here before; the guardrail raises GuardrailViolation, which the
         # caller treats as a sibling of TimeoutLike (DGX fails, breaker counts,
         # cloud fallback fires).
-        audio_duration_sec = resilience.probe_audio_duration_sec(audio_path)
-        guardrails.check_whisper_response(text, audio_duration_sec=audio_duration_sec)
+        if check_response:
+            audio_duration_sec = resilience.probe_audio_duration_sec(audio_path)
+            guardrails.check_whisper_response(text, audio_duration_sec=audio_duration_sec)
         duration = float(time.perf_counter() - started)
         segments: list[dict[str, object]] = []
         if isinstance(payload.get("segments"), list):
@@ -594,7 +641,8 @@ class TailnetDgxWhisperTranscriptionProvider:
         # element; each provider instance serves one call at a time, and the reader is the very
         # next statement after the call.
         detected = payload.get("language")
-        self._last_detected_language = (
-            str(detected).strip() or None if isinstance(detected, str) else None
-        )
+        if record_language:
+            self._last_detected_language = (
+                str(detected).strip() or None if isinstance(detected, str) else None
+            )
         return text, segments, duration

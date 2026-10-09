@@ -20,10 +20,10 @@
     "Ad": "Zarvox"
   },
   "voice_pitch_shift": {
-    "Stefan Brandt": 0.4
+    "Stefan Brandt": 0.75
   },
   "cameo": null,
   "transcript_sha256": "61fb3d6db626193e5b67e7f58044702db96bdc935bf68def1bfcbf182a155bd7",
-  "audio_sha256": "f82d7db082ab32f3cbf1e683d5dece36bec59087492954d62d91f20616998b1d",
-  "rttm_sha256": "5c4b1d8bed28903a393d3f674d31a1ae9ade41f51bc1b9a73b28e691d28cec64"
+  "audio_sha256": "dc407840f9c2d105b51c027c9022b227a355be283a1194a5a58832a2731ce28b",
+  "rttm_sha256": "c3ea97b6e8992e3acadc06fcb3aaaf5458e8fef2d38b3eb5a7abe12bfdbf6429"
 }

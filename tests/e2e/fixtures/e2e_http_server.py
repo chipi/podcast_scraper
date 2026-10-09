@@ -31,7 +31,7 @@ import threading
 import time
 from email import message_from_bytes
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 from urllib.parse import urlparse
 
 import pytest
@@ -70,6 +70,35 @@ _SUBDIR_EXTENSIONS: dict[str, tuple[str, ...]] = {
 #: pipeline's ``derive_transcript_extension`` consults the declared type, and a cue file announced
 #: as plain text is a fixture lying about itself.
 _TRANSCRIPT_CONTENT_TYPES: dict[str, str] = {".txt": "text/plain", ".vtt": "text/vtt"}
+
+#: An item's ``<podcast:transcript>`` element, self-closing or paired, with the line it sits on.
+_PODCAST_TRANSCRIPT_RE = re.compile(
+    rb"[ \t]*<podcast:transcript\b[^>]*?(?:/>|>.*?</podcast:transcript>)[ \t]*(?:\r?\n)?", re.S
+)
+
+
+def strip_podcast_transcripts(feed_xml: bytes) -> bytes:
+    """The feed with every ``<podcast:transcript>`` removed — an AUDIO-ONLY feed (#2187).
+
+    The pipeline always takes a publisher transcript when the feed offers one, and no config knob
+    says otherwise (``transcribe_missing`` covers episodes WITHOUT one). So the only way to put
+    the fixture audio through ASR is a feed that does not offer the transcript; the enclosure,
+    and everything else in the feed, is served unchanged.
+    """
+    return _PODCAST_TRANSCRIPT_RE.sub(b"", feed_xml)
+
+
+_LANGUAGE_RE = re.compile(rb"[ \t]*<language>[^<]*</language>[ \t]*(?:\r?\n)?")
+
+
+def strip_feed_language(feed_xml: bytes) -> bytes:
+    """The feed with its ``<language>`` removed — a feed that DECLARES NO LANGUAGE (#2187).
+
+    Real feeds omit or mis-declare the tag, and then the run language falls back to the profile
+    default. This is how a run measures what the pipeline does with a non-English episode it was
+    not told about.
+    """
+    return _LANGUAGE_RE.sub(b"", feed_xml)
 
 
 def _anthropic_system_text(system: Any) -> str:
@@ -659,6 +688,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     _use_fast_fixtures: bool = True
     _use_fast_fixtures_lock = threading.Lock()
 
+    # Serve every feed without <podcast:transcript> (see strip_podcast_transcripts). Class-level
+    # like the flags above, so a test that sets it must restore it (get_strip_transcripts).
+    _strip_transcripts: bool = False
+    _strip_transcripts_lock = threading.Lock()
+    # Serve every feed without its <language> (see strip_feed_language). Same contract as above.
+    _strip_language: bool = False
+    _strip_language_lock = threading.Lock()
+
     # Error behavior registry (shared across all handler instances)
     # Format: {url_path: {"status": 404|500, "delay": seconds}}
     _error_behaviors: Dict[str, Dict[str, Any]] = {}
@@ -798,6 +835,50 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         """
         with cls._use_fast_fixtures_lock:
             return cls._use_fast_fixtures
+
+    @classmethod
+    def set_strip_transcripts(cls, strip: bool) -> None:
+        """Serve feeds audio-only (no ``<podcast:transcript>``) when True."""
+        with cls._strip_transcripts_lock:
+            cls._strip_transcripts = strip
+
+    @classmethod
+    def get_strip_transcripts(cls) -> bool:
+        """Whether feeds are served audio-only; the read side of :meth:`set_strip_transcripts`."""
+        with cls._strip_transcripts_lock:
+            return cls._strip_transcripts
+
+    @classmethod
+    def set_strip_language(cls, strip: bool) -> None:
+        """Serve feeds without ``<language>`` when True."""
+        with cls._strip_language_lock:
+            cls._strip_language = strip
+
+    @classmethod
+    def get_strip_language(cls) -> bool:
+        """Whether feeds are served without a language (read side of :meth:`set_strip_language`)."""
+        with cls._strip_language_lock:
+            return cls._strip_language
+
+    def _feed_filter(self) -> Optional[Callable[[bytes], bytes]]:
+        """The body filter for a feed: the strips that are switched on, composed; else None."""
+        filters = [
+            f
+            for f, on in (
+                (strip_podcast_transcripts, self.get_strip_transcripts()),
+                (strip_feed_language, self.get_strip_language()),
+            )
+            if on
+        ]
+        if not filters:
+            return None
+
+        def apply(body: bytes) -> bytes:
+            for f in filters:
+                body = f(body)
+            return body
+
+        return apply
 
     @classmethod
     def get_allowed_podcasts(cls) -> Optional[set[str]]:
@@ -945,7 +1026,12 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 if file_path is None:
                     self.send_error(403, "Invalid RSS file path")
                     return
-                self._serve_file(file_path, content_type="application/xml", head_only=head_only)
+                self._serve_file(
+                    file_path,
+                    content_type="application/xml",
+                    head_only=head_only,
+                    body_filter=self._feed_filter(),
+                )
                 return
             self.send_error(404, "RSS feed not found")
             return
@@ -2615,12 +2701,37 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         except (OSError, RuntimeError, ValueError, AttributeError):
             return None
 
+    def _serve_filtered(
+        self,
+        validated_path: Path,
+        content_type: str,
+        head_only: bool,
+        body_filter: Callable[[bytes], bytes],
+    ) -> None:
+        """Serve ``body_filter(file bytes)`` whole: 200, the FILTERED length, no ranges.
+
+        Only called by :meth:`_serve_file` after its path validation, with the validated path.
+        """
+        with open(validated_path, "rb") as f:
+            body = body_filter(f.read())
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if head_only:
+            return
+        try:
+            self.wfile.write(body)
+        except BrokenPipeError:
+            pass  # client went away before the body; harmless, as in _serve_file
+
     def _serve_file(
         self,
         file_path: Path,
         content_type: str,
         support_range: bool = False,
         head_only: bool = False,
+        body_filter: Optional[Callable[[bytes], bytes]] = None,
     ):
         """Serve a file with proper headers and range request support.
 
@@ -2629,6 +2740,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             content_type: Content-Type header value
             support_range: Whether to support HTTP range requests (206 Partial Content)
             head_only: If True, send headers only (HTTP HEAD)
+            body_filter: Transform the whole body before serving (no range support; the
+                Content-Length is the filtered length). Used for audio-only feeds.
         """
         # Validate file_path is within fixture root (defense in depth)
         # Even though file_path comes from validated helper methods, we verify here
@@ -2686,6 +2799,10 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Safe to use in file operations per CodeQL guidelines
             # CodeQL recognizes normalized_path_str as safe, and validated_path is derived from it
             file_size = validated_path.stat().st_size
+
+            if body_filter is not None:
+                self._serve_filtered(validated_path, content_type, head_only, body_filter)
+                return
 
             # Check for Range request
             range_header = self.headers.get("Range")

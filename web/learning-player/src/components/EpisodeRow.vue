@@ -23,10 +23,14 @@
  */
 import { RouterLink } from "vue-router"
 import { episodeArtwork } from "../utils/episode"
+import LanguageBadge from "./LanguageBadge.vue"
+import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import type { EpisodeSummary } from "../services/types"
 
 defineProps<{ episode: EpisodeSummary }>()
 const art = episodeArtwork
+// Containers whose only content may be the badge gate on what the badge itself shows.
+const { badgeShown } = useCorpusLanguages()
 </script>
 
 <template>
@@ -45,9 +49,12 @@ const art = episodeArtwork
       <div v-else class="h-10 w-10 shrink-0 rounded-md bg-elevated" />
       <span class="min-w-0 flex-1">
         <span class="block text-sm font-semibold">{{ episode.title }}</span>
-        <span v-if="episode.podcast_title" class="lp-kicker lp-show-name" :title="episode.podcast_title">{{
-          episode.podcast_title
-        }}</span>
+        <span v-if="episode.podcast_title || badgeShown(episode.language)" class="flex min-w-0 items-start gap-1.5">
+          <LanguageBadge :lang="episode.language" />
+          <span v-if="episode.podcast_title" class="lp-kicker lp-show-name min-w-0" :title="episode.podcast_title">{{
+            episode.podcast_title
+          }}</span>
+        </span>
       </span>
     </RouterLink>
     <slot name="trailing" />
