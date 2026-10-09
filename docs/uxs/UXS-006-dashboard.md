@@ -40,7 +40,7 @@ shared Tufte-style defaults from `chartRegister.ts`.
 1. **Briefing card** (`data-testid="briefing-card"`) — last run / health / short actions; always above tabs.
 2. **Tablist** `aria-label="Dashboard tabs"` — **Coverage** | **Intelligence** | **Pipeline**.
 3. **Coverage** — coverage by month, feed coverage table, artifact activity (from listed artifacts), **Index status** (`data-testid="index-status-card"`) — status-only; index facts + rebuild actions moved to the Configuration dialog's **Index** section, reached via **Manage in Configuration** (`index-status-manage`).
-4. **Intelligence** — digest snapshot, **Topic briefings** (`topic-briefing-cards`, PRD-033 FR6.1 #888 — retrieval-grounded `topic-briefing-card` per top topic, see §5), **Topic clusters** status (`topic-clusters-status-block`), topic landscape, top voices (when API available). Topic momentum / emerging connections **omitted** until RFC-088 data ships (no placeholder UI). **Search activity** (`query-activity-chart`, PRD-033 FR6.2 — daily search-volume bar chart, see §5). Topic momentum stays omitted.
+4. **Intelligence** — digest snapshot, **Topic briefings** (`topic-briefing-cards`, PRD-033 FR6.1 #888 — retrieval-grounded `topic-briefing-card` per top topic, see §5), top voices (when API available). Emerging connections **omitted** until RFC-088 data ships (no placeholder UI). **Search activity** (`query-activity-chart`, PRD-033 FR6.2 — daily search-volume bar chart, see §5).
 5. **Pipeline** — run history strip, duration trend, stage timings, numeric outcomes, episodes per run; optional per-feed run heatmap only when server exposes stable per-feed fields.
 
 The legacy **CorpusDataWorkspace** / **Pipeline | Content intelligence** split on Dashboard is removed; those components are not part of this surface.
@@ -565,30 +565,7 @@ achievable — queries are not topic-tagged, and a corpus-coverage-by-topic seri
 mislabel corpus volume as query volume. This ships the supported subset: *search volume
 over time*. The chart is hidden until the log has entries (`total > 0`).
 
-#### 5.2 Topic landscape
-
-**Available when topic clusters have been built.**
-
-A compact grid of topic clusters. Each cluster card:
-
-- Cluster canonical label (`text-sm font-semibold`)
-- Member topic count badge ("4 topics")
-- Episode count (summed from `members[].episode_ids`, deduplicated)
-- Clicking → Graph tab, focused on that TopicCluster compound node
-
-Grid: `repeat(auto-fit, minmax(min(100%, 12rem), 1fr))` — same card-width logic as Digest topic bands
-but cards are smaller and denser — no hit rows, just cluster identity.
-
-**Insight line:** "N topic clusters covering M distinct topics."
-
-**Degraded state** (404 from topic-clusters endpoint): `muted` text —
-"Topic clusters not yet built for this corpus." No action prompt.
-
-**Source:** `GET /api/corpus/topic-clusters` (existing).
-
-`data-testid="intelligence-topic-landscape"`
-
-#### 5.3 Top voices
+#### 5.2 Top voices
 
 **Available when `GET /api/corpus/persons/top` exists (NEW endpoint —
 see Section 8).**
@@ -614,43 +591,7 @@ leads with N insights across M episodes."
 
 `data-testid="intelligence-top-voices"`
 
-#### 5.4 Topic momentum
-
-**Enricher-gated — degrades gracefully.**
-
-Available when `temporal_velocity` enricher data is present (RFC-088).
-
-Top 5 topics by recent activity. Each row:
-
-- Topic name (`text-sm`)
-- Sparkline: 8-point mini line chart, last 8 weeks of mention
-  frequency. `series-1` token stroke, no fill. No axes, no labels —
-
-  the shape is the signal.
-
-- Trend badge: accelerating (`success`) / stable (`muted`) /
-  declining (`warning`) — same as UXS-007
-
-- Episode count: "N episodes" in `muted`
-- Clicking → Topic Entity View (UXS-007) in subject rail
-
-**Tufte note on sparklines:** y-scale normalises to each topic's own
-range (0 to its max). This shows *relative* trend shape, not absolute
-volume. Volume is shown as the episode count number. This is acceptable
-for a "relative momentum" display — the spec must note this so
-implementers don't try to share y-scales (which would make
-low-volume topics invisible).
-
-**Insight line:** "N topics accelerating in the last 30 days."
-
-**Degraded state:** `muted` text — "Topic momentum data not available
-for this corpus." No enricher prompt.
-
-**Source:** RFC-088 enricher output (not yet available).
-
-`data-testid="intelligence-topic-momentum"`
-
-#### 5.5 Emerging connections
+#### 5.3 Emerging connections
 
 **Enricher-gated — degrades gracefully.**
 
@@ -995,9 +936,7 @@ a real large corpus during implementation.
 web/gi-kg-viewer/src/components/dashboard/ArtifactActivityChart.vue
 web/gi-kg-viewer/src/components/dashboard/FeedRunHistoryGrid.vue
 web/gi-kg-viewer/src/components/dashboard/IntelligenceSnapshot.vue
-web/gi-kg-viewer/src/components/dashboard/TopicLandscape.vue
 web/gi-kg-viewer/src/components/dashboard/TopVoices.vue
-web/gi-kg-viewer/src/components/dashboard/TopicMomentum.vue
 web/gi-kg-viewer/src/components/dashboard/EmergingConnections.vue
 ```
 
@@ -1065,8 +1004,8 @@ docs/guides/SERVER_GUIDE.md
 ```text
   — coverage-by-month-chart, feed-coverage-table, artifact-activity-chart
   — index-status-card
-  — intelligence-snapshot, intelligence-topic-landscape
-  — intelligence-top-voices, intelligence-topic-momentum
+  — intelligence-snapshot
+  — intelligence-top-voices
   — intelligence-emerging-connections
   — pipeline-run-history-strip, pipeline-run-dot
   — pipeline-duration-trend, pipeline-stage-timings
@@ -1119,16 +1058,11 @@ applied. Episode outcomes is no longer a chart.
 Steps:
 
 1. `IntelligenceSnapshot.vue` (digest API, existing data)
-2. `TopicLandscape.vue` (topic-clusters API, existing data)
-3. Implement `GET /api/corpus/persons/top` + `TopVoices.vue`
-4. `TopicMomentum.vue` stub with degraded state (enricher not yet
-   available)
+2. Implement `GET /api/corpus/persons/top` + `TopVoices.vue`
+3. `EmergingConnections.vue` stub with degraded state
 
-5. `EmergingConnections.vue` stub with degraded state
-
-**Checkpoint:** Intelligence tab shows snapshot + topic landscape
-immediately. Top voices shows when persons/top endpoint ships. Momentum
-and connections show degraded states (no enricher prompts).
+**Checkpoint:** Intelligence tab shows the snapshot immediately. Top voices shows when the
+persons/top endpoint ships. Emerging connections shows its degraded state (no enricher prompt).
 
 #### Phase 4 — UXS + E2E updates
 

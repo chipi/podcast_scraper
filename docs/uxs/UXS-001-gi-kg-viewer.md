@@ -22,7 +22,6 @@
   - [UXS-005: Semantic Search](UXS-005-semantic-search.md)
   - [UXS-006: Dashboard](UXS-006-dashboard.md)
   - [UXS-007: Topic Entity View](UXS-007-topic-entity-view.md)
-  - [UXS-008: Enriched Search](UXS-008-enriched-search.md)
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/theme/tokens.css` -- CSS custom properties (`--ps-*`)
   - `web/gi-kg-viewer/tailwind.config.js` -- Tailwind color mapping to CSS vars
@@ -39,7 +38,7 @@ It defines semantic color tokens, typography, layout primitives, key interactive
 accessibility targets, and component conventions that all feature UXS files reference.
 
 Individual viewer surfaces (search, library, digest, graph, dashboard, topic entity
-view, enriched search) have their own UXS files for layout, density, and
+view) have their own UXS files for layout, density, and
 surface-specific rules. This file is the foundation they all build on.
 
 **Shell layout (information architecture):** The three-column shell (left
@@ -180,7 +179,7 @@ themes and distinguish GIL from KG content at a glance.
 | `grounded` | `var(--gi)` | `var(--gi)` | Grounded claims — same concept as GI |
 | `topic` | `#7cd0d4` | `#1f7a7f` | Topic chips (teal — distinct from KG purple) |
 | `person` | `#ffb37a` | `#9c5822` | Person chips (peach) |
-| `theme` | `#7dd3c0` | `#0e7469` | Theme (topics discussed together; `storylines` in the API) — graph ring, Details block, show-rail and topic pills |
+| `theme` | `#7dd3c0` | `#0e7469` | Theme (topics discussed together) — graph ring, Details block, show-rail and topic pills |
 | `related-topic` | `#da77f2` | `#9c36b5` | "Related topics" (shared insights) heading and chips |
 
 > **Tables are checked (#2280).** `web/gi-kg-viewer/src/__checks__/uxs-token-tables.test.ts`
@@ -222,10 +221,6 @@ against light surfaces, which the original Tailwind 400/500 hues did not (1.81�
 | `cat-5` | `#f472b6` | `#be185d` | Categorical series 5 |
 | `cat-6` | `#60a5fa` | `#2563eb` | Categorical series 6 |
 
-**Trend direction** (`utils/trend.ts` `trendColor()`, the graph's velocity rings): rising →
-`success`, cooling → `danger`, steady → `muted`. Tokens, so they follow the theme; steady is
-grey because it is the "not moving" state.
-
 **Graph overlays** — tokenized as shipped (#2280), named after what the UI shows, and separate
 from the trend colours they used to share by accident. Dark keeps the shipped values. On the
 light graph canvas the green and amber measured 2.00–2.13:1, so light uses the same hues
@@ -245,7 +240,6 @@ underlays with no legibility role and are identical in both themes.
 | `credibility-high` | `#22c55e` | `#1ca14d` | "Person credibility" border — high grounding rate |
 | `credibility-medium` | `#f59e0b` | `#c27d08` | "Person credibility" border — medium |
 | `credibility-low` | `#ef4444` | `#ef4444` | "Person credibility" border — low (dashed) |
-| `consensus` | `#22c55e` | `#1ca14d` | "Consensus edges" |
 | `coguest` | `#f59e0b` | `#c27d08` | "Co-guest edges" (dotted) |
 
 Banners may use `color-mix` against `surface` / `border`; new variants should
@@ -486,7 +480,6 @@ DevTools; do not hard-code alternatives in component files.
 | Library feed search threshold           | **15** feeds                               | Open   | Constant in LibraryView.vue; default 15 feeds trigger    |
 | Graph default episode cap (initial)     | **15** episodes                            | Open   | GRAPH cap in graphEpisodeSelection.ts; graph-only lens   |
 | Graph episode load recency score floor  | **0.2**                                    | Open   | ``GRAPH_SCORE_RECENCY_MIN``; linear mix with max **1.0** |
-| Graph episode load topic cluster bonus  | **0.4**                                    | Open   | TOPIC_CLUSTER_BONUS; additive (graphEpisodeSelection.ts) |
 | Graph episode load all-time decay days  | **90**                                     | Open   | ALL_TIME_DECAY_DAYS; trailing window from newest publish |
 | Graph episode load GI density max weight| **0.4**                                    | Open   | GI_DENSITY_MAX; future per-episode coverage API cap      |
 | Graph recency seed default              | **7d**                                     | Open   | Initial graph window; VIEWER_GRAPH_SPEC (init load)      |
@@ -503,7 +496,7 @@ DevTools; do not hard-code alternatives in component files.
 | Graph label zoom (full labels)          | **1.0**                                    | Open   | Above: full node labels                                  |
 | Graph compound fill opacity             | **0.06**                                   | Open   | TopicCluster compound; VIEWER_GRAPH_SPEC §3.6            |
 
-**Code map:** Similarity floors live in `web/gi-kg-viewer/src/utils/digestRowDisplay.ts`; recency parsing and the rolling window live in `web/gi-kg-viewer/src/utils/digestRecency.ts`; the feed-count threshold constant lives in `LibraryView.vue`. Corpus graph episode pick (cap, recency + topic-cluster score, tie-break) lives in `web/gi-kg-viewer/src/utils/graphEpisodeSelection.ts`.
+**Code map:** Similarity floors live in `web/gi-kg-viewer/src/utils/digestRowDisplay.ts`; recency parsing and the rolling window live in `web/gi-kg-viewer/src/utils/digestRecency.ts`; the feed-count threshold constant lives in `LibraryView.vue`. Corpus graph episode pick (cap, recency, tie-break) lives in `web/gi-kg-viewer/src/utils/graphEpisodeSelection.ts`.
 
 **Graph canvas / layout (open, not in table above):** They ship in code today but are
 intentionally easy to tune without a UXS revision — see

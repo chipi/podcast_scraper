@@ -32,8 +32,6 @@
     for speaker click
   - [UXS-007: Topic Entity View](UXS-007-topic-entity-view.md) -- cross-linked from
     each topic row
-  - [UXS-008: Enriched Search](UXS-008-enriched-search.md) -- enriched search entry
-    point; speaker names in enriched sources open Person Landing
   - [UXS-009: Position Tracker](UXS-009-position-tracker.md) -- "Track positions"
     handoff from each topic row; hosted within the shared Person Landing defined
     by this UXS

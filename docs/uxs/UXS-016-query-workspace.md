@@ -8,25 +8,22 @@
 - **Related RFCs**:
   - [RFC-107](../rfc/RFC-107-search-v3-query-workspace.md) — technical design
   - [RFC-094](../rfc/RFC-094-search-powered-surfaces-query-layer.md) — shipped `activeSearchContext` + `PanelRetrievalStore` (composed with, not replaced)
-  - [RFC-088](../rfc/RFC-088-enrichment-layer-architecture.md) — QueryEnricher (Enriched Answer source)
   - [RFC-093](../rfc/RFC-093-litm-context-packs.md) — `build_briefing_pack` (Compare operator source)
   - [RFC-090](../rfc/RFC-090-hybrid-retrieval.md) — hybrid retrieval
   - [RFC-092](../rfc/RFC-092-ml-query-router.md) — intent taxonomy
 - **Related ADRs**:
-  - [ADR-108](../adr/ADR-108-nli-disagreement-enrichers-gated-dark.md) — `topic_consensus` (Consensus operator source)
   - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — saved-queries persistence
 - **Related UX specs**:
   - [UXS-005](UXS-005-semantic-search.md) — retains compact-launcher role after Workspace lands
-  - [UXS-008](UXS-008-enriched-search.md) — Enriched Answer surface (heroified here)
 - **Shell IA**: [VIEWER_IA.md](VIEWER_IA.md) — Search as 5th main tab
 
 ---
 
 ## Summary
 
-The **Query Workspace** is the operator viewer's Search main tab (5th tab: Digest · Library · **Search** · Graph · Dashboard). Full-width main-area surface. Hosts the merged Search + Explore query UI, the enriched-answer hero, result-set operators (cluster / on-graph / timeline / compare / consensus), and the saved-queries sidebar (via LeftPanel). Also the target of the shell-wide Cmd-K palette's "Open in Workspace" action and every rail's "Search inside this X" launcher.
+The **Query Workspace** is the operator viewer's Search main tab (5th tab: Digest · Library · **Search** · Graph · Dashboard). Full-width main-area surface. Hosts the merged Search + Explore query UI, result-set operators (on-graph / timeline / compare), and the saved-queries sidebar (via LeftPanel). Also the target of the shell-wide Cmd-K palette's "Open in Workspace" action and every rail's "Search inside this X" launcher.
 
-Detail per-surface is in [UXS-005](UXS-005-semantic-search.md) (**Revised in §S4-shell:** compact launcher retired; LeftPanel hosts Saved + Recent only on all tabs) and [UXS-008](UXS-008-enriched-search.md) (Enriched Answer visual contract, promoted from Advanced-dialog-gated to hero placement here).
+Detail per-surface is in [UXS-005](UXS-005-semantic-search.md) (**Revised in §S4-shell:** compact launcher retired; LeftPanel hosts Saved + Recent only on all tabs).
 
 ---
 
@@ -45,13 +42,11 @@ SearchTab.vue                                    [w-full main area]
 ├─ WorkspaceHeader.vue
 │    ├─ QueryField.vue                           input; Preset dropdown; Enter=submit
 │    ├─ IntentChip.vue                           search-query-type (RFC-092 label)
-│    └─ SearchFilterBar.vue                      Since | Top-k | Doc types | Topic contains | Speaker contains | Min confidence | Grounded only | Enriched | More (feed / embedding model)
-├─ EnrichedAnswerHero.vue                        UXS-008 contract; visible when enriched_search_available and enrich_results=true
-├─ ResultSetOperatorBar.vue                      Cluster | On graph | Timeline | Compare | Consensus
+│    └─ SearchFilterBar.vue                      Since | Top-k | Doc types | Topic contains | Speaker contains | Min confidence | Grounded only | More (feed / embedding model)
+├─ ResultSetOperatorBar.vue                      On graph | Timeline | Compare
 └─ WorkspaceResults.vue                          scrollable
      ├─ ResultCard.vue                           tier badge (Insight / Transcript / Reference) + compound "+ insight" badge
-     ├─ CompoundCard.vue                         when hit has `lifted` (RFC-072 KL1)
-     └─ ClusterGroupCard.vue                     when operator === 'cluster'
+     └─ CompoundCard.vue                         when hit has `lifted` (RFC-072 KL1)
 ```
 
 **Revised in §S4-shell:** `WorkspaceSidebar.vue` is now hosted in the LeftPanel (not as a child of SearchTab), supporting the pattern that LeftPanel is visible on all main tabs. See §Sidebar below for details.
@@ -64,42 +59,19 @@ SearchTab.vue                                    [w-full main area]
 
 1. **Query row**: `QueryField.vue` (`min-w-0 flex-1`, sm text, Enter = submit, Shift+Enter = newline, IME-safe — same rules as UXS-005). Preset dropdown to the left of the field (`Preset: <label> ▾` when active; `Preset ▾` default). Search button + Clear button to the right.
 2. **Intent row**: `IntentChip.vue` when the response carries `query_type` (RFC-092 label — Entity lookup / Raw evidence / Temporal tracking / Cross-show synthesis / Semantic). Muted; transparency-only. `data-testid="search-query-type"` (unchanged from UXS-005).
-3. **Filter chip bar**: `SearchFilterBar.vue`. Chips left-to-right: **Since** (`search-chip-since`), **Top-k** (`search-chip-topk`, default 10), **Doc types** (`search-chip-doctypes`), **Topic contains** (`search-chip-topic-contains`, new — from merged Explore), **Speaker contains** (`search-chip-speaker-contains`, new), **Min confidence** (`search-chip-min-confidence`, new), **Grounded only** (`search-chip-grounded-only`, new), **Enriched** (`search-chip-enriched`, when enrichment configured), **More** (`search-chip-more` — hosts low-traffic fields: feed, embedding model, merge-duplicate-KG-surfaces). Each chip's label switches from `Label ▾` (default) to `Label: detail ▾` (active); **More** shows `More: N` reflecting non-default field count.
-
-The **Enriched answers** toggle previously in the Advanced dialog (UXS-005) is retired here — the `Enriched` filter chip replaces it.
-
----
-
-## Enriched Answer hero
-
-`EnrichedAnswerHero.vue` sits between the header and the operator bar. Visible when `enriched_search_available: true` from `/api/health` AND the request was made with `enrich_results=true` (shipped in RFC-088 chunk 5).
-
-**As shipped**, the hero renders `gi` domain-token border/tint, a **"Deterministic"** provenance
-badge (`enriched-answer-provenance`), and aggregated **related topics** as chips that open the Topic
-subject rail — sourced from `query_topic_relatedness`, deterministic, no LLM.
-
-It does **not** inherit [UXS-008](UXS-008-enriched-search.md) in full, contrary to what this line
-previously claimed. UXS-008's synthesized answer, clickable speaker names, Sources section, grounded
-source count, provider attribution and `Used in answer` source-to-result linking were **never
-built** — see the implementation-status note at the top of UXS-008 and
-[#1597](https://github.com/chipi/podcast_scraper/issues/1597). Only the clickable topic tags carried
-over.
-
-Degradation follows UXS-008: hidden when no grounded insights lifted; muted error state on provider failure; skeleton on latency > 5 s; hidden entirely when enrichment not configured. The hero is **not** rendered by the Cmd-K palette or the LeftPanel launcher (bounded cost).
+3. **Filter chip bar**: `SearchFilterBar.vue`. Chips left-to-right: **Since** (`search-chip-since`), **Top-k** (`search-chip-topk`, default 10), **Doc types** (`search-chip-doctypes`), **Topic contains** (`search-chip-topic-contains`, new — from merged Explore), **Speaker contains** (`search-chip-speaker-contains`, new), **Min confidence** (`search-chip-min-confidence`, new), **Grounded only** (`search-chip-grounded-only`, new), **More** (`search-chip-more` — hosts low-traffic fields: feed, embedding model, merge-duplicate-KG-surfaces). Each chip's label switches from `Label ▾` (default) to `Label: detail ▾` (active); **More** shows `More: N` reflecting non-default field count.
 
 ---
 
 ## Result-set operator bar
 
-`ResultSetOperatorBar.vue` sits between the hero and the results. One button per operator; the active operator has `aria-pressed`.
+`ResultSetOperatorBar.vue` sits above the results. One button per operator; the active operator has `aria-pressed`.
 
 | Operator | `data-testid` | Effect |
 | --- | --- | --- |
-| Cluster | `search-op-cluster` | Server groups hits via `insight_clusters` / `theme_clusters` (RFC-107 §6); UI renders `ClusterGroupCard`. Fetch `top_k * 3` when active. |
 | On graph | `search-op-graph` | Union bbox of derived node ids → graph camera set-focus (`graphNavigation.focusSet`). Camera-fit invariant preserved. |
 | Timeline | `search-op-timeline` | Client bucket by `publish_date` month → `SubjectTimelineChart`; bucket-click filters `WorkspaceResults` client-side. |
 | Compare | `search-op-compare` | Enabled when ≥ 2 subject types are present in the hit set. Opens a 2-column view sourced from `build_briefing_pack(query, query_type, results, canonical_entity, max_tokens)` per side (RFC-093 shipped API). Judge summary muted below when available. |
-| Consensus | `search-op-consensus` | Enabled when at least one Topic is present. Surfaces `topic_consensus` enricher output (ADR-108; shipped 0.91 precision on prod-v2). Cross-speaker corroboration pairs (**not contradictions** — CONTRADICTS edges are v3+, out of scope). |
 
 Operator bar `aria-role="toolbar"`; buttons `aria-role="button"` with visible focus ring. Toolbar disappears when there are 0 hits.
 
@@ -116,12 +88,6 @@ Each `ResultCard`:
 - **Actions**: `G` (graph focus), `L` (Library episode) — same rules as UXS-005 (L requires `source_metadata_relative_path` + healthy API); `E` (episode id chip, informational). When KG-surface merged, only `G` shows.
 - **Lifted GI insight** region (when `lifted` present, UXS-005-inherited): linked insight id/text, speaker/topic labels, quote time range. Includes the `No speaker detected` muted line (`GI_QUOTE_SPEAKER_UNAVAILABLE_HINT`, #541) when `lifted.quote` has timestamps but no speaker label.
 - **Supporting quotes** (collapsible, UXS-005-inherited): same `No speaker detected` treatment when speaker missing.
-
-`ClusterGroupCard` (when operator === 'cluster'):
-
-- Header: cluster shared entity + member count.
-- Expandable body: `ResultCard`s for each member, indented.
-- `data-testid="search-cluster-group"` on the header.
 
 ---
 
@@ -194,7 +160,6 @@ Not in the Workspace itself — see [UXS-005](UXS-005-semantic-search.md) for th
 - Workspace `role="region"` `aria-label="Search workspace"`.
 - Header `role="search"` (the query form is the primary form).
 - Operator bar `role="toolbar"`; each button `aria-pressed` reflects active operator.
-- Enriched Answer hero inherits UXS-008 accessibility.
 - Sidebar sections use `aria-label="Saved queries"` / `"Recent queries"`; each item is a `role="button"` with visible focus ring and Enter/Space activation.
 - Keyboard: `/` and `Cmd-K` open the shell-wide palette (RFC-107 §4); inside the Workspace `Tab` order = query field → filter chips → operator bar → first result → sidebar.
 - All new controls carry `data-testid` for the E2E surface map; `aria-*` for screen readers.
@@ -207,7 +172,6 @@ Inherits UXS-001 tokens. New surface-level rules:
 
 - Workspace background: `canvas`.
 - Workspace card padding: standard (matches UXS-001 card padding).
-- Hero panel: `surface` background + `gi` left border (4 px solid, inherited from UXS-008).
 - Sidebar background: `surface`; section headers `lp-section` (small-caps).
 - Operator bar: `surface` background, `border` divider.
 
@@ -219,9 +183,8 @@ New visible labels and selectors require updates to [E2E surface map](https://gi
 
 - `SearchTab.vue` (`workspace-root`)
 - Header (`workspace-header`, `search-query-type`, `search-filter-bar`, `search-chip-*`)
-- Enriched Answer hero (inherits UXS-008 selectors)
-- Operator bar (`search-op-cluster`, `search-op-graph`, `search-op-timeline`, `search-op-compare`, `search-op-consensus`)
-- Results (`search-results`, `search-result-tier`, `search-result-compound`, `search-cluster-group`)
+- Operator bar (`search-op-graph`, `search-op-timeline`, `search-op-compare`)
+- Results (`search-results`, `search-result-tier`, `search-result-compound`)
 - Sidebar (`workspace-sidebar-saved`, `workspace-sidebar-recent`, `workspace-save-button`, `workspace-save-dialog`)
 - Rail launchers (`rail-search-in-episode`, `-topic`, `-person`, `-show`, `-selection`)
 - In-episode search (`episode-inline-search-field`, `episode-inline-search-results`)
@@ -235,9 +198,8 @@ Draft's planned names; what shipped differs, and Playwright targets the shipped 
 | --- | --- |
 | `workspace-root` | `search-workspace` |
 | `workspace-header` | no header testid; `search-query-type`, `search-filter-bar` and `search-chip-*` exist |
-| `search-op-cluster` / `-graph` / `-timeline` / `-compare` / `-consensus` | `operator-chip-cluster` / `-graph` / `-timeline` / `-compare` / `-consensus` inside `result-set-operator-bar`; panels `operator-<op>-panel`, failure `operator-error` |
+| `search-op-graph` / `-timeline` / `-compare` | `operator-chip-graph` / `-timeline` / `-compare` inside `result-set-operator-bar`; panels `operator-<op>-panel`, failure `operator-error` |
 | `search-results` | `semantic-search-results-scroll` |
-| `search-cluster-group` | `operator-cluster-list` (empty: `operator-cluster-empty`) |
 | `workspace-sidebar-saved` / `-recent` (and §Left panel `left-panel-recent-queries`) | LeftPanel (§S4-shell): `left-panel-saved-queries`, `left-panel-saved-list`, `left-panel-recent-list`, empties `left-panel-saved-empty` / `left-panel-recent-empty` |
 | `workspace-save-button` / `workspace-save-dialog` | `search-save-query`; no save-dialog testid |
 | `rail-search-in-episode` | `episode-detail-search-in-episode` (opens Search with the `search-chip-episode` scope) |

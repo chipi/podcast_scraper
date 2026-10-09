@@ -101,7 +101,7 @@ describe('viewer token contrast meets WCAG AA (#2280)', () => {
   }
 
   /** Graph overlays are borders / edges on the graph canvas — graphics, so 3:1. */
-  const GRAPH_OVERLAYS = ['credibility-high', 'credibility-medium', 'credibility-low', 'consensus', 'coguest']
+  const GRAPH_OVERLAYS = ['credibility-high', 'credibility-medium', 'credibility-low', 'coguest']
   for (const [theme, t] of Object.entries(THEMES)) {
     it(`${theme}: graph overlay colours read against the graph canvas at 3:1`, () => {
       const raw = t.get('graph-canvas')!

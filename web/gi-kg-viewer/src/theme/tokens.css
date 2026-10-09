@@ -74,7 +74,6 @@
   --ps-credibility-high: #22c55e;
   --ps-credibility-medium: #f59e0b;
   --ps-credibility-low: #ef4444;
-  --ps-consensus: #22c55e;
   --ps-coguest: #f59e0b;
   /* graph-v3 A — richer contrast for the Cytoscape canvas only (feels
      "constellation" rather than surface-flat). Shell chrome keeps --ps-canvas. */
@@ -130,7 +129,6 @@
   --ps-credibility-high: #1ca14d;
   --ps-credibility-medium: #c27d08;
   --ps-credibility-low: #ef4444;
-  --ps-consensus: #1ca14d;
   --ps-coguest: #c27d08;
   --ps-graph-canvas: var(--ps-canvas);
 }
@@ -185,7 +183,6 @@
     --ps-credibility-high: #1ca14d;
     --ps-credibility-medium: #c27d08;
     --ps-credibility-low: #ef4444;
-    --ps-consensus: #1ca14d;
     --ps-coguest: #c27d08;
     --ps-graph-canvas: var(--ps-canvas);
   }

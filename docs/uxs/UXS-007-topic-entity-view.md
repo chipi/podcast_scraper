@@ -21,8 +21,6 @@
     handoff
   - [UXS-005: Semantic Search](UXS-005-semantic-search.md) -- "Search this topic"
     handoff
-  - [UXS-008: Enriched Search](UXS-008-enriched-search.md) -- enriched search
-    handoff; topic pills in enriched sources open this view
   - [UXS-009: Position Tracker](UXS-009-position-tracker.md) -- person chip click
     can open Person Landing with Position Tracker
   - [UXS-010: Person Profile](UXS-010-person-profile.md) --

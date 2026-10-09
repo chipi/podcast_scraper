@@ -215,11 +215,6 @@ continues to govern the **compact launcher** the LeftPanel becomes on non-Search
   (topic contains / speaker contains / limit / min confidence / grounded only / presets) fold into
   the Workspace filter chip bar (UXS-016 §Header).
 - On the Search tab, the LeftPanel is **hidden** (Workspace owns full width).
-- **Enriched answers are never invoked from the compact launcher** — Workspace only.
-
-The Advanced-search dialog treatment described above continues to apply on the Workspace filter
-chip bar's `More` chip; the `Enriched answers` toggle previously in that dialog is retired (replaced
-by the header `Enriched` chip in UXS-016).
 
 ---
 
