@@ -21,6 +21,7 @@ from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from ..corpus_version import GIT_SHA_ENV as CORPUS_GIT_SHA_ENV
 from ..utils.log_redaction import format_exception_for_log
 from ..utils.redaction import redact_secrets
 
@@ -176,7 +177,7 @@ def reset_git_info_cache() -> None:
 
 
 #: Baked into the pipeline image at build time. See ``_git_info_from_env``.
-GIT_SHA_ENV = "PODCAST_GIT_SHA"
+GIT_SHA_ENV = CORPUS_GIT_SHA_ENV
 GIT_BRANCH_ENV = "PODCAST_GIT_BRANCH"
 GIT_DIRTY_ENV = "PODCAST_GIT_DIRTY"
 

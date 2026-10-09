@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -16,9 +17,20 @@ CORPUS_MANIFEST_FILE = "corpus_manifest.json"
 # Warn when on-disk corpus was produced below this semver.
 MIN_SUPPORTED_CORPUS_CODE_VERSION = "2.6.0"
 
+#: Baked into the pipeline image (docker/pipeline/Dockerfile); `workflow.run_manifest` reads it too.
+GIT_SHA_ENV = "PODCAST_GIT_SHA"
+
 
 def resolve_git_commit_sha() -> str:
-    """Best-effort git HEAD for pipeline ``produced_by`` stamps."""
+    """Best-effort git HEAD for pipeline ``produced_by`` stamps.
+
+    The SHA baked into a built image (``PODCAST_GIT_SHA``, as run manifests read it) wins: the
+    pipeline image has neither git nor ``.git``, so asking git there yields "unknown", and code run
+    from an export inside another checkout would report that checkout's commit.
+    """
+    baked = (os.environ.get(GIT_SHA_ENV) or "").strip()
+    if baked:
+        return baked
     try:
         proc = subprocess.run(
             ["git", "rev-parse", "HEAD"],
