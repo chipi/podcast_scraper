@@ -1086,6 +1086,22 @@ export async function getPlaybackList(query?: PlaybackQuery): Promise<PlaybackPo
   }
 }
 
+/**
+ * Every started-and-unfinished episode, by slug — Browse's "In progress" filter. The server pages
+ * at most 100 a request (`/playback`, le=100), so this walks the pages; asking for more in one
+ * request is a 422, which read as "nothing in progress" (2026-10-10).
+ */
+export async function getInProgressSlugs(): Promise<string[]> {
+  const PAGE = 100
+  const out: string[] = []
+  for (let offset = 0; ; offset += PAGE) {
+    const params = new URLSearchParams({ limit: String(PAGE), offset: String(offset), in_progress: "true" })
+    const resp = await getJSON<{ items: PlaybackPosition[]; total?: number }>(`/playback?${params}`)
+    out.push(...resp.items.map((p) => p.slug))
+    if (resp.items.length < PAGE || out.length >= (resp.total ?? 0)) return out
+  }
+}
+
 /** Saved playback position (auth-gated); `null` when signed out or unset. */
 export async function getPlayback(slug: string): Promise<PlaybackPosition | null> {
   try {

@@ -203,10 +203,8 @@ describe('CatalogView — From (which episodes) × State', () => {
     vi.spyOn(api, 'getLibrary').mockResolvedValue([{ feed_id: 'followed', feed_url: null, title: 'F', added_at: 1 }])
     vi.spyOn(api, 'getCompleted').mockResolvedValue(['a2'])
     vi.spyOn(api, 'getWorldEpisodeSlugs').mockResolvedValue(['b2'])
-    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([
-      { slug: 'b1', position_seconds: 100 } as never,
-      { slug: 'a2', position_seconds: 100 } as never,
-    ])
+    // a2 has a position too, but it is finished: the filter must still leave it out.
+    vi.spyOn(api, 'getInProgressSlugs').mockResolvedValue(['b1', 'a2'])
     // "a2 is finished" — through its saved position, which `isPlayed` reads alongside the
     // hand-marked set (usePlayed); the precondition, not something this test exercises.
     const { recordPosition } = await import('../services/playbackPositions')

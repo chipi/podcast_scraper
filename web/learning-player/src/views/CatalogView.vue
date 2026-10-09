@@ -12,7 +12,7 @@ import EpisodeCard from "../components/EpisodeCard.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
 import ListToolbar from "../components/ListToolbar.vue"
 import SectionStatus from "../components/SectionStatus.vue"
-import { getPlaybackList, getPodcastsPage, getWorldEpisodeSlugs, listEpisodes } from "../services/api"
+import { getInProgressSlugs, getPodcastsPage, getWorldEpisodeSlugs, listEpisodes } from "../services/api"
 import { useRoute } from "vue-router"
 import Tabs from "../components/Tabs.vue"
 import { useLibraryStore } from "../stores/library"
@@ -80,8 +80,7 @@ watch(
   filter,
   async (f) => {
     if (f === "inprogress" && !inProgressSlugs.value) {
-      const rows = await getPlaybackList({ inProgress: true, limit: 500 }).catch(() => [])
-      inProgressSlugs.value = new Set(rows.map((r) => r.slug))
+      inProgressSlugs.value = new Set(await getInProgressSlugs().catch(() => [] as string[]))
     }
   },
   { immediate: true },
@@ -100,8 +99,7 @@ onActivated(async () => {
     worldSlugs.value = new Set(await getWorldEpisodeSlugs().catch(() => [] as string[]))
   }
   if (filter.value === "inprogress") {
-    const rows = await getPlaybackList({ inProgress: true, limit: 500 }).catch(() => [])
-    inProgressSlugs.value = new Set(rows.map((r) => r.slug))
+    inProgressSlugs.value = new Set(await getInProgressSlugs().catch(() => [] as string[]))
   }
 })
 const FROM_VALUES: From[] = ["all", "following", "mine"]

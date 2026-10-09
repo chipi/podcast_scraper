@@ -10,6 +10,7 @@ import {
   getCollectionPage,
   getFavoriteRefs,
   getPlaybackList,
+  getInProgressSlugs,
   getPodcastsByIds,
   getPodcastsPage,
   getHighlightsPage,
@@ -507,4 +508,25 @@ describe('forced-offline write gate', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
+})
+
+describe('getInProgressSlugs', () => {
+  it('walks the pages 100 at a time — the server refuses more in one request', async () => {
+    const page = (n: number, from: number) =>
+      Array.from({ length: n }, (_, i) => ({ slug: `s${from + i}`, position_seconds: 50, finished: false }))
+    const fetchMock = vi.fn(async (url: string) => {
+      const off = Number(new URL(String(url), 'http://x').searchParams.get('offset'))
+      const items = off === 0 ? page(100, 0) : page(30, 100)
+      return { ok: true, status: 200, json: async () => ({ items, total: 130 }) }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const got = await getInProgressSlugs()
+    expect(got).toHaveLength(130)
+    const urls = fetchMock.mock.calls.map((c) => String(c[0]))
+    expect(urls).toHaveLength(2)
+    for (const u of urls) {
+      expect(u).toContain('limit=100')
+      expect(u).toContain('in_progress=true')
+    }
+  })
 })
