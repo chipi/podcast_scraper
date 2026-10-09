@@ -761,8 +761,8 @@
     "remove": "Remove from Saved"
   },
   "deleteAccount": {
-    "link": "Delete account…",
-    "clearHistoryLink": "Clear listening history…",
+    "link": "Delete account",
+    "clearHistoryLink": "Clear listening history",
     "clearHistoryBody": "This removes what you've listened to: playback positions, finished marks, listening time and history. Your library, queue, follows, highlights, notes and boards stay.",
     "clearHistoryConfirm": "Clear history",
     "clearHistoryCancel": "Cancel",
