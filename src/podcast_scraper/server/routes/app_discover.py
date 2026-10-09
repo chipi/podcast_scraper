@@ -45,11 +45,13 @@ from podcast_scraper.server.app_ranking_config import (
     ranking_config_to_dict,
 )
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, search_interests
-from podcast_scraper.server.app_slugs import slug_for_row
+from podcast_scraper.server.app_slugs import resolve_slug, slug_for_row
+from podcast_scraper.server.app_trending_episodes import trending_episodes
 from podcast_scraper.server.app_user_corpus import (
     derive_interests,
     personal_entity_ids,
     user_episode_set,
+    world_episode_set,
 )
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.routes.app_auth import (
@@ -67,6 +69,8 @@ from podcast_scraper.server.schemas import (
     AppStoryline,
     AppStorylinesResponse,
     AppTrendingEntity,
+    AppTrendingEpisodeCard,
+    AppTrendingEpisodesResponse,
     AppTrendingResponse,
     AppWhatsNewResponse,
 )
@@ -228,6 +232,55 @@ def app_trending(
         window=window,
         items=items,
     )
+
+
+@router.get("/trending/episodes", response_model=AppTrendingEpisodesResponse)
+def app_trending_episodes(
+    request: Request,
+    scope: str = Query(default="corpus", description="corpus (all) | mine (per-user; needs auth)."),
+    limit: int = Query(default=8, ge=1, le=20),
+    user: User = Depends(get_current_user),
+) -> AppTrendingEpisodesResponse:
+    """Trending episodes as quote cards (operator 2026-10-10): episodes speaking to a rising topic,
+    interleaved with the ones listened to, opened and saved most over four weeks. Under
+    ``scope=mine`` both keep to the listener's world (ADR-162)."""
+    root = corpus_root_or_503(request)
+    raw_dir = getattr(request.app.state, "app_data_dir", None)
+    data_dir = Path(raw_dir) if raw_dir is not None else None
+    eff_scope = "mine" if (scope == "mine" and user is not None) else "corpus"
+    uid = user.user_id if eff_scope == "mine" and user is not None else None
+    entities = world = None
+    if uid is not None and data_dir is not None:
+        entities = personal_entity_ids(root, data_dir, uid)
+        world = world_episode_set(root, data_dir, uid)
+    cards = trending_episodes(
+        root,
+        data_dir,
+        scope=eff_scope,
+        user_id=uid,
+        restrict_entities=entities,
+        world=world,
+        limit=limit,
+        config=_momentum_config(request),
+    )
+    items: list[AppTrendingEpisodeCard] = []
+    for card in cards:
+        row = resolve_slug(root, card.slug)
+        if row is None:
+            continue
+        items.append(
+            AppTrendingEpisodeCard(
+                reason=card.reason,  # type: ignore[arg-type]
+                quote=card.quote,
+                speaker=card.speaker,
+                start_ms=card.start_ms,
+                topic_id=card.topic_id,
+                topic_label=card.topic_label,
+                events=card.events,
+                episode=row_to_summary(root, row),
+            )
+        )
+    return AppTrendingEpisodesResponse(scope=eff_scope, items=items)
 
 
 @router.get("/discover", response_model=AppEpisodesResponse)

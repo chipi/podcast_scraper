@@ -7,8 +7,8 @@
  * Built only from existing APIs, so some sections are approximations of the final design:
  * - "From what you captured": your newest highlights, each searched as a query; the first grounded
  *   passage from ANOTHER episode, outside the shows you follow, is the recommendation.
- * - "Trending episodes": rising topics → each topic's strongest speaker take (quote + moment).
- *   The "most saved" half of the agreed mix needs a per-episode save count the server lacks.
+ * - "Trending episodes": the server's mix (GET /trending/episodes) — rising-topic takes and the
+ *   most listened-to and saved, interleaved.
  * - "Continue the thread": storylines you follow × the episodes you have finished.
  * - "People you keep hearing": people from your own listening, with how many shows they are on.
  * - "Latest from shows you follow": your Library follows, newest first.
@@ -19,18 +19,17 @@ import { RouterLink } from "vue-router"
 import {
   getCompleted,
   getDerivedInterests,
-  getEpisodesBatch,
   getHighlightsPage,
   getLibrary,
   getPersonCard,
   getStorylineCard,
-  getTopicPerspectives,
-  getTrending,
+  getTrendingEpisodes,
   getUserInterests,
   listPodcastEpisodes,
   searchCorpus,
 } from "../services/api"
-import type { EpisodeDetail, EpisodeSummary, SearchHit } from "../services/types"
+import type { EpisodeSummary, SearchHit } from "../services/types"
+import type { TrendingEpisodeCard } from "../services/api"
 import { hitStartSeconds } from "../player/insights"
 import { formatTime } from "../player/transcriptSync"
 import { resolveMediaUrl } from "../services/tier"
@@ -100,43 +99,25 @@ function quoteOf(hit: SearchHit): string {
 }
 
 // ---------------------------------------------------------------- Trending episodes
+// The server's mix (GET /trending/episodes): episodes on a rising topic, interleaved with the most
+// listened-to and saved over four weeks; each card says which.
 const trendingEpisodes = ref<QuoteCard[]>([])
 async function loadTrendingEpisodes(): Promise<void> {
-  trendingEpisodes.value = []
-  const topics = await getTrending("topic", scope.value, 6).catch(() => [])
-  const picks: { topic: string; slug: string; quote: string; speaker: string; start: number | null }[] = []
-  for (const t of topics.slice(0, 6)) {
-    const p = await getTopicPerspectives(t.entity_id, undefined, { perSpeaker: 1, limit: 3 }).catch(() => null)
-    for (const person of p?.perspectives ?? []) {
-      const ins = person.insights.find((i) => i.episode_slug && !picks.some((x) => x.slug === i.episode_slug))
-      if (!ins?.episode_slug) continue
-      picks.push({
-        topic: t.label,
-        slug: ins.episode_slug,
-        quote: (ins.quotes?.[0]?.text || ins.text || "").trim(),
-        speaker: person.person_name,
-        start: ins.start_ms != null ? ins.start_ms / 1000 : null,
-      })
-      break
-    }
-  }
-  const details = await getEpisodesBatch(picks.map((p) => p.slug)).catch(() => ({}) as Record<string, EpisodeDetail>)
-  trendingEpisodes.value = picks
-    .filter((p) => details[p.slug])
-    .map((p) => {
-      const d = details[p.slug]
-      return {
-        key: `${p.topic}:${p.slug}`,
-        why: `↑ Rising topic · ${p.topic}`,
-        quote: p.quote.length > 220 ? p.quote.slice(0, 220) + "…" : p.quote,
-        speaker: p.speaker,
-        slug: p.slug,
-        episodeTitle: d.title,
-        show: d.podcast_title ?? "",
-        art: episodeArtwork(d),
-        startSeconds: p.start,
-      }
-    })
+  const cards = await getTrendingEpisodes(scope.value, 8).catch(() => [] as TrendingEpisodeCard[])
+  trendingEpisodes.value = cards.map((c) => ({
+    key: `${c.reason}:${c.episode.slug}`,
+    why:
+      c.reason === "rising_topic"
+        ? `↑ Rising topic · ${c.topic_label ?? ""}`
+        : `Most listened to and saved · ${c.events ?? 0} this month`,
+    quote: c.quote,
+    speaker: c.speaker,
+    slug: c.episode.slug,
+    episodeTitle: c.episode.title,
+    show: c.episode.podcast_title ?? "",
+    art: episodeArtwork(c.episode),
+    startSeconds: c.start_ms != null ? c.start_ms / 1000 : null,
+  }))
 }
 
 // ---------------------------------------------------------------- Continue the thread
@@ -287,7 +268,7 @@ watch(scope, () => void loadTrendingEpisodes())
     <!-- Trending episodes -->
     <section v-if="trendingEpisodes.length" class="mt-7" data-testid="d2-trending-episodes">
       <h2 class="mb-1 text-lg font-bold">Trending episodes</h2>
-      <p class="mb-3 text-xs text-muted">From topics rising {{ mine ? "in your world" : "across everyone" }}. The “most saved” half needs a server count — not in this preview.</p>
+      <p class="mb-3 text-xs text-muted">Rising topics and the most listened to and saved, {{ mine ? "in your world" : "across everyone" }}.</p>
       <div class="d2-rail">
         <article v-for="c in trendingEpisodes" :key="c.key" class="d2-card">
           <p class="font-mono text-[11px] tracking-wide text-accent">{{ c.why }}</p>

@@ -1075,6 +1075,30 @@ class AppTrendingEntity(BaseModel):
     )
 
 
+class AppTrendingEpisodeCard(BaseModel):
+    """One trending-episode quote card (GET /api/app/trending/episodes, 2026-10-10)."""
+
+    reason: Literal["rising_topic", "most_engaged"] = Field(
+        description="Why it is here: a rising topic it speaks to, or the most listening and saves."
+    )
+    quote: str = Field(description="The grounded quote that leads the card.")
+    speaker: str | None = Field(default=None, description="Who says it, when named.")
+    start_ms: int | None = Field(default=None, description="Where the quote starts (play from).")
+    topic_id: str | None = Field(default=None, description="The rising topic (rising_topic).")
+    topic_label: str | None = Field(default=None, description="Its label (rising_topic).")
+    events: int | None = Field(
+        default=None, description="Listens, opens and saves in the last 4 weeks (most_engaged)."
+    )
+    episode: AppEpisodeSummary
+
+
+class AppTrendingEpisodesResponse(BaseModel):
+    """Trending episodes as quote cards — rising-topic and most-engaged, interleaved."""
+
+    scope: str = Field(description="corpus | mine.")
+    items: list[AppTrendingEpisodeCard] = Field(default_factory=list)
+
+
 class AppTrendingResponse(BaseModel):
     """Trending entities of one kind (GET /api/app/trending) — read-time momentum vs today."""
 

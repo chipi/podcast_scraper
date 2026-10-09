@@ -902,6 +902,25 @@ export async function setFavoriteColor(
 }
 
 /** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
+/** A trending-episode quote card (GET /trending/episodes, 2026-10-10). */
+export interface TrendingEpisodeCard {
+  reason: "rising_topic" | "most_engaged"
+  quote: string
+  speaker: string | null
+  start_ms: number | null
+  topic_id: string | null
+  topic_label: string | null
+  events: number | null
+  episode: EpisodeSummary
+}
+/** Episodes speaking to a rising topic, interleaved with the most listened-to and saved. */
+export async function getTrendingEpisodes(
+  scope: "corpus" | "mine" = "corpus",
+  limit = 8,
+): Promise<TrendingEpisodeCard[]> {
+  return (await getJSON<{ items: TrendingEpisodeCard[] }>("/trending/episodes", { scope, limit })).items
+}
+
 /** Every episode in the listener's "mine" — heard or captured from, saved, or of a followed show
  *  (ADR-162). The server's one definition, so Browse never re-derives it. */
 export async function getWorldEpisodeSlugs(): Promise<string[]> {
