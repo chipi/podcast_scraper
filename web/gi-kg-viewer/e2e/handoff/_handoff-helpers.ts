@@ -13,6 +13,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from '../fixtures'
+import { isInjectedFaultLog } from '../injected-faults'
 
 const ARTIFACT_JSON = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -76,12 +77,13 @@ export async function cyIdExists(page: Page, id: string): Promise<boolean> {
  * see `src/main.ts`), so the cause is gone and the filter went with it.
  *
  * Keep it that way: an allowlist here hides exactly the class of defect these rows exist to catch.
- * If a console error starts appearing, fix the source rather than adding a pattern.
+ * If a console error starts appearing, fix the source rather than adding a pattern. The one skip
+ * is a request the test itself fails on purpose and declared (see `../injected-faults.ts`).
  */
 export function captureConsoleErrors(page: Page): { errors: string[] } {
   const ref = { errors: [] as string[] }
   page.on('console', (msg) => {
-    if (msg.type() === 'error') {
+    if (msg.type() === 'error' && !isInjectedFaultLog(page, msg.text(), msg.location().url)) {
       ref.errors.push(msg.text())
     }
   })

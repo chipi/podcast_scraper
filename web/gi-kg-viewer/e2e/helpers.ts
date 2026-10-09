@@ -1,5 +1,6 @@
 import { expect, type Page, type TestInfo } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
+import { declareInjectedFault } from './injected-faults'
 
 /**
  * Mocked-API sign-in for tests that route `**\/api/**` themselves instead of
@@ -340,6 +341,7 @@ export async function dismissGraphGestureOverlayIfPresent(page: Page): Promise<v
 }
 
 export async function loadGraphViaFilePicker(page: Page): Promise<void> {
+  declareInjectedFault(page, /\/api\/health/)
   await page.route('**/api/health**', async (route) => {
     await route.abort('failed')
   })

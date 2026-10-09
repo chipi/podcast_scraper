@@ -7,7 +7,7 @@ Playwright specs for the operator viewer. This file orients you; the contract li
 
 ```bash
 cd web/gi-kg-viewer
-npx playwright install firefox      # once — this app is FIREFOX; the player is Chromium
+npx playwright install chromium     # once — Chrome locally, like the player; CI runs Firefox
 npm run test:e2e
 npm run test:e2e -- e2e/library.spec.ts
 npm run test:e2e:ui                 # interactive

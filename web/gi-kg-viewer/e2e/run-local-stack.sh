@@ -8,7 +8,7 @@
 # mocks were never a necessity — just the only thing available when the suite was written.
 #
 # Two notes specific to this suite:
-#   * it runs on FIREFOX (`npx playwright install firefox` once), not Chromium;
+#   * it runs on Chrome (`npx playwright install chromium` once), like the player suite;
 #   * Vite proxies /api to VITE_API_TARGET, so pointing it at the container is one env var.
 #
 # Usage:  e2e/run-local-stack.sh [playwright args...]

@@ -882,7 +882,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - **test-e2e-fast**: Critical path E2E tests (Tier 1)
   using test ML models (~8-12 min)
 - **viewer-unit**: Vitest unit tests for `web/gi-kg-viewer` TS utils (`make test-ui`; ~150 ms)
-- **viewer-e2e**: Playwright tests for `web/gi-kg-viewer` (`make test-ui-e2e`; Firefox, Vite on 5174)
+- **viewer-e2e**: Playwright tests for `web/gi-kg-viewer` (`make test-ui-e2e`; Chrome locally, Firefox in CI; Vite on 5174)
 - **build**: Package build validation (~2 min)
 - **docs**: Documentation build validation (~3 min)
 
