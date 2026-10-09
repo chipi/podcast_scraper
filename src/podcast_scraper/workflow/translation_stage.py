@@ -480,8 +480,10 @@ def _translate_units(
 ) -> Dict[str, Dict[str, Any]]:
     """``{unit_id: translate_unit result}`` for *units*, up to *max_concurrency* in flight.
 
-    Units are independent — each request carries only its own unit — so concurrency changes the
-    wall time and nothing else; the caller assembles the ledger in unit order regardless. Sent
+    Units are independent — each request carries only its own unit — and the caller assembles the
+    ledger in unit order regardless. The server's wording is not reproducible run to run: measured
+    on the DGX, 4 in flight matched a sequential run byte-for-byte on 65 of 84 units, the rest
+    differing in wording only. Sent
     one at a time, a 41-minute Spanish episode took over 20 minutes against a vLLM server that
     batches concurrent requests (El Hilo, 2026-10-09). The FIRST unit always goes alone: the
     provider resolves and caches its served-model and context checks on first use.
