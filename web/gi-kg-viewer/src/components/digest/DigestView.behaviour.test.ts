@@ -12,7 +12,6 @@ import {
   type CorpusDigestTopicBand,
 } from '../../api/digestApi'
 import { fetchCrossShow } from '../../api/relationalApi'
-import { fetchCachedCorpusEnvelope } from '../../composables/useEnrichmentEnvelopeCache'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useShellStore } from '../../stores/shell'
@@ -23,7 +22,7 @@ import { useSubjectStore } from '../../stores/subject'
  *
  * The mount test that pins the corpus-revision reload brought this view into the coverage
  * denominator with 6 of its 85 functions exercised. These tests drive the rest the way an operator
- * does: topic bands (ranking, show more, trend arrows, the topic panel, search, cross-show), hit
+ * does: topic bands (ranking, show more, the topic panel, search, cross-show), hit
  * rows into the graph, the Recent list (rows, keyboard, feed links, topic pills), and the states
  * around them.
  */
@@ -38,10 +37,6 @@ vi.mock('../../api/corpusLibraryApi', async (orig) => ({
 vi.mock('../../api/relationalApi', async (orig) => ({
   ...(await orig<typeof import('../../api/relationalApi')>()),
   fetchCrossShow: vi.fn(),
-}))
-vi.mock('../../composables/useEnrichmentEnvelopeCache', async (orig) => ({
-  ...(await orig<typeof import('../../composables/useEnrichmentEnvelopeCache')>()),
-  fetchCachedCorpusEnvelope: vi.fn(),
 }))
 // The shell store probes /api/health when the path changes; a probe that never answers leaves the
 // health this test sets alone.
@@ -118,9 +113,6 @@ async function mountDigest(d: CorpusDigestResponse = digestOf()) {
       { feed_id: 'f1', display_title: 'Show One', episode_count: 2 },
     ],
   })
-  vi.mocked(fetchCachedCorpusEnvelope).mockResolvedValue({
-    data: { topics: [{ topic_id: 'topic:b', velocity_last_over_6mo: 2.4 }] },
-  } as never)
   const shell = useShellStore()
   shell.corpusPath = '/corpus'
   shell.healthStatus = 'ok'
@@ -150,12 +142,6 @@ describe('DigestView — topic bands', () => {
     expect(bandLabels(w)).toEqual(['Topic Band b', 'Topic Band c', 'Topic Band a'])
     await w.get('[data-testid="digest-topic-bands-show-more"]').trigger('click')
     expect(bandLabels(w)).toHaveLength(4)
-  })
-
-  it('a band with velocity data shows its trend arrow', async () => {
-    const { w } = await mountDigest()
-    const trend = w.get('[data-testid="digest-band-trend"]')
-    expect(trend.attributes('aria-label')).toBe('trending 2.4x its 6-mo average')
   })
 
   it("a mapped band's title opens its topic; Search topic prefills search", async () => {

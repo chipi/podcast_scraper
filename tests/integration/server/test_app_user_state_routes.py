@@ -277,8 +277,8 @@ def test_favorites_entity_roundtrip(tmp_path: Path) -> None:
 
 
 def _two_saved_episodes(tmp_path: Path) -> tuple[TestClient, str, str]:
-    from podcast_scraper.server.app_slugs import slug_for_row
     from podcast_scraper.server.corpus_catalog import build_catalog_rows_cumulative
+    from podcast_scraper.server.slugs import slug_for_row
 
     _write_kg_episode(tmp_path, stem="0001-hello", episode_id="ep1")
     doc_path = tmp_path / "metadata" / "0002-zebra.metadata.json"

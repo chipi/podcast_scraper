@@ -53,10 +53,10 @@ def ops_cache_stats() -> dict:
     ``prod_cache_stats``.
     """
     from podcast_scraper import perf_cache
-    from podcast_scraper.server.routes.app_episodes import related_cache_stats
+    from podcast_scraper.extensions import extension_cache_stats
 
-    # `related`: the "More like this" answers (2026-10-08), kept outside perf_cache.
-    return {"namespaces": perf_cache.stats(), "related": related_cache_stats()}
+    # Caches extensions keep outside perf_cache, e.g. the player's `related` ("More like this").
+    return {"namespaces": perf_cache.stats(), **extension_cache_stats()}
 
 
 #: The 11 credentials deploy-prod stages into tmpfs (ADR-115) — mirrors

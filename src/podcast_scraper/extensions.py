@@ -172,6 +172,9 @@ class Extension:
     #: Sign-in providers by name (``APP_OAUTH_PROVIDER`` / ``APP_OAUTH_PROVIDERS``), each built
     #: from its own env: ``() -> OAuthProvider | None``.
     oauth_providers: Mapping[str, Callable[[], Any]] = field(default_factory=dict)
+    #: Caches the extension keeps outside ``perf_cache``, by the key ``/api/ops/cache-stats``
+    #: reports them under: ``() -> stats``.
+    cache_stats: Mapping[str, Callable[[], Any]] = field(default_factory=dict)
 
 
 _override: list[Extension] | None = None
@@ -245,6 +248,11 @@ def job_runner(kind: str) -> JobRunner | None:
         if kind in ext.job_kinds:
             return ext.job_kinds[kind]
     return None
+
+
+def extension_cache_stats() -> dict[str, Any]:
+    """Every installed extension's caches kept outside ``perf_cache``, by key."""
+    return {key: stats() for ext in load_extensions() for key, stats in ext.cache_stats.items()}
 
 
 def engagement_series() -> EngagementSeries | None:

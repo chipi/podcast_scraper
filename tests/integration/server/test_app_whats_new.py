@@ -181,7 +181,7 @@ def test_recommended_reaches_episodes_through_a_followed_theme(tmp_path: Path) -
 
 
 def test_recommended_leaves_out_what_was_already_played(tmp_path: Path) -> None:
-    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.slugs import slug_for_row
 
     _corpus(tmp_path)
     client = _client(tmp_path, interests=["topic:ai"], follows=[])

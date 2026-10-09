@@ -92,6 +92,7 @@ player:
       - app_episode_notes
       - app_favorites_view
       - app_graph_refs
+      - app_guided_shows
       - app_key_voices
       - app_new_episode_alerts
       - app_new_episode_digest
@@ -272,6 +273,6 @@ common:
 studio:
   package: closelistening_studio
   own_source: true
-  # Seeded from web/gi-kg-viewer (first copy at 9ac3a38b6, last sync at a3519a8b8). Since the
+  # Seeded from web/gi-kg-viewer (first copy at c2321f0a8, last sync at 0f72e7f8c). Since the
   # public viewer lost its tier-A features, Studio is its own source and nothing is copied into
   # it: a re-run of split_copy.py must not overwrite it with the stripped viewer.

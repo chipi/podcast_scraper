@@ -15,7 +15,7 @@ location. Only the images and the two metadata fields were missing.
 
 Why SVG rather than JPEG/PNG
 ---------------------------
-* **No new dependency.** Pillow is not installed here, and ``app_artwork.ensure_thumbnail``
+* **No new dependency.** Pillow is not installed here, and ``artwork.ensure_thumbnail``
   explicitly falls back to serving the original file with a guessed mimetype when Pillow is
   missing or cannot decode the image — and ``mimetypes`` maps ``.svg`` to ``image/svg+xml``. So
   this works whether or not Pillow is present.

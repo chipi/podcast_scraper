@@ -111,6 +111,12 @@ def _engagement_series(data_dir: Path, user_id: str | None) -> dict[str, Any]:
     return engagement_series(data_dir, user_id=user_id)
 
 
+def _related_cache_stats() -> Any:
+    from podcast_scraper.server.routes.app_episodes import related_cache_stats
+
+    return related_cache_stats()
+
+
 EXTENSION = Extension(
     name="player",
     routers=_routers,
@@ -119,4 +125,5 @@ EXTENSION = Extension(
     server_started=(_start_cache_warmer,),
     job_kinds={"digest": _digest_job},
     engagement_series=_engagement_series,
+    cache_stats={"related": _related_cache_stats},
 )
