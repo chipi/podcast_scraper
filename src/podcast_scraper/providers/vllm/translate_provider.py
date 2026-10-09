@@ -458,14 +458,27 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
             refused: Optional[str] = None
             meta = dict(base_meta)
             for attempt in (1, 2):
+                # The retry is a DIFFERENT request — the numbered form "1. <sentence>". At
+                # temperature 0 the same request gets the same reply; measured on the live
+                # translator (2026-10-09), three refused units came back as "Here's the
+                # translation:" (twice followed by an invented story) every time they were sent
+                # plain, and as one clean numbered line every time they were sent numbered.
+                numbered = attempt == 2 and bool(getattr(unit, "numbered_source", ""))
                 got = self.translate(
-                    sentences[0].text,
+                    unit.numbered_source if numbered else sentences[0].text,
                     source_language=source_language,
                     target_language=target_language,
                 )
                 meta = {**base_meta, **got["metadata"], "attempts": attempt}
                 if got["text"] is None:
                     break
+                if numbered:
+                    lines = _parse_numbered(got["text"])
+                    if len(lines) > 1:
+                        refused = f"numbered retry returned {len(lines)} lines for 1 sentence"
+                        continue
+                    # A one-line answer may come back without its "1."; it is still that line.
+                    got = {**got, "text": lines[0] if lines else got["text"].strip()}
                 refused = reject_translation_output(sentences[0].text, got["text"])
                 if refused:
                     logger.warning(

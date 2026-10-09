@@ -284,3 +284,32 @@ class TestARefusedUnitIsRetried:
         got = p.translate_unit(self._unit([_SPANISH]), source_language="es")
         assert got["alignment"] == "failed"
         assert "refused" in (got["metadata"].get("error") or "")
+
+
+class TestARefusedSentenceIsRetriedInTheNumberedForm:
+    """The retest (2026-10-09) showed the plain retry repeats the refusal: at temperature 0 the
+    same request gets the same reply. Re-sent to the live translator, all three still-failing El
+    Hilo / Radio Ambulante units — one garbled line of a reggaeton promo — came back as "Here's the
+    translation:" (twice with an invented story after it) when sent plain, and as a clean single
+    numbered line when sent as "1. <sentence>". The retry has to be a DIFFERENT request."""
+
+    _unit = staticmethod(TestEveryAcceptancePathIsGuarded._unit)
+
+    def test_the_second_attempt_sends_the_numbered_form_and_reads_one_line(self) -> None:
+        sent: List[str] = []
+        p = TestEveryAcceptancePathIsGuarded._provider([])
+
+        def fake_translate(text: str, **_kw: Any) -> Dict[str, Any]:
+            sent.append(text)
+            out = (
+                "Here's the translation: Honestly, drainage."
+                if not text.startswith("1.")
+                else f"1. {_GOOD}"
+            )
+            return {"text": out, "metadata": {"model": "stub"}}
+
+        p.translate = fake_translate  # type: ignore[method-assign]
+        got = p.translate_unit(self._unit([_SPANISH]), source_language="es")
+        assert sent[0] == _SPANISH and sent[1].startswith("1. ")
+        assert got["alignment"] == "sentence"
+        assert got["sentences"][0]["en_text"] == _GOOD
