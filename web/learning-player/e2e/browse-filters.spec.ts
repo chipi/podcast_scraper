@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { listenToOne, signInIsolated } from './helpers'
 
 /**
  * Browse › Episodes: "Which episodes" (All · Shows I follow · Mine) is its own row, so it combines
@@ -27,4 +27,13 @@ test('Shows I follow + Unplayed lists every episode of the followed show, and no
   // "All" puts the rest of the catalogue back.
   await page.getByTestId('catalog-from-all').click()
   await expect.poll(async () => cards.count()).toBeGreaterThan(Math.min(theirs.length, 20))
+})
+
+test('In progress lists the episode you started and stopped, against the real server', async ({ page }, testInfo) => {
+  await signInIsolated(page, 'browse-in-progress', testInfo)
+  const slug = await listenToOne(page) // two saves, 10 s then 130 s: started, not finished
+  await page.goto('/browse?tab=episodes&state=inprogress#catalog')
+  const cards = page.getByTestId('episode-card')
+  await expect(cards).toHaveCount(1)
+  await expect(cards.first().locator(`a[href*="/episode/${slug}"]`).first()).toBeVisible()
 })

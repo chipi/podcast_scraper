@@ -40,12 +40,7 @@ def _data_dir(request: Request) -> Path:
 def resurfacing(
     request: Request,
     offset: int = Query(default=0, ge=0, description="Paged: episodes to skip."),
-    limit: int | None = Query(
-        default=None,
-        ge=1,
-        le=100,
-        description="EPISODES per page. Absent: everything due, as before 1.0.3.",
-    ),
+    limit: int = Query(default=20, ge=1, le=100, description="EPISODES per page."),
     per_episode: int = Query(default=100, ge=1, le=100, description="Paged: items per episode."),
     user: User = Depends(get_current_user),
 ) -> ResurfacingResponse:
@@ -102,8 +97,6 @@ def resurfacing(
             len(due),
             user.user_id,
         )
-    if limit is None:
-        return ResurfacingResponse(items=items, paused=paused)
     # Paged by EPISODE, in the order select_due already gives (episodes, then captures).
     groups: dict[str, list[ResurfacingItem]] = {}
     for it in items:

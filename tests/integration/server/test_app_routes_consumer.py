@@ -392,7 +392,7 @@ def test_favorites_hydrate_episode_through_route(tmp_path: Path) -> None:
     _corpus(tmp_path)
     slug = _slug(tmp_path, "ep1")
     client = _authed(tmp_path)
-    assert client.get("/api/app/favorites").json() == {"episodes": [], "entities": []}
+    assert client.get("/api/app/favorites", params={"kind": "episode"}).json()["total"] == 0
     body = client.put(
         "/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "E"}
     ).json()
@@ -1259,9 +1259,10 @@ def test_resurfacing_pages_by_episode_when_asked(tmp_path: Path) -> None:
         r["created_at"] = 1  # far past: all three are due
     hl_file.write_text(_json.dumps(rows))
 
-    # 1.0.2 sends nothing: everything due, and no paging fields.
+    # No limit: the default page (20 episodes), with its paging fields — always paged since
+    # 2026-10-10 (no pre-1.0.3 client is left).
     full = client.get("/api/app/resurfacing").json()
-    assert set(full) == {"items", "paused"} and len(full["items"]) == 3
+    assert len(full["items"]) == 3 and full["total"] == 3 and full["episode_total"] == 1
 
     page = client.get("/api/app/resurfacing", params={"limit": 1, "per_episode": 2}).json()
     assert len(page["items"]) == 2
