@@ -30,8 +30,6 @@
     for speaker click
   - [UXS-007: Topic Entity View](UXS-007-topic-entity-view.md) -- cross-linked from
     topic selector
-  - [UXS-008: Enriched Search](UXS-008-enriched-search.md) -- enriched search entry
-    point; speaker names in enriched sources can open Person Landing
   - [UXS-010: Person Profile](UXS-010-person-profile.md) --
     "Open profile" handoff; **owns the shared Person Landing** that hosts both
     Person Profile and Position Tracker
