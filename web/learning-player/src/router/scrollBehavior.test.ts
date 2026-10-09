@@ -51,6 +51,43 @@ describe('router scrollBehavior', () => {
     })
   })
 
+  it('follows an anchor that EXISTS at once but is pushed down as the page fills in', async () => {
+    // A push opening Home at #whats-new (2026-10-09): the section's skeleton is there at once, but
+    // the welcome and search render above it afterwards. A one-shot scroll stayed at y=45 while the
+    // section moved to 652 — off a phone's screen.
+    document.body.innerHTML = '<section id="whats-new"></section>'
+    const section = document.getElementById('whats-new')!
+    let sectionTop = 345
+    vi.spyOn(section, 'getBoundingClientRect').mockImplementation(
+      () => ({ top: sectionTop - window.scrollY }) as DOMRect,
+    )
+    const scrolls: number[] = []
+    vi.spyOn(window, 'scrollTo').mockImplementation(((o: ScrollToOptions) => {
+      scrolls.push(o.top ?? 0)
+    }) as typeof window.scrollTo)
+
+    expect(await scrollBehavior(route({ path: '/', hash: '#whats-new' }), route(), null)).toEqual({
+      el: '#whats-new',
+      behavior: 'smooth',
+      top: 8,
+    })
+    sectionTop = 652 // the sections above it render
+    await new Promise((r) => setTimeout(r, 800))
+    expect(scrolls, 'the page did not follow the section down').toContain(644)
+  })
+
+  it('stops following an anchor that leaves the page', async () => {
+    document.body.innerHTML = '<section id="whats-new"></section>'
+    const scrolls: number[] = []
+    vi.spyOn(window, 'scrollTo').mockImplementation(((o: ScrollToOptions) => {
+      scrolls.push(o.top ?? 0)
+    }) as typeof window.scrollTo)
+    await scrollBehavior(route({ path: '/', hash: '#whats-new' }), route(), null)
+    document.body.innerHTML = '' // nothing new: What's new hides itself
+    await new Promise((r) => setTimeout(r, 800))
+    expect(scrolls).toEqual([])
+  })
+
   it('waits for an anchor that renders after the page fetch — a note lands on #notes', async () => {
     document.body.innerHTML = ''
     setTimeout(() => (document.body.innerHTML = '<section id="notes"></section>'), 40)

@@ -586,7 +586,15 @@ async function loadContinue(): Promise<void> {
            you this content exists, so hiding it on failure made an outage indistinguishable from a
            cold corpus. Only a successful-but-empty load hides — the system has nothing to show and
            there is no action the user can take. -->
-      <section v-if="wnFeatured || !whatsNew.isReady.value" class="mt-7 min-w-0 lg:w-1/2">
+      <!-- `id="whats-new"`: a new-episodes push about SEVERAL episodes opens Home here (`/#whats-new`)
+           rather than the first episode's player (operator 2026-10-09). The router waits for a hash
+           anchor that renders late, so the section loading after the tap is fine. -->
+      <section
+        v-if="wnFeatured || !whatsNew.isReady.value"
+        id="whats-new"
+        class="mt-7 min-w-0 lg:w-1/2"
+        data-testid="home-whats-new"
+      >
       <SectionHeading
         :title="t('home.whatsNew')"
         :kicker="whatsNewKicker"

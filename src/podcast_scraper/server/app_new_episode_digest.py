@@ -184,7 +184,25 @@ def assemble_new_episodes_payload(
         "count": len(fresh),
         "episodes": fresh,
         "slugs": [str(i["episode_slug"]) for i in fresh],
+        "open_url": open_url_for(fresh),
     }
+
+
+#: Where a new-episodes notification opens when it announces SEVERAL episodes: Home's What's new.
+WHATS_NEW_URL = "/#whats-new"
+
+
+def open_url_for(items: list[dict[str, Any]]) -> str:
+    """Where tapping the notification goes (operator 2026-10-09).
+
+    ONE episode: that episode — the alert is about that one thing. SEVERAL: Home's What's new, which
+    lists them all. The push used to open the FIRST episode's player whatever the count, so a
+    "+2 more" notification hid the other two behind a tap that never showed them. Decided here, in
+    the app, so the delivery template only reads it.
+    """
+    if len(items) == 1:
+        return str(items[0].get("deep_link") or f"/episode/{items[0].get('episode_slug', '')}")
+    return WHATS_NEW_URL
 
 
 def seed_ledger_without_sending(root: Path, data_dir: Path, user_id: str, now: int) -> int:

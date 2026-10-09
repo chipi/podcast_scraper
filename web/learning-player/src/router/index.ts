@@ -31,6 +31,8 @@ trackClicks()
 
 /** Clearance above a section an anchor lands on. */
 const ANCHOR_GAP = 8
+/** How long a smooth anchor scroll runs before a hold may correct it (an earlier jump would cut it). */
+const SMOOTH_SCROLL_HEAD_START_MS = 500
 
 /**
  * Same page, and the only query keys that changed are sheet keys — a sheet opened over it or closed
@@ -252,9 +254,21 @@ export const router = createRouter({
       return saved
     }
     if (to.hash) {
-      // Already on the page (Home's "See all" onto Discover's trends): nothing will move under it,
-      // so the smooth scroll the operator asked for (2026-09-17) stays.
-      if (document.querySelector(to.hash)) return { el: to.hash, behavior: 'smooth', top: ANCHOR_GAP }
+      // Already on the page (Home's "See all" onto Discover's trends): the smooth scroll the operator
+      // asked for (2026-09-17) stays. Existing is not the same as settled, though: a push opening
+      // Home at `#whats-new` (2026-10-09) finds the section's skeleton at once, scrolls the 45px the
+      // half-built page allows, and the welcome and search then render above it and push it off
+      // screen. So hold on it too, starting once the smooth scroll is under way.
+      const present = document.querySelector<HTMLElement>(to.hash)
+      if (present) {
+        holdScroll(
+          null,
+          () => (present.isConnected ? offsetWithin(null, present) - ANCHOR_GAP : null),
+          undefined,
+          SMOOTH_SCROLL_HEAD_START_MS,
+        )
+        return { el: to.hash, behavior: 'smooth', top: ANCHOR_GAP }
+      }
       // Rendered later (a note's Open onto `#notes`): land INSTANTLY and hold. A smooth scroll here
       // animates toward where the section WAS; content arriving above then moves the section, and
       // the animation carries the reader away from it (measured 2026-10-04: scroll anchoring put the

@@ -92,6 +92,7 @@ import { useOnline } from './composables/useOnline'
 import { bumpIdentityEpoch, identityChangedSince, identityEpoch } from './services/identity'
 import { useUserPreferencesStore } from './stores/userPreferences'
 import { initDeepLinks, initNativeAuth, isNative } from './services/native'
+import { initPushTaps } from './services/pushTaps'
 
 // Bottom-nav tab views to keep mounted across navigation (matches each view's `name`). Detail views
 // are omitted so they stay fresh per-route. Keep in sync with router/index.ts tab routes.
@@ -488,6 +489,10 @@ onMounted(async () => {
   // (route guards still run, so a gated target lands on the sign-in gate as an in-app tap would).
   void initDeepLinks((target) => {
     void router.push({ name: target.name, params: target.params, query: target.query ?? {} })
+  })
+  // A tapped push: the episode, or What's new when it announced several (services/pushTaps.ts).
+  void initPushTaps((path) => {
+    void router.push(path)
   })
   await initNativeAuth(async ({ isNew }) => {
     await auth.refresh()

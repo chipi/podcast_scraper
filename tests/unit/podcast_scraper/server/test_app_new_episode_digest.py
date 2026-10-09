@@ -315,3 +315,25 @@ def test_ledger_is_written_atomically(tmp_path: Path, monkeypatch) -> None:
     assert led["last_send_ts"] == NOON
     leftovers = list((tmp_path / "users" / "u1").glob(".new_episode_alerts.json.*"))
     assert leftovers == [], f"temp files left behind: {leftovers}"
+
+
+def test_one_episode_opens_it_several_open_whats_new() -> None:
+    """A push about several episodes opens Home's What's new, not the first one (2026-10-09)."""
+    one = [{"episode_slug": "ep-1", "deep_link": "/episode/ep-1"}]
+    many = one + [{"episode_slug": "ep-2", "deep_link": "/episode/ep-2"}]
+    assert ned.open_url_for(one) == "/episode/ep-1"
+    assert ned.open_url_for(many) == "/#whats-new"
+
+
+def test_the_enqueued_payload_carries_where_it_opens(tmp_path: Path, monkeypatch) -> None:
+    """The envelope the delivery worker renders says where a tap goes — one episode vs several."""
+    _seed(tmp_path)
+    sent = _wire(monkeypatch, items=_items("ep1"))
+    ned.enqueue_for_user(tmp_path / "root", tmp_path, "u1", NOON)
+    assert sent[0]["payload"]["open_url"] == "/episode/ep1"
+
+    _seed(tmp_path / "two", user_id="u1")
+    sent = _wire(monkeypatch, items=_items("ep1", "ep2", "ep3"))
+    ned.enqueue_for_user(tmp_path / "root", tmp_path / "two", "u1", NOON)
+    assert sent[0]["payload"]["count"] == 3
+    assert sent[0]["payload"]["open_url"] == "/#whats-new"

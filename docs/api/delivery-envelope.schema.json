@@ -617,6 +617,11 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "open_url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where tapping the notification goes: the episode when count is 1, Home's What's new (/#whats-new) when several (2026-10-09). Optional so an envelope queued before it existed still validates; the template falls back to the first episode."
         }
       }
     }
