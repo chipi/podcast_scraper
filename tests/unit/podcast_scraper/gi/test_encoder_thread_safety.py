@@ -14,6 +14,7 @@ way; this one was missed.
 
 from __future__ import annotations
 
+import sys
 import threading
 from unittest.mock import patch
 
@@ -48,22 +49,27 @@ def test_concurrent_get_encoder_constructs_the_model_once(monkeypatch) -> None:
     def _fake_import(model_id: str, **kwargs) -> _SlowEncoder:
         return _SlowEncoder(model_id, **kwargs)
 
+    # setitem, NOT patch.dict on sys.modules: patch.dict restores the WHOLE table on exit, so the
+    # real torch that `_get_encoder` imports inside (via `resolve_embedding_device`) was thrown
+    # away while torch's C extension stayed loaded — and the next `import torch` in that worker
+    # raised "function '_has_torch_function' already has a docstring" (ci-fast, 2026-10-09).
+    monkeypatch.setitem(
+        sys.modules,
+        "sentence_transformers",
+        type("M", (), {"SentenceTransformer": _fake_import}),
+    )
     with patch.object(about_edges, "_get_encoder", wraps=about_edges._get_encoder):
-        with patch.dict(
-            "sys.modules",
-            {"sentence_transformers": type("M", (), {"SentenceTransformer": _fake_import})},
-        ):
-            results = []
+        results = []
 
-            def worker() -> None:
-                barrier.wait()  # all threads start together
-                results.append(about_edges._get_encoder("model-x"))
+        def worker() -> None:
+            barrier.wait()  # all threads start together
+            results.append(about_edges._get_encoder("model-x"))
 
-            threads = [threading.Thread(target=worker) for _ in range(8)]
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
+        threads = [threading.Thread(target=worker) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
     assert len(constructions) == 1, (
         f"the model was constructed {len(constructions)} times — the cache is unguarded, and "
