@@ -351,3 +351,40 @@ class TestTheCueWordsMatchAtTheStartOfASentence:
         from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
 
         assert extract_self_introduced_host(text, language=language) == text.split(", ")[1][:-1]
+
+
+class TestGermanNounsAreNotNames:
+    """German capitalises every noun, so "capitalised single word after a self-introduction cue"
+    is not evidence of a name there. Found on SWR Das Wissen (de, 2026-10-09): the narrator was
+    named "Zentrum" — the English row read "Im Zentrum steht das Geld" as "I'm Zentrum". Reading
+    German with the German row fixed that line and opened the same hole: "Ich bin Polizist."
+    returned "Polizist". A one-word German self-introduction is not accepted on its own."""
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Ich bin Polizist.",
+            "Ich bin Journalistin und lebe in Berlin.",
+            "Im Zentrum steht das Geld der Kriminellen.",
+        ],
+    )
+    def test_a_noun_is_not_a_self_introduced_name(self, text: str) -> None:
+        from podcast_scraper.speaker_detectors.hosts import (
+            distinct_self_introductions,
+            extract_self_introduced_host,
+        )
+
+        assert extract_self_introduced_host(text, language="de") is None
+        assert distinct_self_introductions(text, language="de") == []
+
+    def test_a_full_name_is_still_read(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        assert (
+            extract_self_introduced_host("Ich bin Lena Hofmann.", language="de") == "Lena Hofmann"
+        )
+
+    def test_an_english_mononym_is_unchanged(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        assert extract_self_introduced_host("Hi, I'm Brandon.") == "Brandon"

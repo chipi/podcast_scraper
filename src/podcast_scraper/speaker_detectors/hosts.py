@@ -464,6 +464,16 @@ def _branded_intro_matches(
     return [m for m in branded.finditer(head) if names_the_show(m.group(2), feed_title)]
 
 
+#: Languages that capitalise every noun, where a single capitalised word after a self-introduction
+#: cue is no evidence of a name: "Ich bin Polizist." is a job, not a person (SWR, 2026-10-09).
+#: A one-word self-introduction is refused outright in these; a full name still reads.
+_NOUN_CAPITALISING_LANGUAGES = frozenset({"de"})
+
+
+def _one_word_names_refused(language: Optional[str]) -> bool:
+    return primary_language(language or "") in _NOUN_CAPITALISING_LANGUAGES
+
+
 def _self_intro_matches(
     head: str, feed_title: Optional[str], language: Optional[str]
 ) -> List["re.Match[str]"]:
@@ -529,7 +539,9 @@ def extract_self_introduced_host(
         # because the loop returns on the FIRST hit, shadowed a real later "I'm <Name>". This is the
         # guard `distinct_self_introductions` already applies; without it here the two sibling
         # scanners disagreed. ``continue`` (not ``return None``) keeps scanning for the real intro.
-        if len(name.split()) == 1 and not is_plausible_mononym(name):
+        if len(name.split()) == 1 and (
+            _one_word_names_refused(language) or not is_plausible_mononym(name)
+        ):
             continue
         return name
     return None
@@ -573,7 +585,7 @@ def distinct_self_introductions(
         # I'm X" would count as two distinct speakers and wrongly read as a montage.
         if len(toks) >= 2 and not looks_like_a_person_name(name):
             continue
-        if len(toks) == 1 and not is_plausible_mononym(name):
+        if len(toks) == 1 and (_one_word_names_refused(language) or not is_plausible_mononym(name)):
             continue
         if name.lower() not in lowered:
             lowered.add(name.lower())
