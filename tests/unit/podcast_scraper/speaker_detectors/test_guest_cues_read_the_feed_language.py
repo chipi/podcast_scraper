@@ -46,3 +46,17 @@ def test_the_spanish_mentioned_only_guard_still_refuses() -> None:
 
 def test_the_transcript_intro_reads_its_language_too() -> None:
     assert is_introduced_guest("Lucía Herrera", "hoy hablamos con Lucía Herrera.", language="es")
+
+
+def test_a_coordinated_second_guest_is_introduced_in_spanish() -> None:
+    # "hablamos con A, de X, y con B, de Y": the leading cue reaches only A. English has the same
+    # shape covered by "(?:and|along) with". Measured on 714 real El Hilo / Radio Ambulante
+    # descriptions (2026-10-09): 34 names newly introduced, 24 of them that episode's guests and
+    # none a person merely mentioned; the other 10 were organisations, which the person check in
+    # front of this cue refuses.
+    text = (
+        "Esta semana hablamos con Lucía Herrera, de una organización ambiental, en Colombia "
+        "(el país más mortífero para defensores) y con Marta Ríos, de otra. También con Ana Gil."
+    )
+    assert _is_likely_actual_guest("Marta Ríos", "Episodio", text, language="es")
+    assert _is_likely_actual_guest("Ana Gil", "Episodio", text, language="es")
