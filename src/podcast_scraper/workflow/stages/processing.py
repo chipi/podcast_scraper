@@ -743,7 +743,11 @@ def _handle_dry_run_host_detection(
         hosts_from_feed_statement(feed.title, feed.description, getattr(feed, "language", "") or "")
     )
     if not cached_hosts and feed.authors:
-        cached_hosts = {a for a in feed.authors if not is_network_or_org_author(a)}
+        cached_hosts = {
+            a
+            for a in feed.authors
+            if not is_network_or_org_author(a, language=_feed_language(feed))
+        }
     if cached_hosts:
         logger.info(
             "DETECTED HOSTS (dry-run, feed statement / author tags): %s",
@@ -1011,7 +1015,7 @@ def hosts_for_episode(
         own = {
             a
             for a in normalize_host_names(own_raw, feed_title=result.feed_title)
-            if not is_network_or_org_author(a)
+            if not is_network_or_org_author(a, language=result.language)
         }
         own = set(drop_non_person_names(sorted(own), result.feed_title, result.kind_votes))
     return set(
@@ -1284,7 +1288,9 @@ def detect_feed_hosts_and_patterns(
     # transcript self-introduction at diarization time, not the feed metadata (#876). The
     # statement-first ordering inside _detect_hosts_from_feed means an org-authored feed whose
     # description names its hosts is already recovered before this strip runs (ADR-130 / audit F2).
-    feed_hosts = {h for h in feed_hosts if not is_network_or_org_author(h)}
+    feed_hosts = {
+        h for h in feed_hosts if not is_network_or_org_author(h, language=_feed_language(feed))
+    }
 
     # Priority: Use known_hosts from config if provided (show-level override)
     if cfg.known_hosts:
@@ -1329,7 +1335,7 @@ def detect_feed_hosts_and_patterns(
         episode_authors = {
             a
             for a in _fallback_to_episode_authors(cfg, episodes, getattr(feed, "title", None))
-            if not is_network_or_org_author(a)
+            if not is_network_or_org_author(a, language=_feed_language(feed))
         }
         if episode_authors:
             cached_hosts = episode_authors

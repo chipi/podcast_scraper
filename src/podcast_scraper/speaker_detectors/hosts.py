@@ -103,7 +103,7 @@ def is_known_network(name: str) -> bool:
     return first in KNOWN_NETWORKS
 
 
-def has_org_markers(name: str) -> bool:
+def has_org_markers(name: str, language: Optional[str] = None) -> bool:
     """True when ``name`` contains explicit network/organisation markers.
 
     The marker-only half of :func:`is_network_or_org_author` (``|``, ``&``, digits, words like
@@ -114,10 +114,16 @@ def has_org_markers(name: str) -> bool:
     n = (name or "").strip()
     if not n:
         return True
-    return bool(_NONPERSON_AUTHOR_MARKERS.search(n))
+    if _NONPERSON_AUTHOR_MARKERS.search(n):
+        return True
+    # The feed's own row too: markers only REFUSE, so English plus that row can only refuse more.
+    # "France Médias Monde" (RFI's parent company) passed the English row and was seated on the
+    # anchor's voice (2026-10-09).
+    own = naming_vocabulary.vocabulary_row(_NONPERSON_AUTHOR_MARKERS_BY_LANGUAGE, language)
+    return bool(language and own is not None and own.search(n))
 
 
-def is_network_or_org_author(name: str) -> bool:
+def is_network_or_org_author(name: str, language: Optional[str] = None) -> bool:
     """True when an RSS author tag looks like a network/organisation, not a host person.
 
     Any of these → reject: org/network markers (see :func:`has_org_markers`); or a single
@@ -129,7 +135,7 @@ def is_network_or_org_author(name: str) -> bool:
     n = (name or "").strip()
     if not n:
         return True
-    if has_org_markers(n):
+    if has_org_markers(n, language):
         return True
     # A known network/publisher in an author tag is the PUBLISHER, not a host — and multi-token
     # brands ("Andreessen Horowitz", "The New York Times") carry no generic org marker and are
