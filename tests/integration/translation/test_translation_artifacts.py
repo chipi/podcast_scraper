@@ -679,6 +679,7 @@ class TestUnitsAreSentConcurrently:
 
     def _ledger_and_render(self, root: Path) -> tuple:
         doc = load_translation_json(REL, str(root))
+        assert doc is not None
         units = [(u.unit_id, u.status, u.sentences) for u in doc.units]
         return units, (root / REL).read_text(encoding="utf-8")
 
