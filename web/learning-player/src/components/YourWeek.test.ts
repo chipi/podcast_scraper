@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { defineComponent, h, KeepAlive, ref, type Component } from 'vue'
+import { keptAlive } from '../test/keptAlive'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
@@ -70,16 +70,6 @@ const RESP: YourWeekResponse = {
   generated_at: '2026-08-07T00:00:00Z',
 }
 
-/**
- * Library and Home are KEPT ALIVE (App.vue), so `onMounted` runs once. This host toggles the
- * component out and back in under a real <KeepAlive>, which is exactly a return to the tab.
- */
-function keptAlive(comp: Component, plugins: unknown[]) {
-  const shown = ref(true)
-  const Host = defineComponent({ setup: () => () => h(KeepAlive, null, shown.value ? [h(comp)] : []) })
-  const w = mount(Host, { global: { plugins: plugins as never } })
-  return { w, leave: () => void (shown.value = false), back: () => void (shown.value = true) }
-}
 
 function mountIt(
   opts: { signedIn?: boolean; resp?: YourWeekResponse; layout?: 'full' | 'compact'; fail?: boolean } = {},
@@ -251,20 +241,17 @@ describe('YourWeek section', () => {
 })
 
 describe('a return to Home re-reads the week (2026-10-09)', () => {
-  it('re-asks the server when the kept-alive Home comes back', async () => {
+  it.each([false, true])('re-asks the server when the kept-alive Home comes back (late=%s)', async (late) => {
     setActivePinia(createPinia())
     const prefs = useUserPreferencesStore()
     vi.spyOn(prefs, 'hydrate').mockResolvedValue()
     vi.spyOn(prefs, 'get').mockReturnValue(undefined)
     useAuthStore().user = { user_id: 'u_1', email: 'd@l', name: 'Dev' }
     const spy = vi.spyOn(api, 'getYourWeek').mockResolvedValue(RESP)
-    const { leave, back } = keptAlive(YourWeek, [i18n, router])
-    await flushPromises()
+    const tab = await keptAlive(YourWeek, { plugins: [i18n, router], late })
     expect(spy).toHaveBeenCalledTimes(1)
-    leave()
-    await flushPromises()
-    back()
-    await flushPromises()
+    await tab.leave()
+    await tab.back()
     expect(spy).toHaveBeenCalledTimes(2)
   })
 })

@@ -34,7 +34,7 @@
  * also have marked it reviewed on arrival (#35), deciding on their behalf the one thing they came
  * to decide.
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onActivated, onDeactivated, onMounted, ref, watch } from 'vue'
 import { track } from '../services/analytics'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
@@ -75,13 +75,15 @@ const items = computed(() => resurfacing.railItems.slice(0, isDesktop.value ? 4 
  */
 const loop = ref<{ kept: number; reviewed: number } | null>(null)
 
-onMounted(async () => {
+async function loadLoop(): Promise<void> {
   const s = await getMyStats().catch(() => null)
-  const kept = s?.captures ?? 0
+  if (!s) return // a failed read keeps what is on screen
+  const kept = s.captures ?? 0
   // `captures_reviewed`, NOT `reviews_total`: the latter counts review EVENTS, so a header saying
   // "8 reviewed" would claim eight captures when it was eight passes over four of them.
-  if (s && kept > 0) loop.value = { kept, reviewed: s.captures_reviewed ?? 0 }
-})
+  loop.value = kept > 0 ? { kept, reviewed: s.captures_reviewed ?? 0 } : null
+}
+onMounted(loadLoop)
 
 
 /**
@@ -93,6 +95,20 @@ onMounted(async () => {
  * the rail exists to save. Still no polling: the ladder is measured in days.
  */
 onMounted(() => {
+  void resurfacing.load()
+})
+
+// Home is kept alive: a capture made in the player, or a review done in Library, changed both the
+// "kept · reviewed" line and the items due, and Home showed neither until a restart (2026-10-09).
+// Re-read on each RETURN — after the tab was left once, not "skip the first activation", which
+// misses a component that mounts after its tab is already showing (see src/test/keptAlive.ts).
+let leftOnce = false
+onDeactivated(() => {
+  leftOnce = true
+})
+onActivated(() => {
+  if (!leftOnce) return
+  void loadLoop()
   void resurfacing.load()
 })
 

@@ -1,5 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils"
-import { defineComponent, h, KeepAlive, ref } from "vue"
+import { keptAlive } from "../test/keptAlive"
 import { createPinia, setActivePinia } from "pinia"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { createI18n } from "vue-i18n"
@@ -160,30 +160,28 @@ describe("DiscoveryList — an empty Mine says why and offers everyone (operator
 })
 
 describe("DiscoveryList — a return to Discover re-reads YOUR trends (2026-10-09)", () => {
-  async function cycle(scope: "mine" | "corpus") {
+  async function cycle(scope: "mine" | "corpus", late: boolean) {
     setActivePinia(createPinia())
     const spy = vi.spyOn(api, "getTrending").mockResolvedValue([])
     vi.spyOn(api, "getStorylines").mockResolvedValue([])
-    const shown = ref(true)
-    const Host = defineComponent({
-      setup: () => () =>
-        h(KeepAlive, null, shown.value ? [h(DiscoveryList, { kind: "topic", sort: "rising", scope })] : []),
+    const tab = await keptAlive(DiscoveryList, {
+      plugins: [i18n, router, createPinia()],
+      props: { kind: "topic", sort: "rising", scope },
+      late,
     })
-    mount(Host, { global: { plugins: [i18n, router, createPinia()] } })
-    await flushPromises()
     const first = spy.mock.calls.length
-    shown.value = false
-    await flushPromises()
-    shown.value = true
-    await flushPromises()
+    await tab.leave()
+    await tab.back()
     return spy.mock.calls.length - first
   }
 
-  it("mine: re-asks on return", async () => {
-    expect(await cycle("mine")).toBeGreaterThan(0)
+  // `late`: the list mounts after Discover is already showing (it renders further down the page),
+  // so it gets no activation for its mount — the case the first version of this fix missed.
+  it.each([false, true])("mine: re-asks on return (late=%s)", async (late) => {
+    expect(await cycle("mine", late)).toBeGreaterThan(0)
   })
 
-  it("everyone: does not (nothing you did changes it)", async () => {
-    expect(await cycle("corpus")).toBe(0)
+  it.each([false, true])("everyone: does not — nothing you did changes it (late=%s)", async (late) => {
+    expect(await cycle("corpus", late)).toBe(0)
   })
 })

@@ -5,7 +5,7 @@
  * (pause/resume) live here. Read-time: the server decides what's due; this just renders + dismisses.
  * Embedded in the Library "Revisit" tab. Auth-gated (empty signed out).
  */
-import { computed, nextTick, onActivated, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import EpisodeGroupCard from '../components/EpisodeGroupCard.vue'
@@ -385,11 +385,16 @@ function jumpQuery(item: ResurfacingItem): Record<string, string> {
 onMounted(load)
 // Library is kept alive, so `onMounted` runs once. A highlight reviewed from a Revisit link (the
 // player marks it) or one that fell due since stayed wrong here until a full reload (2026-10-09).
-// The first activation is the mount itself, already loading above.
-let activatedOnce = false
+// Re-read only after the tab has been LEFT once. NOT "skip the first activation": a component that
+// mounts inside an already-active kept-alive tab (lazily, on scroll or on a tab's first visit) never
+// gets an activation for its mount, so its first `onActivated` IS the first return — and skipping it
+// skipped exactly the case this is for (caught by e2e/cross-surface.spec.ts, 2026-10-09).
+let leftOnce = false
+onDeactivated(() => {
+  leftOnce = true
+})
 onActivated(() => {
-  if (activatedOnce) void load()
-  activatedOnce = true
+  if (leftOnce) void load()
 })
 </script>
 

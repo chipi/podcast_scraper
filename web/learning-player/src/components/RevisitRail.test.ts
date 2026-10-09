@@ -8,6 +8,7 @@ import { resurfacingViaGetResurfacing } from '../test/apiViaSpies'
 import en from '../i18n/locales/en.json'
 import type { Highlight, ResurfacingItem } from '../services/types'
 import RevisitRail from './RevisitRail.vue'
+import { keptAlive } from '../test/keptAlive'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
@@ -170,5 +171,25 @@ describe('RevisitRail (Home)', () => {
     expect(href).toContain('tab=revisit')
     expect(href).toContain('focus=a1')
     expect(href, 'the card deep-linked into the player').not.toContain('/episode/')
+  })
+})
+
+describe('RevisitRail — a return to the kept-alive Home re-reads (2026-10-09)', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it.each([false, true])('the kept/reviewed line and the items due are re-read on return (late=%s)', async (late) => {
+    setActivePinia(createPinia())
+    vi.spyOn(api, 'getEpisode').mockResolvedValue({ slug: 'ep-a', title: 'An Episode' } as never)
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({ paused: false, items: [] })
+    const stats = vi.spyOn(api, 'getMyStats').mockResolvedValue({ captures: 2, captures_reviewed: 0 } as never)
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const tab = await keptAlive(RevisitRail, { plugins: [i18n, router, pinia], late })
+    const due = vi.mocked(api.getResurfacing).mock.calls.length
+    const before = stats.mock.calls.length
+    await tab.leave()
+    await tab.back()
+    expect(stats.mock.calls.length, 'the kept/reviewed line was not re-read').toBeGreaterThan(before)
+    expect(vi.mocked(api.getResurfacing).mock.calls.length, 'the items due were not re-read').toBeGreaterThan(due)
   })
 })

@@ -12,7 +12,7 @@
  * section. Flip it inline with "Show more / Show less" (same preference the Your Week setting
  * writes). Hidden entirely when signed-out or nothing is due yet.
  */
-import { computed, onActivated, ref, watch } from 'vue'
+import { computed, onActivated, onDeactivated, ref, watch } from 'vue'
 import { useSectionState } from '../composables/useSectionState'
 import SectionStatus from './SectionStatus.vue'
 import SectionHeading from './SectionHeading.vue'
@@ -115,11 +115,17 @@ watch(
 )
 // Home is kept alive, so the watch above fires once. A return to Home re-reads the week in place
 // (no skeleton — the section revalidates), or a listen since — or a cleared history — never shows
-// (2026-10-09). The first activation is the mount, already covered by the watch.
-let activatedOnce = false
+// (2026-10-09).
+// Re-read only after the tab has been LEFT once. NOT "skip the first activation": a component that
+// mounts inside an already-active kept-alive tab (lazily, on scroll or on a tab's first visit) never
+// gets an activation for its mount, so its first `onActivated` IS the first return — and skipping it
+// skipped exactly the case this is for (caught by e2e/cross-surface.spec.ts, 2026-10-09).
+let leftOnce = false
+onDeactivated(() => {
+  leftOnce = true
+})
 onActivated(() => {
-  if (activatedOnce && auth.isAuthenticated) void load()
-  activatedOnce = true
+  if (leftOnce && auth.isAuthenticated) void load()
 })
 </script>
 

@@ -719,11 +719,19 @@ export async function getStorylines(limit = 12): Promise<Storyline[]> {
 /** Trend window presets (RFC-103 R2) — the recent bucket the velocity is measured over. */
 export type TrendWindow = "1m" | "3m" | "6m" | "1y"
 
-// Memoized per (kind, scope, limit, window) so concurrent callers share one request — the Home
+// Shared per (kind, scope, limit, window) so concurrent callers share one request — the Home
 // storylines rail and StorylineView both ask for `storyline` momentum on the same navigation
-// (advisor N3). Cleared on failure so a transient error can retry; trending is corpus-wide, so a
-// shared answer across callers is correct, not stale.
-const _trending = new Map<string, Promise<TrendingEntity[]>>()
+// (advisor N3). Cleared on failure so a transient error can retry.
+//
+// HOW LONG an answer is shared depends on whose it is (2026-10-09). This used to keep every answer
+// for the whole session on the reasoning that "trending is corpus-wide" — true until `scope: 'mine'`
+// existed. "Your trends" then stayed as first loaded however much you followed or listened (the
+// cross-surface e2e spec caught it), and since the key has no user in it, a second account on the
+// same device was handed the first account's. Now:
+//   - mine: shared only while IN FLIGHT; every later call asks again (it is yours and it moves).
+//   - corpus: shared for 5 minutes, the server's own cache window for the same answer.
+const TRENDING_CORPUS_TTL_MS = 5 * 60_000
+const _trending = new Map<string, { p: Promise<TrendingEntity[]>; at: number; settled: boolean }>()
 export function getTrending(
   kind: string,
   scope: "corpus" | "mine" = "corpus",
@@ -731,24 +739,37 @@ export function getTrending(
   window: TrendWindow = "3m"
 ): Promise<TrendingEntity[]> {
   const key = `${kind}:${scope}:${limit}:${window}`
-  let p = _trending.get(key)
-  if (!p) {
-    // Person photos ABSOLUTISED (2026-09-30). `/trending` hydrates `image_url` for people as a
-    // RELATIVE route; left raw, it resolved against capacitor://localhost on device, 404'd, and
-    // every Trends → People row fell back to initials while the same person's card showed the photo.
-    p = getJSON<{ items: TrendingEntity[] }>("/trending", { kind, scope, limit, window })
+  const hit = _trending.get(key)
+  const reusable =
+    hit && (!hit.settled || (scope === "corpus" && Date.now() - hit.at < TRENDING_CORPUS_TTL_MS))
+  if (hit && reusable) return hit.p
+  // Person photos ABSOLUTISED (2026-09-30). `/trending` hydrates `image_url` for people as a
+  // RELATIVE route; left raw, it resolved against capacitor://localhost on device, 404'd, and
+  // every Trends → People row fell back to initials while the same person's card showed the photo.
+  const entry = {
+    at: Date.now(),
+    settled: false,
+    p: getJSON<{ items: TrendingEntity[] }>("/trending", { kind, scope, limit, window })
       .then((r) =>
         r.items.map((e) =>
           e.image_url ? { ...e, image_url: resolveMediaUrl(e.image_url) ?? e.image_url } : e
         )
       )
       .catch((err) => {
-        _trending.delete(key)
+        if (_trending.get(key) === entry) _trending.delete(key)
         throw err
       })
-    _trending.set(key, p)
+      .finally(() => {
+        entry.settled = true
+      }),
   }
-  return p
+  _trending.set(key, entry)
+  return entry.p
+}
+
+/** Test seam: forget every shared trending answer. */
+export function _resetTrendingForTests(): void {
+  _trending.clear()
 }
 
 /** The signed-in user's interest cluster ids; `[]` when signed out (401). Auth-gated. */

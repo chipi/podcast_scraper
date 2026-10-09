@@ -16,7 +16,7 @@
  * Controls (kind tabs, sort/scope toggles, window) live in the parent (HomeView); this is a
  * controlled presentational list. It emits `open` with the kind + the id to open.
  */
-import { computed, onActivated, ref, watch } from "vue"
+import { computed, onActivated, onDeactivated, ref, watch } from "vue"
 import { storeToRefs } from "pinia"
 import { useI18n } from "vue-i18n"
 import { getStorylines, getTopClusters, getTrending, type TrendWindow } from "../services/api"
@@ -149,10 +149,16 @@ void load()
 // "Your trends" are built from what you listen to, save and follow — all of which happen on OTHER
 // tabs while Discover is kept alive. Re-read on every return (in place; the section revalidates),
 // but only for "mine": everyone's trends do not move because of you (2026-10-09).
-let activatedOnce = false
+// Re-read only after the tab has been LEFT once. NOT "skip the first activation": a component that
+// mounts inside an already-active kept-alive tab (lazily, on scroll or on a tab's first visit) never
+// gets an activation for its mount, so its first `onActivated` IS the first return — and skipping it
+// skipped exactly the case this is for (caught by e2e/cross-surface.spec.ts, 2026-10-09).
+let leftOnce = false
+onDeactivated(() => {
+  leftOnce = true
+})
 onActivated(() => {
-  if (activatedOnce && props.scope === "mine") void load()
-  activatedOnce = true
+  if (leftOnce && props.scope === "mine") void load()
 })
 // Re-fetch on kind/scope/window; sort is client-side (no refetch).
 watch(

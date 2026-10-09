@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { defineComponent, h, KeepAlive, ref, type Component } from 'vue'
+import { keptAlive } from '../test/keptAlive'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
@@ -30,16 +30,6 @@ const item = (over: Partial<ResurfacingItem> = {}): ResurfacingItem => ({
   ...over,
 })
 
-/**
- * Library and Home are KEPT ALIVE (App.vue), so `onMounted` runs once. This host toggles the
- * component out and back in under a real <KeepAlive>, which is exactly a return to the tab.
- */
-function keptAlive(comp: Component, plugins: unknown[]) {
-  const shown = ref(true)
-  const Host = defineComponent({ setup: () => () => h(KeepAlive, null, shown.value ? [h(comp)] : []) })
-  const w = mount(Host, { global: { plugins: plugins as never } })
-  return { w, leave: () => void (shown.value = false), back: () => void (shown.value = true) }
-}
 
 const mountInbox = () => {
   // The inbox writes through the resurfacing store now (#2004 item 14 follow-up), so it needs one.
@@ -372,16 +362,14 @@ describe('ResurfacingInbox', () => {
 })
 
 describe('a return to Library re-reads the list (2026-10-09)', () => {
-  it('a highlight reviewed elsewhere is gone when the tab comes back', async () => {
+  // `late`: the Revisit panel mounts on the tab's FIRST VISIT, inside an already-open Library.
+  it.each([false, true])('a highlight reviewed elsewhere is gone when the tab comes back (late=%s)', async (late) => {
     setActivePinia(createPinia())
     const spy = vi.spyOn(api, 'getResurfacing')
-    const { leave, back } = keptAlive(ResurfacingInbox, [i18n, router, createPinia()])
-    await flushPromises()
+    const tab = await keptAlive(ResurfacingInbox, { plugins: [i18n, router, createPinia()], late })
     const first = spy.mock.calls.length
-    leave()
-    await flushPromises()
-    back()
-    await flushPromises()
+    await tab.leave()
+    await tab.back()
     expect(spy.mock.calls.length, 'the kept-alive inbox did not re-read').toBeGreaterThan(first)
   })
 })
