@@ -69,17 +69,27 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
 **Status (2026-10-09):** plan accepted by the operator; work started. Decisions:
 
 - Translation quality is judged by a **stronger model as judge** (operator, 2026-10-09).
-- The measuring code lives in the eval repo (`eval-data/`, private), next to the V.6b scripts it
-  follows: `scripts/eval/nonen_ref/`, working files under the ignored `cache/nonen_ref/`.
+- The measuring code lives in the eval repo (`eval-data/`, private) as reusable tools, not one-offs
+  (operator, 2026-10-09): `podcast_scraper_eval/publisher_transcripts.py` (one parser per
+  publisher), `dataset_audio.py`, `wer_breakdown.py`, `translation_judge.py`;
+  `scripts/eval/data/build_publisher_reference_set.py`,
+  `scripts/eval/experiment/run_dataset_through_pipeline.py`, `scripts/eval/score/`
+  (`asr_publisher_reference_wer_v1.py`, `translation_judge_v1.py`). Dataset
+  `asr_publisher_ref_nonen_v1`, 12 episodes, for the private repo (not yet committed); run outputs under its
+  ignored `cache/dataset_runs/`.
+- Audio over GitHub's 100 MiB file limit (one Rádio Novelo episode) is not committed: the dataset
+  records URL, sha256 and size and the runner re-fetches and verifies it (operator, 2026-10-09).
+- Everything found while onboarding these feeds is fixed in this arc, on this branch, whether or
+  not it is about translation (operator, 2026-10-09) — see "Defects found" below.
 - Reference transcripts are stored only in the private eval repo's cache; never committed to the
   public repo or quoted in public.
 
 | step | what | DGX | status |
 | --- | --- | --- | --- |
-| 1 | reference harness: fetch, clean, coverage-check the human transcripts | no | in progress |
-| 2 | episode set, ~12 episodes, references verified to cover their audio | no | — |
-| 3 | pipeline runs on `prod_dgx_full`, transcript kept after every step | yes (operator's yes for > 2 episodes) | — |
-| 4 | scoring: ASR WER, per-step effect, naming, translation (model judge) | judge only | — |
+| 1 | reference harness: fetch, clean, coverage-check the human transcripts | no | done |
+| 2 | episode set, ~12 episodes, references verified to cover their audio | no | done, 12 |
+| 3 | pipeline runs on `prod_dgx_full`, transcript kept after every step | yes (operator's yes for > 2 episodes) | running (baseline `d43559417`) |
+| 4 | scoring: ASR WER, per-step effect, naming, translation (model judge) | judge only | WER, naming and judge built; judge waits for a key |
 | 5 | gap list and fixes | — | — |
 | 6 | readiness call per language | — | operator |
 
@@ -112,6 +122,30 @@ human reference, and which gaps block enabling that language on prod.
    is a code fix, record what is a model choice (#2251) or a vocabulary (#2255-#2259).
 6. **Readiness call per language.** Which languages could be enabled on prod, with what known
    limits. The operator decides.
+
+## Defects found while onboarding these feeds
+
+Each row: what the run showed, the cause, the fix and its test. "Fixed" means a failing test first
+and the unit suites green; the effect on real episodes is measured by re-running naming at the fix
+commit against the baseline run.
+
+| # | found on | defect | cause | status |
+| --- | --- | --- | --- | --- |
+| D1 | El Hilo (es) | host's "Soy <Name>" read as no self-introduction; 0 of 16 voices | `hosts.extract_self_introduced_host` / `distinct_self_introductions` compiled the English row only; the roster held the language and did not pass it | fixed `9cf7da0dc` |
+| D2 | El Hilo (es) | same | every non-English cue in `HOST_SELF_INTRO`, `HOST_BRANDED_INTRO`, `HOST_WITH_ME_INTRO` lowercase in a case-sensitive pattern: sentence-initial "Soy", "Je suis", "Ich bin" never matched | fixed `9cf7da0dc` |
+| D3 | (review of D2) | es/pt "with me" rows could never match | rows read "con migo" / "com igo"; the words are "conmigo" / "comigo" | fixed `9cf7da0dc` |
+| D4 | El Hilo (es) | both real guests rejected as "named but never introduced as speaking" | guest corroboration read English cues, on the premise that the feed description is in the analysis language; D-44 translates the transcript, not the feed | fixed `9cf7da0dc` |
+| D5 | El Hilo (es) | an organisation ("My Cultura", from the author tag "My Cultura and iHeartPodcasts") detected as the host | the org filter drops the known network and keeps the co-publisher, which has no organisation marker | no effect on naming: dropped before the roster (`known_hosts: []` in the diagnostics); only the `DETECTED HOSTS` log line misleads |
+| D7 | El Hilo (es) | "DEADLINE EXCEEDED: metadata generation (summary+GI+KG)" at 1200 s with summary, GI and KG all off | translation runs inside that observed block; the credit #2230 designed was never built | fixed: `credit_deadline`, the translation stage credits its wall time |
+| D8 | El Hilo (es) | translation of a 41-minute episode took over 20 minutes (~14 s per unit) | units sent one at a time to a vLLM server that batches concurrent requests | built: `translation_max_concurrency` (default 1 = unchanged); the prod value waits for a DGX measurement |
+| D9 | (scoring El Hilo) | `Turn.to_dict` said `speaker_label` is anonymous and `speaker` resolved; on disk it is the reverse, as in `.segments.json` | docstring left from D-34 (naming after translation), reverted in #2234 | fixed: docstring states what the files hold |
+| D6 | El Hilo, Radio Ambulante | feed items carry `<podcast:transcript>` (Omny SRT/VTT/text); prod would download those and never run our ASR | by design (feed transcript first) | open. They are machine transcripts ("Speaker N" labels, timestamps); WER against the human reference: El Hilo 0.044 / 0.069, Radio Ambulante 0.115 / 0.149. Compare with our ASR on the same episodes when the baseline run lands |
+
+Measurement tooling defects found on the way (eval repo, fixed there): the runner first served a
+synthetic feed without descriptions (naming scored against less evidence than prod has); it then
+served the publisher feed with its transcript links (ASR would not have run); and it ran the live
+working tree, so a feed started after an edit ran different code. It now serves the publisher's
+feed with only guid, enclosure and transcript links changed, and runs an export of a named commit.
 
 **Caveats.** The measuring set is narrative journalism and news, not the long interviews of the
 corpus; interview-style human references exist only in auto form (Lage der Nation, Logbuch:

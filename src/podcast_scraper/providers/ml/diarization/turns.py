@@ -116,9 +116,11 @@ class Turn:
     def to_dict(self) -> Dict[str, Any]:
         """The on-disk turn row.
 
-        Both the anonymous `speaker_label` and the resolved `speaker` are emitted, never one or
-        the other: naming runs after translation (D-34), so an artifact written before naming
-        has to be able to say "this is SPEAKER_01 and nobody has resolved it yet".
+        Both fields are emitted, and they follow `.segments.json`: `speaker` is the diarizer's
+        voice id (`SPEAKER_12`), `speaker_label` is the label the screenplay line shows — the
+        resolved name once naming has run ("Brenda Guillén"), else the voice id again. Checked on
+        a named voice, 2026-10-09; this docstring used to say the reverse, from when naming ran
+        after translation (D-34, reverted in #2234).
         """
         out: Dict[str, Any] = {
             "turn_id": self.turn_id,
