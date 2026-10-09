@@ -48,11 +48,13 @@ import json
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from ..languages import primary_language, resolve_config_language
 from ..translation.factory import is_translation_configured
+from ..utils.timeout import credit_deadline
 
 logger = logging.getLogger(__name__)
 
@@ -201,12 +203,11 @@ def run_translation_stage(
 ) -> TranslationOutcome:
     """Decide, translate, and record. Never raises into metadata generation.
 
-    NO DEADLINE CREDIT IS APPLIED (checked 2026-10-07; #2230). The seam sits inside the block
-    ``processing.py`` observes under the ``summarization_timeout`` key — the block that already
-    reports GI's overruns under the summariser's name — and the design called for crediting
-    translation's wall time back so an overrun alert keeps meaning "summary + GI + KG were
-    slow". That credit was never built: only ``outcome.duration_s`` is recorded, so a long
-    translation DOES count toward "METADATA GENERATION OVERRAN".
+    THE DEADLINE CREDIT (#2230). The seam sits inside the block ``processing.py`` observes under
+    the ``summarization_timeout`` key, so translation's wall time is credited back
+    (``utils.timeout.credit_deadline``) and an overrun alert keeps meaning "summary + GI + KG
+    were slow". Until 2026-10-09 the credit was designed but never built, and a 41-minute Spanish
+    episode with summary, GI and KG all off logged DEADLINE EXCEEDED on translation alone.
     """
     started = time.monotonic()
     try:
@@ -254,6 +255,7 @@ def run_translation_stage(
             outcome.reason = f"stage_error:{type(exc).__name__}"
 
     outcome.duration_s = time.monotonic() - started
+    credit_deadline(outcome.duration_s)
 
     if effective_output_dir and transcript_relpath:
         _record(
@@ -473,6 +475,36 @@ def _translate_title(
     return None
 
 
+def _translate_units(
+    provider: Any, units: List[Any], language: str, max_concurrency: int
+) -> Dict[str, Dict[str, Any]]:
+    """``{unit_id: translate_unit result}`` for *units*, up to *max_concurrency* in flight.
+
+    Units are independent — each request carries only its own unit — so concurrency changes the
+    wall time and nothing else; the caller assembles the ledger in unit order regardless. Sent
+    one at a time, a 41-minute Spanish episode took over 20 minutes against a vLLM server that
+    batches concurrent requests (El Hilo, 2026-10-09). The FIRST unit always goes alone: the
+    provider resolves and caches its served-model and context checks on first use.
+    """
+    out: Dict[str, Dict[str, Any]] = {}
+    if not units:
+        return out
+    first, rest = units[0], units[1:]
+    out[first.unit_id] = provider.translate_unit(first, source_language=language)
+    if max_concurrency <= 1:
+        for unit in rest:
+            out[unit.unit_id] = provider.translate_unit(unit, source_language=language)
+        return out
+    with ThreadPoolExecutor(max_workers=max_concurrency, thread_name_prefix="translate") as pool:
+        futures = {
+            unit.unit_id: pool.submit(provider.translate_unit, unit, source_language=language)
+            for unit in rest
+        }
+        for unit_id, future in futures.items():
+            out[unit_id] = future.result()
+    return out
+
+
 def _translate_episode(
     cfg: Any,
     outcome: TranslationOutcome,
@@ -592,6 +624,12 @@ def _translate_episode(
         doc.model = previous.model or doc.model
 
     todo_ids = {u.unit_id for u in todo}
+    fresh = _translate_units(
+        provider,
+        [u for u in units if u.unit_id in todo_ids or reused.get(u.content_key) is None],
+        language,
+        int(getattr(cfg, "translation_max_concurrency", 1) or 1),
+    )
     for unit in units:
         if unit.unit_id not in todo_ids:
             cached = reused.get(unit.content_key)
@@ -623,7 +661,7 @@ def _translate_episode(
                     )
                 )
                 continue
-        result = provider.translate_unit(unit, source_language=language)
+        result = fresh[unit.unit_id]
         meta = result.get("metadata") or {}
         # A freshly translated unit's prompt wins: it is the one that actually produced text in
         # THIS run, and it is what a mixed ledger should be attributed to.
