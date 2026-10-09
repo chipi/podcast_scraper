@@ -129,15 +129,20 @@ class TestCreateRunManifest:
     @patch("podcast_scraper.workflow.run_manifest._get_gpu_info", return_value=None)
     @patch("podcast_scraper.workflow.run_manifest._get_config_hash")
     @patch("podcast_scraper.workflow.run_manifest._get_git_info")
-    def test_create_run_manifest_tolerates_mocked_modules_without_version(
+    def test_versions_come_from_package_metadata_not_imports(
         self, mock_git: MagicMock, mock_config_hash: MagicMock, mock_gpu: MagicMock
     ):
-        """create_run_manifest does not raise when torch/transformers/whisper lack __version__.
+        """The manifest reads dependency versions from installed-package metadata, never by
+        importing the package.
 
-        Other tests may mock sys.modules; those mocks often have no __version__.
-        The manifest uses getattr(..., '__version__', None) so creation still succeeds.
+        Importing torch to read a version string loaded it into every pipeline process, and in
+        the unit suite it raised ``RuntimeError: function '_has_torch_function' already has a
+        docstring`` (only ImportError was caught) when an earlier test in the same xdist worker
+        had disturbed torch's import (ci-fast, 2026-10-09). A module that cannot even be
+        touched must not stop the manifest.
         """
         import sys
+        from importlib.metadata import PackageNotFoundError
 
         mock_git.return_value = ("abc123", "main", False)
         mock_config_hash.return_value = ("sha256hex", "/config.yaml", "{}")
@@ -150,20 +155,25 @@ class TestCreateRunManifest:
         cfg.temperature = None
         cfg.seed = None
 
-        # Mocks with spec=[] have no __version__; getattr(..., "__version__", None) returns None
-        mock_torch = MagicMock(spec=[])
-        mock_transformers = MagicMock(spec=[])
-        mock_whisper = MagicMock(spec=[])
+        class _Untouchable:
+            def __getattr__(self, name: str) -> None:
+                raise RuntimeError("function '_has_torch_function' already has a docstring")
 
-        with patch.dict(
-            sys.modules,
-            {"torch": mock_torch, "transformers": mock_transformers, "whisper": mock_whisper},
+        versions = {"torch": "2.2.2", "transformers": "4.57.6"}
+
+        def fake_version(dist: str) -> str:
+            if dist in versions:
+                return versions[dist]
+            raise PackageNotFoundError(dist)
+
+        with (
+            patch.dict(sys.modules, {"torch": _Untouchable()}),
+            patch("podcast_scraper.workflow.run_manifest.package_version", fake_version),
         ):
             manifest = create_run_manifest(cfg, "/out", run_id="test-run")
 
-        assert isinstance(manifest, RunManifest)
-        assert manifest.torch_version is None
-        assert manifest.transformers_version is None
+        assert manifest.torch_version == "2.2.2"
+        assert manifest.transformers_version == "4.57.6"
         assert manifest.whisper_version is None
 
 

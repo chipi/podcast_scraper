@@ -17,6 +17,7 @@ import sys
 import threading
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -356,6 +357,14 @@ def _get_remote_accelerator_info(cfg: Any) -> Optional[str]:
     return "; ".join(parts) or None
 
 
+def _installed_version(distribution: str) -> Optional[str]:
+    """The installed version of *distribution*, or None when it is not installed."""
+    try:
+        return package_version(distribution)
+    except PackageNotFoundError:
+        return None
+
+
 def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None) -> RunManifest:
     """Create run manifest from configuration and environment.
 
@@ -383,31 +392,13 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
     # Local GPU when there is one; otherwise the REMOTE accelerators this run addressed.
     gpu_info = _get_gpu_info() or _get_remote_accelerator_info(cfg)
 
-    # Get dependency versions
-    torch_version = None
-    transformers_version = None
-    whisper_version = None
-
-    try:
-        import torch
-
-        torch_version = getattr(torch, "__version__", None)
-    except ImportError:
-        pass
-
-    try:
-        import transformers
-
-        transformers_version = getattr(transformers, "__version__", None)
-    except ImportError:
-        pass
-
-    try:
-        import whisper
-
-        whisper_version = getattr(whisper, "__version__", None)
-    except ImportError:
-        pass
+    # Dependency versions, from installed-package metadata — never by importing the package.
+    # Importing torch to read a version string loaded it into every pipeline process, and only
+    # ImportError was caught: a disturbed torch import raises RuntimeError ("... already has a
+    # docstring", ci-fast 2026-10-09) and took the manifest down with it.
+    torch_version = _installed_version("torch")
+    transformers_version = _installed_version("transformers")
+    whisper_version = _installed_version("openai-whisper")
 
     # Get model information from config. Resolve the ACTUAL transcription model for the configured
     # provider (dgx_whisper_model for DGX, moss_model, etc.) — reading cfg.whisper_model directly

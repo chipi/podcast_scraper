@@ -22,10 +22,10 @@ more than one episode per show.
 | es | **El Hilo** (Radio Ambulante Studios) | `omnycontent.com/.../e4eb1040-260e-4556-a9c7-b1ea01352a67/podcast.rss` | human, edited, named speakers; inline "Transcripción" on elhilo.audio (page also has an English version, AI-assisted — cut at "Transcript: The following") | "Marco Rubio en Los Andes", 47:51 | 7,759 vs 6.2-8.1k | good: LatAm geopolitics |
 | es | **Radio Ambulante** (NPR) | `feeds.npr.org/510315/podcast.xml` | human, near-verbatim ("o sea", false starts kept); `radioambulante.org/transcripcion/<slug>-transcripcion` (the RSS tag points at Omny auto text on 47 of 369 items — do not use that) | "Bogotá pintada", 60:25 | 11,058 (incl. labels, a membership ad) vs 7.9-10.3k | ok: LatAm narrative journalism |
 | fr | **RFI Journal en français facile** | `rfi.fr/fr/podcasts/journal-français-facile/podcast` | human; inline on francaisfacile.rfi.fr (PDF too); interview clips keep hesitations | 07/10/2026, 10:00 | 1,535 vs 1.3-1.7k | ok: international news, slow and clear |
-| de | **SWR Das Wissen** | `swr.de/~podcast/swrkultur/programm/podcast-swr-das-wissen-102.xml` | human broadcast manuscript, PDF from the episode page; strip "Autorin:/O-Ton" labels, cover page, sources | "Organisierte Kriminalität in Europa (1/3)", 28:42 | 4,626 raw vs 3.7-4.9k | good: science, history, politics |
+| de | **SWR Das Wissen** | `swr.de/~podcast/swrkultur/programm/podcast-swr-das-wissen-102.xml` | human broadcast manuscript, PDF from the episode page; strip "Autorin:/O-Ton" labels, cover page, sources | "Organisierte Kriminalität in Europa (1/3)", 28:42 | 4,626 raw vs 3.7-4.9k | good: science, history, politics <!-- codespell:ignore programm --> |
 | de | DW Langsam gesprochene Nachrichten (backup) | `rss.dw.com/xml/DKpodcast_lgn_de` | human read script, in the page's embedded `__APOLLO_STATE__` | 07.10.2026, 9:13 | 586 (64 wpm) | ok: news; coverage unconfirmed, very slow speech |
 | pt-BR | **Rádio Novelo Apresenta** | `feeds.megaphone.fm/NPP6869883964` | human, edited, named speakers; PDF from radionovelo.com.br | ep 198 "Recado recebido", 70:58 | 10,313 vs 9.2-12.1k | ok: narrative journalism |
-| pt-BR | **Rádio Senado – Jornal do Senado** | `www12.senado.leg.br/radio/1/voz-do-brasil/podcast.xml` | human broadcast script, "Transcrição" on the episode page (anchor lines in capitals); the 60-min "Íntegra" items have none | 08/10/2026, 10:01 | ~1,350 vs 1.3-1.7k | good: Brazilian politics |
+| pt-BR | **Rádio Senado – Jornal do Senado** | `www12.senado.leg.br/radio/1/voz-do-brasil/podcast.xml` | human broadcast script, "Transcrição" on the episode page (anchor lines in capitals); the 60-min "Íntegra" items have none | 08/10/2026, 10:01 | ~1,350 vs 1.3-1.7k | good: Brazilian politics <!-- codespell:ignore jornal --> |
 | it | Podcast Italiano (Davide Gemello) | `rss.buzzsprout.com/2413795.rss` | human prepared monologue; the page asks for a free login but the full text is in the HTML | "6 differenze tra italiano del nord e del sud", 12:19 | ~1,630 vs 1.6-2.1k | ok: language and culture |
 
 **Italian has no clean, ungated human transcript.** Podcast Italiano works only if the login does
@@ -46,7 +46,7 @@ Another ASR system's output: a mismatch does not say which side is wrong. Good t
 
 Paid or gated: Easy German, Easy Italian, Hoy Hablamos, L'Italiano Vero (Patreon); e-mail sign-up
 for Teacher Stefano, Speaking Brazilian, Français avec Pierre. No transcripts: Radio France
-programmes, Xataka, El Orden Mundial, Il Post, Il Sole 24 Ore, Café da Manhã, Naruhodo, Xadrez
+programmes, Xataka, El Orden Mundial, Il Post, Il Sole 24 Ore, Café da Manhã, Naruhodo, Xadrez <!-- codespell:ignore ore -->
 Verbal, Les Echos, Thinkerview, Handelsblatt Today, and others. Unreachable from here: InnerFrench
 (Cloudflare 403), Français Authentique (406), Binge Audio. Stale: Duolingo podcasts (bilingual
 narration anyway), Portuguese With Carla, Italy Made Easy.
