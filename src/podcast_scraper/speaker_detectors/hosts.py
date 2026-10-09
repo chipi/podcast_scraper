@@ -97,7 +97,7 @@ def is_known_network(name: str, language: Optional[str] = None) -> bool:
     n = (name or "").strip().lower()
     if not n:
         return False
-    # With the feed's language, its own networks too ("Cadena SER", "Il Post", "Deutschlandfunk"):
+    # The feed's own networks too ("Cadena SER", "Il Post"):  # codespell:ignore ser
     # a refusal list, so English plus that row can only refuse more.
     networks = _with_english(_KNOWN_NETWORKS_BY_LANGUAGE, language)
     if n in networks:
