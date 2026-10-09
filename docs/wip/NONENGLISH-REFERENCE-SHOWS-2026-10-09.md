@@ -137,6 +137,7 @@ kept under `cache/code/<sha>`. After the rebase onto main `3e0615172`: `d4355941
 | `20261009T174336Z_translate_fresh` | `22ea34a55` | El Hilo x2, translation from scratch, `translation_max_concurrency: 4` (D8 timing) |
 | `20261009T175048Z_translate` | `283038972` | translate_only of the 4 Spanish episodes (D10, D10b) |
 | `20261009T174920Z_relabel` | `283038972` | relabel_only of all 12 episodes (D1-D21 naming) |
+| `20261009T230028Z_translate_fresh` | `36f8eefb0` | the 4 Spanish episodes translated from scratch (memory discarded, 4 in flight) |
 
 **ASR.** Adjusted WER: numbers, long insertions and long deletions are split out (`wer_breakdown`),
 normalisation unicode-v1. Baseline full chain: es 0.059, pt-BR 0.065, fr 0.045, de 0.071. Each
@@ -166,9 +167,10 @@ English. At `283038972`: 4 of 4 Spanish episodes are translated, 488 units, `uni
 of 12 episodes have English. The retest re-sent only the 4 units that failed at the baseline; all 4
 passed on the retry (`attempts: 2`, or 1 for a unit only the D10 guard fix released). The other 484
 came from translation memory (`attempts: 0`). D10 only relaxes the guard, so units it accepted
-before it still accepts. NOT run: a from-scratch translation at the fixed commit. The fresh run at
-`22ea34a55`, before D10b, still lost 1 unit on each El Hilo episode, which is the case D10b fixes.
-The translation itself is not judged yet: the judge waits for its key.
+before it still accepts. From scratch at `36f8eefb0` (memory discarded): the same 488 units,
+`units_failed: 0`, all 4 episodes translated; 3 units were refused once as commentary and passed
+on the numbered retry (`attempts: 2`). The earlier fresh run at `22ea34a55`, before D10b, lost 1
+unit on each El Hilo episode. The translation itself is not judged yet: the judge waits for its key.
 
 **Naming** (relabel at `283038972` against the baseline; fraction of the reference's speaking time
 per outcome; two episodes per show):
@@ -208,13 +210,15 @@ commit against the baseline run.
 | D10b | translation retest at `22ea34a55` | the D10 retry did not help: all three remaining failed units were refused on both attempts, so the three Spanish episodes still have no English | at temperature 0 the identical plain request gets the identical reply. Live translator: sent plain, all three (one garbled line of the "La Bestia" reggaeton promo) came back "Here's the translation:", twice followed by an invented story; sent numbered ("1. <sentence>"), a clean single line every time | fixed: the single-sentence retry sends the numbered form and reads one line (an unnumbered one-line answer is accepted) |
 | D11 | El Hilo (es), probe over 714 descriptions | the second of two guests ("hablamos con A, de X, y con B") never introduced | the es leading-cue row had no coordinated form; English has "(?:and\|along) with" | fixed: `(?:y\|también) con`; measured: 34 new introductions, 24 real guests, 10 organisations (refused by the person check), 0 merely-mentioned people |
 | D12 | SWR Das Wissen (de) | the narrator (95% of the episode's words) named "Zentrum" | baseline: the English row read German "Im Zentrum steht…" as "I'm Zentrum" (closed by D1); the German row then opened "Ich bin Polizist." → "Polizist" (a regression in `b28cbc120`): German capitalises every noun | fixed: one-word self-introductions refused in noun-capitalising languages (de); full names still read |
-| D13 | RFI (fr) | "France Médias Monde" (the author tag, RFI's parent company) seated on the anchor's voice as host, in baseline and relabel | the author-tag organisation filter read the English markers only; the French row's `médias` was never consulted | fixed: English plus the feed's row (markers only refuse); every pipeline call passes the feed language |
+| D13 | RFI (fr) | "France Médias Monde" (the author tag, RFI's parent company) seated on the anchor's voice as host, in baseline and relabel | the author-tag organisation filter read the English markers only; the French row's `médias` was never consulted | fixed: English plus the feed's row (markers only refuse). The claim "every pipeline call passes the feed language" was FALSE: only `processing.py`'s calls did; eleven others did not, and Senado seated "Rádio Senado" as its host. Completed in D22 |
 | D14 | Rádio Novelo (pt-BR), self-introduction probe over all labelled human turns | the host's "Eu sou a Branca Vianna" not read, in both episodes | the pt row allowed the article only before a role word, never before the name | fixed: optional `o`/`a` before the name; the probe read 11 introductions correctly and refused all 18 non-introductions |
 | D17 | (code reading, after D1/D4) | a Spanish host's "Bienvenidos a El Hilo" or "nos acompaña hoy <name>" could never mark the host or name the guest | `roles_from_conversation` and `guests_introduced_by_the_host` read the English rows only, and the roster imported the English host-introduction pattern directly — the third instance of a per-language map built and then read in English | fixed: both take the language; every roster call passes it (AST delivery test); the English pin records the move |
 | D18 | sweep of every `X_BY_LANGUAGE[TARGET_LANGUAGE]` alias (67) | the roster's guest/host speech-act checks (`_guests_by_their_own_words`, `_rescued_from_bleed`, `_name_host_voices`, `_presenter_voices_by_evidence`) and `performs_show_intro` read English on source-language text: "Esto es Radio Ambulante" was no show intro | same class as D1/D13/D17 | fixed: each reads its language's row; AST delivery test; English pin records the moves |
 | D19 | Rádio Novelo (pt-BR) | "A Sous-titrage Société Radio-Canada" kept twice over the closing music | the invented-line filter drops a segment only when its WHOLE text is a known line; a stray leading "A" defeated it | fixed: one stray token of at most two characters at either end is allowed; a real sentence around the words is still speech |
 | D20 | (measurement run) | `translate_api_base: null` in a run config does not switch translation off; the profile's translator stays | the CLI keeps only non-None values from a config file, so `null` cannot unset a key a profile sets — silently. `""` does (measured with `_build_config` on prod_dgx_full) | OPEN, design question: an operator writing `null` to disable a profile setting gets no error and no effect |
 | D21 | relabel at `22ea34a55`, Radio Ambulante (es) | relabel_only of a TRANSLATED episode ended with 0 named entries; the LLM proposed "Daniel Alarcón" from English text | relabel read `<base>.txt` — the English render under D-44 — named speakers on it with the source vocabulary, and the post-processing swap-back then moved that English aside, discarding the relabel's work. Every translated non-English episode is affected, and relabel is the repair path for naming fixes | fixed: relabel_only swaps the source back BEFORE reading (as translate_only already did); the memory is kept, so the English re-render costs no GPU |
+| D22 | Senado (pt-BR) feed host; 585 chart feeds (es, mx, fr, de, br, it), eval repo `metadata_name_readers_probe_v1.py` | the metadata name readers read English only: a German cast "A und B" stayed one composite person (127 tags), a publisher with an article read as a person ("El País", "Le Monde", "Il Post"), an accented one-word name was refused ("Zoé", "Müller": an ASCII-only check); "Rádio Senado" / "RadioAgência Senado" seated as Senado's host | `split_author_names`, `names_the_show`, `looks_like_a_person_name`, `is_plausible_mononym`, the honorific list read the English row of per-language maps; eleven org-check calls never received the language (D13); markers glued into one token ("RadioAgência", "iHeartPodcasts") match no row | fixed: each takes the feed language, English plus that row; a name particle inside a name stays ("de la Garza", "von der Tann": the first model of the change refused them, so the probe's changed cases were read before building); glued markers refuse on non-English feeds (2,693 names: 11 refused, all organisations); AST test asserts every call passes the language, with four named English-by-design exceptions. The arc's 12 episodes: transcript-side naming unchanged; Senado's feed host goes from an organisation to none |
+| D23 | translate_fresh run's events | every manifest and event of a pinned eval run recorded `"git_sha": "ced3bcf"`, the EVAL repo's commit | an export has no `.git`, so the pipeline's git probe walked up into the eval repo; and `corpus_version.resolve_git_commit_sha` (the `corpus_manifest.json` stamp) never read the image's `PODCAST_GIT_SHA`, so in the pipeline image (no git) it writes "unknown" | fixed: the stamp prefers `PODCAST_GIT_SHA` (one constant shared with the run manifest); the eval runner passes it. Prod's existing manifests were not inspected (no filesystem access) |
 | D15 | Radio Ambulante, El Hilo (es; English analysis base) | four iHeart network cross-promos (~750 source words: pre-roll, mid-rolls at 44% and 83%, post-roll) stay in the ad-free English that summary, GI and KG read: `chars_removed: 0` | the sponsor patterns do not match cross-promo wording ("Listen on iHeart Radio, Apple Podcasts, or wherever you listen to podcasts"); `detect_opening_crosspromo` handles only the OPENING and needs a voice that never recurs past 50% — the same promo as post-roll makes its voices "recur" (measured: SPEAKER_01/14 at 0-1% and 98-99%; detector returns None) | OPEN: a fix changes English ad cutting corpus-wide, so it needs a replay on the English corpus before it ships — operator decision |
 | D16 | Radio Ambulante (es), SWR (de) | narration lost under a "stretched word": "¿no?" timed 15.6 s over 11.5 s of speech at 20:31 hid 55 reference words; SWR's "einige" (3.9 s) hid 13 | by design (`stretched_words_over_speech`): recorded, never re-transcribed — 3 of 11 measured on 2026-10-08 hid speech and a splice would duplicate the word at an unknown position. This set: 2 of 4 hid speech (0 for "entonces" 3.1 s, "Europäer" 5.1 s) | OPEN, operator decision: re-transcribe the span alone and REPLACE the word only when the result holds the word plus clearly more speech — no duplication, no position guess |
 | D6 | El Hilo, Radio Ambulante | feed items carry `<podcast:transcript>` (Omny SRT/VTT/text); prod would download those and never run our ASR | by design (feed transcript first) | open. They are machine transcripts ("Speaker N" labels, timestamps); WER against the human reference: El Hilo 0.044 / 0.069, Radio Ambulante 0.115 / 0.149. Compare with our ASR on the same episodes when the baseline run lands |
@@ -223,18 +227,20 @@ commit against the baseline run.
 translation gate. At the baseline one refused unit in ~80 withheld a Spanish episode's whole English
 set (3 of 4 Spanish episodes, 0 of 8 others). Bring the retest's post-D10 failure rate and the
 options: keep the gate (retries + guard fix only) or accept partial English with failed units
-marked or re-tried by a fallback. Retest at `283038972`: 0 of 488 Spanish units failed and all 12
-episodes have English, but 484 of those units came from translation memory. The from-scratch
-failure rate at the fixed commit is not measured.
+marked or re-tried by a fallback. From scratch at `36f8eefb0`: 0 of 488 Spanish units failed, 3
+needed the retry, all 12 episodes have English. Four Spanish episodes are the whole sample.
 
-**Still English-only after the sweep (D18), each to be fixed with a probe on real data first,
-because D12 showed a newly active row can regress:** `is_plausible_mononym` and
-`looks_like_a_person_name` (`_NOT_A_MONONYM`, `_NOT_A_NAME_TOKEN`); `names_the_show`,
-`show_name_pattern`, `_fold_title` (English article only: "El Hilo"); `split_author_names` (English
-"and" only: an author tag "Ana Ruiz y Luis Mora" stays one person); the roster's name-token helpers
-(`HONORIFIC_TITLES`: "Sra.", "Dr."); `_GUEST_REPLY_WIDE` (an English-only rescue list with no
-per-language map). Reading the English translation by design, not defects: the ad patterns that
-build the English ad-free base, and main's frozen migrations m0015/m0017/m0025.
+**Still English-only after D22, each to be fixed with a probe on real data first, because D12
+showed a newly active row can regress:** the roster's title stripping (`_core_name_tokens`,
+`_given_tokens`, `_strip_titles`: 25 call sites in name matching; a union of every language's
+titles is wrong because Spanish `don` would strip English "Don"); `_GUEST_REPLY_WIDE` (an
+English-only rescue list with no per-language map); the roster's greeting reclaim
+(`_reclaim_greeting_turns`: `_GUEST_GREETED_RE` and `_GUEST_INTRODUCED_NAME_FIRST_RE` are the
+English patterns). English behaviour D22 left unchanged on purpose, pending an English-corpus
+replay (as D15): accented mononyms and glued org markers on English feeds ("José" refused,
+"OnePodcast" kept). Kept English by design: `show_name_pattern` (the article is part of what a voice
+says: "Esto es El Hilo"), the KG and GI readers of the English body, the ad patterns that build the
+English ad-free base, and main's frozen migrations m0015/m0017/m0025.
 
 Measurement tooling defects found on the way (eval repo, fixed there): the runner first served a
 synthetic feed without descriptions (naming scored against less evidence than prod has); it then
