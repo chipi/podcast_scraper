@@ -7,6 +7,7 @@ import * as api from '../services/api'
 import type { Note } from '../services/types'
 import { useAuthStore } from '../stores/auth'
 import { useCaptureStore } from '../stores/capture'
+import { usePlayerStore } from '../stores/player'
 import NoteComposer from './NoteComposer.vue'
 
 // useDictation captures platform capability at MODULE load, so mock the composable to drive the
@@ -16,13 +17,16 @@ const dict = vi.hoisted(() => ({
   toggle: vi.fn(),
   canDictate: true,
   opts: { current: null as null | { onStart: () => void; onText: (t: string) => void; onError?: () => void } },
+  dictating: { current: null as null | { value: boolean } },
 }))
 vi.mock('../composables/useDictation', async () => {
   const { ref } = await import('vue')
   return {
     useDictation: (opts: unknown) => {
       dict.opts.current = opts as (typeof dict)['opts']['current']
-      return { canDictate: dict.canDictate, dictating: ref(false), toggle: dict.toggle, stop: dict.stop }
+      const dictating = ref(false)
+      dict.dictating.current = dictating
+      return { canDictate: dict.canDictate, dictating, toggle: dict.toggle, stop: dict.stop }
     },
   }
 })
@@ -166,5 +170,57 @@ describe('NoteComposer', () => {
     await w.get('[data-testid="note-save"]').trigger('click')
     await flushPromises()
     expect(dict.stop).toHaveBeenCalled()
+  })
+
+  describe('an episode the mic paused (Android audio focus, 2026-10-09)', () => {
+    /** The mic starts while the episode plays; `pauseAfterMs` later, something pauses it. */
+    async function dictateOver(opts: { playing: boolean; pauseAfterMs: number }) {
+      vi.useFakeTimers()
+      const player = usePlayerStore()
+      const resume = vi.spyOn(player, 'resumeAfterInterruption').mockImplementation(() => {})
+      player.playing = opts.playing
+      mountComposer()
+      await flushPromises()
+      dict.opts.current!.onStart()
+      dict.dictating.current!.value = true
+      await flushPromises()
+      vi.advanceTimersByTime(opts.pauseAfterMs)
+      player.playing = false
+      await flushPromises()
+      dict.dictating.current!.value = false
+      await flushPromises()
+      vi.useRealTimers()
+      return resume
+    }
+
+    it('resumes it when dictation ends', async () => {
+      // Measured on the emulator: the recogniser took audio focus, the WebView paused the episode,
+      // and nothing ever started it again.
+      expect(await dictateOver({ playing: true, pauseAfterMs: 200 })).toHaveBeenCalledTimes(1)
+    })
+
+    it('leaves alone a pause the reader made later, mid-dictation', async () => {
+      expect(await dictateOver({ playing: true, pauseAfterMs: 8000 })).not.toHaveBeenCalled()
+    })
+
+    it('does not start an episode that was not playing', async () => {
+      expect(await dictateOver({ playing: false, pauseAfterMs: 200 })).not.toHaveBeenCalled()
+    })
+
+    it('resumes it when the mic fails to start after taking the audio', async () => {
+      vi.useFakeTimers()
+      const player = usePlayerStore()
+      const resume = vi.spyOn(player, 'resumeAfterInterruption').mockImplementation(() => {})
+      player.playing = true
+      mountComposer()
+      await flushPromises()
+      dict.opts.current!.onStart()
+      player.playing = false
+      await flushPromises()
+      dict.opts.current!.onError!()
+      await flushPromises()
+      vi.useRealTimers()
+      expect(resume).toHaveBeenCalledTimes(1)
+    })
   })
 })

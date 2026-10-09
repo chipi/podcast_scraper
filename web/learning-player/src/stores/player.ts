@@ -580,6 +580,16 @@ export const usePlayerStore = defineStore('player', () => {
     // difference between a habit and a first listen. `surface` is the player here; the mini-player
     // and queue call their own transport, and if they ever route through this they must pass it.
     track('play_start', { surface: 'player', resumed: currentTime.value > 1 })
+    playElement()
+  }
+  /**
+   * Pick up again after something outside the reader's hands paused it — the mic taking Android's
+   * audio focus for dictation (2026-10-09). Not a new listen, so no `play_start`.
+   */
+  function resumeAfterInterruption(): void {
+    playElement()
+  }
+  function playElement(): void {
     el.value?.play().catch((err: unknown) => {
       if (err instanceof DOMException && err.name === 'NotAllowedError') return
       audioError.value = true
@@ -922,6 +932,7 @@ export const usePlayerStore = defineStore('player', () => {
     // Exposed for the `?play=1` intent (Home's Resume). NOT `toggle`, which would PAUSE an episode
     // that is already playing — the opposite of what a resume link promises.
     play,
+    resumeAfterInterruption,
     toggle,
     seek,
     skip,

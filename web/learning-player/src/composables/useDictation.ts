@@ -60,6 +60,17 @@ export interface Dictation {
  *  global and would also tear down any sibling component's listeners. */
 type ListenerHandle = { remove: () => Promise<void> }
 
+/**
+ * How often a live native session asks the engine whether it is still listening (2026-10-09).
+ *
+ * With partialResults the Android plugin RESOLVES start() at once, so an error after that
+ * ("Didn't understand", "service lost") rejects a call that has already settled, and it emits no
+ * listeningState either — only a normal end of speech does. Nothing reached us, and the mic stayed
+ * lit with nothing listening (measured on the emulator). `isListening()` reads the engine's own
+ * state (Android: the flag its error path clears; iOS: whether the audio engine runs).
+ */
+export const ENGINE_CHECK_MS = 1000
+
 export function useDictation(opts: DictationOptions): Dictation {
   const dictating = ref(false)
   let webRecog: SpeechRecognitionLike | null = null
@@ -73,6 +84,26 @@ export function useDictation(opts: DictationOptions): Dictation {
   // prompt compares against it after each await and ABORTS if it changed — otherwise stopping (or
   // navigating away) mid-prompt would turn the mic on afterwards, on a dead scope.
   let session = 0
+  let engineCheck: ReturnType<typeof setInterval> | null = null
+
+  function stopEngineCheck(): void {
+    if (engineCheck) clearInterval(engineCheck)
+    engineCheck = null
+  }
+
+  function checkEngine(mySession: number): void {
+    stopEngineCheck()
+    engineCheck = setInterval(() => {
+      void SpeechRecognition.isListening()
+        .then(({ listening }) => {
+          if (mySession !== session || !dictating.value || listening) return
+          stopEngineCheck()
+          dictating.value = false
+          void detachNative()
+        })
+        .catch(() => {})
+    }, ENGINE_CHECK_MS)
+  }
 
   // Native: the plugin is installed, so the platform is capable in principle; runtime availability
   // + permission are resolved at start(). Browser: needs the Web Speech constructor.
@@ -130,6 +161,7 @@ export function useDictation(opts: DictationOptions): Dictation {
         // Ignore a stale engine's stop event landing on a newer session's listeners.
         if (aborted()) return
         if (data.status === 'stopped') {
+          stopEngineCheck()
           // The engine self-stopped (e.g. an iOS silence timeout) — drop OUR listeners too, or a
           // late partial event would keep rewriting the draft after the mic reads "off".
           dictating.value = false
@@ -154,6 +186,7 @@ export function useDictation(opts: DictationOptions): Dictation {
         return
       }
       dictating.value = true
+      checkEngine(mySession)
     } catch {
       // The engine refused after listeners were attached — tear them back down and stay "off".
       await detachNative()
@@ -227,6 +260,7 @@ export function useDictation(opts: DictationOptions): Dictation {
     // a fresh start can begin immediately (the aborted start won't actually engage the engine).
     session++
     starting = false
+    stopEngineCheck()
     if (isNative) {
       void SpeechRecognition.stop().catch(() => {})
       void detachNative()

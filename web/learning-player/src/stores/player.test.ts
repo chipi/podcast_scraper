@@ -198,6 +198,20 @@ describe('player store', () => {
     expect(el.paused).toBe(true)
   })
 
+  it('resumeAfterInterruption() plays again without counting a new listen', async () => {
+    // The mic pausing an episode and dictation handing it back is not the reader pressing Play.
+    const analytics = await import('../services/analytics')
+    const track = vi.spyOn(analytics, 'track')
+    const p = usePlayerStore()
+    const el = stubAudio({ paused: true })
+    loaded(p, el)
+    p.resumeAfterInterruption()
+    expect(el.play).toHaveBeenCalledOnce()
+    expect(track).not.toHaveBeenCalledWith('play_start', expect.anything())
+    p.play()
+    expect(track).toHaveBeenCalledWith('play_start', expect.anything())
+  })
+
   it('seek() clamps to [0, duration]; skip() is relative', () => {
     const p = usePlayerStore()
     const el = stubAudio({ currentTime: 50, duration: 100 })

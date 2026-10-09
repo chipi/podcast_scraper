@@ -13,6 +13,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useCaptureStore } from '../stores/capture'
+import { usePlayerStore } from '../stores/player'
 import { useSignInGate } from '../composables/useSignInGate'
 import { useVoiceInput } from '../composables/useVoiceInput'
 import { useDictation } from '../composables/useDictation'
@@ -74,22 +75,51 @@ function noteDate(unixSeconds: number): string {
 // One interface over both lives in useDictation; the caller owns the draft. ---
 let base = ''
 const dictateError = ref(false)
+
+/**
+ * The episode the mic paused, resumed when dictation ends (2026-10-09). On Android the recogniser
+ * takes the audio focus and the WebView pauses the episode — measured on the emulator, and nothing
+ * started it again. Only a pause that comes WITH the mic, in its first seconds, is ours to undo; a
+ * pause the reader makes later in the dictation is theirs and stays.
+ */
+const MIC_PAUSE_WINDOW_MS = 5000
+const player = usePlayerStore()
+let micSession: { playing: boolean; at: number; pausedByMic: boolean } | null = null
+watch(
+  () => player.playing,
+  (now) => {
+    if (!now && micSession?.playing && Date.now() - micSession.at < MIC_PAUSE_WINDOW_MS) {
+      micSession.pausedByMic = true
+    }
+  },
+)
+function endMicSession(): void {
+  const s = micSession
+  micSession = null
+  if (s?.pausedByMic && !player.playing) player.resumeAfterInterruption()
+}
+
 const dictation = useDictation({
   lang: () => locale.value,
   onStart: () => {
     base = draft.value ? draft.value + ' ' : ''
     dictateError.value = false
+    micSession = { playing: player.playing, at: Date.now(), pausedByMic: false }
   },
   onText: (text) => {
     draft.value = base + text
   },
   onError: () => {
     dictateError.value = true
+    endMicSession()
   },
 })
 // Mic shows only when the operator has opted in (Settings) AND the platform can actually dictate.
 const canDictate = computed(() => voiceEnabled.value && dictation.canDictate)
 const dictating = dictation.dictating
+watch(dictating, (on) => {
+  if (!on) endMicSession()
+})
 // Starting dictation is a per-user action, gated like save; STOPPING never is — if the session
 // expires mid-dictation the user must still be able to turn the mic off.
 const startDictation = gated(() => dictation.toggle())

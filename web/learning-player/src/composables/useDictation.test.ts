@@ -26,6 +26,7 @@ const native = {
   }),
   start: vi.fn(async () => {}),
   stop: vi.fn(async () => {}),
+  isListening: vi.fn(async () => ({ listening: true })),
   removeAllListeners: vi.fn(async () => {}),
 }
 vi.mock('@capacitor-community/speech-recognition', () => ({ SpeechRecognition: native }))
@@ -100,6 +101,7 @@ beforeEach(() => {
   removedEvents.length = 0
   native.available.mockResolvedValue({ available: true })
   native.requestPermissions.mockResolvedValue({ speechRecognition: 'granted', microphone: 'granted' })
+  native.isListening.mockResolvedValue({ listening: true })
 })
 afterEach(() => vi.clearAllMocks())
 
@@ -234,6 +236,48 @@ describe('useDictation — native engine', () => {
     expect(d.dictating.value).toBe(false)
     expect(removedEvents).toContain('partialResults')
     expect(removedEvents).toContain('listeningState')
+  })
+
+  it('an engine that dies after start() turns the mic off (Android, 2026-10-09)', async () => {
+    // With partialResults the Android plugin RESOLVES start() at once, so a recogniser error after
+    // that ("Didn't understand", "service lost") rejects a call that already settled, and emits no
+    // listeningState either. Measured on the emulator: the mic stayed lit with nothing listening.
+    vi.useFakeTimers()
+    try {
+      const useDictation = await load({ native: true, web: false })
+      const h = harness()
+      const { d } = inScope(useDictation, h.opts)
+      d.toggle()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(d.dictating.value).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(2500)
+      expect(d.dictating.value, 'a live engine must not be turned off').toBe(true)
+
+      native.isListening.mockResolvedValue({ listening: false }) // the recogniser errored
+      await vi.advanceTimersByTimeAsync(1100)
+      expect(d.dictating.value).toBe(false)
+      expect(removedEvents).toContain('partialResults')
+      expect(removedEvents).toContain('listeningState')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('stops checking the engine once dictation is stopped', async () => {
+    vi.useFakeTimers()
+    try {
+      const useDictation = await load({ native: true, web: false })
+      const { d } = inScope(useDictation, harness().opts)
+      d.toggle()
+      await vi.advanceTimersByTimeAsync(0)
+      d.stop()
+      native.isListening.mockClear()
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(native.isListening).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('a native partial bridged in after stop() does not rewrite the draft (M1)', async () => {
