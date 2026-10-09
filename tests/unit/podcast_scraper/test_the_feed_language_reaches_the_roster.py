@@ -419,3 +419,28 @@ class TestAnAuthorTagIsJudgedInTheFeedsLanguage:
         assert calls
         missing = [c.lineno for c in calls if not any(kw.arg == "language" for kw in c.keywords)]
         assert missing == [], f"is_network_or_org_author called without a language at {missing}"
+
+
+class TestPortugueseNamesTakeTheArticle:
+    """Rádio Novelo Apresenta (pt-BR, 2026-10-09): the host opens both measured episodes with
+    "Eu sou a Branca Vianna", and the Portuguese row read neither — it allowed the article only
+    before a ROLE word ("a apresentadora"), never before the name. Portuguese puts the definite
+    article in front of names ("a Branca", "o Eduardo") as ordinary speech."""
+
+    @pytest.mark.parametrize(
+        "text,name",
+        [
+            ("Eu sou a Branca Vianna. Tem uma história.", "Branca Vianna"),
+            ("Oi, eu sou o Eduardo Neves.", "Eduardo Neves"),
+            ("Eu sou Edite Novaes.", "Edite Novaes"),
+        ],
+    )
+    def test_the_article_before_a_name_is_read(self, text: str, name: str) -> None:
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        assert extract_self_introduced_host(text, language="pt") == name
+
+    def test_an_article_before_an_ordinary_word_is_still_not_a_name(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        assert extract_self_introduced_host("Eu sou a primeira da família.", language="pt") is None

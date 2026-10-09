@@ -3389,6 +3389,10 @@ HOST_SELF_INTRO: Dict[str, str] = {
         r"\b(?i:sou|eu sou|chamo-me|me chamo|o meu nome (?:é|e)|meu nome (?:é|e))\s+"
         r"(?:(?:o|a|teu|tua|seu|sua)\s+(?:co)?(?:anfitri(?:ã|a)o|anfitri(?:ã|a)|apresentador(?:a)?)"
         r"(?:\s+de\s+hoje)?,?\s+)?"
+        # The article before a NAME: "Eu sou a Branca Vianna", "eu sou o Eduardo" — ordinary
+        # Portuguese, and how Rádio Novelo's host opens both measured episodes (2026-10-09).
+        # The name capture still needs a capital, so "sou a primeira" stays out.
+        r"(?:(?:o|a)\s+)?"
         r"(?P<names>%(names)s)"
     ),
 }
