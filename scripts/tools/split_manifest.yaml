@@ -225,6 +225,7 @@ common:
 # panels on velocity, consensus and topic similarity); Studio keeps all of them, with the UI, unit tests, e2e specs and fixtures its first copy brought.
 studio:
   package: closelistening_studio
+  own_source: true
   # Seeded from web/gi-kg-viewer (first copy at 9ac3a38b6, last sync at a3519a8b8). Since the
   # public viewer lost its tier-A features, Studio is its own source and nothing is copied into
   # it: a re-run of split_copy.py must not overwrite it with the stripped viewer.
