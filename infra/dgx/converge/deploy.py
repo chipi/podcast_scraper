@@ -39,6 +39,9 @@ Verify with ``make dgx-verify``.
 
 from __future__ import annotations
 
+import os
+import re
+
 from pyinfra.operations import files, server
 
 # Knobs the downstream code (the provider client) expects:
@@ -74,11 +77,31 @@ from pathlib import Path as _FasterWhisperPath  # noqa: E402
 
 _FASTER_WHISPER_SRC = _FasterWhisperPath(__file__).resolve().parents[1] / "speaches-gb10"
 
+
+def _operator_user() -> str:
+    """The DGX account whose ``~/.env`` every service compose reads.
+
+    Read at deploy time, never committed: the repo carries no operator identifiers
+    (be99e8718). That commit left a literal ``<OPERATOR_USER>`` here, which made every
+    generated compose point ``env_file`` at a path that doesn't exist, so compose would
+    refuse all four services' files on the next converge. ``DGX_OPERATOR_USER`` wins;
+    otherwise ``DGX_SSH_USER`` when it isn't root (the usual setup: SSH in as the
+    operator, escalate with sudo). Anything else stops the deploy before it writes.
+    """
+    user = (os.environ.get("DGX_OPERATOR_USER") or os.environ.get("DGX_SSH_USER") or "").strip()
+    if not re.fullmatch(r"[a-z_][a-z0-9_-]{0,31}", user) or user == "root":
+        raise SystemExit(
+            "DGX_OPERATOR_USER is unset or invalid (and DGX_SSH_USER is root or unset). "
+            "Set it in infra/.env.dgx.local to the DGX account that owns ~/.env."
+        )
+    return user
+
+
 # HF config lives in the operator's ``~/.env`` on DGX (single source of truth
 # for HF_TOKEN / HF_HOME / HF_HUB_CACHE / HF_DATASETS_CACHE). Compose injects it
 # via ``env_file:``. The model cache itself is shared with vLLM (also bind-mounts
 # /opt/llm-models/huggingface) so weights aren't duplicated.
-OPERATOR_ENV_FILE = "/home/<OPERATOR_USER>/.env"
+OPERATOR_ENV_FILE = f"/home/{_operator_user()}/.env"
 HF_CACHE_HOST = "/opt/llm-models/huggingface"
 
 # 1. Install root only — no separate HF cache directory needed; the operator's
