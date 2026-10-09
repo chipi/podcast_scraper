@@ -26,6 +26,7 @@ TWO OPERATIONS WEAR THIS NAME, and conflating them is the trap:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, cast
 
@@ -249,3 +250,63 @@ class TestWhatItActuallyDOES:
             cast(Any, _Job()), cfg, None, str(tmp_path), None, None
         ) == (False, None, 0)
         assert recorded, "an unresolvable episode must be recorded, not silently skipped"
+
+
+class TestARelabelOfATranslatedEpisodeReadsTheSource:
+    """relabel_only on a TRANSLATED episode read `<base>.txt` — under D-44 the English render — and
+    named the speakers on it with the source language's vocabulary; then the post-processing
+    swap-back moved that English aside and restored the source, discarding the relabel's work.
+    Found re-labelling Radio Ambulante (es, 2026-10-09): the LLM proposed "Daniel Alarcón" from the
+    English, and the episode ended with 0 named entries. translate_only already swaps back BEFORE
+    handing off to the relabel; relabel_only now does the same."""
+
+    @staticmethod
+    def _translated_episode(tmp_path: Path) -> Path:
+        tx = tmp_path / "run_20260101-000000" / "transcripts"
+        tx.mkdir(parents=True)
+        # Under D-44 the canonical pair is the ENGLISH render; the source sits at `.es.*`.
+        (tx / "01 - ep.txt").write_text("SPEAKER_00: Hello, I'm Ana Ruiz.\n", encoding="utf-8")
+        (tx / "01 - ep.es.txt").write_text("SPEAKER_00: Hola, soy Ana Ruiz.\n", encoding="utf-8")
+        seg = [{"start": 0.0, "end": 2.0, "speaker_label": "SPEAKER_00", "text": "{}"}]
+        for name, text in (
+            ("01 - ep", "Hello, I'm Ana Ruiz."),
+            ("01 - ep.es", "Hola, soy Ana Ruiz."),
+        ):
+            rows = [dict(seg[0], text=text)]
+            (tx / f"{name}.segments.json").write_text(json.dumps(rows), encoding="utf-8")
+        (tx / "01 - ep.translation.json").write_text("{}", encoding="utf-8")
+        return tx / "01 - ep.txt"
+
+    def test_the_naming_reads_the_spanish_source(self, tmp_path: Path, monkeypatch: Any) -> None:
+        from podcast_scraper.providers.ml.diarization import pipeline as dp
+        from podcast_scraper.workflow import episode_processor as ep
+
+        txt = self._translated_episode(tmp_path)
+        monkeypatch.setattr(ep, "_existing_transcript_for", lambda *a, **k: txt)
+        seen: list = []
+
+        class _Stop(Exception):
+            pass
+
+        def fake_apply(result: Any, *a: Any, **k: Any) -> Any:
+            seen.append(result)
+            raise _Stop
+
+        monkeypatch.setattr(dp, "apply_diarization_to_result", fake_apply)
+        cfg = config.Config(
+            rss="https://e.com/f.xml", pipeline_stage="relabel_only", feed_declared_language="es"
+        )
+
+        class _Job:
+            idx = 1
+            episode = None
+            detected_speaker_names = None
+            metadata_named = None
+            ep_title = "t"
+
+        with pytest.raises(_Stop):
+            ep._relabel_existing_transcript(cast(Any, _Job()), cfg, None, str(tmp_path), None, None)
+        assert seen, "the naming step was never reached"
+        texts = " ".join(str(s.get("text", "")) for s in seen[0]["segments"])
+        assert "soy Ana Ruiz" in texts and "I'm" not in texts
+        assert "Hola" in txt.read_text(encoding="utf-8"), "the source is back at the canonical path"

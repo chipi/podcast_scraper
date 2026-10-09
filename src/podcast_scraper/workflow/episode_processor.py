@@ -3362,6 +3362,21 @@ def _relabel_existing_transcript(
     if txt_path is None:
         _record_unresolved_transcript(job, cfg, pipeline_metrics, "relabel_only")
         return False, None, 0
+    # SWAP THE SOURCE BACK FIRST. On a translated episode the canonical pair is the ENGLISH render
+    # (D-44): reading it named the speakers on English text with the source language's vocabulary,
+    # and the post-processing swap-back then moved that English aside — the relabel's work with
+    # it. Radio Ambulante (es, 2026-10-09) ended a relabel with 0 named entries that way.
+    # translate_only already swaps back before handing off here; this makes relabel_only do the
+    # same, and makes the later swap-back a no-op. The translation memory is kept (D-33), so the
+    # English re-render that follows costs no GPU.
+    from ..languages import resolve_config_language
+    from .transcript_resolution import _canonical_relpath
+
+    _root = str(txt_path.parent.parent)
+    _raw_lang, _relabel_language, _lang_src = resolve_config_language(cfg)
+    _invalidate_translation(
+        _canonical_relpath(os.path.relpath(str(txt_path), _root)), _root, _relabel_language
+    )
     seg_path = txt_path.with_name(txt_path.name[: -len(".txt")] + ".segments.json")
     if not seg_path.exists():
         logger.warning(
