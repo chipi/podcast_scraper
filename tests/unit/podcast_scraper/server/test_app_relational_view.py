@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.server.app_relational_view import (
-    _storyline_ref_by_norm,
+    _storyline_ref_by_norm_at,
     build_org_card,
     build_person_card,
     build_topic_card,
@@ -535,7 +535,7 @@ def test_resolve_entity_resolves_a_storyline_by_label(tmp_path: Path) -> None:
             }
         ],
     )
-    _storyline_ref_by_norm.cache_clear()
+    _storyline_ref_by_norm_at.cache_clear()
     ref = resolve_entity(tmp_path, "Managing risk across domains")
     assert ref is not None
     assert ref.kind == "storyline"
@@ -548,6 +548,41 @@ def test_resolve_entity_resolves_a_storyline_by_label(tmp_path: Path) -> None:
     # Normalisation is shared with the other kinds, so case/punctuation still resolve.
     near = resolve_entity(tmp_path, "managing risk across domains")
     assert near is not None and near.kind == "storyline"
+
+
+def test_resolve_entity_sees_a_re_enriched_storyline_without_a_restart(tmp_path: Path) -> None:
+    """A rewritten storyline artifact is picked up on the next search (2026-10-09).
+
+    The label map was ``lru_cache``d on the corpus root alone, so after a re-enrichment the server
+    resolved names against the OLD clusters until it restarted. No ``cache_clear`` here on purpose.
+    """
+    import os
+
+    _two_episode_corpus(tmp_path)
+
+    def clusters(label: str) -> list[dict[str, object]]:
+        return [
+            {
+                "graph_compound_parent_id": "thc:one",
+                "canonical_label": label,
+                "member_count": 2,
+                "members": [
+                    {"topic_id": "topic:ml", "label": "machine learning"},
+                    {"topic_id": "topic:x", "label": "x"},
+                ],
+            }
+        ]
+
+    _write_named_storylines(tmp_path, clusters("Old name"))
+    assert resolve_entity(tmp_path, "Old name") is not None
+    _write_named_storylines(tmp_path, clusters("New name"))
+    art = tmp_path / "enrichments" / "topic_theme_clusters.json"
+    st = art.stat()
+    os.utime(art, (st.st_atime, st.st_mtime + 5))  # a later write, whatever the clock resolution
+    new = resolve_entity(tmp_path, "New name")
+    assert new is not None and new.kind == "storyline"
+    old = resolve_entity(tmp_path, "Old name")
+    assert old is None or old.kind != "storyline"
 
 
 def test_resolve_entity_storyline_ignores_the_surfacing_floor(tmp_path: Path) -> None:
@@ -572,7 +607,7 @@ def test_resolve_entity_storyline_ignores_the_surfacing_floor(tmp_path: Path) ->
             }
         ],
     )
-    _storyline_ref_by_norm.cache_clear()
+    _storyline_ref_by_norm_at.cache_clear()
     ref = resolve_entity(tmp_path, "Tiny pairing")
     assert ref is not None and ref.kind == "storyline"
 
@@ -597,7 +632,7 @@ def test_resolve_entity_prefers_a_person_over_a_storyline_of_the_same_name(tmp_p
             }
         ],
     )
-    _storyline_ref_by_norm.cache_clear()
+    _storyline_ref_by_norm_at.cache_clear()
     ref = resolve_entity(tmp_path, "overlap")
     assert ref is not None
     assert ref.kind == "person" and ref.id == "person:overlap"

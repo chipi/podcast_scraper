@@ -11,6 +11,7 @@ endpoints). The scan is the cost; cache later if the corpus grows large enough t
 
 from __future__ import annotations
 
+import os
 import urllib.parse
 from collections import Counter
 from functools import lru_cache
@@ -21,12 +22,14 @@ from podcast_scraper.search.storylines import (
     storyline_map_by_topic,
     storyline_member_lift,
     storyline_siblings_by_topic,
+    STORYLINES_REL,
     top_storylines_by_member_count,
 )
 from podcast_scraper.search.topic_clusters import (
     theme_map_by_topic,
     theme_siblings_by_topic,
     top_themes_by_member_count,
+    TOPIC_CLUSTERS_FILENAME,
 )
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_content_source import row_to_summary
@@ -276,8 +279,30 @@ def resolve_entity(
     )
 
 
-@lru_cache(maxsize=8)
+def _artifact_mtime(root: Path, rel: str) -> float:
+    """The artifact's own mtime (0.0 when absent) — the token the two label maps below cache on.
+
+    They used to be ``lru_cache``d on the corpus root ALONE, so a re-enrichment that rewrote the
+    storyline or theme artifact left entity search resolving against the old clusters until the
+    process restarted (2026-10-09). The payload loaders already token on these same mtimes.
+    """
+    try:
+        # callers pass a validated corpus root; `rel` is a module constant.
+        # codeql[py/path-injection] -- validated corpus root + constant relative path (Type 1).
+        return os.path.getmtime(root / rel)
+    except OSError:
+        return 0.0
+
+
 def _theme_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
+    """Normalised theme label → ref; cached until the topic-cluster artifact changes."""
+    return _theme_ref_by_norm_at(
+        root, _artifact_mtime(root, os.path.join("search", TOPIC_CLUSTERS_FILENAME))
+    )
+
+
+@lru_cache(maxsize=8)
+def _theme_ref_by_norm_at(root: Path, _token: float) -> Mapping[str, AppEntityRef]:
     """Normalised theme label → ref, from the topic-cluster artifact.
 
     Themes are resolved here for the same reason storylines are (operator 2026-09-17): a label match
@@ -307,12 +332,18 @@ def _theme_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
     return out
 
 
-@lru_cache(maxsize=8)
 def _storyline_ref_by_norm(root: Path) -> Mapping[str, AppEntityRef]:
+    """Normalised storyline label → ref; cached until the storyline artifact changes."""
+    return _storyline_ref_by_norm_at(root, _artifact_mtime(root, STORYLINES_REL))
+
+
+@lru_cache(maxsize=8)
+def _storyline_ref_by_norm_at(root: Path, _token: float) -> Mapping[str, AppEntityRef]:
     """Normalised storyline label → ref, from the theme-cluster artifact.
 
-    Cached per corpus root like the KG index, because this is read on every entity search and the
-    artifact only changes when the corpus is re-enriched. ``min_members=1`` deliberately: the /4
+    Cached on the artifact's own mtime (``_storyline_ref_by_norm``), because this is read on every
+    entity search and the artifact only changes when the corpus is re-enriched.
+    ``min_members=1`` deliberately: the /4
     floor on the Home rail is a SURFACING decision about where a listener is sent, and refusing to
     resolve a storyline the user typed the exact name of would be a different, worse thing —
     searching for something by name and being told it does not exist.
