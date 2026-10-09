@@ -136,11 +136,29 @@ MD_LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 URI_SCHEME = re.compile(r"^[a-z][a-z0-9+.\-]*:", re.I)
 
 
+def _nested_repos() -> set[Path]:
+    """Directories below the root that are their own git repository (have a ``.git``).
+
+    ``eval-data/`` is a separate private repo cloned inside the checkout (gitignored here). Its
+    docs link to paths in ITS tree, CI never has it, and a fix to them is a commit in that repo
+    — so this gate, which is about this repo's pointers, was red only on machines that had it
+    cloned (9 links in eval-data/autoresearch, 2026-10-09).
+    """
+    return {
+        git.parent
+        for git in REPO_ROOT.glob("*/**/.git")
+        if not any(part in SKIP_DIRS - {".git"} for part in git.relative_to(REPO_ROOT).parts)
+    }
+
+
 def markdown_files() -> list[Path]:
+    nested = _nested_repos()
     out: list[Path] = []
     for path in REPO_ROOT.rglob("*.md"):
         parts = path.relative_to(REPO_ROOT).parts
         if any(part in SKIP_DIRS for part in parts) or _is_vendored(parts):
+            continue
+        if any(repo in path.parents for repo in nested):
             continue
         out.append(path)
     return sorted(out)
