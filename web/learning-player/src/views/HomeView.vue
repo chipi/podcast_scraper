@@ -241,6 +241,16 @@ const rank = (i: number): string => String(i + 2).padStart(2, "0")
  * or — the fallback when they follow nothing that matches — every show. Recommended's kicker says
  * the other half: picked from what they listen to.
  */
+// "Browse all" opens the WHOLE list What's new is the top of (operator 2026-10-10: 20 shows with 20
+// new episodes showed 5): your shows, unplayed, when it is yours; every episode when it fell back.
+const whatsNewAllTo = computed(() => ({
+  name: "browse",
+  query:
+    whatsNew.data.value.scope === "yours"
+      ? { tab: "episodes", from: "following", state: "unplayed" }
+      : { tab: "episodes" },
+  hash: "#catalog",
+}))
 const whatsNewKicker = computed(() => {
   const scope =
     whatsNew.data.value.scope === "yours" ? t("home.whatsNewYours") : t("home.whatsNewAll")
@@ -601,7 +611,7 @@ async function loadContinue(): Promise<void> {
       >
         <template #action>
           <RouterLink
-            :to="{ name: 'browse', query: { tab: 'episodes' }, hash: '#catalog' }"
+            :to="whatsNewAllTo"
             class="text-sm font-bold text-accent no-underline"
           >
             {{ t("home.browseAll") }} →

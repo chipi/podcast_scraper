@@ -1605,7 +1605,9 @@ class CorpusSummary(BaseModel):
 class CorpusFacetEpisodesResponse(BaseModel):
     """GET /api/app/corpus/episodes?facet= — the episode slugs in a personal-corpus facet."""
 
-    facet: Literal["experienced", "saved"] = Field(description="Which membership facet.")
+    facet: Literal["experienced", "saved", "world"] = Field(
+        description="Which membership facet; `world` is everything in the listener's mine."
+    )
     slugs: list[str] = Field(default_factory=list)
 
 

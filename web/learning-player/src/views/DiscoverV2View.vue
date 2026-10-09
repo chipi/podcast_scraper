@@ -349,7 +349,7 @@ watch(scope, () => void loadTrendingEpisodes())
     <section v-if="latest.length" class="mt-7" data-testid="d2-latest">
       <div class="mb-3 flex items-baseline justify-between gap-3">
         <h2 class="text-lg font-bold">Latest from shows you follow</h2>
-        <RouterLink :to="{ name: 'browse', query: { tab: 'episodes' } }" class="text-sm font-bold text-accent">all ›</RouterLink>
+        <RouterLink :to="{ name: 'browse', query: { tab: 'episodes', from: 'following', state: 'unplayed' }, hash: '#catalog' }" class="text-sm font-bold text-accent">all ›</RouterLink>
       </div>
       <ul class="grid">
         <li v-for="e in latest" :key="e.slug" class="border-b border-border last:border-b-0">
@@ -362,7 +362,6 @@ watch(scope, () => void loadTrendingEpisodes())
           </RouterLink>
         </li>
       </ul>
-      <p class="mt-1 text-xs text-muted">The “all” list filtered to your shows needs the Browse filters (next) — it opens all episodes for now.</p>
     </section>
 
     <TrendingShowsRail :title="'Trending shows'" :scope="scope" :top="5" @show-everyone="setScope('corpus')" />

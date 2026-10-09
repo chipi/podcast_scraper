@@ -88,6 +88,20 @@ def test_summary_facets_and_correction(tmp_path: Path) -> None:
     assert sav["slugs"] == ["some-unheard-ep"]
 
 
+def test_world_facet_is_the_listeners_world(tmp_path: Path) -> None:
+    """``facet=world`` — every episode in "mine" (ADR-162): heard or captured from, saved, or of a
+    show they follow. Browse's "Mine" filter reads it, so the client never re-derives "mine"."""
+    client, root, data_dir, uid = _authed(tmp_path)
+    slug = _corpus(root)
+    assert client.get("/api/app/corpus/episodes", params={"facet": "world"}).json()["slugs"] == []
+    app_user_state.add_favorite(data_dir, uid, {"kind": "episode", "ref": "some-saved-ep"})
+    body = client.get("/api/app/corpus/episodes", params={"facet": "world"}).json()
+    assert body == {"facet": "world", "slugs": ["some-saved-ep"]}
+    app_user_state.add_subscription(data_dir, uid, {"feed_id": "fa"})  # follow the show
+    body = client.get("/api/app/corpus/episodes", params={"facet": "world"}).json()
+    assert body["slugs"] == sorted([slug, "some-saved-ep"])
+
+
 def test_changes_delta_and_tombstone(tmp_path: Path) -> None:
     client, root, data_dir, uid = _authed(tmp_path)
     app_user_state.add_highlight(

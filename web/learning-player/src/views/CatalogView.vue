@@ -5,14 +5,17 @@
  * control auto-loads the remaining pages so the controls cover the whole catalog, not just what's
  * been paged in.
  */
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, onActivated, onDeactivated, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 defineOptions({ name: "CatalogView" }) // stable name for <keep-alive :include> (App.vue)
 import EpisodeCard from "../components/EpisodeCard.vue"
 import EpisodeTile from "../components/EpisodeTile.vue"
 import ListToolbar from "../components/ListToolbar.vue"
 import SectionStatus from "../components/SectionStatus.vue"
-import { getPodcastsPage, listEpisodes } from "../services/api"
+import { getPlaybackList, getPodcastsPage, getWorldEpisodeSlugs, listEpisodes } from "../services/api"
+import { useRoute } from "vue-router"
+import Tabs from "../components/Tabs.vue"
+import { useLibraryStore } from "../stores/library"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import { useCompletedStore } from "../stores/completed"
 import { usePlayed } from "../composables/usePlayed"
@@ -41,9 +44,75 @@ const { isPlayed } = usePlayed()
 const downloads = useDownloadsStore()
 const auth = useAuthStore()
 
+const route = useRoute()
+const library = useLibraryStore()
+
 const search = ref("")
 const sort = ref("newest")
 const filter = ref("all")
+/**
+ * WHICH episodes, independent of their state (operator 2026-10-09): All, Shows I follow, or Mine
+ * — the listener's world, ADR-162. A second row rather than more entries in the state filter, so
+ * "Shows I follow" combines with "Unplayed". Deep-linkable: `?from=` and `?state=` (What's new and
+ * Discover 2 open the list already filtered).
+ */
+type From = "all" | "following" | "mine"
+const from = ref<From>("all")
+const fromTabs = computed(() => [
+  { key: "all" as const, label: t("browse.fromAll"), testid: "catalog-from-all" },
+  { key: "following" as const, label: t("browse.fromFollowing"), testid: "catalog-from-following" },
+  { key: "mine" as const, label: t("browse.fromMine"), testid: "catalog-from-mine" },
+])
+// Fetched only when a filter needs them.
+const worldSlugs = ref<Set<string> | null>(null)
+const inProgressSlugs = ref<Set<string> | null>(null)
+watch(
+  from,
+  async (f) => {
+    if (f === "following") void library.ensureLoaded().catch(() => {})
+    if (f === "mine" && !worldSlugs.value) {
+      worldSlugs.value = new Set(await getWorldEpisodeSlugs().catch(() => [] as string[]))
+    }
+  },
+  { immediate: true },
+)
+watch(
+  filter,
+  async (f) => {
+    if (f === "inprogress" && !inProgressSlugs.value) {
+      const rows = await getPlaybackList({ inProgress: true, limit: 500 }).catch(() => [])
+      inProgressSlugs.value = new Set(rows.map((r) => r.slug))
+    }
+  },
+  { immediate: true },
+)
+// Kept alive: a follow, save or listen elsewhere changes both sets, so a return re-reads the ones
+// in use and drops the rest (re-read on next use). Skips the mount's own activation.
+let leftOnce = false
+onDeactivated(() => {
+  leftOnce = true
+})
+onActivated(async () => {
+  if (!leftOnce || !auth.isAuthenticated) return
+  worldSlugs.value = null
+  inProgressSlugs.value = null
+  if (from.value === "mine") {
+    worldSlugs.value = new Set(await getWorldEpisodeSlugs().catch(() => [] as string[]))
+  }
+  if (filter.value === "inprogress") {
+    const rows = await getPlaybackList({ inProgress: true, limit: 500 }).catch(() => [])
+    inProgressSlugs.value = new Set(rows.map((r) => r.slug))
+  }
+})
+const FROM_VALUES: From[] = ["all", "following", "mine"]
+function applyQuery(): void {
+  const f = String(route.query.from ?? "")
+  if ((FROM_VALUES as string[]).includes(f)) from.value = f as From
+  const st = String(route.query.state ?? "")
+  if (st) filter.value = st
+}
+applyQuery()
+watch(() => [route.query.from, route.query.state], applyQuery)
 const show = ref("")
 // List (banded rows) vs grid (tiles) — BE.5. Grid is flat (time bands are a list-only device).
 const view = ref<"list" | "grid">("list")
@@ -53,6 +122,7 @@ const filterOptions = computed(() => {
   const opts = [
     { value: "all", label: t("list.filterAll") },
     { value: "unplayed", label: t("list.filterUnplayed") },
+    ...(auth.isAuthenticated ? [{ value: "inprogress", label: t("list.filterInProgress") }] : []),
     { value: "played", label: t("list.filterPlayed") },
     { value: "insights", label: t("list.filterInsights") },
   ]
@@ -67,6 +137,7 @@ const controlsActive = computed(
     search.value.trim() !== "" ||
     sort.value !== "newest" ||
     filter.value !== "all" ||
+    from.value !== "all" ||
     show.value !== ""
 )
 
@@ -135,6 +206,17 @@ const visible = computed<EpisodeSummary[]>(() => {
   else if (filter.value === "unplayed") list = list.filter((e) => !isPlayed(e.slug))
   else if (filter.value === "played") list = list.filter((e) => isPlayed(e.slug))
   else if (filter.value === "downloaded") list = list.filter((e) => downloads.isDownloaded(e.slug))
+  else if (filter.value === "inprogress") {
+    const ip = inProgressSlugs.value
+    list = ip ? list.filter((e) => ip.has(e.slug) && !isPlayed(e.slug)) : []
+  }
+  if (from.value === "following") {
+    const followed = new Set(library.feedIds)
+    list = list.filter((e) => followed.has(e.feed_id))
+  } else if (from.value === "mine") {
+    const w = worldSlugs.value
+    list = w ? list.filter((e) => w.has(e.slug)) : []
+  }
   if (show.value) list = list.filter((e) => e.feed_id === show.value)
   const byDate = (e: EpisodeSummary) => e.publish_date ?? ""
   const sorted = [...list]
@@ -163,7 +245,7 @@ const visible = computed<EpisodeSummary[]>(() => {
  * Load more (operator 2026-10-05). So the matches are revealed a page at a time too.
  */
 const displayCount = ref(PAGE_SIZE)
-watch([search, sort, filter, show], () => {
+watch([search, sort, filter, from, show], () => {
   displayCount.value = PAGE_SIZE
 })
 const shown = computed<EpisodeSummary[]>(() =>
@@ -219,6 +301,10 @@ onMounted(async () => {
   if (auth.isAuthenticated) void completed.ensureLoaded().catch(() => {})
   if (isNative()) void downloads.ensureLoaded().catch(() => {})
   await loadMore()
+  // Opened already filtered (`?from=` / `?state=`, What's new's "all ›"): `controlsActive` never
+  // CHANGES, so its watcher never pulls the rest in — the filter ran over page one alone and a
+  // followed show's episodes on page two were missing (browse-filters.spec, 2026-10-10).
+  if (controlsActive.value && hasMore.value) void loadAll()
   // The filter's show names only — every show, without descriptions (2026-10-08).
   shows.value = (
     await getPodcastsPage({ compact: true, limit: 200, sort: "az" })
@@ -254,6 +340,18 @@ onMounted(async () => {
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t("catalog.empty") }}</p>
 
     <div v-else>
+      <!-- Which episodes — a row of its own so it combines with the state filter below. -->
+      <div v-if="auth.isAuthenticated" class="mb-3" data-testid="catalog-from">
+        <Tabs
+          v-model="from"
+          :tabs="fromTabs"
+          :label="t('browse.fromLabel')"
+          id-prefix="catalog-from"
+          variant="pill"
+          pattern="radio"
+          dense
+        />
+      </div>
       <ListToolbar
         v-model:search="search"
         v-model:sort="sort"

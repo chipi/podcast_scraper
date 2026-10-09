@@ -902,6 +902,12 @@ export async function setFavoriteColor(
 }
 
 /** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
+/** Every episode in the listener's "mine" — heard or captured from, saved, or of a followed show
+ *  (ADR-162). The server's one definition, so Browse never re-derives it. */
+export async function getWorldEpisodeSlugs(): Promise<string[]> {
+  return (await getJSON<{ slugs: string[] }>("/corpus/episodes", { facet: "world" })).slugs
+}
+
 /** What the listener's own listening says they are into — people and topics from the episodes they
  *  heard or captured from, ranked (GET /interests/derived). */
 export interface DerivedInterest {

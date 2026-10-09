@@ -182,3 +182,94 @@ describe('CatalogView', () => {
   })
 
 })
+
+// "Which episodes" is its own row, so it combines with the state filter (operator 2026-10-09):
+// Shows I follow + Unplayed is the list What's new and Discover 2 open.
+describe('CatalogView — From (which episodes) × State', () => {
+  function epOf(slug: string, feed: string): EpisodeSummary {
+    return { ...ep(slug, slug.toUpperCase()), feed_id: feed }
+  }
+  const items = [epOf('a1', 'followed'), epOf('a2', 'followed'), epOf('b1', 'other'), epOf('b2', 'other')]
+
+  async function mountAt(query: Record<string, string>) {
+    // One pinia for the test AND the component, pinned — the shared default let them drift apart
+    // in a full-file run and the component read a signed-out store.
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const { useAuthStore } = await import('../stores/auth')
+    useAuthStore(pinia).user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    vi.spyOn(api, 'listEpisodes').mockResolvedValue({ items, page: 1, page_size: 20, total: 4, has_more: false })
+    vi.spyOn(api, 'getPodcastsPage').mockResolvedValue({ items: [], total: 0 } as never)
+    vi.spyOn(api, 'getLibrary').mockResolvedValue([{ feed_id: 'followed', feed_url: null, title: 'F', added_at: 1 }])
+    vi.spyOn(api, 'getCompleted').mockResolvedValue(['a2'])
+    vi.spyOn(api, 'getWorldEpisodeSlugs').mockResolvedValue(['b2'])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([
+      { slug: 'b1', position_seconds: 100 } as never,
+      { slug: 'a2', position_seconds: 100 } as never,
+    ])
+    // "a2 is finished" — through its saved position, which `isPlayed` reads alongside the
+    // hand-marked set (usePlayed); the precondition, not something this test exercises.
+    const { recordPosition } = await import('../services/playbackPositions')
+    recordPosition('a2', 1800, true, true)
+    await router.push({ path: '/', query })
+    const w = mount(CatalogView, { global: { plugins: [i18n, router, pinia] } })
+    await flushPromises()
+    await flushPromises()
+    return w
+  }
+  const titles = (w: Awaited<ReturnType<typeof mountAt>>) =>
+    w.findAll('[data-testid="episode-card"]').map((c) => c.text()).join(' ')
+
+  it('opens on ?from=following&state=unplayed — your shows, minus what you finished', async () => {
+    const w = await mountAt({ from: 'following', state: 'unplayed' })
+    const text = titles(w)
+    expect(text).toContain('A1')
+    expect(text).not.toContain('A2') // finished
+    expect(text).not.toContain('B1') // not a show you follow
+    expect(w.get('[data-testid="catalog-from-following"]').attributes('aria-checked')).toBe('true')
+  })
+
+  it('opened already filtered, it pulls in every page — a match on page two is not lost', async () => {
+    const w = await mountAt({ from: 'following' })
+    // mountAt's listEpisodes answers page one; make the catalogue two pages and remount.
+    w.unmount()
+    vi.mocked(api.listEpisodes).mockImplementation(async (p = {}) =>
+      p.page === 2
+        ? { items: [epOf('late', 'followed')], page: 2, page_size: 20, total: 5, has_more: false }
+        : { items, page: 1, page_size: 20, total: 5, has_more: true },
+    )
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const { useAuthStore } = await import('../stores/auth')
+    useAuthStore(pinia).user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    const again = mount(CatalogView, { global: { plugins: [i18n, router, pinia] } })
+    await flushPromises()
+    await flushPromises()
+    expect(titles(again)).toContain('LATE')
+  })
+
+  it('Mine is the server\'s set (ADR-162), not a guess on the client', async () => {
+    const w = await mountAt({ from: 'mine' })
+    expect(api.getWorldEpisodeSlugs).toHaveBeenCalled()
+    const text = titles(w)
+    expect(text).toContain('B2')
+    expect(text).not.toContain('A1')
+  })
+
+  it('In progress is started and not finished', async () => {
+    const w = await mountAt({ state: 'inprogress' })
+    const text = titles(w)
+    expect(text).toContain('B1')
+    expect(text).not.toContain('A2') // has a position but is finished
+    expect(text).not.toContain('A1')
+  })
+
+  it('signed out there is no From row (no follows, no "mine")', async () => {
+    vi.spyOn(api, 'listEpisodes').mockResolvedValue({ items, page: 1, page_size: 20, total: 4, has_more: false })
+    vi.spyOn(api, 'getPodcastsPage').mockResolvedValue({ items: [], total: 0 } as never)
+    await router.push({ path: '/' })
+    const w = mountView()
+    await flushPromises()
+    expect(w.find('[data-testid="catalog-from"]').exists()).toBe(false)
+  })
+})
