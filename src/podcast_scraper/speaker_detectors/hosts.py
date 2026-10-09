@@ -87,7 +87,7 @@ _KNOWN_NETWORKS_BY_LANGUAGE = naming_vocabulary.KNOWN_NETWORKS
 KNOWN_NETWORKS = _KNOWN_NETWORKS_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
-def is_known_network(name: str) -> bool:
+def is_known_network(name: str, language: Optional[str] = None) -> bool:
     """True when ``name`` (whole or its first token) is a known podcast network/publisher.
 
     Used to skip a network *bumper* in a host self-introduction ("I'm Pushkin") and to flag a
@@ -97,10 +97,13 @@ def is_known_network(name: str) -> bool:
     n = (name or "").strip().lower()
     if not n:
         return False
-    if n in KNOWN_NETWORKS:
+    # With the feed's language, its own networks too ("Cadena SER", "Il Post", "Deutschlandfunk"):
+    # a refusal list, so English plus that row can only refuse more.
+    networks = _with_english(_KNOWN_NETWORKS_BY_LANGUAGE, language)
+    if n in networks:
         return True
     first = n.split()[0] if n.split() else ""
-    return first in KNOWN_NETWORKS
+    return first in networks
 
 
 def has_org_markers(name: str, language: Optional[str] = None) -> bool:
@@ -159,7 +162,7 @@ def is_network_or_org_author(name: str, language: Optional[str] = None) -> bool:
     # to self-introductions and to host/guest metadata via ``looks_like_publisher``; the RSS
     # author path was the one place that skipped it, which is how ``person:andreessen-horowitz``
     # became the corpus's top-ranked Person.
-    if is_known_network(n):
+    if is_known_network(n, language):
         return True
     if len(n.split()) < 2:  # mononym ("Colossus", "NPR") — not a "First Last" host name
         return True
@@ -419,7 +422,7 @@ def looks_like_publisher(name: str, language: Optional[str] = None) -> bool:
     single-token real person (Oprah, Sting) is kept — use it to strip publishers from
     already-resolved person surfaces (key people, host/guest roles) without dropping people.
     """
-    return is_known_network(name) or has_org_markers(name, language)
+    return is_known_network(name, language) or has_org_markers(name, language)
 
 
 # Host self-introduction in the transcript intro, e.g. "I'm Patrick O'Shaughnessy" or
@@ -606,7 +609,7 @@ def extract_self_introduced_host(
         name = " ".join(match.group(1).split()).strip(" .,")
         if len(name) < 2:
             continue
-        if is_known_network(name):
+        if is_known_network(name, language):
             continue
         # "I'm Coming Out" is not a self-introduction. The regex takes any capitalised run and the
         # ASR capitalises freely; The Daily had a voice recorded as introducing itself as
@@ -657,7 +660,7 @@ def distinct_self_introductions(
         # Collapse runs of whitespace: word-level ASR segments join as "Amanda  Aronchik" — a
         # different person id from "Amanda Aronchik" on every other surface.
         name = " ".join(match.group(1).split()).strip(" .,")
-        if len(name) < 2 or is_known_network(name):
+        if len(name) < 2 or is_known_network(name, language):
             continue
         toks = name.split()
         # A multi-token run must look like a person; a single token must be a plausible mononym, not
@@ -988,7 +991,7 @@ def _feed_statement(
                     # Show on Spotify Listen to the a16z Show on Apple Podcasts Follow our host:" —
                     # so "Spotify Listen" is a capitalised run across the sentence boundary, and the
                     # NOUN "host" 45 chars later satisfied the presenting-verb pattern.
-                    if is_known_network(clean):
+                    if is_known_network(clean, language):
                         logger.debug(
                             "host statement named '%s', which is a platform/publisher, not a host",
                             clean,
@@ -1043,7 +1046,10 @@ def _first_name_presenters(description: str, language: str = TARGET_LANGUAGE) ->
     for m in presenters.finditer(description):
         first_name_re = _FIRST_NAME_RE_BY_LANGUAGE.get(lang, _FIRST_NAME_RE)
         firsts = [f for f in first_name_re.findall(m.group("names")) if f.lower() != "and"]
-        if any(f.lower() in _NOT_A_NAME_TOKEN or f.lower() in _NOT_A_MONONYM for f in firsts):
+        refused = _with_english(_NOT_A_NAME_TOKEN_BY_LANGUAGE, language) | _with_english(
+            _NOT_A_MONONYM_BY_LANGUAGE, language
+        )
+        if any(f.lower() in refused for f in firsts):
             continue
         for f in firsts:
             full = full_by_first.get(f.lower())
@@ -1815,10 +1821,10 @@ def is_publishable_speaker_name(
         if letters.isalpha() and letters.isupper() and len(letters) <= 3:
             return False
         return (
-            tl not in _NOT_A_NAME_TOKEN
-            and tl not in _NOT_A_MONONYM
+            tl not in _with_english(_NOT_A_NAME_TOKEN_BY_LANGUAGE, language)
+            and tl not in _with_english(_NOT_A_MONONYM_BY_LANGUAGE, language)
             and tl not in honorific_titles(language)
-            and tl not in _BRAND_MONONYMS
+            and tl not in _with_english(_BRAND_MONONYMS_BY_LANGUAGE, language)
         )
     return False
 
@@ -1870,8 +1876,10 @@ def guests_introduced_by_the_host(
         return out
     for text in (voice_texts or {}).values():
         matches = list(pattern.finditer(text or ""))
-        matches += list(_GUEST_INTRODUCED_NAME_FIRST.finditer(text or ""))
-        matches += list(_GUEST_GREETED.finditer(text or ""))
+        for row in (_GUEST_INTRODUCED_NAME_FIRST_BY_LANGUAGE, _GUEST_GREETED_BY_LANGUAGE):
+            rx = naming_vocabulary.vocabulary_row(row, language)
+            if rx is not None:
+                matches += list(rx.finditer(text or ""))
         for m in matches:
             for raw in _NAME_RE.findall(m.group("names")):
                 name = _clean_stated_name(raw)
@@ -2089,7 +2097,15 @@ def hosts_from_episode_description(
         return set()
     out: Set[str] = set()
     folded_show = _fold_title(feed_title)
-    for match in _EPISODE_HOST_CUE.finditer(text):
+    # The feed's own cue and role rows, plus English's (a non-English feed's descriptions are not
+    # always in its language). Each English row stays exactly main's.
+    cues = [_EPISODE_HOST_CUE]
+    roles = [_HOST_ROLE_BEFORE_NAME]
+    own_cue = _language_row(_EPISODE_HOST_CUE_BY_LANGUAGE, language)
+    if own_cue is not None:
+        cues.append(own_cue)
+        roles.append(_HOST_ROLE_BEFORE_NAME_BY_LANGUAGE[_primary_subtag(language)])
+    for match, own in ((m, cue is own_cue) for cue in cues for m in cue.finditer(text)):
         # THE SENTENCE CAN RUN THE OTHER WAY, and then the name in front of the cue is the GUEST.
         # EconTalk: "Listen as journalist Stephen Witt speaks with EconTalk's Russ Roberts about
         # how Jensen pivoted..." — Witt is the guest and Roberts the host, and the plain
@@ -2102,16 +2118,28 @@ def hosts_from_episode_description(
         # Sarah Guo and Elad Gil" names the guest first (No Priors-type, validation 2026-10-03).
         if any(_mentions_full_name(after, h) for h in feed_hosts):
             continue
+        if own and not _plausible_partner_after(after):
+            continue
+        # "Uri Sabat se sienta con Carlos": the feed's host by FIRST name right after the cue.
+        if own and any(_first_name_follows(after, h) for h in feed_hosts):
+            continue
         for gi, cand in enumerate(match.groups(), start=1):
             name = (cand or "").strip()
             if not name or len(name.split()) < 2:
                 continue
+            lead = text[max(0, match.start(gi) - 24) : match.start(gi)]
+            role_before = any(role.search(lead) for role in roles)
+            # "Host Anne Eichhorn": a role word is a capitalised word too, and German capitalises
+            # every noun, so a stated role outranks the mid-name guard.
+            if (
+                own
+                and not role_before
+                and _capture_starts_inside_a_name(text, match.start(gi), language)
+            ):
+                continue
             # "comic co-host Jordan Klepper sit down with Lara Anderson": a HOST role word right
             # before the name is the description saying who hosts, and it outranks the detector
             # having listed the person among the episode's guests (StarTalk, gold development set).
-            role_before = bool(
-                _HOST_ROLE_BEFORE_NAME.search(text[max(0, match.start(gi) - 24) : match.start(gi)])
-            )
             # AND THE CAPTURE MUST LOOK LIKE A PERSON. The seam is only the loudest case; the same
             # run happens inside one description ("...the future of Forecasting Theo Jaffee speaks
             # with..."), and the token run the regex takes is as long as the capitals allow. This
@@ -2129,6 +2157,45 @@ def hosts_from_episode_description(
                 continue
             out.add(name)
     return out
+
+
+#: Off English, measured over 29,410 chart-feed item descriptions (2026-10-10): the cue rows
+#: also fire on a guest "sitting with US" ("Yolanda Ramos se sienta con nosotros"), on a verb
+#: whose object is no person ("Ofelia Medina habla con total honestidad"), and inside a longer
+#: name ("Vicky Martín Berrocal" -> "Martín Berrocal"). The English row is main's and unguarded.
+_US_AFTER_CUE = re.compile(r"^\s*(?:nosotr[oa]s|n(?:ó|o)s|nous|noi|uns|us)\b", re.IGNORECASE)
+_CAPITAL_WITHIN_SIX_WORDS = re.compile(r"^\s*(?:\S+\s+){0,5}?[^\W\d_]*[A-ZÀ-Þ]")
+
+
+def _plausible_partner_after(after: str) -> bool:
+    """Someone, not "us" and not a manner ("with total honesty"), follows the cue: a capitalised
+    word within six words ("com o economista Bruno Carazza")."""
+    return not _US_AFTER_CUE.match(after) and bool(_CAPITAL_WITHIN_SIX_WORDS.match(after))
+
+
+def _first_name_follows(after: str, host: str) -> bool:
+    """*host*'s given name is the first capitalised word after the cue."""
+    toks = [x.strip(".,'’") for x in (host or "").split() if x.strip(".,'’")]
+    if len(toks) < 2:
+        return False
+    m = re.match(r"^\s*(?:(?:[^\W\d_]+\s+){0,2}?)([A-ZÀ-Þ][^\W\d_]+)", after)
+    return bool(m and m.group(1).lower() == toks[0].lower())
+
+
+def _capture_starts_inside_a_name(text: str, start: int, language: Optional[str]) -> bool:
+    """The two-token capture begins mid-name: after a hyphen ("Eva-Maria Lemke"), after another
+    capitalised word ("Vicky Martín Berrocal"), or after a genitive ("el papá de Gala Montes")."""
+    before = text[max(0, start - 40) : start]
+    if before.endswith("-"):
+        return True
+    words = before.split()
+    if not words:
+        return False
+    prev = words[-1]
+    if prev[:1].isupper() and not prev.endswith((".", ":", "!", "?", ";", ",")):
+        return True
+    genitive = _language_row(_ARTICLE_BEFORE_BY_LANGUAGE, language)
+    return bool(genitive is not None and genitive.search(before))
 
 
 def _mentions_full_name(text: str, name: str) -> bool:
@@ -2296,7 +2363,7 @@ def recurrent_hosts_across_episodes(
     for name, n in merged:
         if n < min_episodes or (n / total) < min_share:
             continue
-        if is_known_network(name) or has_org_markers(name, language):
+        if is_known_network(name, language) or has_org_markers(name, language):
             continue
         # THE SHOW SAYS ITS OWN NAME EVERY EPISODE — that is recurrence, not a presenter. "The
         # Trivium China Podcast" opens with "Trivium" on 10 of 10 episodes and no other guard here

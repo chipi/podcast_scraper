@@ -139,3 +139,41 @@ class TestAHelpingVerbStatesTheHosts:
     def test_german_has_no_helping_verb(self) -> None:
         desc = "Kluge Expertinnen und Lustige Experimente helfen ihnen dabei."
         assert hosts.hosts_from_feed_statement("Der Podcast", desc, "de") == set()
+
+
+class TestTheEpisodeDescriptionNamesItsHostInTheFeedLanguage:
+    """D26: the cue row ("X conversa com Y") was built per language and read in English only.
+    Shapes from 29,410 chart-feed item descriptions; names made up."""
+
+    def _hosts(self, desc: str, lang: str, feed_hosts=()) -> set:
+        return hosts.hosts_from_episode_description(
+            "Episódio", desc, "O Programa", feed_hosts=feed_hosts, language=lang
+        )
+
+    def test_the_name_before_the_cue_is_the_host(self) -> None:
+        desc = "Neste episódio, Ana Ruiz conversa com o economista Luis Mora."
+        assert self._hosts(desc, "pt") == {"Ana Ruiz"}
+        assert self._hosts(desc, "en") == set()
+
+    def test_a_guest_sitting_with_us_is_not_the_host(self) -> None:
+        assert self._hosts("Por fin, Eva Ruiz se sienta con nosotros.", "es") == set()
+
+    def test_a_manner_after_the_cue_names_no_partner(self) -> None:
+        assert self._hosts("En esta entrevista Eva Ruiz habla con total honestidad.", "es") == set()
+
+    def test_a_capture_inside_a_longer_name_is_refused(self) -> None:
+        desc = "En el capítulo, Vicky Martín Berrocal conversa con Paula Ruiz."
+        assert self._hosts(desc, "es") == set()
+        assert self._hosts("Eva-Maria Lemke spricht mit dem Experten Kai Lenz.", "de") == set()
+
+    def test_a_genitive_before_the_name_is_refused(self) -> None:
+        desc = "También: el papá de Gala Ruiz habla con la Revista."
+        assert self._hosts(desc, "es") == set()
+
+    def test_a_host_role_word_outranks_the_mid_name_guard(self) -> None:
+        desc = "Host Anne Berg spricht mit Autor David Kopp."
+        assert self._hosts(desc, "de") == {"Anne Berg"}
+
+    def test_the_feed_host_by_first_name_after_the_cue_marks_the_guest(self) -> None:
+        desc = "En este capítulo, Uri Ruiz se sienta con Carlos para hablar de éxito."
+        assert self._hosts(desc, "es", feed_hosts=["Carlos Roca"]) == set()

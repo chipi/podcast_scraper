@@ -22,8 +22,15 @@ def _cluster_es() -> str:
 
 def test_a_spanish_guest_reply_beside_the_host_act_blocks_the_rescue() -> None:
     text = _cluster_es()
-    kwargs = dict(voice_intro={}, voice_texts={"S1": text}, talk_share={"S1": 0.3, "S2": 0.7})
-    assert not roster._rescued_from_bleed("S1", text, "Ana Ruiz", language="es", **kwargs)
+    assert not roster._rescued_from_bleed(
+        "S1",
+        text,
+        "Ana Ruiz",
+        language="es",
+        voice_intro={},
+        voice_texts={"S1": text},
+        talk_share={"S1": 0.3, "S2": 0.7},
+    )
 
 
 def test_english_keeps_its_reply_list() -> None:
