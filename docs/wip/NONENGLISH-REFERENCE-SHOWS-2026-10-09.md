@@ -66,6 +66,23 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
 
 ## The next arc — plan
 
+**Status (2026-10-09):** plan accepted by the operator; work started. Decisions:
+
+- Translation quality is judged by a **stronger model as judge** (operator, 2026-10-09).
+- The measuring code lives in the eval repo (`eval-data/`, private), next to the V.6b scripts it
+  follows: `scripts/eval/nonen_ref/`, working files under the ignored `cache/nonen_ref/`.
+- Reference transcripts are stored only in the private eval repo's cache; never committed to the
+  public repo or quoted in public.
+
+| step | what | DGX | status |
+| --- | --- | --- | --- |
+| 1 | reference harness: fetch, clean, coverage-check the human transcripts | no | in progress |
+| 2 | episode set, ~12 episodes, references verified to cover their audio | no | — |
+| 3 | pipeline runs on `prod_dgx_full`, transcript kept after every step | yes (operator's yes for > 2 episodes) | — |
+| 4 | scoring: ASR WER, per-step effect, naming, translation (model judge) | judge only | — |
+| 5 | gap list and fixes | — | — |
+| 6 | readiness call per language | — | operator |
+
 **Goal:** know, per language, how good our transcript, speaker names and translation are against a
 human reference, and which gaps block enabling that language on prod.
 
@@ -89,8 +106,8 @@ human reference, and which gaps block enabling that language on prod.
      score who-said-what, the defects in item 3 above.
    - Translation: no English reference exists for most of these. First measure what ASR errors
      cost the translation (translate the human reference and our transcript, compare the two
-     English texts); then decide how to judge translation itself (human spot-check of a sample or
-     a stronger model as judge) — an open question for the operator.
+     English texts); then judge the translation itself with a stronger model as judge
+     (operator's decision).
 5. **Gap list and fixes.** Rank the gaps by what they cost per language; fix in this arc what
    is a code fix, record what is a model choice (#2251) or a vocabulary (#2255-#2259).
 6. **Readiness call per language.** Which languages could be enabled on prod, with what known
