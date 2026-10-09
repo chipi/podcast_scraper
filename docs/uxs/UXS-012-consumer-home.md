@@ -400,11 +400,17 @@ piece to its design home:
   `TrendsSection`: Trends at **3 rows on a phone and 5 on desktop**, more rows expanding in place from
   the header's "all ›" on both. The page decides only what a Trends tap opens (Home: overlay card;
   Discover: the page).
+- **`TrendingScopeButton`** — the ONE Mine ⇄ Everyone switch (`discover-scope`, operator
+  2026-10-09), an icon circle in Discover's header (accent = Mine, the default for a signed-in
+  listener; hidden signed out). Everything on Discover follows it: trending shows (which explain an
+  empty Mine — `trending-shows-mine-empty` — and offer everyone's), Trends, and a search started on
+  the page; the Search results' own switch reads and writes the same remembered choice. "Mine" is
+  the listener's own world, one meaning per kind of item ([ADR-162](../adr/ADR-162-mine-means-the-listeners-own-world.md)).
 - **`DiscoveryExplorer`** — the shared section (`discovery-explorer`) wrapping the tabbed
   `DiscoveryList` (topics / themes / storylines / people — Themes added 2026-10-05, in the order
-  every surface lists the kinds) with the Rising⇄Trending sort (`discovery-sort`) and
-  Corpus⇄Mine scope (`home-trending-scope`) switches. The kind pills are `dense` so all four and
-  both switches share one row on a phone. The pills render in the device's system font, so whether
+  every surface lists the kinds) with the Rising⇄Trending sort switch (`discovery-sort`). It reads
+  the page's Mine ⇄ Everyone choice rather than carrying a switch of its own (2026-10-09). The kind
+  pills are `dense` so all four and the switch share one row on a phone. The pills render in the device's system font, so whether
   all four fit is the OS's call; where they do not (a 360px Android phone, a wider font), the pill
   strip stops at the switches and scrolls sideways, never drawn over them. Home and Discover render the section at
   the SAME inset and width — Discover's container no longer adds its own `px-4` on top of the app
