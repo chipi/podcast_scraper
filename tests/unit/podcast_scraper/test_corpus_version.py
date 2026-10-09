@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from podcast_scraper.corpus_version import (
     assess_corpus_version_compat,
     build_produced_by,
@@ -111,4 +113,27 @@ def test_resolve_git_commit_sha_success(mock_run: MagicMock) -> None:
 @patch("podcast_scraper.corpus_version.subprocess.run")
 def test_resolve_git_commit_sha_failure(mock_run: MagicMock) -> None:
     mock_run.return_value = MagicMock(returncode=1, stdout="")
+    assert resolve_git_commit_sha() == "unknown"
+
+
+@patch("podcast_scraper.corpus_version.subprocess.run")
+def test_resolve_git_commit_sha_prefers_the_baked_in_sha(
+    mock_run: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The pipeline image has no git and no .git (docker/pipeline/Dockerfile): the SHA it was built
+    from arrives as PODCAST_GIT_SHA, which run manifests already read. The corpus stamp asked git
+    instead, so an image wrote "unknown" — and code run from an export inside another repo wrote
+    THAT repo's commit."""
+    monkeypatch.setenv("PODCAST_GIT_SHA", "0d0db93d6f00")
+    mock_run.return_value = MagicMock(returncode=0, stdout="ced3bcf00000\n")
+    assert resolve_git_commit_sha() == "0d0db93d6f00"
+    assert build_produced_by(produced_at="2026-10-10T00:00:00Z")["git_sha"] == "0d0db93"
+    mock_run.assert_not_called()
+
+
+@patch("podcast_scraper.corpus_version.subprocess.run", side_effect=FileNotFoundError("git"))
+def test_resolve_git_commit_sha_without_git_or_env_is_unknown(
+    _mock_run: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("PODCAST_GIT_SHA", raising=False)
     assert resolve_git_commit_sha() == "unknown"
