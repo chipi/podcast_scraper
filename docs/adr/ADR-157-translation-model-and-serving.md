@@ -1,7 +1,7 @@
 # ADR-157: TranslateGemma-12B, served co-resident, called through the completions route
 
 - **Status**: Accepted — but the MODEL CHOICE is PROVISIONAL, see the amendment below
-- **Date**: 2026-09-29 (amended 2026-10-02)
+- **Date**: 2026-09-29 (amended 2026-10-02, 2026-10-09)
 - **Authors**: Marko Dragoljevic
 - **Issues**: [#2169](https://github.com/chipi/podcast_scraper/issues/2169) (epic),
   [#2186](https://github.com/chipi/podcast_scraper/issues/2186) (V.6a)
@@ -135,7 +135,7 @@ goal is to accurately convey the meaning and nuance of the original text.
 The language-name map it needs (`es` → `Spanish`, plus hundreds of regional subtags) lives in
 `chat_template.jinja` inside the model snapshot.
 
-### 4. `--gpu-memory-utilization=0.32`
+### 4. `--gpu-memory-utilization=0.32`, re-sized to 0.26 and max-model-len 4096
 
 The fraction is of **total** unified memory (121.7 GiB) and must cover **weights plus KV cache**.
 
@@ -149,6 +149,12 @@ The fraction is of **total** unified memory (121.7 GiB) and must cover **weights
 `0.20` (= 24.3 GiB) was tried and vLLM refused — `No available memory for the cache blocks` — with
 ~1 GiB left for cache. `0.32` gives a 38.9 GiB budget → **72,086 tokens of KV cache, 8.80×
 concurrency** at `max-model-len` 8192.
+
+**Re-sized 2026-09-30 to `0.26` and `max-model-len` 4096** (agentic-ai-homelab cd0dabd,
+homelab #81, agreed with the service owner; kept by the operator 2026-10-09). `0.32` put the DGX
+back in the memory regime that preceded the September freezes (MemFree ~44 GB → ~2 GB). The
+measured workload is far below either size: 141 production units, serial, total tokens p95 141,
+max 433. `0.26` (~31.6 GiB) leaves ~8 GiB of KV cache, ~3.6× one worst-case 4,096-token request.
 
 The reasoning error worth preserving: prod-vllm is *allowed* 0.75 but **holds 29 GiB**. The
 fraction is a ceiling a stack may claim, not what it occupies — which is what makes co-residency
@@ -180,9 +186,9 @@ Three consequences, each now evidence rather than assumption:
 ### 5. The model's input context is 2K, and the guard is client-side
 
 The model card documents a **2K total input context**. The served container runs
-`--max-model-len=8192`, deliberately, because the two numbers measure different things:
-`max-model-len` covers prompt **plus** completion, so 2048 there would reject legitimate work —
-a 2K input needs room for its ~2K translation.
+`--max-model-len=4096` (8192 until the 2026-09-30 re-size in §4): `max-model-len` covers prompt
+**plus** completion, so 2048 there would reject legitimate work — a 2K input needs room for its
+~2K translation — and 4096 is exactly that, 2,048 in + 2,048 out.
 
 The server does not protect against an oversized unit. Measured 2026-09-29: a unit at **4,800
 prompt tokens was accepted** and returned a translation of its **first sentence only** —
@@ -201,8 +207,11 @@ feed two units asked for 1,144 + 2,953 = 4,097 tokens and the server refused bot
 episode's translation. The provider now reads the served value from `/v1/models` once and caps
 each request's output budget at what the context leaves (`CONTEXT_MARGIN_TOKENS` = 32), logging
 every cap; a translation that genuinely does not fit is then cut off and reported as truncated
-rather than refused. Whether 4096 is the intended deployment value (memory headroom) or a drift
-from this ADR is an operator decision this note does not make.
+rather than refused. 4096 is the intended value (§4: memory, and at 8192 the 4,800-token prompt
+above came back 200 with its content gone, where at 4096 the server refuses it); the operator
+kept it on 2026-10-09. What is not measured: how close real units come to the cap — the
+translation ledger stores no token counts, so a unit cut off at the cap is seen only as a failed
+unit (which skips the episode's summary, GI and KG rather than running them on partial text).
 
 ## Licence
 
