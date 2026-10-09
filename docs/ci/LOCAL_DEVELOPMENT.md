@@ -2,7 +2,7 @@
 
 This document covers local development setup, pre-commit hooks, and debugging CI failures.
 
-For workflow details, see [Workflows](WORKFLOWS.md).
+For workflow details, see Workflows.
 For architecture overview, see [Overview](OVERVIEW.md).
 
 ---

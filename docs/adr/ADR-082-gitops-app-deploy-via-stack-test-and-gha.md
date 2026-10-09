@@ -26,7 +26,7 @@ what is intended to run after gates pass.
 **Automation target (RFC-082 Decision 6):** add **`workflow_run`** on successful **`Stack test`**
 so deploy starts automatically after publish for the same commit family. Until that trigger is merged,
 **`deploy-prod.yml`** may remain **`workflow_dispatch`** only; operators then **`gh workflow run
-deploy-prod.yml`** after the same gates (see [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md)).
+deploy-prod.yml`** after the same gates (see PROD_RUNBOOK.md).
 
 **Infrastructure** (`infra/**`) is **not** auto-applied on merge: PR CI shows **`tofu plan`**;
 **`infra-apply.yml`** stays **manual** **`workflow_dispatch`** with operator approval so a bad merge
@@ -59,7 +59,7 @@ cannot immediately mutate Hetzner or shared Tailscale resources.
 
 - **Workflows**: `.github/workflows/deploy-prod.yml`, stack-test workflow(s), image publish jobs on
   **`main`**
-- **Operator docs**: [PROD_RUNBOOK.md](../guides/PROD_RUNBOOK.md)
+- **Operator docs**: PROD_RUNBOOK.md
 
 ## References
 

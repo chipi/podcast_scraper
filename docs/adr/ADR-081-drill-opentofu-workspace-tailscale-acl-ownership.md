@@ -56,7 +56,7 @@ and at apply time.
 
 - **Paths**: `infra/terraform/` (workspace **`drill`**, `terraform.drill.ci.tfvars`, drill tfvars
   example), `tailscale/policy.hujson`
-- **Docs**: [DR_DRILL_RUNBOOK.md](../guides/DR_DRILL_RUNBOOK.md), [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md)
+- **Docs**: DR_DRILL_RUNBOOK.md, [`infra/README.md` (repo root)](https://github.com/chipi/podcast_scraper/blob/main/infra/README.md)
 
 ## References
 

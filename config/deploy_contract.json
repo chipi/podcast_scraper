@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "description": "What a deployment of this application must honour. Owned here and kept exact by tests in this repository; deployment tooling tests its own configuration against it. player_edge_public_file_paths: GET routes under the player API that serve a file without a session, so an <img src> can fetch them; an edge proxy in front of the player must let these paths through to the app instead of answering them itself. obs_service_env: the environment variable names the obs service in compose/docker-compose.player-public.yml passes into the container; a variable the deployment renders but the service does not list never reaches the process.",
+  "player_edge_public_file_paths": [
+    "/api/app/artwork",
+    "/api/app/organizations/{org_id}/logo",
+    "/api/app/persons/{person_id}/photo",
+    "/api/app/profile/{user_id}/avatar"
+  ],
+  "obs_service_env": [
+    "APP_MCP_ALLOWED_ORIGINS",
+    "APP_MCP_ISSUER_URL",
+    "APP_MCP_REQUIRE_ADMIN",
+    "APP_MCP_RESOURCE_URL",
+    "APP_MCP_VERIFY_URL",
+    "INTERNAL_MCP_TOKEN",
+    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+    "PODCAST_ENV",
+    "PODCAST_OBS_CONFIG",
+    "PODCAST_OBS_GITHUB_TOKEN",
+    "PODCAST_OBS_GRAFANA_TOKEN",
+    "PODCAST_OBS_GRAFANA_URL",
+    "PODCAST_OBS_SENTRY_TOKEN",
+    "PODCAST_OBS_SENTRY_URL",
+    "PODCAST_OBS_VICTORIALOGS_URL",
+    "PODCAST_OBS_VICTORIAMETRICS_URL",
+    "SENTRY_AUTH_TOKEN"
+  ]
+}

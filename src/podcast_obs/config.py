@@ -115,7 +115,8 @@ class ObservabilityConfig:
 
         1. explicit ``path`` arg (a caller passed it),
         2. ``PODCAST_OBS_CONFIG`` env var,
-        3. the committed dev default ``config/observability.homelab.yaml`` if present,
+        3. the dev default ``config/observability.homelab.yaml`` if present (operator
+           configuration — not tracked in this repository),
         4. a single target from ``PODCAST_OBS_*`` / platform env (``from_env``).
 
         Step 3 is what makes ``podcast_obs`` zero-config on a dev box: the multi-target homelab
@@ -126,9 +127,9 @@ class ObservabilityConfig:
         _load_obs_dev_env()  # zero-config: pick up the worktree's .env.obs.dev if present
         path = path or os.environ.get(f"{ENV_PREFIX}CONFIG")
         # Auto-discovery is a dev-machine convenience; skip under pytest so the env-path tests stay
-        # hermetic (they run from the repo cwd, where the committed YAML would otherwise be found) —
+        # hermetic (they run from the repo cwd, where a placed YAML would otherwise be found) —
         # same rationale as ``_load_obs_dev_env``; ``_discover_default_config`` stays testable.
-        # ``PODCAST_DEV_OBS_ENV=0`` (test servers) skips it too: the committed homelab YAML would
+        # ``PODCAST_DEV_OBS_ENV=0`` (test servers) skips it too: a placed homelab YAML would
         # point a test run at production telemetry (operator, 2026-10-06).
         if not path and not os.environ.get("PYTEST_CURRENT_TEST") and not _dev_obs_disabled():
             path = _discover_default_config()
@@ -239,14 +240,16 @@ def _origin(url: Optional[str]) -> Optional[str]:
 
 
 def _discover_default_config() -> Optional[str]:
-    """Return the committed dev-default multi-target YAML if it exists, else ``None``.
+    """Return the dev-default multi-target YAML if it exists, else ``None``.
 
     Looks for ``config/observability.homelab.yaml`` under the cwd (worktree root when an agent
     launches the tool there) then the editable repo root (two levels up from this file). This is
-    the zero-config default for a developer machine: the file is TRACKED (correct homelab
-    org/projects/URLs, secrets via ``*_env`` indirection), so discovering it needs no per-machine
-    setup. Deliberately exact — never globs ``observability.*.yaml`` so the shipped
-    ``observability.example.yaml`` can't be picked up by accident.
+    the zero-config default for a developer machine that has the file. It is operator
+    configuration (homelab org/projects/URLs, secrets via ``*_env`` indirection) and is NOT
+    tracked in this repository: an operator places it at that path once, and after that nobody
+    has to export ``PODCAST_OBS_CONFIG``. Deliberately exact — never globs
+    ``observability.*.yaml`` so the shipped ``observability.example.yaml`` can't be picked up by
+    accident.
     """
     repo_root = Path(__file__).resolve().parents[2]
     for base in (Path.cwd(), repo_root):
@@ -374,8 +377,8 @@ def _target_from_yaml(name: str, spec: dict) -> TargetConfig:
         # This mapping was missing when ``operator_key`` was first added and the omission made the
         # whole fix INERT in the common path: ``load()`` auto-discovers
         # ``config/observability.homelab.yaml`` at precedence step 3, BEFORE ``from_env`` at step
-        # 4, so on any dev box the YAML branch is what builds the target — and it hard-coded the
-        # key to None. The 403s the fix was written for went right on happening.
+        # 4, so on any dev box that has the YAML, that branch is what builds the target — and it
+        # hard-coded the key to None. The 403s the fix was written for went right on happening.
         operator_key=_secret(spec, "operator_key") or _bare("APP_OPERATOR_API_KEY"),
         github_repo=github.get("repo") or DEFAULT_GITHUB_REPO,
         github_token=_secret(github, "token"),

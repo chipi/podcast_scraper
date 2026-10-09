@@ -16,9 +16,8 @@ Detail manuals (load on demand by any agent):
 
 - `.ai-coding-guidelines-quick.md` — 90-line quick reference
 - `.ai-coding-guidelines.md` — deep reference manual (~2,500 lines)
-- **`docs/guides/PROD_VALIDATION_QUICKREF.md` — did something to prod (deploy, corpus
-  swap, restart)? Validate it in ~2 min: copy-paste API + observability probes, mostly
-  NO SSH. READ THIS FIRST instead of spelunking runbooks / SSHing around.**
+- Prod validation, deployment and observability runbooks are operator documentation
+  and are not in this repository.
 - `docs/guides/*` — topic-specific guides (TESTING_GUIDE, ENGINEERING_PROCESS,
   POLYGLOT_REPO_GUIDE, AGENT_BROWSER_LOOP_GUIDE, SERVER_GUIDE, …)
 
@@ -45,8 +44,8 @@ Detail manuals (load on demand by any agent):
   "the env var should override the profile" by reading these files. Both were wrong; one
   nearly shipped a cross-repo change to the homelab gateway. **If you reach either
   conclusion you are re-deriving topology from config — STOP**, read
-  `docs/adr/ADR-142-litellm-prod-gateway.md` and `docs/guides/LITELLM_GATEWAY.md`, then
-  re-check your premise before acting on it.
+  `docs/adr/ADR-142-litellm-prod-gateway.md` (the gateway runbook is operator
+  documentation, not in this repository), then re-check your premise before acting on it.
 
 ---
 
@@ -57,11 +56,11 @@ exists because a session burned time rediscovering something already written dow
 
 | If the question is about… | Read, in this order | You will find |
 | --- | --- | --- |
-| **Observability — is X up? where is X?** | `docs/guides/OBSERVABILITY_RUNBOOK.md` § "Endpoint table" → § "Query crib" | every app's local port + tailnet path + health check; copy-paste log/metric/trace queries; the GlitchTip token recipe |
-| **MCP servers — which exist, are they live, how do I connect?** | `AGENTS.md` § "MCP servers — PROD vs DEV" → `docs/guides/OBSERVABILITY_RUNBOOK.md` § "MCP servers" | that PROD content MCP is the **claude.ai connector, already available as `mcp__claude_ai_Close_Listening__*`** — no token, no setup; plus both prod URLs and the token-minting route |
-| **Deploying / running the obs MCP** | `docs/guides/OBS_MCP_HOMELAB_DEPLOY.md` (homelab approach — **DROPPED**), `docs/wip/OBS-MCP-ON-VPS-PLAN.md` (**SUPERSEDED**, wrong subdomain) | history only. Current truth is the runbook's MCP table |
-| **LLM routing / gateway** | `docs/adr/ADR-142-litellm-prod-gateway.md`, `docs/guides/LITELLM_GATEWAY.md` | prod does **not** call homelab; see § "Deployment topology" above |
-| **Prod ops — deploy, health, corpus paths, secrets** | `docs/guides/PROD_OPERATOR_CHEAT_SHEET.md` | endpoints, host paths, daily commands, incident playbook, secret inventory |
+| **Observability — is X up? where is X?** | the operator observability runbook (not in this repository) § "Endpoint table" → § "Query crib" | every app's local port + tailnet path + health check; copy-paste log/metric/trace queries; the GlitchTip token recipe |
+| **MCP servers — which exist, are they live, how do I connect?** | `AGENTS.md` § "MCP servers — PROD vs DEV" → the operator observability runbook § "MCP servers" | that PROD content MCP is the **claude.ai connector, already available as `mcp__claude_ai_Close_Listening__*`** — no token, no setup; plus both prod URLs and the token-minting route |
+| **Deploying / running the obs MCP** | `docs/wip/OBS-MCP-ON-VPS-PLAN.md` (**SUPERSEDED**, wrong subdomain) | history only. Current truth is the runbook's MCP table |
+| **LLM routing / gateway** | `docs/adr/ADR-142-litellm-prod-gateway.md` | prod does **not** call homelab; see § "Deployment topology" above |
+| **Prod ops — deploy, health, corpus paths, secrets** | the operator cheat sheet (not in this repository) | endpoints, host paths, daily commands, incident playbook, secret inventory |
 | **Corpus / feed curation** | `config/corpus-expansion.feeds.yaml`, `docs/wip/CORPUS-EXPANSION-REGISTRY-2026-09.md` | the vetted feed list + every rejection with its reason |
 | **Enrichment quality gates** | `docs/wip/ONBOARDING-SHOWS-FOR-ENRICHER-VALUE.md` §5f-§5j | the §5g probe protocol, §5i evidence-based gates, the 2h duration ceiling |
 
@@ -706,11 +705,10 @@ the tailnet), so `curl`ing `prod-podcast:8099` from your Mac will time out
 (ACL). Instead SSH in read-only: `ssh deploy@prod-podcast` (tailnet), then curl
 loopback or `docker exec player-mcp-1 …` to read `/app/output` straight.
 
-Copy-paste recipes live in `docs/guides/OBSERVABILITY_RUNBOOK.md`: the **"Query crib"**
+Copy-paste recipes live in the operator observability runbook (not in this repository): the **"Query crib"**
 (logs/metrics/traces/errors against the homelab backends, incl. the GlitchTip token) and
 **"Reaching the prod VPS box directly"** (SSH corpus/version/LLM-spend on `prod-podcast`,
-plus the `homelab`-Mac docker path + `manage.py shell` gotcha). Prod validation quickref:
-`docs/guides/PROD_VALIDATION_QUICKREF.md`.
+plus the `homelab`-Mac docker path + `manage.py shell` gotcha).
 
 ### Make commands, never direct tools
 
@@ -1062,8 +1060,9 @@ permanent breadcrumb.
 migration set currently running on prod. The pinned fixture at
 `tests/fixtures/upgrade/corpus_at_last_prod_release/` MUST match it.
 
-**`.github/workflows/deploy-prod.yml` auto-opens a PR after every green
-deploy** (via `scripts/ops/bump_prod_marker.py`) that updates:
+**The prod deploy (operator tooling, not in this repository) computes the marker bump
+after every green deploy and surfaces it in its job summary; it does not open a PR.**
+The bump, landed by hand in the next release PR, updates:
 
 1. `config/last_deployed_prod_version.json`.
 2. The fixture's `upgrade_ledger.json`.
@@ -1071,7 +1070,7 @@ deploy** (via `scripts/ops/bump_prod_marker.py`) that updates:
 
 **Manual step remaining:** the fixture's on-disk artifact shapes
 (`metadata/*.gi.json`, etc.). If a deployed migration changed those, hand-edit
-the fixture in the auto-opened PR before merging. The unit test
+the fixture in that PR before merging. The unit test
 `test_pinned_fixture_shape.py` fails the PR if you skip it — pointing at the
 exact file that drifted.
 
@@ -1097,10 +1096,9 @@ Three migration surfaces exist. Do not conflate them.
   Endpoint additions, response-shape moves, config renames, upgrade recipes
   for callers of the HTTP API and the Python library.
 
-Restore paths run the corpus-upgrade framework automatically
-(`scripts/ops/restore_corpus_from_tarball_host.sh`, wired in #1176). Local
-`make restore-corpus` / `make import-corpus` do NOT — always follow those with
-`make upgrade-corpus CORPUS_DIR=...` before pointing anything at the corpus.
+The operator restore path (not in this repository) runs the corpus-upgrade framework
+automatically (#1176). A corpus restored or copied by hand does NOT get it — always
+follow with `make upgrade-corpus CORPUS_DIR=...` before pointing anything at the corpus.
 
 ### Pipeline parallelism (audio ↔ LLM overlap) — where to look
 
@@ -1125,31 +1123,16 @@ Every run reports the six #1180 parallelism metrics in the summary JSON
 `docs/guides/PIPELINE_AND_WORKFLOW.md` → "Parallelism observability",
 `PERFORMANCE.md` (moved to the private eval repo) → "Tuning parallelism".
 
-### Corpus backup / restore — pick the right surface
+### Corpus backup / restore
 
-Four independent surfaces exist; do not conflate them. SSOT lives at
-`docs/guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md`; the surface matrix names
-every target.
+The backup, restore and corpus-transfer tooling (scheduled cloud backups, restores from a
+released snapshot, instance-to-instance export/import) is operator tooling and is not in
+this repository. What remains here:
 
-- **Scheduled cloud backup / restore** (`backup-corpus.yml`,
-  `backup-corpus-prod.yml`, `prod-restore-corpus.yml`,
-  `drill-restore-corpus.yml`). Use for daily snapshots to
-  `chipi/podcast_scraper-backup` and controlled prod / drill restores.
-- **Local restore from a released tag** (`make restore-corpus`,
-  `make restore-corpus-prod`). Use to pull a specific `snapshot-YYYYMMDD` release
-  down to a codespace or prod host. Requires `gh auth` on the backup repo.
-- **Instance-to-instance transfer without CI** (`make export-corpus`,
-  `make import-corpus` — #1175). Use when moving a corpus laptop ↔ VPS,
-  prod ↔ codespace, or across an airgap. No `gh` dependency; operator owns the
-  transport. Produces the same tarball format as `backup-corpus.yml`, so the
-  two paths are bit-format compatible. Detailed recipes:
-  `docs/guides/CORPUS_AIRGAP_RUNBOOK.md`.
-- **Stack-test debug export** (`make stack-test-export`). Copies the compose
-  volume — for debugging only, not portable.
-
-Reach for `export-corpus` / `import-corpus` when the operator asks to "move",
-"transfer", "airgap", or "sneakernet" a corpus; reach for the CI backup flow
-when they ask for "scheduled backup" or "prod restore".
+- **Stack-test debug export** (`make stack-test-export`). Copies the compose volume — for
+  debugging only, not portable.
+- **Corpus upgrade** (`make upgrade-check` / `make upgrade-corpus`). Run it on any corpus
+  restored or copied by hand before pointing anything at it.
 
 ### Materialize autoresearch decisions in the registry, regenerate profiles
 

@@ -183,7 +183,7 @@ Nothing — supplemental to:
 - [ADR-096](../adr/ADR-096-dgx-spark-prod-primary-with-fallback.md) — prod-with-fallback degradation contract
 - [ADR-098](../adr/ADR-098-embedding-provider-profile-axis.md) — embedding provider profile axis (the "embeddings stay local" decision)
 - [RFC-089](../rfc/RFC-089-dgx-spark-tailnet-integration.md) — original DGX bring-up
-- [DGX_RUNBOOK.md](../guides/DGX_RUNBOOK.md) — operator-facing operational reference
+- DGX_RUNBOOK.md — operator-facing operational reference
 
 This doc differs by being the **strategic** view — when to run what where, and the reasoning frame for future decisions. The other docs are tactical / decision-record / runbook.
 

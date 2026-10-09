@@ -72,13 +72,15 @@ dependencies = [
   "jsonschema>=4.26.0,<5.0.0",
   # NOTE: no 3rd-party observability SaaS SDKs here — Sentry/Langfuse are fully
   # optional opt-in extras ([sentry] / [langfuse]); the core no-ops without them.
-  # See the [project.optional-dependencies] header + docs/guides/OBSERVABILITY_EXTENSIONS.md.
+  # See the [project.optional-dependencies] header (the extensions guide is operator documentation, not in this repository).
 ]
 
 [project.optional-dependencies]
 # Canonical extras (no separate [gemini] / [openai] extras):
 #   dev       — tests, lint, typecheck, FastAPI/uvicorn (viewer API), text eval metrics; no torch/transformers
-#   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, lancedb,
+#   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, etc.
+#               NOT lancedb: that is search-only, as the note in [ml] itself says. This line
+#               claimed otherwise.
 #   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
 #   search    — Minimum local ML for the vector index (sentence-transformers + lancedb + torch CPU).
 #               Pulled into the cloud-API pipeline image alongside [llm] so cloud_balanced can
@@ -94,7 +96,7 @@ observability = [
   "httpx>=0.28.1,<1.0.0",
   "PyYAML>=6.0.3,<7.0.0",
   "mcp>=1.2.0,<2.0.0",  # FastMCP server for the agent-facing layer (stdio + sse/http)
-  "pyjwt>=2.14.0",  # via mcp; security floor, see the note in [dev]
+  "pyjwt>=2.15.0",  # via mcp; security floor, see the note in [dev]
 ]
 
 # ── Optional 3rd-party observability extensions ──────────────────────────────────
@@ -108,7 +110,7 @@ observability = [
 #     config-gated no-op (active only when its secret is present) AND degrades to a no-op
 #     when the SDK isn't installed. Install only what you use; compose them into the prod
 #     images you deploy (docker/{api,pipeline}); [dev] pulls all of them so tests/CI
-#     exercise them. Adding a new one → docs/guides/OBSERVABILITY_EXTENSIONS.md.
+#     exercise them. Adding a new one → the operator's observability extensions guide.
 sentry = [
   # Error reporting for the api (FastAPI) + pipeline (cli) via
   # podcast_scraper.utils.sentry_init.init_sentry(); no-op without PODCAST_SENTRY_DSN_*.
@@ -124,7 +126,7 @@ otel = [
   # backend). `opentelemetry-instrument` auto-wraps the process and
   # `opentelemetry-bootstrap -a install` (run in the Dockerfile) adds per-library
   # instrumentations. No-op unless OTEL_TRACES_EXPORTER=otlp + an OTLP endpoint are
-  # set — safe to bake into the image. See docs/guides/OBSERVABILITY_ARCHITECTURE.md.
+  # set — safe to bake into the image.
   "opentelemetry-distro>=0.65b0",
   "opentelemetry-exporter-otlp-proto-http>=1.44.0",
 ]
@@ -250,6 +252,21 @@ search = [
   # UPGMA clustering for topic_clusters.py (C1 fix); transitive via sentence-transformers
   # in practice, but declared explicitly so the extra is self-contained.
   "scipy>=1.10.0,<2.0.0",
+  # MLQueryRouter (RFC-090 §3.6 / RFC-092): a LogisticRegression over the same 384-dim
+  # all-MiniLM-L6-v2 space the index uses, persisted with joblib. Same reasoning as scipy
+  # above — both arrive transitively via sentence-transformers today, and both are imported
+  # BY NAME in search/query_router.py, so the extra declares them rather than inheriting
+  # them. Undeclared, the only test that exercises the real joblib load
+  # (tests/integration/search/test_query_router_ml.py) silently stops running the day
+  # sentence-transformers drops either one: it opens with importorskip, so the suite would
+  # report a skip, not a failure.
+  # Floor is 1.5.0, not the 1.3.0 a "lowest plausible" guess would give: 1.3.x is affected by
+  # GHSA-jw8x-6495-233v / PYSEC-2024-110 (sensitive data leakage), and 1.5.0 is the first clean
+  # release per OSV. CI resolves 1.9.0 today, so this floor is a safety bound rather than the
+  # tested version — declaring a range we would refuse to install is how a pin becomes fiction.
+  "scikit-learn>=1.5.0,<2.0.0",
+  # joblib has no advisories at its floor (checked 1.3.0 and 1.4.0 against OSV); CI resolves 1.6.0.
+  "joblib>=1.3.0,<2.0.0",
 ]
 # Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
 monitor = [
@@ -278,11 +295,11 @@ dev = [
   # direct dep raises them anyway.
   "gitpython>=3.1.59",
   "msgpack>=1.2.1",
-  # pyjwt (pulled by mcp, which sets no upper bound) had ten 2026 CVEs fixed in 2.14.0. There is no
-  # lock file, so a fresh CI/image resolve already lands past them — the floor is for every venv
-  # built before 2.14.0 existed, which kept 2.13.0 and failed pip-audit. Drop it once mcp requires
-  # >=2.14.0 itself.
-  "pyjwt>=2.14.0",
+  # pyjwt (pulled by mcp, which sets no upper bound) had ten 2026 CVEs fixed in 2.14.0, and two more
+  # (PYSEC-2026-4141, PYSEC-2026-4183) fixed in 2.15.0. There is no lock file, so a fresh CI/image
+  # resolve already lands past them — the floor is for every venv built before the fix existed,
+  # which keeps the old version and fails pip-audit. Drop it once mcp requires >=2.15.0 itself.
+  "pyjwt>=2.15.0",
   # Generic MCP server (PRD-034 / RFC-095) — a core dev/server capability, not a separate
   # extra. The official MCP Python SDK bundles FastMCP; the retrieval tools also need
   # [search] (ML deps) at runtime, same as the viewer.
@@ -436,7 +453,6 @@ exclude = [
     "^\\.venv/.*",  # Local venv (make type uses ``mypy .``)
     "^\\.venv-dev/.*",  # CI-parity venv (see Makefile VENVDEV)
     "^autoresearch/.*",  # Standalone autoresearch scripts (not part of src package)
-    "^infra/dgx/.*-server/app\\.py$",  # Docker-image app.py files (pyannote-server, whisper-server) — both named "app", not part of src package
 ]
 
 [[tool.mypy.overrides]]

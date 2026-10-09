@@ -18,13 +18,18 @@ retries, and no alert fires. The failure presents as a *design* choice ("this ap
 which is why it survived two enrichment waves.
 
 So the invariant is structural, not behavioural: **if a route serves a file and does NOT depend on
-``get_current_user``, the player edge must carry a path exemption for it.** Reading both files is
-the only place these two decisions — made in different languages, in different directories, by
-different reflexes — are put next to each other.
+``get_current_user``, the player edge must carry a path exemption for it.**
+
+The edge configuration is deployment tooling and is not in this repository. The two decisions meet
+in ``config/deploy_contract.json`` instead: this file keeps its ``player_edge_public_file_paths``
+EXACTLY equal to what the routes actually do, and the deployment side tests its edge against that
+list. A route made public here fails this file until it is added to the contract, and adding it is
+what tells the edge.
 """
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -33,7 +38,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 SERVER = ROOT / "src" / "podcast_scraper" / "server"
 ROUTES_DIR = SERVER / "routes"
-PLAYER_CADDY = ROOT / "infra" / "caddy" / "player.caddy"
+DEPLOY_CONTRACT = ROOT / "config" / "deploy_contract.json"
+_CONTRACT_KEY = "player_edge_public_file_paths"
 
 # `@router.get("<path>")` … `async def name(` … up to the next decorator or EOF.
 _ROUTE = re.compile(
@@ -75,27 +81,9 @@ def _file_serving_public_routes() -> list[tuple[str, str, str]]:
     return found
 
 
-def _edge_exempt_paths() -> list[str]:
-    """Every path listed on a `path` matcher line in the player vhost."""
-    paths: list[str] = []
-    for line in PLAYER_CADDY.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if stripped.startswith("#") or not stripped.startswith("path "):
-            continue
-        paths.extend(stripped.split()[1:])
+def _contract_paths() -> list[str]:
+    paths: list[str] = json.loads(DEPLOY_CONTRACT.read_text(encoding="utf-8"))[_CONTRACT_KEY]
     return paths
-
-
-def _matches(edge_pattern: str, route_path: str) -> bool:
-    """Does a Caddy `path` glob cover this route, once FastAPI's `{param}` is a path segment?
-
-    Caddy's `*` does not span `/`, and neither does a FastAPI path parameter, so `{person_id}` and
-    `*` line up one-for-one. Anchored at both ends, because Caddy's path matcher is exact unless
-    the pattern itself ends in a wildcard.
-    """
-    concrete = re.sub(r"\{[^}]+\}", "*", route_path)
-    pattern = "^" + "[^/]+".join(re.escape(part) for part in edge_pattern.split("*")) + "$"
-    return re.match(pattern, concrete) is not None
 
 
 def test_the_scan_finds_the_routes_it_is_meant_to_police() -> None:
@@ -117,13 +105,24 @@ def test_the_scan_finds_the_routes_it_is_meant_to_police() -> None:
 def test_public_file_route_is_reachable_through_the_player_edge(
     module: str, func: str, route: str
 ) -> None:
-    exemptions = _edge_exempt_paths()
-    assert any(_matches(p, f"/api/app{route}") for p in exemptions), (
+    declared = _contract_paths()
+    assert f"/api/app{route}" in declared, (
         f"{module}::{func} serves a file and does NOT require a session — it was made public so an "
-        f"<img src> could fetch it. But the player edge has no exemption covering "
-        f"/api/app{route}, so the coming-soon gate will answer it with HTML and a 200, and the "
-        f"image will silently render as initials on web AND native.\n\n"
-        f"Add a GET-only `path` matcher for it in infra/caddy/player.caddy beside @entity_media, "
-        f"then re-run infra/caddy/validate.sh.\n\n"
-        f"Current exemptions: {exemptions}"
+        f"<img src> could fetch it. But config/deploy_contract.json does not list /api/app{route} "
+        f"under {_CONTRACT_KEY}, so the edge is never told: the coming-soon gate will answer it "
+        f"with HTML and a 200, and the image will silently render as initials on web AND "
+        f"native.\n\nAdd it to the contract. The deployment's edge configuration is tested "
+        f"against that list.\n\n"
+        f"Currently declared: {declared}"
+    )
+
+
+def test_the_contract_lists_no_route_that_is_not_public() -> None:
+    """The other direction: a stale entry would keep an edge exemption open for a route that now
+    requires a session, or no longer exists."""
+    actual = {f"/api/app{route}" for _, _, route in _file_serving_public_routes()}
+    stale = sorted(set(_contract_paths()) - actual)
+    assert not stale, (
+        f"config/deploy_contract.json lists {stale} under {_CONTRACT_KEY}, but no unauthenticated "
+        f"file-serving player route matches. Remove them from the contract."
     )

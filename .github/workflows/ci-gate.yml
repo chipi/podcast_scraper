@@ -1,7 +1,7 @@
 # CI Gate (ADVISORY — observation only, NOT wired into branch protection).
 #
 # Purpose: prove out the "one aggregate verdict" idea before ever trusting it. It reads EVERY
-# check-run on a commit (across ALL workflows — python-app, Caddy, Stack test, CodeQL, Docker…),
+# check-run on a commit (across ALL workflows — python-app, Stack test, CodeQL, Docker…),
 # ignores the ones the operator has marked nice-to-have (e.g. Snyk on an exhausted free quota),
 # and reports a single GREEN / RED / INCOMPLETE verdict in its run summary. Its own job success
 # IS the verdict. Because it fires on `workflow_run` (not push/pull_request), its result does NOT
@@ -18,7 +18,6 @@ on:
   workflow_run:
     workflows:
       - "Python application"
-      - "Caddy edge config"
       - "Stack test"
       - "CodeQL Advanced"
       - "Docker Build & Test"

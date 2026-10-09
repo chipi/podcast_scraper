@@ -141,12 +141,10 @@ X.Y this was checked" — future migrations can rely on that history.
    `assess_corpus_version_compat` with a warning when the corpus predates
    the change — so operators who skip the framework path still get told.
 
-Restore paths already run `podcast upgrade run --yes` post-extract
-(`scripts/ops/restore_corpus_from_tarball_host.sh`, #1176), so the new step
-lands automatically on every prod restore once merged. Local
-`make restore-corpus` / `make import-corpus` require the operator to run
-`make upgrade-corpus CORPUS_DIR=<path>` by hand — this is documented in the
-airgap runbook, not enforced.
+The operator restore path (not in this repository) already runs
+`podcast upgrade run --yes` post-extract (#1176), so the new step lands
+automatically on every prod restore once merged. A corpus restored or copied by
+hand needs `make upgrade-corpus CORPUS_DIR=<path>` run by hand — not enforced.
 
 ## Prod-state fixture maintenance (after every prod deploy)
 
@@ -242,7 +240,6 @@ for genuinely one-shot data-shape corrections that never repeat.
 ## See also
 
 - [API Migration Guide](../api/MIGRATION_GUIDE.md) — API surface changes per version.
-- [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) —
-  SSOT for corpus backup / restore surfaces (each restore path pairs with
-  `upgrade-check` — see [#1176](https://github.com/chipi/podcast_scraper/issues/1176)).
-- [Corpus airgap runbook](CORPUS_AIRGAP_RUNBOOK.md) — post-import upgrade recipe.
+- Every operator restore path pairs with `upgrade-check` — see
+  [#1176](https://github.com/chipi/podcast_scraper/issues/1176). The backup and restore
+  tooling and its runbooks are not in this repository.

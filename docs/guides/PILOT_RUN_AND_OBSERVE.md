@@ -6,8 +6,8 @@ new corpus folder, and observe it live, with **zero bespoke setup**. Use this to
 a code change on real data before a full corpus run.
 
 Related: [Corpus reprocessing runbook](CORPUS_REPROCESSING.md) (rebuilding an *existing* corpus),
-[Observability control plane](OBSERVABILITY_CONTROL_PLANE.md) (`podcast_obs`),
-[DGX Spark runbook](DGX_RUNBOOK.md).
+Observability control plane (`podcast_obs`),
+DGX Spark runbook.
 
 ## Prerequisites (check these first)
 
@@ -62,7 +62,9 @@ cp .test_outputs/manual/prod-v2.1.1/corpus/feeds.spec.yaml \
 ## Observe it (live)
 
 The pipeline ships cost/logs/metrics to homelab VictoriaLogs/Metrics and LLM traces to Langfuse as
-it runs. Query with `podcast_obs` (auto-loads `.env.obs.dev`, so it is turnkey from the worktree):
+it runs. Query with `podcast_obs` (auto-loads `.env.obs.dev` from the worktree). The homelab target
+file is operator configuration and is not tracked in this repository: place your copy at
+`config/observability.homelab.yaml`, or point `OBS` at wherever it lives.
 
 ```bash
 OBS="config/observability.homelab.yaml"

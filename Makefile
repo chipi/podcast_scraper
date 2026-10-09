@@ -86,7 +86,7 @@ PYTEST_WORKERS ?= 2
 .PHONY: ios-contact-sheet design-contact-sheets ios-device-install android-build android-bundle android-device-install android-fastlane-install android-play-preflight android-play
 .PHONY: test-app-ios-native test-app-ios-prod-tour
 .PHONY: ios-contact-sheet
-.PHONY: withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-telemetry test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict infra-plan infra-apply infra-recover drill-env delete-drill-hetzner-orphans drill-tofu-plan drill-tofu-apply drill-tofu-destroy speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
+.PHONY: withdraw-language profiles-materialize profiles-check check-doc-structure help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit security-fast complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics search-quality-metrics search-quality-reseed quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-app-routes test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-diarization test-nightly test test-sequential test-fast test-fast-no-py-e2e test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-ui-fast ci-ui-full ci-ui-validation serve-for-validation ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run autoresearch-sweep-multi serve-gi-kg-viz test-ui test-ui-e2e e2e-api-image test-ui-e2e-live build-viewer serve-app serve-app-dev test-app test-app-e2e test-app-telemetry test-app-e2e-docker test-ios test-app-ios-playback test-app-ios-sim-offline app-e2e-api-up app-e2e-api-down build-app app-docker-build app-stack-config app-stack-up app-stack-down verify-gil-offsets-strict speaker-sync-audit transcript-pairing-audit upgrade-undo-roles speaker-coherence speaker-migration-preview
 
 help:
 	@echo "Common developer commands:"
@@ -223,11 +223,6 @@ help:
 	@echo "  make coverage-report         Generate HTML coverage report from existing .coverage"
 	@echo ""
 	@echo "Infrastructure (RFC-082 prod VPS):"
-	@echo "  make infra-plan      tofu init + plan against the prod Hetzner project (sources infra/.env.local; no state changes)"
-	@echo "  make infra-apply     tofu init + plan + apply (CREATES REAL HETZNER RESOURCES; tofu prompts y/n before any change)"
-	@echo "  make infra-recover   Recover from a failed apply: deletes orphan Hetzner resources by name, wipes stale state, re-runs apply with auto-ACL-import"
-	@echo "  make drill-env       How to set HCLOUD_TOKEN_DRILL for the Hetzner drill project (local shell + make delete-drill-hetzner-orphans)"
-	@echo "  make delete-drill-hetzner-orphans  Sources infra/.env.drill.local; deletes orphan drill Hetzner resources (partial apply cleanup)"
 	@echo ""
 	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
@@ -259,12 +254,6 @@ help:
 	@echo "  make stack-test-down        Stack-test: tear down (STACK_TEST_DOWN_VOLUMES=1 to also drop corpus_data)"
 	@echo "  make stack-test-reap        Stack-test: reap ALL leftovers (stack + orphan build/Playwright), this repo only"
 	@echo "  make stack-test-export      Stack-test: copy corpus_data volume → .stack-test-corpus/ for debug inspection"
-	@echo "  make restore-corpus         Pull a codespace-layout snapshot release from backup repo (via gh); extract to .codespace_corpus/"
-	@echo "  make restore-corpus-prod    Pull a prod-layout snapshot release from backup repo (via gh); extract to WORKSPACE_DIR/corpus/"
-	@echo "  make export-corpus          Pack a live corpus → portable snapshot.tgz + sibling manifest (no CI, no gh)"
-	@echo "                                Usage: make export-corpus CORPUS_DIR=<path> OUT=<file.tgz> [LAYOUT=codespace|prod]"
-	@echo "  make import-corpus          Validate + extract a local snapshot.tgz into a workspace (no network)"
-	@echo "                                Usage: make import-corpus FILE=<file.tgz> WORKSPACE_DIR=<parent> [LAYOUT=codespace|prod]"
 	@echo "  make upgrade-status         Show pending corpus-upgrade migrations (human-readable)"
 	@echo "                                Usage: make upgrade-status CORPUS_DIR=<path>"
 	@echo "  make upgrade-check          Same as upgrade-status but --json; exits 2 when migrations are pending (CI-gate)"
@@ -397,7 +386,6 @@ OUT ?= data/eval/search-v3/eval/latest.json
 MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	".github/**/*.md" \
 	".cursor/**/*.md" \
-	".devcontainer/**/*.md" \
 	".journal/**/*.md" \
 	".metrics/**/*.md" \
 	".ai-coding-guidelines.md" \
@@ -469,7 +457,7 @@ security-fast: security-bandit
 	fi
 
 security-bandit:
-	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev,./infra/dgx/converge/.venv --skip B113,B108,B110,B310 --severity-level medium
+	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev --skip B113,B108,B110,B310 --severity-level medium
 
 # Dependency vulnerability audit (pip-audit).
 #
@@ -789,12 +777,6 @@ check-doc-structure:
 	# Run this when: adding/moving/renaming any doc or directory, or before commit.
 	$(PYTHON) scripts/tools/check_doc_structure.py
 
-check-prod-secret-staging:
-	# ADR-115: /dev/shm/podcast-secrets does NOT persist, so every prod workflow that CREATES a
-	# container must re-stage the secrets first or the container runs with NO credentials at all.
-	# That rule lived in a commit message and was rediscovered in production four times.
-	# Run this when: adding or editing any workflow that touches prod.
-	$(PYTHON) scripts/tools/check_prod_secret_staging.py
 
 profile-drift-check:
 	# #907 Option B: every config/profiles/*.yaml that declares a `profile:` field
@@ -842,7 +824,7 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (#489): FastAPI + Vite. ``make init`` includes FastAPI via ``[dev]``; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci deploy-codespace restore-corpus restore-corpus-prod export-corpus import-corpus reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture smoke-prod corpus-snapshot-manifest-validate corpus-snapshot-select-tag corpus-snapshot-select-tag-prod corpus-snapshot-selftest corpus-snapshot-integration
+.PHONY:serve serve-api serve-ui serve-app serve-app-dev serve-e2e-mock stack-build stack-build-llm stack-compose-validate stack-up stack-down stack-logs verify-stack-profiles stack-test-build stack-test-build-cloud stack-test-up stack-test-down stack-test-seed stack-test-playwright stack-test-export stack-test-ml stack-test-cloud-thin stack-test-ml-ci reprocess-corpus-from-transcripts corpus-compat-check index-two-tier index-two-tier-docker enrich-relational-edges redo-diarization upgrade-status upgrade-check upgrade-dry-run upgrade-corpus upgrade-verify enrich enrich-viewer-fixture
 SERVE_OUTPUT_DIR ?= ./output
 # serve-api bind — DEFAULT 0.0.0.0:8000 so `make serve` "just works" for off-box dev:
 # a dev-signed iOS build's APNs token registration + the homelab delivery worker pulling
@@ -1170,224 +1152,6 @@ stack-test-ml-ci:
 		&& $(MAKE) stack-test-seed STACK_TEST_OPERATOR_VARIANT=ml \
 		&& $(MAKE) stack-test-playwright
 
-# RFC-081 Phase 1 — manual escape hatches for the deploy + restore
-# workflows. Both fail loud if prerequisites (PAT / codespace name /
-# backup repo) aren't wired yet.
-
-# Trigger the ``deploy-codespace`` workflow on the named pre-prod
-# codespace. Same code path as the auto-fired GHA on stack-test
-# success; manual invocation is the operator's escape hatch when the
-# auto-trigger didn't fire (e.g., stack-test workflow_run permission
-# blip, or a forced redeploy after secrets change).
-#
-# Requires:
-#   * gh auth login (or GH_TOKEN env)
-#   * GH_TOKEN PAT must include ``codespaces`` scope (the default
-#     ``GITHUB_TOKEN`` doesn't); store in ``CODESPACES_PAT`` GHA secret
-#     and export when running this make target locally.
-#   * ``CODESPACES_PAT_NAME`` (default ``podcast-scraper-preprod``) is
-#     the codespace name; override via env.
-deploy-codespace:
-	@CS=$$($(MAKE) -s _resolve-codespace-name); \
-	if [ -z "$$CS" ]; then exit 2; fi; \
-	echo "Rebuilding codespace: $$CS"; \
-	gh codespace rebuild --full --codespace "$$CS"
-
-# Codespace lifecycle helpers (RFC-081 §Phase 1A operator wrappers).
-#
-# All four targets share name resolution via ``_resolve-codespace-name``:
-#   1. ``$$CODESPACE_NAME`` env (full ``podcast-scraper-preprod-<suffix>``) — explicit override.
-#   2. ``gh codespace list`` filtered by displayName ``podcast-scraper-preprod`` — default.
-#
-# Auth: same as deploy-codespace — gh CLI must be ``codespace``-scoped
-# (``gh auth login -s codespace --web``). PAT-based auth in CI uses
-# ``GH_TOKEN`` from the ``CODESPACES_PAT`` Actions secret (must be a
-# **classic** PAT — fine-grained PATs are repo-scoped and 403 on
-# ``/user/codespaces/...``).
-
-_resolve-codespace-name:
-	@if [ -n "$${CODESPACE_NAME:-}" ]; then \
-		echo "$$CODESPACE_NAME"; \
-	else \
-		CS=$$(gh codespace list --json name,displayName -q \
-			'.[] | select(.displayName=="podcast-scraper-preprod") | .name' 2>/dev/null | head -1); \
-		if [ -z "$$CS" ]; then \
-			echo "ERROR: no codespace with displayName=podcast-scraper-preprod found." >&2; \
-			echo "       Set CODESPACE_NAME=<exact-name> or create the codespace first." >&2; \
-			exit 2; \
-		fi; \
-		echo "$$CS"; \
-	fi
-
-# Wake / start the pre-prod codespace (no full rebuild — picks up updated
-# Codespaces secrets at start). Use this after rotating GRAFANA_CLOUD_API_KEY
-# / OPENAI_API_KEY / etc. so the running container's env reflects the new
-# value (Codespaces secrets are baked into env at start, not read live).
-codespace-start:
-	@CS=$$($(MAKE) -s _resolve-codespace-name); \
-	if [ -z "$$CS" ]; then exit 2; fi; \
-	echo "Starting codespace: $$CS"; \
-	gh api -X POST "/user/codespaces/$$CS/start" --jq '.state' >/dev/null && \
-	echo "Start requested. Poll state with 'make codespace-status'."
-
-# Suspend the pre-prod codespace (pauses billing; workspace state preserved).
-# Use before stepping away — codespaces auto-suspend after 30 min idle anyway.
-codespace-stop:
-	@CS=$$($(MAKE) -s _resolve-codespace-name); \
-	if [ -z "$$CS" ]; then exit 2; fi; \
-	echo "Stopping codespace: $$CS"; \
-	gh codespace stop --codespace "$$CS"
-
-# Print current state (Available / ShuttingDown / Shutdown / Rebuilding / etc.)
-codespace-status:
-	@CS=$$($(MAKE) -s _resolve-codespace-name); \
-	if [ -z "$$CS" ]; then exit 2; fi; \
-	gh codespace list --json name,state,displayName,lastUsedAt \
-		-q ".[] | select(.name==\"$$CS\") | \"\(.displayName) [\(.name)] state=\(.state) lastUsed=\(.lastUsedAt)\""
-
-# Pull the codespace corpus to a local laptop directory via ``gh codespace cp``.
-# Belt-and-suspenders backup before risky deploys (image rebuilds, profile flips,
-# devcontainer changes). Pairs with ``codespace-restore-local`` which pushes a
-# local backup back into the codespace.
-#
-# Default destination: ``$HOME/preprod_corpus_backup_<UTC date>/`` so multiple
-# backups don't overwrite each other. Override with ``BACKUP_DIR=...``.
-codespace-backup-local:
-	@CS=$$($(MAKE) -s _resolve-codespace-name); \
-	if [ -z "$$CS" ]; then exit 2; fi; \
-	DEST="$${BACKUP_DIR:-$$HOME/preprod_corpus_backup_$$(date -u +%Y-%m-%d)}"; \
-	mkdir -p "$$DEST"; \
-	echo "Pulling corpus from codespace $$CS to $$DEST/ ..."; \
-	gh codespace cp -e -c "$$CS" -r \
-		'remote:/workspaces/podcast_scraper/.codespace_corpus' \
-		"$$DEST/"; \
-	echo ""; \
-	echo "=== Verify backup ==="; \
-	du -sh "$$DEST/.codespace_corpus" 2>/dev/null || echo "WARN: dir missing"; \
-	gi=$$(find "$$DEST" -name '*.gi.json' 2>/dev/null | wc -l); \
-	tx=$$(find "$$DEST" -name '*.txt' -path '*/transcripts/*' 2>/dev/null | wc -l); \
-	echo "  gi.json artifacts: $$gi"; \
-	echo "  transcripts:       $$tx"; \
-	if [ "$$gi" = "0" ]; then \
-		echo "ERROR: backup contains 0 gi.json artifacts; corpus may be empty." >&2; \
-		exit 3; \
-	fi; \
-	echo "OK: backup written to $$DEST/.codespace_corpus/"
-
-# Push a local laptop backup back into the codespace's corpus dir. Reverse of
-# ``codespace-backup-local``. Idempotent: ``gh codespace cp`` overwrites
-# existing files. Source defaults to the most recent backup under
-# ``$HOME/preprod_corpus_backup_*``; override with ``BACKUP_DIR=...``.
-codespace-restore-local:
-	@CS=$$($(MAKE) -s _resolve-codespace-name); \
-	if [ -z "$$CS" ]; then exit 2; fi; \
-	if [ -n "$${BACKUP_DIR:-}" ]; then \
-		SRC="$$BACKUP_DIR"; \
-	else \
-		SRC=$$(ls -1dt $$HOME/preprod_corpus_backup_* 2>/dev/null | head -1); \
-		if [ -z "$$SRC" ]; then \
-			echo "ERROR: no $$HOME/preprod_corpus_backup_* found. Override with BACKUP_DIR=..." >&2; \
-			exit 2; \
-		fi; \
-	fi; \
-	if [ ! -d "$$SRC/.codespace_corpus" ]; then \
-		echo "ERROR: $$SRC/.codespace_corpus missing — not a valid backup." >&2; \
-		exit 2; \
-	fi; \
-	echo "Restoring $$SRC/.codespace_corpus/ -> codespace $$CS:/workspaces/podcast_scraper/.codespace_corpus/"; \
-	gh codespace cp -e -c "$$CS" -r \
-		"$$SRC/.codespace_corpus" \
-		'remote:/workspaces/podcast_scraper/'; \
-	echo "OK: corpus restored into codespace."
-
-# Trigger the cloud-side backup workflow (.github/workflows/backup-corpus.yml).
-# workflow_dispatch only (no cron). Tarballs the codespace corpus and uploads
-# to chipi/podcast_scraper-backup as a release asset. Matches workflow default:
-# ``DRY_RUN=true`` skips upload; set ``DRY_RUN=false`` to publish.
-codespace-backup-cloud:
-	@DRY_RUN="$${DRY_RUN:-true}"; \
-	echo "Dispatching backup-corpus.yml workflow (dry_run=$$DRY_RUN) ..."; \
-	gh workflow run backup-corpus.yml --repo chipi/podcast_scraper -f dry_run=$$DRY_RUN; \
-	sleep 3; \
-	gh run list --workflow=backup-corpus.yml --repo chipi/podcast_scraper -L 1; \
-	echo ""; \
-	echo "Watch: gh run watch <id> --repo chipi/podcast_scraper"
-
-# Corpus snapshot manifest helpers (RFC-084 / ADR-092 / #763).
-corpus-snapshot-manifest-validate:
-	@if [ -z "$(FILE)" ]; then \
-		echo "FILE is required (path to snapshot.manifest.json)"; exit 2; \
-	fi
-	@bash scripts/ops/corpus_snapshot/validate_snapshot_manifest.sh "$(FILE)"
-
-corpus-snapshot-select-tag:
-	@BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
-	if [ -z "$${TAG_REGEX:-}" ]; then TAG_REGEX='^snapshot-[0-9]{8}$$'; fi; \
-	export BACKUP_REPO TAG_REGEX PODCAST_BACKUP_TAG; \
-	bash scripts/ops/corpus_snapshot/select_release_tag.sh
-
-corpus-snapshot-selftest:
-	@$(PYTHON) -m pytest tests/unit/scripts/test_corpus_snapshot_manifest.py tests/unit/scripts/test_stack_contract_restore_scripts.py tests/unit/scripts/test_corpus_local_export_import.py -q && echo "MAKE_EXIT=0" || echo "MAKE_EXIT=$$?"
-
-corpus-snapshot-integration:
-	@$(PYTHON) -m pytest tests/unit/scripts/test_corpus_snapshot_manifest.py tests/unit/scripts/test_corpus_snapshot_integration.py tests/unit/scripts/test_stack_contract_restore_scripts.py tests/unit/scripts/test_corpus_local_export_import.py -q && echo "MAKE_EXIT=0" || echo "MAKE_EXIT=$$?"
-
-# Pull a corpus snapshot from chipi/podcast_scraper-backup (or PODCAST_BACKUP_REPO)
-# and untar into ``.codespace_corpus/`` (the workspace-survives-suspend path that
-# the codespace bind-mounts as the corpus root).
-#
-# Requires:
-#   * gh auth login with read access to the backup repo (private by default).
-#   * Run from inside the codespace OR with the workspace path overridden via
-#     WORKSPACE_DIR (default: current dir).
-#
-corpus-snapshot-select-tag-prod:
-	@# The default is assigned with an `if`, NOT `$${TAG_REGEX:-...}`. Inside a brace default the
-	@# shell parses the ERE's own `{8}` as brace syntax and transposes the tail, yielding
-	@# `^snapshot-prod-[0-9]{8$}` — which matches no tag, so selecting the latest snapshot failed
-	@# with "no releases matching" while real snapshots existed. Reproduced before fixing; quoting
-	@# the default leaves literal quotes in the value and escaping the brace leaves a backslash,
-	@# so neither works. This also affects the DR restore path, not just a manual run.
-	@BACKUP_REPO="$${PODCAST_BACKUP_REPO:-chipi/podcast_scraper-backup}"; \
-	if [ -z "$${TAG_REGEX:-}" ]; then TAG_REGEX='^snapshot-prod-[0-9]{8}$$'; fi; \
-	export BACKUP_REPO TAG_REGEX PODCAST_BACKUP_TAG; \
-	bash scripts/ops/corpus_snapshot/select_release_tag.sh
-
-# Codespace / pre-prod layout (``.codespace_corpus/`` in tarball). For prod VPS use
-# ``restore-corpus-prod`` or ``prod-restore-corpus.yml`` / ``drill-restore-corpus.yml``.
-restore-corpus:
-	@WORKSPACE_DIR="$${WORKSPACE_DIR:-$$PWD}"; \
-	export WORKSPACE_DIR PODCAST_BACKUP_REPO PODCAST_BACKUP_TAG TAG_REGEX='^snapshot-[0-9]{8}$$'; \
-	bash scripts/ops/corpus_snapshot/restore_corpus_release.sh --layout codespace
-
-# Prod VPS layout (top-level ``corpus/`` in tarball). Default parent ``/srv/podcast-scraper``
-# when unset; override with ``WORKSPACE_DIR`` for local rehearsal.
-restore-corpus-prod:
-	@WORKSPACE_DIR="$${WORKSPACE_DIR:-/srv/podcast-scraper}"; \
-	export WORKSPACE_DIR PODCAST_BACKUP_REPO PODCAST_BACKUP_TAG TAG_REGEX='^snapshot-prod-[0-9]{8}$$'; \
-	bash scripts/ops/corpus_snapshot/restore_corpus_release.sh --layout prod
-
-# Local, instance-to-instance corpus portability (#1175). Same tarball format as
-# backup-corpus.yml — the resulting artifact is consumable by the CI restore path
-# and vice versa. No `gh` dependency on either side; user owns the transport.
-# See docs/guides/CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md for the SSOT matrix.
-export-corpus:
-	@test -n "$${CORPUS_DIR:-}" || (echo "CORPUS_DIR required (corpus root — parent containing feeds.spec.yaml)"; exit 1); \
-	test -n "$${OUT:-}" || (echo "OUT required (output tarball path — e.g. /tmp/snapshot.tgz)"; exit 1); \
-	LAYOUT="$${LAYOUT:-codespace}"; \
-	bash scripts/ops/corpus_snapshot/pack_corpus_local.sh \
-	  --corpus-dir "$${CORPUS_DIR}" \
-	  --out "$${OUT}" \
-	  --layout "$${LAYOUT}"
-
-import-corpus:
-	@test -n "$${FILE:-}" || (echo "FILE required (path to snapshot.tgz)"; exit 1); \
-	test -n "$${WORKSPACE_DIR:-}" || (echo "WORKSPACE_DIR required (target parent directory)"; exit 1); \
-	LAYOUT="$${LAYOUT:-codespace}"; \
-	bash scripts/ops/corpus_snapshot/import_local_snapshot.sh \
-	  --file "$${FILE}" \
-	  --workspace-dir "$${WORKSPACE_DIR}" \
-	  --layout "$${LAYOUT}"
 
 # Recompute GI/KG/search from on-disk transcripts without re-transcribing (#796).
 # Requires CORPUS_DIR (corpus parent with feeds.spec.yaml + transcripts/).
@@ -1800,17 +1564,7 @@ enrich-viewer-fixture:
 	@echo "  # only ``computed_at`` / ``run_id`` / timestamp fields should"
 	@echo "  # differ if no enricher output schema changed."
 
-# Post-deploy prod smoke over Tailscale HTTPS (#797). Requires PROD_TAILNET_FQDN.
-# Optional: SMOKE_CORPUS_PATH (in-container corpus root for API path=, e.g. /app/output on prod).
-smoke-prod:
-	@test -n "$${PROD_TAILNET_FQDN:-}" || (echo "PROD_TAILNET_FQDN required (MagicDNS FQDN)"; exit 1); \
-	args="$$PROD_TAILNET_FQDN"; \
-	if [ -n "$${SMOKE_CORPUS_PATH:-}" ]; then args="$$args --corpus-path $$SMOKE_CORPUS_PATH"; fi; \
-	bash scripts/ops/post_deploy_smoke.sh $$args
 
-# GHCR retention dry-run (#802). Requires gh CLI + package scopes.
-ghcr-prune-dry-run:
-	$(PYTHON) scripts/ops/ghcr_compute_retention.py
 
 # Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
@@ -4258,7 +4012,7 @@ test-integration-fast:
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
 	$(PYTHON) -m pytest tests/integration/ -m "integration and (critical_path or app) and not ml_models" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
-.PHONY: audio-archive-local-e2e
+.PHONY:audio-archive-local-e2e
 audio-archive-local-e2e:
 	# See the audio cold-storage archive work end to end, locally (#1787, epic #1788).
 	# Runs the REAL pipeline (RSS -> download over localhost -> archive to a local rclone
@@ -4980,7 +4734,6 @@ ci-fast:
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] quality-metrics-ci ==="; $(MAKE) quality-metrics-ci; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] profile-drift-check ==="; $(MAKE) profile-drift-check; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] test-fast (pytest) ==="; $(MAKE) test-fast; \
-	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] corpus-snapshot-selftest ==="; $(MAKE) corpus-snapshot-selftest; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] docs ==="; $(MAKE) docs; \
 	echo ""; echo "=== ci-fast [$$(date '+%Y-%m-%d %H:%M:%S')] build ==="; $(MAKE) build; \
 	echo ""; echo "=== ci-fast DONE $$(date '+%Y-%m-%d %H:%M:%S') ==="; echo ""
@@ -5117,7 +4870,7 @@ serve-for-validation:
 	@echo "  $(VIEWER_VALIDATION_CORPUS)"
 	@SERVE_OUTPUT_DIR=$(PWD) APP_OAUTH_PROVIDER=none $(MAKE) -j2 serve-api serve-ui
 
-.PHONY: serve-for-app-validation
+.PHONY:serve-for-app-validation
 serve-for-app-validation:
 	# Bring up the FULL stack the learning-player Tier-3 walk expects, in one command.
 	#
@@ -5338,7 +5091,7 @@ docker-clean:
 # android tiers
 .PHONY: android-app-install android-contact-sheet perf-android perf-ios
 
-.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve obs-sync obs-verify-dashboard obs-umami-views obs-umami-views-check
+.PHONY: obs-test obs-e2e obs-docker-build obs-summary obs-serve
 
 obs-test: ## Unit tests for the observability control plane (podcast_obs). Fast, no network.
 	$(PYTHON) -m pytest tests/unit/podcast_obs/ -q --no-cov --disable-socket --allow-hosts=127.0.0.1,localhost
@@ -5354,36 +5107,6 @@ obs-summary: ## Control-plane glance for the configured target. Needs PODCAST_OB
 
 obs-serve: ## Run the observability MCP server. Usage: make obs-serve OBS_ARGS="--transport http --port 8848"
 	$(PYTHON) -m podcast_obs serve $(OBS_ARGS)
-
-health-drill: ## #1819: deterministic o11y probe battery (datasources, metrics, alerts, logs, dedup, error plane). Needs GRAFANA_URL+GRAFANA_OBS_TOKEN.
-	$(PYTHON) scripts/obs/health_drill.py
-
-obs-sync: ## GitOps (ADR-117): sync Grafana dashboards+alerts + Sentry rules per tenant. Dry run by default; APPLY=1 to upload.
-	$(PYTHON) scripts/obs/grafana_sync.py $(if $(APPLY),--apply,)
-	$(PYTHON) scripts/obs/sentry_sync.py $(if $(APPLY),--apply,)
-
-obs-verify-dashboard: ## Prove a PUBLISHED dashboard renders data, panel by panel. UID=<uid> [VAR=instance=prod-podcast] [EXPECT_EMPTY=1]
-	@# `obs-sync` proves a dashboard was UPLOADED. It cannot prove any panel on it will show
-	@# anything, and those are very different claims. Three player log streams read empty for weeks
-	@# because an Alloy glob named the wrong directory AND the wrong filename: nothing errored, the
-	@# dashboards were present and correct and blank, and a blank analytics panel looks exactly like
-	@# a product nobody used. This runs every panel's own query through Grafana and fails on empty.
-	@test -n "$(UID)" || { echo "ERROR: pass UID=<dashboard-uid>"; exit 1; }
-	@test -n "$$GRAFANA_URL" || { echo "ERROR: GRAFANA_URL must be set"; exit 1; }
-	@test -n "$$GRAFANA_TOKEN" || { echo "ERROR: GRAFANA_TOKEN must be set"; exit 1; }
-	$(PYTHON) scripts/obs/verify_dashboard.py --uid $(UID) \
-	  $(if $(VAR),--var $(VAR),) $(if $(EXPECT_EMPTY),--expect-empty,)
-
-obs-umami-views: ## Umami beta views as code (ADR-126). WEBSITE_ID=<uuid> [APPLY=1] [VERIFY=1]
-	@# Dry run by default, like obs-sync. VERIFY=1 EXECUTES each view and fails if any returns
-	@# nothing — creating a view proves it was stored, not that it will ever show a number, and an
-	@# empty analytics surface looks exactly like a product nobody used.
-	@test -n "$(WEBSITE_ID)" || { echo "ERROR: pass WEBSITE_ID=<umami-website-uuid>"; exit 1; }
-	$(PYTHON) scripts/obs/umami_views.py --website-id $(WEBSITE_ID) \
-	  $(if $(APPLY),--apply,) $(if $(VERIFY),--verify,)
-
-obs-umami-views-check: ## No-network guard: every view step must be a real EVENT_NAMES member.
-	$(PYTHON) scripts/obs/umami_views.py --check-registry
 
 install-hooks:
 	@if [ ! -d .git ]; then echo "Error: Not a git repository"; exit 1; fi
@@ -5758,64 +5481,11 @@ validate-files-unit:
 	fi
 	@$(MAKE) validate-files FILES="$(FILES)" TEST_TYPE=unit
 
-INFRA_ENV_FILE := infra/.env.local
 
-infra-plan:
-	@# Sources infra/.env.local + runs `tofu init && tofu plan`. No state changes.
-	@if [ ! -f $(INFRA_ENV_FILE) ]; then \
-		echo "ERROR: $(INFRA_ENV_FILE) is missing." >&2; \
-		echo "Copy from infra/.env.local.example and fill in your secrets." >&2; \
-		exit 1; \
-	fi
-	@set -a && . ./$(INFRA_ENV_FILE) && set +a && cd infra && ./tofu init && ./tofu plan
 
-infra-recover:
-	@# Idempotent recovery from a partial/failed apply: deletes orphan Hetzner
-	@# resources (by name), wipes stale local state, re-runs apply, auto-imports
-	@# the live ACL on conflict. Safe to run repeatedly.
-	@bash infra/recover.sh
 
-infra-apply:
-	@# Sources infra/.env.local + runs `tofu init && plan && apply`. CREATES REAL HETZNER RESOURCES.
-	@# tofu apply prompts y/n before any change, so this is safe to invoke; abort with Ctrl-C at the prompt.
-	@if [ ! -f $(INFRA_ENV_FILE) ]; then \
-		echo "ERROR: $(INFRA_ENV_FILE) is missing." >&2; \
-		echo "Copy from infra/.env.local.example and fill in your secrets." >&2; \
-		exit 1; \
-	fi
-	@set -a && . ./$(INFRA_ENV_FILE) && set +a && cd infra && ./tofu init && ./tofu plan && ./tofu apply
 
-INFRA_DRILL_ENV_FILE := infra/.env.drill.local
 
-# --- Local DR-drill OpenTofu (workspace `drill`, isolated from prod) — #1027 ---
-# Source infra/.env.drill.local, map its secrets to the TF_VAR_* the config requires
-# (same names as the GHA drill-infra-* jobs), and run the wrapper in drill mode
-# (INFRA_WORKSPACE=drill → terraform.tfstate.enc.drill; the prod state is never touched).
-# plan is read-only; apply/destroy prompt y/n. Requires the drill state present at
-# infra/terraform/terraform.tfstate.enc.drill (from a drill apply run's
-# `terraform-state-after-apply-drill` artifact, or a prior local drill apply).
-drill-tofu-plan drill-tofu-apply drill-tofu-destroy: drill-tofu-%:
-	@if [ ! -f $(INFRA_DRILL_ENV_FILE) ]; then \
-		echo "ERROR: $(INFRA_DRILL_ENV_FILE) missing — run: make drill-env (and add TS_API_KEY, OPERATOR_SSH_PUBLIC_KEY, TAILNET_NAME)." >&2; \
-		exit 1; \
-	fi
-	@set -a && . ./$(INFRA_DRILL_ENV_FILE) && set +a; \
-	 : "$${HCLOUD_TOKEN_DRILL:?set HCLOUD_TOKEN_DRILL in $(INFRA_DRILL_ENV_FILE)}"; \
-	 : "$${TS_API_KEY:?set TS_API_KEY in $(INFRA_DRILL_ENV_FILE)}"; \
-	 : "$${OPERATOR_SSH_PUBLIC_KEY:?set OPERATOR_SSH_PUBLIC_KEY in $(INFRA_DRILL_ENV_FILE)}"; \
-	 : "$${TAILNET_NAME:?set TAILNET_NAME in $(INFRA_DRILL_ENV_FILE)}"; \
-	 export TF_VAR_hcloud_token="$$HCLOUD_TOKEN_DRILL"; \
-	 export TF_VAR_tailscale_api_key="$$TS_API_KEY"; \
-	 export TF_VAR_ssh_public_key="$$OPERATOR_SSH_PUBLIC_KEY"; \
-	 export TF_VAR_tailscale_tailnet="$$TAILNET_NAME"; \
-	 cd infra \
-	   && yes yes | INFRA_WORKSPACE=drill ./tofu init \
-	   && INFRA_WORKSPACE=drill ./tofu $* -var-file=terraform.drill.ci.tfvars
-	@# `yes yes |` answers the one-time "migrate workspaces to local" prompt that
-	@# tofu raises on a fresh checkout (the wrapper decrypts drill state into
-	@# terraform.tfstate.d/drill/ before init, so tofu offers to adopt it). The
-	@# prompt needs the literal word "yes"; -input=false would hard-error it.
-	@# On an already-initialized .terraform/ there is no prompt and stdin is ignored.
 
 dgx-smoke:
 	@# RFC-089: probe DGX Ollama via tailnet (non-fatal when DGX offline).
@@ -5979,88 +5649,8 @@ preprod-chaos-both-down:
 			echo "OK: pipeline exited $$RC (expected non-zero — both backends denied)"; \
 		fi
 
-# --- DGX config management (pyinfra) — see infra/dgx/converge/README.md -----
-DGX_CONVERGE_DIR := infra/dgx/converge
-DGX_CONVERGE_VENV := $(DGX_CONVERGE_DIR)/.venv
-DGX_PYINFRA := $(DGX_CONVERGE_VENV)/bin/pyinfra
-INFRA_DGX_ENV_FILE := infra/.env.dgx.local
 
-# Source infra/.env.dgx.local if present, otherwise require DGX_TAILNET_FQDN in
-# the calling shell. Bail with a friendly message + cp hint if neither is set.
-define _dgx_env
-	if [ -f $(INFRA_DGX_ENV_FILE) ]; then \
-		set -a && . ./$(INFRA_DGX_ENV_FILE) && set +a; \
-	fi; \
-	if [ -z "$${DGX_TAILNET_FQDN:-}" ]; then \
-		echo "ERROR: DGX_TAILNET_FQDN unset and $(INFRA_DGX_ENV_FILE) missing." >&2; \
-		echo "  → cp infra/.env.dgx.local.example $(INFRA_DGX_ENV_FILE) and edit." >&2; \
-		exit 1; \
-	fi
-endef
 
-$(DGX_PYINFRA): $(DGX_CONVERGE_DIR)/requirements.txt
-	@python3 -m venv $(DGX_CONVERGE_VENV)
-	@$(DGX_CONVERGE_VENV)/bin/pip install --quiet --upgrade pip
-	@$(DGX_CONVERGE_VENV)/bin/pip install --quiet -r $(DGX_CONVERGE_DIR)/requirements.txt
-	@touch $(DGX_PYINFRA)
-
-dgx-ssh-test:
-	@# Confirm SSH from laptop to DGX works. Auto-sources $(INFRA_DGX_ENV_FILE).
-	@# Two branches so we can quote the key path (it may contain spaces, e.g. NVIDIA Sync's nvsync.key).
-	@$(_dgx_env); \
-		host=$${DGX_SSH_HOST:-$$DGX_TAILNET_FQDN}; \
-		user=$${DGX_SSH_USER:-root}; port=$${DGX_SSH_PORT:-22}; key=$${DGX_SSH_KEY:-}; \
-		if [ -n "$$key" ] && [ -f "$$key" ]; then \
-			echo "→ ssh -i \"$$key\" -p $$port $$user@$$host 'echo ok && uname -a'"; \
-			ssh -i "$$key" -p "$$port" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "$$user@$$host" 'echo ok && uname -a'; \
-		else \
-			if [ -n "$$key" ]; then echo "WARN: DGX_SSH_KEY set but $$key missing — falling back to ssh-agent / ~/.ssh/config." >&2; fi; \
-			echo "→ ssh -p $$port $$user@$$host 'echo ok && uname -a'"; \
-			ssh -p "$$port" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "$$user@$$host" 'echo ok && uname -a'; \
-		fi
-
-# pyinfra: --sudo escalates non-root SSH users for privileged ops (systemd, /etc, /opt).
-# If user is already root, --sudo is a no-op.
-# NB: dgx-verify runs verify.py (assertions only, real execution — NOT --dry, which
-# wouldn't actually probe DGX). dgx-deploy (#814) runs deploy.py to install
-# faster-whisper-server convergently; both targets share the same inventory.
-dgx-verify: $(DGX_PYINFRA)
-	@# Read-only assertions, real execution. Fails on drift. Auto-sources $(INFRA_DGX_ENV_FILE).
-	@$(_dgx_env); \
-		cd $(DGX_CONVERGE_DIR) && .venv/bin/pyinfra --sudo -y inventory.py verify.py
-
-# Convergent install on DGX (#814): faster-whisper-server systemd service,
-# venv, env file, ACL-friendly bind. Idempotent — re-run is a no-op when
-# nothing drifted. See infra/dgx/converge/deploy.py for the operations list
-# and infra/dgx/converge/README.md for one-time SSH setup.
-dgx-deploy: $(DGX_PYINFRA)
-	@# Sudo required: writes /etc/systemd, /etc/faster-whisper, /opt/faster-whisper.
-	@# Auto-sources $(INFRA_DGX_ENV_FILE). Run ``make dgx-verify`` afterwards.
-	@$(_dgx_env); \
-		cd $(DGX_CONVERGE_DIR) && .venv/bin/pyinfra --sudo -y inventory.py deploy.py
-
-drill-env:
-	@echo "DR drill Hetzner token (same scope as GitHub secret HCLOUD_TOKEN_DRILL):"
-	@echo "  1. cp infra/.env.drill.local.example infra/.env.drill.local"
-	@echo "  2. Edit infra/.env.drill.local — paste the drill-project API token."
-	@echo "  3. Load into your current shell (make cannot modify the parent shell):"
-	@echo "       set -a && . ./infra/.env.drill.local && set +a"
-	@echo "  4. Or run orphan cleanup without step 3:"
-	@echo "       make delete-drill-hetzner-orphans"
-
-delete-drill-hetzner-orphans:
-	@# Sources infra/.env.drill.local + runs scripts/ops/delete_drill_hetzner_orphans.sh (drill project only).
-	@if [ ! -f $(INFRA_DRILL_ENV_FILE) ]; then \
-		echo "ERROR: $(INFRA_DRILL_ENV_FILE) missing. Run: make drill-env" >&2; \
-		exit 1; \
-	fi; \
-	 set -a && . ./$(INFRA_DRILL_ENV_FILE) && set +a; \
-	 if [ -z "$${HCLOUD_TOKEN_DRILL:-}" ]; then \
-		echo "ERROR: HCLOUD_TOKEN_DRILL not set after sourcing $(INFRA_DRILL_ENV_FILE)" >&2; \
-		exit 1; \
-	 fi; \
-	 ./scripts/ops/delete_drill_hetzner_orphans.sh $(if $(filter 1 true yes,$(DRY_RUN)),--check-only,); \
-	 echo "MAKE_EXIT=$$?"
 
 # Which episodes were transcribed from UNPREPROCESSED audio (#18/#558)? Preprocessing used to run
 # under a flat 300s budget; on long episodes it hit that wall, produced nothing, and the ORIGINAL

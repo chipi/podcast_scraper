@@ -36,23 +36,13 @@ def test_secrets_overlay_mounts_the_key_for_api_only() -> None:
     assert "app_operator_api_key" not in pipeline_service_block
 
 
-def test_deploy_prod_stages_the_key_both_paths() -> None:
-    text = (REPO / ".github" / "workflows" / "deploy-prod.yml").read_text(encoding="utf-8")
-    # sourced from the GH Actions secret (never a literal value)
-    assert "${{ secrets.PROD_APP_OPERATOR_API_KEY }}" in text
-    # .env fallback path (non-VIA_FILES) writes APP_OPERATOR_API_KEY
-    env_printf = 'APP_OPERATOR_API_KEY "$PROD_APP_OPERATOR_API_KEY"'
-    assert env_printf in text
-    # VIA_FILES path stages the tmpfs file the overlay + shim expect
-    assert '> "$STAGE/app_operator_api_key"' in text
-
-
 def test_no_literal_key_value_committed() -> None:
     """The wiring must reference the secret, never embed a value (defense against a paste slip)."""
+    # deploy-prod.yml used to be checked here too. It is no longer in this repository, and
+    # the deploy path that consumes these files asserts the same thing on its own side.
     for rel in (
         "compose/docker-compose.prod.yml",
         "compose/docker-compose.secrets.yml",
-        ".github/workflows/deploy-prod.yml",
     ):
         text = (REPO / rel).read_text(encoding="utf-8")
         # a 64-hex openssl-rand key literal would show up as a long hex run assigned to the var

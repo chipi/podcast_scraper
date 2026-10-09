@@ -1,7 +1,7 @@
 # Homelab deployment of the podcast-obs MCP control plane — an always-on, tailnet-reachable
 # observability endpoint any agentic tool connects to. Pulls the CI-published image (obs-image.yml),
 # reads the homelab backends, and is READ-ONLY (PODCAST_OBS_ALLOW_WRITES unset → mutating tools
-# refuse). Full runbook: docs/guides/OBS_MCP_HOMELAB_DEPLOY.md
+# refuse). The full runbook is operator documentation, not in this repository.
 #
 #   1. cp .env.homelab.example .env.homelab      # fill the read tokens (gitignored)
 #   2. docker compose -f docker-compose.homelab.yml --env-file .env.homelab up -d

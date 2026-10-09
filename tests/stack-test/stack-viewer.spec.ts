@@ -185,8 +185,8 @@ test.describe("Stack smoke test", () => {
     // emits v3.0 artifacts. It does NOT apply to a RESTORED corpus — the DR drill
     // reuses this spec against a restore-as-is corpus (whatever schema the backup
     // held), so skip there. stack-test.yml (fresh pipeline) sets no flag and still
-    // runs it. (restore is faithful; migrations are decoupled — see
-    // scripts/ops/restore_corpus_from_tarball_host.sh.)
+    // runs it. (restore is faithful; migrations are decoupled — the restore
+    // tooling is not in this repository.)
     test.skip(
       process.env.STACK_CORPUS_RESTORED === "1",
       "pipeline-emission contract — N/A against a restored corpus (DR drill)",

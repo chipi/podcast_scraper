@@ -24,8 +24,8 @@ Practical guides for using and developing Podcast Scraper.
 | ------- | ------------- |
 | [Development Guide](DEVELOPMENT_GUIDE.md) | Development environment setup, workflow, and [GI/KG viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — `make serve` / `serve-api` / `serve-ui`, `make test-ui-e2e` |
 | [Release Playbook](RELEASE_PLAYBOOK.md) | Standing plan before a public tag: eval/profiles policy (major vs minor), docs gates, release notes pattern, alignment with `vX.Y.Z` tags |
-| [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md) | Deploy, health, incidents, rollback, credentials; **`PODCAST_CORPUS_HOST_PATH`** validation and manual **topic clusters** |
-| [VPS multi-app onboarding](VPS_MULTI_APP_ONBOARDING.md) | Add other Docker Compose apps on the same Tailscale VPS without new IaaC; isolation, GitOps, ports |
+| Prod operator cheat sheet | Deploy, health, incidents, rollback, credentials; **`PODCAST_CORPUS_HOST_PATH`** validation and manual **topic clusters** |
+| VPS multi-app onboarding | Add other Docker Compose apps on the same Tailscale VPS without new IaaC; isolation, GitOps, ports |
 | [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) | Python root vs `web/gi-kg-viewer/`, env files, Makefile targets for the viewer |
 | [Server Guide](SERVER_GUIDE.md) | FastAPI: `/api/*` (artifacts, CIL, search with optional **`lifted`**, explore, Corpus Library, index rebuild), OpenAPI `/docs`, static SPA, tests under `tests/integration/server/` |
 | [Notifications & Delivery Guide](NOTIFICATIONS_GUIDE.md) | End-to-end: subscriptions (Web Push + native iOS APNs), consent matrix, digest/recap/recommendations generation, the `/internal/outbox` seam, and the homelab last-mile worker (Resend / Web Push / APNs). Governed by ADR-144/145, RFC-110/122 |
@@ -41,11 +41,11 @@ Practical guides for using and developing Podcast Scraper.
 | [SRE book infra critique](SRE_BOOK_INFRA_CRITIQUE.md) | Reliability rubric (SRE themes): SLIs/SLOs, error budget, toil, alerting, change risk, incidents — for reviewing runbooks, workflows, and ops design |
 | [Hosting and infrastructure](../architecture/HOSTING_AND_INFRASTRUCTURE.md) | Narrative: Tailscale, OpenTofu, GitHub Actions, Compose on the VPS, how CI and prod align; ADR spine (079–085, 082, 093) |
 | [Stack contract](STACK_CONTRACT.md) | Cross-surface audit table, steady vs recovery playbooks ([ADR-093](../adr/ADR-093-canonical-stack-contract-and-environment-adapters.md)) |
-| [Prod runbook](PROD_RUNBOOK.md) | Always-on Hetzner VPS: bootstrap, deploy, backups, observability, DR |
-| [Prod compat validation](PROD_COMPAT_VALIDATION.md) | Tiered test plan for #796/#797: health `path=`, smoke probes, CI N-1 job, drill/prod gates |
-| [Prod operator cheat sheet](PROD_OPERATOR_CHEAT_SHEET.md) | Short daily ops: `gh` deploy/backup, health curls, incident triage |
-| [DR drill runbook](DR_DRILL_RUNBOOK.md) | Drill-only GitHub workflows, typed confirms, orchestrator vs piecemeal paths |
-| [Corpus snapshot manifest and restore](CORPUS_SNAPSHOT_MANIFEST_AND_RESTORE.md) | **Single hub:** local **`make`** vs GitHub Actions (prod, pre-prod, DR) for `snapshot.manifest.json` — [RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) / [ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md) |
+| Prod runbook | Always-on Hetzner VPS: bootstrap, deploy, backups, observability, DR |
+| Prod compat validation | Tiered test plan for #796/#797: health `path=`, smoke probes, CI N-1 job, drill/prod gates |
+| Prod operator cheat sheet | Short daily ops: `gh` deploy/backup, health curls, incident triage |
+| DR drill runbook | Drill-only GitHub workflows, typed confirms, orchestrator vs piecemeal paths |
+| Corpus snapshot manifest and restore | **Single hub:** local **`make`** vs GitHub Actions (prod, pre-prod, DR) for `snapshot.manifest.json` — [RFC-084](../rfc/RFC-084-corpus-backup-manifest-and-version-aware-restore.md) / [ADR-092](../adr/ADR-092-corpus-snapshot-backup-manifest-and-newest-compatible-restore.md) |
 
 ## Testing
 
