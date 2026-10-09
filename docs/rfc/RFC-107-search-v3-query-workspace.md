@@ -1,7 +1,7 @@
 # RFC-107: Search v3 — Query Workspace (technical design)
 
 - **Status**: Draft
-- **PRD**: [PRD-045](../prd/PRD-045-search-v3-query-workspace.md) · **UXS**: introduces [UXS-016](../uxs/UXS-016-query-workspace.md) (Query Workspace); extends [UXS-005](../uxs/UXS-005-semantic-search.md) (compact launcher role); heroifies [UXS-008](../uxs/UXS-008-enriched-search.md); shell IA in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
+- **PRD**: [PRD-045](../prd/PRD-045-search-v3-query-workspace.md) · **UXS**: introduces [UXS-016](../uxs/UXS-016-query-workspace.md) (Query Workspace); extends [UXS-005](../uxs/UXS-005-semantic-search.md) (compact launcher role); heroifies UXS-008 (private Studio repo since ADR-158); shell IA in [VIEWER_IA.md](../uxs/VIEWER_IA.md)
 - **Surface**: `web/gi-kg-viewer` (viewer) · `src/podcast_scraper/server/routes/search.py` (additive query params only)
 - **Authors**: Marko
 - **Related RFCs**:
@@ -370,7 +370,7 @@ These limitations become obsolete when their upstream fixes land; Search v3 slic
 - [ADR-125](../adr/ADR-125-no-per-corpus-ui-state.md) — no per-corpus UI state (this RFC's §8 conforms)
 - [VIEWER_IA.md](../uxs/VIEWER_IA.md) — shell IA (tab + LeftPanel role change)
 - [UXS-005](../uxs/UXS-005-semantic-search.md) — semantic search (compact-launcher role)
-- [UXS-008](../uxs/UXS-008-enriched-search.md) — enriched search (heroified)
+- UXS-008 — enriched search (heroified); kept in the private Studio repo since ADR-158
 - [UXS-016](../uxs/UXS-016-query-workspace.md) — Query Workspace (primary UX)
 - [ENRICHMENT_LAYER_GUIDE.md](../guides/ENRICHMENT_LAYER_GUIDE.md) — current operator-facing enrichment config surface (per-enricher reference + provider-types registry)
 - [ENRICHMENT_LAYER_API.md](../api/ENRICHMENT_LAYER_API.md) — `/api/enrichment/config*` routes + `--with-ml` CLI (RFC-088 chunk 6; separate from Search v3's `/api/search?enrich_results=`)
