@@ -388,3 +388,34 @@ class TestGermanNounsAreNotNames:
         from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
 
         assert extract_self_introduced_host("Hi, I'm Brandon.") == "Brandon"
+
+
+class TestAnAuthorTagIsJudgedInTheFeedsLanguage:
+    """RFI Journal en français facile (fr, 2026-10-09): the author tag "France Médias Monde" —
+    RFI's parent company — passed the organisation filter, became a known host, and the LLM
+    seated it on the anchor's voice. The French row holds `m(?:é|e)dias?`; the filter read the
+    English row only. Markers only REFUSE, so English plus the feed's row can only refuse more."""
+
+    def test_a_french_outlet_word_marks_an_organisation(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import is_network_or_org_author
+
+        assert is_network_or_org_author("France Médias Monde", language="fr")
+
+    def test_a_person_is_still_a_person(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import is_network_or_org_author
+
+        assert not is_network_or_org_author("Élodie Chevalier", language="fr")
+        assert not is_network_or_org_author("Lena Hofmann", language="de")
+
+    def test_without_a_language_the_english_row_is_unchanged(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import is_network_or_org_author
+
+        assert not is_network_or_org_author("France Médias Monde")
+        assert is_network_or_org_author("Pushkin Industries Media")
+
+    def test_every_pipeline_call_passes_the_feeds_language(self) -> None:
+        path = Path(roster.__file__).parents[3] / "workflow" / "stages" / "processing.py"
+        calls = _calls_in(path, "is_network_or_org_author")
+        assert calls
+        missing = [c.lineno for c in calls if not any(kw.arg == "language" for kw in c.keywords)]
+        assert missing == [], f"is_network_or_org_author called without a language at {missing}"
