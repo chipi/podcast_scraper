@@ -32,6 +32,7 @@ READERS = {
     "recurrent_hosts_across_episodes": None,
     "_speaker_lists_for_graph": 2,
     "_intro_names": 1,
+    "is_known_network": 1,
 }
 
 #: (file relative to the package, enclosing function) -> why English alone is right there.
