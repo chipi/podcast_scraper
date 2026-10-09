@@ -101,6 +101,18 @@ class TestTheSharedPassScopesTheBareName:
         sb = [e for e in scoped["edges"] if e.get("type") == "SPOKEN_BY"]
         assert len(sb) == 1, sb
 
+    def test_a_second_run_adds_no_copy_of_the_edge(self) -> None:
+        # Prod 2026-10-09: 230,280 byte-identical SPOKEN_BY edges in 110 gi.json. Every
+        # enrich-edges run re-minted `quote -> person:twiggy` (the scoped edge is not the same
+        # pair), and scoping then turned it into an exact copy of the edge already there.
+        transcript = "Twiggy: I was sixteen when the photographs started.\n"
+        art = self._scope(self._artifact())
+        for _run in range(3):
+            add_spoken_by_edges(art, transcript, hosts=[], guests=["Twiggy"])
+            art = self._scope(art)
+        sb = [e for e in art["edges"] if e.get("type") == "SPOKEN_BY"]
+        assert len(sb) == 1, sb
+
     def test_a_full_name_is_left_global(self) -> None:
         transcript = "Lane Florsheim: The column runs on Mondays.\n"
         quote = "The column runs on Mondays."
@@ -119,3 +131,13 @@ class TestTheSharedPassScopesTheBareName:
         scoped = self._scope(art)
         ids = {n["id"] for n in scoped["nodes"] if n.get("type") == "Person"}
         assert "person:lane-florsheim" in ids
+
+
+def test_dropping_only_a_copied_edge_still_counts_as_a_change() -> None:
+    # Callers persist only when `changes` is non-zero (`_apply_bare_name_scope`), so a pass whose
+    # sole effect is dropping a copy must say so, or the copy stays on disk.
+    edge = {"type": "SPOKEN_BY", "from": "quote:1", "to": f"person:unresolved-twiggy-{EP}"}
+    art = {"nodes": [], "edges": [dict(edge), dict(edge)]}
+    out, changes = rewrite_ids(art, {"person:absent": f"person:unresolved-absent-{EP}"})
+    assert out["edges"] == [edge]
+    assert changes == 1

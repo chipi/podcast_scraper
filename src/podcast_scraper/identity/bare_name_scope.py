@@ -49,6 +49,7 @@ the migration cannot drift into disagreeing about who "Sam" is.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple
@@ -266,6 +267,11 @@ def rewrite_ids(payload: Mapping, id_map: Mapping[str, str]) -> Tuple[dict, int]
     edges = payload.get("edges")
     if isinstance(edges, list):
         new_edges = []
+        # The edge-side twin of the node merge above: never emit one edge twice. Rewriting
+        # `quote -> person:twiggy` to the scoped id lands on the edge the previous run already
+        # scoped, and every enrich-edges run re-mints the bare one — prod carried 230,280
+        # byte-identical SPOKEN_BY edges in 110 gi.json (2026-10-09), one more per quote per run.
+        emitted: Set[str] = set()
         for edge in edges:
             if not isinstance(edge, dict):
                 new_edges.append(edge)
@@ -282,6 +288,11 @@ def rewrite_ids(payload: Mapping, id_map: Mapping[str, str]) -> Tuple[dict, int]
                 if sid in id_map:
                     e = {**e, "properties": {**props, "speaker_id": id_map[sid]}}
                     changes += 1
+            key = json.dumps(e, sort_keys=True, default=str)
+            if key in emitted:
+                changes += 1
+                continue
+            emitted.add(key)
             new_edges.append(e)
         out["edges"] = new_edges
 

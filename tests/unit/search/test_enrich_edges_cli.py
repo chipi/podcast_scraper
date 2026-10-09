@@ -236,6 +236,28 @@ def test_run_emits_spoken_by_for_named_diarized_transcript(tmp_path):
     assert not any(n["id"] == "person:liam" for n in art["nodes"])
 
 
+def test_rerunning_on_a_scoped_speaker_neither_copies_the_edge_nor_rewrites(tmp_path):
+    """Each run re-minted `quote:1 -> person:liam`, and scoping turned it into a copy of the scoped
+    edge the first run left: prod carried 230,280 byte-identical SPOKEN_BY edges in 110 gi.json
+    (2026-10-09), and every job rewrote the same ~80 gi.json and bumped the cache stamp for it."""
+    import os
+
+    _build_diarized_corpus(tmp_path)
+    argv = parse_enrich_edges_argv(["--output-dir", str(tmp_path)])
+    gi = tmp_path / "ep1.gi.json"
+    stamp = tmp_path / "corpus_edges_stamp.json"
+    assert run_enrich_edges_cli(argv, _LOG) == 0
+    assert run_enrich_edges_cli(argv, _LOG) == 0
+    gi_before, stamp_before = os.stat(gi), os.stat(stamp)
+    assert run_enrich_edges_cli(argv, _LOG) == 0
+
+    art = json.loads(gi.read_text())
+    spoken = [e for e in art["edges"] if e["type"] == "SPOKEN_BY" and e["from"] == "quote:1"]
+    assert spoken == [{"type": "SPOKEN_BY", "from": "quote:1", "to": "person:unresolved-liam-ep1"}]
+    assert os.stat(gi).st_ino == gi_before.st_ino, "an unchanged gi.json was rewritten"
+    assert os.stat(stamp).st_mtime_ns == stamp_before.st_mtime_ns, "a no-op pass bumped the stamp"
+
+
 # ─────────────────────────────────────────────────────────────────────
 # #1076 chunk 4-A / ADR-102 — retro-audit CLI machinery
 # ─────────────────────────────────────────────────────────────────────
