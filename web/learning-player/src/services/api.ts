@@ -2291,13 +2291,24 @@ export async function getCollectionsContaining(
  * nothing doing that for it — the identical trap the avatar hit.
  */
 function withAbsoluteCovers(items: Collection[]): Collection[] {
-  return items.map((c) =>
-    c.cover_url ? { ...c, cover_url: resolveMediaUrl(c.cover_url) ?? c.cover_url } : c
-  )
+  return items.map(withAbsoluteCover)
+}
+
+/**
+ * The same for ONE board — every call that returns a board goes through this (2026-10-09).
+ *
+ * Only the list calls did. Create / add-item / remove-item / the board read returned the cover
+ * RELATIVE, which was harmless while only the Boards view's own copy held them; once those answers
+ * reached the shared store (so Library and Home's teaser show a board the moment it changes), a
+ * board just added to painted a broken image on the device (operator 2026-10-09).
+ */
+function withAbsoluteCover(c: Collection): Collection {
+  return c.cover_url ? { ...c, cover_url: resolveMediaUrl(c.cover_url) ?? c.cover_url } : c
 }
 
 export async function getCollection(id: string): Promise<CollectionDetail> {
-  return getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`)
+  const detail = await getJSON<CollectionDetail>(`/collections/${encodeURIComponent(id)}`)
+  return { ...detail, collection: withAbsoluteCover(detail.collection) }
 }
 
 /**
@@ -2313,8 +2324,9 @@ export async function getCollectionPage(
     offset: query.offset ?? 0,
     kind: query.kind,
   })
-  if (resp.total !== undefined) return resp as Required<CollectionDetail>
-  return pageCollectionLocally(resp, query)
+  const page = { ...resp, collection: withAbsoluteCover(resp.collection) }
+  if (page.total !== undefined) return page as Required<CollectionDetail>
+  return pageCollectionLocally(page, query)
 }
 
 export function pageCollectionLocally(
@@ -2343,7 +2355,7 @@ export async function createCollection(name: string, clientId?: string): Promise
     body: JSON.stringify(clientId ? { name, client_id: clientId } : { name }),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /collections → ${resp.status}`)
-  return (await resp.json()) as Collection
+  return withAbsoluteCover((await resp.json()) as Collection)
 }
 
 export async function deleteCollection(id: string): Promise<Collection[]> {
@@ -2387,7 +2399,7 @@ export async function addToCollection(id: string, item: CollectionItemRef): Prom
     body: JSON.stringify(item),
   })
   if (!resp.ok) throw new ApiError(resp.status, `POST /collections/${id}/items → ${resp.status}`)
-  return (await resp.json()) as Collection
+  return withAbsoluteCover((await resp.json()) as Collection)
 }
 
 export async function removeFromCollection(
@@ -2401,7 +2413,7 @@ export async function removeFromCollection(
     credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /collections/${id}/items → ${resp.status}`)
-  return (await resp.json()) as Collection
+  return withAbsoluteCover((await resp.json()) as Collection)
 }
 
 // --- MCP "Connected agents" (RFC-112 §5): connector config + personal-access tokens ---

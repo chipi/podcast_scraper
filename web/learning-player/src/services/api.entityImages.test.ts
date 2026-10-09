@@ -184,3 +184,37 @@ describe('episode entities', () => {
     expect(resp.persons[0].image_url).toBe('https://closelistening.app/api/app/persons/person%3Ap/photo')
   })
 })
+
+describe('board covers (2026-10-09): every call that returns a board absolutises its cover', () => {
+  // The list calls did; create / add / remove / read did not, and once their answers reached the
+  // shared boards store a board just added to painted a broken image on the device.
+  const REL = '/api/app/artwork?ref=x&size=thumb'
+  const ABS = 'https://closelistening.app/api/app/artwork?ref=x&size=thumb'
+  const board = { id: 'col_1', name: 'B', created_at: 1, count: 1, cover_url: REL }
+
+  it('createCollection, addToCollection and removeFromCollection', async () => {
+    const api = await import('./api')
+    mockFetch(board)
+    expect((await api.createCollection('B')).cover_url).toBe(ABS)
+    mockFetch(board)
+    expect((await api.addToCollection('col_1', { kind: 'episode', ref: 'ep' })).cover_url).toBe(ABS)
+    mockFetch(board)
+    expect((await api.removeFromCollection('col_1', 'episode', 'ep')).cover_url).toBe(ABS)
+  })
+
+  it('getCollection and getCollectionPage (the board an opened row shows)', async () => {
+    const api = await import('./api')
+    mockFetch({ collection: board, items: [] })
+    expect((await api.getCollection('col_1')).collection.cover_url).toBe(ABS)
+    mockFetch({ collection: board, items: [], total: 0, kind_counts: {} })
+    expect((await api.getCollectionPage('col_1', { limit: 10 })).collection.cover_url).toBe(ABS)
+    mockFetch({ collection: board, items: [] }) // an older server: no total, paged here
+    expect((await api.getCollectionPage('col_1', { limit: 10 })).collection.cover_url).toBe(ABS)
+  })
+
+  it('a board with no cover stays without one', async () => {
+    const api = await import('./api')
+    mockFetch({ ...board, cover_url: null })
+    expect((await api.addToCollection('col_1', { kind: 'link', ref: 'https://x' })).cover_url).toBeNull()
+  })
+})
