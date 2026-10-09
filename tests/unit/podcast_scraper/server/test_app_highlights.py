@@ -133,6 +133,35 @@ def test_reanchor_span_finds_the_quote_and_recomputes_offsets(tmp_path: Path) ->
     assert out["quote_text"] == "the stable anchor is the timestamp"
 
 
+def test_reanchor_a_quote_across_two_segments_is_anchored(tmp_path: Path) -> None:
+    """A quote spanning two segments is NOT drift (operator on device, 2026-10-09).
+
+    The client joins a paragraph's segments with ONE SPACE (transcriptCapture.spanFromParagraph:
+    ``segments.map((s) => s.text).join(' ')``), so a two-segment quote reads "…the parts. And…".
+    The re-anchor joined them with nothing ("…the parts.And…"), never found it, and every
+    multi-segment highlight showed "anchor drifted". Case of record: the fixture's p09_e04 quote.
+    """
+    segs = [
+        _seg(
+            "s21",
+            126.0,
+            132.0,
+            "Risk is a systems property: it lives in the interactions, not the parts.",
+        ),
+        _seg("s22", 132.0, 138.0, "And that's not a hunch — we measured it directly."),
+    ]
+    quote = (
+        "Risk is a systems property: it lives in the interactions, not the parts. "
+        "And that's not a hunch — we measured it directly."
+    )
+    hl = {**_span(), "start_ms": 126_000, "end_ms": 138_000, "quote_text": quote}
+    out = st.reanchor_highlight(hl, segs)
+    assert out["anchor_status"] == "anchored"
+    assert out["segment_ids"] == ["s21", "s22"]
+    joined = " ".join(s["text"] for s in segs)  # the client's coordinate system
+    assert joined[out["char_start"] : out["char_end"]] == quote
+
+
 def test_reanchor_marks_drift_when_the_timeline_moved_under_the_quote(tmp_path: Path) -> None:
     """The window still exists but no longer contains the quote — the passage moved.
 

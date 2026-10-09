@@ -1334,9 +1334,12 @@ def reanchor_highlight(highlight: dict[str, Any], segments: list[dict[str, Any]]
         result["anchor_status"] = "time_only"
         return result
 
-    # Search the candidates' concatenated text, joined exactly as the client concatenates the
-    # rendered transcript, so a recovered offset means the same thing on both sides.
-    joined = "".join(str(s.get("text") or "") for s in overlapping)
+    # Search the candidates' text joined EXACTLY as the client joins a paragraph's segments — ONE
+    # space between them (transcriptCapture.spanFromParagraph joins `s.text` with ' ') — so a
+    # recovered offset means the same thing on both sides. It used to join with "", which never
+    # matched a quote spanning two segments ("…the parts.And…"), so every multi-segment
+    # highlight showed "anchor drifted" (operator on device, 2026-10-09).
+    joined = " ".join(str(s.get("text") or "") for s in overlapping)
     found = joined.find(quote)
     if found < 0:
         # The window exists but no longer contains the quote — the timeline moved under it.
