@@ -647,3 +647,57 @@ class TestTheManifestCarriesWhatS210Needs:
         )
         metrics = manifest["stages"]["translation"]["metrics"]
         assert metrics["alignment_unit_fallbacks"] == metrics["units"] > 0
+
+
+class TestUnitsAreSentConcurrently:
+    """Units were sent one at a time; a 41-minute episode took over 20 minutes (El Hilo,
+    2026-10-09) against a vLLM server built to batch concurrent requests. Each unit carries only
+    its own context, so dispatching several at once changes the wall time and nothing else —
+    which is what these tests hold it to."""
+
+    class _Overlapping(_StubProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            import threading
+
+            self._lock = threading.Lock()
+            self.in_flight = 0
+            self.max_in_flight = 0
+
+        def translate_unit(self, unit: Any, **kw: Any):
+            import time
+
+            with self._lock:
+                self.in_flight += 1
+                self.max_in_flight = max(self.max_in_flight, self.in_flight)
+            time.sleep(0.05)
+            try:
+                return super().translate_unit(unit, **kw)
+            finally:
+                with self._lock:
+                    self.in_flight -= 1
+
+    def _ledger_and_render(self, root: Path) -> tuple:
+        doc = load_translation_json(REL, str(root))
+        units = [(u.unit_id, u.status, u.sentences) for u in doc.units]
+        return units, (root / REL).read_text(encoding="utf-8")
+
+    def test_the_default_sends_one_unit_at_a_time(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cfg: config.Config
+    ) -> None:
+        _lay_down_spanish_episode(tmp_path)
+        stub = self._Overlapping()
+        _run(monkeypatch, tmp_path, cfg, stub)
+        assert stub.max_in_flight == 1
+
+    def test_concurrent_units_give_the_same_ledger_and_render_as_sequential(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cfg: config.Config
+    ) -> None:
+        seq, par = tmp_path / "seq", tmp_path / "par"
+        for root in (seq, par):
+            _lay_down_spanish_episode(root)
+        _run(monkeypatch, seq, cfg, self._Overlapping())
+        stub = self._Overlapping()
+        _run(monkeypatch, par, cfg.model_copy(update={"translation_max_concurrency": 4}), stub)
+        assert stub.max_in_flight > 1
+        assert self._ledger_and_render(par) == self._ledger_and_render(seq)

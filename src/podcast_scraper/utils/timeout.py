@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 import threading
 from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
@@ -20,6 +22,35 @@ class TimeoutError(Exception):
     """Raised when an operation exceeds the timeout."""
 
     pass
+
+
+@dataclass
+class _ObservedDeadline:
+    credit_s: float = 0.0
+    timer: Optional[threading.Timer] = None
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+
+_ACTIVE_DEADLINE: ContextVar[Optional[_ObservedDeadline]] = ContextVar(
+    "active_deadline", default=None
+)
+
+
+def credit_deadline(seconds: float) -> None:
+    """Exclude *seconds* of work already done from the innermost observed deadline.
+
+    For work that runs inside a deadline's block but is not what the deadline is about. The
+    metadata deadline means "summary + GI + KG were slow", and translation runs inside it (it has
+    to: every later stage reads its English). Without a credit, a 41-minute Spanish episode with
+    summary, GI and KG all OFF still logged "DEADLINE EXCEEDED: metadata generation" at 1200 s
+    (El Hilo, 2026-10-09; #2230). A credit received after the alarm already fired changes
+    nothing — the line is out — and outside any observed block this is a no-op.
+    """
+    active = _ACTIVE_DEADLINE.get()
+    if active is None or seconds <= 0:
+        return
+    with active.lock:
+        active.credit_s += seconds
 
 
 @contextmanager
@@ -72,8 +103,18 @@ def timeout_context(seconds: Optional[int], operation_name: str = "operation"):
 
     # Use threading.Timer for cross-platform timeout (signal.alarm is Unix-only)
     timeout_occurred = threading.Event()
+    deadline = _ObservedDeadline()
 
     def timeout_handler():
+        # Time credited by `credit_deadline` while we waited moves the deadline out by that much:
+        # re-arm for the credit instead of alerting.
+        with deadline.lock:
+            credit, deadline.credit_s = deadline.credit_s, 0.0
+            if credit > 0 and not timeout_occurred.is_set():
+                deadline.timer = threading.Timer(credit, timeout_handler)
+                deadline.timer.daemon = True
+                deadline.timer.start()
+                return
         timeout_occurred.set()
         # ERROR, not warning: this is the ONLY signal a caller gets while an operation is
         # overrunning, and it is emitted from a timer thread while the blocked operation is
@@ -89,16 +130,20 @@ def timeout_context(seconds: Optional[int], operation_name: str = "operation"):
             seconds,
         )
 
-    timer = threading.Timer(seconds, timeout_handler)
-    timer.daemon = True  # never keep the interpreter alive waiting to log a deadline
-    timer.start()
+    deadline.timer = threading.Timer(seconds, timeout_handler)
+    deadline.timer.daemon = True  # never keep the interpreter alive waiting to log a deadline
+    deadline.timer.start()
+    token = _ACTIVE_DEADLINE.set(deadline)
 
     try:
         yield
         if timeout_occurred.is_set():
             raise TimeoutError(f"{operation_name} exceeded timeout of {seconds} seconds")
     finally:
-        timer.cancel()
+        _ACTIVE_DEADLINE.reset(token)
+        with deadline.lock:
+            if deadline.timer is not None:
+                deadline.timer.cancel()
 
 
 def with_timeout(

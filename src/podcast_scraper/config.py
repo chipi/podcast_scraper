@@ -2265,6 +2265,16 @@ class Config(BaseModel):
         description="Env var the translation provider reads the bearer from when "
         "translate_api_key is unset. A locally served vLLM ignores it.",
     )
+    translation_max_concurrency: int = Field(
+        default=1,
+        ge=1,
+        le=32,
+        alias="translation_max_concurrency",
+        description="How many translation units are in flight at once. Each unit carries only "
+        "its own context, so this changes wall time and nothing else (the ledger is written in "
+        "unit order either way). 1 sends them one at a time, as before; a vLLM server batches "
+        "concurrent requests, which is where the time is.",
+    )
     translate_verify_served_model: bool = Field(
         default=True,
         alias="translate_verify_served_model",
