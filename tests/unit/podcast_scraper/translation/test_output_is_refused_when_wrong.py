@@ -224,3 +224,63 @@ class TestEveryAcceptancePathIsGuarded:
         got = p.translate_unit(self._unit([_SPANISH, "Otra frase aquí."]), source_language="es")
         assert got["alignment"] == "sentence", got
         assert len(got["sentences"]) == 2
+
+
+class TestSpeechThatSoundsLikeCommentaryIsAccepted:
+    """Found on El Hilo (es, 2026-10-09): a correct 11-sentence unit was refused on both passes
+    because its first sentence — "Los resultados de las pruebas PISA pueden ser leídos de formas
+    bien distintas según el contexto" — translates to "...depending on the context". One refused
+    unit withholds the episode's whole English set (§5.3), so the episode lost summary, GI and KG
+    over a faithful translation. Phrases that are ordinary speech are commentary only when the
+    output also narrates translating."""
+
+    @pytest.mark.parametrize(
+        "source,english",
+        [
+            (
+                "Los resultados pueden ser leídos de formas bien distintas según el contexto.",
+                "The results can be interpreted in very different ways depending on the context.",
+            ),
+            ("Vale, entiendo. Sigamos.", "Okay, I understand. Let's go on."),
+            (
+                "Como investigadora de IA, lo veo a diario.",
+                "As an AI researcher, I see it every day.",
+            ),
+        ],
+    )
+    def test_a_faithful_translation_is_not_refused(self, source: str, english: str) -> None:
+        assert reject_translation_output(source, english) is None
+
+    def test_the_same_phrase_inside_translator_narration_is_still_refused(self) -> None:
+        got = reject_translation_output(
+            _SPANISH, "Depending on the context, this could be translated as: Honestly, drainage."
+        )
+        assert got is not None and "commentary" in got
+
+
+class TestARefusedUnitIsRetried:
+    """The two other El Hilo refusals were one-off: re-sent, both units came back clean on two
+    passes. A refusal was final on the first attempt, and one refusal costs the episode its
+    English set."""
+
+    _unit = staticmethod(TestEveryAcceptancePathIsGuarded._unit)
+    _provider = staticmethod(TestEveryAcceptancePathIsGuarded._provider)
+    COMMENTARY = TestEveryAcceptancePathIsGuarded.COMMENTARY
+
+    def test_a_single_sentence_is_retried_after_a_refusal(self) -> None:
+        p = self._provider([self.COMMENTARY, _GOOD])
+        got = p.translate_unit(self._unit([_SPANISH]), source_language="es")
+        assert got["alignment"] == "sentence" and got["metadata"]["attempts"] == 2
+
+    def test_a_numbered_unit_is_retried_after_a_refusal(self) -> None:
+        p = self._provider(
+            [f"1. {_GOOD}\n2. {self.COMMENTARY}", f"1. {_GOOD}\n2. Another sentence here."]
+        )
+        got = p.translate_unit(self._unit([_SPANISH, "Otra frase aquí."]), source_language="es")
+        assert got["alignment"] == "sentence" and got["metadata"]["attempts"] == 2
+
+    def test_a_refusal_on_every_attempt_still_fails_and_says_why(self) -> None:
+        p = self._provider([self.COMMENTARY, self.COMMENTARY])
+        got = p.translate_unit(self._unit([_SPANISH]), source_language="es")
+        assert got["alignment"] == "failed"
+        assert "refused" in (got["metadata"].get("error") or "")
