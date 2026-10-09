@@ -2271,9 +2271,12 @@ class Config(BaseModel):
         le=32,
         alias="translation_max_concurrency",
         description="How many translation units are in flight at once. Each unit carries only "
-        "its own context, so this changes wall time and nothing else (the ledger is written in "
-        "unit order either way). 1 sends them one at a time, as before; a vLLM server batches "
-        "concurrent requests, which is where the time is.",
+        "its own context and the ledger is written in unit order either way; 1 sends them one at a "
+        "time, as before. Measured on the DGX (2026-10-09, El Hilo, 85 units): 4 in flight took "
+        "3.0 s per unit against 15.5 sequentially. The ENGLISH is not byte-identical to a "
+        "sequential run — 65 of 84 units matched, the rest differed in wording only (same "
+        "sentence counts, lengths within 1.5%) — the translator does not repeat itself exactly "
+        "at temperature 0, sequential or not.",
     )
     translate_verify_served_model: bool = Field(
         default=True,
