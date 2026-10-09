@@ -3926,6 +3926,15 @@ android-play-apk:
 android-play-preflight:
 	@cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane preflight
 
+#: Read-only: the internal track, and whether Play has PROCESSED a build (default: the newest;
+#: VERSION_CODE=<n> for another). "Processed" is not proof testers can install it — a tester's
+#: Play Store -> Manage apps & device -> Updates offering the update is (2026-10-07: published,
+#: not installable for ~30 min).
+android-play-status:
+	@out=$$(cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane status \
+		$(if $(VERSION_CODE),version_code:$(VERSION_CODE),) 2>&1); rc=$$?; \
+	printf '%s\n' "$$out" | grep -E 'TRACK |PROCESSED |PROOF |ERROR|Error|error'; exit $$rc
+
 android-play:
 	@# Ask PLAY for the next free versionCode BEFORE building, instead of letting build.gradle fall
 	@# back to `git rev-list --count HEAD`.
