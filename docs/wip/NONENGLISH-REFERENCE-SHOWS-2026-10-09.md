@@ -75,7 +75,7 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
   `scripts/eval/data/build_publisher_reference_set.py`,
   `scripts/eval/experiment/run_dataset_through_pipeline.py`, `scripts/eval/score/`
   (`asr_publisher_reference_wer_v1.py`, `translation_judge_v1.py`). Dataset
-  `asr_publisher_ref_nonen_v1`, 12 episodes, for the private repo (not yet committed); run outputs under its
+  `asr_publisher_ref_nonen_v1`, 12 episodes, committed to the private repo (`2692309`, not pushed); run outputs under its
   ignored `cache/dataset_runs/`.
 - Audio over GitHub's 100 MiB file limit (one Rádio Novelo episode) is not committed: the dataset
   records URL, sha256 and size and the runner re-fetches and verifies it (operator, 2026-10-09).
@@ -88,9 +88,9 @@ narration anyway), Portuguese With Carla, Italy Made Easy.
 | --- | --- | --- | --- |
 | 1 | reference harness: fetch, clean, coverage-check the human transcripts | no | done |
 | 2 | episode set, ~12 episodes, references verified to cover their audio | no | done, 12 |
-| 3 | pipeline runs on `prod_dgx_full`, transcript kept after every step | yes (operator's yes for > 2 episodes) | running (baseline `d43559417`) |
-| 4 | scoring: ASR WER, per-step effect, naming, translation (model judge) | judge only | WER, naming and judge built; judge waits for a key |
-| 5 | gap list and fixes | — | — |
+| 3 | pipeline runs on `prod_dgx_full`, transcript kept after every step | yes (operator's yes for > 2 episodes) | done: baseline, ASR-only, translation retest, relabel (see Results) |
+| 4 | scoring: ASR WER, per-step effect, naming, translation (model judge) | judge only | WER, per-step effect, naming scored; judge waits for its key |
+| 5 | gap list and fixes | — | D1-D21 below; D6, D15, D16, D20 open for the operator |
 | 6 | readiness call per language | — | operator |
 
 **Goal:** know, per language, how good our transcript, speaker names and translation are against a
@@ -123,6 +123,71 @@ human reference, and which gaps block enabling that language on prod.
 6. **Readiness call per language.** Which languages could be enabled on prod, with what known
    limits. The operator decides.
 
+## Results (2026-10-10)
+
+Runs live in the eval repo's ignored `cache/dataset_runs/asr_publisher_ref_nonen_v1/`; each
+`run.json` names the commit it ran. Those are pre-rebase SHAs, and each run's exported code is
+kept under `cache/code/<sha>`. After the rebase onto main `3e0615172`: `d43559417` →
+`59d3c29cc`, `22ea34a55` → `86ed99c84`, `283038972` → `0d0db93d6`.
+
+| run | code | what |
+| --- | --- | --- |
+| `20261009T131355Z_full` | `d43559417` | baseline, full chain |
+| `20261009T170818Z_asr_bare` | `d43559417` | ASR without gap recovery or punctuation repair, translation off |
+| `20261009T174336Z_translate_fresh` | `22ea34a55` | El Hilo x2, translation from scratch, `translation_max_concurrency: 4` (D8 timing) |
+| `20261009T175048Z_translate` | `283038972` | translate_only of the 4 Spanish episodes (D10, D10b) |
+| `20261009T174920Z_relabel` | `283038972` | relabel_only of all 12 episodes (D1-D21 naming) |
+
+**ASR.** Adjusted WER: numbers, long insertions and long deletions are split out (`wer_breakdown`),
+normalisation unicode-v1. Baseline full chain: es 0.059, pt-BR 0.065, fr 0.045, de 0.071. Each
+step's effect is measured as ASR alone (`asr_bare`) → full chain:
+
+| episode | adjusted WER | long-deletion words |
+| --- | --- | --- |
+| El Hilo 09-25 | 0.0609 → 0.0591 | 53 → 51 |
+| El Hilo 10-02 | 0.0183 → 0.0154 | 19 → 6 |
+| Radio Ambulante 07-21 | 0.1136 → 0.1085 | 364 → 321 |
+| Radio Ambulante 09-10 | 0.0515 → 0.0447 | 44 → 6 |
+| Rádio Novelo 09-24 | 0.1060 → 0.0681 | 379 → 40 |
+| Rádio Novelo 10-08 | 0.0792 → 0.0681 | 230 → 78 |
+| RFI 10-07 | 0.0452 → 0.0473 | 0 |
+| RFI 10-08 | 0.0427 → 0.0427 | 0 |
+| Senado 10-07 | 0.0534 → 0.0534 | 10 → 10 |
+| Senado 10-08 | 0.0230 → 0.0230 | 5 → 5 |
+| SWR 10-07 | 0.0894 → 0.0839 | 68 → 64 |
+| SWR 10-07 (ed6cd4) | 0.0688 → 0.0595 | 85 → 44 |
+
+Gap recovery and punctuation repair lower adjusted WER on 8 of 12 episodes. They leave 3 unchanged
+(RFI 10-08 and both Senado bulletins, which had 0-10 long-deleted words to begin with) and raise 1 (RFI 10-07, +0.002).
+Most of the gain is recovered speech: Novelo 09-24 goes from 379 long-deleted words to 40.
+
+**Translation.** Baseline: 3 of 4 Spanish episodes had no English (D10), so 9 of 12 episodes had
+English. At `283038972`: 4 of 4 Spanish episodes are translated, 488 units, `units_failed: 0`, so 12
+of 12 episodes have English. The retest re-sent only the 4 units that failed at the baseline; all 4
+passed on the retry (`attempts: 2`, or 1 for a unit only the D10 guard fix released). The other 484
+came from translation memory (`attempts: 0`). D10 only relaxes the guard, so units it accepted
+before it still accepts. NOT run: a from-scratch translation at the fixed commit. The fresh run at
+`22ea34a55`, before D10b, still lost 1 unit on each El Hilo episode, which is the case D10b fixes.
+The translation itself is not judged yet: the judge waits for its key.
+
+**Naming** (relabel at `283038972` against the baseline; fraction of the reference's speaking time
+per outcome; two episodes per show):
+
+| show | correct | misspelled | unnamed | wrong, after |
+| --- | --- | --- | --- | --- |
+| Radio Ambulante | 0 / 0 → 0.49 / 0.19 | — | 1.0 / 1.0 → 0.51 / 0.74 | 0 |
+| El Hilo | 0.19 / 0.68 → unchanged | 0 → 0.28 / 0.30 (host, named as ASR heard him) | 0.81 / 0.32 → 0.53 / 0.03 | 0 |
+| Rádio Novelo | 0.41 / 0.09 → 0.84 / 0.16 | — | 0.59 / 0.91 → 0.17 / 0.79 | 0 |
+
+In the 8 episodes whose reference labels its speakers (El Hilo, Radio Ambulante, Novelo, SWR), no voice is named as a different person. "Zentrum" (SWR) and "France
+Médias Monde" (RFI) are gone. Still unnamed: SWR's interview clips, Novelo's main reporter, and a
+Novelo guest named in the metadata but never seated on a voice. El Hilo's host carries the
+recogniser's spelling of his name.
+
+**D15 re-measured at `283038972`.** With all four Spanish episodes now in English, the ad-free
+English of each still holds the iHeart pre-roll, mid-rolls and post-roll: `chars_removed: 0` in all
+four `.adfree.admap.json` files.
+
 ## Defects found while onboarding these feeds
 
 Each row: what the run showed, the cause, the fix and its test. "Fixed" means a failing test first
@@ -131,18 +196,18 @@ commit against the baseline run.
 
 | # | found on | defect | cause | status |
 | --- | --- | --- | --- | --- |
-| D1 | El Hilo (es) | host's "Soy <Name>" read as no self-introduction; 0 of 16 voices | `hosts.extract_self_introduced_host` / `distinct_self_introductions` compiled the English row only; the roster held the language and did not pass it | fixed `9cf7da0dc` |
-| D2 | El Hilo (es) | same | every non-English cue in `HOST_SELF_INTRO`, `HOST_BRANDED_INTRO`, `HOST_WITH_ME_INTRO` lowercase in a case-sensitive pattern: sentence-initial "Soy", "Je suis", "Ich bin" never matched | fixed `9cf7da0dc` |
-| D3 | (review of D2) | es/pt "with me" rows could never match | rows read "con migo" / "com igo"; the words are "conmigo" / "comigo" | fixed `9cf7da0dc` |
-| D4 | El Hilo (es) | both real guests rejected as "named but never introduced as speaking" | guest corroboration read English cues, on the premise that the feed description is in the analysis language; D-44 translates the transcript, not the feed | fixed `9cf7da0dc` |
+| D1 | El Hilo (es) | host's "Soy <Name>" read as no self-introduction; 0 of 16 voices | `hosts.extract_self_introduced_host` / `distinct_self_introductions` compiled the English row only; the roster held the language and did not pass it | fixed `b28cbc120` |
+| D2 | El Hilo (es) | same | every non-English cue in `HOST_SELF_INTRO`, `HOST_BRANDED_INTRO`, `HOST_WITH_ME_INTRO` lowercase in a case-sensitive pattern: sentence-initial "Soy", "Je suis", "Ich bin" never matched | fixed `b28cbc120` |
+| D3 | (review of D2) | es/pt "with me" rows could never match | rows read "con migo" / "com igo"; the words are "conmigo" / "comigo" | fixed `b28cbc120` |
+| D4 | El Hilo (es) | both real guests rejected as "named but never introduced as speaking" | guest corroboration read English cues, on the premise that the feed description is in the analysis language; D-44 translates the transcript, not the feed | fixed `b28cbc120` |
 | D5 | El Hilo (es) | an organisation ("My Cultura", from the author tag "My Cultura and iHeartPodcasts") detected as the host | the org filter drops the known network and keeps the co-publisher, which has no organisation marker | no effect on naming: dropped before the roster (`known_hosts: []` in the diagnostics); only the `DETECTED HOSTS` log line misleads |
 | D7 | El Hilo (es) | "DEADLINE EXCEEDED: metadata generation (summary+GI+KG)" at 1200 s with summary, GI and KG all off | translation runs inside that observed block; the credit #2230 designed was never built | fixed: `credit_deadline`, the translation stage credits its wall time |
 | D8 | El Hilo (es) | translation of a 41-minute episode took over 20 minutes (~14 s per unit) | units sent one at a time to a vLLM server that batches concurrent requests | built: `translation_max_concurrency` (default 1 = unchanged). MEASURED (El Hilo, 85 units): 4 in flight = 3.0 s/unit vs 15.5 sequential (5x). NOT byte-identical: 65 of 84 units matched, the rest differ in wording only (same sentence counts, lengths within 1.5%); the D8 commit's "changes wall time and nothing else" held for the pipeline, not for the server. Prod value: operator decision |
 | D9 | (scoring El Hilo) | `Turn.to_dict` said `speaker_label` is anonymous and `speaker` resolved; on disk it is the reverse, as in `.segments.json` | docstring left from D-34 (naming after translation), reverted in #2234 | fixed: docstring states what the files hold |
 | D10 | El Hilo (es) | BOTH episodes ended with no English, so no summary, GI or KG: 1 of 85 and 2 of 79 units refused as "model commentary" and the §5.3 gate withholds the whole set | (a) a FALSE refusal: the source said "según el contexto" and the faithful English "depending on the context" matched a marker; (b) two one-off commentary replies (on garbled ad audio) were never retried — re-sent, both came back clean twice | fixed: speech-like markers count only beside translator narration; a refused unit is retried once on both paths, then the whole-unit fallback |
 | D10b | translation retest at `22ea34a55` | the D10 retry did not help: all three remaining failed units were refused on both attempts, so the three Spanish episodes still have no English | at temperature 0 the identical plain request gets the identical reply. Live translator: sent plain, all three (one garbled line of the "La Bestia" reggaeton promo) came back "Here's the translation:", twice followed by an invented story; sent numbered ("1. <sentence>"), a clean single line every time | fixed: the single-sentence retry sends the numbered form and reads one line (an unnumbered one-line answer is accepted) |
-| D11 | El Hilo (es), probe over 714 descriptions | the second of two guests ("hablamos con A, de X, y con B") never introduced | the es leading-cue row had no coordinated form; English has "(?:and|along) with" | fixed: `(?:y\|también) con`; measured: 34 new introductions, 24 real guests, 10 organisations (refused by the person check), 0 merely-mentioned people |
-| D12 | SWR Das Wissen (de) | the narrator (95% of the episode's words) named "Zentrum" | baseline: the English row read German "Im Zentrum steht…" as "I'm Zentrum" (closed by D1); the German row then opened "Ich bin Polizist." → "Polizist" (a regression in `9cf7da0dc`): German capitalises every noun | fixed: one-word self-introductions refused in noun-capitalising languages (de); full names still read |
+| D11 | El Hilo (es), probe over 714 descriptions | the second of two guests ("hablamos con A, de X, y con B") never introduced | the es leading-cue row had no coordinated form; English has "(?:and\|along) with" | fixed: `(?:y\|también) con`; measured: 34 new introductions, 24 real guests, 10 organisations (refused by the person check), 0 merely-mentioned people |
+| D12 | SWR Das Wissen (de) | the narrator (95% of the episode's words) named "Zentrum" | baseline: the English row read German "Im Zentrum steht…" as "I'm Zentrum" (closed by D1); the German row then opened "Ich bin Polizist." → "Polizist" (a regression in `b28cbc120`): German capitalises every noun | fixed: one-word self-introductions refused in noun-capitalising languages (de); full names still read |
 | D13 | RFI (fr) | "France Médias Monde" (the author tag, RFI's parent company) seated on the anchor's voice as host, in baseline and relabel | the author-tag organisation filter read the English markers only; the French row's `médias` was never consulted | fixed: English plus the feed's row (markers only refuse); every pipeline call passes the feed language |
 | D14 | Rádio Novelo (pt-BR), self-introduction probe over all labelled human turns | the host's "Eu sou a Branca Vianna" not read, in both episodes | the pt row allowed the article only before a role word, never before the name | fixed: optional `o`/`a` before the name; the probe read 11 introductions correctly and refused all 18 non-introductions |
 | D17 | (code reading, after D1/D4) | a Spanish host's "Bienvenidos a El Hilo" or "nos acompaña hoy <name>" could never mark the host or name the guest | `roles_from_conversation` and `guests_introduced_by_the_host` read the English rows only, and the roster imported the English host-introduction pattern directly — the third instance of a per-language map built and then read in English | fixed: both take the language; every roster call passes it (AST delivery test); the English pin records the move |
@@ -158,7 +223,9 @@ commit against the baseline run.
 translation gate. At the baseline one refused unit in ~80 withheld a Spanish episode's whole English
 set (3 of 4 Spanish episodes, 0 of 8 others). Bring the retest's post-D10 failure rate and the
 options: keep the gate (retries + guard fix only) or accept partial English with failed units
-marked or re-tried by a fallback.
+marked or re-tried by a fallback. Retest at `283038972`: 0 of 488 Spanish units failed and all 12
+episodes have English, but 484 of those units came from translation memory. The from-scratch
+failure rate at the fixed commit is not measured.
 
 **Still English-only after the sweep (D18), each to be fixed with a probe on real data first,
 because D12 showed a newly active row can regress:** `is_plausible_mononym` and
