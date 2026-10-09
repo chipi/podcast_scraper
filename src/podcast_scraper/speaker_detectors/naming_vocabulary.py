@@ -2790,6 +2790,11 @@ HOST_PHRASE_TEMPLATES: Dict[str, Tuple[str, ...]] = {
 #: The verb for "these people make the show". English folds singular and plural into one `s?`;
 #: the Romance rows spell BOTH conjugations because the third-person plural is not the singular
 #: plus an s (`presenta`/`presentano`).
+#:
+#: "HELP" IS IN THE ROMANCE ROWS ONLY ("Eliezer Budasoff y Silvia Viñas te ayudan a entender",
+#: El Hilo). Measured over 585 chart feeds' channel descriptions (2026-10-10): es/pt/it/fr gain
+#: one host statement, El Hilo's, and no wrong one; German `hilft`/`helfen` produced two false
+#: hosts ("Lustige Experimente helfen"), because German capitalises the nouns before it.
 PRESENTS: Dict[str, str] = {
     #: The verb a description uses for "these people make the show". English folds singular and
     #: plural into one `s?`; the Romance rows need BOTH conjugations spelled out because the
@@ -2802,17 +2807,17 @@ PRESENTS: Dict[str, str] = {
     "es": (
         r"(?:explora|exploran|explica|explican|discute|discuten|habla|hablan|cubre|cubren"
         r"|presenta|presentan|trae|traen|entrevista|entrevistan|aborda|abordan|conduce"
-        r"|conducen)\b"
+        r"|conducen|ayuda|ayudan)\b"
     ),
     "it": (
         r"(?:esplora|esplorano|spiega|spiegano|discute|discutono|parla|parlano|copre|coprono"
         r"|presenta|presentano|porta|portano|intervista|intervistano|affronta|affrontano"
-        r"|conduce|conducono)\b"
+        r"|conduce|conducono|aiuta|aiutano)\b"
     ),
     "fr": (
         r"(?:explore|explorent|explique|expliquent|discute|discutent|parle|parlent|couvre"
         r"|couvrent|présente|présentent|apporte|apportent|interviewe|interviewent|aborde"
-        r"|abordent|animent|anime)\b"
+        r"|abordent|animent|anime|aide|aident)\b"
     ),
     "de": (
         r"(?:erkund(?:et|en)|erklär(?:t|en)|diskutier(?:t|en)|sprech(?:t|en)|spricht"
@@ -2822,7 +2827,7 @@ PRESENTS: Dict[str, str] = {
     "pt": (
         r"(?:explora|exploram|explica|explicam|discute|discutem|fala|falam|cobre|cobrem"
         r"|apresenta|apresentam|traz|trazem|entrevista|entrevistam|aborda|abordam|conduz"
-        r"|conduzem)\b"
+        r"|conduzem|ajuda|ajudam)\b"
     ),
 }
 
