@@ -56,8 +56,8 @@ from ....speaker_detectors.hosts import (
     _GUEST_GREETED as _GUEST_GREETED_RE,
     _GUEST_INTRODUCED_BY_HOST_BY_LANGUAGE as _GUEST_INTRODUCED_BY_HOST_RE_BY_LANGUAGE,
     _GUEST_INTRODUCED_NAME_FIRST as _GUEST_INTRODUCED_NAME_FIRST_RE,
-    _GUEST_SPEECH_ACTS,
-    _HOST_SPEECH_ACTS,
+    _GUEST_SPEECH_ACTS_BY_LANGUAGE,
+    _HOST_SPEECH_ACTS_BY_LANGUAGE,
     _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE,
     _NAME_FIRST_TAIL_BY_LANGUAGE,
     _NAME_RE as _INTRO_NAME_RE,
@@ -407,7 +407,24 @@ _BLEED_PAIR_CHARS = 200
 _DOMINANT_SHARE = 0.5
 _DOMINANT_MAX_VOICES = 3
 
-#: Guest speech acts for the RESCUE check only, wider than `_GUEST_SPEECH_ACTS`. The narrow list
+
+def _host_acts(language: Optional[str]) -> Tuple["re.Pattern[str]", ...]:
+    """The host speech-act row for the language the voice text is in (none for an unknown one)."""
+    row: Tuple["re.Pattern[str]", ...] = naming_vocabulary.vocabulary_row(
+        _HOST_SPEECH_ACTS_BY_LANGUAGE, language, default=()
+    )
+    return row
+
+
+def _guest_acts(language: Optional[str]) -> Tuple["re.Pattern[str]", ...]:
+    """The guest speech-act row for the language the voice text is in (none for an unknown one)."""
+    row: Tuple["re.Pattern[str]", ...] = naming_vocabulary.vocabulary_row(
+        _GUEST_SPEECH_ACTS_BY_LANGUAGE, language, default=()
+    )
+    return row
+
+
+#: Guest speech acts for the RESCUE check only, wider than the guest speech-act row. The narrow list
 #: exists to veto a name and is kept conservative on purpose; here the question is the opposite —
 #: "is there any sign a guest's reply is in this text" — so a miss costs a wrong name. "It's nice
 #: to be here" is what let the Novo Nordisk CEO through as the host of The Journal.
@@ -494,6 +511,7 @@ def _rescued_from_bleed(
     text: str,
     name: str,
     *,
+    language: Optional[str] = TARGET_LANGUAGE,
     voice_intro: Mapping[str, str],
     voice_texts: Mapping[str, str],
     talk_share: Mapping[str, float],
@@ -522,7 +540,7 @@ def _rescued_from_bleed(
     """
     if not text or not name:
         return False
-    host_at = [m.start() for p in _HOST_SPEECH_ACTS for m in p.finditer(text)]
+    host_at = [m.start() for p in _host_acts(language) for m in p.finditer(text)]
     if not host_at:
         return False
     reply_at = [m.start() for p in _GUEST_REPLY_WIDE for m in p.finditer(text)]
@@ -2303,7 +2321,7 @@ def _name_host_voices(
         # guest; position-gating the guest phrase instead was tried and failed validation (farewell
         # thank-yous are real guest acts).
         performs_guest = (
-            any(p.search(text) for p in _GUEST_SPEECH_ACTS)
+            any(p.search(text) for p in _guest_acts(language))
             if text and seat not in host_evidence_voices
             else False
         )
@@ -2311,7 +2329,7 @@ def _name_host_voices(
         # the LLM path makes is made here, deterministically and independently: on ChinaTalk the
         # voice opening "Hey, Jordan. Good morning." was handed `Jordan Schneider` by THIS path
         # (source `known_hosts`, `voice_intro` empty) while Jordan's real voice stayed unnamed.
-        # `_GUEST_SPEECH_ACTS` cannot see it — being addressed is not a speech act — and
+        # The guest speech-act row cannot see it — being addressed is not a speech act — and
         # `_talks_about` cannot either, because it matches the full name or the SURNAME and the
         # greeting uses the first name. Fixing it only in `resolve_voices_and_roles` would leave
         # every no-LLM profile wrong, which is why the veto is applied at both sites (#2078).
@@ -2323,6 +2341,7 @@ def _name_host_voices(
             seat,
             text,
             unclaimed[0][0],
+            language=language,
             voice_intro=voice_intro,
             voice_texts=voice_texts or {},
             talk_share=talk_share or {},
@@ -2361,7 +2380,7 @@ def _name_host_voices(
         texts_ = voice_texts or {}
         guest_act = any(
             s not in host_evidence_voices
-            and any(p.search(texts_.get(s, "")) for p in _GUEST_SPEECH_ACTS)
+            and any(p.search(texts_.get(s, "")) for p in _guest_acts(language))
             for s in unnamed_seats
         )
         pair = (
@@ -4312,7 +4331,7 @@ def _presenter_voices_by_evidence(
             continue
         if _intro_people(distinct_self_introductions(t, intro_chars=5000, language=language)) >= 2:
             continue
-        if performs_show_intro(t, feed_title):
+        if performs_show_intro(t, feed_title, language):
             branded.add(v)
             continue
         own = self_intros.get(v)
@@ -4324,6 +4343,7 @@ def _presenter_voices_by_evidence(
 
 def _guests_by_their_own_words(
     *,
+    language: Optional[str] = TARGET_LANGUAGE,
     voice_intro: Mapping[str, str],
     host_pool_lower: AbstractSet[str],
     stated_others: Sequence[str],
@@ -4339,7 +4359,7 @@ def _guests_by_their_own_words(
         and n.lower() not in host_pool_lower
         and any(_same_person(n, s) or _snap_near_identical_host(n, [s]) != n for s in stated_others)
         and (
-            any(p.search(voice_texts.get(v, "")) for p in _GUEST_SPEECH_ACTS)
+            any(p.search(voice_texts.get(v, "")) for p in _guest_acts(language))
             or share.get(v, 0.0) >= _DOMINANT_SHARE
         )
     }
@@ -4449,6 +4469,7 @@ def _select_host_voices(
     # hosts: with an empty pool every stated person is "other", the stand-in included (BizNews).
     intro_is_stated_other = (
         _guests_by_their_own_words(
+            language=language,
             voice_intro=voice_intro,
             host_pool_lower=host_pool_lower,
             stated_others=stated_others,

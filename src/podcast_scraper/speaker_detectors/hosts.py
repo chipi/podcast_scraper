@@ -1279,14 +1279,18 @@ def show_name_pattern(feed_title: Optional[str]) -> Optional[str]:
     return full
 
 
-def performs_show_intro(text: Optional[str], feed_title: Optional[str]) -> bool:
-    """True when the voice presents THIS show by name ("you're listening to Why This Universe")."""
+def performs_show_intro(
+    text: Optional[str], feed_title: Optional[str], language: Optional[str] = TARGET_LANGUAGE
+) -> bool:
+    """True when the voice presents THIS show by name ("you're listening to Why This Universe",
+    "Esto es Radio Ambulante") — the cue read in the episode's language."""
     show = show_name_pattern(feed_title)
-    if not text or not show:
+    cue = naming_vocabulary.vocabulary_row(_SHOW_INTRO_CUE_BY_LANGUAGE, language)
+    if not text or not show or cue is None:
         return False
     return bool(
         re.search(
-            rf"\b{_SHOW_INTRO_CUE}\s+(?:the\s+|our\s+)?(?:{show})(?:\s*(?:podcast|show))?(?!\w)",
+            rf"\b{cue}\s+(?:the\s+|our\s+)?(?:{show})(?:\s*(?:podcast|show))?(?!\w)",
             text,
             re.IGNORECASE,
         )

@@ -60,6 +60,15 @@ _MOVED: Dict[Tuple[str, str], Tuple[str, str, Any]] = {
         "_GUEST_INTRODUCED_BY_HOST_BY_LANGUAGE",
         "en",
     ),
+    # ...and its English speech-act rows the same way (2026-10-09).
+    **{
+        ("podcast_scraper.providers.ml.diarization.roster", name): (
+            "podcast_scraper.speaker_detectors.hosts",
+            f"{name}_BY_LANGUAGE",
+            "en",
+        )
+        for name in ("_HOST_SPEECH_ACTS", "_GUEST_SPEECH_ACTS")
+    },
     # The stated-name possessive became the English row of a per-language map.
     ("podcast_scraper.speaker_detectors.hosts", "_STATED_POSSESSIVE_PREFIX"): (
         "podcast_scraper.speaker_detectors.hosts",
