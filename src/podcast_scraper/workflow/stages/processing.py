@@ -2103,6 +2103,7 @@ def _detect_speakers_for_episode(
             episode_description=episode_description,
             known_hosts=host_strings | combined_hosts,
             rejected_out=_refused,
+            language=transcription_language(cfg),
         )
         report["hosts"] = sorted(host_strings)
         report["proposed_guests"] = list(proposed)

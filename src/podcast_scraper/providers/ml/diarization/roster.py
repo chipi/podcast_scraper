@@ -782,6 +782,7 @@ def _host_name_pool(
     transcript_text: Optional[str],
     known_hosts: Sequence[str],
     host_candidates: Sequence[str],
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> List[Tuple[str, str]]:
     """Ordered ``(name, source)`` host-name candidates, most-trusted first.
 
@@ -811,7 +812,9 @@ def _host_name_pool(
     for n in _clean_author_candidates(host_candidates):
         _add(n, "feed")
     if not pool:  # the feed named nobody — only then does the transcript get a vote
-        for n in _clean_person_names([extract_self_introduced_host(transcript_text) or ""]):
+        for n in _clean_person_names(
+            [extract_self_introduced_host(transcript_text, language=language) or ""]
+        ):
             _add(n, "self_intro")
     return pool
 
@@ -2059,9 +2062,9 @@ def _self_intros_by_voice(
     out: Dict[str, str] = {}
     for voice, text in (voice_texts or {}).items():
         head = (text or "")[:5000]
-        name = extract_self_introduced_host(text, intro_chars=5000) or _sign_off_self_intro(
-            text, metadata_named, language
-        )
+        name = extract_self_introduced_host(
+            text, intro_chars=5000, language=language
+        ) or _sign_off_self_intro(text, metadata_named, language)
         if name and len(name.split()) >= 2:
             out[voice] = name
             continue
@@ -3306,7 +3309,9 @@ def _voice_named_by_the_introduction(
     return out
 
 
-def _distinct_intros_map_to_multiple_stated(text: str, stated: Sequence[str]) -> bool:
+def _distinct_intros_map_to_multiple_stated(
+    text: str, stated: Sequence[str], language: Optional[str] = TARGET_LANGUAGE
+) -> bool:
     """True when a cluster's DISTINCT self-intros map (fuzzily) to 2+ different STATED people.
 
     That is a diarization MERGE of multiple named speakers — "…take turns introducing yourselves.
@@ -3314,7 +3319,7 @@ def _distinct_intros_map_to_multiple_stated(text: str, stated: Sequence[str]) ->
     first self-intro paints a guest's name onto the wrong voice; this flags it so the name is
     suppressed instead. First-name match tolerates the ASR spelling ("Lucas" vs stated "Lukas").
     """
-    distinct = distinct_self_introductions(text, intro_chars=5000)
+    distinct = distinct_self_introductions(text, intro_chars=5000, language=language)
     if len(distinct) < 2:
         return False
     stated_firsts = [(s, _given_tokens(s)[0].lower()) for s in stated if _given_tokens(s)]
@@ -3340,7 +3345,11 @@ _MERGED_HOST_OWNER_MIN_SHARE = 0.25
 
 
 def _merged_host_cluster_owner(
-    text: str, hosts: Sequence[str], *, vocatives: bool = True
+    text: str,
+    hosts: Sequence[str],
+    *,
+    vocatives: bool = True,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Optional[str]:
     """Which stated host OWNS a cluster carrying both hosts' self-introductions.
 
@@ -3367,7 +3376,7 @@ def _merged_host_cluster_owner(
         ]
         if len(named) == 1:
             return named[0]
-    intros = distinct_self_introductions(text, intro_chars=5000)
+    intros = distinct_self_introductions(text, intro_chars=5000, language=language)
     said = {
         h
         for h in hosts
@@ -3537,11 +3546,14 @@ def _self_intro_voice_names(
         for v in intros
         if (
             talk.get(v, 0.0) < MONTAGE_CLIP_MAX_TALK_S
-            and _intro_people(distinct_self_introductions(texts.get(v, ""), intro_chars=5000)) >= 2
+            and _intro_people(
+                distinct_self_introductions(texts.get(v, ""), intro_chars=5000, language=language)
+            )
+            >= 2
         )
         or (
             suppress_merged
-            and _distinct_intros_map_to_multiple_stated(texts.get(v, ""), intro_sources)
+            and _distinct_intros_map_to_multiple_stated(texts.get(v, ""), intro_sources, language)
         )
     }
     host_candidate_voices = strategy.host_candidate_voices(
@@ -3564,6 +3576,7 @@ def _self_intro_voice_names(
                 texts.get(v, ""),
                 list(known_hosts),
                 vocatives=talk.get(v, 0.0) / total_talk >= _MERGED_HOST_OWNER_MIN_SHARE,
+                language=language,
             )
             if owner:
                 out[v] = owner
@@ -4271,6 +4284,7 @@ def _presenter_voices_by_evidence(
     feed_title: Optional[str],
     stated_people: Sequence[str],
     self_intros: Mapping[str, str],
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Tuple[Set[str], Set[str]]:
     """``(branded, introducers)``: voices that PRESENT this episode on their own words -- the
     show's branded intro, or an introduction / greeting of a person the episode states.
@@ -4292,7 +4306,7 @@ def _presenter_voices_by_evidence(
     for v, t in voice_texts.items():
         if v in ad_voices or not t or share.get(v, 0.0) >= _DOMINANT_SHARE:
             continue
-        if _intro_people(distinct_self_introductions(t, intro_chars=5000)) >= 2:
+        if _intro_people(distinct_self_introductions(t, intro_chars=5000, language=language)) >= 2:
             continue
         if performs_show_intro(t, feed_title):
             branded.add(v)
@@ -5068,6 +5082,7 @@ def resolve_speaker_roster(
         feed_title,
         _stated_people,
         {**_names_self_intro, **stated_seed},
+        language,
     )
     presenter_voices = _branded_voices | _introducer_voices
     conv_guests = _conv_guests_heard - presenter_voices
@@ -5207,7 +5222,13 @@ def resolve_speaker_roster(
     # The presenters, re-read with every name source heard (see above): an introducer that is
     # itself named as the person it "introduces" drops out, and the co-presenter formula joins.
     _branded_voices, _introducer_voices = _presenter_voices_by_evidence(
-        diarization, voice_texts or {}, ad_voices, feed_title, _stated_people, voice_intro
+        diarization,
+        voice_texts or {},
+        ad_voices,
+        feed_title,
+        _stated_people,
+        voice_intro,
+        language,
     )
     copresenter_voices = _copresenter_pair_voices(ordered_turns or [], voice_intro, ad_voices)
     presenter_voices = _branded_voices | _introducer_voices | set(copresenter_voices)
@@ -5239,7 +5260,7 @@ def resolve_speaker_roster(
     intro_source = None if voice_texts else transcript_text
     host_pool = [
         (n, s)
-        for n, s in _host_name_pool(intro_source, known_hosts, host_candidates)
+        for n, s in _host_name_pool(intro_source, known_hosts, host_candidates, language)
         if n.lower() not in ad_names_lower
     ]
     # THE SHOW IS NOT ITS OWN HOST. A feed-level pool still carries the show's name on some feeds
@@ -5829,7 +5850,9 @@ def build_speaker_diagnostics(
         },
         "tried": {
             "host_self_intro": (
-                extract_self_introduced_host(transcript_text) if transcript_text else None
+                extract_self_introduced_host(transcript_text, language=language)
+                if transcript_text
+                else None
             ),
             "known_hosts": list(known_hosts),
             "detected_guests": list(detected_guests),

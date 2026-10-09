@@ -441,20 +441,40 @@ _REPORTED_LEAD_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
 _REPORTED_LEAD = _REPORTED_LEAD_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
-def _is_hypothetical(head: str, match: "re.Match[str]") -> bool:
+def _is_hypothetical(
+    head: str, match: "re.Match[str]", language: Optional[str] = TARGET_LANGUAGE
+) -> bool:
     """True when *match* follows a hypothetical ("let's say") or somebody ELSE's reported speech."""
     before = head[max(0, match.start() - 40) : match.start()]
-    if _HYPOTHETICAL_LEAD.search(before[-30:]):
+    hypothetical = naming_vocabulary.vocabulary_row(_HYPOTHETICAL_LEAD_BY_LANGUAGE, language)
+    if hypothetical is not None and hypothetical.search(before[-30:]):
         return True
-    reported = _REPORTED_LEAD.search(before)
+    reported_lead = naming_vocabulary.vocabulary_row(_REPORTED_LEAD_BY_LANGUAGE, language)
+    reported = reported_lead.search(before) if reported_lead is not None else None
     return reported is not None and reported.group("who").lower() not in {"i", "you"}
 
 
-def _branded_intro_matches(head: str, feed_title: Optional[str]) -> List["re.Match[str]"]:
+def _branded_intro_matches(
+    head: str, feed_title: Optional[str], language: Optional[str] = TARGET_LANGUAGE
+) -> List["re.Match[str]"]:
     """`it's <Name> with <Show>` matches, but only where the fronted thing IS this show."""
-    if not feed_title:
+    branded = naming_vocabulary.vocabulary_row(_HOST_BRANDED_INTRO_BY_LANGUAGE, language)
+    if not feed_title or branded is None:
         return []
-    return [m for m in _HOST_BRANDED_INTRO.finditer(head) if names_the_show(m.group(2), feed_title)]
+    return [m for m in branded.finditer(head) if names_the_show(m.group(2), feed_title)]
+
+
+def _self_intro_matches(
+    head: str, feed_title: Optional[str], language: Optional[str]
+) -> List["re.Match[str]"]:
+    """Every self-introduction form, read in *language* (`vocabulary_row`: None is the analysis
+    language, a language with no row reads nothing rather than English)."""
+    out: List["re.Match[str]"] = []
+    for rows in (_HOST_SELF_INTRO_BY_LANGUAGE, _HOST_WITH_ME_INTRO_BY_LANGUAGE):
+        pattern = naming_vocabulary.vocabulary_row(rows, language)
+        if pattern is not None:
+            out.extend(pattern.finditer(head))
+    return out + _branded_intro_matches(head, feed_title, language)
 
 
 def extract_self_introduced_host(
@@ -462,6 +482,7 @@ def extract_self_introduced_host(
     *,
     intro_chars: int = 2000,
     feed_title: Optional[str] = None,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> Optional[str]:
     """Return the host's name from a transcript-intro self-introduction (``I'm <Name>``).
 
@@ -472,6 +493,10 @@ def extract_self_introduced_host(
     transcript-derived host name to the diarized host speaker (#876). Only the intro is
     scanned so a guest who later says "I'm …" isn't mistaken for the host. Returns ``None``
     when no self-introduction is found.
+
+    *language* is the language the TEXT is in — the source language for ASR output, which is
+    what the roster reads. Read with the English row, "Soy Eliezer Budasoff" was no introduction
+    at all (El Hilo, 2026-10-09).
     """
     if not transcript_text:
         return None
@@ -482,13 +507,9 @@ def extract_self_introduced_host(
     head = transcript_text[:intro_chars]
     # Both forms, in one pass with the SAME guards below. Two scanners with two guard sets is how
     # the sibling scanners drifted apart before (#876).
-    matches = (
-        list(_HOST_SELF_INTRO.finditer(head))
-        + list(_HOST_WITH_ME_INTRO.finditer(head))
-        + _branded_intro_matches(head, feed_title)
-    )
+    matches = _self_intro_matches(head, feed_title, language)
     for match in matches:
-        if _is_hypothetical(head, match):
+        if _is_hypothetical(head, match, language):
             continue
         # Collapse runs of whitespace: word-level ASR segments join as "Amanda  Aronchik" — a
         # different person id from "Amanda Aronchik" on every other surface.
@@ -519,6 +540,7 @@ def distinct_self_introductions(
     *,
     intro_chars: int = 2000,
     feed_title: Optional[str] = None,
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> List[str]:
     """Every DISTINCT person-name a voice introduces itself as ("I'm <Name>"), same filtering as
     :func:`extract_self_introduced_host` (network bumpers + ordinary-word runs skipped).
@@ -536,13 +558,9 @@ def distinct_self_introductions(
     seen: List[str] = []
     lowered: Set[str] = set()
     head = (transcript_text or "")[:intro_chars]
-    matches = (
-        list(_HOST_SELF_INTRO.finditer(head))
-        + list(_HOST_WITH_ME_INTRO.finditer(head))
-        + _branded_intro_matches(head, feed_title)
-    )
+    matches = _self_intro_matches(head, feed_title, language)
     for match in matches:
-        if _is_hypothetical(head, match):
+        if _is_hypothetical(head, match, language):
             continue
         # Collapse runs of whitespace: word-level ASR segments join as "Amanda  Aronchik" — a
         # different person id from "Amanda Aronchik" on every other surface.

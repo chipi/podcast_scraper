@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Optional
 
 from .constants import (
+    interview_cue_patterns_for,
     INTERVIEW_INDICATOR_PATTERNS,
     INTERVIEW_TRAILING_GAPPED_PATTERNS,
     INTERVIEW_TRAILING_PATTERNS,
     MENTIONED_ONLY_PATTERNS,
+    SpeakerCuePatterns,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,7 +33,29 @@ def _strip_honorifics(text: str) -> str:
     return _HONORIFIC_RE.sub("", text)
 
 
-def _has_interview_indicator(name: str, text: str) -> bool:
+_ENGLISH_CUES = SpeakerCuePatterns(
+    leading=tuple(INTERVIEW_INDICATOR_PATTERNS),
+    trailing=tuple(INTERVIEW_TRAILING_PATTERNS),
+    trailing_gapped=tuple(INTERVIEW_TRAILING_GAPPED_PATTERNS),
+    mentioned_only=tuple(MENTIONED_ONLY_PATTERNS),
+)
+_NO_CUES = SpeakerCuePatterns(leading=(), trailing=(), trailing_gapped=(), mentioned_only=())
+
+
+def _cues(language: Optional[str]) -> SpeakerCuePatterns:
+    """The cue lists for the language the TEXT is in.
+
+    A feed description is in the feed's language — D-44 translates the transcript, not the feed —
+    so a Spanish description read with the English rows introduced nobody (El Hilo, 2026-10-09).
+    No language is the old behaviour (English); a language without all four lists reads nothing,
+    because English cues over another language match only by accident.
+    """
+    if not language:
+        return _ENGLISH_CUES
+    return interview_cue_patterns_for(language) or _NO_CUES
+
+
+def _has_interview_indicator(name: str, text: str, language: Optional[str] = None) -> bool:
     """Is *name* introduced as a guest — cue and name TOGETHER, not merely in the same paragraph?
 
     The cue must sit next to the name. The old matcher was ``cue + ".*?" + name``, an unbounded gap,
@@ -47,14 +72,15 @@ def _has_interview_indicator(name: str, text: str) -> bool:
     is how guests are usually introduced in a feed description and which the leading-cue list could
     never see.
     """
+    cues = _cues(language)
     text_lower = _strip_honorifics(text.lower())
     name_lower = re.escape(_strip_honorifics(name.lower()))
     gap = r"[\s,'\-\w]{0," + str(_CUE_MAX_GAP) + r"}?"
 
-    for pattern in INTERVIEW_INDICATOR_PATTERNS:
+    for pattern in cues.leading:
         if re.search(pattern + gap + name_lower, text_lower):
             return True
-    for pattern in INTERVIEW_TRAILING_PATTERNS:
+    for pattern in cues.trailing:
         if re.search(name_lower + pattern, text_lower):
             return True
     # NAME <role clause> CUE — the same bounded gap, in the other direction. Descriptions put the
@@ -63,7 +89,7 @@ def _has_interview_indicator(name: str, text: str) -> bool:
     # reach. Bounded for the reason the leading gap is bounded: unbounded, one cue introduces every
     # name in the paragraph.
     trailing_gap = r"[\s,'\-\w\.]{0," + str(_TRAILING_CUE_MAX_GAP) + r"}?"
-    for pattern in INTERVIEW_TRAILING_GAPPED_PATTERNS:
+    for pattern in cues.trailing_gapped:
         if re.search(name_lower + trailing_gap + pattern, text_lower):
             return True
     return False
@@ -86,7 +112,7 @@ _INTRO_CUE_MAX_GAP = _CUE_MAX_GAP
 _TRAILING_CUE_MAX_GAP = 90
 
 
-def is_introduced_guest(name: str, intro_text: str) -> bool:
+def is_introduced_guest(name: str, intro_text: str, language: Optional[str] = None) -> bool:
     """True when the transcript intro *introduces* ``name`` as a guest (not merely mentions them).
 
     ASR-grade precision, stricter than the feed-description filter: requires a First-Last name
@@ -98,7 +124,7 @@ def is_introduced_guest(name: str, intro_text: str) -> bool:
         return False
     text_lower = _strip_honorifics(intro_text.lower())
     name_lower = re.escape(_strip_honorifics(name.lower()))
-    for pattern in INTERVIEW_INDICATOR_PATTERNS:
+    for pattern in _cues(language).leading:
         if re.search(
             pattern + r"[\s,'\-\w]{0," + str(_INTRO_CUE_MAX_GAP) + r"}?" + name_lower, text_lower
         ):
@@ -106,7 +132,7 @@ def is_introduced_guest(name: str, intro_text: str) -> bool:
     return False
 
 
-def _has_mentioned_only_indicator(name: str, text: str) -> bool:
+def _has_mentioned_only_indicator(name: str, text: str, language: Optional[str] = None) -> bool:
     """Is *name* talked ABOUT — the marker sitting next to the name, not merely in the same text?
 
     Same unbounded-gap bug as the interview matcher, and the same fix: a "discusses"/"about" marker
@@ -117,13 +143,15 @@ def _has_mentioned_only_indicator(name: str, text: str) -> bool:
     name_lower = re.escape(_strip_honorifics(name.lower()))
     gap = r"[\s,'\-\w]{0," + str(_CUE_MAX_GAP) + r"}?"
 
-    for pattern in MENTIONED_ONLY_PATTERNS:
+    for pattern in _cues(language).mentioned_only:
         if re.search(pattern + gap + name_lower, text_lower):
             return True
     return False
 
 
-def _is_likely_actual_guest(name: str, title: str, description: str | None) -> bool:
+def _is_likely_actual_guest(
+    name: str, title: str, description: str | None, language: Optional[str] = None
+) -> bool:
     """Determine if a detected person is likely an actual guest vs merely mentioned.
 
     A guest must LOOK like a person before any cue is even considered. ``is_introduced_guest``
@@ -139,8 +167,8 @@ def _is_likely_actual_guest(name: str, title: str, description: str | None) -> b
     if description:
         combined_text += " " + description
 
-    has_interview = _has_interview_indicator(name, combined_text)
-    has_mentioned_only = _has_mentioned_only_indicator(name, combined_text)
+    has_interview = _has_interview_indicator(name, combined_text, language)
+    has_mentioned_only = _has_mentioned_only_indicator(name, combined_text, language)
 
     if has_interview:
         logger.debug("Name '%s' has interview indicator - likely actual guest", name)
