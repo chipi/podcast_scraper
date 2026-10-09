@@ -418,12 +418,15 @@ async function openHelp(): Promise<void> {
       <!-- The switch that CHANGES the target shown above, next to the target itself. `component
            :is` because the import is build-gated to null on a release build; `v-if` on the value,
            not on `internal`, so there is exactly one condition rather than two that can disagree. -->
-      <!-- The tier switch and Copy build info on one row, the same size (operator 2026-10-08). -->
-      <div class="mt-4 flex flex-wrap items-center gap-2">
+      <!-- The tier switch, Copy build info and Copy debug info on ONE row, the same size (operator
+           2026-10-08, -09). At text-sm / px-4 the three came to ~400px and Copy debug info wrapped to
+           its own line on a phone; text-xs / px-3 fits them in ~290px. Still `flex-wrap`, so a
+           narrower screen wraps rather than cutting a label. -->
+      <div class="mt-4 flex flex-wrap items-center gap-1.5">
         <component :is="TierSwitch" v-if="TierSwitch" />
         <button
           type="button"
-          class="rounded-full border border-border px-4 py-1.5 text-sm font-bold transition hover:bg-overlay"
+          class="shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-bold transition hover:bg-overlay"
           data-testid="settings-copy"
           @click="copyDiagnostics"
         >
@@ -431,7 +434,7 @@ async function openHelp(): Promise<void> {
         </button>
         <button
           type="button"
-          class="rounded-full border border-border px-4 py-1.5 text-sm font-bold transition hover:bg-overlay"
+          class="shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-bold transition hover:bg-overlay"
           data-testid="settings-copy-debug"
           @click="copyDebugInfo"
         >
