@@ -30,6 +30,8 @@ export function useTrendingScope(): {
     return prefs.get<TrendingScope>(TRENDING_SCOPE_PREF) === "corpus" ? "corpus" : "mine"
   })
   function setScope(v: TrendingScope): void {
+    // Signed out there is no "mine" and no per-user preference to write; the lens reads `corpus`.
+    if (!auth.isAuthenticated) return
     void prefs.set(TRENDING_SCOPE_PREF, v)
   }
   return { scope, setScope }

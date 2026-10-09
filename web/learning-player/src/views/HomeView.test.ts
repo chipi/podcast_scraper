@@ -324,7 +324,8 @@ describe('HomeView (discover state, signed out)', () => {
     await flushPromises()
     await w.find('input#home-search').setValue('memory')
     await w.find('form').trigger('submit')
-    expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'memory' } })
+    // Signed out the shared Mine ⇄ Everyone reads everyone (2026-10-09).
+    expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'memory', scope: 'all' } })
   })
 })
 

@@ -129,7 +129,7 @@ test('a "Play from" link to the episode ALREADY OPEN still seeks and plays (same
 })
 
 test('Search: "▶ Play from" carries play=1 and starts the episode at the passage', async ({ page }) => {
-  await page.goto('/search?q=index%20funds')
+  await page.goto('/search?q=index%20funds&scope=all')
   const playFrom = page.getByTestId('play-from').first()
   await expect(playFrom).toBeVisible({ timeout: 30_000 })
   await playFrom.click()

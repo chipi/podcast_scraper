@@ -10,6 +10,8 @@ import { useAuthStore } from "../stores/auth"
 import { clearCached } from "../services/contentCache"
 import { resetCorpusLanguagesForTests } from "../composables/useCorpusLanguages"
 import { useSavedQueriesStore } from "../stores/savedQueries"
+import { useUserPreferencesStore } from "../stores/userPreferences"
+import { TRENDING_SCOPE_PREF } from "../composables/useTrendingScope"
 import SearchView from "./SearchView.vue"
 
 const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
@@ -657,16 +659,39 @@ describe("SearchView", () => {
       global: { plugins: [i18n, router, pinia], stubs: { teleport: true } },
     })
     await flushPromises()
-    // toggle is visible; default scope=all sent no 'mine'
+    // No scope in the URL → the shared Mine ⇄ Everyone choice, which is Mine by default for a
+    // signed-in listener (operator 2026-10-09: one switch, synced with Discover's).
     expect(w.find('[data-testid="search-scope"]').exists()).toBe(true)
     // 4th positional arg is enrich_results=true (#1261-2): the listener always asks the
     // server to decorate hits with related_topics so the "Also about:" chip row can render.
+    expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true)
+    expect(w.text()).toContain("Nothing in your listening on this yet")
+    // …and offers everyone's — Mine is the default, so this is a new listener's first search.
+    expect(w.find('[data-testid="search-show-everyone"]').exists()).toBe(true)
+    const prefs = useUserPreferencesStore()
+    const setPref = vi.spyOn(prefs, "set").mockResolvedValue(undefined as never)
+    // Flipping it here flips the shared choice — Discover follows.
+    await w.get('[data-testid="search-scope"]').trigger("click")
+    await flushPromises()
     expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true)
-    // toggle to My listening → searches scope=mine + recall-empty copy
+    expect(setPref).toHaveBeenLastCalledWith(TRENDING_SCOPE_PREF, "corpus")
     await w.get('[data-testid="search-scope"]').trigger("click")
     await flushPromises()
     expect(search).toHaveBeenLastCalledWith("sleep", 12, "mine", true)
-    expect(w.text()).toContain("Nothing in your listening on this yet")
+    expect(setPref).toHaveBeenLastCalledWith(TRENDING_SCOPE_PREF, "mine")
+  })
+
+  it("an explicit ?scope= in the URL wins over the shared choice", async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().user = { user_id: "u1", email: "a@b.c", name: "A" }
+    const search = vi.spyOn(api, "searchCorpus").mockResolvedValue({ query: "sleep", error: null, results: [] })
+    const router = makeRouter()
+    router.push({ name: "search", query: { q: "sleep", scope: "all" } })
+    await router.isReady()
+    mount(SearchView, { global: { plugins: [i18n, router, pinia], stubs: { teleport: true } } })
+    await flushPromises()
+    expect(search).toHaveBeenLastCalledWith("sleep", 12, "all", true)
   })
 
   // #1261-2: enriched related-topic chips above episode groups

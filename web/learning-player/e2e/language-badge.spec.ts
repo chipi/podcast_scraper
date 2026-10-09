@@ -177,7 +177,7 @@ test('a search result is labelled with its episode language (EpisodeGroupCard)',
   page,
 }, testInfo) => {
   await signInIsolated(page, 'language-badge-search', testInfo)
-  await page.goto(`/search?q=${encodeURIComponent('construcción de senderos drenaje')}`)
+  await page.goto(`/search?q=${encodeURIComponent('construcción de senderos drenaje')}&scope=all`)
   const group = page
     .getByTestId('episode-group')
     .filter({ hasText: /Construyendo Senderos Que Duran/ })

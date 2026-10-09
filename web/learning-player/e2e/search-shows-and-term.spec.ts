@@ -13,12 +13,12 @@ test('a show is found by its name, words in any order, and the count row names t
   page,
 }, testInfo) => {
   await signInIsolated(page, 'search-shows', testInfo)
-  await page.goto('/search?q=horizon%20long')
+  await page.goto('/search?q=horizon%20long&scope=all')
   const shows = page.getByTestId('search-shows')
   await expect(page.getByTestId('search-section-shows')).toBeVisible()
   await expect(shows.getByText('Long Horizon Notes')).toBeVisible()
 
-  await page.goto('/search?q=risk%20management')
+  await page.goto('/search?q=risk%20management&scope=all')
   await expect(page.getByText(/passages across \d+ episodes for “risk management”/)).toBeVisible()
 })
 
@@ -27,7 +27,7 @@ test('a search from Home shows its own term in the results box, not the previous
 }, testInfo) => {
   await signInIsolated(page, 'search-home-term', testInfo)
   // Open the results page first, so it is alive with an OLD term when Home's search lands on it.
-  await page.goto('/search?q=memory')
+  await page.goto('/search?q=memory&scope=all')
   await expect(page.locator('input[type="search"]').first()).toHaveValue('memory')
 
   // In-app (navTo picks the nav this viewport shows), so the results page stays alive behind it.

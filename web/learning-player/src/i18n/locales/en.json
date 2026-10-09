@@ -159,6 +159,8 @@
     "whatsNewKicker": "{scope} · since {date}",
     "trendsMineEmpty": "Your trends fill in as you listen, save and follow. Nothing to rank yet.",
     "trendsShowEveryone": "Show everyone's trends",
+    "trendingShowsMineEmpty": "Your shows appear here as you follow, save and listen. Nothing rising yet.",
+    "trendingShowsShowEveryone": "Show everyone's trending shows",
     "recommendedFromFollows": "Picked from what you follow"
   },
   "ask": {
@@ -198,6 +200,7 @@
     "typeEpisodes": "Episodes",
     "noResults": "No matches found.",
     "recallEmpty": "Nothing in your listening on this yet — play or save episodes to build it up.",
+    "searchEveryone": "Search every episode instead",
     "scopeLabel": "Search scope",
     "scopeAll": "Everything",
     "scopeMine": "My listening",

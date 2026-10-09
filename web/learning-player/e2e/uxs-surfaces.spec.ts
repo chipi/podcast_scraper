@@ -19,7 +19,7 @@ test.beforeEach(async ({ page }, testInfo) => {
 test('UXS-013 §3.4: a search that names a topic shows its card above the passages, and it opens', async ({
   page,
 }) => {
-  await page.goto('/search?q=risk%20management')
+  await page.goto('/search?q=risk%20management&scope=all')
   await expect(page.getByTestId('search-section-topics')).toBeVisible({ timeout: 30_000 })
   const card = page.getByRole('button', { name: /^Open risk management/i })
   await expect(card).toBeVisible()

@@ -128,7 +128,7 @@ def world_episode_set(root: Path, data_dir: Path, user_id: str) -> set[str]:
     Heard or captured from (:func:`experienced_episode_set`), saved (:func:`saved_episode_set`), or
     an episode of a show they follow. A saved SHOW does not pull its episodes in: a save is a
     bookmark, a follow is a subscription. The one meaning of "mine" per kind of item is
-    docs/adr — "Mine means the listener's own world".
+    ADR-162.
     """
     episodes = experienced_episode_set(root, data_dir, user_id) | saved_episode_set(
         data_dir, user_id

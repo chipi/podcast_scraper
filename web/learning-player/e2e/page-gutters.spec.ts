@@ -92,11 +92,12 @@ for (const width of [360, 375]) {
           stripClips: getComputedStyle(strip).overflowX !== 'visible',
           stripRight: strip.getBoundingClientRect().right,
           sortX,
-          scopeRight: r('home-trending-scope').right,
+          scopeRight: r('discover-scope').right,
         }
       })()`) as { pastSwitch: number; stripClips: boolean; stripRight: number; sortX: number; scopeRight: number }
       expect(m.stripRight, `${url}: the kind strip runs into the sort switch`).toBeLessThanOrEqual(m.sortX)
       if (m.pastSwitch > 0) expect(m.stripClips, `${url}: ${m.pastSwitch} pill(s) drawn over the sort switch`).toBe(true)
+      // The Mine ⇄ Everyone switch is in Discover's header since 2026-10-09; it still must not leave the screen.
       expect(m.scopeRight, `${url}: the scope switch leaves the screen`).toBeLessThanOrEqual(width)
       // Every kind stays reachable — People is the last pill, the one a narrow row hides.
       await page.getByTestId('discovery-tab-person').click()
