@@ -89,6 +89,10 @@ class TestTheLanguageIsActuallyDelivered:
             "_name_guest_voices",
             "_guest_voice_by_host_elimination",
             "_bind_introduced_name",
+            "_host_name_pool",
+            "_distinct_intros_map_to_multiple_stated",
+            "_merged_host_cluster_owner",
+            "_presenter_voices_by_evidence",
         ],
     )
     def test_every_roster_call_passes_the_language(self, callee: str) -> None:
@@ -249,3 +253,101 @@ class TestThePublishGateIsAskedInTheFeedsLanguage:
     def test_the_roster_refuses_a_spanish_role_word_on_a_voice(self) -> None:
         assert roster._is_person_voice_label("Anfitrión Miguel", "es") is False
         assert roster._is_person_voice_label("Lucía Herrera", "es") is True
+
+
+class TestASelfIntroductionIsReadInTheSpokenLanguage:
+    """`extract_self_introduced_host` / `distinct_self_introductions` read only the English row.
+
+    Found on El Hilo (es, 2026-10-09, non-English measuring arc): the ASR opening carried
+    "Soy Eliezer Budasov." on the host's voice and the diagnostics recorded no self-introduction
+    for any of 16 voices. `_self_intros_by_voice` was handed `language="es"` and called the
+    reader without it, so the Spanish row in `naming_vocabulary.HOST_SELF_INTRO` was never used.
+    """
+
+    _ES = "Bienvenidos a El Hilo, un podcast de Radio Ambulante Estudios. Soy Lucía Herrera. Hoy…"
+
+    def test_the_spanish_row_reads_a_spanish_introduction(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import (
+            distinct_self_introductions,
+            extract_self_introduced_host,
+        )
+
+        assert extract_self_introduced_host(self._ES, language="es") == "Lucía Herrera"
+        assert distinct_self_introductions(self._ES, language="es") == ["Lucía Herrera"]
+
+    def test_the_english_default_is_unchanged(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        assert extract_self_introduced_host(self._ES) is None
+        assert extract_self_introduced_host("Hi, I'm Casey Rowe.") == "Casey Rowe"
+
+    def test_an_unsupported_language_reads_nothing(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        assert extract_self_introduced_host("Hi, I'm Casey Rowe.", language="ja") is None
+
+    def test_a_spanish_hypothetical_is_not_an_introduction(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        assert extract_self_introduced_host("Digamos que soy Lucía Herrera.", language="es") is None
+
+    def test_the_roster_names_the_voice_in_its_language(self) -> None:
+        assert roster._self_intros_by_voice({"SPEAKER_03": self._ES}, language="es") == {
+            "SPEAKER_03": "Lucía Herrera"
+        }
+
+    @pytest.mark.parametrize(
+        "callee", ["extract_self_introduced_host", "distinct_self_introductions"]
+    )
+    def test_every_roster_call_passes_the_language(self, callee: str) -> None:
+        # The one exemption reads a string the code itself built in English ("I'm <name>.").
+        calls = [
+            c
+            for c in _calls_in(_ROSTER_SRC, callee)
+            if not (c.args and isinstance(c.args[0], ast.JoinedStr))
+        ]
+        assert calls
+        missing = [c.lineno for c in calls if not _passes_language(c)]
+        assert missing == [], f"{callee} called without the language at {missing}"
+
+
+class TestTheCueWordsMatchAtTheStartOfASentence:
+    """The non-English cue words were lowercase in a case-SENSITIVE pattern (it must be: the name
+    capture needs a capital), so "Soy …", "Je suis …", "Ich bin …" — where a self-introduction
+    actually sits — never matched. The English row always spelled `[Mm]y` / `[Ii]t`."""
+
+    @pytest.mark.parametrize(
+        "language,text,name",
+        [
+            ("es", "Hola. Soy Lucía Herrera.", "Lucía Herrera"),
+            ("es", "Hola, soy Lucía Herrera.", "Lucía Herrera"),
+            ("fr", "Bonsoir. Je suis Élodie Chevalier.", "Élodie Chevalier"),
+            ("de", "Guten Abend. Ich bin Lena Hofmann.", "Lena Hofmann"),
+            ("it", "Buonasera. Sono Chiara Ricci.", "Chiara Ricci"),
+            ("pt", "Olá. Sou Inês Carvalho.", "Inês Carvalho"),
+            ("pt", "Olá. Eu sou Inês Carvalho.", "Inês Carvalho"),
+        ],
+    )
+    def test_a_capitalised_cue_is_read(self, language: str, text: str, name: str) -> None:
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        assert extract_self_introduced_host(text, language=language) == name
+
+    def test_the_name_still_needs_a_capital(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        # From El Hilo's ASR: a guest saying what she is, not who.
+        assert extract_self_introduced_host("Soy abogada, por supuesto.", language="es") is None
+
+    @pytest.mark.parametrize(
+        "language,text",
+        [
+            ("es", "Y conmigo, Lucía Herrera."),
+            ("pt", "E comigo, Inês Carvalho."),
+        ],
+    )
+    def test_with_me_is_one_word_in_spanish_and_portuguese(self, language: str, text: str) -> None:
+        # The rows read "con migo" / "com igo", which no one says.
+        from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
+
+        assert extract_self_introduced_host(text, language=language) == text.split(", ")[1][:-1]

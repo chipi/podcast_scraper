@@ -40,6 +40,7 @@ def corroborate_guests(
     episode_description: Optional[str],
     known_hosts: Optional[Set[str]] = None,
     rejected_out: Optional[List[Dict[str, str]]] = None,
+    language: Optional[str] = None,
 ) -> List[str]:
     """Keep only the proposed guests the episode text actually introduces as speakers.
 
@@ -51,6 +52,8 @@ def corroborate_guests(
         known_hosts: Hosts, which are never subject to the interview-cue test.
         rejected_out: When given, each name NOT kept is appended as ``{name, reason}`` —
             ``is_a_host`` or ``no_interview_cue`` — for the naming decision trace (#2276).
+        language: The language the description is in — the feed's, not the analysis language.
+            ``None`` reads the English cues (unchanged behaviour).
 
     Returns:
         The corroborated guests, order preserved.
@@ -67,7 +70,7 @@ def corroborate_guests(
             if rejected_out is not None:
                 rejected_out.append({"name": clean, "reason": "is_a_host"})
             continue
-        if _is_likely_actual_guest(clean, episode_title, episode_description):
+        if _is_likely_actual_guest(clean, episode_title, episode_description, language):
             kept.append(clean)
         else:
             rejected.append(clean)

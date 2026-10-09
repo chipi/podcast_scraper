@@ -392,9 +392,10 @@ def interview_cue_patterns_for(language: Optional[str]) -> Optional[SpeakerCuePa
     )
 
 
-#: The analysis-language rows, resolved once. Under D-44 the canonical body — and the feed
-#: description that reaches this code beside it — is always the analysis language, so these are
-#: what every caller in this package reads, and they are the lists that shipped.
+#: The analysis-language rows, resolved once: what a caller that passes no language reads. The
+#: canonical body is always the analysis language under D-44, but the FEED DESCRIPTION is not —
+#: D-44 translates the transcript, not the feed — so description readers take the feed's language
+#: (`guests._cues`). Assuming otherwise rejected both of El Hilo's guests (2026-10-09).
 INTERVIEW_INDICATOR_PATTERNS = INTERVIEW_INDICATOR_PATTERNS_BY_LANGUAGE[TARGET_LANGUAGE]
 INTERVIEW_TRAILING_PATTERNS = INTERVIEW_TRAILING_PATTERNS_BY_LANGUAGE[TARGET_LANGUAGE]
 INTERVIEW_TRAILING_GAPPED_PATTERNS = INTERVIEW_TRAILING_GAPPED_PATTERNS_BY_LANGUAGE[TARGET_LANGUAGE]
