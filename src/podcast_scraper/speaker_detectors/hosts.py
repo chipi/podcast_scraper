@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
+from typing import Any, Dict, FrozenSet, Iterable, List, Optional, Sequence, Set, Tuple
 
 from ..kg.speaker_coherence import same_person
 from ..languages import primary_language, TARGET_LANGUAGE
@@ -1248,10 +1248,15 @@ def host_acts_are_all_bled(text: str) -> bool:
     )
 
 
-def host_speech_act_starts(text: str) -> List[int]:
-    """Offsets in ``text`` where a host speech act starts, without the "welcome to" idioms."""
+def host_speech_act_starts(
+    text: str, patterns: Optional[Sequence["re.Pattern[str]"]] = None
+) -> List[int]:
+    """Offsets in ``text`` where a host speech act starts, without the "welcome to" idioms.
+
+    ``patterns``: the language's host speech acts (default English).
+    """
     out: List[int] = []
-    for p in _HOST_SPEECH_ACTS:
+    for p in _HOST_SPEECH_ACTS if patterns is None else patterns:
         for m in p.finditer(text or ""):
             head = text[max(0, m.start() - 40) : m.start()]
             if m.group(0).lower().startswith("welcome") and (
@@ -1786,25 +1791,35 @@ def is_publishable_speaker_name(
     return False
 
 
-def roles_from_conversation(voice_texts: Optional[Dict[str, str]]) -> Dict[str, str]:
+def roles_from_conversation(
+    voice_texts: Optional[Dict[str, str]], language: Optional[str] = TARGET_LANGUAGE
+) -> Dict[str, str]:
     """``{voice: "host" | "guest"}`` for the voices that PERFORM one of the two roles.
 
     Complements the metadata; it does not replace it. Used when the feed states no host, and as a
     cross-check when it does. Silent about voices that perform neither — those stay unknown, which
     is the safe direction (#876).
     """
+    host_acts = naming_vocabulary.vocabulary_row(
+        _HOST_SPEECH_ACTS_BY_LANGUAGE, language, default=()
+    )
+    guest_acts = naming_vocabulary.vocabulary_row(
+        _GUEST_SPEECH_ACTS_BY_LANGUAGE, language, default=()
+    )
     out: Dict[str, str] = {}
     for voice, text in (voice_texts or {}).items():
         if not text:
             continue
-        if host_speech_act_starts(text):
+        if host_speech_act_starts(text, host_acts):
             out[voice] = "host"
-        elif any(p.search(text) for p in _GUEST_SPEECH_ACTS):
+        elif any(p.search(text) for p in guest_acts):
             out[voice] = "guest"
     return out
 
 
-def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[str]:
+def guests_introduced_by_the_host(
+    voice_texts: Optional[Dict[str, str]], language: Optional[str] = TARGET_LANGUAGE
+) -> Set[str]:
     """Names the host introduces as guests ("My guest today is Brian Chesky").
 
     Splits a multi-guest introduction into people. "My guests today are Red Hat's Chris Wright and
@@ -1818,8 +1833,11 @@ def guests_introduced_by_the_host(voice_texts: Optional[Dict[str, str]]) -> Set[
     invent anybody, which is exactly what makes it worth reading properly.
     """
     out: Set[str] = set()
+    pattern = naming_vocabulary.vocabulary_row(_GUEST_INTRODUCED_BY_HOST_BY_LANGUAGE, language)
+    if pattern is None:
+        return out
     for text in (voice_texts or {}).values():
-        matches = list(_GUEST_INTRODUCED_BY_HOST.finditer(text or ""))
+        matches = list(pattern.finditer(text or ""))
         matches += list(_GUEST_INTRODUCED_NAME_FIRST.finditer(text or ""))
         matches += list(_GUEST_GREETED.finditer(text or ""))
         for m in matches:
