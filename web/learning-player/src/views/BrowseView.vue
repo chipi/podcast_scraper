@@ -137,13 +137,21 @@ watch(
          search started here all follow it. One switch, remembered across devices and shared with
          the Search results' own (useTrendingScope). -->
     <div class="mb-4 flex items-center justify-between gap-3">
-      <h1 class="font-display text-3xl font-extrabold tracking-tight">
-        {{ t('browse.hubTitle') }}
-      </h1>
+      <div class="flex items-center gap-2">
+        <h1 class="font-display text-3xl font-extrabold tracking-tight">
+          {{ t('browse.hubTitle') }}
+        </h1>
+        <!-- Discover 2, the preview of the reworked page, one tap away for comparison (operator
+             2026-10-10): a small square-cornered yellow BETA tag beside the title. -->
+        <RouterLink
+          :to="{ name: 'discover2' }"
+          class="lp-tap rounded-[3px] bg-warning px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-canvas"
+          aria-label="Try Discover 2, the beta"
+          data-testid="discover2-link"
+        >Beta</RouterLink>
+      </div>
       <TrendingScopeButton testid="discover-scope" />
     </div>
-    <!-- Discover 2 preview, side by side for comparison (operator 2026-10-10). -->
-    <RouterLink :to="{ name: 'discover2' }" class="-mt-3 mb-3 inline-block text-xs font-bold text-accent" data-testid="discover2-link">Try Discover 2 (preview) ›</RouterLink>
 
     <!-- Trending shows, above the entity dashboard (operator 2026-09-14): the standard rail of
          standard ShowTiles, top 5. Each links to its show; "See all →" opens the Shows tab below. -->
