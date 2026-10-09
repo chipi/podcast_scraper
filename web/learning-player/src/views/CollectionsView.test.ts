@@ -275,6 +275,20 @@ describe("every board write reaches the shared store Home's teaser reads (2026-1
     expect(store.byId('col_1')).toBeUndefined()
   })
 
+  it("adding a link updates the board's count in the store", async () => {
+    vi.spyOn(api, 'getCollection').mockResolvedValue({ collection: col(), items: [] })
+    vi.spyOn(api, 'addToCollection').mockResolvedValue(col({ count: 3 }))
+    const { w, store } = mountShared()
+    await flushPromises()
+    await w.findAll('button').find((b) => b.text().includes('AI takes'))!.trigger('click')
+    await flushPromises()
+    const linkForm = w.findAll('form').find((f) => f.find('[data-testid="collection-add-link"]').exists())!
+    await linkForm.find('[data-testid="collection-add-link"]').setValue('https://ex.com/a')
+    await linkForm.trigger('submit')
+    await flushPromises()
+    expect(store.byId('col_1')?.count).toBe(3)
+  })
+
   it("removing an item updates the board's count in the store, and in the row", async () => {
     vi.spyOn(api, 'getCollection').mockResolvedValue({
       collection: col(),

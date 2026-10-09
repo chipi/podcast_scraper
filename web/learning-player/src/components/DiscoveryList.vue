@@ -16,7 +16,7 @@
  * Controls (kind tabs, sort/scope toggles, window) live in the parent (HomeView); this is a
  * controlled presentational list. It emits `open` with the kind + the id to open.
  */
-import { computed, ref, watch } from "vue"
+import { computed, onActivated, ref, watch } from "vue"
 import { storeToRefs } from "pinia"
 import { useI18n } from "vue-i18n"
 import { getStorylines, getTopClusters, getTrending, type TrendWindow } from "../services/api"
@@ -146,6 +146,14 @@ function load(): Promise<void> {
   return section.load(fetchRows)
 }
 void load()
+// "Your trends" are built from what you listen to, save and follow — all of which happen on OTHER
+// tabs while Discover is kept alive. Re-read on every return (in place; the section revalidates),
+// but only for "mine": everyone's trends do not move because of you (2026-10-09).
+let activatedOnce = false
+onActivated(() => {
+  if (activatedOnce && props.scope === "mine") void load()
+  activatedOnce = true
+})
 // Re-fetch on kind/scope/window; sort is client-side (no refetch).
 watch(
   () => [props.kind, props.scope, window.value] as const,

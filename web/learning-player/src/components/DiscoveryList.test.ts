@@ -1,4 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils"
+import { defineComponent, h, KeepAlive, ref } from "vue"
 import { createPinia, setActivePinia } from "pinia"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { createI18n } from "vue-i18n"
@@ -155,5 +156,34 @@ describe("DiscoveryList — an empty Mine says why and offers everyone (operator
     const full = mountScoped([row("topic:a", null)], "mine")
     await flushPromises()
     expect(full.find('[data-testid="discovery-mine-empty"]').exists()).toBe(false)
+  })
+})
+
+describe("DiscoveryList — a return to Discover re-reads YOUR trends (2026-10-09)", () => {
+  async function cycle(scope: "mine" | "corpus") {
+    setActivePinia(createPinia())
+    const spy = vi.spyOn(api, "getTrending").mockResolvedValue([])
+    vi.spyOn(api, "getStorylines").mockResolvedValue([])
+    const shown = ref(true)
+    const Host = defineComponent({
+      setup: () => () =>
+        h(KeepAlive, null, shown.value ? [h(DiscoveryList, { kind: "topic", sort: "rising", scope })] : []),
+    })
+    mount(Host, { global: { plugins: [i18n, router, createPinia()] } })
+    await flushPromises()
+    const first = spy.mock.calls.length
+    shown.value = false
+    await flushPromises()
+    shown.value = true
+    await flushPromises()
+    return spy.mock.calls.length - first
+  }
+
+  it("mine: re-asks on return", async () => {
+    expect(await cycle("mine")).toBeGreaterThan(0)
+  })
+
+  it("everyone: does not (nothing you did changes it)", async () => {
+    expect(await cycle("corpus")).toBe(0)
   })
 })
