@@ -85,6 +85,25 @@ export async function navTo(
   page: Page,
   dest: 'home' | 'search' | 'library' | 'profile' | 'catalog',
 ): Promise<void> {
+  await tapTo(page, dest)
+  // ARRIVE before returning (2026-10-09). A click only starts a client-side navigation; a caller
+  // that acts next — a write, another `navTo` — could otherwise run while the PREVIOUS page is still
+  // on screen. That made a cross-surface test "leave" Discover without ever leaving it, so the tab
+  // was never deactivated and the return it meant to test never happened.
+  const at: Record<typeof dest, (u: URL) => boolean> = {
+    home: (u) => u.pathname === '/',
+    search: (u) => u.pathname.startsWith('/search'),
+    library: (u) => u.pathname.startsWith('/library'),
+    profile: (u) => u.pathname.startsWith('/profile'),
+    catalog: (u) => u.pathname.startsWith('/browse') || u.pathname.startsWith('/catalog'),
+  }
+  await page.waitForURL(at[dest])
+}
+
+async function tapTo(
+  page: Page,
+  dest: 'home' | 'search' | 'library' | 'profile' | 'catalog',
+): Promise<void> {
   if (dest === 'catalog') {
     const tab = page.getByTestId('bottom-nav-home')
     if (await tab.isVisible().catch(() => false)) {

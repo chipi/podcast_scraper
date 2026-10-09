@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signInIsolated } from './helpers'
+import { navTo, signInIsolated } from './helpers'
 
 /**
  * The collections loop, end to end, against a REAL api (#2013).
@@ -80,8 +80,11 @@ test('add to a collection, create another, and find both with their items', asyn
   await page.keyboard.press('Escape')
 
   // --- 4. Library → Collections lists both ----------------------------------------------------
-  await page.goto('/library?tab=collections')
-  await page.waitForLoadState('networkidle')
+  // IN-APP, not `page.goto` (2026-10-09). A full load rebuilds every store, so a board the sheet made
+  // but never told the shared store about looked fine here — this test passed while a board made
+  // from the sheet was missing from Library (docs/wip/e2e-cross-surface-gaps-2026-10-09.md).
+  await navTo(page, 'library')
+  await page.getByTestId('library-tab-collections').click()
   await expect(page.getByTestId('collections-load-error')).toHaveCount(0)
   const rows = page.getByTestId('collection-open')
   // Both of THIS run's collections are listed. Scoped by name rather than by total count, which
@@ -120,9 +123,9 @@ test('the episode page can pin the episode you are listening to (#2013 follow-up
   await expect(page.getByTestId('add-to-collection-menu')).toBeHidden({ timeout: 5000 })
   await expect(page.getByTestId('collection-error')).toHaveCount(0)
 
-  // and it lands as an EPISODE, in the collection, readable from Library
-  await page.goto('/library?tab=collections')
-  await page.waitForLoadState('networkidle')
+  // and it lands as an EPISODE, in the collection, readable from Library — reached in-app (see step 4)
+  await navTo(page, 'library')
+  await page.getByTestId('library-tab-collections').click()
   await page.getByTestId('collection-open').filter({ hasText: name }).first().click()
   await expect(page.getByTestId('collection-items').locator('li')).toHaveCount(1)
 })
