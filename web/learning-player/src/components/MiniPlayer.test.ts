@@ -128,14 +128,13 @@ describe('MiniPlayer line composition (operator 2026-09-23)', () => {
     expect(w.find('[data-testid="mini-player-queue"]').exists()).toBe(false)
   })
 
-  it('carries save and add-to-collection for the playing episode', async () => {
-    // The slots the queue button gave up. Asserted by IDENTITY, not by label: signed out — which is
-    // what a bare mount is — both controls correctly render the same sign-in gate label, so a
-    // label-matching test would be unable to tell one from the other or from nothing.
+  it('carries no save (heart) or board control — playback only (operator 2026-10-09)', async () => {
+    // Both live on the player page, one tap away through the bar. Asserted by IDENTITY, not by
+    // label: signed out — which is what a bare mount is — both render the same sign-in gate label.
     nowPlaying('ep-42')
     const w = await mountMini()
-    expect(w.find('.lp-fav').exists()).toBe(true)
-    expect(w.find('[data-testid="add-to-collection"]').exists()).toBe(true)
+    expect(w.find('.lp-fav').exists()).toBe(false)
+    expect(w.find('[data-testid="add-to-collection"]').exists()).toBe(false)
     // Transport still last, and still the only thing that acts on playback.
     expect(w.find('[data-testid="mini-player-toggle"]').exists()).toBe(true)
   })

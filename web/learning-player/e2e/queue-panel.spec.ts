@@ -52,8 +52,9 @@ test('the masthead reaches the queue, and the destination carries both halves', 
    * stay green if the old button quietly came back.
    */
   await expect(page.getByTestId('mini-player-queue')).toHaveCount(0)
-  // What the bar carries instead: save and collect, for the episode that is playing.
-  await expect(page.getByTestId('mini-player').getByRole('button', { name: /save|remove/i }).first()).toBeVisible()
+  // Nor save / board (operator 2026-10-09): the bar is playback only; both live on the player page.
+  await expect(page.getByTestId('mini-player').getByRole('button', { name: /save|remove/i })).toHaveCount(0)
+  await expect(page.getByTestId('mini-player').getByTestId('add-to-collection')).toHaveCount(0)
 
   await page.getByTestId('masthead-queue').click()
   await expect(page).toHaveURL(/\/queue/)

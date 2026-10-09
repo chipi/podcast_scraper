@@ -25,9 +25,7 @@ import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute } from 'vue-router'
 import { usePlayerStore } from '../stores/player'
 import { artworkThumb } from '../utils/episode'
-import FavoriteButton from './FavoriteButton.vue'
 import RouteButton from './RouteButton.vue'
-import AddToCollectionButton from './AddToCollectionButton.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -116,22 +114,10 @@ const progress = computed(() =>
            12px is the smallest gap that keeps each control's 44px touch area (`lp-tap`) clear of its
            neighbour's. -->
       <div class="flex shrink-0 items-center gap-[12px]" data-testid="mini-player-actions">
-      <!-- Save and collect, on the line itself (operator 2026-09-23).
-           The SHARED components, not a local copy: grey when off, filled when on, identical to the
-           heart on every card and on the player page. A hand-rolled pair here is exactly how the
-           same affordance ends up behaving differently per surface (UXS-014).
-           The queue control that used to sit here is GONE — the masthead now carries it at every
-           width, so keeping it would be the same destination twice on one screen. -->
-      <FavoriteButton
-        v-if="currentSlug"
-        :item="{ kind: 'episode', ref: currentSlug }"
-        class="shrink-0"
-      />
-      <AddToCollectionButton
-        v-if="currentSlug"
-        :item="{ kind: 'episode', ref: currentSlug }"
-        class="shrink-0"
-      />
+      <!-- No save (heart) or board control here (operator 2026-10-09). The bar is for playback —
+           what is on, play / pause, where the sound goes, close — and both live one tap away on the
+           player page, which the bar opens. The queue control left for the same reason earlier:
+           the masthead carries it at every width. -->
 
       <!-- Output routing, next to the transport it affects. Self-hides when the platform reports
            no route available, so this costs nothing on a device with nowhere to send audio. -->
