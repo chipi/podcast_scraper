@@ -23,6 +23,7 @@ function makeRouter(query: Record<string, string> = {}) {
     routes: [
       { path: '/browse', name: 'browse', component: BrowseView },
       { path: '/search', name: 'search', component: { template: '<div/>' } },
+      { path: '/discover2', name: 'discover2', component: { template: '<div/>' } },
     ],
   })
   void router.push({ name: 'browse', query })

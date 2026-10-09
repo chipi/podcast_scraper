@@ -142,6 +142,8 @@ watch(
       </h1>
       <TrendingScopeButton testid="discover-scope" />
     </div>
+    <!-- Discover 2 preview, side by side for comparison (operator 2026-10-10). -->
+    <RouterLink :to="{ name: 'discover2' }" class="-mt-3 mb-3 inline-block text-xs font-bold text-accent" data-testid="discover2-link">Try Discover 2 (preview) ›</RouterLink>
 
     <!-- Trending shows, above the entity dashboard (operator 2026-09-14): the standard rail of
          standard ShowTiles, top 5. Each links to its show; "See all →" opens the Shows tab below. -->

@@ -406,6 +406,14 @@ piece to its design home:
   empty Mine — `trending-shows-mine-empty` — and offer everyone's), Trends, and a search started on
   the page; the Search results' own switch reads and writes the same remembered choice. "Mine" is
   the listener's own world, one meaning per kind of item ([ADR-162](../adr/ADR-162-mine-means-the-listeners-own-world.md)).
+- **`DiscoverV2View`** — Discover 2 (`/discover2`), a PREVIEW of the reworked Discover beside the
+  current one, for comparison on a device (operator 2026-10-10). Search first, then quote cards
+  "From what you captured" (your highlight → a grounded passage elsewhere), "Trending episodes"
+  (rising topics → a speaker's take with its moment), "Continue the thread" (followed storylines),
+  "People you keep hearing", "Latest from shows you follow", and the existing trending shows and
+  Trends. Built from existing APIs; the design rationale is
+  `docs/wip/discovery-competitive-analysis-2026-10-09.md`. Not the final design and not covered
+  by tests.
 - **`DiscoveryExplorer`** — the shared section (`discovery-explorer`) wrapping the tabbed
   `DiscoveryList` (topics / themes / storylines / people — Themes added 2026-10-05, in the order
   every surface lists the kinds) with the Rising⇄Trending sort switch (`discovery-sort`). It reads

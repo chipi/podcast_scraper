@@ -902,6 +902,19 @@ export async function setFavoriteColor(
 }
 
 /** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
+/** What the listener's own listening says they are into — people and topics from the episodes they
+ *  heard or captured from, ranked (GET /interests/derived). */
+export interface DerivedInterest {
+  token: string
+  kind: "person" | "topic"
+  label: string
+  count: number
+  weight?: number
+}
+export async function getDerivedInterests(): Promise<DerivedInterest[]> {
+  return (await getJSON<{ items: DerivedInterest[] }>("/interests/derived")).items
+}
+
 export async function addInterest(token: string): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
     method: "POST",
