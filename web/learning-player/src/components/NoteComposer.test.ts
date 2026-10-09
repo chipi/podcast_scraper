@@ -14,6 +14,7 @@ import NoteComposer from './NoteComposer.vue'
 // composer's mic gating / error / save-stops-dictation glue deterministically.
 const dict = vi.hoisted(() => ({
   stop: vi.fn(),
+  finish: vi.fn(),
   toggle: vi.fn(),
   canDictate: true,
   opts: { current: null as null | { onStart: () => void; onText: (t: string) => void; onError?: () => void } },
@@ -26,7 +27,7 @@ vi.mock('../composables/useDictation', async () => {
       dict.opts.current = opts as (typeof dict)['opts']['current']
       const dictating = ref(false)
       dict.dictating.current = dictating
-      return { canDictate: dict.canDictate, dictating, toggle: dict.toggle, stop: dict.stop }
+      return { canDictate: dict.canDictate, dictating, toggle: dict.toggle, finish: dict.finish, stop: dict.stop }
     },
   }
 })
@@ -154,6 +155,16 @@ describe('NoteComposer', () => {
     dict.opts.current!.onError!()
     await flushPromises()
     expect(w.find('[data-testid="note-dictate-error"]').exists()).toBe(true)
+  })
+
+  it('the mic tap ends dictation with finish(), which keeps the last word; Save uses stop()', async () => {
+    const w = mountComposer()
+    await flushPromises()
+    dict.dictating.current!.value = true
+    await flushPromises()
+    await w.get('[data-testid="note-dictate"]').trigger('click')
+    expect(dict.finish).toHaveBeenCalledTimes(1)
+    expect(dict.stop).not.toHaveBeenCalled()
   })
 
   it('stops an active dictation before saving so a late partial cannot resurrect the draft', async () => {

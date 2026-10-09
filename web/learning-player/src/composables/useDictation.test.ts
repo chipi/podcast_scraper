@@ -223,19 +223,72 @@ describe('useDictation — native engine', () => {
     expect(d.dictating.value).toBe(false)
   })
 
-  it('a self-stop (silence timeout) drops the "on" state and detaches its listeners (M3)', async () => {
-    const useDictation = await load({ native: true, web: false })
-    const h = harness()
-    const { d } = inScope(useDictation, h.opts)
+  it('a self-stop (silence timeout) drops the "on" state, keeps the final result, then detaches (M3)', async () => {
+    vi.useFakeTimers()
+    try {
+      const useDictation = await load({ native: true, web: false })
+      const h = harness()
+      const { d } = inScope(useDictation, h.opts)
 
-    d.toggle()
-    await flush()
-    expect(d.dictating.value).toBe(true)
-    nativeListeners['listeningState']!({ status: 'stopped' })
-    await flush()
-    expect(d.dictating.value).toBe(false)
-    expect(removedEvents).toContain('partialResults')
-    expect(removedEvents).toContain('listeningState')
+      d.toggle()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(d.dictating.value).toBe(true)
+      const partial = nativeListeners['partialResults']!
+      partial({ matches: ['remember the'] })
+      nativeListeners['listeningState']!({ status: 'stopped' })
+      expect(d.dictating.value).toBe(false)
+      // Android's FINAL result arrives after "stopped" — it carries the last word.
+      partial({ matches: ['remember the milk'] })
+      expect(h.draft.value).toBe('remember the milk')
+      expect(removedEvents).toEqual([])
+
+      await vi.advanceTimersByTimeAsync(3100)
+      expect(removedEvents).toContain('partialResults')
+      expect(removedEvents).toContain('listeningState')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('tapping the mic to stop keeps the last word on its way (Android, operator 2026-10-09)', async () => {
+    vi.useFakeTimers()
+    try {
+      const useDictation = await load({ native: true, web: false })
+      const h = harness()
+      const { d } = inScope(useDictation, h.opts)
+      d.toggle()
+      await vi.advanceTimersByTimeAsync(0)
+      const partial = nativeListeners['partialResults']!
+      partial({ matches: ['buy some'] })
+
+      d.toggle() // the mic tap that ends dictation
+      expect(d.dictating.value).toBe(false)
+      expect(native.stop).toHaveBeenCalled()
+      partial({ matches: ['buy some bread'] })
+      expect(h.draft.value).toBe('buy some bread')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("a result after the grace, or from an older session, does not reach a new one's draft", async () => {
+    vi.useFakeTimers()
+    try {
+      const useDictation = await load({ native: true, web: false })
+      const h = harness()
+      const { d } = inScope(useDictation, h.opts)
+      d.toggle()
+      await vi.advanceTimersByTimeAsync(0)
+      const oldPartial = nativeListeners['partialResults']!
+      d.toggle() // finish
+      h.draft.value = 'first'
+      d.toggle() // a new session, inside the old one's grace
+      await vi.advanceTimersByTimeAsync(0)
+      oldPartial({ matches: ['stale words'] })
+      expect(h.draft.value).toBe('first')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('an engine that dies after start() turns the mic off (Android, 2026-10-09)', async () => {
@@ -257,6 +310,7 @@ describe('useDictation — native engine', () => {
       native.isListening.mockResolvedValue({ listening: false }) // the recogniser errored
       await vi.advanceTimersByTimeAsync(1100)
       expect(d.dictating.value).toBe(false)
+      await vi.advanceTimersByTimeAsync(3100)
       expect(removedEvents).toContain('partialResults')
       expect(removedEvents).toContain('listeningState')
     } finally {

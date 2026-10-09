@@ -52,7 +52,15 @@ export interface Dictation {
   /** The PLATFORM can dictate. The caller still gates on the Settings opt-in. */
   canDictate: boolean
   dictating: Ref<boolean>
+  /** Start, or — while dictating — `finish()`. */
   toggle: () => void
+  /**
+   * The reader is done talking: the mic goes off at once, but the words still on their way are
+   * kept. Android delivers its FINAL result after the engine reports "stopped", so dropping
+   * everything at the tap lost the last word (operator 2026-10-09, on device).
+   */
+  finish: () => void
+  /** Stop and DROP anything still on its way — for a draft that was just saved and cleared. */
   stop: () => void
 }
 
@@ -71,6 +79,9 @@ type ListenerHandle = { remove: () => Promise<void> }
  */
 export const ENGINE_CHECK_MS = 1000
 
+/** How long an ended native session still accepts its final result (see `finish`). */
+export const FINAL_RESULT_GRACE_MS = 3000
+
 export function useDictation(opts: DictationOptions): Dictation {
   const dictating = ref(false)
   let webRecog: SpeechRecognitionLike | null = null
@@ -85,6 +96,27 @@ export function useDictation(opts: DictationOptions): Dictation {
   // navigating away) mid-prompt would turn the mic on afterwards, on a dead scope.
   let session = 0
   let engineCheck: ReturnType<typeof setInterval> | null = null
+  let releaseTimer: ReturnType<typeof setTimeout> | null = null
+
+  function clearRelease(): void {
+    if (releaseTimer) clearTimeout(releaseTimer)
+    releaseTimer = null
+  }
+
+  /**
+   * A native session is over — by the reader, by silence, or by an engine error. The mic reads
+   * "off" now; the listeners stay for FINAL_RESULT_GRACE_MS so the final result can still land,
+   * then go. A newer session (its own number) is never touched by this one's timer.
+   */
+  function endNative(mySession: number): void {
+    stopEngineCheck()
+    dictating.value = false
+    clearRelease()
+    releaseTimer = setTimeout(() => {
+      releaseTimer = null
+      if (mySession === session) void detachNative()
+    }, FINAL_RESULT_GRACE_MS)
+  }
 
   function stopEngineCheck(): void {
     if (engineCheck) clearInterval(engineCheck)
@@ -97,9 +129,7 @@ export function useDictation(opts: DictationOptions): Dictation {
       void SpeechRecognition.isListening()
         .then(({ listening }) => {
           if (mySession !== session || !dictating.value || listening) return
-          stopEngineCheck()
-          dictating.value = false
-          void detachNative()
+          endNative(mySession)
         })
         .catch(() => {})
     }, ENGINE_CHECK_MS)
@@ -121,7 +151,8 @@ export function useDictation(opts: DictationOptions): Dictation {
   }
 
   async function startNative(): Promise<void> {
-    const mySession = session
+    // Its own number, so an earlier session still inside its final-result grace cannot write here.
+    const mySession = ++session
     const aborted = (): boolean => mySession !== session
     const { available } = await SpeechRecognition.available().catch(() => ({ available: false }))
     if (aborted()) return
@@ -161,11 +192,9 @@ export function useDictation(opts: DictationOptions): Dictation {
         // Ignore a stale engine's stop event landing on a newer session's listeners.
         if (aborted()) return
         if (data.status === 'stopped') {
-          stopEngineCheck()
-          // The engine self-stopped (e.g. an iOS silence timeout) — drop OUR listeners too, or a
-          // late partial event would keep rewriting the draft after the mic reads "off".
-          dictating.value = false
-          void detachNative()
+          // The engine self-stopped (silence, an iOS timeout). The mic reads "off" now; the final
+          // result is still on its way, so the listeners go after the grace, not here.
+          endNative(mySession)
         }
       },
     )
@@ -216,7 +245,9 @@ export function useDictation(opts: DictationOptions): Dictation {
       opts.onText(transcript)
     }
     inst.onend = () => {
-      if (webRecog === inst) dictating.value = false
+      if (webRecog !== inst) return
+      dictating.value = false
+      webRecog = null
     }
     inst.onerror = () => {
       // A denied mic / no-speech on web fires error then end; without this the mic latched on and
@@ -239,7 +270,7 @@ export function useDictation(opts: DictationOptions): Dictation {
 
   function toggle(): void {
     if (dictating.value) {
-      stop()
+      finish()
       return
     }
     // A start is already resolving its permission prompt — ignore the double tap rather than open a
@@ -255,12 +286,26 @@ export function useDictation(opts: DictationOptions): Dictation {
     }
   }
 
+  function finish(): void {
+    if (!dictating.value) return
+    if (isNative) {
+      void SpeechRecognition.stop().catch(() => {})
+      endNative(session)
+    } else {
+      // Keep `webRecog` pointing at the instance until its own `onend`: Chrome delivers the final
+      // result after stop(), and that result is the reader's last words.
+      webRecog?.stop()
+      dictating.value = false
+    }
+  }
+
   function stop(): void {
     // Abort any native start still resolving its async prompt (see `session`), and free the latch so
     // a fresh start can begin immediately (the aborted start won't actually engage the engine).
     session++
     starting = false
     stopEngineCheck()
+    clearRelease()
     if (isNative) {
       void SpeechRecognition.stop().catch(() => {})
       void detachNative()
@@ -276,5 +321,5 @@ export function useDictation(opts: DictationOptions): Dictation {
   }
 
   onScopeDispose(() => stop())
-  return { canDictate, dictating, toggle, stop }
+  return { canDictate, dictating, toggle, finish, stop }
 }

@@ -124,7 +124,7 @@ watch(dictating, (on) => {
 // expires mid-dictation the user must still be able to turn the mic off.
 const startDictation = gated(() => dictation.toggle())
 function onMicClick(): void {
-  if (dictating.value) dictation.stop()
+  if (dictating.value) dictation.finish()
   else startDictation()
 }
 </script>
