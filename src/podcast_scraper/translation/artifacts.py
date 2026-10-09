@@ -56,6 +56,14 @@ STATUS_PENDING = "pending"
 STATUS_FAILED = "failed"
 
 
+def _optional_int(value: Any) -> Optional[int]:
+    """An int from a ledger field, or None when it is absent or unreadable (never raises)."""
+    try:
+        return None if value is None else int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 @dataclass
 class UnitRecord:
     """One unit's row in the ledger — and its resume state."""
@@ -79,6 +87,13 @@ class UnitRecord:
     #: meant to stop, narrowed to the partial case rather than removed.
     model: Optional[str] = None
     prompt_sha256: Optional[str] = None
+    #: The last request's token counts, as the server reported them, and the output budget the
+    #: provider asked for before capping it to the served context (ADR-157 §5). Recorded so the
+    #: headroom under ``max-model-len`` is measurable from the ledger; ``None`` on a cached unit
+    #: or a ledger written before these fields existed.
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    max_tokens_capped_from: Optional[int] = None
 
     @property
     def ok(self) -> bool:
@@ -105,6 +120,9 @@ class UnitRecord:
         }
         if self.error:
             out["error"] = self.error
+        for key in ("prompt_tokens", "completion_tokens", "max_tokens_capped_from"):
+            if getattr(self, key) is not None:
+                out[key] = getattr(self, key)
         return out
 
     @classmethod
@@ -127,6 +145,9 @@ class UnitRecord:
             attempts=int(raw.get("attempts") or 0),
             model=raw.get("model"),
             prompt_sha256=raw.get("prompt_sha256"),
+            prompt_tokens=_optional_int(raw.get("prompt_tokens")),
+            completion_tokens=_optional_int(raw.get("completion_tokens")),
+            max_tokens_capped_from=_optional_int(raw.get("max_tokens_capped_from")),
         )
 
 

@@ -209,9 +209,10 @@ each request's output budget at what the context leaves (`CONTEXT_MARGIN_TOKENS`
 every cap; a translation that genuinely does not fit is then cut off and reported as truncated
 rather than refused. 4096 is the intended value (§4: memory, and at 8192 the 4,800-token prompt
 above came back 200 with its content gone, where at 4096 the server refuses it); the operator
-kept it on 2026-10-09. What is not measured: how close real units come to the cap — the
-translation ledger stores no token counts, so a unit cut off at the cap is seen only as a failed
-unit (which skips the episode's summary, GI and KG rather than running them on partial text).
+kept it on 2026-10-09. Each ledger unit now records the request's `prompt_tokens`,
+`completion_tokens` and `max_tokens_capped_from`, so how close real units come to the cap is
+measurable from `translation.json`; before that it was not. A unit that does not fit is a failed
+unit, which skips the episode's summary, GI and KG rather than running them on partial text.
 
 ## Licence
 

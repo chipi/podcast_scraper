@@ -484,8 +484,12 @@ class TailnetDgxWhisperTranscriptionProvider:
     ) -> tuple[str, list[dict[str, object]], float]:
         """Return ``first``, or a prompted re-transcription when ``first`` is unpunctuated (#2284).
 
-        At most ONE extra request, never a loop: the same audio at temperature 0 gives the same
-        text, so only a CHANGED request (the prompt) can change the outcome. The retry runs under
+        At most ONE extra request, never a loop: the same request mostly gives the same text, so
+        only a CHANGED request (the prompt) reliably changes the outcome. Not always identical:
+        the server falls back to sampling (temperature 0.2-1.0, #968) on a 30 s piece whose
+        greedy decode looks like a loop, and a sampled piece differs run to run — 0.09% of the
+        words in the 2026-09-20 prod snapshot, 31% of its episodes have at least one such piece
+        (#2187, 2026-10-09). The next piece starts at temperature 0 again. The retry runs under
         the caller's single-flight lock and its own watchdog; whatever happens to it -- an
         error, a timeout, a guardrail, a still-unpunctuated or prompt-echoing result -- the first
         transcript is kept, and the circuit breaker is not touched (the endpoint answered; the

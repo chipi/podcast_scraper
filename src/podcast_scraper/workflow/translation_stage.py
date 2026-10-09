@@ -617,6 +617,9 @@ def _translate_episode(
                         model=cached.model or (previous.model if previous else None),
                         prompt_sha256=cached.prompt_sha256
                         or ((previous.prompt or {}).get("sha256") if previous else None),
+                        prompt_tokens=cached.prompt_tokens,
+                        completion_tokens=cached.completion_tokens,
+                        max_tokens_capped_from=cached.max_tokens_capped_from,
                     )
                 )
                 continue
@@ -640,6 +643,9 @@ def _translate_episode(
                 # A FRESH unit is attributed to this run's model and prompt.
                 model=meta.get("model") or getattr(cfg, "translate_model", None),
                 prompt_sha256=(meta.get("prompt") or {}).get("sha256"),
+                prompt_tokens=meta.get("prompt_tokens"),
+                completion_tokens=meta.get("completion_tokens"),
+                max_tokens_capped_from=meta.get("max_tokens_capped_from"),
             )
         )
 
