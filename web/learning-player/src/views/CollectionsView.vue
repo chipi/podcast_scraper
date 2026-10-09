@@ -18,7 +18,7 @@ import { noteRoute as resolveNoteRoute } from "../composables/noteTarget"
 import { useCollectionsStore } from "../stores/collections"
 import { scrollBehavior } from "../utils/motion"
 import { useCaptureStore } from "../stores/capture"
-import { RouterLink, useRoute, useRouter } from "vue-router"
+import { RouterLink, useRoute } from "vue-router"
 import {
   addToCollection,
   createCollection,
@@ -29,7 +29,6 @@ import {
   removeFromCollection,
 } from "../services/api"
 import type { Collection, CollectionDetail, CollectionItem, EpisodeDetail } from "../services/types"
-import { useQueueStore } from "../stores/queue"
 import { useSignInGate } from "../composables/useSignInGate"
 import { formatPublishDate } from "../utils/format"
 import { episodeArtwork, showArtwork } from '../utils/episode'
@@ -39,7 +38,6 @@ import { episodeArtwork, showArtwork } from '../utils/episode'
 const store = useCollectionsStore()
 
 const { t, locale } = useI18n()
-const router = useRouter()
 const route = useRoute()
 
 /** "Last modified" date for a collection (CO.2), or null when unknown. */
@@ -47,7 +45,6 @@ function modifiedLabel(c: Collection): string | null {
   if (!c.updated_at) return null
   return formatPublishDate(new Date(c.updated_at * 1000).toISOString(), locale.value)
 }
-const queue = useQueueStore()
 const { gated } = useSignInGate()
 const capture = useCaptureStore()
 // Shared rule (composables/noteTarget); highlights let a `highlight` note reach its moment.
@@ -247,14 +244,12 @@ const searchActive = computed(() => search.value.trim() !== "")
 // An open board's items: ten, then ten more (operator 2026-10-05) — a board holds up to 1,000, and
 // since 2026-10-08 each ten is a server page: the open board holds what has been LOADED.
 const ITEM_PAGE = 10
-/** The open board's item count and per-kind counts (the server's, across all pages). */
+/** The open board's item count (the server's, across all pages). */
 const openTotal = ref(0)
-const openKindCounts = ref<Record<string, number>>({})
 const itemsLoading = ref(false)
 async function loadBoardItems(id: string, limit: number): Promise<CollectionDetail> {
   const page = await getCollectionPage(id, { limit })
   openTotal.value = page.total
-  openKindCounts.value = page.kind_counts
   return { collection: page.collection, items: page.items }
 }
 /** "Show more": the next ten from the server; "Show less": back to ten, no request. */
@@ -375,9 +370,6 @@ const newName = ref("")
 const newLink = ref("")
 const loaded = ref(false)
 
-/** Episodes on the open board (the server's count — the items loaded may be fewer). */
-const episodeCount = computed(() => openKindCounts.value.episode ?? 0)
-
 /**
  * A failed load is NOT an empty library (#2004 item 13).
  *
@@ -461,27 +453,6 @@ watch(
   },
   { immediate: true },
 )
-
-/** Queue every episode in this collection, oldest-pinned first, and open the first (#1839 P4). */
-const playAll = gated(async () => {
-  const board = open.value
-  if (!board || !episodeCount.value) return
-  // Every episode on the board, asked for now (a page of 100 at a time — a board holds up to
-  // 1,000), rather than kept loaded for a button that may never be pressed.
-  const eps: CollectionItem[] = []
-  while (eps.length < episodeCount.value) {
-    const page = await getCollectionPage(board.collection.id, {
-      kind: "episode",
-      limit: 100,
-      offset: eps.length,
-    })
-    if (!page.items.length) break
-    eps.push(...page.items)
-  }
-  if (!eps.length) return
-  for (const it of eps) await queue.add(it.ref)
-  void router.push({ name: "player", params: { slug: eps[0].ref } })
-})
 
 /** Deleting a note is a per-user write — gate it like every other (#1590). Per-item id, so wrap
  * and invoke a zero-arg gated closure rather than passing an arg `gated()` does not accept. */
@@ -779,15 +750,6 @@ onMounted(() => {
                 {{ t("collections.updated", { date: modifiedLabel(c) }) }}
               </span>
             </span>
-          </button>
-          <button
-            v-if="open?.collection.id === c.id && episodeCount"
-            type="button"
-            class="shrink-0 rounded-full bg-accent px-3 py-1 text-sm font-bold text-accent-foreground"
-            data-testid="collection-play-all"
-            @click="playAll"
-          >
-            ▶ {{ t("collections.playAll") }}
           </button>
           <!-- Cover thumbnail, before the ✕ (operator 2026-09-17) — the same artwork the grid view
                shows, so a board is recognisable by its cover in either layout rather than only in

@@ -694,7 +694,6 @@
     "emptyBoard": "This board is empty. Add episodes, highlights, shows, topics and more from their board button.",
     "count": "no items | {count} item | {count} items",
     "removeItem": "Remove from board",
-    "playAll": "Play all",
     "addLink": "Add",
     "addLinkPlaceholder": "Paste a link (https://…)",
     "kind": {

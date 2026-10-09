@@ -203,7 +203,7 @@ describe('CollectionsView', () => {
     expect(remove).toHaveBeenCalledWith('col_1', 'highlight', 'h1')
   })
 
-  it('hydrates episode titles, play-all queues them, and add-link pins a URL', async () => {
+  it('hydrates episode titles, offers no Play all, and add-link pins a URL', async () => {
     const detail: CollectionDetail = {
       collection: col(),
       items: [
@@ -219,7 +219,7 @@ describe('CollectionsView', () => {
     vi.spyOn(api, 'putQueue').mockResolvedValue()
     const add = vi.spyOn(api, 'addToCollection').mockResolvedValue(col({ count: 3 }))
     const w = mountView()
-    const auth = useAuthStore() // play-all is sign-in gated
+    const auth = useAuthStore()
     auth.user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
     auth.loaded = true
     await flushPromises()
@@ -227,10 +227,8 @@ describe('CollectionsView', () => {
     await flushPromises()
     expect(w.text()).toContain('Ep One') // episode title hydrated from the slug
 
-    const push = vi.spyOn(router, 'push')
-    await w.get('[data-testid="collection-play-all"]').trigger('click')
-    await flushPromises()
-    expect(push).toHaveBeenCalledWith({ name: 'player', params: { slug: 'ep-1' } })
+    // No "Play all" on a board (operator 2026-10-09).
+    expect(w.find('[data-testid="collection-play-all"]').exists()).toBe(false)
 
     const linkForm = w.findAll('form').find((f) => f.find('[data-testid="collection-add-link"]').exists())!
     await linkForm.find('[data-testid="collection-add-link"]').setValue('https://ex.com/a')
