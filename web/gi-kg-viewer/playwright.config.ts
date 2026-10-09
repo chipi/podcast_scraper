@@ -21,6 +21,9 @@ const pythonBin = existsSync(venvPython) ? venvPython : 'python3'
 // Chrome, like the live and validation configs and the player and Orrery suites. CI stays on
 // Firefox until its workflows install Chromium: they install only Firefox for this suite today.
 const BROWSER = process.env.CI ? 'firefox' : 'chromium'
+// The API's port. e2e/run-local-stack.sh sets it to whatever host port the container got, so a
+// stack run reuses the container instead of starting the native server below.
+const API_PORT = process.env.E2E_API_PORT || '8012'
 
 export default defineConfig({
   testDir: './e2e',
@@ -83,9 +86,9 @@ export default defineConfig({
        *
        * `reuseExistingServer` is what keeps BOTH workflows working from one config: when the
        * container from `e2e/run-local-stack.sh` (or `make test-ui-e2e-live`) is already serving
-       * 8012, Playwright reuses it and never starts this one — that path bakes in its own model
+       * API_PORT, Playwright reuses it and never starts this one — that path bakes in its own model
        * cache and stays the one to use on a machine that cannot install `[search]` at all. With
-       * nothing on 8012, as in CI, this native server starts instead.
+       * nothing on API_PORT, as in CI, this native server starts instead.
        *
        * The env below is not optional decoration. Without `APP_SIGNUP_MODE=open`,
        * `/api/app/auth/login?as=…` returns 403 and `signInIsolated` cannot make a session;
@@ -97,9 +100,9 @@ export default defineConfig({
       // `prepare-corpus.mjs` is chained into the command rather than run from `globalSetup`
       // because Playwright starts webServer BEFORE globalSetup — seeding there lost the race and
       // the server exited 2 on a corpus directory that did not exist yet.
-      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port 8012 --host 127.0.0.1`,
+      command: `node e2e/prepare-corpus.mjs && ${pythonBin} -m podcast_scraper.cli serve --output-dir .e2e-corpus/v3 --port ${API_PORT} --host 127.0.0.1`,
       cwd: __dirname,
-      url: 'http://127.0.0.1:8012/api/health',
+      url: `http://127.0.0.1:${API_PORT}/api/health`,
       env: {
         ...process.env,
         PYTHONPATH: path.join(repoRoot, 'src'),
@@ -146,7 +149,7 @@ export default defineConfig({
       // (it would otherwise inject the tracking script in `vite dev`).
       VITE_ANALYTICS_OFF: '1',
       // Proxy /api at the server above rather than vite.config.ts's 8000 default.
-      VITE_API_TARGET: 'http://127.0.0.1:8012',
+      VITE_API_TARGET: `http://127.0.0.1:${API_PORT}`,
     },
       /** Reuse a dev server on 5174 when present so local runs do not fail if `CI=true`. */
       reuseExistingServer: true,

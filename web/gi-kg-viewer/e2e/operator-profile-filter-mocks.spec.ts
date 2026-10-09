@@ -256,10 +256,16 @@ test.describe('Operator profile dropdown — filter + default preselect (#692)',
     await openProfileTab(page)
 
     const select = page.getByTestId(PROFILE_SELECT)
+    // Options first, with a retrying assertion: the empty value ("None") already holds before the
+    // profile list arrives, so waiting on it and then reading the options once raced the load.
+    await expect(select.locator('option')).toHaveText([
+      'None',
+      'airgapped_thin',
+      'cloud_balanced',
+      'cloud_thin',
+    ])
     // No default_profile + no on-disk profile → empty value = "None".
     await expect(select).toHaveValue('')
-    const optionTexts = (await select.locator('option').allTextContents()).map((t) => t.trim())
-    expect(optionTexts).toEqual(['None', 'airgapped_thin', 'cloud_balanced', 'cloud_thin'])
   })
 
   test('Profile pane: picking a profile shows what it brings (top-level settings only) and its YAML', async ({

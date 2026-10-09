@@ -23,11 +23,17 @@ VIEWER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_ROOT="$(node "$VIEWER_ROOT/platform-root.mjs")"
 CORPUS_SRC="$REPO_ROOT/tests/fixtures/app-validation-corpus/v3"
 IMAGE="${E2E_API_IMAGE:-podcast-api:e2e-local}"
-CONTAINER=viewer-e2e-api
-VOLUME=viewer-e2e-appdata
-PORT=8012
-
-CORPUS_VOLUME=viewer-e2e-corpus
+# Named per checkout, so two worktrees (or this viewer and Studio) can run side by side on one
+# engine. The host port is whatever Docker gives the container: a fixed one collides with other
+# checkouts' runs and with the native server the Playwright config starts on 8012.
+CHECKOUT="$(basename "$REPO_ROOT")-$(basename "$(dirname "$VIEWER_ROOT")")"
+CONTAINER="viewer-e2e-api-$CHECKOUT"
+VOLUME="viewer-e2e-appdata-$CHECKOUT"
+CORPUS_VOLUME="viewer-e2e-corpus-$CHECKOUT"
+API_PORT=8012  # inside the container
+# Every container gets a memory cap (the shared dev engine's contract). The API holds the
+# embedding model and a LanceDB index; 3g is the size the engine's owners suggested for it.
+API_MEMORY="${E2E_API_MEMORY:-3g}"
 
 # ── The corpus is served from a COPY in a volume, never from the tracked fixture ──────────────
 #
@@ -60,7 +66,7 @@ docker volume create "$VOLUME" >/dev/null
 docker volume create "$CORPUS_VOLUME" >/dev/null
 
 echo "seeding a disposable corpus copy into the $CORPUS_VOLUME volume"
-docker run -d --name "$CONTAINER-seed" --user root -v "$CORPUS_VOLUME:/w" \
+docker run -d --name "$CONTAINER-seed" --memory 512m --user root -v "$CORPUS_VOLUME:/w" \
   --entrypoint sleep "$IMAGE" 300 >/dev/null
 docker cp "$CORPUS_SRC/." "$CONTAINER-seed:/w"
 docker exec "$CONTAINER-seed" chown -R 1000:1000 /w
@@ -81,8 +87,8 @@ docker rm -f "$CONTAINER-seed" >/dev/null
 #   PODCAST_SERVE_ENABLE_JOBS_API               likewise /api/jobs + /api/scheduled-jobs.
 #
 # Mounting them is safe here because the corpus is a throwaway copy (see above).
-docker run -d --name "$CONTAINER" \
-  -p "127.0.0.1:$PORT:$PORT" \
+docker run -d --name "$CONTAINER" --memory "$API_MEMORY" \
+  -p "127.0.0.1::$API_PORT" \
   -v "$CORPUS_VOLUME:/corpus" \
   -v "$VOLUME:/appdata" \
   -e APP_OAUTH_PROVIDER=mock \
@@ -96,7 +102,9 @@ docker run -d --name "$CONTAINER" \
   -e HF_HUB_OFFLINE=1 \
   -e TRANSFORMERS_OFFLINE=1 \
   --entrypoint python "$IMAGE" \
-  -m podcast_scraper.cli serve --output-dir /corpus --port "$PORT" --host 0.0.0.0 >/dev/null
+  -m podcast_scraper.cli serve --output-dir /corpus --port "$API_PORT" --host 0.0.0.0 >/dev/null
+PORT="$(docker port "$CONTAINER" "$API_PORT/tcp" | head -1 | sed 's/.*://')"
+echo "api container on host port $PORT"
 
 printf 'waiting for the api'
 for _ in $(seq 1 120); do
@@ -159,4 +167,4 @@ esac
 # (`make test-ui-e2e-live` runs at the repo root) npx fetched an unpinned Playwright and collected
 # every spec in the repo.
 cd "$VIEWER_ROOT"
-VITE_API_TARGET="http://127.0.0.1:$PORT" npx playwright test "${WORKER_ARGS[@]}" "$@"
+E2E_API_PORT="$PORT" npx playwright test "${WORKER_ARGS[@]}" "$@"
