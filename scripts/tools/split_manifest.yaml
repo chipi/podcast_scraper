@@ -16,6 +16,52 @@
 
 player:
   package: closelistening_player
+  # Appended to the scaffold .gitignore: the public repo keeps these in its root .gitignore under
+  # web/learning-player/, which the copy does not carry. The fastlane, keystore and .p8 lines are
+  # the secret backstops.
+  gitignore:
+    - node_modules/
+    - .env
+    - .env.local*
+    - .env.*.local
+    - "!.env*.example"
+    - web/dist/
+    - web/dist-ssr/
+    - web/logs/
+    - web/**/*.log
+    - web/*.local
+    - web/.idea/
+    - web/test-results/
+    - web/playwright-report/
+    - web/e2e-results.json
+    - web/blob-report/
+    - web/playwright/.cache/
+    - web/validation-results/
+    - web/design-results/
+    - web/.e2e-corpus/
+    - web/e2e/.app-state/
+    - web/e2e/.design-state/
+    - web/e2e/.telemetry-state/
+    - web/e2e/telemetry/.report.json
+    - web/e2e/telemetry/.diag/
+    - web/ios/uitests/*.xcodeproj/
+    - web/ios/vendor/
+    - web/ios/.bundle/
+    - web/android/vendor/
+    - web/android/.bundle/
+    - "**/fastlane/*.json"
+    - "**/fastlane/.env"
+    - "*.jks"
+    - "*.keystore"
+    - "**/android/keystore.properties"
+    - "*.p8"
+    - "**/fastlane/report.xml"
+    - "**/fastlane/Preview.html"
+    - "**/fastlane/test_output/"
+    - "**/fastlane/screenshots/"
+    - "**/fastlane/README.md"
+    - "**/.podcast_scraper/corpus-art/derived/"
+    - "**/.viewer/jobs.jsonl.lock"
   entry_points:
     player: podcast_scraper.server.app_player_extension:EXTENSION
   modules:

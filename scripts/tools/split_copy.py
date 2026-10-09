@@ -293,6 +293,7 @@ def write_scaffold(manifest: dict, mapping: dict[str, str], dry_run: bool) -> No
         )
         write(APPS / repo / "README.md", readme.encode(), dry_run)
         ignore = "__pycache__/\n*.py[cod]\n*.egg-info/\n.pytest_cache/\n.mypy_cache/\n"
+        ignore += "".join(f"{rule}\n" for rule in spec.get("gitignore", []))
         write(APPS / repo / ".gitignore", ignore.encode(), dry_run)
         init = APPS / repo / "src" / spec["package"] / "__init__.py"
         if not dry_run and not init.exists():
