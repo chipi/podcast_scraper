@@ -90,3 +90,35 @@ test('notes on Boards filter by the entity kind they are attached to', async ({
     await expect(row).toHaveCount(0)
   }
 })
+
+/**
+ * "Open" on a note about an episode opens the episode-notes panel over the player, where the note is
+ * shown — not the bare player (operator on device, 2026-10-09). Both an episode note and a note on a
+ * highlight, in a real browser: the panel is a <dialog> that can only open once the episode loaded,
+ * which is exactly the part a unit test cannot see.
+ */
+test("Open on an episode or highlight note shows the episode-notes panel", async ({ page }, testInfo) => {
+  await signInIsolated(page, 'boards-notes-open', testInfo)
+  const slug = ((await (await page.request.get('/api/app/episodes?page_size=1')).json()).items as Array<{ slug: string }>)[0].slug
+  const run = Date.now().toString(36)
+  const h = await page.request.post('/api/app/highlights', {
+    data: { episode_slug: slug, kind: 'moment', start_ms: 61_000 },
+  })
+  expect(h.ok()).toBeTruthy()
+  const highlightId = (await h.json()).id as string
+  for (const [target, id, text] of [
+    ['episode', slug, `Episode note ${run}`],
+    ['highlight', highlightId, `Highlight note ${run}`],
+  ] as const) {
+    const r = await page.request.post('/api/app/notes', { data: { target, target_id: id, text } })
+    expect(r.ok()).toBeTruthy()
+  }
+
+  for (const text of [`Episode note ${run}`, `Highlight note ${run}`]) {
+    await page.goto('/library?tab=collections')
+    const note = page.getByTestId('collections-note').filter({ hasText: text })
+    await note.getByRole('link', { name: 'Open' }).click()
+    await expect(page).toHaveURL(new RegExp(`/episode/${slug}\\?.*notes=1`))
+    await expect(page.getByTestId('knowledge-panel'), `${text}: the notes panel stayed shut`).toBeVisible()
+  }
+})

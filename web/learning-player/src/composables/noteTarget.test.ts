@@ -20,12 +20,17 @@ describe("noteRoute — a note opens on its notes, not the page top (operator 20
     })
   })
 
-  it("a highlight note still lands on its moment", () => {
+  it("a highlight note opens the episode-notes panel, at its moment (operator 2026-10-09)", () => {
     const highlights = [{ id: "h1", episode_slug: "ep-1", start_ms: 61500 }] as never
     expect(noteRoute("highlight", "h1", highlights)).toEqual({
       name: "player",
       params: { slug: "ep-1" },
-      query: { t: "61" },
+      query: { notes: "1", t: "61" },
     })
+  })
+
+  it("a highlight note with no moment still opens the panel", () => {
+    const highlights = [{ id: "h1", episode_slug: "ep-1", start_ms: null }] as never
+    expect(noteRoute("highlight", "h1", highlights)?.query).toEqual({ notes: "1" })
   })
 })

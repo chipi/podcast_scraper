@@ -61,14 +61,16 @@ export function noteRoute(
     case "highlight":
     case "insight": {
       // Both hang off an episode rather than having a page. Resolve through the highlight so the
-      // link lands on the moment, not just the episode top.
+      // link lands on the moment — and open the episode-notes panel over the player, which is where
+      // a highlight's notes are shown (operator 2026-10-09: "from a note, open episode notes"). It
+      // used to land on the bare player, so the note you tapped was nowhere on screen.
       const h = highlights.find((x) => x.id === id)
       if (!h?.episode_slug) return null
       const at = h.start_ms != null ? String(Math.floor(h.start_ms / 1000)) : undefined
       return {
         name: "player",
         params: { slug: h.episode_slug },
-        ...(at ? { query: { t: at } } : {}),
+        query: { notes: "1", ...(at ? { t: at } : {}) },
       }
     }
     default:
