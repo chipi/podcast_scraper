@@ -73,16 +73,15 @@ test.describe('signed-in UI surfaces', () => {
     await addSessionCookie(page.context(), baseURL || 'https://closelistening.app')
   })
 
-  test('Home renders the hero + discovery tabs', async ({ page }) => {
+  test('Home renders the hero + the Discover strip', async ({ page }) => {
     await page.goto('/preview')
     // NOT the hero text: Home's hero is ADAPTIVE, and the smoke account has listening history, so
     // it gets "Continue listening" rather than "Find what's worth hearing"
     await expect(page).not.toHaveURL(/\/welcome/)
     await expect(page.getByTestId('home-search-input')).toBeVisible()
-    // The shared DiscoveryExplorer: tabs are by KIND now (Topics / Storylines / People), Topics
-    // selected by default; Rising⇄Trending is a compact sort toggle (`discovery-sort`), not a tab.
-    await expect(page.getByTestId('home-discovery')).toBeVisible()
-    await expect(page.getByTestId('discovery-tab-topic')).toHaveAttribute('aria-selected', 'true')
+    // Trends live on Discover only (operator 2026-10-07, 6cd605a30): Home keeps the strip that
+    // deep-links into them; the explorer itself is checked by the Discover test below.
+    await expect(page.getByTestId('home-browse-nav')).toBeVisible()
   })
 
   test('Search renders grouped results for a common term', async ({ page }) => {
