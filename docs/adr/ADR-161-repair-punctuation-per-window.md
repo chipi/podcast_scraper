@@ -51,6 +51,15 @@ degrades on the broken part.
     kept 91.8-98.3% of the old window's words.
   - two English prod episodes: **9 of 10** repaired, each carrying 22-55% more words — filling
     the broken decode's empty seconds — while keeping 97.9-99.5% of the old words.
+  - English, checked against the publisher's own transcript (2026-10-09, operator decision to
+    keep the repair on for English): five shows (Dwarkesh, Complex Systems, Conversations with
+    Tyler, Latin America in Focus, Disrupting Japan), **18 of 18** broken windows repaired. The
+    share of the added words' word-trigrams found in the publisher's transcript is 0.64-0.83 on
+    Complex Systems (its unbroken text: 0.77; an unrelated episode against the same page:
+    0.06) and 0.27-0.44 on Dwarkesh (unbroken: 0.65; unrelated: 0.05). Every added run of 6+
+    words the publisher's transcript lacks (36) is filler the publisher edited out, a sponsor
+    read, or a short on-topic fragment; none is a generic invented line or a loop. Not listened
+    to; interview and talk formats only.
   - the 80k English set flags no window, so it is never called and is untouched.
   The repair also brings back speech the broken decode dropped (German minutes 40-50: +25%).
 - **Negative**: one extra ASR request per broken window — 1-3 minutes each on the DGX as

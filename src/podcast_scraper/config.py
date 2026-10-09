@@ -1491,9 +1491,11 @@ class Config(BaseModel):
         description=(
             "#2187 -- when a 10-minute window of the transcript has lost its punctuation (the "
             "rest has it), transcribe that window again on its own with a punctuated prompt in "
-            "the episode's language and use it if it is punctuated and carries 90-130% of the "
-            "words. One extra ASR call per such window, providers with a clip call only (the DGX "
-            "Whisper provider). False = record the windows only (unpunctuated_windows)."
+            "the episode's language and use it if it is punctuated, does not loop, keeps 90% of "
+            "the old words, and adds at most 1.3x the words where the old decode had text and 4.5 "
+            "words/s where it had none (ADR-161). One extra ASR call per such window, providers "
+            "with a clip call only (the DGX Whisper provider). False = record the windows only "
+            "(unpunctuated_windows)."
         ),
     )
     transcription_coverage_failover_model: Optional[str] = Field(
