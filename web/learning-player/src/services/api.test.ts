@@ -530,3 +530,26 @@ describe('getInProgressSlugs', () => {
     }
   })
 })
+
+// 1.0.4 accepts the LEANER write answers a later server will send (compat TODO part b, 2026-10-10):
+// so the server can drop the whole-list answers once no 1.0.3 is left, without breaking 1.0.4.
+describe('write answers — today\'s and the leaner ones to come', () => {
+  it('favoriteRefsOf reads a refs-only answer as well as the full list', async () => {
+    const { favoriteRefsOf } = await import('./api')
+    const refs = [{ kind: 'episode' as const, ref: 'a', color: null }]
+    expect(favoriteRefsOf({ items: refs })).toEqual(refs)
+    expect(
+      favoriteRefsOf({ episodes: [{ slug: 'a', color: null } as never], entities: [] }),
+    ).toEqual(refs)
+  })
+
+  it('a 204 with no body from DELETE /highlights or /notes is a success, not a failed delete', async () => {
+    const { deleteNote } = await import('./api')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 204, json: async () => { throw new SyntaxError('no body') } })),
+    )
+    await expect(deleteHighlight('h1')).resolves.toEqual([])
+    await expect(deleteNote('n1')).resolves.toEqual([])
+  })
+})

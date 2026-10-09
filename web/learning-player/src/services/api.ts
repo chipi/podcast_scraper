@@ -805,8 +805,15 @@ export async function getFavoriteRefs(): Promise<FavoriteRef[]> {
   return (await getJSON<{ items: FavoriteRef[] }>("/favorites/refs")).items
 }
 
-/** The identities in a full favourites response (what every write still answers with). */
-export function favoriteRefsOf(f: FavoritesResponse): FavoriteRef[] {
+/**
+ * What a favourite write answers. Today the whole list (1.0.3 reads it); once no 1.0.3 is left the
+ * server may answer with the identities only (compat TODO part b, 2026-10-10) — 1.0.4 takes both.
+ */
+export type FavoritesWriteAnswer = FavoritesResponse | { items: FavoriteRef[] }
+
+/** The identities in a write's answer — the full list, or a refs-only answer. */
+export function favoriteRefsOf(f: FavoritesWriteAnswer): FavoriteRef[] {
+  if ("items" in f) return f.items
   return [
     ...f.episodes.map((e) => ({ kind: "episode" as const, ref: e.slug, color: e.color ?? null })),
     ...(f.entities ?? []).map((e) => ({ kind: e.kind, ref: e.ref, color: e.color ?? null })),
@@ -814,7 +821,7 @@ export function favoriteRefsOf(f: FavoritesResponse): FavoriteRef[] {
 }
 
 /** Save an item (auth-gated); returns the updated favorites. */
-export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse> {
+export async function addFavorite(item: FavoriteAdd): Promise<FavoritesWriteAnswer> {
   const resp = await apiFetch(`${BASE}/favorites`, {
     method: "PUT",
     credentials: "include",
@@ -822,17 +829,17 @@ export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse>
     body: JSON.stringify(item),
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /favorites → ${resp.status}`)
-  return (await resp.json()) as FavoritesResponse
+  return (await resp.json()) as FavoritesWriteAnswer
 }
 
 /** Remove a saved item by kind+ref (auth-gated); returns the updated favorites. */
-export async function removeFavorite(kind: string, ref: string): Promise<FavoritesResponse> {
+export async function removeFavorite(kind: string, ref: string): Promise<FavoritesWriteAnswer> {
   const resp = await apiFetch(
     `${BASE}/favorites/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
     { method: "DELETE", credentials: "include" }
   )
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /favorites → ${resp.status}`)
-  return (await resp.json()) as FavoritesResponse
+  return (await resp.json()) as FavoritesWriteAnswer
 }
 
 /** Set (token) or clear (null) a saved item's colour by kind+ref (RFC-121 ph. 4). 404 when the
@@ -841,7 +848,7 @@ export async function setFavoriteColor(
   kind: string,
   ref: string,
   color: string | null
-): Promise<FavoritesResponse> {
+): Promise<FavoritesWriteAnswer> {
   const resp = await apiFetch(
     `${BASE}/favorites/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
     {
@@ -852,7 +859,7 @@ export async function setFavoriteColor(
     }
   )
   if (!resp.ok) throw new ApiError(resp.status, `PATCH /favorites → ${resp.status}`)
-  return (await resp.json()) as FavoritesResponse
+  return (await resp.json()) as FavoritesWriteAnswer
 }
 
 /** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
@@ -1652,6 +1659,8 @@ export async function deleteHighlight(id: string): Promise<Highlight[]> {
     credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /highlights → ${resp.status}`)
+  // Today the remaining list; a later server may answer 204 with no body (compat TODO part b).
+  if (resp.status === 204) return []
   return ((await resp.json()) as { items: Highlight[] }).items
 }
 
@@ -1695,6 +1704,8 @@ export async function deleteNote(id: string): Promise<Note[]> {
     credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /notes → ${resp.status}`)
+  // Today the remaining list; a later server may answer 204 with no body (compat TODO part b).
+  if (resp.status === 204) return []
   return ((await resp.json()) as { items: Note[] }).items
 }
 

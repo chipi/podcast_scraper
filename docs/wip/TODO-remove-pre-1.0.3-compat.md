@@ -5,7 +5,12 @@ server's unpaged answers for entity-card episodes (default 20), `/playback` (50)
 `/resurfacing` (20 episodes) and `/collections/{id}` (50). **Kept**, because 1.0.3 reads them: the
 perspectives routes unpaged (1.0.3's first load asks for every speaker — `fetchPage({ perSpeaker })`),
 `/podcasts`, per-episode/per-target `/highlights` and `/notes`, and the favourites / delete write
-answers (see the audit below). Remaining: part (b), 1.0.4 accepting the leaner write answers.
+answers (see the audit below).
+
+**Part (b) done 2026-10-10 (1.0.4 branch):** 1.0.4 accepts the leaner write answers.
+`favoriteRefsOf` reads a refs-only `{ items }` answer as well as the full list, and
+`deleteHighlight` / `deleteNote` treat a 204 as success. The server still sends the whole-list
+answers; switch them (refs-only favourites, 204 deletes) only once no 1.0.3 is in use.
 
 Operator, 2026-10-08: every API change in the 1.0.3 arc is an **enhancement**. Old clients (1.0.2)
 keep working against the new server and the new client works against both. Once no client older
