@@ -194,6 +194,13 @@ def write(dest: Path, data: bytes, dry_run: bool) -> None:
     dest.write_bytes(data)
 
 
+def copy_file(src: Path, dest: Path, dry_run: bool) -> None:
+    # Keeps the mode: gradlew and the stack scripts must stay executable.
+    write(dest, src.read_bytes(), dry_run)
+    if not dry_run:
+        shutil.copymode(src, dest)
+
+
 def wipe(manifest: dict, dry_run: bool) -> bool:
     for repo in manifest:
         target = APPS / repo
@@ -233,15 +240,14 @@ def copy_verbatim(manifest: dict, files, bump, dry_run: bool) -> None:
         trees = {**spec.get("trees", {}), **spec.get("forked_trees", {})}
         for tree, dest in trees.items():
             for f in (f for f in files if f.startswith(tree + "/")):
-                data = (ROOT / f).read_bytes()
-                write(APPS / repo / dest / f[len(tree) + 1 :], data, dry_run)
+                copy_file(ROOT / f, APPS / repo / dest / f[len(tree) + 1 :], dry_run)
                 bump(repo, f"tree {tree}")
         for tree in spec.get("file_trees", []):
             for f in (f for f in files if f.startswith(tree + "/")):
-                write(APPS / repo / f, (ROOT / f).read_bytes(), dry_run)
+                copy_file(ROOT / f, APPS / repo / f, dry_run)
                 bump(repo, "docs")
         for f in spec.get("files", []):
-            write(APPS / repo / f, (ROOT / f).read_bytes(), dry_run)
+            copy_file(ROOT / f, APPS / repo / f, dry_run)
             bump(repo, "docs")
 
 
@@ -298,7 +304,13 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
-    manifest = yaml.safe_load(MANIFEST.read_text())
+    # An ``own_source`` repo (Studio) is edited in place, not generated: never wiped or
+    # scaffolded, or a re-run deletes it.
+    manifest = {
+        repo: spec
+        for repo, spec in yaml.safe_load(MANIFEST.read_text()).items()
+        if not spec.get("own_source")
+    }
     files = tracked_files()
     mapping, owner = build_mapping(manifest, files)
     if not wipe(manifest, args.dry_run):
