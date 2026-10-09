@@ -1,4 +1,4 @@
-# ADR-158: Split the apps, MCP, enrichers and sign-in providers into private repos
+# ADR-162: Split the apps, MCP, enrichers and sign-in providers into private repos
 
 - **Status**: Proposed
 - **Date**: 2026-10-07 (revised the same day with the probe's measurements)
@@ -237,7 +237,7 @@ documents, listed but not edited in round 1.
 References across the boundary run one way only:
 
 - **Private → public: allowed, by ID, never as a link.** A private document names a public one by
-  its identifier ("ADR-158", "PRD-039", "RFC-088"), not by a relative path or URL. A path breaks
+  its identifier ("ADR-162", "PRD-039", "RFC-088"), not by a relative path or URL. A path breaks
   as soon as either repo's layout changes, which is how the copied player docs failed the doc
   check.
 - **Public → private: not allowed.** No public document, comment or code names a private

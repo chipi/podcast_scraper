@@ -1,6 +1,6 @@
 """Average-linkage clustering over L2-normalised embeddings, shared by every corpus clusterer.
 
-Topic themes (private, ADR-158) and insight clusters (public) both group vectors this way; the math
+Topic themes (private, ADR-162) and insight clusters (public) both group vectors this way; the math
 lives here so neither has to import the other.
 """
 

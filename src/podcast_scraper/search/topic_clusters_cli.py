@@ -1,6 +1,6 @@
 """``podcast_scraper topic-clusters``: build the themes artifact from the vector index.
 
-Registered by the intelligence extension (ADR-158); the platform CLI dispatches to it by name.
+Registered by the intelligence extension (ADR-162); the platform CLI dispatches to it by name.
 """
 
 from __future__ import annotations

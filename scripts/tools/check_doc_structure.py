@@ -110,7 +110,7 @@ SKIP_DIRS = {
     "playwright-report",
 }
 
-# Private repos cloned into this checkout (gitignored; ADR-158 and the eval mount). Their docs
+# Private repos cloned into this checkout (gitignored; ADR-162 and the eval mount). Their docs
 # link by their own layout, and public CI never has them, so checking them here only makes the
 # gate red for whoever has a mount. Top level only: a nested directory with the same name is
 # public content and stays checked.

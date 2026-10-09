@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 /**
  * RFC-088 chunk-9 surface guard: EpisodeDetailPanel mounts EpisodeEnrichmentSection.
  * (The related-topic chips, the enrichment-edges panel and the consensus rows read
- * enrichers that moved to the private intelligence package, ADR-158.)
+ * enrichers that moved to the private intelligence package, ADR-162.)
  *
  * Static-source guards: no v-html sinks, data-testid hooks present,
  * imports + bindings wired.

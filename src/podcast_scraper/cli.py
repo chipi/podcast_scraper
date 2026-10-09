@@ -5084,7 +5084,7 @@ def _run_corpus_cost_cli(args: argparse.Namespace, log: logging.Logger) -> int:
 
 
 def _extension_command(name: str) -> bool:
-    """True when an installed extension owns the subcommand *name* (ADR-158)."""
+    """True when an installed extension owns the subcommand *name* (ADR-162)."""
     from .extensions import cli_command
 
     return cli_command(name) is not None
@@ -5159,7 +5159,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
     ):
         pass  # Skip ffmpeg check for subcommands
     elif argv and not argv[0].startswith("-") and _extension_command(argv[0]):
-        pass  # An installed extension's subcommand (ADR-158) never decodes audio
+        pass  # An installed extension's subcommand (ADR-162) never decodes audio
     else:
         _validate_ffmpeg()
 

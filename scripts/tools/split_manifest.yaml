@@ -1,4 +1,4 @@
-# What the private split (ADR-158) copies into ./apps/<repo>/, read by
+# What the private split (ADR-162) copies into ./apps/<repo>/, read by
 # scripts/tools/split_copy.py. Python modules listed under `modules` move to a new
 # package and every import of them is rewritten; `trees` and `files` are copied
 # verbatim. Everything not listed stays public.
@@ -10,7 +10,7 @@
 # operator guard, account deletion, user seed and CLI, oauth protocol + mock, comms
 # consent store, released-app-version store), and
 # what the operator viewer calls under /api/app (auth, preferences, admin,
-# graph-events, profile). The five enrichers with no IP stay public (ADR-158 decision 5):
+# graph-events, profile). The five enrichers with no IP stay public (ADR-162 decision 5):
 # insight_density, guest_coappearance, insight_sentiment, grounding_rate,
 # topic_cooccurrence_corpus, with the grounding_rate scorer.
 
@@ -180,13 +180,13 @@ player:
     - docs/wip/player
     - docs/wip/knowledge-retention
 
-# Common is two subpackages (ADR-158 decision 1): identity (who you are: MCP sign-in
+# Common is two subpackages (ADR-162 decision 1): identity (who you are: MCP sign-in
 # and tokens) and intelligence (what the corpus knows: enrichers, MCP tool servers).
 # identity never imports intelligence, so an app that needs sign-in alone can use
 # it on its own; split_probe.py checks that.
 common:
   package: closelistening_common
-  # Registered under the podcast_scraper.extensions entry-point group (ADR-158 decision 4);
+  # Registered under the podcast_scraper.extensions entry-point group (ADR-162 decision 4);
   # the module path is rewritten like any moved module.
   entry_points:
     mcp: podcast_scraper.server.app_mcp_extension:EXTENSION
@@ -222,7 +222,7 @@ common:
         podcast_scraper.enrichment:
           - ml_wiring
           - intelligence_extension
-        # Tier-A features (ADR-158 decision 5, operator decisions 2026-10-08): storylines,
+        # Tier-A features (ADR-162 decision 5, operator decisions 2026-10-08): storylines,
         # consensus and cluster search operators, semantic topic clusters, momentum/trending.
         podcast_scraper.search:
           - storylines
@@ -235,7 +235,7 @@ common:
           - corpus_storylines
           - corpus_trending
           - corpus_topic_clusters
-        # ADR-158 decision 3: the observability data layer (config, result, _http,
+        # ADR-162 decision 3: the observability data layer (config, result, _http,
         # sources, aggregate) stays public for the operator Ops view; the MCP server,
         # its CLI and its auth move.
         podcast_obs:
@@ -265,7 +265,7 @@ common:
     - docs/wip/2026-09-02-enricher-reenable-prep.md
     - docs/wip/PUBLIC-EXPOSURE-AND-PRIVATE-SPLIT.md
 
-# Studio is the full operator viewer as a private app (ADR-158 decision 2). The public
+# Studio is the full operator viewer as a private app (ADR-162 decision 2). The public
 # repo keeps its own viewer, stripped of the tier-A features (consensus and cluster search,
 # storylines, themes, the private lenses, trending, the MCP panel, the enriched answer and the
 # panels on velocity, consensus and topic similarity); Studio keeps all of them, with the UI, unit tests, e2e specs and fixtures its first copy brought.

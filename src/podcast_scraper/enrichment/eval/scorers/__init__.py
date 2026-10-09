@@ -7,7 +7,7 @@ metric shapes every other enricher scorer reuses:
 * ``guest_coappearance``  — set / unordered-pairs precision-recall
 
 Ranking scorers (top-K precision-recall) come with the enrichers they score, from extensions
-(ADR-158 decision 5).
+(ADR-162 decision 5).
 """
 
 from __future__ import annotations

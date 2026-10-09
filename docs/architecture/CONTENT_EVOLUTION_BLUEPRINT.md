@@ -1943,7 +1943,7 @@ hub-and-spoke model:
   [UXS-006](../uxs/UXS-006-dashboard.md) (Dashboard)
 - New feature UXS for enrichment consumers:
   [UXS-007](../uxs/UXS-007-topic-entity-view.md) (PRD-026),
-  UXS-008 (PRD-027; kept in the private Studio repo since ADR-158)
+  UXS-008 (PRD-027; kept in the private Studio repo since ADR-162)
 
 This structure already separates shared design tokens from feature-specific
 contracts. A v3 viewer for mixed content types would extend the same pattern --

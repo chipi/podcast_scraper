@@ -47,7 +47,7 @@ def _player_route_modules() -> list[str]:
     """The modules mounted at ``/api/app`` — i.e. the ones the PLAYER edge actually fronts.
 
     Read from what mounts there (the platform's ``_APP_ROUTES`` plus every installed extension's
-    ``app`` plane, ADR-158) rather than matched on an ``app_*`` filename, because the mount is the
+    ``app`` plane, ADR-162) rather than matched on an ``app_*`` filename, because the mount is the
     thing that matters and the naming is only a convention. The operator plane (``corpus_media``,
     ``jobs``, …) mounts at ``/api`` on the tailnet and public-operator surfaces and never passes
     through ``player.caddy``, so its file routes are correctly out of scope here.

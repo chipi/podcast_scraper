@@ -1,6 +1,6 @@
 """The player's scheduled ``digest`` job (#1415): enqueue every due per-user delivery envelope.
 
-Registered by the player extension as job kind ``digest`` (ADR-158). Every enqueuer lives in
+Registered by the player extension as job kind ``digest`` (ADR-162). Every enqueuer lives in
 ``app_digest_dispatch.ENQUEUERS``, which the production sidecar
 (``infra/deploy/digest_scheduler.py``) drives from the same list: adding one there wires both
 paths. Maintaining two lists is what

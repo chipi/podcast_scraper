@@ -1,4 +1,4 @@
-"""Extensions add routes and take part in account deletion (ADR-158 decision 4), with a fake app.
+"""Extensions add routes and take part in account deletion (ADR-162 decision 4), with a fake app.
 
 The platform names nothing private: a package publishes an ``Extension`` and the server mounts its
 routers under the same serve postures as the core, and account deletion runs its hooks. These tests

@@ -29,7 +29,7 @@ schema_version 2 (2026-07-21), every scenario matches the **shipped**
 | `temporal-intent` | RFC-092 taxonomy — `query_type: "temporal_tracking"`; IntentChip in `WorkspaceHeader` renders "Temporal tracking" |
 
 The server-side Cluster and Consensus operators and the enriched answer (which reads the
-private `query_topic_relatedness` enricher) are private features (ADR-158) and have no
+private `query_topic_relatedness` enricher) are private features (ADR-162) and have no
 scenario here.
 
 Not covered here (deferred to when the operator regenerates against a real

@@ -50,7 +50,7 @@ JOB_KIND_PIPELINE = "pipeline"
 JOB_KIND_ENRICHMENT = "enrichment"
 # ``digest`` fires the per-user "Your Week" digest enqueue (#1415) — enqueues DeliveryEnvelopes to
 # the outbox for the infra worker to deliver; extractive, no pipeline job. Idempotent per period.
-#: The platform's own kinds. Installed extensions add theirs (the player's ``digest``, ADR-158).
+#: The platform's own kinds. Installed extensions add theirs (the player's ``digest``, ADR-162).
 _PLATFORM_JOB_KINDS = frozenset({JOB_KIND_PIPELINE, JOB_KIND_ENRICHMENT})
 
 

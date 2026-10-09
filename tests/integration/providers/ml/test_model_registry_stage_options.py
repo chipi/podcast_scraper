@@ -50,7 +50,7 @@ class TestStageOptionRegistries:
 
     def test_every_option_has_research_provenance(self) -> None:
         """Every StageOption publishes what was measured and when. The eval report behind it is
-        cited in the private eval project, which checks every option has one (ADR-158)."""
+        cited in the private eval project, which checks every option has one (ADR-162)."""
         for opts in (
             get_transcription_options(),
             get_summary_options(),
@@ -198,7 +198,7 @@ class TestResolveProfileToSettings:
 
     def test_resolved_settings_carry_research_refs(self) -> None:
         """Every resolved profile surfaces each stage's public citation, None where the evidence
-        is not public (ADR-158)."""
+        is not public (ADR-162)."""
         settings = resolve_profile_to_settings("cloud_with_dgx_primary")
         for stage in ("transcription", "summary", "kg", "ner", "gi", "diarization", "clustering"):
             assert f"_{stage}_research_ref" in settings, stage

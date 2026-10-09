@@ -1,4 +1,4 @@
-"""The player as an extension (ADR-158): its routes, its lifecycle hooks, its scheduled digest and
+"""The player as an extension (ADR-162): its routes, its lifecycle hooks, its scheduled digest and
 the listener engagement trending blends in.
 
 Moves to the private Player package at the cutover. Imports stay inside the functions (see

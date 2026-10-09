@@ -1,4 +1,4 @@
-"""Common identity as an extension (ADR-158): the Google and Apple sign-in providers, and the MCP
+"""Common identity as an extension (ADR-162): the Google and Apple sign-in providers, and the MCP
 sign-in surface (token management, the OAuth authorization server, the internal verify seam, and
 what account deletion must remove for it).
 

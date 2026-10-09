@@ -60,7 +60,7 @@ def player_client_health(st: Any) -> dict[str, Any]:
     * ``player_version`` — the released app version, for the native update prompt: the runtime
       override an admin set (``PUT /api/app/admin/release``) when there is one, else the deploy's
       ``APP_PLAYER_VERSION``. Read per request, so a native-only release needs no restart.
-    * ``app_versions`` — the same fact for every client app the kernel serves (ADR-158), keyed by
+    * ``app_versions`` — the same fact for every client app the kernel serves (ADR-162), keyed by
       app id. ``player_version`` stays because installed builds read it.
     """
     auth_configured = getattr(st, "oauth_provider", None) is not None

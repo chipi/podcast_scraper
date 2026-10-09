@@ -111,7 +111,7 @@ class CompletenessReport:
     has_enrichments: bool = False
     has_topic_clusters: bool = False
     #: False when no installed extension provides themes: then nothing builds the artifact and
-    #: nothing serves it, so its absence is not a gap (ADR-158).
+    #: nothing serves it, so its absence is not a gap (ADR-162).
     themes_expected: bool = True
     episodes_scanned: int = 0
 

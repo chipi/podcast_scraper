@@ -1,4 +1,4 @@
-"""The private enrichers as an extension (ADR-158 decision 5): storyline themes, temporal velocity,
+"""The private enrichers as an extension (ADR-162 decision 5): storyline themes, temporal velocity,
 topic similarity and consensus, and the web person/org enrichers, with their query enricher, scorer
 and provider types; and the themes and storylines built from them, with the search operators over
 them; and the trend stat, photos and logos the public share cards show.

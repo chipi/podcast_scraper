@@ -1,6 +1,6 @@
 """Themes, storylines, their search operators and the share-card extras come from an extension.
 
-ADR-158: these are private features. The platform reads them through ``search.groupings`` and the
+ADR-162: these are private features. The platform reads them through ``search.groupings`` and the
 share-card contribution; with no extension installed every reader is empty, nothing is built, the
 operators are not offered and the storyline card does not exist. With one, the platform passes
 through exactly what the extension returns.

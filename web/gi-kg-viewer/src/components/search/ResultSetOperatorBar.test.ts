@@ -52,7 +52,7 @@ describe('ResultSetOperatorBar (Search v3 §S4a)', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
   it('renders the Timeline, On-graph and Compare chips and no private operator', () => {
-    // Cluster and Consensus are private (ADR-158): this viewer never offers them.
+    // Cluster and Consensus are private (ADR-162): this viewer never offers them.
     const w = mountBar([makeHit()])
     expect(w.find('[data-testid="operator-chip-timeline"]').exists()).toBe(true)
     expect(w.find('[data-testid="operator-chip-graph"]').exists()).toBe(true)

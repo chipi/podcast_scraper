@@ -1,5 +1,5 @@
 /**
- * Browser-observable performance demonstrations for #767 / #768, and the ADR-158 guard that the
+ * Browser-observable performance demonstrations for #767 / #768, and the ADR-162 guard that the
  * public viewer requests no private endpoint.
  *
  * Each test below is a CONTRAST artifact: it asserts behavior that is
@@ -18,7 +18,7 @@ import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput, mockSignIn } 
 import { captureConsoleErrors, readFsmState } from '../handoff/_handoff-helpers'
 import { setupProductionShapedMocks } from '../handoff-production/_helpers'
 
-test.describe('Perf demonstrations (#767 / #768) and the ADR-158 guard', () => {
+test.describe('Perf demonstrations (#767 / #768) and the ADR-162 guard', () => {
   test.beforeEach(async ({ page }) => {
     await mockSignIn(page, 'creator')
   })
@@ -91,13 +91,13 @@ test.describe('Perf demonstrations (#767 / #768) and the ADR-158 guard', () => {
   })
 
   /**
-   * ADR-158 — the public viewer asks for no private endpoint.
+   * ADR-162 — the public viewer asks for no private endpoint.
    *
    * Themes, storylines and trending are private features, served only when their extension is
    * installed. The public viewer must not request them on any path, so the same three-handoff
    * Library flow that used to exercise the #769 themes memo now counts zero such requests.
    */
-  test('ADR-158 — repeated handoffs never request a private endpoint', async ({ page }) => {
+  test('ADR-162 — repeated handoffs never request a private endpoint', async ({ page }) => {
     const errs = captureConsoleErrors(page)
     const privateRequests: string[] = []
     page.on('request', (req) => {

@@ -2611,7 +2611,7 @@ viewer v3, cross-content-type KG, prompt routing, scheduling) -- lives in the
 - [UXS-005: Semantic Search Panel](../uxs/UXS-005-semantic-search.md)
 - [UXS-006: Dashboard](../uxs/UXS-006-dashboard.md)
 - [UXS-007: Topic Entity View](../uxs/UXS-007-topic-entity-view.md)
-- UXS-008 (enriched search, kept in the private Studio repo since ADR-158)
+- UXS-008 (enriched search, kept in the private Studio repo since ADR-162)
 - [UXS-009: Position Tracker](../uxs/UXS-009-position-tracker.md)
 - [UXS-010: Person Profile](../uxs/UXS-010-person-profile.md)
 

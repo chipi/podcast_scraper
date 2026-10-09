@@ -19,7 +19,7 @@ set -euo pipefail
 
 VIEWER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Found the way the Playwright configs find it (platform-root.mjs), so this runs from the public
-# repo and from the private studio mount alike (ADR-158).
+# repo and from the private studio mount alike (ADR-162).
 REPO_ROOT="$(node "$VIEWER_ROOT/platform-root.mjs")"
 CORPUS_SRC="$REPO_ROOT/tests/fixtures/app-validation-corpus/v3"
 IMAGE="${E2E_API_IMAGE:-podcast-api:e2e-local}"

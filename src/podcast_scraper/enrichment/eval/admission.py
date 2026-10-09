@@ -79,7 +79,7 @@ def admitted_enricher_ids(
 
 def known_enricher_manifests() -> dict[str, EnricherManifest]:
     """Map ``enricher_id → EnricherManifest`` for every enricher: the platform's and those
-    installed extensions declare (ADR-158).
+    installed extensions declare (ADR-162).
 
     Reads each enricher's *class-level* ``manifest`` attribute — no
     instantiation, so provider-injected ML enrichers are included without

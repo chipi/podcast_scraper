@@ -218,7 +218,7 @@ _OPERATOR_PUBLIC_READ_ROUTES = (
 # Consumer Learning Platform API (RFC-098): slug-addressed routes under their own
 # ``/api/app`` namespace, auth-gated (#1063/#1066). Always mounted. These are the platform's own:
 # sign-in, accounts, preferences, profile and the graph-event log the operator viewer also uses.
-# The player's routes come from its extension (ADR-158).
+# The player's routes come from its extension (ADR-162).
 _APP_ROUTES = (
     app_auth,
     app_admin,
@@ -259,7 +259,7 @@ def _mount_api_routers(app: FastAPI, *, app_only: bool, operator_public: bool = 
 
 
 def _mount_extension_routers(app: FastAPI, *, app_only: bool, operator_public: bool) -> None:
-    """Routers from installed extensions (ADR-158), under the same serve postures as the core.
+    """Routers from installed extensions (ADR-162), under the same serve postures as the core.
 
     Operator-plane routers follow ``_OPERATOR_READ_ROUTES``: none on the player, the gated curated
     set on the public operator surface (only those marked ``operator_public``), all of them on the

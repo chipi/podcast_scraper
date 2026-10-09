@@ -97,7 +97,7 @@ class TestStageOptionRegistries:
 
     def test_every_option_has_research_provenance(self) -> None:
         """Every diarization StageOption publishes what was measured and when; the report is
-        cited in the private eval project (ADR-158)."""
+        cited in the private eval project (ADR-162)."""
         for opts in (get_diarization_options(),):
             for opt in opts.values():
                 assert opt.headline_metric, f"{opt.option_id} missing headline_metric"

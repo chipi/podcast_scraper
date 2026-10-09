@@ -111,7 +111,7 @@ def _artwork_bytes(root: Path, relpath: str | None) -> bytes | None:
 
 def _trend_map(root: Path, kind: str) -> Mapping[str, tuple[float, tuple[float, ...]]]:
     """entity_id → (velocity, weekly-series) from the installed extension that knows trends; empty
-    when none does, and then no card carries a trend stat (ADR-158)."""
+    when none does, and then no card carries a trend stat (ADR-162)."""
     for contribution in share_card_contributions():
         if contribution.trends is not None:
             return contribution.trends(root, kind)

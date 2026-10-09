@@ -11,7 +11,7 @@ import {
  * Search v3 §S4 (#1234) — ResultSetOperatorBar contract on the Search main tab.
  *
  * Covers S4a (client-only Timeline + On-graph). The server-side Cluster and Consensus operators
- * are private features (ADR-158) and never appear in this viewer.
+ * are private features (ADR-162) and never appear in this viewer.
  *
  * The E2E surface map — [E2E_SURFACE_MAP.md](E2E_SURFACE_MAP.md) — is the canonical selector
  * contract; the testids referenced here are documented in the "Result-set operator bar (#1234)"

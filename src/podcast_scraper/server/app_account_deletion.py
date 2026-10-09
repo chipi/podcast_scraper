@@ -9,7 +9,7 @@ the whole account: an audit (2026-10-04) found these OUTSIDE that directory, nev
 * the **magic-link throttle marker**, named by a hash of the address;
 * the **MCP personal-token index** (``{token_hash: user_id}``) and the **MCP OAuth server's**
   grants, consents and last-use records — a live refresh token there kept working for 30 days after
-  the account was gone. These belong to an extension (ADR-158) and are removed by its
+  the account was gone. These belong to an extension (ADR-162) and are removed by its
   ``account_deleted`` hook, so an installed extension cannot leave records behind.
 
 :func:`delete_account` is the ONE entry point that removes all of it, used by the self-service

@@ -1161,7 +1161,7 @@ backend, summary model, GI/KG thresholds, anything — the lifecycle is:
 4. ★ MATERIALIZE DECISION ★       →  src/podcast_scraper/providers/ml/model_registry.py
      - Add or update StageOption / ProfilePreset entries
      - research_ref only when the citation is public (a decision doc or #issue);
-       the eval report goes in the eval project's evidence map (ADR-158)
+       the eval report goes in the eval project's evidence map (ADR-162)
      - headline_metric + measured_at for provenance
 5. ★ REGENERATE PROFILES ★        →  config/profiles/*.yaml
      - Update profile YAMLs to match the registry preset

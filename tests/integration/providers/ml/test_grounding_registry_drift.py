@@ -43,7 +43,7 @@ class TestGroundingStageIsRegistered:
         for opt in options.values():
             # A StageOption without a measurement is an opinion. This stage shipped for months on
             # an unmeasured default; every option must now publish what was measured, and when.
-            # The report behind it is cited in the private eval project (ADR-158).
+            # The report behind it is cited in the private eval project (ADR-162).
             assert opt.headline_metric, f"{opt.option_id} has no headline_metric"
             assert opt.measured_at, f"{opt.option_id} has no measured_at"
 
@@ -67,7 +67,7 @@ class TestCitationsArePublic:
     Arc 2 (#2134) moved the eval reports to the private repo, and every
     citation to them was left as a repo-relative path that no longer resolved;
     19 rotted before one assertion noticed. The repo-qualified spelling that
-    replaced them still named private documents from public code, which ADR-158
+    replaced them still named private documents from public code, which ADR-162
     rules out. So an option publishes its claim (``headline_metric``,
     ``measured_at``) here, and the eval project holds the report behind it and
     checks, against its pinned build, that every claim has one.
