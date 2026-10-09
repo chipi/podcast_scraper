@@ -33,6 +33,39 @@ the released-version floor in the operator viewer and the app-version mix in the
   where 1.0.3 is in the store and the server is not yet deployed. Delete the fallback after the
   deploy is confirmed.
 
+## Audit 2026-10-09 (1.0.4 branch): what 1.0.3 itself still needs
+
+Prod runs `sha-2ca8dac` (checked inside `player-api-1`: `/episodes/batch`, `/favorites/refs`,
+paged `/favorites` and `/playback` answer 401 unauthenticated, an unknown route 404 — the routes
+exist). 1.0.3 is the oldest client in use from 1.0.4 on. Read against 1.0.3's own code
+(`web/learning-player/src/services/api.ts` at `2ca8dac75`), the lists above are partly WRONG:
+
+**NOT deletable while 1.0.3 is in use (it breaks 1.0.3):**
+
+- Favourites write answers (`PUT`/`DELETE`/`PATCH /favorites…`): 1.0.3 does
+  `favoriteRefsOf(await resp.json())`, which reads `resp.episodes` — a refs-only answer throws.
+- `DELETE /highlights/{id}` and `DELETE /notes/{id}` answers: 1.0.3's `deleteHighlight` /
+  `deleteNote` call `resp.json()` — a 204 with no body throws, and the delete reads as failed.
+  ("1.0.3 ignores both answers" above is true of the store, not of the api call.)
+- `GET /podcasts` unpaged: `useCorpusLanguages` (the #2301 language badge) reads the whole catalogue.
+- `GET /highlights?episode=` and `GET /notes?target=&target_id=` unpaged: the capture store loads one
+  episode's / target's rows with them (`stores/capture.ts`); a default page would cut them.
+
+To drop the write answers later, 1.0.4 must first ACCEPT the new shapes (refs-only, 204), and the
+server change waits for the release after everyone is on 1.0.4.
+
+**Deletable now (no 1.0.3 caller), server side:** the unpaged branches of the entity cards
+(persons/topics/orgs/themes/storylines — every 1.0.3 call sends `episodes_limit`), the perspectives
+routes (`TopicPerspectives.vue` always passes a page — to confirm), `GET /playback` without `limit`
+(all three callers page). `GET /favorites` without `limit` and `GET /resurfacing` without `limit`
+have no product caller in 1.0.3 — but other clients (live smoke specs, the operator viewer, MCP) are
+not checked yet.
+
+**Client side (1.0.4), now that prod has the routes:** the `total === undefined` local-paging
+branches and the `/episodes/batch` / `/favorites/refs` 404 fallbacks. Caveat: the `page…Locally`
+functions are ALSO the unit tests' fake server (`src/test/apiViaSpies.ts`, 14 spec files), so
+removing the fallbacks means moving those functions under `src/test/`, not deleting them.
+
 ## Not deletable
 
 - `GET /episodes/{slug}` itself: the player and the episode page use it for ONE episode. The batch
