@@ -28,7 +28,7 @@ SCANNED = ("server", "search")
 CONTRACT: dict[str, tuple[str, str]] = {
     "server/relational_view.py::_theme_ref_by_norm_at": ("token", "_token"),
     "server/relational_view.py::_storyline_ref_by_norm_at": ("token", "_token"),
-    "server/og/build.py::_trend_map_cached": ("token", "_mtime"),
+    "server/app_momentum.py::_share_card_trends_cached": ("token", "_mtime"),
     "server/og/card.py::_font": ("static", "a font file shipped with the code"),
     "server/app_discover_view.py::_INTEREST_INDEX_CACHE": (
         "mtime",
