@@ -86,3 +86,27 @@ class TestDropInventedLines:
     def test_a_result_without_segments_is_left_alone(self) -> None:
         bare = {"text": "Sous-titrage Société Radio-Canada"}
         assert drop_invented_lines(bare) is bare
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # Rádio Novelo Apresenta (pt-BR, 2026-10-09): twice over the closing music, kept because
+        # of the stray leading "A".
+        " A Sous-titrage Société Radio-Canada",
+        "Sous-titrage Société Radio-Canada ok",
+    ],
+)
+def test_a_stray_short_token_beside_the_line_does_not_hide_it(text: str) -> None:
+    assert is_invented_line(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Eu li Sous-titrage Société Radio-Canada no final do vídeo",
+        "Thanks for watching, see you next week",
+    ],
+)
+def test_a_real_sentence_around_the_words_is_still_speech(text: str) -> None:
+    assert not is_invented_line(text)
