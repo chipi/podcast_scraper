@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import * as api from '../services/api'
+import { pageHighlightsLocally } from '../test/localPagers'
 import type { HighlightsPageQuery } from '../services/api'
 import type { Highlight } from '../services/types'
 import { useCaptureStore } from '../stores/capture'
@@ -21,7 +22,7 @@ function server() {
   }
   return vi
     .spyOn(api, 'getHighlightsPage')
-    .mockImplementation(async (q: HighlightsPageQuery) => api.pageHighlightsLocally(all, [], q))
+    .mockImplementation(async (q: HighlightsPageQuery) => pageHighlightsLocally(all, [], q))
 }
 
 const filters = () => ({
