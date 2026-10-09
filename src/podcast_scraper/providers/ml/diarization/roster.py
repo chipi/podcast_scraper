@@ -2089,7 +2089,7 @@ def _self_intros_by_voice(
         # A single-token self-intro on the voice's OWN turns ("I'm Brandon", "I'm Neeraj") names it,
         # provided the token is a plausible mononym and not the "I'm American" class — the guard the
         # ≥2-token rule used to enforce, now sharpened so no-anchor feeds don't lose real speakers.
-        if name and is_plausible_mononym(name):
+        if name and is_plausible_mononym(name, language):
             out[voice] = name
             continue
         # A bare first name we couldn't vouch, or a "this is <X>" — neither stands alone. Metadata.
@@ -2146,9 +2146,9 @@ def _guest_hosts_named(
         n = _clean_intro_name(m.group("name") or m.group("name2") or "")
         if (
             n
-            and looks_like_a_person_name(n)
+            and looks_like_a_person_name(n, language)
             and is_publishable_speaker_name(n, language=language)
-            and not is_network_or_org_author(n)
+            and not is_network_or_org_author(n, language)
             and n.lower() not in {x.lower() for x in out}
         ):
             out.append(n)
@@ -2949,7 +2949,7 @@ def _forced_refusal(
     return None
 
 
-def _intro_names(m: "re.Match[str]") -> List[str]:
+def _intro_names(m: "re.Match[str]", language: Optional[str] = None) -> List[str]:
     """The person-names an introduction/greeting match named (order preserved).
 
     Filtered through the same ``looks_like_a_person_name`` guard the self-intro path uses: a
@@ -2962,7 +2962,7 @@ def _intro_names(m: "re.Match[str]") -> List[str]:
         # `looks_like_a_person_name` passes a capitalised org ("New York Times"), which the greedy
         # capture picks up from "from the New York Times, I'm…". An org is never the introduced
         # PERSON, and binding it to the guest voice buries the real name — reject it (ADR-139).
-        if n and looks_like_a_person_name(n) and not is_network_or_org_author(n)
+        if n and looks_like_a_person_name(n, language) and not is_network_or_org_author(n, language)
     ]
 
 
@@ -3274,7 +3274,7 @@ def _voice_named_by_the_introduction(
             _GUEST_INTRODUCED_BY_HOST_RE_BY_LANGUAGE, language
         )
         for m in intro_re.finditer(text or "") if intro_re is not None else ():
-            names = _intro_names(m)
+            names = _intro_names(m, language)
             if names:
                 _assign(i, names)
         if stated:
@@ -3296,7 +3296,7 @@ def _voice_named_by_the_introduction(
         if is_host_hint:
             for rx in (_GUEST_GREETED_RE, _GUEST_INTRODUCED_NAME_FIRST_RE):
                 for m in rx.finditer(text or ""):
-                    names = _intro_names(m)
+                    names = _intro_names(m, language)
                     if names:
                         _assign(i, names)
             if stated:
@@ -5212,7 +5212,7 @@ def resolve_speaker_roster(
         if v not in ad_voices and v not in voice_intro:
             # The closed list carried the show's own name ("Machine Learning Street") and the model
             # matched a voice to it: that voice is unnamed, and may take a forced pool name below.
-            if feed_title and names_the_show(n, feed_title):
+            if feed_title and names_the_show(n, feed_title, language):
                 tr.voice(v, "llm_merge", "skipped", proposed=n, reason="names_the_show")
                 continue
             voice_intro[v] = _canonicalize_to_known_host(n, known_hosts)
@@ -5296,7 +5296,7 @@ def resolve_speaker_roster(
     # the cap seated every voice with a bled "welcome to" on those feeds (corpus replay,
     # 2026-10-02) -- it just never names anybody.
     host_pool_named = [
-        (n, s) for n, s in host_pool if not (feed_title and names_the_show(n, feed_title))
+        (n, s) for n, s in host_pool if not (feed_title and names_the_show(n, feed_title, language))
     ]
     tr.host_pool(host_pool, host_pool_named)
 

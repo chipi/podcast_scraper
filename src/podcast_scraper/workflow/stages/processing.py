@@ -865,10 +865,14 @@ def _detect_hosts_from_feed(
             exc,
         )
         return set()
-    return _sanitize_detected_hosts(cast("set[str]", feed_hosts), feed.title)
+    return _sanitize_detected_hosts(
+        cast("set[str]", feed_hosts), feed.title, language=_feed_language(feed)
+    )
 
 
-def _sanitize_detected_hosts(names: set[str], feed_title: str | None = None) -> set[str]:
+def _sanitize_detected_hosts(
+    names: set[str], feed_title: str | None = None, *, language: Optional[str] = None
+) -> set[str]:
     """Put a provider's host names through the same filter the deterministic path uses.
 
     The deterministic branch above splits multi-person strings (``split_author_names``) and
@@ -897,7 +901,7 @@ def _sanitize_detected_hosts(names: set[str], feed_title: str | None = None) -> 
     ``host='Africa Tech Summit'`` on all three episodes, because this call passed no title and the
     guard could not fire.
     """
-    out = normalize_host_names(names or set(), feed_title=feed_title)
+    out = normalize_host_names(names or set(), feed_title=feed_title, language=language)
     if out != set(names or set()):
         logger.info(
             "host detection: provider names %s normalised to %s (split + org-filtered)",
@@ -1014,10 +1018,16 @@ def hosts_for_episode(
         own_raw = rss_parser.extract_episode_authors(item)
         own = {
             a
-            for a in normalize_host_names(own_raw, feed_title=result.feed_title)
+            for a in normalize_host_names(
+                own_raw, feed_title=result.feed_title, language=result.language
+            )
             if not is_network_or_org_author(a, language=result.language)
         }
-        own = set(drop_non_person_names(sorted(own), result.feed_title, result.kind_votes))
+        own = set(
+            drop_non_person_names(
+                sorted(own), result.feed_title, result.kind_votes, language=result.language
+            )
+        )
     return set(
         compose_episode_hosts(
             sorted(hosts - fallback),
@@ -1035,6 +1045,7 @@ def _fallback_to_episode_authors(
     cfg: config.Config,
     episodes: List[Episode],  # type: ignore[valid-type]
     feed_title: str | None = None,
+    language: Optional[str] = None,
 ) -> set[str]:
     """Fallback to episode-level authors if no feed-level hosts found.
 
@@ -1063,7 +1074,9 @@ def _fallback_to_episode_authors(
         # #2064: the feed title is the only evidence that tells the SHOW apart from a person on
         # it, and the episode-authors fallback is one of the paths that seated "Africa Tech Summit"
         # as a host.
-        episode_authors |= normalize_host_names(episode_author_list, feed_title=feed_title)
+        episode_authors |= normalize_host_names(
+            episode_author_list, feed_title=feed_title, language=language
+        )
 
     return episode_authors
 
@@ -1120,7 +1133,10 @@ def _infer_host_source(
         return "episode-level authors"
     # Both spellings: ``cached_hosts`` holds NORMALISED names, so a config entry that needed
     # splitting no longer equals its raw form — comparing only raw would mislabel it.
-    if known and cached_hosts in (set(known), normalize_host_names(known)):
+    if known and cached_hosts in (
+        set(known),
+        normalize_host_names(known, language=_feed_language(feed)),
+    ):
         return "config known_hosts (fallback)"
     if feed.authors:
         return "RSS author tags"
@@ -1239,7 +1255,9 @@ def _recurrent_hosts_from_disk(output_dir: Optional[str], feed: Any) -> Set[str]
         )
     if not per_episode:
         return set()
-    return recurrent_hosts_across_episodes(per_episode, feed_title=_feed_title(feed))
+    return recurrent_hosts_across_episodes(
+        per_episode, feed_title=_feed_title(feed), language=_feed_language(feed)
+    )
 
 
 def detect_feed_hosts_and_patterns(
@@ -1297,7 +1315,7 @@ def detect_feed_hosts_and_patterns(
         # Operator-supplied, but not exempt: a composite entry ("A, B and C") in a show config
         # is just as unmatchable against a diarized voice as one from a feed, and would mint the
         # same fake Person. Normalising here keeps every seeding path on one rule (#1652).
-        known_hosts_set = normalize_host_names(cfg.known_hosts)
+        known_hosts_set = normalize_host_names(cfg.known_hosts, language=_feed_language(feed))
         logger.info(
             "Using known_hosts from config: %s",
             ", ".join(sorted(known_hosts_set)),
@@ -1334,7 +1352,9 @@ def detect_feed_hosts_and_patterns(
     if not cached_hosts:
         episode_authors = {
             a
-            for a in _fallback_to_episode_authors(cfg, episodes, getattr(feed, "title", None))
+            for a in _fallback_to_episode_authors(
+                cfg, episodes, getattr(feed, "title", None), language=_feed_language(feed)
+            )
             if not is_network_or_org_author(a, language=_feed_language(feed))
         }
         if episode_authors:
@@ -1347,7 +1367,7 @@ def detect_feed_hosts_and_patterns(
 
     # Fallback to known_hosts from config if no hosts detected (show-level override)
     if not cached_hosts and cfg.known_hosts:
-        cached_hosts = normalize_host_names(cfg.known_hosts)
+        cached_hosts = normalize_host_names(cfg.known_hosts, language=_feed_language(feed))
         host_source = "config known_hosts (fallback)"
         logger.info(
             "DETECTED HOSTS (from config known_hosts fallback): %s",
@@ -1391,7 +1411,11 @@ def detect_feed_hosts_and_patterns(
     from ...speaker_detectors.entity_kind_votes import votes_for_cfg
 
     kind_votes = votes_for_cfg(cfg)
-    _people = set(drop_non_person_names(sorted(cached_hosts), _feed_title(feed), kind_votes))
+    _people = set(
+        drop_non_person_names(
+            sorted(cached_hosts), _feed_title(feed), kind_votes, language=_feed_language(feed)
+        )
+    )
     _dropped = set(cached_hosts) - _people
     if _people != cached_hosts:
         logger.info(
@@ -1889,12 +1913,16 @@ def _detect_speakers_for_episode(
             detail={"speaker_detector_provider": getattr(cfg, "speaker_detector_provider", None)},
         )
         return None
+    # The feed's language: its reject vocabulary applies to these names as well as English's.
+    _host_language = host_detection_result.language
     cached_hosts = host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
     # Per-episode seeding — a FIFTH path into known_hosts, found by the structural test rather
     # than by reading, and the reason that test exists. An un-normalised composite here reaches
     # the detector as the roster for every episode, which is where the fake Person is minted.
     combined_hosts = (
-        normalize_host_names(cfg.known_hosts) | cached_hosts if cfg.known_hosts else cached_hosts
+        normalize_host_names(cfg.known_hosts, language=_host_language) | cached_hosts
+        if cfg.known_hosts
+        else cached_hosts
     )
     import inspect
 
@@ -2065,8 +2093,12 @@ def _detect_speakers_for_episode(
         _feed_t = host_detection_result.feed_title
         _votes = host_detection_result.kind_votes
         _before_speakers, _before_hosts = list(flat_speakers), set(host_strings)
-        flat_speakers = drop_non_person_names(flat_speakers, _feed_t, _votes)
-        host_strings = set(drop_non_person_names(sorted(host_strings), _feed_t, _votes))
+        flat_speakers = drop_non_person_names(
+            flat_speakers, _feed_t, _votes, language=_host_language
+        )
+        host_strings = set(
+            drop_non_person_names(sorted(host_strings), _feed_t, _votes, language=_host_language)
+        )
         report["dropped_non_persons"] = sorted(
             (set(_before_speakers) - set(flat_speakers)) | (_before_hosts - host_strings)
         )
@@ -2128,6 +2160,7 @@ def _detect_speakers_for_episode(
                 ),
                 _feed_t,
                 _votes,
+                language=_host_language,
             )
             if n not in proposed and n not in host_strings
         ]

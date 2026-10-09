@@ -120,7 +120,23 @@ def has_org_markers(name: str, language: Optional[str] = None) -> bool:
     # "France Médias Monde" (RFI's parent company) passed the English row and was seated on the
     # anchor's voice (2026-10-09).
     own = naming_vocabulary.vocabulary_row(_NONPERSON_AUTHOR_MARKERS_BY_LANGUAGE, language)
-    return bool(language and own is not None and own.search(n))
+    if not (language and own is not None):
+        return False
+    if own.search(n):
+        return True
+    # Markers glued into one token: "RadioAgência Senado" (Senado's author tag, seated as its host),
+    # "iHeartPodcasts", "esRadio". Measured over 2,693 author-tag names from 585 chart feeds
+    # (2026-10-10): 11 newly refused, all organisations. Not on English feeds, whose behaviour is
+    # pinned until an English replay ("OnePodcast" would change there).
+    if naming_vocabulary.primary_subtag(language) == TARGET_LANGUAGE:
+        return False
+    split = _CAMEL_BOUNDARY.sub(" ", n)
+    return split != n and bool(_NONPERSON_AUTHOR_MARKERS.search(split) or own.search(split))
+
+
+#: A lower-to-upper boundary inside a word ("RadioAgência" -> "Radio Agência"); never inside an
+#: initialism ("NPR") or after a digit.
+_CAMEL_BOUNDARY = re.compile(r"(?<=[^\W\d_])(?<![A-ZÀ-Þ])(?=[A-ZÀ-Þ][^\W\d_])")
 
 
 def is_network_or_org_author(name: str, language: Optional[str] = None) -> bool:
@@ -165,8 +181,29 @@ _AUTHOR_SEPARATORS_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
 }
 _AUTHOR_SEPARATORS = _AUTHOR_SEPARATORS_BY_LANGUAGE[TARGET_LANGUAGE]
 
+#: A feed's tags in its own language AND English: non-English feeds carry English author tags ("My
+#: Cultura and iHeartPodcasts", El Hilo). Measured on 585 chart feeds (es, mx, fr, de, br, it;
+#: eval repo `metadata_name_readers_probe_v1.py`, 2026-10-10): 149 tags split differently, almost
+#: all German "X und Y" casts that stayed one composite and could never match a voice.
+_ENGLISH_CONJUNCTION = naming_vocabulary.NAME_LIST_CONJUNCTION[TARGET_LANGUAGE]
+_AUTHOR_SEPARATORS_WITH_ENGLISH: Dict[str, "re.Pattern[str]"] = {
+    lang: re.compile(
+        rf"\s*(?:,|;|&|\b{_alt('|'.join(dict.fromkeys([_ENGLISH_CONJUNCTION, conj])))}\b)\s*",
+        re.IGNORECASE,
+    )
+    for lang, conj in naming_vocabulary.NAME_LIST_CONJUNCTION.items()
+}
 
-def split_author_names(author: str) -> list[str]:
+
+def _with_english(rows: Dict[str, FrozenSet[str]], language: Optional[str]) -> FrozenSet[str]:
+    """The English row, plus *language*'s row when it has one (the D13 rule for metadata)."""
+    english = rows[TARGET_LANGUAGE]
+    if language is None:
+        return english
+    return english | rows.get(naming_vocabulary.primary_subtag(language), frozenset())
+
+
+def split_author_names(author: str, language: Optional[str] = None) -> list[str]:
     """Split one RSS author tag into individual person names (#1652).
 
     Publishers routinely put a whole cast in a single ``<itunes:author>``:
@@ -182,17 +219,26 @@ def split_author_names(author: str) -> list[str]:
       :func:`is_network_or_org_author` check, which already rejects mononyms — so an
       over-eager split degrades to "no host", the safe direction (#876), never to a fake one;
     - a tag with no separator is returned unchanged.
+
+    *language* is the feed's: its conjunction ("y", "und", "et") separates names as "and" does.
+    None reads English only.
     """
     text = (author or "").strip()
     if not text:
         return []
 
-    parts = [part.strip() for part in _AUTHOR_SEPARATORS.split(text)]
+    separators = _AUTHOR_SEPARATORS
+    if language is not None:
+        separators = _AUTHOR_SEPARATORS_WITH_ENGLISH.get(
+            naming_vocabulary.primary_subtag(language), _AUTHOR_SEPARATORS
+        )
+    suffixes = {s.rstrip(".") for s in _with_english(_NAME_SUFFIXES_BY_LANGUAGE, language)}
+    parts = [part.strip() for part in separators.split(text)]
     merged: list[str] = []
     for part in parts:
         if not part:
             continue
-        if merged and part.lower().rstrip(".") in {s.rstrip(".") for s in _NAME_SUFFIXES}:
+        if merged and part.lower().rstrip(".") in suffixes:
             # "Jr." belongs to the name before it, not to a new person.
             merged[-1] = f"{merged[-1]}, {part}"
             continue
@@ -218,10 +264,26 @@ _LEADING_ARTICLE_BY_LANGUAGE: Dict[str, "re.Pattern[str]"] = {
 _LEADING_ARTICLE = _LEADING_ARTICLE_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
-def _fold_title(text: Optional[str]) -> str:
-    """Lowercase, drop punctuation and any leading article, collapse whitespace."""
-    folded = " ".join(re.sub(r"[^\w\s]", " ", str(text or "").lower()).split())
-    return _LEADING_ARTICLE.sub("", folded)
+def _fold_title(text: Optional[str], language: Optional[str] = None) -> str:
+    """Lowercase, drop punctuation and any leading article, collapse whitespace.
+
+    With *language*, that language's article is dropped too ("El Orden Mundial"). Not used for
+    :func:`show_name_pattern`: there the article is part of what a voice SAYS ("Esto es El Hilo").
+    """
+    folded = _LEADING_ARTICLE.sub(
+        "", " ".join(re.sub(r"[^\w\s]", " ", str(text or "").lower()).split())
+    )
+    row = _language_row(_LEADING_ARTICLE_BY_LANGUAGE, language)
+    return row.sub("", folded) if row is not None else folded
+
+
+def _language_row(rows: Dict[str, Any], language: Optional[str]) -> Any:
+    """*language*'s own row when it is not English and has one, else None (English is applied
+    separately by every caller)."""
+    if language is None:
+        return None
+    lang = naming_vocabulary.primary_subtag(language)
+    return None if lang == TARGET_LANGUAGE else rows.get(lang)
 
 
 def _title_possessive_of(candidate: str, feed_title: Optional[str]) -> bool:
@@ -237,7 +299,9 @@ def _title_possessive_of(candidate: str, feed_title: Optional[str]) -> bool:
     return bool(re.match(rf"{re.escape(cand)}['’]s\b", title, re.IGNORECASE))
 
 
-def names_the_show(candidate: str, feed_title: Optional[str]) -> bool:
+def names_the_show(
+    candidate: str, feed_title: Optional[str], language: Optional[str] = None
+) -> bool:
     """True when *candidate* is the SHOW's own name rather than a person on it (#2064).
 
     Measured on production: 19 speaker entries across 279 episodes are a show seated as a host —
@@ -259,14 +323,22 @@ def names_the_show(candidate: str, feed_title: Optional[str]) -> bool:
     "Machine Learning Street Talk"). A prefix rather than any substring, so a host whose name
     happens to appear late in a title is untouched. No title means no opinion: absence of evidence
     is not evidence that the candidate is the show.
+
+    *language* (the feed's) adds its article and its "with <Name>" form to the English ones:
+    "Edeltalk" is the show "Edeltalk - mit Dominik & Kevin", "entrevista" the show "La Entrevista
+    con Yordi Rosado" (probe over 585 chart feeds, 2026-10-10).
     """
-    cand = _fold_title(candidate)
-    title = _fold_title(feed_title)
+    cand = _fold_title(candidate, language)
+    title = _fold_title(feed_title, language)
     if not cand or not title:
         return False
     if _title_possessive_of(candidate, feed_title):
         return False
-    show = _fold_title(_TITLE_WITH_SUFFIX.sub("", str(feed_title or ""))) or title
+    stripped = _TITLE_WITH_SUFFIX.sub("", str(feed_title or ""))
+    with_row = _language_row(_TITLE_WITH_SUFFIX_BY_LANGUAGE, language)
+    if with_row is not None:
+        stripped = with_row.sub("", stripped)
+    show = _fold_title(stripped, language) or title
     if cand == title or cand == show:
         return True
     cand_tokens = cand.split()
@@ -275,7 +347,9 @@ def names_the_show(candidate: str, feed_title: Optional[str]) -> bool:
     return show.split()[: len(cand_tokens)] == cand_tokens
 
 
-def normalize_host_names(names: Iterable[str], *, feed_title: Optional[str] = None) -> Set[str]:
+def normalize_host_names(
+    names: Iterable[str], *, feed_title: Optional[str] = None, language: Optional[str] = None
+) -> Set[str]:
     """The single gate every host-name source must pass through (#1652).
 
     Four independent code paths can seed ``known_hosts`` — the deterministic feed parse, the
@@ -306,7 +380,7 @@ def normalize_host_names(names: Iterable[str], *, feed_title: Optional[str] = No
         # paths did not, so the same person arrived under two different spellings.
         if "<" in text and ">" in text:
             text = text.split("<")[0].strip()
-        for candidate in split_author_names(text):
+        for candidate in split_author_names(text, language):
             # THE DANGLING BRACKET THE SPLIT LEFT BEHIND, and nothing else. "…(with Aaron Levie)"
             # splits to "Aaron Levie)", and that rode all the way to publication: 14 production
             # voices carry one, every one `source=known_hosts`, so "Aaron Levie)" and "Aaron Levie"
@@ -324,11 +398,11 @@ def normalize_host_names(names: Iterable[str], *, feed_title: Optional[str] = No
                 candidate = candidate[:-1].strip()
             if candidate.startswith("(") and ")" not in candidate:
                 candidate = candidate[1:].strip()
-            if not candidate or is_network_or_org_author(candidate):
+            if not candidate or is_network_or_org_author(candidate, language):
                 continue
             # #2064: the SHOW is not a person on it. Only checkable when the caller knows the
             # title, which is why it is a keyword rather than a silent no-op.
-            if names_the_show(candidate, feed_title):
+            if names_the_show(candidate, feed_title, language):
                 logger.debug(
                     "host candidate '%s' names the show '%s' — not a person", candidate, feed_title
                 )
@@ -337,7 +411,7 @@ def normalize_host_names(names: Iterable[str], *, feed_title: Optional[str] = No
     return out
 
 
-def looks_like_publisher(name: str) -> bool:
+def looks_like_publisher(name: str, language: Optional[str] = None) -> bool:
     """True when a name is a network / publisher / organisation rather than a person.
 
     Combines the known-network denylist with the generic org-marker + news-outlet-suffix regex.
@@ -345,7 +419,7 @@ def looks_like_publisher(name: str) -> bool:
     single-token real person (Oprah, Sting) is kept — use it to strip publishers from
     already-resolved person surfaces (key people, host/guest roles) without dropping people.
     """
-    return is_known_network(name) or has_org_markers(name)
+    return is_known_network(name) or has_org_markers(name, language)
 
 
 # Host self-introduction in the transcript intro, e.g. "I'm Patrick O'Shaughnessy" or
@@ -467,7 +541,7 @@ def _branded_intro_matches(
     branded = naming_vocabulary.vocabulary_row(_HOST_BRANDED_INTRO_BY_LANGUAGE, language)
     if not feed_title or branded is None:
         return []
-    return [m for m in branded.finditer(head) if names_the_show(m.group(2), feed_title)]
+    return [m for m in branded.finditer(head) if names_the_show(m.group(2), feed_title, language)]
 
 
 #: Languages that capitalise every noun, where a single capitalised word after a self-introduction
@@ -538,7 +612,7 @@ def extract_self_introduced_host(
         # ASR capitalises freely; The Daily had a voice recorded as introducing itself as
         # "Coming Out". A single-token match is still allowed here (a mononym host — Oprah, Sting),
         # so the guard only fires on a multi-token run containing an ordinary English word.
-        if len(name.split()) >= 2 and not looks_like_a_person_name(name):
+        if len(name.split()) >= 2 and not looks_like_a_person_name(name, language):
             continue
         # A single-token capture must be a plausible mononym, not a sentence-opener the ASR
         # capitalised at a turn boundary. "I'm But it …" (a disfluency) captured a bare "But" and,
@@ -546,7 +620,7 @@ def extract_self_introduced_host(
         # guard `distinct_self_introductions` already applies; without it here the two sibling
         # scanners disagreed. ``continue`` (not ``return None``) keeps scanning for the real intro.
         if len(name.split()) == 1 and (
-            _one_word_names_refused(language) or not is_plausible_mononym(name)
+            _one_word_names_refused(language) or not is_plausible_mononym(name, language)
         ):
             continue
         return name
@@ -589,9 +663,11 @@ def distinct_self_introductions(
         # A multi-token run must look like a person; a single token must be a plausible mononym, not
         # a bare honorific ("Dr", the truncated "I'm Dr. Jane Smith" capture) — else "I'm Dr. X …
         # I'm X" would count as two distinct speakers and wrongly read as a montage.
-        if len(toks) >= 2 and not looks_like_a_person_name(name):
+        if len(toks) >= 2 and not looks_like_a_person_name(name, language):
             continue
-        if len(toks) == 1 and (_one_word_names_refused(language) or not is_plausible_mononym(name)):
+        if len(toks) == 1 and (
+            _one_word_names_refused(language) or not is_plausible_mononym(name, language)
+        ):
             continue
         if name.lower() not in lowered:
             lowered.add(name.lower())
@@ -903,7 +979,7 @@ def _feed_statement(
                 )
                 for raw in stated_name_re.findall(m.group("names")):
                     clean = _clean_stated_name(raw, language)
-                    if len(clean.split()) < 2 or has_org_markers(clean):
+                    if len(clean.split()) < 2 or has_org_markers(clean, language):
                         continue
                     # A publisher/platform is never the host, even inside a host phrase (#1652
                     # applied this to RSS author tags; the statement path was the last place that
@@ -1383,15 +1459,36 @@ _NOT_A_NAME_TOKEN_BY_LANGUAGE = naming_vocabulary.NOT_A_NAME_TOKEN
 _NOT_A_NAME_TOKEN = _NOT_A_NAME_TOKEN_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
-def looks_like_a_person_name(name: str) -> bool:
-    """A capitalised run is not a name if any of its tokens is an ordinary English word.
+#: Particles that stay inside a name although the language's row lists them as ordinary words:
+#: "Altay de Souza", "José Mario de la Garza", "Ivonne de los Ríos", "Sophie von der Tann". The
+#: shared nobiliary list plus `los`/`las` ("de los") and Portuguese `do`, which the probe over 585
+#: chart feeds found in real names (2026-10-10). Inside only: a run that STARTS with one ("La Pija",
+#: "Le Monde", "Il Post", "Die Zeit") is still refused.
+_INNER_NAME_PARTICLES: FrozenSet[str] = frozenset(
+    naming_vocabulary.STATED_PARTICLES[TARGET_LANGUAGE]
+) | frozenset({"los", "las", "do"})
 
-    "I'm Coming Out" is not a person. Requires First-Last shape and no stop-token.
+
+def looks_like_a_person_name(name: str, language: Optional[str] = None) -> bool:
+    """A capitalised run is not a name if any of its tokens is an ordinary word.
+
+    "I'm Coming Out" is not a person. Requires First-Last shape and no stop-token. English words
+    are always refused; *language* (the feed's) adds its own row, except a name particle INSIDE the
+    run ("de", "von der"). None reads English only.
     """
     toks = (name or "").split()
     if len(toks) < 2:
         return False
-    return not any(t.lower().strip(".,'’") in _NOT_A_NAME_TOKEN for t in toks)
+    extra = _language_row(_NOT_A_NAME_TOKEN_BY_LANGUAGE, language) or frozenset()
+    for i, tok in enumerate(toks):
+        tl = tok.lower().strip(".,'’")
+        if tl in _NOT_A_NAME_TOKEN:
+            return False
+        if re.fullmatch(r"\w\.", tok):
+            continue  # an initial ("E. Castelar"), not Spanish "e"
+        if tl in extra and not (0 < i < len(toks) - 1 and tl in _INNER_NAME_PARTICLES):
+            return False
+    return True
 
 
 # Capitalised single words that follow "I'm <Cap>" but are NOT names — the "I'm American" class.
@@ -1408,7 +1505,18 @@ _HONORIFIC_TITLES_BY_LANGUAGE = naming_vocabulary.HONORIFIC_TITLES
 HONORIFIC_TITLES = _HONORIFIC_TITLES_BY_LANGUAGE[TARGET_LANGUAGE]
 
 
-def is_plausible_mononym(token: Optional[str]) -> bool:
+def honorific_titles(language: Optional[str] = None) -> FrozenSet[str]:
+    """English titles plus *language*'s ("sra", "dott", "herr"). None reads English only."""
+    return _with_english(_HONORIFIC_TITLES_BY_LANGUAGE, language)
+
+
+#: One word, capitalised, letters of ANY script: "Zoé", "Müller", "Mabê". The English check is
+#: ASCII ("[A-Z][A-Za-z…]") and refused every accented name; it is kept for English, whose
+#: behaviour is pinned.
+_UNICODE_MONONYM = re.compile(r"[^\W\d_]+(?:['’\-][^\W\d_]+)*")
+
+
+def is_plausible_mononym(token: Optional[str], language: Optional[str] = None) -> bool:
     """True if a one-token self-intro ("I'm Brandon") is a plausible name, not "I'm American".
 
     Accepts a capitalised alphabetic token (apostrophes/hyphens allowed) that is neither an
@@ -1418,10 +1526,16 @@ def is_plausible_mononym(token: Optional[str]) -> bool:
     without re-admitting the false positives the guard exists for.
     """
     t = (token or "").strip(" .,")
-    if not re.fullmatch(r"[A-Z][A-Za-z'’\-]+", t):
+    own = _language_row(_NOT_A_NAME_TOKEN_BY_LANGUAGE, language) is not None
+    if own:
+        if len(t) < 2 or not t[0].isupper() or not _UNICODE_MONONYM.fullmatch(t):
+            return False
+    elif not re.fullmatch(r"[A-Z][A-Za-z'’\-]+", t):
         return False
     tl = t.lower()
-    if tl in _NOT_A_NAME_TOKEN or tl in _NOT_A_MONONYM or tl in HONORIFIC_TITLES:
+    not_a_name = _with_english(_NOT_A_NAME_TOKEN_BY_LANGUAGE, language if own else None)
+    not_a_mononym = _with_english(_NOT_A_MONONYM_BY_LANGUAGE, language if own else None)
+    if tl in not_a_name or tl in not_a_mononym or tl in honorific_titles(language if own else None):
         return False
     # A HYPHENATED COMPOUND is judged by its parts. "Pan-African" reached the graph as a guest with
     # 363s of talk time on a freshly ingested episode: `african` is in the demonym list, but
@@ -1433,7 +1547,7 @@ def is_plausible_mononym(token: Optional[str]) -> bool:
     # demonym or an ordinary word, so it still passes.
     if "-" in tl:
         parts = [x for x in tl.split("-") if x]
-        if any(x in _NOT_A_MONONYM or x in _NOT_A_NAME_TOKEN for x in parts):
+        if any(x in not_a_mononym or x in not_a_name for x in parts):
             return False
     return True
 
@@ -1442,6 +1556,7 @@ def drop_non_person_names(
     names: Iterable[str],
     feed_title: Optional[str] = None,
     kind_votes: Optional[KindVotes] = None,
+    language: Optional[str] = None,
 ) -> List[str]:
     """Remove publishers and the show's own name from a list of candidate PEOPLE.
 
@@ -1476,9 +1591,9 @@ def drop_non_person_names(
         name = str(raw or "").strip()
         if not name:
             continue
-        if looks_like_publisher(name):
+        if looks_like_publisher(name, language):
             continue
-        if feed_title and names_the_show(name, feed_title):
+        if feed_title and names_the_show(name, feed_title, language):
             continue
         # A real KindVotes only. Anything else (a test double, a stale field) answering truthy
         # would silently drop every candidate — measured: a MagicMock result emptied the guests.
@@ -1648,7 +1763,7 @@ def is_publishable_speaker_name(
     # a name and a voice, and it was passing all 150 organisation names in the sample — including
     # the five that arrive as a transcript self-introduction ("Boston College", "Rindman
     # University"), which no candidate-list filter upstream can see.
-    if looks_like_publisher(nm):
+    if looks_like_publisher(nm, language):
         return False
     # Punctuation a person's name never carries: "Premier Unbelievable?".
     if _NOT_IN_A_NAME.search(nm):
@@ -1691,7 +1806,7 @@ def is_publishable_speaker_name(
             return False
         if len(toks) >= 6:
             return False
-        return looks_like_a_person_name(nm) if require_person_shape else True
+        return looks_like_a_person_name(nm, language) if require_person_shape else True
     if len(toks) == 1:
         tl = lowered[0]
         # "GE", "AI", "IDF": an abbreviation standing in for a name, not a name (the same rule the
@@ -1702,7 +1817,7 @@ def is_publishable_speaker_name(
         return (
             tl not in _NOT_A_NAME_TOKEN
             and tl not in _NOT_A_MONONYM
-            and tl not in HONORIFIC_TITLES
+            and tl not in honorific_titles(language)
             and tl not in _BRAND_MONONYMS
         )
     return False
@@ -1764,8 +1879,8 @@ def guests_introduced_by_the_host(
                 # ordinary English word in it ("So Nick") is ASR noise the greeting regex swept up.
                 if (
                     len(name.split()) >= 2
-                    and not has_org_markers(name)
-                    and looks_like_a_person_name(name)
+                    and not has_org_markers(name, language)
+                    and looks_like_a_person_name(name, language)
                 ):
                     out.add(name)
     return out
@@ -2002,11 +2117,11 @@ def hosts_from_episode_description(
             # with..."), and the token run the regex takes is as long as the capitals allow. This
             # is the guard every sibling extractor already applies, and omitting it here is how a
             # topic word ended up published as a host — the #876 failure exactly.
-            if not looks_like_a_person_name(name):
+            if not looks_like_a_person_name(name, language):
                 continue
-            if looks_like_publisher(name):
+            if looks_like_publisher(name, language):
                 continue
-            if feed_title and names_the_show(name, feed_title):
+            if feed_title and names_the_show(name, feed_title, language):
                 continue
             # A person the episode states as a PARTICIPANT (its stated guests, its byline) is not
             # made the host by a cue: a guest's name in the pool seats the guest (validation).
@@ -2077,7 +2192,7 @@ def compose_episode_hosts(
             name = str(raw or "").strip()
             if not name or not is_publishable_speaker_name(name, language=language):
                 continue
-            if feed_title and names_the_show(name, feed_title):
+            if feed_title and names_the_show(name, feed_title, language):
                 continue
             out.append(name)
         return out
@@ -2105,6 +2220,7 @@ def recurrent_hosts_across_episodes(
     feed_title: Optional[str] = None,
     min_episodes: int = 3,
     min_share: float = 0.25,
+    language: Optional[str] = None,
 ) -> Set[str]:
     """Names that SELF-INTRODUCE across many of a feed's episodes — i.e. the show's presenter.
 
@@ -2180,19 +2296,19 @@ def recurrent_hosts_across_episodes(
     for name, n in merged:
         if n < min_episodes or (n / total) < min_share:
             continue
-        if is_known_network(name) or has_org_markers(name):
+        if is_known_network(name) or has_org_markers(name, language):
             continue
         # THE SHOW SAYS ITS OWN NAME EVERY EPISODE — that is recurrence, not a presenter. "The
         # Trivium China Podcast" opens with "Trivium" on 10 of 10 episodes and no other guard here
         # catches it: it is one token, carries no org marker, and is in no network list. Measured:
         # this is the single false positive across all 55 feeds.
-        if feed_title and names_the_show(name, feed_title):
+        if feed_title and names_the_show(name, feed_title, language):
             continue
         # FIRST-LAST REQUIRED, unlike the per-episode self-intro path which allows a mononym host.
         # A recurring MONONYM is the weakest possible evidence and it misfired here: "Brandon" on
         # Latent Space cleared 25% (15 of 53) and is not one of that show's hosts. A real mononym
         # presenter can still be supplied through config `known_hosts`, which is what it is for.
-        if len(name.split()) < 2 or not looks_like_a_person_name(name):
+        if len(name.split()) < 2 or not looks_like_a_person_name(name, language):
             continue
         out.add(name)
     return out
@@ -2258,7 +2374,7 @@ def detect_hosts_from_feed(
                 # compares per-name — so the known-hosts fallback was inert for every
                 # multi-author feed. That is the fallback that would otherwise have limited
                 # #1646's damage on exactly those shows.
-                for candidate in split_author_names(author_clean):
+                for candidate in split_author_names(author_clean, language):
                     if not candidate:
                         continue
                     # #2064: an <itunes:author> equal to the show's own name is the SHOW. It trips
@@ -2266,14 +2382,14 @@ def detect_hosts_from_feed(
                     # so "Africa Tech Summit" and "Trivium China" were accepted as host people —
                     # and `_validate_hosts_with_first_episode` then confirmed them, because a
                     # show's name is always spoken in its own opening.
-                    if names_the_show(candidate, feed_title):
+                    if names_the_show(candidate, feed_title, language):
                         logger.debug(
                             "RSS author '%s' names the show '%s', not a person on it",
                             candidate,
                             feed_title,
                         )
                         continue
-                    if is_network_or_org_author(candidate) or _publisher_by_usage(
+                    if is_network_or_org_author(candidate, language) or _publisher_by_usage(
                         candidate, feed_description
                     ):
                         logger.debug(
@@ -2318,7 +2434,7 @@ def detect_hosts_from_feed(
     if nlp and feed_title:
         for name, _score in _extract_person_entities(feed_title, nlp):
             clean = (name or "").strip()
-            if len(clean.split()) >= 2 and not has_org_markers(clean):
+            if len(clean.split()) >= 2 and not has_org_markers(clean, language):
                 hosts.add(clean)
         if hosts:
             logger.debug("Detected hosts via NER from the feed TITLE: %s", sorted(hosts))

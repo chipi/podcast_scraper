@@ -63,9 +63,11 @@ class TestTheHintCannotReachTheGraph:
     def test_the_function_takes_no_hint(self) -> None:
         import inspect
 
+        # `language` is the feed's, for the show-name refusal ("El Orden Mundial"); not a hint.
         assert list(inspect.signature(_speaker_lists_for_graph).parameters) == [
             "speakers",
             "feed_title",
+            "language",
         ]
 
     def test_no_roster_casts_nobody(self) -> None:

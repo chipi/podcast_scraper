@@ -1128,14 +1128,14 @@ def _unplaced_speakers(
             not name
             or is_bare_speaker_label(name)
             or is_default_speaker_name(name)
-            or looks_like_publisher(name)
+            or looks_like_publisher(name, language)
             # The same last gate a PLACED name passes. Unplaced entries were published without it:
             # "The China-Global South Project" on 10 episodes as an unplaced host, read from the
             # feed description (2026-10-02).
             or not is_publishable_speaker_name(name, language=language)
         ):
             continue
-        if feed_title and names_the_show(name, feed_title):
+        if feed_title and names_the_show(name, feed_title, language):
             continue
         # The record publishes the canonical spelling (#2130: `Ali Ghodsi)`, `Peter Attia, MD`).
         # Only AFTER the filters above, which keep judging the stated string exactly as before.
@@ -1177,7 +1177,9 @@ def _build_speaker_record(
     ``None`` when there was no diarization.
     """
     diarized, num_speakers = (
-        _build_speakers_from_diarized_segments(output_dir, transcript_file_path, detected_guests)
+        _build_speakers_from_diarized_segments(
+            output_dir, transcript_file_path, detected_guests, language
+        )
         if output_dir
         else (None, None)
     )
@@ -1212,7 +1214,7 @@ def _build_speaker_record(
         placed = [
             sp
             for sp in placed
-            if sp.source == SELF_INTRO_SOURCE or not names_the_show(sp.name, feed_title)
+            if sp.source == SELF_INTRO_SOURCE or not names_the_show(sp.name, feed_title, language)
         ]
     unplaced = _unplaced_speakers(
         placed,
@@ -1229,6 +1231,7 @@ def _build_speakers_from_diarized_segments(
     output_dir: str,
     transcript_file_path: Optional[str],
     detected_guests: Optional[List[str]],
+    language: Optional[str] = None,
 ) -> Tuple[Optional[List[SpeakerInfo]], Optional[int]]:
     """Derive ``content.speakers`` + ``diarization_num_speakers`` from saved segments (#876).
 
@@ -1288,7 +1291,7 @@ def _build_speakers_from_diarized_segments(
         if (
             label
             and not is_bare_speaker_label(label)
-            and not looks_like_publisher(label)  # a publisher/network is not a host/guest person
+            and not looks_like_publisher(label, language)  # a publisher is not a person
         ):
             if label not in named_order:
                 named_order.append(label)
@@ -1344,6 +1347,7 @@ class _HasNameAndRole(Protocol):
 def _speaker_lists_for_graph(
     speakers: Optional[Sequence[_HasNameAndRole]],
     feed_title: Optional[str] = None,
+    language: Optional[str] = None,
 ) -> Tuple[List[str], List[str]]:
     """``(hosts, guests)`` for the graph: the people a VOICE was matched to, and nobody else.
 
@@ -1393,7 +1397,7 @@ def _speaker_lists_for_graph(
             return False
         from ..speaker_detectors.hosts import names_the_show
 
-        return names_the_show(name, feed_title)
+        return names_the_show(name, feed_title, language)
 
     def _take(name: Optional[str], role: str, source: Optional[str] = None) -> None:
         clean = (name or "").strip()
@@ -5375,7 +5379,9 @@ def generate_episode_metadata(  # noqa: C901
         # #2062: the graph must be told who the DIARIZATION ROSTER heard, not who the feed's
         # show notes guessed before a single second of audio was read. Passing the raw parameters
         # here is what left 93.2% of roster-named guests out of kg.json on production.
-        graph_hosts, graph_guests = _speaker_lists_for_graph(speakers, getattr(feed, "title", None))
+        graph_hosts, graph_guests = _speaker_lists_for_graph(
+            speakers, getattr(feed, "title", None), getattr(feed, "language", None)
+        )
         kg_source = getattr(cfg, "kg_extraction_source", "provider")
         kg_provider_arg: Optional[Any] = None
         kg_provider_extra: Optional[Any] = None
