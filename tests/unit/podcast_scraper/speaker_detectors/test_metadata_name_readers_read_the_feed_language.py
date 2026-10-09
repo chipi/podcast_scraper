@@ -127,3 +127,15 @@ def test_senado_s_portuguese_marker_reaches_the_feed_host_detection() -> None:
         "Jornal do Senado", None, ["Rádio Senado", "RadioAgência Senado"], language="pt-br"
     )
     assert found == set()
+
+
+class TestAHelpingVerbStatesTheHosts:
+    def test_a_romance_feed_that_says_its_hosts_help_you_names_them(self) -> None:
+        desc = (
+            "Todos los viernes en la mañana Ana Ruiz y Luis Mora te ayudan a entender las noticias."
+        )
+        assert hosts.hosts_from_feed_statement("El Diario", desc, "es") == {"Ana Ruiz", "Luis Mora"}
+
+    def test_german_has_no_helping_verb(self) -> None:
+        desc = "Kluge Expertinnen und Lustige Experimente helfen ihnen dabei."
+        assert hosts.hosts_from_feed_statement("Der Podcast", desc, "de") == set()
