@@ -43,7 +43,7 @@ See RFC-044 for the vision / migration path, and
 An option publishes its claim here (``headline_metric``, ``measured_at``). ``research_ref``
 cites a public decision doc or an issue when there is one; the eval reports behind the
 other options are cited in the private eval project, which checks that every claim here
-has its evidence there (ADR-158).
+has its evidence there (ADR-162).
 """
 
 from dataclasses import dataclass, replace as _dc_replace

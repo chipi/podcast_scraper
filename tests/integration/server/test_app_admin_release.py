@@ -133,7 +133,7 @@ def test_without_a_release_dir_the_data_dir_holds_it(tmp_path: Path) -> None:
 
 
 def test_each_app_has_its_own_version(tmp_path: Path) -> None:
-    """ADR-158: the kernel serves more than one client app, so a release is per app."""
+    """ADR-162: the kernel serves more than one client app, so a release is per app."""
     app = _app(tmp_path)
     admin = _login(app, "boss")
     resp = admin.put(RELEASE, json={"app": "news", "version": "0.3.0"})

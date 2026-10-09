@@ -1,6 +1,6 @@
 # Private split — initial plan (2026-10-07)
 
-**Decision record:** [ADR-158](../adr/ADR-158-private-repo-split-platform-common-apps.md).
+**Decision record:** [ADR-162](../adr/ADR-162-private-repo-split-platform-common-apps.md).
 This note is the working list behind it: the order of work, the round-1 document list, and the
 state of the infrastructure PR that has to land first.
 
@@ -36,7 +36,7 @@ commits beyond their titles; indirect references (variables, globs).
 
 ---
 
-## 1. Seams, measured (ADR-158 sequence step 2)
+## 1. Seams, measured (ADR-162 sequence step 2)
 
 Everything stays in this repo until the probe is clean. Each slice is its own PR, and the probe
 is re-run after each one; the failure count is the progress measure. Work that touches
@@ -50,7 +50,7 @@ module. The probe deletes those files from a throwaway worktree and checks both 
 public without private (import every public module; list every import edge into moved code), and
 private on top of public (import every private module, with `PYTHONPATH`, nothing installed).
 
-### Current numbers (`scripts/tools/split_probe.py`, after ADR-158 decisions 3 and 5, 2026-10-07)
+### Current numbers (`scripts/tools/split_probe.py`, after ADR-162 decisions 3 and 5, 2026-10-07)
 
 | | Result |
 | --- | --- |
@@ -62,9 +62,9 @@ private on top of public (import every private module, with `PYTHONPATH`, nothin
 | Before them | 27 of 575 modules fail; roots: MCP tokens via account deletion (13), enricher registry (6), query-enricher registry (3), engagement series via momentum (2), scorer registry, discovery ranking, enrichment route function (1 each). 65 imports in 20 files still name moved code |
 | Private on top of public | 20 of 102 modules fail, all on a public module broken by a seam |
 | Common `identity` → `intelligence` | 0 imports cross the line (check mutation-tested: absolute, relative and package-`__init__` crossings are each caught) |
-| Eval-repo references (2026-10-08) | 289 lines → 31 kept on purpose: mount tooling (`.gitignore`, `.flake8`, `pyproject.toml`, `Makefile`, `check_doc_structure.py`, its test, the two mount guides, one README row), ADR-158, the registry guard test, the fixture test that reads the mount, and the two workflow files (`release.yml`, `secret-scan.yml`, held until PR #2138 merges). Registry citations moved to the eval repo's evidence map |
+| Eval-repo references (2026-10-08) | 289 lines → 31 kept on purpose: mount tooling (`.gitignore`, `.flake8`, `pyproject.toml`, `Makefile`, `check_doc_structure.py`, its test, the two mount guides, one README row), ADR-162, the registry guard test, the fixture test that reads the mount, and the two workflow files (`release.yml`, `secret-scan.yml`, held until PR #2138 merges). Registry citations moved to the eval repo's evidence map |
 | Private eval documents named by ID or path (2026-10-08) | Removed too (operator decision): eval report names, the old public IDs of moved documents, and paths to files under `autoresearch/` and `data/eval/`. Bare directory names and runtime default paths stay. RFC-073 was two documents; the enrichment-layer one is RFC-088 now, so those references were re-pointed, not removed |
-| Not yet in the manifest | tier A features (ADR-158 decision 5): 46 public `src/` files and 25 operator-viewer files read the four tier-A outputs; to be read and listed |
+| Not yet in the manifest | tier A features (ADR-162 decision 5): 46 public `src/` files and 25 operator-viewer files read the four tier-A outputs; to be read and listed |
 
 ### Seams
 
@@ -100,7 +100,7 @@ clustered; it reads through `search.groupings` now, so without themes no pill is
 
 ### Tier-A consumers (read and classified 2026-10-08)
 
-The four tier-A outputs and the features on them move to Common `intelligence` (ADR-158
+The four tier-A outputs and the features on them move to Common `intelligence` (ADR-162
 decision 5). The MOVE modules are in the manifest. These public modules stay and need a seam:
 each reads a tier-A output or a moved module in a few places and must work without it.
 
@@ -154,7 +154,7 @@ stay as they are, since Studio and Player read them when Common is installed.
    results are computed, not what is computed. If an output schema itself is IP, that is a
    separate decision.
 4. **Public fixtures cannot be regenerated without Common.** `make enrich-viewer-fixture`
-   (`Makefile:1794`) runs every enricher over the public fixture corpus. ADR-158 decision 6 keeps
+   (`Makefile:1794`) runs every enricher over the public fixture corpus. ADR-162 decision 6 keeps
    the outputs as frozen data; regeneration then requires the mount.
 5. **The released-version store names one app.** `app_release_store` holds `player_version`. It
    stays in the kernel because health and admin read it, but a second app needs it per app.
@@ -164,9 +164,9 @@ stay as they are, since Studio and Player read them when Common is installed.
    `make check-doc-structure` went red on links such as `../../../docs/guides/E2E_TESTING_GUIDE.md`
    in the copied player docs: same cause as risk 2. The gate itself also walked `apps/` (and
    would have walked `eval-data/`); fixed with a top-level-only skip and a test. Round 1 of the
-   doc move has to rewrite these links as plain IDs ("ADR-158", "PRD-039"): private docs may
+   doc move has to rewrite these links as plain IDs ("ADR-162", "PRD-039"): private docs may
    name public docs by ID, never by path or link; public docs name no private doc at all
-   (operator rule, 2026-10-07; ADR-158 decision 10).
+   (operator rule, 2026-10-07; ADR-162 decision 10).
 8. **The probe checks imports, not behaviour.** A clean probe means everything loads. Runtime
    paths (a router missing at request time, a hook never called) show up only in the test runs.
 

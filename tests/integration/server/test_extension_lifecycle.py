@@ -1,5 +1,5 @@
 """Extensions own their routes, lifecycle hooks, scheduled jobs, CLI commands and the listener
-engagement trending blends in (ADR-158 decision 4).
+engagement trending blends in (ADR-162 decision 4).
 
 With none installed the platform serves its own routes only, starts nothing extra, rejects a job
 kind nothing runs, offers no extension subcommand and ranks trending on content alone.

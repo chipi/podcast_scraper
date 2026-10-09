@@ -1,4 +1,4 @@
-"""Installed extensions: how private packages add to the platform (ADR-158 decision 4).
+"""Installed extensions: how private packages add to the platform (ADR-162 decision 4).
 
 The platform names nothing private. A package that wants to add routes or take part in account
 deletion publishes an :class:`Extension` under the ``podcast_scraper.extensions`` entry-point group;
@@ -107,7 +107,7 @@ def _no_query_enrichers(corpus_root_provider: Callable[[], Path]) -> Sequence[An
 
 @dataclass(frozen=True)
 class EnrichmentContribution:
-    """Enrichers an extension adds (ADR-158 decision 5). Each part is a callable so importing the
+    """Enrichers an extension adds (ADR-162 decision 5). Each part is a callable so importing the
     extension stays cheap; the enrichment code calls them where it builds its registries."""
 
     #: Every enricher class the extension owns. Their class-level ``manifest`` feeds the accuracy

@@ -132,7 +132,7 @@ _NO_ENRICHERS_PROFILES: frozenset[str] = frozenset(
 # can monkey-patch in tests without import-order surprises.
 def _installed(ids: list[str]) -> list[str]:
     """*ids* minus enrichers nothing installed provides. The ML and WEB enrichers come from an
-    extension (ADR-158); without it a profile that lists them simply runs without them."""
+    extension (ADR-162); without it a profile that lists them simply runs without them."""
     known = known_enricher_manifests()
     return [i for i in ids if i in known]
 

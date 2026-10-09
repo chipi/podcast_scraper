@@ -119,7 +119,7 @@ describe('buildPaletteCommands', () => {
     await byId.get('admin.rebuild-index')!.run()
     expect(deps.rebuildIndex).toHaveBeenCalled()
 
-    // The private Cluster / Consensus operators have no command here (ADR-158).
+    // The private Cluster / Consensus operators have no command here (ADR-162).
     expect(byId.has('operator.cluster-last')).toBe(false)
     expect(byId.has('operator.consensus-last')).toBe(false)
 

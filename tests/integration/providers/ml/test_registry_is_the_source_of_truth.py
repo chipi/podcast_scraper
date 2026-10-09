@@ -389,7 +389,7 @@ def test_every_registered_gi_option_cites_its_research(option_id: str) -> None:
     """A number in the registry without a measurement behind it is a guess with good posture.
 
     The option publishes the measurement; the report is cited in the private eval project, whose
-    registry-refs-check fails on a published claim with no report behind it (ADR-158)."""
+    registry-refs-check fails on a published claim with no report behind it (ADR-162)."""
     opt = _GI_OPTIONS[option_id]
     assert (
         opt.headline_metric and opt.measured_at

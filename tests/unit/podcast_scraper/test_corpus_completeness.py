@@ -153,7 +153,7 @@ def test_missing_topic_clusters_fails_when_index_present(tmp_path: Path):
 
 
 def test_missing_topic_clusters_is_no_gap_when_themes_are_not_installed(tmp_path: Path):
-    """ADR-158: themes are a private feature. With no extension providing them nothing builds the
+    """ADR-162: themes are a private feature. With no extension providing them nothing builds the
     artifact and nothing serves it, so the gate must not demand it."""
     from podcast_scraper.extensions import use_extensions
 

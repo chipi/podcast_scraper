@@ -10,7 +10,7 @@
  *                    then switches to the Graph tab.
  *   * **Compare** — two subjects from the hit set side by side (§S8).
  *
- * The server-side Cluster and Consensus operators are private features (ADR-158) and are not part
+ * The server-side Cluster and Consensus operators are private features (ADR-162) and are not part
  * of this viewer. The bar reads exclusively from the current ``search.results`` (or the caller's
  * ``visible-hits`` prop) — it does NOT re-fetch, except Compare.
  */

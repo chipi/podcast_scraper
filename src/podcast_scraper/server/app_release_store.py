@@ -8,7 +8,7 @@ the file. An absent or malformed entry means "no override" — the environment d
 exactly as ``app_ranking_config_store`` falls back to its defaults.
 
 One file holds every app (``app_releases.json``: ``{"versions": {"player": "1.0.2"}}``), because
-the kernel serves more than one client app (ADR-158). The player's override was stored on its own
+the kernel serves more than one client app (ADR-162). The player's override was stored on its own
 in ``player_release.json`` before that; it is still read when the new file has no player entry,
 and still written alongside, so a rollback to code that only knows the old file keeps the
 override.

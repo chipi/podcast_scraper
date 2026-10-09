@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure how far the ADR-158 split is from clean: the seams, in both directions.
+"""Measure how far the ADR-162 split is from clean: the seams, in both directions.
 
 Run after ``split_copy.py`` has filled ``apps/``. In a throwaway worktree of HEAD it deletes
 everything the manifest moves, then:
@@ -154,7 +154,7 @@ def edges(worktree: Path, moved: set[str]) -> list[tuple[str, int, str]]:
     return sorted(set(found))
 
 
-#: (importer, imported): a subpackage that must never import another (ADR-158 decision 1:
+#: (importer, imported): a subpackage that must never import another (ADR-162 decision 1:
 #: an app that needs sign-in alone installs Common and uses identity without intelligence).
 FORBIDDEN = [("closelistening_common.identity", "closelistening_common.intelligence")]
 

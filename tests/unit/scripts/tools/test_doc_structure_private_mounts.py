@@ -1,6 +1,6 @@
 """check_doc_structure skips private repos mounted at the top level, and nothing else.
 
-ADR-158 clones the private Common and Player repos into ``apps/`` (as the eval research repo
+ADR-162 clones the private Common and Player repos into ``apps/`` (as the eval research repo
 goes into ``eval-data/``). Their docs link by their own layout, so walking them turned the gate
 red for anyone with a mount. The skip is top-level only: a public directory that happens to be
 named ``apps`` deeper in the tree is still checked.

@@ -77,7 +77,7 @@ describe('useGraphLensesStore (RFC-080)', () => {
   })
 
   it('ignores stored flags for lenses this viewer does not have', async () => {
-    // ADR-158: theme regions, velocity halo and consensus edges are private lenses. A blob saved by
+    // ADR-162: theme regions, velocity halo and consensus edges are private lenses. A blob saved by
     // a viewer that had them must not resurrect them here.
     storage.set(
       'ps_graph_lenses',

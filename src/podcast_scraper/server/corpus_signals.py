@@ -2,7 +2,7 @@
 
 Shared by the consumer plane and the operator plane: the operator ``/api/corpus/entity-signals``
 and the app's entity card read the same filtered projection, so it lives in the platform rather
-than in either app (ADR-158).
+than in either app (ADR-162).
 """
 
 from __future__ import annotations

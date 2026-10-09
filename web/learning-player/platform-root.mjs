@@ -1,7 +1,7 @@
 /**
  * Where the public platform checkout is, and where this app's own docs are.
  *
- * The app runs from two layouts (ADR-158): inside the public repo at `web/learning-player`, and
+ * The app runs from two layouts (ADR-162): inside the public repo at `web/learning-player`, and
  * inside the private player repo mounted at `apps/player/web`. The platform root is two levels up
  * in the first and three in the second, so it is found by walking up to the directory that holds
  * the platform package rather than by counting `..`. `PLATFORM_ROOT` overrides the search for

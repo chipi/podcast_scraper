@@ -17,7 +17,7 @@ from podcast_scraper.enrichment.provider_types.registry import (
 )
 from podcast_scraper.extensions import enrichment_contributions
 
-# Installed extensions register theirs too (ADR-158), after the registry above is importable.
+# Installed extensions register theirs too (ADR-162), after the registry above is importable.
 for _contribution in enrichment_contributions():
     if _contribution.provider_types is not None:
         _contribution.provider_types()

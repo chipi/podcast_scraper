@@ -4,7 +4,7 @@ tier=DETERMINISTIC enrichers need no external models or networks — they read t
 (``*.kg.json`` + ``*.gi.json`` + ``*.bridge.json`` + ``*.metadata.json``) and write structured JSON
 envelopes under ``enrichments/`` (corpus-scope) or ``metadata/enrichments/{stem}.<writes>``
 (episode-scope). The five here are the public platform's; the rest come from installed extensions
-(ADR-158 decision 5) through :func:`podcast_scraper.extensions.enrichment_contributions`.
+(ADR-162 decision 5) through :func:`podcast_scraper.extensions.enrichment_contributions`.
 
 All wrap a sync body with :func:`podcast_scraper.enrichment.protocol.sync_enricher`, so the
 executor's async machinery flows uninterrupted without enricher authors paying the async ceremony

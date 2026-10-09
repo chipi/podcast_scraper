@@ -1,4 +1,4 @@
-"""Enrichers come from the platform and from installed extensions (ADR-158 decision 5).
+"""Enrichers come from the platform and from installed extensions (ADR-162 decision 5).
 
 With no extension the platform registers its own five deterministic enrichers and nothing else,
 and a profile that lists a private enricher simply runs without it. With one, everything the

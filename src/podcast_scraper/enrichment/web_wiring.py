@@ -2,7 +2,7 @@
 
 The CLI registers WEB-tier enrichers always — registration is harmless, nothing fetches until a
 run — and profile membership decides whether they run, so the airgapped CI profile never
-fetches. The platform ships none; installed extensions add them (ADR-158). Returns the registered
+fetches. The platform ships none; installed extensions add them (ADR-162). Returns the registered
 ids so the CLI can enable and opt them in under ``--with-web``.
 """
 

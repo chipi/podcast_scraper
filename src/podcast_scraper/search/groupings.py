@@ -1,4 +1,4 @@
-"""Themes and storylines, read through whichever installed extension provides them (ADR-158).
+"""Themes and storylines, read through whichever installed extension provides them (ADR-162).
 
 A THEME (``tc:``) groups topics that mean the same thing; a STORYLINE (``thc:``) groups topics that
 keep coming up together. Both are private features. The platform's search, index, read models and
