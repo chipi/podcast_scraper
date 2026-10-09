@@ -105,6 +105,15 @@ export const useShellStore = defineStore('shell', () => {
   const authReady = ref<boolean | null>(null)
   /** The server's session-secret identity. A CHANGE here means every existing session just died. */
   const authEpoch = ref<string | null>(null)
+  /**
+   * Bumped when the corpus CONTENT changed under this session — today, a pipeline job finishing.
+   * Library and Digest are kept alive and otherwise reload only on a path or health change, so a
+   * job run from the Dashboard left them showing the corpus as it was before it (2026-10-09).
+   */
+  const corpusRevision = ref(0)
+  function noteCorpusChanged(): void {
+    corpusRevision.value += 1
+  }
   /** True only when /api/health reports corpus_library_api (avoids 404 on /api/corpus/* catalog). */
   const corpusLibraryApiAvailable = ref(false)
   /**
@@ -331,6 +340,8 @@ export const useShellStore = defineStore('shell', () => {
   }
 
   return {
+    corpusRevision,
+    noteCorpusChanged,
     corpusPath,
     leftPanelSurface,
     setLeftPanelSurface,

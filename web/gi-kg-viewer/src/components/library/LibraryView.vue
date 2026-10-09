@@ -544,7 +544,7 @@ function applyEpisodeFilters(): void {
  * checkbox look broken (list jumped back to the unfiltered page).
  */
 watch(
-  () => [shell.corpusPath.trim(), shell.healthStatus] as const,
+  () => [shell.corpusPath.trim(), shell.healthStatus, shell.corpusRevision] as const,
   async (newV, oldV) => {
     const pathChanged = oldV !== undefined && oldV[0] !== newV[0]
     if (pathChanged) {

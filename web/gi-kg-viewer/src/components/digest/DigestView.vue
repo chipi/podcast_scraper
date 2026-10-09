@@ -766,6 +766,7 @@ watch(
       shell.healthStatus,
       shell.corpusLibraryApiAvailable,
       shell.corpusDigestApiAvailable,
+      shell.corpusRevision,
     ] as const,
   () => {
     digestGraphOpenGate.invalidate()
