@@ -9,6 +9,7 @@ import {
 } from '../../api/jobsApi'
 import { usePageVisible } from '../../composables/usePageVisible'
 import { useShellStore } from '../../stores/shell'
+import { usePipelineJobWatchStore } from '../../stores/pipelineJobWatch'
 import { usePipelineJobLogStore } from '../../stores/pipelineJobLog'
 import PipelineJobExplorePanel from './PipelineJobExplorePanel.vue'
 
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>()
 
 const shell = useShellStore()
+const jobWatch = usePipelineJobWatchStore()
 const jobLog = usePipelineJobLogStore()
 const { pageVisible } = usePageVisible()
 
@@ -76,8 +78,6 @@ const embeddedToolbarLeadKind = computed<'loading' | 'none' | 'hint' | null>(() 
   return null
 })
 
-/** Jobs queued or running as of the last poll — to spot the moment one succeeds. */
-let inFlightIds = new Set<string>()
 let pollTimer: ReturnType<typeof setTimeout> | null = null
 let clockTimer: ReturnType<typeof setInterval> | null = null
 /** Counts consecutive quiet refreshes with an unchanged job snapshot (GH-743 backoff). */
@@ -156,12 +156,9 @@ async function refresh(opts?: { quiet?: boolean }): Promise<void> {
   try {
     const res = await listPipelineJobs(root.value)
     const next = Array.isArray(res.jobs) ? res.jobs : []
-    // A job that was queued/running on the last poll and has now SUCCEEDED changed the corpus: tell
-    // the kept-alive Library and Digest tabs (shell.corpusRevision). First poll seeds, never fires.
-    if (next.some((j) => j.status === 'succeeded' && inFlightIds.has(j.job_id))) {
-      shell.noteCorpusChanged()
-    }
-    inFlightIds = new Set(next.filter((j) => j.status === 'queued' || j.status === 'running').map((j) => j.job_id))
+    // The session-wide watcher spots a job finishing and tells the kept-alive Library and Digest
+    // tabs; it keeps watching after this card unmounts (stores/pipelineJobWatch).
+    jobWatch.observe(next)
     jobs.value = next
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
