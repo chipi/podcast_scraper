@@ -194,7 +194,7 @@ under the stated spelling, and the guest Vanessa Torres); 09-25 unchanged, its h
 
 - Novelo 10-08's reporter (Vitor Hugo Brandalise, 5,288 words) and Radio Ambulante's (Mariano
   Pagella 2,436, Marco Avilés 1,642) are never introduced on air: they appear only in the credits
-  ("Esta serie fue producida por…") and, for Novelo, the description's by-line ("Por Vitor Hugo
+  ("Esta serie fue producida por…") and, for Novelo, the description's by-line ("Por Vitor Hugo <!-- codespell:ignore serie -->
   Brandalise."). Naming them needs a new rule binding a credited or by-lined name to the dominant
   non-host voice. Operator decision.
 - SWR's interview clips are named only by the narration, verb first ("…, erklärt Oliver Huth.",
