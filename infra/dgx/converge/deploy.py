@@ -175,6 +175,13 @@ services:
       # fp16/bf16 kernels exist in CTranslate2 4.8.0 for Blackwell sm_120
       # but are sub-optimal — int8 is the fastest path by a wide margin.
       - WHISPER__COMPUTE_TYPE=int8
+      # Keep the model loaded (2026-10-09). Speaches' default ttl=300 unloads it
+      # after 5 min idle, so bursty pipeline use reloaded it ~20x in 3 h; an unload
+      # queued behind an interrupted request then hung every later request until a
+      # restart. Memory-neutral: on 12 real ~8-min episodes a reload-every-request
+      # instance and a pinned one both plateaued at ~2.0 GiB (the reloading one keeps
+      # it after unloading anyway); the pinned one stayed loaded through 320 s idle.
+      - WHISPER__TTL=-1
       - LOG_LEVEL=INFO
       - ENABLE_UI=false
       - UVICORN_HOST=0.0.0.0
