@@ -54,7 +54,7 @@ from ....speaker_detectors.hosts import (
     _CUE_FIRST_PAST_BODY_BY_LANGUAGE,
     _GREETED_TAIL_BY_LANGUAGE,
     _GUEST_GREETED as _GUEST_GREETED_RE,
-    _GUEST_INTRODUCED_BY_HOST as _GUEST_INTRODUCED_BY_HOST_RE,
+    _GUEST_INTRODUCED_BY_HOST_BY_LANGUAGE as _GUEST_INTRODUCED_BY_HOST_RE_BY_LANGUAGE,
     _GUEST_INTRODUCED_NAME_FIRST as _GUEST_INTRODUCED_NAME_FIRST_RE,
     _GUEST_SPEECH_ACTS,
     _HOST_SPEECH_ACTS,
@@ -3251,7 +3251,10 @@ def _voice_named_by_the_introduction(
         is_host_hint = speaker in host_voices
         at_head = i < _HEAD_INTRO_TURNS
         mf = normalize_for_match(text or "") if stated else ""
-        for m in _GUEST_INTRODUCED_BY_HOST_RE.finditer(text or ""):
+        intro_re = naming_vocabulary.vocabulary_row(
+            _GUEST_INTRODUCED_BY_HOST_RE_BY_LANGUAGE, language
+        )
+        for m in intro_re.finditer(text or "") if intro_re is not None else ():
             names = _intro_names(m)
             if names:
                 _assign(i, names)
@@ -4148,6 +4151,7 @@ def _loosely_same_person(a: str, b: str) -> bool:
 
 def _third_party_excess(
     *,
+    language: Optional[str] = TARGET_LANGUAGE,
     voice_texts: Mapping[str, str],
     voice_intro: Mapping[str, str],
     known_hosts: Sequence[str],
@@ -4176,7 +4180,7 @@ def _third_party_excess(
 
     openings = {v: _opening_text(voice_texts.get(v, "")) for v in introducer_voices}
     others: List[str] = []
-    for n in list(stated_others) + sorted(guests_introduced_by_the_host(openings)):
+    for n in list(stated_others) + sorted(guests_introduced_by_the_host(openings, language)):
         if is_host(n) or any(_loosely_same_person(n, o) for o in others):
             continue
         others.append(n)
@@ -4369,6 +4373,7 @@ def _seat_unnamed_introducers(
 
 def _select_host_voices(
     *,
+    language: Optional[str] = TARGET_LANGUAGE,
     diarization: DiarizationResult,
     voice_intro: Dict[str, str],
     host_pool: Sequence[Tuple[str, str]],
@@ -4711,6 +4716,7 @@ def _select_host_voices(
             candidates = [v for v in candidates if v not in dominant]
         introducers = set(host_voices) or {v for v in texts if v not in ad_voices}
         excess = _third_party_excess(
+            language=language,
             voice_texts=texts,
             voice_intro=voice_intro,
             known_hosts=known_hosts,
@@ -5014,7 +5020,7 @@ def resolve_speaker_roster(
     )
     # Conversation-performed roles, computed once and reused for host selection below. A voice that
     # says "thanks for having me" is a guest even if it speaks first.
-    conv_roles = roles_from_conversation(voice_texts)
+    conv_roles = roles_from_conversation(voice_texts, language)
     conv_guests = {v for v, r in conv_roles.items() if r == "guest"}
     conv_host_voices = {v for v, r in conv_roles.items() if r == "host"}
     tr.roster_inputs(ad_voices=sorted(ad_voices), conversation_roles=dict(conv_roles))
@@ -5289,6 +5295,7 @@ def resolve_speaker_roster(
     conv_hosts = [v for v, r in conv_roles.items() if r == "host" and v not in ad_voices]
 
     host_voices = _select_host_voices(
+        language=language,
         diarization=diarization,
         voice_intro=voice_intro,
         host_pool=host_pool,
@@ -5364,7 +5371,7 @@ def resolve_speaker_roster(
     # remains unstated but resembles an unbound stated non-host (#2095).
     stated_for_harvest = list(detected_guests or ()) + list(metadata_named or ())
     host_voice_texts = {v: (voice_texts or {}).get(v, "") for v in host_voices}
-    for n in sorted(guests_introduced_by_the_host(host_voice_texts)):
+    for n in sorted(guests_introduced_by_the_host(host_voice_texts, language)):
         snapped = _canonicalize_to_stated_name(n, stated_for_harvest)
         stated_h_lower = {s.lower() for s in stated_for_harvest}
         if snapped.lower() not in stated_h_lower and not any(

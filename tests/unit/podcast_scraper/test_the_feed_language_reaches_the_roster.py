@@ -93,6 +93,10 @@ class TestTheLanguageIsActuallyDelivered:
             "_distinct_intros_map_to_multiple_stated",
             "_merged_host_cluster_owner",
             "_presenter_voices_by_evidence",
+            "roles_from_conversation",
+            "guests_introduced_by_the_host",
+            "_third_party_excess",
+            "_select_host_voices",
         ],
     )
     def test_every_roster_call_passes_the_language(self, callee: str) -> None:
@@ -444,3 +448,33 @@ class TestPortugueseNamesTakeTheArticle:
         from podcast_scraper.speaker_detectors.hosts import extract_self_introduced_host
 
         assert extract_self_introduced_host("Eu sou a primeira da família.", language="pt") is None
+
+
+class TestTheConversationIsReadInItsLanguage:
+    """`roles_from_conversation` and `guests_introduced_by_the_host` read only the English rows,
+    and the roster imported the English host-introduction pattern directly. A Spanish host's
+    "Bienvenidos a El Hilo" or "nos acompaña hoy Lucía Herrera" could never mark the host or name
+    the guest, though the Spanish rows exist (found reading the El Hilo / Radio Ambulante runs,
+    2026-10-09)."""
+
+    def test_a_spanish_host_act_marks_the_host(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import roles_from_conversation
+
+        texts = {"S0": "Bienvenidos a El Hilo. Hoy hablamos de energía.", "S1": "Gracias."}
+        assert roles_from_conversation(texts, language="es") == {"S0": "host"}
+        assert roles_from_conversation(texts) == {}
+
+    def test_a_spanish_introduction_names_the_guest(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import guests_introduced_by_the_host
+
+        texts = {"S0": "Hoy nos acompaña Lucía Herrera, investigadora."}
+        assert guests_introduced_by_the_host(texts, language="es") == {"Lucía Herrera"}
+
+    def test_an_unsupported_language_reads_nothing(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import roles_from_conversation
+
+        assert roles_from_conversation({"S0": "Welcome to the show."}, language="ja") == {}
+
+    def test_the_roster_does_not_read_the_english_pattern_directly(self) -> None:
+        src = _ROSTER_SRC.read_text(encoding="utf-8")
+        assert "_GUEST_INTRODUCED_BY_HOST_RE.finditer" not in src
