@@ -18,6 +18,7 @@ import { useAuthStore } from './stores/auth'
 import { refreshNativePushToken } from './composables/usePushSubscription'
 import { useResurfacingStore } from './stores/resurfacing'
 import { useNotificationsStore } from './stores/notifications'
+import { onForeground } from './services/foreground'
 import { useCollectionsStore } from './stores/collections'
 import { useQueueStore } from './stores/queue'
 import { usePlayerStore } from './stores/player'
@@ -424,6 +425,19 @@ async function resumeAfterReconnect(): Promise<void> {
 void Network.addListener('networkStatusChange', (status) => {
   if (!status.connected) return
   void resumeAfterReconnect()
+})
+
+// The bell on every return to the app, not only on sign-in (2026-10-09). A push is tapped while the
+// app is alive in the background, so opening it is a RESUME — and the inbox showed the alert the
+// push announced only a minute or two later. Throttled: a quick app switch does not refetch.
+const NOTIFICATIONS_FOREGROUND_MIN_MS = 15_000
+let notificationsAt = 0
+onForeground(() => {
+  if (!auth.hasSession) return
+  const now = Date.now()
+  if (now - notificationsAt < NOTIFICATIONS_FOREGROUND_MIN_MS) return
+  notificationsAt = now
+  void useNotificationsStore().load()
 })
 
 // Turning the forced-offline Config switch OFF is a reconnect too (#2004 #4): while it was on, the
