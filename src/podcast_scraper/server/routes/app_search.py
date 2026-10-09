@@ -23,7 +23,7 @@ from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_search_view import build_search_response
 from podcast_scraper.server.app_slugs import slug_for_row
-from podcast_scraper.server.app_user_corpus import user_episode_set
+from podcast_scraper.server.app_user_corpus import world_episode_set
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.corpus_catalog import (
     index_rows_by_feed_episode,
@@ -117,7 +117,10 @@ async def app_search(
     grounded_only: bool = Query(default=False),
     scope: Literal["all", "mine"] = Query(
         default="all",
-        description="'all' = the shared corpus; 'mine' = the signed-in user's heard∪captured set.",
+        description=(
+            "'all' = the shared corpus; 'mine' = the signed-in user's world: episodes heard or "
+            "captured from, saved, or of a show they follow."
+        ),
     ),
     enrich_results: bool = Query(
         default=False,
@@ -132,9 +135,10 @@ async def app_search(
 ) -> CorpusSearchApiResponse:
     """Grounded library-wide search (extractive grounded passages; no request-time LLM).
 
-    ``scope=mine`` (P3) filters hits to the user's heard∪captured episodes (RFC-101 §1). It requires
-    a signed-in user (401 otherwise) and returns honest zero-coverage — an empty result set when the
-    user's corpus has nothing on ``q`` — never widening back to the global corpus.
+    ``scope=mine`` filters hits to the episodes of the user's world — heard or captured from,
+    saved, or of a show they follow (:func:`world_episode_set`, 2026-10-09; was heard∪captured).
+    It requires a signed-in user (401 otherwise) and returns honest zero-coverage — an empty result
+    set when the user's world has nothing on ``q`` — never widening back to the global corpus.
     """
     root = _corpus_root(request)
     mine: set[str] | None = None
@@ -142,9 +146,9 @@ async def app_search(
         if user is None:
             raise HTTPException(status_code=401, detail="Sign in to search your corpus.")
         data_dir = _data_dir(request)
-        mine = user_episode_set(root, data_dir, user.user_id) if data_dir is not None else set()
+        mine = world_episode_set(root, data_dir, user.user_id) if data_dir is not None else set()
         if not mine:
-            # The user has heard/captured nothing yet — honest empty, no global fallback.
+            # Nothing in the user's world yet — honest empty, no global fallback.
             return build_search_response(q, {"query": q, "results": []})
     # Over-fetch when scoping so post-filtering to the user's set still fills the page.
     fetch_k = min(top_k * 5, 100) if mine is not None else top_k

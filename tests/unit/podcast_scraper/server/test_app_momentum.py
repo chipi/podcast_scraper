@@ -367,3 +367,109 @@ def test_personal_entity_ids_spans_follows_saves_and_their_clusters(tmp_path: Pa
     ids = personal_entity_ids(tmp_path, data, "u1")
     assert {"person:jane", "thc:followed-storyline", "topic:ai", "tc:machines"} <= ids
     assert personal_entity_ids(tmp_path, data, "nobody") == set()
+
+
+# "Mine" is the listener's own world, the same definition everywhere (operator 2026-10-09): for a
+# SHOW, one they follow, saved, or heard / captured from / saved an episode of.
+def _world_corpus(root: Path) -> dict[str, str]:
+    """Five shows, one episode each; returns ``feed_id -> that episode's slug``."""
+    from podcast_scraper.server.app_catalog_cache import cached_catalog
+    from podcast_scraper.server.app_slugs import slug_for_row
+
+    for i, feed in enumerate(("followed", "savedshow", "captured", "savedep", "other")):
+        for w, wk in enumerate(("2026-06-08", "2026-06-15", "2026-06-22")):
+            _write_episode(root, f"{feed}-e{w}", feed, f"Show {feed}", wk)
+    return {
+        r.feed_id: slug_for_row(r)
+        for r in cached_catalog(root)
+        if (r.episode_id or "").endswith("e0")
+    }
+
+
+def _seed_world(data: Path, slugs: dict[str, str]) -> None:
+    app_user_state.add_subscription(data, "u1", {"feed_id": "followed"})
+    app_user_state.add_favorite(data, "u1", {"kind": "show", "ref": "savedshow"})
+    app_user_state.add_note(
+        data,
+        "u1",
+        {
+            "id": "n1",
+            "target": "episode",
+            "target_id": slugs["captured"],
+            "text": "x",
+            "created_at": 1,
+            "updated_at": 1,
+        },
+    )
+    app_user_state.add_favorite(data, "u1", {"kind": "episode", "ref": slugs["savedep"]})
+
+
+def test_personal_entity_ids_holds_the_shows_of_the_listeners_world(tmp_path: Path) -> None:
+    from podcast_scraper.server.app_user_corpus import personal_entity_ids
+
+    slugs = _world_corpus(tmp_path)
+    data = tmp_path / "appdata"
+    _seed_world(data, slugs)
+    ids = personal_entity_ids(tmp_path, data, "u1")
+    assert {"followed", "savedshow", "captured", "savedep"} <= ids
+    assert "other" not in ids
+
+
+def test_trending_shows_mine_ranks_only_the_listeners_shows(tmp_path: Path) -> None:
+    """Before 2026-10-09 the "mine" set held no shows at all, so this list was always empty."""
+    from podcast_scraper.server.app_user_corpus import personal_entity_ids
+
+    slugs = _world_corpus(tmp_path)
+    data = tmp_path / "appdata"
+    _seed_world(data, slugs)
+    mine = personal_entity_ids(tmp_path, data, "u1")
+    rows = trending(
+        tmp_path,
+        data,
+        kind="show",
+        scope="mine",
+        user_id="u1",
+        now=_NOW,
+        limit=10,
+        restrict_to=mine,
+    )
+    assert {r.entity_id for r in rows} == {"followed", "savedshow", "captured", "savedep"}
+
+
+def test_world_episodes_add_saved_and_every_episode_of_a_followed_show(tmp_path: Path) -> None:
+    """Search "mine": heard/captured, plus saved episodes, plus a followed show's episodes."""
+    from podcast_scraper.server.app_catalog_cache import cached_catalog
+    from podcast_scraper.server.app_slugs import slug_for_row
+    from podcast_scraper.server.app_user_corpus import world_episode_set
+
+    slugs = _world_corpus(tmp_path)
+    data = tmp_path / "appdata"
+    _seed_world(data, slugs)
+    followed_all = {slug_for_row(r) for r in cached_catalog(tmp_path) if r.feed_id == "followed"}
+    got = world_episode_set(tmp_path, data, "u1")
+    assert got == followed_all | {slugs["captured"], slugs["savedep"]}
+    # A SAVED show is in the shows "mine", but saving a show does not pull in its episodes —
+    # following does (a save is a bookmark, a follow is a subscription).
+    assert not (
+        {slug_for_row(r) for r in cached_catalog(tmp_path) if r.feed_id == "savedshow"} & got
+    )
+
+
+def test_personal_entity_ids_counts_topics_of_saved_episodes(tmp_path: Path) -> None:
+    """Trends "mine": a saved episode's topics are the listener's, like a heard one's."""
+    import podcast_scraper.server.app_user_corpus as uc
+
+    slugs = _world_corpus(tmp_path)
+    data = tmp_path / "appdata"
+    app_user_state.add_favorite(data, "u1", {"kind": "episode", "ref": slugs["savedep"]})
+
+    def fake_entities(root, row):
+        return [("topic", "topic:from-saved", "From saved")] if row.feed_id == "savedep" else []
+
+    orig = uc._episode_entities
+    uc._episode_entities = fake_entities
+    try:
+        ids = uc.personal_entity_ids(tmp_path, data, "u1")
+    finally:
+        uc._episode_entities = orig
+    assert "topic:from-saved" in ids

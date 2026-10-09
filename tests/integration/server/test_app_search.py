@@ -265,6 +265,32 @@ def test_scope_mine_is_isolated_between_users(
     assert [r["doc_id"] for r in b["results"]] == ["i2"]
 
 
+def test_scope_mine_includes_a_followed_shows_episodes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ "Mine" is the listener's world (2026-10-09): following a show brings its episodes in."""
+    _two_episode_corpus(tmp_path)
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", _both_hits_run)
+    client = _authed(tmp_path)
+    assert client.post("/api/app/library", json={"feed_id": "showb"}).status_code == 200
+    mine = client.get("/api/app/search", params={"q": "x", "scope": "mine"}).json()
+    assert [r["doc_id"] for r in mine["results"]] == ["i2"]
+
+
+def test_scope_mine_includes_a_saved_episode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _two_episode_corpus(tmp_path)
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", _both_hits_run)
+    client = _authed(tmp_path)
+    saved = client.put(
+        "/api/app/favorites", json={"kind": "episode", "ref": _slug(tmp_path, "ep2")}
+    )
+    assert saved.status_code == 200
+    mine = client.get("/api/app/search", params={"q": "x", "scope": "mine"}).json()
+    assert [r["doc_id"] for r in mine["results"]] == ["i2"]
+
+
 # --------------------------------------------------------------------------- #
 # enrich_results — RFC-088 QueryEnricher chain over consumer search (#1261)
 # --------------------------------------------------------------------------- #

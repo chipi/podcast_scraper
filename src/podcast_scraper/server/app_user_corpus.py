@@ -115,6 +115,54 @@ def saved_episode_set(data_dir: Path, user_id: str) -> set[str]:
     return out
 
 
+def followed_show_ids(data_dir: Path, user_id: str) -> set[str]:
+    """The shows the user follows — their Library subscriptions, by ``feed_id``."""
+    return {
+        str(s["feed_id"]) for s in app_user_state.get_library(data_dir, user_id) if s.get("feed_id")
+    }
+
+
+def world_episode_set(root: Path, data_dir: Path, user_id: str) -> set[str]:
+    """Every EPISODE in the listener's own world — what search "Mine" filters to (2026-10-09).
+
+    Heard or captured from (:func:`experienced_episode_set`), saved (:func:`saved_episode_set`), or
+    an episode of a show they follow. A saved SHOW does not pull its episodes in: a save is a
+    bookmark, a follow is a subscription. The one meaning of "mine" per kind of item is
+    docs/adr — "Mine means the listener's own world".
+    """
+    episodes = experienced_episode_set(root, data_dir, user_id) | saved_episode_set(
+        data_dir, user_id
+    )
+    follows = followed_show_ids(data_dir, user_id)
+    if follows:
+        episodes |= {
+            slug_for_row(r) for r in cached_catalog(root) if (r.feed_id or "").strip() in follows
+        }
+    return episodes
+
+
+def personal_show_ids(root: Path, data_dir: Path, user_id: str) -> set[str]:
+    """Every SHOW in the listener's own world, by ``feed_id`` (2026-10-09).
+
+    Followed, saved, or the show of an episode they heard, captured from or saved. Trending shows
+    "Mine" used to rank against a set with no shows in it, so it was always empty.
+    """
+    shows = followed_show_ids(data_dir, user_id)
+    for fav in app_user_state.get_favorites(data_dir, user_id):
+        if fav.get("kind") == "show" and fav.get("ref"):
+            shows.add(str(fav["ref"]))
+    episodes = experienced_episode_set(root, data_dir, user_id) | saved_episode_set(
+        data_dir, user_id
+    )
+    if episodes:
+        shows |= {
+            (r.feed_id or "").strip()
+            for r in cached_catalog(root)
+            if (r.feed_id or "").strip() and slug_for_row(r) in episodes
+        }
+    return shows
+
+
 #: How many of the user's episodes any derived-interest read may load a KG for. One number, because
 #: there is one definition — see :func:`derived_interest_counts`.
 DERIVED_MAX_EPISODES = 40
@@ -270,8 +318,9 @@ def derive_interests(
 def personal_entity_ids(root: Path, data_dir: Path, user_id: str) -> set[str]:
     """Every entity in this listener's own world — what Trends "Mine" ranks (operator 2026-10-07).
 
-    Topics and people they follow, saved, or met in episodes they heard or captured from
-    (:func:`derived_interest_counts`, all of it — not the top-k the ranker uses), plus the themes
+    Topics and people they follow, saved, or met in episodes they heard, captured from
+    (:func:`derived_interest_counts`, all of it — not the top-k the ranker uses) or saved, the
+    shows of their world (:func:`personal_show_ids`), plus the themes
     (``tc:``) and storylines (``thc:``) they follow or that contain one of those topics. "Mine"
     used to blend the user's engagement into the corpus-wide list, which for a light listener
     left it indistinguishable from "everyone"; this is the set it filters to instead.
@@ -285,6 +334,8 @@ def personal_entity_ids(root: Path, data_dir: Path, user_id: str) -> set[str]:
         if kind in ("topic", "person", "storyline", "theme") and ref:
             ids.add(ref)
     ids |= {str(row["token"]) for row in derived_interest_counts(root, data_dir, user_id)}
+    ids |= _saved_episode_entity_tokens(root, data_dir, user_id)
+    ids |= personal_show_ids(root, data_dir, user_id)
     topics = {t for t in ids if t.startswith("topic:")}
     if topics:
         for topic_id, info in theme_map_by_topic(root).items():
@@ -294,6 +345,31 @@ def personal_entity_ids(root: Path, data_dir: Path, user_id: str) -> set[str]:
             if topic_id in topics and info.get("storyline_id"):
                 ids.add(str(info["storyline_id"]))
     return ids
+
+
+def _saved_episode_entity_tokens(root: Path, data_dir: Path, user_id: str) -> set[str]:
+    """Topics and people of the episodes the user SAVED — theirs for Trends "Mine" (2026-10-09).
+
+    Kept out of :func:`derived_interest_counts` on purpose: that is "what this user is into" for
+    the discover ranker too, and a bookmark is weaker evidence than a listen. Bounded like it — the
+    newest :data:`DERIVED_MAX_EPISODES` saves (favorites are stored oldest first), one KG load each.
+    """
+    saved = [
+        str(f["ref"])
+        for f in app_user_state.get_favorites(data_dir, user_id)
+        if f.get("kind") == "episode" and f.get("ref")
+    ][-DERIVED_MAX_EPISODES:]
+    if not saved:
+        return set()
+    rows_by_slug = {slug_for_row(r): r for r in cached_catalog(root)}
+    out: set[str] = set()
+    for slug in saved:
+        row = rows_by_slug.get(slug)
+        if row is not None:
+            out |= {
+                interest_token(kind, ent_id) for kind, ent_id, _ in _episode_entities(root, row)
+            }
+    return out
 
 
 def interest_token(kind: str, ent_id: str) -> str:
