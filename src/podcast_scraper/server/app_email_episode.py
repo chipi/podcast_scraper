@@ -25,8 +25,9 @@ from podcast_scraper.search.topic_clusters import theme_map_by_topic
 from podcast_scraper.server.app_content_source import row_to_summary
 from podcast_scraper.server.app_slugs import resolve_slug
 
-#: Email clients cannot clamp by line, so the summary is cut server-side, at a word, to roughly
-#: the three lines the app's episode card shows before "Show more".
+#: Email clients cannot clamp by line, so the publisher's DESCRIPTION is cut server-side, at a
+#: word, to roughly the three lines the app's episode card shows before "Show more". Our SUMMARY is
+#: not cut (operator 2026-10-09: "show the full summary no matter how big it is") — see full_text.
 SUMMARY_CHARS = 240
 
 
@@ -37,6 +38,12 @@ def short_text(text: str | None, limit: int = SUMMARY_CHARS) -> str | None:
         return t or None
     cut = t[:limit].rsplit(" ", 1)[0].rstrip(",;:—-")
     return f"{cut}…"
+
+
+def full_text(text: str | None) -> str | None:
+    """Whitespace-collapsed ``text``, whole, or None — the summary, which an email shows in full."""
+    t = " ".join((text or "").split())
+    return t or None
 
 
 def episode_display(root: Path, slug: str) -> dict[str, Any]:
@@ -54,7 +61,9 @@ def episode_display(root: Path, slug: str) -> dict[str, Any]:
         # The publisher's own blurb, and OUR summary — both shown, ours labelled "Summary", so a
         # reader can tell which is which (operator 2026-10-05).
         "description": short_text(row.episode_description),
-        "summary": short_text(s.summary_text or s.summary_preview),
+        # Whole, however long (operator 2026-10-09). It was cut to SUMMARY_CHARS with "…", which
+        # in an email — no "Show more" — hid most of the one thing the reader came for.
+        "summary": full_text(s.summary_text or s.summary_preview),
     }
     return {k: v for k, v in facts.items() if v not in (None, "")}
 

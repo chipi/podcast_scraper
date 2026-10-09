@@ -62,7 +62,23 @@ def test_a_topic_link_is_not_dressed_as_its_representative_episode() -> None:
     assert "episode_title" not in item and "artwork_url" not in item
 
 
-def test_summary_is_cut_at_a_word_to_about_three_lines() -> None:
+def test_the_summary_is_shown_whole_however_long(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Operator 2026-10-09: an email has no "Show more", so a cut summary hid most of it."""
+    import podcast_scraper.server.app_email_episode as mod
+
+    long = " ".join(f"sentence{i}." for i in range(400))  # ~4,000 chars
+    real = mod.row_to_summary
+
+    def with_long_summary(root: Path, row: Any) -> Any:
+        return real(root, row).model_copy(update={"summary_text": long})
+
+    monkeypatch.setattr(mod, "row_to_summary", with_long_summary)
+    facts = episode_display(_CORPUS, _a_slug())
+    assert facts["summary"] == long
+    assert not facts["summary"].endswith("…")
+
+
+def test_description_is_cut_at_a_word_to_about_three_lines() -> None:
     from podcast_scraper.server.app_email_episode import short_text, SUMMARY_CHARS
 
     long = "word " * 200
