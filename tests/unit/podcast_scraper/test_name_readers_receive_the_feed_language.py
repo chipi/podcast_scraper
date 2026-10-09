@@ -43,9 +43,6 @@ ENGLISH_BY_DESIGN = {
     ("server/feed_signals.py", "_accumulate_kg_entities"): (
         "KG person nodes, extracted from the English canonical body (D-44)"
     ),
-    ("providers/ml/diarization/roster.py", "_greeted_names"): (
-        "its greeting patterns are English-only (`_GUEST_GREETED_RE`); listed as an open reader"
-    ),
 }
 
 

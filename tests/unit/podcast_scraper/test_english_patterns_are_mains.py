@@ -69,6 +69,17 @@ _MOVED: Dict[Tuple[str, str], Tuple[str, str, Any]] = {
         )
         for name in ("_HOST_SPEECH_ACTS", "_GUEST_SPEECH_ACTS")
     },
+    # ...and its name-anchored greeting / name-first introduction patterns (2026-10-10).
+    ("podcast_scraper.providers.ml.diarization.roster", "_GUEST_GREETED_RE"): (
+        "podcast_scraper.speaker_detectors.hosts",
+        "_GUEST_GREETED_BY_LANGUAGE",
+        "en",
+    ),
+    ("podcast_scraper.providers.ml.diarization.roster", "_GUEST_INTRODUCED_NAME_FIRST_RE"): (
+        "podcast_scraper.speaker_detectors.hosts",
+        "_GUEST_INTRODUCED_NAME_FIRST_BY_LANGUAGE",
+        "en",
+    ),
     # The stated-name possessive became the English row of a per-language map.
     ("podcast_scraper.speaker_detectors.hosts", "_STATED_POSSESSIVE_PREFIX"): (
         "podcast_scraper.speaker_detectors.hosts",

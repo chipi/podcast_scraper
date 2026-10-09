@@ -53,9 +53,9 @@ from ....speaker_detectors.hosts import (
     _CUE_FIRST_BODY_BY_LANGUAGE,
     _CUE_FIRST_PAST_BODY_BY_LANGUAGE,
     _GREETED_TAIL_BY_LANGUAGE,
-    _GUEST_GREETED as _GUEST_GREETED_RE,
+    _GUEST_GREETED_BY_LANGUAGE,
     _GUEST_INTRODUCED_BY_HOST_BY_LANGUAGE as _GUEST_INTRODUCED_BY_HOST_RE_BY_LANGUAGE,
-    _GUEST_INTRODUCED_NAME_FIRST as _GUEST_INTRODUCED_NAME_FIRST_RE,
+    _GUEST_INTRODUCED_NAME_FIRST_BY_LANGUAGE,
     _GUEST_SPEECH_ACTS_BY_LANGUAGE,
     _HOST_SPEECH_ACTS_BY_LANGUAGE,
     _NAME_FIRST_REPORT_TAIL_BY_LANGUAGE,
@@ -439,7 +439,23 @@ _GUEST_REPLY_WIDE = [
 ]
 
 
-def _is_show_mononym(name: str, feed_title: Optional[str], known_hosts: Sequence[str]) -> bool:
+def _guest_replies(language: Optional[str]) -> Tuple["re.Pattern[str]", ...]:
+    """The rescue's guest-reply patterns: the wide English list, plus the feed language's guest
+    speech acts ("gracias por invitarme"). Without that row a Spanish cluster showed NO guest reply,
+    so test 1 below always passed and the rescue was looser off English than on it. Adding a row
+    only finds more replies, which only declines more (an unnamed voice, never a wrong one)."""
+    own: Tuple["re.Pattern[str]", ...] = ()
+    if language is not None and naming_vocabulary.primary_subtag(language) != TARGET_LANGUAGE:
+        own = _guest_acts(language)
+    return tuple(_GUEST_REPLY_WIDE) + own
+
+
+def _is_show_mononym(
+    name: str,
+    feed_title: Optional[str],
+    known_hosts: Sequence[str],
+    language: Optional[str] = None,
+) -> bool:
     """A one-word name that is the first word of the show ("I'm your host, Trivium co-founder
     Andrew Polk" -> "Trivium" on The Trivium China Podcast) names the show, not a person — unless
     a stated host goes by it ("Dwarkesh" on Dwarkesh Podcast, "Lenny" on Lenny's Podcast)."""
@@ -448,7 +464,13 @@ def _is_show_mononym(name: str, feed_title: Optional[str], known_hosts: Sequence
         return False
     token = toks[0].lower().strip(".,'’")
     title_tokens = re.sub(r"[^\w\s]", " ", feed_title.lower()).split()
-    if title_tokens and title_tokens[0] in {"the", "a", "an"}:
+    articles = {"the", "a", "an"}
+    if language is not None and naming_vocabulary.primary_subtag(language) != TARGET_LANGUAGE:
+        # The feed's article too ("El Partidazo de COPE"): a refusal only ever widens.
+        own = naming_vocabulary.LEADING_ARTICLE.get(naming_vocabulary.primary_subtag(language))
+        if own and title_tokens and re.match(own, title_tokens[0] + " "):
+            articles.add(title_tokens[0])
+    if title_tokens and title_tokens[0] in articles:
         title_tokens = title_tokens[1:]
     if len(title_tokens) < 2 or title_tokens[0] != token or len(token) < 5:
         return False
@@ -543,7 +565,7 @@ def _rescued_from_bleed(
     host_at = [m.start() for p in _host_acts(language) for m in p.finditer(text)]
     if not host_at:
         return False
-    reply_at = [m.start() for p in _GUEST_REPLY_WIDE for m in p.finditer(text)]
+    reply_at = [m.start() for p in _guest_replies(language) for m in p.finditer(text)]
     if not any(all(abs(h - g) > _BLEED_PAIR_CHARS for g in reply_at) for h in host_at):
         return False
     share = talk_share.get(seat)
@@ -896,6 +918,29 @@ _NAME_SUFFIXES = _NAME_SUFFIXES_BY_LANGUAGE[TARGET_LANGUAGE]
 # not cost another bug rather than because the corpus has one today.
 
 
+#: Every other language's titles ("Sra.", "Dott.", "Herr", "Dona"), for telling one person's
+#: spellings apart. Shared, not per-language, for the reason `_core_name_tokens` gives for its
+#: suffixes: a name is compared across sources, and a Spanish guest of an English feed is introduced
+#: as "Sra. Ana Ruiz" too. Stripped ONLY while a given name and a surname remain: Spanish `don` is
+#: an English given name ("Don Lemon"). Left out: `m` (French "M."), an English initial, and the
+#: English words `general`/`colonel`, whose English behaviour is pinned until an English replay.
+_OTHER_LANGUAGE_TITLES: FrozenSet[str] = (
+    frozenset(
+        t
+        for lang, row in naming_vocabulary.HONORIFIC_TITLES.items()
+        if lang != TARGET_LANGUAGE
+        for t in row
+    )
+    - HONORIFIC_TITLES
+    - {"m", "general", "colonel"}
+)
+
+
+def _is_leading_title(tok: str, remaining: int) -> bool:
+    """*tok* (lower-case) is a title to drop with *remaining* tokens, itself included."""
+    return tok in HONORIFIC_TITLES or (remaining > 2 and tok in _OTHER_LANGUAGE_TITLES)
+
+
 def _core_name_tokens(name: str) -> List[str]:
     """A name's tokens with punctuation, generational suffixes and credentials removed.
 
@@ -920,7 +965,7 @@ def _core_name_tokens(name: str) -> List[str]:
     # Hannah Fry and she was listed twice (Google DeepMind, 2026-10-08). Dropped only while a given
     # name and a surname remain: "Professor Pape" keeps its title, since without it the surname
     # would read as a given name.
-    while len(toks) > 2 and toks[0].lower() in HONORIFIC_TITLES:
+    while len(toks) > 2 and _is_leading_title(toks[0].lower(), len(toks)):
         toks = toks[1:]
     return toks
 
@@ -943,7 +988,7 @@ def _surname_token(name: str) -> Optional[str]:
 def _given_tokens(name: str) -> List[str]:
     """Name tokens after stripping leading honorifics ("Dr. Adam Rodman" -> ["Adam", "Rodman"])."""
     toks = [t.strip(".,'’") for t in (name or "").split()]
-    while toks and toks[0].lower() in HONORIFIC_TITLES:
+    while toks and _is_leading_title(toks[0].lower(), len(toks)):
         toks = toks[1:]
     return toks
 
@@ -987,7 +1032,7 @@ def _strip_titles(name: str) -> List[str]:
     match a title word is left alone once a real given name precedes it.
     """
     tokens = [tok for tok in name.lower().replace(".", " ").replace(",", " ").split() if tok]
-    while len(tokens) > 1 and tokens[0] in HONORIFIC_TITLES:
+    while len(tokens) > 1 and _is_leading_title(tokens[0], len(tokens)):
         tokens.pop(0)
     while len(tokens) > 1 and tokens[-1] in _CREDENTIAL_SUFFIXES:
         tokens.pop()
@@ -2966,7 +3011,22 @@ def _intro_names(m: "re.Match[str]", language: Optional[str] = None) -> List[str
     ]
 
 
-def _greeted_names(text: str) -> List[str]:
+def _name_anchored_greetings(language: Optional[str]) -> Tuple["re.Pattern[str]", ...]:
+    """The greeting ("Kara Swisher, welcome") and name-first introduction rows of *language*.
+
+    English alone they were, imported from hosts' English aliases although hosts builds both per
+    language — the D17/D18 class. Measured over the 1,144 turns of the non-English arc's 12 episodes
+    (narrative journalism and news): no row matches anything, so this changes nothing there; their
+    precision on interview shows is unmeasured.
+    """
+    rows = (
+        naming_vocabulary.vocabulary_row(_GUEST_GREETED_BY_LANGUAGE, language),
+        naming_vocabulary.vocabulary_row(_GUEST_INTRODUCED_NAME_FIRST_BY_LANGUAGE, language),
+    )
+    return tuple(rx for rx in rows if rx is not None)
+
+
+def _greeted_names(text: str, language: Optional[str] = TARGET_LANGUAGE) -> List[str]:
     """Names in a NAME-ANCHORED greeting/introduction ("Kara Swisher, welcome" / "X is with us").
 
     Deliberately excludes the cue-first form (already handled) and never the loose show-structure
@@ -2974,9 +3034,9 @@ def _greeted_names(text: str) -> List[str]:
     guest speech (a wrong label is worse than an unnamed voice).
     """
     names: List[str] = []
-    for rx in (_GUEST_GREETED_RE, _GUEST_INTRODUCED_NAME_FIRST_RE):
+    for rx in _name_anchored_greetings(language):
         for m in rx.finditer(text or ""):
-            names += _intro_names(m)
+            names += _intro_names(m, language)
     return names
 
 
@@ -2995,6 +3055,7 @@ def _reclaim_greeting_turns(
     ordered_turns: Sequence[Tuple[str, str]],
     host_hint_voices: Set[str],
     known_hosts: Sequence[str],
+    language: Optional[str] = TARGET_LANGUAGE,
 ) -> List[Tuple[str, str]]:
     """Move a host's name-anchored greeting off a guest cluster it was mis-merged into (#1226 fu).
 
@@ -3016,7 +3077,7 @@ def _reclaim_greeting_turns(
     for i, (speaker, text) in enumerate(out):
         if speaker in host_hint_voices:
             continue  # greeting already on a host cluster — nothing to reclaim
-        greeted = _greeted_names(text)
+        greeted = _greeted_names(text, language)
         if not greeted:
             continue
         # A stated host being "greeted" is a co-host intro / self-reference, not contamination.
@@ -3294,7 +3355,7 @@ def _voice_named_by_the_introduction(
                 if past_nm:
                     _assign(i, [past_nm])
         if is_host_hint:
-            for rx in (_GUEST_GREETED_RE, _GUEST_INTRODUCED_NAME_FIRST_RE):
+            for rx in _name_anchored_greetings(language):
                 for m in rx.finditer(text or ""):
                     names = _intro_names(m, language)
                     if names:
@@ -5134,7 +5195,9 @@ def resolve_speaker_roster(
     tr.diff_names("self_intro", {}, voice_intro)
     _vi_before = dict(voice_intro)
     voice_intro = {
-        v: n for v, n in voice_intro.items() if not _is_show_mononym(n, feed_title, known_hosts)
+        v: n
+        for v, n in voice_intro.items()
+        if not _is_show_mononym(n, feed_title, known_hosts, language)
     }
     tr.diff_names("show_mononym_filter", _vi_before, voice_intro)
     _vi_before = dict(voice_intro)
@@ -5165,7 +5228,9 @@ def resolve_speaker_roster(
 
     # A host's name-anchored greeting mis-merged into the guest's cluster is moved back to a host,
     # so the guest is named from it deterministically rather than refused by the third-person guard.
-    reclaimed_turns = _reclaim_greeting_turns(ordered_turns or [], host_hint_voices, known_hosts)
+    reclaimed_turns = _reclaim_greeting_turns(
+        ordered_turns or [], host_hint_voices, known_hosts, language
+    )
 
     # A voice the HOST introduced by name is that person (the introduced person speaks next),
     # guarded against the interview-CLOSE case where the next voice is the host resuming (R3/#876).
@@ -5582,7 +5647,7 @@ def resolve_speaker_roster(
             _role = replace(_role, name=_bare)
             by_voice[_v] = _role
         _publishable = is_publishable_speaker_name(_role.name, language=language)
-        if not _publishable or _is_show_mononym(_role.name, feed_title, known_hosts):
+        if not _publishable or _is_show_mononym(_role.name, feed_title, known_hosts, language):
             tr.publish_refused(
                 _v, _role.name, "not_publishable" if not _publishable else "show_mononym"
             )
