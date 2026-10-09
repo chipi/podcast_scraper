@@ -97,6 +97,9 @@ class TestTheLanguageIsActuallyDelivered:
             "guests_introduced_by_the_host",
             "_third_party_excess",
             "_select_host_voices",
+            "_guests_by_their_own_words",
+            "_rescued_from_bleed",
+            "performs_show_intro",
         ],
     )
     def test_every_roster_call_passes_the_language(self, callee: str) -> None:
@@ -478,3 +481,22 @@ class TestTheConversationIsReadInItsLanguage:
     def test_the_roster_does_not_read_the_english_pattern_directly(self) -> None:
         src = _ROSTER_SRC.read_text(encoding="utf-8")
         assert "_GUEST_INTRODUCED_BY_HOST_RE.finditer" not in src
+
+
+class TestTheRosterReadsSpeechActsInTheLanguage:
+    """The remaining English-only readers of the speech-act and show-intro rows (sweep of every
+    `X_BY_LANGUAGE[TARGET_LANGUAGE]` alias, 2026-10-09): the roster's guest/host speech-act checks
+    and `performs_show_intro` read English on Spanish text."""
+
+    def test_a_spanish_show_intro_is_read(self) -> None:
+        from podcast_scraper.speaker_detectors.hosts import performs_show_intro
+
+        text = "Esto es Radio Ambulante, desde NPR. Soy Daniel Alarcón."
+        assert performs_show_intro(text, "Radio Ambulante", language="es")
+        assert not performs_show_intro(text, "Radio Ambulante")
+
+    def test_the_roster_reads_no_english_speech_act_row_directly(self) -> None:
+        src = _ROSTER_SRC.read_text(encoding="utf-8")
+        for name in ("_HOST_SPEECH_ACTS", "_GUEST_SPEECH_ACTS"):
+            bare = [ln for ln in src.splitlines() if name in ln and f"{name}_BY_LANGUAGE" not in ln]
+            assert bare == [], f"roster reads the English {name}: {bare}"
