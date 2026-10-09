@@ -531,8 +531,7 @@ function onLibraryEpisodeRowKeydown(e: KeyboardEvent, index: number): void {
 }
 
 function applyEpisodeFilters(): void {
-  subject.clearSubject()
-  void loadEpisodes(false)
+  applySinceDateReloadEpisodesNow()
 }
 
 /**

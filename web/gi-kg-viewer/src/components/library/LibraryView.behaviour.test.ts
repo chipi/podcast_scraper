@@ -70,6 +70,9 @@ function serve(items: CorpusEpisodeListItem[], opts: { next?: string | null; tot
 }
 
 const baseline = vi.fn().mockResolvedValue(undefined)
+// Unmounted after each test so a view's timers and watchers cannot outlive it and call the API
+// during a later test (clearing document.body removes the DOM, not the Vue app).
+const mounted: ReturnType<typeof mount>[] = []
 
 async function mountLibrary() {
   const shell = useShellStore()
@@ -80,6 +83,7 @@ async function mountLibrary() {
     global: { provide: { [corpusGraphBaselineLoaderKey as symbol]: baseline } },
     attachTo: document.body,
   })
+  mounted.push(w)
   await flushPromises()
   return w
 }
@@ -89,6 +93,7 @@ const lastEpisodesCall = () => vi.mocked(fetchCorpusEpisodes).mock.calls.at(-1)!
 
 beforeEach(() => setActivePinia(createPinia()))
 afterEach(() => {
+  mounted.splice(0).forEach((w) => w.unmount())
   vi.clearAllMocks()
   vi.useRealTimers()
   document.body.innerHTML = ''
@@ -198,6 +203,20 @@ describe('LibraryView — filters', () => {
     await w.find('[data-testid="library-filter-summary"]').trigger('keydown', { key: 'Enter' })
     await flushPromises()
     expect(lastEpisodesCall()[1]).toMatchObject({ q: 'risk', topicQ: 'systems' })
+  })
+
+  it('Enter reloads once — the keystroke debounce it pre-empts does not fire a second reload', async () => {
+    // main a87d03693 viewer-unit: the debounce typing scheduled outlived Enter's immediate
+    // reload, fired 400 ms later, and on a slow runner landed in a LATER test's last call.
+    serve([ep(1)])
+    const w = await mountLibrary()
+    vi.useFakeTimers()
+    await w.find('[data-testid="library-filter-title"]').setValue('risk')
+    await w.find('[data-testid="library-filter-title"]').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    const afterEnter = vi.mocked(fetchCorpusEpisodes).mock.calls.length
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(vi.mocked(fetchCorpusEpisodes).mock.calls.length).toBe(afterEnter)
   })
 
   it('typing in a filter reloads once, after the debounce', async () => {
