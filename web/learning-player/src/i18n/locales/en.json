@@ -14,6 +14,7 @@
     "person": "Person",
     "storyline": "Storyline",
     "browse": "Discover",
+    "explore": "Explore",
     "settings": "Settings",
     "about-page": "About"
   },
@@ -1241,5 +1242,14 @@
     "outside": "Outside your usual",
     "playFrom": "Play from {time}",
     "playFromLabel": "Play “{quote}” from {time}"
+  },
+  "discover": {
+    "exploreLink": "Explore",
+    "quotes": {
+      "title": "Worth hearing next"
+    }
+  },
+  "explore": {
+    "title": "Explore"
   }
 }

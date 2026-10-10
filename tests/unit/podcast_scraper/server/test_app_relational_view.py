@@ -708,6 +708,26 @@ class TestRankingProjection:
         bare = {"id": "i", "properties": {"text": "x"}}
         assert _node_to_app_insight(bare, {"e": "s"}).start_ms is None
 
+    def test_a_perspective_insight_carries_its_supporting_quote(self) -> None:
+        """The quote a perspective's take is grounded on travels with it (2026-10-11): a quote card
+        (ADR-163 §4) needs the transcript's words, and the insight's own text is a paraphrase."""
+        from podcast_scraper.server.app_relational_view import _node_to_app_insight
+
+        node = {
+            "id": "insight:1",
+            "properties": {"text": "a paraphrased claim"},
+            "_episode_id": "episode:a",
+            "_quote_start_ms": 90000,
+            "_quote_end_ms": 95000,
+            "_quote_text": "What she actually said.",
+        }
+        ins = _node_to_app_insight(node, {"episode:a": "the-slug"})
+        assert [(q.text, q.start_ms, q.end_ms) for q in ins.quotes] == [
+            ("What she actually said.", 90000, 95000)
+        ]
+        bare = {"id": "i", "properties": {"text": "x"}, "_quote_start_ms": 1}
+        assert _node_to_app_insight(bare).quotes == []  # no quote text: no quote
+
     def test_rank_for_display_sorts_desc_and_drops_drop_tagged(self) -> None:
         from podcast_scraper.server.app_relational_view import (
             _node_to_app_insight,

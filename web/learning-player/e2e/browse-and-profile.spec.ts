@@ -11,10 +11,11 @@ import { signInIsolated, expectSignedIn } from './helpers'
  * who signs in on that phone, so they belong last.
  */
 
-test('Browse renders the discovery explorer and both content tabs', async ({ page }, testInfo) => {
+test('Explore renders the discovery explorer and both content tabs', async ({ page }, testInfo) => {
   await signInIsolated(page, 'browse-hub', testInfo)
-  await page.goto('/browse')
-  await expect(page.getByTestId('browse-view')).toBeVisible()
+  // Trends and the catalog live on Explore since 2026-10-11 (ADR-163 §1).
+  await page.goto('/explore')
+  await expect(page.getByTestId('explore-view')).toBeVisible()
 
   // The shared discovery explorer (tabbed topics/storylines/people) sits above the content tabs.
   await expect(page.getByTestId('discovery-explorer')).toBeVisible()
@@ -29,7 +30,7 @@ test('Browse renders the discovery explorer and both content tabs', async ({ pag
 
 test('the shows index can be searched and sorted', async ({ page }, testInfo) => {
   await signInIsolated(page, 'browse-shows', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await page.getByTestId('browse-tab-shows').click()
 
   await expect(page.getByTestId('show-browse-grid')).toBeVisible()
@@ -114,12 +115,7 @@ test('the Browse affordance lands on the hub at every viewport', async ({ page }
   await browseLink.click()
 
   await expect(page.getByTestId('browse-view')).toBeVisible()
-  // The hub now has the discovery explorer (topics/storylines/people) + two content tabs.
-  await expect(page.getByTestId('discovery-explorer')).toBeVisible()
-  for (const tab of ['episodes', 'shows']) {
-    await expect(
-      page.getByTestId(`browse-tab-${tab}`),
-      `Browse must offer the ${tab} content tab`,
-    ).toBeVisible()
-  }
+  // Discover is what to hear next (ADR-163); Trends and the catalog are one tap away on Explore.
+  await expect(page.getByTestId('browse-search-section')).toBeVisible()
+  await expect(page.getByTestId('discover-explore-link')).toBeVisible()
 })

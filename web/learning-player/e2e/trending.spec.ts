@@ -12,7 +12,7 @@ import { signInIsolated, showEveryonesTrends } from './helpers'
  */
 test('Discover shows the Rising-now discovery list with rising topics', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trending-rising', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
 
   // #4 folded the three "what's hot" rails into one tabbed area; the default discovery TAB is
@@ -35,7 +35,7 @@ test('signed in: following a trending topic from the list toggles to followed', 
   page,
 }, testInfo) => {
   await signInIsolated(page, 'trending', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
 
   const list = page.getByTestId('discovery-list-topic')

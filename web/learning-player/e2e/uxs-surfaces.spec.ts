@@ -126,7 +126,7 @@ test('UXS-012: "Browse all →" under What\'s new opens the Browse hub on Episod
   await page.goto('/')
   const section = page.getByRole('heading', { name: "What's new" }).locator('xpath=ancestor::section[1]')
   await section.getByRole('link', { name: /Browse all/ }).click()
-  await expect(page).toHaveURL(/\/browse\?tab=episodes/)
+  await expect(page).toHaveURL(/\/explore\?tab=episodes/)
 })
 
 test('UXS-012 §Section state: a failed What\'s new says so and Retry recovers it', async ({ page }) => {

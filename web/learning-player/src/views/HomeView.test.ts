@@ -58,6 +58,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/browse', name: 'browse', component: { template: '<div/>' } },
+    { path: '/explore', name: 'explore', component: { template: '<div/>' } },
     { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
@@ -250,7 +251,7 @@ describe('HomeView (discover state, signed out)', () => {
     await flushPromises()
     expect(w.find('[data-testid="home-discovery"]').exists()).toBe(false)
     expect(w.find('[data-testid="discovery-tab-topic"]').exists()).toBe(false)
-    // The way to them stays: the Discover strip deep-links into Discover's Trends.
+    // The way to them stays: the Discover strip deep-links into Explore's Trends.
     expect(w.find('[data-testid="home-browse-nav"]').exists()).toBe(true)
   })
 
@@ -261,10 +262,10 @@ describe('HomeView (discover state, signed out)', () => {
     await flushPromises()
     const nav = w.get('[data-testid="home-browse-nav"]')
     expect(nav.findAll('a').map((a) => a.attributes('href'))).toEqual([
-      '/browse?trends=topic',
-      '/browse?trends=person',
-      '/browse?trends=theme',
-      '/browse?trends=storyline',
+      '/explore?trends=topic',
+      '/explore?trends=person',
+      '/explore?trends=theme',
+      '/explore?trends=storyline',
     ])
   })
 
@@ -627,9 +628,9 @@ describe('HomeView interests card (3.5)', () => {
     const nav = w.get('[data-testid="home-browse-nav"]')
     const links = nav.findAll('a')
     const hrefs = links.map((a) => a.attributes('href'))
-    expect(hrefs).toContain('/browse?trends=topic')
-    expect(hrefs).toContain('/browse?trends=storyline')
-    expect(hrefs).toContain('/browse?trends=person')
+    expect(hrefs).toContain('/explore?trends=topic')
+    expect(hrefs).toContain('/explore?trends=storyline')
+    expect(hrefs).toContain('/explore?trends=person')
     expect(nav.text()).toContain('Explore what people are talking about')
   })
 

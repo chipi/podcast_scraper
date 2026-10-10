@@ -183,6 +183,17 @@ const routes: RouteRecordRaw[] = [
     path: '/browse',
     name: 'browse',
     component: () => import('../views/BrowseView.vue'),
+    // Trends and the Episodes · Shows catalog moved to Explore (ADR-163 §1, 2026-10-11). Old links
+    // into them — `?trends=`, `?tab=`, `#catalog` — keep working by landing there.
+    beforeEnter: (to) =>
+      to.query.trends || to.query.tab || to.hash === '#catalog' || to.hash === '#trends'
+        ? { name: 'explore', query: to.query, hash: to.hash }
+        : true,
+  },
+  {
+    path: '/explore',
+    name: 'explore',
+    component: () => import('../views/ExploreView.vue'),
   },
   {
     // #2273. PUBLIC on purpose: Google Play's listing needs a web address that explains deletion
@@ -221,7 +232,7 @@ const routes: RouteRecordRaw[] = [
    * tab lit) and tests — so they were reachable by URL alone. Redirecting keeps those URLs working
    * while making the hub the only Browse there is.
    */
-  { path: '/browse/shows', name: 'browse-shows', redirect: { name: 'browse', query: { tab: 'shows' } } },
+  { path: '/browse/shows', name: 'browse-shows', redirect: { name: 'explore', query: { tab: 'shows' } } },
   { path: '/browse/topics', name: 'browse-topics', redirect: { name: 'browse', query: { tab: 'topics' } } },
   { path: '/browse/people', name: 'browse-people', redirect: { name: 'browse', query: { tab: 'people' } } },
   { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },

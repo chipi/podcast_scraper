@@ -202,3 +202,44 @@ def test_the_insights_own_text_never_stands_in_for_a_quote(
         te, "insights_from_gi", lambda art, limit=None, **kw: [NS(id="i", text="A", quotes=[])]
     )
     assert te.trending_episodes(tmp_path, tmp_path, now=_NOW) == []
+
+
+def test_mine_gets_the_labelled_outside_share_from_everyones_cards(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """ADR-163 §7: under Mine every 5th card is one of Everyone's from outside the listener's
+    habits, labelled; Everyone's cards from the listener's own shows or topics never fill it."""
+    from podcast_scraper.server.app_reasons import Reason
+    from podcast_scraper.server.app_serendipity import Habits
+
+    feeds = {"far-1": "feed:far", "far-2": "feed:far", "theirs": "feed:mine", "topical": "feed:x"}
+    monkeypatch.setattr(
+        te,
+        "resolve_slug",
+        lambda root, slug: NS(feed_id=feeds.get(slug, "feed:mine"), kg_relative_path=slug),
+    )
+    monkeypatch.setattr(
+        te, "episode_entity_ids", lambda root, rel: {"topic:rates"} if rel == "topical" else set()
+    )
+    habits = Habits(shows=frozenset({"feed:mine"}), entities=frozenset({"topic:rates"}))
+
+    def card(slug: str) -> te.TrendingEpisodeCard:
+        return te.TrendingEpisodeCard(slug=slug, why=Reason(kind="rising_topic"))
+
+    mine = [card(f"m{i}") for i in range(8)]
+    everyone = [card("m0"), card("theirs"), card("topical"), card("far-1"), card("far-2")]
+    rail = te.mix_outside_habits(tmp_path, mine, everyone, habits, limit=10)
+    assert [c.slug for c in rail] == [
+        "m0",
+        "m1",
+        "m2",
+        "m3",
+        "far-1",
+        "m4",
+        "m5",
+        "m6",
+        "m7",
+        "far-2",
+    ]
+    assert [c.why.outside_habits for c in rail].count(True) == 2
+    assert all(c.why.outside_habits for c in rail if c.slug.startswith("far"))

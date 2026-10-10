@@ -244,7 +244,7 @@ const rank = (i: number): string => String(i + 2).padStart(2, "0")
 // "Browse all" opens the WHOLE list What's new is the top of (operator 2026-10-10: 20 shows with 20
 // new episodes showed 5): your shows, unplayed, when it is yours; every episode when it fell back.
 const whatsNewAllTo = computed(() => ({
-  name: "browse",
+  name: "explore",
   query:
     whatsNew.data.value.scope === "yours"
       ? { tab: "episodes", from: "following", state: "unplayed" }
@@ -556,7 +556,8 @@ async function loadContinue(): Promise<void> {
     </section>
 
     <!-- Discover entry points: a small title line over one row of four chips, each deep-linking
-         into Browse's Trends section on its kind (`?trends=<kind>` selects and scrolls to it).
+         into Explore's Trends on its kind (`?trends=<kind>` selects and scrolls to it; Trends moved
+         off Discover to Explore, ADR-163 §1).
 
          Operator 2026-10-08: the inline "Discover" lead-in pushed the fourth chip onto a second
          row, and plain grey chips said nothing about the kind. The lead-in is now a title above, so
@@ -569,7 +570,7 @@ async function loadContinue(): Promise<void> {
         <RouterLink
           v-for="chip in DISCOVER_CHIPS"
           :key="chip.kind"
-          :to="{ name: 'browse', query: { trends: chip.kind } }"
+          :to="{ name: 'explore', query: { trends: chip.kind } }"
           :data-testid="chip.testid"
           class="shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 font-semibold no-underline transition hover:brightness-125"
           :class="kindPill(chip.kind)"

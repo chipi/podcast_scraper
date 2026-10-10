@@ -44,8 +44,9 @@ from podcast_scraper.server.app_ranking_config import (
     ranking_config_to_dict,
 )
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, search_interests
+from podcast_scraper.server.app_serendipity import listener_habits
 from podcast_scraper.server.app_slugs import resolve_slug, slug_for_row
-from podcast_scraper.server.app_trending_episodes import trending_episodes
+from podcast_scraper.server.app_trending_episodes import mix_outside_habits, trending_episodes
 from podcast_scraper.server.app_user_corpus import (
     derive_interests,
     personal_entity_ids,
@@ -262,6 +263,14 @@ def app_trending_episodes(
         limit=limit,
         config=_momentum_config(request),
     )
+    if uid is not None and data_dir is not None:
+        # The serendipity share (ADR-163 §7): every 5th card from outside the listener's habits.
+        everyone = trending_episodes(
+            root, data_dir, scope="corpus", limit=limit * 2, config=_momentum_config(request)
+        )
+        cards = mix_outside_habits(
+            root, cards, everyone, listener_habits(root, data_dir, uid), limit=limit
+        )
     items: list[AppTrendingEpisodeCard] = []
     for card in cards:
         row = resolve_slug(root, card.slug)

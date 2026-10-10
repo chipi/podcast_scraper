@@ -10,7 +10,7 @@ import { signInIsolated } from './helpers'
  */
 test('a fresh listener sees Mine empty, explained, with a way to everyone', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trends-mine-fresh', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   const toggle = page.getByTestId('discover-scope')
   await expect(toggle).toHaveAttribute('aria-pressed', 'true') // Mine by default
   await expect(page.getByTestId('discovery-mine-empty')).toBeVisible()
@@ -40,7 +40,7 @@ test("following a topic puts it in Mine, and Mine holds only the listener's worl
   expect(ids).toContain(followed)
   expect(ids.length, 'Mine must be a subset, not everyone again').toBeLessThan(all.length)
 
-  await page.goto('/browse')
+  await page.goto('/explore')
   await expect(page.getByTestId('discover-scope')).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByTestId('discovery-row').first()).toBeVisible()
   await expect(page.getByTestId('discovery-mine-empty')).toHaveCount(0)
@@ -62,10 +62,14 @@ test('Trending shows follow the page switch: Mine is empty and explained for a f
   await expect(page.getByTestId('trending-shows-mine-empty')).toBeVisible()
   await expect(page.getByTestId('trending-show-card')).toHaveCount(0)
 
-  // Its own "show everyone" flips the ONE switch — Trends below follows too.
+  // Its own "show everyone" flips the ONE switch — the quote cards follow, and so do Explore's
+  // Trends (the switch is shared across pages; Trends moved to Explore 2026-10-11).
   await page.getByTestId('trending-shows-show-everyone').click()
   await expect(toggle).toHaveAttribute('aria-pressed', 'false')
   await expect(page.getByTestId('trending-show-card').first()).toBeVisible()
+  await expect(page.getByTestId('quote-card').first()).toBeVisible()
+  await page.goto('/explore')
+  await expect(page.getByTestId('discover-scope')).toHaveAttribute('aria-pressed', 'false')
   await expect(page.getByTestId('discovery-row').first()).toBeVisible()
 })
 

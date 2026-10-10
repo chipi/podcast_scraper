@@ -46,6 +46,7 @@ const SOURCE_BY_ROUTE: Readonly<Record<string, Source>> = {
   library: 'library',
   search: 'search',
   browse: 'browse',
+  explore: 'browse',
   'browse-shows': 'browse',
   'browse-topics': 'browse',
   'browse-people': 'browse',

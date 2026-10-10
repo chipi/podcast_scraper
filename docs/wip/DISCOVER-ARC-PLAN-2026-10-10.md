@@ -80,9 +80,17 @@ The Discover 2 preview was removed (UI only; its APIs stay).
 
 ## Step 2 — the first rails
 
-1. **Quote cards** (scan #2) — rising topics and the most engaged, as quote + "Play from 23:14";
-   builds on `GET /trending/episodes`. **Trends move to Explore in the same step** (named first),
-   so Discover never carries three popularity surfaces at once.
+1. **Quote cards** ✅ (2026-10-11) (scan #2) — rising topics and the most engaged, as quote +
+   "Play from 23:14", on `GET /trending/episodes`.
+   - **On Discover:** `QuoteCardsRail` leads, with `RecommendationWhy` and
+     `useRailTelemetry('quotes')`.
+   - **Mine:** every 5th card is the labelled outside-habits share (`mix_outside_habits`).
+   - **Fix:** perspective insights now carry their supporting quote (`cil_queries` annotates
+     `_quote_text`). Without it the extractive rule left rising-topic cards with nothing to quote,
+     so they never appeared.
+   - **Explore** ✅ (`/explore`): Trends and the Episodes · Shows catalog moved there (operator:
+     the catalog too). Old `/browse` links to them redirect; Discover's header links to it.
+   - The Umami telemetry spec checks the rail contract end to end.
 2. **More from what you captured** (scan #3, unique) — highlights, notes and saves seed episodes on
    other shows, by the same topic, person or storyline. Server-side, not the preview's per-highlight
    searches.
@@ -121,5 +129,5 @@ The Discover 2 preview was removed (UI only; its APIs stay).
 ## Not decided yet
 
 - The order inside Step 2, if measurement suggests otherwise.
-- What the Explore surface is called, and where its entry sits.
+- Whether Explore also gets a nav tab (today: a link in Discover's header).
 - What the picker offers and how many picks it asks for.

@@ -51,16 +51,19 @@ test('topic, person and storyline pages inset their content by the same gutter',
  * pill (Themes) collided with the sort switch. Since Trends left Home (2026-10-07) the reference is
  * the search section beside it on the same page.
  */
-test('Trends sits at the same inset and width as the search on Discover', async ({ page }, testInfo) => {
+test("Explore's Trends and Discover's search sit at the same inset and width", async ({ page }, testInfo) => {
+  // Trends moved to Explore (2026-10-11); both pages use the same left half-column, so the two
+  // still line up — measured on each page, compared across them.
   await signInIsolated(page, 'trends-gutter', testInfo)
   await page.goto('/browse')
+  const search = page.getByTestId('browse-search-section')
+  await expect(search).toBeVisible()
+  const s = (await search.boundingBox())!
+  await page.goto('/explore')
   await showEveryonesTrends(page)
   const trends = page.getByTestId('discovery-explorer')
-  const search = page.getByTestId('browse-search-section')
   await expect(trends).toBeVisible()
-  await expect(search).toBeVisible()
   const t = (await trends.boundingBox())!
-  const s = (await search.boundingBox())!
   expect(Math.round(t.x)).toBe(Math.round(s.x))
   expect(Math.round(t.width)).toBe(Math.round(s.width))
 })
@@ -76,7 +79,7 @@ for (const width of [360, 375]) {
     test.skip(testInfo.project.name !== 'mobile-chrome', 'a phone-width layout')
     await page.setViewportSize({ width, height: 800 })
     await signInIsolated(page, `trends-${width}`, testInfo)
-    for (const url of ['/browse']) {
+    for (const url of ['/explore']) {
       await page.goto(url)
       await expect(page.getByTestId('discovery-tab-person')).toBeVisible()
       // One read of every box, so nothing reflows between them. A pill past the sort switch is
@@ -203,6 +206,7 @@ test('every full-width page starts at the shell edge on desktop', async ({ page 
   for (const url of [
     '/',
     '/browse',
+    '/explore',
     '/catalog',
     '/search?q=reliability',
     '/queue',

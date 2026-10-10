@@ -8,110 +8,74 @@ import BrowseView from './BrowseView.vue'
 import { useAuthStore } from '../stores/auth'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-// Discover = the entity dashboard on top + a content band of Episodes · Shows. Stub the embedded
-// index views + the dashboard (it fetches trending); here we test the band's tab logic.
+// Discover = what to hear next (ADR-163): quote cards, trending shows, search. Stub the rails (they
+// fetch); here we test the page's composition and its ways out.
 const stubs = {
-  CatalogView: { template: '<div data-testid="stub-episodes" />' },
-  ShowBrowseView: { template: '<div data-testid="stub-shows" />' },
-  DiscoveryExplorer: { template: '<div data-testid="stub-explorer" />' },
-  TrendingShowsRail: { template: '<div data-testid="stub-trending-shows" />' },
+  QuoteCardsRail: { props: ['scope'], template: '<div data-testid="stub-quote-cards">{{ scope }}</div>' },
+  TrendingShowsRail: {
+    props: ['scope'],
+    emits: ['see-all'],
+    template: '<div data-testid="stub-trending-shows"><button data-testid="stub-see-all" @click="$emit(\'see-all\')">all</button>{{ scope }}</div>',
+  },
 }
 
-function makeRouter(query: Record<string, string> = {}) {
+function makeRouter() {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
       { path: '/browse', name: 'browse', component: BrowseView },
+      { path: '/explore', name: 'explore', component: { template: '<div/>' } },
       { path: '/search', name: 'search', component: { template: '<div/>' } },
     ],
   })
-  void router.push({ name: 'browse', query })
+  void router.push({ name: 'browse' })
   return router
 }
 
-async function mountView(query: Record<string, string> = {}) {
-  const router = makeRouter(query)
+async function mountView(pinia = createPinia()) {
+  const router = makeRouter()
   await router.isReady()
-  const w = mount(BrowseView, { global: { plugins: [i18n, router, createPinia()], stubs } })
+  const w = mount(BrowseView, { global: { plugins: [i18n, router, pinia], stubs } })
   await flushPromises()
   return w
 }
 
-describe('BrowseView (Discover)', () => {
-  it('shows the discovery dashboard, then a content band of Episodes · Shows (Episodes default)', async () => {
+describe('BrowseView (Discover): what to hear next', () => {
+  it('leads with the quote cards, then trending shows, then search — no Trends, no catalog', async () => {
     const w = await mountView()
-    expect(w.find('[data-testid="browse-view"]').exists()).toBe(true)
-    expect(w.find('[data-testid="stub-explorer"]').exists()).toBe(true)
-    // The band is only the content containers now — entities live in the dashboard above it.
-    for (const key of ['episodes', 'shows']) {
-      expect(w.find(`[data-testid="browse-tab-${key}"]`).exists()).toBe(true)
-    }
-    expect(w.find('[data-testid="browse-tab-topics"]').exists()).toBe(false)
-    expect(w.find('[data-testid="browse-tab-people"]').exists()).toBe(false)
-    expect(w.get('[data-testid="browse-tab-episodes"]').attributes('aria-selected')).toBe('true')
-    expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('false')
+    const html = w.html()
+    const at = (id: string) => html.indexOf(`data-testid="${id}"`)
+    expect(at('stub-quote-cards')).toBeGreaterThan(-1)
+    expect(at('stub-quote-cards')).toBeLessThan(at('stub-trending-shows'))
+    expect(at('stub-trending-shows')).toBeLessThan(at('browse-search-section'))
+    expect(w.find('[data-testid="browse-tab-episodes"]').exists()).toBe(false)
+    expect(w.findComponent({ name: 'TrendsSection' }).exists()).toBe(false)
+    expect(w.findComponent({ name: 'CatalogView' }).exists()).toBe(false)
   })
 
-  it('embeds the content index views (no navigation); a tab mounts when first opened, then stays', async () => {
-    // A tab never opened builds nothing: the hidden Shows grid used to fetch and decode artwork
-    // (a 3000px one on prod) while the listener was on Episodes (2026-10-08).
+  it('Explore is one tap away in the header', async () => {
     const w = await mountView()
-    expect(w.find('[data-testid="stub-episodes"]').exists()).toBe(true)
-    expect(w.find('[data-testid="stub-shows"]').exists()).toBe(false)
-    await w.get('[data-testid="browse-tab-shows"]').trigger('click')
-    await flushPromises()
-    expect(w.find('[data-testid="stub-shows"]').exists()).toBe(true)
-    await w.get('[data-testid="browse-tab-episodes"]').trigger('click')
-    await flushPromises()
-    // Kept after leaving it, so switching back neither refetches nor loses the scroll position.
-    expect(w.find('[data-testid="stub-shows"]').exists()).toBe(true)
+    expect(w.get('[data-testid="discover-explore-link"]').attributes('href')).toBe('/explore')
   })
 
-  it('switching the tab updates aria-selected', async () => {
+  it("trending shows' See all opens Explore's Shows, sorted by trending, as a list", async () => {
     const w = await mountView()
-    await w.get('[data-testid="browse-tab-shows"]').trigger('click')
-    expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('true')
-    expect(w.get('[data-testid="browse-tab-episodes"]').attributes('aria-selected')).toBe('false')
-  })
-
-  it('honours ?tab= for a deep link', async () => {
-    const w = await mountView({ tab: 'shows' })
-    expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('true')
-  })
-
-  it('re-syncs the active tab when ?tab= changes without a remount (kept-alive)', async () => {
-    const router = makeRouter({ tab: 'shows' })
-    await router.isReady()
-    const w = mount(BrowseView, { global: { plugins: [i18n, router, createPinia()], stubs } })
+    await w.get('[data-testid="stub-see-all"]').trigger('click')
     await flushPromises()
-    expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('true')
-
-    await router.push({ name: 'browse', query: { tab: 'episodes' } })
-    await flushPromises()
-    expect(w.get('[data-testid="browse-tab-episodes"]').attributes('aria-selected')).toBe('true')
-    expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('false')
+    const r = w.vm.$router.currentRoute.value
+    expect(r.name).toBe('explore')
+    expect(r.query).toEqual({ tab: 'shows', sort: 'trending', view: 'list' })
+    expect(r.hash).toBe('#catalog')
   })
 
-  /**
-   * Search folded into Discovery (operator 2026-09-20).
-   *
-   * It sits between the trending-shows rail and the trends dashboard — the point where the page
-   * stops saying "here is what is popular" and starts saying "go find something".
-   */
   it('carries a search box that submits to the results page', async () => {
     const w = await mountView()
-    // `.find()` not `.get()`: `get` throws when absent, so `.exists()` on its result is both
-    // redundant and a type error (the wrapper it returns has no `exists`).
-    expect(w.find('[data-testid="browse-search-section"]').exists()).toBe(true)
-
     await w.get('[data-testid="browse-search-input"]').setValue('  reward hacking  ')
     await w.get('[data-testid="browse-search-section"] form').trigger('submit')
     await flushPromises()
-
     const r = w.vm.$router.currentRoute.value
     expect(r.name).toBe('search')
-    // Trimmed: a leading space must not become part of the query.
-    expect(r.query.q).toBe('reward hacking')
+    expect(r.query.q).toBe('reward hacking') // trimmed
   })
 
   it('ignores a blank submit rather than opening an empty results page', async () => {
@@ -122,30 +86,21 @@ describe('BrowseView (Discover)', () => {
     expect(w.vm.$router.currentRoute.value.name).toBe('browse')
   })
 
-  // One Mine ⇄ Everyone switch for the whole page (operator 2026-10-09).
-  it('a signed-in Discover carries ONE scope switch in its header, and Trending shows follow it', async () => {
+  // One Mine ⇄ Everyone switch for the whole page (operator 2026-10-09): both rails follow it.
+  it('a signed-in Discover carries ONE scope switch, and both rails follow it', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })))
     const pinia = createPinia()
     setActivePinia(pinia)
     useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
-    const router = makeRouter()
-    await router.isReady()
-    const w = mount(BrowseView, {
-      global: {
-        plugins: [i18n, router, pinia],
-        stubs: {
-          ...stubs,
-          TrendingShowsRail: { props: ['scope'], template: '<div data-testid="stub-trending-shows">{{ scope }}</div>' },
-        },
-      },
-    })
-    await flushPromises()
+    const w = await mountView(pinia)
     const toggle = w.get('[data-testid="discover-scope"]')
     expect(toggle.attributes('aria-pressed')).toBe('true')
-    expect(w.get('[data-testid="stub-trending-shows"]').text()).toBe('mine')
+    expect(w.get('[data-testid="stub-trending-shows"]').text()).toContain('mine')
+    expect(w.get('[data-testid="stub-quote-cards"]').text()).toBe('mine')
     await toggle.trigger('click')
     await flushPromises()
-    expect(w.get('[data-testid="stub-trending-shows"]').text()).toBe('corpus')
+    expect(w.get('[data-testid="stub-trending-shows"]').text()).toContain('corpus')
+    expect(w.get('[data-testid="stub-quote-cards"]').text()).toBe('corpus')
     expect(w.findAll('[data-testid="discover-scope"]')).toHaveLength(1)
     vi.unstubAllGlobals()
   })

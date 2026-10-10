@@ -17,7 +17,7 @@ import { signInIsolated, showEveryonesTrends } from './helpers'
 
 test('the discovery list lists rows and each one can be followed', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-momentum', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
 
   // Topics tab is the default; Rising sort is the default — no extra click needed.
@@ -39,7 +39,7 @@ test('the trend window tabs re-query rather than re-rendering the same series', 
   page,
 }, testInfo) => {
   await signInIsolated(page, 'home-trend-window', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
   // Topics tab (Rising sort by default) — the window tabs belong to the discovery section.
   await expect(page.getByTestId('discovery-tab-topic')).toBeVisible()
@@ -59,7 +59,7 @@ test('the trend window tabs re-query rather than re-rendering the same series', 
 
 test('the storylines tab renders rows and follows one', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-storylines', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
   await page.getByTestId('discovery-tab-storyline').click()
 
@@ -75,7 +75,7 @@ test('the storylines tab renders rows and follows one', async ({ page }, testInf
 
 test('the Trends kind tabs are in order and fit the phone row', async ({ page }, testInfo) => {
   await signInIsolated(page, 'home-themes', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
   // Topics, Themes, Storylines, People — the order every surface lists the kinds in (2026-10-05).
   await expect(page.locator('[data-testid^="discovery-tab-"]')).toHaveText(['Topics', 'Themes', 'Storylines', 'People'])
@@ -106,7 +106,7 @@ test('the discovery tabs switch between topics, themes, storylines and people', 
   page,
 }, testInfo) => {
   await signInIsolated(page, 'home-discovery', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
 
   await expect(page.getByTestId('browse-discovery')).toBeVisible()
@@ -174,7 +174,7 @@ test('closing the card with Escape does not leave a dead Back press behind', asy
 
 test('a theme row says how many topics it holds, and can be followed', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trends-theme-row', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await showEveryonesTrends(page)
   await page.getByTestId('discovery-tab-theme').click()
   const row = page.getByTestId('discovery-list-theme').getByTestId('discovery-row').first()
@@ -196,23 +196,21 @@ for (const viewport of [
   { width: 412, height: 915, rows: 3 },
   { width: 1440, height: 900, rows: 5 },
 ]) {
-  test(`Discover's search + Trends block (${viewport.width}px)`, async ({ page }, testInfo) => {
+  test(`Discover's search and Explore's Trends block (${viewport.width}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport)
     await signInIsolated(page, `trends-block-${viewport.width}`, testInfo)
+    // Discover keeps the search half: two trending-topic chips under the search box.
     await page.goto('/browse')
+    await expect(page.getByTestId('browse-search-section').getByTestId('home-topic-chip')).toHaveCount(2)
+    await expect(page.getByTestId('browse-discovery')).toHaveCount(0) // Trends moved to Explore
+    // Explore holds Trends: 3 rows on a phone, 5 on desktop, "all ›" expanding in place.
+    await page.goto('/explore')
     await showEveryonesTrends(page)
     const block = page.getByTestId('browse-discovery')
     const rows = block.getByTestId('discovery-list-topic').getByTestId('discovery-row')
     await expect(rows).toHaveCount(viewport.rows)
-    await expect(page.getByTestId('browse-search-section').getByTestId('home-topic-chip')).toHaveCount(2)
-    const [s, t] = await page.evaluate(
-      ([a, b]) => [a, b].map((id) => document.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect().top),
-      ['browse-search-section', 'browse-discovery'],
-    )
-    expect(t, 'Trends below the search').toBeGreaterThan(s)
-    // "all ›" expands in place: more rows, same page.
     await block.getByTestId('discovery-see-all').click()
-    await expect(page).toHaveURL(/\/browse/)
+    await expect(page).toHaveURL(/\/explore/)
     expect(await rows.count()).toBeGreaterThan(viewport.rows)
 
     // Home keeps the search half, and has no Trends (operator 2026-10-07).

@@ -1219,12 +1219,20 @@ def topics_perspectives(
                 annotated["_episode_id"] = episode_id
             quote_node = _node_by_id(gi, qid) if qid else None
             if quote_node is not None:
-                start_ms = (quote_node.get("properties") or {}).get("timestamp_start_ms")
+                qprops = quote_node.get("properties") or {}
+                start_ms, end_ms = qprops.get("timestamp_start_ms"), qprops.get("timestamp_end_ms")
                 if isinstance(start_ms, int):
                     annotated["_quote_start_ms"] = start_ms
                 lang = translated_from(quote_node.get("properties"))
                 if lang:
                     annotated["_quote_translated_from"] = lang
+                if isinstance(end_ms, int):
+                    annotated["_quote_end_ms"] = end_ms
+                # The quote's own words (2026-10-11): a quote card must show what was SAID, and
+                # the insight's text is a paraphrase (ADR-163 §4).
+                qtext = qprops.get("text")
+                if isinstance(qtext, str) and qtext.strip():
+                    annotated["_quote_text"] = qtext
             entry = by_person.setdefault(speaker_id, {"insights": [], "episodes": set()})
             entry["insights"].append(annotated)
             if episode_id:

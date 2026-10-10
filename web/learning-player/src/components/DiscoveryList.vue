@@ -348,7 +348,7 @@ function rowLabel(r: Row): string {
          Episodes/Shows tabs, so it would both miss the kind and reset the page. -->
     <RouterLink
       v-if="!hideMore && hasAny"
-      :to="{ name: 'browse', query: { trends: kind }, hash: '#trends' }"
+      :to="{ name: 'explore', query: { trends: kind }, hash: '#trends' }"
       class="mt-2 inline-block text-sm font-bold text-accent no-underline"
       data-testid="discovery-expand"
     >

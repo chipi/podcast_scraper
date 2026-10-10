@@ -18,7 +18,7 @@ without a quote is passed over for one that has one — never filled from the in
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +33,12 @@ from podcast_scraper.server.app_momentum import (
 )
 from podcast_scraper.server.app_reasons import grounded_quote, Reason, ReasonSubject
 from podcast_scraper.server.app_relational_view import build_topic_perspectives
+from podcast_scraper.server.app_serendipity import (
+    episode_entity_ids,
+    Habits,
+    interleave_outside,
+    is_outside_habits,
+)
 from podcast_scraper.server.app_slugs import resolve_slug
 
 #: How far back "most engaged" looks, in ISO weeks.
@@ -197,6 +203,35 @@ def trending_episodes(
                 seen.add(half[i].slug)
                 out.append(half[i])
     return out
+
+
+def mix_outside_habits(
+    root: Path,
+    mine: list[TrendingEpisodeCard],
+    everyone: list[TrendingEpisodeCard],
+    habits: Habits,
+    *,
+    limit: int,
+) -> list[TrendingEpisodeCard]:
+    """Mine's cards with the serendipity share (ADR-163 §7): every 5th slot is one of Everyone's
+    cards from OUTSIDE the listener's habits (``app_serendipity``), labelled ``outside_habits``."""
+    taken = {c.slug for c in mine}
+    outside: list[TrendingEpisodeCard] = []
+    for card in everyone:
+        if card.slug in taken:
+            continue
+        row = resolve_slug(root, card.slug)
+        if row is None:
+            continue
+        if is_outside_habits(row.feed_id, episode_entity_ids(root, row.kg_relative_path), habits):
+            outside.append(card)
+            taken.add(card.slug)
+    return interleave_outside(
+        mine,
+        outside,
+        limit=limit,
+        mark=lambda c: TrendingEpisodeCard(slug=c.slug, why=replace(c.why, outside_habits=True)),
+    )
 
 
 def card_to_dict(card: TrendingEpisodeCard) -> dict[str, Any]:

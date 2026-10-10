@@ -57,6 +57,7 @@ from podcast_scraper.server.schemas import (
     AppPersonCard,
     AppPersonShow,
     AppPersonWeb,
+    AppQuote,
     AppTopic,
     AppTopicCard,
     AppTopicPerspective,
@@ -1108,11 +1109,13 @@ def build_org_card(
 def _node_to_app_insight(
     node: dict[str, Any], slug_by_episode: dict[str, str] | None = None
 ) -> AppInsight:
-    """Project a GI Insight node to AppInsight (grounded; quotes omitted here).
+    """Project a GI Insight node to AppInsight (grounded).
 
     ``slug_by_episode`` maps episode id -> slug so a perspective insight carries its source
     episode + the supporting quote's start moment (#2032); both are annotated onto the node by
-    ``topic_perspectives`` (``_episode_id`` / ``_quote_start_ms``) and are absent elsewhere.
+    ``topic_perspectives`` (``_episode_id`` / ``_quote_start_ms``) and are absent elsewhere. The
+    supporting quote itself (``_quote_text`` / ``_quote_end_ms``, 2026-10-11) becomes the insight's
+    one quote, so a quote card shows the transcript's words, not the paraphrase (ADR-163 §4).
     """
     props = node.get("properties") or {}
     text = props.get("text") or props.get("title") or ""
@@ -1126,6 +1129,20 @@ def _node_to_app_insight(
     ep_id = node.get("_episode_id")
     start_ms = node.get("_quote_start_ms")
     lang = node.get("_quote_translated_from")
+    end_ms = node.get("_quote_end_ms")
+    qtext = node.get("_quote_text")
+    quotes = (
+        [
+            AppQuote(
+                text=qtext,
+                speaker=None,
+                start_ms=start_ms if isinstance(start_ms, int) else None,
+                end_ms=end_ms if isinstance(end_ms, int) else None,
+            )
+        ]
+        if isinstance(qtext, str) and qtext.strip()
+        else []
+    )
     episode_slug = (slug_by_episode or {}).get(str(ep_id)) if ep_id else None
     return AppInsight(
         id=str(node.get("id") or ""),
@@ -1140,7 +1157,7 @@ def _node_to_app_insight(
         tier=int(tier) if isinstance(tier, int) else None,
         episode_slug=episode_slug,
         start_ms=start_ms if isinstance(start_ms, int) else None,
-        quotes=[],
+        quotes=quotes,
         translated_from=lang if isinstance(lang, str) and lang else None,
     )
 
