@@ -294,12 +294,16 @@ Gate B numbers wait for English on narrative and read-news shows (parked until t
 7. **Measure each switch alone against unchanged runs at the same code**, and repeat a run before
    believing a single gain. Results so far (El Hilo, main-voice adequacy / low units, against
    3.38-3.54 / 11-14 and 3.95-4.06 / 7-8):
-   - `translation_context_sentences: 2`: 3.42 / 12 and 4.19 / 4 (one run; repeat pending).
+   - `translation_context_sentences: 2`: 3.42 / 12 and 4.19-4.21 / 4, two runs. A gain on
+     10-02, none on 09-25. The two runs wrote identical English, so the repeat measures the
+     judge (steady within 0.02), and the five unchanged runs measure the translation's own spread.
    - `translation_protect_names` over the episode metadata's capitalised names: 3.34 / 11 and
      3.82 / 9, a net loss. Places with an English name ("América Latina") came back untranslated,
      a placeholder lost the grammar around it ("Desde [1]" as "Since"), and the show title was
      missed because the host says it in lower case. Narrowed to the show title, case-blind when
-     multi-word (`0132edf9b`); remeasure pending.
+     multi-word (`0132edf9b`): 3.43 / 11 and 4.10 / 5. It touches 8 units, so read them, not
+     the mean: all four show-name errors ("back on track", "back to the thread") are gone, three
+     units rose (3->5, 4->5, 4->5), none fell.
    - `translation_max_unit_words: 100`: 3.82 / 4.24 on its own units, which looked like the
      largest gain, and was not one (item 8).
 8. **A switch that changes how turns are cut into units changes the judge's ruler too.** The
