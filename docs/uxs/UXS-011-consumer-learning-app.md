@@ -268,7 +268,7 @@ start. (A serif was tried and rejected during the earlier design phase.)
 - **Show names are capped, never shortened** (2026-09-30). An RSS show title can be a whole
   paragraph, and no short name is precomputed or forced. Every place a show name renders carries
   `.lp-show-name`, which holds it to TWO lines and breaks anywhere rather than overflowing: the
-  player kicker, episode rows and tiles, the Episode notes panel and the Home rails. Show tiles use
+  player kicker, episode rows and tiles, the Brief panel and the Home rails. Show tiles use
   `--4` and show rows `--3`. The show page heading (`podcast-title`) caps at three lines, and its
   "Show more" also appears whenever the heading is cut, lifting the cap. Guarded statically by
   `src/__checks__/show-name-safety-net.test.ts` (no show-name interpolation without a cap) and on
@@ -433,27 +433,34 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   timeline, and the strip stays `role="img"` rather than becoming a second, unlabelled slider.
   Order: scrubber → density strip → the time readout, which labels the ends of both.
 - **Chips:** topic (`topic`), person (`person`), grounding (`grounded`) — `xs`, rounded, low-fill.
-- **Episode notes entry:** one labelled pill on the artwork, "✦ Episode notes" (`--accent`,
-  `player-open-insights`), that opens the **Episode notes** panel (shipped #1091 as "Insights"; renamed 2026-09-30 — the panel is the
-  episode's notes as a whole, and plain "Notes" already means the user's own notes, so the opener
-  pill and the panel title read "Episode notes" while the grounded items inside stay "insights").
+- **The obi: Brief and Description** (operator 2026-10-10). The episode's two doors sit in a
+  44px band down the right edge of the artwork, like the paper band on a Japanese LP that carries
+  the record's information (`player-obi`, a `<nav>` named "Brief and description"). Two stacked
+  doors, set exactly alike in the kicker voice with no glyph and no count (PL.5): **Brief**
+  (`player-open-insights`) opens the Brief panel, and **Description** (`player-open-description`)
+  opens the publisher's description. Each door takes half the band's height, divided by a
+  hairline. A missing door leaves the other at full height (Brief needs insights, Description
+  needs a feed description); with neither, there is no band. The band stays while the panel is
+  open, so the artwork never reflows, and Zone D and the reach chip are inset by the same 44px.
+  It replaced two rounded pills, the only fully rounded objects on a screen of 1-4px corners.
+- **Brief** is the panel's name (renamed 2026-10-10; shipped #1091 as "Insights", "Episode notes"
+  from 2026-09-30). One word for the band, and plain "Notes" already means the listener's own
+  notes. The grounded items inside stay "insights".
   It opens on the episode: show kicker, title, then the people in the room, host first and then
   guests (mentioned people stay in the chips), each with a 32px `ProfileAvatar` photo and a role
   label. Initials show when there is no photo. Tapping a person opens them in the panel with
   ‹ Back, the same as their chip does. The panel is a single
-  vertical column: episode (title + people) · Summary · Download notes · Search this episode ·
+  vertical column: episode (title + people) · Summary · Download brief · Search this episode ·
   Key points · **Topics & People (one merged, expandable row; chips → corpus search)** · Insights
   (grounded cards, `●` grounded marker) · More like this. Search sits below the summary and the
   download row (2026-09-30): the panel opens on what the episode is, and search is for digging in.
-- **Episode description entry (operator 2026-10-10):** a quieter pill, "Description"
-  (`--canvas`, `player-open-description`), just before Episode notes on the artwork. It opens
+- **Episode description** (operator 2026-10-10): the obi's Description door opens
   `EpisodeDescriptionSheet`, which shows the publisher's own description in full. Cards clamp that
-  text, and the player had no way to read it. The pill shows whenever the feed gave a description,
-  with or without insights. The sheet is a native `<dialog>`: a bottom sheet on phones, a centred
-  card at `lg`. It shows the episode title, then the whole text as plain text (never HTML). Links
-  the publisher wrote out (`http(s)://`, `www.`) are tappable and open outside the app through
-  `openExternal`. Links hidden behind words in the feed's HTML cannot be shown, because ingest
-  strips them.
+  text, and the player had no way to read it. The sheet is a native `<dialog>`: a bottom sheet on
+  phones, a centred card at `lg`. It shows the episode title, then the whole text as plain text
+  (never HTML). Links the publisher wrote out (`http(s)://`, `www.`) are tappable and open outside
+  the app through `openExternal`. Links hidden behind words in the feed's HTML cannot be shown,
+  because ingest strips them.
 - **Episode card (Catalog + search):** hairline-separated row — artwork block + clean **lede**
   (summary title) + `date · duration` + a grounded **✦ insights icon** that reveals the full
   summary bullets on hover/tap. *No topic pills on the card.* (The oversized faint **numeral** is the
@@ -640,8 +647,8 @@ already travelled; **search** and the **muted** toggle did not, so narrowing the
 Export handed back a file that disagreed with the screen that produced it. All three are query
 parameters on `/highlights/export.md` now.
 
-**Episode notes (operator 2026-09-18).** The Episode notes panel carries its own export — one
-"Download notes" link — of the WHOLE EPISODE: title, summary, key points, topics and people, everything the episode
+**Brief export (operator 2026-09-18; named Episode notes until 2026-10-10).** The Brief panel carries its own export — one
+"Download brief" link — of the WHOLE EPISODE: title, summary, key points, topics and people, everything the episode
 said with a jump link on every supporting quote, then the user's own captures and notes on it. It
 is deliberately a different artifact from the Library export: that one answers "what did I save,
 across everything", this one answers "what was this episode, and what did I take from it". Printed

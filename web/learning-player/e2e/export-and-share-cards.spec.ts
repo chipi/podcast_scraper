@@ -6,10 +6,10 @@ import { signInIsolated } from './helpers'
 const RUN = Date.now().toString(36)
 
 /**
- * The export viewer and the share cards (operator 2026-10-05, UXS-011 §Episode notes, UXS-014
+ * The export viewer and the share cards (operator 2026-10-05, UXS-011 §Brief export, UXS-014
  * §Share, UXS-017).
  *
- * - Episode notes have ONE "Download notes" link; it opens the notes in the in-app viewer, whose
+ * - The Brief has ONE "Download brief" link; it opens the notes in the in-app viewer, whose
  *   top right carries Markdown and Print or share. (Library highlights: capture.spec.ts.)
  * - "Share card" shares the SERVER's card — `/og/{kind}/{id}.png` for every kind, and a highlight's
  *   quote card from `/api/app/highlights/{id}/card.png` — never one the app draws itself.
@@ -33,14 +33,14 @@ test.beforeEach(async ({ page }, testInfo) => {
   await signInIsolated(page, `export-share-${testInfo.title.slice(0, 18)}-${RUN}`, testInfo)
 })
 
-test('Episode notes: ONE "Download notes" link opens the viewer with Markdown and Print or share', async ({
+test('Brief: ONE "Download brief" link opens the viewer with Markdown and Print or share', async ({
   page,
 }) => {
   await openEpisode(page)
   await page.getByTestId('player-open-insights').click()
   const panel = page.getByTestId('knowledge-panel')
   const open = panel.getByTestId('episode-notes-export')
-  await expect(open).toHaveText('Download notes')
+  await expect(open).toHaveText('Download brief')
   // No second chip per format — the old Markdown + PDF pair is gone.
   await expect(panel.getByTestId('episode-notes-pdf')).toHaveCount(0)
   await expect(panel.getByRole('button', { name: /^PDF$/ })).toHaveCount(0)

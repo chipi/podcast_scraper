@@ -25,6 +25,8 @@ vi.mock('../services/playbackPositions', async (orig) => ({
 
 import { usePlayerStore } from '../stores/player'
 import PlayerView from './PlayerView.vue'
+import KnowledgePanel from '../components/KnowledgePanel.vue'
+import EpisodeDescriptionSheet from '../components/EpisodeDescriptionSheet.vue'
 import { useDownloadsStore } from '../stores/downloads'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -163,11 +165,11 @@ describe('PlayerView', () => {
     expect(w.text()).toContain('1.2k') // listeners
     expect(w.text()).toContain('3.4k') // opens
     // #1595 — insights moved OUT of the stats cluster into a labelled first-class control.
-    // "Episode notes", not "Insights": the panel is the episode's notes (summary, key points,
-    // downloads); "Notes" alone already means the user's own. The items inside stay insights.
-    // PL.5: the opener pill carries the label only, no count (the count lives on the panel's
-    // Insights section header, UXS-014).
-    expect(w.get('[data-testid="player-open-insights"]').text()).toContain('Episode notes')
+    // "Brief", not "Insights" and not "Notes" (operator 2026-10-10): the panel is the episode's
+    // brief (summary, key points, people, downloads); "Notes" alone already means the user's own.
+    // The items inside stay insights. PL.5: the opener carries the label only, no count (the count
+    // lives on the panel's Insights section header, UXS-014).
+    expect(w.get('[data-testid="player-open-insights"]').text()).toBe('Brief')
     expect(w.get('[data-testid="player-open-insights"]').text()).not.toMatch(/\d/)
   })
 
@@ -1107,12 +1109,63 @@ describe('opening the episode notes from a link', () => {
     })
     mountedPlayers.push(w)
     await flushPromises()
-    // The opener exists only while the panel is shut.
-    expect(w.find('[data-testid="player-open-insights"]').exists()).toBe(false)
+    // The panel mounts the first time it opens (`panelEverOpen`), so its presence is the signal.
+    // The Brief door stays on the obi while the panel is open, so it cannot be.
+    expect(w.findComponent(KnowledgePanel).exists()).toBe(true)
   })
 
   it('without it the panel stays shut', async () => {
     const w = await mountPlayer('ep-1')
+    expect(w.findComponent(KnowledgePanel).exists()).toBe(false)
     expect(w.find('[data-testid="player-open-insights"]').exists()).toBe(true)
+  })
+})
+
+describe('the obi: Brief and Description down the artwork edge (operator 2026-10-10)', () => {
+  const oneInsight = {
+    episode_slug: 'ep-1',
+    insights: [{ id: 'i0', text: 'insight', grounded: true, insight_type: null, confidence: null, position_hint: null, quotes: [] }],
+  }
+
+  it('shows both doors, alike, when the episode has insights and a description', async () => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue(oneInsight)
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ description: 'The publisher text.' }))
+    const w = await mountPlayer('ep-1')
+    const obi = w.get('[data-testid="player-obi"]')
+    const doors = obi.findAll('button')
+    expect(doors.map((d) => d.text())).toEqual(['Brief', 'Description'])
+    // Alike on purpose: the same classes, no glyph on either.
+    expect(doors[0].classes()).toEqual(doors[1].classes())
+    expect(obi.text()).not.toContain('✦')
+  })
+
+  it('Brief opens the panel, Description opens the description sheet', async () => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue(oneInsight)
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ description: 'The publisher text.' }))
+    const w = await mountPlayer('ep-1')
+    await w.get('[data-testid="player-open-insights"]').trigger('click')
+    await flushPromises()
+    expect(w.findComponent(KnowledgePanel).exists()).toBe(true)
+    await w.get('[data-testid="player-open-description"]').trigger('click')
+    await flushPromises()
+    expect(w.findComponent(EpisodeDescriptionSheet).props('open')).toBe(true)
+  })
+
+  it('a missing door leaves only the other', async () => {
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ description: 'The publisher text.' }))
+    const w = await mountPlayer('ep-1')
+    expect(w.findAll('[data-testid="player-obi"] button').map((d) => d.text())).toEqual(['Description'])
+  })
+
+  it('with neither insights nor a description there is no band, and Zone D takes the full width', async () => {
+    const w = await mountPlayer('ep-1')
+    expect(w.find('[data-testid="player-obi"]').exists()).toBe(false)
+    expect(w.get('[data-testid="player-zone-d-rest"]').classes()).toContain('right-0')
+  })
+
+  it('with a band, Zone D stops at its edge', async () => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue(oneInsight)
+    const w = await mountPlayer('ep-1')
+    expect(w.get('[data-testid="player-zone-d-rest"]').classes()).toContain('right-[44px]')
   })
 })

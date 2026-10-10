@@ -890,7 +890,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     const w = mountPanel()
     await flushPromises()
     const open = w.get('[data-testid="episode-notes-export"]')
-    expect(open.text()).toBe("Download notes")
+    expect(open.text()).toBe("Download brief")
     expect(w.find('[data-testid="episode-notes-pdf"]').exists()).toBe(false)
     expect(w.find("a[download]").exists()).toBe(false)
   })
@@ -1056,7 +1056,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     const a = inViewer<HTMLAnchorElement>("export-viewer-md")
     expect(a?.tagName).toBe("A")
     expect(a?.getAttribute("href")).toContain("/notes.md")
-    expect(a?.getAttribute("download")).toBe("ep-notes.md")
+    expect(a?.getAttribute("download")).toBe("ep-brief.md")
     inViewer("export-viewer-close")?.click()
   })
 
@@ -1072,7 +1072,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     const [filename, body] = share.mock.calls[0]
     // Named from the TITLE, not the slug (`{feed_slug}-{sha256hex}` was "some crazy name",
     // operator 2026-09-19).
-    expect(filename).toBe("ep-notes.md")
+    expect(filename).toBe("ep-brief.md")
     expect(filename).not.toMatch(/[0-9a-f]{8}/)
     expect(body).toContain("# Notes")
     inViewer("export-viewer-close")?.click()
@@ -1085,7 +1085,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     inViewer("export-viewer-share")!.click()
     await flushPromises()
     expect(share).toHaveBeenCalledTimes(1)
-    expect(share.mock.calls[0][0]).toBe("ep-notes.html")
+    expect(share.mock.calls[0][0]).toBe("ep-brief.html")
     expect(share.mock.calls[0][2]).toBe("text/html")
     inViewer("export-viewer-close")?.click()
   })
@@ -1100,7 +1100,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
       await flushPromises()
       expect(shareFn).toHaveBeenCalledTimes(1)
       const files = shareFn.mock.calls[0][0].files as File[]
-      expect(files[0].name).toBe("ep-notes.html")
+      expect(files[0].name).toBe("ep-brief.html")
       inViewer("export-viewer-close")?.click()
     } finally {
       vi.unstubAllGlobals()

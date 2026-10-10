@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 import { signInIsolated, tapAndRecordTop } from './helpers'
 
 /**
- * Episode notes panel — the people in the room lead the panel, with their photos.
+ * Brief panel (named Episode notes until 2026-10-10) — the people in the room lead the panel, with their photos.
  *
  * Real backend, real corpus: `/episodes/{slug}/entities` now attaches the hosted-photo route from
  * `enrichments/person_web.json`, the same as Top voices. The panel episode "The Risk Panel"
@@ -51,7 +51,7 @@ test('host and guests lead the panel with photos, and open in the panel with a B
  * Labels are asserted as text here on purpose. Every other spec opens the panel by testid so a
  * copy change cannot break them; this is the one place that proves the copy the user reads.
  */
-test('Episode notes: one labelled entry, its own title, and the notes-first order', async ({
+test('Brief: one labelled entry, its own title, and the notes-first order', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'episode-notes-order', testInfo)
@@ -60,15 +60,17 @@ test('Episode notes: one labelled entry, its own title, and the notes-first orde
   await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
 
   const opener = page.getByTestId('player-open-insights')
-  await expect(opener).toHaveText(/Episode notes/)
+  // The Brief door on the obi (operator 2026-10-10), set exactly like Description: the label only.
+  await expect(opener).toHaveText('Brief')
+  await expect(page.getByTestId('player-obi')).toBeVisible()
   // The standalone Summary pill is gone: it opened a subset of this panel. By role and name, not by
   // its old testid — a selector for a testid the app no longer renders proves nothing.
   await expect(page.getByTestId('player-hero').getByRole('button', { name: /summary/i })).toHaveCount(0)
 
   await opener.click()
   const panel = page.getByTestId('knowledge-panel')
-  await expect(panel.getByText('Episode notes', { exact: true }).first()).toBeVisible()
-  await expect(panel.getByTestId('episode-notes-export')).toContainText('Download notes')
+  await expect(panel.getByText('Brief', { exact: true }).first()).toBeVisible()
+  await expect(panel.getByTestId('episode-notes-export')).toContainText('Download brief')
 
   const y = async (l: ReturnType<typeof panel.locator>) => (await l.boundingBox())!.y
   const order = [
@@ -80,7 +82,7 @@ test('Episode notes: one labelled entry, its own title, and the notes-first orde
   ]
   expect(
     order,
-    'expected episode (title + people) → Summary → Download notes → Search → Key points, top to bottom',
+    'expected episode (title + people) → Summary → Download brief → Search → Key points, top to bottom',
   ).toEqual([...order].sort((a, b) => a - b))
 })
 

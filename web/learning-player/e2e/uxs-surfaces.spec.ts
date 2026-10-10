@@ -94,7 +94,7 @@ test('UXS-014 §Destructive: deleting a highlight asks first; Cancel keeps it, c
   await expect(page.getByTestId('highlight-card').filter({ hasText: quote })).toHaveCount(0)
 })
 
-test('UXS-014 §CollapsibleSection: a section you close in Episode notes stays closed after a reload', async ({
+test('UXS-014 §CollapsibleSection: a section you close in the Brief stays closed after a reload', async ({
   page,
 }) => {
   await page.goto('/podcast/p05')

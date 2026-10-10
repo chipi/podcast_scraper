@@ -15,7 +15,7 @@ this spec** — they do not re-invent navigation, layering, or saving.
 | Surface | What | Examples |
 | ------- | ---- | -------- |
 | **Page** | A route; URL-addressable destination | Home, Search, Catalog, Player, **Library** |
-| **Panel** | Persistent, in-layout region; not modal | Episode notes panel beside the Player |
+| **Panel** | Persistent, in-layout region; not modal | Brief panel beside the Player |
 | **Modal** | One dimmed backdrop; teleported to `<body>` | Interests picker, entity card **from Search** |
 | **Sheet** | The mobile form of a panel/modal (bottom, drag-handle) | Insights on mobile |
 
@@ -639,14 +639,15 @@ full-width square the hero took ~360pt of an iPhone's ~600pt usable height, and 
 scrubber and timestamps fell under the tab bar even after the gaps around them were tightened; 5:4
 gives back ~70pt and puts the whole transport on screen. Desktop has the height and keeps the square.
 
-- **One way into the episode's notes** (2026-09-30): the labelled **✦ Episode notes** pill at the
-  top of the artwork, beside the per-episode **reach** chip (listeners · opens + a tiny
+- **One way into the episode's Brief** (2026-09-30; the obi since 2026-10-10): the **Brief** door
+  on the obi, the band down the artwork's right edge that also holds **Description** (UXS-011).
+  The per-episode **reach** chip stays at the top, inset by the band's width (listeners · opens + a tiny
   opens-over-time `Sparkline`, withheld below the k-anonymity floor). There is NO summary control
   on the hero any more. The Summary pill opened a modal holding exactly the prose the panel's
   Summary section shows, so it was a second entry to a subset of the same thing. The summary lives
   in the panel, directly under the people in the room.
 - **Live intelligence** (Zone D, "Insight now / Next · in 0:06") owns the BOTTOM band of the artwork,
-  so it never competes with the actions at the top.
+  up to the obi's edge, so it never competes with the doors.
 - The **Grounded** chip sits up by the date/meta line, **not** floating over the image.
 
 ## Saved & Library

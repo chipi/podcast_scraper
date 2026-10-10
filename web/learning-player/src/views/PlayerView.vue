@@ -222,6 +222,8 @@ const recapNextTitle = ref<string | null>(null)
 const panelOpen = ref(false)
 const descriptionOpen = ref(false)
 const episodeDescription = computed(() => episode.value?.description?.trim() || '')
+/** The obi exists while it has a door to show (Brief needs insights, Description needs text). */
+const obiShown = computed(() => insights.value.length > 0 || !!episodeDescription.value)
 /**
  * The notes panel mounts the first time it opens, then stays. A closed <dialog> still renders its
  * children, so every episode built the whole panel — key points, insights, the related rail and its
@@ -1551,7 +1553,10 @@ const { badgeShown } = useCorpusLanguages()
               **48px of text width** — three characters a line). It now owns the full lower band
               instead of competing with a toolbar for a corner of the picture.
             -->
-            <div class="relative z-10 flex flex-wrap items-start justify-end gap-2 p-3">
+            <div
+              class="relative z-10 flex flex-wrap items-start justify-end gap-2 p-3"
+              :class="obiShown ? 'pr-[56px]' : ''"
+            >
               <!--
                 ONE control cluster, pinned right, in one row: Summary, Insights, reach.
 
@@ -1573,30 +1578,6 @@ const { badgeShown } = useCorpusLanguages()
                    LABELLED control, not a 💡 emoji tucked into the stats cluster next to
                    listener/open counts (#1595). It used to read "💡 3" — the least legible control
                    on the page, styled like a statistic, for the product's central feature. -->
-              <!-- The publisher's own description, in full (operator 2026-10-10): cards clamp it and the
-                   player had no way to read it. Quieter than Episode notes, which stays the primary
-                   action; shown whenever the feed gave a description, insights or not. -->
-              <button
-                v-if="!panelOpen && episodeDescription"
-                type="button"
-                data-testid="player-open-description"
-                class="shrink-0 rounded-full bg-canvas/95 px-2.5 py-1 text-[11px] font-bold text-canvas-foreground shadow-lg transition hover:opacity-90"
-                @click="descriptionOpen = true"
-              >
-                {{ t('player.description') }}
-              </button>
-              <button
-                v-if="!panelOpen && insights.length"
-                ref="insightsOpener"
-                type="button"
-                data-testid="player-open-insights"
-                class="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-accent-foreground shadow-lg transition hover:opacity-90"
-                @click="panelOpen = true"
-              >
-                <!-- Labelled "Episode notes" (UXS-011). No count on the opener pill (operator PL.5): the number reads as noise here; the
-                     Insights section header inside the panel still carries the count (UXS-014). -->
-                ✦ {{ t('kp.title') }}
-              </button>
               <!-- Reach: a quieter scrim than the actions beside it — it is context, not a control
                    you act on, so it should not compete with them for the eye. The sparkline drops
                    from 116px to 44px; at this size it reads as a shape, which is all it ever
@@ -1640,6 +1621,46 @@ const { badgeShown } = useCorpusLanguages()
             </div>
 
             <!--
+              The obi (operator 2026-10-10): the two doors on the artwork, Brief and Description,
+              stacked in a band down its right edge, like the paper band on a Japanese LP that carries
+              the record's information. They replaced two rounded pills, the only fully rounded objects
+              on a screen of 1-4px corners. Both doors look alike on purpose (same kicker voice, no
+              glyph). A missing door leaves the other at full height; with neither, there is no band.
+
+              Always shown, also while the Brief panel is open: hiding it reflowed the artwork and Zone D
+              when the desktop rail opened, and `onPanelClose` returns focus to the Brief door.
+
+              `w-[44px]`, not `w-11`: spacing is scaled by `--lp-density` (0.95), and the band is a
+              touch target that must stay 44px. Zone D and the toolbar are inset by the same width.
+            -->
+            <nav
+              v-if="obiShown"
+              data-testid="player-obi"
+              :aria-label="t('player.obiLabel')"
+              class="absolute inset-y-0 right-0 z-10 flex w-[44px] flex-col border-l border-border bg-canvas/95"
+            >
+              <button
+                v-if="insights.length"
+                ref="insightsOpener"
+                type="button"
+                data-testid="player-open-insights"
+                class="lp-obi-door"
+                @click="panelOpen = true"
+              >
+                <span class="lp-kicker lp-obi-label">{{ t('kp.title') }}</span>
+              </button>
+              <button
+                v-if="episodeDescription"
+                type="button"
+                data-testid="player-open-description"
+                class="lp-obi-door"
+                @click="descriptionOpen = true"
+              >
+                <span class="lp-kicker lp-obi-label">{{ t('player.description') }}</span>
+              </button>
+            </nav>
+
+            <!--
               Zone D — the live-intelligence band (UXS-011 §43: "speaking-now, a grounding badge,
               and the insight surfacing at this moment"). Bottom-anchored (`absolute … bottom-0`)
               and sized by its own content, so it grows UPWARD as the insight text wraps rather
@@ -1665,7 +1686,8 @@ const { badgeShown } = useCorpusLanguages()
                 v-if="visibleInsight"
                 key="live"
                 data-testid="player-zone-d-live"
-                class="absolute inset-x-0 bottom-0"
+                class="absolute bottom-0 left-0"
+                :class="obiShown ? 'right-[44px]' : 'right-0'"
               >
                 <!--
                   Scrim: two ~80px bands stacked directly above the panel (normal document flow,
@@ -1745,7 +1767,8 @@ const { badgeShown } = useCorpusLanguages()
                 v-else
                 key="rest"
                 data-testid="player-zone-d-rest"
-                class="absolute inset-x-0 bottom-0 p-3"
+                class="absolute bottom-0 left-0 p-3"
+                :class="obiShown ? 'right-[44px]' : 'right-0'"
               >
                 <button
                   v-if="nextInsight"
@@ -2063,6 +2086,34 @@ const { badgeShown } = useCorpusLanguages()
 </template>
 
 <style scoped>
+/* The obi's doors: each takes an equal share of the band's height, divided by a hairline. Both
+   look alike (operator 2026-10-10); hover and focus lift the label to the foreground colour. */
+.lp-obi-door {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  transition: background-color 150ms;
+}
+.lp-obi-door + .lp-obi-door {
+  border-top: 1px solid var(--lp-border);
+}
+.lp-obi-door:hover {
+  background-color: var(--lp-overlay);
+}
+.lp-obi-door:hover .lp-obi-label,
+.lp-obi-door:focus-visible .lp-obi-label {
+  color: var(--lp-canvas-foreground);
+}
+.lp-obi-door:focus-visible {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: -2px;
+}
+.lp-obi-label {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+}
 /*
  * Zone D scrim ramp (UXS-011 §43 rewrite): the tint fades over a ~80px band, from fully applied at
  * the panel's own top edge to nothing above it. A flat `bg-canvas/40`–`/80` wash across the whole
