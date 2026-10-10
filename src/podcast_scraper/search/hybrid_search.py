@@ -183,6 +183,11 @@ def hybrid_candidates(
     top_k: int,
     doc_types: Optional[Sequence[str]] = None,
     embedding_model: Optional[str] = None,
+    #: Exact column matches applied IN the query, before ranking (a LanceDB prefilter) — e.g.
+    #: ``{"episode_id": ...}`` for search within one episode. Unlike the downstream filters in
+    #: ``_filter_and_enrich``, rows outside the scope are never ranked, so they cannot crowd the
+    #: scope's own matches out of the candidate list.
+    filters: Optional[Dict[str, str]] = None,
     # ADR-099 Stage 2 (#995): the ×25 over-fetch was an in-memory-index habit — cheap to pull 600
     # rows from an in-memory array, then filter in Python. On the database it dominates cost
     # (limit 600 ≈ 0.37s vs limit 100 ≈ 0.09s per query). Native in-engine RRF fusion needs
@@ -288,7 +293,9 @@ def hybrid_candidates(
     try:
         layer = RetrievalLayer(backend, router=_serving_router())
         fetch_k = max(top_k * fetch_multiplier, top_k)
-        results = layer.retrieve(query, qemb, k=fetch_k, tier=_tier_for(doc_types))
+        results = layer.retrieve(
+            query, qemb, k=fetch_k, tier=_tier_for(doc_types), filters=filters or None
+        )
     except Exception as exc:  # noqa: BLE001 - backend/index error → report no_index
         logger.warning("hybrid_search retrieve failed (%s); reporting no_index", exc)
         return None

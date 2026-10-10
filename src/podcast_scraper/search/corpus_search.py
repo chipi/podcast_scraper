@@ -274,6 +274,10 @@ def run_corpus_search(
             top_k=top_k,
             doc_types=doc_types,
             embedding_model=embedding_model,
+            # Search within one episode scopes the QUERY, not just the results (operator
+            # 2026-10-10): filtered afterwards, the whole corpus was ranked first and an episode's
+            # own matches fell out of the candidate list on a large corpus.
+            filters={"episode_id": episode_id} if episode_id else None,
         )
     except QueryEmbeddingError as exc:
         return CorpusSearchOutcome(

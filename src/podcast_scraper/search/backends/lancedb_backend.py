@@ -430,7 +430,10 @@ class LanceDBBackend:
         def _run_tier(table: Any) -> List[Dict[str, Any]]:
             req = table.search(search_target, query_type=query_type)
             if where:
-                req = req.where(where)
+                # Explicitly BEFORE ranking: a post-filter would rank the whole table, keep `k`,
+                # and then drop rows outside the scope (search within one episode came back empty
+                # that way). LanceDB leaves the vector default unset; keyword search defaults to it.
+                req = req.where(where, prefilter=True)
             return list(req.limit(query.k).to_list())
 
         def _run_keyword_only_tier(table: Any) -> List[Dict[str, Any]]:

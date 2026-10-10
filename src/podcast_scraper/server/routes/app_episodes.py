@@ -948,14 +948,20 @@ async def episode_search(
 ) -> CorpusSearchApiResponse:
     """Grounded search within one episode (extractive grounded passages; no LLM, D6).
 
-    Over-fetches by feed, then narrows to this episode — the retrieval layer has no
-    episode filter yet, so we scope ``metadata.episode_id`` client-side.
+    The episode is part of the QUERY (operator 2026-10-10): only this episode's rows are ranked,
+    so nothing from another episode can come back or crowd this one's matches out. It used to
+    rank the corpus, keep the top few hundred, and narrow afterwards, which found nothing in an
+    episode whose matches did not make that cut.
     """
     root, row = _resolve(request, slug)
-    internal_k = min(100, max(top_k, top_k * 5))
     # Offload off the event loop (see the /related + /search notes) — safe via the warm index_pool.
     outcome = await asyncio.to_thread(
-        structured_corpus_search, root, q, feed=row.feed_id or None, top_k=internal_k
+        structured_corpus_search,
+        root,
+        q,
+        feed=row.feed_id or None,
+        episode_id=row.episode_id or None,
+        top_k=top_k,
     )
     if not outcome.get("error"):
         append_query_event(root, str(outcome.get("query_type") or ""))

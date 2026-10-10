@@ -588,6 +588,8 @@ def test_episode_search_filters_to_episode(tmp_path: Path, monkeypatch: pytest.M
 
     def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
         captured["feed"] = kwargs.get("feed")
+        captured["episode_id"] = kwargs.get("episode_id")
+        captured["top_k"] = kwargs.get("top_k")
         return CorpusSearchOutcome(
             results=[
                 {
@@ -607,8 +609,12 @@ def test_episode_search_filters_to_episode(tmp_path: Path, monkeypatch: pytest.M
 
     monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", fake_run)
     body = _client(tmp_path).get(f"/api/app/episodes/{slug}/search", params={"q": "foo"}).json()
-    assert captured["feed"] == "myfeed"  # over-fetched scoped by feed
-    assert [r["doc_id"] for r in body["results"]] == ["a"]  # narrowed to this episode
+    assert captured["feed"] == "myfeed"
+    # The episode is part of the QUERY (operator 2026-10-10): the search ranks only this episode's
+    # rows, so no over-fetch — it asks for exactly the page it returns.
+    assert captured["episode_id"] == "ep1"
+    assert captured["top_k"] == 10
+    assert [r["doc_id"] for r in body["results"]] == ["a"]  # and nothing from another episode
 
 
 def test_episodes_list_endpoint(tmp_path: Path) -> None:
