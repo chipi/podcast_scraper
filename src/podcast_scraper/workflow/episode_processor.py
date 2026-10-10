@@ -941,6 +941,10 @@ def _save_asr_provenance_file(
     if recovery is not None:
         # #2187 A2: each stretch that was re-transcribed, and what came of it.
         provenance["speech_recovery"] = recovery
+    stretched_recovery = result.get("asr_stretched_word_recovery")
+    if stretched_recovery is not None:
+        # D16: each stretched word re-transcribed alone, and whether it was replaced.
+        provenance["stretched_word_recovery"] = stretched_recovery
     stretched = result.get("asr_stretched_words")
     if stretched:
         # #2187: words timed 3 s+ over diarized speech -- evidence for inspection, not a gap.

@@ -1,16 +1,17 @@
-"""A word stretched over speech is re-transcribed alone and replaced only by more speech (D16).
+"""A word stretched over speech is re-transcribed alone and replaced by the speech it hid (D16).
 
-Radio Ambulante 2026-09-10: "¿no?" timed 15.6 s over 11.5 s of diarized speech hid 55 reference
-words; SWR "einige" (3.9 s) hid 13. Of 11 stretched words re-transcribed on 2026-10-08, 3 hid
-speech and 6 held only the word, a stutter or fillers. So the span is re-transcribed on its own
-and the word is REPLACED -- never spliced beside it, which would duplicate it -- and only when
-the result holds the word itself plus at least ``STRETCHED_MIN_EXTRA_WORDS`` other words that are
-not fillers.
+Radio Ambulante 07-21: "¿no?" timed 15.6 s over 11.5 s of diarized speech hid a whole exchange
+the clip transcribes (about 35 words). SWR's "Europäer": the clip's words inside the span are the
+episode's NEXT words, timed later, so adding them would duplicate them. The clip and the episode's
+own words around the stretched one are aligned; only words the episode lacks replace the stretched
+word, and only when they are ``STRETCHED_MIN_EXTRA_WORDS`` or more, not fillers. Scored against
+the human references on 7 stretched words (2026-10-10): adjusted errors -33, -3, -5, 0.
 """
 
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 from typing import Any, Dict, List
 
 import pytest
@@ -91,13 +92,29 @@ def test_a_stutter_with_fillers_is_not_more_speech(no_ffmpeg: List[tuple]) -> No
     assert out["segments"] == _result()["segments"]
 
 
-def test_speech_without_the_word_is_not_a_replacement(no_ffmpeg: List[tuple]) -> None:
-    """The word must be heard again, or the result may be another stretch of audio."""
+def test_speech_the_episode_lacks_replaces_the_word_even_unheard(no_ffmpeg: List[tuple]) -> None:
+    """Radio Ambulante: the clip does not hear "¿no?" at all, only the exchange it covered."""
     clip = _clip(
         (" Y", 2.0, 2.2), (" entonces", 2.2, 2.8), (" llegó", 2.8, 3.2), (" ella", 3.2, 3.6)
     )
     out = G.recover_stretched_words(_result(), _STRETCHED, "a.mp3", clip)
-    assert out["segments"] == _result()["segments"]
+    assert out["segments"][0]["text"] == " Eso fue así, Y entonces llegó ella Bueno."
+
+
+def test_words_the_episode_already_has_beside_it_are_not_added(no_ffmpeg: List[tuple]) -> None:
+    """SWR "Europäer": the clip re-hears the episode's next words inside the span."""
+    words = [_w(" Ländern.", 9.0, 10.9), _w(" Europäer", 11.0, 16.0)]
+    words += [_w(" Wenn", 16.2, 16.4), _w(" man", 16.4, 16.6), _w(" die", 16.6, 16.8)]
+    words += [_w(" Kriminalität", 16.8, 17.5)]
+    text = "".join(w["word"] for w in words)
+    result = {"segments": [{"start": 9.0, "end": 17.5, "text": text, "words": words}]}
+    stretched = [{"start": 11.0, "end": 16.0, "word": "Europäer"}]
+    clip = _clip(
+        (" Wenn", 4.0, 4.3), (" man", 4.3, 4.5), (" die", 4.5, 4.8), (" Kriminalität", 5.2, 6.0)
+    )
+    out = G.recover_stretched_words(result, stretched, "a.mp3", clip)
+    assert out["segments"][0]["text"] == text
+    assert out["asr_stretched_word_recovery"][0]["reason"] == "not_more_speech"
 
 
 def test_a_low_confidence_clip_is_rejected(no_ffmpeg: List[tuple]) -> None:
@@ -167,3 +184,21 @@ def test_the_diarization_pipeline_replaces_it_before_alignment(
     assert out["asr_stretched_word_recovery"][0]["status"] == "replaced"
     assert "policía" in " ".join(s["text"] for s in out["segments"])
     assert out["asr_stretched_words"] == []
+
+
+def test_the_recovery_is_kept_in_the_asr_record(tmp_path: Path) -> None:
+    """The first real run (SWR, 2026-10-10) left no trace of what was decided: ``.asr.json`` copies
+    named keys only, and this one was not among them."""
+    import json
+
+    from podcast_scraper.config import Config
+    from podcast_scraper.workflow import episode_processor as epx
+
+    (tmp_path / "transcripts").mkdir()
+    rel = "transcripts/0001 - ep.txt"
+    (tmp_path / rel).write_text("x")
+    record = [{"start": 11.0, "end": 26.6, "word": "¿no?", "status": "declined"}]
+    result = {"speech_audio_ratio": 0.9, "asr_stretched_word_recovery": record}
+    epx._save_asr_provenance_file(result, Config(), rel, str(tmp_path))
+    asr = json.loads((tmp_path / "transcripts" / "0001 - ep.asr.json").read_text())
+    assert asr["stretched_word_recovery"] == record
