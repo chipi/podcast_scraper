@@ -2432,6 +2432,10 @@ def _load_and_merge_config(
         args,
         config_yaml_keys=config_explicit_keys,
     )
+    # ``model_dump(exclude_none=True)`` above cannot carry a null; ``_build_config`` reads these.
+    setattr(
+        args, "_config_yaml_null_keys", frozenset(k for k, v in config_data.items() if v is None)
+    )
     has_feeds = bool(collect_feed_urls(args))
     if not has_feeds and getattr(args, "feeds_spec", None):
         try:
@@ -4485,6 +4489,9 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     # hand-copied reverted to its code default: this repo shipped resilience_* dropping to
     # serve/failover and transcript_cache_enabled un-disable-able, both via exactly this gap. The
     # old curated allowlist (llm_pipeline_mode, the DGX routing + ADR-096 fields, …) is subsumed.
+    # A key the file wrote as ``null`` is carried as None (D20): the profile is resolved again by
+    # ``model_validate`` below, so leaving it out silently restored the profile's value.
+    _file_nulls: frozenset[str] = getattr(args, "_config_yaml_null_keys", frozenset())
     for _name, _field_info in config.Config.model_fields.items():
         if _name in payload:
             continue
@@ -4494,7 +4501,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         _v = getattr(args, _alias, None)
         if _v is None and _alias != _name:
             _v = getattr(args, _name, None)
-        if _v is not None:
+        if _v is not None or _alias in _file_nulls or _name in _file_nulls:
             payload[_name] = _v
 
     # Pydantic's model_validate returns the correct type, but mypy needs help
