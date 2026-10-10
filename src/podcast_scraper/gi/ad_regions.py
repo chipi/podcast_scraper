@@ -62,8 +62,9 @@ CLUSTER_GAP = 750
 POSTROLL_TRAILOUT = 350
 # After the last ad-pattern hit, extend the cut forward (pre-roll) or
 # backward (post-roll) to the next sentence terminator so we don't leave
-# ragged mid-sentence fragments on the content side.
-SENTENCE_TERMINATORS = (". ", "! ", "? ")
+# ragged mid-sentence fragments on the content side. A line break ends a screenplay turn: without
+# it, an ad ending its turn (".\n") snapped into the next speaker's first sentence (D30).
+SENTENCE_TERMINATORS = (". ", "! ", "? ", "\n")
 SENTENCE_BOUNDARY_LOOKAHEAD = 300
 
 
