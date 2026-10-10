@@ -1236,13 +1236,15 @@ describe("episode-scoped people (#1685 / #2062)", () => {
   })
 })
 
-describe("the Brief leads with Play moments (operator 2026-10-10)", () => {
-  it("offers the reel above the summary when the episode has insights, and asks the page to play it", async () => {
+describe("the Brief offers Play moments after its Summary (operator 2026-10-10)", () => {
+  it("offers the reel right after the summary when the episode has insights, and asks the page to play it", async () => {
     const w = mountPanel()
     const btn = w.get('[data-testid="kp-play-moments"]')
     expect(btn.text()).toContain("Play moments")
+    // Read what the episode is, then taste it (operator 2026-10-10: after the Summary).
     const html = w.html()
-    expect(html.indexOf('data-testid="kp-play-moments"')).toBeLessThan(html.indexOf("A short summary."))
+    expect(html.indexOf('data-testid="kp-play-moments"')).toBeGreaterThan(html.indexOf("A short summary."))
+    expect(html.indexOf('data-testid="kp-play-moments"')).toBeLessThan(html.indexOf('data-testid="episode-notes-export"'))
     await btn.trigger("click")
     expect(w.emitted("play-moments")).toHaveLength(1)
   })

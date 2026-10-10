@@ -434,7 +434,6 @@
   },
   "player": {
     "description": "Description",
-    "descriptionTitle": "Episode description",
     "descriptionClose": "Close description",
     "obiLabel": "Moments, brief and description",
     "about": "About",

@@ -28,7 +28,7 @@ beforeEach(() => openExternal.mockClear())
 
 async function make(description: string, open = true) {
   const w = mount(EpisodeDescriptionSheet, {
-    props: { open, title: 'Ep 12 — Rates', description },
+    props: { open, title: 'Ep 12 — Rates', description, showTitle: 'Long Horizon Notes' },
     global: { plugins: [i18n] },
     attachTo: document.body,
   })
@@ -84,5 +84,32 @@ describe('EpisodeDescriptionSheet', () => {
     await flushPromises()
     expect((w.get('[data-testid="episode-description"]').element as HTMLDialogElement).open).toBe(true)
     w.unmount()
+  })
+
+  it('is laid out like the Brief: named About as its door, the show and episode opening it', async () => {
+    const w = await make('Some text.')
+    expect(w.get('header').text()).toContain('About')
+    expect(w.get('[data-testid="episode-description"]').attributes('aria-label')).toBe('About')
+    const body = w.get('[data-testid="episode-description-episode"]').element.parentElement!
+    expect(body.textContent).toContain('Long Horizon Notes')
+    w.unmount()
+  })
+
+  it('pulling the grab handle down closes it, as on the Brief', async () => {
+    vi.useFakeTimers()
+    try {
+      const w = await make('Some text.')
+      const handle = w.get('[data-testid="episode-description-handle"]').element
+      for (const [type, y] of [['pointerdown', 100], ['pointermove', 320], ['pointerup', 320]] as const) {
+        const e = new MouseEvent(type, { clientY: y, bubbles: true })
+        Object.defineProperty(e, 'pointerType', { value: 'touch' })
+        handle.dispatchEvent(e)
+      }
+      vi.advanceTimersByTime(400)
+      expect(w.emitted('close')).toHaveLength(1)
+      w.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

@@ -696,8 +696,8 @@ watch(() => auth.isAuthenticated, loadCaptures)
 
                Each with their photo (operator 2026-09-30) — the same ProfileAvatar, and so the same
                crop, as Top voices; initials when the enricher has no photo. A tap opens the person
-               exactly as their chip below does (replace-in-panel, ‹ Back), so the two ways in stack
-               identically. An episode-scoped person has no corpus-wide card: shown, not tappable. -->
+               exactly as their chip below does (a sheet layered over the Brief), so the two ways in
+               stack identically. An episode-scoped person has no corpus-wide card: shown, not tappable. -->
           <ul v-if="dossierPeople.length" class="mt-3 flex flex-wrap gap-x-4 gap-y-2">
             <li v-for="p in dossierPeople" :key="p.id">
               <component
@@ -727,8 +727,12 @@ watch(() => auth.isAuthenticated, loadCaptures)
         save almost nothing and hide the one thing everybody wants. The sections below it are long,
         repetitive, or both, which is what makes folding them worth a tap.
       -->
-        <!-- The Brief is where a listener decides whether an episode is for them, so the reel's
-             entrance leads it (operator 2026-10-10). Amber outline: an action, not a section. -->
+        <section v-if="summary" class="mb-5">
+          <h3 class="lp-section mb-1">{{ t("kp.summary") }}</h3>
+          <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
+        </section>
+        <!-- The reel's entrance, right after the Summary (operator 2026-10-10: read what the episode
+             is, then taste it). Amber outline: an action, not a section. -->
         <button
           v-if="insights.length && momentsCount !== 0"
           type="button"
@@ -751,10 +755,6 @@ watch(() => auth.isAuthenticated, loadCaptures)
             </template>
           </span>
         </button>
-        <section v-if="summary" class="mb-5">
-          <h3 class="lp-section mb-1">{{ t("kp.summary") }}</h3>
-          <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
-        </section>
 
         <!-- Export the whole episode as notes (operator 2026-09-18).
 

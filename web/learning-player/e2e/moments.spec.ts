@@ -125,7 +125,7 @@ test.describe('the ways into Moments', () => {
     await expect(page.getByTestId('moments-reel')).toBeVisible()
   })
 
-  test('the Brief: "Play moments" above the summary', async ({ page }, testInfo) => {
+  test('the Brief: "Play moments" right after the summary', async ({ page }, testInfo) => {
     await openEpisode(page, testInfo, 'entry-brief')
     await page.getByTestId('player-open-insights').click()
     // How many and how long, once the moments are loaded.

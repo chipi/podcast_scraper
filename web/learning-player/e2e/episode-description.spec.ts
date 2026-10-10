@@ -39,6 +39,9 @@ test('the Description door opens the full publisher text, and the sheet closes a
     'What indexing does well, where people still make mistakes, and how to think about fees and behavior.',
   )
   await expect(page.getByTestId('episode-description-episode')).toHaveText('Index Investing Without the Myths')
+  // Laid out like the Brief (operator 2026-10-10): named as its door, the show opening the content.
+  await expect(sheet.locator('header')).toContainText('About')
+  await expect(sheet).toContainText('Long Horizon Notes')
 
   await page.getByTestId('episode-description-close').click()
   await expect(sheet).toBeHidden()

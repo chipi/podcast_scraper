@@ -2363,6 +2363,7 @@ const { badgeShown } = useCorpusLanguages()
         v-if="episodeDescription"
         :open="descriptionOpen"
         :title="episode.title"
+        :show-title="episode.podcast_title ?? null"
         :description="episodeDescription"
         @close="descriptionOpen = false"
       />

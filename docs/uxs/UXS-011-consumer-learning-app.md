@@ -440,8 +440,8 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   **Moments** (`player-open-moments`) opens the Moments view, **Brief** (`player-open-insights`)
   opens the Brief panel, **About** (`player-open-description`) opens the publisher's description.
   Equal heights, not sized to their words: "Description" (92px at the 11px kicker) does not fit a
-  third of the artwork (63–73px of room on common phones), so the band says **About** and the
-  sheet keeps the title "Episode description". Moments and Brief need insights, About needs a feed
+  third of the artwork (63–73px of room on common phones), so the band says **About**, and so does
+  the sheet's title (operator 2026-10-10: a sheet is named as its door). Moments and Brief need insights, About needs a feed
   description; with none, there is no band. The band stays while the panel is open, so the artwork
   never reflows, and Zone D and the reach chip are inset by the same 44px.
 - **Step** (operator 2026-10-10): previous / next insight in normal playback. ‹ and › sit on the
@@ -465,7 +465,7 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   episode with insights; on browsing rows (Discover and show-page cards, search episode results,
   Downloads, Discover 2 cards) a small amber text action, `MomentsLink` ("▶ Moments" — no box, no
   count, no extra height; the boxed chip was rejected as heavy and repeated on every row); the
-  Brief opens with a **Play moments** button above the summary. Not on Home tiles (too small) or
+  Brief offers a **Play moments** button right after the Summary. Not on Home tiles (too small) or
   passage results (already a moment). Downloaded episodes play their reel offline: the moments are
   saved with the download.
 - **Around the reel** (2026-10-10): the mini-player reads "Moments · 3 / 8" while a reel plays and
@@ -500,11 +500,12 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   Key points · **Topics & People (one merged, expandable row; chips → corpus search)** · Insights
   (grounded cards, `●` grounded marker) · More like this. Search sits below the summary and the
   download row (2026-09-30): the panel opens on what the episode is, and search is for digging in.
-- **Episode description** (operator 2026-10-10): the obi's Description door opens
+- **Episode description** (operator 2026-10-10): the obi's About door opens
   `EpisodeDescriptionSheet`, which shows the publisher's own description in full. Cards clamp that
   text, and the player had no way to read it. The sheet is a native `<dialog>`: a bottom sheet on
-  phones, a centred card at `lg`. It shows the episode title, then the whole text as plain text
-  (never HTML). Links the publisher wrote out (`http(s)://`, `www.`) are tappable and open outside
+  phones, a centred card at `lg`, laid out exactly like the Brief — the grab handle (pull down to
+  close), a header titled **About** with ✕, then the show and the episode title opening the
+  content, then the whole text as plain text (never HTML). Links the publisher wrote out (`http(s)://`, `www.`) are tappable and open outside
   the app through `openExternal`. Links hidden behind words in the feed's HTML cannot be shown,
   because ingest strips them.
 - **Episode card (Catalog + search):** hairline-separated row — artwork block + clean **lede**
