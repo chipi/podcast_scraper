@@ -922,8 +922,9 @@ _NAME_SUFFIXES = _NAME_SUFFIXES_BY_LANGUAGE[TARGET_LANGUAGE]
 #: spellings apart. Shared, not per-language, for the reason `_core_name_tokens` gives for its
 #: suffixes: a name is compared across sources, and a Spanish guest of an English feed is introduced
 #: as "Sra. Ana Ruiz" too. Stripped ONLY while a given name and a surname remain: Spanish `don` is
-#: an English given name ("Don Lemon"). Left out: `m` (French "M."), an English initial, and the
-#: English words `general`/`colonel`, whose English behaviour is pinned until an English replay.
+#: an English given name ("Don Lemon"). Left out: `m` (French "M."), an English initial. The words
+#: `general`/`colonel` are included ("General Mark Milley" is Mark Milley): the English-corpus
+#: replay of the prod snapshot of 2026-10-09 (2,454 episodes) changed no published name.
 _OTHER_LANGUAGE_TITLES: FrozenSet[str] = (
     frozenset(
         t
@@ -932,7 +933,7 @@ _OTHER_LANGUAGE_TITLES: FrozenSet[str] = (
         for t in row
     )
     - HONORIFIC_TITLES
-    - {"m", "general", "colonel"}
+    - {"m"}
 )
 
 

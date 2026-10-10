@@ -93,8 +93,10 @@ class TestIsPlausibleMononym:
     def test_a_word_of_the_feed_language_is_not(self) -> None:
         assert not hosts.is_plausible_mononym("Elle", "fr")
 
-    def test_english_keeps_its_pinned_ascii_check(self) -> None:
-        assert not hosts.is_plausible_mononym("Zoé")
+    def test_an_english_feed_reads_it_too(self) -> None:
+        # Replayed on the prod snapshot of 2026-10-09 (2,454 English episodes): no name changed.
+        assert hosts.is_plausible_mononym("Zoé")
+        assert hosts.is_plausible_mononym("Zoé", "en")
 
 
 def test_honorific_titles_add_the_feed_language() -> None:
@@ -116,8 +118,10 @@ class TestOrgMarkersGluedIntoOneToken:
         assert not hosts.has_org_markers("Ana McKenzie", "es")
         assert not hosts.has_org_markers("Luis DeLeón", "es")
 
-    def test_english_feeds_keep_their_pinned_behaviour(self) -> None:
-        assert not hosts.has_org_markers("OnePodcast", "en")
+    def test_an_english_feed_reads_it_too(self) -> None:
+        # Replayed on the prod snapshot of 2026-10-09 (2,454 English episodes): no name changed.
+        assert hosts.has_org_markers("OnePodcast", "en")
+        assert not hosts.has_org_markers("Patrick McKenzie", "en")
 
 
 def test_senado_s_portuguese_marker_reaches_the_feed_host_detection() -> None:

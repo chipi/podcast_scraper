@@ -129,10 +129,8 @@ def has_org_markers(name: str, language: Optional[str] = None) -> bool:
         return True
     # Markers glued into one token: "RadioAgência Senado" (Senado's author tag, seated as its host),
     # "iHeartPodcasts", "esRadio". Measured over 2,693 author-tag names from 585 chart feeds
-    # (2026-10-10): 11 newly refused, all organisations. Not on English feeds, whose behaviour is
-    # pinned until an English replay ("OnePodcast" would change there).
-    if naming_vocabulary.primary_subtag(language) == TARGET_LANGUAGE:
-        return False
+    # (2026-10-10): 11 newly refused, all organisations. English feeds too ("OnePodcast"): the
+    # English-corpus replay of the prod snapshot (2,454 episodes) changed no published name.
     split = _CAMEL_BOUNDARY.sub(" ", n)
     return split != n and bool(_NONPERSON_AUTHOR_MARKERS.search(split) or own.search(split))
 
@@ -1533,10 +1531,9 @@ def is_plausible_mononym(token: Optional[str], language: Optional[str] = None) -
     """
     t = (token or "").strip(" .,")
     own = _language_row(_NOT_A_NAME_TOKEN_BY_LANGUAGE, language) is not None
-    if own:
-        if len(t) < 2 or not t[0].isupper() or not _UNICODE_MONONYM.fullmatch(t):
-            return False
-    elif not re.fullmatch(r"[A-Z][A-Za-z'’\-]+", t):
+    # Letters in any script, English feeds included ("Zoé"): the English-corpus replay of the prod
+    # snapshot of 2026-10-09 (2,454 episodes) changed no published name.
+    if len(t) < 2 or not t[0].isupper() or not _UNICODE_MONONYM.fullmatch(t):
         return False
     tl = t.lower()
     not_a_name = _with_english(_NOT_A_NAME_TOKEN_BY_LANGUAGE, language if own else None)
