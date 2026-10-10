@@ -83,7 +83,7 @@ def _form(word: str) -> str:
     else:
         base = w
     if len(base) > 3 and base[-1] == base[-2] and base[-1] not in "lsz":
-        base = base[:-1]  # running -> runn -> run; stopped -> stopp -> stop
+        base = base[:-1]  # the doubled consonant goes: running and stopped meet run and stop
     if len(base) > 3 and base.endswith("e"):
         base = base[:-1]  # make -> mak, so making and make meet
     return base
