@@ -1044,6 +1044,11 @@ def _write_processing_manifest(
         if _recovery and any(r.get("status") == "recovered" for r in _recovery):
             # #2187 A2: the transcript carries re-transcribed segments (tagged ``recovered``).
             asr_flags.append("asr_speech_recovered")
+        _stretched = result.get("asr_stretched_word_recovery")
+        _replaced = [r for r in (_stretched or []) if r.get("status") == "replaced"]
+        if _replaced:
+            # D16: stretched words in the transcript were replaced by the speech they hid.
+            asr_flags.append("asr_stretched_words_replaced")
         _invented = result.get("asr_invented_lines")
         if _invented:
             asr_flags.append("asr_invented_lines_removed")
@@ -1098,6 +1103,13 @@ def _write_processing_manifest(
                     if _recovery is not None
                     else None
                 ),
+                "stretched_words_replaced": len(_replaced) if _stretched is not None else None,
+                "stretched_recovered_words": (
+                    sum(int(r.get("words") or 0) for r in _replaced)
+                    if _stretched is not None
+                    else None
+                ),
+                "stretched_words_remaining": len(result.get("asr_stretched_words") or []),
                 "invented_lines_removed": len(_invented or []),
                 "unpunctuated_windows": len(_unpunct_windows or []),
                 "punctuation_windows_repaired": _repaired,

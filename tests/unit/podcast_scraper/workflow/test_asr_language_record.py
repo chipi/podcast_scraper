@@ -246,6 +246,30 @@ class TestSpeechRecoveryIsRecorded:
         assert data["stages"]["asr"]["metrics"]["recovered_speech_count"] == 1
         assert data["stages"]["asr"]["metrics"]["recovered_words"] == 12
 
+    def test_the_manifest_counts_stretched_words_replaced(self) -> None:
+        """D16: the stage block carries what the stretched-word recovery did, as gap recovery's
+        does, so a corpus query needs no sidecar walk."""
+        from podcast_scraper.models.entities import TranscriptionJob
+
+        d, rel = self._setup()
+        job = TranscriptionJob(idx=6, ep_title="X", ep_title_safe="X", temp_media="", episode=None)
+        record = [
+            {"start": 1.0, "end": 16.6, "word": "¿no?", "status": "replaced", "words": 35},
+            {"start": 40.0, "end": 44.0, "word": "einige", "status": "declined"},
+        ]
+        result = {
+            "speech_audio_ratio": 0.93,
+            "asr_stretched_word_recovery": record,
+            "asr_stretched_words": [{"start": 40.0, "end": 44.0, "word": "einige"}],
+        }
+        episode_processor._write_processing_manifest(result, _cfg(), job, rel, d)
+        data = json.load(open(pm.manifest_path(d, rel)))
+        metrics = data["stages"]["asr"]["metrics"]
+        assert metrics["stretched_words_replaced"] == 1
+        assert metrics["stretched_recovered_words"] == 35
+        assert metrics["stretched_words_remaining"] == 1
+        assert "asr_stretched_words_replaced" in data["quality_flags"]
+
     def test_attempts_that_recovered_nothing_are_not_flagged(self) -> None:
         from podcast_scraper.models.entities import TranscriptionJob
 
