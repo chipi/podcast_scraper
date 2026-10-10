@@ -230,6 +230,18 @@ describe('player store', () => {
     expect(el.currentTime).toBe(35)
   })
 
+  it('seek() shows the new position at once — the display does not wait for a timeupdate', () => {
+    // Resume showed 0:00 for seconds while the audio was still loading (Android tester, 2026-10-10):
+    // the element held the resume position, but the store's time only moved on `timeupdate`, which
+    // no element fires before playback starts. Reproduced with slow audio in Chromium and WebKit.
+    const p = usePlayerStore()
+    const el = stubAudio({ currentTime: 0, duration: 0, readyState: 0 } as Partial<HTMLAudioElement>)
+    p.load({ slug: 'ep-1', url: 'https://x/a.mp3', title: 'An Episode', durationSeconds: 1800 })
+    p.seek(1697)
+    expect(el.currentTime).toBe(1697)
+    expect(p.currentTime).toBe(1697)
+  })
+
   it('cycleRate() advances through PLAYBACK_RATES and applies to the element', () => {
     const p = usePlayerStore()
     const el = stubAudio()

@@ -340,6 +340,7 @@ export const usePlayerStore = defineStore('player', () => {
             'loadedmetadata',
             () => {
               audio.currentTime = at
+              currentTime.value = at
             },
             { once: true },
           )
@@ -761,7 +762,13 @@ export const usePlayerStore = defineStore('player', () => {
   function seek(to: number): void {
     const e = el.value
     if (!e) return
-    e.currentTime = Math.max(0, Math.min(to, duration.value || to))
+    const at = Math.max(0, Math.min(to, duration.value || to))
+    e.currentTime = at
+    // The time on screen moves NOW, not on the next `timeupdate`: no element fires one before
+    // playback starts, so a resume while the audio was still loading showed 0:00 for seconds while
+    // the audio then played from the saved place (Android tester, 2026-10-10).
+    currentTime.value = at
+    syncPositionState()
   }
   function skip(delta: number): void {
     seek(currentTime.value + delta)

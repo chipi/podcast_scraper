@@ -1043,13 +1043,15 @@ async function load(slug: string): Promise<void> {
 function applyStartPosition(): void {
   const el = player.el
   if (!el) return
+  // Through `player.seek`, never `el.currentTime` directly: the store's time has to move with the
+  // element, or the page shows 0:00 until the audio has loaded and started (see `seek`).
   // A ?t= deep-link (jump-to-moment from search) wins over the saved resume position.
   const deepLink = Number(route.query.t)
   if (Number.isFinite(deepLink) && deepLink > 0) {
     // ?t= is a content-time (from a search jump-to-moment) → map to audio-time.
-    el.currentTime = deepLink + syncOffset.value
+    player.seek(deepLink + syncOffset.value)
   } else if (resumeSeconds > 1 && resumeSeconds < duration.value - 1) {
-    el.currentTime = resumeSeconds
+    player.seek(resumeSeconds)
   }
   el.playbackRate = rate.value
   // `?play=1` — the caller's intent was to LISTEN, not to look at a page (operator 2026-09-18).
