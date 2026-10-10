@@ -31,6 +31,9 @@ import CardRail from '../components/CardRail.vue'
 import SectionHeading from '../components/SectionHeading.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
 import EpisodeDescriptionSheet from '../components/EpisodeDescriptionSheet.vue'
+import MomentsReel from '../components/MomentsReel.vue'
+import { loadMoments, toReel } from '../services/moments'
+import type { ReelMoment } from '../stores/player'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import EpisodeRecapPanel from '../components/EpisodeRecapPanel.vue'
@@ -49,10 +52,12 @@ import {
   activeInsightIndex,
   groundedSpansBySegment,
   groundedMomentCount,
+  insightPosition,
   insightStartSeconds,
   INSIGHT_LINGER_MS,
   INSIGHT_MIN_CONTENT_SECONDS,
   nextInsightIndex,
+  stepTarget,
 } from '../player/insights'
 import { insightScrubberMarkers } from '../player/insightMarkers'
 import { RECAP_COUNTDOWN_SECONDS } from '../player/recap'
@@ -600,6 +605,29 @@ const nextInsightCountdown = computed(() =>
 function seekToNextInsight(): void {
   if (nextInsightStartSeconds.value != null) seekContent(nextInsightStartSeconds.value)
 }
+
+/**
+ * Step (operator 2026-10-10): previous / next insight during normal playback. Next jumps to the next
+ * insight's first quote; previous restarts the current one, or goes back one within 3 s of its
+ * start (a music player). The counter reads "4 / 40": insights started so far, of how many.
+ */
+function stepInsight(dir: 1 | -1): void {
+  const target = stepTarget(insights.value, contentTime.value, dir)
+  if (target != null) seekContent(target)
+}
+const stepPos = computed(() => insightPosition(insights.value, contentTime.value))
+/** Desktop: `[` and `]` step, unless the listener is typing somewhere. */
+function onStepKey(e: KeyboardEvent): void {
+  if (e.key !== '[' && e.key !== ']') return
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  const el = e.target as HTMLElement | null
+  if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return
+  if (player.inReel) return
+  e.preventDefault()
+  stepInsight(e.key === ']' ? 1 : -1)
+}
+onMounted(() => window.addEventListener('keydown', onStepKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onStepKey))
 // Grounding receipt for the live insight panel (Zone D): how many distinct MOMENTS in the audio the
 // current insight is sourced to.
 //
@@ -1103,6 +1131,89 @@ watch(
   },
 )
 
+// --- Moments (operator 2026-10-10) ------------------------------------------------------------
+// `?moments=1` turns this page into the Moments view: the episode's strongest moments, back to back.
+// The reel itself lives in the player store; this page loads the moments and swaps its left column.
+const episodeMoments = ref<ReelMoment[]>([])
+let momentsFor: string | null = null
+async function ensureMoments(slug: string): Promise<ReelMoment[]> {
+  if (momentsFor === slug) return episodeMoments.value
+  const loaded = toReel(await loadMoments(slug))
+  if (props.slug === slug) {
+    episodeMoments.value = loaded
+    momentsFor = slug
+  }
+  return loaded
+}
+watch(
+  () => props.slug,
+  () => {
+    episodeMoments.value = []
+    momentsFor = null
+  },
+)
+// The ticks on the density strip need the moments in the episode view too; fetched once it is
+// known the episode has insights.
+watch(
+  () => [props.slug, episode.value?.has_gi] as const,
+  ([slug, hasGi]) => {
+    if (hasGi) void ensureMoments(slug)
+  },
+  { immediate: true },
+)
+const momentsActive = computed(() => player.reel?.slug === props.slug)
+const momentMarks = computed(() =>
+  duration.value > 0
+    ? episodeMoments.value.map((m) => Math.min(100, (m.startMs / 1000 / duration.value) * 100))
+    : [],
+)
+function leaveMomentsQuery(): void {
+  const query = { ...route.query }
+  delete query.moments
+  void router.replace({ query })
+}
+function openMoments(): void {
+  void router.replace({ query: { ...route.query, moments: '1' } })
+}
+// Start the reel once the episode is loaded AND its start position applied — so ✕ returns to where
+// the listener actually was, not to 0:00. Same once-per-slug gate as the start position.
+watch(
+  () => [route.query.moments, player.currentSlug, duration.value, startReady.value] as const,
+  async ([want, slug, d, ready]) => {
+    if (!want || momentsActive.value || !ready || !d) return
+    if (slug !== props.slug || startApplied !== props.slug) return
+    const moments = await ensureMoments(props.slug)
+    if (!route.query.moments || player.currentSlug !== props.slug || momentsActive.value) return
+    // No moments for this episode: just the episode, nothing broken.
+    if (moments.length === 0) {
+      leaveMomentsQuery()
+      return
+    }
+    player.startReel(props.slug, moments)
+  },
+)
+// Back out of `?moments=1` (the phone's Back, a link) ends the reel the same way ✕ does.
+watch(
+  () => route.query.moments,
+  (want) => {
+    if (!want && momentsActive.value) player.exitReel(false)
+  },
+)
+function onMomentsKeep(): void {
+  player.exitReel(true)
+  leaveMomentsQuery()
+}
+function onMomentsClose(): void {
+  player.exitReel(false)
+  leaveMomentsQuery()
+}
+function onMomentsFromStart(): void {
+  player.exitReel(false)
+  player.seek(0)
+  player.play()
+  leaveMomentsQuery()
+}
+
 // Transcript is OPTIONAL and closed by default (mobile): pressing play should NOT jump the
 // listener into the transcript. A Show/Hide toggle reveals it; opening scrolls it into view.
 // (Desktop keeps the transcript visible as the side column — see the template's lg: classes.)
@@ -1411,6 +1522,29 @@ const { badgeShown } = useCorpusLanguages()
            the transcript, so `sticky top-0` keeps them pinned while the transcript scrolls under.
            On desktop (lg) it's a normal grid column again. -->
       <div class="contents lg:block">
+        <!-- Moments (operator 2026-10-10): its own view in place of the masthead, artwork and
+             transport, so the two modes can never be mistaken for each other. -->
+        <MomentsReel
+          v-if="momentsActive && player.reel"
+          :title="episode.title"
+          :show-title="episode.podcast_title ?? null"
+          :artwork="artwork ?? null"
+          :moments="player.reel.moments"
+          :index="player.reel.index"
+          :done="player.reel.done"
+          :playing="playing"
+          :current-time="currentTime"
+          :return-to="player.reel.returnTo"
+          :episode-seconds="duration"
+          @go="player.reelGo"
+          @prev="player.reelPrev"
+          @next="player.reelNext"
+          @toggle="player.toggle"
+          @keep="onMomentsKeep"
+          @close="onMomentsClose"
+          @from-start="onMomentsFromStart"
+        />
+        <template v-else>
         <div class="flex items-start justify-between gap-3">
           <RouterLink
             v-if="episode.podcast_title && episode.feed_id"
@@ -1643,6 +1777,15 @@ const { badgeShown } = useCorpusLanguages()
             >
               <button
                 v-if="insights.length"
+                type="button"
+                data-testid="player-open-moments"
+                class="lp-obi-door"
+                @click="openMoments"
+              >
+                <span class="lp-kicker lp-obi-label">{{ t('moments.door') }}</span>
+              </button>
+              <button
+                v-if="insights.length"
                 ref="insightsOpener"
                 type="button"
                 data-testid="player-open-insights"
@@ -1658,7 +1801,7 @@ const { badgeShown } = useCorpusLanguages()
                 class="lp-obi-door"
                 @click="descriptionOpen = true"
               >
-                <span class="lp-kicker lp-obi-label">{{ t('player.description') }}</span>
+                <span class="lp-kicker lp-obi-label">{{ t('player.about') }}</span>
               </button>
             </nav>
 
@@ -1741,10 +1884,27 @@ const { badgeShown } = useCorpusLanguages()
                   <!-- Attribution: ONE glyph for the whole panel. The sr-only span keeps the
                        "speaking now" context for screen readers even though it's folded visually
                        into this one line rather than a separate pill. -->
-                  <p class="lp-kicker">
-                    ✦ {{ t('player.insightLabel') }}<template v-if="insightSpeaker"> · {{ t('player.insightBy', { speaker: insightSpeaker }) }}</template>
-                    <span v-if="insightSpeaker" class="sr-only">{{ t('player.speakingNow') }}: {{ insightSpeaker }}</span>
-                  </p>
+                  <!-- Step (operator 2026-10-10): ‹ n / total › around the attribution. -->
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      class="lp-step-btn"
+                      data-testid="player-step-prev"
+                      :aria-label="t('player.stepPrev')"
+                      @click="stepInsight(-1)"
+                    >‹</button>
+                    <p class="lp-kicker min-w-0 flex-1 text-center">
+                      ✦ <span data-testid="player-step-pos">{{ stepPos.index }} / {{ stepPos.total }}</span><template v-if="insightSpeaker"> · {{ t('player.insightBy', { speaker: insightSpeaker }) }}</template>
+                      <span v-if="insightSpeaker" class="sr-only">{{ t('player.speakingNow') }}: {{ insightSpeaker }}</span>
+                    </p>
+                    <button
+                      type="button"
+                      class="lp-step-btn"
+                      data-testid="player-step-next"
+                      :aria-label="t('player.stepNext')"
+                      @click="stepInsight(1)"
+                    >›</button>
+                  </div>
                   <!-- Hero content: the insight is what this whole surface exists to show, so it
                        reads at display size. `line-clamp-[12]` is a ceiling well above the real
                        9-line max (a future outlier guard), not a target. -->
@@ -1772,14 +1932,30 @@ const { badgeShown } = useCorpusLanguages()
                 class="absolute bottom-0 left-0 p-3"
                 :class="obiShown ? 'right-[44px]' : 'right-0'"
               >
-                <button
-                  v-if="nextInsight"
-                  type="button"
-                  class="inline-flex items-center gap-1.5 rounded-full bg-canvas/95 px-3 py-1 transition hover:bg-canvas/90"
-                  @click="seekToNextInsight"
-                >
-                  <span class="lp-kicker leading-none">{{ t('player.next') }} · {{ t('player.nextIn', { time: formatTime(nextInsightCountdown ?? 0) }) }}</span>
-                </button>
+                <div v-if="insights.length" class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="lp-step-btn"
+                    data-testid="player-step-prev-rest"
+                    :aria-label="t('player.stepPrev')"
+                    @click="stepInsight(-1)"
+                  >‹</button>
+                  <button
+                    v-if="nextInsight"
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-full bg-canvas/95 px-3 py-1 transition hover:bg-canvas/90"
+                    @click="seekToNextInsight"
+                  >
+                    <span class="lp-kicker leading-none">{{ t('player.next') }} · {{ t('player.nextIn', { time: formatTime(nextInsightCountdown ?? 0) }) }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="lp-step-btn"
+                    data-testid="player-step-next-rest"
+                    :aria-label="t('player.stepNext')"
+                    @click="stepInsight(1)"
+                  >›</button>
+                </div>
               </div>
             </Transition>
           </div>
@@ -1822,6 +1998,7 @@ const { badgeShown } = useCorpusLanguages()
             :duration="duration"
             :rate="rate"
             :markers="insightMarkers"
+            :moment-marks="momentMarks"
             @toggle="player.toggle"
             @seek="player.seek"
             @skip="player.skip"
@@ -1878,11 +2055,12 @@ const { badgeShown } = useCorpusLanguages()
             {{ t('player.audioUnavailable') }}
           </p>
         </div>
+        </template>
       </div>
 
       <!-- Middle: synced transcript. The mobile show/hide toggle lives in the floating controls
            panel (PlayerControls #left-outer slot) so it's reachable at any scroll position. -->
-      <div ref="transcriptEl" class="mt-6 scroll-mt-20 lg:mt-0 lg:flex lg:max-h-[70dvh] lg:flex-col">
+      <div v-show="!momentsActive" ref="transcriptEl" class="mt-6 scroll-mt-20 lg:mt-0 lg:flex lg:max-h-[70dvh] lg:flex-col">
         <!-- Transcript body — opt-in on mobile (toggled), always shown on desktop. `lg:contents`
              dissolves this wrapper at lg so the transcript keeps flowing inside the flex column
              (lg:flex-1 scroll) exactly as before. -->
@@ -2088,6 +2266,24 @@ const { badgeShown } = useCorpusLanguages()
 </template>
 
 <style scoped>
+/* Step arrows (operator 2026-10-10): 44px targets around a small visible glyph, on the artwork's
+   scrim. Square-cornered like the app's other controls. */
+.lp-step-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -8px;
+  color: var(--lp-canvas-foreground);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.lp-step-btn:focus-visible {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: -6px;
+}
 /* The obi's doors: each takes an equal share of the band's height, divided by a hairline. Both
    look alike (operator 2026-10-10); hover and focus lift the label to the foreground colour. */
 .lp-obi-door {

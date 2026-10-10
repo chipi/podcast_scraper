@@ -17,6 +17,13 @@ const props = defineProps<{
   rate: number
   /** Insight density ticks (#1140 skip-guide) — where the substance is. */
   markers?: InsightMarker[]
+  /**
+   * Moments (operator 2026-10-10): where the episode's moments sit, as 0–100 positions. Marked on
+   * the density strip, not the scrubber — the strip already shows where the insights are. Cream
+   * and taller than an insight tick, never the accent: the accent means "a finger can act on this"
+   * and these marks are not separate controls.
+   */
+  momentMarks?: number[]
 }>()
 const emit = defineEmits<{
   (e: "toggle"): void
@@ -196,7 +203,7 @@ function onDensityUp(): void {
          fingertip on a 10px band would miss it as often as not. `touch-pan-y` lets a vertical
          swipe that starts here still scroll the page; a horizontal one scrubs. -->
     <div
-      v-if="(markers?.length ?? 0) > 0"
+      v-if="(markers?.length ?? 0) > 0 || (momentMarks?.length ?? 0) > 0"
       class="-mb-2 cursor-pointer touch-pan-y py-2"
       data-testid="player-density-seek"
       @pointerdown="onDensityDown"
@@ -227,6 +234,14 @@ function onDensityUp(): void {
         :class="m.grounded ? 'bg-canvas-foreground' : 'bg-muted'"
         :style="{ left: m.pct + '%', opacity: m.weight }"
         data-testid="player-density-tick"
+      />
+      <span
+        v-for="(pct, i) in momentMarks ?? []"
+        :key="'m' + i"
+        class="absolute -top-[3px] h-4 w-[3px] -translate-x-1/2 rounded-[1px] bg-canvas-foreground"
+        :style="{ left: pct + '%' }"
+        aria-hidden="true"
+        data-testid="player-moment-mark"
       />
     </div>
     </div>

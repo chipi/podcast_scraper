@@ -225,3 +225,35 @@ export function hitStartSeconds(hit: SearchHit): number | null {
   const md = hit.metadata as Record<string, unknown>
   return fromMs(md['timestamp_start_ms']) ?? fromMs(md['start_ms'])
 }
+
+/** Insight starts (seconds), sorted and de-duplicated — the episode's chapters for Step. */
+export function insightStarts(insights: Insight[]): number[] {
+  const starts = insights
+    .map((ins) => insightStartSeconds(ins))
+    .filter((s): s is number => s != null)
+  return [...new Set(starts)].sort((a, b) => a - b)
+}
+
+/** Within this many seconds of an insight's start, ‹ goes to the one before (a music player). */
+export const STEP_RESTART_SECONDS = 3
+
+/**
+ * Where Step lands (operator 2026-10-10): `dir` 1 = the next insight's first quote; -1 = the start
+ * of the current insight, or the one before when already within ``STEP_RESTART_SECONDS`` of it.
+ * Null when there is nowhere to go. `t` is content time, like the starts.
+ */
+export function stepTarget(insights: Insight[], t: number, dir: 1 | -1): number | null {
+  const starts = insightStarts(insights)
+  if (dir === 1) return starts.find((s) => s > t + 0.5) ?? null
+  const started = starts.filter((s) => s <= t + 0.001)
+  if (started.length === 0) return null
+  const current = started[started.length - 1]
+  if (t - current > STEP_RESTART_SECONDS) return current
+  return started.length > 1 ? started[started.length - 2] : current
+}
+
+/** "4 / 40": how many insights have started by `t`, of how many. 0 before the first. */
+export function insightPosition(insights: Insight[], t: number): { index: number; total: number } {
+  const starts = insightStarts(insights)
+  return { index: starts.filter((s) => s <= t + 0.001).length, total: starts.length }
+}

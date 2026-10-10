@@ -245,3 +245,21 @@ class TestRanking:
         assert [m.insight_id for m in pick_moments(gi, 600, one)] == ["insight:first"]
         by_score = MomentsConfig(min_count=1, max_count=1, ranking="score")
         assert [m.insight_id for m in pick_moments(gi, 600, by_score)] == ["insight:deep"]
+
+
+class TestShortEpisodes:
+    def test_the_gap_shrinks_so_a_short_episode_still_gets_its_moments(self) -> None:
+        gi = _Gi()
+        # A 6-minute episode with candidates every 50 s: a fixed 3-minute gap allowed two.
+        for n in range(7):
+            gi.insight(f"insight:{n}", quotes=[(10 + n * 50, 20 + n * 50)])
+        picked = pick_moments(gi.build(), 6 * 60)
+        assert len(picked) == 5
+
+    def test_long_episodes_keep_the_full_gap(self) -> None:
+        gi = _Gi()
+        for n in range(40):
+            gi.insight(f"insight:{n}", quotes=[(n * 60, n * 60 + 15)])
+        picked = pick_moments(gi.build(), 40 * 60)  # 40 min → 7 moments
+        starts = [m.start_ms for m in picked]
+        assert all(b - a >= 180_000 for a, b in zip(starts, starts[1:]))

@@ -304,4 +304,7 @@ def pick_moments(
         return []
     duration = duration_seconds or max(m.end_ms for m in scored) / 1000.0
     count = moment_count(duration, len(scored), cfg)
-    return spread_pick(rank_moments(scored, cfg), count, int(cfg.min_gap_seconds * 1000))
+    # The gap scales down for short episodes so the count stays reachable: a fixed 3 min left a
+    # 6-minute episode one moment. From about 18 minutes up (count 5) this is exactly min_gap.
+    gap_s = min(cfg.min_gap_seconds, duration / (count + 1)) if count else cfg.min_gap_seconds
+    return spread_pick(rank_moments(scored, cfg), count, int(gap_s * 1000))

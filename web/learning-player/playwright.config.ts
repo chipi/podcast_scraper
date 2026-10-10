@@ -136,6 +136,11 @@ export default defineConfig({
         // delivery worker does. A fixed, e2e-only value; must match E2E_OUTBOX_TOKEN in that spec
         // and the Makefile's app-e2e container.
         INTERNAL_OUTBOX_TOKEN: 'e2e-outbox-token',
+        // Moments (2026-10-10): the fixture's insight quotes are synthetic and sit within the first
+        // ~48 s of each ~6-minute episode, so the real spacing rule (min(3 min, length / (n+1)))
+        // correctly keeps one moment. The knob is real server config; 5 s lets moments.spec walk a
+        // reel of three.
+        APP_MOMENTS_CONFIG: '{"min_gap_seconds": 5}',
       },
     },
     {

@@ -433,16 +433,34 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   timeline, and the strip stays `role="img"` rather than becoming a second, unlabelled slider.
   Order: scrubber → density strip → the time readout, which labels the ends of both.
 - **Chips:** topic (`topic`), person (`person`), grounding (`grounded`) — `xs`, rounded, low-fill.
-- **The obi: Brief and Description** (operator 2026-10-10). The episode's two doors sit in a
-  44px band down the right edge of the artwork, like the paper band on a Japanese LP that carries
-  the record's information (`player-obi`, a `<nav>` named "Brief and description"). Two stacked
-  doors, set exactly alike in the kicker voice with no glyph and no count (PL.5): **Brief**
-  (`player-open-insights`) opens the Brief panel, and **Description** (`player-open-description`)
-  opens the publisher's description. Each door takes half the band's height, divided by a
-  hairline. A missing door leaves the other at full height (Brief needs insights, Description
-  needs a feed description); with neither, there is no band. The band stays while the panel is
-  open, so the artwork never reflows, and Zone D and the reach chip are inset by the same 44px.
-  It replaced two rounded pills, the only fully rounded objects on a screen of 1-4px corners.
+- **The obi: Moments, Brief and About** (operator 2026-10-10). The episode's doors sit in a 44px
+  band down the right edge of the artwork, like the paper band on a Japanese LP that carries the
+  record's information (`player-obi`, a `<nav>` named "Moments, brief and description"). Three
+  equal doors, set exactly alike in the kicker voice with no glyph and no count (PL.5):
+  **Moments** (`player-open-moments`) opens the Moments view, **Brief** (`player-open-insights`)
+  opens the Brief panel, **About** (`player-open-description`) opens the publisher's description.
+  Equal heights, not sized to their words: "Description" (92px at the 11px kicker) does not fit a
+  third of the artwork (63–73px of room on common phones), so the band says **About** and the
+  sheet keeps the title "Episode description". Moments and Brief need insights, About needs a feed
+  description; with none, there is no band. The band stays while the panel is open, so the artwork
+  never reflows, and Zone D and the reach chip are inset by the same 44px.
+- **Step** (operator 2026-10-10): previous / next insight in normal playback. ‹ and › sit on the
+  live insight card around a counter ("✦ 4 / 40 · speaker") and around the between-insights
+  "Next · in 0:06" line, each a 44px target; `[` and `]` on desktop. Next jumps to the next
+  insight's first quote; previous restarts the current insight, or goes back one within 3 s of
+  its start (a music player). No long-press on the skip buttons: invisible, and a second meaning
+  for ↺15.
+- **Moments view** (`MomentsReel`; operator 2026-10-10; `?moments=1`): a quick-listening mode that plays the
+  episode's strongest moments back to back, each a clip of the speaker making the point. It is a
+  different place, not the episode view with fewer controls: an amber **Moments** heading, the
+  episode as a header thumbnail, a segment bar, the current moment in display type with who says
+  it and a thin clip bar, previous / play / next, **Keep listening here** (the full episode from
+  this moment), ✕ (back to where the listener was), and an index of every moment. An end card
+  after the last offers "Listen from the start" and "Back to …". A reel is not a listen: no listen
+  logged, no position saved, no milestones. Headphone and lock-screen next / previous skip
+  moments while it runs. Which moments and how many are server config (`APP_MOMENTS_CONFIG`). In
+  the episode view the moments are marked on the density strip (cream, taller than an insight
+  tick; never the accent).
 - **Brief** is the panel's name (renamed 2026-10-10; shipped #1091 as "Insights", "Episode notes"
   from 2026-09-30). One word for the band, and plain "Notes" already means the listener's own
   notes. The grounded items inside stay "insights".
