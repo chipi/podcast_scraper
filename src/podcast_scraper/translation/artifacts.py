@@ -36,7 +36,7 @@ import logging
 import os
 import tempfile
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from ..languages import primary_language
 from ..providers.ml.diarization.formatting import format_diarized_screenplay_with_offsets
@@ -94,6 +94,9 @@ class UnitRecord:
     prompt_tokens: Optional[int] = None
     completion_tokens: Optional[int] = None
     max_tokens_capped_from: Optional[int] = None
+    #: Why each refused attempt was refused, including those a retry recovered from: a unit that
+    #: passed on attempt 2 otherwise says only ``attempts: 2``.
+    refusals: List[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -123,6 +126,8 @@ class UnitRecord:
         for key in ("prompt_tokens", "completion_tokens", "max_tokens_capped_from"):
             if getattr(self, key) is not None:
                 out[key] = getattr(self, key)
+        if self.refusals:
+            out["refusals"] = list(self.refusals)
         return out
 
     @classmethod
@@ -148,6 +153,7 @@ class UnitRecord:
             prompt_tokens=_optional_int(raw.get("prompt_tokens")),
             completion_tokens=_optional_int(raw.get("completion_tokens")),
             max_tokens_capped_from=_optional_int(raw.get("max_tokens_capped_from")),
+            refusals=[str(r) for r in (raw.get("refusals") or []) if r],
         )
 
 
@@ -731,16 +737,30 @@ def translation_swap_happened(
 
 
 def translation_metrics(
-    doc: TranslationDocument, units: Sequence[TranslationUnit]
+    doc: TranslationDocument,
+    units: Sequence[TranslationUnit],
+    fresh_unit_ids: Optional[Set[str]] = None,
+    max_concurrency: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """What the manifest records — the numbers S2.10 sizes capacity from."""
+    """What the manifest records — the numbers S2.10 sizes capacity from.
+
+    ``fresh_unit_ids`` (sent to the translator in THIS run) and ``max_concurrency`` (units in
+    flight) make a run's figures comparable to another's: a run served from translation memory, or
+    at another concurrency, is otherwise indistinguishable in the manifest (2026-10-10).
+    """
     metrics: Dict[str, Any] = {
         "status": doc.status,
         "units": len(doc.units),
         "units_failed": len(doc.failed_units),
         "alignment_unit_fallbacks": sum(1 for u in doc.units if u.alignment == "unit"),
         "attempts_total": sum(u.attempts for u in doc.units),
+        "units_ok_after_refusal": sum(1 for u in doc.units if u.ok and u.refusals),
     }
+    if fresh_unit_ids is not None:
+        metrics["units_translated_fresh"] = sum(1 for u in doc.units if u.unit_id in fresh_unit_ids)
+        metrics["units_from_memory"] = len(doc.units) - metrics["units_translated_fresh"]
+    if max_concurrency is not None:
+        metrics["max_concurrency"] = max_concurrency
     metrics.update({f"packed_{k}": v for k, v in pack_stats(units).items()})
     failed_ids = [u.unit_id for u in doc.failed_units]
     if failed_ids:

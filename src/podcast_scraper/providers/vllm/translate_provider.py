@@ -454,6 +454,8 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         # A REFUSED output is retried once, on both paths. The refusals are not stable: two
         # refused El Hilo units (2026-10-09) came back clean on two re-sends each, and one refused
         # unit costs the episode its whole English set (§5.3).
+        # Why each refused attempt was refused, kept in the ledger even when a retry passes.
+        refusals: List[str] = []
         if len(sentences) == 1:
             refused: Optional[str] = None
             meta = dict(base_meta)
@@ -470,12 +472,16 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
                     target_language=target_language,
                 )
                 meta = {**base_meta, **got["metadata"], "attempts": attempt}
+                if refusals:
+                    meta["refusals"] = list(refusals)
                 if got["text"] is None:
                     break
                 if numbered:
                     lines = _parse_numbered(got["text"])
                     if len(lines) > 1:
                         refused = f"numbered retry returned {len(lines)} lines for 1 sentence"
+                        refusals.append(refused)
+                        meta["refusals"] = list(refusals)
                         continue
                     # A one-line answer may come back without its "1."; it is still that line.
                     got = {**got, "text": lines[0] if lines else got["text"].strip()}
@@ -487,6 +493,8 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
                         attempt,
                         refused,
                     )
+                    refusals.append(refused)
+                    meta["refusals"] = list(refusals)
                     continue
                 return {
                     "sentences": [{"sent_id": sentences[0].sent_id, "en_text": got["text"]}],
@@ -505,6 +513,8 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
                 target_language=target_language,
             )
             last_meta = {**base_meta, **got["metadata"], "attempts": attempt}
+            if refusals:
+                last_meta["refusals"] = list(refusals)
             if got["text"] is None:
                 continue
             parsed = _parse_numbered(got["text"])
@@ -528,6 +538,8 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
                         refused,
                     )
                     last_meta["refused"] = refused
+                    refusals.append(refused)
+                    last_meta["refusals"] = list(refusals)
                     continue
                 return {
                     "sentences": [
@@ -537,6 +549,8 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
                     "metadata": last_meta,
                 }
             last_meta["alignment_mismatch"] = f"{len(parsed)} of {len(sentences)}"
+            refusals.append(f"returned {len(parsed)} lines for {len(sentences)} sentences")
+            last_meta["refusals"] = list(refusals)
             logger.info(
                 "translate: unit %s returned %d lines for %d sentences (attempt %d)",
                 base_meta["unit_id"],
@@ -568,7 +582,11 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
             return {
                 "sentences": [],
                 "alignment": "failed",
-                "metadata": {**meta, "error": f"output refused: {rejected}"},
+                "metadata": {
+                    **meta,
+                    "error": f"output refused: {rejected}",
+                    "refusals": [*refusals, rejected],
+                },
             }
         return {
             "sentences": [{"sent_id": sentences[0].sent_id, "en_text": whole["text"]}],

@@ -660,6 +660,7 @@ def _translate_episode(
                         prompt_tokens=cached.prompt_tokens,
                         completion_tokens=cached.completion_tokens,
                         max_tokens_capped_from=cached.max_tokens_capped_from,
+                        refusals=list(cached.refusals),
                     )
                 )
                 continue
@@ -686,6 +687,7 @@ def _translate_episode(
                 prompt_tokens=meta.get("prompt_tokens"),
                 completion_tokens=meta.get("completion_tokens"),
                 max_tokens_capped_from=meta.get("max_tokens_capped_from"),
+                refusals=[str(r) for r in (meta.get("refusals") or []) if r],
             )
         )
 
@@ -780,7 +782,12 @@ def _translate_episode(
     outcome.units = len(doc.units)
     outcome.units_failed = len(doc.failed_units)
     outcome.english_ready = en_rel is not None
-    outcome.metrics = translation_metrics(doc, units)
+    outcome.metrics = translation_metrics(
+        doc,
+        units,
+        fresh_unit_ids=set(fresh),
+        max_concurrency=int(getattr(cfg, "translation_max_concurrency", 1) or 1),
+    )
     outcome.status = STATUS_TRANSLATED if en_rel else STATUS_FAILED
     if en_rel:
         outcome.reason = None
