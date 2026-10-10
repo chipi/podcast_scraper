@@ -390,6 +390,8 @@
     "sortZa": "Z–A",
     "sortTrending": "Trending",
     "filter": "Filter",
+    "language": "Language",
+    "languageAll": "All languages",
     "filterAll": "All",
     "filterInsights": "With insights",
     "filterInProgress": "In progress",

@@ -21,6 +21,8 @@ import ToolbarMenu from "./ToolbarMenu.vue"
 const search = defineModel<string>("search", { default: "" })
 const sort = defineModel<string>("sort", { default: "" })
 const filter = defineModel<string>("filter", { default: "all" })
+/** A second facet, the language (operator 2026-10-10), shown only when the host passes options. */
+const language = defineModel<string>("language", { default: "" })
 const view = defineModel<"list" | "grid">("view", { default: "list" })
 
 const { t } = useI18n()
@@ -28,17 +30,20 @@ const props = withDefaults(
   defineProps<{
     sortOptions: { value: string; label: string }[]
     filterOptions?: { value: string; label: string }[]
+    languageOptions?: { value: string; label: string }[]
     count?: string
     searchPlaceholder?: string
     searchTestid?: string
     sortTestid?: string
     filterTestid?: string
+    languageTestid?: string
     viewTestid?: string
   }>(),
   {
     searchTestid: "list-toolbar-search",
     sortTestid: "list-toolbar-sort",
     filterTestid: "list-toolbar-filter",
+    languageTestid: "list-toolbar-language",
     viewTestid: "list-toolbar-view",
   }
 )
@@ -58,6 +63,18 @@ const viewOptions = computed(() => [
       :aria-label="searchPlaceholder ?? t('list.search')"
       :data-testid="searchTestid"
       class="lp-search min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
+    />
+
+    <!-- Language facet (optional) — the same chip, offered by the host only when its list spans
+         more than one language. -->
+    <ToolbarMenu
+      v-if="languageOptions && languageOptions.length"
+      v-model="language"
+      variant="pill"
+      align="right"
+      :options="languageOptions"
+      :menu-label="t('list.language')"
+      :testid="props.languageTestid"
     />
 
     <!-- Filter facet (optional) — a chip that shows the CURRENT value ("All"), sized to it, not to

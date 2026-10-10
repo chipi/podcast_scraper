@@ -22,6 +22,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
+from podcast_scraper.languages import primary_language
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
@@ -182,6 +183,9 @@ def podcasts_list(
     ),
     q: str | None = Query(default=None, max_length=200, description="Paged: title / host words."),
     category: str | None = Query(default=None, max_length=100),
+    language: str | None = Query(
+        default=None, max_length=35, description="Paged: shows in this language (primary code)."
+    ),
     sort: Literal["newest", "oldest", "az", "za", "trending"] = Query(default="newest"),
     compact: bool = Query(
         default=False, description="Paged: leave out descriptions (a name list, e.g. a filter)."
@@ -203,6 +207,7 @@ def podcasts_list(
         return AppPodcastsResponse(items=[_podcast_item(f) for f in feeds])
     wanted = set(feed_ids)
     words = (q or "").casefold().split()
+    lang = primary_language(language) if language else ""
 
     def title(f: dict) -> str:
         return str(f.get("display_title") or f.get("feed_id")).casefold()
@@ -215,6 +220,7 @@ def podcasts_list(
         for f in feeds
         if (not wanted or f["feed_id"] in wanted)
         and (not category or f.get("category") == category)
+        and (not lang or primary_language(f.get("language")) == lang)
         and all(w in hay(f) for w in words)
     ]
     if sort in ("az", "za"):
@@ -245,6 +251,7 @@ def podcasts_list(
         items=page,
         total=len(selected),
         categories=sorted({str(f["category"]) for f in feeds if f.get("category")}),
+        languages=sorted({c for f in feeds if (c := primary_language(f.get("language")))}),
     )
 
 

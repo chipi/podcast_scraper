@@ -122,11 +122,19 @@ const { badgeShown } = useCorpusLanguages()
            date and duration. Stacked rather than joined with separators: the column is 128px, so one
            line would wrap anyway and wrap in the wrong places. -->
       <div v-if="show.episode_count || updated || badgeShown(show.language)" class="text-xs font-medium leading-snug text-muted">
-        <div v-if="show.episode_count">
-          {{ t('podcast.episodeCount', { count: show.episode_count }, show.episode_count) }}
+        <!-- The language leads the first line, then the episode count — as on the show page's own
+             line (operator 2026-10-10). -->
+        <div
+          v-if="show.episode_count || badgeShown(show.language)"
+          class="flex flex-wrap items-center gap-x-1.5 gap-y-1"
+          data-testid="show-row-facts"
+        >
+          <LanguageBadge :lang="show.language" />
+          <span v-if="show.episode_count">{{
+            t('podcast.episodeCount', { count: show.episode_count }, show.episode_count)
+          }}</span>
         </div>
         <div v-if="updated">{{ t('podcast.updated', { date: updated }) }}</div>
-        <LanguageBadge :lang="show.language" class="mt-1" />
       </div>
       <!-- The controls UNDER the artwork (`actionsBelow`): the episode card's row — same width as
            the artwork, same gap, unplated — so a show and an episode on one page act alike.

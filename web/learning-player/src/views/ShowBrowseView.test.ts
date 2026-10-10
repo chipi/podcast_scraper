@@ -191,3 +191,32 @@ describe('ShowBrowseView', () => {
     expect(below.findAll('button').length).toBeGreaterThanOrEqual(2) // follow + heart
   })
 })
+
+describe('ShowBrowseView: the language filter (operator 2026-10-10)', () => {
+  it('appears when the shows span two or more languages, and asks the server for the chosen one', async () => {
+    const page = vi.spyOn(api, 'getPodcastsPage').mockResolvedValue({
+      items: [show('f-a', 'Acme Show')],
+      total: 1,
+      categories: [],
+      languages: ['en', 'es'],
+    })
+    const w = await mountView({ initialView: 'list' })
+    await w.get('[data-testid="show-browse-language"]').trigger('click')
+    expect(w.get('[data-testid="show-browse-language-opt-es"]').text()).toBe('Spanish')
+    await w.get('[data-testid="show-browse-language-opt-es"]').trigger('click')
+    await flushPromises()
+    expect(page.mock.calls.at(-1)![0]).toEqual(expect.objectContaining({ language: 'es' }))
+  })
+
+  it('is not offered for a catalogue in one language', async () => {
+    vi.spyOn(api, 'getPodcastsPage').mockResolvedValue({
+      items: [show('f-a', 'Acme Show')],
+      total: 1,
+      categories: [],
+      languages: ['en'],
+    })
+    const w = await mountView()
+    expect(w.find('[data-testid="show-browse-language"]').exists()).toBe(false)
+  })
+})
+

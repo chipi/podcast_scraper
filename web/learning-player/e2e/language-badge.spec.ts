@@ -121,6 +121,22 @@ test('every show in Browse carries its language, as a tile and as a row', async 
   ).toHaveAttribute('data-lang', 'it')
 })
 
+test('Browse > Shows filters by language when the shows span languages', async ({ page }, testInfo) => {
+  // Operator 2026-10-10: the catalogue holds shows in several languages, so the filter is offered.
+  await signInIsolated(page, 'language-filter-browse', testInfo)
+  await page.goto('/browse?tab=shows')
+  const grid = page.getByTestId('show-browse-grid')
+  await expect(grid.locator('li').first()).toBeVisible()
+  const all = await grid.locator('li').count()
+  await page.getByTestId('show-browse-language').click()
+  await page.getByTestId('show-browse-language-opt-es').click()
+  await expect(grid.locator('li')).not.toHaveCount(all)
+  // Every show left is Spanish; the badge says so on each.
+  const n = await grid.locator('li').count()
+  await expect(badge(grid).and(page.locator('[data-lang="es"]'))).toHaveCount(n)
+  await expect(grid).toContainText('Sesiones de Sendero')
+})
+
 test('an episode carries its language on its card and in the player header', async ({
   page,
 }, testInfo) => {

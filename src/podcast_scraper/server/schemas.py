@@ -2318,6 +2318,14 @@ class AppPodcastsResponse(BaseModel):
         exclude_if=_paged_only,
         description="Paged: every category in the catalogue (the filter's options), A-Z.",
     )
+    languages: list[str] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description=(
+            "Paged: every show language in the catalogue as a primary code (`en`, `es`), A-Z — "
+            "the language filter's options; the app offers the filter only with two or more."
+        ),
+    )
 
 
 class QueueResponse(BaseModel):

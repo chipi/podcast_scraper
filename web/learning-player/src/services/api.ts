@@ -965,11 +965,15 @@ export interface PodcastsPage {
   total: number
   /** Every category in the catalogue (the filter's options). */
   categories: string[]
+  /** Every show language in the catalogue, as primary codes (the language filter's options). */
+  languages?: string[]
 }
 
 export interface PodcastsQuery {
   q?: string
   category?: string
+  /** Only shows in this language (a primary code: `en`, `es`). */
+  language?: string
   sort?: "newest" | "oldest" | "az" | "za" | "trending"
   offset?: number
   limit: number
@@ -986,10 +990,16 @@ export async function getPodcastsPage(query: PodcastsQuery): Promise<PodcastsPag
   const params = new URLSearchParams({ limit: String(query.limit), offset: String(query.offset ?? 0) })
   if (query.q?.trim()) params.set("q", query.q.trim())
   if (query.category) params.set("category", query.category)
+  if (query.language) params.set("language", query.language)
   if (query.sort) params.set("sort", query.sort)
   if (query.compact) params.set("compact", "true")
   for (const id of query.feedIds ?? []) params.append("feed_ids", id)
-  const resp = await getJSON<{ items: Podcast[]; total?: number; categories?: string[] }>(
+  const resp = await getJSON<{
+    items: Podcast[]
+    total?: number
+    categories?: string[]
+    languages?: string[]
+  }>(
     `/podcasts?${params}`,
   )
   return resp as PodcastsPage

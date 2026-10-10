@@ -1,5 +1,7 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import * as api from '../services/api'
+import { resetCorpusLanguagesForTests } from '../composables/useCorpusLanguages'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
@@ -64,3 +66,22 @@ describe('ShowRow saved colour', () => {
     expect(mountRow().get('[data-testid="show-row"]').classes()).not.toContain('border-l-4')
   })
 })
+
+describe('ShowRow facts line (operator 2026-10-10)', () => {
+  it('leads with the language badge, then the episode count, as on the show page', async () => {
+    resetCorpusLanguagesForTests()
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([
+      { feed_id: 'f1', language: 'en' },
+      { feed_id: 'f2', language: 'es' },
+    ] as never)
+    const w = mountRow({ show: { ...SHOW, language: 'en' } })
+    await flushPromises()
+    const facts = w.get('[data-testid="show-row-facts"]')
+    const badge = facts.element.firstElementChild as HTMLElement
+    expect(badge.textContent?.trim().toUpperCase()).toBe('EN') // uppercased by CSS
+    expect(facts.text()).toMatch(/^en\s*3 episodes$/i)
+    vi.restoreAllMocks()
+    resetCorpusLanguagesForTests()
+  })
+})
+
