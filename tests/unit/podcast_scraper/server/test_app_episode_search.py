@@ -45,7 +45,39 @@ def test_words_in_any_order_come_after_the_exact_phrase():
 def test_case_and_filler_words_do_not_matter_but_whole_words_do():
     assert _exact("DIVERSIFICATION")[0]["metadata"]["timestamp_start_ms"] == 14_000
     assert _exact("the free lunch")[0]["metadata"]["timestamp_start_ms"] == 14_000
-    assert _exact("diversify") == []  # whole words only: another form is meaning search's job
+    # Inflections meet (``forms``); a derivation does not — that is meaning search's job.
+    assert _exact("diversify") == []
+
+
+def test_another_form_of_a_word_finds_it_after_the_exact_matches():
+    """Eval 2026-10-10: a word in another form was found by the exact tiers 1% of the time."""
+    hits = _exact("sized position")  # said: "sizing positions"
+    assert [h["metadata"]["timestamp_start_ms"] for h in hits] == [4_000]
+    assert hits[0]["metadata"]["match"] == "forms"
+    assert hits[0]["metadata"]["marks"] == ["positions", "sizing"]
+    # Exact matches still come first: "weeks" is an inflection, "worst week" is said verbatim.
+    assert [h["metadata"]["match"] for h in _exact("worst weeks")] == ["forms", "forms"]
+    assert _exact("worst week")[0]["metadata"]["match"] == "phrase"
+
+
+def test_one_misremembered_word_of_three_still_finds_it_last():
+    """Eval 2026-10-10: three words, one swapped for a near-synonym, were found 5% of the time."""
+    hits = _exact("diversification only free meal")  # said: "only free lunch"
+    assert hits[0]["metadata"]["timestamp_start_ms"] == 14_000
+    assert hits[0]["metadata"]["match"] == "most"
+    assert hits[0]["metadata"]["marks"] == ["diversification", "free", "only"]
+    # Two words of two: no "all but one" — a single word is not a memory of a passage.
+    assert _exact("free meal") == []
+
+
+def test_every_passage_says_which_words_it_matched():
+    assert _exact("worst week is survivable")[0]["metadata"]["marks"] == [
+        "is",
+        "survivable",
+        "week",
+        "worst",
+    ]
+    assert _exact("week worst")[0]["metadata"]["marks"] == ["week", "worst"]
 
 
 def test_nothing_when_the_words_are_not_there():

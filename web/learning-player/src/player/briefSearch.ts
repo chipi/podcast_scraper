@@ -35,6 +35,8 @@ export interface BriefPiece {
   segments: Segment[]
   /** The words exactly as typed (``phrase``), all of them in any order (``words``), or neither. */
   match: 'phrase' | 'words' | null
+  /** The words in it that matched, as the server found them ("investing" for a typed "invested"). */
+  marks: string[]
 }
 
 function words(text: string): string[] {
@@ -80,6 +82,7 @@ export function snippetAround(text: string, terms: string[]): string {
 function piece(hit: SearchHit, segments: Segment[], terms: string[]): BriefPiece {
   const md = (hit.metadata ?? {}) as Record<string, unknown>
   const match = md.match === 'phrase' || md.match === 'words' ? md.match : null
+  const marks = Array.isArray(md.marks) ? md.marks.filter((m): m is string => typeof m === 'string') : []
   const s = startMs(hit)
   if (s != null && segments.length) {
     const e = endMs(hit, s)
@@ -98,6 +101,7 @@ function piece(hit: SearchHit, segments: Segment[], terms: string[]): BriefPiece
         start: first.seg.start,
         segments: segs,
         match,
+        marks,
       }
     }
   }
@@ -107,6 +111,7 @@ function piece(hit: SearchHit, segments: Segment[], terms: string[]): BriefPiece
     start: s != null ? s / 1000 : null,
     segments: [],
     match,
+    marks,
   }
 }
 

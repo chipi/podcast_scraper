@@ -872,7 +872,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
                   data-testid="kp-search-piece"
                 >
                   <p class="text-sm text-surface-foreground"><template
-                      v-for="(run, i) in markTerms(p.text, askedTerms)"
+                      v-for="(run, i) in markTerms(p.text, [...askedTerms, ...p.marks])"
                       :key="i"
                     ><mark
                         v-if="run.mark"

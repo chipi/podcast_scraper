@@ -58,6 +58,35 @@ def _terms(query: str) -> List[str]:
     return content or words
 
 
+def _form(word: str) -> str:
+    """The same key for a word's inflections: plural, -ed, -ing (operator 2026-10-10).
+
+    "invested" / "investing" / "invests" -> "invest"; "policies" -> "policy"; "making" / "make"
+    -> "mak". Deliberately not a stemmer: one only strips inflections, so "police" and "policy"
+    stay apart (the over-merge ``graph_id_utils`` avoids for the same reason).
+    """
+    w = word.lower()
+    if len(w) <= 3:
+        return w
+    if w.endswith(("ies", "ied")) and len(w) > 4:
+        return w[:-3] + "y"
+    if w.endswith("ing") and len(w) > 5:
+        base = w[:-3]
+    elif w.endswith("ed") and len(w) > 4:
+        base = w[:-2]
+    elif w.endswith(("ches", "shes", "sses", "xes", "zes")):
+        base = w[:-2]
+    elif w.endswith("s") and not w.endswith(("ss", "us", "is")):
+        base = w[:-1]
+    else:
+        base = w
+    if len(base) > 3 and base[-1] == base[-2] and base[-1] not in "lsz":
+        base = base[:-1]  # running -> runn -> run; stopped -> stopp -> stop
+    if len(base) > 3 and base.endswith("e"):
+        base = base[:-1]  # make -> mak, so making and make meet
+    return base
+
+
 def _hit(
     segments: Sequence[Segment], i: int, j: int, episode_id: str, match: str
 ) -> Dict[str, Any]:
@@ -85,7 +114,11 @@ def exact_passages(
     First the words exactly as typed, in order (``phrase``) — found in the transcript's running
     words, so a phrase Whisper cut across two segments is found whole. Then passages with every
     content word in any order (``words``): the smallest run of up to ``_MAX_SPAN`` segments that
-    holds them all. Each group in episode order; a passage is listed once.
+    holds them all. Then what memory changes (eval: a word in another form, or one word
+    misremembered, was found by these exact tiers 1-5% of the time): every word in some form
+    (``forms``: "invested" finds "investing"), and, for three or more words, all but one of them
+    (``most``). Each group in episode order; a passage is listed once, and carries the transcript
+    words it matched (``marks``) so the reader can see why.
     """
     typed = _words(query)
     terms = _terms(query)
@@ -109,22 +142,37 @@ def exact_passages(
             found.append(_hit(segments, i, j, episode_id, "phrase"))
             taken.update(range(i, j + 1))
 
-    wanted = set(terms)
-    i = 0
-    while i < len(segments):
-        if i in taken or not wanted & set(seg_words[i]):
+    for p_hit in found:
+        p_hit["metadata"]["marks"] = sorted(set(typed))
+
+    def spans(keys: List[set], wanted: set, need: int, match: str, key: Any) -> None:
+        i = 0
+        while i < len(segments):
+            if i in taken or not wanted & keys[i]:
+                i += 1
+                continue
+            for span in range(1, _MAX_SPAN + 1):
+                j = i + span - 1
+                if j >= len(segments) or j in taken:
+                    break
+                if len(wanted & set().union(*keys[i : j + 1])) >= need:
+                    hit = _hit(segments, i, j, episode_id, match)
+                    hit["metadata"]["marks"] = sorted(
+                        {w for k in range(i, j + 1) for w in seg_words[k] if key(w) in wanted}
+                    )
+                    found.append(hit)
+                    taken.update(range(i, j + 1))
+                    i = j
+                    break
             i += 1
-            continue
-        for span in range(1, _MAX_SPAN + 1):
-            j = i + span - 1
-            if j >= len(segments) or j in taken:
-                break
-            if wanted <= {w for k in range(i, j + 1) for w in seg_words[k]}:
-                found.append(_hit(segments, i, j, episode_id, "words"))
-                taken.update(range(i, j + 1))
-                i = j
-                break
-        i += 1
+
+    exact = set(terms)
+    spans([set(ws) for ws in seg_words], exact, len(exact), "words", lambda w: w)
+    forms = {_form(t) for t in terms}
+    seg_forms = [{_form(w) for w in ws} for ws in seg_words]
+    spans(seg_forms, forms, len(forms), "forms", _form)
+    if len(forms) >= 3:
+        spans(seg_forms, forms, len(forms) - 1, "most", _form)
     return found[:limit]
 
 

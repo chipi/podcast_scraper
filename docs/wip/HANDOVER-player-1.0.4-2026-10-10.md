@@ -68,10 +68,20 @@ Branch `feat/player-1.0.4`, no PR yet. Living document: updated as each open ite
     passes, undo restores all 284.
 - The app's read-time timing stays: it narrows a hit to the exact sentence, not only the chunk.
 
+## The Brief finds other word forms and one misremembered word
+
+- `exact_passages` gained two read-time tiers: `forms` (inflection key) and `most` (all but one of
+  three or more words). Each passage carries `marks`, the words it matched, which the Brief
+  highlights.
+- 94 real episodes, `scripts/eval/brief_search_eval.py --brief --synonyms` (cached synonyms):
+  - word form: top 10 89.5% → 93.9%, first 20.2% → 72.1%;
+  - one word misremembered: top 10 92.2% → 98.8%, first 17.8% → 86.5%;
+  - no other row dropped.
+  - Detail: `docs/wip/BRIEF-SEARCH-EVAL-2026-10-10.md`.
+
 ## Open on this branch
 
 - **m0028 on prod needs your OK, and needs a deploy first** (the migration ships in the image).
   Dry-run first: `upgrade run --dry-run` prints how many rows it would time and why any are left.
-- Limitation 4: word forms / misremembered words found 89–92% of the time.
 - The phone still needs the newest dev build.
 - Prod duplicate-milestone cleanup needs operator OK.

@@ -92,3 +92,29 @@ What a listener says verbatim is now found first almost every time, at the momen
 Word forms and misremembered words still rely on meaning search (unchanged, as expected); the
 grounded insight still comes back 55–71% of the time — C and D next.
 
+
+## After word forms and one misremembered word (2026-10-10, later)
+
+`exact_passages` gained two tiers after the verbatim ones:
+- **forms:** every remembered word in some form, by an inflection key (`_form`: plural, -ed, -ing;
+  not a stemmer, so "police" and "policy" stay apart);
+- **most:** for three or more words, all but one of them.
+
+Each passage carries the words it matched (`marks`), so the Brief marks "investing" for a typed
+"invested". Same 94 episodes, same seed, the cached synonyms (no LLM calls:
+`synonym_tokens: 0/0`), `--brief`:
+
+| Query | Found first | Top 3 | Top 10 |
+|---|---|---|---|
+| one distinctive word | 95.4% → 95.4% | 99.6% → 99.6% | 100% → 100% |
+| three words, shuffled | 84.9% → **95.3%** | 93.4% → **98.4%** | 98.3% → **99.4%** |
+| four words verbatim | 99.6% → 99.7% | 99.7% → 99.8% | 99.7% → 99.8% |
+| another word form | 20.2% → **72.1%** | 65.4% → **85.9%** | 89.5% → **93.9%** |
+| one word misremembered | 17.8% → **86.5%** | 55.9% → **94.9%** | 92.2% → **98.8%** |
+
+The insight-found column is unchanged (55–71%): these tiers add transcript passages only.
+
+Not measured:
+- whether the extra "most" passages crowd out a better result on queries the eval does not
+  generate;
+- word forms the eval's generator does not produce (irregular verbs such as "ran" / "run").

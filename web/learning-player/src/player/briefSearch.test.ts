@@ -89,3 +89,17 @@ describe('markTerms / snippetAround', () => {
     expect(snippetAround('only a few words here', ['few'])).toBe('only a few words here')
   })
 })
+
+describe('marks: what the server matched, beyond the typed words (operator 2026-10-10)', () => {
+  it('a passage carries the words it matched, so another form of a typed word is marked', () => {
+    const [p] = groupBriefResults(
+      [hit('e1', 'transcript', 'x', { match: 'forms', marks: ['investing'], timestamp_start_ms: 14_000, timestamp_end_ms: 20_000 })],
+      SEGS,
+      'invested',
+    ).transcript
+    expect(p.marks).toEqual(['investing'])
+    expect(markTerms('We were investing early.', [...searchTerms('invested'), ...p.marks]).filter((r) => r.mark)).toEqual([
+      { text: 'investing', mark: true },
+    ])
+  })
+})
