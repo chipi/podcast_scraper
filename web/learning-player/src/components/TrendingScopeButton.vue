@@ -23,16 +23,17 @@ const { scope, setScope } = useTrendingScope()
     v-if="auth.isAuthenticated"
     type="button"
     :data-testid="testid"
-    class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition"
+    class="lp-tap flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border px-2.5 transition"
     :class="scope === 'mine' ? 'border-accent bg-accent text-accent-foreground' : 'border-border text-muted hover:text-canvas-foreground'"
     :aria-pressed="scope === 'mine'"
-    :aria-label="t('home.trendingScopeLabel')"
+    :aria-label="`${t('home.trendingScopeLabel')}: ${scope === 'mine' ? t('home.trendingScopeMineShort') : t('home.trendingScopeAll')}`"
     :title="scope === 'mine' ? t('home.trendingScopeMine') : t('home.trendingScopeAll')"
     @click="setScope(scope === 'mine' ? 'corpus' : 'mine')"
   >
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
-    <!-- A NAME inside the button: the only other child is a hidden svg, and Android System WebView
-         then announces it as an unnamed "Button" (2026-09-25, AccessibleNameAuditTests). -->
-    <span class="sr-only">{{ scope === 'mine' ? t('home.trendingScopeMine') : t('home.trendingScopeAll') }}</span>
+    <!-- The scope, written out beside the icon (operator 2026-10-10: say what the switch is). It is
+         also the button's NAME inside it — a hidden svg alone leaves Android System WebView
+         announcing an unnamed "Button" (2026-09-25, AccessibleNameAuditTests). -->
+    <span class="text-xs font-semibold">{{ scope === 'mine' ? t('home.trendingScopeMineShort') : t('home.trendingScopeAll') }}</span>
   </button>
 </template>

@@ -97,6 +97,7 @@ const tileHeader = computed<Record<string, string> | null>(() => {
     <div
       :class="tileHeader ? 'w-[calc(var(--n3)*(100%_-_1.5rem)/3_+_(var(--n3)_-_1)*0.75rem)] sm:w-[calc(var(--n4)*(100%_-_2.25rem)/4_+_(var(--n4)_-_1)*0.75rem)]' : ''"
       :style="tileHeader ?? undefined"
+      class="min-w-fit max-w-full"
       data-testid="trending-shows-header"
     >
       <SectionHeading :title="title">
@@ -129,7 +130,10 @@ const tileHeader = computed<Record<string, string> | null>(() => {
 
     <!-- `followable`, so the rail carries the identical Follow + save pair as the Shows tab's grid
          rather than being the one show surface you cannot act on (operator 2026-09-17). -->
-    <CardRail v-if="hasAny">
+    <!-- `lp-rail--fit`: the names reserve only the lines the longest one here needs (operator
+         2026-10-10: the empty reserved lines opened a gap above Search). `-mb-2` takes back the
+         rail's scroll padding so the gap to the next section is the page's usual `mt-7`. -->
+    <CardRail v-if="hasAny" class="lp-rail--fit -mb-2">
       <li v-for="p in shownPodcasts" :key="p.feed_id" class="lp-rail-item">
         <ShowTile :show="p" followable data-testid="trending-show-card" />
       </li>

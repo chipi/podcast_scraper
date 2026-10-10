@@ -33,7 +33,8 @@ defineProps<{
   <div class="mb-3">
     <p v-if="kicker" class="lp-kicker truncate" data-testid="section-kicker">{{ kicker }}</p>
     <div class="flex items-baseline gap-3">
-      <h2 class="lp-section min-w-0 truncate" data-testid="section-title">{{ title }}</h2>
+      <!-- Titles wrap, never ellipsise (operator 2026-10-10: "Trending shows" came out "Trendi…"). -->
+      <h2 class="lp-section min-w-0 break-words" data-testid="section-title">{{ title }}</h2>
       <!-- `ms-auto` on the slot rather than on the caller's element, so every action lands in the
            same place whether or not the caller remembered to push it right. -->
       <div v-if="$slots.action" class="ms-auto shrink-0"><slot name="action" /></div>

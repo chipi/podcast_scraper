@@ -119,6 +119,12 @@
     line-height: 1.25;
     min-height: 3.75em;
   }
+  /* A rail that sizes its names to the longest one IN it (operator 2026-10-10) — the rail's items
+     stretch to the tallest, so the tiles still line up and nothing is cut, but two one-line names
+     no longer carry two empty lines. Never taller than the reserved three. */
+  .lp-rail--fit .lp-tile-title {
+    min-height: 0;
+  }
 
   /* RAIL SLOT — one width for every horizontal rail of tiles: three to a phone screen, four from
      `sm`, the same tile size as the Discover grids (operator 2026-10-05). Rails used five different
