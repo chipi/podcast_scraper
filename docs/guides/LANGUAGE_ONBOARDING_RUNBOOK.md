@@ -214,8 +214,10 @@ Gate B numbers wait for English on narrative and read-news shows (parked until t
   where the transcript's segments run on without a gap (2126.98 s -> 2127.16 s), and appear
   nowhere else. Check the timeline before calling a deletion lost speech.
 - Untranscribed stretches left after recovery: jingles, songs, an old record, field tape, the
-  start of an interview clip. One (Novelo 09-24, 3609 s, a main voice, recovery rejected as low
-  confidence) is the open item; a single clip call settles it.
+  start of an interview clip. The last one (Novelo 09-24, 3609 s, on a main voice's diarized
+  cluster, recovery rejected as low confidence) was settled with one clip call: a German archive
+  recording inside a Portuguese episode, decoded in Portuguese, which the diarizer had merged into
+  a main voice. Tape. Gate A passes on the whole first set (2026-10-10).
 
 ## 5. Naming
 
