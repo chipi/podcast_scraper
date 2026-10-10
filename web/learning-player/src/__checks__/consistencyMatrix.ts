@@ -86,6 +86,5 @@ export const CONSISTENCY_MATRIX: ConsistencyRow[] = [
   { write: 'revokeMcpConnection', readers: [], proof: ['src/components/ConnectedAgents.test.ts'], note: 'Settings › Connected agents only.' },
 
   // --- telemetry ----------------------------------------------------------------------------------
-  { write: 'recordDiscoverClick', readers: [], proof: [], note: 'Ranking telemetry; no surface displays it.' },
   { write: 'postAppExits', readers: [], proof: ['src/services/lifecycle.test.ts'], note: 'Lifecycle telemetry; no surface displays it.' },
 ]

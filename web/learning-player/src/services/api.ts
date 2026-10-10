@@ -682,17 +682,6 @@ export function getRecommended(limit = 12): Promise<{ items: EpisodeSummary[]; b
   return getJSON("/recommended", { limit })
 }
 
-/** Fire-and-forget: log a click on a discovery-feed episode (its shown rank position) for
- *  ranking telemetry (#11). Silent no-op when signed out or on any network error. */
-export function recordDiscoverClick(slug: string, position: number): void {
-  void apiFetch(`${BASE}/discover/click`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ slug, position }),
-  }).catch(() => {})
-}
-
 /** Followables of one kind whose label contains `q`, best match first — an Interests section's
  *  search box. Substring, not exact: `resolveEntity` answers "does this name one thing". */
 export async function searchInterests(

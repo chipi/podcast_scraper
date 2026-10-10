@@ -4,7 +4,7 @@ The *engagement* event source (complements the enricher's ``content_series``): r
 **timestamped** engagement logs into per-entity weekly counts, keyed by a namespaced ``(kind,
 entity_id)``. Every saveable kind has a timestamped signal:
 
-* episode — opens (``listen_events.jsonl``) + clicks (``ranking_events.jsonl``)
+* episode — opens (``listen_events.jsonl``)
 * show — opens (by ``feed_id``) + subscribes (``library`` ``added_at``)
 * insight / person / topic — saves (``favorites`` ``added_at``)
 * topic / cluster (``tc:``) / storyline (``thc:``) / person — follows (``interest_events.jsonl``)
@@ -94,17 +94,14 @@ def _kind_of_token(token: str) -> str | None:
 
 
 def _tally_user(data_dir: Path, uid: str, acc: _Acc, active: set[str]) -> None:
-    """Fold one user's opens, clicks, subscribes, saves, and follows into the tallies in place."""
+    """Fold one user's opens, subscribes, saves, and follows into the tallies in place."""
     udir = data_dir / "users" / uid
-    # opens (episode + show) + clicks (episode)
+    # opens (episode + show)
     for ev in _read_jsonl(udir / "listen_events.jsonl"):
         wk = _week_of_ts(ev.get("ts"))
         _bump(acc, active, "episode", str(ev.get("slug") or ""), wk)
         if ev.get("feed_id"):
             _bump(acc, active, "show", str(ev.get("feed_id")), wk)
-    for ev in _read_jsonl(udir / "ranking_events.jsonl"):
-        if ev.get("kind") == "click":
-            _bump(acc, active, "episode", str(ev.get("slug") or ""), _week_of_ts(ev.get("ts")))
     # subscribes (show) — library carries added_at
     for sub in app_user_state.get_library(data_dir, uid):
         _bump(acc, active, "show", str(sub.get("feed_id") or ""), _week_of_ts(sub.get("added_at")))

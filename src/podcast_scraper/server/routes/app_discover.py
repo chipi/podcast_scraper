@@ -13,14 +13,13 @@ import time
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 
 from podcast_scraper import perf_cache
 from podcast_scraper.search.storylines import top_storylines_by_member_count
 from podcast_scraper.search.topic_clusters import top_themes_by_member_count
 from podcast_scraper.server import (
     app_ranking_config_store,
-    app_ranking_telemetry,
     app_user_state,
 )
 from podcast_scraper.server.app_audit import append_audit
@@ -60,7 +59,6 @@ from podcast_scraper.server.routes.app_auth import (
     get_optional_user,
 )
 from podcast_scraper.server.schemas import (
-    AppDiscoverClickBody,
     AppEpisodesResponse,
     AppInterestCluster,
     AppInterestClustersResponse,
@@ -331,18 +329,6 @@ def discover(
     items = rank_discover(
         root, interests, pool, limit=limit, config=config, derived_interests=derived
     )
-
-    # #11 telemetry: log what the feed showed (slugs in rank order) + the effective variant, so
-    # clicks can later be compared against the configured rank. Signed-in only; best-effort.
-    if user is not None and data_dir is not None:
-        variant = "personalized" if (personalized and interests) else "recency"
-        app_ranking_telemetry.record_impressions(
-            data_dir,
-            user.user_id,
-            shown=[it.slug for it in items],
-            variant=variant,
-            ts=int(time.time()),
-        )
     return AppEpisodesResponse(
         items=items, page=1, page_size=limit, total=len(items), has_more=False
     )
@@ -454,39 +440,3 @@ def put_ranking_config(
         {"action": "ranking_config_set", "by": admin.user_id, "before": before, "after": after},
     )
     return after
-
-
-@router.post("/discover/click", status_code=204)
-def discover_click(
-    request: Request,
-    body: AppDiscoverClickBody,
-    user: User = Depends(get_current_user),
-) -> Response:
-    """Record a click on a discovery-feed episode for ranking telemetry (#11).
-
-    No-op (still 204) when signed out or without a data dir, so the client can fire-and-forget.
-    """
-    data_dir = getattr(request.app.state, "app_data_dir", None)
-    if user is not None and data_dir is not None:
-        # The variant of the feed that PRODUCED this click, read back off the impression log
-        # rather than recomputed. Recomputing used only the personalized_ranking flag, while the
-        # impression side also required the user to actually have interests — so a flag-on user
-        # with no interests logged `recency` impressions and `personalized` clicks, corrupting any
-        # CTR-by-variant comparison before an experiment could start. The impression variant also
-        # depends on DERIVED interests, which cost real KG loads to recompute; this beacon must
-        # stay cheap. Falling back to the flag keeps a click loggable when no impression precedes
-        # it (deep link, cleared log).
-        variant = app_ranking_telemetry.last_impression_variant(Path(data_dir), user.user_id) or (
-            "personalized"
-            if bool(getattr(request.app.state, "personalized_ranking", False))
-            else "recency"
-        )
-        app_ranking_telemetry.record_click(
-            Path(data_dir),
-            user.user_id,
-            slug=body.slug,
-            position=body.position,
-            variant=variant,
-            ts=int(time.time()),
-        )
-    return Response(status_code=204)

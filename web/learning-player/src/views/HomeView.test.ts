@@ -839,14 +839,11 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
     ).toBe(false)
   })
 
-  it("a What's-new row is one player link and reports no ranking click (operator 2026-10-07)", async () => {
-    // What's new is no longer the ranked /discover feed, so a click on it is not a ranking
-    // impression to score — reporting one would credit a feed the listener never saw.
+  it("a What's-new row is one player link (operator 2026-10-07)", async () => {
     readCached.mockImplementation(async (k: string) =>
       k === 'home.whatsnew.v2' ? { items: [ep('feat-0', 'Featured'), ep('row-one', 'Row One')], scope: 'all' } : null,
     )
     vi.spyOn(api, 'getWhatsNew').mockRejectedValue(new Error('offline'))
-    const rec = vi.spyOn(api, 'recordDiscoverClick').mockReturnValue(undefined)
     const w = mountKeptAlive()
     await flushPromises()
 
@@ -855,8 +852,6 @@ describe('Home with no network shows what it had, not a wall of errors (#1909)',
     const epLink = rowLinks.find((a) => a.attributes('href')?.includes('row-one'))
     expect(epLink, 'the row should carry an episode link').toBeTruthy()
     expect(rowLinks.length, 'the row is a single link (no away-navigating show link)').toBe(1)
-    await epLink!.trigger('click')
-    expect(rec).not.toHaveBeenCalled()
   })
 
   it("labels What's new by whose it is, and Recommended by why (operator 2026-10-07)", async () => {

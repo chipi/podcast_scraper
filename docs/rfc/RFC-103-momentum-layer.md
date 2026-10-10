@@ -108,7 +108,7 @@ Momentum capability (server module, per read)
 ```
 
 - **Enrichers only produce data.** `temporal_velocity` (content) emits per-topic/person weekly
-  counts; a small engagement aggregator rolls telemetry (impressions/clicks/playback/favorites) into
+  counts; a small engagement aggregator rolls engagement (opens/playback/favorites) into
   per-entity weekly counts. Neither embeds `now` or a window.
 - **The momentum capability owns derivation + serving.** One module computes momentum from the series
   against `now`, aggregates, blends, caches, and exposes both the endpoint and `momentum(entity)`.
@@ -121,7 +121,7 @@ Each entity's weekly **event series** is defined from two sources:
 | Entity | Content events (corpus) | Engagement events (telemetry) |
 | --- | --- | --- |
 | topic / `tc:` / `thc:` / person | mentions / appearances per week | follows + card opens |
-| episode | Σ its topics' + people's mentions | plays, saves, queue-adds, discover clicks |
+| episode | Σ its topics' + people's mentions | plays, saves, queue-adds (discover clicks removed 2026-10-11: the ranking-telemetry log they came from had no client; ADR-163) |
 | show | Σ its episodes' content series | subscribes + plays of its episodes |
 | insight | its topic's mentions | saves + opens |
 
@@ -222,7 +222,7 @@ momentum of its content and by the momentum of the user's followed entities (`to
 ### 9. Fixture determinism
 
 `app-validation-corpus/v3` provides content weekly series (per-topic/person counts) **and** seeded
-engagement events (playback/favorites/discover-clicks in the committed per-user state or a seed);
+engagement events (playback/favorites in the committed per-user state or a seed);
 the e2e webServer pins `APP_TRENDING_NOW` to the corpus's latest week. Momentum for every kind is
 then deterministic — **no episode re-dating**, audio-safe (only enrichment/seed JSON changes).
 
@@ -310,7 +310,7 @@ starting points to A/B, not commitments — hence config.
 
 1. **Phase 1**: enricher emits per-topic/person **weekly** content series (additive; monthly kept as
    fallback).
-2. **Phase 2**: engagement aggregator rolls telemetry (impressions/clicks/playback/favorites) into
+2. **Phase 2**: engagement aggregator rolls engagement (opens/playback/favorites) into
    per-entity weekly counts.
 3. **Phase 3**: momentum capability + `GET /api/app/trending` (consumer, `scope=corpus|mine`) +
    `GET /api/corpus/trending` (operator); discover ranker switches to `momentum(entity)`; all fall

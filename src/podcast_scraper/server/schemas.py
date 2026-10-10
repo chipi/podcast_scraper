@@ -327,13 +327,6 @@ class AppRecommendedResponse(BaseModel):
     )
 
 
-class AppDiscoverClickBody(BaseModel):
-    """A click on a discovery-feed episode — ranking-experiment telemetry (#11)."""
-
-    slug: str = Field(description="The clicked episode's slug, as shown in the feed.")
-    position: int = Field(ge=0, description="0-based rank position where it was shown.")
-
-
 class AppExitEntry(BaseModel):
     """One reason the native app (or its WebView) ended, as the device recorded it (#2279)."""
 
