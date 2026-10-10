@@ -25,6 +25,25 @@ is quoted in this repo, in a commit message, or in an issue.
 | 6. translation | `--variant translate*`, `scripts/eval/score/translation_judge_v1.py` | `units_failed` 0; judged; low units read |
 | 7. English side effects | `scripts/measure/roster_replay.py`, an ad-cut replay | no-op replay 0; every change read |
 
+## Work in tiers, gated per language
+
+ASR first, then translation, then naming, then prod (operator, 2026-10-10). Each layer reads the
+one below it: translation translates the ASR text, naming reads the source transcript's
+self-introductions. Working them at once makes a moved number ambiguous. Each tier has its own
+gate per language (es, pt-BR, fr, de, it are judged separately; one can pass while another is
+stuck), and each gate is set against what the English pipeline achieves on the same measure, not
+against perfection.
+
+## Where each decision is recorded
+
+| decision | file | field |
+| --- | --- | --- |
+| ASR model, coverage, language, gap and stretched-word recovery, punctuation | `<ep>.asr.json` | `speech_recovery`, `stretched_word_recovery`, `stretched_words`, `punctuation` |
+| per-stage counts and flags | `<ep>.manifest.json` | `stages.asr.metrics`, `stages.translation.metrics`, `quality_flags` |
+| every translation unit, its attempts and why any was refused | `<ep>.translation.json` | `units[].attempts`, `units[].refusals`, `units[].model`, `prompt` |
+| ad cuts and the text cut | `<ep>.adfree.admap.json` | `excised_ranges`, `excised_texts` |
+| every naming decision and the LLM's raw answer | `<ep>.speakers.diagnostics.json` | `decision_trace` |
+
 ## 1. Pick reference shows
 
 - **Human transcripts only.** Machine transcripts (Omny SRT/VTT, "Speaker N") measure our ASR
@@ -91,8 +110,100 @@ real names twice (D12, D22's first model).
   (ADR-161), so small deltas are noise.
 - Read every long deletion: lost speech, an edited transcript, or a script line not in the audio.
 - Stretched words (`stretched_words` in `.asr.json`): one word timed seconds long over diarized
-  speech can hide a sentence (D16). Recovery replaces the word only when its span re-transcribes
-  as the word plus at least 3 non-filler words.
+  speech can hide a sentence (D16). The span is re-transcribed alone, aligned against the
+  episode's own words around it, and the word is replaced by the clip words the episode does not
+  already have, when there are at least 3 that are not fillers (`stretched_word_recovery` in
+  `.asr.json`). The first version, which demanded the clip hear the stretched word itself,
+  declined every real case: a stretched word is often a word Whisper invented ("¿no?") over speech
+  it skipped. Scored against the references before shipping: adjusted errors -33, -3, -5, 0.
+- To probe a span by hand, cut the episode audio at the transcript's times (preprocessing keeps
+  the timeline, #1173) and compare the clip's words with the episode's words around the span,
+  not with the stretched word: the episode text there is often what Whisper misheard.
+
+### ASR gates: what is measured, on which voices, against what
+
+How the tier-1 gate was built (2026-10-10), in the order it was worked out, so the reasoning is not
+lost and the dead ends are not walked again.
+
+**Two metric sets per episode.** The scorer (`asr_publisher_reference_wer_v1.py`) reports the whole
+episode and, separately, its **main voices** (`main_voices` block per episode,
+`main_voices_wer_adjusted_pooled` per language). The gate is set on the main voices. Nobody
+expects archive clips, songs, film audio, field tape or ads to transcribe well, and on the first
+reference set the voices other than the main ones carried 33-92% of an episode's errors while
+being a minority of its speech.
+
+**What a main voice is.** Presenters, narrators, readers, and guests in conversation with the
+host. Not main ("tape"): voices cut into the narration — interview tape, field recordings, voice
+messages, archive clips, songs, film. Four ways of finding them were tried; three failed:
+
+| tried | why it failed |
+| --- | --- |
+| a share of diarized speech (e.g. every voice >= 10%) | no cut works across shows: Senado has 6-7 reporters at 9-24% each, SWR one narrator at 70% and nothing above 6%, Radio Ambulante a long tail at 4-10%; any threshold is invented |
+| the roster's host/guest roles | naming is tier 3 and still wrong off English (SWR's narrator, 73% of the speech, unseated); it would tie the ASR gate to a layer above it |
+| turn length (main voices speak in long turns) | field voices have 60 s turns, Senado reporters 6 s ones |
+| the publisher's labels ("Archivo de audio", "O-Ton", "Música") | works only where the publisher writes clips into the transcript (SWR, a little Radio Ambulante); named interviewees are labelled like presenters, and English publishers mark clips inconsistently (Freakonomics labels an archival clip "PRESIDENT OBAMA") |
+
+**What is used: hand tags, once per reference episode.** Every speaker label of a reference is
+tagged `main`, `tape` or `unsure` by reading the reference, in
+`data/eval/references/gold/asr_publisher_transcripts/<set>/main_voice_tags.json` (eval repo).
+`tape_prefixes` covers families of labels ("O-Ton", "Archivo de audio"). `unsure` turns are on
+neither side of the score. A reference with no speaker labels (RFI, Senado: one script) is
+`unseparated`: its main-voice figure is the whole episode, and the report says so. A label the
+tags do not cover is reported (`untagged_labels`), never counted silently. The label rule is the
+fallback for an untagged set. Reference sets are small (a dozen episodes), so the tagging is
+minutes per episode and the result is exact.
+
+**Gate A: nothing left that is ours to fix** (per episode, independent of English):
+
+| check | pass |
+| --- | --- |
+| language heard = language asked | 100% |
+| long deletions (5+ reference words in a row) | each read and explained: not spoken (dates, sign-offs, stage directions in the script), music, a foreign-language original under a voice-over, or field tape |
+| untranscribed diarized speech after recovery | 0, or each explained |
+| stretched words still over speech after D16 | 0, or each read |
+| each recovery step (gap, D16, punctuation) | no episode worse on adjusted WER (`asr_bare` against full chain) |
+| invented lines left in the text | 0 |
+
+**Gate B: good enough against English, per language and per kind of show.**
+`gate = English main-voice WER on the same kind of show x the language's ratio`, where the ratio is
+the Whisper paper's FLEURS rate for the language over English's (large-v2, Table 13; PRD-047
+Appendix A): es 3.0, it 4.0, pt 4.3, de 4.5, fr 8.3 against en 4.2, floored at 1.0 so no language
+is asked to beat English on podcasts. FLEURS is read speech, so only the RATIO is used, never the
+absolute rate.
+
+- **Genre-matched, or it misleads.** On the first set French "beat the paper" because its only
+  show is slowly read news, the genre closest to FLEURS; Portuguese read news (Senado) matched
+  English while Portuguese narrative (Novelo) did not. The same language spans 0.015-0.109
+  adjusted across shows. English must be measured on each kind of show a language is gated on:
+  studio interview, read news, narrative journalism with tape.
+- **Speech rate, music share, voices and overlap per episode** are measured
+  (`show_profile`-style: words per minute of speech, diarized speech over duration, voices, main
+  voices' share), so a gate can be read against the show's nature, not only its language.
+- **No tolerance is invented.** A first proposal used "x 1.5"; it was a round number, not a
+  measurement, and is withdrawn. The margin has to come from measured variation: re-decoding the
+  same audio is reproducible (Radio Ambulante 09-10 and SWR re-decoded on 2026-10-10 gave the
+  same adjusted WER to the fourth decimal), so the margin is the spread between episodes of the
+  same show and genre, measured once English and each language have 3+ episodes per show.
+- **A language failing gate B only on plain misheard words** (gate A clean) gets one model
+  comparison (#2251); if that does not close the gap, the gap is recorded and the language moves
+  on to translation.
+
+**Evidence needed per language**: at least 2 shows x 3 episodes, one of them interview or news,
+each with a human reference and its tags.
+
+**First set (2026-10-10), full chain, adjusted WER, whole episode against main voices only:**
+
+| language | whole episode | main voices | note |
+| --- | --- | --- | --- |
+| es | 0.015-0.109 | 0.011-0.060 | Radio Ambulante 07-21: 0.109 whole, 0.035 main (0.033 with D16) |
+| pt-BR | 0.023-0.068 | 0.023-0.053 | Senado unseparated |
+| de | 0.060-0.084 | 0.037-0.042 | SWR's "O-Ton" soundbites were the excess |
+| fr | 0.043-0.047 | 0.043-0.047 | unseparated |
+| en | — | 0.028-0.034 | 80,000 Hours, 3 episodes, ASR only: the one genre measured so far |
+
+The large whole-episode figures are tape; on main voices every language sits near English's band,
+with El Hilo 09-25 (0.060) the episode to read next. Gate B numbers wait for English on narrative
+and read-news shows (parked until the DGX is free).
 
 ## 5. Naming
 
@@ -119,8 +230,11 @@ real names twice (D12, D22's first model).
    `AUTORESEARCH_JUDGE_ANTHROPIC_API_KEY` in the eval repo's `.env`, never prod's or another
    project's). Per unit: adequacy 1-5 (meaning kept), fluency 1-5, typed errors; means weighted by
    source words. About 45-50k tokens per episode.
-   - Check `units_unparsed` before reading a mean: a reply that does not parse loses its whole
-     window (102 of 192 units on one episode before the retry, `4f2804b` in the eval repo).
+   - Check `units_unparsed` and `cut` before reading a mean: a reply that does not parse loses
+     its whole window. 102 of 192 units on one episode were lost because claude-opus-5-5 counts
+     its reasoning against `max_tokens`: at 4,096 it ran out mid-JSON (now 16,000; eval repo
+     `ad15018`). A partial score misleads: Radio Ambulante 07-21 read 4.26 with 37 units missing
+     and 4.10 complete.
    - Read the low units (`adequacy <= 3`), not only the mean: the errors' types say whether the
      fix is the model, the prompt, or how turns were cut into units.
    - The judge reads the ASR text as the source: it measures translation, not hearing.
