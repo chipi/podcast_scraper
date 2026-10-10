@@ -467,7 +467,7 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   tick; never the accent).
 - **Ways into Moments** (operator 2026-10-10): **Play moments** leads the shared ⋯ menu on every
   episode with insights; on browsing rows (Discover and show-page cards, search episode results,
-  Downloads, Discover 2 cards) a small amber text action, `MomentsLink` ("▶ Moments" — no box, no
+  Downloads) a small amber text action, `MomentsLink` ("▶ Moments" — no box, no
   count, no extra height; the boxed chip was rejected as heavy and repeated on every row); the
   Brief offers a **Play moments** button right after the Summary. Not on Home tiles (too small) or
   passage results (already a moment). Downloaded episodes play their reel offline: the moments are
@@ -476,7 +476,7 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   reopens the episode with the reel playing; the end card offers the next queued episode's moments, so reels chain
   through a queue; each clip fades in over 250 ms instead of cutting in. Step: the insight the
   listener is in stands out on the density strip (taller, full strength). "▶ Moments" also sits on
-  topic, person, storyline, theme and org episode rows and every Discover 2 episode card. Offline
+  topic, person, storyline, theme and org episode rows. Offline
   it works on downloaded episodes and greys for the rest (inert, saying why), like every offline
   action.
 - **Step and the reel, finished** (2026-10-10): a left swipe on the insight card is next, a right

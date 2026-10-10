@@ -184,7 +184,7 @@ describe('CatalogView', () => {
 })
 
 // "Which episodes" is its own row, so it combines with the state filter (operator 2026-10-09):
-// Shows I follow + Unplayed is the list What's new and Discover 2 open.
+// Shows I follow + Unplayed is the list What's new opens.
 describe('CatalogView — From (which episodes) × State', () => {
   function epOf(slug: string, feed: string): EpisodeSummary {
     return { ...ep(slug, slug.toUpperCase()), feed_id: feed }

@@ -137,19 +137,9 @@ watch(
          search started here all follow it. One switch, remembered across devices and shared with
          the Search results' own (useTrendingScope). -->
     <div class="mb-4 flex items-center justify-between gap-3">
-      <div class="flex items-center gap-2">
-        <h1 class="font-display text-3xl font-extrabold tracking-tight">
-          {{ t('browse.hubTitle') }}
-        </h1>
-        <!-- Discover 2, the preview of the reworked page, one tap away for comparison (operator
-             2026-10-10): a small square-cornered yellow BETA tag beside the title. -->
-        <RouterLink
-          :to="{ name: 'discover2' }"
-          class="lp-tap rounded-[3px] bg-warning px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-canvas"
-          aria-label="Try Discover 2, the beta"
-          data-testid="discover2-link"
-        >Beta</RouterLink>
-      </div>
+      <h1 class="font-display text-3xl font-extrabold tracking-tight">
+        {{ t('browse.hubTitle') }}
+      </h1>
       <TrendingScopeButton testid="discover-scope" />
     </div>
 

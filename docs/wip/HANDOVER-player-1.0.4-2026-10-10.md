@@ -105,7 +105,7 @@ The operator starts the next session on the findings of the discovery competitiv
   - stacked popularity surfaces risk lower diversity.
 - **The scan as a page:** https://claude.ai/artifact/HRXJkuKB6sqZdiFjma4pez
 - **`docs/adr/ADR-162-mine-means-the-listeners-own-world.md`**: the "Mine" decision made from it.
-- Discover 2 (BETA, beside Discover) is the preview surface built on this branch.
+- Discover 2, the preview built on this branch, was removed (operator 2026-10-10, UI only; its APIs stay: `GET /trending/episodes`, `/interests/derived`). The arc starts from the scan, not from it.
 
 ## Open
 

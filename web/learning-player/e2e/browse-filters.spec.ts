@@ -3,8 +3,8 @@ import { listenToOne, signInIsolated } from './helpers'
 
 /**
  * Browse › Episodes: "Which episodes" (All shows · Shows I follow · Mine) is a compact chip first
- * in the toolbar row, separate from the state filter so the two combine (operator 2026-10-09/10). What's new's "all ›" and Discover 2 open
- * `?from=following&state=unplayed` — your shows' episodes, all of them, not the top 5.
+ * in the toolbar row, separate from the state filter so the two combine (operator 2026-10-09/10).
+ * What's new's "all ›" opens `?from=following&state=unplayed` — your shows' episodes, all of them, not the top 5.
  * REAL API over the committed corpus, NO mocks.
  */
 test('Shows I follow + Unplayed lists every episode of the followed show, and nothing else', async ({

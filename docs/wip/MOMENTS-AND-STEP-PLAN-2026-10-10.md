@@ -24,7 +24,7 @@ Obi study: <https://claude.ai/artifact/FPk6sK8BSYSqDh55q5SHs2>.
 | Ticks | Moments are marked on the density strip under the scrubber, not on the scrubber. |
 | Lock screen / headphones | In Moments mode next / previous skip moments. Normal playback unchanged. |
 | Listening | A reel does not count as listening: no listen logged, no milestones, not marked heard. |
-| Everywhere | First item in the shared episode ⋯ menu. A visible chip ("▶ Moments · 3½ min") on its own line in search episode results, the Discover episode list, show pages, Discover 2 cards and Downloads. Not on Home tiles (108px, three controls already), not on passage results. |
+| Everywhere | First item in the shared episode ⋯ menu. A visible chip ("▶ Moments · 3½ min") on its own line in search episode results, the Discover episode list, show pages and Downloads. Not on Home tiles (108px, three controls already), not on passage results. |
 | Discovery | Find → taste (moments) → "Keep listening here" into the full episode. |
 | Offline | A download saves the episode's moments with it (like the Brief); the reel plays from the file. Not-downloaded episodes show the chip greyed offline. |
 

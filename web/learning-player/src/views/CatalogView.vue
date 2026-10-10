@@ -52,8 +52,8 @@ const filter = ref("all")
 /**
  * WHICH episodes, independent of their state (operator 2026-10-09): All, Shows I follow, or Mine
  * — the listener's world, ADR-162. A second row rather than more entries in the state filter, so
- * "Shows I follow" combines with "Unplayed". Deep-linkable: `?from=` and `?state=` (What's new and
- * Discover 2 open the list already filtered).
+ * "Shows I follow" combines with "Unplayed". Deep-linkable: `?from=` and `?state=` (What's new
+ * opens the list already filtered).
  */
 type From = "all" | "following" | "mine"
 const from = ref<From>("all")
