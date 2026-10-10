@@ -52,6 +52,7 @@ from podcast_scraper.server.app_guided_shows import (
     ShowSignals,
 )
 from podcast_scraper.server.app_kg_view import entities_from_kg, objects_from_kg
+from podcast_scraper.server.app_moments import MomentsConfig, pick_moments
 from podcast_scraper.server.app_pkm_export import episode_url
 from podcast_scraper.server.app_recap_view import build_episode_recap
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, with_photos
@@ -73,6 +74,8 @@ from podcast_scraper.server.schemas import (
     AppEpisodeRecap,
     AppEpisodesResponse,
     AppInsightsResponse,
+    AppMoment,
+    AppMomentsResponse,
     AppPodcastItem,
     AppPodcastSignalsResponse,
     AppPodcastsResponse,
@@ -697,6 +700,69 @@ def episode_entities(
         orgs=orgs,
         objects=objects_from_kg(load_json_artifact(root, row.kg_relative_path)),
         topics=topics,
+    )
+
+
+def _raw_segment_tuples(root: Path, row: CatalogEpisodeRow) -> list[tuple[int, int, str]] | None:
+    """The episode's canonical transcript segments as ``(start_ms, end_ms, text)``, or None.
+
+    The same candidates, in the same order, as ``GET /segments`` serves by default: the raw
+    canonical file first (its timestamps run on the original audio the player streams), the
+    ad-free one only as a fallback.
+    """
+    transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
+    if transcript_rel is None:
+        return None
+    corpus_rel = transcript_corpus_relpath(row.metadata_relative_path, transcript_rel)
+    for candidate in segments_relpaths_for_transcript(corpus_rel):
+        safe = safe_relpath_under_corpus_root(root, candidate)
+        if not safe or not (root / safe).is_file():
+            continue
+        try:
+            raw = json.loads((root / safe).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            logger.warning("Unreadable segments file %s: %s", root / safe, exc)
+            return None
+        return [(int(s.start * 1000), int(s.end * 1000), s.text) for s in to_contract_segments(raw)]
+    return None
+
+
+@router.get("/episodes/{slug}/moments", response_model=AppMomentsResponse)
+def episode_moments(
+    request: Request,
+    slug: str,
+    _user: User = Depends(get_current_user),
+) -> AppMomentsResponse:
+    """The episode's moments — its strongest points, one clip each, in timeline order.
+
+    Which and how many come from ``app_moments`` (``MomentsConfig``, tunable through
+    ``APP_MOMENTS_CONFIG``). An episode without a GI artifact, or without an insight the player
+    would show, has no moments: an empty list (200), like ``/insights``.
+    """
+    root, row = _resolve(request, slug)
+    if not row.has_gi:
+        return AppMomentsResponse(episode_slug=slug)
+    config = getattr(request.app.state, "moments_config", None) or MomentsConfig.from_env()
+    picked = pick_moments(
+        load_json_artifact(root, row.gi_relative_path),
+        row.duration_seconds,
+        config,
+        _raw_segment_tuples(root, row),
+    )
+    return AppMomentsResponse(
+        episode_slug=slug,
+        moments=[
+            AppMoment(
+                insight_id=m.insight_id,
+                text=m.text,
+                speaker=m.speaker,
+                start_ms=m.start_ms,
+                end_ms=m.end_ms,
+                clip_text=m.clip_text,
+            )
+            for m in picked
+        ],
+        total_seconds=round(sum(m.end_ms - m.start_ms for m in picked) / 1000.0, 1),
     )
 
 

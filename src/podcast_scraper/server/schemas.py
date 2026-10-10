@@ -406,6 +406,25 @@ class AppInsightsResponse(BaseModel):
     insights: list[AppInsight] = Field(default_factory=list)
 
 
+class AppMoment(BaseModel):
+    """One moment of the quick-listening reel: an insight and the clip that plays for it."""
+
+    insight_id: str = Field(description="Insight node id.")
+    text: str = Field(description="The point the moment makes (the insight text).")
+    speaker: str | None = Field(default=None, description="Who says it, when named.")
+    start_ms: int = Field(description="Clip start on the episode's original audio timeline.")
+    end_ms: int = Field(description="Clip end (exclusive); at most the configured cap after start.")
+    clip_text: str = Field(default="", description="Transcript of what plays.")
+
+
+class AppMomentsResponse(BaseModel):
+    """Response for GET /api/app/episodes/{slug}/moments — in timeline order."""
+
+    episode_slug: str = Field(description="Stable episode slug.")
+    moments: list[AppMoment] = Field(default_factory=list)
+    total_seconds: float = Field(default=0.0, description="Sum of the clips' lengths.")
+
+
 class AppEntity(BaseModel):
     """A KG person/org entity mentioned in an episode."""
 
