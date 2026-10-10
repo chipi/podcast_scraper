@@ -2278,6 +2278,17 @@ class Config(BaseModel):
         "sentence counts, lengths within 1.5%) — the translator does not repeat itself exactly "
         "at temperature 0, sequential or not.",
     )
+    translation_context_sentences: int = Field(
+        default=0,
+        ge=0,
+        le=3,
+        alias="translation_context_sentences",
+        description="How many of the previous turn's last sentences go ahead of each unit as "
+        "context, sent numbered and their translation dropped (translation.units."
+        "attach_context). 0 = off, each turn translated alone, as before. About a fifth of the "
+        "judge's low units on the first non-English set (2026-10-10) were who-did-what errors a "
+        "neighbouring turn resolves.",
+    )
     translate_verify_served_model: bool = Field(
         default=True,
         alias="translate_verify_served_model",

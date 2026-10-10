@@ -536,7 +536,7 @@ def _translate_episode(
         write_translation_json,
     )
     from ..translation.factory import create_translation_provider
-    from ..translation.units import pack_units
+    from ..translation.units import attach_context, pack_units
 
     language = outcome.source_language or ""
     if not is_translation_configured(cfg):
@@ -590,6 +590,15 @@ def _translate_episode(
         ),
         count_tokens=getattr(provider, "count_tokens", None),
     )
+    context_sentences = int(getattr(cfg, "translation_context_sentences", 0) or 0)
+    if context_sentences > 0:
+        attach_context(
+            units,
+            context_sentences,
+            source_language=language,
+            max_input_tokens=int(getattr(provider, "MODEL_INPUT_TOKEN_LIMIT", 2048) or 2048),
+            count_tokens=getattr(provider, "count_tokens", None),
+        )
     if not units:
         outcome.status = STATUS_SKIPPED
         outcome.reason = "nothing_to_translate"

@@ -108,6 +108,10 @@ class TranslationUnit:
     #: would return a translation of its first clause with ``finish_reason: stop`` — measured.
     oversized: bool = False
     content_key: str = field(default="", repr=False)
+    #: The previous turn's last sentences, SOURCE text, sent ahead of this unit's own so the
+    #: model can resolve who "he", "she" and "they" are (`attach_context`). Their translation is
+    #: dropped: they are context, not this unit's output. Empty unless the switch is on.
+    context: List[str] = field(default_factory=list)
 
     @property
     def source_text(self) -> str:
@@ -121,7 +125,8 @@ class TranslationUnit:
         Kept separate from :attr:`source_text` because the fallback path deliberately sends the
         unit as ONE block when numbered output comes back the wrong length.
         """
-        return "\n".join(f"{i}. {s.text}" for i, s in enumerate(self.sentences, start=1))
+        lines = [*self.context, *(s.text for s in self.sentences)]
+        return "\n".join(f"{i}. {text}" for i, text in enumerate(lines, start=1))
 
     def to_dict(self) -> Dict[str, Any]:
         """One translation unit: its sentences, its turn, and whether it is a backchannel.
@@ -140,10 +145,14 @@ class TranslationUnit:
         }
         if self.oversized:
             out["oversized"] = True
+        if self.context:
+            out["context"] = list(self.context)
         return out
 
 
-def content_key(source_language: str, sentences: Sequence[UnitSentence]) -> str:
+def content_key(
+    source_language: str, sentences: Sequence[UnitSentence], context: Sequence[str] = ()
+) -> str:
     """Hash of ``(source_language, the unit's sentence texts)`` — RFC-124 §5.1b.
 
     STABLE ACROSS RENUMBERING, which is the whole point. ``unit_id`` is turn-ordinal, so
@@ -159,6 +168,13 @@ def content_key(source_language: str, sentences: Sequence[UnitSentence]) -> str:
     for s in sentences:
         h.update(b"\x00")
         h.update(s.text.encode("utf-8"))
+    # Context changes the translation, so it is part of the key -- but only when present, so
+    # every key computed without it is unchanged and the existing memory still hits.
+    if context:
+        h.update(b"\x01context")
+        for c in context:
+            h.update(b"\x00")
+            h.update(c.encode("utf-8"))
     return h.hexdigest()
 
 
@@ -289,6 +305,54 @@ def pack_units(
                 )
             )
     return units
+
+
+def attach_context(
+    units: Sequence[TranslationUnit],
+    sentences: int,
+    *,
+    source_language: str,
+    max_input_tokens: int,
+    count_tokens: Optional[Callable[[str], Optional[int]]] = None,
+) -> int:
+    """Give each unit the previous unit's last ``sentences`` sentences as context. Returns how
+    many units got it.
+
+    Measured on the first non-English set (2026-10-10): about a fifth of the judge's low units
+    were who-did-what errors -- a man rendered "her", "he went" as "I used to go" -- because each
+    turn is translated alone. A unit is left WITHOUT context when adding it would take the
+    numbered request past the model's input limit: the switch must never turn a unit that
+    translates into one the provider refuses. Backchannels and oversized units get none.
+    """
+
+    def tokens_of(text: str) -> int:
+        if count_tokens is not None:
+            exact = count_tokens(text)
+            if exact is not None:
+                return exact
+        return _estimate(text)
+
+    given = 0
+    previous: Optional[TranslationUnit] = None
+    for unit in units:
+        prior, previous = previous, unit
+        if sentences <= 0 or prior is None or unit.backchannel or unit.oversized:
+            continue
+        context = [s.text for s in prior.sentences[-sentences:] if s.text.strip()]
+        if not context:
+            continue
+        lines = len(context) + len(unit.sentences)
+        need = (
+            max(DEFAULT_OVERHEAD_TOKENS, TEMPLATE_TOKENS)
+            + PER_SENTENCE_NUMBERING_TOKENS * lines
+            + tokens_of(" ".join([*context, unit.source_text]))
+        )
+        if need > max_input_tokens:
+            continue
+        unit.context = context
+        unit.content_key = content_key(source_language, unit.sentences, context)
+        given += 1
+    return given
 
 
 def pack_stats(units: Sequence[TranslationUnit]) -> Dict[str, Any]:

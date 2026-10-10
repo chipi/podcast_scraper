@@ -456,7 +456,11 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         # unit costs the episode its whole English set (§5.3).
         # Why each refused attempt was refused, kept in the ledger even when a retry passes.
         refusals: List[str] = []
-        if len(sentences) == 1:
+        # Context lines (the previous turn, `attach_context`) are sent numbered ahead of the
+        # unit's own and their translation dropped, so a unit with context always takes the
+        # numbered path.
+        context = list(getattr(unit, "context", None) or [])
+        if len(sentences) == 1 and not context:
             refused: Optional[str] = None
             meta = dict(base_meta)
             for attempt in (1, 2):
@@ -518,7 +522,8 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
             if got["text"] is None:
                 continue
             parsed = _parse_numbered(got["text"])
-            if len(parsed) == len(sentences):
+            if len(parsed) == len(context) + len(sentences):
+                parsed = parsed[len(context) :]
                 # A commentary response CAN come back with the right number of numbered lines,
                 # in which case the alignment contract passes it. Validated per sentence, so one
                 # bad line cannot ride along with good ones.
@@ -548,8 +553,9 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
                     "alignment": "sentence",
                     "metadata": last_meta,
                 }
-            last_meta["alignment_mismatch"] = f"{len(parsed)} of {len(sentences)}"
-            refusals.append(f"returned {len(parsed)} lines for {len(sentences)} sentences")
+            expected = len(context) + len(sentences)
+            last_meta["alignment_mismatch"] = f"{len(parsed)} of {expected}"
+            refusals.append(f"returned {len(parsed)} lines for {expected} sentences")
             last_meta["refusals"] = list(refusals)
             logger.info(
                 "translate: unit %s returned %d lines for %d sentences (attempt %d)",
