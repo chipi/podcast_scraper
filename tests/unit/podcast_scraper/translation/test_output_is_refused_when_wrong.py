@@ -362,9 +362,9 @@ class TestWhyAnAttemptWasRefusedIsKept:
 def test_the_stage_metrics_say_what_this_run_did() -> None:
     """Memory hits, concurrency and refused-then-passed units are run facts the manifest lacked."""
     from podcast_scraper.translation.artifacts import (
+        translation_metrics,
         TranslationDocument,
         UnitRecord,
-        translation_metrics,
     )
 
     doc = TranslationDocument(episode_slug="e", source_language="es")
