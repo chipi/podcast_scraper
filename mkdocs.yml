@@ -327,6 +327,7 @@ nav:
       - ADR-160 Remove whole-segment invented lines: adr/ADR-160-remove-whole-segment-invented-lines.md
       - ADR-161 Repair punctuation per window: adr/ADR-161-repair-punctuation-per-window.md
       - ADR-162 Mine means the listener's own world: adr/ADR-162-mine-means-the-listeners-own-world.md
+      - ADR-163 The jobs of Discover: adr/ADR-163-the-jobs-of-discover.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md

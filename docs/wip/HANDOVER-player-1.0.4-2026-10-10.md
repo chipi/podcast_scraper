@@ -105,6 +105,7 @@ The operator starts the next session on the findings of the discovery competitiv
   - stacked popularity surfaces risk lower diversity.
 - **The scan as a page:** https://claude.ai/artifact/HRXJkuKB6sqZdiFjma4pez
 - **`docs/adr/ADR-162-mine-means-the-listeners-own-world.md`**: the "Mine" decision made from it.
+- **Step 0 done (2026-10-10):** the decisions are [ADR-163](../adr/ADR-163-the-jobs-of-discover.md); the plan is `docs/wip/DISCOVER-ARC-PLAN-2026-10-10.md` (Step 1: the "why" contract, per-rail measurement, momentum on captures and completion).
 - Discover 2, the preview built on this branch, was removed (operator 2026-10-10, UI only; its APIs stay: `GET /trending/episodes`, `/interests/derived`). The arc starts from the scan, not from it.
 
 ## Open

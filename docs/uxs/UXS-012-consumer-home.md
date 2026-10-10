@@ -406,6 +406,11 @@ piece to its design home:
   empty Mine — `trending-shows-mine-empty` — and offer everyone's), Trends, and a search started on
   the page; the Search results' own switch reads and writes the same remembered choice. "Mine" is
   the listener's own world, one meaning per kind of item ([ADR-162](../adr/ADR-162-mine-means-the-listeners-own-world.md)).
+- **Where Discover is going** ([ADR-163](../adr/ADR-163-the-jobs-of-discover.md), 2026-10-10):
+  Discover becomes "what to hear next" only. Rails are episode-first, and each has one job and an
+  extractive "why" (the listener's capture plus a quote and its time). Trends and the entity
+  dashboards move to an Explore surface. This section describes the page as built today; rails are
+  rebuilt against ADR-163 one by one.
 - **`DiscoveryExplorer`** — the shared section (`discovery-explorer`) wrapping the tabbed
   `DiscoveryList` (topics / themes / storylines / people — Themes added 2026-10-05, in the order
   every surface lists the kinds) with the Rising⇄Trending sort switch (`discovery-sort`). It reads
