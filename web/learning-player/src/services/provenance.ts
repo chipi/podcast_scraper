@@ -89,10 +89,28 @@ export function currentSource(route: RouteLocationNormalizedLoaded): Source {
  * mistake already made once in this slice, on the landing CTAs.
  */
 let navigationSource: Source = 'other'
+/** A source the NEXT navigation carries instead of its route's — set by a tap that knows better. */
+let pendingSource: Source | null = null
 
-/** Called by the router on every navigation, with the route being LEFT. */
-export function noteNavigation(from: RouteLocationNormalizedLoaded): void {
-  navigationSource = currentSource(from)
+/**
+ * Called by a tap that knows its own source (half 1 above) just before it navigates: a Discover rail
+ * is on the `browse` route, and only the rail knows it was `discover_quotes` rather than `browse`.
+ * The next real navigation takes it; a query-only change does not consume it.
+ */
+export function markNextNavigation(source: Source): void {
+  pendingSource = source
+}
+
+/**
+ * Called by the router on every navigation, with the route being LEFT. A query- or hash-only change
+ * (`sameScreen`) is not a navigation: the player rewrites its own `?t=` as it plays, and treating
+ * that as leaving the player overwrote how the listener had arrived — so a capture made a minute
+ * later was attributed to `player`, not to the rail that sent them.
+ */
+export function noteNavigation(from: RouteLocationNormalizedLoaded, sameScreen = false): void {
+  if (sameScreen) return
+  navigationSource = pendingSource ?? currentSource(from)
+  pendingSource = null
 }
 
 /**

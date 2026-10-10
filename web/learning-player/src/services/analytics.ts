@@ -96,8 +96,45 @@ export const SOURCES = [
   'notification',
   'deep_link',
   'other',
+  // Discover's rails (ADR-163), one per rail so a tap says which rail — see railSource().
+  'discover_quotes',
+  'discover_captured',
+  'discover_thread',
+  'discover_people',
+  'discover_another_view',
+  'discover_trending_shows',
+  'explore_trends',
 ] as const
 export type Source = (typeof SOURCES)[number]
+
+/**
+ * Discover's rails (ADR-163; Discover arc plan, Step 1.2). The rail id is code-defined; each maps to
+ * one `Source`, so a capture made after arriving from a rail is attributed to it.
+ */
+export type RailId = 'quotes' | 'captured' | 'thread' | 'people' | 'another_view' | 'trending_shows'
+/** Why a recommendation was there (`Reason.kind`), or `none` when it carried no reason. */
+export type RailReasonKind =
+  | 'rising_topic'
+  | 'most_engaged'
+  | 'captured'
+  | 'thread'
+  | 'person'
+  | 'another_view'
+  | 'none'
+
+const RAIL_SOURCE: Readonly<Record<RailId, Source>> = {
+  quotes: 'discover_quotes',
+  captured: 'discover_captured',
+  thread: 'discover_thread',
+  people: 'discover_people',
+  another_view: 'discover_another_view',
+  trending_shows: 'discover_trending_shows',
+}
+
+/** The `Source` a tap on this rail is attributed to. */
+export function railSource(rail: RailId): Source {
+  return RAIL_SOURCE[rail]
+}
 
 /** Counts are reported as buckets, never exact. */
 export type CountBucket = '0' | '1' | '2-5' | '6-20' | '21+'
@@ -212,6 +249,9 @@ export const EVENT_NAMES = [
   'notification_open',
   // a click on a link in one of our emails (operator 2026-10-05, services/inboundLink)
   'email_link_opened',
+  // Discover's rails (ADR-163): the denominator, and the taps
+  'discover_rail_shown',
+  'discover_rail_tap',
 ] as const
 
 export type EventName = (typeof EVENT_NAMES)[number]
@@ -307,6 +347,12 @@ export type EventProps = {
      * folds into `episode` because a note on a highlight IS a note on a moment of that episode.
      */
     target_kind: 'episode' | 'topic' | 'person' | 'insight' | 'show' | 'storyline'
+    /**
+     * How the screen the capture was made on was reached (services/provenance). A capture in the
+     * player after arriving from a Discover rail carries that rail's source: how a rail is judged
+     * (Discover arc plan, Step 1.2). Same visit only — no cross-session join.
+     */
+    source: Source
   }
   recap_view: { trigger: 'panel' | 'home_prompt' }
   revisit_open: { item_kind: string }
@@ -377,6 +423,25 @@ export type EventProps = {
     element: EmailLinkElement
     target: 'player' | 'podcast' | 'topic' | 'person' | 'storyline' | 'theme' | 'other'
     signed_in: boolean
+  }
+  /**
+   * A Discover rail rendered at least one card (ADR-163) — once per rail per mount. The
+   * denominator for the rail's tap rate. Never which episodes: buckets only.
+   */
+  discover_rail_shown: {
+    rail: RailId
+    items: CountBucket
+    /** How many of the cards were the labelled outside-your-habits share (ADR-163 §7). */
+    outside: CountBucket
+    scope: 'mine' | 'everyone'
+  }
+  /** A card on a Discover rail was opened, or its "Play from" tapped. */
+  discover_rail_tap: {
+    rail: RailId
+    reason_kind: RailReasonKind
+    action: 'open' | 'play_from'
+    rank: RankBucket
+    outside_habits: boolean
   }
 }
 

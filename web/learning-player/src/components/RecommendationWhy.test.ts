@@ -61,6 +61,12 @@ describe('RecommendationWhy: the quote that grounds it', () => {
     expect(play.attributes('aria-label')).toBe('Play “Rates will fall.” from 23:14')
   })
 
+  it('tapping "Play from" tells the rail, so it can report the tap', async () => {
+    const w = mountWhy(why({ quote: QUOTE }))
+    await w.get('[data-testid="why-play-from"]').trigger('click')
+    expect(w.emitted('play')).toHaveLength(1)
+  })
+
   it('a quote with no time is shown, with nothing to play from', () => {
     const w = mountWhy(why({ quote: { ...QUOTE, start_ms: null } }))
     expect(w.find('[data-testid="why-quote"]').exists()).toBe(true)

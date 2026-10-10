@@ -14,6 +14,8 @@ import type { Reason } from '../services/types'
 import { formatTime } from '../player/transcriptSync'
 
 const props = defineProps<{ why: Reason }>()
+/** "Play from" was tapped — the rail reports it (useRailTelemetry) before the player opens. */
+const emit = defineEmits<{ (e: 'play'): void }>()
 const { t } = useI18n()
 
 const line = computed(() => {
@@ -74,6 +76,7 @@ const time = computed(() => {
           class="lp-tap font-bold text-accent"
           :aria-label="t('why.playFromLabel', { quote: why.quote.text, time })"
           data-testid="why-play-from"
+          @click="emit('play')"
         >▶ {{ t('why.playFrom', { time }) }}</RouterLink>
       </figcaption>
     </figure>

@@ -415,5 +415,5 @@ router.afterEach((to, from) => {
   // Remember where this navigation came FROM, for events that cannot be emitted until later —
   // `episode_open` needs the episode's feed to know whether the show is followed, and by then the
   // previous route is gone. See services/provenance.ts.
-  noteNavigation(from)
+  noteNavigation(from, sameScreen)
 })

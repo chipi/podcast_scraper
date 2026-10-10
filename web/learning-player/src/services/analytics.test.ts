@@ -119,7 +119,7 @@ describe('registry guard', () => {
     // `home_rail_click` (2026-10-07: its only rail, Home's Trends, moved to Discover), plus
     // `trends_row_click`, which asks its question on Discover. If this number changes, the catalog
     // changed — record where, do not just bump it.
-    expect(EVENT_NAMES).toHaveLength(42)
+    expect(EVENT_NAMES).toHaveLength(44)
     expect(new Set(EVENT_NAMES).size).toBe(EVENT_NAMES.length)
   })
 
@@ -129,9 +129,10 @@ describe('registry guard', () => {
     expect(EVENT_NAMES as readonly string[]).toContain('empty_state_shown')
   })
 
-  it('holds all 21 source values, with no duplicates', () => {
-    // 21 since 2026-10-05: `home_themes`, for the Themes tab added to Home's trends.
-    expect(SOURCES).toHaveLength(21)
+  it('holds all 28 source values, with no duplicates', () => {
+    // 21 since 2026-10-05 (`home_themes`); 28 since 2026-10-11: one `discover_*` per Discover rail
+    // and `explore_trends` (ADR-163, Discover arc Step 1.2).
+    expect(SOURCES).toHaveLength(28)
     expect(new Set(SOURCES).size).toBe(SOURCES.length)
   })
 })

@@ -74,6 +74,7 @@ import type {
 import { ref } from "vue"
 import { isNativeShell, resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
 import { track } from "./analytics"
+import { sourceOfCurrentNavigation } from "./provenance"
 import { isForcedOffline, isOffline, reportServerReachable } from "../composables/useOnline"
 
 // API base, resolved once at load (#1305/#1310):
@@ -1641,7 +1642,7 @@ export async function createHighlight(body: HighlightCreate): Promise<Highlight>
   // #2267 — one of the spec's four Umami goals, and part of "learning actions per active day".
   // NEVER the highlighted text, only that a capture happened and against what kind of thing. A
   // highlight is always episode-scoped; notes are the ones that can hang off a topic or person.
-  track("capture_created", { kind: "highlight", target_kind: "episode" })
+  track("capture_created", { kind: "highlight", target_kind: "episode", source: sourceOfCurrentNavigation() })
   const resp = await apiFetch(`${BASE}/highlights`, {
     method: "POST",
     credentials: "include",
@@ -1693,7 +1694,11 @@ export async function getNotes(target?: string, targetId?: string): Promise<Note
 /** Attach a free-text note to a highlight / insight / episode (auth-gated). */
 export async function createNote(body: NoteCreate): Promise<Note> {
   // Same rule as createHighlight: the TARGET KIND, never the note's text.
-  track("capture_created", { kind: "note", target_kind: noteTargetKind(body.target) })
+  track("capture_created", {
+    kind: "note",
+    target_kind: noteTargetKind(body.target),
+    source: sourceOfCurrentNavigation(),
+  })
   const resp = await apiFetch(`${BASE}/notes`, {
     method: "POST",
     credentials: "include",
