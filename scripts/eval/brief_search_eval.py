@@ -230,7 +230,9 @@ def main() -> int:
         for i in picked:
             p = ps[i]
             ws = words(p["text"])
-            cw = sorted(set(content(ws)), key=lambda w: (freq[w], rng.random()))
+            # Sorted before the random tie-break: a set's order changes per process (string hashing
+            # is randomized), which made the seeded run give different queries on every run.
+            cw = sorted(sorted(set(content(ws))), key=lambda w: (freq[w], rng.random()))
             rare = cw[0]
             few = cw[:3]
             rng.shuffle(few)
@@ -257,17 +259,17 @@ def main() -> int:
                 " ".join(pn[j : j + 8]) for j in (0, max(0, len(pn) - 8), max(0, len(pn) // 2 - 4))
             }
             insight_ids = grounded_insights(ep["gi"], p["start"], p["end"])
-            for qtype, q in queries.items():
+            for qtype, query in queries.items():
                 res = structured_corpus_search(
-                    corpus, q, feed=ep["feed_id"], episode_id=ep["episode_id"], top_k=args.top_k
+                    corpus, query, feed=ep["feed_id"], episode_id=ep["episode_id"], top_k=args.top_k
                 )
                 results = res.get("results") or []
                 rank = None
                 insight_rank = None
-                types = Counter()
+                types: Counter[str] = Counter()
                 for r_i, r in enumerate(results, 1):
                     md = r.get("metadata") or {}
-                    dt = md.get("doc_type")
+                    dt = str(md.get("doc_type"))
                     types[dt] += 1
                     if rank is None and dt == "transcript":
                         hn = norm(r.get("text") or "")
@@ -279,7 +281,7 @@ def main() -> int:
                         and md.get("source_id") in insight_ids
                     ):
                         insight_rank = r_i
-                qws = [w for w in words(q) if w not in STOP]
+                qws = [w for w in words(query) if w not in STOP]
                 exact = [
                     k
                     for k, a in enumerate(all_norm)
@@ -290,7 +292,7 @@ def main() -> int:
                         "episode_id": ep["episode_id"],
                         "passage": i,
                         "type": qtype,
-                        "query": q,
+                        "query": query,
                         "rank": rank,
                         "insight_rank": insight_rank,
                         "has_insight": bool(insight_ids),
