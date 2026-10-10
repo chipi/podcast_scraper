@@ -43,9 +43,35 @@ Branch `feat/player-1.0.4`, no PR yet. Living document: updated as each open ite
 - Not changed: quote rows in the two-tier index carry no `speaker_id` (the aux table has no such
   column), so a speaker scope still drops every quote hit, as it did before.
 
+## Transcript passages in the search index carry their time
+
+- **Cause, from the code:** the indexer timed chunks only from `metadata.summary.timestamps`. The
+  pipeline does not write that, so every transcript passage was indexed at 0 ms while the timed
+  transcript (`*.segments.json`) sat beside it.
+- **Indexer:** `indexer.body_timestamps` now times every chunk from the segments of the body it
+  chunks.
+  - Analysis body: `load_transcript(..., ANALYSIS)`.
+  - Source-language layer: its own `<base>.segments.json`.
+  - Spans come from the segments' own char offsets or cumulative lengths (GI's mapping); failing
+    that, each segment's text is found in order in the body.
+  - On the local corpora every segment was found: 2,796 of 2,796 in raw transcripts, 730 of 730 in
+    source-language ones.
+- **Rows already indexed:** migration **0028_transcript_chunk_times** times them in place from the
+  text on disk. No re-index, no model.
+  - It uses a partial `merge_insert` on `id` (time columns only), then `compact()`, so the existing
+    indexes take the rewritten rows.
+  - A row is written only if its stored text equals the body slice it maps to, so a transcript
+    changed since indexing is left alone.
+  - The undo record is written first (`search/transcript_chunk_times_undo.json`, `m0028.undo`),
+    and the sidecar is updated to match.
+  - On a copy of the e2e corpus: 284 of 284 rows timed (77 of them source-language), verify
+    passes, undo restores all 284.
+- The app's read-time timing stays: it narrows a hit to the exact sentence, not only the chunk.
+
 ## Open on this branch
 
-- Limitation 3: prod's search index has no time on transcript passages (read-time workaround only).
+- **m0028 on prod needs your OK, and needs a deploy first** (the migration ships in the image).
+  Dry-run first: `upgrade run --dry-run` prints how many rows it would time and why any are left.
 - Limitation 4: word forms / misremembered words found 89–92% of the time.
 - The phone still needs the newest dev build.
 - Prod duplicate-milestone cleanup needs operator OK.
