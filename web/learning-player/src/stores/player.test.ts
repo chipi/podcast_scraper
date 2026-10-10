@@ -966,3 +966,101 @@ describe('cold-launch restore support (#2278)', () => {
     expect(p.playing).toBe(false)
   })
 })
+
+describe('Moments reel (operator 2026-10-10)', () => {
+  const MOMENTS = [
+    { insightId: 'i1', text: 'one', speaker: 'Ann', startMs: 60_000, endMs: 75_000 },
+    { insightId: 'i2', text: 'two', speaker: null, startMs: 300_000, endMs: 320_000 },
+    { insightId: 'i3', text: 'three', speaker: 'Bo', startMs: 900_000, endMs: 910_000 },
+  ]
+  let el: HTMLAudioElement & { __emit: (k: string) => void }
+  let p: ReturnType<typeof usePlayerStore>
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    p = usePlayerStore()
+    el = stubAudio({ currentTime: 1234, duration: 1800 })
+    loaded(p, el)
+    p.onDurationChange()
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  /** The element's time moved to `seconds` and the browser fired timeupdate. */
+  function at(seconds: number): void {
+    ;(el as unknown as { currentTime: number }).currentTime = seconds
+    p.onTimeUpdate()
+  }
+
+  it('starts on the loaded episode at the first moment, and only there', () => {
+    expect(p.startReel('other-episode', MOMENTS)).toBe(false)
+    expect(p.startReel('ep-1', [])).toBe(false)
+    expect(p.startReel('ep-1', MOMENTS)).toBe(true)
+    expect(el.currentTime).toBe(60)
+    expect(el.play).toHaveBeenCalled()
+    expect(p.reel).toMatchObject({ index: 0, returnTo: 1234, done: false })
+    expect(p.inReel).toBe(true)
+  })
+
+  it('moves on when a clip ends, and ends paused after the last one', () => {
+    p.startReel('ep-1', MOMENTS)
+    at(70)
+    expect(p.reel?.index).toBe(0)
+    at(75)
+    expect(p.reel?.index).toBe(1)
+    expect(el.currentTime).toBe(300)
+    at(320)
+    at(910)
+    expect(p.reel).toMatchObject({ index: 2, done: true })
+    expect(el.pause).toHaveBeenCalled()
+  })
+
+  it('previous restarts the moment after 3 s, and goes back one within them', () => {
+    p.startReel('ep-1', MOMENTS, 1)
+    at(306)
+    p.reelPrev()
+    expect(p.reel?.index).toBe(1)
+    expect(el.currentTime).toBe(300)
+    at(301)
+    p.reelPrev()
+    expect(p.reel?.index).toBe(0)
+  })
+
+  it('is not a listen: no listen logged, no position saved, no play_start', async () => {
+    const analytics = await import('../services/analytics')
+    const track = vi.spyOn(analytics, 'track')
+    track.mockClear() // an earlier test's spy is the same function; its calls are not ours
+    const saves: number[] = []
+    const logged: string[] = []
+    p.setPositionPersister((_s, seconds) => saves.push(seconds))
+    p.setListenLogger((slug) => logged.push(slug))
+    p.startReel('ep-1', MOMENTS)
+    p.onPlay()
+    at(70)
+    p.onPause()
+    expect(logged).toEqual([])
+    expect(saves).toEqual([])
+    expect(track).not.toHaveBeenCalledWith('play_start', expect.anything())
+    // "Keep listening here": the episode carries on, and real playback logs the listen.
+    p.exitReel(true)
+    p.onPlay()
+    expect(logged).toEqual(['ep-1'])
+  })
+
+  it('✕ goes back to where the listener was, paused; Keep listening stays', () => {
+    p.startReel('ep-1', MOMENTS)
+    at(65)
+    p.exitReel(false)
+    expect(p.reel).toBeNull()
+    expect(el.currentTime).toBe(1234)
+    expect(el.pause).toHaveBeenCalled()
+    p.startReel('ep-1', MOMENTS)
+    at(65)
+    p.exitReel(true)
+    expect(el.currentTime).toBe(65)
+  })
+
+  it('loading another episode ends the reel', () => {
+    p.startReel('ep-1', MOMENTS)
+    p.load({ slug: 'ep-2', url: 'https://x/b.mp3', title: 'B' })
+    expect(p.reel).toBeNull()
+  })
+})

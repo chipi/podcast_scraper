@@ -66,6 +66,7 @@ import type {
   TrendingEntity,
   UserStats,
   YourWeekResponse,
+  MomentsResponse,
 } from "./types"
 import { ref } from "vue"
 import { isNativeShell, resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
@@ -318,6 +319,11 @@ export async function getAudioSource(slug: string, validate = false): Promise<Au
 /** Grounded GIL insights for an episode (empty when no GI artifact). */
 export function getInsights(slug: string): Promise<InsightsResponse> {
   return getJSON<InsightsResponse>(`/episodes/${encodeURIComponent(slug)}/insights`)
+}
+
+/** The episode's Moments reel: its strongest points, one clip each, in timeline order. */
+export function getMoments(slug: string): Promise<MomentsResponse> {
+  return getJSON<MomentsResponse>(`/episodes/${encodeURIComponent(slug)}/moments`)
 }
 
 /** Post-episode recap (RFC-122 #2038) — summary key points + top insights + a signature quote. */

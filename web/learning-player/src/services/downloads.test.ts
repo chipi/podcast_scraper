@@ -328,6 +328,49 @@ describe('downloadEpisode', () => {
       expect(body.detail, 'the server detail — the summary lives here').toBeTruthy()
     })
 
+    it('stores the Moments reel too, so it plays offline (2026-10-10)', async () => {
+      vi.spyOn(api, 'getMoments').mockResolvedValue({
+        episode_slug: 'kn7',
+        moments: [{ insight_id: 'i1', text: 'A point', speaker: null, start_ms: 1, end_ms: 2, clip_text: '' }],
+        total_seconds: 0,
+      })
+      const store = useDownloadsStore()
+      await downloadEpisode('kn7')
+      await vi.waitFor(() => expect(store.entry('kn7')?.knowledgePath).toBeTruthy())
+      const write = writeFile.mock.calls.find((c) =>
+        String((c[0] as { path: string }).path).startsWith('offline-knowledge'),
+      )
+      expect(JSON.parse((write![0] as { data: string }).data).moments).toHaveLength(1)
+    })
+
+    it('backfills moments into knowledge written before them, once', async () => {
+      const store = useDownloadsStore()
+      store.entries['pre'] = {
+        slug: 'pre',
+        state: 'downloaded',
+        updatedAt: 1,
+        knowledgePath: 'offline-knowledge/anon/pre.json',
+      } as never
+      store.entries['post'] = {
+        slug: 'post',
+        state: 'downloaded',
+        updatedAt: 1,
+        knowledgePath: 'offline-knowledge/anon/post.json',
+      } as never
+      readFile.mockImplementation(async ({ path }: { path: string }) => ({
+        data: JSON.stringify(
+          path.includes('pre')
+            ? { detail: null, insights: [], topics: [], persons: [] }
+            : { detail: null, insights: [], topics: [], persons: [], moments: null },
+        ),
+      }))
+      const getEp = vi.spyOn(api, 'getEpisode')
+      await backfillKnowledge()
+      const slugs = getEp.mock.calls.map((c) => c[0])
+      expect(slugs).toContain('pre')
+      expect(slugs, 'moments: null means already tried — not a backfill').not.toContain('post')
+    })
+
     it('reads it back for the player', async () => {
       const store = useDownloadsStore()
       store.entries['kn2'] = {
@@ -380,6 +423,10 @@ describe('downloadEpisode', () => {
         updatedAt: 1,
         knowledgePath: 'offline-knowledge/anon/new1.json',
       } as never
+      // Complete knowledge, moments included (2026-10-10): nothing to backfill for it.
+      readFile.mockResolvedValue({
+        data: JSON.stringify({ detail: null, insights: [], topics: [], persons: [], moments: [] }),
+      })
       const getEp = vi.spyOn(api, 'getEpisode')
       await backfillKnowledge()
       expect(store.entry('old1')?.knowledgePath).toBe('offline-knowledge/anon/old1.json')

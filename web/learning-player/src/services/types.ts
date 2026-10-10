@@ -326,6 +326,22 @@ export interface InsightsResponse {
   insights: Insight[]
 }
 
+/** One moment of the quick-listening reel (GET /api/app/episodes/{slug}/moments, 2026-10-10). */
+export interface Moment {
+  insight_id: string
+  text: string
+  speaker: string | null
+  start_ms: number
+  end_ms: number
+  clip_text: string
+}
+
+export interface MomentsResponse {
+  episode_slug: string
+  moments: Moment[]
+  total_seconds: number
+}
+
 /**
  * Post-episode recap (GET /api/app/episodes/{slug}/recap — AppEpisodeRecap, RFC-122 #2038).
  *

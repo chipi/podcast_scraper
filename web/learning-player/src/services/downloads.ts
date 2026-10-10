@@ -28,9 +28,19 @@ import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { useDownloadsStore } from '../stores/downloads'
 import { episodePlayerArtwork } from '../utils/episode'
-import { ApiError, getAudioSource, getEntities, getEpisode, getInsights, getSegments } from './api'
+import {
+  ApiError,
+  getAudioSource,
+  getEntities,
+  getEpisode,
+  getInsights,
+  getMoments,
+  getSegments,
+} from './api'
 import { track } from './analytics'
-import type { Entity, EpisodeDetail, Insight, SegmentsResponse, Topic } from './types'
+import type { Entity, EpisodeDetail, Insight, SegmentsResponse, Topic,
+  Moment,
+} from './types'
 import { getDeviceJson, setDeviceJson } from './deviceStore'
 import { isNative } from './native'
 import { resolveMediaUrl } from './tier'
@@ -490,9 +500,11 @@ async function cacheKnowledge(
   try {
     // Caught individually: an episode with no insights yet is normal, and it must not cost us the
     // entities as well.
-    const [insights, entities] = await Promise.all([
+    // Moments ride along (operator 2026-10-10): a downloaded episode plays its reel on a plane.
+    const [insights, entities, moments] = await Promise.all([
       getInsights(slug).catch(() => null),
       getEntities(slug).catch(() => null),
+      getMoments(slug).catch(() => null),
     ])
     if (!detail && !insights && !entities) return
     const path = knowledgePathFor(slug)
@@ -504,6 +516,7 @@ async function cacheKnowledge(
         insights: insights?.insights ?? [],
         topics: entities?.topics ?? [],
         persons: entities?.persons ?? [],
+        moments: moments?.moments ?? null,
       }),
       encoding: Encoding.UTF8,
       recursive: true,
@@ -569,9 +582,15 @@ export async function backfillKnowledge(): Promise<void> {
   if (!isNative()) return
   const store = useDownloadsStore()
   const startedIn = store.namespace
-  const pending = Object.values(store.entries)
-    .filter((e) => e.state === 'downloaded' && !e.knowledgePath)
-    .map((e) => e.slug)
+  const downloaded = Object.values(store.entries).filter((e) => e.state === 'downloaded')
+  const pending = downloaded.filter((e) => !e.knowledgePath).map((e) => e.slug)
+  // Knowledge written before Moments existed has no `moments` key: refetch it once, so episodes
+  // already on the phone get their reel too (2026-10-10).
+  for (const e of downloaded) {
+    if (!e.knowledgePath) continue
+    const local = await localKnowledgeFor(e.slug)
+    if (local && local.moments === undefined) pending.push(e.slug)
+  }
   for (const slug of pending) {
     if (store.namespace !== startedIn) return
     const detail = await getEpisode(slug).catch(() => null)
@@ -585,6 +604,8 @@ export interface LocalKnowledge {
   insights: Insight[]
   topics: Topic[]
   persons: Entity[]
+  /** Absent in knowledge written before Moments (2026-10-10); null when the fetch failed. */
+  moments?: Moment[] | null
 }
 
 export async function localKnowledgeFor(slug: string): Promise<LocalKnowledge | null> {
