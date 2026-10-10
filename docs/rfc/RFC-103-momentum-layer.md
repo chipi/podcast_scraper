@@ -251,7 +251,9 @@ momentum:
       show:      { content: 0.60, engagement: 0.40 }
       insight:   { content: 0.60, engagement: 0.40 }
   engagement:
-    min_events_corpus: 5           # corpus-wide identifiability floor (per-user scope: none)
+    min_listeners_corpus: 2        # corpus-wide identifiability floor, in DISTINCT listeners (ADR-163 §5)
+    weights:                       # per signal, counted once per listener per entity per week
+      { finished: 3, captured: 3, saved: 2, opened: 1, subscribed: 1, followed: 1 }
   horizons:                        # UI toggle presets → (fast_hl, slow_hl) in weeks
     week:    { fast: 1, slow: 4 }
     month:   { fast: 3, slow: 12 }
@@ -323,8 +325,9 @@ starting points to A/B, not commitments — hence config.
 ## Resolved Decisions (were open questions)
 
 1. **Blend weights** — global default `0.70/0.30` with per-kind overrides, all in config (§10). ✓
-2. **Engagement min-count floor** — configurable, default `min_events_corpus: 5` (§10); no floor for
-   `scope=mine`. ✓
+2. **Engagement floor** — configurable; since 2026-10-11 counted in distinct listeners
+   (`min_listeners_corpus: 2`, ADR-163 §5), replacing `min_events_corpus: 5`, which one active listener
+   could meet alone. No floor for `scope=mine`. ✓
 3. **Per-user `scope=mine`** — shipped in **v1** (§6). ✓
 4. **UI surfaces** — consumer player **everywhere needed** (topic rail + storylines exist;
    shows/episodes/insights added) **and** an operator **Dashboard global view** across every

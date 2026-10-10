@@ -22,7 +22,10 @@ from podcast_scraper import perf_cache
 from podcast_scraper.search.storylines import load_storylines_payload, storyline_anchor
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_corpus_access import cached_json_artifact
-from podcast_scraper.server.app_engagement_series import engagement_series
+from podcast_scraper.server.app_engagement_series import (
+    DEFAULT_WEIGHTS as DEFAULT_ENGAGEMENT_WEIGHTS,
+    engagement_series,
+)
 from podcast_scraper.server.app_kg_index import get_kg_index
 from podcast_scraper.server.corpus_catalog import aggregate_feeds
 
@@ -60,7 +63,13 @@ class MomentumConfig:
     slow_half_life_weeks: float = 12.0
     velocity_threshold: float = 1.5  # τ — velocity ≥ τ ⇒ heating_up
     min_total: int = 3  # sample-noise floor — R2: also the list-INCLUSION floor, not just the badge
-    min_events_corpus: int = 5  # engagement identifiability floor (corpus scope only)
+    # Engagement identifiability floor (corpus scope only), in DISTINCT LISTENERS (ADR-163 §5): one
+    # listener's activity never surfaces corpus-wide, however many times they act.
+    min_listeners_corpus: int = 2
+    # Weight per engagement signal, each counted once per listener per entity per week.
+    engagement_weights: dict[str, int] = field(
+        default_factory=lambda: dict(DEFAULT_ENGAGEMENT_WEIGHTS)
+    )
     # RFC-103 R2 — monthly window trending.
     default_window: str = "3m"  # 1m | 3m | 6m | 1y — the browse/catch-up cadence
     new_entity_velocity: float = (
@@ -95,7 +104,11 @@ class MomentumConfig:
             velocity_threshold=float(heat.get("velocity_threshold", 1.5)),
             # R2: min_total is the list-inclusion floor; `trend.min_total` overrides the default.
             min_total=int(trend.get("min_total", heat.get("min_total", 3))),
-            min_events_corpus=int(eng.get("min_events_corpus", 5)),
+            min_listeners_corpus=int(eng.get("min_listeners_corpus", 2)),
+            engagement_weights={
+                **DEFAULT_ENGAGEMENT_WEIGHTS,
+                **{str(k): int(v) for k, v in (eng.get("weights") or {}).items()},
+            },
             default_window=str(trend.get("default_window", "3m")),
             new_entity_velocity=float(trend.get("new_entity_velocity", 6.0)),
             blend_default=(
@@ -353,16 +366,18 @@ def _add_cluster_series(
 
 
 def _engagement_weekly_by_entity(
-    data_dir: Path | None, user_id: str | None
-) -> dict[tuple[str, str], dict[str, int]]:
-    """``(kind, id)`` → weekly engagement counts from the engagement aggregator."""
+    data_dir: Path | None, user_id: str | None, weights: dict[str, int] | None = None
+) -> tuple[dict[tuple[str, str], dict[str, int]], dict[tuple[str, str], int]]:
+    """``((kind, id) → weekly engagement scores, (kind, id) → distinct listeners)``."""
     if data_dir is None:
-        return {}
-    data = engagement_series(data_dir, user_id=user_id)
-    return {
-        (str(e["kind"]), str(e["entity_id"])): dict(e.get("weekly_counts") or {})
-        for e in data.get("entities") or []
-    }
+        return {}, {}
+    data = engagement_series(data_dir, user_id=user_id, weights=weights)
+    weekly, listeners = {}, {}
+    for e in data.get("entities") or []:
+        key = (str(e["kind"]), str(e["entity_id"]))
+        weekly[key] = dict(e.get("weekly_counts") or {})
+        listeners[key] = int(e.get("listeners") or 0)
+    return weekly, listeners
 
 
 # --------------------------------------------------------------------------- #
@@ -551,7 +566,7 @@ def trending(
     win_months = WINDOW_MONTHS.get(win_key, 3)
     content = _content_weekly_by_entity(root)
     eng_user = user_id if scope == "mine" else None
-    engagement = _engagement_weekly_by_entity(data_dir, eng_user)
+    engagement, listeners = _engagement_weekly_by_entity(data_dir, eng_user, cfg.engagement_weights)
     labels = _entity_labels(root)
     # Only storylines have one; every other kind leaves the field None, exactly as `role` does.
     anchors = _storyline_anchors(root) if kind == "storyline" else {}
@@ -577,8 +592,12 @@ def trending(
     for eid in ids:
         c_wc = content.get((kind, eid))
         e_wc = engagement.get((kind, eid))
-        # Corpus-scope engagement identifiability floor (no floor for scope=mine).
-        if scope == "corpus" and e_wc is not None and sum(e_wc.values()) < cfg.min_events_corpus:
+        # Corpus-scope identifiability floor in distinct listeners (no floor for scope=mine).
+        if (
+            scope == "corpus"
+            and e_wc is not None
+            and listeners.get((kind, eid), 0) < cfg.min_listeners_corpus
+        ):
             e_wc = None
         c_vel: float | None = None
         c_vol: float | None = None

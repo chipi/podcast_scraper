@@ -1166,7 +1166,9 @@ class AppReason(BaseModel):
     subject: AppReasonSubject | None = None
     capture: AppReasonCapture | None = None
     events: int | None = Field(
-        default=None, description="most_engaged: listens, opens and saves over the window."
+        default=None,
+        description="most_engaged: distinct listeners who finished, captured, saved or opened it "
+        "over the window (ADR-163 §5).",
     )
     outside_habits: bool = Field(
         default=False,

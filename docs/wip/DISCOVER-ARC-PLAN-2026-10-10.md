@@ -67,7 +67,7 @@ The Discover 2 preview was removed (UI only; its APIs stay).
        Rails are compared with each other, not against an absolute bar. Blockers and the opt-out
        under-count every rail alike.
    - Each rail's definition of done includes wiring these events.
-3. **Momentum by distinct listeners.** Implement ADR-163 §5 as distinct listeners per signal, not
+3. **Momentum by distinct listeners** ✅ (2026-10-11). Implement ADR-163 §5 as distinct listeners per signal, not
    a weighted event sum, in `app_engagement_series`:
    - **Signals:** finished (playback 75/95), captured (highlights, notes), saved and opened.
    - **Floors:** listener-based, at least 2 distinct listeners.

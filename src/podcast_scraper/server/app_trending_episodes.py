@@ -5,8 +5,9 @@ reasons, and each card says which:
 
 * ``rising_topic`` — a topic that is rising (topic momentum), shown through the strongest speaker
   take on it: that take's episode, quote and moment.
-* ``most_engaged`` — the episodes listeners listened to, opened and saved most over the last four
-  weeks (the engagement series; highlights are not in it, so the reason does not claim them).
+* ``most_engaged`` — the episodes the most DISTINCT listeners finished, captured, saved or opened
+  over the last four weeks (the engagement series, ADR-163 §5); the card's ``events`` is that
+  listener count.
 
 Under ``scope=mine`` both halves keep to the listener's world (ADR-162): rising topics of their
 own world, episodes in their world only. Built from what is on disk — no LLM, no fetch.
@@ -36,8 +37,8 @@ from podcast_scraper.server.app_slugs import resolve_slug
 
 #: How far back "most engaged" looks, in ISO weeks.
 ENGAGED_WINDOW_WEEKS = 4
-#: Fewer events than this is one person's afternoon, not a trend.
-ENGAGED_MIN_EVENTS = 2
+#: Fewer distinct listeners than this is one person's afternoon, not a trend.
+ENGAGED_MIN_LISTENERS = 2
 
 
 @dataclass
@@ -111,23 +112,24 @@ def _rising_topic_cards(
 def _engaged_slugs(
     data_dir: Path | None, *, world: set[str] | None, now: str | None
 ) -> list[tuple[str, int]]:
-    """``(slug, events)`` over the last ENGAGED_WINDOW_WEEKS, most first, floored."""
+    """``(slug, distinct listeners)`` over the last ENGAGED_WINDOW_WEEKS, floored at
+    ``ENGAGED_MIN_LISTENERS``; ranked by the weighted engagement score, then listeners."""
     if data_dir is None:
         return []
-    weeks = set(_weeks_ending(resolve_as_of_week(now), ENGAGED_WINDOW_WEEKS))
-    out: list[tuple[str, int]] = []
-    for ent in engagement_series(data_dir).get("entities") or []:
+    weeks = _weeks_ending(resolve_as_of_week(now), ENGAGED_WINDOW_WEEKS)
+    since = min(weeks) if weeks else None
+    ranked: list[tuple[int, int, str]] = []
+    for ent in engagement_series(data_dir, since_week=since).get("entities") or []:
         if ent.get("kind") != "episode":
             continue
         slug = str(ent.get("entity_id") or "")
         if not slug or (world is not None and slug not in world):
             continue
-        weekly: dict[str, int] = ent.get("weekly_counts") or {}
-        events = sum(int(c) for w, c in weekly.items() if w in weeks)
-        if events >= ENGAGED_MIN_EVENTS:
-            out.append((slug, events))
-    out.sort(key=lambda se: (-se[1], se[0]))
-    return out
+        listeners = int(ent.get("listeners") or 0)
+        if listeners >= ENGAGED_MIN_LISTENERS:
+            ranked.append((int(ent.get("total") or 0), listeners, slug))
+    ranked.sort(key=lambda r: (-r[0], -r[1], r[2]))
+    return [(slug, listeners) for _score, listeners, slug in ranked]
 
 
 def _engaged_cards(

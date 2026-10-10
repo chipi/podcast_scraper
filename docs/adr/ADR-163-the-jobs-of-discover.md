@@ -44,10 +44,18 @@ fixes those answers so every later rail is built against the same rules.
 4. **The "why" is extractive: the listener's own capture and a grounded quote with its time** —
    "Because you highlighted '…' → at 23:14 X says '…'". Never a sentence the transcript cannot
    back: no LLM-written summary line. A recommendation with no grounded reason shows none rather
-   than an invented one.
+   than an invented one. *Amended 2026-10-11:* a **quote rail** (its card IS a quote) skips an
+   item with no quote; every **other rail** shows the item with no reason. Rails do not each decide
+   differently.
 5. **Momentum weighs captures and completion over plays.** Highlights, saves and finished listens
    count more than opens and starts, so a small, noisy user base cannot inflate an item by opening
    it. Rising stays relative to the item's own history (it already favours small shows).
+   *Amended 2026-10-11 (advisor review):* counted in **distinct listeners**, not events.
+   - Each listener counts once per signal per entity per week, weighted: finished (75/95%) 3,
+     captured 3, saved 2, opened, subscribed and followed 1 each. A weighted event sum would let
+     one listener's three highlights weigh 9 — the inflation this rule exists to prevent.
+   - Floors are in listeners: corpus-wide at least 2, and "most engaged" at least 2.
+   - A card's count is the listener count.
 6. **Cold start: Everyone, labelled, plus an optional picker.** A listener with no history sees
    Everyone's rails, labelled as such ("Everyone", never "For you"). A pick-a-few-topics-or-people
    step, optional and skippable, seeds Mine. A "Suggest less" control lets a listener steer.

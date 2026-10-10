@@ -212,9 +212,8 @@ def test_trending_episodes_from_engagement_and_scope(tmp_path: Path) -> None:
     _write_content(root, topics=[])  # no content for episodes
     _seed_opens(data, "u1", "ep-hot", "p05", ["2026-06-20T00:00:00", "2026-06-27T00:00:00"])
     _seed_opens(data, "u2", "ep-hot", "p05", ["2026-06-27T00:00:00"])
-    # corpus scope: both users' opens; min_events floor (5) drops it → configure floor 0 here.
-    cfg = MomentumConfig(min_events_corpus=0)
-    corpus = trending(root, data, kind="episode", now=_NOW, scope="corpus", limit=5, config=cfg)
+    # corpus scope: both users' opens; two distinct listeners meet the floor (2).
+    corpus = trending(root, data, kind="episode", now=_NOW, scope="corpus", limit=5)
     assert corpus and corpus[0].entity_id == "ep-hot" and corpus[0].total == 3
     # scope=mine: only u1's two opens (no floor for mine).
     mine = trending(root, data, kind="episode", now=_NOW, scope="mine", user_id="u1", limit=5)
@@ -225,9 +224,16 @@ def test_corpus_engagement_floor_hides_thin_signals(tmp_path: Path) -> None:
     root, data = tmp_path / "corpus", tmp_path / "appdata"
     root.mkdir()
     _write_content(root, topics=[])
-    _seed_opens(data, "u1", "ep-thin", "p05", ["2026-06-27T00:00:00"])  # 1 event < floor 5
+    # ONE listener, however active, is below the corpus floor of 2 distinct listeners.
+    _seed_opens(
+        data,
+        "u1",
+        "ep-thin",
+        "p05",
+        ["2026-06-13T00:00:00", "2026-06-20T00:00:00", "2026-06-27T00:00:00"],
+    )
     corpus = trending(root, data, kind="episode", now=_NOW, scope="corpus", limit=5)
-    assert corpus == []  # below min_events_corpus → hidden corpus-wide
+    assert corpus == []  # below min_listeners_corpus → hidden corpus-wide
 
 
 # --------------------------------------------------------------------------- #

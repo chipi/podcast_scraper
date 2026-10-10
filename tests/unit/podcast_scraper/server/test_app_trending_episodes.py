@@ -63,13 +63,19 @@ def _wire(
             ]
         )
 
-    def fake_engagement(data_dir: Path, *, user_id: str | None = None) -> dict[str, Any]:
-        return {
-            "entities": [
-                {"kind": "episode", "entity_id": slug, "weekly_counts": wc}
-                for slug, wc in engagement.items()
-            ]
-        }
+    def fake_engagement(
+        data_dir: Path, *, user_id: str | None = None, since_week: str | None = None, **kw: Any
+    ) -> dict[str, Any]:
+        """``engagement`` is slug -> {week: distinct listeners that week}; the window is applied
+        like the real series (weeks >= since_week), listeners summed (the fakes never overlap)."""
+        seen["since_week"] = since_week
+        out = []
+        for slug, wc in engagement.items():
+            inside = {w: n for w, n in wc.items() if since_week is None or w >= since_week}
+            if inside:
+                n = sum(inside.values())
+                out.append({"kind": "episode", "entity_id": slug, "listeners": n, "total": n * 3})
+        return {"entities": out}
 
     monkeypatch.setattr(te, "trending", fake_trending)
     monkeypatch.setattr(te, "build_topic_perspectives", fake_perspectives)
@@ -119,22 +125,23 @@ def test_interleaves_rising_and_engaged_one_card_per_episode(
     assert engaged.quote.text == "quote from ep-hot.gi.json" and engaged.quote.start_ms == 5_000
 
 
-def test_most_engaged_counts_four_weeks_and_drops_one_off_activity(
+def test_most_engaged_counts_distinct_listeners_over_four_weeks_and_drops_a_lone_one(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _wire(
+    seen = _wire(
         monkeypatch,
         topics=[],
         takes={},
         engagement={
             "ep-old": {"2026-W20": 50},  # outside the window
-            "ep-once": {"2026-W30": 1},  # below the floor
+            "ep-once": {"2026-W30": 1},  # one listener: below the floor of 2
             "ep-two": {"2026-W27": 1, "2026-W30": 1},  # 2 inside the window
             "ep-many": {"2026-W28": 3},
         },
     )
     cards = te.trending_episodes(tmp_path, tmp_path, now=_NOW)
     assert [(c.slug, c.why.events) for c in cards] == [("ep-many", 3), ("ep-two", 2)]
+    assert seen["since_week"] == "2026-W27"  # the four ISO weeks ending in W30
 
 
 def test_mine_keeps_both_halves_to_the_listeners_world(
