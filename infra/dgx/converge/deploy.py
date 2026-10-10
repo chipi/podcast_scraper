@@ -102,6 +102,15 @@ def _operator_user() -> str:
 # via ``env_file:``. The model cache itself is shared with vLLM (also bind-mounts
 # /opt/llm-models/huggingface) so weights aren't duplicated.
 OPERATOR_ENV_FILE = f"/home/{_operator_user()}/.env"
+
+
+def _opt_in(name: str) -> bool:
+    """True when env ``name`` is set to 1/true/yes — blocks that are off by default."""
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes"}
+
+
+DGX_CONVERGE_WHISPER_SERVER = _opt_in("DGX_CONVERGE_WHISPER_SERVER")
+DGX_CONVERGE_OBSERVABILITY = _opt_in("DGX_CONVERGE_OBSERVABILITY")
 HF_CACHE_HOST = "/opt/llm-models/huggingface"
 
 # 1. Install root only — no separate HF cache directory needed; the operator's
@@ -478,6 +487,11 @@ server.shell(
 # matches openai-whisper on real podcasts, we want a first-party path
 # available. Both services run side-by-side; the consumer picks via URL.
 # Same Docker-based shape as Speaches + pyannote.
+#
+# RETIRED — OPT-IN (DGX_CONVERGE_WHISPER_SERVER=1), off by default since 2026-10-10:
+# speaches on :8000 won #952 and config/profiles/eval_default.yaml records :8002 as
+# retired. No container or image runs today; a default converge used to build and
+# START it, adding a GPU/memory consumer to a DGX that is short of memory.
 # ---------------------------------------------------------------------------
 
 WHISPER_INSTALL_ROOT = "/opt/whisper-server"
@@ -493,47 +507,48 @@ WHISPER_CACHE_HOST = "/opt/llm-models/whisper-cache"
 
 _WHISPER_SRC = _Path(__file__).resolve().parents[1] / "whisper-server"
 
-files.directory(
-    name="dir: /opt/whisper-server (install root)",
-    path=WHISPER_INSTALL_ROOT,
-    mode="755",
-    present=True,
-    _sudo=True,
-)
+if DGX_CONVERGE_WHISPER_SERVER:
+    files.directory(
+        name="dir: /opt/whisper-server (install root)",
+        path=WHISPER_INSTALL_ROOT,
+        mode="755",
+        present=True,
+        _sudo=True,
+    )
 
-files.directory(
-    name="dir: /opt/whisper-server/build (Docker build context)",
-    path=WHISPER_BUILD_CTX,
-    mode="755",
-    present=True,
-    _sudo=True,
-)
+    files.directory(
+        name="dir: /opt/whisper-server/build (Docker build context)",
+        path=WHISPER_BUILD_CTX,
+        mode="755",
+        present=True,
+        _sudo=True,
+    )
 
-files.directory(
-    name="dir: /opt/llm-models/whisper-cache (model weights persistence)",
-    path=WHISPER_CACHE_HOST,
-    mode="755",
-    present=True,
-    _sudo=True,
-)
+    files.directory(
+        name="dir: /opt/llm-models/whisper-cache (model weights persistence)",
+        path=WHISPER_CACHE_HOST,
+        mode="755",
+        present=True,
+        _sudo=True,
+    )
 
-files.put(
-    name="ship: whisper-server/Dockerfile",
-    src=str(_WHISPER_SRC / "Dockerfile"),
-    dest=f"{WHISPER_BUILD_CTX}/Dockerfile",
-    mode="644",
-    create_remote_dir=False,
-    _sudo=True,
-)
+    files.put(
+        name="ship: whisper-server/Dockerfile",
+        src=str(_WHISPER_SRC / "Dockerfile"),
+        dest=f"{WHISPER_BUILD_CTX}/Dockerfile",
+        mode="644",
+        create_remote_dir=False,
+        _sudo=True,
+    )
 
-files.put(
-    name="ship: whisper-server/app.py",
-    src=str(_WHISPER_SRC / "app.py"),
-    dest=f"{WHISPER_BUILD_CTX}/app.py",
-    mode="644",
-    create_remote_dir=False,
-    _sudo=True,
-)
+    files.put(
+        name="ship: whisper-server/app.py",
+        src=str(_WHISPER_SRC / "app.py"),
+        dest=f"{WHISPER_BUILD_CTX}/app.py",
+        mode="644",
+        create_remote_dir=False,
+        _sudo=True,
+    )
 
 # docker-compose.yml. Same env_file + GPU passthrough as the other two
 # services. Whisper cache is OUTSIDE the operator's HF cache because
@@ -571,29 +586,35 @@ services:
               capabilities: [gpu]
 """
 
-server.shell(
-    name="compose: write /opt/whisper-server/docker-compose.yml",
-    commands=[
-        f"cat > {WHISPER_COMPOSE_FILE} <<'EOF'\n{WHISPER_COMPOSE_CONTENT}EOF",
-        f"chmod 644 {WHISPER_COMPOSE_FILE}",
-    ],
-    _sudo=True,
-)
+if DGX_CONVERGE_WHISPER_SERVER:
+    server.shell(
+        name="compose: write /opt/whisper-server/docker-compose.yml",
+        commands=[
+            f"cat > {WHISPER_COMPOSE_FILE} <<'EOF'\n{WHISPER_COMPOSE_CONTENT}EOF",
+            f"chmod 644 {WHISPER_COMPOSE_FILE}",
+        ],
+        _sudo=True,
+    )
 
-server.shell(
-    name="build: whisper-openai image (one-time + on Dockerfile/app changes)",
-    commands=[f"cd {WHISPER_INSTALL_ROOT} && docker compose build"],
-    _sudo=True,
-)
+    server.shell(
+        name="build: whisper-openai image (one-time + on Dockerfile/app changes)",
+        commands=[f"cd {WHISPER_INSTALL_ROOT} && docker compose build"],
+        _sudo=True,
+    )
 
-server.shell(
-    name="compose: up -d (start / restart whisper-openai service)",
-    commands=[f"cd {WHISPER_INSTALL_ROOT} && docker compose up -d"],
-    _sudo=True,
-)
+    server.shell(
+        name="compose: up -d (start / restart whisper-openai service)",
+        commands=[f"cd {WHISPER_INSTALL_ROOT} && docker compose up -d"],
+        _sudo=True,
+    )
 
 # ----------------------------------------------------------------------
 # 4. Observability stack (#943): DCGM exporter + node-exporter + cAdvisor.
+#
+# OPT-IN (DGX_CONVERGE_OBSERVABILITY=1), off by default since 2026-10-10: the DGX's
+# exporters (dcgm-exporter, cAdvisor, Alloy) are owned by the homelab repo
+# (agentic-ai-homelab infra/observability). Running this block as well clashes on
+# container_name (dcgm-exporter / cadvisor) and fails the deploy at this step.
 #
 # All upstream images; no local Dockerfile build. The compose lives at
 # infra/dgx/observability/docker-compose.yml in this repo and is shipped
@@ -607,27 +628,28 @@ _OBS_COMPOSE_SRC = (
     _FasterWhisperPath(__file__).resolve().parents[1] / "observability" / "docker-compose.yml"
 )
 
-files.directory(
-    name="dir: /opt/observability (DGX exporters install root)",
-    path=OBS_INSTALL_ROOT,
-    mode="755",
-    present=True,
-    _sudo=True,
-)
+if DGX_CONVERGE_OBSERVABILITY:
+    files.directory(
+        name="dir: /opt/observability (DGX exporters install root)",
+        path=OBS_INSTALL_ROOT,
+        mode="755",
+        present=True,
+        _sudo=True,
+    )
 
-files.put(
-    name="ship: observability/docker-compose.yml (#943)",
-    src=str(_OBS_COMPOSE_SRC),
-    dest=OBS_COMPOSE_FILE,
-    mode="644",
-    _sudo=True,
-)
+    files.put(
+        name="ship: observability/docker-compose.yml (#943)",
+        src=str(_OBS_COMPOSE_SRC),
+        dest=OBS_COMPOSE_FILE,
+        mode="644",
+        _sudo=True,
+    )
 
-server.shell(
-    name="compose: up -d (start / restart DCGM + node-exporter + cAdvisor)",
-    commands=[f"cd {OBS_INSTALL_ROOT} && docker compose up -d"],
-    _sudo=True,
-)
+    server.shell(
+        name="compose: up -d (start / restart DCGM + node-exporter + cAdvisor)",
+        commands=[f"cd {OBS_INSTALL_ROOT} && docker compose up -d"],
+        _sudo=True,
+    )
 
 
 # ---------------------------------------------------------------------------
