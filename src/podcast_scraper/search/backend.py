@@ -138,6 +138,11 @@ class SearchQuery:
     filters: Dict = field(default_factory=dict)
     k: int = 20
     tier: Tier = "all"
+    #: Per-table scope, AND-ed with ``filters`` on that table only (keyed by tier: ``segment``,
+    #: ``segment_nonen``, ``insight``, ``aux``). ``None`` for a tier means that table cannot hold a
+    #: match for the scope and is not read. A speaker or topic scope names columns only some tables
+    #: have, so it cannot go in the shared ``filters``.
+    tier_filters: Dict[str, Optional[Dict]] = field(default_factory=dict)
 
 
 @dataclass

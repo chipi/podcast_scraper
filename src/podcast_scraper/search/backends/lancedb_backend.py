@@ -447,10 +447,19 @@ class LanceDBBackend:
                 raise ValueError(f"invalid filter operator: {key!r}")
         return " AND ".join(parts)
 
+    def _where_for(self, query: SearchQuery, tier: str) -> str | None:
+        """The shared filters AND this tier's own scope (``SearchQuery.tier_filters``)."""
+        parts = [
+            p
+            for p in (self._to_sql(query.filters), self._to_sql(query.tier_filters.get(tier) or {}))
+            if p
+        ]
+        return " AND ".join(f"({p})" for p in parts) if parts else None
+
     def _run(self, query: SearchQuery, *, query_type: str, score_key: str) -> List[ScoredResult]:
-        where = self._to_sql(query.filters)
         hits: List[tuple[float, Dict[str, Any], str]] = []
         search_target = query.text if query_type == "fts" else query.embedding
+        where: str | None = None
 
         def _run_tier(table: Any) -> List[Dict[str, Any]]:
             req = table.search(search_target, query_type=query_type)
@@ -492,6 +501,9 @@ class LanceDBBackend:
                 return []
 
         for tier in self._tables_for_tier(query.tier, keyword=query_type == "fts"):
+            if tier in query.tier_filters and query.tier_filters[tier] is None:
+                continue  # the scope can have no match in this table
+            where = self._where_for(query, tier)
             runner = _run_keyword_only_tier if tier in self.KEYWORD_ONLY_TIERS else _run_tier
             rows_list = self._fresh_read(tier, runner)  # fresh open per read (#1205)
             if rows_list is None:

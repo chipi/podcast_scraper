@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Set
 
 from podcast_scraper import perf_cache
 from podcast_scraper.search.cil_lift_overrides import load_cil_lift_overrides
@@ -255,8 +256,8 @@ def _query_scope(
     runs on the results (``_hit_passes_cli_filters``): the date is cut a day early, and the show
     match is a looser LIKE of the same substring.
 
-    Speaker and topic stay result filters: they resolve names through the insight files, which no
-    index column carries. A type filter goes in only when every requested type lives in the aux
+    Speaker and topic name columns only some tables have, so they go in per table
+    (:func:`_tier_scope`). A type filter goes in only when every requested type lives in the aux
     table, the one table with a ``doc_type`` column (a "storylines only" search otherwise ranked
     every summary and topic first and kept few storylines).
     """
@@ -276,6 +277,118 @@ def _query_scope(
     if since_dt is not None:
         scope["publish_date__gte"] = (since_dt - timedelta(days=1)).date().isoformat()
     return scope or None
+
+
+class _InsightScope(NamedTuple):
+    """One insight's scope keys, as the result filters read them from its GI file."""
+
+    episode_id: str
+    insight_id: str
+    #: ``speaker_id`` of every Quote it is SUPPORTED_BY, lowercased
+    #: (``_insight_passes_speaker_filter``).
+    speakers: tuple[str, ...]
+    #: Every ``topic:`` id it is ABOUT, and those topics' label / name / display_name, lowercased
+    #: (``_insight_passes_topic_filter``).
+    topics: tuple[str, ...]
+
+
+def _insight_scopes_from_gi(episode_id: str, artifact: Dict[str, Any]) -> List[_InsightScope]:
+    nodes = {n.get("id"): n for n in artifact.get("nodes") or [] if isinstance(n, dict)}
+    quotes_of: Dict[Any, List[Any]] = {}
+    topics_of: Dict[Any, List[str]] = {}
+    for e in artifact.get("edges") or []:
+        if not isinstance(e, dict):
+            continue
+        frm, to = e.get("from"), e.get("to")
+        if e.get("type") == "SUPPORTED_BY":
+            quotes_of.setdefault(frm, []).append(to)
+        elif e.get("type") == "ABOUT" and isinstance(to, str) and to.startswith("topic:"):
+            topics_of.setdefault(frm, []).append(to)
+    out: List[_InsightScope] = []
+    for nid, node in nodes.items():
+        if node.get("type") != "Insight" or not isinstance(nid, str):
+            continue
+        speakers = []
+        for qid in quotes_of.get(nid, []):
+            q = nodes.get(qid)
+            sid = ((q or {}).get("properties") or {}).get("speaker_id")
+            if q and q.get("type") == "Quote" and isinstance(sid, str):
+                speakers.append(sid.lower())
+        topics = []
+        for tid in topics_of.get(nid, []):
+            topics.append(tid.lower())
+            props = (nodes.get(tid) or {}).get("properties")
+            if isinstance(props, dict):
+                for key in ("label", "name", "display_name"):
+                    v = props.get(key)
+                    if isinstance(v, str):
+                        topics.append(v.lower())
+        out.append(_InsightScope(episode_id, nid, tuple(speakers), tuple(topics)))
+    return out
+
+
+def _cached_insight_scopes(output_dir: Path) -> List[_InsightScope]:
+    """Every insight's speaker and topic keys across the corpus, read once per corpus generation
+    (``corpus_mtime``) from the same GI files the result filters read (~1 ms per episode)."""
+
+    def build() -> List[_InsightScope]:
+        rows: List[_InsightScope] = []
+        for episode_id, path in cached_episode_gi_paths(output_dir).items():
+            try:
+                artifact = json.loads(Path(path).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if isinstance(artifact, dict):
+                rows.extend(_insight_scopes_from_gi(episode_id, artifact))
+        return rows
+
+    root = Path(output_dir)
+    rows: List[_InsightScope] = perf_cache.get_or_compute(
+        "search_insight_scopes", str(root.resolve()), perf_cache.corpus_mtime(root), build
+    )
+    return rows
+
+
+def _tier_scope(
+    output_dir: Path, *, speaker: Optional[str], topic: Optional[str]
+) -> Optional[Dict[str, Optional[Dict[str, Any]]]]:
+    """A speaker or topic scope as per-table prefilters (``SearchQuery.tier_filters``).
+
+    Filtered afterwards, a speaker search ranked the whole corpus, kept a few hundred rows, and
+    lost that speaker's own insights whenever others outranked them. Each table gets exactly what
+    the result filter (``_hit_passes_cli_filters``) would let through from it, never less — the
+    exact check still runs on the results:
+
+    * insights: the ids whose GI quotes / ABOUT topics match, resolved here from the GI files;
+    * aux: a topic scope keeps ``kg_topic`` rows whose id contains it (the only aux rows a topic
+      filter passes); a speaker scope leaves aux to the result filter;
+    * transcript tables: a topic scope can match nothing there, so they are not read; a speaker
+      scope passes them unchanged, as the result filter does.
+    """
+    if not speaker and not topic:
+        return None
+    s_key, t_key = (speaker or "").lower(), (topic or "").lower()
+    matched = [
+        r
+        for r in _cached_insight_scopes(output_dir)
+        if (not speaker or any(s_key in s for s in r.speakers))
+        and (not topic or any(t_key in t for t in r.topics))
+    ]
+    scope: Dict[str, Optional[Dict[str, Any]]] = {
+        "insight": (
+            {
+                "episode_id__in": sorted({r.episode_id for r in matched}),
+                "source_id__in": sorted({r.insight_id for r in matched}),
+            }
+            if matched
+            else None
+        )
+    }
+    if topic:
+        scope["aux"] = {"doc_type": "kg_topic", "source_id__contains": topic}
+        scope["segment"] = None
+        scope["segment_nonen"] = None
+    return scope
 
 
 def run_corpus_search(
@@ -326,6 +439,7 @@ def run_corpus_search(
                 episode_id=episode_id,
                 episode_ids=episode_ids,
             ),
+            tier_filters=_tier_scope(output_dir, speaker=speaker, topic=topic),
         )
     except QueryEmbeddingError as exc:
         return CorpusSearchOutcome(
