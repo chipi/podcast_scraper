@@ -617,6 +617,64 @@ def test_episode_search_filters_to_episode(tmp_path: Path, monkeypatch: pytest.M
     assert [r["doc_id"] for r in body["results"]] == ["a"]  # and nothing from another episode
 
 
+def _long_segments(root: Path, stem: str = "0001-hello") -> None:
+    segs = [
+        {"start": 0.0, "end": 4.0, "text": "Welcome back to the show everyone."},
+        {"start": 4.0, "end": 9.0, "text": "Today we talk about sizing positions so the"},
+        {"start": 9.0, "end": 14.0, "text": "worst week is survivable for a long time."},
+        {"start": 14.0, "end": 20.0, "text": "Diversification is the only free lunch, people say."},
+    ]
+    (root / "transcripts" / f"{stem}.segments.json").write_text(json.dumps(segs), encoding="utf-8")
+
+
+def test_episode_search_puts_verbatim_passages_first_with_their_real_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A remembered phrase (operator 2026-10-10): the passage that says it comes first, timed."""
+    _write_corpus(tmp_path)
+    _long_segments(tmp_path)
+    slug = _only_slug(tmp_path)
+    chunk = {
+        "doc_id": "chunk:ep1:0",
+        "score": 0.5,
+        # The index's transcript chunks carry no time (0 on prod) and a speaker label line.
+        "metadata": {"doc_type": "transcript", "episode_id": "ep1", "timestamp_start_ms": 0},
+        "text": "Nora: Diversification is the only free lunch, people say.",
+    }
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        lambda output_dir, query, **kw: CorpusSearchOutcome(results=[chunk]),
+    )
+    body = (
+        _client(tmp_path)
+        .get(f"/api/app/episodes/{slug}/search", params={"q": "worst week is survivable"})
+        .json()
+    )
+    first, second = body["results"][0], body["results"][1]
+    assert first["metadata"]["match"] == "phrase"
+    assert first["metadata"]["timestamp_start_ms"] == 9_000
+    # The index's result keeps its place after the verbatim one, now with the time it was said.
+    assert second["doc_id"] == "chunk:ep1:0"
+    assert second["metadata"]["timestamp_start_ms"] == 14_000
+
+
+def test_episode_search_finds_the_words_even_when_the_index_cannot_answer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_corpus(tmp_path)
+    _long_segments(tmp_path)
+    slug = _only_slug(tmp_path)
+    monkeypatch.setattr(
+        "podcast_scraper.search.capability.run_corpus_search",
+        lambda output_dir, query, **kw: CorpusSearchOutcome(error="no_index", detail="no index"),
+    )
+    body = (
+        _client(tmp_path).get(f"/api/app/episodes/{slug}/search", params={"q": "free lunch"}).json()
+    )
+    assert body["error"] is None
+    assert [r["metadata"]["timestamp_start_ms"] for r in body["results"]] == [14_000]
+
+
 def test_episodes_list_endpoint(tmp_path: Path) -> None:
     _write_corpus(tmp_path)
     body = _client(tmp_path).get("/api/app/episodes").json()

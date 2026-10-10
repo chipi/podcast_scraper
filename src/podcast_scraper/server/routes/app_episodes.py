@@ -45,6 +45,7 @@ from podcast_scraper.server.app_episode_notes import (
     render_episode_notes_html,
     render_episode_notes_markdown,
 )
+from podcast_scraper.server.app_episode_search import exact_passages, time_transcript_hits
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_guided_shows import (
     guided_show_signals,
@@ -82,6 +83,7 @@ from podcast_scraper.server.schemas import (
     AudioSourceResponse,
     CorpusSearchApiResponse,
     EpisodeStatsResponse,
+    SearchHitModel,
     SegmentsResponse,
 )
 from podcast_scraper.server.segments_view import (
@@ -966,4 +968,20 @@ async def episode_search(
     if not outcome.get("error"):
         append_query_event(root, str(outcome.get("query_type") or ""))
     scoped = filter_outcome_to_episode(outcome, row.episode_id, top_k)
-    return build_search_response(q, scoped)
+    resp = build_search_response(q, scoped)
+    # What a listener remembers (operator 2026-10-10): passages with the words verbatim first,
+    # and a real time on every transcript result — both from the episode's timed transcript.
+    segments = await asyncio.to_thread(_raw_segment_tuples, root, row)
+    if segments:
+        time_transcript_hits(resp.results, segments)
+        exact = [
+            SearchHitModel(**hit)
+            for hit in exact_passages(segments, q, episode_id=row.episode_id or slug)
+        ]
+        if exact:
+            resp.results = [*exact, *resp.results]
+            # The verbatim passages need no index: an index that cannot answer (none built yet,
+            # or the query model offline) no longer hides what the transcript plainly says.
+            resp.error = None
+            resp.detail = None
+    return resp

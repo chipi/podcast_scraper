@@ -209,9 +209,18 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=20261010)
     ap.add_argument("--synonyms", action="store_true", help="add near_synonym queries (paid LLM)")
     ap.add_argument("--synonym-model", default="claude-haiku-4-5-20251001")
+    ap.add_argument(
+        "--brief",
+        action="store_true",
+        help="compose results as the Brief's route does: verbatim passages first, then the index "
+        "results with their real time (app_episode_search)",
+    )
     args = ap.parse_args()
 
+    from types import SimpleNamespace
+
     from podcast_scraper.search.capability import structured_corpus_search
+    from podcast_scraper.server.app_episode_search import exact_passages, time_transcript_hits
 
     corpus, out = Path(args.corpus), Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -224,6 +233,14 @@ def main() -> int:
         if len(ps) < args.per_episode:
             continue
         freq = Counter(words(" ".join((s.get("text") or "") for s in ep["segments"])))
+        seg_ms = [
+            (
+                int(float(x.get("start") or 0) * 1000),
+                int(float(x.get("end") or 0) * 1000),
+                x.get("text") or "",
+            )
+            for x in ep["segments"]
+        ]
         all_norm = [norm(p["text"]) for p in ps]
         picked = rng.sample(range(len(ps)), args.per_episode)
         built: list[tuple[int, dict, dict]] = []
@@ -259,11 +276,19 @@ def main() -> int:
                 " ".join(pn[j : j + 8]) for j in (0, max(0, len(pn) - 8), max(0, len(pn) // 2 - 4))
             }
             insight_ids = grounded_insights(ep["gi"], p["start"], p["end"])
+            p_ms = (p["start"] * 1000, p["end"] * 1000)
             for qtype, query in queries.items():
                 res = structured_corpus_search(
                     corpus, query, feed=ep["feed_id"], episode_id=ep["episode_id"], top_k=args.top_k
                 )
                 results = res.get("results") or []
+                if args.brief:
+                    hits = [SimpleNamespace(**r) for r in results]
+                    time_transcript_hits(hits, seg_ms)
+                    results = [
+                        *exact_passages(seg_ms, query, episode_id=ep["episode_id"]),
+                        *(vars(h) for h in hits),
+                    ]
                 rank = None
                 insight_rank = None
                 types: Counter[str] = Counter()
@@ -273,7 +298,16 @@ def main() -> int:
                     types[dt] += 1
                     if rank is None and dt == "transcript":
                         hn = norm(r.get("text") or "")
-                        if any(pr and pr in hn for pr in probes):
+                        s_ms, e_ms = md.get("timestamp_start_ms"), md.get("timestamp_end_ms")
+                        # Found: the passage's words, or (Brief mode, timed results) its moment.
+                        timed = (
+                            args.brief
+                            and isinstance(s_ms, (int, float))
+                            and isinstance(e_ms, (int, float))
+                            and s_ms < p_ms[1]
+                            and e_ms > p_ms[0]
+                        )
+                        if timed or any(pr and pr in hn for pr in probes):
                             rank = r_i
                     if (
                         insight_rank is None

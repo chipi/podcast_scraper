@@ -73,3 +73,22 @@ description / title 5%.
 | D | **Show the sentence, not the passage:** the one or two sentences around the words, words highlighted, with Play from and Highlight | the use case's last step: listen, then save the piece |
 
 Recommended: all four, A and B first (they decide whether the passage is found and playable).
+
+## After A and B (same queries, `--brief`)
+
+A (verbatim passages first) and B (a real time on every transcript result) are built
+(`app_episode_search.py`); the eval's `--brief` mode composes the results as the route now does,
+and counts a timed result overlapping the passage as finding it.
+
+| Query | Found first: before → after | Top 3 | Top 10 |
+|---|---|---|---|
+| one distinctive word | 23% → **95%** | 72% → **100%** | 95% → **100%** |
+| three words, shuffled | 16% → **85%** | 57% → **93%** | 92% → **98%** |
+| four words verbatim | 10% → **99.6%** | 39% → **99.7%** | 73% → **99.7%** |
+| another word form | 21% → 20% | 67% → 65% | 89% → 90% |
+| one word misremembered | 14% → 18% | 54% → 56% | 92% → 92% |
+
+What a listener says verbatim is now found first almost every time, at the moment it was said.
+Word forms and misremembered words still rely on meaning search (unchanged, as expected); the
+grounded insight still comes back 55–71% of the time — C and D next.
+
