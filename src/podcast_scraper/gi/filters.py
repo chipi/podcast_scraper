@@ -94,6 +94,12 @@ _AD_PATTERN_SOURCES: Dict[str, Tuple[str, ...]] = {
         r"\bfree (?:trial|month|shipping|delivery)\b",
         r"\bfor a limited time\b",
         r"\bsign up\s+(?:today|now)\b",
+        # Network cross-promo tags (D15: iHeart promos in the translated English of El Hilo and
+        # Radio Ambulante). The network's own words only: the generic "wherever you get your
+        # podcasts" is said inside hosts' own intros and cut them whole in the prod replay.
+        r"\bthis is an iheart (?:radio )?podcast\b",
+        r"\bdownload the (?:free )?iheart ?radio app\b",
+        r"\b(?:on|in) (?:the )?iheart ?radio(?: app)?,? (?:on )?apple podcasts\b",
     ),
     "es": (
         # Sponsor disclosure.
