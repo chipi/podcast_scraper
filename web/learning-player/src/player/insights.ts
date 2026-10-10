@@ -252,6 +252,18 @@ export function stepTarget(insights: Insight[], t: number, dir: 1 | -1): number 
   return started.length > 1 ? started[started.length - 2] : current
 }
 
+/** A horizontal swipe this long (px) on the insight card steps; shorter is a tap. */
+export const STEP_SWIPE_PX = 40
+
+/**
+ * Step by swipe (operator 2026-10-10): left = next insight, right = previous, like turning a page.
+ * Null unless the gesture is long enough and clearly horizontal (a vertical one scrolls the page).
+ */
+export function swipeStep(dx: number, dy: number): 1 | -1 | null {
+  if (Math.abs(dx) < STEP_SWIPE_PX || Math.abs(dx) < 1.5 * Math.abs(dy)) return null
+  return dx < 0 ? 1 : -1
+}
+
 /** "4 / 40": how many insights have started by `t`, of how many. 0 before the first. */
 export function insightPosition(insights: Insight[], t: number): { index: number; total: number } {
   const starts = insightStarts(insights)

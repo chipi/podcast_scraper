@@ -188,3 +188,27 @@ describe('MiniPlayer close (operator 2026-10-07)', () => {
     expect(w.find('[data-testid="mini-player"]').exists()).toBe(false)
   })
 })
+
+describe('MiniPlayer during a Moments reel (2026-10-10)', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('says "Moments · n / total" in place of the show, and reopens the Moments view', async () => {
+    const player = nowPlaying()
+    player.currentShowTitle = 'The Show'
+    player.reel = {
+      slug: 'ep-1',
+      moments: [
+        { insightId: 'a', text: 'a', speaker: null, startMs: 0, endMs: 1 },
+        { insightId: 'b', text: 'b', speaker: null, startMs: 2, endMs: 3 },
+        { insightId: 'c', text: 'c', speaker: null, startMs: 4, endMs: 5 },
+      ],
+      index: 1,
+      returnTo: 0,
+      done: false,
+    }
+    const w = await mountMini()
+    expect(w.get('[data-testid="mini-player-moments"]').text()).toBe('Moments · 2 / 3')
+    expect(w.text()).not.toContain('The Show')
+    expect(w.get('[data-testid="mini-player-open"]').attributes('href')).toBe('/episode/ep-1?moments=1')
+  })
+})

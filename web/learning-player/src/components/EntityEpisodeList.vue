@@ -32,6 +32,7 @@
 import { computed, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import EpisodeRow from "./EpisodeRow.vue"
+import MomentsLink from "./MomentsLink.vue"
 import type { EpisodeSummary } from "../services/types"
 
 // Five, then five more per press (operator 2026-10-08: every entity episode list, topic / person /
@@ -100,7 +101,11 @@ const remaining = computed(() => Math.max(0, total.value - visible.value.length)
   <p aria-live="polite" class="sr-only">{{ announcement }}</p>
   <ul class="flex flex-col">
     <li v-for="e in visible" :key="e.slug">
-      <EpisodeRow :episode="e" />
+      <EpisodeRow :episode="e">
+        <!-- Topic, person, storyline, theme and org pages are where a listener explores, so each
+             episode offers its reel (operator 2026-10-10). -->
+        <template v-if="e.has_gi" #trailing><MomentsLink :slug="e.slug" class="self-center" /></template>
+      </EpisodeRow>
     </li>
   </ul>
   <!-- Same full-width treatment as the Shows and Episodes load-more controls (operator 2026-09-19):

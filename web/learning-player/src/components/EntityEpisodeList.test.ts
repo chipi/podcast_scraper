@@ -184,3 +184,20 @@ describe("EntityEpisodeList paged on the server (2026-10-08)", () => {
   })
 })
 
+
+
+describe("EntityEpisodeList offers each episode's Moments (2026-10-10)", () => {
+  it('"▶ Moments" beside an episode with insights, nothing beside one without', async () => {
+    const { createPinia, setActivePinia } = await import('pinia')
+    const { reportServerReachable } = await import('../composables/useOnline')
+    setActivePinia(createPinia())
+    // Earlier tests here fail their fetches, which (correctly) marks the server down and greys
+    // the link; this test is about the online row.
+    reportServerReachable(true)
+    const eps = [{ ...ep(0), has_gi: true }, { ...ep(1), has_gi: false }]
+    const w = mount(EntityEpisodeList, { props: { episodes: eps }, global: { plugins: [i18n, router] } })
+    const r = w.findAll('[data-testid="episode-row"]')
+    expect(r[0].find('[data-testid="moments-link"]').exists()).toBe(true)
+    expect(r[1].find('[data-testid="moments-link"]').exists()).toBe(false)
+  })
+})

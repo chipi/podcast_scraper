@@ -1181,3 +1181,33 @@ describe("SearchView", () => {
     })
   })
 })
+
+describe("SearchView: Moments on episode results (operator 2026-10-10)", () => {
+  function hit(slug: string, hasGi: boolean) {
+    return {
+      doc_id: `d-${slug}`,
+      score: 0.9,
+      text: `A passage in ${slug}.`,
+      source_tier: "segment",
+      metadata: { episode_slug: slug, episode_title: `Title ${slug}`, podcast_title: "Show", episode_has_gi: hasGi },
+      lifted: { quote: { timestamp_start_ms: 20000 } },
+    }
+  }
+  it("offers ▶ Moments only on episodes that have insights; passages never carry it", async () => {
+    const { reportServerReachable } = await import("../composables/useOnline")
+    reportServerReachable(true)
+    vi.spyOn(api, "searchCorpus").mockResolvedValue({
+      query: "risk",
+      error: null,
+      results: [hit("with-gi", true), hit("no-gi", false)],
+    })
+    const { w } = await mountAt("risk")
+    const groups = w.findAll('[data-testid="episode-group"]')
+    expect(groups).toHaveLength(2)
+    const withGi = groups.find((g) => g.text().includes("Title with-gi"))!
+    const noGi = groups.find((g) => g.text().includes("Title no-gi"))!
+    expect(withGi.get('[data-testid="moments-link"]').attributes("href")).toBe("/episode/with-gi?moments=1")
+    expect(noGi.find('[data-testid="moments-link"]').exists()).toBe(false)
+    expect(w.get('[data-testid="episode-group-body"]').find('[data-testid="moments-link"]').exists()).toBe(false)
+  })
+})

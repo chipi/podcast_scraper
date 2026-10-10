@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n'
 import type { ReelMoment } from '../stores/player'
 import { formatTime } from '../player/transcriptSync'
 import CloseIcon from './CloseIcon.vue'
+import { minutesValue, reelSeconds } from '../services/moments'
 
 const props = defineProps<{
   title: string
@@ -31,6 +32,13 @@ const props = defineProps<{
   returnTo: number
   /** The episode's length in seconds, for the end card. */
   episodeSeconds: number
+  /** The next queued episode's title: the end card offers its moments ("speed checking" a queue). */
+  nextTitle?: string | null
+  /** The episode's other two doors stay reachable from the reel (the obi's Brief and About). */
+  hasBrief?: boolean
+  hasAbout?: boolean
+  /** Speaker name → their role in this episode ("host" / "guest"): "Nora, host". */
+  speakerRoles?: Record<string, string>
 }>()
 
 const emit = defineEmits<{
@@ -41,25 +49,23 @@ const emit = defineEmits<{
   (e: 'keep'): void
   (e: 'close'): void
   (e: 'from-start'): void
+  (e: 'next-episode'): void
+  (e: 'brief'): void
+  (e: 'about'): void
 }>()
 
 const { t } = useI18n()
 
 const current = computed(() => props.moments[props.index] ?? null)
-const totalSeconds = computed(() =>
-  props.moments.reduce((sum, m) => sum + (m.endMs - m.startMs) / 1000, 0),
-)
+const totalSeconds = computed(() => reelSeconds(props.moments))
 const clipProgress = computed(() => {
   const m = current.value
   if (!m || m.endMs <= m.startMs) return 0
   const at = props.currentTime * 1000
   return Math.max(0, Math.min(1, (at - m.startMs) / (m.endMs - m.startMs)))
 })
-/** "3½ min"-style length: whole minutes, a half when it is closer to one. */
 function minutes(seconds: number): string {
-  const halves = Math.max(1, Math.round(seconds / 30))
-  const whole = Math.floor(halves / 2)
-  return t('moments.minutes', { n: halves % 2 ? `${whole || ''}½` : String(whole) })
+  return t('moments.minutes', { n: minutesValue(seconds) })
 }
 function segState(i: number): 'done' | 'now' | 'todo' {
   if (props.done || i < props.index) return 'done'
@@ -100,6 +106,20 @@ function segState(i: number): 'done' | 'now' | 'todo' {
         </p>
       </div>
     </div>
+
+    <!-- The obi's three equal doors, as in the episode view, with Moments turned into Episode: you
+         leave where you came in (operator 2026-10-10). Episode = ✕, back to where you were. -->
+    <nav class="mt-3 grid grid-flow-col auto-cols-fr border-y border-border" :aria-label="t('player.obiLabel')" data-testid="moments-doors">
+      <button type="button" class="lp-moments-door" data-testid="moments-door-episode" @click="emit('close')">
+        <span class="lp-kicker">{{ t('moments.door_episode') }}</span>
+      </button>
+      <button v-if="hasBrief" type="button" class="lp-moments-door" data-testid="moments-door-brief" @click="emit('brief')">
+        <span class="lp-kicker">{{ t('kp.title') }}</span>
+      </button>
+      <button v-if="hasAbout" type="button" class="lp-moments-door" data-testid="moments-door-about" @click="emit('about')">
+        <span class="lp-kicker">{{ t('player.about') }}</span>
+      </button>
+    </nav>
 
     <ol class="mt-3 flex gap-1" aria-hidden="true">
       <li
@@ -151,6 +171,17 @@ function segState(i: number): 'done' | 'now' | 'todo' {
         >
           {{ t('moments.backTo', { time: formatTime(returnTo) }) }}
         </button>
+        <!-- Two lines: what it does first, so a long title can never truncate "its moments" away. -->
+        <button
+          v-if="nextTitle"
+          type="button"
+          class="min-h-11 rounded border border-border px-3 py-2 text-left"
+          data-testid="moments-next-episode"
+          @click="emit('next-episode')"
+        >
+          <span class="block text-sm font-bold">{{ t('moments.nextEpisode') }}</span>
+          <span class="block truncate text-xs text-muted">{{ nextTitle }}</span>
+        </button>
       </div>
     </div>
 
@@ -166,7 +197,9 @@ function segState(i: number): 'done' | 'now' | 'todo' {
       <p class="mt-2 font-display text-lg font-bold leading-snug" data-testid="moments-text">
         {{ current.text }}
       </p>
-      <p v-if="current.speaker" class="mt-2 text-sm text-muted">{{ current.speaker }}</p>
+      <p v-if="current.speaker" class="mt-2 text-sm text-muted" data-testid="moments-speaker">
+        {{ current.speaker }}<template v-if="speakerRoles?.[current.speaker]">, {{ speakerRoles[current.speaker] }}</template>
+      </p>
       <div class="mt-3 h-[3px] rounded-sm bg-overlay" aria-hidden="true">
         <div class="h-full rounded-sm bg-accent" :style="{ width: `${clipProgress * 100}%` }" />
       </div>
@@ -233,3 +266,23 @@ function segState(i: number): 'done' | 'now' | 'todo' {
     </ol>
   </section>
 </template>
+
+<style scoped>
+.lp-moments-door {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 150ms;
+}
+.lp-moments-door + .lp-moments-door {
+  border-left: 1px solid var(--lp-border);
+}
+.lp-moments-door:hover {
+  background-color: var(--lp-overlay);
+}
+.lp-moments-door:focus-visible {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: -2px;
+}
+</style>

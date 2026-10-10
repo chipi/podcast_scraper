@@ -148,3 +148,22 @@ describe('the density strip seeks, like the scrubber (operator 2026-09-30)', () 
     expect(w.get('[data-testid="player-density-seek"]').attributes('tabindex')).toBeUndefined()
   })
 })
+
+describe('PlayerControls — Step and Moments on the density strip (2026-10-10)', () => {
+  const markers: InsightMarker[] = [
+    { id: 'a', timeSec: 10, pct: 10, grounded: true, weight: 0.5 },
+    { id: 'b', timeSec: 50, pct: 50, grounded: true, weight: 0.5 },
+  ]
+  it('the insight the listener is in stands out', () => {
+    const w = mountPC({ markers, currentMarkerId: 'b' })
+    const ticks = w.findAll('[data-testid="player-density-tick"]')
+    expect(ticks.map((t) => t.attributes('data-current'))).toEqual([undefined, 'true'])
+    expect(ticks[1].attributes('style')).toContain('opacity: 1')
+  })
+  it('moments are marked, never in the accent', () => {
+    const w = mountPC({ markers, momentMarks: [10, 50] })
+    const marks = w.findAll('[data-testid="player-moment-mark"]')
+    expect(marks).toHaveLength(2)
+    for (const m of marks) expect(m.classes().join(' ')).not.toContain('accent')
+  })
+})

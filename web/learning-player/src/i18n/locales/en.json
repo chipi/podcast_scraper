@@ -440,6 +440,8 @@
     "about": "About",
     "stepPrev": "Previous insight",
     "stepNext": "Next insight",
+    "jumpedTo": "Jumped to {time}",
+    "stepPosSr": "Insight {n} of {total}",
     "back": "Back",
     "loading": "Loading episode…",
     "notFound": "Episode not found.",
@@ -511,11 +513,18 @@
     "doneTitle": "{count} moments · {length} of a {episode} episode",
     "fromStart": "Listen from the start",
     "backTo": "Back to {time}, where you were",
+    "nextEpisode": "Next in queue: its moments",
+    "mini": "Moments · {n} / {total}",
+    "needsConnection": "Moments need a connection — this episode is not downloaded",
     "empty": "No moments for this episode yet.",
     "play_moments": "Play moments",
     "play_moments_hint": "The strongest moments, back to back",
+    "playCount": "Play {count} moment | Play {count} moments",
+    "playCountHint": "{length} · the strongest moments, in order",
     "door": "Moments",
-    "door_episode": "Episode"
+    "door_episode": "Episode",
+    "roleHost": "host",
+    "roleGuest": "guest"
   },
   "kp": {
     "exportKicker": "Download brief",

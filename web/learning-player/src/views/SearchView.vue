@@ -197,6 +197,11 @@ interface EpisodeGroup {
   rows: CollapsedRow[]
 }
 
+/** An episode result offers its Moments reel when the episode has insights (operator 2026-10-10). */
+function hasMoments(g: EpisodeGroup): boolean {
+  return !!g.slug && g.hits.some((h) => (h.metadata as Record<string, unknown> | undefined)?.episode_has_gi === true)
+}
+
 /**
  * An `EpisodeGroup` as the `EpisodeSummary` that `EpisodeCard` takes.
  *
@@ -1032,7 +1037,8 @@ const showEmpty = computed(
             :key="g.slug ?? g.title"
             :episode="groupAsEpisode(g)"
             :item-count="g.rows.length"
-            :moments="!!g.slug"
+            :moments="hasMoments(g)"
+            moments-link
           >
             <template #meta>
               <template v-if="formatPublishDate(g.date, locale)">{{ formatPublishDate(g.date, locale) }} · </template>{{ t("search.matchCount", g.hits.length) }}

@@ -24,6 +24,8 @@ const props = defineProps<{
    * and these marks are not separate controls.
    */
   momentMarks?: number[]
+  /** Step (2026-10-10): the insight the listener is in — its tick stands out on the strip. */
+  currentMarkerId?: string | null
 }>()
 const emit = defineEmits<{
   (e: "toggle"): void
@@ -230,9 +232,13 @@ function onDensityUp(): void {
       <span
         v-for="m in markers"
         :key="m.id"
-        class="absolute top-0 h-2.5 w-[2px] -translate-x-1/2 rounded-full"
-        :class="m.grounded ? 'bg-canvas-foreground' : 'bg-muted'"
-        :style="{ left: m.pct + '%', opacity: m.weight }"
+        class="absolute -translate-x-1/2 rounded-full"
+        :class="[
+          m.grounded ? 'bg-canvas-foreground' : 'bg-muted',
+          m.id === currentMarkerId ? '-top-1 h-[18px] w-[3px]' : 'top-0 h-2.5 w-[2px]',
+        ]"
+        :style="{ left: m.pct + '%', opacity: m.id === currentMarkerId ? 1 : m.weight }"
+        :data-current="m.id === currentMarkerId ? 'true' : undefined"
         data-testid="player-density-tick"
       />
       <span

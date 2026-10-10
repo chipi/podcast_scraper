@@ -57,13 +57,30 @@ fixed: judgments are cached in `judgments_<mode>.jsonl` and a crash resumes).
 Built and tested: the moment picker and route (`c7acc69ea`, `582b66499`); the reel in the player
 store and offline moments with downloads (`456171363`); the Moments view, Step and the three-door
 obi (`88afe16f0`); the ways in — ⋯ menu, "▶ Moments" text action, the Brief button (`8f12e2ec5`).
-Deviation from the mockups: the Moments view has no obi (the artwork shrinks to a thumbnail), so
-there is no "Episode" door — ✕ and "Keep listening here" are the ways out. The moment gap now
-scales down for episodes under ~18 minutes.
+Second round (same day, uncommitted at the time of writing): swipe to step and "› Jumped to …";
+the reel's end card chains the next queued episode's moments; the mini-player reads "Moments ·
+n / total"; the current insight's tick stands out; a 250 ms fade into each clip; the Brief's
+"Play 8 moments · 3½ min"; the Moments view keeps the obi's doors as a row (Episode · Brief ·
+About) and names the speaker's role; the Moments door's muted rule; search offers the reel only
+for episodes with insights (`episode_has_gi` on hits); Saved / Revisit groups ⋯-only; offline
+greying; "▶ Moments" on topic / person / storyline / theme / org rows and every Discover 2 card.
 
-Not built: "Next in queue: its moments" on the end card; the Moments chip on topic / person /
-storyline episode rows (no actions there today); screen-reader review on a device; the sound
-between clips; Android label widths on a real device.
+Deviations from the mockups, each on purpose:
+
+- Search: "▶ Moments" sits on the meta row directly under "Matched:", not on that line. The
+  "Matched" line is inside the result's link; a link inside a link loses its accessible name.
+- The Moments view's doors are a horizontal row under the header, not a vertical band: the view
+  has no artwork for a band to sit on.
+- Rows show "▶ Moments" with no length ("· 3½ min"), per the revised mockup (no count, no box).
+- An episode with a GI artifact but no playable moments still shows "▶ Moments" on lists (lists
+  carry `has_gi`, not a moment count); opening it falls back to the episode, nothing breaks.
+
+Label widths on Android, measured 2026-10-10 in Chrome 154 on the Pixel 8 emulator (Android 16,
+11px bold monospace, 0.16em): MOMENTS 57.7px, EPISODE 57.7px, BRIEF 41.2px, ABOUT 41.2px,
+DESCRIPTION 90.6px. A door has 63px at a 320px phone width, so every label fits.
+
+Not done: a screen-reader pass on a real device (names are checked by role in e2e only); how the
+move between clips should sound beyond the 250 ms fade.
 
 1. **Server — `app_moments.py`** (written, unit-tested): `pick_moments(gi, duration, config,
    segments)`; `MomentsConfig` from `APP_MOMENTS_CONFIG` (JSON). Ranking `player` default, `score`
@@ -71,8 +88,8 @@ between clips; Android label widths on a real device.
 2. **Server — route** `GET /api/app/episodes/{slug}/moments`: reads the GI artifact, raw
    `*.segments.json` and duration; returns moments (id, text, speaker, start/end ms, clip text) plus
    total seconds. Integration test with the fixture corpus.
-3. **Server — moments on lists**: episode payloads carry `moments_seconds` (or a count) so the chip
-   can show "3½ min" without a second fetch.
+3. **Server — moments on lists**: dropped. The revised mockup puts no length on rows ("▶ Moments",
+   no count), so lists need only `has_gi`; search hits carry `episode_has_gi` for the same reason.
 4. **Offline**: the download bundle stores the moments response with the episode (alongside the
    Brief); the client reads it from disk offline.
 5. **Player — Step**: arrows + swipe on the Zone D card and the rest line; keyboard on desktop;
@@ -91,7 +108,5 @@ fixture corpus), e2e (Step, Moments mode, obi doors, chip, offline reel with the
 
 ## Not covered yet
 
-- Screen-reader design for the card arrows, the reel's segment bar and the obi's third door.
-- How the move between clips sounds (cut, fade, tick).
-- Episode rows on topic / person / storyline pages (no actions today) — a later step.
-- Label widths on Android: measured in desktop Chromium with SF Mono only.
+- A screen-reader pass on a real device (labels exist and e2e checks names by role).
+- How the move between clips should sound, beyond the 250 ms fade now in place.

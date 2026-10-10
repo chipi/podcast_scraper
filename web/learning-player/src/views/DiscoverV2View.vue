@@ -261,7 +261,10 @@ watch(scope, () => void loadTrendingEpisodes())
               <p class="font-mono text-[10.5px] uppercase tracking-wider text-muted">{{ c.show }}</p>
             </div>
           </div>
-          <RouterLink :to="playTo(c)" class="d2-play">▶ {{ c.startSeconds != null ? formatTime(c.startSeconds) : "Play" }}</RouterLink>
+          <div class="flex items-center justify-between gap-2">
+            <RouterLink :to="playTo(c)" class="d2-play">▶ {{ c.startSeconds != null ? formatTime(c.startSeconds) : "Play" }}</RouterLink>
+            <MomentsLink :slug="c.slug" />
+          </div>
         </article>
       </div>
     </section>
@@ -308,7 +311,10 @@ watch(scope, () => void loadTrendingEpisodes())
             />
             <span class="ml-1 font-mono text-[11px] text-muted">{{ th.fresh }} not heard yet</span>
           </div>
-          <RouterLink v-if="th.next" :to="{ name: 'player', params: { slug: th.next.slug } }" class="d2-play">▶ Next: {{ th.next.title }}</RouterLink>
+          <div v-if="th.next" class="flex items-center justify-between gap-2">
+            <RouterLink :to="{ name: 'player', params: { slug: th.next.slug } }" class="d2-play min-w-0 truncate">▶ Next: {{ th.next.title }}</RouterLink>
+            <MomentsLink :slug="th.next.slug" />
+          </div>
         </article>
       </div>
     </section>
@@ -338,14 +344,15 @@ watch(scope, () => void loadTrendingEpisodes())
         <RouterLink :to="{ name: 'browse', query: { tab: 'episodes', from: 'following', state: 'unplayed' }, hash: '#catalog' }" class="text-sm font-bold text-accent">all ›</RouterLink>
       </div>
       <ul class="grid">
-        <li v-for="e in latest" :key="e.slug" class="border-b border-border last:border-b-0">
-          <RouterLink :to="{ name: 'player', params: { slug: e.slug } }" class="flex min-w-0 items-center gap-3 py-2">
+        <li v-for="e in latest" :key="e.slug" class="flex items-center gap-2 border-b border-border last:border-b-0">
+          <RouterLink :to="{ name: 'player', params: { slug: e.slug } }" class="flex min-w-0 flex-1 items-center gap-3 py-2">
             <img v-if="episodeArtwork(e)" :src="episodeArtwork(e) ?? ''" alt="" class="h-10 w-10 shrink-0 rounded-md object-cover" />
             <span class="min-w-0 flex-1">
               <span class="block truncate text-sm font-bold">{{ e.title }}</span>
               <span class="block font-mono text-[10.5px] uppercase tracking-wider text-muted">{{ e.podcast_title }} · {{ dateLabel(e.publish_date) }}</span>
             </span>
           </RouterLink>
+          <MomentsLink v-if="e.has_gi" :slug="e.slug" />
         </li>
       </ul>
     </section>

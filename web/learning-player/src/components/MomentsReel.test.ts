@@ -82,3 +82,43 @@ describe('MomentsReel (operator 2026-10-10)', () => {
     expect(w.emitted('from-start')).toHaveLength(1)
   })
 })
+
+describe('MomentsReel end card chains through the queue', () => {
+  it('offers the next queued episode\'s moments when there is one', async () => {
+    const w = make({ done: true, index: 2, playing: false, nextTitle: 'The Risk Panel' })
+    const btn = w.get('[data-testid="moments-next-episode"]')
+    expect(btn.text()).toContain('Next in queue: its moments')
+    expect(btn.text()).toContain('The Risk Panel')
+    await btn.trigger('click')
+    expect(w.emitted('next-episode')).toHaveLength(1)
+  })
+  it('and nothing when the queue has nothing after this episode', () => {
+    expect(make({ done: true, index: 2 }).find('[data-testid="moments-next-episode"]').exists()).toBe(false)
+  })
+})
+
+describe('MomentsReel keeps the obi: Episode · Brief · About', () => {
+  it('Episode leaves the reel the way ✕ does; Brief and About open their sheets', async () => {
+    const w = make({ hasBrief: true, hasAbout: true })
+    const labels = w.findAll('[data-testid="moments-doors"] button').map((b) => b.text())
+    expect(labels).toEqual(['Episode', 'Brief', 'About'])
+    await w.get('[data-testid="moments-door-episode"]').trigger('click')
+    await w.get('[data-testid="moments-door-brief"]').trigger('click')
+    await w.get('[data-testid="moments-door-about"]').trigger('click')
+    expect(w.emitted('close')).toHaveLength(1)
+    expect(w.emitted('brief')).toHaveLength(1)
+    expect(w.emitted('about')).toHaveLength(1)
+  })
+  it('only the doors the episode has: no description, no About', () => {
+    const w = make({ hasBrief: true, hasAbout: false })
+    expect(w.find('[data-testid="moments-door-about"]').exists()).toBe(false)
+  })
+})
+
+describe('MomentsReel names who says it, and their role', () => {
+  it('"Ann, host" when the episode knows her role; just the name when it does not', () => {
+    const w = make({ index: 0, speakerRoles: { Ann: 'host' } })
+    expect(w.get('[data-testid="moments-speaker"]').text()).toBe('Ann, host')
+    expect(make({ index: 0 }).get('[data-testid="moments-speaker"]').text()).toBe('Ann')
+  })
+})

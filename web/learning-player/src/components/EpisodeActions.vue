@@ -33,6 +33,8 @@ import ShareIcon from './ShareIcon.vue'
 import OverflowMenu from './OverflowMenu.vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { useOnline } from '../composables/useOnline'
+import { useDownloadsStore } from '../stores/downloads'
 import { track } from '../services/analytics'
 import { openShareSheet } from '../services/native'
 import { copyText } from '../utils/clipboard'
@@ -98,6 +100,8 @@ defineProps<{
 }>()
 const { t } = useI18n()
 const router = useRouter()
+const { isOnline } = useOnline()
+const downloads = useDownloadsStore()
 function playMoments(slug: string): void {
   void router.push({ name: 'player', params: { slug }, query: { moments: '1' } })
 }
@@ -136,12 +140,16 @@ async function shareEpisode(slug: string, title: string): Promise<void> {
           type="button"
           role="menuitem"
           data-menuitem=""
-          class="flex w-full flex-col items-start rounded-lg px-3 py-2 text-left text-sm font-bold text-accent transition hover:bg-overlay"
+          class="flex w-full flex-col items-start rounded-lg px-3 py-2 text-left text-sm font-bold transition"
+          :class="isOnline || downloads.isDownloaded(slug) ? 'text-accent hover:bg-overlay' : 'text-disabled'"
+          :disabled="!isOnline && !downloads.isDownloaded(slug)"
           data-testid="episode-play-moments"
           @click="close(); playMoments(slug)"
         >
           <span>▶ {{ t('moments.play_moments') }}</span>
-          <span class="text-xs font-normal text-muted">{{ t('moments.play_moments_hint') }}</span>
+          <span class="text-xs font-normal text-muted">{{
+            isOnline || downloads.isDownloaded(slug) ? t('moments.play_moments_hint') : t('moments.needsConnection')
+          }}</span>
         </button>
         <!-- Download self-hides on web, so on web this menu carries collection alone. Omitted when
              it is already inline — never offer the same control in two places. -->

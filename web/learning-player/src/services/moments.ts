@@ -20,6 +20,18 @@ export function toReel(moments: Moment[]): ReelMoment[] {
   }))
 }
 
+/** Total reel length in seconds. */
+export function reelSeconds(moments: ReelMoment[]): number {
+  return moments.reduce((sum, m) => sum + (m.endMs - m.startMs) / 1000, 0)
+}
+
+/** "3½"-style minutes for a reel's length: whole minutes, a half when closer to one; at least ½. */
+export function minutesValue(seconds: number): string {
+  const halves = Math.max(1, Math.round(seconds / 30))
+  const whole = Math.floor(halves / 2)
+  return halves % 2 ? `${whole || ''}½` : String(whole)
+}
+
 export async function loadMoments(slug: string): Promise<Moment[]> {
   try {
     return (await getMoments(slug)).moments

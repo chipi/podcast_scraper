@@ -32,7 +32,7 @@ import SectionHeading from '../components/SectionHeading.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
 import EpisodeDescriptionSheet from '../components/EpisodeDescriptionSheet.vue'
 import MomentsReel from '../components/MomentsReel.vue'
-import { loadMoments, toReel } from '../services/moments'
+import { loadMoments, reelSeconds, toReel } from '../services/moments'
 import type { ReelMoment } from '../stores/player'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
@@ -58,6 +58,7 @@ import {
   INSIGHT_MIN_CONTENT_SECONDS,
   nextInsightIndex,
   stepTarget,
+  swipeStep,
 } from '../player/insights'
 import { insightScrubberMarkers } from '../player/insightMarkers'
 import { RECAP_COUNTDOWN_SECONDS } from '../player/recap'
@@ -613,9 +614,61 @@ function seekToNextInsight(): void {
  */
 function stepInsight(dir: 1 | -1): void {
   const target = stepTarget(insights.value, contentTime.value, dir)
-  if (target != null) seekContent(target)
+  if (target == null) return
+  seekContent(target)
+  flashStep(dir, target)
+}
+/** "› Jumped to 21:07" for two seconds after a step, so a jump never happens unexplained. */
+const stepFlash = ref<{ glyph: string; time: string } | null>(null)
+let stepFlashTimer: ReturnType<typeof setTimeout> | null = null
+function flashStep(dir: 1 | -1, target: number): void {
+  const time = formatTime(target)
+  stepFlash.value = { glyph: dir === 1 ? '›' : '‹', time }
+  announceCapture(t('player.jumpedTo', { time }))
+  if (stepFlashTimer) clearTimeout(stepFlashTimer)
+  stepFlashTimer = setTimeout(() => (stepFlash.value = null), 2000)
+}
+onBeforeUnmount(() => {
+  if (stepFlashTimer) clearTimeout(stepFlashTimer)
+})
+/**
+ * Swipe the insight card to step (left = next, right = previous). Touch and pen only; the card is
+ * `touch-action: pan-y` so a vertical drag still scrolls. A swipe swallows the click that follows,
+ * which would otherwise hide the card (a tap on the artwork drops the current insight).
+ */
+let swipeFrom: { x: number; y: number } | null = null
+let swallowClick = false
+function onCardPointerDown(e: PointerEvent): void {
+  swipeFrom = e.pointerType === 'mouse' ? null : { x: e.clientX, y: e.clientY }
+}
+function onCardPointerUp(e: PointerEvent): void {
+  if (!swipeFrom) return
+  const dir = swipeStep(e.clientX - swipeFrom.x, e.clientY - swipeFrom.y)
+  swipeFrom = null
+  if (dir == null) return
+  swallowClick = true
+  setTimeout(() => (swallowClick = false), 400)
+  stepInsight(dir)
+}
+function onCardPointerCancel(): void {
+  swipeFrom = null
+}
+function onCardClickCapture(e: MouseEvent): void {
+  if (!swallowClick) return
+  swallowClick = false
+  e.stopPropagation()
+  e.preventDefault()
 }
 const stepPos = computed(() => insightPosition(insights.value, contentTime.value))
+/** The insight the listener is in: the latest one started (its tick stands out on the strip). */
+const currentInsightId = computed(() => {
+  let best: { id: string; start: number } | null = null
+  for (const ins of insights.value) {
+    const s = insightStartSeconds(ins)
+    if (s != null && s <= contentTime.value + 0.001 && (!best || s >= best.start)) best = { id: ins.id, start: s }
+  }
+  return best?.id ?? null
+})
 /** Desktop: `[` and `]` step, unless the listener is typing somewhere. */
 function onStepKey(e: KeyboardEvent): void {
   if (e.key !== '[' && e.key !== ']') return
@@ -1135,13 +1188,13 @@ watch(
 // `?moments=1` turns this page into the Moments view: the episode's strongest moments, back to back.
 // The reel itself lives in the player store; this page loads the moments and swaps its left column.
 const episodeMoments = ref<ReelMoment[]>([])
-let momentsFor: string | null = null
+const momentsFor = ref<string | null>(null)
 async function ensureMoments(slug: string): Promise<ReelMoment[]> {
-  if (momentsFor === slug) return episodeMoments.value
+  if (momentsFor.value === slug) return episodeMoments.value
   const loaded = toReel(await loadMoments(slug))
   if (props.slug === slug) {
     episodeMoments.value = loaded
-    momentsFor = slug
+    momentsFor.value = slug
   }
   return loaded
 }
@@ -1149,7 +1202,7 @@ watch(
   () => props.slug,
   () => {
     episodeMoments.value = []
-    momentsFor = null
+    momentsFor.value = null
   },
 )
 // The ticks on the density strip need the moments in the episode view too; fetched once it is
@@ -1162,6 +1215,15 @@ watch(
   { immediate: true },
 )
 const momentsActive = computed(() => player.reel?.slug === props.slug)
+/** "Nora, host" on the current moment: hosts and guests from the episode's people. */
+const speakerRoles = computed<Record<string, string>>(() => {
+  const out: Record<string, string> = {}
+  for (const p of persons.value) {
+    if (p.role === 'host') out[p.name] = t('moments.roleHost')
+    else if (p.role === 'guest') out[p.name] = t('moments.roleGuest')
+  }
+  return out
+})
 const momentMarks = computed(() =>
   duration.value > 0
     ? episodeMoments.value.map((m) => Math.min(100, (m.startMs / 1000 / duration.value) * 100))
@@ -1206,6 +1268,25 @@ function onMomentsKeep(): void {
 function onMomentsClose(): void {
   player.exitReel(false)
   leaveMomentsQuery()
+}
+// The end card chains reels through the queue: the next queued episode's moments.
+const reelNextSlug = computed(() => (momentsActive.value ? queue.nextAfter(props.slug) : null))
+const reelNextTitle = ref<string | null>(null)
+watch(
+  reelNextSlug,
+  async (slug) => {
+    reelNextTitle.value = null
+    if (!slug) return
+    const detail = await getEpisode(slug).catch(() => null)
+    if (reelNextSlug.value === slug) reelNextTitle.value = detail?.title ?? null
+  },
+  { immediate: true },
+)
+function onMomentsNextEpisode(): void {
+  const slug = reelNextSlug.value
+  if (!slug) return
+  player.exitReel(false)
+  void router.push({ name: 'player', params: { slug }, query: { moments: '1' } })
 }
 function onMomentsFromStart(): void {
   player.exitReel(false)
@@ -1536,6 +1617,12 @@ const { badgeShown } = useCorpusLanguages()
           :current-time="currentTime"
           :return-to="player.reel.returnTo"
           :episode-seconds="duration"
+          :next-title="reelNextTitle"
+          :has-brief="insights.length > 0"
+          :has-about="!!episodeDescription"
+          :speaker-roles="speakerRoles"
+          @brief="panelOpen = true"
+          @about="descriptionOpen = true"
           @go="player.reelGo"
           @prev="player.reelPrev"
           @next="player.reelNext"
@@ -1543,6 +1630,7 @@ const { badgeShown } = useCorpusLanguages()
           @keep="onMomentsKeep"
           @close="onMomentsClose"
           @from-start="onMomentsFromStart"
+          @next-episode="onMomentsNextEpisode"
         />
         <template v-else>
         <div class="flex items-start justify-between gap-3">
@@ -1779,7 +1867,7 @@ const { badgeShown } = useCorpusLanguages()
                 v-if="insights.length"
                 type="button"
                 data-testid="player-open-moments"
-                class="lp-obi-door"
+                class="lp-obi-door lp-obi-door--moments"
                 @click="openMoments"
               >
                 <span class="lp-kicker lp-obi-label">{{ t('moments.door') }}</span>
@@ -1831,8 +1919,12 @@ const { badgeShown } = useCorpusLanguages()
                 v-if="visibleInsight"
                 key="live"
                 data-testid="player-zone-d-live"
-                class="absolute bottom-0 left-0"
+                class="absolute bottom-0 left-0 touch-pan-y"
                 :class="obiShown ? 'right-[44px]' : 'right-0'"
+                @pointerdown="onCardPointerDown"
+                @pointerup="onCardPointerUp"
+                @pointercancel="onCardPointerCancel"
+                @click.capture="onCardClickCapture"
               >
                 <!--
                   Scrim: two ~80px bands stacked directly above the panel (normal document flow,
@@ -1881,6 +1973,9 @@ const { badgeShown } = useCorpusLanguages()
                   legibility is unchanged and the rectangle is gone.
                 -->
                 <div class="zone-d-body px-4 pb-4 pt-1">
+                  <p v-if="stepFlash" class="lp-kicker mb-1 text-center text-canvas-foreground" data-testid="player-step-flash">
+                    {{ stepFlash.glyph }} {{ t('player.jumpedTo', { time: stepFlash.time }) }}
+                  </p>
                   <!-- Attribution: ONE glyph for the whole panel. The sr-only span keeps the
                        "speaking now" context for screen readers even though it's folded visually
                        into this one line rather than a separate pill. -->
@@ -1894,7 +1989,7 @@ const { badgeShown } = useCorpusLanguages()
                       @click="stepInsight(-1)"
                     >‹</button>
                     <p class="lp-kicker min-w-0 flex-1 text-center">
-                      ✦ <span data-testid="player-step-pos">{{ stepPos.index }} / {{ stepPos.total }}</span><template v-if="insightSpeaker"> · {{ t('player.insightBy', { speaker: insightSpeaker }) }}</template>
+                      ✦ <span data-testid="player-step-pos" aria-hidden="true">{{ stepPos.index }} / {{ stepPos.total }}</span><span class="sr-only">{{ t('player.stepPosSr', { n: stepPos.index, total: stepPos.total }) }}</span><template v-if="insightSpeaker"> · {{ t('player.insightBy', { speaker: insightSpeaker }) }}</template>
                       <span v-if="insightSpeaker" class="sr-only">{{ t('player.speakingNow') }}: {{ insightSpeaker }}</span>
                     </p>
                     <button
@@ -1929,9 +2024,16 @@ const { badgeShown } = useCorpusLanguages()
                 v-else
                 key="rest"
                 data-testid="player-zone-d-rest"
-                class="absolute bottom-0 left-0 p-3"
+                class="absolute bottom-0 left-0 touch-pan-y p-3"
                 :class="obiShown ? 'right-[44px]' : 'right-0'"
+                @pointerdown="onCardPointerDown"
+                @pointerup="onCardPointerUp"
+                @pointercancel="onCardPointerCancel"
+                @click.capture="onCardClickCapture"
               >
+                <p v-if="stepFlash" class="lp-kicker mb-1 text-canvas-foreground" data-testid="player-step-flash">
+                  {{ stepFlash.glyph }} {{ t('player.jumpedTo', { time: stepFlash.time }) }}
+                </p>
                 <div v-if="insights.length" class="flex items-center gap-2">
                   <button
                     type="button"
@@ -1999,6 +2101,7 @@ const { badgeShown } = useCorpusLanguages()
             :rate="rate"
             :markers="insightMarkers"
             :moment-marks="momentMarks"
+            :current-marker-id="currentInsightId"
             @toggle="player.toggle"
             @seek="player.seek"
             @skip="player.skip"
@@ -2245,6 +2348,8 @@ const { badgeShown } = useCorpusLanguages()
           :active-insight-id="activeInsight?.id ?? null"
           :focus-insight-id="focusInsightId"
           :focus-notes="focusNotes"
+          :moments-count="momentsFor === slug ? episodeMoments.length : null"
+          :moments-seconds="reelSeconds(episodeMoments)"
           @seek="seekContent"
           @play-from="playFromContent"
           @announce="announceCapture"
@@ -2297,6 +2402,14 @@ const { badgeShown } = useCorpusLanguages()
 }
 .lp-obi-door + .lp-obi-door {
   border-top: 1px solid var(--lp-border);
+}
+/* Moments changes how the episode plays rather than opening something to read, so its door is
+   set apart by a muted rule instead of the border-coloured one between the other two. */
+.lp-obi-door--moments {
+  border-bottom: 1px solid var(--lp-muted);
+}
+.lp-obi-door--moments + .lp-obi-door {
+  border-top: 0;
 }
 .lp-obi-door:hover {
   background-color: var(--lp-overlay);

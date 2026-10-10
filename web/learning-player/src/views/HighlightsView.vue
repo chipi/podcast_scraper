@@ -404,6 +404,7 @@ watch(
       v-for="g in page.groups.value"
       :key="g.slug"
       :episode="headingEpisode(g.slug)"
+      :moments="!!headingEpisode(g.slug).has_gi"
       :item-count="g.total"
       :expanded="!collapsed.has(g.slug)"
       testid="highlight-group"

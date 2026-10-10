@@ -1064,3 +1064,19 @@ describe('Moments reel (operator 2026-10-10)', () => {
     expect(p.reel).toBeNull()
   })
 })
+
+describe('Moments reel — clips fade in (2026-10-10)', () => {
+  it('each clip starts silent and ramps to the listener\'s volume', () => {
+    vi.useFakeTimers()
+    setActivePinia(createPinia())
+    const p = usePlayerStore()
+    const el = stubAudio({ currentTime: 0, duration: 1800 })
+    loaded(p, el)
+    const level = el.volume
+    p.startReel('ep-1', [{ insightId: 'a', text: 'a', speaker: null, startMs: 1000, endMs: 9000 }])
+    expect(el.volume).toBe(0)
+    vi.advanceTimersByTime(300)
+    expect(el.volume).toBeCloseTo(level)
+    vi.useRealTimers()
+  })
+})

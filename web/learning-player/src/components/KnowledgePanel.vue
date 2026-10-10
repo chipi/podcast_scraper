@@ -23,6 +23,7 @@ import type {
 } from "../services/types"
 import { formatTime } from "../player/transcriptSync"
 import { hitStartSeconds, insightStartSeconds } from "../player/insights"
+import { minutesValue } from "../services/moments"
 import { speakerLabel } from "../utils/format"
 import CardRail from "./CardRail.vue"
 import EpisodeTile from "./EpisodeTile.vue"
@@ -58,8 +59,11 @@ const props = withDefaults(
     focusInsightId?: string | null
     /** Opened from a note's "Open" (operator 2026-10-04) — land on the notes, not the panel top. */
     focusNotes?: boolean
+    /** The episode's moments once loaded ("Play 8 moments · 3½ min"); null while unknown. */
+    momentsCount?: number | null
+    momentsSeconds?: number
   }>(),
-  { focusInsightId: null, focusNotes: false }
+  { focusInsightId: null, focusNotes: false, momentsCount: null, momentsSeconds: 0 }
 )
 const emit = defineEmits<{
   (e: "seek", seconds: number): void
@@ -734,7 +738,7 @@ watch(() => auth.isAuthenticated, loadCaptures)
         <!-- The Brief is where a listener decides whether an episode is for them, so the reel's
              entrance leads it (operator 2026-10-10). Amber outline: an action, not a section. -->
         <button
-          v-if="insights.length"
+          v-if="insights.length && momentsCount !== 0"
           type="button"
           class="mb-5 flex w-full items-center gap-3 rounded border border-accent px-3 py-2.5 text-left"
           data-testid="kp-play-moments"
@@ -745,8 +749,14 @@ watch(() => auth.isAuthenticated, loadCaptures)
             aria-hidden="true"
           >▶</span>
           <span class="min-w-0">
-            <span class="block text-sm font-bold">{{ t("moments.play_moments") }}</span>
-            <span class="block text-xs text-muted">{{ t("moments.play_moments_hint") }}</span>
+            <template v-if="momentsCount">
+              <span class="block text-sm font-bold">{{ t("moments.playCount", { count: momentsCount }, momentsCount) }}</span>
+              <span class="block text-xs text-muted">{{ t("moments.playCountHint", { length: t("moments.minutes", { n: minutesValue(momentsSeconds) }) }) }}</span>
+            </template>
+            <template v-else>
+              <span class="block text-sm font-bold">{{ t("moments.play_moments") }}</span>
+              <span class="block text-xs text-muted">{{ t("moments.play_moments_hint") }}</span>
+            </template>
           </span>
         </button>
         <section v-if="summary" class="mb-5">

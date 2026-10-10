@@ -12,6 +12,7 @@ import {
   nextInsightIndex,
   quoteHighlight,
   stepTarget,
+  swipeStep,
 } from './insights'
 
 function ins(id: string, startMs: number | null, endMs: number | null = null): Insight {
@@ -321,5 +322,16 @@ describe('Step through insights (operator 2026-10-10)', () => {
   it('counts position as "n of total"', () => {
     expect(insightPosition(LIST, 30)).toEqual({ index: 0, total: 3 })
     expect(insightPosition(LIST, 125)).toEqual({ index: 2, total: 3 })
+  })
+})
+
+describe('swipeStep (operator 2026-10-10): swipe the insight card to step', () => {
+  it('left is next, right is previous, like turning a page', () => {
+    expect(swipeStep(-60, 5)).toBe(1)
+    expect(swipeStep(60, -5)).toBe(-1)
+  })
+  it('a short drag is a tap, and a mostly vertical one scrolls the page', () => {
+    expect(swipeStep(-30, 0)).toBeNull()
+    expect(swipeStep(-60, 50)).toBeNull()
   })
 })

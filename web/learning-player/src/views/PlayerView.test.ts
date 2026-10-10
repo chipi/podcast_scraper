@@ -1136,9 +1136,11 @@ describe('the obi: Moments, Brief and About down the artwork edge (operator 2026
     // "About", not "Description": three equal doors at the app's label size leave 63–73 px per
     // label on a phone, and DESCRIPTION is 92 px (measured 2026-10-10).
     expect(doors.map((d) => d.text())).toEqual(['Moments', 'Brief', 'About'])
-    // Alike on purpose: the same classes, no glyph on any.
-    expect(new Set(doors.map((d) => d.classes().join(' '))).size).toBe(1)
+    // Labels alike on purpose (operator 2026-10-10: no door's label a different size), no glyph.
+    expect(new Set(doors.map((d) => d.get('span').classes().join(' '))).size).toBe(1)
     expect(obi.text()).not.toContain('✦')
+    // Moments changes how the episode plays, so only its door carries the muted rule under it.
+    expect(doors.map((d) => d.classes().includes('lp-obi-door--moments'))).toEqual([true, false, false])
   })
 
   it('the Moments door opens the Moments view (?moments=1) and starts the reel', async () => {

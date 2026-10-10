@@ -91,6 +91,8 @@ function mountPanel(props: {
   persons?: Entity[]
   slug?: string
   activeInsightId?: string | null
+  momentsCount?: number | null
+  momentsSeconds?: number
 } = {}) {
   return mount(KnowledgePanel, {
     props: {
@@ -1208,5 +1210,15 @@ describe("the Brief leads with Play moments (operator 2026-10-10)", () => {
 
   it("is absent with no insights", () => {
     expect(mountPanel({ insights: [] }).find('[data-testid="kp-play-moments"]').exists()).toBe(false)
+  })
+
+  it("says how many and how long once the moments are loaded: Play 8 moments · 3½ min", () => {
+    const text = mountPanel({ momentsCount: 8, momentsSeconds: 205 }).get('[data-testid="kp-play-moments"]').text()
+    expect(text).toContain("Play 8 moments")
+    expect(text).toContain("3½ min · the strongest moments, in order")
+  })
+
+  it("is absent when the episode turned out to have no moments", () => {
+    expect(mountPanel({ momentsCount: 0 }).find('[data-testid="kp-play-moments"]').exists()).toBe(false)
   })
 })

@@ -468,6 +468,26 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   Brief opens with a **Play moments** button above the summary. Not on Home tiles (too small) or
   passage results (already a moment). Downloaded episodes play their reel offline: the moments are
   saved with the download.
+- **Around the reel** (2026-10-10): the mini-player reads "Moments · 3 / 8" while a reel plays and
+  reopens the Moments view; the end card offers the next queued episode's moments, so reels chain
+  through a queue; each clip fades in over 250 ms instead of cutting in. Step: the insight the
+  listener is in stands out on the density strip (taller, full strength). "▶ Moments" also sits on
+  topic, person, storyline, theme and org episode rows and every Discover 2 episode card. Offline
+  it works on downloaded episodes and greys for the rest (inert, saying why), like every offline
+  action.
+- **Step and the reel, finished** (2026-10-10): a left swipe on the insight card is next, a right
+  swipe previous (touch only; a vertical drag still scrolls, and a swipe never counts as the tap
+  that hides the card); every step shows "› Jumped to 21:07" for two seconds and says it to screen
+  readers through the page's one live region; the counter reads "Insight 4 of 40" to them. The
+  obi's Moments door is set apart from Brief and About by a muted rule. The Moments view keeps the
+  obi's doors as a row under its header, with Moments turned into **Episode** (leaves the reel, as
+  ✕ does), so Brief and About stay a tap away mid-reel; the current moment names the speaker's
+  role ("Nora, host"). The Brief's button says how many and how long once loaded ("Play 8 moments ·
+  3½ min · the strongest moments, in order") and disappears for an episode with none. "▶ Moments"
+  shows on search results only for episodes with insights (the server marks `episode_has_gi`), on
+  the meta row under "Matched:" (the "Matched" line itself sits inside the result's link, and a
+  link inside a link loses its name); Saved and Revisit groups offer the reel in the ⋯ menu only;
+  a downloaded episode whose saved copy has no moments shows no "▶ Moments".
 - **Brief** is the panel's name (renamed 2026-10-10; shipped #1091 as "Insights", "Episode notes"
   from 2026-09-30). One word for the band, and plain "Notes" already means the listener's own
   notes. The grounded items inside stay "insights".

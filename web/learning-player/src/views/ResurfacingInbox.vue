@@ -454,6 +454,7 @@ onActivated(() => {
         v-for="g in visibleGroups"
         :key="g.slug"
         :episode="g.episode"
+        :moments="!!g.episode.has_gi"
         :item-count="g.items.length"
         :expanded="!collapsed.has(g.slug)"
         testid="revisit-group"

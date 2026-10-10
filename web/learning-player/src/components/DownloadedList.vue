@@ -9,12 +9,12 @@
  * Native only. Lives inside the Saved tab rather than taking a sixth tab slot, following
  * LibraryView's own note that the strip is capped and new kinds fold in here.
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import DownloadButton from './DownloadButton.vue'
 import MomentsLink from './MomentsLink.vue'
-import { localArtworkFor } from '../services/downloads'
+import { localArtworkFor, localKnowledgeFor } from '../services/downloads'
 import { resolveMediaUrl } from '../services/tier'
 import { isNative } from '../services/native'
 import { useDownloadsStore } from '../stores/downloads'
@@ -41,6 +41,24 @@ function minutes(seconds?: number): string | null {
   if (!seconds) return null
   return `${Math.max(1, Math.round(seconds / 60))} min`
 }
+
+/**
+ * Episodes whose saved copy says they have no moments (an empty list, not a missing one): no
+ * "▶ Moments" on those rows. Unknown (not saved yet, or saved before Moments) keeps it.
+ */
+const noMoments = ref(new Set<string>())
+watch(
+  () => items.value.map((e) => `${e.slug}:${e.state}`).join(','),
+  async () => {
+    const out = new Set<string>()
+    for (const e of items.value) {
+      const local = await localKnowledgeFor(e.slug)
+      if (Array.isArray(local?.moments) && local.moments.length === 0) out.add(e.slug)
+    }
+    noMoments.value = out
+  },
+  { immediate: true },
+)
 
 const usedMb = computed(() => (downloads.bytesOnDisk / (1024 * 1024)).toFixed(0))
 
@@ -101,7 +119,7 @@ function artFor(e: { slug: string; artworkUrl?: string }): string | null {
           </p>
         </RouterLink>
         <!-- The plane case (operator 2026-10-10): a downloaded episode's reel plays from the file. -->
-        <MomentsLink v-if="e.state === 'downloaded'" :slug="e.slug" class="self-center" />
+        <MomentsLink v-if="!noMoments.has(e.slug)" :slug="e.slug" class="self-center" />
         <DownloadButton :slug="e.slug" />
       </li>
     </ul>

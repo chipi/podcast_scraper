@@ -10,6 +10,9 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 import EpisodeActions from './EpisodeActions.vue'
 import MomentsLink from './MomentsLink.vue'
+import { setForcedOffline } from '../composables/useOnline'
+import { useDownloadsStore } from '../stores/downloads'
+import { afterEach } from 'vitest'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 const router = createRouter({
@@ -64,5 +67,26 @@ describe('"▶ Moments" on a row', () => {
     expect(a.text()).toBe('▶ Moments')
     // No count, no box (operator 2026-10-10): text only.
     expect(a.classes()).not.toContain('border')
+  })
+})
+
+
+describe('"▶ Moments" offline (2026-10-10)', () => {
+  afterEach(() => setForcedOffline(false))
+
+  it('greys out, inert and saying why, for an episode that is not downloaded', () => {
+    setForcedOffline(true)
+    const w = mount(MomentsLink, { props: { slug: 'ep-1' }, global: { plugins: [i18n, router] } })
+    expect(w.find('[data-testid="moments-link"]').exists()).toBe(false)
+    const off = w.get('[data-testid="moments-link-offline"]')
+    expect(off.attributes('aria-disabled')).toBe('true')
+    expect(off.attributes('aria-label')).toContain('need a connection')
+  })
+
+  it('still plays a downloaded episode\'s reel', () => {
+    setForcedOffline(true)
+    useDownloadsStore().entries['ep-1'] = { slug: 'ep-1', state: 'downloaded', updatedAt: 1 } as never
+    const w = mount(MomentsLink, { props: { slug: 'ep-1' }, global: { plugins: [i18n, router] } })
+    expect(w.get('[data-testid="moments-link"]').attributes('href')).toBe('/episode/ep-1?moments=1')
   })
 })

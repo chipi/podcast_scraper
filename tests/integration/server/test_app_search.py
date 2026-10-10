@@ -166,6 +166,37 @@ def test_app_search_enriches_hits_with_slug_titles_and_artwork(
     assert md["episode_slug"]  # deterministic, non-empty
     # No locally-stored art in this fixture → falls back to the remote feed image.
     assert md["episode_artwork"] == "https://img/feed.jpg"
+    # No GI artifact beside the metadata → the result offers no Moments reel.
+    assert md["episode_has_gi"] is False
+
+
+def test_app_search_marks_hits_whose_episode_has_insights(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``episode_has_gi`` lets an episode result offer "▶ Moments" (operator 2026-10-10)."""
+    _write_episode_meta(
+        tmp_path, feed_id="showa", episode_id="ep1", title="Ep One", feed_image="https://img/f.jpg"
+    )
+    (tmp_path / "metadata" / "ep1.gi.json").write_text(
+        json.dumps({"episode_id": "ep1", "nodes": [], "edges": []}), encoding="utf-8"
+    )
+
+    def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "insight:1",
+                    "score": 0.9,
+                    "metadata": {"doc_type": "insight", "feed_id": "showa", "episode_id": "ep1"},
+                    "text": "hi",
+                }
+            ],
+            lift_stats={"transcript_hits_returned": 0, "lift_applied": 0},
+        )
+
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", fake_run)
+    body = _client(tmp_path).get("/api/app/search", params={"q": "x"}).json()
+    assert body["results"][0]["metadata"]["episode_has_gi"] is True
 
 
 # --------------------------------------------------------------------------- #

@@ -46,8 +46,10 @@ const props = defineProps<{
   >
   /** Rows in the body. No rows, no fold control — there is nothing to collapse. */
   itemCount: number
-  /** Offer the episode's Moments reel: "▶ Moments" on the meta row and first in the ⋯ menu. */
+  /** The episode has a Moments reel: "Play moments" leads the ⋯ menu. */
   moments?: boolean
+  /** Also show "▶ Moments" on the meta row — where people decide (Search), not on Saved / Revisit. */
+  momentsLink?: boolean
   testid?: string
   toggleTestid?: string
 }>()
@@ -114,7 +116,7 @@ const { badgeShown } = useCorpusLanguages()
         <p v-if="$slots.meta" class="lp-kicker min-w-0 flex-1" data-testid="episode-group-meta">
           <slot name="meta" />
         </p>
-        <MomentsLink v-if="moments" :slug="episode.slug" />
+        <MomentsLink v-if="moments && momentsLink" :slug="episode.slug" />
         <button
           v-if="itemCount > 0"
           type="button"

@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as native from '../services/native'
 import { flushPromises } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
@@ -84,5 +84,22 @@ describe('EpisodeGroupCard', () => {
     expect(title).toBe('An Episode')
     expect(url).toMatch(/\/episode\/ep-1$/)
     vi.restoreAllMocks()
+  })
+})
+
+describe('EpisodeGroupCard and Moments (operator 2026-10-10)', () => {
+  // Online, so the link is live (offline it greys; MomentsEntry.test.ts covers that).
+  beforeEach(async () => {
+    const { reportServerReachable } = await import('../composables/useOnline')
+    reportServerReachable(true)
+  })
+  it('Search: "▶ Moments" on the meta row when asked for the link', () => {
+    expect(card({ moments: true, momentsLink: true }).find('[data-testid="moments-link"]').exists()).toBe(true)
+  })
+  it('Saved / Revisit: the reel is in the ⋯ menu only, no link on the row', () => {
+    expect(card({ moments: true }).find('[data-testid="moments-link"]').exists()).toBe(false)
+  })
+  it('no moments, no link even when asked', () => {
+    expect(card({ momentsLink: true }).find('[data-testid="moments-link"]').exists()).toBe(false)
   })
 })

@@ -79,6 +79,29 @@ test('Step: › in the episode view jumps to the next insight', async ({ page },
   await page.getByTestId('player-step-next-rest').click()
   await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(5.5)
   await expect.poll(() => audioTime(page)).toBeLessThan(12)
+  // The jump is never unexplained: "› Jumped to 0:06" for a moment.
+  await expect(page.getByTestId('player-step-flash').first()).toContainText(/Jumped to 0:0\d/)
+})
+
+test('Step: a left swipe on the insight card is next, a right swipe previous', async ({ page }, testInfo) => {
+  await openEpisode(page, testInfo, 'swipe')
+  const swipe = async (dx: number) => {
+    const card = page.locator('[data-testid="player-zone-d-live"], [data-testid="player-zone-d-rest"]').first()
+    const box = (await card.boundingBox())!
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    await card.dispatchEvent('pointerdown', { pointerType: 'touch', clientX: x, clientY: y, isPrimary: true })
+    await card.dispatchEvent('pointerup', { pointerType: 'touch', clientX: x + dx, clientY: y + 4, isPrimary: true })
+  }
+  await swipe(-80)
+  await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(5.5)
+  const afterNext = await audioTime(page)
+  await swipe(-80)
+  await expect.poll(() => audioTime(page)).toBeGreaterThan(afterNext + 1)
+  // The insight card is still on screen: the swipe did not count as the tap that hides it.
+  await expect(page.getByTestId('player-zone-d-live')).toBeVisible()
+  await swipe(80)
+  await expect.poll(() => audioTime(page)).toBeLessThan(afterNext + 1)
 })
 
 test.describe('the ways into Moments', () => {
@@ -105,6 +128,9 @@ test.describe('the ways into Moments', () => {
   test('the Brief: "Play moments" above the summary', async ({ page }, testInfo) => {
     await openEpisode(page, testInfo, 'entry-brief')
     await page.getByTestId('player-open-insights').click()
+    // How many and how long, once the moments are loaded.
+    await expect(page.getByTestId('kp-play-moments')).toContainText('Play 3 moments')
+    await expect(page.getByTestId('kp-play-moments')).toContainText('min · the strongest moments, in order')
     await page.getByTestId('kp-play-moments').click()
     await expect(page.getByTestId('moments-reel')).toBeVisible()
   })
@@ -116,6 +142,94 @@ test.describe('the ways into Moments', () => {
     await expect(link).toBeVisible()
     await link.click()
     await expect(page).toHaveURL(/moments=1/)
+    await expect(page.getByTestId('moments-reel')).toBeVisible()
+  })
+})
+
+test.describe('Moments, everything around the reel', () => {
+  test('the reel keeps the obi: Episode leads out, Brief and About open over the reel', async ({ page }, testInfo) => {
+    await openEpisode(page, testInfo, 'doors')
+    await page.getByTestId('player-open-moments').click()
+    const doors = page.getByTestId('moments-doors')
+    await expect(doors.getByRole('button')).toHaveText(['Episode', 'Brief', 'About'])
+    await page.getByTestId('moments-door-brief').click()
+    await expect(page.getByTestId('kp-play-moments')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('moments-reel')).toBeVisible()
+    await page.getByTestId('moments-door-episode').click()
+    await expect(page.getByTestId('moments-reel')).toHaveCount(0)
+    await expect(page.getByTestId('player-hero')).toBeVisible()
+  })
+
+  test('every control has a spoken name (screen-reader pass)', async ({ page }, testInfo) => {
+    await openEpisode(page, testInfo, 'a11y')
+    await expect(page.getByRole('navigation', { name: 'Moments, brief and description' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Next insight' }).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Previous insight' }).first()).toBeVisible()
+    await page.getByTestId('player-open-moments').click()
+    const reel = page.getByTestId('moments-reel')
+    await expect(reel.getByRole('heading', { name: 'Moments', exact: true })).toBeVisible()
+    for (const name of ['Previous moment', 'Next moment', 'Close moments and go back']) {
+      await expect(reel.getByRole('button', { name })).toBeVisible()
+    }
+    await expect(reel.getByRole('button', { name: /^(Play|Pause)$/ })).toBeVisible()
+    await expect(reel.getByRole('button', { name: /Keep listening here/ })).toBeVisible()
+    // The index says which moment is playing.
+    await expect(reel.locator('[aria-current="true"]')).toHaveCount(1)
+  })
+
+  test('leaving the page mid-reel: the mini-player says "Moments · n / total" and brings you back', async ({ page }, testInfo) => {
+    await openEpisode(page, testInfo, 'mini')
+    await page.getByTestId('player-open-moments').click()
+    await expect(page.getByTestId('moments-reel')).toBeVisible()
+    // Back to the show page in-app (the reel keeps playing), where the mini-player shows.
+    await page.goBack()
+    await expect(page.getByTestId('mini-player-moments')).toHaveText(/Moments · \d \/ 3/)
+    await page.getByTestId('mini-player-open').click()
+    await expect(page.getByTestId('moments-reel')).toBeVisible()
+  })
+
+  test('the end card chains to the next queued episode\'s moments', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'moments-chain', testInfo)
+    await page.goto('/podcast/p05')
+    for (const title of ['The Bessent Tape', 'The Risk Panel: Diversify or Concentrate?']) {
+      const q = page.locator('article').filter({ hasText: title }).first().getByRole('button', { name: 'Add to queue' })
+      await expect(q).toBeVisible()
+      await q.click()
+    }
+    await page.locator('article').filter({ hasText: 'The Bessent Tape' }).first().getByTestId('moments-link').click()
+    await expect(page.getByTestId('moments-reel')).toBeVisible()
+    await page.getByTestId('moments-index-item').last().click()
+    await page.getByTestId('moments-next').click()
+    const next = page.getByTestId('moments-next-episode')
+    await expect(next).toContainText('The Risk Panel')
+    await next.click()
+    await expect(page).toHaveURL(/moments=1/)
+    await expect(page.getByTestId('moments-episode')).toContainText('The Risk Panel')
+  })
+
+  test('offline: an episode that is not downloaded shows "▶ Moments" greyed, saying why', async ({ page, context }, testInfo) => {
+    await signInIsolated(page, 'moments-offline', testInfo)
+    await page.goto('/podcast/p05')
+    await expect(page.getByTestId('moments-link').first()).toBeVisible()
+    // The network drops while the page is open (the browser's offline event): no downloads on the
+    // web, so every "▶ Moments" greys in place, inert and saying why.
+    await context.setOffline(true)
+    const off = page.getByTestId('moments-link-offline').first()
+    await expect(off).toBeVisible()
+    await expect(off).toHaveAttribute('aria-disabled', 'true')
+    await expect(page.getByTestId('moments-link')).toHaveCount(0)
+    await context.setOffline(false)
+    await expect(page.getByTestId('moments-link').first()).toBeVisible()
+  })
+
+  test('a topic page offers each episode\'s moments', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'moments-topic', testInfo)
+    await page.goto('/topic/' + encodeURIComponent('topic:risk-management'))
+    await expect(page.getByTestId('topic-view')).toBeVisible()
+    const link = page.getByTestId('episode-row').getByTestId('moments-link').first()
+    await expect(link).toBeVisible()
+    await link.click()
     await expect(page.getByTestId('moments-reel')).toBeVisible()
   })
 })

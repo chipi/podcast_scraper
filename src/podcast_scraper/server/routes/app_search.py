@@ -57,6 +57,8 @@ def _attach_consumer_slugs(root: Path, resp: CorpusSearchApiResponse) -> None:
                 "episode_slug": slug_for_row(row),
                 "episode_title": row.episode_title,
                 "podcast_title": row.feed_title or "",
+                # Whether the episode has insights, so the result can offer its Moments reel.
+                "episode_has_gi": bool(row.has_gi),
                 # Small show/episode artwork so search results read like library cards.
                 "episode_artwork": (
                     artwork_url(local_art, "thumb") or row.episode_image_url or row.feed_image_url

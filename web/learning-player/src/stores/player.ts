@@ -623,8 +623,31 @@ export const usePlayerStore = defineStore('player', () => {
     const i = Math.max(0, Math.min(r.moments.length - 1, index))
     reel.value = { ...r, index: i, done: false }
     seek(r.moments[i].startMs / 1000)
+    // Each clip fades in rather than cutting in mid-breath: from one speaker's sentence to
+    // another's is a jump, and a quarter second of fade is what makes it read as a transition.
+    fadeIn(REEL_FADE_MS)
     // Not `play()`: that records `play_start`, and a reel is not a listen.
     playElement()
+  }
+  /** Ramp the element's volume from 0 to the listener's level over `ms`. */
+  const REEL_FADE_MS = 250
+  let fadeTimer: ReturnType<typeof setInterval> | null = null
+  function fadeIn(ms: number): void {
+    const e = el.value
+    if (!e) return
+    const target = VOLUME_FACTORS[volumeLevel.value]
+    if (fadeTimer) clearInterval(fadeTimer)
+    const steps = 10
+    let n = 0
+    e.volume = 0
+    fadeTimer = setInterval(() => {
+      n += 1
+      e.volume = Math.min(target, (target * n) / steps)
+      if (n >= steps && fadeTimer) {
+        clearInterval(fadeTimer)
+        fadeTimer = null
+      }
+    }, ms / steps)
   }
   function reelNext(): void {
     const r = reel.value
