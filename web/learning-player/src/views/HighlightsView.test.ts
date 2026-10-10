@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import EpisodeGroupCard from '../components/EpisodeGroupCard.vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
@@ -482,5 +483,26 @@ describe('HighlightsView', () => {
     await flushPromises()
     expect(api.getHighlightsPage).toHaveBeenCalledWith(expect.objectContaining({ sort: 'title' }))
     expect(get).toHaveBeenCalledTimes(5)
+  })
+})
+
+describe('HighlightsView: each episode group offers Moments only where there is a moment (2026-10-10)', () => {
+  it('has_moments decides, not has_gi', async () => {
+    vi.spyOn(api, 'getHighlights').mockResolvedValue([
+      hl({ id: 'h1', episode_slug: 'with' }),
+      hl({ id: 'h2', episode_slug: 'without' }),
+    ])
+    vi.spyOn(api, 'getEpisode').mockImplementation(async (slug: string) => ({
+      ...detail(slug, `Title ${slug}`),
+      has_gi: true,
+      has_moments: slug === 'with',
+    }))
+    const w = mountView()
+    await flushPromises()
+    const groups = w.findAllComponents(EpisodeGroupCard)
+    const bySlug = Object.fromEntries(
+      groups.map((g) => [(g.props('episode') as { slug: string }).slug, g.props('moments')]),
+    )
+    expect(bySlug).toEqual({ with: true, without: false })
   })
 })

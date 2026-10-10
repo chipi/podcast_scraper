@@ -121,3 +121,26 @@ describe('EpisodeTile', () => {
     expect(artworkLink.innerHTML).toContain('aspect-square')
   })
 })
+
+describe('EpisodeTile: the Moments door follows has_moments, not has_gi (2026-10-10)', () => {
+  async function menuItem(over: Partial<EpisodeSummary>) {
+    setActivePinia(createPinia())
+    const w = mount(EpisodeTile, {
+      props: { episode: episode(over) },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+      attachTo: document.body,
+    })
+    await w.get('[data-testid="overflow-trigger"]').trigger('click')
+    // The menu really opened, so an absent item is the door's decision, not a closed menu.
+    expect(w.findAll('[role="menuitem"]').length).toBeGreaterThan(0)
+    const has = w.find('[data-testid="episode-play-moments"]').exists()
+    w.unmount()
+    return has
+  }
+  it('an episode with a moment offers "Play moments" in its ⋯ menu', async () => {
+    expect(await menuItem({ has_gi: true, has_moments: true })).toBe(true)
+  })
+  it('insights but nothing to play: no "Play moments"', async () => {
+    expect(await menuItem({ has_gi: true, has_moments: false })).toBe(false)
+  })
+})

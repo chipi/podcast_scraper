@@ -406,3 +406,28 @@ describe("Read more on a compact card", () => {
   })
 })
 
+
+describe("EpisodeCard: the Moments door follows has_moments, not has_gi (2026-10-10)", () => {
+  function card(over: Partial<EpisodeSummary>) {
+    return mount(EpisodeCard, {
+      props: { episode: makeEpisode(over), momentsLink: true },
+      global: { plugins: [i18n, router], stubs: { teleport: true } },
+      attachTo: document.body,
+    })
+  }
+  it("an episode with a moment shows ▶ Moments and the ⋯ item", async () => {
+    const w = card({ has_gi: true, has_moments: true })
+    expect(w.find('[data-testid="moments-link"]').exists()).toBe(true)
+    await w.get('[data-testid="overflow-trigger"]').trigger("click")
+    expect(w.find('[data-testid="episode-play-moments"]').exists()).toBe(true)
+    w.unmount()
+  })
+  it("insights but nothing to play: neither door", async () => {
+    const w = card({ has_gi: true, has_moments: false })
+    expect(w.find('[data-testid="moments-link"]').exists()).toBe(false)
+    await w.get('[data-testid="overflow-trigger"]').trigger("click")
+    expect(w.findAll('[role="menuitem"]').length).toBeGreaterThan(0)
+    expect(w.find('[data-testid="episode-play-moments"]').exists()).toBe(false)
+    w.unmount()
+  })
+})
