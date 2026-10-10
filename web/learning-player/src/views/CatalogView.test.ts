@@ -224,7 +224,7 @@ describe('CatalogView — From (which episodes) × State', () => {
     expect(text).toContain('A1')
     expect(text).not.toContain('A2') // finished
     expect(text).not.toContain('B1') // not a show you follow
-    expect(w.get('[data-testid="catalog-from-following"]').attributes('aria-checked')).toBe('true')
+    expect(w.get('[data-testid="catalog-from"]').text()).toBe('Following')
   })
 
   it('opened already filtered, it pulls in every page — a match on page two is not lost', async () => {

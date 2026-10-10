@@ -10,7 +10,8 @@
  * controls via {@link ToolbarMenu} (a small trigger + a vertical option menu, not a native select
  * that reserves width for its widest option): the filter as a chip showing the current value, the
  * sort as a ↑↓ circle, and the list/grid view as a circle showing the active view. Collapsing sort
- * and view to little circles is what buys the search its width back.
+ * and view to little circles is what buys the search its width back. An optional `from` chip (which
+ * episodes: all shows / following / mine) sits first after the search (operator 2026-10-10).
  *
  * Presentational — two-way-binds via v-model.
  */
@@ -24,6 +25,7 @@ const filter = defineModel<string>("filter", { default: "all" })
 /** A second facet, the language (operator 2026-10-10), shown only when the host passes options. */
 const language = defineModel<string>("language", { default: "" })
 const view = defineModel<"list" | "grid">("view", { default: "list" })
+const from = defineModel<string>("from", { default: "all" })
 
 const { t } = useI18n()
 const props = withDefaults(
@@ -31,6 +33,9 @@ const props = withDefaults(
     sortOptions: { value: string; label: string }[]
     filterOptions?: { value: string; label: string }[]
     languageOptions?: { value: string; label: string }[]
+    fromOptions?: { value: string; label: string; short: string }[]
+    fromLabel?: string
+    fromTestid?: string
     count?: string
     searchPlaceholder?: string
     searchTestid?: string
@@ -63,6 +68,16 @@ const viewOptions = computed(() => [
       :aria-label="searchPlaceholder ?? t('list.search')"
       :data-testid="searchTestid"
       class="lp-search min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-canvas-foreground outline-none focus:border-accent"
+    />
+
+    <ToolbarMenu
+      v-if="fromOptions && fromOptions.length"
+      v-model="from"
+      variant="pill"
+      align="right"
+      :options="fromOptions"
+      :menu-label="fromLabel ?? t('list.filter')"
+      :testid="fromTestid"
     />
 
     <!-- Language facet (optional) — the same chip, offered by the host only when its list spans

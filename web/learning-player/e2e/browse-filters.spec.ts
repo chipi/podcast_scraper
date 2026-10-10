@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test'
 import { listenToOne, signInIsolated } from './helpers'
 
 /**
- * Browse › Episodes: "Which episodes" (All · Shows I follow · Mine) is its own row, so it combines
- * with the state filter (operator 2026-10-09). What's new's "all ›" and Discover 2 open
+ * Browse › Episodes: "Which episodes" (All shows · Shows I follow · Mine) is a compact chip first
+ * in the toolbar row, separate from the state filter so the two combine (operator 2026-10-09/10). What's new's "all ›" and Discover 2 open
  * `?from=following&state=unplayed` — your shows' episodes, all of them, not the top 5.
  * REAL API over the committed corpus, NO mocks.
  */
@@ -18,14 +18,15 @@ test('Shows I follow + Unplayed lists every episode of the followed show, and no
   expect(theirs.length).toBeGreaterThan(0)
 
   await page.goto('/browse?tab=episodes&from=following&state=unplayed#catalog')
-  await expect(page.getByTestId('catalog-from-following')).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByTestId('catalog-from')).toHaveText('Following')
   const cards = page.getByTestId('episode-card')
   await expect(cards.first()).toBeVisible()
   await expect(cards).toHaveCount(Math.min(theirs.length, 20))
   for (const t of theirs.slice(0, 3)) await expect(page.getByText(t.title, { exact: true }).first()).toBeVisible()
 
   // "All" puts the rest of the catalogue back.
-  await page.getByTestId('catalog-from-all').click()
+  await page.getByTestId('catalog-from').click()
+  await page.getByTestId('catalog-from-opt-all').click()
   await expect.poll(async () => cards.count()).toBeGreaterThan(Math.min(theirs.length, 20))
 })
 

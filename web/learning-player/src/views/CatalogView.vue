@@ -14,7 +14,6 @@ import ListToolbar from "../components/ListToolbar.vue"
 import SectionStatus from "../components/SectionStatus.vue"
 import { getInProgressSlugs, getPodcastsPage, getWorldEpisodeSlugs, listEpisodes } from "../services/api"
 import { useRoute } from "vue-router"
-import Tabs from "../components/Tabs.vue"
 import { useLibraryStore } from "../stores/library"
 import { isArrayCache, readCached, writeCached } from "../services/contentCache"
 import { useCompletedStore } from "../stores/completed"
@@ -58,10 +57,12 @@ const filter = ref("all")
  */
 type From = "all" | "following" | "mine"
 const from = ref<From>("all")
-const fromTabs = computed(() => [
-  { key: "all" as const, label: t("browse.fromAll"), testid: "catalog-from-all" },
-  { key: "following" as const, label: t("browse.fromFollowing"), testid: "catalog-from-following" },
-  { key: "mine" as const, label: t("browse.fromMine"), testid: "catalog-from-mine" },
+// A compact chip first in the toolbar row (operator 2026-10-10), not a row of its own; the chip
+// shows the short label so it does not read as a second "All" beside the state filter.
+const fromOptions = computed(() => [
+  { value: "all", label: t("browse.fromAll"), short: t("browse.fromAll") },
+  { value: "following", label: t("browse.fromFollowing"), short: t("browse.fromFollowingShort") },
+  { value: "mine", label: t("browse.fromMine"), short: t("browse.fromMine") },
 ])
 // Fetched only when a filter needs them.
 const worldSlugs = ref<Set<string> | null>(null)
@@ -338,27 +339,20 @@ onMounted(async () => {
     <p v-else-if="episodes.length === 0" class="text-muted">{{ t("catalog.empty") }}</p>
 
     <div v-else>
-      <!-- Which episodes — a row of its own so it combines with the state filter below. -->
-      <div v-if="auth.isAuthenticated" class="mb-3" data-testid="catalog-from">
-        <Tabs
-          v-model="from"
-          :tabs="fromTabs"
-          :label="t('browse.fromLabel')"
-          id-prefix="catalog-from"
-          variant="pill"
-          pattern="radio"
-          dense
-        />
-      </div>
       <ListToolbar
         v-model:search="search"
         v-model:sort="sort"
         v-model:filter="filter"
         v-model:view="view"
+        :from="from"
+        :from-options="auth.isAuthenticated ? fromOptions : undefined"
+        :from-label="t('browse.fromLabel')"
+        from-testid="catalog-from"
         :filter-options="filterOptions"
         :sort-options="sortOptions"
         :count="countLabel"
         :search-placeholder="t('browse.filterEpisodes')"
+        @update:from="(v) => (from = v as From)"
       />
 
       <p v-if="visible.length === 0" class="text-muted">{{ t("list.noMatches") }}</p>

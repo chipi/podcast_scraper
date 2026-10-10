@@ -15,7 +15,8 @@ import { onBeforeUnmount, ref, watch } from "vue"
 const model = defineModel<string>({ default: "" })
 const props = withDefaults(
   defineProps<{
-    options: { value: string; label: string }[]
+    /** `short` is what the `pill` trigger shows when the menu label is too long for a chip. */
+    options: { value: string; label: string; short?: string }[]
     menuLabel: string
     /** `icon` = a 36px circle (sort/view); `pill` = a compact chip showing the current label (filter). */
     variant?: "icon" | "pill"
@@ -30,7 +31,8 @@ const open = ref(false)
 const root = ref<HTMLElement | null>(null)
 
 function currentLabel(): string {
-  return props.options.find((o) => o.value === model.value)?.label ?? ""
+  const o = props.options.find((o) => o.value === model.value)
+  return o?.short ?? o?.label ?? ""
 }
 function pick(value: string): void {
   model.value = value
