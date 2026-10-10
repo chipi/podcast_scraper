@@ -65,6 +65,7 @@ from podcast_scraper.server.schemas import (
     AppInterestCluster,
     AppInterestClustersResponse,
     AppInterestSearchResponse,
+    AppReason,
     AppRecommendedResponse,
     AppStoryline,
     AppStorylinesResponse,
@@ -270,13 +271,7 @@ def app_trending_episodes(
             continue
         items.append(
             AppTrendingEpisodeCard(
-                reason=card.reason,  # type: ignore[arg-type]
-                quote=card.quote,
-                speaker=card.speaker,
-                start_ms=card.start_ms,
-                topic_id=card.topic_id,
-                topic_label=card.topic_label,
-                events=card.events,
+                why=AppReason.model_validate(card.why.to_dict()),
                 episode=row_to_summary(root, row),
             )
         )

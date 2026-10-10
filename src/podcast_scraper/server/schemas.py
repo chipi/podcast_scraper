@@ -1133,20 +1133,59 @@ class AppTrendingEntity(BaseModel):
     )
 
 
-class AppTrendingEpisodeCard(BaseModel):
-    """One trending-episode quote card (GET /api/app/trending/episodes, 2026-10-10)."""
+class AppReasonQuote(BaseModel):
+    """A quote said in an episode, and where — the grounding of a reason (ADR-163 §4)."""
 
-    reason: Literal["rising_topic", "most_engaged"] = Field(
-        description="Why it is here: a rising topic it speaks to, or the most listening and saves."
-    )
-    quote: str = Field(description="The grounded quote that leads the card.")
+    text: str = Field(description="The quote, verbatim from the transcript (cut for a card).")
+    episode_slug: str = Field(description="The episode it is said in.")
     speaker: str | None = Field(default=None, description="Who says it, when named.")
-    start_ms: int | None = Field(default=None, description="Where the quote starts (play from).")
-    topic_id: str | None = Field(default=None, description="The rising topic (rising_topic).")
-    topic_label: str | None = Field(default=None, description="Its label (rising_topic).")
+    start_ms: int | None = Field(default=None, description="Where it starts: play from here.")
+    insight_id: str | None = Field(default=None, description="The insight it grounds, if any.")
+
+
+class AppReasonSubject(BaseModel):
+    """What links a recommendation to its reason."""
+
+    kind: Literal["topic", "person", "storyline", "show"]
+    id: str
+    label: str
+
+
+class AppReasonCapture(BaseModel):
+    """The listener's own capture that seeded a recommendation."""
+
+    kind: Literal["highlight", "note", "save"]
+    episode_slug: str
+    text: str | None = None
+    start_ms: int | None = None
+
+
+class AppReason(BaseModel):
+    """Why a recommendation is here — the shape every Discover rail carries (ADR-163).
+
+    Extractive only: the parts, never a written sentence (the client writes the words). ``quote``
+    is null when nothing grounds the recommendation; the client then shows no quote rather than an
+    invented one.
+    """
+
+    kind: Literal["rising_topic", "most_engaged", "captured", "thread", "person", "another_view"]
+    quote: AppReasonQuote | None = None
+    subject: AppReasonSubject | None = None
+    capture: AppReasonCapture | None = None
     events: int | None = Field(
-        default=None, description="Listens, opens and saves in the last 4 weeks (most_engaged)."
+        default=None, description="most_engaged: listens, opens and saves over the window."
     )
+    outside_habits: bool = Field(
+        default=False,
+        description="The serendipity share (ADR-163 §7): outside the listener's usual shows and "
+        "topics; the client labels it.",
+    )
+
+
+class AppTrendingEpisodeCard(BaseModel):
+    """One trending-episode quote card (GET /api/app/trending/episodes)."""
+
+    why: AppReason
     episode: AppEpisodeSummary
 
 

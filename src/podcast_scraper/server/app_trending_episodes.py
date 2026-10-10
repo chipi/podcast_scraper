@@ -10,6 +10,9 @@ reasons, and each card says which:
 
 Under ``scope=mine`` both halves keep to the listener's world (ADR-162): rising topics of their
 own world, episodes in their world only. Built from what is on disk — no LLM, no fetch.
+
+Each card carries its ``Reason`` (``app_reasons``, ADR-163): a card is a QUOTE card, so an insight
+without a quote is passed over for one that has one — never filled from the insight's own text.
 """
 
 from __future__ import annotations
@@ -27,6 +30,7 @@ from podcast_scraper.server.app_momentum import (
     resolve_as_of_week,
     trending,
 )
+from podcast_scraper.server.app_reasons import grounded_quote, Reason, ReasonSubject
 from podcast_scraper.server.app_relational_view import build_topic_perspectives
 from podcast_scraper.server.app_slugs import resolve_slug
 
@@ -34,27 +38,14 @@ from podcast_scraper.server.app_slugs import resolve_slug
 ENGAGED_WINDOW_WEEKS = 4
 #: Fewer events than this is one person's afternoon, not a trend.
 ENGAGED_MIN_EVENTS = 2
-#: Quotes longer than this are cut for the card (the episode page has the whole passage).
-QUOTE_MAX_CHARS = 280
 
 
 @dataclass
 class TrendingEpisodeCard:
-    """One card: the episode, why it is here, and the grounded quote that leads it."""
+    """One card: the episode and why it is here (its reason carries the grounded quote)."""
 
     slug: str
-    reason: str  # "rising_topic" | "most_engaged"
-    quote: str
-    speaker: str | None
-    start_ms: int | None
-    topic_id: str | None = None
-    topic_label: str | None = None
-    events: int | None = None
-
-
-def _cut(text: str) -> str:
-    text = " ".join(text.split())
-    return text if len(text) <= QUOTE_MAX_CHARS else text[: QUOTE_MAX_CHARS - 1].rstrip() + "…"
+    why: Reason
 
 
 def _rising_topic_cards(
@@ -91,25 +82,27 @@ def _rising_topic_cards(
         pick = None
         for person in resp.perspectives:
             for ins in person.insights:
-                if ins.episode_slug and ins.episode_slug not in used:
-                    pick = (person, ins)
+                if not ins.episode_slug or ins.episode_slug in used:
+                    continue
+                quote = grounded_quote(
+                    ins.quotes, str(ins.episode_slug), speaker=person.person_name, insight_id=ins.id
+                )
+                if quote is not None:
+                    pick = quote
                     break
             if pick:
                 break
         if pick is None:
             continue
-        person, ins = pick
-        quote = (ins.quotes[0].text if ins.quotes else "") or ins.text
-        used.add(str(ins.episode_slug))
+        used.add(pick.episode_slug)
         cards.append(
             TrendingEpisodeCard(
-                slug=str(ins.episode_slug),
-                reason="rising_topic",
-                quote=_cut(quote),
-                speaker=person.person_name,
-                start_ms=ins.start_ms,
-                topic_id=topic.entity_id,
-                topic_label=topic.label,
+                slug=pick.episode_slug,
+                why=Reason(
+                    kind="rising_topic",
+                    quote=pick,
+                    subject=ReasonSubject(kind="topic", id=topic.entity_id, label=topic.label),
+                ),
             )
         )
     return cards
@@ -147,19 +140,23 @@ def _engaged_cards(
         row = resolve_slug(root, slug)
         if row is None or not row.has_gi:
             continue
-        insights = insights_from_gi(load_json_artifact(root, row.gi_relative_path), limit=1)
-        if not insights:
+        # The episode's own panel (the Brief's insights): the first one with a quote leads.
+        insights = insights_from_gi(
+            load_json_artifact(root, row.gi_relative_path), unattributed_fallback=True
+        )
+        quote = next(
+            (
+                q
+                for q in (grounded_quote(i.quotes, slug, insight_id=i.id) for i in insights)
+                if q is not None
+            ),
+            None,
+        )
+        if quote is None:
             continue
-        ins = insights[0]
-        q = ins.quotes[0] if ins.quotes else None
         cards.append(
             TrendingEpisodeCard(
-                slug=slug,
-                reason="most_engaged",
-                quote=_cut((q.text if q else "") or ins.text),
-                speaker=(q.speaker if q else None),
-                start_ms=(q.start_ms if q else None),
-                events=events,
+                slug=slug, why=Reason(kind="most_engaged", quote=quote, events=events)
             )
         )
     return cards
@@ -202,4 +199,4 @@ def trending_episodes(
 
 def card_to_dict(card: TrendingEpisodeCard) -> dict[str, Any]:
     """Plain dict for the response model."""
-    return dict(card.__dict__)
+    return {"slug": card.slug, "why": card.why.to_dict()}

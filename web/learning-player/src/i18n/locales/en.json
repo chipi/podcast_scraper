@@ -1227,5 +1227,19 @@
     "thisEpisode": "This episode: {title}",
     "episodeOwnApplies": "This episode declares its own. Podcasting 2.0 lets an episode do so for its audio and video in place of the show's.",
     "theShow": "The show"
+  },
+  "why": {
+    "rising_topic": "Rising: {subject}",
+    "most_engaged": "Most listened to and saved",
+    "captured_highlight": "Because you highlighted “{capture}”",
+    "captured_note": "Because of your note “{capture}”",
+    "captured_save": "Because you saved {subject}",
+    "captured_plain": "Because of what you captured",
+    "thread": "New in {subject}",
+    "person": "{subject}, whom you keep hearing",
+    "another_view": "Another view on {subject}",
+    "outside": "Outside your usual",
+    "playFrom": "Play from {time}",
+    "playFromLabel": "Play “{quote}” from {time}"
   }
 }

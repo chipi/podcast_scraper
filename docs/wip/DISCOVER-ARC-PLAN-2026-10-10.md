@@ -27,9 +27,13 @@ The Discover 2 preview was removed (UI only; its APIs stay).
 
 ## Step 1 — the foundation (unblocks every rail)
 
-1. **The "why" contract.** One server shape every recommendation carries: the reason kind, the
-   listener's capture when there is one, and the grounded quote with its episode and time. A
-   recommendation without one says so. Shared by every rail endpoint, rendered by one component.
+1. **The "why" contract** ✅ (2026-10-10).
+   - **Server:** `app_reasons.Reason` / `AppReason` (kind, subject, the listener's capture, the
+     grounded quote with episode and time, events, `outside_habits`) and `grounded_quote`, which
+     never falls back to an insight's own text.
+   - **App:** `RecommendationWhy` writes the words and offers "▶ Play from" (`?t=&play=1`).
+   - **First adopter:** `GET /trending/episodes`, which also stopped quoting insight paraphrases
+     when there is no quote.
 2. **Per-rail measurement.** Events shown, opened, played from the card, and captured afterwards,
    per rail and per reason kind, in the existing analytics pipe. A small dashboard view to compare
    rails.

@@ -1351,3 +1351,33 @@ export interface RecapResponse {
 }
 
 export type RecapWindow = "week" | "month" | "year" | "ytd"
+
+/** Why a recommendation is here — the one shape every Discover rail carries (ADR-163). Extractive
+ *  only: the server sends the parts, the client writes the words; `quote` is null when nothing
+ *  grounds it, and then no quote is shown. */
+export interface ReasonQuote {
+  text: string
+  episode_slug: string
+  speaker: string | null
+  start_ms: number | null
+  insight_id: string | null
+}
+export interface ReasonSubject {
+  kind: "topic" | "person" | "storyline" | "show"
+  id: string
+  label: string
+}
+export interface ReasonCapture {
+  kind: "highlight" | "note" | "save"
+  episode_slug: string
+  text: string | null
+  start_ms: number | null
+}
+export interface Reason {
+  kind: "rising_topic" | "most_engaged" | "captured" | "thread" | "person" | "another_view"
+  quote: ReasonQuote | null
+  subject: ReasonSubject | null
+  capture: ReasonCapture | null
+  events: number | null
+  outside_habits: boolean
+}

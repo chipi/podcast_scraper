@@ -69,6 +69,7 @@ import type {
   UserStats,
   YourWeekResponse,
   MomentsResponse,
+  Reason,
 } from "./types"
 import { ref } from "vue"
 import { isNativeShell, resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
@@ -873,13 +874,7 @@ export async function setFavoriteColor(
 /** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
 /** A trending-episode quote card (GET /trending/episodes, 2026-10-10). */
 export interface TrendingEpisodeCard {
-  reason: "rising_topic" | "most_engaged"
-  quote: string
-  speaker: string | null
-  start_ms: number | null
-  topic_id: string | null
-  topic_label: string | null
-  events: number | null
+  why: Reason
   episode: EpisodeSummary
 }
 /** Episodes speaking to a rising topic, interleaved with the most listened-to and saved. */

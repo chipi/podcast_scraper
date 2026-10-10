@@ -411,6 +411,13 @@ piece to its design home:
   extractive "why" (the listener's capture plus a quote and its time). Trends and the entity
   dashboards move to an Explore surface. This section describes the page as built today; rails are
   rebuilt against ADR-163 one by one.
+- **`RecommendationWhy`** — why a recommendation is here (ADR-163), the one rendering every rail
+  uses. A small reason line written from the server's parts (`AppReason`: kind, subject, the
+  listener's capture). "Rising: Rates", "Because you highlighted “…”", "New in {storyline}",
+  "{person}, whom you keep hearing", "Another view on {topic}", "Most listened to and saved".
+  Below it, the grounded quote in the transcript's own words with its speaker, and "▶ Play from
+  23:14", which opens the player playing at that moment (`?t=&play=1`). With no quote, nothing
+  stands in for one. The serendipity share carries an "Outside your usual" tag. Not on a page yet.
 - **`DiscoveryExplorer`** — the shared section (`discovery-explorer`) wrapping the tabbed
   `DiscoveryList` (topics / themes / storylines / people — Themes added 2026-10-05, in the order
   every surface lists the kinds) with the Rising⇄Trending sort switch (`discovery-sort`). It reads
