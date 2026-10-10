@@ -73,7 +73,7 @@ The Discover 2 preview was removed (UI only; its APIs stay).
    - **Floors:** listener-based, at least 2 distinct listeners.
    - **The card:** `most_engaged.events` becomes the listener count.
    - An ADR-163 amendment line records it.
-4. **The serendipity helper** (ADR-163 §7), moved up from "Also": the first rail needs it.
+4. **The serendipity helper** ✅ (2026-10-11; `app_serendipity`) (ADR-163 §7), moved up from "Also": the first rail needs it.
    - "Outside" means the show is not in the listener's shows and no topic or person is in their
      world (ADR-162).
    - Under Everyone there are no habits, so no label.
