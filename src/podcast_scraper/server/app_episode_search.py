@@ -9,9 +9,11 @@ only the episode's timed transcript (its ``segments.json``) — no index, no mod
   remembered words verbatim found their passage in the search's top 10 only 73% of the time; a
   plain word search found it every time, usually as the only match.
 * :func:`time_transcript_hits` — a real start time for the search's transcript results. The index
-  stores none (``timestamp_start_ms`` is 0 on prod: its chunker times a passage only from segments
-  carrying character offsets, which Whisper's do not), so "Play from" jumped to 0:00. The result's
-  words are found in the timed transcript instead, at read time.
+  held none (``timestamp_start_ms`` 0 on prod: the indexer read times only from
+  ``summary.timestamps``, which the pipeline does not write), so "Play from" jumped to 0:00. The
+  indexer now times chunks from the segments and migration 0028 times the rows already indexed;
+  this still finds the result's words in the timed transcript, which narrows a passage-long chunk
+  to the moment they were said, and covers an index not yet migrated.
 """
 
 from __future__ import annotations
