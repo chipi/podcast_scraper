@@ -229,6 +229,49 @@ def _both_hits_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchO
     )
 
 
+def test_global_search_gives_a_transcript_result_its_real_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The index stores no time on transcript chunks (0 on prod), so "Play from" jumped to 0:00.
+    The result's words are found in its episode's timed transcript (operator 2026-10-10)."""
+    (tmp_path / "metadata").mkdir(parents=True)
+    (tmp_path / "transcripts").mkdir(parents=True)
+    doc = {
+        "feed": {"feed_id": "showa", "title": "Show A", "url": "https://showa.ex/f.xml"},
+        "episode": {"episode_id": "ep1", "title": "Ep One", "published_date": "2024-03-01"},
+        "content": {"transcript_file_path": "transcripts/ep1.txt"},
+    }
+    (tmp_path / "metadata" / "ep1.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    (tmp_path / "transcripts" / "ep1.txt").write_text("x", encoding="utf-8")
+    segs = [
+        {"start": 0.0, "end": 5.0, "text": "Welcome back to the show everyone."},
+        {"start": 5.0, "end": 12.0, "text": "Diversification is the only free lunch, people say."},
+    ]
+    (tmp_path / "transcripts" / "ep1.segments.json").write_text(json.dumps(segs), encoding="utf-8")
+
+    def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "chunk:ep1:1",
+                    "score": 0.9,
+                    "metadata": {
+                        "doc_type": "transcript",
+                        "feed_id": "showa",
+                        "episode_id": "ep1",
+                        "timestamp_start_ms": 0,
+                    },
+                    "text": "Diversification is the only free lunch, people say.",
+                }
+            ]
+        )
+
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", fake_run)
+    body = _client(tmp_path).get("/api/app/search", params={"q": "lunch"}).json()
+    md = body["results"][0]["metadata"]
+    assert (md["timestamp_start_ms"], md["timestamp_end_ms"]) == (5_000, 12_000)
+
+
 def test_scope_mine_requires_auth(tmp_path: Path) -> None:
     _two_episode_corpus(tmp_path)
     assert (

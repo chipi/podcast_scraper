@@ -16,8 +16,21 @@ only the episode's timed transcript (its ``segments.json``) — no index, no mod
 
 from __future__ import annotations
 
+import json
+import logging
 import re
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+
+from podcast_scraper.server.app_content_source import transcript_corpus_relpath, transcript_relpath
+from podcast_scraper.server.corpus_catalog import _load_metadata_doc, CatalogEpisodeRow
+from podcast_scraper.server.segments_view import (
+    segments_relpaths_for_transcript,
+    to_contract_segments,
+)
+from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+
+logger = logging.getLogger(__name__)
 
 Segment = Tuple[int, int, str]  # (start_ms, end_ms, text)
 
@@ -168,3 +181,63 @@ def time_transcript_hits(results: List[Any], segments: Sequence[Segment]) -> Non
                 last = min(max(last, first), len(words) - 1)
                 timed["timestamp_end_ms"] = segments[word_seg[last]][1]
         hit.metadata = timed
+
+
+def episode_segments(root: Path, row: CatalogEpisodeRow) -> Optional[List[Segment]]:
+    """The episode's canonical timed transcript as ``(start_ms, end_ms, text)``, or None.
+
+    The same candidates, in the same order, as ``GET /segments`` serves by default: the raw
+    canonical file first (its timestamps run on the original audio the player streams), the
+    ad-free one only as a fallback.
+    """
+    doc = _load_metadata_doc(root / row.metadata_relative_path)
+    content = doc.get("content") if isinstance(doc, dict) else None
+    transcript_rel = transcript_relpath(content if isinstance(content, dict) else {})
+    if transcript_rel is None:
+        return None
+    corpus_rel = transcript_corpus_relpath(row.metadata_relative_path, transcript_rel)
+    for candidate in segments_relpaths_for_transcript(corpus_rel):
+        safe = safe_relpath_under_corpus_root(root, candidate)
+        if not safe or not (root / safe).is_file():
+            continue
+        try:
+            raw = json.loads((root / safe).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            logger.warning("Unreadable segments file %s: %s", root / safe, exc)
+            return None
+        return [(int(s.start * 1000), int(s.end * 1000), s.text) for s in to_contract_segments(raw)]
+    return None
+
+
+def time_hits_by_episode(root: Path, results: List[Any], rows: Iterable[CatalogEpisodeRow]) -> None:
+    """:func:`time_transcript_hits` for results from many episodes (global search, Mine).
+
+    One timed-transcript read per episode that has a transcript result, at most one per result.
+    Episodes are matched by ``episode_id`` (and ``feed_id`` when the hit carries it).
+    """
+    by_scope: Dict[Tuple[str, str], CatalogEpisodeRow] = {}
+    by_episode: Dict[str, CatalogEpisodeRow] = {}
+    for row in rows:
+        if row.episode_id:
+            by_scope[(row.feed_id or "", row.episode_id)] = row
+            by_episode.setdefault(row.episode_id, row)
+    grouped: Dict[str, List[Any]] = {}
+    for hit in results:
+        md = hit.metadata if isinstance(hit.metadata, dict) else {}
+        eid = md.get("episode_id")
+        if md.get("doc_type") == "transcript" and not md.get("match") and isinstance(eid, str):
+            grouped.setdefault(f"{md.get('feed_id') or ''}\x00{eid}", []).append(hit)
+    for key, hits in grouped.items():
+        feed, eid = key.split("\x00", 1)
+        found = by_scope.get((feed, eid)) or by_episode.get(eid)
+        segments = episode_segments(root, found) if found is not None else None
+        if segments:
+            time_transcript_hits(hits, segments)
+        else:
+            # No timed transcript to find it in: drop the false 0:00 rather than keep it.
+            for hit in hits:
+                hit.metadata = {
+                    **hit.metadata,
+                    "timestamp_start_ms": None,
+                    "timestamp_end_ms": None,
+                }

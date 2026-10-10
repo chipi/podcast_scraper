@@ -45,7 +45,11 @@ from podcast_scraper.server.app_episode_notes import (
     render_episode_notes_html,
     render_episode_notes_markdown,
 )
-from podcast_scraper.server.app_episode_search import exact_passages, time_transcript_hits
+from podcast_scraper.server.app_episode_search import (
+    episode_segments as _raw_segment_tuples,
+    exact_passages,
+    time_transcript_hits,
+)
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_guided_shows import (
     guided_show_signals,
@@ -703,30 +707,6 @@ def episode_entities(
         objects=objects_from_kg(load_json_artifact(root, row.kg_relative_path)),
         topics=topics,
     )
-
-
-def _raw_segment_tuples(root: Path, row: CatalogEpisodeRow) -> list[tuple[int, int, str]] | None:
-    """The episode's canonical transcript segments as ``(start_ms, end_ms, text)``, or None.
-
-    The same candidates, in the same order, as ``GET /segments`` serves by default: the raw
-    canonical file first (its timestamps run on the original audio the player streams), the
-    ad-free one only as a fallback.
-    """
-    transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
-    if transcript_rel is None:
-        return None
-    corpus_rel = transcript_corpus_relpath(row.metadata_relative_path, transcript_rel)
-    for candidate in segments_relpaths_for_transcript(corpus_rel):
-        safe = safe_relpath_under_corpus_root(root, candidate)
-        if not safe or not (root / safe).is_file():
-            continue
-        try:
-            raw = json.loads((root / safe).read_text(encoding="utf-8"))
-        except (OSError, ValueError) as exc:
-            logger.warning("Unreadable segments file %s: %s", root / safe, exc)
-            return None
-        return [(int(s.start * 1000), int(s.end * 1000), s.text) for s in to_contract_segments(raw)]
-    return None
 
 
 @router.get("/episodes/{slug}/moments", response_model=AppMomentsResponse)

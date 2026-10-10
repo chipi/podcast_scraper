@@ -21,6 +21,7 @@ from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.search.storylines import STORYLINE_DOC_TYPE
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.app_episode_search import time_hits_by_episode
 from podcast_scraper.server.app_search_view import build_search_response
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_corpus import world_episode_set
@@ -203,6 +204,9 @@ async def app_search(
         append_query_event(root, str(outcome.get("query_type") or ""))
     resp = build_search_response(q, outcome)
     _attach_consumer_slugs(root, resp)
+    # A real time on every transcript result (operator 2026-10-10): the index stores none, so
+    # "Play from" jumped to 0:00. Found by the result's words in its episode's timed transcript.
+    await asyncio.to_thread(time_hits_by_episode, root, resp.results, cached_catalog(root))
     if mine is not None:
         resp.results = [r for r in resp.results if _in_listening_scope(root, r, mine)][:top_k]
     # The cluster's episode ids were carried only to answer the scope question. Strip them: a
