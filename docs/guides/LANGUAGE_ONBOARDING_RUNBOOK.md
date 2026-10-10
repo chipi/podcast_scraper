@@ -258,6 +258,18 @@ Gate B numbers wait for English on narrative and read-news shows (parked until t
 3. **A setting that changes wording** (concurrency, model, prompt): compare against two runs of
    the unchanged setting first. If two identical serial runs already differ by N units, a
    difference of N under concurrency is not caused by concurrency.
+   - Measured for `translation_max_concurrency` (2026-10-10, El Hilo x2, two runs each, eval
+     variants `translate_fresh_serial` / `translate_fresh`): wording, serial against serial 68 of
+     85 units identical, serial against 4 in flight 65-66; judged, serial 3.47-3.54 / 3.94-4.02
+     adequacy, 4 in flight 3.55-3.61 / 3.97-4.02, low units 19-21 either way. No quality
+     difference beyond the judge's noise; 4 in flight is about 3.5x faster (525-574 s against
+     1,782-2,062 s).
+4. **Anchor the judge on a human translation** before reading its numbers as good or bad:
+   `translation_judge_human_v1.py DATASET` judges a publisher's own translation with the same
+   judge and windows. El Hilo (es, the one show of the first set that publishes one): adequacy
+   4.60-4.71, fluency 4.95-4.96, 0-2% low units. A careful human translation is the ceiling, not
+   5. The pipeline on the same episodes: 3.45-4.12 adequacy, 18-28% low units; the gap (0.6-1.2)
+   is many times the judge's noise and is where the tier-2 work is.
 
 ## 7. Anything that changes English output
 
