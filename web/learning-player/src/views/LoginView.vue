@@ -8,12 +8,20 @@
  * Dev (mock provider): a picker lets you sign in as a seeded user or a custom name (#1128).
  */
 import { Capacitor } from '@capacitor/core'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getAuthProviders, getDevUsers, requestMagicLink, type DevUser } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { safeInternalPath } from '../utils/redirect'
+import { tierSwitchEnabled } from '../services/tier'
+
+// The DEV/PROD switch, internal builds only. It has to be here, not only in Settings: Settings is
+// behind sign-in, and a fresh internal install starts on PROD, whose sign-in has no dev login.
+const TierSwitch = __MOBILE_INTERNAL__
+  ? defineAsyncComponent(() => import('../components/TierSwitch.vue'))
+  : null
+const showTierSwitch = !!TierSwitch && tierSwitchEnabled()
 
 const { t } = useI18n()
 const route = useRoute()
@@ -107,6 +115,9 @@ function signInCustom(): void {
        ~1000px and the e-mail button edge to edge. `max-w-md` (448px) is wider than any phone, so on
        a phone it still fills the screen. -->
   <section class="lp-page mx-auto max-w-md sm:pt-8" data-testid="login-view">
+    <div v-if="showTierSwitch" class="mb-3 flex justify-end" data-testid="login-tier-switch">
+      <component :is="TierSwitch" />
+    </div>
     <div class="text-center">
     <span class="lp-kicker">{{ t('app.tagline') }}</span>
     <h1 class="mb-2 mt-1 font-display text-3xl font-extrabold tracking-tight">
