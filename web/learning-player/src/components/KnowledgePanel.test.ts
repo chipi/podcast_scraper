@@ -1194,3 +1194,19 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     expect(w.text()).toContain("bravo observation")
   })
 })
+
+describe("the Brief leads with Play moments (operator 2026-10-10)", () => {
+  it("offers the reel above the summary when the episode has insights, and asks the page to play it", async () => {
+    const w = mountPanel()
+    const btn = w.get('[data-testid="kp-play-moments"]')
+    expect(btn.text()).toContain("Play moments")
+    const html = w.html()
+    expect(html.indexOf('data-testid="kp-play-moments"')).toBeLessThan(html.indexOf("A short summary."))
+    await btn.trigger("click")
+    expect(w.emitted("play-moments")).toHaveLength(1)
+  })
+
+  it("is absent with no insights", () => {
+    expect(mountPanel({ insights: [] }).find('[data-testid="kp-play-moments"]').exists()).toBe(false)
+  })
+})

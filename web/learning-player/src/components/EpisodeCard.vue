@@ -45,12 +45,15 @@ import { formatDuration, formatPublishDate } from "../utils/format"
 import { borderClass } from "../utils/highlightColors"
 import { episodeArtwork } from "../utils/episode"
 import EpisodeActions from "./EpisodeActions.vue"
+import MomentsLink from "./MomentsLink.vue"
 import LanguageBadge from "./LanguageBadge.vue"
 import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import PlayedBadge from "./PlayedBadge.vue"
 
 const props = defineProps<{
   episode: EpisodeSummary
+  /** Show "▶ Moments" on the show line — browsing surfaces only (Discover, show pages). */
+  momentsLink?: boolean
   /**
    * NARROW containers — the "More like this" rail (`w-56`, 224px) and the queue's recent list.
    *
@@ -211,6 +214,7 @@ const { badgeShown } = useCorpusLanguages()
       <EpisodeActions
         v-if="!hideActions"
         :slug="episode.slug"
+        :moments="episode.has_gi"
         :hide-favorite="hideFavorite"
         :hide-queue="hideQueue"
         :show-download="showDownload"
@@ -236,17 +240,23 @@ const { badgeShown } = useCorpusLanguages()
            its hits by episode, and the feed id lives in the hit metadata) took the whole view down.
            Plain text is the honest fallback: the name is still information without being a
            destination. -->
-      <RouterLink
-        v-if="episode.podcast_title && episode.feed_id"
-        :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
-        class="lp-kicker relative z-30 block truncate no-underline"
-        :title="episode.podcast_title"
-      >
-        {{ episode.podcast_title }}
-      </RouterLink>
-      <span v-else-if="episode.podcast_title" class="lp-kicker block truncate" :title="episode.podcast_title">
-        {{ episode.podcast_title }}
-      </span>
+      <!-- The show line also carries "▶ Moments" on browsing surfaces (Discover, show pages;
+           operator 2026-10-10): on a row that already exists, so the card grows no taller. -->
+      <div class="flex items-center justify-between gap-2">
+        <RouterLink
+          v-if="episode.podcast_title && episode.feed_id"
+          :to="{ name: 'podcast', params: { feedId: episode.feed_id } }"
+          class="lp-kicker relative z-30 block min-w-0 truncate no-underline"
+          :title="episode.podcast_title"
+        >
+          {{ episode.podcast_title }}
+        </RouterLink>
+        <span v-else-if="episode.podcast_title" class="lp-kicker block min-w-0 truncate" :title="episode.podcast_title">
+          {{ episode.podcast_title }}
+        </span>
+        <span v-else />
+        <MomentsLink v-if="momentsLink && episode.has_gi" :slug="episode.slug" />
+      </div>
 
       <!-- Title (stretched link → Player). Never fades: card identity stays visible in every state. -->
       <RouterLink

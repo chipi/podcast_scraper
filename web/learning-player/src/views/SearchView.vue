@@ -1032,6 +1032,7 @@ const showEmpty = computed(
             :key="g.slug ?? g.title"
             :episode="groupAsEpisode(g)"
             :item-count="g.rows.length"
+            :moments="!!g.slug"
           >
             <template #meta>
               <template v-if="formatPublishDate(g.date, locale)">{{ formatPublishDate(g.date, locale) }} · </template>{{ t("search.matchCount", g.hits.length) }}

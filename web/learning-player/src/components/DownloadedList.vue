@@ -13,6 +13,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import DownloadButton from './DownloadButton.vue'
+import MomentsLink from './MomentsLink.vue'
 import { localArtworkFor } from '../services/downloads'
 import { resolveMediaUrl } from '../services/tier'
 import { isNative } from '../services/native'
@@ -99,6 +100,8 @@ function artFor(e: { slug: string; artworkUrl?: string }): string | null {
             }}</span>
           </p>
         </RouterLink>
+        <!-- The plane case (operator 2026-10-10): a downloaded episode's reel plays from the file. -->
+        <MomentsLink v-if="e.state === 'downloaded'" :slug="e.slug" class="self-center" />
         <DownloadButton :slug="e.slug" />
       </li>
     </ul>

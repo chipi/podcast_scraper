@@ -16,6 +16,7 @@
  */
 import { computed, onMounted, ref, watch } from "vue"
 import { RouterLink } from "vue-router"
+import MomentsLink from "../components/MomentsLink.vue"
 import {
   getCompleted,
   getDerivedInterests,
@@ -281,7 +282,11 @@ watch(scope, () => void loadTrendingEpisodes())
               <p class="font-mono text-[10.5px] uppercase tracking-wider text-muted">{{ c.show }}</p>
             </div>
           </div>
-          <RouterLink :to="playTo(c)" class="d2-play">▶ {{ c.startSeconds != null ? formatTime(c.startSeconds) : "Play" }}</RouterLink>
+          <!-- The pill plays the quoted moment; "▶ Moments" plays the whole reel (2026-10-10). -->
+          <div class="flex items-center justify-between gap-2">
+            <RouterLink :to="playTo(c)" class="d2-play">▶ {{ c.startSeconds != null ? formatTime(c.startSeconds) : "Play" }}</RouterLink>
+            <MomentsLink :slug="c.slug" />
+          </div>
         </article>
       </div>
     </section>

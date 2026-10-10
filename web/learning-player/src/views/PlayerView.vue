@@ -2249,6 +2249,7 @@ const { badgeShown } = useCorpusLanguages()
           @play-from="playFromContent"
           @announce="announceCapture"
           @close="panelOpen = false"
+          @play-moments="panelOpen = false; openMoments()"
         />
       </div>
       </dialog>

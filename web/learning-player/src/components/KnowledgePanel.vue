@@ -75,6 +75,8 @@ const emit = defineEmits<{
    * already owns one.
    */
   (e: "announce", message: string): void
+  /** "▶ Play moments" at the top of the Brief (operator 2026-10-10): the reel lives on the page. */
+  (e: "play-moments"): void
 }>()
 
 const { t } = useI18n()
@@ -729,6 +731,24 @@ watch(() => auth.isAuthenticated, loadCaptures)
         save almost nothing and hide the one thing everybody wants. The sections below it are long,
         repetitive, or both, which is what makes folding them worth a tap.
       -->
+        <!-- The Brief is where a listener decides whether an episode is for them, so the reel's
+             entrance leads it (operator 2026-10-10). Amber outline: an action, not a section. -->
+        <button
+          v-if="insights.length"
+          type="button"
+          class="mb-5 flex w-full items-center gap-3 rounded border border-accent px-3 py-2.5 text-left"
+          data-testid="kp-play-moments"
+          @click="emit('play-moments')"
+        >
+          <span
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"
+            aria-hidden="true"
+          >▶</span>
+          <span class="min-w-0">
+            <span class="block text-sm font-bold">{{ t("moments.play_moments") }}</span>
+            <span class="block text-xs text-muted">{{ t("moments.play_moments_hint") }}</span>
+          </span>
+        </button>
         <section v-if="summary" class="mb-5">
           <h3 class="lp-section mb-1">{{ t("kp.summary") }}</h3>
           <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>

@@ -457,6 +457,7 @@ const { badgeShown } = useCorpusLanguages()
           v-for="ep in visibleEpisodes"
           :key="ep.slug"
           :episode="ep"
+          moments-link
           :data-episode-slug="ep.slug"
           class="scroll-mt-24"
           :class="{ 'bg-overlay ring-1 ring-inset ring-border': flashSlug === ep.slug }"

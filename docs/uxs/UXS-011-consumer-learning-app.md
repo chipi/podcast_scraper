@@ -461,6 +461,13 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   moments while it runs. Which moments and how many are server config (`APP_MOMENTS_CONFIG`). In
   the episode view the moments are marked on the density strip (cream, taller than an insight
   tick; never the accent).
+- **Ways into Moments** (operator 2026-10-10): **Play moments** leads the shared ⋯ menu on every
+  episode with insights; on browsing rows (Discover and show-page cards, search episode results,
+  Downloads, Discover 2 cards) a small amber text action, `MomentsLink` ("▶ Moments" — no box, no
+  count, no extra height; the boxed chip was rejected as heavy and repeated on every row); the
+  Brief opens with a **Play moments** button above the summary. Not on Home tiles (too small) or
+  passage results (already a moment). Downloaded episodes play their reel offline: the moments are
+  saved with the download.
 - **Brief** is the panel's name (renamed 2026-10-10; shipped #1091 as "Insights", "Episode notes"
   from 2026-09-30). One word for the band, and plain "Notes" already means the listener's own
   notes. The grounded items inside stay "insights".

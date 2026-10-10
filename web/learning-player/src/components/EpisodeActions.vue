@@ -32,6 +32,7 @@ import AddToCollectionButton from './AddToCollectionButton.vue'
 import ShareIcon from './ShareIcon.vue'
 import OverflowMenu from './OverflowMenu.vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { track } from '../services/analytics'
 import { openShareSheet } from '../services/native'
 import { copyText } from '../utils/clipboard'
@@ -39,6 +40,11 @@ import { shareUrl } from '../utils/shareLink'
 
 defineProps<{
   slug: string
+  /**
+   * The episode has a Moments reel (insights): "Play moments" leads the ⋯ menu (operator
+   * 2026-10-10) — one change reaches every card, tile, search result, Library and Queue row.
+   */
+  moments?: boolean
   /**
    * The row is sitting ON artwork rather than on the page background.
    *
@@ -91,6 +97,10 @@ defineProps<{
   shareTitle?: string
 }>()
 const { t } = useI18n()
+const router = useRouter()
+function playMoments(slug: string): void {
+  void router.push({ name: 'player', params: { slug }, query: { moments: '1' } })
+}
 
 /** The phone's share sheet with the episode link; where there is none, the link is copied. */
 async function shareEpisode(slug: string, title: string): Promise<void> {
@@ -121,6 +131,18 @@ async function shareEpisode(slug: string, title: string): Promise<void> {
     <QueueButton v-if="!hideQueue" :slug="slug" />
     <OverflowMenu :label="t('common.moreActions')">
       <template #default="{ close }">
+        <button
+          v-if="moments"
+          type="button"
+          role="menuitem"
+          data-menuitem=""
+          class="flex w-full flex-col items-start rounded-lg px-3 py-2 text-left text-sm font-bold text-accent transition hover:bg-overlay"
+          data-testid="episode-play-moments"
+          @click="close(); playMoments(slug)"
+        >
+          <span>▶ {{ t('moments.play_moments') }}</span>
+          <span class="text-xs font-normal text-muted">{{ t('moments.play_moments_hint') }}</span>
+        </button>
         <!-- Download self-hides on web, so on web this menu carries collection alone. Omitted when
              it is already inline — never offer the same control in two places. -->
         <DownloadButton v-if="!showDownload" :slug="slug" variant="menuitem" @activated="close" />

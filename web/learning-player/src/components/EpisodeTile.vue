@@ -53,7 +53,7 @@ const props = defineProps<{
     | 'episode_image_url'
     | 'feed_image_url'
     | 'language'
-  >
+  > & { has_gi?: boolean }
   /** 0..1 — how far the listener got. Drawn under the artwork (Jump back in). */
   progress?: number
 }>()
@@ -69,6 +69,7 @@ const artwork = computed(() => episodeArtwork(props.episode))
          wrap unbounded. Same treatment as Home's "Recommended for you". -->
     <EpisodeActions
       :slug="episode.slug"
+      :moments="!!episode.has_gi"
       overlay
       class="absolute right-2 top-2 z-10 max-w-[76px] justify-end"
     />

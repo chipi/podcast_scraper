@@ -80,3 +80,42 @@ test('Step: › in the episode view jumps to the next insight', async ({ page },
   await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(5.5)
   await expect.poll(() => audioTime(page)).toBeLessThan(12)
 })
+
+test.describe('the ways into Moments', () => {
+  test('the show page: "▶ Moments" on the card\'s show line', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'moments-entry-show', testInfo)
+    await page.goto('/podcast/p05')
+    const card = page.getByTestId('episode-card').filter({ hasText: 'The Bessent Tape' }).first()
+    await card.getByTestId('moments-link').click()
+    await expect(page).toHaveURL(/moments=1/)
+    await expect(page.getByTestId('moments-reel')).toBeVisible()
+  })
+
+  test('any card: "Play moments" leads the ⋯ menu', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'moments-entry-menu', testInfo)
+    await page.goto('/podcast/p05')
+    const card = page.getByTestId('episode-card').filter({ hasText: 'The Bessent Tape' }).first()
+    await card.getByTestId('overflow-trigger').click()
+    const first = page.getByTestId('overflow-menu').getByRole('menuitem').first()
+    await expect(first).toHaveAttribute('data-testid', 'episode-play-moments')
+    await first.click()
+    await expect(page.getByTestId('moments-reel')).toBeVisible()
+  })
+
+  test('the Brief: "Play moments" above the summary', async ({ page }, testInfo) => {
+    await openEpisode(page, testInfo, 'entry-brief')
+    await page.getByTestId('player-open-insights').click()
+    await page.getByTestId('kp-play-moments').click()
+    await expect(page.getByTestId('moments-reel')).toBeVisible()
+  })
+
+  test('search results: "▶ Moments" on an episode result', async ({ page }, testInfo) => {
+    await signInIsolated(page, 'moments-entry-search', testInfo)
+    await page.goto('/search?q=risk&scope=all')
+    const link = page.getByTestId('moments-link').first()
+    await expect(link).toBeVisible()
+    await link.click()
+    await expect(page).toHaveURL(/moments=1/)
+    await expect(page.getByTestId('moments-reel')).toBeVisible()
+  })
+})
