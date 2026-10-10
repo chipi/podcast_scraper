@@ -306,6 +306,8 @@ Gate B numbers wait for English on narrative and read-news shows (parked until t
      units rose (3->5, 4->5, 4->5), none fell.
    - `translation_max_unit_words: 100`: 3.82 / 4.24 on its own units, which looked like the
      largest gain, and was not one (item 8).
+   - Context and show-title protection together: 3.49 / 11 and 4.18 / 3, the fewest low units
+     of any run on 10-02. One show; both switches stay off until measured on the others.
 8. **A switch that changes how turns are cut into units changes the judge's ruler too.** The
    judge grades per unit; the same English graded in smaller units scores higher. Compare such a
    switch only on IDENTICAL grading units: regroup the baseline's English (sentences are the
