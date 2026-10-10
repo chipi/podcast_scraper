@@ -61,6 +61,18 @@ describe('learning-player useUserPreferencesStore (USERPREFS-1 gh #1213)', () =>
     expect(store.get('other')).toBe('x') // and the rest of the snapshot still arrives
   })
 
+  it('a write survives the page going away right after it (keepalive)', async () => {
+    // Flip Trends to "Everyone", then reload or close: without keepalive the navigation cancelled
+    // the PATCH, the server never stored the choice and the next load read "mine" again (6 of 20
+    // runs of trends-mine.spec, 2026-10-10). The same request the playback position already uses.
+    fetchMock.mockResolvedValue(makeResponse({}, 200))
+    const store = useUserPreferencesStore()
+    await store.set('lp.trendingScope', 'corpus')
+    const [, init] = fetchMock.mock.calls[0]
+    expect(init.method).toBe('PATCH')
+    expect(init.keepalive).toBe(true)
+  })
+
   it('a write made BEFORE the hydrate, whose PATCH is still out, survives the hydrate', async () => {
     // Tap "Everyone" on Trends before preferences loaded: the local value is set and the PATCH sent;
     // the hydrate's GET then reads the server before the PATCH lands and finds no value. The merge
