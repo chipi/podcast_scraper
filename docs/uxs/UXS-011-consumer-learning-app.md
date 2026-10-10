@@ -479,7 +479,8 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   swipe previous (touch only; a vertical drag still scrolls, and a swipe never counts as the tap
   that hides the card); every step shows "› Jumped to 21:07" for two seconds and says it to screen
   readers through the page's one live region; the counter reads "Insight 4 of 40" to them. The
-  obi's Moments door is set apart from Brief and About by a muted rule. The Moments view keeps the
+  obi's three doors are divided by the same low-key rule (a brighter one under Moments was tried and
+  dropped, operator 2026-10-10). The Moments view keeps the
   obi's doors as a row under its header, with Moments turned into **Episode** (leaves the reel, as
   ✕ does), so Brief and About stay a tap away mid-reel; the current moment names the speaker's
   role ("Nora, host"). The Brief's button says how many and how long once loaded ("Play 8 moments ·

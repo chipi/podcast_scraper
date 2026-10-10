@@ -1139,8 +1139,9 @@ describe('the obi: Moments, Brief and About down the artwork edge (operator 2026
     // Labels alike on purpose (operator 2026-10-10: no door's label a different size), no glyph.
     expect(new Set(doors.map((d) => d.get('span').classes().join(' '))).size).toBe(1)
     expect(obi.text()).not.toContain('✦')
-    // Moments changes how the episode plays, so only its door carries the muted rule under it.
-    expect(doors.map((d) => d.classes().includes('lp-obi-door--moments'))).toEqual([true, false, false])
+    // The doors themselves alike too, so every rule between them is the same low-key one
+    // (operator 2026-10-10: the brighter rule under Moments was dropped).
+    expect(new Set(doors.map((d) => d.classes().join(' '))).size).toBe(1)
   })
 
   it('the Moments door opens the Moments view (?moments=1) and starts the reel', async () => {

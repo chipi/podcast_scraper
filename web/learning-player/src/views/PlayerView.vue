@@ -1867,7 +1867,7 @@ const { badgeShown } = useCorpusLanguages()
                 v-if="insights.length"
                 type="button"
                 data-testid="player-open-moments"
-                class="lp-obi-door lp-obi-door--moments"
+                class="lp-obi-door"
                 @click="openMoments"
               >
                 <span class="lp-kicker lp-obi-label">{{ t('moments.door') }}</span>
@@ -2402,14 +2402,6 @@ const { badgeShown } = useCorpusLanguages()
 }
 .lp-obi-door + .lp-obi-door {
   border-top: 1px solid var(--lp-border);
-}
-/* Moments changes how the episode plays rather than opening something to read, so its door is
-   set apart by a muted rule instead of the border-coloured one between the other two. */
-.lp-obi-door--moments {
-  border-bottom: 1px solid var(--lp-muted);
-}
-.lp-obi-door--moments + .lp-obi-door {
-  border-top: 0;
 }
 .lp-obi-door:hover {
   background-color: var(--lp-overlay);

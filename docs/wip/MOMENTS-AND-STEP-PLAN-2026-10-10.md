@@ -61,7 +61,7 @@ Second round (same day, uncommitted at the time of writing): swipe to step and "
 the reel's end card chains the next queued episode's moments; the mini-player reads "Moments ·
 n / total"; the current insight's tick stands out; a 250 ms fade into each clip; the Brief's
 "Play 8 moments · 3½ min"; the Moments view keeps the obi's doors as a row (Episode · Brief ·
-About) and names the speaker's role; the Moments door's muted rule; search offers the reel only
+About) and names the speaker's role; search offers the reel only
 for episodes with insights (`episode_has_gi` on hits); Saved / Revisit groups ⋯-only; offline
 greying; "▶ Moments" on topic / person / storyline / theme / org rows and every Discover 2 card.
 
