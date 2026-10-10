@@ -27,7 +27,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from ..languages import primary_language, TARGET_LANGUAGE
 from . import naming_vocabulary
-from .hosts import _STATED_LC_CHARS, _STATED_UC
+from .hosts import _HOST_SELF_INTRO_BY_LANGUAGE, _STATED_LC_CHARS, _STATED_UC
 
 logger = logging.getLogger(__name__)
 
@@ -426,7 +426,7 @@ def _parse(raw: str) -> Dict[str, LLMVoice]:
     return out
 
 
-def _introduces_itself_as(text: str, name: str) -> bool:
+def _introduces_itself_as(text: str, name: str, language: Optional[str] = TARGET_LANGUAGE) -> bool:
     """Does this voice say "I'm X" / "this is X" / "my name is X" in its own turns?
 
     NOT when the name is POSSESSIVE. "this is Matthew Cobb's seventh book" is a host describing the
@@ -469,6 +469,26 @@ def _introduces_itself_as(text: str, name: str) -> bool:
         given = m.group(1).lower()
         short, long_ = sorted((given, stated), key=len)
         if len(short) >= 3 and long_.startswith(short):
+            return True
+    return _introduces_itself_in_language(text, tokens, language)
+
+
+def _introduces_itself_in_language(
+    text: str, tokens: Sequence[str], language: Optional[str]
+) -> bool:
+    """The same question in the text's own language: "Soy Eliezer Budasoff" (D28). Read with the
+    English cues only, a Spanish host who says their own full name was refused as talking ABOUT
+    themselves whenever the model named them. English is read above and unchanged here."""
+    lang = primary_language(language or "")
+    if not lang or lang == primary_language(TARGET_LANGUAGE):
+        return False
+    pattern = naming_vocabulary.vocabulary_row(_HOST_SELF_INTRO_BY_LANGUAGE, lang)
+    if pattern is None:
+        return False
+    first = tokens[0].lower()
+    for m in pattern.finditer(text or ""):
+        said = (m.groupdict().get("names") or m.group(1) or "").split()
+        if said and said[0].lower() == first:
             return True
     return False
 
@@ -539,7 +559,19 @@ def refuted_by_third_person(
     """
     return (
         _talks_about(voice_text, name) or _addressed_at_open(voice_text, name, language)
-    ) and not _introduces_itself_as(voice_text, name)
+    ) and not _introduces_itself_as(voice_text, name, language)
+
+
+def _unusable_verdict(
+    voice: Optional[str], match: Optional[str], role: Optional[str], stated_hosts: set
+) -> Optional[str]:
+    """The outcome of a verdict nothing of which is kept: a voice that is not in the episode, or a
+    stated host answered as the guest (D27)."""
+    if voice is None:
+        return "unmapped_voice"
+    if match and role == "guest" and match.lower() in stated_hosts:
+        return "stated_host_as_guest"
+    return None
 
 
 def _role_after_third_person_refusal(role: Optional[str]) -> Optional[str]:
@@ -621,6 +653,11 @@ def resolve_voices_and_roles(
     rep_["complement"] = []
 
     by_stated = {n.lower(): n for n in stated}
+    # D27: a name the feed states as a HOST, answered with the role "guest", contradicts itself.
+    # Every case on record was the wrong voice (El Hilo, The Rest Is History, a16z; see
+    # test_a_stated_host_is_not_named_as_the_guest), and on The Rest Is History the "guest" role
+    # sat on a host, so neither half is kept.
+    stated_hosts = {str(h).strip().lower() for h in known_hosts if str(h).strip()}
 
     def _stated_match(said: str) -> Optional[str]:
         """The stated name the model meant. Exact first; else the ONE stated name its words are a
@@ -665,13 +702,14 @@ def resolve_voices_and_roles(
             "role": verdict.role,
         }
         verdicts.append(seen)
-        if voice is None:
-            seen["outcome"] = "unmapped_voice"
+        match = _stated_match(verdict.name) if verdict.name else None
+        early = _unusable_verdict(voice, match, verdict.role, stated_hosts)
+        if early or voice is None:
+            seen["outcome"] = early
             continue
         canonical: Optional[str] = None
         role = verdict.role
         if verdict.name:
-            match = _stated_match(verdict.name)
             seen["matched"] = match
             if match is None:
                 invented.append(verdict.name)
