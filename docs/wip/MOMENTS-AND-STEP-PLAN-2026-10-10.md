@@ -52,28 +52,30 @@ to a listener and is invisible to a text judge. Every arm is still about 3/5: in
 the limit. Cost $2.94 (plus $1.47 lost to a parser crash before the run saved per judgment, now
 fixed: judgments are cached in `judgments_<mode>.jsonl` and a crash resumes).
 
-## Build status (2026-10-10, branch `feat/player-1.0.4`, local commits, not pushed)
+## Build status (2026-10-10, branch `feat/player-1.0.4`)
 
-Built and tested: the moment picker and route (`c7acc69ea`, `582b66499`); the reel in the player
-store and offline moments with downloads (`456171363`); the Moments view, Step and the three-door
-obi (`88afe16f0`); the ways in — ⋯ menu, "▶ Moments" text action, the Brief button (`8f12e2ec5`).
-Second round (same day, uncommitted at the time of writing): swipe to step and "› Jumped to …";
-the reel's end card chains the next queued episode's moments; the mini-player reads "Moments ·
-n / total"; the current insight's tick stands out; a 250 ms fade into each clip; the Brief's
-"Play 8 moments · 3½ min"; the Moments view keeps the obi's doors as a row (Episode · Brief ·
-About) and names the speaker's role; search offers the reel only
-for episodes with insights (`episode_has_gi` on hits); Saved / Revisit groups ⋯-only; offline
-greying; "▶ Moments" on topic / person / storyline / theme / org rows and every Discover 2 card.
+Pushed (`ff78c1709`): the moment picker and route; the reel in the player store and offline
+moments with downloads; Step (arrows, swipe, `[` `]`, "› Jumped to …"); the three-door obi; the
+ways in (⋯ menu, "▶ Moments" on browsing rows and search, the Brief's "Play N moments · length");
+the end card chaining the next queued episode; the mini-player's "Moments · n / total"; offline
+greying.
+
+Local, after that push: **Moments plays inside the artwork** (`25609a9c1`, operator: "the key area
+stays as on the played episode and we just change inside the artwork") — the separate Moments view
+is gone. The artwork shows the reel's segments and the current moment (‹ ›, Keep listening here, the
+end card after the last); the obi's top door reads Episode; the transport's skips become previous /
+next moment; every moment is listed under the transport. The Brief's Play moments sits after its
+Summary; the obi's doors share one low-key rule.
 
 Deviations from the mockups, each on purpose:
 
 - Search: "▶ Moments" sits on the meta row directly under "Matched:", not on that line. The
   "Matched" line is inside the result's link; a link inside a link loses its accessible name.
-- The Moments view's doors are a horizontal row under the header, not a vertical band: the view
-  has no artwork for a band to sit on.
 - Rows show "▶ Moments" with no length ("· 3½ min"), per the revised mockup (no count, no box).
 - An episode with a GI artifact but no playable moments still shows "▶ Moments" on lists (lists
   carry `has_gi`, not a moment count); opening it falls back to the episode, nothing breaks.
+- No "· Moments" in the show kicker above the title while a reel plays: the operator asked for the
+  page around the artwork to stay as it is.
 
 Label widths on Android, measured 2026-10-10 in Chrome 154 on the Pixel 8 emulator (Android 16,
 11px bold monospace, 0.16em): MOMENTS 57.7px, EPISODE 57.7px, BRIEF 41.2px, ABOUT 41.2px,
