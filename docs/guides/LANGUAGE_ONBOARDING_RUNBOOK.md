@@ -279,13 +279,15 @@ Gate B numbers wait for English on narrative and read-news shows (parked until t
 6. **Sort the low units by cause before building a fix.** The model's output is the same run to
    run (31 of 51 low units low in all four baseline runs), so the errors are systematic and only a
    change of input moves them. On El Hilo (2026-10-10):
-   - Unit length. Units of 200+ source words were judged low 43-50% of the time against 12% for
-     50-100 words; the human translation of the same turns shows no such drop. The model condenses
-     long units. Switch: `translation_max_unit_words` (splits between sentences).
+   - Unit length, NOT a cause after all. Units of 200+ source words were judged low 43-50% of
+     the time against 12% for 50-100 words, but the judge grades a unit as a whole, so a long unit
+     collects more errors per grade. Regrouping proved it (item 8): `translation_max_unit_words:
+     100` gained nothing.
    - Short fragments, slang, backchannels have the highest error rate (about 5 per 100 words
      against the human 0.3): no surrounding context. Switch: `translation_context_sentences`.
-   - Unpunctuated ASR text makes one "sentence" of hundreds of words (654, 339), which the length
-     cap cannot split.
+   - Unpunctuated ASR text makes one "sentence" of hundreds of words (654, 339).
+     `translation_max_sentence_words` cuts one at ASR segment ends; unmeasured, and with unit
+     length not a cause its premise is gone.
    - Names: the show's own title as a common noun ("en el hilo" as "the thread").
    - Not fixable in code: idioms and slang the model does not know ("grandes ligas", "hacer
      agua"), and ASR errors the model invents around ("valesía").
@@ -298,6 +300,16 @@ Gate B numbers wait for English on narrative and read-news shows (parked until t
      a placeholder lost the grammar around it ("Desde [1]" as "Since"), and the show title was
      missed because the host says it in lower case. Narrowed to the show title, case-blind when
      multi-word (`0132edf9b`); remeasure pending.
+   - `translation_max_unit_words: 100`: 3.82 / 4.24 on its own units, which looked like the
+     largest gain, and was not one (item 8).
+8. **A switch that changes how turns are cut into units changes the judge's ruler too.** The
+   judge grades per unit; the same English graded in smaller units scores higher. Compare such a
+   switch only on IDENTICAL grading units: regroup the baseline's English (sentences are the
+   alignment atom, so every sentence id exists in both runs) into the new run's units and judge
+   that. Measured: the unchanged English regrouped into the 100-word units scored 4.02 / 4.44
+   main-voice adequacy against 3.52 / 3.95 on its own units, and the capped run's English 3.82 /
+   4.24, about 0.2 BELOW the baseline on the same ruler. Splitting a turn costs the model
+   context. Context and name protection do not change units, so their comparisons stand.
 
 ## 7. Anything that changes English output
 
