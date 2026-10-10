@@ -795,11 +795,23 @@ def apply_diarization_to_result(
     # #2187 A2: re-transcribe the speech the diarizer heard and the transcript skipped, BEFORE
     # alignment, so recovered words get their speaker the same way every other segment does.
     if transcribe_clip is not None:
-        from podcast_scraper.transcription.gap_recovery import recover_untranscribed_speech
+        from podcast_scraper.transcription.gap_recovery import (
+            recover_stretched_words,
+            recover_untranscribed_speech,
+        )
 
         result = recover_untranscribed_speech(
             result,
             untranscribed_speech(diarization.segments, segments),
+            audio_path,
+            transcribe_clip,
+        )
+        segments = list(result.get("segments") or [])
+        # D16: a word stretched over speech is re-transcribed alone and replaced only by more
+        # speech; ``asr_stretched_words`` below then lists what is still stretched.
+        result = recover_stretched_words(
+            result,
+            stretched_words_over_speech(diarization.segments, segments),
             audio_path,
             transcribe_clip,
         )
