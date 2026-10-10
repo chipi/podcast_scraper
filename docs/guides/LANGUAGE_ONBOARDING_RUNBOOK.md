@@ -161,7 +161,7 @@ minutes per episode and the result is exact.
 | long deletions (5+ reference words in a row) | each read and explained: not spoken (dates, sign-offs, stage directions in the script), music, a foreign-language original under a voice-over, or field tape |
 | untranscribed diarized speech after recovery | 0, or each explained |
 | stretched words still over speech after D16 | 0, or each read |
-| each recovery step (gap, D16, punctuation) | no episode worse on adjusted WER (`asr_bare` against full chain) |
+| each recovery step (gap, D16, punctuation) | no episode's MAIN VOICES worse on adjusted WER (`asr_bare` against full chain); recovering real speech inside tape the publisher did not transcribe raises the whole-episode figure and is not a fault (RFI 10-07: a 3-word interview clip) |
 | invented lines left in the text | 0 |
 
 **Gate B: good enough against English, per language and per kind of show.**
@@ -201,9 +201,21 @@ each with a human reference and its tags.
 | fr | 0.043-0.047 | 0.043-0.047 | unseparated |
 | en | — | 0.028-0.034 | 80,000 Hours, 3 episodes, ASR only: the one genre measured so far |
 
-The large whole-episode figures are tape; on main voices every language sits near English's band,
-with El Hilo 09-25 (0.060) the episode to read next. Gate B numbers wait for English on narrative
-and read-news shows (parked until the DGX is free).
+The large whole-episode figures are tape; on main voices every language sits near English's band.
+Gate B numbers wait for English on narrative and read-news shows (parked until the DGX is free).
+
+**Reading the residue (how gate A was closed on the first set).** Each item is read, not counted:
+
+- Main-voice short errors (spans under 5 words) run 0.011-0.053 against English's 0.028-0.039,
+  and the share that is a filler the publisher edited out is similar (2-29% against 9-23%): once
+  tape is excluded nothing is language-specific. The highest, El Hilo 09-25, is Rioplatense voseo
+  written as standard Spanish ("sabés" -> "sabes"), brand names ("ChatGPT y Claude"), and fillers.
+- A long deletion can be text the publisher kept and the audio cut: El Hilo 09-25's 32 words sit
+  where the transcript's segments run on without a gap (2126.98 s -> 2127.16 s), and appear
+  nowhere else. Check the timeline before calling a deletion lost speech.
+- Untranscribed stretches left after recovery: jingles, songs, an old record, field tape, the
+  start of an interview clip. One (Novelo 09-24, 3609 s, a main voice, recovery rejected as low
+  confidence) is the open item; a single clip call settles it.
 
 ## 5. Naming
 
