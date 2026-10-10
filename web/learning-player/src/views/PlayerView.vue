@@ -2366,11 +2366,13 @@ const { badgeShown } = useCorpusLanguages()
           :active-insight-id="activeInsight?.id ?? null"
           :focus-insight-id="focusInsightId"
           :focus-notes="focusNotes"
+          :segments="segments"
           :moments-count="momentsFor === slug ? episodeMoments.length : null"
           :moments-seconds="reelSeconds(episodeMoments)"
           @seek="seekContent"
           @play-from="playFromContent"
           @announce="announceCapture"
+          @capture-span="onCaptureParagraph"
           @close="panelOpen = false"
           @play-moments="panelOpen = false; openMoments()"
         />

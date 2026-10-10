@@ -323,7 +323,7 @@ describe("KnowledgePanel", () => {
           doc_id: "d1",
           score: 0.9,
           text: "A grounded passage about memory.",
-          metadata: {},
+          metadata: { doc_type: "transcript" },
           source_tier: "segment",
           lifted: { quote: { timestamp_start_ms: 20000 } },
         },
@@ -333,7 +333,7 @@ describe("KnowledgePanel", () => {
     await w.find("input").setValue("memory")
     await w.find("form").trigger("submit")
     await new Promise((r) => setTimeout(r, 0))
-    expect(w.text()).toContain("A grounded passage about memory.")
+    expect(w.text()).toContain("A grounded passage about")
     const jump = w.findAll("button").find((b) => b.text().includes("0:20"))
     await jump!.trigger("click")
     expect(w.emitted("play-from")?.at(-1)).toEqual([20])
@@ -981,7 +981,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
      * differ; identical ids would already have been collapsed server-side.
      */
     const hit = (doc_id: string, text: string) =>
-      ({ doc_id, text, score: 1, metadata: {}, source_tier: "transcript" }) as never
+      ({ doc_id, text, score: 1, metadata: { doc_type: "transcript" }, source_tier: "transcript" }) as never
     vi.spyOn(api, "searchEpisode").mockResolvedValue({
       query: "agents",
       results: [hit("a", "Agentic engineering."), hit("b", "Agentic engineering."), hit("c", "Other.")],
@@ -1263,3 +1263,62 @@ describe("the Brief offers Play moments after its Summary (operator 2026-10-10)"
     expect(mountPanel({ momentsCount: 0 }).find('[data-testid="kp-play-moments"]').exists()).toBe(false)
   })
 })
+
+describe("the Brief's search, for what a listener remembers (operator 2026-10-10)", () => {
+  const SEGS = [
+    { id: "s0", start: 0, end: 5, text: "Welcome back to the show everyone, glad you are here.", speaker: null },
+    { id: "s1", start: 5, end: 12, text: "Diversification is the only free lunch, people say, and they mean it.", speaker: null },
+  ]
+  async function searchFor(q: string, results: unknown[]) {
+    vi.spyOn(api, "searchEpisode").mockResolvedValue({ query: q, error: null, results } as never)
+    const w = mount(KnowledgePanel, {
+      props: {
+        episode: episode(),
+        insights: [insight()],
+        topics: [],
+        persons: [],
+        slug: "s1",
+        activeInsightId: null,
+        segments: SEGS,
+      },
+      global: { plugins: [i18n, router] },
+    })
+    await w.get("#kp-ask").setValue(q)
+    await w.get("form").trigger("submit")
+    await flushPromises()
+    return w
+  }
+
+  it("groups the transcript and the insights, and leaves the episode summary out", async () => {
+    const w = await searchFor("free lunch", [
+      { doc_id: "i1", score: 1, text: "An insight", metadata: { doc_type: "insight" } },
+      { doc_id: "sum", score: 1, text: "The summary text", metadata: { doc_type: "summary" } },
+      { doc_id: "c1", score: 1, text: "long passage", metadata: { doc_type: "transcript", timestamp_start_ms: 0, timestamp_end_ms: 12_000 } },
+    ])
+    expect(w.get('[data-testid="kp-search-transcript"]').text()).toContain("In the transcript")
+    expect(w.get('[data-testid="kp-search-insights"]').text()).toContain("An insight")
+    expect(w.get('[data-testid="kp-search-results"]').text()).not.toContain("The summary text")
+  })
+
+  it("shows the sentence with the words, marked, played from where it was said", async () => {
+    const w = await searchFor("free lunch", [
+      { doc_id: "c1", score: 1, text: "long passage", metadata: { doc_type: "transcript", timestamp_start_ms: 0, timestamp_end_ms: 12_000 } },
+    ])
+    const piece = w.get('[data-testid="kp-search-piece"]')
+    expect(piece.text()).toContain("Diversification is the only free lunch")
+    expect(piece.findAll("mark").map((m) => m.text())).toEqual(["free", "lunch"])
+    await piece.findAll("button").find((b) => b.text().includes("0:05"))!.trigger("click")
+    expect(w.emitted("play-from")?.at(-1)).toEqual([5])
+  })
+
+  it("Highlight saves exactly the sentence's segments", async () => {
+    const w = await searchFor("free lunch", [
+      { doc_id: "c1", score: 1, text: "x", metadata: { doc_type: "transcript", timestamp_start_ms: 0, timestamp_end_ms: 12_000 } },
+    ])
+    await w.get('[data-testid="kp-search-highlight"]').trigger("click")
+    const [span] = w.emitted("capture-span")!.at(-1) as [{ segment_ids: string[]; start_ms: number }]
+    expect(span.segment_ids).toEqual(["s1"])
+    expect(span.start_ms).toBe(5_000)
+  })
+})
+

@@ -19,10 +19,13 @@ import type {
   Entity,
   Insight,
   SearchHit,
+  Segment,
   Topic,
 } from "../services/types"
 import { formatTime } from "../player/transcriptSync"
 import { hitStartSeconds, insightStartSeconds } from "../player/insights"
+import { groupBriefResults, markTerms, searchTerms } from "../player/briefSearch"
+import { spanFromParagraph, type ParagraphSpan } from "../player/transcriptCapture"
 import { minutesValue } from "../services/moments"
 import { speakerLabel } from "../utils/format"
 import CardRail from "./CardRail.vue"
@@ -63,8 +66,19 @@ const props = withDefaults(
     /** The episode's moments once loaded ("Play 8 moments · 3½ min"); null while unknown. */
     momentsCount?: number | null
     momentsSeconds?: number
+    /**
+     * The episode's timed transcript, as the player loaded it: search results are cut to the
+     * sentence holding the remembered words, timed from it, and saved as highlights from it.
+     */
+    segments?: Segment[]
   }>(),
-  { focusInsightId: null, focusNotes: false, momentsCount: null, momentsSeconds: 0 }
+  {
+    focusInsightId: null,
+    focusNotes: false,
+    momentsCount: null,
+    momentsSeconds: 0,
+    segments: () => [],
+  }
 )
 const emit = defineEmits<{
   (e: "seek", seconds: number): void
@@ -82,6 +96,8 @@ const emit = defineEmits<{
   (e: "announce", message: string): void
   /** "▶ Play moments" at the top of the Brief (operator 2026-10-10): the reel lives on the page. */
   (e: "play-moments"): void
+  /** Highlight a piece of the transcript found by the search (the page saves it, auth-gated). */
+  (e: "capture-span", span: ParagraphSpan): void
 }>()
 
 const { t } = useI18n()
@@ -533,6 +549,10 @@ const results = ref<SearchHit[]>([])
 const searching = ref(false)
 const askError = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
+/** The query the results answer — not the live input, so marking does not shift while typing. */
+const askedQuery = ref("")
+const askedTerms = computed(() => searchTerms(askedQuery.value))
+const grouped = computed(() => groupBriefResults(results.value, props.segments, askedQuery.value))
 
 /**
  * Collapse hits whose text is identical.
@@ -576,6 +596,7 @@ async function runSearch(): Promise<void> {
   askError.value = false
   try {
     const resp = await searchEpisode(props.slug, query)
+    askedQuery.value = query
     results.value = dedupeByText(resp.results)
     askError.value = Boolean(resp.error)
   } catch {
@@ -834,21 +855,63 @@ watch(() => auth.isAuthenticated, loadCaptures)
           </div>
           <p v-if="searching" class="mt-2 text-sm text-muted">{{ t("kp.searching") }}</p>
           <p v-else-if="askError" class="mt-2 text-sm text-danger">{{ t("kp.searchError") }}</p>
-          <ul v-else-if="results.length" class="mt-3 flex flex-col gap-2">
-            <li
-              v-for="hit in results"
-              :key="hit.doc_id"
-              class="rounded-xl border border-border p-3"
-            >
-              <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
-              <PlayFrom
-                v-if="hitStartSeconds(hit) != null"
-                class="mt-1 inline-block"
-                :seconds="hitStartSeconds(hit)"
-                @click="emit('play-from', hitStartSeconds(hit) as number)"
-              />
-            </li>
-          </ul>
+          <!-- Two groups (operator 2026-10-10): the transcript — the sentence holding the words,
+               the words marked, Play from and Highlight — then the insights. -->
+          <div
+            v-else-if="grouped.transcript.length || grouped.insights.length"
+            class="mt-3 flex flex-col gap-4"
+            data-testid="kp-search-results"
+          >
+            <section v-if="grouped.transcript.length" data-testid="kp-search-transcript">
+              <h4 class="lp-kicker mb-1.5">{{ t("kp.searchInTranscript") }}</h4>
+              <ul class="flex flex-col gap-2">
+                <li
+                  v-for="p in grouped.transcript"
+                  :key="p.key"
+                  class="rounded-xl border border-border p-3"
+                  data-testid="kp-search-piece"
+                >
+                  <p class="text-sm text-surface-foreground"><template
+                      v-for="(run, i) in markTerms(p.text, askedTerms)"
+                      :key="i"
+                    ><mark
+                        v-if="run.mark"
+                        class="rounded-sm bg-canvas-foreground/15 px-0.5 font-semibold text-canvas-foreground"
+                      >{{ run.text }}</mark><template v-else>{{ run.text }}</template></template></p>
+                  <div class="mt-1 flex flex-wrap items-center gap-x-4">
+                    <PlayFrom v-if="p.start != null" :seconds="p.start" @click="emit('play-from', p.start)" />
+                    <button
+                      v-if="p.segments.length"
+                      type="button"
+                      class="inline-flex min-h-[44px] items-center text-sm font-bold text-accent"
+                      data-testid="kp-search-highlight"
+                      @click="emit('capture-span', spanFromParagraph(p.segments, null))"
+                    >
+                      {{ t("kp.searchHighlight") }}
+                    </button>
+                  </div>
+                </li>
+              </ul>
+            </section>
+            <section v-if="grouped.insights.length" data-testid="kp-search-insights">
+              <h4 class="lp-kicker mb-1.5">{{ t("kp.searchInsights") }}</h4>
+              <ul class="flex flex-col gap-2">
+                <li
+                  v-for="hit in grouped.insights"
+                  :key="hit.doc_id"
+                  class="rounded-xl border border-border p-3"
+                >
+                  <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
+                  <PlayFrom
+                    v-if="hitStartSeconds(hit) != null"
+                    class="mt-1 inline-block"
+                    :seconds="hitStartSeconds(hit)"
+                    @click="emit('play-from', hitStartSeconds(hit) as number)"
+                  />
+                </li>
+              </ul>
+            </section>
+          </div>
           <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">
             {{ t("kp.noResults") }}
           </p>

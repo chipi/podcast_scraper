@@ -496,12 +496,18 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   notes. The grounded items inside stay "insights".
   It opens on the episode: show kicker, title, then the people in the room, host first and then
   guests (mentioned people stay in the chips), each with a 32px `ProfileAvatar` photo and a role
-  label. Initials show when there is no photo. Tapping a person opens them in the panel with
-  ‹ Back, the same as their chip does. The panel is a single
-  vertical column: episode (title + people) · Summary · Download brief · Search this episode ·
+  label. Initials show when there is no photo. Tapping a person opens them as a sheet layered
+  over the panel, the same as their chip does. The panel is a single
+  vertical column: episode (title + people) · Summary · Play moments · Download brief · Search this episode ·
   Key points · **Topics & People (one merged, expandable row; chips → corpus search)** · Insights
   (grounded cards, `●` grounded marker) · More like this. Search sits below the summary and the
   download row (2026-09-30): the panel opens on what the episode is, and search is for digging in.
+  **Search this episode is for what a listener remembers** (operator 2026-10-10; eval
+  `docs/wip/BRIEF-SEARCH-EVAL-2026-10-10.md`): it searches only this episode, and its results come
+  in two groups — **In the transcript** (the words verbatim first, then by meaning; each result cut
+  to the sentence holding the words, the words marked, "Play from" where it was said, and
+  **Highlight**, which saves that sentence) and **Insights**. The episode's own summary,
+  description and title are left out of the results; the Brief already shows them.
 - **Episode description** (operator 2026-10-10): the obi's About door opens
   `EpisodeDescriptionSheet`, which shows the publisher's own description in full. Cards clamp that
   text, and the player had no way to read it. The sheet is a native `<dialog>`: a bottom sheet on
