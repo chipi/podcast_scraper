@@ -436,7 +436,9 @@ describe('capture: highlights + notes', () => {
   })
 
   it('deleteHighlight DELETEs and returns the remaining items', async () => {
-    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({ ok: true, status: 200, json: async () => ({ items: [] }) }))
+    const fetchMock = vi.fn(
+      async (_url: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ items: [] }), { status: 200 }),
+    )
     vi.stubGlobal('fetch', fetchMock)
     expect(await deleteHighlight('h1')).toEqual([])
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'DELETE' })
@@ -545,11 +547,19 @@ describe('write answers — today\'s and the leaner ones to come', () => {
 
   it('a 204 with no body from DELETE /highlights or /notes is a success, not a failed delete', async () => {
     const { deleteNote } = await import('./api')
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({ ok: true, status: 204, json: async () => { throw new SyntaxError('no body') } })),
-    )
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
     await expect(deleteHighlight('h1')).resolves.toEqual([])
     await expect(deleteNote('n1')).resolves.toEqual([])
+  })
+
+  it('a 200 with an empty body is a success too; today\'s remaining-list answer still reads', async () => {
+    const { deleteNote } = await import('./api')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 200 })))
+    await expect(deleteHighlight('h1')).resolves.toEqual([])
+    await expect(deleteNote('n1')).resolves.toEqual([])
+    const rows = [{ id: 'n2' }]
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ items: rows }), { status: 200 })))
+    await expect(deleteNote('n1')).resolves.toEqual(rows)
+    await expect(deleteHighlight('h1')).resolves.toEqual(rows)
   })
 })

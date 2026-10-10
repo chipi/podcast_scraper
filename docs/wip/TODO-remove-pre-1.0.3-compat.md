@@ -9,7 +9,7 @@ answers (see the audit below).
 
 **Part (b) done 2026-10-10 (1.0.4 branch):** 1.0.4 accepts the leaner write answers.
 `favoriteRefsOf` reads a refs-only `{ items }` answer as well as the full list, and
-`deleteHighlight` / `deleteNote` treat a 204 as success. The server still sends the whole-list
+`deleteHighlight` / `deleteNote` treat an answer with no body (204, or an empty 200) as success. The server still sends the whole-list
 answers; switch them (refs-only favourites, 204 deletes) only once no 1.0.3 is in use.
 
 Operator, 2026-10-08: every API change in the 1.0.3 arc is an **enhancement**. Old clients (1.0.2)

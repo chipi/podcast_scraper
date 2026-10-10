@@ -1652,6 +1652,16 @@ export async function patchHighlight(id: string, body: HighlightUpdate): Promise
   return (await resp.json()) as Highlight
 }
 
+/**
+ * A delete's answer: today the remaining list; a later server may answer with no body at all (204,
+ * or an empty 200 — compat TODO part b). No body is a success with nothing to read, not a failure.
+ */
+async function remainingAfterDelete<T>(resp: Response): Promise<T[]> {
+  if (resp.status === 204) return []
+  const body = await resp.text()
+  return body.trim() ? (JSON.parse(body) as { items: T[] }).items : []
+}
+
 /** Remove a highlight by id (auth-gated); returns the remaining list. */
 export async function deleteHighlight(id: string): Promise<Highlight[]> {
   const resp = await apiFetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
@@ -1659,9 +1669,7 @@ export async function deleteHighlight(id: string): Promise<Highlight[]> {
     credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /highlights → ${resp.status}`)
-  // Today the remaining list; a later server may answer 204 with no body (compat TODO part b).
-  if (resp.status === 204) return []
-  return ((await resp.json()) as { items: Highlight[] }).items
+  return remainingAfterDelete<Highlight>(resp)
 }
 
 /** The user's notes, optionally scoped to one target. A 401 THROWS (#2004 #3): the store falls back
@@ -1704,9 +1712,7 @@ export async function deleteNote(id: string): Promise<Note[]> {
     credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /notes → ${resp.status}`)
-  // Today the remaining list; a later server may answer 204 with no body (compat TODO part b).
-  if (resp.status === 204) return []
-  return ((await resp.json()) as { items: Note[] }).items
+  return remainingAfterDelete<Note>(resp)
 }
 
 /** The URL for the Markdown export of highlights (a download link / new tab). With `color`, the
