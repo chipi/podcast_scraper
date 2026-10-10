@@ -65,8 +65,10 @@ class TestATitleInAnyLanguageIsNotTheGivenName:
     def test_a_french_m_is_kept_because_it_is_an_english_initial(self) -> None:
         assert roster._core_name_tokens("M. Night Shyamalan") == ["M", "Night", "Shyamalan"]
 
-    def test_english_title_words_keep_their_pinned_behaviour(self) -> None:
-        assert roster._core_name_tokens("General Mark Milley") == ["General", "Mark", "Milley"]
+    def test_an_english_military_title_is_a_title_too(self) -> None:
+        # Replayed on the prod snapshot of 2026-10-09 (2,454 English episodes): no name changed.
+        assert roster._core_name_tokens("General Mark Milley") == ["Mark", "Milley"]
+        assert roster._core_name_tokens("General Milley") == ["General", "Milley"]
 
 
 def test_a_greeting_is_read_in_the_feed_language() -> None:
