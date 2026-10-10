@@ -582,7 +582,11 @@ def _translate_episode(
         outcome.status = STATUS_SKIPPED
         outcome.reason = "not_a_diarized_screenplay"
         return outcome
-    turns = build_turns(offset_segments, screenplay_text=rebuilt)
+    turns = build_turns(
+        offset_segments,
+        screenplay_text=rebuilt,
+        max_sentence_words=int(getattr(cfg, "translation_max_sentence_words", 0) or 0),
+    )
     turn_dicts = [t.to_dict() for t in turns.turns]
 
     provider = create_translation_provider(cfg)

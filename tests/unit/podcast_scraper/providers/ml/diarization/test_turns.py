@@ -337,3 +337,40 @@ class TestOverRealFixtureSegments:
         for t in turns.turns:
             expected = " ".join((offsets[i].get("text") or "").strip() for i in t.segment_idx)
             assert text[t.char_start : t.char_end] == expected
+
+
+class TestLongUnpunctuatedSentences:
+    """`max_sentence_words` (2026-10-10): unpunctuated speech made 654-word "sentences"."""
+
+    @staticmethod
+    def _speech() -> List[Dict[str, Any]]:
+        return [
+            _seg(0.0, 5.0, "uno dos tres cuatro cinco seis", "Maya"),
+            _seg(5.0, 10.0, "siete ocho nueve diez once doce", "Maya"),
+            _seg(10.0, 15.0, "trece catorce quince dieciseis diecisiete", "Maya"),
+        ]
+
+    def _sentences(self, turns: Any, text: str) -> List[str]:
+        return [text[s.char_start : s.char_end] for s in turns.turns[0].sentences]
+
+    def test_off_by_default_the_turn_is_one_sentence(self) -> None:
+        text, offsets = _render(self._speech())
+        turns = build_turns(offsets, screenplay_text=text)
+        assert len(turns.turns[0].sentences) == 1
+
+    def test_cut_only_where_a_segment_ends_and_rejoined_while_it_fits(self) -> None:
+        text, offsets = _render(self._speech())
+        turns = build_turns(offsets, screenplay_text=text, max_sentence_words=12)
+        assert self._sentences(turns, text) == [
+            "uno dos tres cuatro cinco seis siete ocho nueve diez once doce",
+            "trece catorce quince dieciseis diecisiete",
+        ]
+        cut = turns.turns[0].sentences
+        assert (cut[0].end_ms, cut[1].start_ms) == (10000, 10000)
+        assert cut[0].timing == "segment_exact"
+
+    def test_a_short_sentence_is_left_alone(self) -> None:
+        segs = [_seg(0.0, 2.0, "Hola.", "Maya"), _seg(2.0, 4.0, "Chau.", "Maya")]
+        text, offsets = _render(segs)
+        turns = build_turns(offsets, screenplay_text=text, max_sentence_words=3)
+        assert self._sentences(turns, text) == ["Hola.", "Chau."]

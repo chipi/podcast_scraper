@@ -2299,6 +2299,15 @@ class Config(BaseModel):
         "were judged low 43-50% of the time against 12% for 50-100 words; the model condenses "
         "long units. Words are whitespace-split, so the cap does not bind for unspaced scripts.",
     )
+    translation_max_sentence_words: int = Field(
+        default=0,
+        ge=0,
+        alias="translation_max_sentence_words",
+        description="Cut a sentence longer than this at the ASR segment ends inside it, for the "
+        "translation's units only (turns.json is unchanged). 0 = off, punctuation is the only "
+        "sentence boundary, as before. Unpunctuated speech made 'sentences' of 339 and 654 words "
+        "on El Hilo (2026-10-10), which translation_max_unit_words cannot split.",
+    )
     translation_protect_names: bool = Field(
         default=False,
         alias="translation_protect_names",

@@ -270,6 +270,34 @@ Gate B numbers wait for English on narrative and read-news shows (parked until t
    4.60-4.71, fluency 4.95-4.96, 0-2% low units. A careful human translation is the ceiling, not
    5. The pipeline on the same episodes: 3.45-4.12 adequacy, 18-28% low units; the gap (0.6-1.2)
    is many times the judge's noise and is where the tier-2 work is.
+5. **Read the main voices, as for ASR.** The judge report carries a `main_voices` block per
+   episode (`--rescore` adds it to an old report without judge calls): a unit counts when most of
+   its words align to the reference's main-voice turns, so ads and archive clips are out. On El
+   Hilo about half the low units are ads (another show's promo, iHeart spots), but they are short:
+   main-voice adequacy moves by under 0.1. The comparison that matters, main voices against the
+   human anchor's main voices: 3.38-3.54 / 3.95-4.06 against 4.59 / 4.70 (five unchanged runs).
+6. **Sort the low units by cause before building a fix.** The model's output is the same run to
+   run (31 of 51 low units low in all four baseline runs), so the errors are systematic and only a
+   change of input moves them. On El Hilo (2026-10-10):
+   - Unit length. Units of 200+ source words were judged low 43-50% of the time against 12% for
+     50-100 words; the human translation of the same turns shows no such drop. The model condenses
+     long units. Switch: `translation_max_unit_words` (splits between sentences).
+   - Short fragments, slang, backchannels have the highest error rate (about 5 per 100 words
+     against the human 0.3): no surrounding context. Switch: `translation_context_sentences`.
+   - Unpunctuated ASR text makes one "sentence" of hundreds of words (654, 339), which the length
+     cap cannot split.
+   - Names: the show's own title as a common noun ("en el hilo" as "the thread").
+   - Not fixable in code: idioms and slang the model does not know ("grandes ligas", "hacer
+     agua"), and ASR errors the model invents around ("valesía").
+7. **Measure each switch alone against unchanged runs at the same code**, and repeat a run before
+   believing a single gain. Results so far (El Hilo, main-voice adequacy / low units, against
+   3.38-3.54 / 11-14 and 3.95-4.06 / 7-8):
+   - `translation_context_sentences: 2`: 3.42 / 12 and 4.19 / 4 (one run; repeat pending).
+   - `translation_protect_names` over the episode metadata's capitalised names: 3.34 / 11 and
+     3.82 / 9, a net loss. Places with an English name ("América Latina") came back untranslated,
+     a placeholder lost the grammar around it ("Desde [1]" as "Since"), and the show title was
+     missed because the host says it in lower case. Narrowed to the show title, case-blind when
+     multi-word (`0132edf9b`); remeasure pending.
 
 ## 7. Anything that changes English output
 

@@ -214,6 +214,41 @@ def _protected_split(text: str) -> List[Tuple[int, int]]:
     return merged
 
 
+def _split_long(
+    ranges: List[Tuple[int, int]], text: str, seg_ends: Sequence[int], max_words: int
+) -> List[Tuple[int, int]]:
+    """``ranges`` with every sentence of more than ``max_words`` words cut where an ASR segment
+    ends inside it (a pause Whisper chose), adjacent pieces re-joined while they fit.
+
+    For speech the ASR left unpunctuated: one "sentence" of several hundred words reaches the
+    translator as one line it then condenses. Cuts are only at segment ends, so a piece's
+    timing is exact, and a sentence with no segment end inside it is left whole."""
+    out: List[Tuple[int, int]] = []
+    for start, end in ranges:
+        if max_words <= 0 or len(text[start:end].split()) <= max_words:
+            out.append((start, end))
+            continue
+        cuts = [c for c in seg_ends if start < c < end]
+        pieces: List[Tuple[int, int]] = []
+        prev = start
+        for c in cuts + [end]:
+            piece = (prev, c)
+            if pieces and len(text[pieces[-1][0] : c].split()) <= max_words:
+                pieces[-1] = (pieces[-1][0], c)
+            else:
+                pieces.append(piece)
+            prev = c
+        for a, b in pieces:
+            # Trim the joining space so a piece starts and ends on text.
+            while a < b and text[a].isspace():
+                a += 1
+            while b > a and text[b - 1].isspace():
+                b -= 1
+            if a < b:
+                out.append((a, b))
+    return out
+
+
 def _sentence_times(
     abs_start: int,
     abs_end: int,
@@ -260,6 +295,7 @@ def build_turns(
     offset_segments: Sequence[Dict[str, Any]],
     *,
     screenplay_text: Optional[str] = None,
+    max_sentence_words: int = 0,
 ) -> Turns:
     """Group offset segments into turns with sentences. Pure; no I/O.
 
@@ -268,6 +304,9 @@ def build_turns(
     Passing the RAW diarization segments instead produces turns whose char spans point nowhere,
     which is why ``screenplay_text`` exists: supply it and the identity is VERIFIED rather than
     assumed.
+
+    ``max_sentence_words`` > 0 cuts a longer sentence at the ASR segment ends inside it
+    (:func:`_split_long`); 0 keeps punctuation as the only boundary.
     """
     turns = Turns()
     if not offset_segments:
@@ -304,7 +343,15 @@ def build_turns(
         # segments are joined by a single space in the screenplay, so the same join reproduces
         # the turn's text exactly.
         turn_text = " ".join((s.get("text") or "").strip() for s in segs)
-        for s_ordinal, (rel_start, rel_end) in enumerate(_protected_split(turn_text), start=1):
+        ranges = _protected_split(turn_text)
+        if max_sentence_words > 0:
+            seg_ends, pos = [], 0
+            for seg in segs:
+                pos += len((seg.get("text") or "").strip())
+                seg_ends.append(pos)
+                pos += 1
+            ranges = _split_long(ranges, turn_text, seg_ends, max_sentence_words)
+        for s_ordinal, (rel_start, rel_end) in enumerate(ranges, start=1):
             abs_start = turn.char_start + rel_start
             abs_end = turn.char_start + rel_end
             start_ms, end_ms, mode = _sentence_times(abs_start, abs_end, segs)
