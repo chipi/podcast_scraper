@@ -79,9 +79,20 @@ Branch `feat/player-1.0.4`, no PR yet. Living document: updated as each open ite
   - no other row dropped.
   - Detail: `docs/wip/BRIEF-SEARCH-EVAL-2026-10-10.md`.
 
-## Open on this branch
+## After the deploy: the prod agent's list
 
-- **m0028 on prod needs your OK, and needs a deploy first** (the migration ships in the image).
-  Dry-run first: `upgrade run --dry-run` prints how many rows it would time and why any are left.
-- The phone still needs the newest dev build.
-- Prod duplicate-milestone cleanup needs operator OK.
+**`docs/wip/HANDOVER-prod-agent-player-1.0.4-post-deploy.md`** is the step-by-step list for
+whoever deploys this branch. Each prod step needs the operator's go. In order:
+1. Confirm the images.
+2. Migration **0028**: dry-run, read the counts, apply, verify. Undo is documented.
+3. The duplicate playback milestones: `scripts/ops/dedupe_playback_milestones.py`, dry-run then
+   `--apply`, with undo.
+4. Check Moments against the known examples.
+5. Check the speaker/topic and Brief search changes.
+6. Check the first nightly writes timed transcript rows.
+
+## Open
+
+- The PR's CI must be green before merge.
+- The phone still needs the newest dev build (mobile session).
+- Naming (#2304) is someone else's.
