@@ -30,6 +30,7 @@ import { useUserPreferencesStore } from '../stores/userPreferences'
 import CardRail from '../components/CardRail.vue'
 import SectionHeading from '../components/SectionHeading.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
+import EpisodeDescriptionSheet from '../components/EpisodeDescriptionSheet.vue'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
 import PlayerControls from '../components/PlayerControls.vue'
 import EpisodeRecapPanel from '../components/EpisodeRecapPanel.vue'
@@ -219,6 +220,8 @@ const recapDismissedFor = ref<string | null>(null)
 const recapAutoAdvanceSeconds = ref<number | null>(null)
 const recapNextTitle = ref<string | null>(null)
 const panelOpen = ref(false)
+const descriptionOpen = ref(false)
+const episodeDescription = computed(() => episode.value?.description?.trim() || '')
 /**
  * The notes panel mounts the first time it opens, then stays. A closed <dialog> still renders its
  * children, so every episode built the whole panel — key points, insights, the related rail and its
@@ -1570,6 +1573,18 @@ const { badgeShown } = useCorpusLanguages()
                    LABELLED control, not a 💡 emoji tucked into the stats cluster next to
                    listener/open counts (#1595). It used to read "💡 3" — the least legible control
                    on the page, styled like a statistic, for the product's central feature. -->
+              <!-- The publisher's own description, in full (operator 2026-10-10): cards clamp it and the
+                   player had no way to read it. Quieter than Episode notes, which stays the primary
+                   action; shown whenever the feed gave a description, insights or not. -->
+              <button
+                v-if="!panelOpen && episodeDescription"
+                type="button"
+                data-testid="player-open-description"
+                class="shrink-0 rounded-full bg-canvas/95 px-2.5 py-1 text-[11px] font-bold text-canvas-foreground shadow-lg transition hover:opacity-90"
+                @click="descriptionOpen = true"
+              >
+                {{ t('player.description') }}
+              </button>
               <button
                 v-if="!panelOpen && insights.length"
                 ref="insightsOpener"
@@ -2034,6 +2049,14 @@ const { badgeShown } = useCorpusLanguages()
         />
       </div>
       </dialog>
+
+      <EpisodeDescriptionSheet
+        v-if="episodeDescription"
+        :open="descriptionOpen"
+        :title="episode.title"
+        :description="episodeDescription"
+        @close="descriptionOpen = false"
+      />
 
     </div>
   </section>

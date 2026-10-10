@@ -445,6 +445,15 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   Key points · **Topics & People (one merged, expandable row; chips → corpus search)** · Insights
   (grounded cards, `●` grounded marker) · More like this. Search sits below the summary and the
   download row (2026-09-30): the panel opens on what the episode is, and search is for digging in.
+- **Episode description entry (operator 2026-10-10):** a quieter pill, "Description"
+  (`--canvas`, `player-open-description`), just before Episode notes on the artwork. It opens
+  `EpisodeDescriptionSheet`, which shows the publisher's own description in full. Cards clamp that
+  text, and the player had no way to read it. The pill shows whenever the feed gave a description,
+  with or without insights. The sheet is a native `<dialog>`: a bottom sheet on phones, a centred
+  card at `lg`. It shows the episode title, then the whole text as plain text (never HTML). Links
+  the publisher wrote out (`http(s)://`, `www.`) are tappable and open outside the app through
+  `openExternal`. Links hidden behind words in the feed's HTML cannot be shown, because ingest
+  strips them.
 - **Episode card (Catalog + search):** hairline-separated row — artwork block + clean **lede**
   (summary title) + `date · duration` + a grounded **✦ insights icon** that reveals the full
   summary bullets on hover/tap. *No topic pills on the card.* (The oversized faint **numeral** is the

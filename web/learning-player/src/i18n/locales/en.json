@@ -433,6 +433,9 @@
     "sigPeople": "Key people"
   },
   "player": {
+    "description": "Description",
+    "descriptionTitle": "Episode description",
+    "descriptionClose": "Close description",
     "back": "Back",
     "loading": "Loading episode…",
     "notFound": "Episode not found.",
