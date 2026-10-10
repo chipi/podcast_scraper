@@ -285,7 +285,41 @@ class TestACanonicalNameIsNeverWorseThanTheInput:
 
         assert canonical_person_name(raw) == want
 
-    @pytest.mark.parametrize("name", ["Peter Attia, MD", "Aaron Levie)", "Sophia Dew)", ")", "))"])
+    @pytest.mark.parametrize(
+        "raw,want",
+        [
+            ("Paul Hoffman SC", "Paul Hoffman"),  # prod: BizNews Radio, 2026-10-10
+            ("Paul Hoffman, SC", "Paul Hoffman"),
+            ("Jane Doe QC", "Jane Doe"),
+            ("Peter Attia MD", "Peter Attia"),
+            ("Mary Smith PhD", "Mary Smith"),
+        ],
+    )
+    def test_a_written_credential_leaves_without_a_comma_too(self, raw: str, want: str) -> None:
+        from podcast_scraper.identity.slugify import canonical_person_name
+
+        assert canonical_person_name(raw) == want
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Yo-Yo Ma",  # a surname that is also a credential word, two tokens
+            "Kelly Ma Ma",  # lower-case or title-case short words are names, never credentials
+            "Anh Do Do",
+            "Rui Pe Pe",
+            "John Paul Md",  # not written as a credential
+            "Grace Kc",
+            "Pradeep Kumar KC",  # KC is a Nepali surname, not a credential here
+        ],
+    )
+    def test_a_name_that_looks_like_a_credential_keeps_it(self, name: str) -> None:
+        from podcast_scraper.identity.slugify import canonical_person_name
+
+        assert canonical_person_name(name) == name
+
+    @pytest.mark.parametrize(
+        "name", ["Peter Attia, MD", "Paul Hoffman SC", "Aaron Levie)", "Sophia Dew)", ")", "))"]
+    )
     def test_it_never_returns_something_longer_than_it_was_given(self, name: str) -> None:
         """A blanket guard: this function only ever REMOVES edge junk. Anything else is a bug."""
         from podcast_scraper.identity.slugify import canonical_person_name

@@ -73,6 +73,25 @@ CREDENTIAL_SUFFIXES = frozenset(
     }
 )
 
+#: Senior / Queen's Counsel. Kept apart from CREDENTIAL_SUFFIXES on purpose: the roster strips that
+#: set from a name's END token-by-token, and `KC` is also a common Nepali surname (`Pradeep KC`), so
+#: these are only removed here, from a name of three or more words.
+_SILK = frozenset({"sc", "qc"})
+
+#: Credentials stripped even WITHOUT a comma (`Paul Hoffman SC`, BizNews 2026-10-10), but only when
+#: written in capitals (`PhD` style for the doctorates). Short words that are also names or English
+#: words (`Do`, `Ma`, `Ba`, `Pe`) are excluded: `Yo-Yo Ma` must keep his surname.
+_BARE_CREDENTIALS = (CREDENTIAL_SUFFIXES | _SILK) - {"do", "ma", "ba", "pe", "msc", "bsc"}
+_MIXED_CASE_CREDENTIALS = frozenset({"PhD", "DPhil", "PharmD", "PsyD", "EdD"})
+
+
+def _is_bare_credential(token: str) -> bool:
+    bare = token.replace(".", "")
+    if bare.lower() not in _BARE_CREDENTIALS:
+        return False
+    return bare.isupper() or bare in _MIXED_CASE_CREDENTIALS
+
+
 #: Generational suffixes — the OPPOSITE of a credential. These exist to tell a father from a son,
 #: so they are never stripped and two names disagreeing about one are two people.
 GENERATIONAL_SUFFIXES = frozenset({"jr", "jnr", "junior", "sr", "snr", "senior", "ii", "iii", "iv"})
@@ -129,10 +148,13 @@ def canonical_person_name(name: str) -> str:
     cleaned = letters_or_digits_at_the_edges(" ".join((name or "").split()))
     while "," in cleaned:
         head, _, tail = cleaned.rpartition(",")
-        if tail.strip().lower().replace(".", "") not in CREDENTIAL_SUFFIXES:
+        if tail.strip().lower().replace(".", "") not in CREDENTIAL_SUFFIXES | _SILK:
             break
         cleaned = letters_or_digits_at_the_edges(head)
-    return cleaned
+    tokens = cleaned.split()
+    while len(tokens) >= 3 and _is_bare_credential(tokens[-1]):
+        tokens = tokens[:-1]
+    return letters_or_digits_at_the_edges(" ".join(tokens))
 
 
 def person_identity_name(name: str) -> str:
