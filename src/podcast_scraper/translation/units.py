@@ -112,6 +112,9 @@ class TranslationUnit:
     #: model can resolve who "he", "she" and "they" are (`attach_context`). Their translation is
     #: dropped: they are context, not this unit's output. Empty unless the switch is on.
     context: List[str] = field(default_factory=list)
+    #: Names the episode's metadata states that occur in this unit (`translation.protected_terms`),
+    #: kept out of the translator's hands. Empty unless the switch is on.
+    protected_terms: List[str] = field(default_factory=list)
 
     @property
     def source_text(self) -> str:
@@ -147,11 +150,16 @@ class TranslationUnit:
             out["oversized"] = True
         if self.context:
             out["context"] = list(self.context)
+        if self.protected_terms:
+            out["protected_terms"] = list(self.protected_terms)
         return out
 
 
 def content_key(
-    source_language: str, sentences: Sequence[UnitSentence], context: Sequence[str] = ()
+    source_language: str,
+    sentences: Sequence[UnitSentence],
+    context: Sequence[str] = (),
+    protected_terms: Sequence[str] = (),
 ) -> str:
     """Hash of ``(source_language, the unit's sentence texts)`` — RFC-124 §5.1b.
 
@@ -175,6 +183,11 @@ def content_key(
         for c in context:
             h.update(b"\x00")
             h.update(c.encode("utf-8"))
+    if protected_terms:
+        h.update(b"\x01protected")
+        for t in protected_terms:
+            h.update(b"\x00")
+            h.update(t.encode("utf-8"))
     return h.hexdigest()
 
 
@@ -350,7 +363,29 @@ def attach_context(
         if need > max_input_tokens:
             continue
         unit.context = context
-        unit.content_key = content_key(source_language, unit.sentences, context)
+        unit.content_key = content_key(
+            source_language, unit.sentences, context, unit.protected_terms
+        )
+        given += 1
+    return given
+
+
+def attach_protected_terms(
+    units: Sequence[TranslationUnit], terms: Sequence[str], *, source_language: str
+) -> int:
+    """Give each unit the episode's stated names that occur in it. Returns how many units got
+    any. Call BEFORE `attach_context`: the memory key covers both."""
+    from .protected_terms import terms_in
+
+    given = 0
+    for unit in units:
+        if unit.backchannel or unit.oversized:
+            continue
+        found = terms_in(" ".join([*unit.context, unit.source_text]), terms)
+        if not found:
+            continue
+        unit.protected_terms = found
+        unit.content_key = content_key(source_language, unit.sentences, unit.context, found)
         given += 1
     return given
 

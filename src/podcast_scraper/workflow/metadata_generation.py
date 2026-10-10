@@ -4959,6 +4959,9 @@ def generate_episode_metadata(  # noqa: C901
         # the model renaming `Sesiones de Sendero` to `Trail Sessions`, and a show's name is its
         # identity on every surface, in search, and in every listener's saved library.
         episode_title=getattr(episode, "title", None),
+        # The names the episode states about itself (`translation_protect_names`).
+        episode_description=getattr(episode, "description", None),
+        feed_title=getattr(feed, "title", None),
     )
 
     # RFC-124 §5.3: the consumer half of the completeness gate. The producer withholds the

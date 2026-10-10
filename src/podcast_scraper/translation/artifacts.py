@@ -97,6 +97,9 @@ class UnitRecord:
     #: Why each refused attempt was refused, including those a retry recovered from: a unit that
     #: passed on attempt 2 otherwise says only ``attempts: 2``.
     refusals: List[str] = field(default_factory=list)
+    #: The stated names kept out of the translator's hands in this unit (empty when the
+    #: protection switch is off, or when it fell back -- the reason is then in ``refusals``).
+    protected_terms: List[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -128,6 +131,8 @@ class UnitRecord:
                 out[key] = getattr(self, key)
         if self.refusals:
             out["refusals"] = list(self.refusals)
+        if self.protected_terms:
+            out["protected_terms"] = list(self.protected_terms)
         return out
 
     @classmethod
@@ -154,6 +159,7 @@ class UnitRecord:
             completion_tokens=_optional_int(raw.get("completion_tokens")),
             max_tokens_capped_from=_optional_int(raw.get("max_tokens_capped_from")),
             refusals=[str(r) for r in (raw.get("refusals") or []) if r],
+            protected_terms=[str(t) for t in (raw.get("protected_terms") or []) if t],
         )
 
 

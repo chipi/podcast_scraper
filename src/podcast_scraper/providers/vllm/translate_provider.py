@@ -415,6 +415,78 @@ class GemmaTranslateProvider(OpenAICompatibleProvider):
         source_language: str,
         target_language: str = "en",
     ) -> Dict[str, Any]:
+        """Translate one unit; with ``protected_terms``, keep those names out of the model's hands.
+
+        The names the episode's metadata states (``translation.protected_terms``) are swapped for
+        placeholders before the request and put back after. When any placeholder does not come
+        back intact the unit is translated again WITHOUT protection, exactly as it would be with
+        the switch off, and the reason is kept in ``refusals``: protection cannot make a unit
+        worse than today.
+        """
+        terms = list(getattr(unit, "protected_terms", None) or [])
+        if terms:
+            protected = self._translate_protected(
+                unit, terms, source_language=source_language, target_language=target_language
+            )
+            if protected is not None and not protected.get("fell_back"):
+                return protected
+            plain = self._translate_unit(
+                unit, source_language=source_language, target_language=target_language
+            )
+            reason = (protected or {}).get("reason", "names protection failed")
+            meta = plain.setdefault("metadata", {})
+            meta["refusals"] = [reason, *(meta.get("refusals") or [])]
+            return plain
+        return self._translate_unit(
+            unit, source_language=source_language, target_language=target_language
+        )
+
+    def _translate_protected(
+        self, unit: Any, terms: List[str], *, source_language: str, target_language: str
+    ) -> Optional[Dict[str, Any]]:
+        """The unit translated with its names as placeholders, or ``{"fell_back": True, ...}``."""
+        import dataclasses
+
+        from ...translation.protected_terms import protect, restore
+
+        sentences = list(unit.sentences)
+        context = list(getattr(unit, "context", None) or [])
+        sent_lines, mapping = protect([*context, *(s.text for s in sentences)], terms)
+        if not mapping:
+            return None
+        sent_context, sent_sentences = sent_lines[: len(context)], sent_lines[len(context) :]
+        masked = dataclasses.replace(
+            unit,
+            sentences=[dataclasses.replace(s, text=t) for s, t in zip(sentences, sent_sentences)],
+            context=sent_context,
+        )
+        got = self._translate_unit(
+            masked, source_language=source_language, target_language=target_language
+        )
+        out = got.get("sentences") or []
+        if got.get("alignment") == "sentence":
+            back = restore([o["en_text"] for o in out], sent_sentences, mapping)
+        elif got.get("alignment") == "unit" and out:
+            back = restore([out[0]["en_text"]], [" ".join(sent_sentences)], mapping)
+        else:
+            return {"fell_back": True, "reason": "names protection: unit not translated"}
+        if back is None:
+            return {
+                "fell_back": True,
+                "reason": "names protection: a placeholder did not come back intact",
+            }
+        for o, text in zip(out, back):
+            o["en_text"] = text
+        got.setdefault("metadata", {})["protected_terms"] = sorted(set(mapping.values()))
+        return got
+
+    def _translate_unit(
+        self,
+        unit: Any,
+        *,
+        source_language: str,
+        target_language: str = "en",
+    ) -> Dict[str, Any]:
         """Translate one unit and align the result back to its SENTENCES (RFC-124 §5.1).
 
         The unit is the translation CONTEXT; the sentence is the alignment atom. The request

@@ -200,6 +200,8 @@ def run_translation_stage(
     feed_id: Optional[str] = None,
     run_id: Optional[str] = None,
     episode_title: Optional[str] = None,
+    episode_description: Optional[str] = None,
+    feed_title: Optional[str] = None,
 ) -> TranslationOutcome:
     """Decide, translate, and record. Never raises into metadata generation.
 
@@ -235,6 +237,8 @@ def run_translation_stage(
                 transcript_relpath=transcript_relpath,
                 effective_output_dir=effective_output_dir,
                 episode_title=episode_title,
+                episode_description=episode_description,
+                feed_title=feed_title,
             )
         except Exception as exc:  # noqa: BLE001 - see the docstring: never raise into metadata
             # "Never raises into metadata generation" was false: `create_translation_provider`
@@ -514,6 +518,8 @@ def _translate_episode(
     transcript_relpath: str,
     effective_output_dir: str,
     episode_title: Optional[str] = None,
+    episode_description: Optional[str] = None,
+    feed_title: Optional[str] = None,
 ) -> TranslationOutcome:
     """Pack, translate, write the ledger, and write the English render only when complete.
 
@@ -536,7 +542,8 @@ def _translate_episode(
         write_translation_json,
     )
     from ..translation.factory import create_translation_provider
-    from ..translation.units import attach_context, pack_units
+    from ..translation.protected_terms import candidate_terms
+    from ..translation.units import attach_context, attach_protected_terms, pack_units
 
     language = outcome.source_language or ""
     if not is_translation_configured(cfg):
@@ -590,6 +597,14 @@ def _translate_episode(
         ),
         count_tokens=getattr(provider, "count_tokens", None),
     )
+    if bool(getattr(cfg, "translation_protect_names", False)):
+        attach_protected_terms(
+            units,
+            candidate_terms(
+                episode_title, episode_description, show_title=feed_title, language=language
+            ),
+            source_language=language,
+        )
     context_sentences = int(getattr(cfg, "translation_context_sentences", 0) or 0)
     if context_sentences > 0:
         attach_context(
@@ -670,6 +685,7 @@ def _translate_episode(
                         completion_tokens=cached.completion_tokens,
                         max_tokens_capped_from=cached.max_tokens_capped_from,
                         refusals=list(cached.refusals),
+                        protected_terms=list(cached.protected_terms),
                     )
                 )
                 continue
@@ -697,6 +713,7 @@ def _translate_episode(
                 completion_tokens=meta.get("completion_tokens"),
                 max_tokens_capped_from=meta.get("max_tokens_capped_from"),
                 refusals=[str(r) for r in (meta.get("refusals") or []) if r],
+                protected_terms=[str(t) for t in (meta.get("protected_terms") or []) if t],
             )
         )
 
