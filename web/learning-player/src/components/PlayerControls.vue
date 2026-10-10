@@ -26,12 +26,19 @@ const props = defineProps<{
   momentMarks?: number[]
   /** Step (2026-10-10): the insight the listener is in — its tick stands out on the strip. */
   currentMarkerId?: string | null
+  /**
+   * Moments plays (operator 2026-10-10): the skips become previous / next moment. The page keeps
+   * the episode's transport; only what the two skip cells do changes, like the mockup's |◀ ▶|.
+   */
+  reel?: boolean
 }>()
 const emit = defineEmits<{
   (e: "toggle"): void
   (e: "seek", t: number): void
   (e: "skip", delta: number): void
   (e: "cycle-rate"): void
+  (e: "prev-moment"): void
+  (e: "next-moment"): void
 }>()
 
 const { t } = useI18n()
@@ -133,10 +140,12 @@ function onDensityUp(): void {
         type="button"
         class="flex items-center justify-center rounded-full border border-border text-sm font-bold transition hover:bg-overlay sm:text-base"
         :class="TRANSPORT_BUTTON_SIZE"
-        :aria-label="t('player.back15')"
-        @click="emit('skip', -15)"
+        :aria-label="reel ? t('moments.prev') : t('player.back15')"
+        data-testid="player-skip-back"
+        @click="reel ? emit('prev-moment') : emit('skip', -15)"
       >
-        ↺15
+        <span v-if="reel" aria-hidden="true">|◀</span>
+        <template v-else>↺15</template>
       </button>
       <button
         type="button"
@@ -165,10 +174,12 @@ function onDensityUp(): void {
         type="button"
         class="flex items-center justify-center rounded-full border border-border text-sm font-bold transition hover:bg-overlay sm:text-base"
         :class="TRANSPORT_BUTTON_SIZE"
-        :aria-label="t('player.forward30')"
-        @click="emit('skip', 30)"
+        :aria-label="reel ? t('moments.next') : t('player.forward30')"
+        data-testid="player-skip-forward"
+        @click="reel ? emit('next-moment') : emit('skip', 30)"
       >
-        30↻
+        <span v-if="reel" aria-hidden="true">▶|</span>
+        <template v-else>30↻</template>
       </button>
       <div><slot name="right-inner" :size="TRANSPORT_BUTTON_SIZE" /></div>
       <button

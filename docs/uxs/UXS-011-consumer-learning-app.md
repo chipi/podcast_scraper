@@ -437,7 +437,7 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   band down the right edge of the artwork, like the paper band on a Japanese LP that carries the
   record's information (`player-obi`, a `<nav>` named "Moments, brief and description"). Three
   equal doors, set exactly alike in the kicker voice with no glyph and no count (PL.5):
-  **Moments** (`player-open-moments`) opens the Moments view, **Brief** (`player-open-insights`)
+  **Moments** (`player-open-moments`) plays the episode's moments, **Brief** (`player-open-insights`)
   opens the Brief panel, **About** (`player-open-description`) opens the publisher's description.
   Equal heights, not sized to their words: "Description" (92px at the 11px kicker) does not fit a
   third of the artwork (63–73px of room on common phones), so the band says **About**, and so does
@@ -450,13 +450,17 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   insight's first quote; previous restarts the current insight, or goes back one within 3 s of
   its start (a music player). No long-press on the skip buttons: invisible, and a second meaning
   for ↺15.
-- **Moments view** (`MomentsReel`; operator 2026-10-10; `?moments=1`): a quick-listening mode that plays the
-  episode's strongest moments back to back, each a clip of the speaker making the point. It is a
-  different place, not the episode view with fewer controls: an amber **Moments** heading, the
-  episode as a header thumbnail, a segment bar, the current moment in display type with who says
-  it and a thin clip bar, previous / play / next, **Keep listening here** (the full episode from
-  this moment), ✕ (back to where the listener was), and an index of every moment. An end card
-  after the last offers "Listen from the start" and "Back to …". A reel is not a listen: no listen
+- **Moments** (`MomentsCard` + `MomentsIndex`; operator 2026-10-10; `?moments=1`): a quick-listening
+  mode that plays the episode's strongest moments back to back, each a clip of the speaker making
+  the point. It plays INSIDE the artwork, and the page stays the episode page (operator
+  2026-10-10, replacing a separate view with its own header: "the key area stays as on the played
+  episode and we just change inside the artwork"). The artwork shows segments across the top and,
+  where the live insight card sits otherwise, the current moment in display type with who says it
+  and their role, a thin clip bar, ‹ › and **Keep listening here** (the full episode from this
+  moment); after the last moment, an end card ("Listen from the start", "Back to …", the next
+  queued episode's moments). The obi's top door reads **Episode** and leads out to where the
+  listener was; the transport's ↺15 / 30↻ become previous / next moment; every moment is listed
+  under the transport, where the transcript is otherwise. A reel is not a listen: no listen
   logged, no position saved, no milestones. Headphone and lock-screen next / previous skip
   moments while it runs. Which moments and how many are server config (`APP_MOMENTS_CONFIG`). In
   the episode view the moments are marked on the density strip (cream, taller than an insight
@@ -469,7 +473,7 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   passage results (already a moment). Downloaded episodes play their reel offline: the moments are
   saved with the download.
 - **Around the reel** (2026-10-10): the mini-player reads "Moments · 3 / 8" while a reel plays and
-  reopens the Moments view; the end card offers the next queued episode's moments, so reels chain
+  reopens the episode with the reel playing; the end card offers the next queued episode's moments, so reels chain
   through a queue; each clip fades in over 250 ms instead of cutting in. Step: the insight the
   listener is in stands out on the density strip (taller, full strength). "▶ Moments" also sits on
   topic, person, storyline, theme and org episode rows and every Discover 2 episode card. Offline
@@ -480,10 +484,8 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   that hides the card); every step shows "› Jumped to 21:07" for two seconds and says it to screen
   readers through the page's one live region; the counter reads "Insight 4 of 40" to them. The
   obi's three doors are divided by the same low-key rule (a brighter one under Moments was tried and
-  dropped, operator 2026-10-10). The Moments view keeps the
-  obi's doors as a row under its header, with Moments turned into **Episode** (leaves the reel, as
-  ✕ does), so Brief and About stay a tap away mid-reel; the current moment names the speaker's
-  role ("Nora, host"). The Brief's button says how many and how long once loaded ("Play 8 moments ·
+  dropped, operator 2026-10-10). Mid-reel the obi keeps Brief and About a tap away; the current
+  moment names the speaker's role ("Nora, host"). The Brief's button says how many and how long once loaded ("Play 8 moments ·
   3½ min · the strongest moments, in order") and disappears for an episode with none. "▶ Moments"
   shows on search results only for episodes with insights (the server marks `episode_has_gi`), on
   the meta row under "Matched:" (the "Matched" line itself sits inside the result's link, and a

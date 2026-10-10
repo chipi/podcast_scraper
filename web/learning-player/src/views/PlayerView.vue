@@ -31,7 +31,8 @@ import CardRail from '../components/CardRail.vue'
 import SectionHeading from '../components/SectionHeading.vue'
 import EpisodeTile from '../components/EpisodeTile.vue'
 import EpisodeDescriptionSheet from '../components/EpisodeDescriptionSheet.vue'
-import MomentsReel from '../components/MomentsReel.vue'
+import MomentsCard from '../components/MomentsCard.vue'
+import MomentsIndex from '../components/MomentsIndex.vue'
 import { loadMoments, reelSeconds, toReel } from '../services/moments'
 import type { ReelMoment } from '../stores/player'
 import KnowledgePanel from '../components/KnowledgePanel.vue'
@@ -1603,36 +1604,6 @@ const { badgeShown } = useCorpusLanguages()
            the transcript, so `sticky top-0` keeps them pinned while the transcript scrolls under.
            On desktop (lg) it's a normal grid column again. -->
       <div class="contents lg:block">
-        <!-- Moments (operator 2026-10-10): its own view in place of the masthead, artwork and
-             transport, so the two modes can never be mistaken for each other. -->
-        <MomentsReel
-          v-if="momentsActive && player.reel"
-          :title="episode.title"
-          :show-title="episode.podcast_title ?? null"
-          :artwork="artwork ?? null"
-          :moments="player.reel.moments"
-          :index="player.reel.index"
-          :done="player.reel.done"
-          :playing="playing"
-          :current-time="currentTime"
-          :return-to="player.reel.returnTo"
-          :episode-seconds="duration"
-          :next-title="reelNextTitle"
-          :has-brief="insights.length > 0"
-          :has-about="!!episodeDescription"
-          :speaker-roles="speakerRoles"
-          @brief="panelOpen = true"
-          @about="descriptionOpen = true"
-          @go="player.reelGo"
-          @prev="player.reelPrev"
-          @next="player.reelNext"
-          @toggle="player.toggle"
-          @keep="onMomentsKeep"
-          @close="onMomentsClose"
-          @from-start="onMomentsFromStart"
-          @next-episode="onMomentsNextEpisode"
-        />
-        <template v-else>
         <div class="flex items-start justify-between gap-3">
           <RouterLink
             v-if="episode.podcast_title && episode.feed_id"
@@ -1863,8 +1834,19 @@ const { badgeShown } = useCorpusLanguages()
               :aria-label="t('player.obiLabel')"
               class="absolute inset-y-0 right-0 z-10 flex w-[44px] flex-col border-l border-border bg-canvas/95"
             >
+              <!-- While Moments plays, the same door reads Episode and leads out the way it came in
+                   (operator 2026-10-10), back to where the listener was. -->
               <button
-                v-if="insights.length"
+                v-if="insights.length && momentsActive"
+                type="button"
+                data-testid="player-obi-episode"
+                class="lp-obi-door"
+                @click="onMomentsClose"
+              >
+                <span class="lp-kicker lp-obi-label">{{ t('moments.door_episode') }}</span>
+              </button>
+              <button
+                v-else-if="insights.length"
                 type="button"
                 data-testid="player-open-moments"
                 class="lp-obi-door"
@@ -1916,7 +1898,7 @@ const { badgeShown } = useCorpusLanguages()
             -->
             <Transition name="zone-d-fade">
               <div
-                v-if="visibleInsight"
+                v-if="visibleInsight && !momentsActive"
                 key="live"
                 data-testid="player-zone-d-live"
                 class="absolute bottom-0 left-0 touch-pan-y"
@@ -2021,7 +2003,7 @@ const { badgeShown } = useCorpusLanguages()
                 </div>
               </div>
               <div
-                v-else
+                v-else-if="!momentsActive"
                 key="rest"
                 data-testid="player-zone-d-rest"
                 class="absolute bottom-0 left-0 touch-pan-y p-3"
@@ -2060,6 +2042,31 @@ const { badgeShown } = useCorpusLanguages()
                 </div>
               </div>
             </Transition>
+            <!-- Moments (operator 2026-10-10): the reel plays INSIDE the artwork — segments across
+                 the top, the current moment where the live insight card sits otherwise. The page
+                 around it stays the episode page. -->
+            <div
+              v-if="momentsActive && player.reel"
+              class="absolute inset-y-0 left-0"
+              :class="obiShown ? 'right-[44px]' : 'right-0'"
+            >
+              <MomentsCard
+                :moments="player.reel.moments"
+                :index="player.reel.index"
+                :done="player.reel.done"
+                :current-time="currentTime"
+                :return-to="player.reel.returnTo"
+                :episode-seconds="duration"
+                :next-title="reelNextTitle"
+                :speaker-roles="speakerRoles"
+                @prev="player.reelPrev"
+                @next="player.reelNext"
+                @keep="onMomentsKeep"
+                @back="onMomentsClose"
+                @from-start="onMomentsFromStart"
+                @next-episode="onMomentsNextEpisode"
+              />
+            </div>
           </div>
         </div>
 
@@ -2102,9 +2109,12 @@ const { badgeShown } = useCorpusLanguages()
             :markers="insightMarkers"
             :moment-marks="momentMarks"
             :current-marker-id="currentInsightId"
+            :reel="momentsActive"
             @toggle="player.toggle"
             @seek="player.seek"
             @skip="player.skip"
+            @prev-moment="player.reelPrev"
+            @next-moment="player.reelNext"
             @cycle-rate="player.cycleRate"
           >
             <!-- The transport is a mirror (PlayerControls): these fill the cells either side of the
@@ -2158,7 +2168,15 @@ const { badgeShown } = useCorpusLanguages()
             {{ t('player.audioUnavailable') }}
           </p>
         </div>
-        </template>
+        <!-- Moments (operator 2026-10-10): every moment of the reel, under the transport while it
+             plays — the artwork shows the current one. -->
+        <MomentsIndex
+          v-if="momentsActive && player.reel"
+          :moments="player.reel.moments"
+          :index="player.reel.index"
+          :done="player.reel.done"
+          @go="player.reelGo"
+        />
       </div>
 
       <!-- Middle: synced transcript. The mobile show/hide toggle lives in the floating controls

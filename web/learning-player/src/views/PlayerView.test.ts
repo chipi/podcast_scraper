@@ -1222,7 +1222,7 @@ describe('Moments view on the player page (operator 2026-10-10)', () => {
     w.unmount()
   })
 
-  it('while a reel runs the page IS the Moments view; Keep listening leaves it and the query', async () => {
+  it('while a reel runs it plays inside the artwork of the episode page; Keep listening leaves it and the query', async () => {
     await router.push({ name: 'player', params: { slug: 'ep-1' }, query: { moments: '1' } })
     const w = await mountPlayer('ep-1')
     const player = usePlayerStore()
@@ -1238,13 +1238,15 @@ describe('Moments view on the player page (operator 2026-10-10)', () => {
       done: false,
     }
     await flushPromises()
-    expect(w.find('[data-testid="moments-reel"]').exists()).toBe(true)
-    expect(w.find('[data-testid="player-hero"]').exists()).toBe(false)
+    // The episode page stays (operator 2026-10-10): the moment is inside its artwork.
+    expect(w.get('[data-testid="player-hero"]').find('[data-testid="moments-card"]').exists()).toBe(true)
+    expect(w.find('[data-testid="player-zone-d-live"]').exists()).toBe(false)
+    expect(w.find('[data-testid="moments-index"]').exists()).toBe(true)
     await w.get('[data-testid="moments-keep"]').trigger('click')
     await flushPromises()
     expect(exit).toHaveBeenCalledWith(true)
     expect(router.currentRoute.value.query.moments).toBeUndefined()
-    expect(w.find('[data-testid="player-hero"]').exists()).toBe(true)
+    expect(w.find('[data-testid="moments-card"]').exists()).toBe(false)
   })
 
   it('an episode with no moments drops ?moments=1 and stays the episode', async () => {

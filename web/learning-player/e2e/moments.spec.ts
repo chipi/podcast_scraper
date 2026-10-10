@@ -3,10 +3,12 @@ import { expect, test, type Page } from '@playwright/test'
 import { signInIsolated } from './helpers'
 
 /**
- * Moments (operator 2026-10-10): the obi's Moments door turns the player page into the Moments
- * view — its own title, the current moment leading, an index of all of them — and the reel plays
- * the moments back to back. Keep listening here returns to the episode at that moment; ✕ returns
- * to where the listener was. Step (‹ ›) moves between insights in the normal episode view.
+ * Moments (operator 2026-10-10): the obi's Moments door plays the episode's strongest moments back
+ * to back, INSIDE the artwork — the page stays the episode page (masthead, artwork, transport). The
+ * artwork shows the current moment and the reel's segments; the obi's top door reads Episode; the
+ * transport's skips become previous / next moment; every moment is listed under the transport.
+ * Keep listening here returns to the episode at that moment; Episode returns to where the listener
+ * was. Step (‹ ›) moves between insights in the normal episode view.
  *
  * "The Bessent Tape" has three insights; the e2e stack sets APP_MOMENTS_CONFIG min_gap_seconds=5
  * (playwright.config.ts) because the fixture's quotes are synthetic and bunched in the first 48 s.
@@ -28,12 +30,13 @@ test('the Moments door opens the Moments view and the reel plays its moments in 
   await openEpisode(page, testInfo, 'reel')
   await page.getByTestId('player-open-moments').click()
 
-  const reel = page.getByTestId('moments-reel')
-  await expect(reel).toBeVisible()
+  const card = page.getByTestId('moments-card')
+  await expect(card).toBeVisible()
   await expect(page).toHaveURL(/moments=1/)
-  // A different place, not the episode view with fewer controls.
-  await expect(reel.getByRole('heading', { name: 'Moments', exact: true })).toBeVisible()
-  await expect(page.getByTestId('player-hero')).toHaveCount(0)
+  // The episode page stays; the reel plays inside its artwork, listed under the transport.
+  await expect(page.getByTestId('player-hero').getByTestId('moments-card')).toBeVisible()
+  await expect(page.getByTestId('player-obi-episode')).toBeVisible()
+  await expect(page.getByTestId('moments-index').getByRole('heading', { name: 'Moments', exact: true })).toBeVisible()
   await expect(page.getByTestId('moments-segment')).toHaveCount(3)
   await expect(page.getByTestId('moments-current')).toContainText('Moment 1 of 3')
   await expect(page.getByTestId('moments-index-item')).toHaveCount(3)
@@ -51,25 +54,26 @@ test('the Moments door opens the Moments view and the reel plays its moments in 
 test('Keep listening here returns to the episode at that moment, still playing', async ({ page }, testInfo) => {
   await openEpisode(page, testInfo, 'keep')
   await page.getByTestId('player-open-moments').click()
-  await expect(page.getByTestId('moments-reel')).toBeVisible()
+  await expect(page.getByTestId('moments-card')).toBeVisible()
   await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(5.5)
 
   await page.getByTestId('moments-keep').click()
-  await expect(page.getByTestId('moments-reel')).toHaveCount(0)
-  await expect(page.getByTestId('player-hero')).toBeVisible()
+  await expect(page.getByTestId('moments-card')).toHaveCount(0)
+  await expect(page.getByTestId('player-zone-d-live').or(page.getByTestId('player-zone-d-rest')).first()).toBeVisible()
   await expect(page).not.toHaveURL(/moments=1/)
   expect(await audioTime(page)).toBeGreaterThanOrEqual(5.5)
   expect(await audioPaused(page)).toBe(false)
 })
 
-test('✕ returns to where the listener was, paused', async ({ page }, testInfo) => {
+test('the Episode door returns to where the listener was, paused', async ({ page }, testInfo) => {
   await openEpisode(page, testInfo, 'close')
   const before = await audioTime(page)
   await page.getByTestId('player-open-moments').click()
   await expect.poll(() => audioTime(page)).toBeGreaterThanOrEqual(5.5)
 
-  await page.getByTestId('moments-close').click()
-  await expect(page.getByTestId('player-hero')).toBeVisible()
+  await page.getByTestId('player-obi-episode').click()
+  await expect(page.getByTestId('moments-card')).toHaveCount(0)
+  await expect(page.getByTestId('player-open-moments')).toBeVisible()
   await expect.poll(() => audioTime(page)).toBeLessThan(before + 1)
   expect(await audioPaused(page)).toBe(true)
 })
@@ -111,7 +115,7 @@ test.describe('the ways into Moments', () => {
     const card = page.getByTestId('episode-card').filter({ hasText: 'The Bessent Tape' }).first()
     await card.getByTestId('moments-link').click()
     await expect(page).toHaveURL(/moments=1/)
-    await expect(page.getByTestId('moments-reel')).toBeVisible()
+    await expect(page.getByTestId('moments-card')).toBeVisible()
   })
 
   test('any card: "Play moments" leads the ⋯ menu', async ({ page }, testInfo) => {
@@ -122,7 +126,7 @@ test.describe('the ways into Moments', () => {
     const first = page.getByTestId('overflow-menu').getByRole('menuitem').first()
     await expect(first).toHaveAttribute('data-testid', 'episode-play-moments')
     await first.click()
-    await expect(page.getByTestId('moments-reel')).toBeVisible()
+    await expect(page.getByTestId('moments-card')).toBeVisible()
   })
 
   test('the Brief: "Play moments" right after the summary', async ({ page }, testInfo) => {
@@ -132,7 +136,7 @@ test.describe('the ways into Moments', () => {
     await expect(page.getByTestId('kp-play-moments')).toContainText('Play 3 moments')
     await expect(page.getByTestId('kp-play-moments')).toContainText('min · the strongest moments, in order')
     await page.getByTestId('kp-play-moments').click()
-    await expect(page.getByTestId('moments-reel')).toBeVisible()
+    await expect(page.getByTestId('moments-card')).toBeVisible()
   })
 
   test('search results: "▶ Moments" on an episode result', async ({ page }, testInfo) => {
@@ -142,23 +146,29 @@ test.describe('the ways into Moments', () => {
     await expect(link).toBeVisible()
     await link.click()
     await expect(page).toHaveURL(/moments=1/)
-    await expect(page.getByTestId('moments-reel')).toBeVisible()
+    await expect(page.getByTestId('moments-card')).toBeVisible()
   })
 })
 
 test.describe('Moments, everything around the reel', () => {
-  test('the reel keeps the obi: Episode leads out, Brief and About open over the reel', async ({ page }, testInfo) => {
+  test('the obi stays: Episode leads out, Brief and About open over the reel; the transport skips moments', async ({ page }, testInfo) => {
     await openEpisode(page, testInfo, 'doors')
     await page.getByTestId('player-open-moments').click()
-    const doors = page.getByTestId('moments-doors')
-    await expect(doors.getByRole('button')).toHaveText(['Episode', 'Brief', 'About'])
-    await page.getByTestId('moments-door-brief').click()
+    const obi = page.getByTestId('player-obi')
+    await expect(obi.getByRole('button')).toHaveText(['Episode', 'Brief', 'About'])
+    // The transport's skips are previous / next moment while the reel plays.
+    await expect(page.getByTestId('moments-current')).toContainText('Moment 1 of 3')
+    await page.getByTestId('player-skip-forward').click()
+    await expect(page.getByTestId('moments-current')).toContainText('Moment 2 of 3')
+    await page.getByTestId('player-skip-back').click()
+    await expect(page.getByTestId('moments-current')).toContainText('Moment 1 of 3')
+    await page.getByTestId('player-open-insights').click()
     await expect(page.getByTestId('kp-play-moments')).toBeVisible()
     await page.keyboard.press('Escape')
-    await expect(page.getByTestId('moments-reel')).toBeVisible()
-    await page.getByTestId('moments-door-episode').click()
-    await expect(page.getByTestId('moments-reel')).toHaveCount(0)
-    await expect(page.getByTestId('player-hero')).toBeVisible()
+    await expect(page.getByTestId('moments-card')).toBeVisible()
+    await page.getByTestId('player-obi-episode').click()
+    await expect(page.getByTestId('moments-card')).toHaveCount(0)
+    await expect(page.getByTestId('player-skip-forward')).toHaveText('30↻')
   })
 
   test('every control has a spoken name (screen-reader pass)', async ({ page }, testInfo) => {
@@ -167,26 +177,27 @@ test.describe('Moments, everything around the reel', () => {
     await expect(page.getByRole('button', { name: 'Next insight' }).first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Previous insight' }).first()).toBeVisible()
     await page.getByTestId('player-open-moments').click()
-    const reel = page.getByTestId('moments-reel')
-    await expect(reel.getByRole('heading', { name: 'Moments', exact: true })).toBeVisible()
-    for (const name of ['Previous moment', 'Next moment', 'Close moments and go back']) {
-      await expect(reel.getByRole('button', { name })).toBeVisible()
+    const card = page.getByTestId('moments-card')
+    for (const name of ['Previous moment', 'Next moment']) {
+      await expect(card.getByRole('button', { name })).toBeVisible()
+      await expect(page.getByTestId('player-transport').getByRole('button', { name })).toBeVisible()
     }
-    await expect(reel.getByRole('button', { name: /^(Play|Pause)$/ })).toBeVisible()
-    await expect(reel.getByRole('button', { name: /Keep listening here/ })).toBeVisible()
-    // The index says which moment is playing.
-    await expect(reel.locator('[aria-current="true"]')).toHaveCount(1)
+    await expect(page.getByRole('button', { name: 'Episode', exact: true })).toBeVisible()
+    await expect(page.getByTestId('player-transport').getByRole('button', { name: /^(Play|Pause)$/ })).toBeVisible()
+    await expect(card.getByRole('button', { name: /Keep listening here/ })).toBeVisible()
+    // The list under the transport says which moment is playing.
+    await expect(page.getByTestId('moments-index').locator('[aria-current="true"]')).toHaveCount(1)
   })
 
   test('leaving the page mid-reel: the mini-player says "Moments · n / total" and brings you back', async ({ page }, testInfo) => {
     await openEpisode(page, testInfo, 'mini')
     await page.getByTestId('player-open-moments').click()
-    await expect(page.getByTestId('moments-reel')).toBeVisible()
+    await expect(page.getByTestId('moments-card')).toBeVisible()
     // Back to the show page in-app (the reel keeps playing), where the mini-player shows.
     await page.goBack()
     await expect(page.getByTestId('mini-player-moments')).toHaveText(/Moments · \d \/ 3/)
     await page.getByTestId('mini-player-open').click()
-    await expect(page.getByTestId('moments-reel')).toBeVisible()
+    await expect(page.getByTestId('moments-card')).toBeVisible()
   })
 
   test('the end card chains to the next queued episode\'s moments', async ({ page }, testInfo) => {
@@ -198,14 +209,14 @@ test.describe('Moments, everything around the reel', () => {
       await q.click()
     }
     await page.locator('article').filter({ hasText: 'The Bessent Tape' }).first().getByTestId('moments-link').click()
-    await expect(page.getByTestId('moments-reel')).toBeVisible()
+    await expect(page.getByTestId('moments-card')).toBeVisible()
     await page.getByTestId('moments-index-item').last().click()
     await page.getByTestId('moments-next').click()
     const next = page.getByTestId('moments-next-episode')
     await expect(next).toContainText('The Risk Panel')
     await next.click()
     await expect(page).toHaveURL(/moments=1/)
-    await expect(page.getByTestId('moments-episode')).toContainText('The Risk Panel')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('The Risk Panel')
   })
 
   test('offline: an episode that is not downloaded shows "▶ Moments" greyed, saying why', async ({ page, context }, testInfo) => {
@@ -230,6 +241,6 @@ test.describe('Moments, everything around the reel', () => {
     const link = page.getByTestId('episode-row').getByTestId('moments-link').first()
     await expect(link).toBeVisible()
     await link.click()
-    await expect(page.getByTestId('moments-reel')).toBeVisible()
+    await expect(page.getByTestId('moments-card')).toBeVisible()
   })
 })

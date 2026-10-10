@@ -167,3 +167,25 @@ describe('PlayerControls — Step and Moments on the density strip (2026-10-10)'
     for (const m of marks) expect(m.classes().join(' ')).not.toContain('accent')
   })
 })
+
+describe('PlayerControls while Moments plays (operator 2026-10-10)', () => {
+  it('the skips become previous / next moment; otherwise they skip 15 and 30 seconds', async () => {
+    const mk = (reel: boolean) =>
+      mount(PlayerControls, {
+        props: { playing: true, currentTime: 10, duration: 100, rate: 1, reel },
+        global: { plugins: [i18n] },
+      })
+    const reel = mk(true)
+    expect(reel.get('[data-testid="player-skip-back"]').attributes('aria-label')).toBe('Previous moment')
+    await reel.get('[data-testid="player-skip-back"]').trigger('click')
+    await reel.get('[data-testid="player-skip-forward"]').trigger('click')
+    expect(reel.emitted('prev-moment')).toHaveLength(1)
+    expect(reel.emitted('next-moment')).toHaveLength(1)
+    expect(reel.emitted('skip')).toBeUndefined()
+    const normal = mk(false)
+    await normal.get('[data-testid="player-skip-forward"]').trigger('click')
+    expect(normal.emitted('skip')![0]).toEqual([30])
+    expect(normal.get('[data-testid="player-skip-forward"]').text()).toBe('30↻')
+  })
+})
+
