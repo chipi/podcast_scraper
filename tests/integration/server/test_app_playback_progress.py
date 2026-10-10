@@ -79,6 +79,20 @@ def test_an_offline_redelivery_is_not_counted_twice(tmp_path: Path) -> None:
     assert [e["milestone"] for e in _events(data_dir, uid)] == [50]
 
 
+def test_reopening_an_episode_does_not_count_a_milestone_again(tmp_path: Path) -> None:
+    """Reopen an episode and resume past 25%: the app re-sends 25 with a NEW timestamp (its record
+    of what it reported resets per load). Seen on a phone 2026-10-10 — 25 again beside the new 50.
+    The beta dashboard counts rows per milestone, so a re-report read as a second listener."""
+    client, data_dir, uid = _client(tmp_path)
+    now = int(time.time())
+    client.post(
+        f"/api/app/playback-progress/{_SLUG}", json={"milestone": 25, "client_ts": now - 1800}
+    )
+    client.post(f"/api/app/playback-progress/{_SLUG}", json={"milestone": 50, "client_ts": now})
+    client.post(f"/api/app/playback-progress/{_SLUG}", json={"milestone": 25, "client_ts": now})
+    assert sorted(e["milestone"] for e in _events(data_dir, uid)) == [25, 50]
+
+
 def test_two_milestones_at_one_clamped_timestamp_are_both_kept(tmp_path: Path) -> None:
     """The dedupe key includes the milestone: crossing 50% must not be discarded as a replay of 25%."""
     client, data_dir, uid = _client(tmp_path)
