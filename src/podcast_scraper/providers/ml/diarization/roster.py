@@ -2648,6 +2648,7 @@ def _name_guest_voices(
     trace: Optional[NamingTrace] = None,
     language: Optional[str] = TARGET_LANGUAGE,
     introduced_named: AbstractSet[str] = frozenset(),
+    ordered_turns: Optional[Sequence[Tuple[str, str]]] = None,
 ) -> Dict[str, SpeakerRole]:
     """Name the remaining voices from EVIDENCE, never from position.
 
@@ -2827,7 +2828,7 @@ def _name_guest_voices(
             # Every one is the guest's name painted onto the host's voice. Abstaining leaves a
             # SPEAKER_NN, which is the defect marker; binding leaves a real person credited with
             # someone else's words.
-            and not refuted_by_third_person((voice_texts or {}).get(v, ""), forced, language)
+            and not _refuted_unless_hailed(v, forced, voice_texts or {}, ordered_turns, language)
             # A voice whose introduced name we REFUSED is not an empty seat. We know who is on
             # it — the unbound stated person the host introduced — we simply could not spell it
             # from the ASR. Letting arithmetic fill that seat with some other harvested name is
@@ -2886,11 +2887,52 @@ def _name_guest_voices(
                 role=role,
                 intro_name_refused=_guest_intro_refusal(iname, used_lower, host_names_lower),
                 forced_name_refused=_forced_refusal(
-                    v, forced, unassigned, voice_texts or {}, refused_intro_voices, language
+                    v,
+                    forced,
+                    unassigned,
+                    voice_texts or {},
+                    refused_intro_voices,
+                    language,
+                    ordered_turns,
                 ),
                 role_evidence=role_evidence,
             )
     return out
+
+
+def _refuted_unless_hailed(
+    v: str,
+    name: str,
+    voice_texts: Mapping[str, str],
+    ordered_turns: Optional[Sequence[Tuple[str, str]]],
+    language: Optional[str] = TARGET_LANGUAGE,
+) -> bool:
+    """``refuted_by_third_person`` for a FORCED guest name, unless the other side hails this voice.
+
+    The guard exists for the host's voice wearing the guest's name ("Ken Beck is one of the living
+    legends..."). It also fired on the guest's own voice when the guest mentions their SURNAME:
+    The Living Philosophy, "#10 Michael Montgomery" -- the host opens "Hi, Michael. How are you?",
+    the very next turn is the guest's, and the guest is refused because he talks about his domain,
+    "Dr. Montgomery" (prod 2026-10-10: 15 of 175 replayable unnamed episodes stop at this guard).
+
+    Being HAILED by first name by another voice, with this voice answering the very next turn, is
+    the opposite evidence: it is how you speak TO someone. It wins only when this voice never hails
+    that first name itself and never says the full name -- the host introducing the guest does
+    both, which keeps every case the guard was written for refused.
+    """
+    text = voice_texts.get(v, "")
+    if not refuted_by_third_person(text, name, language):
+        return False
+    if not ordered_turns or _vocative_count(text, name):
+        return True
+    if re.search(rf"\b{re.escape(name)}\b", text, re.IGNORECASE):
+        return True
+    turns = list(ordered_turns)
+    hailed = any(
+        speaker != v and nxt == v and _vocative_count(said, name)
+        for (speaker, said), (nxt, _) in zip(turns, turns[1:])
+    )
+    return not hailed
 
 
 def _guest_intro_refusal(
@@ -2911,6 +2953,7 @@ def _forced_refusal(
     voice_texts: Mapping[str, str],
     refused_intro_voices: AbstractSet[str],
     language: Optional[str] = TARGET_LANGUAGE,
+    ordered_turns: Optional[Sequence[Tuple[str, str]]] = None,
 ) -> Optional[str]:
     """Why the forced name did not land on the voice it was forced onto (#2276 trace only).
 
@@ -2920,7 +2963,7 @@ def _forced_refusal(
     """
     if forced is None or not unassigned or v != unassigned[0]:
         return None
-    if refuted_by_third_person(voice_texts.get(v, ""), forced, language):
+    if _refuted_unless_hailed(v, forced, voice_texts, ordered_turns, language):
         return "says_that_name_in_the_third_person"
     if v in refused_intro_voices:
         return "introduced_name_was_refused"
@@ -5441,6 +5484,7 @@ def resolve_speaker_roster(
             introduced_named=introduced_named,
             trace=tr,
             language=language,
+            ordered_turns=ordered_turns,
         )
     )
     _bv_before = dict(by_voice)
