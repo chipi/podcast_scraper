@@ -301,7 +301,7 @@ Gate B numbers wait for English on narrative and read-news shows (parked until t
      3.82 / 9, a net loss. Places with an English name ("América Latina") came back untranslated,
      a placeholder lost the grammar around it ("Desde [1]" as "Since"), and the show title was
      missed because the host says it in lower case. Narrowed to the show title, case-blind when
-     multi-word (`0132edf9b`): 3.43 / 11 and 4.10 / 5. It touches 8 units, so read them, not
+     multi-word (`2fceaf6d3`): 3.43 / 11 and 4.10 / 5. It touches 8 units, so read them, not
      the mean: all four show-name errors ("back on track", "back to the thread") are gone, three
      units rose (3->5, 4->5, 4->5), none fell.
    - `translation_max_unit_words: 100`: 3.82 / 4.24 on its own units, which looked like the

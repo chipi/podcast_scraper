@@ -130,11 +130,11 @@ Runs live in the eval repo's ignored `cache/dataset_runs/asr_publisher_ref_nonen
 kept under `cache/code/<sha>`. After the rebase onto main `3e0615172`: `d43559417` →
 `59d3c29cc`, `22ea34a55` → `86ed99c84`, `283038972` → `0d0db93d6`. After the rebase onto main
 `a6375152a` (2026-10-10), every hash cited on this page and in the onboarding runbook is the
-pre-rebase one; on the branch: `59d3c29cc`/`d43559417` → `008f2a700`, `86ed99c84`/`22ea34a55` →
-`afe149dcd`, `0d0db93d6`/`283038972` → `a886f044f`, `b28cbc120` → `53046de54`, `36f8eefb0` →
-`0122faf50`, `8ba7e8e1c` → `0b2326384`, `d619fa099` → `490b5d97e`, `664334560` → `bad8f2db0`,
-`0252e8b97` → `af4dece3c`, `7f7b8fb81` → `ea61519c1`, `216844484` → `7d9fd5e14`,
-`2f166c0f8`/`d2f7c7dd2` → `57b14d69a`, `33b31fabf` → `3e5d21ecf`, `b5fc95281` → `d591c0d67`.
+pre-rebase one; on the branch: `59d3c29cc`/`d43559417` → `1152e43a9`, `86ed99c84`/`22ea34a55` →
+`dcc0737ad`, `0d0db93d6`/`283038972` → `63d2d7fb8`, `b28cbc120` → `b2fedf14a`, `36f8eefb0` →
+`adcc74734`, `8ba7e8e1c` → `0097565e1`, `d619fa099` → `90b879632`, `664334560` → `807bc4f59`,
+`0252e8b97` → `cd24d7946`, `7f7b8fb81` → `6ec9f4d27`, `216844484` → `abf3f692d`,
+`2f166c0f8`/`d2f7c7dd2` → `370c581f5`, `33b31fabf` → `be37c98c1`, `b5fc95281` → `aaceafa08`.
 
 | run | code | what |
 | --- | --- | --- |
