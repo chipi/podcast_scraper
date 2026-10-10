@@ -187,7 +187,7 @@ def hybrid_candidates(
     #: ``{"episode_id": ...}`` for search within one episode. Unlike the downstream filters in
     #: ``_filter_and_enrich``, rows outside the scope are never ranked, so they cannot crowd the
     #: scope's own matches out of the candidate list.
-    filters: Optional[Dict[str, str]] = None,
+    filters: Optional[Dict[str, Any]] = None,
     # ADR-099 Stage 2 (#995): the ×25 over-fetch was an in-memory-index habit — cheap to pull 600
     # rows from an in-memory array, then filter in Python. On the database it dominates cost
     # (limit 600 ≈ 0.37s vs limit 100 ≈ 0.09s per query). Native in-engine RRF fusion needs

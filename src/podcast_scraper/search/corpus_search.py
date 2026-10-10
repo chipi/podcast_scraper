@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set
 
@@ -17,7 +18,11 @@ from podcast_scraper.search.cli_handlers import (
     _parse_since,
     merged_episode_gi_paths,
 )
-from podcast_scraper.search.hybrid_search import hybrid_candidates, QueryEmbeddingError
+from podcast_scraper.search.hybrid_search import (
+    _AUX_DOC_TYPES,
+    hybrid_candidates,
+    QueryEmbeddingError,
+)
 from podcast_scraper.search.protocol import SearchResult
 from podcast_scraper.search.storylines import (
     STORYLINE_DOC_TYPE,
@@ -234,6 +239,45 @@ def _enrich_lift_and_slice(
     return page, _lift_stats_for_page(page)
 
 
+def _query_scope(
+    *,
+    doc_types: Optional[Sequence[str]] = None,
+    feed: Optional[str],
+    since: Optional[str],
+    episode_id: Optional[str],
+    episode_ids: Optional[Sequence[str]],
+) -> Optional[Dict[str, Any]]:
+    """The scopes that go INTO the query, as LanceDB prefilters (operator 2026-10-10).
+
+    Filtered afterwards, a scoped search ranked the whole corpus first, kept the top few hundred,
+    and lost the scope's own matches on a large corpus — the Brief's search within one episode
+    found nothing that way. Each prefilter here is never STRICTER than the exact check that still
+    runs on the results (``_hit_passes_cli_filters``): the date is cut a day early, and the show
+    match is a looser LIKE of the same substring.
+
+    Speaker and topic stay result filters: they resolve names through the insight files, which no
+    index column carries. A type filter goes in only when every requested type lives in the aux
+    table, the one table with a ``doc_type`` column (a "storylines only" search otherwise ranked
+    every summary and topic first and kept few storylines).
+    """
+    scope: Dict[str, Any] = {}
+    wanted = sorted(
+        {t.strip().lower() for t in doc_types or [] if isinstance(t, str) and t.strip()}
+    )
+    if wanted and set(wanted) <= _AUX_DOC_TYPES:
+        scope["doc_type__in"] = wanted
+    if episode_id:
+        scope["episode_id"] = episode_id
+    if episode_ids is not None:
+        scope["episode_id__in"] = [e for e in episode_ids if isinstance(e, str)]
+    if isinstance(feed, str) and feed.strip():
+        scope["show_id__contains"] = feed.strip()
+    since_dt = _parse_since(since) if isinstance(since, str) and since.strip() else None
+    if since_dt is not None:
+        scope["publish_date__gte"] = (since_dt - timedelta(days=1)).date().isoformat()
+    return scope or None
+
+
 def run_corpus_search(
     output_dir: Path,
     query: str,
@@ -244,6 +288,7 @@ def run_corpus_search(
     speaker: Optional[str] = None,
     topic: Optional[str] = None,
     episode_id: Optional[str] = None,
+    episode_ids: Optional[Sequence[str]] = None,
     grounded_only: bool = False,
     top_k: int = 10,
     index_path: Optional[str] = None,
@@ -274,10 +319,13 @@ def run_corpus_search(
             top_k=top_k,
             doc_types=doc_types,
             embedding_model=embedding_model,
-            # Search within one episode scopes the QUERY, not just the results (operator
-            # 2026-10-10): filtered afterwards, the whole corpus was ranked first and an episode's
-            # own matches fell out of the candidate list on a large corpus.
-            filters={"episode_id": episode_id} if episode_id else None,
+            filters=_query_scope(
+                doc_types=doc_types,
+                feed=feed,
+                since=since,
+                episode_id=episode_id,
+                episode_ids=episode_ids,
+            ),
         )
     except QueryEmbeddingError as exc:
         return CorpusSearchOutcome(
@@ -286,6 +334,9 @@ def run_corpus_search(
         )
     if candidates is None:
         return CorpusSearchOutcome(error="no_index", detail="no LanceDB index (run `cli index`)")
+    if episode_ids is not None:
+        wanted = {e for e in episode_ids if isinstance(e, str)}
+        candidates = [c for c in candidates if c.metadata.get("episode_id") in wanted]
     return _filter_and_enrich(
         candidates,
         output_dir,

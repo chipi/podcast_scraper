@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import re
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
@@ -415,12 +416,36 @@ class LanceDBBackend:
         # caller ever passes user data (review low/lancedb-sql). OQ-3 stop-gap.
         return str(v).replace("'", "''")
 
+    #: A filter key is ``<column>`` (equals) or ``<column>__<op>``: ``in`` (a list of values),
+    #: ``gte`` (string >=, e.g. an ISO date) or ``contains`` (case-insensitive substring). Column
+    #: names are validated, values quoted — a key never reaches the SQL unchecked.
+    _FILTER_COLUMN = re.compile(r"[a-z_][a-z0-9_]*")
+
     def _to_sql(self, filters: Dict) -> str | None:
-        # OQ-3 (RFC-090): naive interpolation — parameterise before any user-facing
-        # free-text filter reaches it. Filters today are internal canonical ids.
+        # OQ-3 (RFC-090): values are quoted (``_sql_str``) and column names validated; the
+        # filters come from server code (scopes), never a raw user-typed key.
         if not filters:
             return None
-        return " AND ".join(f"{k} = '{self._sql_str(v)}'" for k, v in filters.items())
+        parts: List[str] = []
+        for key, value in filters.items():
+            column, _, op = str(key).partition("__")
+            if not self._FILTER_COLUMN.fullmatch(column):
+                raise ValueError(f"invalid filter column: {key!r}")
+            if op == "":
+                parts.append(f"{column} = '{self._sql_str(value)}'")
+            elif op == "in":
+                values = [f"'{self._sql_str(v)}'" for v in value]
+                parts.append(f"{column} IN ({', '.join(values)})" if values else "1 = 0")
+            elif op == "gte":
+                parts.append(f"{column} >= '{self._sql_str(value)}'")
+            elif op == "contains":
+                # LIKE wildcards in the value (`%`, `_`) only widen the match, never narrow it;
+                # the exact substring check downstream (`_hit_passes_cli_filters`) still runs.
+                needle = self._sql_str(str(value).lower())
+                parts.append(f"lower({column}) LIKE '%{needle}%'")
+            else:
+                raise ValueError(f"invalid filter operator: {key!r}")
+        return " AND ".join(parts)
 
     def _run(self, query: SearchQuery, *, query_type: str, score_key: str) -> List[ScoredResult]:
         where = self._to_sql(query.filters)

@@ -275,6 +275,31 @@ def test_scope_mine_filters_to_captured_episodes(
     assert mine_body["results"][0]["metadata"]["episode_slug"] == slug1
 
 
+def test_scope_mine_puts_the_world_into_the_query(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mine ranks only the listener's episodes (operator 2026-10-10): their ids are part of the
+    query, not a filter on a corpus-wide page. Storylines come from their own scoped query."""
+    _two_episode_corpus(tmp_path)
+    calls: list[dict[str, Any]] = []
+
+    def spy(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        calls.append(kwargs)
+        return _both_hits_run(output_dir, query, **kwargs)
+
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", spy)
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/highlights",
+        json={"episode_slug": _slug(tmp_path, "ep1"), "kind": "moment", "start_ms": 0},
+    )
+    client.get("/api/app/search", params={"q": "x", "scope": "mine", "top_k": 7})
+    episode_call = next(c for c in calls if c.get("episode_ids") is not None)
+    assert episode_call["episode_ids"] == ["ep1"]
+    assert episode_call["top_k"] == 7  # no over-fetch: the query is already scoped
+    assert any(c.get("doc_types") == ["storyline"] for c in calls)
+
+
 def test_scope_mine_is_isolated_between_users(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

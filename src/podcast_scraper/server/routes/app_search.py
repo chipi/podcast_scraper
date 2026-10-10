@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -106,6 +106,41 @@ def _in_listening_scope(root: Path, hit: object, mine: set[str]) -> bool:
     return meta.get("episode_slug") in mine
 
 
+def _world_search(
+    root: Path, q: str, mine: set[str], *, top_k: int, grounded_only: bool
+) -> dict[str, Any]:
+    """Search the listener's world with the world IN the query (operator 2026-10-10).
+
+    It used to rank the whole corpus, keep a few hundred, and keep the listener's episodes after —
+    on a large corpus their own episodes' matches never made the cut and "Mine" came back thin or
+    empty. Now two scoped queries: the world's episodes (their ids as a prefilter), and storylines
+    (a storyline has no single episode, so it cannot match an episode filter; it belongs to the
+    world when any episode it draws on does — ``_in_listening_scope``, applied by the caller).
+    Merged by score.
+    """
+    ids = sorted(
+        {
+            row.episode_id
+            for row in cached_catalog(root)
+            if row.episode_id and slug_for_row(row) in mine
+        }
+    )
+    episodes = structured_corpus_search(
+        root, q, top_k=top_k, grounded_only=grounded_only, episode_ids=ids
+    )
+    if episodes.get("error"):
+        return episodes
+    storylines = structured_corpus_search(root, q, top_k=top_k, doc_types=[STORYLINE_DOC_TYPE])
+    story_rows = [
+        r
+        for r in storylines.get("results") or []
+        if (r.get("metadata") or {}).get("doc_type") == STORYLINE_DOC_TYPE
+    ]
+    merged = [*(episodes.get("results") or []), *story_rows]
+    merged.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
+    return {**episodes, "results": merged}
+
+
 def _data_dir(request: Request) -> Path | None:
     raw = getattr(request.app.state, "app_data_dir", None)
     return Path(raw) if raw is not None else None
@@ -152,15 +187,18 @@ async def app_search(
         if not mine:
             # Nothing in the user's world yet — honest empty, no global fallback.
             return build_search_response(q, {"query": q, "results": []})
-    # Over-fetch when scoping so post-filtering to the user's set still fills the page.
-    fetch_k = min(top_k * 5, 100) if mine is not None else top_k
     # Offload the blocking, CPU-bound search (query embedding + LanceDB) off the event loop so it
     # doesn't freeze concurrent requests — the first call also lazy-loads MiniLM (~seconds). Safe
     # under concurrency: index_pool serves a warm, shared LanceDB backend (the pool is what removed
     # the #1205 concurrent-cold-init SIGSEGV).
-    outcome = await asyncio.to_thread(
-        structured_corpus_search, root, q, top_k=fetch_k, grounded_only=grounded_only
-    )
+    if mine is not None:
+        outcome = await asyncio.to_thread(
+            _world_search, root, q, mine, top_k=top_k, grounded_only=grounded_only
+        )
+    else:
+        outcome = await asyncio.to_thread(
+            structured_corpus_search, root, q, top_k=top_k, grounded_only=grounded_only
+        )
     if not outcome.get("error"):
         append_query_event(root, str(outcome.get("query_type") or ""))
     resp = build_search_response(q, outcome)
