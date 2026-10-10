@@ -75,7 +75,7 @@ test('the episode is findable by searching in English AND in its own language', 
   await signInIsolated(page, 'transcript-language-search', testInfo)
 
   for (const query of ['trail building drainage', 'construcción de senderos drenaje']) {
-    await page.goto(`/search?q=${encodeURIComponent(query)}`)
+    await page.goto(`/search?q=${encodeURIComponent(query)}&scope=all`)
     // The Spanish show, reachable from a query in either language: English through the analysis
     // layer, Spanish through the vector-less `segments_nonen` tier that the BM25 leg reads.
     await expect(

@@ -154,24 +154,8 @@ const discoveryTabs = computed<TabSpec<Kind>[]>(() =>
             })
           }}</span>
         </button>
-        <!-- Corpus ⇄ Mine scope — icon circle; active (accent) = My listening. -->
-        <button
-          v-if="auth.isAuthenticated"
-          type="button"
-          data-testid="home-trending-scope"
-          class="lp-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition"
-          :class="trendingScope === 'mine' ? 'border-accent bg-accent text-accent-foreground' : 'border-border text-muted hover:text-canvas-foreground'"
-          :aria-pressed="trendingScope === 'mine'"
-          :aria-label="t('home.trendingScopeLabel')"
-          :title="trendingScope === 'mine' ? t('home.trendingScopeMine') : t('home.trendingScopeAll')"
-          @click="setTrendingScope(trendingScope === 'mine' ? 'corpus' : 'mine')"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
-          <!-- Same reason as the sort toggle above: the only child is a hidden svg. -->
-          <span class="sr-only">{{
-            trendingScope === 'mine' ? t('home.trendingScopeMine') : t('home.trendingScopeAll')
-          }}</span>
-        </button>
+        <!-- No Mine ⇄ Everyone here: it is one switch for the whole page, in Discover's header
+             (operator 2026-10-09). This list still READS it (`trendingScope` below). -->
       </div>
     </div>
     <p class="-mt-2 mb-3 text-right text-xs text-muted" aria-live="polite" data-testid="discovery-state-hint">

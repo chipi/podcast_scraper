@@ -514,37 +514,38 @@ def _playback_events_path(data_dir: Path, user_id: str) -> Path:
     return data_dir / "users" / user_id / "playback_events.jsonl"
 
 
-def _is_duplicate_progress(path: Path, slug: str, milestone: int, iso_ts: str) -> bool:
-    """Has this exact (slug, milestone, timestamp) already been appended recently?
+def _milestone_already_reached(path: Path, slug: str, milestone: int) -> bool:
+    """Has this listener already reached this milestone of this episode?
 
-    Same reasoning as ``_is_duplicate_listen``: the offline queue replays an event that never got a
-    RESPONSE, not one that never arrived, and both attempts carry the same ``client_ts``. The
-    difference is that the key must include the milestone — without it, crossing 50% would be
-    discarded as a redelivery of the 25% that was clamped to the same floor timestamp during a long
-    offline stretch.
+    Once per episode per milestone, ever (operator 2026-10-10). The app's own record of what it has
+    reported is per load, so reopening an episode and resuming past 25% sent 25 again — with a new
+    timestamp, which the old (slug, milestone, timestamp) redelivery check let through — and the
+    beta dashboard counts rows per milestone, so a re-report read as a second listener reaching it.
+    This also covers the offline queue's redelivery (same event twice), which the old check was for.
+
+    The whole file, not a tail: a re-report can come weeks after the first. One user's playback log
+    is a few lines per episode heard.
     """
     if not path.is_file():
         return False
     try:
         with path.open("r", encoding="utf-8") as fh:
-            tail = deque(fh, maxlen=LISTEN_DEDUPE_TAIL_LINES)
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue
+                if (
+                    isinstance(rec, dict)
+                    and rec.get("slug") == slug
+                    and rec.get("milestone") == milestone
+                ):
+                    return True
     except OSError:
         return False
-    for line in tail:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            rec = json.loads(line)
-        except ValueError:
-            continue
-        if (
-            isinstance(rec, dict)
-            and rec.get("slug") == slug
-            and rec.get("milestone") == milestone
-            and rec.get("ts") == iso_ts
-        ):
-            return True
     return False
 
 
@@ -562,13 +563,8 @@ def append_playback_progress(
     if int(milestone) not in PLAYBACK_MILESTONES:
         return
     iso_ts = datetime.fromtimestamp(int(ts), timezone.utc).isoformat()
-    # Same clamped-floor caveat as the listen dedupe: beyond CLIENT_TS_MAX_AGE_SECONDS every stamp
-    # collapses to one floor, so (slug, milestone, ts) stops distinguishing. With the milestone in
-    # the key the collision window is far narrower than it was for opens alone, and the tie still
-    # breaks toward keeping data.
-    floor = int(time.time()) - CLIENT_TS_MAX_AGE_SECONDS
     path = _playback_events_path(data_dir, user_id)
-    if int(ts) > floor and _is_duplicate_progress(path, str(slug), int(milestone), iso_ts):
+    if _milestone_already_reached(path, str(slug), int(milestone)):
         return
     emit_event(
         "playback_progress",

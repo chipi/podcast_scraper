@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 from podcast_scraper import perf_cache
 from podcast_scraper.search.cil_lift_overrides import load_cil_lift_overrides
@@ -17,7 +19,11 @@ from podcast_scraper.search.cli_handlers import (
     _parse_since,
     merged_episode_gi_paths,
 )
-from podcast_scraper.search.hybrid_search import hybrid_candidates, QueryEmbeddingError
+from podcast_scraper.search.hybrid_search import (
+    _AUX_DOC_TYPES,
+    hybrid_candidates,
+    QueryEmbeddingError,
+)
 from podcast_scraper.search.protocol import SearchResult
 from podcast_scraper.search.storylines import (
     STORYLINE_DOC_TYPE,
@@ -234,6 +240,166 @@ def _enrich_lift_and_slice(
     return page, _lift_stats_for_page(page)
 
 
+def _query_scope(
+    *,
+    doc_types: Optional[Sequence[str]] = None,
+    feed: Optional[str],
+    since: Optional[str],
+    episode_id: Optional[str],
+    episode_ids: Optional[Sequence[str]],
+) -> Optional[Dict[str, Any]]:
+    """The scopes that go INTO the query, as LanceDB prefilters (operator 2026-10-10).
+
+    Filtered afterwards, a scoped search ranked the whole corpus first, kept the top few hundred,
+    and lost the scope's own matches on a large corpus — the Brief's search within one episode
+    found nothing that way. Each prefilter here is never STRICTER than the exact check that still
+    runs on the results (``_hit_passes_cli_filters``): the date is cut a day early, and the show
+    match is a looser LIKE of the same substring.
+
+    Speaker and topic name columns only some tables have, so they go in per table
+    (:func:`_tier_scope`). A type filter goes in only when every requested type lives in the aux
+    table, the one table with a ``doc_type`` column (a "storylines only" search otherwise ranked
+    every summary and topic first and kept few storylines).
+    """
+    scope: Dict[str, Any] = {}
+    wanted = sorted(
+        {t.strip().lower() for t in doc_types or [] if isinstance(t, str) and t.strip()}
+    )
+    if wanted and set(wanted) <= _AUX_DOC_TYPES:
+        scope["doc_type__in"] = wanted
+    if episode_id:
+        scope["episode_id"] = episode_id
+    if episode_ids is not None:
+        scope["episode_id__in"] = [e for e in episode_ids if isinstance(e, str)]
+    if isinstance(feed, str) and feed.strip():
+        scope["show_id__contains"] = feed.strip()
+    since_dt = _parse_since(since) if isinstance(since, str) and since.strip() else None
+    if since_dt is not None:
+        scope["publish_date__gte"] = (since_dt - timedelta(days=1)).date().isoformat()
+    return scope or None
+
+
+class _InsightScope(NamedTuple):
+    """One insight's scope keys, as the result filters read them from its GI file."""
+
+    episode_id: str
+    insight_id: str
+    #: ``speaker_id`` of every Quote it is SUPPORTED_BY, lowercased
+    #: (``_insight_passes_speaker_filter``).
+    speakers: tuple[str, ...]
+    #: Every ``topic:`` id it is ABOUT, and those topics' label / name / display_name, lowercased
+    #: (``_insight_passes_topic_filter``).
+    topics: tuple[str, ...]
+
+
+def _insight_scopes_from_gi(episode_id: str, artifact: Dict[str, Any]) -> List[_InsightScope]:
+    nodes = {n.get("id"): n for n in artifact.get("nodes") or [] if isinstance(n, dict)}
+    quotes_of: Dict[Any, List[Any]] = {}
+    topics_of: Dict[Any, List[str]] = {}
+    for e in artifact.get("edges") or []:
+        if not isinstance(e, dict):
+            continue
+        frm, to = e.get("from"), e.get("to")
+        if e.get("type") == "SUPPORTED_BY":
+            quotes_of.setdefault(frm, []).append(to)
+        elif e.get("type") == "ABOUT" and isinstance(to, str) and to.startswith("topic:"):
+            topics_of.setdefault(frm, []).append(to)
+    out: List[_InsightScope] = []
+    for nid, node in nodes.items():
+        if node.get("type") != "Insight" or not isinstance(nid, str):
+            continue
+        speakers = []
+        for qid in quotes_of.get(nid, []):
+            q = nodes.get(qid)
+            sid = ((q or {}).get("properties") or {}).get("speaker_id")
+            if q and q.get("type") == "Quote" and isinstance(sid, str):
+                speakers.append(sid.lower())
+        topics = []
+        for tid in topics_of.get(nid, []):
+            topics.append(tid.lower())
+            props = (nodes.get(tid) or {}).get("properties")
+            if isinstance(props, dict):
+                for key in ("label", "name", "display_name"):
+                    v = props.get(key)
+                    if isinstance(v, str):
+                        topics.append(v.lower())
+        out.append(_InsightScope(episode_id, nid, tuple(speakers), tuple(topics)))
+    return out
+
+
+#: ``id(GI path map) -> (that map, its scopes)``; see :func:`_cached_insight_scopes`.
+_SCOPES_BY_PATH_MAP: Dict[int, Tuple[Dict[str, Path], List["_InsightScope"]]] = {}
+
+
+def _cached_insight_scopes(output_dir: Path) -> List[_InsightScope]:
+    """Every insight's speaker and topic keys across the corpus, from the same GI files the result
+    filters read (~1 ms per episode), built once per corpus generation.
+
+    Memoized on the GI path map itself: :func:`cached_episode_gi_paths` hands back the same map
+    object until the corpus changes, so a different map is a new generation. Keying on the corpus
+    path instead would turn the caller's path into a filesystem path here (CodeQL
+    py/path-injection) for no gain — the map already carries the generation.
+    """
+    paths = cached_episode_gi_paths(output_dir)
+    hit = _SCOPES_BY_PATH_MAP.get(id(paths))
+    if hit is not None and hit[0] is paths:
+        return hit[1]
+    rows: List[_InsightScope] = []
+    for episode_id, path in paths.items():
+        try:
+            artifact = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(artifact, dict):
+            rows.extend(_insight_scopes_from_gi(episode_id, artifact))
+    if len(_SCOPES_BY_PATH_MAP) >= 4:  # old generations: their maps are gone from perf_cache
+        _SCOPES_BY_PATH_MAP.clear()
+    _SCOPES_BY_PATH_MAP[id(paths)] = (paths, rows)
+    return rows
+
+
+def _tier_scope(
+    output_dir: Path, *, speaker: Optional[str], topic: Optional[str]
+) -> Optional[Dict[str, Optional[Dict[str, Any]]]]:
+    """A speaker or topic scope as per-table prefilters (``SearchQuery.tier_filters``).
+
+    Filtered afterwards, a speaker search ranked the whole corpus, kept a few hundred rows, and
+    lost that speaker's own insights whenever others outranked them. Each table gets exactly what
+    the result filter (``_hit_passes_cli_filters``) would let through from it, never less — the
+    exact check still runs on the results:
+
+    * insights: the ids whose GI quotes / ABOUT topics match, resolved here from the GI files;
+    * aux: a topic scope keeps ``kg_topic`` rows whose id contains it (the only aux rows a topic
+      filter passes); a speaker scope leaves aux to the result filter;
+    * transcript tables: a topic scope can match nothing there, so they are not read; a speaker
+      scope passes them unchanged, as the result filter does.
+    """
+    if not speaker and not topic:
+        return None
+    s_key, t_key = (speaker or "").lower(), (topic or "").lower()
+    matched = [
+        r
+        for r in _cached_insight_scopes(output_dir)
+        if (not speaker or any(s_key in s for s in r.speakers))
+        and (not topic or any(t_key in t for t in r.topics))
+    ]
+    scope: Dict[str, Optional[Dict[str, Any]]] = {
+        "insight": (
+            {
+                "episode_id__in": sorted({r.episode_id for r in matched}),
+                "source_id__in": sorted({r.insight_id for r in matched}),
+            }
+            if matched
+            else None
+        )
+    }
+    if topic:
+        scope["aux"] = {"doc_type": "kg_topic", "source_id__contains": topic}
+        scope["segment"] = None
+        scope["segment_nonen"] = None
+    return scope
+
+
 def run_corpus_search(
     output_dir: Path,
     query: str,
@@ -244,6 +410,7 @@ def run_corpus_search(
     speaker: Optional[str] = None,
     topic: Optional[str] = None,
     episode_id: Optional[str] = None,
+    episode_ids: Optional[Sequence[str]] = None,
     grounded_only: bool = False,
     top_k: int = 10,
     index_path: Optional[str] = None,
@@ -274,6 +441,14 @@ def run_corpus_search(
             top_k=top_k,
             doc_types=doc_types,
             embedding_model=embedding_model,
+            filters=_query_scope(
+                doc_types=doc_types,
+                feed=feed,
+                since=since,
+                episode_id=episode_id,
+                episode_ids=episode_ids,
+            ),
+            tier_filters=_tier_scope(output_dir, speaker=speaker, topic=topic),
         )
     except QueryEmbeddingError as exc:
         return CorpusSearchOutcome(
@@ -282,6 +457,9 @@ def run_corpus_search(
         )
     if candidates is None:
         return CorpusSearchOutcome(error="no_index", detail="no LanceDB index (run `cli index`)")
+    if episode_ids is not None:
+        wanted = {e for e in episode_ids if isinstance(e, str)}
+        candidates = [c for c in candidates if c.metadata.get("episode_id") in wanted]
     return _filter_and_enrich(
         candidates,
         output_dir,

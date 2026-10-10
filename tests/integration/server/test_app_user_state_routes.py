@@ -93,8 +93,9 @@ def test_playback_list_pages_and_filters_when_asked(tmp_path: Path) -> None:
     client = _authed_client(tmp_path)
     for slug, pos in [("a", 0.5), ("b", 120), ("c", 300)]:
         assert client.put(f"/api/app/playback/{slug}", json={"position_seconds": pos}).status_code
+    # No limit: the default page, with its total — always paged since 2026-10-10.
     full = client.get("/api/app/playback").json()
-    assert set(full) == {"items"} and len(full["items"]) == 3
+    assert len(full["items"]) == 3 and full["total"] == 3
     started = client.get("/api/app/playback", params={"limit": 10, "in_progress": True}).json()
     assert {p["slug"] for p in started["items"]} == {"b", "c"} and started["total"] == 2
     some = client.get(
@@ -247,7 +248,7 @@ def test_favorites_roundtrip_hydrated(tmp_path: Path) -> None:
     slug = slug_for_row(build_catalog_rows_cumulative(tmp_path)[0])
     client = _authed_client(tmp_path)
 
-    assert client.get("/api/app/favorites").json() == {"episodes": [], "entities": []}
+    assert client.get("/api/app/favorites", params={"kind": "episode"}).json()["total"] == 0
     # save an episode via the route (hydrated fresh from the catalog)
     body = client.put(
         "/api/app/favorites", json={"kind": "episode", "ref": slug, "label": "Hello"}
@@ -297,13 +298,13 @@ def _two_saved_episodes(tmp_path: Path) -> tuple[TestClient, str, str]:
     return client, hello, apple
 
 
-def test_favorites_unpaged_response_is_unchanged_for_old_clients(tmp_path: Path) -> None:
-    # 1.0.2 sends no paging params: every favourite, and NO paging fields (not even as null).
+def test_favorites_without_limit_is_the_default_page(tmp_path: Path) -> None:
+    # Always paged since 2026-10-10 (no pre-1.0.3 client is left): no `limit` is the default page
+    # of 50, with `total` and `counts`, never the unfiltered whole list 1.0.2 asked for.
     client, hello, apple = _two_saved_episodes(tmp_path)
-    body = client.get("/api/app/favorites").json()
-    assert set(body) == {"episodes", "entities"}
+    body = client.get("/api/app/favorites", params={"kind": "episode"}).json()
     assert [e["slug"] for e in body["episodes"]] == [apple, hello]  # newest first
-    assert {e["kind"] for e in body["entities"]} == {"topic", "show"}
+    assert body["total"] == 2 and body["counts"]["topic"] == 1
 
 
 def test_favorites_paged_by_kind_with_counts(tmp_path: Path) -> None:
@@ -362,7 +363,7 @@ def test_favorites_write_rejects_insight_kind(tmp_path: Path) -> None:
     resp = client.put("/api/app/favorites", json={"kind": "insight", "ref": "ep1#i1", "label": "x"})
     assert resp.status_code == 422
     # refused, not silently accepted
-    assert client.get("/api/app/favorites").json() == {"episodes": [], "entities": []}
+    assert client.get("/api/app/favorites/refs").json()["items"] == []
 
 
 def test_favorites_requires_auth(tmp_path: Path) -> None:

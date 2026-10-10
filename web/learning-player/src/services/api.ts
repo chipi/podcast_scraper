@@ -10,7 +10,6 @@ import type {
   EpisodeSummary,
   FavoriteKind,
   FavoriteRef,
-  ResurfacingItem,
   WhatsNewResponse,
   RecapResponse,
   RecapWindow,
@@ -67,6 +66,7 @@ import type {
   TrendingEntity,
   UserStats,
   YourWeekResponse,
+  MomentsResponse,
 } from "./types"
 import { ref } from "vue"
 import { isNativeShell, resolveApiBase, resolveGateAuthHeader, resolveMediaUrl } from "./tier"
@@ -276,10 +276,6 @@ const EPISODE_BATCH_MAX = 100
 /**
  * Several episode details in one request each 100 — the queue, recently played and the other
  * lists of saved slugs. Returns a map by slug; unknown slugs are simply absent.
- *
- * A server that predates `/episodes/batch` reads "batch" as a slug and answers 404: the 1.0.3 app
- * is published before the deploy, so for a while it talks to that server. On 404 this falls back to
- * one `getEpisode` per slug, which is what every screen did before.
  */
 export async function getEpisodesBatch(slugs: string[]): Promise<Record<string, EpisodeDetail>> {
   const unique = [...new Set(slugs.filter(Boolean))]
@@ -287,16 +283,10 @@ export async function getEpisodesBatch(slugs: string[]): Promise<Record<string, 
   for (let i = 0; i < unique.length; i += EPISODE_BATCH_MAX) {
     const chunk = unique.slice(i, i + EPISODE_BATCH_MAX)
     const query = chunk.map((s) => `slugs=${encodeURIComponent(s)}`).join("&")
-    try {
-      const body = await getJSON<{ items: EpisodeDetail[]; missing: string[] }>(
-        `/episodes/batch?${query}`
-      )
-      for (const d of body.items) out[d.slug] = d
-    } catch (err) {
-      if (!(err instanceof ApiError) || err.status !== 404) throw err
-      const each = await Promise.all(chunk.map((s) => getEpisode(s).catch(() => null)))
-      for (const d of each) if (d) out[d.slug] = d
-    }
+    const body = await getJSON<{ items: EpisodeDetail[]; missing: string[] }>(
+      `/episodes/batch?${query}`
+    )
+    for (const d of body.items) out[d.slug] = d
   }
   return out
 }
@@ -329,6 +319,11 @@ export async function getAudioSource(slug: string, validate = false): Promise<Au
 /** Grounded GIL insights for an episode (empty when no GI artifact). */
 export function getInsights(slug: string): Promise<InsightsResponse> {
   return getJSON<InsightsResponse>(`/episodes/${encodeURIComponent(slug)}/insights`)
+}
+
+/** The episode's Moments reel: its strongest points, one clip each, in timeline order. */
+export function getMoments(slug: string): Promise<MomentsResponse> {
+  return getJSON<MomentsResponse>(`/episodes/${encodeURIComponent(slug)}/moments`)
 }
 
 /** Post-episode recap (RFC-122 #2038) — summary key points + top insights + a signature quote. */
@@ -798,15 +793,9 @@ export interface FavoritesPageQuery {
   limit: number
 }
 
-/**
- * One page of one kind of favourite, filtered and sorted on the server.
- *
- * A server that predates paging ignores the parameters and returns every favourite with no
- * `total`; this then does the same filtering and slicing here, so the screen behaves the same on
- * either server.
- */
+/** One page of one kind of favourite, filtered and sorted on the server. */
 export async function getFavoritesPage(query: FavoritesPageQuery): Promise<FavoritesResponse> {
-  const resp = await getJSON<FavoritesResponse>("/favorites", {
+  return await getJSON<FavoritesResponse>("/favorites", {
     kind: query.kind,
     q: query.q?.trim() || undefined,
     color: query.color ?? undefined,
@@ -814,45 +803,23 @@ export async function getFavoritesPage(query: FavoritesPageQuery): Promise<Favor
     offset: query.offset ?? 0,
     limit: query.limit,
   })
-  return resp.total === undefined ? pageFavoritesLocally(resp, query) : resp
 }
 
-export function pageFavoritesLocally(all: FavoritesResponse, query: FavoritesPageQuery): FavoritesResponse {
-  const needle = (query.q ?? "").trim().toLocaleLowerCase()
-  const has = (...texts: (string | null | undefined)[]) =>
-    !needle || texts.some((t) => (t ?? "").toLocaleLowerCase().includes(needle))
-  const colourOk = (c?: string | null) => !query.color || c === query.color
-  const eps = all.episodes.filter((e) => colourOk(e.color) && has(e.title, e.podcast_title))
-  const ents = (all.entities ?? []).filter((e) => colourOk(e.color) && has(e.label))
-  const counts: Partial<Record<FavoriteKind, number>> = { episode: eps.length }
-  for (const e of ents) counts[e.kind] = (counts[e.kind] ?? 0) + 1
-  const byTitle = query.sort === "title"
-  const start = query.offset ?? 0
-  const end = start + query.limit
-  if (query.kind === "episode") {
-    const list = byTitle ? [...eps].sort((a, b) => a.title.localeCompare(b.title)) : eps
-    return { episodes: list.slice(start, end), entities: [], total: list.length, counts }
-  }
-  const list = query.kind ? ents.filter((e) => e.kind === query.kind) : ents
-  const sorted = byTitle ? [...list].sort((a, b) => a.label.localeCompare(b.label)) : list
-  return { episodes: [], entities: sorted.slice(start, end), total: sorted.length, counts }
+
+/** Which items are saved — identity only, for the hearts. */
+export async function getFavoriteRefs(): Promise<FavoriteRef[]> {
+  return (await getJSON<{ items: FavoriteRef[] }>("/favorites/refs")).items
 }
 
 /**
- * Which items are saved — identity only, for the hearts. Falls back to deriving it from the full
- * list on a server that predates `/favorites/refs` (404).
+ * What a favourite write answers. Today the whole list (1.0.3 reads it); once no 1.0.3 is left the
+ * server may answer with the identities only (compat TODO part b, 2026-10-10) — 1.0.4 takes both.
  */
-export async function getFavoriteRefs(): Promise<FavoriteRef[]> {
-  try {
-    return (await getJSON<{ items: FavoriteRef[] }>("/favorites/refs")).items
-  } catch (err) {
-    if (!(err instanceof ApiError) || err.status !== 404) throw err
-    return favoriteRefsOf(await getFavorites())
-  }
-}
+export type FavoritesWriteAnswer = FavoritesResponse | { items: FavoriteRef[] }
 
-/** The identities in a full favourites response (what every write still answers with). */
-export function favoriteRefsOf(f: FavoritesResponse): FavoriteRef[] {
+/** The identities in a write's answer — the full list, or a refs-only answer. */
+export function favoriteRefsOf(f: FavoritesWriteAnswer): FavoriteRef[] {
+  if ("items" in f) return f.items
   return [
     ...f.episodes.map((e) => ({ kind: "episode" as const, ref: e.slug, color: e.color ?? null })),
     ...(f.entities ?? []).map((e) => ({ kind: e.kind, ref: e.ref, color: e.color ?? null })),
@@ -860,7 +827,7 @@ export function favoriteRefsOf(f: FavoritesResponse): FavoriteRef[] {
 }
 
 /** Save an item (auth-gated); returns the updated favorites. */
-export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse> {
+export async function addFavorite(item: FavoriteAdd): Promise<FavoritesWriteAnswer> {
   const resp = await apiFetch(`${BASE}/favorites`, {
     method: "PUT",
     credentials: "include",
@@ -868,17 +835,17 @@ export async function addFavorite(item: FavoriteAdd): Promise<FavoritesResponse>
     body: JSON.stringify(item),
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /favorites → ${resp.status}`)
-  return (await resp.json()) as FavoritesResponse
+  return (await resp.json()) as FavoritesWriteAnswer
 }
 
 /** Remove a saved item by kind+ref (auth-gated); returns the updated favorites. */
-export async function removeFavorite(kind: string, ref: string): Promise<FavoritesResponse> {
+export async function removeFavorite(kind: string, ref: string): Promise<FavoritesWriteAnswer> {
   const resp = await apiFetch(
     `${BASE}/favorites/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
     { method: "DELETE", credentials: "include" }
   )
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /favorites → ${resp.status}`)
-  return (await resp.json()) as FavoritesResponse
+  return (await resp.json()) as FavoritesWriteAnswer
 }
 
 /** Set (token) or clear (null) a saved item's colour by kind+ref (RFC-121 ph. 4). 404 when the
@@ -887,7 +854,7 @@ export async function setFavoriteColor(
   kind: string,
   ref: string,
   color: string | null
-): Promise<FavoritesResponse> {
+): Promise<FavoritesWriteAnswer> {
   const resp = await apiFetch(
     `${BASE}/favorites/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
     {
@@ -898,10 +865,48 @@ export async function setFavoriteColor(
     }
   )
   if (!resp.ok) throw new ApiError(resp.status, `PATCH /favorites → ${resp.status}`)
-  return (await resp.json()) as FavoritesResponse
+  return (await resp.json()) as FavoritesWriteAnswer
 }
 
 /** Follow one interest token — cluster (`tc:`), topic (`topic:`) or person (`person:`). Auth-gated. */
+/** A trending-episode quote card (GET /trending/episodes, 2026-10-10). */
+export interface TrendingEpisodeCard {
+  reason: "rising_topic" | "most_engaged"
+  quote: string
+  speaker: string | null
+  start_ms: number | null
+  topic_id: string | null
+  topic_label: string | null
+  events: number | null
+  episode: EpisodeSummary
+}
+/** Episodes speaking to a rising topic, interleaved with the most listened-to and saved. */
+export async function getTrendingEpisodes(
+  scope: "corpus" | "mine" = "corpus",
+  limit = 8,
+): Promise<TrendingEpisodeCard[]> {
+  return (await getJSON<{ items: TrendingEpisodeCard[] }>("/trending/episodes", { scope, limit })).items
+}
+
+/** Every episode in the listener's "mine" — heard or captured from, saved, or of a followed show
+ *  (ADR-162). The server's one definition, so Browse never re-derives it. */
+export async function getWorldEpisodeSlugs(): Promise<string[]> {
+  return (await getJSON<{ slugs: string[] }>("/corpus/episodes", { facet: "world" })).slugs
+}
+
+/** What the listener's own listening says they are into — people and topics from the episodes they
+ *  heard or captured from, ranked (GET /interests/derived). */
+export interface DerivedInterest {
+  token: string
+  kind: "person" | "topic"
+  label: string
+  count: number
+  weight?: number
+}
+export async function getDerivedInterests(): Promise<DerivedInterest[]> {
+  return (await getJSON<{ items: DerivedInterest[] }>("/interests/derived")).items
+}
+
 export async function addInterest(token: string): Promise<string[]> {
   const resp = await apiFetch(`${BASE}/interests/${encodeURIComponent(token)}`, {
     method: "POST",
@@ -960,11 +965,15 @@ export interface PodcastsPage {
   total: number
   /** Every category in the catalogue (the filter's options). */
   categories: string[]
+  /** Every show language in the catalogue, as primary codes (the language filter's options). */
+  languages?: string[]
 }
 
 export interface PodcastsQuery {
   q?: string
   category?: string
+  /** Only shows in this language (a primary code: `en`, `es`). */
+  language?: string
   sort?: "newest" | "oldest" | "az" | "za" | "trending"
   offset?: number
   limit: number
@@ -975,54 +984,27 @@ export interface PodcastsQuery {
 }
 
 /**
- * A page of the catalogue, filtered and sorted on the server. Against an older server (no `total`)
- * the full list is cut here; "trending" then reads A-Z, as it does when no velocity is known.
+ * A page of the catalogue, filtered and sorted on the server.
  */
 export async function getPodcastsPage(query: PodcastsQuery): Promise<PodcastsPage> {
   const params = new URLSearchParams({ limit: String(query.limit), offset: String(query.offset ?? 0) })
   if (query.q?.trim()) params.set("q", query.q.trim())
   if (query.category) params.set("category", query.category)
+  if (query.language) params.set("language", query.language)
   if (query.sort) params.set("sort", query.sort)
   if (query.compact) params.set("compact", "true")
   for (const id of query.feedIds ?? []) params.append("feed_ids", id)
-  const resp = await getJSON<{ items: Podcast[]; total?: number; categories?: string[] }>(
+  const resp = await getJSON<{
+    items: Podcast[]
+    total?: number
+    categories?: string[]
+    languages?: string[]
+  }>(
     `/podcasts?${params}`,
   )
-  if (resp.total !== undefined) return resp as PodcastsPage
-  return pagePodcastsLocally(resp.items, query)
+  return resp as PodcastsPage
 }
 
-export function pagePodcastsLocally(all: Podcast[], query: PodcastsQuery): PodcastsPage {
-  const ids = new Set(query.feedIds ?? [])
-  const words = (query.q ?? "").toLowerCase().split(/\s+/).filter(Boolean)
-  const title = (p: Podcast) => (p.title ?? p.feed_id).toLowerCase()
-  const hay = (p: Podcast) => [title(p), ...(p.authors ?? [])].join(" ").toLowerCase()
-  let list = all.filter(
-    (p) =>
-      p.feed_id &&
-      (!ids.size || ids.has(p.feed_id)) &&
-      (!query.category || p.category === query.category) &&
-      words.every((w) => hay(p).includes(w)),
-  )
-  const byTitle = (a: Podcast, b: Podcast) => title(a).localeCompare(title(b))
-  if (query.sort === "za") list = [...list].sort((a, b) => byTitle(b, a))
-  else if (query.sort === "az" || query.sort === "trending") list = [...list].sort(byTitle)
-  else {
-    const dated = list.filter((p) => p.last_updated)
-    const undated = list.filter((p) => !p.last_updated).sort(byTitle)
-    dated.sort((a, b) => {
-      const c = (a.last_updated ?? "").localeCompare(b.last_updated ?? "") || byTitle(a, b)
-      return query.sort === "oldest" ? c : -c
-    })
-    list = [...dated, ...undated]
-  }
-  const start = query.offset ?? 0
-  return {
-    items: list.slice(start, start + query.limit),
-    total: list.length,
-    categories: [...new Set(all.map((p) => p.category).filter((c): c is string => !!c))].sort(),
-  }
-}
 
 /** These shows, by id — what a board, a show page or a followed list needs, not the catalogue. */
 export async function getPodcastsByIds(ids: string[]): Promise<Podcast[]> {
@@ -1120,16 +1102,26 @@ export async function getPlaybackList(query?: PlaybackQuery): Promise<PlaybackPo
     if (query.inProgress) params.set("in_progress", "true")
     for (const s of query.slugs ?? []) params.append("slugs", s)
     const resp = await getJSON<{ items: PlaybackPosition[]; total?: number }>(`/playback?${params}`)
-    if (resp.total !== undefined) return resp.items
-    // An older server ignores the parameters and answers with everything: filter here.
-    const wanted = new Set(query.slugs ?? [])
     return resp.items
-      .filter((p) => !wanted.size || wanted.has(p.slug))
-      .filter((p) => !query.inProgress || (p.position_seconds > 1 && !p.finished))
-      .slice(0, query.limit)
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return []
     throw err
+  }
+}
+
+/**
+ * Every started-and-unfinished episode, by slug — Browse's "In progress" filter. The server pages
+ * at most 100 a request (`/playback`, le=100), so this walks the pages; asking for more in one
+ * request is a 422, which read as "nothing in progress" (2026-10-10).
+ */
+export async function getInProgressSlugs(): Promise<string[]> {
+  const PAGE = 100
+  const out: string[] = []
+  for (let offset = 0; ; offset += PAGE) {
+    const params = new URLSearchParams({ limit: String(PAGE), offset: String(offset), in_progress: "true" })
+    const resp = await getJSON<{ items: PlaybackPosition[]; total?: number }>(`/playback?${params}`)
+    out.push(...resp.items.map((p) => p.slug))
+    if (resp.items.length < PAGE || out.length >= (resp.total ?? 0)) return out
   }
 }
 
@@ -1598,8 +1590,7 @@ export interface HighlightsPageQuery {
 
 /**
  * The Saved highlights a page of EPISODES at a time, filtered on the server (`GET /highlights`
- * with `limit`). Against a server that predates paging (no `total` in its answer) the full list is
- * grouped and cut here instead, the way the Saved tab used to — same result either way.
+ * with `limit`).
  */
 export async function getHighlightsPage(query: HighlightsPageQuery): Promise<HighlightsPage> {
   const resp = await getJSON<Partial<HighlightsPage> & { items: Highlight[] }>("/highlights", {
@@ -1612,46 +1603,9 @@ export async function getHighlightsPage(query: HighlightsPageQuery): Promise<Hig
     limit: query.limit,
     per_episode: query.perEpisode ?? 5,
   })
-  if (resp.total !== undefined) return resp as HighlightsPage
-  return pageHighlightsLocally(resp.items, await getNotes("highlight").catch(() => []), query)
+  return resp as HighlightsPage
 }
 
-export function pageHighlightsLocally(
-  all: Highlight[],
-  notes: Note[],
-  query: HighlightsPageQuery,
-): HighlightsPage {
-  const needle = (query.q ?? "").trim().toLocaleLowerCase()
-  const has = (...texts: (string | null | undefined)[]) =>
-    !needle || texts.some((t) => (t ?? "").toLocaleLowerCase().includes(needle))
-  const groups = new Map<string, Highlight[]>()
-  let total = 0
-  for (const h of all) {
-    if (query.episode && h.episode_slug !== query.episode) continue
-    if (query.color && h.color !== query.color) continue
-    if (query.muted && !h.retired) continue
-    if (!has(h.quote_text, h.speaker)) continue
-    total++
-    groups.set(h.episode_slug, [...(groups.get(h.episode_slug) ?? []), h])
-  }
-  const newest = (hs: Highlight[]) => Math.max(...hs.map((h) => h.created_at ?? 0))
-  for (const hs of groups.values()) hs.sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))
-  // An older server has no titles to sort by here; A–Z falls back to the slug.
-  const order = [...groups.keys()].sort((a, b) =>
-    query.sort === "title" ? a.localeCompare(b) : newest(groups.get(b)!) - newest(groups.get(a)!),
-  )
-  const start = query.offset ?? 0
-  const page = order.slice(start, start + query.limit)
-  const items = page.flatMap((slug) => groups.get(slug)!.slice(0, query.perEpisode ?? 5))
-  const ids = new Set(items.map((h) => h.id))
-  return {
-    items,
-    total,
-    episode_total: order.length,
-    episode_counts: Object.fromEntries(page.map((slug) => [slug, groups.get(slug)!.length])),
-    notes: notes.filter((n) => n.target === "highlight" && ids.has(n.target_id)),
-  }
-}
 
 /** One page of notes. */
 export interface NotesPage {
@@ -1673,7 +1627,7 @@ export interface NotesPageQuery {
   limit: number
 }
 
-/** Notes newest first, a page at a time (`GET /notes` with `limit`); an older server pages here. */
+/** Notes newest first, a page at a time (`GET /notes` with `limit`). */
 export async function getNotesPage(query: NotesPageQuery): Promise<NotesPage> {
   const params = new URLSearchParams()
   if (query.q?.trim()) params.set("q", query.q.trim())
@@ -1682,25 +1636,9 @@ export async function getNotesPage(query: NotesPageQuery): Promise<NotesPage> {
   params.set("offset", String(query.offset ?? 0))
   params.set("limit", String(query.limit))
   const resp = await getJSON<Partial<NotesPage> & { items: Note[] }>(`/notes?${params}`)
-  if (resp.total !== undefined) return resp as NotesPage
-  return pageNotesLocally(resp.items, await getHighlights().catch(() => []), query)
+  return resp as NotesPage
 }
 
-export function pageNotesLocally(all: Note[], highlights: Highlight[], query: NotesPageQuery): NotesPage {
-  const needle = (query.q ?? "").trim().toLocaleLowerCase()
-  const words = query.words ? needle.split(/\s+/).filter(Boolean) : [needle]
-  const hits = [...all]
-    .sort((a, b) => b.created_at - a.created_at)
-    .filter((n) => words.every((w) => !w || n.text.toLocaleLowerCase().includes(w)))
-  const counts: Record<string, number> = {}
-  for (const n of hits) counts[n.target] = (counts[n.target] ?? 0) + 1
-  const kinds = query.kinds ?? []
-  const selected = kinds.length ? hits.filter((n) => kinds.includes(n.target)) : hits
-  const start = query.offset ?? 0
-  const items = selected.slice(start, start + query.limit)
-  const on = new Set(items.filter((n) => n.target === "highlight").map((n) => n.target_id))
-  return { items, total: selected.length, counts, highlights: highlights.filter((h) => on.has(h.id)) }
-}
 
 /** Capture a highlight (auth-gated); returns the created record. */
 export async function createHighlight(body: HighlightCreate): Promise<Highlight> {
@@ -1730,6 +1668,16 @@ export async function patchHighlight(id: string, body: HighlightUpdate): Promise
   return (await resp.json()) as Highlight
 }
 
+/**
+ * A delete's answer: today the remaining list; a later server may answer with no body at all (204,
+ * or an empty 200 — compat TODO part b). No body is a success with nothing to read, not a failure.
+ */
+async function remainingAfterDelete<T>(resp: Response): Promise<T[]> {
+  if (resp.status === 204) return []
+  const body = await resp.text()
+  return body.trim() ? (JSON.parse(body) as { items: T[] }).items : []
+}
+
 /** Remove a highlight by id (auth-gated); returns the remaining list. */
 export async function deleteHighlight(id: string): Promise<Highlight[]> {
   const resp = await apiFetch(`${BASE}/highlights/${encodeURIComponent(id)}`, {
@@ -1737,7 +1685,7 @@ export async function deleteHighlight(id: string): Promise<Highlight[]> {
     credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /highlights → ${resp.status}`)
-  return ((await resp.json()) as { items: Highlight[] }).items
+  return remainingAfterDelete<Highlight>(resp)
 }
 
 /** The user's notes, optionally scoped to one target. A 401 THROWS (#2004 #3): the store falls back
@@ -1780,7 +1728,7 @@ export async function deleteNote(id: string): Promise<Note[]> {
     credentials: "include",
   })
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /notes → ${resp.status}`)
-  return ((await resp.json()) as { items: Note[] }).items
+  return remainingAfterDelete<Note>(resp)
 }
 
 /** The URL for the Markdown export of highlights (a download link / new tab). With `color`, the
@@ -1933,49 +1881,28 @@ export async function exportObsidian(since: number, epoch?: string): Promise<Obs
 
 /** Highlights due to resurface (+ reflection prompt + paused flag); empty signed out (401). */
 /**
- * What is due, a page of EPISODES at a time (`GET /resurfacing` with `limit`). Against a server
- * that predates paging (no `total` in its answer) the full list is grouped and cut here.
+ * What is due, a page of EPISODES at a time (`GET /resurfacing` with `limit`).
  */
 export async function getResurfacingPage(query: {
   offset?: number
   limit: number
   perEpisode?: number
 }): Promise<Required<ResurfacingResponse>> {
-  let resp: ResurfacingResponse
   try {
-    resp = await getJSON<ResurfacingResponse>("/resurfacing", {
+    return (await getJSON<ResurfacingResponse>("/resurfacing", {
       offset: query.offset ?? 0,
       limit: query.limit,
       per_episode: query.perEpisode ?? 100,
-    })
+    })) as Required<ResurfacingResponse>
   } catch (err) {
-    if (err instanceof ApiError && err.status === 401) resp = { items: [], paused: false }
-    else throw err
+    // Signed out: nothing is due.
+    if (err instanceof ApiError && err.status === 401) {
+      return { items: [], paused: false, total: 0, episode_total: 0, episode_counts: {} }
+    }
+    throw err
   }
-  if (resp.total !== undefined) return resp as Required<ResurfacingResponse>
-  return pageResurfacingLocally(resp, query)
 }
 
-export function pageResurfacingLocally(
-  resp: ResurfacingResponse,
-  query: { offset?: number; limit: number; perEpisode?: number },
-): Required<ResurfacingResponse> {
-  const groups = new Map<string, ResurfacingItem[]>()
-  for (const it of resp.items) {
-    const slug = it.highlight.episode_slug
-    groups.set(slug, [...(groups.get(slug) ?? []), it])
-  }
-  const order = [...groups.keys()]
-  const start = query.offset ?? 0
-  const page = order.slice(start, start + query.limit)
-  return {
-    items: page.flatMap((slug) => groups.get(slug)!.slice(0, query.perEpisode ?? 100)),
-    paused: resp.paused,
-    total: resp.items.length,
-    episode_total: order.length,
-    episode_counts: Object.fromEntries(page.map((slug) => [slug, groups.get(slug)!.length])),
-  }
-}
 
 export async function getResurfacing(): Promise<ResurfacingResponse> {
   try {
@@ -2313,7 +2240,7 @@ export async function getCollection(id: string): Promise<CollectionDetail> {
 
 /**
  * One page of a board's items (`GET /collections/{id}` with `limit`, 1.0.3), optionally of one
- * kind. Against an older server (no `total`) the whole board is cut here.
+ * kind.
  */
 export async function getCollectionPage(
   id: string,
@@ -2324,26 +2251,9 @@ export async function getCollectionPage(
     offset: query.offset ?? 0,
     kind: query.kind,
   })
-  const page = { ...resp, collection: withAbsoluteCover(resp.collection) }
-  if (page.total !== undefined) return page as Required<CollectionDetail>
-  return pageCollectionLocally(page, query)
+  return { ...resp, collection: withAbsoluteCover(resp.collection) } as Required<CollectionDetail>
 }
 
-export function pageCollectionLocally(
-  resp: CollectionDetail,
-  query: { limit: number; offset?: number; kind?: string },
-): Required<CollectionDetail> {
-  const kindCounts: Record<string, number> = {}
-  for (const it of resp.items) kindCounts[it.kind] = (kindCounts[it.kind] ?? 0) + 1
-  const selected = query.kind ? resp.items.filter((i) => i.kind === query.kind) : resp.items
-  const start = query.offset ?? 0
-  return {
-    collection: resp.collection,
-    items: selected.slice(start, start + query.limit),
-    total: selected.length,
-    kind_counts: kindCounts,
-  }
-}
 
 // `clientId` (a `col_…` id minted offline) makes the create idempotent: a replay returns the
 // existing row (#2004), so a pin queued against that same id still lands instead of 404ing.

@@ -13,9 +13,9 @@ import apiSrc from "../services/api.ts?raw"
  * mentions `Collection` must go through `withAbsoluteCover` / `withAbsoluteCovers` (or delegate to
  * one that does — listed below).
  */
-const DELEGATES: Record<string, string> = {
-  pageCollectionLocally: "pages an answer getCollectionPage has already absolutised",
-}
+// None since 2026-10-10: the one delegate, pageCollectionLocally, left api.ts with the pre-1.0.3
+// paging fallback (it is the tests' fake server now, test/localPagers.ts).
+const DELEGATES: Record<string, string> = {}
 
 function boardReturningFunctions(src: string): { name: string; body: string }[] {
   const re = /export (?:async )?function (\w+)\([^]*?\)\s*:\s*([^{]+)\{/g

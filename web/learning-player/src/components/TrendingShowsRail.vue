@@ -32,12 +32,16 @@ const props = withDefaults(
   }>(),
   { scope: 'corpus', top: 5, seeAll: false },
 )
-const emit = defineEmits<{ (e: 'see-all'): void }>()
+const emit = defineEmits<{ (e: 'see-all'): void; (e: 'show-everyone'): void }>()
 const { t } = useI18n()
 
 // #1591 — a rejection lands in the error phase rather than collapsing into empty, so an outage
 // stops rendering identically to "the corpus has no trending shows".
-const section = useSectionState<TrendingEntity[]>([], { cacheKey: 'home.trendingshows' })
+// Keyed per scope: "mine" and "everyone" are different lists, so neither may hydrate from, or stand
+// in for, the other (2026-10-09).
+const section = useSectionState<TrendingEntity[]>([], {
+  cacheKey: () => `home.trendingshows.${props.scope}`,
+})
 function load(): Promise<void> {
   return section.load(() => getTrending('show', props.scope, 12))
 }
@@ -46,6 +50,9 @@ void load()
 watch(() => props.scope, load)
 const shown = computed(() => section.data.value.slice(0, props.top))
 const hasAny = computed(() => shown.value.length > 0)
+// "Mine" with nothing in it says so and offers everyone's, as Trends does — a rail that silently
+// vanished while the switch is lit reads as broken (operator 2026-10-09).
+const mineEmpty = computed(() => props.scope === 'mine' && section.isReady.value && !hasAny.value)
 
 // The standard ShowTile needs a full Podcast, so resolve each from the catalogue; a show that has
 // left the catalogue still renders from its trending label rather than vanishing.
@@ -86,7 +93,7 @@ const tileHeader = computed<Record<string, string> | null>(() => {
 </script>
 
 <template>
-  <section v-if="hasAny || !section.isReady.value" class="mt-7" data-testid="trending-shows-rail">
+  <section v-if="hasAny || mineEmpty || !section.isReady.value" class="mt-7" data-testid="trending-shows-rail">
     <div
       :class="tileHeader ? 'w-[calc(var(--n3)*(100%_-_1.5rem)/3_+_(var(--n3)_-_1)*0.75rem)] sm:w-[calc(var(--n4)*(100%_-_2.25rem)/4_+_(var(--n4)_-_1)*0.75rem)]' : ''"
       :style="tileHeader ?? undefined"
@@ -106,6 +113,19 @@ const tileHeader = computed<Record<string, string> | null>(() => {
       </SectionHeading>
     </div>
     <SectionStatus :phase="section.phase.value" :rows="2" @retry="load" />
+    <div
+      v-if="mineEmpty"
+      class="rounded-xl border border-border px-4 py-3 text-sm text-muted"
+      data-testid="trending-shows-mine-empty"
+    >
+      <p>{{ t('home.trendingShowsMineEmpty') }}</p>
+      <button
+        type="button"
+        class="mt-2 font-bold text-accent"
+        data-testid="trending-shows-show-everyone"
+        @click="emit('show-everyone')"
+      >{{ t('home.trendingShowsShowEveryone') }}</button>
+    </div>
 
     <!-- `followable`, so the rail carries the identical Follow + save pair as the Shows tab's grid
          rather than being the one show surface you cannot act on (operator 2026-09-17). -->

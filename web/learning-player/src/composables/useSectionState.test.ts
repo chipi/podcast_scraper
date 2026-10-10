@@ -265,6 +265,68 @@ describe('useSectionState with a cacheKey (#1909)', () => {
     expect(readCached).toHaveBeenCalledTimes(1)
   })
 
+  // A section whose key follows a setting — Trending shows, keyed by Mine ⇄ Everyone (2026-10-09).
+  // One fixed key wrote everyone's shows where "mine" later hydrated from, and a switch kept the
+  // other scope's list on screen while the new one loaded.
+  describe('a cacheKey that changes', () => {
+    it('writes each answer under the key it was loaded for', async () => {
+      let key = 'rail.mine'
+      const s = useSectionState<string[]>([], { cacheKey: () => key })
+      await s.load(async () => ['m'])
+      key = 'rail.corpus'
+      await s.load(async () => ['c'])
+      expect(writeCached.mock.calls).toEqual([
+        ['rail.mine', ['m']],
+        ['rail.corpus', ['c']],
+      ])
+    })
+
+    it("does not keep the other key's content on screen while the new one loads", async () => {
+      let key = 'rail.corpus'
+      const s = useSectionState<string[]>([], { cacheKey: () => key })
+      await s.load(async () => ['everyone'])
+      key = 'rail.mine'
+      let release!: (v: string[]) => void
+      const pending = s.load(() => new Promise<string[]>((r) => (release = r)))
+      expect(s.data.value, "everyone's list stayed up under Mine").toEqual([])
+      expect(s.phase.value).toBe('loading')
+      release(['mine'])
+      await pending
+      expect(s.data.value).toEqual(['mine'])
+    })
+
+    it('hydrates each key from its own snapshot, once', async () => {
+      let key = 'rail.corpus'
+      readCached.mockImplementation(async (k: string) => (k === 'rail.mine' ? ['cached mine'] : null))
+      const s = useSectionState<string[]>([], { cacheKey: () => key })
+      await s.load(async () => ['everyone'])
+      key = 'rail.mine'
+      let release!: (v: string[]) => void
+      const pending = s.load(() => new Promise<string[]>((r) => (release = r)))
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+      expect(s.data.value).toEqual(['cached mine'])
+      release(['fresh mine'])
+      await pending
+      await s.load(async () => ['again'])
+      expect(readCached.mock.calls.map((c) => c[0])).toEqual(['rail.corpus', 'rail.mine'])
+    })
+
+    it("a failure after a switch is an error, not the other key's content marked stale", async () => {
+      let key = 'rail.corpus'
+      const s = useSectionState<string[]>([], { cacheKey: () => key })
+      await s.load(async () => ['everyone'])
+      key = 'rail.mine'
+      await s.load(async () => {
+        throw new Error('offline')
+      })
+      expect(s.data.value).toEqual([])
+      expect(s.phase.value).toBe('error')
+      expect(anyStale.value).toBe(false)
+    })
+  })
+
   it('a section with no cacheKey never touches the cache', async () => {
     const s = useSectionState<string[]>([])
     await s.load(async () => ['a'])

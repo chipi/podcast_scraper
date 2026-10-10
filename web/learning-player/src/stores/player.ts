@@ -46,6 +46,26 @@ import { queueProgress } from '../services/listenLog'
  * that shows "now playing" (mini-player, lock screen, headphones, car) reads them from the store,
  * and auto-advance runs with no view mounted to supply them later.
  */
+/** One moment of a Moments reel (GET /episodes/{slug}/moments), on the audio timeline. */
+export interface ReelMoment {
+  insightId: string
+  text: string
+  speaker: string | null
+  startMs: number
+  endMs: number
+}
+
+/** A Moments reel in progress: which moment, and where the listener was before it started. */
+export interface ReelState {
+  slug: string
+  moments: ReelMoment[]
+  index: number
+  /** Seconds — ✕ returns here; "Keep listening here" does not. */
+  returnTo: number
+  /** The last moment has played; the view shows its end card. */
+  done: boolean
+}
+
 export interface NextUp {
   slug: string
   url: string
@@ -340,6 +360,7 @@ export const usePlayerStore = defineStore('player', () => {
             'loadedmetadata',
             () => {
               audio.currentTime = at
+              currentTime.value = at
             },
             { once: true },
           )
@@ -358,6 +379,7 @@ export const usePlayerStore = defineStore('player', () => {
     // throttle window of the episode the user just left is lost, every single switch.
     savePosition()
     resetForLoad()
+    reel.value = null
     currentSlug.value = opts.slug
     currentUrl = opts.url
     currentTitle.value = opts.title ?? null
@@ -388,6 +410,7 @@ export const usePlayerStore = defineStore('player', () => {
   /** Stop and forget the current episode (sign-out, or an unplayable source). */
   function clear(): void {
     pendingListen = null
+    reel.value = null
     el.value?.pause()
     if (el.value) el.value.removeAttribute('src')
     currentSlug.value = null
@@ -449,7 +472,9 @@ export const usePlayerStore = defineStore('player', () => {
   function onPlay(): void {
     // First play of this load, whether the user pressed it or auto-advance did. Cleared so a
     // pause/resume, a seek, or a background interruption does not log the same episode twice.
-    if (pendingListen) {
+    // A Moments reel is not a listen (operator 2026-10-10): the armed listen waits for real
+    // playback, which "Keep listening here" turns into.
+    if (pendingListen && !reel.value) {
       const slug = pendingListen
       pendingListen = null
       listenLoggers.started?.(slug)
@@ -471,6 +496,14 @@ export const usePlayerStore = defineStore('player', () => {
   function onTimeUpdate(): void {
     currentTime.value = el.value?.currentTime ?? 0
     syncPositionState()
+    const r = reel.value
+    if (r) {
+      // The reel plays clip windows: past the current one's end, on to the next (or the end card).
+      // No position saves and no milestones while it runs — a reel must not move the resume point
+      // or count as listening.
+      if (!r.done && currentTime.value * 1000 >= r.moments[r.index].endMs) reelNext()
+      return
+    }
     maybeSavePosition()
     reportMilestones()
   }
@@ -527,6 +560,12 @@ export const usePlayerStore = defineStore('player', () => {
    * Resolving on demand costs a short gap between tracks, which every streaming player has.
    */
   async function onEnded(): Promise<void> {
+    if (reel.value) {
+      // The audio ran out inside the last clip: the reel is over, the episode is not finished.
+      playing.value = false
+      reel.value = { ...reel.value, done: true }
+      return
+    }
     playing.value = false
     void stopBackgroundAudio()
     // Record the finish BEFORE load() overwrites currentSlug — otherwise the episode that just
@@ -561,6 +600,85 @@ export const usePlayerStore = defineStore('player', () => {
   /** A mounted surface claims (or releases) responsibility for driving the end-of-episode advance. */
   function setAdvanceHold(held: boolean): void {
     advanceHeld = held
+  }
+
+  // --- Moments reel (operator 2026-10-10) ---
+  // The episode's strongest moments, back to back: clip windows on the loaded episode's audio.
+  const reel = ref<ReelState | null>(null)
+  const inReel = computed(() => reel.value !== null)
+  /** Within this many seconds of a moment's start, ‹ goes to the previous one (a music player). */
+  const REEL_PREV_RESTART_S = 3
+
+  /** Start a reel on the LOADED episode; false if it is not loaded or there are no moments. */
+  function startReel(slug: string, moments: ReelMoment[], startIndex = 0): boolean {
+    if (currentSlug.value !== slug || moments.length === 0) return false
+    const returnTo = el.value?.currentTime ?? currentTime.value
+    reel.value = { slug, moments, index: 0, returnTo, done: false }
+    reelGo(startIndex)
+    return true
+  }
+  function reelGo(index: number): void {
+    const r = reel.value
+    if (!r) return
+    const i = Math.max(0, Math.min(r.moments.length - 1, index))
+    reel.value = { ...r, index: i, done: false }
+    seek(r.moments[i].startMs / 1000)
+    // Each clip fades in rather than cutting in mid-breath: from one speaker's sentence to
+    // another's is a jump, and a quarter second of fade is what makes it read as a transition.
+    fadeIn(REEL_FADE_MS)
+    // Not `play()`: that records `play_start`, and a reel is not a listen.
+    playElement()
+  }
+  /** Ramp the element's volume from 0 to the listener's level over `ms`. */
+  const REEL_FADE_MS = 250
+  let fadeTimer: ReturnType<typeof setInterval> | null = null
+  function fadeIn(ms: number): void {
+    const e = el.value
+    if (!e) return
+    const target = VOLUME_FACTORS[volumeLevel.value]
+    if (fadeTimer) clearInterval(fadeTimer)
+    const steps = 10
+    let n = 0
+    e.volume = 0
+    fadeTimer = setInterval(() => {
+      n += 1
+      e.volume = Math.min(target, (target * n) / steps)
+      if (n >= steps && fadeTimer) {
+        clearInterval(fadeTimer)
+        fadeTimer = null
+      }
+    }, ms / steps)
+  }
+  function reelNext(): void {
+    const r = reel.value
+    if (!r) return
+    if (r.index < r.moments.length - 1) {
+      reelGo(r.index + 1)
+      return
+    }
+    el.value?.pause()
+    reel.value = { ...r, done: true }
+  }
+  function reelPrev(): void {
+    const r = reel.value
+    if (!r) return
+    const intoCurrent = currentTime.value - r.moments[r.index].startMs / 1000
+    reelGo(intoCurrent > REEL_PREV_RESTART_S ? r.index : r.index - 1)
+  }
+  /**
+   * Leave the reel. ``keepHere`` ("Keep listening here") stays at this moment and keeps playing as
+   * the full episode; otherwise (✕) pause and go back to where the listener was before.
+   */
+  function exitReel(keepHere: boolean): void {
+    const r = reel.value
+    if (!r) return
+    reel.value = null
+    if (keepHere) {
+      if (el.value?.paused) playElement()
+      return
+    }
+    el.value?.pause()
+    seek(r.returnTo)
   }
 
   /**
@@ -679,6 +797,8 @@ export const usePlayerStore = defineStore('player', () => {
   function savePosition(finished = false): void {
     const slug = currentSlug.value
     if (!slug) return
+    // A reel jumps around the episode; saving those positions would overwrite the resume point.
+    if (reel.value) return
     const at = el.value?.currentTime ?? currentTime.value
     const d = duration.value
     const isFinished = finished || (d > 0 && at / d >= FINISHED_FRACTION)
@@ -761,7 +881,13 @@ export const usePlayerStore = defineStore('player', () => {
   function seek(to: number): void {
     const e = el.value
     if (!e) return
-    e.currentTime = Math.max(0, Math.min(to, duration.value || to))
+    const at = Math.max(0, Math.min(to, duration.value || to))
+    e.currentTime = at
+    // The time on screen moves NOW, not on the next `timeupdate`: no element fires one before
+    // playback starts, so a resume while the audio was still loading showed 0:00 for seconds while
+    // the audio then played from the saved place (Android tester, 2026-10-10).
+    currentTime.value = at
+    syncPositionState()
   }
   function skip(delta: number): void {
     seek(currentTime.value + delta)
@@ -845,8 +971,10 @@ export const usePlayerStore = defineStore('player', () => {
     seekto: (d) => {
       if (typeof d.seekTime === 'number') seek(d.seekTime)
     },
-    previoustrack: () => skipHandlers.prev?.(),
-    nexttrack: () => skipHandlers.next?.(),
+    // In a Moments reel the headphone / lock-screen track buttons skip moments (operator
+    // 2026-10-10); otherwise they move through the queue as before.
+    previoustrack: () => (reel.value ? reelPrev() : skipHandlers.prev?.()),
+    nexttrack: () => (reel.value ? reelNext() : skipHandlers.next?.()),
   }
   let nativeActionsWired = false
   function wireNativeActions(): void {
@@ -911,6 +1039,13 @@ export const usePlayerStore = defineStore('player', () => {
     currentShowTitle,
     currentArtwork,
     justFinished,
+    reel,
+    inReel,
+    startReel,
+    reelGo,
+    reelNext,
+    reelPrev,
+    exitReel,
     load,
     loadAt,
     nowPlaying,

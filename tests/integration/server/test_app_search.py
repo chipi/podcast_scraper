@@ -166,6 +166,40 @@ def test_app_search_enriches_hits_with_slug_titles_and_artwork(
     assert md["episode_slug"]  # deterministic, non-empty
     # No locally-stored art in this fixture → falls back to the remote feed image.
     assert md["episode_artwork"] == "https://img/feed.jpg"
+    # No GI artifact beside the metadata → the result offers no Moments reel.
+    assert md["episode_has_gi"] is False
+
+
+def test_app_search_marks_hits_whose_episode_has_insights(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``episode_has_gi`` lets an episode result offer "▶ Moments" (operator 2026-10-10)."""
+    _write_episode_meta(
+        tmp_path, feed_id="showa", episode_id="ep1", title="Ep One", feed_image="https://img/f.jpg"
+    )
+    (tmp_path / "metadata" / "ep1.gi.json").write_text(
+        json.dumps({"episode_id": "ep1", "nodes": [], "edges": []}), encoding="utf-8"
+    )
+
+    def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "insight:1",
+                    "score": 0.9,
+                    "metadata": {"doc_type": "insight", "feed_id": "showa", "episode_id": "ep1"},
+                    "text": "hi",
+                }
+            ],
+            lift_stats={"transcript_hits_returned": 0, "lift_applied": 0},
+        )
+
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", fake_run)
+    body = _client(tmp_path).get("/api/app/search", params={"q": "x"}).json()
+    md = body["results"][0]["metadata"]
+    assert md["episode_has_gi"] is True
+    # An insights file with no insight in it has nothing to play: no Moments door.
+    assert md["episode_has_moments"] is False
 
 
 # --------------------------------------------------------------------------- #
@@ -196,6 +230,49 @@ def _both_hits_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchO
         ],
         lift_stats={"transcript_hits_returned": 0, "lift_applied": 0},
     )
+
+
+def test_global_search_gives_a_transcript_result_its_real_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The index stores no time on transcript chunks (0 on prod), so "Play from" jumped to 0:00.
+    The result's words are found in its episode's timed transcript (operator 2026-10-10)."""
+    (tmp_path / "metadata").mkdir(parents=True)
+    (tmp_path / "transcripts").mkdir(parents=True)
+    doc = {
+        "feed": {"feed_id": "showa", "title": "Show A", "url": "https://showa.ex/f.xml"},
+        "episode": {"episode_id": "ep1", "title": "Ep One", "published_date": "2024-03-01"},
+        "content": {"transcript_file_path": "transcripts/ep1.txt"},
+    }
+    (tmp_path / "metadata" / "ep1.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+    (tmp_path / "transcripts" / "ep1.txt").write_text("x", encoding="utf-8")
+    segs = [
+        {"start": 0.0, "end": 5.0, "text": "Welcome back to the show everyone."},
+        {"start": 5.0, "end": 12.0, "text": "Diversification is the only free lunch, people say."},
+    ]
+    (tmp_path / "transcripts" / "ep1.segments.json").write_text(json.dumps(segs), encoding="utf-8")
+
+    def fake_run(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "chunk:ep1:1",
+                    "score": 0.9,
+                    "metadata": {
+                        "doc_type": "transcript",
+                        "feed_id": "showa",
+                        "episode_id": "ep1",
+                        "timestamp_start_ms": 0,
+                    },
+                    "text": "Diversification is the only free lunch, people say.",
+                }
+            ]
+        )
+
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", fake_run)
+    body = _client(tmp_path).get("/api/app/search", params={"q": "lunch"}).json()
+    md = body["results"][0]["metadata"]
+    assert (md["timestamp_start_ms"], md["timestamp_end_ms"]) == (5_000, 12_000)
 
 
 def test_scope_mine_requires_auth(tmp_path: Path) -> None:
@@ -244,6 +321,31 @@ def test_scope_mine_filters_to_captured_episodes(
     assert mine_body["results"][0]["metadata"]["episode_slug"] == slug1
 
 
+def test_scope_mine_puts_the_world_into_the_query(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mine ranks only the listener's episodes (operator 2026-10-10): their ids are part of the
+    query, not a filter on a corpus-wide page. Storylines come from their own scoped query."""
+    _two_episode_corpus(tmp_path)
+    calls: list[dict[str, Any]] = []
+
+    def spy(output_dir: Path, query: str, **kwargs: Any) -> CorpusSearchOutcome:
+        calls.append(kwargs)
+        return _both_hits_run(output_dir, query, **kwargs)
+
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", spy)
+    client = _authed(tmp_path)
+    client.post(
+        "/api/app/highlights",
+        json={"episode_slug": _slug(tmp_path, "ep1"), "kind": "moment", "start_ms": 0},
+    )
+    client.get("/api/app/search", params={"q": "x", "scope": "mine", "top_k": 7})
+    episode_call = next(c for c in calls if c.get("episode_ids") is not None)
+    assert episode_call["episode_ids"] == ["ep1"]
+    assert episode_call["top_k"] == 7  # no over-fetch: the query is already scoped
+    assert any(c.get("doc_types") == ["storyline"] for c in calls)
+
+
 def test_scope_mine_is_isolated_between_users(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -263,6 +365,32 @@ def test_scope_mine_is_isolated_between_users(
     b = bob.get("/api/app/search", params={"q": "x", "scope": "mine"}).json()
     assert [r["doc_id"] for r in a["results"]] == ["i1"]
     assert [r["doc_id"] for r in b["results"]] == ["i2"]
+
+
+def test_scope_mine_includes_a_followed_shows_episodes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ "Mine" is the listener's world (2026-10-09): following a show brings its episodes in."""
+    _two_episode_corpus(tmp_path)
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", _both_hits_run)
+    client = _authed(tmp_path)
+    assert client.post("/api/app/library", json={"feed_id": "showb"}).status_code == 200
+    mine = client.get("/api/app/search", params={"q": "x", "scope": "mine"}).json()
+    assert [r["doc_id"] for r in mine["results"]] == ["i2"]
+
+
+def test_scope_mine_includes_a_saved_episode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _two_episode_corpus(tmp_path)
+    monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", _both_hits_run)
+    client = _authed(tmp_path)
+    saved = client.put(
+        "/api/app/favorites", json={"kind": "episode", "ref": _slug(tmp_path, "ep2")}
+    )
+    assert saved.status_code == 200
+    mine = client.get("/api/app/search", params={"q": "x", "scope": "mine"}).json()
+    assert [r["doc_id"] for r in mine["results"]] == ["i2"]
 
 
 # --------------------------------------------------------------------------- #

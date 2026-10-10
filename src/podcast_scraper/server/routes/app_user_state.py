@@ -79,17 +79,13 @@ def list_playback(
         default_factory=list, max_length=100, description="Paged: only these episodes."
     ),
     offset: int = Query(default=0, ge=0),
-    limit: int | None = Query(
-        default=None,
-        ge=1,
-        le=100,
-        description="Page size. Absent: every position, as before 1.0.3.",
-    ),
+    limit: int = Query(default=50, ge=1, le=100, description="Page size."),
     user: User = Depends(get_current_user),
 ) -> PlaybackListResponse:
     """All saved playback positions, newest-updated first (Home 'Continue listening').
 
-    Paging is opt-in: with ``limit`` the list is filtered (``in_progress``, ``slugs``) and paged.
+    Always filtered (``in_progress``, ``slugs``) and paged. No pre-1.0.3 client is left
+    (2026-10-10, docs/wip/TODO-remove-pre-1.0.3-compat.md).
     """
     rows = app_user_state.list_playback(_data_dir(request), user.user_id)
     items = [
@@ -101,8 +97,6 @@ def list_playback(
         )
         for r in rows
     ]
-    if limit is None:
-        return PlaybackListResponse(items=items)
     wanted = set(slugs)
     # "In progress" is Home's rule: past the first second and not finished.
     selected = [
@@ -404,20 +398,15 @@ def get_favorites(
     color: str | None = Query(default=None, max_length=32, description="Only this colour."),
     sort: Literal["recent", "title"] = Query(default="recent"),
     offset: int = Query(default=0, ge=0),
-    limit: int | None = Query(
-        default=None,
-        ge=1,
-        le=100,
-        description="Page size. Absent: every favourite, unfiltered (clients before 1.0.3).",
-    ),
+    limit: int = Query(default=50, ge=1, le=100, description="Page size."),
     user: User = Depends(get_current_user),
 ) -> AppFavoritesResponse:
     """The user's saved items, grouped by kind (episodes hydrated, insights from snapshot).
 
-    Paging is opt-in: only a request that sends ``limit`` is filtered, sorted and paged.
+    Always filtered, sorted and paged; no pre-1.0.3 client is left (2026-10-10,
+    docs/wip/TODO-remove-pre-1.0.3-compat.md). The WRITES still answer with every
+    favourite — 1.0.3 reads its new state from them.
     """
-    if limit is None:
-        return _favorites(request, user)
     raw = app_user_state.get_favorites(_data_dir(request), user.user_id)
     return query_favorites(
         corpus_root_or_503(request),

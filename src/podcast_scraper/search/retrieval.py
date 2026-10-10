@@ -55,6 +55,7 @@ class RetrievalLayer:
         intent: Optional[str] = None,
         signals: str = "hybrid",
         tier: Tier = "all",
+        tier_filters: Optional[dict] = None,
     ) -> List[Result]:
         """Retrieve fused, deduplicated results.
 
@@ -63,7 +64,14 @@ class RetrievalLayer:
         ``vector``). Returns a score-ordered list of ``ScoredResult`` /
         ``CompoundResult``.
         """
-        query = SearchQuery(text=text, embedding=embedding, filters=filters or {}, k=k, tier=tier)
+        query = SearchQuery(
+            text=text,
+            embedding=embedding,
+            filters=filters or {},
+            k=k,
+            tier=tier,
+            tier_filters=tier_filters or {},
+        )
 
         # #1205: LanceDB's native in-engine hybrid (ADR-099 Stage 2, since reverted — the backend
         # no longer exposes ``search_hybrid``) hard-crashes the api: its score-normalize step calls

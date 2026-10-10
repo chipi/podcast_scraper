@@ -268,7 +268,7 @@ start. (A serif was tried and rejected during the earlier design phase.)
 - **Show names are capped, never shortened** (2026-09-30). An RSS show title can be a whole
   paragraph, and no short name is precomputed or forced. Every place a show name renders carries
   `.lp-show-name`, which holds it to TWO lines and breaks anywhere rather than overflowing: the
-  player kicker, episode rows and tiles, the Episode notes panel and the Home rails. Show tiles use
+  player kicker, episode rows and tiles, the Brief panel and the Home rails. Show tiles use
   `--4` and show rows `--3`. The show page heading (`podcast-title`) caps at three lines, and its
   "Show more" also appears whenever the heading is cut, lifting the cap. Guarded statically by
   `src/__checks__/show-name-safety-net.test.ts` (no show-name interpolation without a cap) and on
@@ -433,18 +433,89 @@ All on the app's one section cap, `useCappedSections(cap, step)` + `ShowAllToggl
   timeline, and the strip stays `role="img"` rather than becoming a second, unlabelled slider.
   Order: scrubber → density strip → the time readout, which labels the ends of both.
 - **Chips:** topic (`topic`), person (`person`), grounding (`grounded`) — `xs`, rounded, low-fill.
-- **Episode notes entry:** one labelled pill on the artwork, "✦ Episode notes" (`--accent`,
-  `player-open-insights`), that opens the **Episode notes** panel (shipped #1091 as "Insights"; renamed 2026-09-30 — the panel is the
-  episode's notes as a whole, and plain "Notes" already means the user's own notes, so the opener
-  pill and the panel title read "Episode notes" while the grounded items inside stay "insights").
+- **The obi: Moments, Brief and About** (operator 2026-10-10). The episode's doors sit in a 44px
+  band down the right edge of the artwork, like the paper band on a Japanese LP that carries the
+  record's information (`player-obi`, a `<nav>` named "Moments, brief and description"). Three
+  equal doors, set exactly alike in the kicker voice with no glyph and no count (PL.5):
+  **Moments** (`player-open-moments`) plays the episode's moments, **Brief** (`player-open-insights`)
+  opens the Brief panel, **About** (`player-open-description`) opens the publisher's description.
+  Equal heights, not sized to their words: "Description" (92px at the 11px kicker) does not fit a
+  third of the artwork (63–73px of room on common phones), so the band says **About**, and so does
+  the sheet's title (operator 2026-10-10: a sheet is named as its door). Moments and Brief need insights, About needs a feed
+  description; with none, there is no band. The band stays while the panel is open, so the artwork
+  never reflows, and Zone D and the reach chip are inset by the same 44px.
+- **Step** (operator 2026-10-10): previous / next insight in normal playback. ‹ and › sit on the
+  live insight card around a counter ("✦ 4 / 40 · speaker") and around the between-insights
+  "Next · in 0:06" line, each a 44px target; `[` and `]` on desktop. Next jumps to the next
+  insight's first quote; previous restarts the current insight, or goes back one within 3 s of
+  its start (a music player). No long-press on the skip buttons: invisible, and a second meaning
+  for ↺15.
+- **Moments** (`MomentsCard` + `MomentsIndex`; operator 2026-10-10; `?moments=1`): a quick-listening
+  mode that plays the episode's strongest moments back to back, each a clip of the speaker making
+  the point. It plays INSIDE the artwork, and the page stays the episode page (operator
+  2026-10-10, replacing a separate view with its own header: "the key area stays as on the played
+  episode and we just change inside the artwork"). The artwork shows segments across the top and,
+  where the live insight card sits otherwise, the current moment in display type with who says it
+  and their role, a thin clip bar, ‹ › and **Keep listening here** (the full episode from this
+  moment); after the last moment, an end card ("Listen from the start", "Back to …", the next
+  queued episode's moments). The obi's top door reads **Episode** and leads out to where the
+  listener was; the transport's ↺15 / 30↻ become previous / next moment; every moment is listed
+  under the transport, where the transcript is otherwise. A reel is not a listen: no listen
+  logged, no position saved, no milestones. Headphone and lock-screen next / previous skip
+  moments while it runs. Which moments and how many are server config (`APP_MOMENTS_CONFIG`). In
+  the episode view the moments are marked on the density strip (cream, taller than an insight
+  tick; never the accent).
+- **Ways into Moments** (operator 2026-10-10): **Play moments** leads the shared ⋯ menu on every
+  episode with insights; on browsing rows (Discover and show-page cards, search episode results,
+  Downloads, Discover 2 cards) a small amber text action, `MomentsLink` ("▶ Moments" — no box, no
+  count, no extra height; the boxed chip was rejected as heavy and repeated on every row); the
+  Brief offers a **Play moments** button right after the Summary. Not on Home tiles (too small) or
+  passage results (already a moment). Downloaded episodes play their reel offline: the moments are
+  saved with the download.
+- **Around the reel** (2026-10-10): the mini-player reads "Moments · 3 / 8" while a reel plays and
+  reopens the episode with the reel playing; the end card offers the next queued episode's moments, so reels chain
+  through a queue; each clip fades in over 250 ms instead of cutting in. Step: the insight the
+  listener is in stands out on the density strip (taller, full strength). "▶ Moments" also sits on
+  topic, person, storyline, theme and org episode rows and every Discover 2 episode card. Offline
+  it works on downloaded episodes and greys for the rest (inert, saying why), like every offline
+  action.
+- **Step and the reel, finished** (2026-10-10): a left swipe on the insight card is next, a right
+  swipe previous (touch only; a vertical drag still scrolls, and a swipe never counts as the tap
+  that hides the card); every step shows "› Jumped to 21:07" for two seconds and says it to screen
+  readers through the page's one live region; the counter reads "Insight 4 of 40" to them. The
+  obi's three doors are divided by the same low-key rule (a brighter one under Moments was tried and
+  dropped, operator 2026-10-10). Mid-reel the obi keeps Brief and About a tap away; the current
+  moment names the speaker's role ("Nora, host"). The Brief's button says how many and how long once loaded ("Play 8 moments ·
+  3½ min · the strongest moments, in order") and disappears for an episode with none. "▶ Moments"
+  shows on search results only for episodes with insights (the server marks `episode_has_gi`), on
+  the meta row under "Matched:" (the "Matched" line itself sits inside the result's link, and a
+  link inside a link loses its name); Saved and Revisit groups offer the reel in the ⋯ menu only;
+  a downloaded episode whose saved copy has no moments shows no "▶ Moments".
+- **Brief** is the panel's name (renamed 2026-10-10; shipped #1091 as "Insights", "Episode notes"
+  from 2026-09-30). One word for the band, and plain "Notes" already means the listener's own
+  notes. The grounded items inside stay "insights".
   It opens on the episode: show kicker, title, then the people in the room, host first and then
   guests (mentioned people stay in the chips), each with a 32px `ProfileAvatar` photo and a role
-  label. Initials show when there is no photo. Tapping a person opens them in the panel with
-  ‹ Back, the same as their chip does. The panel is a single
-  vertical column: episode (title + people) · Summary · Download notes · Search this episode ·
+  label. Initials show when there is no photo. Tapping a person opens them as a sheet layered
+  over the panel, the same as their chip does. The panel is a single
+  vertical column: episode (title + people) · Summary · Play moments · Download brief · Search this episode ·
   Key points · **Topics & People (one merged, expandable row; chips → corpus search)** · Insights
   (grounded cards, `●` grounded marker) · More like this. Search sits below the summary and the
   download row (2026-09-30): the panel opens on what the episode is, and search is for digging in.
+  **Search this episode is for what a listener remembers** (operator 2026-10-10; eval
+  `docs/wip/BRIEF-SEARCH-EVAL-2026-10-10.md`): it searches only this episode, and its results come
+  in two groups — **In the transcript** (the words verbatim first, then by meaning; each result cut
+  to the sentence holding the words, the words marked, "Play from" where it was said, and
+  **Highlight**, which saves that sentence) and **Insights**. The episode's own summary,
+  description and title are left out of the results; the Brief already shows them.
+- **Episode description** (operator 2026-10-10): the obi's About door opens
+  `EpisodeDescriptionSheet`, which shows the publisher's own description in full. Cards clamp that
+  text, and the player had no way to read it. The sheet is a native `<dialog>`: a bottom sheet on
+  phones, a centred card at `lg`, laid out exactly like the Brief — the grab handle (pull down to
+  close), a header titled **About** with ✕, then the show and the episode title opening the
+  content, then the whole text as plain text (never HTML). Links the publisher wrote out (`http(s)://`, `www.`) are tappable and open outside
+  the app through `openExternal`. Links hidden behind words in the feed's HTML cannot be shown,
+  because ingest strips them.
 - **Episode card (Catalog + search):** hairline-separated row — artwork block + clean **lede**
   (summary title) + `date · duration` + a grounded **✦ insights icon** that reveals the full
   summary bullets on hover/tap. *No topic pills on the card.* (The oversized faint **numeral** is the
@@ -631,8 +702,8 @@ already travelled; **search** and the **muted** toggle did not, so narrowing the
 Export handed back a file that disagreed with the screen that produced it. All three are query
 parameters on `/highlights/export.md` now.
 
-**Episode notes (operator 2026-09-18).** The Episode notes panel carries its own export — one
-"Download notes" link — of the WHOLE EPISODE: title, summary, key points, topics and people, everything the episode
+**Brief export (operator 2026-09-18; named Episode notes until 2026-10-10).** The Brief panel carries its own export — one
+"Download brief" link — of the WHOLE EPISODE: title, summary, key points, topics and people, everything the episode
 said with a jump link on every supporting quote, then the user's own captures and notes on it. It
 is deliberately a different artifact from the Library export: that one answers "what did I save,
 across everything", this one answers "what was this episode, and what did I take from it". Printed
@@ -1308,7 +1379,7 @@ review or rebuild it.
 | `PodcastView` | One show: its episodes, its signals band, follow | Following is the primary action and must respond instantly (optimistic), reverting only on a server REFUSAL |
 | `TopicView` | One topic: perspectives, arc, episodes | Every claim carries its source; ungrounded content is omitted, not shown greyed |
 | `PersonView` | One person: positions, topics, episodes | Same grounding rule as `TopicView` |
-| `ShowBrowseView` · `TopicBrowseView` · `PersonBrowseView` | The three browse indexes behind Catalog | Consistent card + heading treatment across all three; they differ in content, never in shape |
+| `ShowBrowseView` · `TopicBrowseView` · `PersonBrowseView` | The three browse indexes behind Catalog | Consistent card + heading treatment across all three; they differ in content, never in shape. Shows: a language filter beside the category filter, offered only when the shows span two or more languages (filtered on the server; options named in the reader's language), and each show row leads its facts line with the language badge, then the episode count, as the show page does (2026-10-10) |
 | `ProfileView` | Identity (name — editable by every account — photo, handle, email), activity, interests (edited in place, one section per kind), connected agents, device settings; Account ends with Sign out, Clear listening history… and Delete account… (#2273) | Ordered account-first, device-LAST: device settings belong to the phone and are shared by everyone who signs in on it. A NEW account arriving with `?welcome=1` is asked ONE question — its name, pre-filled, skippable — and either answer drops `welcome` so the page never asks twice |
 | `DeleteAccountView` | Delete account (#2273, App Store 5.1.1(v), Play data deletion): reached from Profile › Account, under Sign out; public at `/account/delete` | Says WHICH account goes — one address can hold separate Google, Apple and email accounts and only the signed-in one is deleted. States what is removed (everything that is theirs, immediately) and what is not (unlinkable usage statistics, the invite-list entry, other accounts). Never one tap: the button stays disabled until the person types `DELETE`. Afterwards the landing says the account was deleted. Signed out, the same page explains how — it is the link the Play listing points at |
 | `PrivacyPolicy` | The privacy policy (#2210), on the About › Privacy page; public, and `/privacy` redirects there | Written from what the app actually collects and must agree with the store declarations (Play Data safety): if the code starts collecting something new, this page changes in the same change. Anything not yet decided is shown in a visible draft notice, never left as silent placeholder text. English only: a legal text no one reviewed in a language is not a policy in that language |

@@ -151,6 +151,11 @@ def _configure_platform_auth(app: FastAPI, resolved_output: Path | None) -> None
     # clear a "3 mentions in the recent window" floor, so trending rails would render empty — set
     # APP_MOMENTUM_MIN_TOTAL=1 there. Unset → the packaged default (3), correct for a real corpus.
     _mom_min = os.environ.get("APP_MOMENTUM_MIN_TOTAL", "").strip()
+    # Moments (operator 2026-10-10): which moments play and how many. Every knob is overridable
+    # with APP_MOMENTS_CONFIG (JSON), so tuning after feedback needs no app release.
+    from podcast_scraper.server.app_moments import MomentsConfig
+
+    app.state.moments_config = MomentsConfig.from_env()
     app.state.momentum_config = (
         {"trend": {"min_total": int(_mom_min)}} if _mom_min.isdigit() else None
     )

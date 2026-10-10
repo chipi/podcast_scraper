@@ -82,8 +82,15 @@ async function expectBackAt(el: Locator, before: Place, what: string): Promise<v
     .toBeLessThan(12)
 }
 
-/** The ✕ of the sheet on top. `.last()` in DOM order can be a card UNDER it (sheets teleport). */
-const topSheetClose = (page: Page) => page.locator('[data-testid="ec-dismiss"][aria-label="Close"]')
+/**
+ * The ✕ of the entity sheet at stack `depth` (the Brief's own cards are depth 1, what they open 2,
+ * and so on). Named explicitly rather than "the deepest one now": read straight after a tap, the new
+ * sheet has not mounted yet and "deepest" names the one under it. `.last()` in DOM order can be a
+ * card UNDER the top one too (sheets teleport). The locator waits for the sheet like any other.
+ */
+function sheetClose(page: Page, depth: number): Locator {
+  return page.locator(`.lp-sheet[style*="--lp-depth: ${depth}"] [data-testid="ec-dismiss"][aria-label="Close"]`)
+}
 
 async function openRiskPanelEpisode(page: Page): Promise<void> {
   await page.goto('/podcast/p05')
@@ -144,10 +151,10 @@ test('episode → topic → theme → person: each Back lands on the exact spot 
   await expect(voice, 'the theme has no Top voices to open a person from').toBeAttached()
   await voice.scrollIntoViewIfNeeded()
   const voiceTop = await tap(voice)
-  await expect(topSheetClose(page)).toBeVisible()
+  await expect(sheetClose(page, 3)).toBeVisible()
 
   // Back, one layer at a time.
-  await topSheetClose(page).click() // person
+  await sheetClose(page, 3).click() // person
   await expectBackAt(voice, voiceTop, 'theme after closing the person')
   await themeSheet.getByTestId('theme-card-close').click() // theme
   await expectBackAt(themeLink, themeLinkTop, 'topic card after closing the theme')
@@ -194,8 +201,8 @@ test('every way out of the episode notes comes back to the spot it left from', a
   if (voiceHref) {
     await voice.scrollIntoViewIfNeeded()
     const voiceTop = await tap(voice)
-    await expect(topSheetClose(page)).toBeVisible() // the person sheet over the topic
-    await topSheetClose(page).click()
+    await expect(sheetClose(page, 2)).toBeVisible() // the person sheet over the topic sheet
+    await sheetClose(page, 2).click()
     await expectBackAt(voice, voiceTop, 'topic after closing the person sheet on top of it')
   }
   await back().click()

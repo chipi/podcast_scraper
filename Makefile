@@ -2784,7 +2784,8 @@ android-app-install:
 	@$(ADB) reverse tcp:$(IOS_ORIGIN_PORT) tcp:$(IOS_ORIGIN_PORT) >/dev/null
 	@$(ADB) reverse tcp:$(IOS_MEDIA_PORT) tcp:$(IOS_MEDIA_PORT) >/dev/null
 	@echo "--> building the app against the single origin and installing it on '$(ANDROID_AVD)'"
-	@cd $(APP_DIR) && CAP_ANDROID_TEST_ORIGIN=1 \
+	@# VITE_ANALYTICS_OFF: a test build must not beacon to the real Umami (2026-10-09).
+	@cd $(APP_DIR) && CAP_ANDROID_TEST_ORIGIN=1 VITE_ANALYTICS_OFF=1 \
 		VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
 		npm run build >/dev/null && CAP_ANDROID_TEST_ORIGIN=1 npx cap sync android >/dev/null
 	@# ANDROID_HOME + JAVA_HOME, like `android-build` at the bottom of this file. Without them
@@ -3285,7 +3286,8 @@ ios-dd-check:
 
 ios-app-install: ios-origin-up ios-dd-check
 	@echo "--> building the player against the single origin on :$(IOS_ORIGIN_PORT) (api + audio)"
-	@cd $(APP_DIR) && VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
+	@# VITE_ANALYTICS_OFF: a test build must not beacon to the real Umami (2026-10-09).
+	@cd $(APP_DIR) && VITE_ANALYTICS_OFF=1 VITE_API_BASE_URL=http://127.0.0.1:$(IOS_ORIGIN_PORT)/api/app \
 		npm run build >/dev/null && npx cap sync ios >/dev/null
 	@cd $(APP_DIR)/ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
 		-sdk iphonesimulator -destination 'platform=iOS Simulator,name=$(IOS_SIM)' \
@@ -3925,6 +3927,15 @@ android-play-apk:
 
 android-play-preflight:
 	@cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane preflight
+
+#: Read-only: the internal track, and whether Play has PROCESSED a build (default: the newest;
+#: VERSION_CODE=<n> for another). "Processed" is not proof testers can install it — a tester's
+#: Play Store -> Manage apps & device -> Updates offering the update is (2026-10-07: published,
+#: not installable for ~30 min).
+android-play-status:
+	@out=$$(cd $(ANDROID_FASTLANE_DIR) && bundle exec fastlane status \
+		$(if $(VERSION_CODE),version_code:$(VERSION_CODE),) 2>&1); rc=$$?; \
+	printf '%s\n' "$$out" | grep -E 'TRACK |PROCESSED |PROOF |ERROR|Error|error'; exit $$rc
 
 android-play:
 	@# Ask PLAY for the next free versionCode BEFORE building, instead of letting build.gradle fall
@@ -5155,7 +5166,7 @@ serve-app-validation-media:
 	@PYTHONPATH=$(CURDIR)/src:$(CURDIR) $(PYTHON) scripts/tools/run_e2e_mock_server.py --port 18765
 
 serve-app-validation-ui:
-	@cd web/learning-player && npm run build && \
+	@cd web/learning-player && VITE_ANALYTICS_OFF=1 npm run build && \
 	 VITE_API_TARGET=http://127.0.0.1:8000 \
 	 npm run preview -- --port 5175 --strictPort --host 127.0.0.1
 

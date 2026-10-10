@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import EpisodeActions from '../components/EpisodeActions.vue'
 import { kindPill } from '../utils/interests'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -324,7 +325,8 @@ describe('HomeView (discover state, signed out)', () => {
     await flushPromises()
     await w.find('input#home-search').setValue('memory')
     await w.find('form').trigger('submit')
-    expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'memory' } })
+    // Signed out the shared Mine ⇄ Everyone reads everyone (2026-10-09).
+    expect(push).toHaveBeenCalledWith({ name: 'search', query: { q: 'memory', scope: 'all' } })
   })
 })
 
@@ -1094,5 +1096,29 @@ describe('returning to Home (#2024)', () => {
     ).toContain('Half Finished')
     release(POS)
     await back
+  })
+})
+
+describe("HomeView: What's new offers Moments only where there is a moment (2026-10-10)", () => {
+  it('the featured episode and every row follow has_moments, not has_gi', async () => {
+    const withM = { ...ep('a-1', 'First Ep'), has_gi: true, has_moments: true }
+    const noM = { ...ep('a-2', 'Second Ep'), has_gi: true, has_moments: false }
+    const noM2 = { ...ep('a-3', 'Third Ep'), has_gi: true, has_moments: false }
+    const withM2 = { ...ep('a-4', 'Fourth Ep'), has_gi: true, has_moments: true }
+    vi.spyOn(api, 'getWhatsNew').mockResolvedValue({ items: [withM, noM, withM2, noM2], scope: 'all' })
+    vi.spyOn(api, 'getPodcasts').mockResolvedValue([])
+    vi.spyOn(api, 'getPlaybackList').mockResolvedValue([])
+    const w = mountKeptAlive()
+    await flushPromises()
+    const doors = new Map<string, boolean[]>()
+    for (const a of w.findAllComponents(EpisodeActions)) {
+      const slug = a.props('slug') as string
+      doors.set(slug, [...(doors.get(slug) ?? []), Boolean(a.props('moments'))])
+    }
+    // Every slug is on the page, and each of its action rows agrees with has_moments.
+    for (const [slug, want] of [['a-1', true], ['a-2', false], ['a-3', false], ['a-4', true]] as const) {
+      expect(doors.get(slug), slug).toBeDefined()
+      expect(doors.get(slug)!.every((m) => m === want), slug).toBe(true)
+    }
   })
 })

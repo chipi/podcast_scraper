@@ -68,12 +68,16 @@ def corpus_summary(request: Request, user: User = Depends(get_current_user)) -> 
 @router.get("/corpus/episodes", response_model=CorpusFacetEpisodesResponse)
 def corpus_episodes(
     request: Request,
-    facet: str = Query(default="experienced", pattern="^(experienced|saved)$"),
+    facet: str = Query(default="experienced", pattern="^(experienced|saved|world)$"),
     user: User = Depends(get_current_user),
 ) -> CorpusFacetEpisodesResponse:
-    """The episode slugs in a facet (`experienced` or `saved`)."""
+    """The episode slugs in a facet: `experienced`, `saved`, or `world` — every episode in the
+    listener's "mine" (ADR-162: heard or captured from, saved, or of a followed show)."""
     root = corpus_root_or_503(request)
     data_dir = _data_dir(request)
+    if facet == "world":
+        world = app_user_corpus.world_episode_set(root, data_dir, user.user_id)
+        return CorpusFacetEpisodesResponse(facet="world", slugs=sorted(world))
     experienced = app_user_corpus.experienced_episode_set(root, data_dir, user.user_id)
     if facet == "experienced":
         slugs = experienced

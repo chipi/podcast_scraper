@@ -19,10 +19,14 @@ import type {
   Entity,
   Insight,
   SearchHit,
+  Segment,
   Topic,
 } from "../services/types"
 import { formatTime } from "../player/transcriptSync"
 import { hitStartSeconds, insightStartSeconds } from "../player/insights"
+import { groupBriefResults, markTerms, searchTerms } from "../player/briefSearch"
+import { spanFromParagraph, type ParagraphSpan } from "../player/transcriptCapture"
+import { minutesValue } from "../services/moments"
 import { speakerLabel } from "../utils/format"
 import CardRail from "./CardRail.vue"
 import EpisodeTile from "./EpisodeTile.vue"
@@ -31,14 +35,15 @@ import { useAuthStore } from "../stores/auth"
 import { sheetTeleportTarget } from "../composables/sheetStack"
 import { useSignInGate } from "../composables/useSignInGate"
 import { scrollBehavior } from "../utils/motion"
-import { holdScroll, offsetWithin, restoreScroll, waitForSettledElement } from "../utils/scrollRestore"
+import { holdScroll, offsetWithin, waitForSettledElement } from "../utils/scrollRestore"
 import { NOTES_ANCHOR } from "../composables/noteTarget"
 import { useCaptureStore } from "../stores/capture"
 import CollapsibleSection from "./CollapsibleSection.vue"
 import HighlightToggle from "./HighlightToggle.vue"
 import InsightTypeMark from "./InsightTypeMark.vue"
 import NoteComposer from "./NoteComposer.vue"
-import EntityCardBody from "./EntityCardBody.vue"
+import EntityCard from "./EntityCard.vue"
+import { useSheetDrag } from "../composables/useSheetDrag"
 import { personName } from "../utils/personName"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import StorylineCard from "./StorylineCard.vue"
@@ -58,8 +63,22 @@ const props = withDefaults(
     focusInsightId?: string | null
     /** Opened from a note's "Open" (operator 2026-10-04) — land on the notes, not the panel top. */
     focusNotes?: boolean
+    /** The episode's moments once loaded ("Play 8 moments · 3½ min"); null while unknown. */
+    momentsCount?: number | null
+    momentsSeconds?: number
+    /**
+     * The episode's timed transcript, as the player loaded it: search results are cut to the
+     * sentence holding the remembered words, timed from it, and saved as highlights from it.
+     */
+    segments?: Segment[]
   }>(),
-  { focusInsightId: null, focusNotes: false }
+  {
+    focusInsightId: null,
+    focusNotes: false,
+    momentsCount: null,
+    momentsSeconds: 0,
+    segments: () => [],
+  }
 )
 const emit = defineEmits<{
   (e: "seek", seconds: number): void
@@ -75,6 +94,10 @@ const emit = defineEmits<{
    * already owns one.
    */
   (e: "announce", message: string): void
+  /** "▶ Play moments" at the top of the Brief (operator 2026-10-10): the reel lives on the page. */
+  (e: "play-moments"): void
+  /** Highlight a piece of the transcript found by the search (the page saves it, auth-gated). */
+  (e: "capture-span", span: ParagraphSpan): void
 }>()
 
 const { t } = useI18n()
@@ -192,15 +215,17 @@ type Tag = {
   episodeScoped: boolean
 }
 
-// Tapping a chip opens its entity card (PRD-043; library search now lives inside the card).
+// Tapping a chip opens its entity card (PRD-043; library search now lives inside the card), as a
+// sheet LAYERED over the panel — the panel's title stays visible above it, and closing it lands on
+// the panel exactly as it was (operator 2026-10-10: a person opened from the Brief must cascade,
+// not replace the Brief). The storyline and theme sheets below already open the same way.
 const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
-// The card REPLACES the panel body, so closing it rebuilt the panel at the top — far from the
-// people or topics row the card was opened from. Remember the offset; put it back on close
-// (operator 2026-10-04).
 const panelBodyEl = ref<HTMLElement | null>(null)
-let panelScrollBeforeCard = 0
+// The grab handle closes the sheet when pulled down (operator 2026-10-10). Phone only: the handle
+// is hidden on the desktop rail.
+const panelEl = ref<HTMLElement | null>(null)
+const handleDrag = useSheetDrag(panelEl, () => emit("close"))
 function showCard(kind: "person" | "topic", id: string): void {
-  panelScrollBeforeCard = panelBodyEl.value?.scrollTop ?? 0
   cardTarget.value = { kind, id }
 }
 function openCard(tag: Tag): void {
@@ -208,7 +233,6 @@ function openCard(tag: Tag): void {
 }
 function closeCard(): void {
   cardTarget.value = null
-  void nextTick(() => restoreScroll(panelBodyEl.value, panelScrollBeforeCard))
 }
 
 // How many of THIS episode's topics fall in each corpus cluster (intra-episode dominance).
@@ -525,6 +549,10 @@ const results = ref<SearchHit[]>([])
 const searching = ref(false)
 const askError = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
+/** The query the results answer — not the live input, so marking does not shift while typing. */
+const askedQuery = ref("")
+const askedTerms = computed(() => searchTerms(askedQuery.value))
+const grouped = computed(() => groupBriefResults(results.value, props.segments, askedQuery.value))
 
 /**
  * Collapse hits whose text is identical.
@@ -568,6 +596,7 @@ async function runSearch(): Promise<void> {
   askError.value = false
   try {
     const resp = await searchEpisode(props.slug, query)
+    askedQuery.value = query
     results.value = dedupeByText(resp.results)
     askError.value = Boolean(resp.error)
   } catch {
@@ -638,28 +667,18 @@ watch(() => auth.isAuthenticated, loadCaptures)
 </script>
 
 <template>
-  <aside class="flex h-full flex-col bg-surface" :aria-label="t('kp.title')">
-    <!-- Mobile bottom-sheet grab handle (signals the player sits behind; hidden on desktop rail). -->
-    <div class="flex shrink-0 justify-center pt-2 lg:hidden" aria-hidden="true">
+  <aside ref="panelEl" class="flex h-full flex-col bg-surface" :aria-label="t('kp.title')">
+    <!-- Mobile bottom-sheet grab handle: pull it down to close (hidden on the desktop rail). The
+         strip is full-width and 24px tall so a thumb finds it; `touch-none` keeps the page from
+         scrolling under the pull. Hidden from assistive tech: ✕ is the accessible close. -->
+    <div
+      class="flex h-6 shrink-0 touch-none items-center justify-center lg:hidden"
+      aria-hidden="true"
+      data-testid="kp-sheet-handle"
+      v-bind="handleDrag"
+    >
       <span class="h-1.5 w-10 rounded-full bg-border"></span>
     </div>
-    <!-- Replace-in-panel (UXS-014): a tapped chip swaps the panel content to the entity card with a
-         ‹ Back — no overlay, no second backdrop.
-         `can-layer` is nonetheless TRUE, and the two are not in conflict. Replace-in-panel governs
-         what a tapped CHIP does inside this panel; it never meant nothing may sit above the panel.
-         This panel is itself a full-height bottom sheet, so a storyline or person opened from the
-         card it is showing stacks ON TOP and leaves that card's kicker + title visible behind —
-         topic underneath, storyline on it, person on that (operator 2026-09-16). Deriving it from
-         `dismissAtRoot` instead sent the storyline to a PAGE, which loses the topic altogether. -->
-    <EntityCardBody
-      v-if="cardTarget"
-      variant="inline"
-      can-layer
-      :kind="cardTarget.kind"
-      :id="cardTarget.id"
-      @close="closeCard"
-    />
-    <template v-else>
       <header class="flex items-center justify-between border-b border-border px-4 py-3">
         <span class="font-display text-lg font-bold">{{ t("kp.title") }}</span>
         <!-- Same ✕ idiom as the topic/person cards (lp-nav) — the bare button showed the default
@@ -698,8 +717,8 @@ watch(() => auth.isAuthenticated, loadCaptures)
 
                Each with their photo (operator 2026-09-30) — the same ProfileAvatar, and so the same
                crop, as Top voices; initials when the enricher has no photo. A tap opens the person
-               exactly as their chip below does (replace-in-panel, ‹ Back), so the two ways in stack
-               identically. An episode-scoped person has no corpus-wide card: shown, not tappable. -->
+               exactly as their chip below does (a sheet layered over the Brief), so the two ways in
+               stack identically. An episode-scoped person has no corpus-wide card: shown, not tappable. -->
           <ul v-if="dossierPeople.length" class="mt-3 flex flex-wrap gap-x-4 gap-y-2">
             <li v-for="p in dossierPeople" :key="p.id">
               <component
@@ -733,6 +752,30 @@ watch(() => auth.isAuthenticated, loadCaptures)
           <h3 class="lp-section mb-1">{{ t("kp.summary") }}</h3>
           <p class="text-sm leading-relaxed text-surface-foreground">{{ summary }}</p>
         </section>
+        <!-- The reel's entrance, right after the Summary (operator 2026-10-10: read what the episode
+             is, then taste it). Amber outline: an action, not a section. -->
+        <button
+          v-if="insights.length && momentsCount !== 0"
+          type="button"
+          class="mb-5 flex w-full items-center gap-3 rounded border border-accent px-3 py-2.5 text-left"
+          data-testid="kp-play-moments"
+          @click="emit('play-moments')"
+        >
+          <span
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"
+            aria-hidden="true"
+          >▶</span>
+          <span class="min-w-0">
+            <template v-if="momentsCount">
+              <span class="block text-sm font-bold">{{ t("moments.playCount", { count: momentsCount }, momentsCount) }}</span>
+              <span class="block text-xs text-muted">{{ t("moments.playCountHint", { length: t("moments.minutes", { n: minutesValue(momentsSeconds) }) }) }}</span>
+            </template>
+            <template v-else>
+              <span class="block text-sm font-bold">{{ t("moments.play_moments") }}</span>
+              <span class="block text-xs text-muted">{{ t("moments.play_moments_hint") }}</span>
+            </template>
+          </span>
+        </button>
 
         <!-- Export the whole episode as notes (operator 2026-09-18).
 
@@ -765,8 +808,8 @@ watch(() => auth.isAuthenticated, loadCaptures)
           :html="notesHtml"
           :to="notesTeleportTarget"
           :title="t('kp.exportNotesPdf')"
-          :html-filename="exportFilename(`${episode.title} notes`, 'html', 'episode-notes')"
-          :md-filename="exportFilename(`${episode.title} notes`, 'md', 'episode-notes')"
+          :html-filename="exportFilename(`${episode.title} brief`, 'html', 'brief')"
+          :md-filename="exportFilename(`${episode.title} brief`, 'md', 'brief')"
           :md-url="notesUrl('md')"
           :fetch-markdown="fetchNotesMarkdown"
           @close="notesHtml = null"
@@ -812,21 +855,63 @@ watch(() => auth.isAuthenticated, loadCaptures)
           </div>
           <p v-if="searching" class="mt-2 text-sm text-muted">{{ t("kp.searching") }}</p>
           <p v-else-if="askError" class="mt-2 text-sm text-danger">{{ t("kp.searchError") }}</p>
-          <ul v-else-if="results.length" class="mt-3 flex flex-col gap-2">
-            <li
-              v-for="hit in results"
-              :key="hit.doc_id"
-              class="rounded-xl border border-border p-3"
-            >
-              <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
-              <PlayFrom
-                v-if="hitStartSeconds(hit) != null"
-                class="mt-1 inline-block"
-                :seconds="hitStartSeconds(hit)"
-                @click="emit('play-from', hitStartSeconds(hit) as number)"
-              />
-            </li>
-          </ul>
+          <!-- Two groups (operator 2026-10-10): the transcript — the sentence holding the words,
+               the words marked, Play from and Highlight — then the insights. -->
+          <div
+            v-else-if="grouped.transcript.length || grouped.insights.length"
+            class="mt-3 flex flex-col gap-4"
+            data-testid="kp-search-results"
+          >
+            <section v-if="grouped.transcript.length" data-testid="kp-search-transcript">
+              <h4 class="lp-kicker mb-1.5">{{ t("kp.searchInTranscript") }}</h4>
+              <ul class="flex flex-col gap-2">
+                <li
+                  v-for="p in grouped.transcript"
+                  :key="p.key"
+                  class="rounded-xl border border-border p-3"
+                  data-testid="kp-search-piece"
+                >
+                  <p class="text-sm text-surface-foreground"><template
+                      v-for="(run, i) in markTerms(p.text, [...askedTerms, ...p.marks])"
+                      :key="i"
+                    ><mark
+                        v-if="run.mark"
+                        class="rounded-sm bg-canvas-foreground/15 px-0.5 font-semibold text-canvas-foreground"
+                      >{{ run.text }}</mark><template v-else>{{ run.text }}</template></template></p>
+                  <div class="mt-1 flex flex-wrap items-center gap-x-4">
+                    <PlayFrom v-if="p.start != null" :seconds="p.start" @click="emit('play-from', p.start)" />
+                    <button
+                      v-if="p.segments.length"
+                      type="button"
+                      class="inline-flex min-h-[44px] items-center text-sm font-bold text-accent"
+                      data-testid="kp-search-highlight"
+                      @click="emit('capture-span', spanFromParagraph(p.segments, null))"
+                    >
+                      {{ t("kp.searchHighlight") }}
+                    </button>
+                  </div>
+                </li>
+              </ul>
+            </section>
+            <section v-if="grouped.insights.length" data-testid="kp-search-insights">
+              <h4 class="lp-kicker mb-1.5">{{ t("kp.searchInsights") }}</h4>
+              <ul class="flex flex-col gap-2">
+                <li
+                  v-for="hit in grouped.insights"
+                  :key="hit.doc_id"
+                  class="rounded-xl border border-border p-3"
+                >
+                  <p class="text-sm text-surface-foreground">{{ hit.text }}</p>
+                  <PlayFrom
+                    v-if="hitStartSeconds(hit) != null"
+                    class="mt-1 inline-block"
+                    :seconds="hitStartSeconds(hit)"
+                    @click="emit('play-from', hitStartSeconds(hit) as number)"
+                  />
+                </li>
+              </ul>
+            </section>
+          </div>
           <p v-else-if="q.trim() && !searching" class="mt-2 text-sm text-muted">
             {{ t("kp.noResults") }}
           </p>
@@ -1204,11 +1289,17 @@ watch(() => auth.isAuthenticated, loadCaptures)
            the platform supports it. -->
         <NoteComposer target="episode" :target-id="slug" />
       </div>
-    </template>
 
     <!-- The storyline named by the lead-in, opened ON TOP of this panel rather than replacing it —
          the same stacking the panel already documents for a card's storyline ("topic underneath,
-         storyline on it"). Outside the `v-else` so it survives a chip swapping the body. -->
+         storyline on it"). -->
+    <EntityCard
+      v-if="cardTarget"
+      :kind="cardTarget.kind"
+      :id="cardTarget.id"
+      :depth="1"
+      @close="closeCard"
+    />
     <ThemeCard
       v-if="themeOpen && dominantClusterId"
       :id="dominantClusterId"

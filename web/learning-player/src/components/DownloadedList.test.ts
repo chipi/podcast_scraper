@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
@@ -12,9 +12,11 @@ vi.mock('../services/downloadScheduler', () => ({
   markForOffline: vi.fn(),
   getNetworkPolicy: async () => 'wifi-only',
 }))
+const localKnowledgeFor = vi.fn(async (_slug: string): Promise<unknown> => null)
 vi.mock('../services/downloads', () => ({
   deleteEpisode: vi.fn(),
   localArtworkFor: () => null,
+  localKnowledgeFor: (slug: string) => localKnowledgeFor(slug),
 }))
 
 const DownloadedList = (await import('./DownloadedList.vue')).default
@@ -116,5 +118,23 @@ describe('DownloadedList', () => {
     const text = mountList().find('[data-testid="downloaded-storage"]').text()
     expect(text).toContain('10 MB')
     expect(text).toContain('1 episodes')
+  })
+
+  it('"▶ Moments" on every downloaded episode, except one whose saved copy has no moments', async () => {
+    localKnowledgeFor.mockImplementation(async (slug: string) =>
+      slug === 'none' ? { moments: [] } : slug === 'some' ? { moments: [{ insight_id: 'a' }] } : null,
+    )
+    const store = useDownloadsStore()
+    store.loaded = true
+    store.entries = {
+      some: { slug: 'some', state: 'downloaded', updatedAt: 3, title: 'Has moments' },
+      none: { slug: 'none', state: 'downloaded', updatedAt: 2, title: 'No moments' },
+      old: { slug: 'old', state: 'downloaded', updatedAt: 1, title: 'Saved before Moments' },
+    }
+    const w = mountList()
+    await flushPromises()
+    const rows = w.findAll('[data-testid="downloaded-item"]')
+    const hasLink = (i: number) => rows[i].find('[data-testid="moments-link"], [data-testid="moments-link-offline"]').exists()
+    expect([hasLink(0), hasLink(1), hasLink(2)]).toEqual([true, false, true])
   })
 })

@@ -149,6 +149,28 @@ describe('AddToCollectionButton (#1839)', () => {
     expect(w.find('[data-testid="add-to-collection-menu"]').exists()).toBe(false)
     expect(push).toHaveBeenCalledWith(expect.objectContaining({ name: 'login' }))
   })
+
+  it('pulling the grab handle down closes the sheet (operator 2026-10-10)', async () => {
+    vi.spyOn(api, 'getCollections').mockResolvedValue([col()])
+    const w = await mountIt()
+    await w.get('[data-testid="add-to-collection"]').trigger('click')
+    await flushPromises()
+    vi.useFakeTimers()
+    try {
+      const handle = w.get('[data-testid="add-to-collection-handle"]').element
+      // Real pointer events: the test DOM drops `clientY` from synthetic `trigger()` options.
+      for (const [type, y] of [['pointerdown', 100], ['pointermove', 300], ['pointerup', 300]] as const) {
+        const e = new MouseEvent(type, { clientY: y, bubbles: true })
+        Object.defineProperty(e, 'pointerType', { value: 'touch' })
+        handle.dispatchEvent(e)
+      }
+      vi.advanceTimersByTime(400)
+    } finally {
+      vi.useRealTimers()
+    }
+    await flushPromises()
+    expect(w.find('[data-testid="add-to-collection-menu"]').exists()).toBe(false)
+  })
 })
 
 /**

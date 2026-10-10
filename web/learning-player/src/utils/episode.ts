@@ -75,6 +75,7 @@ export function summaryFromDetail(d: EpisodeDetail): EpisodeSummary {
     has_transcript: d.has_transcript,
     has_summary: d.has_summary,
     has_gi: d.has_gi,
+    has_moments: d.has_moments,
     has_kg: d.has_kg,
     has_bridge: d.has_bridge,
     // Carried, not dropped: Queue, Recent, Revisit and Saved all render through this adapter, and

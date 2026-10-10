@@ -21,6 +21,7 @@ from podcast_scraper.search.corpus_scope import (
 )
 from podcast_scraper.workflow.metadata_generation import _determine_gi_path, _determine_kg_path
 from podcast_scraper.workflow.transcript_resolution import (
+    load_transcript,
     resolve_text_path,
     TranscriptPurpose,
 )
@@ -111,6 +112,74 @@ def _transcript_path(episode_root: Path, doc: Dict[str, Any]) -> Optional[Path]:
     # falls back to raw. The precedence lives in one place now (#2170).
     resolved = resolve_text_path(episode_root, rel.strip(), purpose=TranscriptPurpose.ANALYSIS)
     return resolved.resolve() if resolved is not None else None
+
+
+def _seconds_ms(seg: Dict[str, Any], key_s: str, key_ms: str) -> Optional[int]:
+    for value, scale in ((seg.get(key_ms), 1), (seg.get(key_s), 1000)):
+        try:
+            if value is not None:
+                return int(float(value) * scale)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _chunk_timestamps_from_segments(
+    episode_root: Path, doc: Dict[str, Any]
+) -> Optional[List[Dict[str, Any]]]:
+    """Char span -> time for the body the chunks are cut from, from that body's own segments.
+
+    Transcript chunks took their time only from ``summary.timestamps``, which the pipeline does not
+    write, so every chunk on prod was indexed at 0 ms (operator 2026-10-10) while the timed
+    transcript sat beside it. ``load_transcript`` returns the same ANALYSIS body
+    ``_transcript_path`` resolves, with the segments that belong to it. Spans: the segments' own
+    char offsets (the ad-free base) or cumulative lengths when they line up
+    (``_segment_char_spans``, the mapping GI times quotes with); otherwise each segment's text
+    found in order in the body (a raw transcript puts separators between segments).
+    """
+    rel = (doc.get("content") or {}).get("transcript_file_path")
+    if not isinstance(rel, str) or not rel.strip():
+        return None
+    body = load_transcript(episode_root, rel.strip(), purpose=TranscriptPurpose.ANALYSIS)
+    return body_timestamps(body.text, body.segments)
+
+
+def source_body_timestamps(source_path: Path, text: str) -> Optional[List[Dict[str, Any]]]:
+    """The same, for a source-language body: its own ``<base>.segments.json`` beside it."""
+    sidecar = Path(os.path.splitext(str(source_path))[0] + ".segments.json")
+    try:
+        raw = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    segments = raw.get("segments") if isinstance(raw, dict) else raw
+    return body_timestamps(text, segments if isinstance(segments, list) else None)
+
+
+def body_timestamps(
+    text: str, segments: Optional[List[Dict[str, Any]]]
+) -> Optional[List[Dict[str, Any]]]:
+    """Char span -> time for ``text`` from its own ``segments``, in the chunker's shape."""
+    from podcast_scraper.gi.pipeline import _segment_char_spans
+
+    if not text or not segments:
+        return None
+    spans = _segment_char_spans(text, segments)
+    if spans is None:
+        spans, cursor = [], 0
+        for seg in segments:
+            said = (seg.get("text") or "").strip() if isinstance(seg, dict) else ""
+            at = text.find(said, cursor) if said else -1
+            if at >= 0:
+                spans.append((at, at + len(said), seg))
+                cursor = at + len(said)
+    out: List[Dict[str, Any]] = []
+    for start, end, seg in spans:
+        start_ms, end_ms = _seconds_ms(seg, "start", "start_ms"), _seconds_ms(seg, "end", "end_ms")
+        if start_ms is not None and end_ms is not None and end > start:
+            out.append(
+                {"char_start": start, "char_end": end, "start_ms": start_ms, "end_ms": end_ms}
+            )
+    return out or None
 
 
 def _filter_rows_by_doc_types(
@@ -589,7 +658,7 @@ def _collect_docs_for_episode(  # noqa: C901
                 ttext,
                 target_tokens=target_tokens,
                 overlap_tokens=overlap_tokens,
-                timestamps=chunk_ts,
+                timestamps=chunk_ts or _chunk_timestamps_from_segments(episode_root, doc),
             ):
                 rows.append(
                     (
@@ -633,10 +702,9 @@ def _collect_docs_for_episode(  # noqa: C901
                 stext,
                 target_tokens=target_tokens,
                 overlap_tokens=overlap_tokens,
-                # Deliberately the SAME timestamps: both layers describe one audio timeline, so
-                # a source chunk's time span is meaningful even though its char offsets are not
-                # comparable with the English layer's.
-                timestamps=chunk_ts,
+                # Its OWN segments: the source body's char offsets index the source text, so
+                # only that text's segments can turn them into time (operator 2026-10-10).
+                timestamps=source_body_timestamps(source_path, stext) or chunk_ts,
             ):
                 rows.append(
                     (

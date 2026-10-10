@@ -6,9 +6,13 @@ import {
   groundedSpansBySegment,
   hitStartSeconds,
   INSIGHT_LINGER_MS,
+  insightPosition,
+  insightStarts,
   insightStartSeconds,
   nextInsightIndex,
   quoteHighlight,
+  stepTarget,
+  swipeStep,
 } from './insights'
 
 function ins(id: string, startMs: number | null, endMs: number | null = null): Insight {
@@ -282,5 +286,52 @@ describe('the linger boundary is exact, not approximate (#1978 follow-up)', () =
     // Guards the default: if `lingerMs` ever stopped defaulting to 0, every caller that does not
     // ask for a linger would silently start holding insights four seconds too long.
     expect(activeInsightIndex([insight], 12.001)).toBe(-1)
+  })
+})
+
+describe('Step through insights (operator 2026-10-10)', () => {
+  const ins = (id: string, ...starts: number[]) =>
+    ({
+      id,
+      text: id,
+      grounded: true,
+      insight_type: null,
+      confidence: null,
+      position_hint: null,
+      quotes: starts.map((s) => ({ text: 'q', start_ms: s * 1000, end_ms: s * 1000 + 5000 })),
+    }) as never
+  const LIST = [ins('c', 300), ins('a', 60, 400), ins('b', 120), ins('none')]
+
+  it('starts are each insight\'s first quote, in time order', () => {
+    expect(insightStarts(LIST)).toEqual([60, 120, 300])
+  })
+
+  it('next goes to the next start; none after the last', () => {
+    expect(stepTarget(LIST, 0, 1)).toBe(60)
+    expect(stepTarget(LIST, 60, 1)).toBe(120)
+    expect(stepTarget(LIST, 300, 1)).toBeNull()
+  })
+
+  it('previous restarts the current insight, or goes back one within 3 s of its start', () => {
+    expect(stepTarget(LIST, 130, -1)).toBe(120)
+    expect(stepTarget(LIST, 121, -1)).toBe(60)
+    expect(stepTarget(LIST, 61, -1)).toBe(60)
+    expect(stepTarget(LIST, 30, -1)).toBeNull()
+  })
+
+  it('counts position as "n of total"', () => {
+    expect(insightPosition(LIST, 30)).toEqual({ index: 0, total: 3 })
+    expect(insightPosition(LIST, 125)).toEqual({ index: 2, total: 3 })
+  })
+})
+
+describe('swipeStep (operator 2026-10-10): swipe the insight card to step', () => {
+  it('left is next, right is previous, like turning a page', () => {
+    expect(swipeStep(-60, 5)).toBe(1)
+    expect(swipeStep(60, -5)).toBe(-1)
+  })
+  it('a short drag is a tap, and a mostly vertical one scrolls the page', () => {
+    expect(swipeStep(-30, 0)).toBeNull()
+    expect(swipeStep(-60, 50)).toBeNull()
   })
 })

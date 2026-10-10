@@ -148,3 +148,44 @@ describe('the density strip seeks, like the scrubber (operator 2026-09-30)', () 
     expect(w.get('[data-testid="player-density-seek"]').attributes('tabindex')).toBeUndefined()
   })
 })
+
+describe('PlayerControls — Step and Moments on the density strip (2026-10-10)', () => {
+  const markers: InsightMarker[] = [
+    { id: 'a', timeSec: 10, pct: 10, grounded: true, weight: 0.5 },
+    { id: 'b', timeSec: 50, pct: 50, grounded: true, weight: 0.5 },
+  ]
+  it('the insight the listener is in stands out', () => {
+    const w = mountPC({ markers, currentMarkerId: 'b' })
+    const ticks = w.findAll('[data-testid="player-density-tick"]')
+    expect(ticks.map((t) => t.attributes('data-current'))).toEqual([undefined, 'true'])
+    expect(ticks[1].attributes('style')).toContain('opacity: 1')
+  })
+  it('moments are marked, never in the accent', () => {
+    const w = mountPC({ markers, momentMarks: [10, 50] })
+    const marks = w.findAll('[data-testid="player-moment-mark"]')
+    expect(marks).toHaveLength(2)
+    for (const m of marks) expect(m.classes().join(' ')).not.toContain('accent')
+  })
+})
+
+describe('PlayerControls while Moments plays (operator 2026-10-10)', () => {
+  it('the skips become previous / next moment; otherwise they skip 15 and 30 seconds', async () => {
+    const mk = (reel: boolean) =>
+      mount(PlayerControls, {
+        props: { playing: true, currentTime: 10, duration: 100, rate: 1, reel },
+        global: { plugins: [i18n] },
+      })
+    const reel = mk(true)
+    expect(reel.get('[data-testid="player-skip-back"]').attributes('aria-label')).toBe('Previous moment')
+    await reel.get('[data-testid="player-skip-back"]').trigger('click')
+    await reel.get('[data-testid="player-skip-forward"]').trigger('click')
+    expect(reel.emitted('prev-moment')).toHaveLength(1)
+    expect(reel.emitted('next-moment')).toHaveLength(1)
+    expect(reel.emitted('skip')).toBeUndefined()
+    const normal = mk(false)
+    await normal.get('[data-testid="player-skip-forward"]').trigger('click')
+    expect(normal.emitted('skip')![0]).toEqual([30])
+    expect(normal.get('[data-testid="player-skip-forward"]').text()).toBe('30↻')
+  })
+})
+

@@ -182,12 +182,13 @@ export async function tapAndRecordTop(el: Locator): Promise<number> {
 }
 
 /**
- * Switch Discover's Trends to everyone's (operator 2026-10-07: "Mine" is the default, and a fresh
- * test account has no world of its own, so Mine is empty). Through the real toggle, not a stored
- * preference, and only when it is on — so a spec reads the corpus-wide list it is written about.
+ * Switch Discover to everyone's (operator 2026-10-07: "Mine" is the default, and a fresh test
+ * account has no world of its own, so Mine is empty). Through the real page-level switch in
+ * Discover's header (2026-10-09: one switch for trending shows, Trends and search), not a stored
+ * preference, and only when it is on — so a spec reads the corpus-wide lists it is written about.
  */
 export async function showEveryonesTrends(page: Page): Promise<void> {
-  const toggle = page.getByTestId('home-trending-scope')
+  const toggle = page.getByTestId('discover-scope')
   await expect(toggle).toBeVisible()
   // The lens resolves from the synced preferences after mount; wait for it to settle on "mine".
   await expect(toggle).toHaveAttribute('aria-pressed', 'true')

@@ -124,6 +124,9 @@ export const useUserPreferencesStore = defineStore('userPreferences', () => {
       const res = await fetch(PREFS_URL, {
         method: 'PATCH',
         credentials: 'include',
+        // A choice made just before a reload or app close must still land: without keepalive the
+        // navigation cancelled this request and the next load read the old value (2026-10-10).
+        keepalive: true,
         headers: { 'Content-Type': 'application/json' },
         // `{ preferences: … }` is the server's contract (UserPreferencesPatch). The bare `{ [key]: value }`
         // this sent before was rejected with 422 on EVERY write, so nothing the player stored here ever

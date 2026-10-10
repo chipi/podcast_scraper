@@ -157,6 +157,11 @@ class AppEpisodeDetail(BaseModel):
     has_summary: bool = Field(description="Whether any summary content is present.")
     has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
     has_kg: bool = Field(description="Whether a knowledge-graph artifact exists.")
+    has_moments: bool = Field(
+        default=False,
+        description="Whether the episode has a moment to play: an insight the Brief shows with a "
+        "timed quote. Every Moments door reads this, not ``has_gi``.",
+    )
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
 
 
@@ -261,6 +266,11 @@ class AppEpisodeSummary(BaseModel):
     has_summary: bool = Field(description="Whether any summary content is present.")
     has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
     has_kg: bool = Field(description="Whether a knowledge-graph artifact exists.")
+    has_moments: bool = Field(
+        default=False,
+        description="Whether the episode has a moment to play: an insight the Brief shows with a "
+        "timed quote. Every Moments door reads this, not ``has_gi``.",
+    )
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
     color: str | None = Field(
         default=None,
@@ -404,6 +414,25 @@ class AppInsightsResponse(BaseModel):
 
     episode_slug: str = Field(description="Stable episode slug.")
     insights: list[AppInsight] = Field(default_factory=list)
+
+
+class AppMoment(BaseModel):
+    """One moment of the quick-listening reel: an insight and the clip that plays for it."""
+
+    insight_id: str = Field(description="Insight node id.")
+    text: str = Field(description="The point the moment makes (the insight text).")
+    speaker: str | None = Field(default=None, description="Who says it, when named.")
+    start_ms: int = Field(description="Clip start on the episode's original audio timeline.")
+    end_ms: int = Field(description="Clip end (exclusive); at most the configured cap after start.")
+    clip_text: str = Field(default="", description="Transcript of what plays.")
+
+
+class AppMomentsResponse(BaseModel):
+    """Response for GET /api/app/episodes/{slug}/moments — in timeline order."""
+
+    episode_slug: str = Field(description="Stable episode slug.")
+    moments: list[AppMoment] = Field(default_factory=list)
+    total_seconds: float = Field(default=0.0, description="Sum of the clips' lengths.")
 
 
 class AppEntity(BaseModel):
@@ -1075,6 +1104,30 @@ class AppTrendingEntity(BaseModel):
     )
 
 
+class AppTrendingEpisodeCard(BaseModel):
+    """One trending-episode quote card (GET /api/app/trending/episodes, 2026-10-10)."""
+
+    reason: Literal["rising_topic", "most_engaged"] = Field(
+        description="Why it is here: a rising topic it speaks to, or the most listening and saves."
+    )
+    quote: str = Field(description="The grounded quote that leads the card.")
+    speaker: str | None = Field(default=None, description="Who says it, when named.")
+    start_ms: int | None = Field(default=None, description="Where the quote starts (play from).")
+    topic_id: str | None = Field(default=None, description="The rising topic (rising_topic).")
+    topic_label: str | None = Field(default=None, description="Its label (rising_topic).")
+    events: int | None = Field(
+        default=None, description="Listens, opens and saves in the last 4 weeks (most_engaged)."
+    )
+    episode: AppEpisodeSummary
+
+
+class AppTrendingEpisodesResponse(BaseModel):
+    """Trending episodes as quote cards — rising-topic and most-engaged, interleaved."""
+
+    scope: str = Field(description="corpus | mine.")
+    items: list[AppTrendingEpisodeCard] = Field(default_factory=list)
+
+
 class AppTrendingResponse(BaseModel):
     """Trending entities of one kind (GET /api/app/trending) — read-time momentum vs today."""
 
@@ -1605,7 +1658,9 @@ class CorpusSummary(BaseModel):
 class CorpusFacetEpisodesResponse(BaseModel):
     """GET /api/app/corpus/episodes?facet= — the episode slugs in a personal-corpus facet."""
 
-    facet: Literal["experienced", "saved"] = Field(description="Which membership facet.")
+    facet: Literal["experienced", "saved", "world"] = Field(
+        description="Which membership facet; `world` is everything in the listener's mine."
+    )
     slugs: list[str] = Field(default_factory=list)
 
 
@@ -2272,6 +2327,14 @@ class AppPodcastsResponse(BaseModel):
         default=None,
         exclude_if=_paged_only,
         description="Paged: every category in the catalogue (the filter's options), A-Z.",
+    )
+    languages: list[str] | None = Field(
+        default=None,
+        exclude_if=_paged_only,
+        description=(
+            "Paged: every show language in the catalogue as a primary code (`en`, `es`), A-Z — "
+            "the language filter's options; the app offers the filter only with two or more."
+        ),
     )
 
 

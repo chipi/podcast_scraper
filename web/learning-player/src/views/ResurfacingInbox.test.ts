@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import EpisodeGroupCard from '../components/EpisodeGroupCard.vue'
 import { keptAlive } from '../test/keptAlive'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -371,5 +372,28 @@ describe('a return to Library re-reads the list (2026-10-09)', () => {
     await tab.leave()
     await tab.back()
     expect(spy.mock.calls.length, 'the kept-alive inbox did not re-read').toBeGreaterThan(first)
+  })
+})
+
+describe('ResurfacingInbox: each episode group offers Moments only where there is a moment (2026-10-10)', () => {
+  it('has_moments decides, not has_gi', async () => {
+    vi.spyOn(api, 'getResurfacing').mockResolvedValue({
+      items: [
+        item({ highlight: hl({ id: 'h1', episode_slug: 'with' }) }),
+        item({ highlight: hl({ id: 'h2', episode_slug: 'without' }) }),
+      ],
+      paused: false,
+    })
+    vi.spyOn(api, 'getEpisode').mockImplementation(
+      async (slug: string) => ({ slug, title: `Title ${slug}`, has_gi: true, has_moments: slug === 'with' }) as never,
+    )
+    const w = mountInbox()
+    await flushPromises()
+    const bySlug = Object.fromEntries(
+      w
+        .findAllComponents(EpisodeGroupCard)
+        .map((g) => [(g.props('episode') as { slug: string }).slug, g.props('moments')]),
+    )
+    expect(bySlug).toEqual({ with: true, without: false })
   })
 })

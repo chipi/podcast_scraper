@@ -50,7 +50,16 @@ describe('useTrendingScope (#2030)', () => {
   })
 
   it('setScope persists the lens under the app-level preference key', () => {
+    state.authed = true
     useTrendingScope().setScope('mine')
     expect(setSpy).toHaveBeenCalledWith(TRENDING_SCOPE_PREF, 'mine')
+  })
+
+  it('setScope writes nothing when signed out — there is no "mine" and no per-user pref', () => {
+    // The Search results' switch now writes the shared lens (2026-10-09), and a signed-out visitor
+    // can still pick "All" there.
+    state.authed = false
+    useTrendingScope().setScope('corpus')
+    expect(setSpy).not.toHaveBeenCalled()
   })
 })

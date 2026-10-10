@@ -27,6 +27,7 @@ import { computed } from "vue"
 import { useI18n } from "vue-i18n"
 import { RouterLink } from "vue-router"
 import EpisodeActions from "./EpisodeActions.vue"
+import MomentsLink from "./MomentsLink.vue"
 import LanguageBadge from "./LanguageBadge.vue"
 import { useCorpusLanguages } from "../composables/useCorpusLanguages"
 import { episodeArtwork } from "../utils/episode"
@@ -45,6 +46,10 @@ const props = defineProps<{
   >
   /** Rows in the body. No rows, no fold control — there is nothing to collapse. */
   itemCount: number
+  /** The episode has a Moments reel: "Play moments" leads the ⋯ menu. */
+  moments?: boolean
+  /** Also show "▶ Moments" on the meta row — where people decide (Search), not on Saved / Revisit. */
+  momentsLink?: boolean
   testid?: string
   toggleTestid?: string
 }>()
@@ -95,7 +100,13 @@ const { badgeShown } = useCorpusLanguages()
         <!-- Siblings of the link, never inside it: an interactive inside an interactive loses its
              accessible name (ShowTile's 2026-09-26 Android audit). -->
         <div class="flex shrink-0 flex-col items-center gap-1">
-          <EpisodeActions :slug="episode.slug" :share-title="episode.title" hide-favorite hide-queue />
+          <EpisodeActions
+            :slug="episode.slug"
+            :share-title="episode.title"
+            :moments="moments"
+            hide-favorite
+            hide-queue
+          />
         </div>
       </div>
       <!-- The fold sits on the BOTTOM row, beside the count of what it folds (operator 2026-10-08):
@@ -105,6 +116,7 @@ const { badgeShown } = useCorpusLanguages()
         <p v-if="$slots.meta" class="lp-kicker min-w-0 flex-1" data-testid="episode-group-meta">
           <slot name="meta" />
         </p>
+        <MomentsLink v-if="moments && momentsLink" :slug="episode.slug" />
         <button
           v-if="itemCount > 0"
           type="button"

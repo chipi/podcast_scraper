@@ -120,9 +120,12 @@ export default defineConfig({
       url: 'http://127.0.0.1:5174',
       reuseExistingServer: true,
       timeout: 120_000,
+        // A test build must not beacon to the real Umami: `.env.local` carries a real website id,
+        // and Vite reads it for every build (2026-10-09). The telemetry suite is the one that sends.
       env: {
         VITE_API_TARGET: 'http://127.0.0.1:8011',
         VITE_MEDIA_TARGET: 'http://127.0.0.1:18765',
+        VITE_ANALYTICS_OFF: '1',
       },
     },
   ],

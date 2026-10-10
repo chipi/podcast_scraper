@@ -1,9 +1,11 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { describe, expect, it, vi } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import en from '../i18n/locales/en.json'
 import BrowseView from './BrowseView.vue'
+import { useAuthStore } from '../stores/auth'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 // Discover = the entity dashboard on top + a content band of Episodes · Shows. Stub the embedded
@@ -21,6 +23,7 @@ function makeRouter(query: Record<string, string> = {}) {
     routes: [
       { path: '/browse', name: 'browse', component: BrowseView },
       { path: '/search', name: 'search', component: { template: '<div/>' } },
+      { path: '/discover2', name: 'discover2', component: { template: '<div/>' } },
     ],
   })
   void router.push({ name: 'browse', query })
@@ -30,7 +33,7 @@ function makeRouter(query: Record<string, string> = {}) {
 async function mountView(query: Record<string, string> = {}) {
   const router = makeRouter(query)
   await router.isReady()
-  const w = mount(BrowseView, { global: { plugins: [i18n, router], stubs } })
+  const w = mount(BrowseView, { global: { plugins: [i18n, router, createPinia()], stubs } })
   await flushPromises()
   return w
 }
@@ -80,7 +83,7 @@ describe('BrowseView (Discover)', () => {
   it('re-syncs the active tab when ?tab= changes without a remount (kept-alive)', async () => {
     const router = makeRouter({ tab: 'shows' })
     await router.isReady()
-    const w = mount(BrowseView, { global: { plugins: [i18n, router], stubs } })
+    const w = mount(BrowseView, { global: { plugins: [i18n, router, createPinia()], stubs } })
     await flushPromises()
     expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('true')
 
@@ -118,5 +121,33 @@ describe('BrowseView (Discover)', () => {
     await w.get('[data-testid="browse-search-section"] form').trigger('submit')
     await flushPromises()
     expect(w.vm.$router.currentRoute.value.name).toBe('browse')
+  })
+
+  // One Mine ⇄ Everyone switch for the whole page (operator 2026-10-09).
+  it('a signed-in Discover carries ONE scope switch in its header, and Trending shows follow it', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })))
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAuthStore().user = { user_id: 'u1', email: 'a@b.c', name: 'A' }
+    const router = makeRouter()
+    await router.isReady()
+    const w = mount(BrowseView, {
+      global: {
+        plugins: [i18n, router, pinia],
+        stubs: {
+          ...stubs,
+          TrendingShowsRail: { props: ['scope'], template: '<div data-testid="stub-trending-shows">{{ scope }}</div>' },
+        },
+      },
+    })
+    await flushPromises()
+    const toggle = w.get('[data-testid="discover-scope"]')
+    expect(toggle.attributes('aria-pressed')).toBe('true')
+    expect(w.get('[data-testid="stub-trending-shows"]').text()).toBe('mine')
+    await toggle.trigger('click')
+    await flushPromises()
+    expect(w.get('[data-testid="stub-trending-shows"]').text()).toBe('corpus')
+    expect(w.findAll('[data-testid="discover-scope"]')).toHaveLength(1)
+    vi.unstubAllGlobals()
   })
 })

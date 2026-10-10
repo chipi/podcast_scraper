@@ -37,7 +37,7 @@ test('add to a collection, create another, and find both with their items', asyn
   await page.waitForLoadState('networkidle')
   const firstRow = page.locator('article').first()
   await expect(firstRow).toBeVisible()
-  const slug = (await firstRow.locator('a[href^="/episode/"]').first().getAttribute('href'))!.split('/').pop()!
+  const slug = (await firstRow.locator('a[href^="/episode/"]:not([data-testid="moments-link"])').first().getAttribute('href'))!.split('/').pop()!
 
   // On a card, add-to-collection lives inside the row's ⋯ overflow (EpisodeActions) and its menu
   // teleports to <body>, so open the ⋯ first and reference the control at PAGE scope (operator
@@ -109,7 +109,7 @@ test('the episode page can pin the episode you are listening to (#2013 follow-up
   await signInIsolated(page, 'collections-player', testInfo)
   await page.goto('/podcast/p05')
   await page.waitForLoadState('networkidle')
-  await page.locator('a[href^="/episode/"]').first().click()
+  await page.locator('a[href^="/episode/"]:not([data-testid="moments-link"])').first().click()
   await page.waitForURL(/\/episode\//)
 
   await page.getByTestId('add-to-collection').first().click()

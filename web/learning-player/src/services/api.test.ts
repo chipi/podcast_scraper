@@ -10,6 +10,7 @@ import {
   getCollectionPage,
   getFavoriteRefs,
   getPlaybackList,
+  getInProgressSlugs,
   getPodcastsByIds,
   getPodcastsPage,
   getHighlightsPage,
@@ -148,24 +149,15 @@ describe('getEpisodesBatch', () => {
     expect(urls()[2]!.match(/slugs=/g)).toHaveLength(5)
   })
 
-  it('falls back to one getEpisode per slug on a server without the batch route (404)', async () => {
-    // An older server reads "batch" as a slug: 404. The per-slug route still answers.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url: string) =>
-        String(url).includes('/episodes/batch')
-          ? { ok: false, status: 404, json: async () => ({ detail: 'Unknown episode slug.' }) }
-          : String(url).endsWith('/episodes/gone')
-            ? { ok: false, status: 404, json: async () => ({}) }
-            : { ok: true, status: 200, json: async () => ({ slug: String(url).split('/').pop(), title: 'T' }) },
-      ),
-    )
-    const got = await getEpisodesBatch(['a', 'gone'])
-    expect(Object.keys(got)).toEqual(['a'])
-    expect(urls().filter((u) => /\/episodes\/(a|gone)$/.test(u))).toHaveLength(2)
+  it('a 404 is an error, not a fan-out to one request per slug (no pre-1.0.3 server is left)', async () => {
+    // The per-slug fallback existed only while 1.0.3 was in the stores before the deploy that added
+    // the batch route (removed 2026-10-10, docs/wip/TODO-remove-pre-1.0.3-compat.md).
+    mockFetch(404, {})
+    await expect(getEpisodesBatch(['a', 'b'])).rejects.toMatchObject({ status: 404 })
+    expect(urls().filter((u) => /\/episodes\/(a|b)$/.test(u))).toHaveLength(0)
   })
 
-  it('does NOT fall back on other errors — a 500 is not a missing route', async () => {
+  it('a 500 is an error too', async () => {
     mockFetch(500, {})
     await expect(getEpisodesBatch(['a'])).rejects.toMatchObject({ status: 500 })
   })
@@ -188,17 +180,17 @@ describe('getFavoritesPage', () => {
       expect(url).toContain(part)
   })
 
-  it('pages an OLDER server\'s full list here, with the same filters (no `total` in its answer)', async () => {
-    const eps = ['Zed', 'Alpha sleep', 'Beta sleep', 'Gamma'].map((title, i) => ({
-      slug: `e${i}`, title, podcast_title: 'S', color: i === 2 ? 'red' : null,
-    }))
-    mockFetch(200, { episodes: eps, entities: [{ kind: 'topic', ref: 't', label: 'Sleep' }] })
+  it('returns the server\'s page as it is — the server filters, sorts and pages', async () => {
+    const answer = {
+      episodes: [{ slug: 'e1', title: 'Alpha sleep', podcast_title: 'S', color: null }],
+      entities: [],
+      total: 2,
+      counts: { episode: 2, topic: 1 },
+    }
+    mockFetch(200, answer)
     const page = await getFavoritesPage({ kind: 'episode', q: 'sleep', sort: 'title', limit: 1 })
-    expect(page.episodes.map((e) => e.title)).toEqual(['Alpha sleep'])
-    expect(page.total).toBe(2)
-    expect(page.counts).toEqual({ episode: 2, topic: 1 })
-    const red = await getFavoritesPage({ kind: 'episode', color: 'red', limit: 5 })
-    expect(red.episodes.map((e) => e.slug)).toEqual(['e2'])
+    for (const part of ['kind=episode', 'q=sleep', 'sort=title', 'limit=1']) expect(lastUrl()).toContain(part)
+    expect(page).toEqual(answer)
   })
 })
 
@@ -233,17 +225,13 @@ describe('getPlaybackList / getCollectionPage (1.0.3 paging)', () => {
     return String(calls[calls.length - 1]![0])
   }
 
-  it('playback: sends the filters, and filters an older server\'s full list here', async () => {
-    const all = [
-      { slug: 'a', position_seconds: 0.5, finished: false },
-      { slug: 'b', position_seconds: 90, finished: false },
-      { slug: 'c', position_seconds: 300, finished: true },
-    ]
-    mockFetch(200, { items: all }) // no `total`: an older server
+  it('playback: sends the filters and returns the server\'s positions as they are', async () => {
+    const page = [{ slug: 'b', position_seconds: 90, finished: false }]
+    mockFetch(200, { items: page, total: 1 })
     const got = await getPlaybackList({ inProgress: true, slugs: ['a', 'b', 'c'], limit: 5 })
     expect(lastUrl()).toContain('in_progress=true')
     expect(lastUrl()).toContain('slugs=a&slugs=b&slugs=c')
-    expect(got.map((p) => p.slug)).toEqual(['b'])
+    expect(got).toEqual(page)
   })
 
   it('board: sends limit/offset/kind and returns a paging server\'s answer', async () => {
@@ -261,17 +249,13 @@ describe('getPodcastsPage / getPodcastsByIds (1.0.3 paging)', () => {
     feed_id, title, artwork_url: null, image_url: null, description: 'd', episode_count: 1, ...extra,
   })
 
-  it('sends the query, and pages an older server\'s full catalogue here', async () => {
-    mockFetch(200, {
-      items: [pod('z', 'Zeta Talks', { authors: ['Ann'] }), pod('a', 'Alpha Hour'), pod('m', 'Middle')],
-    })
+  it('sends the query and returns the server\'s page as it is', async () => {
+    const answer = { items: [pod('z', 'Zeta Talks')], total: 1, categories: ['Sci'] }
+    mockFetch(200, answer)
     const page = await getPodcastsPage({ q: 'ann', sort: 'az', limit: 5, category: 'Sci', compact: true })
     for (const part of ['q=ann', 'sort=az', 'limit=5', 'category=Sci', 'compact=true'])
       expect(urls()[0]).toContain(part)
-    // The category filter left nothing; without it, "ann" matches the host of Zeta Talks.
-    expect(page.items).toEqual([])
-    const byHost = await getPodcastsPage({ q: 'ann', limit: 5 })
-    expect(byHost.items.map((p) => p.feed_id)).toEqual(['z'])
+    expect(page).toEqual(answer)
   })
 
   it('looks shows up by id, a request per 200', async () => {
@@ -283,26 +267,11 @@ describe('getPodcastsPage / getPodcastsByIds (1.0.3 paging)', () => {
 })
 
 describe('getFavoriteRefs', () => {
-  it('derives identities from the full list on a server without /favorites/refs (404)', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url: string) =>
-        String(url).includes('/favorites/refs')
-          ? { ok: false, status: 404, json: async () => ({}) }
-          : {
-              ok: true,
-              status: 200,
-              json: async () => ({
-                episodes: [{ slug: 'a', color: 'red' }],
-                entities: [{ kind: 'show', ref: 'p1', label: 'P' }],
-              }),
-            },
-      ),
-    )
-    expect(await getFavoriteRefs()).toEqual([
-      { kind: 'episode', ref: 'a', color: 'red' },
-      { kind: 'show', ref: 'p1', color: null },
-    ])
+  it('a 404 is an error, not a full-list fetch (no pre-1.0.3 server is left)', async () => {
+    mockFetch(404, {})
+    await expect(getFavoriteRefs()).rejects.toMatchObject({ status: 404 })
+    const calls = (vi.mocked(fetch).mock.calls as unknown[][]).map((c) => String(c[0]))
+    expect(calls.some((u) => /\/favorites(\?|$)/.test(u))).toBe(false)
   })
 })
 
@@ -467,7 +436,9 @@ describe('capture: highlights + notes', () => {
   })
 
   it('deleteHighlight DELETEs and returns the remaining items', async () => {
-    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({ ok: true, status: 200, json: async () => ({ items: [] }) }))
+    const fetchMock = vi.fn(
+      async (_url: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ items: [] }), { status: 200 }),
+    )
     vi.stubGlobal('fetch', fetchMock)
     expect(await deleteHighlight('h1')).toEqual([])
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'DELETE' })
@@ -539,4 +510,56 @@ describe('forced-offline write gate', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
+})
+
+describe('getInProgressSlugs', () => {
+  it('walks the pages 100 at a time — the server refuses more in one request', async () => {
+    const page = (n: number, from: number) =>
+      Array.from({ length: n }, (_, i) => ({ slug: `s${from + i}`, position_seconds: 50, finished: false }))
+    const fetchMock = vi.fn(async (url: string) => {
+      const off = Number(new URL(String(url), 'http://x').searchParams.get('offset'))
+      const items = off === 0 ? page(100, 0) : page(30, 100)
+      return { ok: true, status: 200, json: async () => ({ items, total: 130 }) }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const got = await getInProgressSlugs()
+    expect(got).toHaveLength(130)
+    const urls = fetchMock.mock.calls.map((c) => String(c[0]))
+    expect(urls).toHaveLength(2)
+    for (const u of urls) {
+      expect(u).toContain('limit=100')
+      expect(u).toContain('in_progress=true')
+    }
+  })
+})
+
+// 1.0.4 accepts the LEANER write answers a later server will send (compat TODO part b, 2026-10-10):
+// so the server can drop the whole-list answers once no 1.0.3 is left, without breaking 1.0.4.
+describe('write answers — today\'s and the leaner ones to come', () => {
+  it('favoriteRefsOf reads a refs-only answer as well as the full list', async () => {
+    const { favoriteRefsOf } = await import('./api')
+    const refs = [{ kind: 'episode' as const, ref: 'a', color: null }]
+    expect(favoriteRefsOf({ items: refs })).toEqual(refs)
+    expect(
+      favoriteRefsOf({ episodes: [{ slug: 'a', color: null } as never], entities: [] }),
+    ).toEqual(refs)
+  })
+
+  it('a 204 with no body from DELETE /highlights or /notes is a success, not a failed delete', async () => {
+    const { deleteNote } = await import('./api')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
+    await expect(deleteHighlight('h1')).resolves.toEqual([])
+    await expect(deleteNote('n1')).resolves.toEqual([])
+  })
+
+  it('a 200 with an empty body is a success too; today\'s remaining-list answer still reads', async () => {
+    const { deleteNote } = await import('./api')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 200 })))
+    await expect(deleteHighlight('h1')).resolves.toEqual([])
+    await expect(deleteNote('n1')).resolves.toEqual([])
+    const rows = [{ id: 'n2' }]
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ items: rows }), { status: 200 })))
+    await expect(deleteNote('n1')).resolves.toEqual(rows)
+    await expect(deleteHighlight('h1')).resolves.toEqual(rows)
+  })
 })

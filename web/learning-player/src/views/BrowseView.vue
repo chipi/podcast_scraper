@@ -22,9 +22,12 @@ import { useVisitedTabs } from '../composables/useVisitedTabs'
 import SearchSection from '../components/SearchSection.vue'
 import TrendsSection from '../components/TrendsSection.vue'
 import TrendingShowsRail from '../components/TrendingShowsRail.vue'
+import TrendingScopeButton from '../components/TrendingScopeButton.vue'
+import { useTrendingScope } from '../composables/useTrendingScope'
 import { scrollBehavior } from '../utils/motion'
 
 const { t } = useI18n()
+const { scope: trendingScope, setScope: setTrendingScope } = useTrendingScope()
 const route = useRoute()
 const router = useRouter()
 
@@ -130,17 +133,35 @@ watch(
        once added `px-4` and a 768px column on top of the shell, so the SAME Trends component was
        narrower here than on Home. Home and Discover are one screen family; they size alike. -->
   <section class="lp-page pb-8" data-testid="browse-view">
-    <h1 class="mb-4 font-display text-3xl font-extrabold tracking-tight">
-      {{ t('browse.hubTitle') }}
-    </h1>
+    <!-- Mine ⇄ Everyone for the WHOLE page (operator 2026-10-09): trending shows, Trends and a
+         search started here all follow it. One switch, remembered across devices and shared with
+         the Search results' own (useTrendingScope). -->
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <h1 class="font-display text-3xl font-extrabold tracking-tight">
+          {{ t('browse.hubTitle') }}
+        </h1>
+        <!-- Discover 2, the preview of the reworked page, one tap away for comparison (operator
+             2026-10-10): a small square-cornered yellow BETA tag beside the title. -->
+        <RouterLink
+          :to="{ name: 'discover2' }"
+          class="lp-tap rounded-[3px] bg-warning px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-canvas"
+          aria-label="Try Discover 2, the beta"
+          data-testid="discover2-link"
+        >Beta</RouterLink>
+      </div>
+      <TrendingScopeButton testid="discover-scope" />
+    </div>
 
     <!-- Trending shows, above the entity dashboard (operator 2026-09-14): the standard rail of
          standard ShowTiles, top 5. Each links to its show; "See all →" opens the Shows tab below. -->
     <TrendingShowsRail
       :title="t('home.trendingShows')"
+      :scope="trendingScope"
       :top="5"
       see-all
       @see-all="onShowsSeeAll"
+      @show-everyone="setTrendingScope('corpus')"
     />
 
     <!-- Search, then Trends — the same two sections, in the same order, that Home renders (operator

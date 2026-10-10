@@ -76,7 +76,7 @@ the caller. `logger=` preserves a caller's logger name; `ts=` backdates.
 | `pipeline_progress` | log | `workflow/stages/processing.py` | episodes_done, run_id (per-run progress; chart `last_value` by run_id) |
 | `search_query` | file | `search/query_log.py` | query_type (no raw text) |
 | `listen` | file | `server/app_user_state.py` | slug, feed_id, ts (ISO; episode OPENED) |
-| `playback_progress` | file | `server/app_user_state.py` | slug, feed_id, milestone (25/50/75/95), ts — "an open is not a listen" (#2266) |
+| `playback_progress` | file | `server/app_user_state.py` | slug, feed_id, milestone (25/50/75/95), ts — "an open is not a listen" (#2266). At most one row per user, episode and milestone (the server drops a re-report, 2026-10-10), so a count of rows is a count of listeners reaching it |
 | `account_created` | file | `server/app_user_state.py` | provider — server-side signup truth, independent of the browser analytics script (#2266) |
 | `job` | file | `.viewer/jobs.jsonl` | job lifecycle |
 

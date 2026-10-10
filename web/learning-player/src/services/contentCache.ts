@@ -168,6 +168,9 @@ export const CACHE_KEYS = [
   'home.storylines',
   'home.trendingtopics',
   'home.trendingshows',
+  // Per scope since Mine ⇄ Everyone (2026-10-09); the bare key above stays listed for its leftovers.
+  'home.trendingshows.mine',
+  'home.trendingshows.corpus',
   // The queue panel's Recently-played half (operator 2026-09-23). Up next already survived
   // offline via the queue store's cache; this list was built straight from `GET /playback` with no
   // cache at all, so opening the panel on a plane showed a queue and an empty history — on the one

@@ -27,11 +27,11 @@ const routes = [
   { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
 ]
 
-const mountIt = (items = rows) => {
+const mountIt = (items = rows, scope: 'corpus' | 'mine' = 'corpus') => {
   vi.spyOn(api, 'getTrending').mockResolvedValue(items)
   setActivePinia(createPinia())
   return mount(TrendingShowsRail, {
-    props: { title: 'Trending shows', podcasts },
+    props: { title: 'Trending shows', podcasts, scope },
     global: {
       plugins: [i18n, createPinia(), createRouter({ history: createMemoryHistory(), routes })],
       stubs: { RouterLink: RouterLinkStub },
@@ -99,5 +99,35 @@ describe('TrendingShowsRail', () => {
     const w = mountIt([])
     await flushPromises()
     expect(w.find('[data-testid="trending-shows-rail"]').exists()).toBe(false)
+  })
+
+  it('hides entirely when nothing is trending — under Everyone', async () => {
+    const w = mountIt([], 'corpus')
+    await flushPromises()
+    expect(w.find('[data-testid="trending-shows-mine-empty"]').exists()).toBe(false)
+  })
+
+  // One Mine ⇄ Everyone switch for Discover (operator 2026-10-09).
+  it('asks for the scope it is given', async () => {
+    mountIt(rows, 'mine')
+    await flushPromises()
+    expect(api.getTrending).toHaveBeenCalledWith('show', 'mine', 12)
+  })
+
+  it('under Mine with nothing to show, SAYS so and offers everyone\'s — never vanishes', async () => {
+    const w = mountIt([], 'mine')
+    await flushPromises()
+    expect(w.find('[data-testid="trending-shows-rail"]').exists()).toBe(true)
+    expect(w.get('[data-testid="trending-shows-mine-empty"]').text()).toContain('Your shows appear here')
+    await w.get('[data-testid="trending-shows-show-everyone"]').trigger('click')
+    expect(w.emitted('show-everyone')).toHaveLength(1)
+  })
+
+  it('re-asks when the switch flips', async () => {
+    const w = mountIt(rows, 'mine')
+    await flushPromises()
+    await w.setProps({ scope: 'corpus' })
+    await flushPromises()
+    expect(api.getTrending).toHaveBeenLastCalledWith('show', 'corpus', 12)
   })
 })

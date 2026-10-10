@@ -243,8 +243,9 @@ def test_board_items_page_when_asked(tmp_path: Path) -> None:
     for i in range(12):
         client.post(f"/api/app/collections/{cid}/items", json={"kind": "episode", "ref": f"ep{i}"})
     client.post(f"/api/app/collections/{cid}/items", json={"kind": "link", "ref": "https://x.y"})
+    # No limit: the default page (50), still with total and counts — always paged since 2026-10-10.
     full = client.get(f"/api/app/collections/{cid}").json()
-    assert set(full) == {"collection", "items"} and len(full["items"]) == 13
+    assert len(full["items"]) == 13 and full["total"] == 13
     page = client.get(f"/api/app/collections/{cid}", params={"limit": 10}).json()
     assert len(page["items"]) == 10 and page["total"] == 13
     assert page["kind_counts"] == {"episode": 12, "link": 1}

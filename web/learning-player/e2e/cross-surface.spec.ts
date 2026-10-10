@@ -114,7 +114,7 @@ test.describe('cross-surface: a change shows on the surface that was already ope
   test('"Your trends" on a kept-alive Discover fill in after a follow (#8)', async ({ page }, testInfo) => {
     await signInIsolated(page, 'xs-mine-trends', testInfo)
     await navTo(page, 'catalog') // the reader: Discover, Trends on "mine" (the default)
-    await expect(page.getByTestId('home-trending-scope')).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByTestId('discover-scope')).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByTestId('discovery-mine-empty')).toBeVisible()
 
     // "Mine" is what you follow, save, or met in episodes you heard — a saved POSITION alone is not

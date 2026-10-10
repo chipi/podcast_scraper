@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { signInIsolated } from "./helpers"
+import { signInIsolated, showEveryonesTrends } from "./helpers"
 
 /**
  * The last of the declared coverage gaps (E2E_SURFACE_MAP, closed 2026-09-03): the entity card's
@@ -114,8 +114,10 @@ test("the trending-shows rail is never an empty shell", async ({ page }, testInf
       async () => {
         const visible = await rail.isVisible().catch(() => false)
         const cards = await page.getByTestId("trending-show-card").count()
-        // settled = gone (no trending shows in this corpus) or populated
-        return !visible || cards > 0
+        const mineEmpty = await page.getByTestId("trending-shows-mine-empty").isVisible().catch(() => false)
+        // settled = gone (no trending shows in this corpus), populated, or Mine explaining it is
+        // empty (a fresh account has no shows of its own; Mine is the default, 2026-10-09)
+        return !visible || cards > 0 || mineEmpty
       },
       { timeout: 15_000 }
     )
@@ -125,7 +127,12 @@ test("the trending-shows rail is never an empty shell", async ({ page }, testInf
     // Absent is CORRECT when the corpus yields no trending shows — that is the rule, not a gap.
     return
   }
-  // Present AND settled means it must carry cards. A section left visible with nothing in it reads
-  // as a loading state that never finishes, which is the failure this guards.
-  expect(await page.getByTestId("trending-show-card").count()).toBeGreaterThan(0)
+  // Present AND settled means it carries cards or SAYS why it has none. A section left visible with
+  // nothing in it reads as a loading state that never finishes, which is the failure this guards.
+  const explained = await page.getByTestId("trending-shows-mine-empty").isVisible()
+  if (!explained) expect(await page.getByTestId("trending-show-card").count()).toBeGreaterThan(0)
+  // Everyone's list, which this corpus does trend shows in, is populated.
+  await showEveryonesTrends(page)
+  await expect(page.getByTestId("trending-show-card").first()).toBeVisible()
+  await expect(page.getByTestId("trending-shows-mine-empty")).toHaveCount(0)
 })

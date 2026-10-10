@@ -173,6 +173,13 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/BrowseView.vue'),
   },
   {
+    // Discover 2 — a PREVIEW of the reworked Discover, side by side with the current one so the
+    // operator can compare them (2026-10-10). Built from existing APIs; not the final design.
+    path: '/discover2',
+    name: 'discover2',
+    component: () => import('../views/DiscoverV2View.vue'),
+  },
+  {
     // #2273. PUBLIC on purpose: Google Play's listing needs a web address that explains deletion
     // to someone who is not signed in. Signed in, the same page performs it.
     path: '/account/delete',

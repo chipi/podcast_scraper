@@ -25,6 +25,8 @@ vi.mock('../services/playbackPositions', async (orig) => ({
 
 import { usePlayerStore } from '../stores/player'
 import PlayerView from './PlayerView.vue'
+import KnowledgePanel from '../components/KnowledgePanel.vue'
+import EpisodeDescriptionSheet from '../components/EpisodeDescriptionSheet.vue'
 import { useDownloadsStore } from '../stores/downloads'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -47,7 +49,7 @@ function detail(over: Partial<EpisodeDetail> = {}): EpisodeDetail {
     publish_date: '2024-03-10', duration_seconds: 1800, episode_image_url: null,
     feed_image_url: null, artwork_url: null, summary_title: 'A title',
     summary_bullets: [], summary_text: 'The pull-quote summary prose.',
-    has_transcript: true, has_summary: true, has_gi: true, has_kg: true, has_bridge: false, ...over,
+    has_transcript: true, has_summary: true, has_gi: true, has_moments: true, has_kg: true, has_bridge: false, ...over,
   }
 }
 
@@ -163,11 +165,11 @@ describe('PlayerView', () => {
     expect(w.text()).toContain('1.2k') // listeners
     expect(w.text()).toContain('3.4k') // opens
     // #1595 — insights moved OUT of the stats cluster into a labelled first-class control.
-    // "Episode notes", not "Insights": the panel is the episode's notes (summary, key points,
-    // downloads); "Notes" alone already means the user's own. The items inside stay insights.
-    // PL.5: the opener pill carries the label only, no count (the count lives on the panel's
-    // Insights section header, UXS-014).
-    expect(w.get('[data-testid="player-open-insights"]').text()).toContain('Episode notes')
+    // "Brief", not "Insights" and not "Notes" (operator 2026-10-10): the panel is the episode's
+    // brief (summary, key points, people, downloads); "Notes" alone already means the user's own.
+    // The items inside stay insights. PL.5: the opener carries the label only, no count (the count
+    // lives on the panel's Insights section header, UXS-014).
+    expect(w.get('[data-testid="player-open-insights"]').text()).toBe('Brief')
     expect(w.get('[data-testid="player-open-insights"]').text()).not.toMatch(/\d/)
   })
 
@@ -1107,12 +1109,186 @@ describe('opening the episode notes from a link', () => {
     })
     mountedPlayers.push(w)
     await flushPromises()
-    // The opener exists only while the panel is shut.
-    expect(w.find('[data-testid="player-open-insights"]').exists()).toBe(false)
+    // The panel mounts the first time it opens (`panelEverOpen`), so its presence is the signal.
+    // The Brief door stays on the obi while the panel is open, so it cannot be.
+    expect(w.findComponent(KnowledgePanel).exists()).toBe(true)
   })
 
   it('without it the panel stays shut', async () => {
     const w = await mountPlayer('ep-1')
+    expect(w.findComponent(KnowledgePanel).exists()).toBe(false)
     expect(w.find('[data-testid="player-open-insights"]').exists()).toBe(true)
+  })
+})
+
+describe('the obi: Moments, Brief and About down the artwork edge (operator 2026-10-10)', () => {
+  const oneInsight = {
+    episode_slug: 'ep-1',
+    insights: [{ id: 'i0', text: 'insight', grounded: true, insight_type: null, confidence: null, position_hint: null, quotes: [] }],
+  }
+
+  it('shows three equal doors when the episode has insights and a description', async () => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue(oneInsight)
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ description: 'The publisher text.' }))
+    const w = await mountPlayer('ep-1')
+    const obi = w.get('[data-testid="player-obi"]')
+    const doors = obi.findAll('button')
+    // "About", not "Description": three equal doors at the app's label size leave 63–73 px per
+    // label on a phone, and DESCRIPTION is 92 px (measured 2026-10-10).
+    expect(doors.map((d) => d.text())).toEqual(['Moments', 'Brief', 'About'])
+    // Labels alike on purpose (operator 2026-10-10: no door's label a different size), no glyph.
+    expect(new Set(doors.map((d) => d.get('span').classes().join(' '))).size).toBe(1)
+    expect(obi.text()).not.toContain('✦')
+    // The doors themselves alike too, so every rule between them is the same low-key one
+    // (operator 2026-10-10: the brighter rule under Moments was dropped).
+    expect(new Set(doors.map((d) => d.classes().join(' '))).size).toBe(1)
+  })
+
+  it('the Moments door opens the Moments view (?moments=1) and starts the reel', async () => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue(oneInsight)
+    vi.spyOn(api, 'getMoments').mockResolvedValue({
+      episode_slug: 'ep-1',
+      total_seconds: 20,
+      moments: [{ insight_id: 'i1', text: 'A point', speaker: null, start_ms: 60_000, end_ms: 80_000, clip_text: '' }],
+    })
+    const w = await mountPlayer('ep-1')
+    const start = vi.spyOn(usePlayerStore(), 'startReel').mockReturnValue(true)
+    await w.get('[data-testid="player-open-moments"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.moments).toBe('1')
+    expect(start).toHaveBeenCalledWith('ep-1', expect.any(Array))
+  })
+
+  it('Brief opens the panel, Description opens the description sheet', async () => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue(oneInsight)
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ description: 'The publisher text.' }))
+    const w = await mountPlayer('ep-1')
+    await w.get('[data-testid="player-open-insights"]').trigger('click')
+    await flushPromises()
+    expect(w.findComponent(KnowledgePanel).exists()).toBe(true)
+    await w.get('[data-testid="player-open-description"]').trigger('click')
+    await flushPromises()
+    expect(w.findComponent(EpisodeDescriptionSheet).props('open')).toBe(true)
+  })
+
+  it('a missing door leaves only the other', async () => {
+    vi.spyOn(api, 'getEpisode').mockResolvedValue(detail({ description: 'The publisher text.' }))
+    const w = await mountPlayer('ep-1')
+    expect(w.findAll('[data-testid="player-obi"] button').map((d) => d.text())).toEqual(['About'])
+  })
+
+  it('with neither insights nor a description there is no band, and Zone D takes the full width', async () => {
+    const w = await mountPlayer('ep-1')
+    expect(w.find('[data-testid="player-obi"]').exists()).toBe(false)
+    expect(w.get('[data-testid="player-zone-d-rest"]').classes()).toContain('right-0')
+  })
+
+  it('with a band, Zone D stops at its edge', async () => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue(oneInsight)
+    const w = await mountPlayer('ep-1')
+    expect(w.get('[data-testid="player-zone-d-rest"]').classes()).toContain('right-[44px]')
+  })
+})
+
+
+describe('Moments view on the player page (operator 2026-10-10)', () => {
+  const MOMENTS = {
+    episode_slug: 'ep-1',
+    total_seconds: 40,
+    moments: [
+      { insight_id: 'i1', text: 'First point', speaker: 'Ann', start_ms: 60_000, end_ms: 80_000, clip_text: 'a' },
+      { insight_id: 'i2', text: 'Second point', speaker: null, start_ms: 600_000, end_ms: 620_000, clip_text: 'b' },
+    ],
+  }
+  const oneInsight = {
+    episode_slug: 'ep-1',
+    insights: [{ id: 'i0', text: 'insight', grounded: true, insight_type: null, confidence: null, position_hint: null, quotes: [] }],
+  }
+  beforeEach(() => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue(oneInsight)
+    vi.spyOn(api, 'getMoments').mockResolvedValue(MOMENTS)
+  })
+
+  it('?moments=1 starts the reel on this episode with its moments, once the episode is ready', async () => {
+    const w = await mountPlayer('ep-1')
+    const player = usePlayerStore()
+    const start = vi.spyOn(player, 'startReel').mockReturnValue(true)
+    await router.push({ name: 'player', params: { slug: 'ep-1' }, query: { moments: '1' } })
+    await flushPromises()
+    expect(start).toHaveBeenCalledWith('ep-1', [
+      { insightId: 'i1', text: 'First point', speaker: 'Ann', startMs: 60_000, endMs: 80_000 },
+      { insightId: 'i2', text: 'Second point', speaker: null, startMs: 600_000, endMs: 620_000 },
+    ])
+    w.unmount()
+  })
+
+  it('while a reel runs it plays inside the artwork of the episode page; Keep listening leaves it and the query', async () => {
+    await router.push({ name: 'player', params: { slug: 'ep-1' }, query: { moments: '1' } })
+    const w = await mountPlayer('ep-1')
+    const player = usePlayerStore()
+    vi.spyOn(player, 'startReel').mockReturnValue(true)
+    const exit = vi.spyOn(player, 'exitReel').mockImplementation(() => {
+      player.reel = null
+    })
+    player.reel = {
+      slug: 'ep-1',
+      moments: [{ insightId: 'i1', text: 'First point', speaker: 'Ann', startMs: 60_000, endMs: 80_000 }],
+      index: 0,
+      returnTo: 0,
+      done: false,
+    }
+    await flushPromises()
+    // The episode page stays (operator 2026-10-10): the moment is inside its artwork.
+    expect(w.get('[data-testid="player-hero"]').find('[data-testid="moments-card"]').exists()).toBe(true)
+    expect(w.find('[data-testid="player-zone-d-live"]').exists()).toBe(false)
+    expect(w.find('[data-testid="moments-index"]').exists()).toBe(true)
+    await w.get('[data-testid="moments-keep"]').trigger('click')
+    await flushPromises()
+    expect(exit).toHaveBeenCalledWith(true)
+    expect(router.currentRoute.value.query.moments).toBeUndefined()
+    expect(w.find('[data-testid="moments-card"]').exists()).toBe(false)
+  })
+
+  it('an episode with no moments drops ?moments=1 and stays the episode', async () => {
+    vi.spyOn(api, 'getMoments').mockResolvedValue({ episode_slug: 'ep-1', moments: [], total_seconds: 0 })
+    const w = await mountPlayer('ep-1')
+    const start = vi.spyOn(usePlayerStore(), 'startReel')
+    await router.push({ name: 'player', params: { slug: 'ep-1' }, query: { moments: '1' } })
+    await flushPromises()
+    expect(start).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.query.moments).toBeUndefined()
+    w.unmount()
+  })
+
+  it('marks the moments on the density strip in the episode view', async () => {
+    const w = await mountPlayer('ep-1')
+    await flushPromises()
+    expect(w.findAll('[data-testid="player-moment-mark"]')).toHaveLength(2)
+  })
+})
+
+describe('Step through insights (operator 2026-10-10)', () => {
+  const q = (start: number) => ({
+    text: 'q', speaker: null, char_start: null, char_end: null,
+    start_ms: start * 1000, end_ms: start * 1000 + 4000,
+  })
+  const insightsAt = (...starts: number[]) => ({
+    episode_slug: 'ep-1',
+    insights: starts.map((st, i) => ({
+      id: `i${i}`, text: `insight ${i}`, grounded: true, insight_type: null, confidence: null,
+      position_hint: null, quotes: [q(st)],
+    })),
+  })
+
+  it("› jumps to the next insight's first quote; ‹ goes back", async () => {
+    vi.spyOn(api, 'getInsights').mockResolvedValue(insightsAt(120, 300, 600))
+    const w = await mountPlayer('ep-1')
+    const seek = vi.spyOn(usePlayerStore(), 'seek').mockImplementation(() => {})
+    await w.get('[data-testid="player-step-next-rest"]').trigger('click')
+    expect(seek).toHaveBeenLastCalledWith(120)
+    // From 0:00 there is no previous insight to go to.
+    seek.mockClear()
+    await w.get('[data-testid="player-step-prev-rest"]').trigger('click')
+    expect(seek).not.toHaveBeenCalled()
   })
 })

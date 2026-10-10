@@ -241,6 +241,16 @@ const rank = (i: number): string => String(i + 2).padStart(2, "0")
  * or — the fallback when they follow nothing that matches — every show. Recommended's kicker says
  * the other half: picked from what they listen to.
  */
+// "Browse all" opens the WHOLE list What's new is the top of (operator 2026-10-10: 20 shows with 20
+// new episodes showed 5): your shows, unplayed, when it is yours; every episode when it fell back.
+const whatsNewAllTo = computed(() => ({
+  name: "browse",
+  query:
+    whatsNew.data.value.scope === "yours"
+      ? { tab: "episodes", from: "following", state: "unplayed" }
+      : { tab: "episodes" },
+  hash: "#catalog",
+}))
 const whatsNewKicker = computed(() => {
   const scope =
     whatsNew.data.value.scope === "yours" ? t("home.whatsNewYours") : t("home.whatsNewAll")
@@ -601,7 +611,7 @@ async function loadContinue(): Promise<void> {
       >
         <template #action>
           <RouterLink
-            :to="{ name: 'browse', query: { tab: 'episodes' }, hash: '#catalog' }"
+            :to="whatsNewAllTo"
             class="text-sm font-bold text-accent no-underline"
           >
             {{ t("home.browseAll") }} →
@@ -618,7 +628,7 @@ async function loadContinue(): Promise<void> {
           <!-- Shared EpisodeActions row (favourite/queue/download/collect) in the artwork's upper-right;
            sibling of the link, not nested in the <a>. The featured card is wide (max-w-3xl) so the
            four icons fit without wrapping. -->
-          <EpisodeActions :slug="wnFeatured.slug" overlay class="absolute right-3 top-3 z-30" />
+          <EpisodeActions :slug="wnFeatured.slug" :moments="!!wnFeatured.has_moments" overlay class="absolute right-3 top-3 z-30" />
           <!-- Tapping the card OPENS the episode, paused, like every episode card. Only Resume starts
                playback (operator 2026-10-05). -->
           <RouterLink
@@ -694,7 +704,7 @@ async function loadContinue(): Promise<void> {
                  Resume plays). Outside the link — never an interactive inside an interactive. A
                  vertical stack costs height, not width, so the title keeps the row's width; side by
                  side, a cluster like this once crushed it to one word per line. -->
-            <EpisodeActions :slug="ep.slug" hide-favorite class="shrink-0 flex-col" />
+            <EpisodeActions :slug="ep.slug" :moments="!!ep.has_moments" hide-favorite class="shrink-0 flex-col" />
           </li>
         </ul>
       </template>

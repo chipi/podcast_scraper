@@ -29,6 +29,7 @@ import {
 import { summarizeMatchedFields } from "../utils/matchedFields"
 import { groupEpisodesByYear, type YearSection } from "../utils/yearGrouping"
 import { useSignInGate } from "../composables/useSignInGate"
+import { useTrendingScope } from "../composables/useTrendingScope"
 import { useSavedQueriesStore } from "../stores/savedQueries"
 import { useCaptureStore } from "../stores/capture"
 import EntityCard from "../components/EntityCard.vue"
@@ -100,7 +101,16 @@ const { languageOfFeed } = useCorpusLanguages()
 
 // Scope (P3 Recall, #1124): 'all' = whole library; 'mine' = grounded recall over the user's
 // heard∪captured corpus ("what have I learned about X"). The toggle only shows when signed in.
-const scope = ref<"all" | "mine">(route.query.scope === "mine" ? "mine" : "all")
+// One "mine" switch everywhere (operator 2026-10-09): with no `scope` in the URL the results open in
+// the shared Mine ⇄ Everyone choice, and flipping it here flips it on Discover too.
+const { scope: sharedScope, setScope: setSharedScope } = useTrendingScope()
+const scope = ref<"all" | "mine">(
+  route.query.scope === "mine" || route.query.scope === "all"
+    ? route.query.scope
+    : sharedScope.value === "mine"
+      ? "mine"
+      : "all"
+)
 
 const query = ref(String(route.query.q ?? ""))
 
@@ -185,6 +195,11 @@ interface EpisodeGroup {
   /** #1261-3: hits collapsed so multiple same-kind foldable rows (transcript,
    *  title, description, summary) render as one expandable summary row. */
   rows: CollapsedRow[]
+}
+
+/** An episode result offers its Moments reel when the episode has insights (operator 2026-10-10). */
+function hasMoments(g: EpisodeGroup): boolean {
+  return !!g.slug && g.hits.some((h) => (h.metadata as Record<string, unknown> | undefined)?.episode_has_moments === true)
 }
 
 /**
@@ -523,6 +538,7 @@ function setScope(s: "all" | "mine"): void {
   }
   if (scope.value === s) return
   scope.value = s
+  setSharedScope(s === "mine" ? "mine" : "corpus")
   void router.replace({ name: "search", query: { q: query.value.trim() || undefined, scope: s } })
   void run(query.value)
 }
@@ -948,9 +964,17 @@ const showEmpty = computed(
       :rows="4"
       @retry="run(query)"
     />
-    <p v-else-if="showEmpty && scope === 'mine'" class="mt-4 text-muted">
-      {{ t("search.recallEmpty") }}
-    </p>
+    <!-- An empty Mine says so AND offers everyone's (ADR-162): Mine is the default, so this is a
+         new listener's first search — it must not end on an empty page. -->
+    <div v-else-if="showEmpty && scope === 'mine'" class="mt-4 text-muted" data-testid="search-mine-empty">
+      <p>{{ t("search.recallEmpty") }}</p>
+      <button
+        type="button"
+        class="mt-2 font-bold text-accent"
+        data-testid="search-show-everyone"
+        @click="setScope('all')"
+      >{{ t("search.searchEveryone") }}</button>
+    </div>
     <p v-else-if="showEmpty" class="mt-4 text-muted">{{ t("search.noResults") }}</p>
 
     <!-- `typeVisible('episodes')` gates the whole corpus block — its count line and topic chips
@@ -1013,6 +1037,8 @@ const showEmpty = computed(
             :key="g.slug ?? g.title"
             :episode="groupAsEpisode(g)"
             :item-count="g.rows.length"
+            :moments="hasMoments(g)"
+            moments-link
           >
             <template #meta>
               <template v-if="formatPublishDate(g.date, locale)">{{ formatPublishDate(g.date, locale) }} · </template>{{ t("search.matchCount", g.hits.length) }}

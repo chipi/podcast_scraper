@@ -11,6 +11,7 @@ import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
 import SectionHeading from "./SectionHeading.vue"
 import { getTrendingTopics } from "../services/api"
+import { useTrendingScope } from "../composables/useTrendingScope"
 
 const props = defineProps<{
   /** `home` or `browse` — selects the test ids each page's specs already use. */
@@ -31,9 +32,11 @@ const query = ref("")
 onActivated(() => {
   query.value = ""
 })
+// A search started here opens in the shared Mine ⇄ Everyone choice (operator 2026-10-09).
+const { scope } = useTrendingScope()
 function goSearch(q: string): void {
   const term = q.trim()
-  if (term) void router.push({ name: "search", query: { q: term } })
+  if (term) void router.push({ name: "search", query: { q: term, scope: scope.value === "mine" ? "mine" : "all" } })
 }
 
 /**

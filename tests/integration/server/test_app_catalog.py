@@ -35,6 +35,7 @@ def _write_episode(
     published: str,
     with_transcript: bool = True,
     category: str | None = None,
+    language: str | None = None,
 ) -> None:
     (root / "metadata").mkdir(parents=True, exist_ok=True)
     content: dict = {}
@@ -49,6 +50,8 @@ def _write_episode(
     }
     if category is not None:
         feed_block["category"] = category
+    if language is not None:
+        feed_block["language"] = language
     doc = {
         "feed": feed_block,
         "episode": {
@@ -237,3 +240,26 @@ def test_podcasts_page_filter_sort_when_asked(tmp_path: Path) -> None:
     ).json()
     assert [p["feed_id"] for p in some["items"]] == ["mid"]
     assert some["items"][0]["description"] is None
+
+
+def test_podcasts_page_filters_by_language_and_lists_the_languages(tmp_path: Path) -> None:
+    """Browse > Shows offers a language filter when shows span languages (operator 2026-10-10)."""
+    for i, (fid, lang) in enumerate([("en1", "en"), ("es1", "es-ES"), ("en2", "en_US")]):
+        _write_episode(
+            tmp_path,
+            stem=f"s{i}",
+            feed_id=fid,
+            feed_title=f"Show {fid}",
+            episode_id=str(i),
+            title=f"Ep {i}",
+            published=f"2024-0{i + 1}-01",
+            language=lang,
+        )
+    client = _client(tmp_path)
+    page = client.get("/api/app/podcasts", params={"limit": 10}).json()
+    assert page["languages"] == ["en", "es"]
+    english = client.get("/api/app/podcasts", params={"limit": 10, "language": "en"}).json()
+    assert sorted(p["feed_id"] for p in english["items"]) == ["en1", "en2"]
+    assert english["total"] == 2
+    spanish = client.get("/api/app/podcasts", params={"limit": 10, "language": "es"}).json()
+    assert [p["feed_id"] for p in spanish["items"]] == ["es1"]

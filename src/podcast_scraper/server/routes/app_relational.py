@@ -65,23 +65,25 @@ def _user_set(request: Request, user: User | None) -> set[str]:
 # Episodes PAGED on the server (operator 2026-10-08: "what's the point of paging if you're not
 # actually paging?"). The cards returned every episode — a storyline 99 (1.29 MB on prod), a person
 # 70 (416 KB) — and the client sliced to five. `episodes_limit` + `episodes_offset` page the list;
-# `episode_count` stays the TOTAL, so "Show more (N)" is still right. With neither, the full list
-# is returned as before (1.0.2 clients ask that way).
+# `episode_count` stays the TOTAL, so "Show more (N)" is still right. Always paged: a request
+# without `episodes_limit` gets the first 20. No pre-1.0.3 client is left (2026-10-10,
+# docs/wip/TODO-remove-pre-1.0.3-compat.md).
+_DEFAULT_EPISODES = 20
 _EpisodesOffset = Query(default=0, ge=0, description="Skip this many episodes (paging).")
 _EpisodesLimit = Query(
-    default=None, ge=1, le=100, description="Return at most this many episodes; omit for all."
+    default=_DEFAULT_EPISODES, ge=1, le=100, description="Return at most this many episodes."
 )
 
 
 _Paged = TypeVar("_Paged", AppTopicCard, AppPersonCard, AppOrgCard, AppClusterCard)
 
 
-def _page_episodes(card: _Paged, offset: int, limit: int | None) -> _Paged:
-    if limit is None and offset == 0:
-        return card
-    end = None if limit is None else offset + limit
+def _page_episodes(card: _Paged, offset: int, limit: int) -> _Paged:
     return card.model_copy(
-        update={"episodes": card.episodes[offset:end], "episodes_total": len(card.episodes)}
+        update={
+            "episodes": card.episodes[offset : offset + limit],
+            "episodes_total": len(card.episodes),
+        }
     )
 
 
@@ -160,7 +162,7 @@ async def person_card(
     person_id: str,
     scope: Literal["all", "mine"] = Query(default="all"),
     episodes_offset: int = _EpisodesOffset,
-    episodes_limit: int | None = _EpisodesLimit,
+    episodes_limit: int = _EpisodesLimit,
     exclude_host_shows: bool = Query(
         default=False,
         description="Leave out episodes of the shows this person HOSTS (their back-catalogue), "
@@ -198,7 +200,7 @@ async def org_card(
     request: Request,
     org_id: str,
     episodes_offset: int = _EpisodesOffset,
-    episodes_limit: int | None = _EpisodesLimit,
+    episodes_limit: int = _EpisodesLimit,
     _user: User = Depends(get_current_user),
 ) -> AppOrgCard:
     """Organization card (#2031): mentioned-in episodes + co-occurring people/orgs/topics.
@@ -367,7 +369,7 @@ async def storyline_card(
     request: Request,
     storyline_id: str,
     episodes_offset: int = _EpisodesOffset,
-    episodes_limit: int | None = _EpisodesLimit,
+    episodes_limit: int = _EpisodesLimit,
     user: User = Depends(get_current_user),
 ) -> AppClusterCard:
     """Storyline card: the member topics, their MERGED episodes, and the people across them.
@@ -394,7 +396,7 @@ async def theme_card(
     request: Request,
     theme_id: str,
     episodes_offset: int = _EpisodesOffset,
-    episodes_limit: int | None = _EpisodesLimit,
+    episodes_limit: int = _EpisodesLimit,
     user: User = Depends(get_current_user),
 ) -> AppClusterCard:
     """Theme card: the member topics, their MERGED episodes, and the people across them.
@@ -473,7 +475,7 @@ async def topic_card(
     topic_id: str,
     scope: Literal["all", "mine"] = Query(default="all"),
     episodes_offset: int = _EpisodesOffset,
-    episodes_limit: int | None = _EpisodesLimit,
+    episodes_limit: int = _EpisodesLimit,
     user: User = Depends(get_current_user),
 ) -> AppTopicCard:
     """Topic card: episodes-about + cluster siblings + related people (KG-grounded).

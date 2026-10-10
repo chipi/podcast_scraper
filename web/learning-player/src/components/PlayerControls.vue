@@ -17,12 +17,28 @@ const props = defineProps<{
   rate: number
   /** Insight density ticks (#1140 skip-guide) — where the substance is. */
   markers?: InsightMarker[]
+  /**
+   * Moments (operator 2026-10-10): where the episode's moments sit, as 0–100 positions. Marked on
+   * the density strip, not the scrubber — the strip already shows where the insights are. Cream
+   * and taller than an insight tick, never the accent: the accent means "a finger can act on this"
+   * and these marks are not separate controls.
+   */
+  momentMarks?: number[]
+  /** Step (2026-10-10): the insight the listener is in — its tick stands out on the strip. */
+  currentMarkerId?: string | null
+  /**
+   * Moments plays (operator 2026-10-10): the skips become previous / next moment. The page keeps
+   * the episode's transport; only what the two skip cells do changes, like the mockup's |◀ ▶|.
+   */
+  reel?: boolean
 }>()
 const emit = defineEmits<{
   (e: "toggle"): void
   (e: "seek", t: number): void
   (e: "skip", delta: number): void
   (e: "cycle-rate"): void
+  (e: "prev-moment"): void
+  (e: "next-moment"): void
 }>()
 
 const { t } = useI18n()
@@ -124,10 +140,12 @@ function onDensityUp(): void {
         type="button"
         class="flex items-center justify-center rounded-full border border-border text-sm font-bold transition hover:bg-overlay sm:text-base"
         :class="TRANSPORT_BUTTON_SIZE"
-        :aria-label="t('player.back15')"
-        @click="emit('skip', -15)"
+        :aria-label="reel ? t('moments.prev') : t('player.back15')"
+        data-testid="player-skip-back"
+        @click="reel ? emit('prev-moment') : emit('skip', -15)"
       >
-        ↺15
+        <span v-if="reel" aria-hidden="true">|◀</span>
+        <template v-else>↺15</template>
       </button>
       <button
         type="button"
@@ -156,10 +174,12 @@ function onDensityUp(): void {
         type="button"
         class="flex items-center justify-center rounded-full border border-border text-sm font-bold transition hover:bg-overlay sm:text-base"
         :class="TRANSPORT_BUTTON_SIZE"
-        :aria-label="t('player.forward30')"
-        @click="emit('skip', 30)"
+        :aria-label="reel ? t('moments.next') : t('player.forward30')"
+        data-testid="player-skip-forward"
+        @click="reel ? emit('next-moment') : emit('skip', 30)"
       >
-        30↻
+        <span v-if="reel" aria-hidden="true">▶|</span>
+        <template v-else>30↻</template>
       </button>
       <div><slot name="right-inner" :size="TRANSPORT_BUTTON_SIZE" /></div>
       <button
@@ -196,7 +216,7 @@ function onDensityUp(): void {
          fingertip on a 10px band would miss it as often as not. `touch-pan-y` lets a vertical
          swipe that starts here still scroll the page; a horizontal one scrubs. -->
     <div
-      v-if="(markers?.length ?? 0) > 0"
+      v-if="(markers?.length ?? 0) > 0 || (momentMarks?.length ?? 0) > 0"
       class="-mb-2 cursor-pointer touch-pan-y py-2"
       data-testid="player-density-seek"
       @pointerdown="onDensityDown"
@@ -223,10 +243,22 @@ function onDensityUp(): void {
       <span
         v-for="m in markers"
         :key="m.id"
-        class="absolute top-0 h-2.5 w-[2px] -translate-x-1/2 rounded-full"
-        :class="m.grounded ? 'bg-canvas-foreground' : 'bg-muted'"
-        :style="{ left: m.pct + '%', opacity: m.weight }"
+        class="absolute -translate-x-1/2 rounded-full"
+        :class="[
+          m.grounded ? 'bg-canvas-foreground' : 'bg-muted',
+          m.id === currentMarkerId ? '-top-1 h-[18px] w-[3px]' : 'top-0 h-2.5 w-[2px]',
+        ]"
+        :style="{ left: m.pct + '%', opacity: m.id === currentMarkerId ? 1 : m.weight }"
+        :data-current="m.id === currentMarkerId ? 'true' : undefined"
         data-testid="player-density-tick"
+      />
+      <span
+        v-for="(pct, i) in momentMarks ?? []"
+        :key="'m' + i"
+        class="absolute -top-[3px] h-4 w-[3px] -translate-x-1/2 rounded-[1px] bg-canvas-foreground"
+        :style="{ left: pct + '%' }"
+        aria-hidden="true"
+        data-testid="player-moment-mark"
       />
     </div>
     </div>

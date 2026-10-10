@@ -73,14 +73,28 @@ export function resetStaleness(): void {
   staleKeys.value = new Set()
 }
 
-export function useSectionState<T>(initial: T, options: { cacheKey?: string } = {}) {
+export function useSectionState<T>(
+  initial: T,
+  /**
+   * `cacheKey` may be a function when what the section shows follows a setting — Trending shows
+   * under Mine ⇄ Everyone (2026-10-09). It is read at each load: answers are written under the
+   * key they were loaded for, each key hydrates from its own snapshot once, and content loaded
+   * under another key is cleared on the switch rather than shown while the new one loads.
+   */
+  options: { cacheKey?: string | (() => string) } = {},
+) {
+  const keyNow = (): string | undefined =>
+    typeof options.cacheKey === 'function' ? options.cacheKey() : options.cacheKey
   const data = ref<T>(initial)
   const phase = ref<SectionPhase>('loading')
   /** Showing content that a fetch did not confirm this session. */
   const stale = ref(false)
   /** Whether anything worth keeping is on screen — the thing a failure must not destroy. */
   const hasData = ref(false)
-  let hydrated = false
+  /** Keys already hydrated from their snapshot — each once. */
+  const hydrated = new Set<string>()
+  /** The key the content on screen was loaded under. */
+  let shownKey: string | undefined
   /** Bumped by every `load` (and `reset`); only the newest load may write. */
   let loadSeq = 0
 
@@ -89,7 +103,9 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
     hasData.value = true
     phase.value = 'ready'
     stale.value = isStale
-    if (options.cacheKey) markStale(options.cacheKey, isStale)
+    const key = keyNow()
+    shownKey = key
+    if (key) markStale(key, isStale)
   }
 
   /**
@@ -105,6 +121,15 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
     // and when "mine" landed second, Everyone's trends showed nothing — 2 of 6 loads, measured.
     const mine = ++loadSeq
     const current = () => mine === loadSeq
+    const key = keyNow()
+    // The content on screen belongs to another key (the setting it follows flipped): it is not this
+    // section's content any more, so it goes rather than standing in while the new key loads.
+    if (hasData.value && shownKey !== key) {
+      if (shownKey) markStale(shownKey, false)
+      data.value = initial
+      hasData.value = false
+      stale.value = false
+    }
     // Start the request BEFORE reading the cache, so hydration never delays the network. Settled
     // into a result object rather than left to reject: the cache read below is a real async gap,
     // and a promise that rejects across it with no handler attached is an unhandled rejection.
@@ -115,8 +140,8 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
     // A revalidation with content on screen must not drop back to a skeleton (#1909: "revalidate in
     // place, never wipe").
     if (!hasData.value) phase.value = 'loading'
-    if (options.cacheKey && !hydrated) {
-      hydrated = true
+    if (key && !hydrated.has(key)) {
+      hydrated.add(key)
       // RACED against the request, not awaited in front of it. The snapshot exists to fill the wait
       // — so when there is no wait it must not create one. Reading it first put device storage on
       // the critical path of every section, and on web that read spans a lazy module load, so a
@@ -126,7 +151,7 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
         // stale-format entry from an older build does not degrade the rail — it makes the render
         // throw. The section already declared its shape as `initial`; require the cached value to
         // still match that much. Anything else is a miss, and the fetch already in flight covers it.
-        readCached<T>(options.cacheKey, (v) => Array.isArray(v) === Array.isArray(initial)).then(
+        readCached<T>(key, (v) => Array.isArray(v) === Array.isArray(initial)).then(
           (value) => ({ from: 'cache', value }) as const,
         ),
         inflight.then(() => ({ from: 'network', value: null }) as const),
@@ -150,14 +175,14 @@ export function useSectionState<T>(initial: T, options: { cacheKey?: string } = 
     if (!current()) return
     if (result.ok) {
       accept(result.value, false)
-      if (options.cacheKey) void writeCached(options.cacheKey, result.value)
+      if (key) void writeCached(key, result.value)
       return
     }
     if (hasData.value) {
       // The rule: a transport error may not destroy what the user already has. Say it is stale.
       stale.value = true
       phase.value = 'ready'
-      if (options.cacheKey) markStale(options.cacheKey, true)
+      if (key) markStale(key, true)
       return
     }
     phase.value = 'error'

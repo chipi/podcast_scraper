@@ -1,5 +1,13 @@
 import { vi } from 'vitest'
 import * as api from '../services/api'
+import {
+  pageCollectionLocally,
+  pageFavoritesLocally,
+  pageHighlightsLocally,
+  pageNotesLocally,
+  pagePodcastsLocally,
+  pageResurfacingLocally,
+} from './localPagers'
 import type { EpisodeDetail } from '../services/types'
 
 /**
@@ -28,14 +36,14 @@ export function batchViaGetEpisode(): void {
 /**
  * Answer the favourites reads from the test's own `getFavorites` spy: identities derived from it,
  * and each Saved page cut from it by the same code an older server's full list goes through
- * (`pageFavoritesLocally`). The server's own paging is tested in the API's integration tests.
+ * (`pageFavoritesLocally`, test/localPagers.ts). The server's own paging is tested in the API's integration tests.
  */
 export function favoritesViaGetFavorites(): void {
   vi.spyOn(api, 'getFavoriteRefs').mockImplementation(async () =>
     api.favoriteRefsOf(await api.getFavorites()),
   )
   vi.spyOn(api, 'getFavoritesPage').mockImplementation(async (query) =>
-    api.pageFavoritesLocally(await api.getFavorites(), query),
+    pageFavoritesLocally(await api.getFavorites(), query),
   )
 }
 
@@ -46,10 +54,10 @@ export function favoritesViaGetFavorites(): void {
  */
 export function capturesViaFullLists(): void {
   vi.spyOn(api, 'getNotesPage').mockImplementation(async (query) =>
-    api.pageNotesLocally(await api.getNotes(), await api.getHighlights().catch(() => []), query),
+    pageNotesLocally(await api.getNotes(), await api.getHighlights().catch(() => []), query),
   )
   vi.spyOn(api, 'getHighlightsPage').mockImplementation(async (query) =>
-    api.pageHighlightsLocally(
+    pageHighlightsLocally(
       await api.getHighlights(),
       await api.getNotes('highlight').catch(() => []),
       query,
@@ -60,14 +68,14 @@ export function capturesViaFullLists(): void {
 /** Answer `getResurfacingPage` from the test's own `getResurfacing` spy (older-server paging). */
 export function resurfacingViaGetResurfacing(): void {
   vi.spyOn(api, 'getResurfacingPage').mockImplementation(async (query) =>
-    api.pageResurfacingLocally(await api.getResurfacing(), query),
+    pageResurfacingLocally(await api.getResurfacing(), query),
   )
 }
 
 /** Answer `getCollectionPage` from the test's own `getCollection` spy (older-server paging). */
 export function collectionsViaGetCollection(): void {
   vi.spyOn(api, 'getCollectionPage').mockImplementation(async (id, query) =>
-    api.pageCollectionLocally(await api.getCollection(id), query),
+    pageCollectionLocally(await api.getCollection(id), query),
   )
 }
 
@@ -77,9 +85,9 @@ export function collectionsViaGetCollection(): void {
  */
 export function podcastsViaGetPodcasts(): void {
   vi.spyOn(api, 'getPodcastsPage').mockImplementation(async (query) =>
-    api.pagePodcastsLocally(await api.getPodcasts(), query),
+    pagePodcastsLocally(await api.getPodcasts(), query),
   )
   vi.spyOn(api, 'getPodcastsByIds').mockImplementation(async (ids) =>
-    api.pagePodcastsLocally(await api.getPodcasts(), { feedIds: ids, limit: ids.length || 1 }).items,
+    pagePodcastsLocally(await api.getPodcasts(), { feedIds: ids, limit: ids.length || 1 }).items,
   )
 }

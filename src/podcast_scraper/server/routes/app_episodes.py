@@ -22,6 +22,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
+from podcast_scraper.languages import primary_language
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
@@ -45,6 +46,11 @@ from podcast_scraper.server.app_episode_notes import (
     render_episode_notes_html,
     render_episode_notes_markdown,
 )
+from podcast_scraper.server.app_episode_search import (
+    episode_segments as _raw_segment_tuples,
+    exact_passages,
+    time_transcript_hits,
+)
 from podcast_scraper.server.app_gi_view import insights_from_gi
 from podcast_scraper.server.app_guided_shows import (
     guided_show_signals,
@@ -52,6 +58,7 @@ from podcast_scraper.server.app_guided_shows import (
     ShowSignals,
 )
 from podcast_scraper.server.app_kg_view import entities_from_kg, objects_from_kg
+from podcast_scraper.server.app_moments import episode_has_moments, MomentsConfig, pick_moments
 from podcast_scraper.server.app_pkm_export import episode_url
 from podcast_scraper.server.app_recap_view import build_episode_recap
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, with_photos
@@ -73,12 +80,15 @@ from podcast_scraper.server.schemas import (
     AppEpisodeRecap,
     AppEpisodesResponse,
     AppInsightsResponse,
+    AppMoment,
+    AppMomentsResponse,
     AppPodcastItem,
     AppPodcastSignalsResponse,
     AppPodcastsResponse,
     AudioSourceResponse,
     CorpusSearchApiResponse,
     EpisodeStatsResponse,
+    SearchHitModel,
     SegmentsResponse,
 )
 from podcast_scraper.server.segments_view import (
@@ -173,6 +183,9 @@ def podcasts_list(
     ),
     q: str | None = Query(default=None, max_length=200, description="Paged: title / host words."),
     category: str | None = Query(default=None, max_length=100),
+    language: str | None = Query(
+        default=None, max_length=35, description="Paged: shows in this language (primary code)."
+    ),
     sort: Literal["newest", "oldest", "az", "za", "trending"] = Query(default="newest"),
     compact: bool = Query(
         default=False, description="Paged: leave out descriptions (a name list, e.g. a filter)."
@@ -194,6 +207,7 @@ def podcasts_list(
         return AppPodcastsResponse(items=[_podcast_item(f) for f in feeds])
     wanted = set(feed_ids)
     words = (q or "").casefold().split()
+    lang = primary_language(language) if language else ""
 
     def title(f: dict) -> str:
         return str(f.get("display_title") or f.get("feed_id")).casefold()
@@ -206,6 +220,7 @@ def podcasts_list(
         for f in feeds
         if (not wanted or f["feed_id"] in wanted)
         and (not category or f.get("category") == category)
+        and (not lang or primary_language(f.get("language")) == lang)
         and all(w in hay(f) for w in words)
     ]
     if sort in ("az", "za"):
@@ -236,6 +251,7 @@ def podcasts_list(
         items=page,
         total=len(selected),
         categories=sorted({str(f["category"]) for f in feeds if f.get("category")}),
+        languages=sorted({c for f in feeds if (c := primary_language(f.get("language")))}),
     )
 
 
@@ -407,6 +423,7 @@ def _episode_detail(root: Path, row: CatalogEpisodeRow, slug: str) -> AppEpisode
         has_transcript=has_transcript,
         has_summary=has_summary,
         has_gi=row.has_gi,
+        has_moments=episode_has_moments(root, row),
         has_kg=row.has_kg,
         has_bridge=row.has_bridge,
     )
@@ -700,6 +717,45 @@ def episode_entities(
     )
 
 
+@router.get("/episodes/{slug}/moments", response_model=AppMomentsResponse)
+def episode_moments(
+    request: Request,
+    slug: str,
+    _user: User = Depends(get_current_user),
+) -> AppMomentsResponse:
+    """The episode's moments — its strongest points, one clip each, in timeline order.
+
+    Which and how many come from ``app_moments`` (``MomentsConfig``, tunable through
+    ``APP_MOMENTS_CONFIG``). An episode without a GI artifact, or without an insight the player
+    would show, has no moments: an empty list (200), like ``/insights``.
+    """
+    root, row = _resolve(request, slug)
+    if not row.has_gi:
+        return AppMomentsResponse(episode_slug=slug)
+    config = getattr(request.app.state, "moments_config", None) or MomentsConfig.from_env()
+    picked = pick_moments(
+        load_json_artifact(root, row.gi_relative_path),
+        row.duration_seconds,
+        config,
+        _raw_segment_tuples(root, row),
+    )
+    return AppMomentsResponse(
+        episode_slug=slug,
+        moments=[
+            AppMoment(
+                insight_id=m.insight_id,
+                text=m.text,
+                speaker=m.speaker,
+                start_ms=m.start_ms,
+                end_ms=m.end_ms,
+                clip_text=m.clip_text,
+            )
+            for m in picked
+        ],
+        total_seconds=round(sum(m.end_ms - m.start_ms for m in picked) / 1000.0, 1),
+    )
+
+
 @router.get("/episodes/{slug}/segments", response_model=SegmentsResponse)
 def episode_segments(
     request: Request,
@@ -882,16 +938,38 @@ async def episode_search(
 ) -> CorpusSearchApiResponse:
     """Grounded search within one episode (extractive grounded passages; no LLM, D6).
 
-    Over-fetches by feed, then narrows to this episode — the retrieval layer has no
-    episode filter yet, so we scope ``metadata.episode_id`` client-side.
+    The episode is part of the QUERY (operator 2026-10-10): only this episode's rows are ranked,
+    so nothing from another episode can come back or crowd this one's matches out. It used to
+    rank the corpus, keep the top few hundred, and narrow afterwards, which found nothing in an
+    episode whose matches did not make that cut.
     """
     root, row = _resolve(request, slug)
-    internal_k = min(100, max(top_k, top_k * 5))
     # Offload off the event loop (see the /related + /search notes) — safe via the warm index_pool.
     outcome = await asyncio.to_thread(
-        structured_corpus_search, root, q, feed=row.feed_id or None, top_k=internal_k
+        structured_corpus_search,
+        root,
+        q,
+        feed=row.feed_id or None,
+        episode_id=row.episode_id or None,
+        top_k=top_k,
     )
     if not outcome.get("error"):
         append_query_event(root, str(outcome.get("query_type") or ""))
     scoped = filter_outcome_to_episode(outcome, row.episode_id, top_k)
-    return build_search_response(q, scoped)
+    resp = build_search_response(q, scoped)
+    # What a listener remembers (operator 2026-10-10): passages with the words verbatim first,
+    # and a real time on every transcript result — both from the episode's timed transcript.
+    segments = await asyncio.to_thread(_raw_segment_tuples, root, row)
+    if segments:
+        time_transcript_hits(resp.results, segments)
+        exact = [
+            SearchHitModel(**hit)
+            for hit in exact_passages(segments, q, episode_id=row.episode_id or slug)
+        ]
+        if exact:
+            resp.results = [*exact, *resp.results]
+            # The verbatim passages need no index: an index that cannot answer (none built yet,
+            # or the query model offline) no longer hides what the transcript plainly says.
+            resp.error = None
+            resp.detail = None
+    return resp

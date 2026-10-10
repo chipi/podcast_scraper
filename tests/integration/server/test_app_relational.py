@@ -175,7 +175,8 @@ def test_card_episodes_are_paged_on_the_server_and_the_count_stays_the_total(
     )
     assert first["top_shows"] == full["top_shows"]
     assert sum(sh["count"] for sh in first["top_shows"]) == 2
-    assert full.get("episodes_total") is None  # the full list is not "paged"
+    # No limit: the default page of 20 — always paged since 2026-10-10, so the total is there too.
+    assert full["episodes_total"] == 2
     assert len(second["episodes"]) == 1
     assert first["episodes"][0]["slug"] != second["episodes"][0]["slug"]
     person = client.get("/api/app/persons/person:jane-doe?episodes_limit=1").json()

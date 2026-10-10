@@ -100,6 +100,8 @@ export interface EpisodeSummary {
   has_transcript: boolean
   has_summary: boolean
   has_gi: boolean
+  /** An episode the Brief shows insights for, one of them timed: the Moments door opens. */
+  has_moments?: boolean
   has_kg: boolean
   has_bridge: boolean
   /** Per-user saved-item colour token — set only on favourited episodes (RFC-121 ph. 4); null on
@@ -146,6 +148,8 @@ export interface EpisodeDetail {
   has_transcript: boolean
   has_summary: boolean
   has_gi: boolean
+  /** An episode the Brief shows insights for, one of them timed: the Moments door opens. */
+  has_moments?: boolean
   has_kg: boolean
   has_bridge: boolean
   /** Episode language as a normalized primary subtag ('en', 'es'); null/absent when unknown. */
@@ -324,6 +328,22 @@ export interface Insight {
 export interface InsightsResponse {
   episode_slug: string
   insights: Insight[]
+}
+
+/** One moment of the quick-listening reel (GET /api/app/episodes/{slug}/moments, 2026-10-10). */
+export interface Moment {
+  insight_id: string
+  text: string
+  speaker: string | null
+  start_ms: number
+  end_ms: number
+  clip_text: string
+}
+
+export interface MomentsResponse {
+  episode_slug: string
+  moments: Moment[]
+  total_seconds: number
 }
 
 /**

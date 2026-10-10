@@ -320,18 +320,13 @@ def collection_detail(
     collection_id: str,
     kind: str | None = Query(default=None, max_length=32, description="Paged: only this kind."),
     offset: int = Query(default=0, ge=0),
-    limit: int | None = Query(
-        default=None,
-        ge=1,
-        le=100,
-        description="Page size. Absent: every item, as before 1.0.3.",
-    ),
+    limit: int = Query(default=50, ge=1, le=100, description="Page size."),
     user: User = Depends(get_current_user),
 ) -> CollectionDetail:
     """A collection + its resolved typed items (dangling highlights dropped).
 
-    Paging is opt-in: with ``limit`` one page (optionally one ``kind``), plus ``total`` and
-    ``kind_counts``.
+    Always one page (optionally one ``kind``), with ``total`` and ``kind_counts``. No pre-1.0.3
+    client is left (2026-10-10, docs/wip/TODO-remove-pre-1.0.3-compat.md).
     """
     data_dir = _data_dir(request)
     by_id = {h["id"]: h for h in app_user_state.get_highlights(data_dir, user.user_id)}
@@ -340,9 +335,6 @@ def collection_detail(
     if meta is None:
         raise HTTPException(status_code=404, detail="collection not found")
     stored = app_collections_store.get_items(data_dir, user.user_id, collection_id)
-    if limit is None:
-        items = [it for it in (_resolve_item(m, by_id) for m in stored) if it is not None]
-        return CollectionDetail(collection=Collection(**meta), items=items)
     # Counted on the stored rows; a highlight whose capture is gone is dropped here as below.
     live = [m for m in stored if m.get("kind") != "highlight" or m.get("ref") in by_id]
     kind_counts: dict[str, int] = {}

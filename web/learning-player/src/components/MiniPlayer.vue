@@ -43,6 +43,16 @@ const {
 
 const onPlayerPage = computed(() => route.name === 'player' && route.params.slug === currentSlug.value)
 const visible = computed(() => !!currentSlug.value && !onPlayerPage.value)
+/** While a Moments reel plays (operator 2026-10-10): "Moments · 3 / 8" in place of the show. */
+const reelLabel = computed(() => {
+  const r = player.reel
+  return r ? t('moments.mini', { n: r.index + 1, total: r.moments.length }) : null
+})
+const openTo = computed(() =>
+  player.reel
+    ? { name: 'player', params: { slug: currentSlug.value }, query: { moments: '1' } }
+    : { name: 'player', params: { slug: currentSlug.value } },
+)
 const progress = computed(() =>
   duration.value > 0 ? Math.min(100, (currentTime.value / duration.value) * 100) : 0,
 )
@@ -80,7 +90,7 @@ const progress = computed(() =>
 
     <div class="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2">
       <RouterLink
-        :to="{ name: 'player', params: { slug: currentSlug } }"
+        :to="openTo"
         class="flex min-w-0 flex-1 items-center gap-3 no-underline text-canvas-foreground"
         data-testid="mini-player-open"
       >
@@ -96,7 +106,8 @@ const progress = computed(() =>
                It was ONE line of episode title, so a long one ended in an ellipsis having said
                nothing about whose show it was. The kicker is omitted rather than faked when the
                caller did not supply a show. -->
-          <span v-if="currentShowTitle" class="lp-kicker block truncate">{{ currentShowTitle }}</span>
+          <span v-if="reelLabel" class="lp-kicker block truncate text-accent" data-testid="mini-player-moments">{{ reelLabel }}</span>
+          <span v-else-if="currentShowTitle" class="lp-kicker block truncate">{{ currentShowTitle }}</span>
           <span class="block truncate text-xs font-bold">{{ currentTitle ?? t('player.loading') }}</span>
           <!-- role=status so a screen-reader user hears it too; the icon change alone is silent. -->
           <span

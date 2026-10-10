@@ -38,6 +38,9 @@ test('Home shows sections; search routes to /search and returns grounded results
   // renders only when results exist — is deterministic).
   await page.getByLabel('Ask across every episode').fill('investing')
   await page.getByRole('button', { name: 'Search', exact: true }).first().click()
+  // A search opens in the shared Mine ⇄ Everyone choice — Mine by default, empty for a fresh account,
+  // which offers everyone's (ADR-162). This spec is about the corpus-wide results.
+  await page.getByTestId('search-show-everyone').click()
   await expect(page).toHaveURL(/\/search\?q=investing/)
   await expect(page.getByText(/\d+ passages across \d+ episodes/)).toBeVisible()
 })

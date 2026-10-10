@@ -15,6 +15,8 @@ const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
+    // The layered entity sheet records `?card=` on the current route; it needs one to stand on.
+    { path: "/", name: "home", component: { template: "<div/>" } },
     { path: "/episode/:slug", name: "player", component: { template: "<div/>" } },
     { path: "/search", name: "search", component: { template: "<div/>" } },
   ],
@@ -91,6 +93,8 @@ function mountPanel(props: {
   persons?: Entity[]
   slug?: string
   activeInsightId?: string | null
+  momentsCount?: number | null
+  momentsSeconds?: number
 } = {}) {
   return mount(KnowledgePanel, {
     props: {
@@ -141,11 +145,13 @@ describe("KnowledgePanel", () => {
       .find((b) => chipName(b) === "Matthew Walker")!
       .trigger("click")
     await flushPromises()
-    // Replace-in-panel (UXS-014): the card renders INLINE in the panel (no overlay), with a ‹ Back
-    // (glyph-only dismiss control, aria-label "Back" when nested).
+    // Cascade (operator 2026-10-10): the card opens as a sheet LAYERED over the panel (teleported,
+    // depth 1), and the panel stays as it was underneath — its summary still rendered.
     expect(getPerson).toHaveBeenCalledWith("person:matthew-walker", undefined, { limit: 5, excludeHostShows: true })
-    expect(w.text()).toContain("Matthew Walker")
-    expect(w.find('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Back")
+    const sheet = document.body.querySelector(".lp-sheet--stacked")
+    expect(sheet, "the person opens as a stacked sheet").not.toBeNull()
+    expect(sheet!.textContent).toContain("Matthew Walker")
+    expect(w.text()).toContain("A short summary.")
   })
 
   it("opened from a note (focusNotes), the panel lands on the notes section", async () => {
@@ -196,9 +202,12 @@ describe("KnowledgePanel", () => {
       .find((b) => chipName(b) === "Matthew Walker")!
       .trigger("click")
     await flushPromises()
-    await w.find('[data-testid="ec-dismiss"]').trigger("click")
+    const dismiss = document.body.querySelector<HTMLElement>('.lp-sheet--stacked [data-testid="ec-dismiss"]')
+    expect(dismiss, "the layered sheet has its own close").not.toBeNull()
+    dismiss!.click()
     await flushPromises()
-    // The panel body is a NEW element after the card closes; it must not start at 0.
+    // The card is a sheet OVER the panel, so the panel body never left: still where it was.
+    expect(document.body.querySelector(".lp-sheet--stacked")).toBeNull()
     expect(body().scrollTop).toBe(640)
     height.mockRestore()
   })
@@ -223,7 +232,11 @@ describe("KnowledgePanel", () => {
       .trigger("click")
     await flushPromises()
     expect(getTopic).toHaveBeenCalledWith("topic:memory", undefined, { limit: 5 })
-    expect(push).not.toHaveBeenCalled() // search now lives inside the card, not on chip-tap
+    // Search lives inside the card, not on chip-tap. The only navigation is the sheet's own `?card=`
+    // history entry (so the phone's Back closes it).
+    for (const [to] of push.mock.calls) {
+      expect(to).toEqual({ query: { card: "topic:memory" } })
+    }
   })
 
   it("orders topics cluster-first and marks the dominant cluster (RFC-102)", () => {
@@ -310,7 +323,7 @@ describe("KnowledgePanel", () => {
           doc_id: "d1",
           score: 0.9,
           text: "A grounded passage about memory.",
-          metadata: {},
+          metadata: { doc_type: "transcript" },
           source_tier: "segment",
           lifted: { quote: { timestamp_start_ms: 20000 } },
         },
@@ -320,7 +333,7 @@ describe("KnowledgePanel", () => {
     await w.find("input").setValue("memory")
     await w.find("form").trigger("submit")
     await new Promise((r) => setTimeout(r, 0))
-    expect(w.text()).toContain("A grounded passage about memory.")
+    expect(w.text()).toContain("A grounded passage about")
     const jump = w.findAll("button").find((b) => b.text().includes("0:20"))
     await jump!.trigger("click")
     expect(w.emitted("play-from")?.at(-1)).toEqual([20])
@@ -798,7 +811,7 @@ describe("the people in the room, at the top of the panel", () => {
     expect(rows[1].text()).toContain("BG")
   })
 
-  it("opens the person in the panel with a Back, the same way the person chip does", async () => {
+  it("opens the person as a sheet over the panel, the same way the person chip does", async () => {
     const getPerson = vi.spyOn(api, "getPersonCard").mockResolvedValue({
       id: "person:jane",
       label: "Jane Host",
@@ -811,8 +824,36 @@ describe("the people in the room, at the top of the panel", () => {
     await w.get('[data-testid="kp-dossier-person"]').trigger("click")
     await flushPromises()
     expect(getPerson).toHaveBeenCalledWith("person:jane", undefined, { limit: 5, excludeHostShows: true })
-    expect(w.find('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Back")
-    expect(w.find('[data-testid="kp-episode-dossier"]').exists()).toBe(false)
+    expect(document.body.querySelector(".lp-sheet--stacked")?.textContent).toContain("Jane Host")
+    // The Brief underneath is untouched, so closing the sheet lands where the listener was.
+    expect(w.find('[data-testid="kp-episode-dossier"]').exists()).toBe(true)
+  })
+
+  it("the grab handle closes the panel when pulled down, and springs back from a short pull", async () => {
+    vi.useFakeTimers()
+    try {
+      const w = mountPanel()
+      const handle = w.get('[data-testid="kp-sheet-handle"]').element
+      // Real pointer events: the test DOM drops `clientY` from synthetic `trigger()` options.
+      const fire = (type: string, clientY: number) => {
+        const e = new MouseEvent(type, { clientY, bubbles: true })
+        Object.defineProperty(e, "pointerType", { value: "touch" })
+        handle.dispatchEvent(e)
+      }
+      const pull = async (dy: number) => {
+        fire("pointerdown", 100)
+        fire("pointermove", 100 + dy)
+        fire("pointerup", 100 + dy)
+        vi.advanceTimersByTime(400)
+        await flushPromises()
+      }
+      await pull(30)
+      expect(w.emitted("close")).toBeUndefined()
+      await pull(160)
+      expect(w.emitted("close")).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("does not make an episode-scoped guest tappable", () => {
@@ -890,7 +931,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     const w = mountPanel()
     await flushPromises()
     const open = w.get('[data-testid="episode-notes-export"]')
-    expect(open.text()).toBe("Download notes")
+    expect(open.text()).toBe("Download brief")
     expect(w.find('[data-testid="episode-notes-pdf"]').exists()).toBe(false)
     expect(w.find("a[download]").exists()).toBe(false)
   })
@@ -940,7 +981,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
      * differ; identical ids would already have been collapsed server-side.
      */
     const hit = (doc_id: string, text: string) =>
-      ({ doc_id, text, score: 1, metadata: {}, source_tier: "transcript" }) as never
+      ({ doc_id, text, score: 1, metadata: { doc_type: "transcript" }, source_tier: "transcript" }) as never
     vi.spyOn(api, "searchEpisode").mockResolvedValue({
       query: "agents",
       results: [hit("a", "Agentic engineering."), hit("b", "Agentic engineering."), hit("c", "Other.")],
@@ -1056,7 +1097,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     const a = inViewer<HTMLAnchorElement>("export-viewer-md")
     expect(a?.tagName).toBe("A")
     expect(a?.getAttribute("href")).toContain("/notes.md")
-    expect(a?.getAttribute("download")).toBe("ep-notes.md")
+    expect(a?.getAttribute("download")).toBe("ep-brief.md")
     inViewer("export-viewer-close")?.click()
   })
 
@@ -1072,7 +1113,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     const [filename, body] = share.mock.calls[0]
     // Named from the TITLE, not the slug (`{feed_slug}-{sha256hex}` was "some crazy name",
     // operator 2026-09-19).
-    expect(filename).toBe("ep-notes.md")
+    expect(filename).toBe("ep-brief.md")
     expect(filename).not.toMatch(/[0-9a-f]{8}/)
     expect(body).toContain("# Notes")
     inViewer("export-viewer-close")?.click()
@@ -1085,7 +1126,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     inViewer("export-viewer-share")!.click()
     await flushPromises()
     expect(share).toHaveBeenCalledTimes(1)
-    expect(share.mock.calls[0][0]).toBe("ep-notes.html")
+    expect(share.mock.calls[0][0]).toBe("ep-brief.html")
     expect(share.mock.calls[0][2]).toBe("text/html")
     inViewer("export-viewer-close")?.click()
   })
@@ -1100,7 +1141,7 @@ describe("episode-scoped people (#1685 / #2062)", () => {
       await flushPromises()
       expect(shareFn).toHaveBeenCalledTimes(1)
       const files = shareFn.mock.calls[0][0].files as File[]
-      expect(files[0].name).toBe("ep-notes.html")
+      expect(files[0].name).toBe("ep-brief.html")
       inViewer("export-viewer-close")?.click()
     } finally {
       vi.unstubAllGlobals()
@@ -1194,3 +1235,90 @@ describe("episode-scoped people (#1685 / #2062)", () => {
     expect(w.text()).toContain("bravo observation")
   })
 })
+
+describe("the Brief offers Play moments after its Summary (operator 2026-10-10)", () => {
+  it("offers the reel right after the summary when the episode has insights, and asks the page to play it", async () => {
+    const w = mountPanel()
+    const btn = w.get('[data-testid="kp-play-moments"]')
+    expect(btn.text()).toContain("Play moments")
+    // Read what the episode is, then taste it (operator 2026-10-10: after the Summary).
+    const html = w.html()
+    expect(html.indexOf('data-testid="kp-play-moments"')).toBeGreaterThan(html.indexOf("A short summary."))
+    expect(html.indexOf('data-testid="kp-play-moments"')).toBeLessThan(html.indexOf('data-testid="episode-notes-export"'))
+    await btn.trigger("click")
+    expect(w.emitted("play-moments")).toHaveLength(1)
+  })
+
+  it("is absent with no insights", () => {
+    expect(mountPanel({ insights: [] }).find('[data-testid="kp-play-moments"]').exists()).toBe(false)
+  })
+
+  it("says how many and how long once the moments are loaded: Play 8 moments · 3½ min", () => {
+    const text = mountPanel({ momentsCount: 8, momentsSeconds: 205 }).get('[data-testid="kp-play-moments"]').text()
+    expect(text).toContain("Play 8 moments")
+    expect(text).toContain("3½ min · the strongest moments, in order")
+  })
+
+  it("is absent when the episode turned out to have no moments", () => {
+    expect(mountPanel({ momentsCount: 0 }).find('[data-testid="kp-play-moments"]').exists()).toBe(false)
+  })
+})
+
+describe("the Brief's search, for what a listener remembers (operator 2026-10-10)", () => {
+  const SEGS = [
+    { id: "s0", start: 0, end: 5, text: "Welcome back to the show everyone, glad you are here.", speaker: null },
+    { id: "s1", start: 5, end: 12, text: "Diversification is the only free lunch, people say, and they mean it.", speaker: null },
+  ]
+  async function searchFor(q: string, results: unknown[]) {
+    vi.spyOn(api, "searchEpisode").mockResolvedValue({ query: q, error: null, results } as never)
+    const w = mount(KnowledgePanel, {
+      props: {
+        episode: episode(),
+        insights: [insight()],
+        topics: [],
+        persons: [],
+        slug: "s1",
+        activeInsightId: null,
+        segments: SEGS,
+      },
+      global: { plugins: [i18n, router] },
+    })
+    await w.get("#kp-ask").setValue(q)
+    await w.get("form").trigger("submit")
+    await flushPromises()
+    return w
+  }
+
+  it("groups the transcript and the insights, and leaves the episode summary out", async () => {
+    const w = await searchFor("free lunch", [
+      { doc_id: "i1", score: 1, text: "An insight", metadata: { doc_type: "insight" } },
+      { doc_id: "sum", score: 1, text: "The summary text", metadata: { doc_type: "summary" } },
+      { doc_id: "c1", score: 1, text: "long passage", metadata: { doc_type: "transcript", timestamp_start_ms: 0, timestamp_end_ms: 12_000 } },
+    ])
+    expect(w.get('[data-testid="kp-search-transcript"]').text()).toContain("In the transcript")
+    expect(w.get('[data-testid="kp-search-insights"]').text()).toContain("An insight")
+    expect(w.get('[data-testid="kp-search-results"]').text()).not.toContain("The summary text")
+  })
+
+  it("shows the sentence with the words, marked, played from where it was said", async () => {
+    const w = await searchFor("free lunch", [
+      { doc_id: "c1", score: 1, text: "long passage", metadata: { doc_type: "transcript", timestamp_start_ms: 0, timestamp_end_ms: 12_000 } },
+    ])
+    const piece = w.get('[data-testid="kp-search-piece"]')
+    expect(piece.text()).toContain("Diversification is the only free lunch")
+    expect(piece.findAll("mark").map((m) => m.text())).toEqual(["free", "lunch"])
+    await piece.findAll("button").find((b) => b.text().includes("0:05"))!.trigger("click")
+    expect(w.emitted("play-from")?.at(-1)).toEqual([5])
+  })
+
+  it("Highlight saves exactly the sentence's segments", async () => {
+    const w = await searchFor("free lunch", [
+      { doc_id: "c1", score: 1, text: "x", metadata: { doc_type: "transcript", timestamp_start_ms: 0, timestamp_end_ms: 12_000 } },
+    ])
+    await w.get('[data-testid="kp-search-highlight"]').trigger("click")
+    const [span] = w.emitted("capture-span")!.at(-1) as [{ segment_ids: string[]; start_ms: number }]
+    expect(span.segment_ids).toEqual(["s1"])
+    expect(span.start_ms).toBe(5_000)
+  })
+})
+

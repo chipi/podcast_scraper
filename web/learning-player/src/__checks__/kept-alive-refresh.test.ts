@@ -26,6 +26,7 @@ const USER_GETTERS = [
 
 /** Files that read per-user data without `onActivated`, and why that is right. */
 const EXEMPT: Record<string, string> = {
+  '../views/DiscoverV2View.vue': 'A preview page outside KEEP_ALIVE_TABS: it remounts, and so re-reads, on every visit.',
   "../App.vue": "the shell, not a tab: it is never deactivated",
   "../components/InterestsPicker.vue": "a modal, mounted each time it opens",
   "../components/RecentlyPlayedList.vue": "inside QueueView, which is not kept alive (remounts per visit)",

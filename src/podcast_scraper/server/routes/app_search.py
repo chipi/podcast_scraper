@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -21,9 +21,11 @@ from podcast_scraper.search.query_log import append_query_event
 from podcast_scraper.search.storylines import STORYLINE_DOC_TYPE
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.app_episode_search import time_hits_by_episode
+from podcast_scraper.server.app_moments import episode_has_moments
 from podcast_scraper.server.app_search_view import build_search_response
 from podcast_scraper.server.app_slugs import slug_for_row
-from podcast_scraper.server.app_user_corpus import user_episode_set
+from podcast_scraper.server.app_user_corpus import world_episode_set
 from podcast_scraper.server.app_user_store import User
 from podcast_scraper.server.corpus_catalog import (
     index_rows_by_feed_episode,
@@ -57,6 +59,9 @@ def _attach_consumer_slugs(root: Path, resp: CorpusSearchApiResponse) -> None:
                 "episode_slug": slug_for_row(row),
                 "episode_title": row.episode_title,
                 "podcast_title": row.feed_title or "",
+                "episode_has_gi": bool(row.has_gi),
+                # Whether the result can offer the episode's Moments reel (same rule as the reel).
+                "episode_has_moments": episode_has_moments(root, row),
                 # Small show/episode artwork so search results read like library cards.
                 "episode_artwork": (
                     artwork_url(local_art, "thumb") or row.episode_image_url or row.feed_image_url
@@ -104,6 +109,41 @@ def _in_listening_scope(root: Path, hit: object, mine: set[str]) -> bool:
     return meta.get("episode_slug") in mine
 
 
+def _world_search(
+    root: Path, q: str, mine: set[str], *, top_k: int, grounded_only: bool
+) -> dict[str, Any]:
+    """Search the listener's world with the world IN the query (operator 2026-10-10).
+
+    It used to rank the whole corpus, keep a few hundred, and keep the listener's episodes after —
+    on a large corpus their own episodes' matches never made the cut and "Mine" came back thin or
+    empty. Now two scoped queries: the world's episodes (their ids as a prefilter), and storylines
+    (a storyline has no single episode, so it cannot match an episode filter; it belongs to the
+    world when any episode it draws on does — ``_in_listening_scope``, applied by the caller).
+    Merged by score.
+    """
+    ids = sorted(
+        {
+            row.episode_id
+            for row in cached_catalog(root)
+            if row.episode_id and slug_for_row(row) in mine
+        }
+    )
+    episodes = structured_corpus_search(
+        root, q, top_k=top_k, grounded_only=grounded_only, episode_ids=ids
+    )
+    if episodes.get("error"):
+        return episodes
+    storylines = structured_corpus_search(root, q, top_k=top_k, doc_types=[STORYLINE_DOC_TYPE])
+    story_rows = [
+        r
+        for r in storylines.get("results") or []
+        if (r.get("metadata") or {}).get("doc_type") == STORYLINE_DOC_TYPE
+    ]
+    merged = [*(episodes.get("results") or []), *story_rows]
+    merged.sort(key=lambda r: float(r.get("score") or 0.0), reverse=True)
+    return {**episodes, "results": merged}
+
+
 def _data_dir(request: Request) -> Path | None:
     raw = getattr(request.app.state, "app_data_dir", None)
     return Path(raw) if raw is not None else None
@@ -117,7 +157,10 @@ async def app_search(
     grounded_only: bool = Query(default=False),
     scope: Literal["all", "mine"] = Query(
         default="all",
-        description="'all' = the shared corpus; 'mine' = the signed-in user's heard∪captured set.",
+        description=(
+            "'all' = the shared corpus; 'mine' = the signed-in user's world: episodes heard or "
+            "captured from, saved, or of a show they follow."
+        ),
     ),
     enrich_results: bool = Query(
         default=False,
@@ -132,9 +175,10 @@ async def app_search(
 ) -> CorpusSearchApiResponse:
     """Grounded library-wide search (extractive grounded passages; no request-time LLM).
 
-    ``scope=mine`` (P3) filters hits to the user's heard∪captured episodes (RFC-101 §1). It requires
-    a signed-in user (401 otherwise) and returns honest zero-coverage — an empty result set when the
-    user's corpus has nothing on ``q`` — never widening back to the global corpus.
+    ``scope=mine`` filters hits to the episodes of the user's world — heard or captured from,
+    saved, or of a show they follow (:func:`world_episode_set`, 2026-10-09; was heard∪captured).
+    It requires a signed-in user (401 otherwise) and returns honest zero-coverage — an empty result
+    set when the user's world has nothing on ``q`` — never widening back to the global corpus.
     """
     root = _corpus_root(request)
     mine: set[str] | None = None
@@ -142,23 +186,29 @@ async def app_search(
         if user is None:
             raise HTTPException(status_code=401, detail="Sign in to search your corpus.")
         data_dir = _data_dir(request)
-        mine = user_episode_set(root, data_dir, user.user_id) if data_dir is not None else set()
+        mine = world_episode_set(root, data_dir, user.user_id) if data_dir is not None else set()
         if not mine:
-            # The user has heard/captured nothing yet — honest empty, no global fallback.
+            # Nothing in the user's world yet — honest empty, no global fallback.
             return build_search_response(q, {"query": q, "results": []})
-    # Over-fetch when scoping so post-filtering to the user's set still fills the page.
-    fetch_k = min(top_k * 5, 100) if mine is not None else top_k
     # Offload the blocking, CPU-bound search (query embedding + LanceDB) off the event loop so it
     # doesn't freeze concurrent requests — the first call also lazy-loads MiniLM (~seconds). Safe
     # under concurrency: index_pool serves a warm, shared LanceDB backend (the pool is what removed
     # the #1205 concurrent-cold-init SIGSEGV).
-    outcome = await asyncio.to_thread(
-        structured_corpus_search, root, q, top_k=fetch_k, grounded_only=grounded_only
-    )
+    if mine is not None:
+        outcome = await asyncio.to_thread(
+            _world_search, root, q, mine, top_k=top_k, grounded_only=grounded_only
+        )
+    else:
+        outcome = await asyncio.to_thread(
+            structured_corpus_search, root, q, top_k=top_k, grounded_only=grounded_only
+        )
     if not outcome.get("error"):
         append_query_event(root, str(outcome.get("query_type") or ""))
     resp = build_search_response(q, outcome)
     _attach_consumer_slugs(root, resp)
+    # A real time on every transcript result (operator 2026-10-10): the index stores none, so
+    # "Play from" jumped to 0:00. Found by the result's words in its episode's timed transcript.
+    await asyncio.to_thread(time_hits_by_episode, root, resp.results, cached_catalog(root))
     if mine is not None:
         resp.results = [r for r in resp.results if _in_listening_scope(root, r, mine)][:top_k]
     # The cluster's episode ids were carried only to answer the scope question. Strip them: a

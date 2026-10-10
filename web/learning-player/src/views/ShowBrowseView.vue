@@ -43,7 +43,7 @@ const props = withDefaults(
 const CHUNK = 10
 const PAGE = computed(() => (props.embedded ? CHUNK : 200))
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 /** The shows loaded so far under the current search / sort / category. */
 const shows = ref<Podcast[]>([])
@@ -109,6 +109,28 @@ const categoryOptions = computed(() => [
   ...categories.value.map((c) => ({ value: c, label: c })),
 ])
 
+// Language facet (operator 2026-10-10): offered only when the catalogue spans two or more
+// languages — one language has nothing to choose between. Options are named in the reader's
+// language ("English", "Spanish"), the codes the server filters by as values.
+const languageFilter = ref<string>("")
+const allLanguages = ref<string[]>([])
+function languageName(code: string): string {
+  try {
+    const name = new Intl.DisplayNames([locale.value], { type: "language" }).of(code) ?? code
+    return name.charAt(0).toUpperCase() + name.slice(1)
+  } catch {
+    return code.toUpperCase()
+  }
+}
+const languageOptions = computed(() =>
+  allLanguages.value.length >= 2
+    ? [
+        { value: "", label: t("list.languageAll") },
+        ...allLanguages.value.map((c) => ({ value: c, label: languageName(c) })),
+      ]
+    : undefined,
+)
+
 /** The rows on screen — exactly what the server returned, in its order. */
 const visible = computed(() => shows.value)
 const capped = visible
@@ -118,6 +140,7 @@ function pageQuery(offset: number, limit: number) {
   return {
     q: search.value,
     category: categoryFilter.value || undefined,
+    language: languageFilter.value || undefined,
     sort: sort.value,
     offset,
     limit,
@@ -143,7 +166,7 @@ watch(search, () => {
   if (debounce) clearTimeout(debounce)
   debounce = setTimeout(() => void load(), 250)
 })
-watch([sort, categoryFilter], () => void load())
+watch([sort, categoryFilter, languageFilter], () => void load())
 
 let seq = 0
 async function load(): Promise<void> {
@@ -162,7 +185,10 @@ async function load(): Promise<void> {
     shows.value = page.items
     total.value = page.total
     allCategories.value = page.categories
-    if (!search.value.trim() && !categoryFilter.value) catalogueSize.value = page.total
+    allLanguages.value = page.languages ?? []
+    if (!search.value.trim() && !categoryFilter.value && !languageFilter.value) {
+      catalogueSize.value = page.total
+    }
     else catalogueSize.value = Math.max(catalogueSize.value, page.total)
     stale.value = false
     trendById.value = new Map(trend.map((e) => [e.entity_id, e]))
@@ -224,9 +250,12 @@ onMounted(load)
         v-model:search="search"
         v-model:sort="sort"
         v-model:filter="categoryFilter"
+        v-model:language="languageFilter"
         v-model:view="view"
         :sort-options="sortOptions"
         :filter-options="categories.length ? categoryOptions : undefined"
+        :language-options="languageOptions"
+        language-testid="show-browse-language"
         :search-placeholder="t('browse.filterShows')"
         search-testid="show-browse-search"
         sort-testid="show-browse-sort"
