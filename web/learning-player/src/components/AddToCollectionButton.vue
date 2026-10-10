@@ -17,6 +17,7 @@ import { enqueue, isPermanent } from '../services/outbox'
 import type { Collection, CollectionItemRef } from '../services/types'
 import { useSignInGate } from '../composables/useSignInGate'
 import { useAnchoredMenu } from '../composables/useAnchoredMenu'
+import { useSheetDrag } from '../composables/useSheetDrag'
 import { useCollectionsStore } from '../stores/collections'
 
 const props = withDefaults(
@@ -91,6 +92,7 @@ const { open, toggle, close, teleportTarget } = useAnchoredMenu(
   { align: 'end' },
   { anchored: false },
 )
+const handleDrag = useSheetDrag(panelEl, () => close(false))
 
 // Load collections on first open; clear the transient "added" receipt whenever it closes.
 watch(open, async (isOpen) => {
@@ -290,7 +292,15 @@ async function createAndAdd(): Promise<void> {
       <!-- Padding on an inner box: `.lp-sheet` owns height and the bottom safe-area inset, and a
            padding utility on the sheet itself would override that inset. -->
       <div class="px-4 pb-4 pt-2">
-        <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-border sm:hidden" aria-hidden="true" />
+        <!-- Pull the handle down to close (operator 2026-10-10). -->
+        <div
+          class="-mx-4 -mt-2 mb-1 flex h-7 touch-none items-center justify-center sm:hidden"
+          aria-hidden="true"
+          data-testid="add-to-collection-handle"
+          v-bind="handleDrag"
+        >
+          <span class="h-1 w-10 rounded-full bg-border" />
+        </div>
         <div class="mb-2 flex items-center justify-between gap-3">
           <h2 class="font-display text-lg font-bold text-canvas-foreground">{{ t('collections.sheetTitle') }}</h2>
           <button

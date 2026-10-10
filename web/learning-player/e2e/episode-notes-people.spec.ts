@@ -13,7 +13,7 @@ import { signInIsolated, tapAndRecordTop } from './helpers'
  * exists: a relative photo route that 404s still renders an <img> for a moment before
  * ProfileAvatar falls back to initials, and that silent fallback is how this bug has shipped before.
  */
-test('host and guests lead the panel with photos, and open in the panel with a Back', async ({
+test('host and guests lead the panel with photos, and open as a sheet over it', async ({
   page,
 }, testInfo) => {
   await signInIsolated(page, 'episode-notes-people', testInfo)
@@ -35,13 +35,46 @@ test('host and guests lead the panel with photos, and open in the panel with a B
   // top of the head off most real portraits). Checked on the RESOLVED style, not the class.
   expect(await photo.evaluate((img) => getComputedStyle(img).objectPosition)).toBe('50% 10%')
 
-  // Same path as the person chip: replace-in-panel, with a Back that returns to the notes.
+  // Same path as the person chip: the person CASCADES over the Brief as its own sheet (operator
+  // 2026-10-10) — the Brief stays underneath, and closing the sheet lands back on it.
   await people.filter({ hasText: 'Daniel Cho' }).click()
-  const back = page.getByTestId('ec-dismiss')
-  await expect(back).toHaveAttribute('aria-label', 'Back')
-  await expect(page.getByTestId('kp-episode-dossier')).toHaveCount(0)
-  await back.click()
+  const sheet = page.locator('.lp-sheet--stacked')
+  await expect(sheet.getByRole('heading', { name: 'Daniel Cho', exact: true })).toBeVisible()
+  await expect(page.getByTestId('kp-episode-dossier')).toHaveCount(1)
+  await sheet.getByTestId('ec-dismiss').click()
+  await expect(sheet).toHaveCount(0)
   await expect(page.getByTestId('kp-episode-dossier')).toBeVisible()
+})
+
+test('phone: pulling the Brief\'s grab handle down closes it; a short pull does not', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chrome', 'the handle is the phone sheet; the desktop rail has none')
+  await signInIsolated(page, 'episode-notes-pull', testInfo)
+  await page.goto('/podcast/p05')
+  await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
+  await page.getByTestId('player-open-insights').click()
+  const panel = page.getByTestId('knowledge-panel')
+  await expect(panel).toBeVisible()
+  const handle = page.getByTestId('kp-sheet-handle')
+  const pull = async (dy: number) => {
+    const box = (await handle.boundingBox())!
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    // Slow, in steps, so the short pull is not read as a flick.
+    for (let i = 1; i <= 10; i++) {
+      await page.mouse.move(x, y + (dy * i) / 10)
+      await page.waitForTimeout(40)
+    }
+    await page.mouse.up()
+  }
+  await pull(30)
+  await page.waitForTimeout(400)
+  await expect(panel).toBeVisible()
+  await pull(240)
+  await expect(panel).toBeHidden()
 })
 
 /**
@@ -87,8 +120,8 @@ test('Brief: one labelled entry, its own title, and the notes-first order', asyn
 })
 
 /**
- * Back from a person or topic opened in the notes returns to the row it was opened from
- * (operator 2026-10-04). The card REPLACES the panel body, so the panel used to rebuild at the top.
+ * Closing a person or topic opened in the notes lands on the row it was opened from (operator
+ * 2026-10-04). The card now opens as a sheet over the panel (2026-10-10), so the panel never moves.
  */
 test('closing a card opened from the notes chips returns the panel to those chips', async ({
   page,
@@ -113,8 +146,10 @@ test('closing a card opened from the notes chips returns the panel to those chip
   expect(before, 'the chips are not below the fold, so this proves nothing').toBeGreaterThan(100)
 
   const seenAt = await tapAndRecordTop(chip)
-  await expect(page.getByTestId('kp-episode-dossier')).toHaveCount(0)
-  await page.getByTestId('ec-dismiss').click()
+  const sheet = page.locator('.lp-sheet--stacked')
+  await expect(sheet).toBeVisible()
+  await sheet.getByTestId('ec-dismiss').click()
+  await expect(sheet).toHaveCount(0)
   await expect(chip).toBeInViewport({ ratio: 1 })
   await expect
     .poll(async () => Math.round(Math.abs((await chip.boundingBox())!.y - seenAt)), {

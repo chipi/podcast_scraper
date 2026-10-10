@@ -32,14 +32,15 @@ import { useAuthStore } from "../stores/auth"
 import { sheetTeleportTarget } from "../composables/sheetStack"
 import { useSignInGate } from "../composables/useSignInGate"
 import { scrollBehavior } from "../utils/motion"
-import { holdScroll, offsetWithin, restoreScroll, waitForSettledElement } from "../utils/scrollRestore"
+import { holdScroll, offsetWithin, waitForSettledElement } from "../utils/scrollRestore"
 import { NOTES_ANCHOR } from "../composables/noteTarget"
 import { useCaptureStore } from "../stores/capture"
 import CollapsibleSection from "./CollapsibleSection.vue"
 import HighlightToggle from "./HighlightToggle.vue"
 import InsightTypeMark from "./InsightTypeMark.vue"
 import NoteComposer from "./NoteComposer.vue"
-import EntityCardBody from "./EntityCardBody.vue"
+import EntityCard from "./EntityCard.vue"
+import { useSheetDrag } from "../composables/useSheetDrag"
 import { personName } from "../utils/personName"
 import ProfileAvatar from "./ProfileAvatar.vue"
 import StorylineCard from "./StorylineCard.vue"
@@ -198,15 +199,17 @@ type Tag = {
   episodeScoped: boolean
 }
 
-// Tapping a chip opens its entity card (PRD-043; library search now lives inside the card).
+// Tapping a chip opens its entity card (PRD-043; library search now lives inside the card), as a
+// sheet LAYERED over the panel — the panel's title stays visible above it, and closing it lands on
+// the panel exactly as it was (operator 2026-10-10: a person opened from the Brief must cascade,
+// not replace the Brief). The storyline and theme sheets below already open the same way.
 const cardTarget = ref<{ kind: "person" | "topic"; id: string } | null>(null)
-// The card REPLACES the panel body, so closing it rebuilt the panel at the top — far from the
-// people or topics row the card was opened from. Remember the offset; put it back on close
-// (operator 2026-10-04).
 const panelBodyEl = ref<HTMLElement | null>(null)
-let panelScrollBeforeCard = 0
+// The grab handle closes the sheet when pulled down (operator 2026-10-10). Phone only: the handle
+// is hidden on the desktop rail.
+const panelEl = ref<HTMLElement | null>(null)
+const handleDrag = useSheetDrag(panelEl, () => emit("close"))
 function showCard(kind: "person" | "topic", id: string): void {
-  panelScrollBeforeCard = panelBodyEl.value?.scrollTop ?? 0
   cardTarget.value = { kind, id }
 }
 function openCard(tag: Tag): void {
@@ -214,7 +217,6 @@ function openCard(tag: Tag): void {
 }
 function closeCard(): void {
   cardTarget.value = null
-  void nextTick(() => restoreScroll(panelBodyEl.value, panelScrollBeforeCard))
 }
 
 // How many of THIS episode's topics fall in each corpus cluster (intra-episode dominance).
@@ -644,28 +646,18 @@ watch(() => auth.isAuthenticated, loadCaptures)
 </script>
 
 <template>
-  <aside class="flex h-full flex-col bg-surface" :aria-label="t('kp.title')">
-    <!-- Mobile bottom-sheet grab handle (signals the player sits behind; hidden on desktop rail). -->
-    <div class="flex shrink-0 justify-center pt-2 lg:hidden" aria-hidden="true">
+  <aside ref="panelEl" class="flex h-full flex-col bg-surface" :aria-label="t('kp.title')">
+    <!-- Mobile bottom-sheet grab handle: pull it down to close (hidden on the desktop rail). The
+         strip is full-width and 24px tall so a thumb finds it; `touch-none` keeps the page from
+         scrolling under the pull. Hidden from assistive tech: ✕ is the accessible close. -->
+    <div
+      class="flex h-6 shrink-0 touch-none items-center justify-center lg:hidden"
+      aria-hidden="true"
+      data-testid="kp-sheet-handle"
+      v-bind="handleDrag"
+    >
       <span class="h-1.5 w-10 rounded-full bg-border"></span>
     </div>
-    <!-- Replace-in-panel (UXS-014): a tapped chip swaps the panel content to the entity card with a
-         ‹ Back — no overlay, no second backdrop.
-         `can-layer` is nonetheless TRUE, and the two are not in conflict. Replace-in-panel governs
-         what a tapped CHIP does inside this panel; it never meant nothing may sit above the panel.
-         This panel is itself a full-height bottom sheet, so a storyline or person opened from the
-         card it is showing stacks ON TOP and leaves that card's kicker + title visible behind —
-         topic underneath, storyline on it, person on that (operator 2026-09-16). Deriving it from
-         `dismissAtRoot` instead sent the storyline to a PAGE, which loses the topic altogether. -->
-    <EntityCardBody
-      v-if="cardTarget"
-      variant="inline"
-      can-layer
-      :kind="cardTarget.kind"
-      :id="cardTarget.id"
-      @close="closeCard"
-    />
-    <template v-else>
       <header class="flex items-center justify-between border-b border-border px-4 py-3">
         <span class="font-display text-lg font-bold">{{ t("kp.title") }}</span>
         <!-- Same ✕ idiom as the topic/person cards (lp-nav) — the bare button showed the default
@@ -1234,11 +1226,17 @@ watch(() => auth.isAuthenticated, loadCaptures)
            the platform supports it. -->
         <NoteComposer target="episode" :target-id="slug" />
       </div>
-    </template>
 
     <!-- The storyline named by the lead-in, opened ON TOP of this panel rather than replacing it —
          the same stacking the panel already documents for a card's storyline ("topic underneath,
-         storyline on it"). Outside the `v-else` so it survives a chip swapping the body. -->
+         storyline on it"). -->
+    <EntityCard
+      v-if="cardTarget"
+      :kind="cardTarget.kind"
+      :id="cardTarget.id"
+      :depth="1"
+      @close="closeCard"
+    />
     <ThemeCard
       v-if="themeOpen && dominantClusterId"
       :id="dominantClusterId"

@@ -17,13 +17,17 @@ this spec** — they do not re-invent navigation, layering, or saving.
 | **Page** | A route; URL-addressable destination | Home, Search, Catalog, Player, **Library** |
 | **Panel** | Persistent, in-layout region; not modal | Brief panel beside the Player |
 | **Modal** | One dimmed backdrop; teleported to `<body>` | Interests picker, entity card **from Search** |
-| **Sheet** | The mobile form of a panel/modal (bottom, drag-handle) | Insights on mobile |
+| **Sheet** | The mobile form of a panel/modal (bottom). Where it shows a grab handle, pulling the handle down closes it; a short pull springs back (`useSheetDrag`, 2026-10-10) | The Brief and Save to board on a phone |
 
 ## Core rule — never stack two dimmed layers
 
 - **Drilling deeper *inside a panel* replaces the panel's content in place** with a `‹ Back`
-  (a back-stack), never a new overlay. Example: tapping a person/topic chip in Insights swaps the
-  panel to the entity card; `‹ Back` returns to the insight list.
+  (a back-stack), never a new overlay — **except the Brief** (below).
+- **The Brief cascades** (operator 2026-10-10, superseding replace-in-panel there): a person or
+  topic tapped in the Brief opens as a sheet LAYERED over it (`EntityCard`, depth 1), the Brief's
+  title still showing above, as its storyline and theme sheets already did. Closing the sheet lands
+  on the Brief exactly as it was, scrolled where it was. The layered sheet stacks inside the Brief's
+  own top layer and shares its backdrop, so there is still one dimmed layer on screen.
 - **A modal opens only from a page-level surface**, never on top of a panel/sheet. So the entity
   card is *in-panel* from Insights but a *modal* from Search (a page).
 - **At most one backdrop on screen.** If you would dim a second layer, use replace-in-place instead.
@@ -32,7 +36,7 @@ this spec** — they do not re-invent navigation, layering, or saving.
 
 | You tap … | … here | Result |
 | --------- | ------ | ------ |
-| Person/topic chip | Insights **panel** | Replace-in-panel (entity card, `‹ Back`) |
+| Person/topic chip | Brief **panel** | Entity card as a sheet layered over the Brief (2026-10-10) |
 | Entity match | Search **page** | Modal entity card |
 | "Set interests" | Home **page** | Modal picker |
 | A "see all" link | any | Navigate to a **page** |
@@ -101,8 +105,8 @@ still clamp; show names do not.)
   in the **same** surface (no layer added or removed).
 - **Back returns to where the reader was, not the top** (operator 2026-10-04). Opening a person from
   the people row halfway down an episode's notes, then Back, lands on that row. This holds for every
-  back: a route (the router restores the browser's saved position), the entity card's own stack,
-  and the Knowledge Panel's replace-in-panel card. The restore waits for re-fetched content to make
+  back: a route (the router restores the browser's saved position) and the entity card's own
+  stack; a card opened from the Brief is a sheet over it, so the Brief never moves. The restore waits for re-fetched content to make
   the page tall enough, or it is clamped to the loading state — `utils/scrollRestore`.
 - The shared body (e.g. `EntityCardBody`) is rendered **inline** in a panel and **wrapped in the
   modal** from a page — one component, two presentations (`variant`), so they cannot drift.

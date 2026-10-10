@@ -15,6 +15,8 @@ const i18n = createI18n({ legacy: false, locale: "en", messages: { en } })
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
+    // The layered entity sheet records `?card=` on the current route; it needs one to stand on.
+    { path: "/", name: "home", component: { template: "<div/>" } },
     { path: "/episode/:slug", name: "player", component: { template: "<div/>" } },
     { path: "/search", name: "search", component: { template: "<div/>" } },
   ],
@@ -143,11 +145,13 @@ describe("KnowledgePanel", () => {
       .find((b) => chipName(b) === "Matthew Walker")!
       .trigger("click")
     await flushPromises()
-    // Replace-in-panel (UXS-014): the card renders INLINE in the panel (no overlay), with a ‹ Back
-    // (glyph-only dismiss control, aria-label "Back" when nested).
+    // Cascade (operator 2026-10-10): the card opens as a sheet LAYERED over the panel (teleported,
+    // depth 1), and the panel stays as it was underneath — its summary still rendered.
     expect(getPerson).toHaveBeenCalledWith("person:matthew-walker", undefined, { limit: 5, excludeHostShows: true })
-    expect(w.text()).toContain("Matthew Walker")
-    expect(w.find('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Back")
+    const sheet = document.body.querySelector(".lp-sheet--stacked")
+    expect(sheet, "the person opens as a stacked sheet").not.toBeNull()
+    expect(sheet!.textContent).toContain("Matthew Walker")
+    expect(w.text()).toContain("A short summary.")
   })
 
   it("opened from a note (focusNotes), the panel lands on the notes section", async () => {
@@ -198,9 +202,12 @@ describe("KnowledgePanel", () => {
       .find((b) => chipName(b) === "Matthew Walker")!
       .trigger("click")
     await flushPromises()
-    await w.find('[data-testid="ec-dismiss"]').trigger("click")
+    const dismiss = document.body.querySelector<HTMLElement>('.lp-sheet--stacked [data-testid="ec-dismiss"]')
+    expect(dismiss, "the layered sheet has its own close").not.toBeNull()
+    dismiss!.click()
     await flushPromises()
-    // The panel body is a NEW element after the card closes; it must not start at 0.
+    // The card is a sheet OVER the panel, so the panel body never left: still where it was.
+    expect(document.body.querySelector(".lp-sheet--stacked")).toBeNull()
     expect(body().scrollTop).toBe(640)
     height.mockRestore()
   })
@@ -225,7 +232,11 @@ describe("KnowledgePanel", () => {
       .trigger("click")
     await flushPromises()
     expect(getTopic).toHaveBeenCalledWith("topic:memory", undefined, { limit: 5 })
-    expect(push).not.toHaveBeenCalled() // search now lives inside the card, not on chip-tap
+    // Search lives inside the card, not on chip-tap. The only navigation is the sheet's own `?card=`
+    // history entry (so the phone's Back closes it).
+    for (const [to] of push.mock.calls) {
+      expect(to).toEqual({ query: { card: "topic:memory" } })
+    }
   })
 
   it("orders topics cluster-first and marks the dominant cluster (RFC-102)", () => {
@@ -800,7 +811,7 @@ describe("the people in the room, at the top of the panel", () => {
     expect(rows[1].text()).toContain("BG")
   })
 
-  it("opens the person in the panel with a Back, the same way the person chip does", async () => {
+  it("opens the person as a sheet over the panel, the same way the person chip does", async () => {
     const getPerson = vi.spyOn(api, "getPersonCard").mockResolvedValue({
       id: "person:jane",
       label: "Jane Host",
@@ -813,8 +824,36 @@ describe("the people in the room, at the top of the panel", () => {
     await w.get('[data-testid="kp-dossier-person"]').trigger("click")
     await flushPromises()
     expect(getPerson).toHaveBeenCalledWith("person:jane", undefined, { limit: 5, excludeHostShows: true })
-    expect(w.find('[data-testid="ec-dismiss"]').attributes("aria-label")).toBe("Back")
-    expect(w.find('[data-testid="kp-episode-dossier"]').exists()).toBe(false)
+    expect(document.body.querySelector(".lp-sheet--stacked")?.textContent).toContain("Jane Host")
+    // The Brief underneath is untouched, so closing the sheet lands where the listener was.
+    expect(w.find('[data-testid="kp-episode-dossier"]').exists()).toBe(true)
+  })
+
+  it("the grab handle closes the panel when pulled down, and springs back from a short pull", async () => {
+    vi.useFakeTimers()
+    try {
+      const w = mountPanel()
+      const handle = w.get('[data-testid="kp-sheet-handle"]').element
+      // Real pointer events: the test DOM drops `clientY` from synthetic `trigger()` options.
+      const fire = (type: string, clientY: number) => {
+        const e = new MouseEvent(type, { clientY, bubbles: true })
+        Object.defineProperty(e, "pointerType", { value: "touch" })
+        handle.dispatchEvent(e)
+      }
+      const pull = async (dy: number) => {
+        fire("pointerdown", 100)
+        fire("pointermove", 100 + dy)
+        fire("pointerup", 100 + dy)
+        vi.advanceTimersByTime(400)
+        await flushPromises()
+      }
+      await pull(30)
+      expect(w.emitted("close")).toBeUndefined()
+      await pull(160)
+      expect(w.emitted("close")).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("does not make an episode-scoped guest tappable", () => {
