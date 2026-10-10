@@ -52,7 +52,18 @@ to a listener and is invisible to a text judge. Every arm is still about 3/5: in
 the limit. Cost $2.94 (plus $1.47 lost to a parser crash before the run saved per judgment, now
 fixed: judgments are cached in `judgments_<mode>.jsonl` and a crash resumes).
 
-## Build plan
+## Build status (2026-10-10, branch `feat/player-1.0.4`, local commits, not pushed)
+
+Built and tested: the moment picker and route (`c7acc69ea`, `582b66499`); the reel in the player
+store and offline moments with downloads (`456171363`); the Moments view, Step and the three-door
+obi (`88afe16f0`); the ways in — ⋯ menu, "▶ Moments" text action, the Brief button (`8f12e2ec5`).
+Deviation from the mockups: the Moments view has no obi (the artwork shrinks to a thumbnail), so
+there is no "Episode" door — ✕ and "Keep listening here" are the ways out. The moment gap now
+scales down for episodes under ~18 minutes.
+
+Not built: "Next in queue: its moments" on the end card; the Moments chip on topic / person /
+storyline episode rows (no actions there today); screen-reader review on a device; the sound
+between clips; Android label widths on a real device.
 
 1. **Server — `app_moments.py`** (written, unit-tested): `pick_moments(gi, duration, config,
    segments)`; `MomentsConfig` from `APP_MOMENTS_CONFIG` (JSON). Ranking `player` default, `score`
