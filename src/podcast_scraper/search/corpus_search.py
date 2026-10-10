@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Set
+from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 from podcast_scraper import perf_cache
 from podcast_scraper.search.cil_lift_overrides import load_cil_lift_overrides
@@ -327,25 +327,34 @@ def _insight_scopes_from_gi(episode_id: str, artifact: Dict[str, Any]) -> List[_
     return out
 
 
+#: ``id(GI path map) -> (that map, its scopes)``; see :func:`_cached_insight_scopes`.
+_SCOPES_BY_PATH_MAP: Dict[int, Tuple[Dict[str, Path], List["_InsightScope"]]] = {}
+
+
 def _cached_insight_scopes(output_dir: Path) -> List[_InsightScope]:
-    """Every insight's speaker and topic keys across the corpus, read once per corpus generation
-    (``corpus_mtime``) from the same GI files the result filters read (~1 ms per episode)."""
+    """Every insight's speaker and topic keys across the corpus, from the same GI files the result
+    filters read (~1 ms per episode), built once per corpus generation.
 
-    def build() -> List[_InsightScope]:
-        rows: List[_InsightScope] = []
-        for episode_id, path in cached_episode_gi_paths(output_dir).items():
-            try:
-                artifact = json.loads(Path(path).read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                continue
-            if isinstance(artifact, dict):
-                rows.extend(_insight_scopes_from_gi(episode_id, artifact))
-        return rows
-
-    root = Path(output_dir)
-    rows: List[_InsightScope] = perf_cache.get_or_compute(
-        "search_insight_scopes", str(root.resolve()), perf_cache.corpus_mtime(root), build
-    )
+    Memoized on the GI path map itself: :func:`cached_episode_gi_paths` hands back the same map
+    object until the corpus changes, so a different map is a new generation. Keying on the corpus
+    path instead would turn the caller's path into a filesystem path here (CodeQL
+    py/path-injection) for no gain — the map already carries the generation.
+    """
+    paths = cached_episode_gi_paths(output_dir)
+    hit = _SCOPES_BY_PATH_MAP.get(id(paths))
+    if hit is not None and hit[0] is paths:
+        return hit[1]
+    rows: List[_InsightScope] = []
+    for episode_id, path in paths.items():
+        try:
+            artifact = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(artifact, dict):
+            rows.extend(_insight_scopes_from_gi(episode_id, artifact))
+    if len(_SCOPES_BY_PATH_MAP) >= 4:  # old generations: their maps are gone from perf_cache
+        _SCOPES_BY_PATH_MAP.clear()
+    _SCOPES_BY_PATH_MAP[id(paths)] = (paths, rows)
     return rows
 
 

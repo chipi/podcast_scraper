@@ -91,6 +91,22 @@ whoever deploys this branch. Each prod step needs the operator's go. In order:
 5. Check the speaker/topic and Brief search changes.
 6. Check the first nightly writes timed transcript rows.
 
+## Next session: the competitive analysis findings
+
+The operator starts the next session on the findings of the discovery competitive scan
+(2026-10-09). Start from:
+
+- **`docs/wip/discovery-competitive-analysis-2026-10-09.md`**: the scan, per app, with sources
+  inline. Its summary:
+  - explaining *why* a recommendation fits is the best-evidenced lever;
+  - discovery is moving inside episodes (chapters, mentions);
+  - recommenders optimise "not your usual habit";
+  - nobody recommends from what a listener highlighted or noted;
+  - stacked popularity surfaces risk lower diversity.
+- **The scan as a page:** https://claude.ai/artifact/HRXJkuKB6sqZdiFjma4pez
+- **`docs/adr/ADR-162-mine-means-the-listeners-own-world.md`**: the "Mine" decision made from it.
+- Discover 2 (BETA, beside Discover) is the preview surface built on this branch.
+
 ## Open
 
 - The PR's CI must be green before merge.

@@ -195,3 +195,25 @@ def test_a_table_the_scope_cannot_match_is_not_read(tmp_path):
     )
     assert b._where_for(q, "insight") == "(lower(show_id) LIKE '%s%') AND (source_id IN ('a'))"
     assert b._where_for(q, "aux") == "(lower(show_id) LIKE '%s%')"
+
+
+def test_the_scope_index_is_built_once_per_corpus_generation(tmp_path, monkeypatch):
+    """Memoized on the GI path map, which cached_episode_gi_paths keeps until the corpus changes."""
+    from podcast_scraper.search import corpus_search
+
+    calls = []
+    real = corpus_search._insight_scopes_from_gi
+    monkeypatch.setattr(
+        corpus_search,
+        "_insight_scopes_from_gi",
+        lambda ep, art: calls.append(ep) or real(ep, art),
+    )
+    _corpus(tmp_path, monkeypatch)
+    first = corpus_search._cached_insight_scopes(tmp_path)
+    assert corpus_search._cached_insight_scopes(tmp_path) is first
+    assert sorted(calls) == ["ep-crowd", "ep-quiet"]
+    # A new generation is a new map: rebuilt.
+    paths = dict(corpus_search.cached_episode_gi_paths(tmp_path))
+    monkeypatch.setattr(corpus_search, "cached_episode_gi_paths", lambda _root: paths)
+    assert corpus_search._cached_insight_scopes(tmp_path) is not first
+    assert len(calls) == 4
