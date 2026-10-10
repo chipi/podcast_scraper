@@ -20,6 +20,7 @@ from typing import Any, cast, Optional, Protocol
 
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_catalog_cache import cached_catalog
+from podcast_scraper.server.app_moments import episode_has_moments
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.corpus_catalog import (
     _load_metadata_doc,
@@ -172,6 +173,7 @@ def row_to_summary(corpus_root: Path, row: CatalogEpisodeRow) -> AppEpisodeSumma
         has_transcript=has_transcript,
         has_summary=has_summary,
         has_gi=row.has_gi,
+        has_moments=episode_has_moments(corpus_root, row),
         has_kg=row.has_kg,
         has_bridge=row.has_bridge,
     )

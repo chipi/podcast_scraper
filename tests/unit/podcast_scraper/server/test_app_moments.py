@@ -127,6 +127,24 @@ class TestScore:
         )
         assert [m.insight_id for m in score_candidates(gi, MomentsConfig())] == ["insight:ok"]
 
+    def test_the_same_insights_as_the_brief_naming_does_not_decide(self) -> None:
+        """Moments draws on exactly what the Brief shows (operator 2026-10-10): an episode whose
+        speakers were never named still has moments, with no speaker on them."""
+        gi = _Gi()
+        gi.insight("insight:a", surfaceable=False, routing_tag="connect", quotes=[(60.0, 80.0)])
+        gi.insight("insight:b", surfaceable=False, routing_tag="connect", quotes=[(600.0, 620.0)])
+        gi.edges = [e for e in gi.edges if e["type"] != "SPOKEN_BY"]
+        picked = pick_moments(gi.build(), 1800)
+        assert [m.insight_id for m in picked] == ["insight:a", "insight:b"]
+        assert all(m.speaker is None for m in picked)
+
+    def test_an_ungrounded_insight_does_not_cost_the_episode_its_moments(self) -> None:
+        gi = _Gi().insight("insight:unnamed", surfaceable=False, routing_tag="connect")
+        gi.insight("insight:ungrounded", quotes=[], grounded=False)
+        assert [m.insight_id for m in score_candidates(gi.build(), MomentsConfig())] == [
+            "insight:unnamed"
+        ]
+
     def test_weights_change_the_order(self) -> None:
         gi = (
             _Gi()

@@ -157,6 +157,11 @@ class AppEpisodeDetail(BaseModel):
     has_summary: bool = Field(description="Whether any summary content is present.")
     has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
     has_kg: bool = Field(description="Whether a knowledge-graph artifact exists.")
+    has_moments: bool = Field(
+        default=False,
+        description="Whether the episode has a moment to play: an insight the Brief shows with a "
+        "timed quote. Every Moments door reads this, not ``has_gi``.",
+    )
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
 
 
@@ -261,6 +266,11 @@ class AppEpisodeSummary(BaseModel):
     has_summary: bool = Field(description="Whether any summary content is present.")
     has_gi: bool = Field(description="Whether a grounded-insight artifact exists.")
     has_kg: bool = Field(description="Whether a knowledge-graph artifact exists.")
+    has_moments: bool = Field(
+        default=False,
+        description="Whether the episode has a moment to play: an insight the Brief shows with a "
+        "timed quote. Every Moments door reads this, not ``has_gi``.",
+    )
     has_bridge: bool = Field(description="Whether a canonical-identity bridge artifact exists.")
     color: str | None = Field(
         default=None,

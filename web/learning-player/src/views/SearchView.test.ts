@@ -1183,17 +1183,17 @@ describe("SearchView", () => {
 })
 
 describe("SearchView: Moments on episode results (operator 2026-10-10)", () => {
-  function hit(slug: string, hasGi: boolean) {
+  function hit(slug: string, hasMoments: boolean) {
     return {
       doc_id: `d-${slug}`,
       score: 0.9,
       text: `A passage in ${slug}.`,
       source_tier: "segment",
-      metadata: { episode_slug: slug, episode_title: `Title ${slug}`, podcast_title: "Show", episode_has_gi: hasGi },
+      metadata: { episode_slug: slug, episode_title: `Title ${slug}`, podcast_title: "Show", episode_has_gi: true, episode_has_moments: hasMoments },
       lifted: { quote: { timestamp_start_ms: 20000 } },
     }
   }
-  it("offers ▶ Moments only on episodes that have insights; passages never carry it", async () => {
+  it("offers ▶ Moments only on episodes that have moments; passages never carry it", async () => {
     const { reportServerReachable } = await import("../composables/useOnline")
     reportServerReachable(true)
     vi.spyOn(api, "searchCorpus").mockResolvedValue({

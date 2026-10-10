@@ -364,9 +364,27 @@ class TestUnattributedFallbackForTheEpisodePanel:
                 "properties": {"text": "named", "grounded": True, "routing_tag": "surface"},
             }
         )
+        gi["nodes"].append({"id": "quote:named", "type": "Quote", "properties": {"text": "said"}})
+        gi["edges"].append({"type": "SUPPORTED_BY", "from": "insight:named", "to": "quote:named"})
         out = insights_from_gi(gi, unattributed_fallback=True)
         assert [i.id for i in out] == ["insight:named"]
         assert out[0].attributed is True
+
+    def test_an_ungrounded_insight_does_not_suppress_the_fallback(self) -> None:
+        """An insight with no quote has no speaker, so it was never named — it only escaped the
+        unattributed mark because there was no voice to type. Measured on the prod corpus
+        2026-10-10: in 55 episodes ONE such insight hid every grounded insight from the panel."""
+        gi = _unnamed_episode_gi()
+        gi["nodes"].append(
+            {
+                "id": "insight:ungrounded",
+                "type": "Insight",
+                "properties": {"text": "no quote", "grounded": False, "routing_tag": "surface"},
+            }
+        )
+        ids = [i.id for i in insights_from_gi(gi, unattributed_fallback=True)]
+        assert "insight:unknown-core" in ids and "insight:unidentified-useful" in ids
+        assert "insight:ungrounded" in ids
 
     def test_a_named_insight_is_attributed_by_default(self) -> None:
         out = insights_from_gi(_gi())

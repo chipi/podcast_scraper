@@ -58,7 +58,7 @@ from podcast_scraper.server.app_guided_shows import (
     ShowSignals,
 )
 from podcast_scraper.server.app_kg_view import entities_from_kg, objects_from_kg
-from podcast_scraper.server.app_moments import MomentsConfig, pick_moments
+from podcast_scraper.server.app_moments import episode_has_moments, MomentsConfig, pick_moments
 from podcast_scraper.server.app_pkm_export import episode_url
 from podcast_scraper.server.app_recap_view import build_episode_recap
 from podcast_scraper.server.app_relational_view import hosted_photo_urls, with_photos
@@ -423,6 +423,7 @@ def _episode_detail(root: Path, row: CatalogEpisodeRow, slug: str) -> AppEpisode
         has_transcript=has_transcript,
         has_summary=has_summary,
         has_gi=row.has_gi,
+        has_moments=episode_has_moments(root, row),
         has_kg=row.has_kg,
         has_bridge=row.has_bridge,
     )

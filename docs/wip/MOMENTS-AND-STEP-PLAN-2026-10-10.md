@@ -72,8 +72,13 @@ Deviations from the mockups, each on purpose:
 - Search: "▶ Moments" sits on the meta row directly under "Matched:", not on that line. The
   "Matched" line is inside the result's link; a link inside a link loses its accessible name.
 - Rows show "▶ Moments" with no length ("· 3½ min"), per the revised mockup (no count, no box).
-- An episode with a GI artifact but no playable moments still shows "▶ Moments" on lists (lists
-  carry `has_gi`, not a moment count); opening it falls back to the episode, nothing breaks.
+- Moments draws on exactly the insights the Brief shows (operator 2026-10-10, "full
+  consistency"): `score_candidates` uses `insights_from_gi(..., unattributed_fallback=True)`, so
+  naming never decides whether an episode has moments. Every "▶ Moments" door reads `has_moments`
+  (episode payloads) / `episode_has_moments` (search hits): an insight the Brief shows with a timed
+  quote, computed by `app_moments.episode_has_moments` and cached per GI file. On a copy of the prod
+  corpus (2,958 episodes) "the Brief shows insights" and "Moments plays" disagreed on 289 episodes
+  before and on 2 after — both with no time on disk (a plain-text transcript; quoteless insights).
 - No "· Moments" in the show kicker above the title while a reel plays: the operator asked for the
   page around the artwork to stay as it is.
 
@@ -90,8 +95,8 @@ move between clips should sound beyond the 250 ms fade.
 2. **Server — route** `GET /api/app/episodes/{slug}/moments`: reads the GI artifact, raw
    `*.segments.json` and duration; returns moments (id, text, speaker, start/end ms, clip text) plus
    total seconds. Integration test with the fixture corpus.
-3. **Server — moments on lists**: dropped. The revised mockup puts no length on rows ("▶ Moments",
-   no count), so lists need only `has_gi`; search hits carry `episode_has_gi` for the same reason.
+3. **Server — moments on lists**: no count or length on rows (revised mockup), only whether there
+   is a moment: `has_moments` on episode payloads, `episode_has_moments` on search hits.
 4. **Offline**: the download bundle stores the moments response with the episode (alongside the
    Brief); the client reads it from disk offline.
 5. **Player — Step**: arrows + swipe on the Zone D card and the rest line; keyboard on desktop;

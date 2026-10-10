@@ -22,6 +22,7 @@ from podcast_scraper.search.storylines import STORYLINE_DOC_TYPE
 from podcast_scraper.server.app_artwork import artwork_url
 from podcast_scraper.server.app_catalog_cache import cached_catalog
 from podcast_scraper.server.app_episode_search import time_hits_by_episode
+from podcast_scraper.server.app_moments import episode_has_moments
 from podcast_scraper.server.app_search_view import build_search_response
 from podcast_scraper.server.app_slugs import slug_for_row
 from podcast_scraper.server.app_user_corpus import world_episode_set
@@ -58,8 +59,9 @@ def _attach_consumer_slugs(root: Path, resp: CorpusSearchApiResponse) -> None:
                 "episode_slug": slug_for_row(row),
                 "episode_title": row.episode_title,
                 "podcast_title": row.feed_title or "",
-                # Whether the episode has insights, so the result can offer its Moments reel.
                 "episode_has_gi": bool(row.has_gi),
+                # Whether the result can offer the episode's Moments reel (same rule as the reel).
+                "episode_has_moments": episode_has_moments(root, row),
                 # Small show/episode artwork so search results read like library cards.
                 "episode_artwork": (
                     artwork_url(local_art, "thumb") or row.episode_image_url or row.feed_image_url

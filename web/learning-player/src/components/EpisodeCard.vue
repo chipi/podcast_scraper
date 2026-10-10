@@ -214,7 +214,7 @@ const { badgeShown } = useCorpusLanguages()
       <EpisodeActions
         v-if="!hideActions"
         :slug="episode.slug"
-        :moments="episode.has_gi"
+        :moments="!!episode.has_moments"
         :hide-favorite="hideFavorite"
         :hide-queue="hideQueue"
         :show-download="showDownload"
@@ -255,7 +255,7 @@ const { badgeShown } = useCorpusLanguages()
           {{ episode.podcast_title }}
         </span>
         <span v-else />
-        <MomentsLink v-if="momentsLink && episode.has_gi" :slug="episode.slug" />
+        <MomentsLink v-if="momentsLink && episode.has_moments" :slug="episode.slug" />
       </div>
 
       <!-- Title (stretched link → Player). Never fades: card identity stays visible in every state. -->

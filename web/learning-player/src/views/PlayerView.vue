@@ -1207,11 +1207,11 @@ watch(
   },
 )
 // The ticks on the density strip need the moments in the episode view too; fetched once it is
-// known the episode has insights.
+// known the episode has some.
 watch(
-  () => [props.slug, episode.value?.has_gi] as const,
-  ([slug, hasGi]) => {
-    if (hasGi) void ensureMoments(slug)
+  () => [props.slug, episode.value?.has_moments] as const,
+  ([slug, hasMoments]) => {
+    if (hasMoments) void ensureMoments(slug)
   },
   { immediate: true },
 )

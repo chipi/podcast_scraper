@@ -199,7 +199,7 @@ interface EpisodeGroup {
 
 /** An episode result offers its Moments reel when the episode has insights (operator 2026-10-10). */
 function hasMoments(g: EpisodeGroup): boolean {
-  return !!g.slug && g.hits.some((h) => (h.metadata as Record<string, unknown> | undefined)?.episode_has_gi === true)
+  return !!g.slug && g.hits.some((h) => (h.metadata as Record<string, unknown> | undefined)?.episode_has_moments === true)
 }
 
 /**

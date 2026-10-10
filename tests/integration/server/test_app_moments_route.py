@@ -157,3 +157,41 @@ def test_signed_out_is_refused(tmp_path: Path) -> None:
         f"/api/app/episodes/{_slug(tmp_path, 'ep1')}/moments"
     )
     assert resp.status_code == 401
+
+
+def _unname(root: Path, stem: str) -> None:
+    """Make every insight of an episode unattributed, the way GI marks a voice nobody named."""
+    path = root / "metadata" / f"{stem}.gi.json"
+    gi = json.loads(path.read_text(encoding="utf-8"))
+    for node in gi["nodes"]:
+        if node["type"] == "Insight":
+            node["properties"].update(
+                surfaceable=False, routing_tag="connect", speaker_voice_type="unknown"
+            )
+    gi["edges"] = [e for e in gi["edges"] if e["type"] != "SPOKEN_BY"]
+    path.write_text(json.dumps(gi), encoding="utf-8")
+
+
+def test_the_moments_door_says_exactly_whether_moments_play(tmp_path: Path) -> None:
+    """``has_moments`` on the episode and in lists follows the reel itself — and naming does not
+    decide it: an episode nobody was named in has moments, like its Brief has insights."""
+    _episode(tmp_path, "0001-a", "named", insights=3, segments=True)
+    _episode(tmp_path, "0002-b", "unnamed", insights=3, segments=True)
+    _unname(tmp_path, "0002-b")
+    _episode(tmp_path, "0003-c", "empty", insights=0, segments=True)
+    (tmp_path / "metadata" / "0003-c.gi.json").write_text(
+        json.dumps({"episode_id": "empty", "nodes": [], "edges": []}), encoding="utf-8"
+    )
+    client = _client(tmp_path)
+    for episode_id, expected in (("named", True), ("unnamed", True), ("empty", False)):
+        slug = _slug(tmp_path, episode_id)
+        moments = client.get(f"/api/app/episodes/{slug}/moments").json()["moments"]
+        detail = client.get(f"/api/app/episodes/{slug}").json()
+        assert bool(moments) is expected, episode_id
+        assert detail["has_moments"] is expected, episode_id
+        assert detail["has_gi"] is True
+    unnamed = client.get(f"/api/app/episodes/{_slug(tmp_path, 'unnamed')}/moments").json()
+    assert all(m["speaker"] is None for m in unnamed["moments"])
+    listed = {e["slug"]: e for e in client.get("/api/app/episodes").json()["items"]}
+    assert listed[_slug(tmp_path, "unnamed")]["has_moments"] is True
+    assert listed[_slug(tmp_path, "empty")]["has_moments"] is False

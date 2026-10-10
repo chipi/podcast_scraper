@@ -28,9 +28,16 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field, fields, replace
-from typing import Any, Sequence
+from pathlib import Path
+from typing import Any, Sequence, TYPE_CHECKING
 
+from podcast_scraper import perf_cache
+from podcast_scraper.server.app_corpus_access import load_json_artifact
 from podcast_scraper.server.app_gi_view import insights_from_gi
+from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+
+if TYPE_CHECKING:
+    from podcast_scraper.server.corpus_catalog import CatalogEpisodeRow
 from podcast_scraper.server.schemas import AppInsight, AppQuote
 
 _DEFAULT_WEIGHTS = {"depth": 0.30, "centrality": 0.25, "kind": 0.20, "speaker": 0.10, "clip": 0.15}
@@ -208,11 +215,12 @@ def score_candidates(
     artifact: Any, config: MomentsConfig, segments: Sequence[Segment] | None = None
 ) -> list[Moment]:
     """Every insight that could be a moment, in the player's order, with its clip and score.
-    Candidates are the insights the player shows (``insights_from_gi``: named speakers, never
-    ``drop``) that have a timed quote."""
+    Candidates are exactly the insights the Brief shows (``insights_from_gi`` with the episode
+    panel's ``unattributed_fallback``: never ``drop``, unnamed ones when nobody was named) that
+    have a timed quote — so whether an episode has moments never depends on naming."""
     if not isinstance(artifact, dict):
         return []
-    insights: list[AppInsight] = insights_from_gi(artifact)
+    insights: list[AppInsight] = insights_from_gi(artifact, unattributed_fallback=True)
     links = _topic_links(artifact)
     clips = {ins.id: build_clip(ins.quotes, segments, config) for ins in insights}
     candidates = [ins for ins in insights if clips[ins.id] is not None]
@@ -308,3 +316,36 @@ def pick_moments(
     # 6-minute episode one moment. From about 18 minutes up (count 5) this is exactly min_gap.
     gap_s = min(cfg.min_gap_seconds, duration / (count + 1)) if count else cfg.min_gap_seconds
     return spread_pick(rank_moments(scored, cfg), count, int(gap_s * 1000))
+
+
+def has_moments(artifact: Any) -> bool:
+    """Whether :func:`pick_moments` returns any moment: some insight the Brief shows has a timed
+    quote. Segments only shape a clip, never whether there is one, so they are not needed here."""
+    return any(_timed(ins.quotes) for ins in insights_from_gi(artifact, unattributed_fallback=True))
+
+
+_HAS_MOMENTS_NS = "app_has_moments"
+
+
+def episode_has_moments(root: Path, row: "CatalogEpisodeRow") -> bool:
+    """:func:`has_moments` for a catalog row, cached until its GI file changes (~1 ms cold).
+
+    Every "Moments" door in a list reads this instead of ``has_gi``: an insights file existing is
+    not the same as the episode having a moment to play (operator 2026-10-10)."""
+    if not row.has_gi or not row.gi_relative_path:
+        return False
+    safe = safe_relpath_under_corpus_root(root, row.gi_relative_path)
+    if not safe:
+        return False
+    try:
+        mtime = (Path(root) / safe).stat().st_mtime
+    except OSError:
+        return False
+    return bool(
+        perf_cache.get_or_compute(
+            _HAS_MOMENTS_NS,
+            str(Path(root).resolve() / safe),
+            mtime,
+            lambda: has_moments(load_json_artifact(root, row.gi_relative_path)),
+        )
+    )

@@ -104,7 +104,7 @@ const remaining = computed(() => Math.max(0, total.value - visible.value.length)
       <EpisodeRow :episode="e">
         <!-- Topic, person, storyline, theme and org pages are where a listener explores, so each
              episode offers its reel (operator 2026-10-10). -->
-        <template v-if="e.has_gi" #trailing><MomentsLink :slug="e.slug" class="self-center" /></template>
+        <template v-if="e.has_moments" #trailing><MomentsLink :slug="e.slug" class="self-center" /></template>
       </EpisodeRow>
     </li>
   </ul>

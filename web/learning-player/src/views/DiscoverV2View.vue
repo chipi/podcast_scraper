@@ -352,7 +352,7 @@ watch(scope, () => void loadTrendingEpisodes())
               <span class="block font-mono text-[10.5px] uppercase tracking-wider text-muted">{{ e.podcast_title }} · {{ dateLabel(e.publish_date) }}</span>
             </span>
           </RouterLink>
-          <MomentsLink v-if="e.has_gi" :slug="e.slug" />
+          <MomentsLink v-if="e.has_moments" :slug="e.slug" />
         </li>
       </ul>
     </section>

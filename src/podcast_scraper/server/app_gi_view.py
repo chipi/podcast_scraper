@@ -213,8 +213,13 @@ def insights_from_gi(
         )
 
     # The panel shows `surface`-tagged insights (and untagged pre-3.1 ones). Only when NONE of those
-    # exist does the unattributed fallback apply — see the docstring.
-    if unattributed_fallback and not any(i.routing_tag in (None, "surface") for i in out):
+    # is NAMED does the unattributed fallback apply — see the docstring. An insight without a quote
+    # has no speaker at all: it escaped the unattributed mark only because there was no voice to
+    # type, so it must not suppress the fallback (55 prod episodes, 2026-10-10, showed one quoteless
+    # insight and hid every grounded one).
+    if unattributed_fallback and not any(
+        i.routing_tag in (None, "surface") and i.quotes for i in out
+    ):
         out.extend(fallback)
 
     # ADR-135/#1191: rank for display. Stable sort by salience desc keeps extraction order for ties

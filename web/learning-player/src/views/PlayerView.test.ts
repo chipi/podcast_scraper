@@ -49,7 +49,7 @@ function detail(over: Partial<EpisodeDetail> = {}): EpisodeDetail {
     publish_date: '2024-03-10', duration_seconds: 1800, episode_image_url: null,
     feed_image_url: null, artwork_url: null, summary_title: 'A title',
     summary_bullets: [], summary_text: 'The pull-quote summary prose.',
-    has_transcript: true, has_summary: true, has_gi: true, has_kg: true, has_bridge: false, ...over,
+    has_transcript: true, has_summary: true, has_gi: true, has_moments: true, has_kg: true, has_bridge: false, ...over,
   }
 }
 

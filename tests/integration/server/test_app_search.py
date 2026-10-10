@@ -196,7 +196,10 @@ def test_app_search_marks_hits_whose_episode_has_insights(
 
     monkeypatch.setattr("podcast_scraper.search.capability.run_corpus_search", fake_run)
     body = _client(tmp_path).get("/api/app/search", params={"q": "x"}).json()
-    assert body["results"][0]["metadata"]["episode_has_gi"] is True
+    md = body["results"][0]["metadata"]
+    assert md["episode_has_gi"] is True
+    # An insights file with no insight in it has nothing to play: no Moments door.
+    assert md["episode_has_moments"] is False
 
 
 # --------------------------------------------------------------------------- #
