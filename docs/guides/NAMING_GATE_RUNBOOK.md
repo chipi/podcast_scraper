@@ -128,6 +128,15 @@ also checks every quote, ad-free segment and turn offset on the copy, `verify`, 
 `undo`, and that the live files did not change; exit 1 on any failure. Records written by older
 code are listed separately for reading.
 
+**Absolute coverage, not only change.** Every check above compares old against new, so an episode
+that both name nobody "agrees" and stays invisible. On 2026-10-10 that hid 296 English episodes with
+insights that published no named voice (#2304). `scripts/measure/naming_coverage.py` measures the
+level: episodes with no named voice, quotes with a named speaker, and why each unnamed episode is
+unnamed. Groups: `no_segments`, `no_diagnostics` (an older record that cannot be replayed), and, with
+`--replay`, what today's roster does: `replay_names_main` / `_some` / `replay_hosts_known` /
+`replay_no_host`. The replay uses stored LLM verdicts only, so it is a floor. `--max-unnamed N` exits 1
+above N. Report it with every naming change.
+
 **Where to run.** Today the replay runs inside the api container on the box. A read-only local
 snapshot of the needed artifacts (metadata, segments, speaker diagnostics — no audio) into
 `.test_outputs/` would let it run on the workstation without touching prod; planned.
