@@ -2302,12 +2302,11 @@ class Config(BaseModel):
     translation_protect_names: bool = Field(
         default=False,
         alias="translation_protect_names",
-        description="Keep the names the episode's own metadata states (show title; capitalised "
-        "spans of the episode title and description; the show title only for noun-capitalising "
-        "languages) out of the translator: replaced by placeholders and put back, the unit "
-        "re-translated unprotected when a placeholder does not come back intact "
-        "(translation.protected_terms). Off = as before. About one in seven of the judge's low "
-        "units on the first non-English set (2026-10-10) was a name taken as a word.",
+        description="Keep the show's own title out of the translator: replaced by a placeholder "
+        "and put back, the unit re-translated unprotected when the placeholder does not come "
+        "back intact (translation.protected_terms). Off = as before. El Hilo's host says 'en el "
+        "hilo' and the model wrote 'the thread'. Protecting the episode metadata's other names "
+        "too was measured (2026-10-10) and was a net loss.",
     )
     translate_verify_served_model: bool = Field(
         default=True,

@@ -599,11 +599,12 @@ def _translate_episode(
         max_words=int(getattr(cfg, "translation_max_unit_words", 0) or 0),
     )
     if bool(getattr(cfg, "translation_protect_names", False)):
+        # The show's own title only. Measured 2026-10-10 (El Hilo): protecting the capitalised
+        # spans of the episode metadata too was a net loss -- places with an English name
+        # ("América Latina") came back untranslated, and a placeholder lost the grammar around it.
         attach_protected_terms(
             units,
-            candidate_terms(
-                episode_title, episode_description, show_title=feed_title, language=language
-            ),
+            candidate_terms(show_title=feed_title, language=language),
             source_language=language,
         )
     context_sentences = int(getattr(cfg, "translation_context_sentences", 0) or 0)

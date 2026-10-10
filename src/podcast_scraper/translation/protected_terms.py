@@ -6,10 +6,12 @@ first non-English set about one in seven of the judge's low units was a name tak
 model's prompt is its own fixed template and cannot carry a glossary, so names are PROTECTED
 instead: each one is replaced by a numbered placeholder before the request and put back after.
 
-The terms come from what the episode states about itself -- the show's title, and capitalised
-spans in the episode title and description that do not start a sentence -- so a term is a name
-the publisher wrote, not one guessed from the transcript. Matching is case-sensitive and on whole
-words: "Boca" is protected, "boca" (mouth) is not.
+The translation stage protects the SHOW'S OWN TITLE only. Protecting the capitalised spans of the
+episode title and description as well (`candidate_terms` with texts) was measured on El Hilo
+(2026-10-10) and was a net loss: places that have an English name ("América Latina", "Latin
+America") came back untranslated, and a placeholder cost the grammar around it ("Desde [1]" as
+"Since"). The title is matched on whole words, case-blind when it has several words ("en el
+hilo"), case-sensitive when it has one ("Boca" is protected, "boca" is not).
 
 `restore` refuses (returns None) when a placeholder is missing, duplicated or altered; the caller
 then translates the unit unprotected, as before, so protection can never make a unit worse.
@@ -119,7 +121,9 @@ def _pattern(term: str) -> "re.Pattern[str]":
     """Whole-word occurrences of ``term``; a ONE-word term not where a sentence starts, since a
     capitalised word there is capitalised for its position ("Apoya", "Filho" in a transcript)."""
     if " " in term:
-        return re.compile(rf"(?<!\w){re.escape(term)}(?!\w)")
+        # Case-blind for a multi-word name: a host says "estamos de vuelta en el hilo" of "El
+        # hilo". A one-word name stays case-sensitive -- "Central" must not take "central".
+        return re.compile(rf"(?<!\w){re.escape(term)}(?!\w)", re.IGNORECASE)
     return re.compile(rf"(?<![.!?¿¡:;\n]\s)(?<![.!?¿¡:;\n])(?<!^)(?<!\w){re.escape(term)}(?!\w)")
 
 

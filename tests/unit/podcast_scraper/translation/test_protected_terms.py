@@ -108,3 +108,16 @@ class TestTheProviderProtectsAndFallsBack:
         assert sent == ["Los chabones de [1] llegaron.", "Los chabones de Boca llegaron."]
         assert got["sentences"][0]["en_text"] == "The Boca guys arrived."
         assert "placeholder" in got["metadata"]["refusals"][0]
+
+
+class TestTheShowTitleOnly:
+    def test_a_multi_word_title_is_matched_whatever_its_case(self) -> None:
+        sent, mapping = pt.protect(["Estamos de vuelta en el hilo."], ["El hilo"])
+        assert sent == ["Estamos de vuelta en [1]."] and mapping == {"[1]": "El hilo"}
+
+    def test_a_one_word_title_stays_case_sensitive(self) -> None:
+        sent, _ = pt.protect(["Es la idea central del libro."], ["Central"])
+        assert sent == ["Es la idea central del libro."]
+
+    def test_with_no_texts_only_the_show_title_is_a_term(self) -> None:
+        assert pt.candidate_terms(show_title="El hilo", language="es") == ["El hilo"]
