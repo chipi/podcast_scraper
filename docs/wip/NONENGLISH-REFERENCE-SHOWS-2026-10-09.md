@@ -128,7 +128,13 @@ human reference, and which gaps block enabling that language on prod.
 Runs live in the eval repo's ignored `cache/dataset_runs/asr_publisher_ref_nonen_v1/`; each
 `run.json` names the commit it ran. Those are pre-rebase SHAs, and each run's exported code is
 kept under `cache/code/<sha>`. After the rebase onto main `3e0615172`: `d43559417` →
-`59d3c29cc`, `22ea34a55` → `86ed99c84`, `283038972` → `0d0db93d6`.
+`59d3c29cc`, `22ea34a55` → `86ed99c84`, `283038972` → `0d0db93d6`. After the rebase onto main
+`a6375152a` (2026-10-10), every hash cited on this page and in the onboarding runbook is the
+pre-rebase one; on the branch: `59d3c29cc`/`d43559417` → `008f2a700`, `86ed99c84`/`22ea34a55` →
+`afe149dcd`, `0d0db93d6`/`283038972` → `a886f044f`, `b28cbc120` → `53046de54`, `36f8eefb0` →
+`0122faf50`, `8ba7e8e1c` → `0b2326384`, `d619fa099` → `490b5d97e`, `664334560` → `bad8f2db0`,
+`0252e8b97` → `af4dece3c`, `7f7b8fb81` → `ea61519c1`, `216844484` → `7d9fd5e14`,
+`2f166c0f8`/`d2f7c7dd2` → `57b14d69a`, `33b31fabf` → `3e5d21ecf`, `b5fc95281` → `d591c0d67`.
 
 | run | code | what |
 | --- | --- | --- |
