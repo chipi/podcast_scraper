@@ -307,7 +307,15 @@ Gate B numbers wait for English on narrative and read-news shows (parked until t
    - `translation_max_unit_words: 100`: 3.82 / 4.24 on its own units, which looked like the
      largest gain, and was not one (item 8).
    - Context and show-title protection together: 3.49 / 11 and 4.18 / 3, the fewest low units
-     of any run on 10-02. One show; both switches stay off until measured on the others.
+     of any run on 10-02.
+   - The same pair on the other five shows (2026-10-10, one run each, main-voice adequacy against
+     the switches-off run): Rádio Novelo 3.56/3.87 -> 3.74/3.91 (low units 47 -> 39), RFI
+     4.07/4.23 -> 3.93/4.54, Senado 4.37/4.78 -> 4.38/4.47, Radio Ambulante 4.47/4.33 ->
+     4.42/4.37, SWR 4.29/3.88 -> 4.28/3.79. Low units 90 -> 83 of 498. Mostly inside the 0.3 two
+     unchanged runs differ by: context helps conversational shows with short turns (El Hilo,
+     perhaps Rádio Novelo), not scripted news or documentary; show-title protection fixes its own
+     case only. Both stay OFF in the profiles. What remains is the model's (vocabulary, idiom,
+     meaning lost in long answers): the point where a model comparison is worth running.
 8. **A switch that changes how turns are cut into units changes the judge's ruler too.** The
    judge grades per unit; the same English graded in smaller units scores higher. Compare such a
    switch only on IDENTICAL grading units: regroup the baseline's English (sentences are the
