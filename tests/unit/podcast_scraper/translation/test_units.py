@@ -361,3 +361,29 @@ class TestOverRealTurns:
         for u in units:
             for s in u.sentences:
                 assert text[s.char_start : s.char_end] == s.text
+
+
+class TestTheWordCap:
+    """`translation_max_unit_words` (2026-10-10): the model condenses long units."""
+
+    def test_off_by_default_a_long_turn_stays_one_unit(self) -> None:
+        units = _pack([_turn("t0001", ["uno dos tres cuatro."] * 10)])
+        assert len(units) == 1
+
+    def test_a_long_turn_splits_between_sentences_and_loses_nothing(self) -> None:
+        texts = [f"frase numero {i} aqui." for i in range(10)]  # 4 words each
+        units = _pack([_turn("t0001", texts)], max_words=10)
+        assert [len(u.sentences) for u in units] == [2, 2, 2, 2, 2]
+        assert [s.text for u in units for s in u.sentences] == texts
+        assert [u.unit_id for u in units] == [f"t0001.u{i:02d}" for i in range(1, 6)]
+
+    def test_a_sentence_longer_than_the_cap_is_kept_whole(self) -> None:
+        long = " ".join(["palabra"] * 30) + "."
+        units = _pack([_turn("t0001", ["Corta.", long, "Otra."])], max_words=10)
+        assert [[s.text for s in u.sentences] for u in units] == [["Corta."], [long], ["Otra."]]
+
+
+def test_the_config_switch_is_off_by_default() -> None:
+    from podcast_scraper.config import Config
+
+    assert Config(rss="https://e.com/f.xml").translation_max_unit_words == 0

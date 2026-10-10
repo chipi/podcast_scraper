@@ -2289,6 +2289,16 @@ class Config(BaseModel):
         "judge's low units on the first non-English set (2026-10-10) were who-did-what errors a "
         "neighbouring turn resolves.",
     )
+    translation_max_unit_words: int = Field(
+        default=0,
+        ge=0,
+        alias="translation_max_unit_words",
+        description="Cap on a unit's source words: a turn longer than this is packed into "
+        "several units, split between sentences (translation.units.pack_units). 0 = off, a unit "
+        "fills the model's input limit, as before. On El Hilo (2026-10-10) units of 200+ words "
+        "were judged low 43-50% of the time against 12% for 50-100 words; the model condenses "
+        "long units. Words are whitespace-split, so the cap does not bind for unspaced scripts.",
+    )
     translation_protect_names: bool = Field(
         default=False,
         alias="translation_protect_names",

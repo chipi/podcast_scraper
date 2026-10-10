@@ -596,6 +596,7 @@ def _translate_episode(
             else 2048
         ),
         count_tokens=getattr(provider, "count_tokens", None),
+        max_words=int(getattr(cfg, "translation_max_unit_words", 0) or 0),
     )
     if bool(getattr(cfg, "translation_protect_names", False)):
         attach_protected_terms(

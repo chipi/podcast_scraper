@@ -203,6 +203,7 @@ def pack_units(
     max_input_tokens: int,
     overhead_tokens: int = DEFAULT_OVERHEAD_TOKENS,
     count_tokens: Optional[Callable[[str], Optional[int]]] = None,
+    max_words: int = 0,
 ) -> List[TranslationUnit]:
     """Pack a turns artifact's sentences into units. Pure and deterministic.
 
@@ -227,6 +228,8 @@ def pack_units(
         count_tokens: Exact counter, normally the provider's ``/tokenize``. ``None`` — or a
             ``None`` return — falls back to a pessimistic character estimate, so packing errs
             toward smaller units rather than oversized ones.
+        max_words: A unit's source-word cap on top of the token budget (0 = none): a turn longer
+            than this becomes several units, split between sentences, never inside one.
 
     Returns:
         Units in document order. ``unit_id`` is ``<turn_id>.uNN``, sentences keep their
@@ -280,15 +283,17 @@ def pack_units(
             groups = []
             current: List[UnitSentence] = []
             current_tokens = 0
+            current_words = 0
             for sent in sentences:
                 cost = tokens_of(sent.text)
+                words = len(sent.text.split())
                 if cost > budget_for(1):
                     # A single sentence over budget even alone. It cannot be split without
                     # breaking the alignment atom, so flush what we have and give it its own
                     # unit — where it is FLAGGED rather than silently sent.
                     if current:
                         groups.append(current)
-                        current, current_tokens = [], 0
+                        current, current_tokens, current_words = [], 0, 0
                     groups.append([sent])
                     continue
                 # The budget is evaluated for the unit this sentence would CREATE, numbering
@@ -296,11 +301,13 @@ def pack_units(
                 if current and (
                     current_tokens + cost > budget_for(len(current) + 1)
                     or len(current) >= MAX_SENTENCES_PER_UNIT
+                    or (max_words > 0 and current_words + words > max_words)
                 ):
                     groups.append(current)
-                    current, current_tokens = [], 0
+                    current, current_tokens, current_words = [], 0, 0
                 current.append(sent)
                 current_tokens += cost
+                current_words += words
             if current:
                 groups.append(current)
 
