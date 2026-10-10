@@ -313,3 +313,73 @@ class TestARefusedSentenceIsRetriedInTheNumberedForm:
         assert sent[0] == _SPANISH and sent[1].startswith("1. ")
         assert got["alignment"] == "sentence"
         assert got["sentences"][0]["en_text"] == _GOOD
+
+
+class TestWhyAnAttemptWasRefusedIsKept:
+    """A unit that passed on its retry kept only ``attempts: 2``: why the first was refused was
+    gone from the ledger, and the D10 analysis had to rebuild it from logs (2026-10-10)."""
+
+    _unit = staticmethod(TestEveryAcceptancePathIsGuarded._unit)
+    _provider = staticmethod(TestEveryAcceptancePathIsGuarded._provider)
+    COMMENTARY = TestEveryAcceptancePathIsGuarded.COMMENTARY
+
+    def test_a_single_sentence_records_the_refused_attempt(self) -> None:
+        got = self._provider([self.COMMENTARY, _GOOD]).translate_unit(
+            self._unit([_SPANISH]), source_language="es"
+        )
+        assert got["alignment"] == "sentence"
+        assert len(got["metadata"]["refusals"]) == 1
+        assert "commentary" in got["metadata"]["refusals"][0]
+
+    def test_a_numbered_unit_records_the_refused_attempt(self) -> None:
+        got = self._provider(
+            [f"1. {_GOOD}\n2. {self.COMMENTARY}", f"1. {_GOOD}\n2. Another sentence here."]
+        ).translate_unit(self._unit([_SPANISH, "Otra frase aquí."]), source_language="es")
+        assert len(got["metadata"]["refusals"]) == 1
+
+    def test_a_clean_first_attempt_records_none(self) -> None:
+        got = self._provider([_GOOD]).translate_unit(self._unit([_SPANISH]), source_language="es")
+        assert not got["metadata"].get("refusals")
+
+    def test_the_ledger_keeps_them(self) -> None:
+        from podcast_scraper.translation.artifacts import UnitRecord
+
+        rec = UnitRecord(
+            unit_id="u1",
+            turn_id="t1",
+            content_key="k",
+            status="ok",
+            attempts=2,
+            refusals=["model commentary, not a translation (matched 'here are')"],
+        )
+        assert UnitRecord.from_dict(rec.to_dict()).refusals == rec.refusals
+        assert (
+            "refusals"
+            not in UnitRecord(unit_id="u1", turn_id="t1", content_key="k", status="ok").to_dict()
+        )
+
+
+def test_the_stage_metrics_say_what_this_run_did() -> None:
+    """Memory hits, concurrency and refused-then-passed units are run facts the manifest lacked."""
+    from podcast_scraper.translation.artifacts import (
+        TranslationDocument,
+        UnitRecord,
+        translation_metrics,
+    )
+
+    doc = TranslationDocument(episode_slug="e", source_language="es")
+    doc.units = [
+        UnitRecord(
+            unit_id="u1",
+            turn_id="t1",
+            content_key="a",
+            status="ok",
+            attempts=2,
+            refusals=["model commentary"],
+        ),
+        UnitRecord(unit_id="u2", turn_id="t2", content_key="b", status="ok", attempts=0),
+    ]
+    m = translation_metrics(doc, [], fresh_unit_ids={"u1"}, max_concurrency=4)
+    assert m["units_ok_after_refusal"] == 1
+    assert m["units_translated_fresh"] == 1 and m["units_from_memory"] == 1
+    assert m["max_concurrency"] == 4
