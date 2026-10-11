@@ -209,7 +209,13 @@ def mix_outside_habits(
     limit: int,
 ) -> list[TrendingEpisodeCard]:
     """Mine's cards with the serendipity share (ADR-163 §7): every 5th slot is one of Everyone's
-    cards from OUTSIDE the listener's habits (``app_serendipity``), labelled ``outside_habits``."""
+    cards from OUTSIDE the listener's habits (``app_serendipity``), labelled ``outside_habits``.
+
+    A listener with no habits yet has no "usual" to step outside of, so there is no share: their
+    Mine stays as it is (empty at cold start, where Discover shows Everyone's, labelled as such)
+    rather than filling with Everyone's cards each called "Outside your usual"."""
+    if not habits.shows and not habits.entities:
+        return mine[:limit]
     taken = {c.slug for c in mine}
     outside: list[TrendingEpisodeCard] = []
     for card in everyone:

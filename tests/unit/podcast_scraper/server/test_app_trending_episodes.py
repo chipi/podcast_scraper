@@ -243,3 +243,27 @@ def test_mine_gets_the_labelled_outside_share_from_everyones_cards(
     ]
     assert [c.why.outside_habits for c in rail].count(True) == 2
     assert all(c.why.outside_habits for c in rail if c.slug.startswith("far"))
+
+
+def test_no_habits_means_no_outside_share_and_nothing_labelled_outside(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A listener with no history has no "usual" to step outside of: Everyone's cards must not fill
+    their Mine labelled "Outside your usual" (cold start falls back to Everyone, labelled as such).
+    """
+    from podcast_scraper.server.app_reasons import Reason
+    from podcast_scraper.server.app_serendipity import Habits
+
+    monkeypatch.setattr(
+        te, "resolve_slug", lambda root, slug: NS(feed_id="feed:x", kg_relative_path=slug)
+    )
+    monkeypatch.setattr(te, "episode_entity_ids", lambda root, rel: set())
+    everyone = [
+        te.TrendingEpisodeCard(slug=f"e{i}", why=Reason(kind="rising_topic")) for i in range(6)
+    ]
+    none = Habits(shows=frozenset(), entities=frozenset())
+    assert te.mix_outside_habits(tmp_path, [], everyone, none, limit=6) == []
+    mine = [te.TrendingEpisodeCard(slug="m0", why=Reason(kind="rising_topic"))]
+    assert [c.slug for c in te.mix_outside_habits(tmp_path, mine, everyone, none, limit=6)] == [
+        "m0"
+    ]
