@@ -300,6 +300,28 @@ for (const [name, path] of [
   })
 }
 
+// The same four subjects as SHEETS, opened from an episode's notes (operator 2026-10-11: the overlays
+// must read like the pages). One episode whose notes carry a topic, a person, a theme and a storyline.
+for (const [name, testid] of [
+  ['sheet-topic', 'kp-topic-chip'],
+  ['sheet-person', 'kp-person-chip'],
+  ['sheet-theme', 'kp-theme-link'],
+  ['sheet-storyline', 'kp-storyline-link'],
+] as const) {
+  test(name, async ({ page }) => {
+    await signIn(page)
+    await page.goto('/podcast/p09')
+    await page.getByText('Risk Is a Systems Property').first().click()
+    await page.getByTestId('player-open-insights').click()
+    const panel = page.getByTestId('knowledge-panel')
+    await expect(panel).toBeVisible()
+    await panel.getByTestId(testid).first().click()
+    await expect(page.locator('.lp-sheet').last()).toBeVisible()
+    await settle(page)
+    await page.screenshot({ path: dir(`${name}-viewport`), fullPage: false })
+  })
+}
+
 test('library', async ({ page }) => {
   await signIn(page)
   await page.goto('/library')

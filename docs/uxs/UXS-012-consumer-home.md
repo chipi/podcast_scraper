@@ -464,7 +464,10 @@ piece to its design home:
   three: "‹ Back" on its own row (standalone pages), the kind in its colour (TOPIC / THEME /
   STORYLINE), the title, the actions row — **Follow** ("Follow" / "Following", the same words on
   every page) first, then save, board, share — and then the **listen row**, always its own row:
-  `ReelDoor` and `LearnDoor`, styled as two different options.
+  `ReelDoor` and `LearnDoor`, styled as two different options. The same top as a SHEET (opened from an episode's
+  Brief, Home or Search: `EntityCard` for topics and people, `ThemeCard`, `StorylineCard`): the kind
+  and ✕ on one row, then title, actions, listen row, with one 16px top inset and no rule under the
+  header on all four.
 - **`ReelDoor`** — "▶ 15 min on this", a filled accent pill: it plays now. It appears only once
   that subject's reel has at least two clips.
 - **`LearnThisWeek`** — Discover's **Learn X this week** (operator 2026-10-11), signed in, under

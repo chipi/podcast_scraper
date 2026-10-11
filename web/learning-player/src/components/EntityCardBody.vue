@@ -229,7 +229,9 @@ const isTopic = computed(() => current.value.kind === "topic")
     <!-- Header (UXS-014, unified across topic / person / storyline): the actions ride the top row
          WITH the kicker, so the TITLE owns its own full-width row and can run to two lines instead
          of being crushed to "agent in…" beside the icons. Same structure in StorylineView. -->
-    <header :class="props.flush ? 'pb-3' : 'border-b border-border px-4 py-3'">
+    <!-- As a sheet the top matches the theme and storyline sheets (operator 2026-10-11): their 16px
+         top inset and no rule under the header; as a page, the pages' top (no inset of its own). -->
+    <header :class="props.flush ? 'pb-3' : 'px-4 pb-3 pt-4'">
       <!-- As a PAGE (the /topic and /person routes) the top is the theme and storyline pages' top,
            exactly (operator 2026-10-11): "‹ Back" on its own row, then the kind in its colour, the
            title, Follow first on the actions row, and the listen row under it. -->
