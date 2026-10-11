@@ -390,8 +390,9 @@ piece to its design home:
   a label, optional subtitle, trend-hued sparkline, a trailing metric that tracks the active sort,
   and a `discovery-follow` toggle. Sourced from `GET /api/app/trending` (EWMA velocity + volume).
   Replaced `MomentumRail`, `TrendingTopics`, and `Storylines` rails.
-- **`SearchSection`** and **`TrendsSection`** — two separate sections that Home and Discover BOTH
-  render, in that order (operator 2026-10-05: "Home and Discover are the same screens … things have
+- **`SearchSection`** and **`TrendsSection`** — two separate sections. Since 2026-10-11 Explore
+  renders both, search first; Home renders `SearchSection` (Discover renders neither: search moved to
+  Explore, operator 2026-10-11). Earlier history: Home and Discover BOTH rendered them, in that order (operator 2026-10-05: "Home and Discover are the same screens … things have
   to be identical"; search and trends are unrelated, so they are two components, not one). Sharing
   `DiscoveryExplorer` alone was not enough — each page wrapped it differently (Discover added its own
   `px-4` gutter, spaced it `mt-4` against Home's `mt-7`, put search above Trends where Home put it

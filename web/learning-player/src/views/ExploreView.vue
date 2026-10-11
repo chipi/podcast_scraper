@@ -3,6 +3,8 @@
  * Explore (ADR-163 §1, operator 2026-10-11) — everything for looking around, moved off Discover so
  * Discover keeps one job ("what to hear next"):
  *
+ * - **Search** — the shared `SearchSection`, first (operator 2026-10-11: search moved here from
+ *   Discover). On a phone the Explore tab is the way into search.
  * - **Trends** — rising topics, themes, storylines and people (`TrendsSection`), in the shared
  *   Mine ⇄ Everyone scope. `?trends=<kind>` selects a kind and scrolls to it.
  * - **A taste of the catalog** — Episodes · Shows (`ExploreCatalogTaste`), anchored at `#catalog`:
@@ -22,6 +24,7 @@ import { toRankBucket, track } from '../services/analytics'
 import { panelAttrs, type TabSpec } from '../components/tabs'
 import ExploreCatalogTaste from '../components/ExploreCatalogTaste.vue'
 import { useVisitedTabs } from '../composables/useVisitedTabs'
+import SearchSection from '../components/SearchSection.vue'
 import TrendsSection from '../components/TrendsSection.vue'
 import TrendingScopeButton from '../components/TrendingScopeButton.vue'
 import { scrollBehavior } from '../utils/motion'
@@ -84,6 +87,17 @@ watch(
     <div class="mb-4 flex items-center justify-between gap-3">
       <h1 class="font-display text-3xl font-extrabold tracking-tight">{{ t('explore.title') }}</h1>
       <TrendingScopeButton testid="discover-scope" />
+    </div>
+
+    <!-- Search first (operator 2026-10-11): looking for something is Explore's job — the Search tab
+         of Spotify and Apple Podcasts, search with browsing under it — and on a phone the Explore tab
+         IS the way into search (no search tab, no header magnifier there). The box keeps its `browse`
+         ids (it is the same shared SearchSection Home renders under `home`). -->
+    <div class="lg:flex lg:items-start lg:gap-8">
+      <div class="lg:w-1/2 lg:pr-4">
+        <SearchSection prefix="browse" />
+      </div>
+      <div class="hidden lg:block lg:w-1/2" aria-hidden="true" />
     </div>
 
     <div class="lg:flex lg:items-start lg:gap-8">

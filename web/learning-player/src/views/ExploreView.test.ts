@@ -93,4 +93,28 @@ describe('ExploreView', () => {
   })
 
 
+
+  it('leads with search, then Trends — search moved here from Discover (operator 2026-10-11)', async () => {
+    const w = await mountView()
+    const html = w.html()
+    const at = (id: string) => html.indexOf(`data-testid="${id}"`)
+    expect(at('browse-search-section')).toBeGreaterThan(-1)
+    expect(at('browse-search-section')).toBeLessThan(at('stub-trends'))
+  })
+
+  it('its search box submits to the results page, trimmed; a blank submit goes nowhere', async () => {
+    const router = makeRouter()
+    await router.isReady()
+    const w = mount(ExploreView, { global: { plugins: [i18n, router, createPinia()], stubs } })
+    await flushPromises()
+    await w.get('[data-testid="browse-search-input"]').setValue('   ')
+    await w.get('[data-testid="browse-search-section"] form').trigger('submit')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('explore')
+    await w.get('[data-testid="browse-search-input"]').setValue('  reward hacking  ')
+    await w.get('[data-testid="browse-search-section"] form').trigger('submit')
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('search')
+    expect(router.currentRoute.value.query.q).toBe('reward hacking')
+  })
 })

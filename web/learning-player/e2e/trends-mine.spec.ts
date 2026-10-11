@@ -94,9 +94,9 @@ test('following a show puts it in Mine, and only the shows of the listener\'s wo
   await expect(cards.first().locator(`a[href$="/podcast/${encodeURIComponent(followed)}"]`).first()).toBeVisible()
 })
 
-test('a search from Discover runs in the same switch, and the results flip it back', async ({ page }, testInfo) => {
+test('a search from Explore runs in the same switch, and the results flip it back', async ({ page }, testInfo) => {
   await signInIsolated(page, 'trends-mine-search', testInfo)
-  await page.goto('/browse')
+  await page.goto('/explore')
   await expect(page.getByTestId('discover-scope')).toHaveAttribute('aria-pressed', 'true')
   await page.getByTestId('browse-search-section').locator('input').fill('memory')
   await page.getByTestId('browse-search-section').locator('input').press('Enter')

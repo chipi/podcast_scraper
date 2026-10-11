@@ -136,7 +136,8 @@ the catalogue is everyone's, and its full lists carry a "Which episodes" / "Whic
 
 ### FR9: Search
 
-Discover's search box leads the page, so search is one tap from the Discover tab on a phone.
+Search leads Explore (operator 2026-10-11: looking for something is Explore's job; Discover is being
+told what to hear next), so search is one tap from the Explore tab on a phone.
 
 ## Success Metrics
 

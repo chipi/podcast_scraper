@@ -196,13 +196,16 @@ for (const viewport of [
   { width: 412, height: 915, rows: 3 },
   { width: 1440, height: 900, rows: 5 },
 ]) {
-  test(`Discover's search and Explore's Trends block (${viewport.width}px)`, async ({ page }, testInfo) => {
+  test(`Explore's search and Trends block (${viewport.width}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport)
     await signInIsolated(page, `trends-block-${viewport.width}`, testInfo)
-    // Discover keeps the search half: two trending-topic chips under the search box.
+    // Discover has neither search nor Trends now (both moved to Explore, 2026-10-11).
     await page.goto('/browse')
+    await expect(page.getByTestId('browse-search-section')).toHaveCount(0)
+    await expect(page.getByTestId('browse-discovery')).toHaveCount(0)
+    // Explore leads with the search half: two trending-topic chips under the search box.
+    await page.goto('/explore')
     await expect(page.getByTestId('browse-search-section').getByTestId('home-topic-chip')).toHaveCount(2)
-    await expect(page.getByTestId('browse-discovery')).toHaveCount(0) // Trends moved to Explore
     // Explore holds Trends: 3 rows on a phone, 5 on desktop, then "Show more" asks the SERVER for
     // the next page (operator 2026-10-11) — never a reveal of rows already loaded.
     await page.goto('/explore')

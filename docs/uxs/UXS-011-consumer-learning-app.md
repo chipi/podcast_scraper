@@ -1342,7 +1342,7 @@ Search gained entry points rather than losing them:
 
 | Entry point | Where | Notes |
 | --- | --- | --- |
-| Discovery's search box | `/browse`, between Trending shows and Trends | Same `lp-search` control as Home's, not a second dialect of it. **On a phone this is the always-available way in**: the Discover tab is on every screen, one tap away |
+| Explore's search box | `/explore`, first, above Trends (moved from Discover 2026-10-11) | Same `lp-search` control as Home's, not a second dialect of it. **On a phone this is the always-available way in**: the Explore tab is on every screen, one tap away |
 | Home's "Ask" box | Home | Unchanged |
 | Masthead magnifier | **Desktop only** (`sm:` and up) | Desktop has no bottom bar, so the magnifier is its route to search from any screen. It was visible at every width from 2026-09-20 to 2026-09-30; it left the phone header because there was no room for it: "Close Listening" ran under it at 360px |
 

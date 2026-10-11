@@ -69,9 +69,10 @@ describe('BottomNav (#1594)', () => {
    * Home's Ask box did not come via Discovery, and the bar says they did. Accepted because search,
    * unlike an episode, has a canonical parent. Pinned so the decision cannot be quietly undone.
    */
-  it('lights up Discovery on the search results page', async () => {
+  it('lights up Explore on the search results page (its search box leads Explore, 2026-10-11)', async () => {
     const w = await mountNav({ at: '/search' })
-    expect(w.get('[data-testid="bottom-nav-browse"]').attributes('aria-current')).toBe('page')
+    expect(w.get('[data-testid="bottom-nav-explore"]').attributes('aria-current')).toBe('page')
+    expect(w.get('[data-testid="bottom-nav-browse"]').attributes('aria-current')).toBeUndefined()
     expect(w.get('[data-testid="bottom-nav-home"]').attributes('aria-current')).toBeUndefined()
   })
 

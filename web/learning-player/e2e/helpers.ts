@@ -125,12 +125,13 @@ async function tapTo(
   }
 
   // Search has no phone nav entry of its own: no tab (2026-09-20) and no header magnifier since
-  // 2026-09-30 (no room for it). A phone reaches it the way a user does — Discover's search box —
-  // which is still an IN-APP navigation, as audio-continuity needs. Desktop keeps the magnifier.
+  // 2026-09-30 (no room for it). A phone reaches it the way a user does — Explore's search box
+  // (2026-10-11) — which is still an IN-APP navigation, as audio-continuity needs. Desktop keeps the
+  // magnifier.
   if (dest === 'search') {
-    const discover = page.getByTestId('bottom-nav-browse')
-    if (await discover.isVisible().catch(() => false)) {
-      await discover.click()
+    const explore = page.getByTestId('bottom-nav-explore')
+    if (await explore.isVisible().catch(() => false)) {
+      await explore.click()
       await page.getByTestId('browse-search-input').fill('risk')
       await page.getByTestId('browse-search-submit').click()
       await page.waitForURL(/\/search/)

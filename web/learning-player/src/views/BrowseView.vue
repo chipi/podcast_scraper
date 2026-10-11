@@ -21,7 +21,6 @@
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 defineOptions({ name: 'BrowseView' }) // stable name for <keep-alive :include> (App.vue)
-import SearchSection from '../components/SearchSection.vue'
 import RecommendationRail from '../components/RecommendationRail.vue'
 import { getDiscoverRails, getDiscoverRailPage, type DiscoverRail } from '../services/api'
 import { useAuthStore } from '../stores/auth'
@@ -95,15 +94,8 @@ function onShowsSeeAll(): void {
       </div>
     </div>
 
-    <!-- Search first (operator 2026-10-11): on a phone the Discover tab IS the way into search
-         (no tab, no header magnifier there), so it leads rather than sitting under every rail. -->
-    <div class="lg:flex lg:items-start lg:gap-8">
-      <div class="lg:w-1/2 lg:pr-4">
-        <SearchSection prefix="browse" />
-      </div>
-      <div class="hidden lg:block lg:w-1/2" aria-hidden="true" />
-    </div>
-
+    <!-- No search here (operator 2026-10-11): Discover is being told what to hear next; looking for
+         something is Explore's job, and the search box leads Explore. -->
     <!-- Episode-first (ADR-163 §2), each rail a taste — its first page, "Show more" for the next:
          the quote cards, then under Mine more from what you captured, continue the thread, people
          you keep hearing and another view on your topics. -->

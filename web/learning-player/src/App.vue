@@ -581,7 +581,7 @@ const mainBottomPadding = computed(() =>
           Search is desktop-only again (operator 2026-09-30). It was hoisted out of this span on
           2026-09-20 to keep search reachable on a phone after it lost its tab, but on a phone the
           header had no room for it: "Close Listening" ran under the magnifier at 360px. A phone
-          reaches search from the Discover tab's search box (`browse-search-input`), one tap from
+          reaches search from the Explore tab's search box (`browse-search-input`, 2026-10-11), one tap from
           any screen, and from Home's box, so #1588 (search unreachable) stays closed without it.
 
           Browse lives only here, and that is fine: it is a corpus index, not a daily destination

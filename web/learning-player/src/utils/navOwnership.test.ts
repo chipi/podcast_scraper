@@ -10,16 +10,16 @@ import { OWNED_ROUTES, ownsRoute } from './navOwnership'
  * answering "where am I" two ways depending on window width.
  */
 describe('nav route ownership (shared by both navs)', () => {
-  it('Discovery owns the search results page (operator 2026-09-20)', () => {
-    expect(ownsRoute('browse', 'search')).toBe(true)
+  it('Explore owns the search results page (operator 2026-10-11: the search box leads Explore)', () => {
+    expect(ownsRoute('explore', 'search')).toBe(true)
     // …and nothing else claims it, or two nav items would light at once.
-    for (const owner of Object.keys(OWNED_ROUTES).filter((o) => o !== 'browse')) {
+    for (const owner of Object.keys(OWNED_ROUTES).filter((o) => o !== 'explore')) {
       expect(ownsRoute(owner, 'search'), `${owner} must not claim /search`).toBe(false)
     }
   })
 
-  it('Discovery gathers search, show pages and topic reels (#14, ADR-163)', () => {
-    for (const r of ['browse', 'search', 'podcast', 'topic-reel', 'learn']) {
+  it('Discovery gathers show pages, topic reels and the week path (#14, ADR-163)', () => {
+    for (const r of ['browse', 'podcast', 'topic-reel', 'learn']) {
       expect(ownsRoute('browse', r), `browse should own ${r}`).toBe(true)
     }
   })

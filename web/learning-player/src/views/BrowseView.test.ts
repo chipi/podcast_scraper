@@ -50,13 +50,13 @@ async function mountView(pinia = createPinia()) {
 }
 
 describe('BrowseView (Discover): what to hear next', () => {
-  it('leads with search, then the rails the server returns in their order, then trending shows', async () => {
+  it('leads with the rails the server returns in their order, then trending shows; no search', async () => {
     api.getDiscoverRails.mockResolvedValue([rail('quotes')])
     const w = await mountView()
     const html = w.html()
     const at = (id: string) => html.indexOf(`data-testid="${id}"`)
-    expect(at('browse-search-section')).toBeGreaterThan(-1)
-    expect(at('browse-search-section')).toBeLessThan(at('stub-rail-quotes'))
+    // Search moved to Explore (operator 2026-10-11).
+    expect(at('browse-search-section')).toBe(-1)
     expect(at('stub-rail-quotes')).toBeLessThan(at('stub-trending-shows'))
     expect(w.find('[data-testid="browse-tab-episodes"]').exists()).toBe(false)
     expect(w.findComponent({ name: 'TrendsSection' }).exists()).toBe(false)
@@ -75,24 +75,6 @@ describe('BrowseView (Discover): what to hear next', () => {
     const r = w.vm.$router.currentRoute.value
     expect(r.name).toBe('shows')
     expect(r.query).toEqual({ sort: 'trending', view: 'list' })
-  })
-
-  it('carries a search box that submits to the results page', async () => {
-    const w = await mountView()
-    await w.get('[data-testid="browse-search-input"]').setValue('  reward hacking  ')
-    await w.get('[data-testid="browse-search-section"] form').trigger('submit')
-    await flushPromises()
-    const r = w.vm.$router.currentRoute.value
-    expect(r.name).toBe('search')
-    expect(r.query.q).toBe('reward hacking') // trimmed
-  })
-
-  it('ignores a blank submit rather than opening an empty results page', async () => {
-    const w = await mountView()
-    await w.get('[data-testid="browse-search-input"]').setValue('   ')
-    await w.get('[data-testid="browse-search-section"] form').trigger('submit')
-    await flushPromises()
-    expect(w.vm.$router.currentRoute.value.name).toBe('browse')
   })
 
   // One Mine ⇄ Everyone switch for the whole page (operator 2026-10-09): every rail follows it.
