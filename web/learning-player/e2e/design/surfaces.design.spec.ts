@@ -300,6 +300,45 @@ for (const [name, path] of [
   })
 }
 
+// What the two doors open (operator 2026-10-11), from the storyline that has both a full reel and a
+// seven-day path on the fixture. The path is the shared design identity's state, so it is stopped
+// again: Discover's shot must not change because this one ran first.
+const DOORS = `/storyline/${encodeURIComponent('thc:second-order-effects')}`
+
+test('reel', async ({ page }) => {
+  await signIn(page)
+  await page.goto(DOORS)
+  await page.getByTestId('reel-door').click()
+  await expect(page.getByTestId('topic-reel-title')).toBeVisible()
+  await expect(page.getByTestId('topic-reel-segment').first()).toBeVisible()
+  await shoot(page, 'reel')
+  await page.getByTestId('topic-reel-play').click()
+  await expect(page.getByTestId('topic-reel-quote')).toBeVisible()
+  await settle(page)
+  await page.screenshot({ path: dir('reel-playing-viewport'), fullPage: false })
+})
+
+test('learn', async ({ page }) => {
+  await signIn(page)
+  await page.request.delete('/api/app/discover/learn')
+  await page.goto(DOORS)
+  await expect(page.getByTestId('learn-door')).toBeVisible()
+  await page.getByTestId('learn-door').click()
+  await expect(page.getByTestId('learn-view-title')).toBeVisible()
+  await shoot(page, 'learn')
+  await page.request.delete('/api/app/discover/learn')
+})
+
+test('moments', async ({ page }) => {
+  await signIn(page)
+  await page.goto('/podcast/p05')
+  await page.getByText('The Bessent Tape').first().click()
+  await page.getByTestId('player-open-moments').click()
+  await expect(page.getByTestId('moments-card')).toBeVisible()
+  await expect(page.getByTestId('moments-index-item').first()).toBeVisible()
+  await shoot(page, 'moments')
+})
+
 // The same four subjects as SHEETS, opened from an episode's notes (operator 2026-10-11: the overlays
 // must read like the pages). One episode whose notes carry a topic, a person, a theme and a storyline.
 for (const [name, testid] of [
