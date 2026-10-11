@@ -185,6 +185,33 @@ _TRENDING_NS = "app_trending_corpus"
 _TRENDING_ALL = 10_000
 
 
+def corpus_trending(
+    root: Path,
+    data_dir: Path | None,
+    kind: str,
+    window: str | None,
+    config: MomentumConfig,
+) -> list[Any]:
+    """Everyone's trending ``kind``, the whole ranked list, shared by every caller.
+
+    The same for everyone and slow to change, but each build reads the corpus AND every user's
+    engagement: ~0.6 s on prod (measured 2026-10-08), and one Discover load asked for five (the
+    Short listens row and the Learn offers). Cached until the corpus changes or 5 minutes pass —
+    engagement moves without the corpus changing."""
+    token = float(hash((perf_cache.corpus_mtime(root), int(time.time() // 300))))
+    key = (str(root), kind, window, repr(config))
+    return list(
+        perf_cache.get_or_compute(
+            _TRENDING_NS,
+            key,
+            token,
+            lambda: trending(
+                root, data_dir, kind=kind, limit=_TRENDING_ALL, window=window, config=config
+            ),
+        )
+    )
+
+
 @router.get("/trending", response_model=AppTrendingResponse)
 def app_trending(
     request: Request,
@@ -228,8 +255,10 @@ def app_trending(
     )
     config = _momentum_config(request)
 
-    def compute() -> list[Any]:
-        return trending(
+    if eff_scope == "corpus":
+        ranked = corpus_trending(root, data_dir, kind, window, config)
+    else:
+        ranked = trending(
             root,
             data_dir,
             kind=kind,
@@ -240,17 +269,6 @@ def app_trending(
             config=config,
             restrict_to=mine,
         )
-
-    if eff_scope == "corpus":
-        # Corpus-wide trends are the same for everyone and change slowly, but each call rebuilt the
-        # series from the corpus AND every user's engagement: ~0.6 s on prod, four at once on
-        # Profile → Interests (measured 2026-10-08). Cached until the corpus changes or 5 minutes
-        # pass, whichever is first — engagement moves without the corpus changing.
-        token = float(hash((perf_cache.corpus_mtime(root), int(time.time() // 300))))
-        key = (str(root), kind, window, repr(config))
-        ranked = perf_cache.get_or_compute(_TRENDING_NS, key, token, compute)
-    else:
-        ranked = compute()
     if sort == "rising":
         ranked = sorted(ranked, key=lambda r: -r.velocity)
     elif sort == "trending":
@@ -440,17 +458,20 @@ def app_discover_reel_topics(
     )
 
     def rising(kind: str) -> list[tuple[str, str]]:
-        found = trending(
-            root,
-            data_dir,
-            kind=kind,
-            scope=eff,
-            user_id=user.user_id if eff == "mine" else None,
-            limit=REEL_TOPIC_CANDIDATES,
-            config=_momentum_config(request),
-            restrict_to=mine_entities,
-        )
-        return [(t.entity_id, t.label) for t in found]
+        if eff == "corpus":
+            found = corpus_trending(root, data_dir, kind, None, _momentum_config(request))
+        else:
+            found = trending(
+                root,
+                data_dir,
+                kind=kind,
+                scope=eff,
+                user_id=user.user_id,
+                limit=REEL_TOPIC_CANDIDATES,
+                config=_momentum_config(request),
+                restrict_to=mine_entities,
+            )
+        return [(t.entity_id, t.label) for t in found[:REEL_TOPIC_CANDIDATES]]
 
     if eff == "mine" and data_dir is not None:
         topics = engaged_topics(root, data_dir, user.user_id)[:REEL_TOPIC_CANDIDATES]
@@ -509,16 +530,26 @@ LEARN_SUBJECTS = 3
 LEARN_CANDIDATES = 6
 
 
+def _gone_steps(root: Path, path: dict[str, Any]) -> frozenset[int]:
+    """Step indexes whose episode has left the corpus: never shown, never doable."""
+    return frozenset(
+        i
+        for i, st in enumerate(path.get("steps") or [])
+        if resolve_slug(root, str(st.get("episode_slug") or "")) is None
+    )
+
+
 def _path_out(root: Path, path: dict[str, Any]) -> AppLearningPath:
-    from podcast_scraper.server.app_learning_path import can_open_next, open_days
+    from podcast_scraper.server.app_learning_path import can_open_next, next_opens_at, open_days
 
     opened = open_days(path)
     done = {int(i) for i in path.get("done") or []}
+    gone = _gone_steps(root, path)
     steps: list[AppPathStep] = []
     for i, st in enumerate(path.get("steps") or []):
-        row = resolve_slug(root, str(st.get("episode_slug") or ""))
+        row = resolve_slug(root, str(st.get("episode_slug") or "")) if i not in gone else None
         if row is None:
-            continue  # the episode left the corpus; the other days stand
+            continue  # the episode left the corpus; the other days stand, each keeping its day
         steps.append(
             AppPathStep(
                 day=i + 1,
@@ -539,7 +570,8 @@ def _path_out(root: Path, path: dict[str, Any]) -> AppLearningPath:
         subject_label=str(path.get("subject_label") or path["subject_id"]),
         started_at=int(path.get("started_at") or 0),
         day=max(1, opened),
-        can_open_next=can_open_next(path),
+        can_open_next=can_open_next(path, gone=gone),
+        next_opens_at=next_opens_at(path),
         steps=steps,
     )
 
@@ -570,16 +602,20 @@ def app_discover_learn(
     config = getattr(request.app.state, "moments_config", None)
 
     def offered(kind: ReelKind) -> list[AppLearnSubject]:
-        found = trending(
-            root,
-            data_dir,
-            kind=kind,
-            scope="mine" if mine else "corpus",
-            user_id=user.user_id if mine else None,
-            limit=LEARN_CANDIDATES,
-            config=_momentum_config(request),
-            restrict_to=restrict,
-        )
+        if mine:
+            found = trending(
+                root,
+                data_dir,
+                kind=kind,
+                scope="mine",
+                user_id=user.user_id,
+                limit=LEARN_CANDIDATES,
+                config=_momentum_config(request),
+                restrict_to=restrict,
+            )
+        else:
+            found = corpus_trending(root, data_dir, kind, None, _momentum_config(request))
+        found = found[:LEARN_CANDIDATES]
         out: list[AppLearnSubject] = []
         for t in found:
             if t.entity_id in hidden or t.entity_id in learning or len(out) >= LEARN_SUBJECTS:
@@ -685,7 +721,10 @@ def app_learning_step_done(
     from podcast_scraper.server.app_learning_path import unlocked
 
     root = corpus_root_or_503(request)
-    if not unlocked(_own_path(request, user, subject_id), index):
+    path = _own_path(request, user, subject_id)
+    if not 0 <= index < len(path.get("steps") or []):
+        raise HTTPException(status_code=404, detail="No such day on this path.")
+    if not unlocked(path, index):
         raise HTTPException(status_code=409, detail="That day has not come yet.")
     updated = app_user_state.mark_learning_step_done(
         _data_dir(request), user.user_id, subject_id, index
@@ -702,8 +741,10 @@ def app_open_next_learning_day(
     """Open the next day now (operator 2026-10-11: a day a day is the rhythm, not a wall). Only
     once the newest open day is done (409 before; 404 without that path)."""
     root = corpus_root_or_503(request)
-    _own_path(request, user, subject_id)
-    updated = app_user_state.open_next_learning_day(_data_dir(request), user.user_id, subject_id)
+    gone = _gone_steps(root, _own_path(request, user, subject_id))
+    updated = app_user_state.open_next_learning_day(
+        _data_dir(request), user.user_id, subject_id, gone
+    )
     if updated is None:
         raise HTTPException(status_code=409, detail="Finish the open day first.")
     return _path_out(root, updated)
@@ -726,7 +767,8 @@ def _reel_progress_out(root: Path, progress: dict[str, Any], config: Any = None)
     subject_id = str(progress["subject_id"])
     kind, label = subject_label(root, subject_id)
     index = int(progress.get("index") or 0)
-    clips = goal_reel(root, subject_id, minutes=15, config=config)
+    minutes = int(progress.get("minutes") or 15)
+    clips = goal_reel(root, subject_id, minutes=minutes, config=config)
     at = clips[min(index, len(clips) - 1)] if clips else None
     row = resolve_slug(root, at.episode_slug) if at else None
     return AppReelProgress(
@@ -735,6 +777,7 @@ def _reel_progress_out(root: Path, progress: dict[str, Any], config: Any = None)
         subject_label=label,
         index=index,
         clips=int(progress.get("clips") or 1),
+        minutes=minutes,
         updated_at=int(progress.get("updated_at") or 0),
         episode=row_to_summary(root, row) if row is not None else None,
         speaker=at.moment.speaker if at else None,
@@ -755,6 +798,7 @@ def app_put_reel_progress(
         "subject_id": body.subject_id,
         "index": min(body.index, body.clips - 1),
         "clips": body.clips,
+        "minutes": body.minutes,
         "updated_at": int(time.time()),
     }
     app_user_state.set_reel_progress(_data_dir(request), user.user_id, progress)
@@ -762,9 +806,14 @@ def app_put_reel_progress(
 
 
 @router.delete("/discover/reel/progress", status_code=204)
-def app_delete_reel_progress(request: Request, user: User = Depends(get_current_user)) -> None:
-    """The short listen was finished: nothing left to resume."""
-    app_user_state.set_reel_progress(_data_dir(request), user.user_id, None)
+def app_delete_reel_progress(
+    request: Request,
+    subject: str = Query(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):"),
+    user: User = Depends(get_current_user),
+) -> None:
+    """That short listen was finished or closed: nothing of it to resume. Only clears the saved
+    one if it is ``subject``'s — another, kept since (another device), stays."""
+    app_user_state.clear_reel_progress(_data_dir(request), user.user_id, subject)
 
 
 @router.get("/discover/in-progress", response_model=AppInProgress)

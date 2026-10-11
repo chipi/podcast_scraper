@@ -976,6 +976,8 @@ export interface LearningPath {
   day: number
   /** The newest open day is done and the next may be opened now ("Next day now"). */
   can_open_next?: boolean
+  /** When the next day opens by itself (epoch seconds); null with every day open. */
+  next_opens_at?: number | null
   steps: PathStep[]
 }
 export interface LearnSubject {
@@ -1051,6 +1053,8 @@ export interface ReelProgress {
   subject_label: string
   index: number
   clips: number
+  /** The reel's budget, to resume the same reel. */
+  minutes?: number
   updated_at: number
   /** The episode of the clip it resumes at (its artwork and title), and what is said there. */
   episode?: EpisodeSummary | null
@@ -1058,18 +1062,27 @@ export interface ReelProgress {
   quote_text?: string
 }
 /** Remember where a short listen is, so Home can resume it. */
-export async function putReelProgress(subjectId: string, index: number, clips: number): Promise<void> {
+export async function putReelProgress(
+  subjectId: string,
+  index: number,
+  clips: number,
+  minutes = 15,
+): Promise<void> {
   const resp = await apiFetch(`${BASE}/discover/reel/progress`, {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ subject_id: subjectId, index, clips }),
+    body: JSON.stringify({ subject_id: subjectId, index, clips, minutes }),
   })
   if (!resp.ok) throw new ApiError(resp.status, `PUT /discover/reel/progress → ${resp.status}`)
 }
-/** The short listen was finished: nothing left to resume. */
-export async function clearReelProgress(): Promise<void> {
-  const resp = await apiFetch(`${BASE}/discover/reel/progress`, { method: "DELETE", credentials: "include" })
+/** That short listen was finished or closed: forget it — only if it is still the one kept (a
+ *  newer one, from another device, stays). */
+export async function clearReelProgress(subjectId: string): Promise<void> {
+  const resp = await apiFetch(
+    `${BASE}/discover/reel/progress?subject=${encodeURIComponent(subjectId)}`,
+    { method: "DELETE", credentials: "include" },
+  )
   if (!resp.ok) throw new ApiError(resp.status, `DELETE /discover/reel/progress → ${resp.status}`)
 }
 /** What the listener started and has not finished: Home's "In progress". */

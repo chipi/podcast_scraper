@@ -446,10 +446,11 @@ export type EventProps = {
     items: CountBucket
     scope: 'mine' | 'everyone'
   }
-  /** Learn X this week: a path started (and from where), a step played (from its week or Home's "In
-   *  progress") or done (its 1-based day), the next day opened early, or the path stopped. */
+  /** Learn X this week: a path started or its week opened (and from where), a step played (from
+   *  its week or Home's "In progress") or done (its 1-based day), the next day opened early, or the
+   *  path stopped. */
   learn_path: {
-    action: 'start' | 'step_play' | 'step_done' | 'open_next' | 'stop'
+    action: 'start' | 'open' | 'step_play' | 'step_done' | 'open_next' | 'stop'
     kind: 'topic' | 'theme' | 'storyline'
     day?: number
     source?: 'discover' | 'subject_page' | 'in_progress'
@@ -460,10 +461,10 @@ export type EventProps = {
     source: 'discover_row' | 'subject_page' | 'in_progress'
     kind: 'topic' | 'theme' | 'storyline'
   }
-  /** Inside a reel: started, a clip skipped back or on, "Keep listening to this episode" (it became
-   *  a listen), or the last clip finished. `clip` is the 1-based clip it happened on, bucketed. */
+  /** Inside a reel: started, a clip skipped back or on, a clip to come jumped to, "Keep listening to
+   *  this episode" (it became a listen), or the last clip finished. `clip` is the 1-based clip it happened on, bucketed. */
   reel_action: {
-    action: 'start' | 'next' | 'prev' | 'keep' | 'done'
+    action: 'start' | 'next' | 'prev' | 'jump' | 'keep' | 'done'
     kind: 'topic' | 'theme' | 'storyline'
     clips: CountBucket
     clip?: RankBucket

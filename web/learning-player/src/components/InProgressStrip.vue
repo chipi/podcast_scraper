@@ -52,6 +52,15 @@ const reelArt = computed(() => (reel.value?.episode ? episodeArtwork(reel.value.
 const reelPct = computed(() =>
   reel.value ? Math.round((100 * reel.value.index) / Math.max(1, reel.value.clips)) : 0,
 )
+/** "Day 3 opens in 14 h": days count 24 h from the start, not calendar days. */
+function opensIn(path: LearningPath): string {
+  const at = path.next_opens_at
+  if (!at) return ''
+  const hours = Math.ceil((at * 1000 - Date.now()) / 3_600_000)
+  return hours <= 1
+    ? t('inProgress.opensSoon', { n: path.day + 1 })
+    : t('inProgress.opensIn', { n: path.day + 1, h: hours })
+}
 const playTo = (slug: string, startMs: number) => ({
   name: 'player',
   params: { slug },
@@ -97,6 +106,7 @@ async function openNext(path: LearningPath): Promise<void> {
               :to="{ name: 'learn', query: { subject: c.path.subject_id } }"
               class="mt-1 line-clamp-2 font-display text-xl font-extrabold leading-tight tracking-tight text-canvas-foreground no-underline after:absolute after:inset-0"
               data-testid="in-progress-learn-open"
+              @click="track('learn_path', { action: 'open', kind: c.path.subject_kind, source: 'in_progress' })"
             >{{ c.path.subject_label }}</RouterLink>
             <p v-if="c.now" class="mt-1 line-clamp-1 text-sm text-muted">{{ c.now.episode.title }}</p>
             <p v-else-if="!c.finished" class="mt-1 text-sm text-muted">{{ t('inProgress.doneToday', { n: c.path.day }) }}</p>
@@ -131,7 +141,7 @@ async function openNext(path: LearningPath): Promise<void> {
                   data-testid="in-progress-learn-next"
                   @click="openNext(c.path)"
                 >{{ t('learn.openNext') }} ›</button>
-                <span v-else class="text-sm text-muted">{{ t('inProgress.nextTomorrow') }}</span>
+                <span v-else class="text-sm text-muted" data-testid="in-progress-learn-later">{{ opensIn(c.path) }}</span>
               </template>
             </div>
           </div>
@@ -153,7 +163,7 @@ async function openNext(path: LearningPath): Promise<void> {
             </div>
             <div class="relative z-30 mt-auto flex items-center gap-3 pt-3">
               <RouterLink
-                :to="{ name: 'topic-reel', params: { id: reel.subject_id }, query: { minutes: '15', at: String(reel.index + 1) } }"
+                :to="{ name: 'topic-reel', params: { id: reel.subject_id }, query: { minutes: String(reel.minutes ?? 15), at: String(reel.index + 1) } }"
                 class="inline-flex h-11 items-center gap-2 rounded-full bg-listen px-5 font-bold text-canvas no-underline after:absolute after:inset-0"
                 :aria-label="t('inProgress.resumeLabel', { subject: reel.subject_label, n: reel.index + 1 })"
                 data-testid="in-progress-reel-resume"

@@ -186,7 +186,8 @@ def episode_clips(
     episode's ranking order.
 
     Cached per episode on that episode's own files (2026-10-11, scale: 2,500 episodes on prod,
-    10,000 planned). Scoring one costs ~11 ms (mostly reading its segments); keyed on the
+    10,000 planned). Scoring one costs ~5 ms on real transcripts (prod-v2), mostly reading its
+    segments; keyed on the
     corpus-wide mtime instead, every ingest would rescore every episode of every subject."""
     from podcast_scraper import perf_cache
 
@@ -273,6 +274,9 @@ def _subject_token(root: Path) -> float:
 
     stamps: list[float] = [perf_cache.corpus_mtime(root)]
     for rel in (
+        # Which topic is on which episode: `interest_episode_index` reads this file. The lance dir's
+        # own mtime moves only when a direct child appears or goes, not on every upsert.
+        "search/metadata.json",
         "search/lance_index",
         "enrichments/topic_theme_clusters.json",
         "search/topic_clusters.json",
@@ -293,6 +297,8 @@ def subject_episodes(
     from podcast_scraper import perf_cache
 
     cfg = config or MomentsConfig.from_env()
+    if not reel_subject(root, subject_id).topics:
+        return []  # an unknown subject: nothing to cache (any caller can name one)
     return list(
         perf_cache.get_or_compute(
             _SUBJECT_NS,
@@ -389,6 +395,8 @@ def goal_reel(
     from podcast_scraper import perf_cache
 
     cfg = config or MomentsConfig.from_env()
+    if not reel_subject(root, subject_id).topics:
+        return []
     return list(
         perf_cache.get_or_compute(
             _REEL_NS,

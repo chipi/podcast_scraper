@@ -98,7 +98,7 @@ const playingNow = computed(() => !!live.value && !live.value.done && player.pla
 
 /** One reel event (operator 2026-10-11: real telemetry for everything new): which action, on which
  *  kind of subject, on which clip — never which subject or episode. */
-function report(action: 'start' | 'next' | 'prev' | 'keep' | 'done'): void {
+function report(action: 'start' | 'next' | 'prev' | 'jump' | 'keep' | 'done'): void {
   if (!data.value) return
   const at = live.value ? live.value.index + 1 : undefined
   track('reel_action', {
@@ -144,7 +144,10 @@ function togglePlay(): void {
   else player.resumeAfterInterruption()
 }
 function jump(i: number): void {
-  if (live.value && !live.value.done) void player.reelGo(i)
+  if (live.value && !live.value.done) {
+    report('jump')
+    void player.reelGo(i)
+  }
   else void start(i)
 }
 function keepListening(): void {

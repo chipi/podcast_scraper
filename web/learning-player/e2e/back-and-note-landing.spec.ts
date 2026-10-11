@@ -39,7 +39,9 @@ async function place(el: Locator): Promise<Place> {
   await expect
     .poll(
       async () => {
-        await el.scrollIntoViewIfNeeded()
+        // Centred, not "if needed": that stops at the edge, and a control whose bottom sat 0.19 px
+        // past a 760 px screen never counted as on screen (2026-10-11).
+        await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
         const a = (await el.boundingBox())!.y
         await el.page().waitForTimeout(300)
         const b = (await el.boundingBox())!
@@ -168,7 +170,9 @@ test('every way out of the episode notes comes back to the spot it left from', a
   await signInIsolated(page, 'back-every-combination', testInfo)
   await openRiskPanelEpisode(page)
   await page.getByTestId('player-open-insights').click()
+  // ✕ closes the whole card; a card drilled one level in has ‹ to go back (aee575ca1).
   const back = () => page.getByTestId('ec-dismiss').first()
+  const backOne = () => page.getByTestId('ec-back').first()
 
   // episode → person, then person → related person (the card's own stack) and back twice.
   const person = await openChipWith(page, 'kp-person-chip', 'ec-related-person')
@@ -180,7 +184,7 @@ test('every way out of the episode notes comes back to the spot it left from', a
   const cardBody = page.getByTestId('ec-search-library').first()
   await expect(cardBody).toBeAttached()
   await expect.poll(() => scrollerTop(cardBody), { message: 'the related person opened mid-way down' }).toBeLessThan(8)
-  await back().click()
+  await backOne().click()
   await expectBackAt(related, relatedTop, 'person after Back from a related person')
   await back().click()
   await expectBackAt(person.chip, person.top, 'episode notes after Back from the person')
@@ -190,7 +194,7 @@ test('every way out of the episode notes comes back to the spot it left from', a
   const similar = page.getByTestId('ec-similar-topic').last()
   await similar.scrollIntoViewIfNeeded()
   const similarTop = await tap(similar)
-  await back().click()
+  await backOne().click()
   await expectBackAt(similar, similarTop, 'topic after Back from a similar topic')
 
   // Pinned to the element by its href: a page-wide `.last()` re-resolves on every use, and once a

@@ -272,7 +272,7 @@ test('a short listen on a topic: the tap that opens it starts clip 1; next, jump
   await expect(current).toContainText('Clip 5 of 9')
 
   await page.getByTestId('topic-reel-keep').click()
-  await expect(page).toHaveURL(/\/episode\/p05-693ecaa09e/)
+  await expect(page).toHaveURL(/\/episode\/p09-a4bbb5dde3/)
 })
 
 test('a short listen from a storyline and a theme: clips about any member topic; chips wear their kind', async ({
@@ -283,10 +283,10 @@ test('a short listen from a storyline and a theme: clips about any member topic;
   await signInIsolated(page, 'discover-storyline-reel', testInfo)
   await page.goto('/browse')
   await showEveryonesTrends(page)
-  const chips = page.getByTestId('reel-topic-chip')
-  await expect(chips.filter({ hasText: 'Managing risk across domains' })).toHaveAttribute('data-kind', 'storyline')
-  await expect(chips.filter({ hasText: 'reliability' })).toHaveAttribute('data-kind', 'theme')
-  await expect(chips.filter({ hasText: 'Managing risk across domains' })).toHaveClass(/text-storyline/)
+  // Whichever storyline and theme are offered: which rise depends on what earlier specs in the run
+  // listened to (everyone's momentum is shared state). Each wears its kind's colours.
+  await expect(page.locator('[data-testid="reel-topic-chip"][data-kind="storyline"]').first()).toHaveClass(/text-storyline/)
+  await expect(page.locator('[data-testid="reel-topic-chip"][data-kind="theme"]').first()).toHaveClass(/text-theme/)
 
   await page.goto(`/storyline/${encodeURIComponent('thc:managing-risk')}`)
   // Its other door: seven days of it (operator 2026-10-11).

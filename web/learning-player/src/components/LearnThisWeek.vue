@@ -10,7 +10,7 @@
 import { onActivated, onDeactivated, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
-import { getLearn, startLearn, type LearningPath, type LearnSubject } from '../services/api'
+import { ApiError, getLearn, startLearn, type LearningPath, type LearnSubject } from '../services/api'
 import { track } from '../services/analytics'
 import { kindPill } from '../utils/interests'
 
@@ -48,8 +48,10 @@ async function start(subject: LearnSubject): Promise<void> {
     const path = await startLearn(subject.subject_id)
     track('learn_path', { action: 'start', kind: subject.subject_kind, source: 'discover' })
     void router.push({ name: 'learn', query: { subject: path.subject_id } })
-  } catch {
-    // Nothing started: the chips stay, rather than pretend.
+  } catch (e) {
+    // Nothing started: the chips stay, rather than pretend. At the cap (another tab filled it since
+    // this loaded), re-read so the offers make way for the paths that are on.
+    if (e instanceof ApiError && e.status === 409) void load()
   } finally {
     busy.value = false
   }
@@ -84,6 +86,7 @@ async function start(subject: LearnSubject): Promise<void> {
             :to="{ name: 'learn', query: { subject: p.subject_id } }"
             class="lp-tap inline-flex min-h-[44px] items-center rounded-full bg-learn/15 px-4 text-sm font-semibold text-learn no-underline ring-1 ring-inset ring-learn/40"
             data-testid="learn-current"
+            @click="track('learn_path', { action: 'open', kind: p.subject_kind, source: 'discover' })"
           >{{ t('learn.current', { subject: p.subject_label, n: p.day, total: p.steps.length }) }} ›</RouterLink>
         </li>
       </ul>

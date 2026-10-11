@@ -102,14 +102,19 @@ describe('InProgressStrip', () => {
 
   it('every open day done: "Next day now" opens it in place; otherwise it says tomorrow, or all done', async () => {
     api.getInProgress.mockResolvedValue({
-      paths: [path('thc:a', 'A', 2, 2, true), path('thc:b', 'B', 2, 2, false), path('thc:c', 'C', 7, 7)],
+      paths: [
+        path('thc:a', 'A', 2, 2, true),
+        { ...path('thc:b', 'B', 2, 2, false), next_opens_at: Math.floor(Date.now() / 1000) + 14 * 3600 - 60 },
+        path('thc:c', 'C', 7, 7),
+      ],
       reel: null,
     })
     api.learnOpenNext.mockResolvedValue(path('thc:a', 'A', 3, 2))
     const w = await mountIt()
     const cards = w.findAll('[data-testid="in-progress-learn"]')
     expect(cards[1].text()).toContain('Day 2 done ✓')
-    expect(cards[1].text()).toContain('The next day opens tomorrow')
+    // Days count 24 h from the start, not calendar days: the copy says when, not "tomorrow".
+    expect(cards[1].get('[data-testid="in-progress-learn-later"]').text()).toBe('Day 3 opens in 14 h')
     expect(cards[0].text()).toContain('Day 2 done ✓')
     expect(cards[2].get('[data-testid="in-progress-learn-finished"]').text()).toBe('All 7 days done ✓')
     await cards[0].get('[data-testid="in-progress-learn-next"]').trigger('click')

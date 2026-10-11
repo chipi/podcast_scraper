@@ -88,7 +88,11 @@ async function openNext(): Promise<void> {
 async function stop(): Promise<void> {
   if (!path.value) return
   const kind = path.value.subject_kind
-  await stopLearn(path.value.subject_id).catch(() => undefined)
+  try {
+    await stopLearn(path.value.subject_id)
+  } catch {
+    return // not stopped: the page stays, rather than pretend
+  }
   track('learn_path', { action: 'stop', kind })
   void router.push({ name: 'browse' })
 }
@@ -109,13 +113,13 @@ function goBack(): void {
       <h1 class="font-display text-3xl font-extrabold tracking-tight" data-testid="learn-view-title">{{ path.subject_label }}</h1>
       <p class="mt-1 text-sm text-muted">{{ t('learn.dayOf', { n: path.day, total: path.steps.length }) }}</p>
       <ol class="mt-6 flex flex-col gap-3">
-        <li v-for="(s, i) in path.steps" :key="s.day"><LearnStep
+        <li v-for="s in path.steps" :key="s.day"><LearnStep
             :step="s"
             :busy="busy"
             :kind="path.subject_kind"
             :open="isOpen(s.day)"
             :can-open-next="!!path.can_open_next && s.day === path.day"
-            @done="markDone(i)"
+            @done="markDone(s.day - 1)"
             @next="openNext"
             @toggle="toggle(s.day)"
           /></li>

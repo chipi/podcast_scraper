@@ -170,8 +170,19 @@ def unlocked(path: dict[str, Any], index: int, now: Optional[float] = None) -> b
     return 0 <= index < open_days(path, now)
 
 
-def can_open_next(path: dict[str, Any], now: Optional[float] = None) -> bool:
-    """The next day may be opened now: the newest open day is done and a later one is left."""
+def can_open_next(
+    path: dict[str, Any], now: Optional[float] = None, gone: frozenset[int] = frozenset()
+) -> bool:
+    """The next day may be opened now: the newest open day is done (or its episode has left the
+    corpus — ``gone``, step indexes — so it can never be done) and a later one is left."""
     n = open_days(path, now)
-    done = {int(i) for i in path.get("done") or []}
+    done = {int(i) for i in path.get("done") or []} | gone
     return n < len(path.get("steps") or []) and (n - 1) in done
+
+
+def next_opens_at(path: dict[str, Any], now: Optional[float] = None) -> Optional[int]:
+    """When the next day opens by itself (epoch seconds), or ``None`` with every day open. Days
+    count whole 24 h periods from the start, not calendar days."""
+    if open_days(path, now) >= len(path.get("steps") or []):
+        return None
+    return int(path.get("started_at") or 0) + (day_of(path, now) + 1) * _DAY_S

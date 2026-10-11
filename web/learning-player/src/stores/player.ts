@@ -718,9 +718,12 @@ export const usePlayerStore = defineStore('player', () => {
    * Leave the reel. ``keepHere`` ("Keep listening here") stays at this moment and keeps playing as
    * the full episode; otherwise (✕) pause and go back to where the listener was before.
    */
+  /** The topic reel the listener last left, and how: ✕ (`close`) or "Keep listening" (`keep`). */
+  const reelLeft = ref<{ id: string; how: 'close' | 'keep' } | null>(null)
   function exitReel(keepHere: boolean): void {
     const r = reel.value
     if (!r) return
+    if (r.topic) reelLeft.value = { id: r.topic.id, how: keepHere ? 'keep' : 'close' }
     reel.value = null
     reelResolve = null
     if (keepHere) {
@@ -1094,6 +1097,7 @@ export const usePlayerStore = defineStore('player', () => {
     currentArtwork,
     justFinished,
     reel,
+    reelLeft,
     inReel,
     startReel,
     startTopicReel,

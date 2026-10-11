@@ -487,7 +487,8 @@ piece to its design home:
     the day's episode, the week as seven segments (done, open, not yet), and "▶ Play day 3 · 1:24"
     (the episode at the clip, playing) — the Resume hero's oval, in `learn`, so Home has one play
     control (operator 2026-10-11). Every open day done: "Day 2 done ✓" with "Next day now ›" (the
-    same oval) in place, or "The next day opens tomorrow"; all done: "All 7 days done ✓". The card opens the
+    same oval) in place, or "Day 3 opens in 14 h" (days count 24 h from the start, so never
+    "tomorrow"); all done: "All 7 days done ✓". The card opens the
     week.
   - **The short listen** (`listen`, emerald): "▶ SHORT LISTEN · CLIP 5 OF 9", the subject, the
     quote at that clip and its speaker, a bar of clips heard, and "▶ Resume · clip 5" (the same oval,

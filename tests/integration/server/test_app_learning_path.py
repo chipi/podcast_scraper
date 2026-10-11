@@ -237,6 +237,40 @@ def test_up_to_three_paths_at_once_each_its_own(tmp_path: Path) -> None:
     assert not learning & {c["subject_id"] for c in offered["candidates"]}
 
 
+def test_a_day_whose_episode_left_still_lets_the_path_go_on(tmp_path: Path) -> None:
+    """Review S1 (2026-10-11): a step whose episode left the corpus is not shown and can never be
+    done; the days after keep their own day, and once the open day is gone "Next day now" opens
+    the next. An index past the path is 404, not "its day has not come"."""
+    client, uid = _client(tmp_path)
+    client.post("/api/app/discover/learn", json={"subject_id": "thc:managing-risk"})
+    stored = app_user_state.get_learning_paths(tmp_path, uid)[0]
+    steps = [dict(s) for s in stored["steps"]]
+    steps[0]["episode_slug"] = "gone-from-the-corpus"
+    app_user_state._write(tmp_path, uid, "learning_paths", [{**stored, "steps": steps}])
+    path = client.get("/api/app/discover/learn/paths/thc:managing-risk").json()
+    assert [s["day"] for s in path["steps"]] == [2, 3, 4, 5, 6, 7]
+    assert path["can_open_next"] is True  # day 1 can never be done
+    assert path["next_opens_at"] == stored["started_at"] + _DAY
+    ahead = client.post("/api/app/discover/learn/paths/thc:managing-risk/next").json()
+    assert ahead["day"] == 2
+    done = client.post("/api/app/discover/learn/paths/thc:managing-risk/steps/1/done").json()
+    assert [s["done"] for s in done["steps"]][:1] == [True]  # day 2, the one tapped
+    bad = client.post("/api/app/discover/learn/paths/thc:managing-risk/steps/99/done")
+    assert bad.status_code == 404
+
+
+def test_a_corrupt_paths_file_is_never_overwritten(tmp_path: Path) -> None:
+    """Review S6: starting a path must not turn an unreadable learning_paths.json into one path,
+    losing the others."""
+    client, uid = _client(tmp_path)
+    client.post("/api/app/discover/learn", json={"subject_id": "thc:managing-risk"})
+    f = tmp_path / "users" / uid / "learning_paths.json"
+    f.write_text("{not json", encoding="utf-8")
+    with pytest.raises(Exception):
+        app_user_state.add_learning_path(tmp_path, uid, {"subject_id": "tc:x", "steps": []}, cap=3)
+    assert f.read_text(encoding="utf-8") == "{not json"
+
+
 def test_in_progress_lists_the_paths_and_the_last_unfinished_short_listen(tmp_path: Path) -> None:
     """Home's door (operator 2026-10-11): every path, and the last short listen left unfinished,
     resumable at its clip; finishing it (DELETE) clears it, and a newer one replaces it."""
@@ -274,8 +308,18 @@ def test_in_progress_lists_the_paths_and_the_last_unfinished_short_listen(tmp_pa
         "/api/app/discover/reel/progress", json={"subject_id": "person:x", "index": 0, "clips": 1}
     )
     assert bad.status_code == 422
-    assert client.delete("/api/app/discover/reel/progress").status_code == 204
+    # Finishing ANOTHER short listen (another device) leaves this one; finishing this one clears it.
+    other = client.delete(
+        "/api/app/discover/reel/progress", params={"subject": "topic:reliability"}
+    )
+    assert other.status_code == 204
+    assert client.get("/api/app/discover/in-progress").json()["reel"] is not None
+    gone = client.delete(
+        "/api/app/discover/reel/progress", params={"subject": "thc:second-order-effects"}
+    )
+    assert gone.status_code == 204
     assert client.get("/api/app/discover/in-progress").json()["reel"] is None
+    assert client.delete("/api/app/discover/reel/progress").status_code == 422  # whose?
 
 
 def test_a_subject_without_a_path_cannot_be_started(tmp_path: Path) -> None:

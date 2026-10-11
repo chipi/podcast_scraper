@@ -1256,6 +1256,11 @@ class AppLearningPath(BaseModel):
     can_open_next: bool = Field(
         default=False, description="The newest open day is done and the next may be opened now."
     )
+    next_opens_at: int | None = Field(
+        default=None,
+        description="When the next day opens by itself (epoch seconds; 24 h periods from the "
+        "start); None with every day open.",
+    )
     steps: list[AppPathStep] = Field(default_factory=list)
 
 
@@ -1297,6 +1302,7 @@ class AppReelProgressIn(BaseModel):
     subject_id: str = Field(min_length=4, max_length=200, pattern=r"^(topic|tc|thc):")
     index: int = Field(ge=0, le=500, description="The clip playing, 0-based.")
     clips: int = Field(ge=1, le=500)
+    minutes: int = Field(default=15, ge=1, le=60, description="The reel's budget, to resume it.")
 
 
 class AppReelProgress(BaseModel):
@@ -1307,6 +1313,7 @@ class AppReelProgress(BaseModel):
     subject_label: str
     index: int = Field(description="The clip to resume at, 0-based.")
     clips: int
+    minutes: int = 15
     updated_at: int
     episode: AppEpisodeSummary | None = Field(
         default=None, description="The episode of the clip it resumes at (its artwork, its title)."

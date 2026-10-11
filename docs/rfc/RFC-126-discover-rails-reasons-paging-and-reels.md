@@ -148,15 +148,20 @@ GET    /api/app/discover/learn/paths/{subject_id}           → path (404: not l
 POST   /api/app/discover/learn/paths/{subject_id}/steps/{i}/done → path (409: not open yet)
 POST   /api/app/discover/learn/paths/{subject_id}/next      → path (409: newest open day not done)
 DELETE /api/app/discover/learn/paths/{subject_id}           → 204
-PUT    /api/app/discover/reel/progress {subject_id, index, clips} → the place (Home resumes it)
-DELETE /api/app/discover/reel/progress                      → 204 (the short listen was finished)
+PUT    /api/app/discover/reel/progress {subject_id, index, clips, minutes} → the place
+DELETE /api/app/discover/reel/progress?subject=             → 204 (finished or ✕; only that one)
 GET    /api/app/discover/in-progress   → { paths, reel: {subject, index, clips, episode, quote} | null }
 ```
 
 **In progress** (operator 2026-10-11): Home's door into what was started reads
 `/discover/in-progress` — every path, and the last short listen left unfinished
-(`reel_progress.json`: the app shell writes each clip change of a topic reel, the last clip's end
-clears it; a newer short listen replaces it).
+(`reel_progress.json`: the app shell writes each clip change of a topic reel once something was
+heard — it played, or the listener moved past clip 1 — the last clip's end or ✕ clears it, naming
+the reel so another device's newer one stays; "Keep listening" keeps it; a newer short listen
+replaces it). A path's day whose episode left the corpus is not shown and counts as done for
+"Next day now"; `next_opens_at` says when the next day opens by itself (24 h periods from the
+start, not calendar days). Everyone's trending for the Short listens row and the Learn offers is
+the cached list `/trending` uses (`corpus_trending`), not five fresh builds per Discover load.
 
 Candidates are themes and storylines taking turns, three at most, none already being learned, each
 only with a path, and none at the cap: under
@@ -181,8 +186,8 @@ The reel, Learn and Explore (2026-10-11; every event checked end to end into the
 
 ```text
 reel_open        { source: discover_row|subject_page|in_progress, kind }
-reel_action      { action: start|next|prev|keep|done, kind, clips: CountBucket, clip?: RankBucket }
-learn_path       { action: start|step_play|step_done|open_next|stop, kind, day?, source?: discover|subject_page|in_progress }
+reel_action      { action: start|next|prev|jump|keep|done, kind, clips: CountBucket, clip?: RankBucket }
+learn_path       { action: start|open|step_play|step_done|open_next|stop, kind, day?, source?: discover|subject_page|in_progress }
 trends_show_more { kind, sort, shown: CountBucket }
 explore_see_all  { list: episodes|shows }
 catalog_filter   { list: episodes|shows, value: all|following|mine }
