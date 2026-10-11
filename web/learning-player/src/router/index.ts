@@ -194,6 +194,25 @@ const routes: RouteRecordRaw[] = [
     path: '/explore',
     name: 'explore',
     component: () => import('../views/ExploreView.vue'),
+    // Explore shows a taste of the catalogue (operator 2026-10-11); a link that carries a list's
+    // filters means that full list, so it goes there with them.
+    beforeEnter: (to) => {
+      const q = to.query
+      if (q.tab === 'shows' && (q.sort || q.view || q.from)) return { name: 'shows', query: q }
+      if ((q.tab === 'episodes' || !q.tab) && (q.from || q.state)) return { name: 'catalog', query: q }
+      return true
+    },
+  },
+  {
+    // The full show list: "See all" from Explore's taste, trending shows' "See all" on Discover.
+    path: '/shows',
+    name: 'shows',
+    component: () => import('../views/ShowBrowseView.vue'),
+    props: (route) => ({
+      initialSort: route.query.sort === 'trending' ? 'trending' : undefined,
+      initialView: route.query.view === 'list' ? 'list' : undefined,
+      initialFrom: ['following', 'mine'].includes(String(route.query.from)) ? route.query.from : undefined,
+    }),
   },
   {
     // N minutes on a topic: clips across episodes (ADR-163 §8 amendment). `:id` is the topic id.
@@ -242,7 +261,7 @@ const routes: RouteRecordRaw[] = [
    * tab lit) and tests — so they were reachable by URL alone. Redirecting keeps those URLs working
    * while making the hub the only Browse there is.
    */
-  { path: '/browse/shows', name: 'browse-shows', redirect: { name: 'explore', query: { tab: 'shows' } } },
+  { path: '/browse/shows', name: 'browse-shows', redirect: { name: 'shows' } },
   { path: '/browse/topics', name: 'browse-topics', redirect: { name: 'browse', query: { tab: 'topics' } } },
   { path: '/browse/people', name: 'browse-people', redirect: { name: 'browse', query: { tab: 'people' } } },
   { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },

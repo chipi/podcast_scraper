@@ -224,6 +224,11 @@ def podcasts_list(
         default=None, max_length=35, description="Paged: shows in this language (primary code)."
     ),
     sort: Literal["newest", "oldest", "az", "za", "trending"] = Query(default="newest"),
+    facet: Literal["all", "following", "mine"] = Query(
+        default="all",
+        description="Paged: every show | the shows the listener follows | their world's shows "
+        "(followed, saved, or of an episode they heard, captured from or saved; ADR-162).",
+    ),
     compact: bool = Query(
         default=False, description="Paged: leave out descriptions (a name list, e.g. a filter)."
     ),
@@ -236,13 +241,33 @@ def podcasts_list(
     """Distinct shows in the corpus, for Home 'Your shows' (PRD-042 FR6).
 
     Paging is opt-in: with ``limit`` the catalogue is filtered (``feed_ids``, ``q`` — every word,
-    any order, over title and hosts — ``category``), sorted and paged on the server.
+    any order, over title and hosts — ``category``, ``facet``), sorted and paged on the server.
+    The catalogue is everyone's; ``facet`` narrows it to the listener's own (operator 2026-10-11).
     """
     root = corpus_root_or_503(request)
     feeds = [f for f in aggregate_feeds(cached_catalog(root)) if f.get("feed_id")]
     if limit is None:
         return AppPodcastsResponse(items=[_podcast_item(f) for f in feeds])
     wanted = set(feed_ids)
+    if facet != "all":
+        from podcast_scraper.server.app_user_corpus import followed_show_ids, personal_show_ids
+
+        raw_dir = getattr(request.app.state, "app_data_dir", None)
+        if raw_dir is None:
+            theirs: set[str] = set()
+        elif facet == "following":
+            theirs = followed_show_ids(Path(raw_dir), _user.user_id)
+        else:
+            theirs = personal_show_ids(root, Path(raw_dir), _user.user_id)
+        # An empty set of theirs is an empty page, never everyone's (``wanted`` empty = no filter).
+        wanted = (wanted & theirs) if wanted else theirs
+        if not wanted:
+            return AppPodcastsResponse(
+                items=[],
+                total=0,
+                categories=sorted({str(f["category"]) for f in feeds if f.get("category")}),
+                languages=sorted({c for f in feeds if (c := primary_language(f.get("language")))}),
+            )
     words = (q or "").casefold().split()
     lang = primary_language(language) if language else ""
 

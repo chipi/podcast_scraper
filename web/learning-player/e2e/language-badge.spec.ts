@@ -98,7 +98,7 @@ test('every show in Browse carries its language, as a tile and as a row', async 
   page,
 }, testInfo) => {
   await signInIsolated(page, 'language-badge-browse', testInfo)
-  await page.goto('/browse?tab=shows')
+  await page.goto('/shows')
 
   const grid = page.getByTestId('show-browse-grid')
   const tiles = grid.locator('li')
@@ -124,7 +124,7 @@ test('every show in Browse carries its language, as a tile and as a row', async 
 test('Browse > Shows filters by language when the shows span languages', async ({ page }, testInfo) => {
   // Operator 2026-10-10: the catalogue holds shows in several languages, so the filter is offered.
   await signInIsolated(page, 'language-filter-browse', testInfo)
-  await page.goto('/browse?tab=shows')
+  await page.goto('/shows')
   const grid = page.getByTestId('show-browse-grid')
   await expect(grid.locator('li').first()).toBeVisible()
   const all = await grid.locator('li').count()

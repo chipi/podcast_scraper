@@ -113,7 +113,7 @@ test.describe('cross-surface: a change shows on the surface that was already ope
 
   test('"Your trends" on a kept-alive Explore fill in after a follow (#8)', async ({ page }, testInfo) => {
     await signInIsolated(page, 'xs-mine-trends', testInfo)
-    await navTo(page, 'catalog') // the reader: Explore, Trends on "mine" (the default)
+    await navTo(page, 'explore') // the reader: Explore, Trends on "mine" (the default)
     await expect(page.getByTestId('discover-scope')).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByTestId('discovery-mine-empty')).toBeVisible()
 

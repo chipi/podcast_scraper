@@ -477,8 +477,12 @@ piece to its design home:
   - **Trends:** the shared `DiscoveryExplorer` in the shared scope; `?trends=<kind>` selects a kind
     and scrolls to it. A taste: the first page (3 / 5 rows), then "Show more (N)" pages on from the
     server in the active sort (`GET /trending?sort&offset&limit` → `total`).
-  - **Catalog:** Episodes · Shows tabs at `#catalog` (`?tab=`, `?from=&state=`; trending shows'
-    "See all" arrives as `?tab=shows&sort=trending&view=list`).
+  - **Catalog:** a taste, Episodes · Shows tabs at `#catalog` (`?tab=`), each the
+    **`ExploreCatalogTaste`**: one server page of the newest (4 episodes, 6 shows) and "See all N
+    episodes / shows ›" to the full lists, `/catalog` and `/shows` (operator 2026-10-11). The
+    catalogue is everyone's; the full lists carry the filters, "Which episodes" and "Which shows" —
+    All shows · Following · Mine. A link carrying a list's filters (`?from=`, `?state=`,
+    `?tab=shows&sort=trending&view=list` from trending shows' "See all") goes to that full list.
   - **Old links:** `/browse` links to Trends or the catalog redirect here.
   - **Way in:** reached from Discover's header. Whether it also gets a nav tab is open (Discover
     arc plan).

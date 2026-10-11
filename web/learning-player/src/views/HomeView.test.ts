@@ -60,6 +60,7 @@ const router = createRouter({
     { path: '/browse', name: 'browse', component: { template: '<div/>' } },
     { path: '/explore', name: 'explore', component: { template: '<div/>' } },
     { path: '/catalog', name: 'catalog', component: { template: '<div/>' } },
+    { path: '/shows', name: 'shows', component: { template: '<div/>' } },
     { path: '/search', name: 'search', component: { template: '<div/>' } },
     { path: '/podcast/:feedId', name: 'podcast', component: { template: '<div/>' } },
     { path: '/episode/:slug', name: 'player', component: { template: '<div/>' } },

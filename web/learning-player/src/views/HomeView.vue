@@ -244,12 +244,8 @@ const rank = (i: number): string => String(i + 2).padStart(2, "0")
 // "Browse all" opens the WHOLE list What's new is the top of (operator 2026-10-10: 20 shows with 20
 // new episodes showed 5): your shows, unplayed, when it is yours; every episode when it fell back.
 const whatsNewAllTo = computed(() => ({
-  name: "explore",
-  query:
-    whatsNew.data.value.scope === "yours"
-      ? { tab: "episodes", from: "following", state: "unplayed" }
-      : { tab: "episodes" },
-  hash: "#catalog",
+  name: "catalog",
+  query: whatsNew.data.value.scope === "yours" ? { from: "following", state: "unplayed" } : {},
 }))
 const whatsNewKicker = computed(() => {
   const scope =

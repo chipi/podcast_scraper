@@ -33,6 +33,7 @@ function makeRouter() {
     routes: [
       { path: '/browse', name: 'browse', component: BrowseView },
       { path: '/explore', name: 'explore', component: { template: '<div/>' } },
+      { path: '/shows', name: 'shows', component: { template: '<div/>' } },
       { path: '/search', name: 'search', component: { template: '<div/>' } },
     ],
   })
@@ -67,14 +68,13 @@ describe('BrowseView (Discover): what to hear next', () => {
     expect(w.get('[data-testid="discover-explore-link"]').attributes('href')).toBe('/explore')
   })
 
-  it("trending shows' See all opens Explore's Shows, sorted by trending, as a list", async () => {
+  it("trending shows' See all opens the full show list, sorted by trending, as a list", async () => {
     const w = await mountView()
     await w.get('[data-testid="stub-see-all"]').trigger('click')
     await flushPromises()
     const r = w.vm.$router.currentRoute.value
-    expect(r.name).toBe('explore')
-    expect(r.query).toEqual({ tab: 'shows', sort: 'trending', view: 'list' })
-    expect(r.hash).toBe('#catalog')
+    expect(r.name).toBe('shows')
+    expect(r.query).toEqual({ sort: 'trending', view: 'list' })
   })
 
   it('carries a search box that submits to the results page', async () => {

@@ -7,11 +7,13 @@ import en from '../i18n/locales/en.json'
 import ExploreView from './ExploreView.vue'
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-// Explore (ADR-163 §1) = Trends on top + the catalog of Episodes · Shows. Stub the embedded index
-// views + Trends (they fetch); here we test the page's composition and the catalog's tab logic.
+// Explore (ADR-163 §1) = Trends on top + a taste of the catalog, Episodes · Shows. Stub the taste
+// + Trends (they fetch); here we test the page's composition and the catalog's tab logic.
 const stubs = {
-  CatalogView: { template: '<div data-testid="stub-episodes" />' },
-  ShowBrowseView: { template: '<div data-testid="stub-shows" />' },
+  ExploreCatalogTaste: {
+    props: ['kind'],
+    template: '<div :data-testid="`stub-${kind}`" />',
+  },
   TrendsSection: { template: '<div data-testid="stub-trends" />' },
 }
 
@@ -50,7 +52,7 @@ describe('ExploreView', () => {
     expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('false')
   })
 
-  it('embeds the content index views (no navigation); a tab mounts when first opened, then stays', async () => {
+  it('shows a taste per tab (no navigation); a tab mounts when first opened, then stays', async () => {
     // A tab never opened builds nothing: the hidden Shows grid used to fetch and decode artwork
     // (a 3000px one on prod) while the listener was on Episodes (2026-10-08).
     const w = await mountView()
@@ -90,8 +92,5 @@ describe('ExploreView', () => {
     expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('false')
   })
 
-  it("trending shows' See all arrives on Shows, sorted by trending, as a list", async () => {
-    const w = await mountView({ tab: 'shows', sort: 'trending', view: 'list' })
-    expect(w.get('[data-testid="browse-tab-shows"]').attributes('aria-selected')).toBe('true')
-  })
+
 })

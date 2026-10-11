@@ -5,9 +5,11 @@
  *
  * - **Trends** — rising topics, themes, storylines and people (`TrendsSection`), in the shared
  *   Mine ⇄ Everyone scope. `?trends=<kind>` selects a kind and scrolls to it.
- * - **The catalog** — Episodes · Shows (`CatalogView` / `ShowBrowseView`, embedded), anchored at
- *   `#catalog`. `?tab=episodes|shows` picks the tab; `?from=&state=` reach the episode list
- *   (What's new's "all ›"); `?sort=trending&view=list` is trending shows' "See all" from Discover.
+ * - **A taste of the catalog** — Episodes · Shows (`ExploreCatalogTaste`), anchored at `#catalog`:
+ *   the newest few, then "See all" to the full lists, `/catalog` and `/shows` (operator 2026-10-11),
+ *   where search, sort and the filters (Mine among them) live. `?tab=episodes|shows` picks the tab;
+ *   a link carrying a list's filters (`?from=`, `?state=`, `?sort=`, `?view=`) goes straight to that
+ *   full list (the router does it).
  *
  * A panel mounts the first time its tab opens, then stays (v-show): switching back never refetches.
  */
@@ -18,8 +20,7 @@ defineOptions({ name: 'ExploreView' })
 import Tabs from '../components/Tabs.vue'
 import { toRankBucket, track } from '../services/analytics'
 import { panelAttrs, type TabSpec } from '../components/tabs'
-import CatalogView from './CatalogView.vue'
-import ShowBrowseView from './ShowBrowseView.vue'
+import ExploreCatalogTaste from '../components/ExploreCatalogTaste.vue'
 import { useVisitedTabs } from '../composables/useVisitedTabs'
 import TrendsSection from '../components/TrendsSection.vue'
 import TrendingScopeButton from '../components/TrendingScopeButton.vue'
@@ -76,9 +77,6 @@ watch(
     if (TAB_KEYS.some((tb) => tb.key === q)) tab.value = q as Tab
   },
 )
-// Trending shows' "See all" on Discover arrives on Shows, sorted by trending, as a list.
-const showsSort = computed(() => (route.query.sort === 'trending' ? ('trending' as const) : undefined))
-const showsView = computed(() => (route.query.view === 'list' ? ('list' as const) : undefined))
 </script>
 
 <template>
@@ -99,8 +97,8 @@ const showsView = computed(() => (route.query.view === 'list' ? ('list' as const
     <div id="catalog" class="scroll-mt-4">
       <h2 class="lp-section mb-3 mt-8">{{ t('browse.catalogTitle') }}</h2>
       <Tabs v-model="tab" :tabs="tabs" :label="t('explore.title')" id-prefix="browse" equal-width class="mb-6" />
-      <div v-show="tab === 'episodes'" v-bind="panelAttrs('browse', 'episodes')" data-testid="browse-panel-episodes"><template v-if="visitedTabs.has('episodes')"><CatalogView embedded /></template></div>
-      <div v-show="tab === 'shows'" v-bind="panelAttrs('browse', 'shows')" data-testid="browse-panel-shows"><template v-if="visitedTabs.has('shows')"><ShowBrowseView embedded :initial-sort="showsSort" :initial-view="showsView" /></template></div>
+      <div v-show="tab === 'episodes'" v-bind="panelAttrs('browse', 'episodes')" data-testid="browse-panel-episodes"><template v-if="visitedTabs.has('episodes')"><ExploreCatalogTaste kind="episodes" /></template></div>
+      <div v-show="tab === 'shows'" v-bind="panelAttrs('browse', 'shows')" data-testid="browse-panel-shows"><template v-if="visitedTabs.has('shows')"><ExploreCatalogTaste kind="shows" /></template></div>
     </div>
   </section>
 </template>

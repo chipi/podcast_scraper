@@ -121,7 +121,10 @@ theme and storyline cards.
 ### FR8: Explore
 
 Explore has its own place in the navigation. It holds Trends, each kind as a short list with
-"Show all", and a taste of the catalogue with "See all" to the full catalogue page.
+"Show more" paged from the server, and a taste of the catalogue: the newest four episodes or six
+shows, with "See all" to the full lists (`/catalog`, `/shows`). Mine applies to Trends and Search;
+the catalogue is everyone's, and its full lists carry a "Which episodes" / "Which shows" filter
+(All shows, Following, Mine) for the listener's own.
 
 ### FR9: Search
 

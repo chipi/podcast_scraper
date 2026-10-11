@@ -26,7 +26,7 @@ export const OWNED_ROUTES: Record<string, readonly string[]> = {
   browse: ['browse', 'search', 'podcast', 'topic-reel'],
   // Explore (operator 2026-10-11): Trends and the Episodes · Shows catalog, and the catalog's own
   // "see all" lists, which moved there from Discover (ADR-163 §1).
-  explore: ['explore', 'catalog', 'browse-shows', 'browse-topics', 'browse-people'],
+  explore: ['explore', 'catalog', 'shows', 'browse-shows', 'browse-topics', 'browse-people'],
   library: ['library'],
   // The masthead's queue control (operator 2026-09-23). One route, no gathering: the queue is a
   // destination, not a hub.

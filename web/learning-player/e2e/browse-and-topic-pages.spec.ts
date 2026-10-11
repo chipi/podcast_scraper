@@ -100,8 +100,8 @@ test('the trend-window selector defaults to 3M and switches (RFC-103 R2)', async
  */
 test('the catalogue groups by time, and stops when time is not the order', async ({ page }, testInfo) => {
   await signInIsolated(page, 'catalogue-time-groups', testInfo)
-  await page.goto('/explore')
-  await showEveryonesTrends(page)
+  // The full episode list (Explore shows only a taste since 2026-10-11).
+  await page.goto('/catalog')
   await page.waitForLoadState('networkidle')
 
   const headings = page.locator('h2.lp-kicker')
@@ -240,7 +240,8 @@ test("What's new \"Browse all\" lands ON the episode list (on Explore since 2026
   for (let i = 0; i < 2; i++) {
     await page.goto('/')
     await page.getByRole('link', { name: /Browse all/ }).first().click()
-    await expect(page).toHaveURL(/\/explore\?tab=episodes/)
-    await expect(page.getByTestId('browse-panel-episodes')).toBeInViewport()
+    // The full episode list itself since 2026-10-11 (Explore shows only a taste).
+    await expect(page).toHaveURL(/\/catalog/)
+    await expect(page.getByTestId('episode-card').first()).toBeInViewport()
   }
 })

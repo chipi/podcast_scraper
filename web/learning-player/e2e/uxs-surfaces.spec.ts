@@ -122,11 +122,11 @@ test('UXS-014 §CollapsibleSection: a section you close in the Brief stays close
   await page.getByTestId('knowledge-panel').getByTestId('kp-section-toggle-key-points').click()
 })
 
-test('UXS-012: "Browse all →" under What\'s new opens the Browse hub on Episodes', async ({ page }) => {
+test('UXS-012: "Browse all →" under What\'s new opens the full episode list', async ({ page }) => {
   await page.goto('/')
   const section = page.getByRole('heading', { name: "What's new" }).locator('xpath=ancestor::section[1]')
   await section.getByRole('link', { name: /Browse all/ }).click()
-  await expect(page).toHaveURL(/\/explore\?tab=episodes/)
+  await expect(page).toHaveURL(/\/catalog/)
 })
 
 test('UXS-012 §Section state: a failed What\'s new says so and Retry recovers it', async ({ page }) => {

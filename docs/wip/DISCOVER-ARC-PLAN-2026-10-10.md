@@ -211,3 +211,16 @@ Each of these changes what the pinned evals and Moments e2e expect.
 - The order inside Step 2, if measurement suggests otherwise.
 - Whether Explore also gets a nav tab (today: a link in Discover's header).
 - What the picker offers and how many picks it asks for.
+
+## 2026-10-11 (later): Mine everywhere, Explore as a taste
+
+- Under Mine everything on Discover is the listener's own: the outside-your-usual share is removed
+  (ADR-163 §7 superseded), and the quote rail no longer offers what they already had.
+- Reels for themes and storylines, kind-coloured chips, and the "15 min on this" door.
+- Explore's Trends page from the server (`/trending?sort&offset` → `total`).
+- Explore's catalog is a taste (4 episodes, 6 shows) with "See all" to `/catalog` and the new
+  `/shows`. The catalogue stays everyone's; `/shows` gained the "Which shows" filter (All shows ·
+  Following · Mine, `GET /podcasts?facet=`), matching "Which episodes" on `/catalog`.
+- Next: "Learn X this week" as a 7-day path, one step a day, progress kept on the server (operator
+  2026-10-11).
+

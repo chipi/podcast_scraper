@@ -83,7 +83,7 @@ export async function openTranscript(page: Page): Promise<void> {
  */
 export async function navTo(
   page: Page,
-  dest: 'home' | 'search' | 'library' | 'profile' | 'catalog',
+  dest: 'home' | 'search' | 'library' | 'profile' | 'catalog' | 'explore',
 ): Promise<void> {
   await tapTo(page, dest)
   // ARRIVE before returning (2026-10-09). A click only starts a client-side navigation; a caller
@@ -95,27 +95,32 @@ export async function navTo(
     search: (u) => u.pathname.startsWith('/search'),
     library: (u) => u.pathname.startsWith('/library'),
     profile: (u) => u.pathname.startsWith('/profile'),
-    catalog: (u) => u.pathname.startsWith('/explore'),
+    catalog: (u) => u.pathname.startsWith('/catalog'),
+    explore: (u) => u.pathname.startsWith('/explore'),
   }
   await page.waitForURL(at[dest])
 }
 
 async function tapTo(
   page: Page,
-  dest: 'home' | 'search' | 'library' | 'profile' | 'catalog',
+  dest: 'home' | 'search' | 'library' | 'profile' | 'catalog' | 'explore',
 ): Promise<void> {
-  // `catalog` is Explore since Trends and the Episodes · Shows catalog moved there (ADR-163 §1): on
-  // a phone, Home's "Browse all"; on desktop, the header's Discover and then its Explore link.
-  if (dest === 'catalog') {
-    const tab = page.getByTestId('bottom-nav-home')
-    if (await tab.isVisible().catch(() => false)) {
-      await tab.click()
+  // `explore` is Explore (Trends + a taste of the catalog, ADR-163 §1): its own bottom tab on a
+  // phone, the masthead icon on desktop. `catalog` is the full episode list behind it (2026-10-11):
+  // on a phone Home's "Browse all", on desktop Explore's "See all episodes".
+  if (dest === 'explore' || dest === 'catalog') {
+    const tab = page.getByTestId('bottom-nav-explore')
+    const phone = await tab.isVisible().catch(() => false)
+    if (dest === 'catalog' && phone) {
+      await page.getByTestId('bottom-nav-home').click()
       await page.getByRole('link', { name: /Browse all/i }).first().click()
       return
     }
-    // The header nav link was renamed Browse → Discover (nav.browse, operator 2026-09-14).
-    await page.locator('header').getByRole('link', { name: 'Discover' }).click()
-    await page.getByTestId('discover-explore-link').click()
+    await (phone ? tab : page.getByTestId('masthead-explore')).click()
+    if (dest === 'catalog') {
+      await page.getByTestId('browse-tab-episodes').click()
+      await page.getByTestId('explore-see-all-episodes').click()
+    }
     return
   }
 

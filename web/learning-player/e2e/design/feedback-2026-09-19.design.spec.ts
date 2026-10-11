@@ -251,7 +251,7 @@ test('explore: "Show more" pages the trends list on from the server', async ({ p
 
 test('discover: the episodes load-more matches the shows one', async ({ page }) => {
   await signIn(page)
-  await page.goto('/browse?tab=episodes')
+  await page.goto('/catalog')
   const more = page.locator('[data-testid="catalog-load-more"]')
   if (!(await more.count())) test.skip(true, 'corpus fits on one page — no load-more to shoot')
   await shootNear(page, more, 'episodes-load-more')

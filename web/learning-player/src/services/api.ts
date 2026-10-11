@@ -1086,6 +1086,8 @@ export interface PodcastsQuery {
   feedIds?: string[]
   /** Leave out descriptions (a list of names). */
   compact?: boolean
+  /** Everyone's shows, the ones the listener follows, or their world's (ADR-162). */
+  facet?: "all" | "following" | "mine"
 }
 
 /**
@@ -1098,6 +1100,7 @@ export async function getPodcastsPage(query: PodcastsQuery): Promise<PodcastsPag
   if (query.language) params.set("language", query.language)
   if (query.sort) params.set("sort", query.sort)
   if (query.compact) params.set("compact", "true")
+  if (query.facet && query.facet !== "all") params.set("facet", query.facet)
   for (const id of query.feedIds ?? []) params.append("feed_ids", id)
   const resp = await getJSON<{
     items: Podcast[]

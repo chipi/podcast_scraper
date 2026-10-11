@@ -40,8 +40,23 @@ test('Explore holds Trends and the catalog, one tap from Discover', async ({ pag
   await expect(page.getByTestId('explore-view')).toBeVisible()
   await expect(page.getByTestId('discovery-explorer')).toBeVisible()
   await expect(page.getByTestId('browse-tab-episodes')).toHaveAttribute('aria-selected', 'true')
+  // A taste of the catalog (operator 2026-10-11): four episodes, then "See all" to the full list.
+  await expect(page.getByTestId('explore-taste-episodes').getByTestId('episode-card')).toHaveCount(4)
   await page.getByTestId('browse-tab-shows').click()
   await expect(page.getByTestId('browse-panel-shows')).toBeVisible()
+  await expect(page.getByTestId('explore-taste-shows').getByRole('listitem')).toHaveCount(6)
+  await page.getByTestId('explore-see-all-shows').click()
+  await expect(page).toHaveURL(/\/shows$/)
+  await expect(page.getByTestId('show-browse-view')).toBeVisible()
+  // The catalogue is everyone's, with a filter for the listener's own (operator 2026-10-11).
+  await page.getByTestId('show-browse-from').click()
+  await page.getByTestId('show-browse-from-opt-mine').click()
+  await expect(page.getByTestId('show-browse-grid')).toBeHidden() // a fresh account has no shows of its own
+
+  await page.goto('/explore')
+  await page.getByTestId('explore-see-all-episodes').click()
+  await expect(page).toHaveURL(/\/catalog$/)
+  await expect(page.getByTestId('catalog-from')).toBeVisible()
 })
 
 test('old Discover links into Trends and the catalog land on Explore', async ({ page }, testInfo) => {
@@ -54,13 +69,16 @@ test('old Discover links into Trends and the catalog land on Explore', async ({ 
   await expect(page.getByTestId('browse-tab-shows')).toHaveAttribute('aria-selected', 'true')
 })
 
-test("trending shows' See all opens Explore's Shows, sorted by trending", async ({ page }, testInfo) => {
+test("trending shows' See all opens the full show list, sorted by trending", async ({ page }, testInfo) => {
   await signInIsolated(page, 'explore-see-all', testInfo)
   await page.goto('/browse')
   await showEveryonesTrends(page)
   await page.getByTestId('trending-shows-seeall').click()
-  await expect(page).toHaveURL(/\/explore\?tab=shows&sort=trending&view=list#catalog/)
-  await expect(page.getByTestId('browse-tab-shows')).toHaveAttribute('aria-selected', 'true')
+  await expect(page).toHaveURL(/\/shows\?sort=trending&view=list/)
+  await expect(page.getByTestId('show-browse-sort')).toBeVisible()
+  // An old link carrying those filters goes to the same full list.
+  await page.goto('/explore?tab=shows&sort=trending&view=list#catalog')
+  await expect(page).toHaveURL(/\/shows\?tab=shows&sort=trending&view=list/)
 })
 
 test('a highlight seeds "More from what you captured": elsewhere, saying which highlight', async ({

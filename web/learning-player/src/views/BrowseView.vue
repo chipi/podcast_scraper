@@ -78,14 +78,10 @@ const railTelemetryScope = computed<'mine' | 'everyone'>(() =>
   railScope.value === 'mine' ? 'mine' : 'everyone',
 )
 
-// Trending shows' "See all" opens Explore's Shows tab sorted by trending, as a list, so the
+// Trending shows' "See all" opens the full show list sorted by trending, as a list, so the
 // destination matches the rail it came from (operator 2026-09-14).
 function onShowsSeeAll(): void {
-  void router.push({
-    name: 'explore',
-    query: { tab: 'shows', sort: 'trending', view: 'list' },
-    hash: '#catalog',
-  })
+  void router.push({ name: 'shows', query: { sort: 'trending', view: 'list' } })
 }
 </script>
 

@@ -273,6 +273,7 @@
     "shows": "Shows",
     "filterShows": "Filter shows…",
     "fromLabel": "Which episodes",
+    "fromShowsLabel": "Which shows",
     "fromAll": "All shows",
     "fromFollowing": "Shows I follow",
     "fromFollowingShort": "Following",
@@ -1295,6 +1296,8 @@
     }
   },
   "explore": {
-    "title": "Explore"
+    "title": "Explore",
+    "seeAllEpisodes": "See all {count} episodes",
+    "seeAllShows": "See all {count} shows"
   }
 }

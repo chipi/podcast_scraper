@@ -22,7 +22,7 @@ test('Explore renders the discovery explorer and both content tabs', async ({ pa
 
   // Content band — Episodes and Shows only (topics/people/storylines surface via the explorer).
   await page.getByTestId('browse-tab-shows').click()
-  await expect(page.getByTestId('show-browse-view')).toBeVisible()
+  await expect(page.getByTestId('explore-taste-shows')).toBeVisible()
 
   await page.getByTestId('browse-tab-episodes').click()
   await expect(page.getByTestId('browse-panel-episodes')).toBeVisible()
@@ -30,8 +30,7 @@ test('Explore renders the discovery explorer and both content tabs', async ({ pa
 
 test('the shows index can be searched and sorted', async ({ page }, testInfo) => {
   await signInIsolated(page, 'browse-shows', testInfo)
-  await page.goto('/explore')
-  await page.getByTestId('browse-tab-shows').click()
+  await page.goto('/shows')
 
   await expect(page.getByTestId('show-browse-grid')).toBeVisible()
   const search = page.getByTestId('show-browse-search')

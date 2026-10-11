@@ -93,16 +93,17 @@ test.describe('signed-in UI surfaces', () => {
     await expect(page.getByText(/passages across|No matches found/i).first()).toBeVisible()
   })
 
-  test('Discover renders the entity explorer + the Episodes/Shows content tabs', async ({ page }) => {
+  test('Explore renders Trends + the Episodes/Shows catalog taste', async ({ page }) => {
     await page.goto('/preview')
+    // Trends and the catalog moved from Discover to Explore (ADR-163 §1, 2026-10-11); an old
+    // Discover catalog link lands there.
     await page.goto('/browse?tab=episodes')
-    await expect(page.getByTestId('browse-view')).toBeVisible()
-    // Topics/storylines/people moved into the shared DiscoveryExplorer (the "Trends" section on top);
-    // the content band below is just Episodes · Shows now (operator 2026-09-14).
+    await expect(page.getByTestId('explore-view')).toBeVisible()
     await expect(page.getByTestId('discovery-explorer')).toBeVisible()
     for (const tab of ['episodes', 'shows']) {
       await expect(page.getByTestId(`browse-tab-${tab}`)).toBeVisible()
     }
+    await expect(page.getByTestId('explore-see-all-episodes')).toBeVisible()
   })
 
   test('Player opens a playable episode with a live audio element', async ({ page, request }) => {

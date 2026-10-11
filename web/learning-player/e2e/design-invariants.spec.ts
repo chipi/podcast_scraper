@@ -303,7 +303,7 @@ test.describe('design invariants', () => {
     page,
   }, testInfo) => {
     await signInIsolated(page, 'invariants-tap', testInfo)
-    await page.goto('/browse?tab=episodes')
+    await page.goto('/catalog')
     await page.waitForLoadState('networkidle')
 
     const row = page.locator('[data-testid="episode-card"] .lp-tap').first()
