@@ -378,7 +378,6 @@ const isTopic = computed(() => current.value.kind === "topic")
         :person="person"
         :depth="depth"
         @open="(p) => open(p.kind, p.id)"
-        @close="emit('close')"
       />
       <!-- `can-layer`: may this card open a person/storyline as a sheet ON TOP, or must it replace
            in place? The rule app-wide is that a sheet may layer over another SHEET or over a PAGE,
@@ -396,13 +395,11 @@ const isTopic = computed(() => current.value.kind === "topic")
         :depth="depth"
         :wide="props.flush"
         @open="(p) => open(p.kind, p.id)"
-        @close="emit('close')"
       />
       <OrgCardContent
         v-else-if="org"
         :org="org"
         @open="(p) => open(p.kind, p.id)"
-        @close="emit('close')"
       />
     </div>
   </div>

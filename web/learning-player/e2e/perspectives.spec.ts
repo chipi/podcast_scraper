@@ -31,8 +31,11 @@ test('topic card shows real per-speaker perspectives from the corpus + speaker n
   await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
   await page.getByTestId('player-open-insights').click()
   // The notes show five chips first (operator 2026-10-07); open the rest when they are folded.
+  // isVisible() does not wait: checked before the chips render, it read "no +N more" and the chip
+  // stayed folded. Wait for the chips first (a flake, 2026-10-11).
   const moreChips = page.getByTestId('kp-tags-more')
-  if (await moreChips.isVisible().catch(() => false)) await moreChips.click()
+  await expect(page.getByTestId('kp-topic-chip').first()).toBeVisible()
+  if (await moreChips.isVisible()) await moreChips.click()
   await page.getByTestId('kp-topic-chip').filter({ hasText: 'risk management' }).first().click()
 
   // The Perspectives section renders the real, corpus-derived speakers.
@@ -124,8 +127,11 @@ test('per-speaker show-more toggle reveals insights past the preview cap', async
   await page.getByText('The Risk Panel: Diversify or Concentrate?').first().click()
   await page.getByTestId('player-open-insights').click()
   // The notes show five chips first (operator 2026-10-07); open the rest when they are folded.
+  // isVisible() does not wait: checked before the chips render, it read "no +N more" and the chip
+  // stayed folded. Wait for the chips first (a flake, 2026-10-11).
   const moreChips = page.getByTestId('kp-tags-more')
-  if (await moreChips.isVisible().catch(() => false)) await moreChips.click()
+  await expect(page.getByTestId('kp-topic-chip').first()).toBeVisible()
+  if (await moreChips.isVisible()) await moreChips.click()
   await page.getByTestId('kp-topic-chip').filter({ hasText: 'risk management' }).first().click()
 
   const section = page.getByTestId('topic-perspectives')

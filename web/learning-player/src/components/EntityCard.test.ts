@@ -166,7 +166,7 @@ describe("EntityCard", () => {
     expect(section.findAll('[data-testid="ec-similar-topic"]')).toHaveLength(1)
   })
 
-  it("the library search lives inside the card (button → search route, then closes)", async () => {
+  it("the library search lives inside the card (button → search route; the navigation closes it)", async () => {
     vi.spyOn(api, "getPersonCard").mockResolvedValue(personCard())
     const push = vi.spyOn(router, "push")
     const w = mountCard({ kind: "person", id: "person:jane-doe" })
@@ -176,7 +176,9 @@ describe("EntityCard", () => {
       .find((b) => b.text().includes("Search transcripts"))!
       .trigger("click")
     expect(push).toHaveBeenCalledWith({ name: "search", query: { q: "Jane Doe" } })
-    expect(w.emitted("close")).toBeTruthy()
+    // No close of its own: that is the ✕ path, whose `router.back()` undid this push and left the
+    // listener where the card was opened (card-links-leave.spec.ts). The route change closes it.
+    expect(w.emitted("close")).toBeFalsy()
   })
 
   it("the overlay sheet DISMISSES at its root — an ✕, not a back arrow", async () => {

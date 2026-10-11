@@ -29,7 +29,6 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   (e: "open", payload: { kind: "person" | "topic"; id: string }): void
-  (e: "close"): void
 }>()
 const { t } = useI18n()
 const router = useRouter()
@@ -153,9 +152,11 @@ const relatedShown = computed(
 const themeOpenId = ref<string | null>(null)
 const storylineOpenTopicId = ref<string | null>(null)
 
+// Navigating closes the sheet: the query it pushed on open disappears and `useModalSheet` closes it
+// as a navigation. Closing it here as well is the ✕ path, whose `router.back()` ran before the route
+// settled and undid the push — the listener stayed on the episode (see EpisodeRow, 2026-09-16).
 function searchLibrary(): void {
   const term = label.value.trim()
-  emit("close")
   if (term) void router.push({ name: "search", query: { q: term } })
 }
 </script>
@@ -188,7 +189,6 @@ function searchLibrary(): void {
               :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
               class="font-semibold text-canvas-foreground underline decoration-border underline-offset-2 hover:decoration-current"
               data-testid="ec-host-show-link"
-              @click="emit('close')"
               >{{ s.title }}</RouterLink
             ><span v-if="i < hostShows.length - 2">, </span
             ><span v-else-if="i === hostShows.length - 2">{{ ` ${t("ec.andJoin")} ` }}</span>
@@ -256,7 +256,6 @@ function searchLibrary(): void {
         :to="{ name: 'podcast', params: { feedId: s.feed_id } }"
         class="font-semibold text-canvas-foreground underline decoration-border underline-offset-2 hover:decoration-current"
         data-testid="ec-host-show-link"
-        @click="emit('close')"
         >{{ s.title }}</RouterLink
       ><span v-if="i < hostShows.length - 2">, </span
       ><span v-else-if="i === hostShows.length - 2">{{ ` ${t("ec.andJoin")} ` }}</span>
