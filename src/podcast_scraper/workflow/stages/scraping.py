@@ -88,8 +88,6 @@ def fetch_and_parse_feed(cfg: config.Config) -> tuple[RssFeed, bytes]:  # type: 
     # without this feed.description is None on the pipeline path and every description-driven step —
     # host statement/NER (detect_hosts_from_feed) above all — runs blind. The RssFeed.description
     # field is documented and read downstream; it was simply never wired here (smell-audit F6).
-    from ...rss.parser import _channel_description, _channel_language
-
     # `language` is wired here for exactly the reason `description` above it was (smell-audit
     # F6): `fetch_and_parse_rss` parses the channel tag, but the PIPELINE does not call that
     # function — it builds its own RssFeed here, and the field was simply never passed.
@@ -101,6 +99,7 @@ def fetch_and_parse_feed(cfg: config.Config) -> tuple[RssFeed, bytes]:  # type: 
     # back to `base`. Every new episode also recorded `language_source: profile_default`, which
     # is the "measured the configuration, not the corpus" signature the arc §3.1 warns about.
     from ...rss.licence import channel_licence_from_bytes
+    from ...rss.parser import _channel_description, _channel_language
 
     feed = RssFeed(
         title=feed_title,
