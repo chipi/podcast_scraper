@@ -279,6 +279,66 @@ final class Journey {
      * text and once as the interactive wrapper — so a raw node count reports two for a page with
      * one control and the assertion fires on healthy markup.
      */
+    /**
+     * The overflow menu's item named {@code name} — a node whose role is MenuItem, never a button.
+     *
+     * A menu's items and a list row's inline controls can share a name: since 2026-10-11 the
+     * player page carries episode cards whose rows show "Download for offline" as a BUTTON, while
+     * the player's own ⋯ offers the same name as a MENU ITEM (measured: one MenuItem, three
+     * Buttons). Matching the role is what the iOS twin does by position above the transport; here
+     * Chromium exposes the role, so the role is the scope. Only one menu is ever open.
+     */
+    static UiObject2 menuItem(String name, long timeoutMs) {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        do {
+            try {
+                for (UiObject2 o : device().findObjects(By.pkg(PKG))) {
+                    String cls = String.valueOf(attr(o, UiObject2::getClassName));
+                    if (cls.endsWith("MenuItem") && nameOf(o).equalsIgnoreCase(name)) return o;
+                }
+            } catch (Throwable ignored) {
+                // A stale tree mid-render; look again.
+            }
+            sleep(400);
+        } while (System.currentTimeMillis() < deadline);
+        return null;
+    }
+
+    /** How many distinct MenuItems carry this name — one menu open means exactly one. */
+    static int countMenuItems(String name) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        try {
+            for (UiObject2 o : device().findObjects(By.pkg(PKG))) {
+                String cls = String.valueOf(attr(o, UiObject2::getClassName));
+                if (!cls.endsWith("MenuItem") || !nameOf(o).equalsIgnoreCase(name)) continue;
+                Rect b = attr(o, UiObject2::getVisibleBounds);
+                if (b != null) seen.add(b.centerX() + "," + b.centerY());
+            }
+        } catch (Throwable ignored) {
+            // A count that throws would replace the real assertion with its own failure.
+        }
+        return seen.size();
+    }
+
+    /** Tap the overflow menu's item named {@code name}; false when no such MenuItem appeared. */
+    static boolean tapMenuItem(String name, long timeoutMs) {
+        UiObject2 el = menuItem(name, timeoutMs);
+        if (el == null) return false;
+        Rect b = attr(el, UiObject2::getVisibleBounds);
+        try {
+            el.click();
+            return true;
+        } catch (Throwable t) {
+            if (b == null) return false;
+            try {
+                device().click(b.centerX(), b.centerY());
+                return true;
+            } catch (Throwable ignored) {
+                return false;
+            }
+        }
+    }
+
     static int countDistinct(String name) {
         java.util.Set<String> seen = new java.util.HashSet<>();
         try {

@@ -100,13 +100,13 @@ public class DownloadThroughUITests extends UITestCase {
 
         // Already downloaded from an earlier run? Remove it, so this suite proves the DOWNLOAD path
         // rather than inheriting someone else's success.
-        if (Journey.find(DOWNLOADED, false, 6_000) != null) {
-            Journey.tap(DOWNLOADED, false, 6_000);
+        if (Journey.menuItem(DOWNLOADED, 6_000) != null) {
+            Journey.tapMenuItem(DOWNLOADED, 6_000);
             // Activating a menu item CLOSES the panel (`@activated="close"`), so the control we
             // would wait on next is not slow — it is off screen. Re-open before looking.
             Journey.sleep(2_000);
             Journey.tap(OVERFLOW, false, 15_000);
-            if (Journey.find(DOWNLOAD, false, 25_000) == null) {
+            if (Journey.menuItem(DOWNLOAD, 25_000) == null) {
                 fail("removing the existing download never restored the Download control for "
                         + title + ". On screen: " + Journey.labelledInventory(80));
             }
@@ -118,13 +118,16 @@ public class DownloadThroughUITests extends UITestCase {
         // works here is an accessible NAME. Asserting there is exactly one is strictly stronger
         // than the scope it replaces: a count of one cannot pick wrong, and a count above one says
         // so instead of guessing.
-        int candidates = Journey.countDistinct(DOWNLOAD);
+        //
+        // COUNTED AS MENU ITEMS (2026-10-11). The player page now carries episode cards whose rows
+        // show "Download for offline" as a BUTTON (measured: 1 MenuItem + 3 Buttons), so a count by
+        // name alone fired on healthy markup. The menu's item is the one with the MenuItem role.
+        int candidates = Journey.countMenuItems(DOWNLOAD);
         if (candidates > 1) {
-            fail(candidates + " Download controls are on screen for " + title + " — another surface "
-                    + "(a kept-alive Library → Downloaded?) is offering one too, so tapping would "
-                    + "be a guess. On screen: " + Journey.labelledInventory(80));
+            fail(candidates + " Download menu items are on screen for " + title + " — a second menu "
+                    + "is open, so tapping would be a guess. On screen: " + Journey.labelledInventory(80));
         }
-        if (!Journey.tap(DOWNLOAD, false, 20_000)) {
+        if (!Journey.tapMenuItem(DOWNLOAD, 20_000)) {
             // Deliberately NOT conflated with "signed out" or "never loaded": reaching here means
             // the page rendered AND the menu opened. The control is native-only and self-hides on
             // web, so if it is absent the app does not believe it is running natively.
@@ -190,15 +193,17 @@ public class DownloadThroughUITests extends UITestCase {
                 "Download failed — tap to retry", DOWNLOAD);
         String lastSeen = "<never observed>";
         for (int i = 0; i < 9; i++) {
-            if (Journey.find(DOWNLOADED, false, 2_000) != null) return;
+            // The MENU's state, never a card's: once the first episode is stored, its card on the
+            // second episode's page reads "Downloaded" too, and would pass this for the wrong one.
+            if (Journey.menuItem(DOWNLOADED, 2_000) != null) return;
             if (Journey.find(OVERFLOW, false, 5_000) != null) Journey.tap(OVERFLOW, false, 5_000);
             StringBuilder seen = new StringBuilder();
             for (String s : states) {
-                UiObject2 el = Journey.find(s, false, 500);
+                UiObject2 el = Journey.menuItem(s, 500);
                 if (el != null) seen.append(seen.length() == 0 ? "" : ", ").append(s);
             }
             if (seen.length() > 0) lastSeen = seen.toString();
-            if (Journey.find(DOWNLOADED, false, 1_000) != null) return;
+            if (Journey.menuItem(DOWNLOADED, 1_000) != null) return;
             Journey.sleep(10_000);
         }
         // WHICH state it reached, not just "not downloaded". The control's accessible name encodes
