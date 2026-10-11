@@ -86,6 +86,8 @@ def test_idempotent_across_last_updated_zulu_vs_offset(tmp_path: Path) -> None:
                     "description": "A fresh blurb",
                     "category": "Business",
                     "last_updated": "2024-01-01T00:00:00Z",  # pipeline's Zulu form
+                    # Already read for licence (#2325), so only the timestamp form differs.
+                    "licence": {"status": "no_explicit_licence_found", "declarations": []},
                 },
                 "episode": {"episode_id": "e1"},
             }
@@ -145,3 +147,62 @@ def test_relative_image_href_resolves_against_the_final_url(tmp_path: Path) -> N
     refresh_feed_metadata(tmp_path, fetch=lambda url: (rss, "https://final.example/feed.xml"))
     fb = _feed_block(tmp_path / "feeds/p1/run_1/metadata/e1.metadata.json")
     assert fb["image_url"] == "https://final.example/img/cover.png"
+
+
+# --- licence records (#2325) -------------------------------------------------------------------
+
+_LICENSED_RSS = (
+    b'<?xml version="1.0"?>'
+    b'<rss version="2.0" xmlns:podcast="https://podcastindex.org/namespace/1.0">'
+    b"<channel><title>Show</title><copyright>All rights reserved, Example Media</copyright>"
+    b"<item><title>E1</title><guid>g-1</guid>"
+    b"<podcast:license>cc-by-4.0</podcast:license></item>"
+    b"<item><title>E2</title><guid>g-2</guid></item>"
+    b"</channel></rss>"
+)
+
+
+def _write_ep(root: Path, stem: str, guid: str | None, feed_extra: dict | None = None) -> Path:
+    path = root / f"feeds/p1/run_1/metadata/{stem}.metadata.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    feed = {"feed_id": "p1", "title": "Show", "url": "http://x/rss", **(feed_extra or {})}
+    episode: dict = {"episode_id": stem}
+    if guid:
+        episode["guid"] = guid
+    path.write_text(json.dumps({"feed": feed, "episode": episode}), encoding="utf-8")
+    return path
+
+
+def test_a_missing_licence_is_filled_for_the_show_and_each_episode_from_its_own_item(
+    tmp_path: Path,
+) -> None:
+    e1 = _write_ep(tmp_path, "e1", "g-1")
+    e2 = _write_ep(tmp_path, "e2", "g-2")
+    gone = _write_ep(tmp_path, "e3", "g-gone")  # no longer in the feed
+    refresh_feed_metadata(tmp_path, fetch=lambda url: (_LICENSED_RSS, url))
+    d1, d2, d3 = (json.loads(p.read_text()) for p in (e1, e2, gone))
+    for d in (d1, d2, d3):
+        assert (
+            d["feed"]["licence"]["declarations"][0]["raw"] == "All rights reserved, Example Media"
+        )
+        assert d["feed"]["licence"]["source_feed_url"] == "http://x/rss"
+    assert d1["episode"]["licence"]["declarations"][0]["known"]["id"] == "CC-BY-4.0"
+    assert d2["episode"]["licence"]["status"] == "no_explicit_licence_found"
+    assert "licence" not in d3["episode"]  # not guessed: "not checked"
+
+
+def test_a_stored_licence_is_never_replaced(tmp_path: Path) -> None:
+    """A stored record is what the feed declared when that episode was read: history."""
+    old = {"status": "declared", "declarations": [{"raw": "© 2019 Old Owner"}]}
+    path = _write_ep(tmp_path, "e1", "g-1", {"licence": old})
+    refresh_feed_metadata(tmp_path, fetch=lambda url: (_LICENSED_RSS, url))
+    doc = json.loads(path.read_text())
+    assert doc["feed"]["licence"] == old
+    assert doc["episode"]["licence"]["declarations"][0]["raw"] == "cc-by-4.0"  # was missing
+
+
+def test_the_licence_fill_is_idempotent(tmp_path: Path) -> None:
+    _write_ep(tmp_path, "e1", "g-1")
+    refresh_feed_metadata(tmp_path, fetch=lambda url: (_LICENSED_RSS, url))
+    second = refresh_feed_metadata(tmp_path, fetch=lambda url: (_LICENSED_RSS, url))
+    assert second.files_updated == 0

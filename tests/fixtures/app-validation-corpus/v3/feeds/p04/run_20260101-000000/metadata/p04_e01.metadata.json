@@ -31,7 +31,15 @@
     "language_source": "rss",
     "published_date": "2024-07-06T00:00:00",
     "title": "Underwater Images That Feel Alive",
-    "description": "Composition, strobe angles, backscatter, and managing a shot list when the current has other plans."
+    "description": "Composition, strobe angles, backscatter, and managing a shot list when the current has other plans.",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "feed": {
     "authors": [
@@ -46,7 +54,15 @@
     "language_source": "rss",
     "last_updated": "2025-06-21T00:00:00",
     "title": "Frame & Light",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "schema_version": "1",
   "summary": {

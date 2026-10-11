@@ -26,7 +26,15 @@
     "language_source": "rss",
     "published_date": "2025-07-09T00:00:00",
     "title": "Plan the Dive, Manage the Risk",
-    "description": "Rina talks with Marco Silva: Plan the Dive, Manage the Risk."
+    "description": "Rina talks with Marco Silva: Plan the Dive, Manage the Risk.",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "feed": {
     "authors": [
@@ -41,7 +49,15 @@
     "language_source": "rss",
     "last_updated": "2025-07-09T00:00:00",
     "title": "Below the Surface",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "schema_version": "1",
   "summary": {

@@ -100,6 +100,7 @@ class TestNoStageCanShipTheWrongLanguage:
         feed.title = "Show"
         feed.authors = []
         feed.language = "es-ES"
+        feed.licence = None
 
         meta = _build_feed_metadata(
             feed, "https://example.com/f.xml", "p01", _cfg(language="en"), None, None, None

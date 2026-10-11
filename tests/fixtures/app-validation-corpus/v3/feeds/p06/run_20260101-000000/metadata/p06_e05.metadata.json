@@ -21,7 +21,15 @@
     "language_source": "rss",
     "published_date": "2026-04-18T00:00:00",
     "title": "Stage Directions",
-    "description": "Maya on Stage Directions."
+    "description": "Maya on Stage Directions.",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "feed": {
     "authors": [
@@ -36,12 +44,20 @@
     "language_source": "rss",
     "last_updated": "2026-06-20T00:00:00",
     "title": "The Drift",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
-      "Single speaker throughout \u2014 the only such episode in the corpus.",
+      "Single speaker throughout — the only such episode in the corpus.",
       "Stage directions appear as prose rather than as speech.",
       "No sponsor read and no guest introduction."
     ],

@@ -433,7 +433,8 @@
     "sigTopics": "Topics",
     "sigDistinctive": "Distinctive to this show",
     "sigDistinctiveHint": "Covered {factor}× more here than across the library",
-    "sigPeople": "Key people"
+    "sigPeople": "Key people",
+    "licenceLink": "Licence and copyright: {summary}"
   },
   "player": {
     "description": "Description",
@@ -1184,5 +1185,46 @@
     "interestCount": "No interests yet | 1 interest | {count} interests",
     "showCount": "no shows yet | 1 show | {count} shows",
     "finish": "Got it"
+  },
+  "licence": {
+    "title": "Licence and copyright",
+    "disclaimer": "What this show's feed declares about licence and copyright, as the publisher wrote it. It is a record of the declaration, not a licence grant.",
+    "notChecked": "This show's feed has not been read for licence information yet.",
+    "none": "No explicit licence found in this show's feed. That is not the same as unrestricted or prohibited: the feed says nothing.",
+    "current": "Declared now",
+    "earlier": "Declared earlier",
+    "readOn": "Read {date} from {source}",
+    "readRange": "Read {first} to {last}",
+    "mechanism": {
+      "rss_copyright": "Copyright notice (RSS <copyright>)",
+      "podcast_license": "Licence tag (Podcasting 2.0 <podcast:license>)",
+      "creative_commons_license": "Creative Commons licence (<creativeCommons:license>)",
+      "notice": "Notice in the show description"
+    },
+    "level": {
+      "channel": "Whole show",
+      "episode": "One episode"
+    },
+    "scope": {
+      "audio_video": "Applies to: audio and video",
+      "unspecified": "Applies to: not specified"
+    },
+    "recognised": "Recognised as {name}",
+    "conditions": {
+      "commercial": "Commercial use: {value}",
+      "adaptations": "Adaptations: {value}",
+      "attribution": "Attribution required: {value}",
+      "shareAlike": "ShareAlike: {value}"
+    },
+    "yes": "yes",
+    "no": "no",
+    "link": "Licence link",
+    "conflicts": "Conflicting declarations",
+    "documents": "Linked documents to review",
+    "back": "Back to the show",
+    "loadError": "Couldn't load the licence information.",
+    "thisEpisode": "This episode: {title}",
+    "episodeOwnApplies": "This episode declares its own. Podcasting 2.0 lets an episode do so for its audio and video in place of the show's.",
+    "theShow": "The show"
   }
 }

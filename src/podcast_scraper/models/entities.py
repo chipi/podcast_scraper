@@ -49,6 +49,9 @@ class RssFeed:
     #: publisher actually said. DEFAULTED, never positional: this dataclass is constructed at
     #: 53 test sites (#2172).
     language: Optional[str] = None
+    #: The channel's licence and copyright declarations (#2325): a
+    #: ``podcast_scraper.rss.licence.LicenceRecord``, or ``None`` when not read.
+    licence: Optional[Any] = None
 
 
 @dataclass

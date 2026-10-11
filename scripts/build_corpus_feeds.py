@@ -57,7 +57,7 @@ import xml.etree.ElementTree as ET  # nosec B405 — Element/ParseError typing o
 from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from defusedxml.ElementTree import parse as safe_parse, ParseError as DefusedParseError
 
@@ -97,6 +97,30 @@ SHOW_META_OVERRIDE: dict[str, dict[str, str]] = {
         "description": "Recurring guests from other shows revisit their positions.",
     },
 }
+
+
+#: Licence and copyright declarations (#2325), so the app corpus carries every kind the show page
+#: and the player render: a copyright notice (p05, the most common production shape -- 79 of 80
+#: feeds on 2026-10-11), a recognised Creative Commons licence tag (p02), and an episode-level
+#: ``<podcast:license>`` that differs from its show (p05_e05). Every other show declares nothing,
+#: which is "no explicit licence found". ``license`` is (identifier, url).
+FEED_LICENCE: dict[str, dict[str, Any]] = {
+    "p05": {"copyright": "© 2025 Long Horizon Media. All rights reserved."},
+    "p02": {
+        "copyright": "2025 Practical Systems Collective",
+        "license": ("cc-by-nc-sa-4.0", "https://creativecommons.org/licenses/by-nc-sa/4.0/"),
+    },
+}
+EPISODE_LICENCE: dict[str, tuple[str, str]] = {
+    "p05_e05": ("cc-by-4.0", "https://creativecommons.org/licenses/by/4.0/"),
+}
+
+
+def _licence_lines(indent: str, license: Optional[tuple[str, str]]) -> list[str]:
+    if not license:
+        return []
+    ident, url = license
+    return [f'{indent}<podcast:license url="{_esc(url)}">{_esc(ident)}</podcast:license>']
 
 
 def _esc(text: str) -> str:
@@ -256,6 +280,12 @@ def _render_feed(
         "    <link>http://localhost/</link>",
         f"    <description>{_esc(meta.get('description', ''))}</description>",
         f"    <language>{_esc(meta.get('language', 'en-us'))}</language>",
+        *(
+            [f"    <copyright>{_esc(FEED_LICENCE[show]['copyright'])}</copyright>"]
+            if FEED_LICENCE.get(show, {}).get("copyright")
+            else []
+        ),
+        *_licence_lines("    ", FEED_LICENCE.get(show, {}).get("license")),
         "",
         f"    <itunes:author>{_esc(meta.get('author', ''))}</itunes:author>",
         "    <itunes:explicit>no</itunes:explicit>",
@@ -299,6 +329,7 @@ def _render_feed(
             # FIXTURES_SPEC already claimed "the feeds advertise the .vtt"; it was
             # true of three hand-authored p01 feeds and of no generated feed.
             f'      <podcast:transcript url="/transcripts/{episode_id}.vtt" ' f'type="text/vtt"/>',
+            *_licence_lines("      ", EPISODE_LICENCE.get(episode_id)),
             f"      <itunes:episode>{index}</itunes:episode>",
             f"      <itunes:duration>{duration}</itunes:duration>",
             "      <itunes:episodeType>full</itunes:episodeType>",

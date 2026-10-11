@@ -31,7 +31,15 @@
     "language_source": "rss",
     "published_date": "2024-08-26T00:00:00",
     "title": "Frame the Decision: Pragmatic Threat Models",
-    "description": "Threat modeling, secure defaults, secrets handling, supply chain risks, and what “shift left” should actually mean."
+    "description": "Threat modeling, secure defaults, secrets handling, supply chain risks, and what “shift left” should actually mean.",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "feed": {
     "authors": [
@@ -46,7 +54,44 @@
     "language_source": "rss",
     "last_updated": "2025-03-09T00:00:00",
     "title": "Practical Systems",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "licence": {
+      "status": "declared",
+      "declarations": [
+        {
+          "level": "channel",
+          "mechanism": "rss_copyright",
+          "raw": "2025 Practical Systems Collective",
+          "url": null,
+          "asset_scope": "unspecified",
+          "known": null,
+          "notes": []
+        },
+        {
+          "level": "channel",
+          "mechanism": "podcast_license",
+          "raw": "cc-by-nc-sa-4.0",
+          "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+          "asset_scope": "audio_video",
+          "known": {
+            "id": "CC-BY-NC-SA-4.0",
+            "name": "CC BY-NC-SA 4.0",
+            "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+            "commercial_use": false,
+            "adaptations": true,
+            "attribution": true,
+            "share_alike": true
+          },
+          "notes": []
+        }
+      ],
+      "conflicts": [],
+      "documents_for_review": [
+        "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+      ],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "schema_version": "1",
   "summary": {

@@ -935,6 +935,8 @@ def fetch_and_parse_rss(cfg: config.Config) -> RssFeed:  # type: ignore[valid-ty
     if cached_rss is None:
         feed_cache.write_cached_rss(cfg.rss_url, rss_bytes)
 
+    from .licence import channel_licence_from_bytes
+
     return RssFeed(  # type: ignore[no-any-return]
         title=feed_title,
         authors=feed_authors,
@@ -942,4 +944,5 @@ def fetch_and_parse_rss(cfg: config.Config) -> RssFeed:  # type: ignore[valid-ty
         base_url=feed_base_url,
         description=_channel_description(rss_bytes),
         language=_channel_language(rss_bytes),
+        licence=channel_licence_from_bytes(rss_bytes, feed_base_url, cfg.rss_url),
     )

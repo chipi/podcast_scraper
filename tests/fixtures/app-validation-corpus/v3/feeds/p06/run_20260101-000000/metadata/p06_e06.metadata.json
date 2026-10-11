@@ -26,7 +26,15 @@
     "language_source": "rss",
     "published_date": "2026-06-20T00:00:00",
     "title": "Mixed Languages",
-    "description": "Testing relative URL resolution."
+    "description": "Testing relative URL resolution.",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "feed": {
     "authors": [
@@ -41,14 +49,22 @@
     "language_source": "rss",
     "last_updated": "2026-06-20T00:00:00",
     "title": "The Drift",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "schema_version": "1",
   "summary": {
     "bullets": [
       "Two speakers, one switching language mid-conversation.",
       "Non-English speech appears without a language marker in the transcript.",
-      "Deliberately brief \u2014 the switch is the whole subject."
+      "Deliberately brief — the switch is the whole subject."
     ],
     "raw_text": "A short bilingual exchange. It exists so transcription and diarization are exercised on code-switching mid-turn, rather than on a single language per speaker.",
     "title": "Mixed Languages"

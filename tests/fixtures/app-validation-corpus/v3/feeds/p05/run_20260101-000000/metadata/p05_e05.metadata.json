@@ -31,7 +31,35 @@
     "language_source": "rss",
     "published_date": "2025-09-11T00:00:00",
     "title": "From the Archive",
-    "description": "Nora talks with Daniel Cho: From the Archive."
+    "description": "Nora talks with Daniel Cho: From the Archive.",
+    "licence": {
+      "status": "declared",
+      "declarations": [
+        {
+          "level": "episode",
+          "mechanism": "podcast_license",
+          "raw": "cc-by-4.0",
+          "url": "https://creativecommons.org/licenses/by/4.0/",
+          "asset_scope": "audio_video",
+          "known": {
+            "id": "CC-BY-4.0",
+            "name": "CC BY 4.0",
+            "url": "https://creativecommons.org/licenses/by/4.0/",
+            "commercial_use": true,
+            "adaptations": true,
+            "attribution": true,
+            "share_alike": false
+          },
+          "notes": []
+        }
+      ],
+      "conflicts": [],
+      "documents_for_review": [
+        "https://creativecommons.org/licenses/by/4.0/"
+      ],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "feed": {
     "authors": [
@@ -46,7 +74,25 @@
     "language_source": "rss",
     "last_updated": "2025-09-11T00:00:00",
     "title": "Long Horizon Notes",
-    "url": "http://localhost/"
+    "url": "http://localhost/",
+    "licence": {
+      "status": "declared",
+      "declarations": [
+        {
+          "level": "channel",
+          "mechanism": "rss_copyright",
+          "raw": "© 2025 Long Horizon Media. All rights reserved.",
+          "url": null,
+          "asset_scope": "unspecified",
+          "known": null,
+          "notes": []
+        }
+      ],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "schema_version": "1",
   "summary": {

@@ -52,9 +52,15 @@ test('the Description door opens the full publisher text, and the sheet closes a
   await expect(sheet).toBeHidden()
 })
 
-test('an episode whose feed gave no description has no Description door', async ({ page }, testInfo) => {
+test('an episode whose feed gave no description still has About, holding only the licence line', async ({
+  page,
+}, testInfo) => {
+  // Operator 2026-10-11 (#2325): every episode carries a licence line, so About always opens.
   await openEpisode(page, testInfo, 'p10', 'Construyendo Senderos Que Duran')
-  await expect(page.getByTestId('player-open-description')).toHaveCount(0)
+  await page.getByTestId('player-open-description').click()
+  await expect(page.getByTestId('episode-description')).toBeVisible()
+  await expect(page.getByTestId('episode-description-text')).toHaveCount(0)
+  await expect(page.getByTestId('episode-description-licence')).toHaveText('No explicit licence found')
 })
 
 test('the obi: a 44px band flush to the artwork\'s right edge, Moments · Brief · About, equal', async ({ page }, testInfo) => {

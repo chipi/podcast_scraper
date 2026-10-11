@@ -6,6 +6,8 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from podcast_scraper.rss.licence import LicenceDeclaration, LicenceRecord
+
 
 class TranscriptSegment(BaseModel):
     """One transcript segment in the player ``segments.json`` contract (PRD-036)."""
@@ -98,6 +100,18 @@ class AppEpisodeDetail(BaseModel):
     """Response for GET /api/app/episodes/{slug} — consumer episode detail."""
 
     slug: str = Field(description="Stable episode slug.")
+    licence_summary: str | None = Field(
+        default=None,
+        description=(
+            "The licence line for this episode (#2325): its OWN declaration when it has one, else "
+            "its show's as recorded when the episode was ingested. Full text: GET "
+            "/api/app/episodes/{slug}/licence. Null when the feed was not checked."
+        ),
+    )
+    licence_scope: Literal["episode", "show"] | None = Field(
+        default=None,
+        description="Whose declaration licence_summary is: the episode's own, or its show's.",
+    )
     title: str = Field(description="Episode title.")
     feed_id: str = Field(description="Owning feed id.")
     language: str | None = Field(
@@ -2309,6 +2323,65 @@ class AppPodcastItem(BaseModel):
     )
     last_updated: str | None = Field(
         default=None, description="Feed lastBuildDate / Atom updated (ISO) if known."
+    )
+    licence_summary: str | None = Field(
+        default=None,
+        description=(
+            "One line for the show page (#2325): a recognised licence's name, else the "
+            "publisher's own notice shortened, else 'No explicit licence found'. Null when the "
+            "feed was not checked. The full text is GET /api/app/podcasts/{feed_id}/licence."
+        ),
+    )
+
+
+class AppLicenceVersion(BaseModel):
+    """A set of declarations the feed carried, and when it was read with them."""
+
+    status: str
+    declarations: list[LicenceDeclaration] = Field(default_factory=list)
+    first_read: str | None = None
+    last_read: str | None = None
+
+
+class AppPodcastLicenceResponse(BaseModel):
+    """GET /api/app/podcasts/{feed_id}/licence: everything the publisher declares (#2325).
+
+    Verbatim, by level and asset scope, with the documents it links for review and any
+    conflicts. Evidence of what was declared, not a licence grant to anyone.
+    """
+
+    feed_id: str
+    title: str | None = None
+    summary: str | None = Field(default=None, description="The same line as the show page.")
+    status: str = Field(
+        description="declared | no_explicit_licence_found | not_checked (no record yet)."
+    )
+    licence: LicenceRecord | None = Field(
+        default=None, description="The newest record: the show's declarations now."
+    )
+    history: list[AppLicenceVersion] = Field(
+        default_factory=list,
+        description="Every distinct set of declarations seen across episodes, newest first.",
+    )
+
+
+class AppEpisodeLicenceResponse(BaseModel):
+    """GET /api/app/episodes/{slug}/licence: what this episode declares and what its show
+    declared when the episode was ingested (#2325). A record, not a licence grant."""
+
+    slug: str
+    title: str
+    feed_id: str
+    show_title: str | None = None
+    summary: str | None = Field(default=None, description="The episode's line, as in About.")
+    scope: Literal["episode", "show"] | None = None
+    episode: LicenceRecord | None = Field(
+        default=None,
+        description="The episode's OWN declarations (podcast:license, creativeCommons:license, "
+        "show-note notices); status no_explicit_licence_found when it declares nothing itself.",
+    )
+    show: LicenceRecord | None = Field(
+        default=None, description="The show's declarations as read with this episode."
     )
 
 

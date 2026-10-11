@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from podcast_scraper.languages import primary_language
+from podcast_scraper.rss.licence import LicenceRecord, summary_label
 from podcast_scraper.search.capability import structured_corpus_search
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
 from podcast_scraper.search.query_log import append_query_event
@@ -77,12 +78,15 @@ from podcast_scraper.server.schemas import (
     AppEntitiesResponse,
     AppEpisodeBatchResponse,
     AppEpisodeDetail,
+    AppEpisodeLicenceResponse,
     AppEpisodeRecap,
     AppEpisodesResponse,
     AppInsightsResponse,
+    AppLicenceVersion,
     AppMoment,
     AppMomentsResponse,
     AppPodcastItem,
+    AppPodcastLicenceResponse,
     AppPodcastSignalsResponse,
     AppPodcastsResponse,
     AudioSourceResponse,
@@ -172,6 +176,39 @@ def _podcast_item(f: dict) -> AppPodcastItem:
         authors=list(f.get("authors") or ()),
         language=f.get("language"),
         last_updated=f.get("last_updated"),
+        licence_summary=summary_label(f.get("licence")),
+    )
+
+
+@router.get("/podcasts/{feed_id}/licence", response_model=AppPodcastLicenceResponse)
+def podcast_licence(
+    request: Request,
+    feed_id: str,
+    _user: User = Depends(get_current_user),
+) -> AppPodcastLicenceResponse:
+    """Everything a show's feed declares about licence and copyright (#2325), verbatim."""
+    root = corpus_root_or_503(request)
+    feed = next(
+        (f for f in aggregate_feeds(cached_catalog(root)) if f.get("feed_id") == feed_id), None
+    )
+    if feed is None:
+        raise HTTPException(status_code=404, detail="Show not found.")
+    record = feed.get("licence")
+    return AppPodcastLicenceResponse(
+        feed_id=feed_id,
+        title=feed.get("display_title"),
+        summary=summary_label(record),
+        status=(record or {}).get("status") or "not_checked",
+        licence=record,
+        history=[
+            AppLicenceVersion(
+                status=v["status"],
+                declarations=v["declarations"],
+                first_read=v["first_read"],
+                last_read=v["last_read"],
+            )
+            for v in feed.get("licence_history") or []
+        ],
     )
 
 
@@ -388,6 +425,30 @@ def episode_detail(
     return _episode_detail(root, row, slug)
 
 
+def _episode_licence_records(
+    row: CatalogEpisodeRow,
+) -> tuple[LicenceRecord | None, LicenceRecord | None]:
+    own = (
+        LicenceRecord.model_validate_json(row.episode_licence_json)
+        if row.episode_licence_json
+        else None
+    )
+    show = (
+        LicenceRecord.model_validate_json(row.feed_licence_json) if row.feed_licence_json else None
+    )
+    return own, show
+
+
+def _episode_licence_line(row: CatalogEpisodeRow) -> dict:
+    """The episode's line (#2325): its own declaration when it has one, else its show's."""
+    own, show = _episode_licence_records(row)
+    if own is not None and own.status == "declared":
+        return {"licence_summary": summary_label(own), "licence_scope": "episode"}
+    if show:
+        return {"licence_summary": summary_label(show), "licence_scope": "show"}
+    return {"licence_summary": None, "licence_scope": None}
+
+
 def _episode_detail(root: Path, row: CatalogEpisodeRow, slug: str) -> AppEpisodeDetail:
     """One episode's detail — shared by the single and the batch route."""
     transcript_rel = transcript_relpath(_content_block(root, row.metadata_relative_path))
@@ -420,6 +481,7 @@ def _episode_detail(root: Path, row: CatalogEpisodeRow, slug: str) -> AppEpisode
         summary_bullets=list(row.summary_bullets),
         summary_text=row.summary_text,
         description=row.episode_description,
+        **_episode_licence_line(row),
         has_transcript=has_transcript,
         has_summary=has_summary,
         has_gi=row.has_gi,
@@ -467,6 +529,29 @@ def _related_store(key: tuple[str, str, int], value: AppEpisodesResponse) -> Non
     _related_cache.move_to_end(key)
     while len(_related_cache) > _RELATED_MAX:
         _related_cache.popitem(last=False)
+
+
+@router.get("/episodes/{slug}/licence", response_model=AppEpisodeLicenceResponse)
+def episode_licence(
+    request: Request,
+    slug: str,
+    _user: User = Depends(get_current_user),
+) -> AppEpisodeLicenceResponse:
+    """What this episode declares about licence and copyright, and what its show declared when
+    the episode was ingested (#2325), verbatim."""
+    _root, row = _resolve(request, slug)
+    own, show = _episode_licence_records(row)
+    line = _episode_licence_line(row)
+    return AppEpisodeLicenceResponse(
+        slug=slug,
+        title=row.episode_title,
+        feed_id=row.feed_id,
+        show_title=row.feed_title,
+        summary=line["licence_summary"],
+        scope=line["licence_scope"],
+        episode=own,
+        show=show,
+    )
 
 
 @router.get("/episodes/{slug}/related", response_model=AppEpisodesResponse)

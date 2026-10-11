@@ -7,6 +7,8 @@
     <link>http://localhost/</link>
     <description>Software engineering conversations: reliability, architecture, delivery, and the tradeoffs nobody puts in the blog post.</description>
     <language>en-us</language>
+    <copyright>2025 Practical Systems Collective</copyright>
+    <podcast:license url="https://creativecommons.org/licenses/by-nc-sa/4.0/">cc-by-nc-sa-4.0</podcast:license>
 
     <itunes:author>Ethan Park</itunes:author>
     <itunes:explicit>no</itunes:explicit>

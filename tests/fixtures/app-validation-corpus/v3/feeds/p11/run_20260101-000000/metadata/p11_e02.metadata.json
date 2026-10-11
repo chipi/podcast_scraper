@@ -30,7 +30,15 @@
     "language": "it",
     "language_source": "rss",
     "published_date": "2025-12-28T00:00:00",
-    "title": "Tecnica Enduro Senza Clamore"
+    "title": "Tecnica Enduro Senza Clamore",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "feed": {
     "authors": [
@@ -45,7 +53,15 @@
     "title": "Sentieri d'Autore",
     "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p11.svg",
-    "image_url": "http://localhost/images/p11.svg"
+    "image_url": "http://localhost/images/p11.svg",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "schema_version": "1",
   "summary": {

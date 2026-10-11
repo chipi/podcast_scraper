@@ -664,6 +664,36 @@ def _measured_duration_for(ep_label: str, rss_dir: Path) -> int | None:
     return None
 
 
+#: The read time stamped on the corpus's licence records (#2325): fixed, so the build stays
+#: deterministic, and the date of the corpus's own run directories.
+_LICENCE_READ_AT = "2026-01-01T00:00:00+00:00"
+
+
+def _licence_records(rss_path: Path, source_url: str) -> tuple[dict, dict[str, dict]]:
+    """The show's licence record and each episode's own, keyed by guid (= episode label), read by
+    the pipeline's own parser (``rss.licence``) so the corpus is what ingestion would store."""
+    from defusedxml.ElementTree import parse as safe_parse
+
+    from podcast_scraper.rss.licence import channel_licence, episode_licence
+
+    root = safe_parse(rss_path).getroot()
+    channel_el = root.find("channel")
+    channel = channel_licence(channel_el, source_url, source_url, _LICENCE_READ_AT)
+    episodes = {
+        (item.findtext("guid") or "")
+        .strip(): episode_licence(
+            item,
+            source_url,
+            channel=channel,
+            source_feed_url=source_url,
+            retrieved_at=_LICENCE_READ_AT,
+        )
+        .model_dump()
+        for item in channel_el.iter("item")
+    }
+    return channel.model_dump(), episodes
+
+
 def _feed_description_for(ep_label: str, rss_dir: Path) -> str | None:
     """The episode's own description from the corpus feed, cleaned the way ingest cleans it.
 
@@ -2035,6 +2065,11 @@ def main() -> int:
             continue
         feed_meta = parse_rss_feed_metadata(rss_path)
         feed_meta.update(SHOW_META_OVERRIDE.get(show_dir, {}))
+        # From the CORPUS feed, as the episode descriptions are (`_feed_description_for`): it is the
+        # feed this corpus's episodes are served from, and where build_corpus_feeds declares them.
+        show_licence, episode_licences = _licence_records(
+            args.rss_dir / f"{show_dir}_corpus.xml", feed_meta["rss_url"]
+        )
         # The app keys feeds by a readable feed id (the show dir), not the sha feed id,
         # so the on-disk feeds/<show_dir>/ path is human-readable in specs/debugging.
         feed_id = show_dir
@@ -2308,6 +2343,8 @@ def main() -> int:
                     "language_raw": feed_meta.get("language") or None,
                     "language_source": "rss" if feed_meta.get("language") else None,
                     "last_updated": show_last_updated,
+                    # #2325: what the feed declares about licence and copyright.
+                    "licence": show_licence,
                 },
                 "episode": {
                     "episode_id": episode_id,
@@ -2323,6 +2360,8 @@ def main() -> int:
                     "language_source": "rss" if feed_meta.get("language") else None,
                     # The publisher's blurb, as ingest stores it — what the app's cards show.
                     "description": _feed_description_for(ep_label, args.rss_dir),
+                    # #2325: the episode's OWN declarations (its item-level licence tag, notices).
+                    "licence": episode_licences.get(ep_label),
                 },
                 "summary": {
                     "title": summary_title,

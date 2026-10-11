@@ -30,7 +30,15 @@
     "language": "fr",
     "language_source": "rss",
     "published_date": "2025-11-01T00:00:00",
-    "title": "Construire Des Sentiers Qui Durent"
+    "title": "Construire Des Sentiers Qui Durent",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "feed": {
     "authors": [
@@ -45,7 +53,15 @@
     "title": "Sessions Sentier",
     "url": "http://localhost/",
     "image_local_relpath": ".podcast_scraper/corpus-art/p12.svg",
-    "image_url": "http://localhost/images/p12.svg"
+    "image_url": "http://localhost/images/p12.svg",
+    "licence": {
+      "status": "no_explicit_licence_found",
+      "declarations": [],
+      "conflicts": [],
+      "documents_for_review": [],
+      "source_feed_url": "http://localhost/",
+      "retrieved_at": "2026-01-01T00:00:00+00:00"
+    }
   },
   "schema_version": "1",
   "summary": {

@@ -7,7 +7,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useClampedProse } from '../composables/useClampedProse'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import BackIcon from '../components/BackIcon.vue'
 import AddToCollectionButton from '../components/AddToCollectionButton.vue'
 import FavoriteButton from '../components/FavoriteButton.vue'
@@ -345,6 +345,23 @@ const { badgeShown } = useCorpusLanguages()
         >
           <LanguageBadge :lang="show?.language" class="mr-1.5 align-[1px]" />{{ metaLine.join(' · ') }}
         </p>
+        <!-- Licence and copyright, as the feed declares it (#2325): one short line, the full text
+             of every declaration a tap away on its own page. On a phone it sits under the facts
+             line above and above Follow (operator 2026-10-11); from `sm` up the facts line moves to
+             the title column, so it sits directly under the artwork. Absent while the feed has not
+             been read for it (null summary), so nothing is claimed. `mb-1` on a phone only: the
+             facts line above is `leading-relaxed` and carries ~4px of slack below its text that this
+             `leading-snug` line and the Follow pill do not, so without it the line sat visibly
+             closer to Follow than to the facts (operator 2026-10-11). -->
+        <RouterLink
+          v-if="show?.licence_summary"
+          :to="{ name: 'podcast-licence', params: { feedId } }"
+          class="mb-1 line-clamp-2 text-xs leading-snug text-muted underline decoration-dotted underline-offset-2 hover:text-canvas-foreground sm:mb-0"
+          :aria-label="t('podcast.licenceLink', { summary: show.licence_summary })"
+          data-testid="podcast-licence-link"
+        >
+          {{ show.licence_summary }}
+        </RouterLink>
         <!-- Two aligned rows under the 144px artwork: the primary Follow pill full-width on top,
              the secondary actions as an even icon row beneath (two pills can't share a 144px row,
              so Collection uses its compact icon variant here rather than the wide pill). -->
