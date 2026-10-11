@@ -405,6 +405,9 @@ _BLEED_PAIR_CHARS = 200
 #: on the same 92: of 14 seats that were rank-0 with >= 50% of the talk on a <= 3-voice episode,
 #: 11 were the guest or a merged cluster. This DECLINES only — it never names anyone.
 _DOMINANT_SHARE = 0.5
+#: Below this share a seat among 3+ substantial voices is a narrator, not an interviewee who owns
+#: the conversation (see `_owns_the_conversation`).
+_NARRATOR_SHARE_CEILING = 0.7
 _DOMINANT_MAX_VOICES = 3
 
 #: Guest speech acts for the RESCUE check only, wider than `_GUEST_SPEECH_ACTS`. The narrow list
@@ -486,6 +489,15 @@ def _owns_the_conversation(seat: str, talk_share: Mapping[str, float], seats: in
     if any(s >= share for v, s in talk_share.items() if v != seat):
         return False
     substantial = [v for v, s in talk_share.items() if s >= HOST_ELIMINATION_MIN_SHARE]
+    # A NARRATED SHOW IS NOT AN INTERVIEW. With at least two more substantial voices than the feed
+    # has hosts, the presenter of a documentary naturally holds most of the talk: The Flip's
+    # narrator-host Justin Norman sits at 51-69% among 3-5 interviewees and lost his name to this
+    # rule on 15 prod episodes (2026-10-11). The MLST cold-open guest this rule protects owns far
+    # more (72-88%). "Two MORE than the hosts", not "three voices": on a two-host interview show
+    # (The Rest Is Politics, Yanis Varoufakis at 67%) the third voice IS the guest, and a looser
+    # first version named him Alastair Campbell.
+    if len(substantial) >= max(1, seats) + 2 and share < _NARRATOR_SHARE_CEILING:
+        return False
     return len(substantial) > max(1, seats)
 
 

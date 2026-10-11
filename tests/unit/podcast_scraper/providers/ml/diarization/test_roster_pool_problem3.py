@@ -52,6 +52,24 @@ def test_the_chattier_co_host_does_not_own_a_two_host_show() -> None:
     assert not _owns_the_conversation("R", {"R": 0.58, "K": 0.42}, seats=2)
 
 
+def test_a_narrator_among_many_interviewees_does_not_own_it() -> None:
+    # The Flip (2026-10-11): the narrator-host at 57% among three interviewees.
+    shares = {"N": 0.57, "A": 0.22, "B": 0.15, "C": 0.06}
+    assert not _owns_the_conversation("N", shares, seats=1)
+
+
+def test_the_cold_open_guest_still_owns_it_among_many_voices() -> None:
+    # The MLST case the rule exists for keeps it: the interviewee at 72%+, many voices or not.
+    shares = {"G": 0.72, "H": 0.15, "C": 0.13}
+    assert _owns_the_conversation("G", shares, seats=1)
+
+
+def test_the_guest_of_a_two_host_show_still_owns_it() -> None:
+    # The Rest Is Politics, Yanis Varoufakis at 67% with two hosts: the third voice IS the guest.
+    shares = {"Y": 0.67, "A": 0.18, "R": 0.15}
+    assert _owns_the_conversation("Y", shares, seats=2)
+
+
 def _talkative_host(guest_placed: bool) -> SpeakerRole:
     by_voice = {
         "H": SpeakerRole(name="H", role="host", named=False, source="raw"),
