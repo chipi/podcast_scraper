@@ -1,5 +1,5 @@
 {
- "why": "F4 as it happened on prod (The Pragmatic Engineer, served record 2026-10-11): the LLM said 'Kelsey Hightower, host' and the ladder accepted the host role for the titled guest, who is not a host of the feed. Today's code refuses that role (this scenario passes): the served record was written by older code (run 2026-08-26).",
+ "why": "Guard (The Pragmatic Engineer shape, CLEAN inputs): the LLM says 'Kelsey Hightower, host' for the titled guest, speaker detection handed the guest over, the host introduces him and the guest thanks the host. Today's code refuses the host role. The REAL episode is harder and still fails on today's code (prod replay 2026-10-11): see `host_welcome_opens_the_guest_cluster`.",
  "feed": {
   "title": "The Pragmatic Engineer",
   "description": "Hosted by Gergely Orosz."

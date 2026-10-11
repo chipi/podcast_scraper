@@ -1,0 +1,57 @@
+{
+ "why": "F4b1 (The Rest Is Politics: Leading, Maia Sandu, prod replay 2026-10-11): the guest says 'thank you for the invitation and welcome to Moldova'. The host speech-act pattern 'welcome to' fires on it, host acts win over guest acts, the voice performs the host role and is seated at step 2 with the LLM's 'host'. Same idiom class on 7 served episodes: 'you're welcome to share', 'welcome to the club', 'listeners are welcome to'.",
+ "xfail": "F4b1: 'welcome to' idioms count as a host speech act",
+ "feed": {
+  "title": "The Rest Is Politics: Leading",
+  "description": "Alastair Campbell and Rory Stewart interview the world's leaders."
+ },
+ "episode": {
+  "title": "President of Moldova, Maia Sandu: Holding the Line Against Russia"
+ },
+ "detected": {
+  "speaker_names": [
+   "Maia Sandu"
+  ],
+  "metadata_named": [
+   "Maia Sandu"
+  ]
+ },
+ "llm": {
+  "G": [
+   "Maia Sandu",
+   "host"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   40,
+   "This is The Rest Is Politics Leading. I'm Rory Stewart, and we are in Chisinau with the President of Moldova, Maia Sandu."
+  ],
+  [
+   "G",
+   300,
+   "Well, thank you for the invitation and welcome to Moldova. The point about the border keeps changing over the years, part 0. The point about the border keeps changing over the years, part 1. The point about the border keeps changing over the years, part 2. The point about the border keeps changing over the years, part 3. The point about the border keeps changing over the years, part 4. The point about the border keeps changing over the years, part 5. The point about the border keeps changing over the years, part 6. The point about the border keeps changing over the years, part 7. The point about the border keeps changing over the years, part 8. The point about the border keeps changing over the years, part 9. The point about the border keeps changing over the years, part 10. The point about the border keeps changing over the years, part 11. The point about the border keeps changing over the years, part 12. The point about the border keeps changing over the years, part 13. The point about the border keeps changing over the years, part 14. The point about the border keeps changing over the years, part 15. The point about the border keeps changing over the years, part 16. The point about the border keeps changing over the years, part 17. The point about the border keeps changing over the years, part 18. The point about the border keeps changing over the years, part 19. The point about the border keeps changing over the years, part 20. The point about the border keeps changing over the years, part 21. The point about the border keeps changing over the years, part 22. The point about the border keeps changing over the years, part 23. The point about the border keeps changing over the years, part 24. The point about the border keeps changing over the years, part 25. The point about the border keeps changing over the years, part 26. The point about the border keeps changing over the years, part 27. The point about the border keeps changing over the years, part 28. The point about the border keeps changing over the years, part 29."
+  ],
+  [
+   "H",
+   60,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7."
+  ],
+  [
+   "G",
+   300,
+   "The point about reform keeps changing over the years, part 0. The point about reform keeps changing over the years, part 1. The point about reform keeps changing over the years, part 2. The point about reform keeps changing over the years, part 3. The point about reform keeps changing over the years, part 4. The point about reform keeps changing over the years, part 5. The point about reform keeps changing over the years, part 6. The point about reform keeps changing over the years, part 7. The point about reform keeps changing over the years, part 8. The point about reform keeps changing over the years, part 9. The point about reform keeps changing over the years, part 10. The point about reform keeps changing over the years, part 11. The point about reform keeps changing over the years, part 12. The point about reform keeps changing over the years, part 13. The point about reform keeps changing over the years, part 14. The point about reform keeps changing over the years, part 15. The point about reform keeps changing over the years, part 16. The point about reform keeps changing over the years, part 17. The point about reform keeps changing over the years, part 18. The point about reform keeps changing over the years, part 19. The point about reform keeps changing over the years, part 20. The point about reform keeps changing over the years, part 21. The point about reform keeps changing over the years, part 22. The point about reform keeps changing over the years, part 23. The point about reform keeps changing over the years, part 24. The point about reform keeps changing over the years, part 25. The point about reform keeps changing over the years, part 26. The point about reform keeps changing over the years, part 27. The point about reform keeps changing over the years, part 28. The point about reform keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "G": {
+   "name": "Maia Sandu",
+   "role": "guest"
+  },
+  "H": {
+   "name": "Rory Stewart",
+   "role": "host"
+  }
+ }
+}

@@ -1,0 +1,58 @@
+{
+ "why": "F4b1 (BizNews Radio, Ian Cameron, prod replay 2026-10-11): the guest says 'you're welcome to share them too' and is seated as host from the 'welcome to' host act plus the LLM's 'host'. The feed states no host (as on prod), so no host cap stops step 2.",
+ "xfail": "F4b1: 'you're welcome to' counts as a host speech act",
+ "feed": {
+  "title": "BizNews Radio",
+  "description": "Interviews and insights from South Africa's business and political leaders."
+ },
+ "episode": {
+  "title": "Ian Cameron: Another SAPS cover-up exposed!"
+ },
+ "detected": {
+  "speaker_names": [
+   "Ian Cameron"
+  ],
+  "metadata_named": [
+   "Ian Cameron"
+  ]
+ },
+ "llm": {
+  "G": [
+   "Ian Cameron",
+   "host"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   40,
+   "Hello and welcome to BizNews. I'm Chris Steyn, and with me is Ian Cameron."
+  ],
+  [
+   "G",
+   300,
+   "Thank you, Chris. I'm going to share a clip with you that you're welcome to show on screen. You've seen some of the photos. You're welcome to share them too. The point about the case keeps changing over the years, part 0. The point about the case keeps changing over the years, part 1. The point about the case keeps changing over the years, part 2. The point about the case keeps changing over the years, part 3. The point about the case keeps changing over the years, part 4. The point about the case keeps changing over the years, part 5. The point about the case keeps changing over the years, part 6. The point about the case keeps changing over the years, part 7. The point about the case keeps changing over the years, part 8. The point about the case keeps changing over the years, part 9. The point about the case keeps changing over the years, part 10. The point about the case keeps changing over the years, part 11. The point about the case keeps changing over the years, part 12. The point about the case keeps changing over the years, part 13. The point about the case keeps changing over the years, part 14. The point about the case keeps changing over the years, part 15. The point about the case keeps changing over the years, part 16. The point about the case keeps changing over the years, part 17. The point about the case keeps changing over the years, part 18. The point about the case keeps changing over the years, part 19. The point about the case keeps changing over the years, part 20. The point about the case keeps changing over the years, part 21. The point about the case keeps changing over the years, part 22. The point about the case keeps changing over the years, part 23. The point about the case keeps changing over the years, part 24. The point about the case keeps changing over the years, part 25. The point about the case keeps changing over the years, part 26. The point about the case keeps changing over the years, part 27. The point about the case keeps changing over the years, part 28. The point about the case keeps changing over the years, part 29."
+  ],
+  [
+   "H",
+   40,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4."
+  ],
+  [
+   "G",
+   300,
+   "The point about policing keeps changing over the years, part 0. The point about policing keeps changing over the years, part 1. The point about policing keeps changing over the years, part 2. The point about policing keeps changing over the years, part 3. The point about policing keeps changing over the years, part 4. The point about policing keeps changing over the years, part 5. The point about policing keeps changing over the years, part 6. The point about policing keeps changing over the years, part 7. The point about policing keeps changing over the years, part 8. The point about policing keeps changing over the years, part 9. The point about policing keeps changing over the years, part 10. The point about policing keeps changing over the years, part 11. The point about policing keeps changing over the years, part 12. The point about policing keeps changing over the years, part 13. The point about policing keeps changing over the years, part 14. The point about policing keeps changing over the years, part 15. The point about policing keeps changing over the years, part 16. The point about policing keeps changing over the years, part 17. The point about policing keeps changing over the years, part 18. The point about policing keeps changing over the years, part 19. The point about policing keeps changing over the years, part 20. The point about policing keeps changing over the years, part 21. The point about policing keeps changing over the years, part 22. The point about policing keeps changing over the years, part 23. The point about policing keeps changing over the years, part 24. The point about policing keeps changing over the years, part 25. The point about policing keeps changing over the years, part 26. The point about policing keeps changing over the years, part 27. The point about policing keeps changing over the years, part 28. The point about policing keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "G": {
+   "name": "Ian Cameron",
+   "role": "guest"
+  },
+  "H": {
+   "name_not": [
+    "Ian Cameron"
+   ]
+  }
+ }
+}

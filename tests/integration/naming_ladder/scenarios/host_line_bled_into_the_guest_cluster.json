@@ -1,0 +1,61 @@
+{
+ "why": "F4b2 (No Priors, Zach Dell, prod replay 2026-10-11): the diarizer put the host's closing line into the guest's cluster ('Zach, thanks so much for joining me on No Priors. Thank you for having me.'). Host acts are checked before guest acts, so the guest's own 'thank you for having me' is ignored, the voice performs the host role and is seated with the LLM's 'host'. 10 served episodes have a host line bled at a turn boundary.",
+ "xfail": "F4b2: one bled host phrase outweighs the voice's own guest act",
+ "feed": {
+  "title": "No Priors: Artificial Intelligence | Technology | Startups",
+  "description": "Hosted by Sarah Guo and Elad Gil."
+ },
+ "episode": {
+  "title": "Unlocking the Road to Energy Abundance with Base Power's Zach Dell"
+ },
+ "detected": {
+  "speaker_names": [
+   "Zach Dell"
+  ],
+  "metadata_named": [
+   "Zach Dell"
+  ]
+ },
+ "llm": {
+  "G": [
+   "Zach Dell",
+   "host"
+  ],
+  "H": [
+   "Elad Gil",
+   "host"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   40,
+   "Hi listeners, welcome back to No Priors. I'm Elad Gil, and today I'm here with Zach Dell of Base Power."
+  ],
+  [
+   "G",
+   400,
+   "The point about energy keeps changing over the years, part 0. The point about energy keeps changing over the years, part 1. The point about energy keeps changing over the years, part 2. The point about energy keeps changing over the years, part 3. The point about energy keeps changing over the years, part 4. The point about energy keeps changing over the years, part 5. The point about energy keeps changing over the years, part 6. The point about energy keeps changing over the years, part 7. The point about energy keeps changing over the years, part 8. The point about energy keeps changing over the years, part 9. The point about energy keeps changing over the years, part 10. The point about energy keeps changing over the years, part 11. The point about energy keeps changing over the years, part 12. The point about energy keeps changing over the years, part 13. The point about energy keeps changing over the years, part 14. The point about energy keeps changing over the years, part 15. The point about energy keeps changing over the years, part 16. The point about energy keeps changing over the years, part 17. The point about energy keeps changing over the years, part 18. The point about energy keeps changing over the years, part 19. The point about energy keeps changing over the years, part 20. The point about energy keeps changing over the years, part 21. The point about energy keeps changing over the years, part 22. The point about energy keeps changing over the years, part 23. The point about energy keeps changing over the years, part 24. The point about energy keeps changing over the years, part 25. The point about energy keeps changing over the years, part 26. The point about energy keeps changing over the years, part 27. The point about energy keeps changing over the years, part 28. The point about energy keeps changing over the years, part 29. The point about energy keeps changing over the years, part 30. The point about energy keeps changing over the years, part 31. The point about energy keeps changing over the years, part 32. The point about energy keeps changing over the years, part 33. The point about energy keeps changing over the years, part 34. The point about energy keeps changing over the years, part 35. The point about energy keeps changing over the years, part 36. The point about energy keeps changing over the years, part 37. The point about energy keeps changing over the years, part 38. The point about energy keeps changing over the years, part 39."
+  ],
+  [
+   "H",
+   60,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5. The point about questions keeps changing over the years, part 6. The point about questions keeps changing over the years, part 7."
+  ],
+  [
+   "G",
+   300,
+   "The point about storage keeps changing over the years, part 0. The point about storage keeps changing over the years, part 1. The point about storage keeps changing over the years, part 2. The point about storage keeps changing over the years, part 3. The point about storage keeps changing over the years, part 4. The point about storage keeps changing over the years, part 5. The point about storage keeps changing over the years, part 6. The point about storage keeps changing over the years, part 7. The point about storage keeps changing over the years, part 8. The point about storage keeps changing over the years, part 9. The point about storage keeps changing over the years, part 10. The point about storage keeps changing over the years, part 11. The point about storage keeps changing over the years, part 12. The point about storage keeps changing over the years, part 13. The point about storage keeps changing over the years, part 14. The point about storage keeps changing over the years, part 15. The point about storage keeps changing over the years, part 16. The point about storage keeps changing over the years, part 17. The point about storage keeps changing over the years, part 18. The point about storage keeps changing over the years, part 19. The point about storage keeps changing over the years, part 20. The point about storage keeps changing over the years, part 21. The point about storage keeps changing over the years, part 22. The point about storage keeps changing over the years, part 23. The point about storage keeps changing over the years, part 24. The point about storage keeps changing over the years, part 25. The point about storage keeps changing over the years, part 26. The point about storage keeps changing over the years, part 27. The point about storage keeps changing over the years, part 28. The point about storage keeps changing over the years, part 29. Zach, thanks so much for joining me on No Priors. Thank you for having me. Really enjoyed it."
+  ]
+ ],
+ "expect": {
+  "G": {
+   "name": "Zach Dell",
+   "role": "guest"
+  },
+  "H": {
+   "name": "Elad Gil",
+   "role": "host"
+  }
+ }
+}

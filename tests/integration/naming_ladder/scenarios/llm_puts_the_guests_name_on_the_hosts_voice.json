@@ -1,0 +1,52 @@
+{
+ "why": "F4a (Conversations with Tyler, Julia Ioffe, prod replay 2026-10-11): the LLM matched the guest's name to the HOST's voice, the voice that says 'chatting with ... Julia Yoffe' (ASR spelling). The model's name is merged with no check of the voice's own words, the host is published as the guest, and the real guest voice is refused 'name_already_on_another_voice'. 10 served episodes have this shape.",
+ "xfail": "F4a: the LLM merge does not check the voice's own words; an introduced name in an ASR spelling is not refuted",
+ "feed": {
+  "title": "Conversations with Tyler",
+  "description": "Tyler Cowen engages with today's most underrated thinkers."
+ },
+ "episode": {
+  "title": "Julia Ioffe on Russian Women, Missing Men, and the Roots of Russian Culture"
+ },
+ "detected": {},
+ "llm": {
+  "H": [
+   "Julia Ioffe",
+   "host"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   30,
+   "Hello, everyone, and welcome back to Conversations with Tyler. Today, I'm very happy to be chatting with, in person, Julia Yoffe. Most of all, we'll be talking about her recent book."
+  ],
+  [
+   "G",
+   400,
+   "Thanks for having me, Tyler. The point about the intelligentsia keeps changing over the years, part 0. The point about the intelligentsia keeps changing over the years, part 1. The point about the intelligentsia keeps changing over the years, part 2. The point about the intelligentsia keeps changing over the years, part 3. The point about the intelligentsia keeps changing over the years, part 4. The point about the intelligentsia keeps changing over the years, part 5. The point about the intelligentsia keeps changing over the years, part 6. The point about the intelligentsia keeps changing over the years, part 7. The point about the intelligentsia keeps changing over the years, part 8. The point about the intelligentsia keeps changing over the years, part 9. The point about the intelligentsia keeps changing over the years, part 10. The point about the intelligentsia keeps changing over the years, part 11. The point about the intelligentsia keeps changing over the years, part 12. The point about the intelligentsia keeps changing over the years, part 13. The point about the intelligentsia keeps changing over the years, part 14. The point about the intelligentsia keeps changing over the years, part 15. The point about the intelligentsia keeps changing over the years, part 16. The point about the intelligentsia keeps changing over the years, part 17. The point about the intelligentsia keeps changing over the years, part 18. The point about the intelligentsia keeps changing over the years, part 19. The point about the intelligentsia keeps changing over the years, part 20. The point about the intelligentsia keeps changing over the years, part 21. The point about the intelligentsia keeps changing over the years, part 22. The point about the intelligentsia keeps changing over the years, part 23. The point about the intelligentsia keeps changing over the years, part 24. The point about the intelligentsia keeps changing over the years, part 25. The point about the intelligentsia keeps changing over the years, part 26. The point about the intelligentsia keeps changing over the years, part 27. The point about the intelligentsia keeps changing over the years, part 28. The point about the intelligentsia keeps changing over the years, part 29. The point about the intelligentsia keeps changing over the years, part 30. The point about the intelligentsia keeps changing over the years, part 31. The point about the intelligentsia keeps changing over the years, part 32. The point about the intelligentsia keeps changing over the years, part 33. The point about the intelligentsia keeps changing over the years, part 34. The point about the intelligentsia keeps changing over the years, part 35. The point about the intelligentsia keeps changing over the years, part 36. The point about the intelligentsia keeps changing over the years, part 37. The point about the intelligentsia keeps changing over the years, part 38. The point about the intelligentsia keeps changing over the years, part 39."
+  ],
+  [
+   "H",
+   40,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5."
+  ],
+  [
+   "G",
+   300,
+   "The point about history keeps changing over the years, part 0. The point about history keeps changing over the years, part 1. The point about history keeps changing over the years, part 2. The point about history keeps changing over the years, part 3. The point about history keeps changing over the years, part 4. The point about history keeps changing over the years, part 5. The point about history keeps changing over the years, part 6. The point about history keeps changing over the years, part 7. The point about history keeps changing over the years, part 8. The point about history keeps changing over the years, part 9. The point about history keeps changing over the years, part 10. The point about history keeps changing over the years, part 11. The point about history keeps changing over the years, part 12. The point about history keeps changing over the years, part 13. The point about history keeps changing over the years, part 14. The point about history keeps changing over the years, part 15. The point about history keeps changing over the years, part 16. The point about history keeps changing over the years, part 17. The point about history keeps changing over the years, part 18. The point about history keeps changing over the years, part 19. The point about history keeps changing over the years, part 20. The point about history keeps changing over the years, part 21. The point about history keeps changing over the years, part 22. The point about history keeps changing over the years, part 23. The point about history keeps changing over the years, part 24. The point about history keeps changing over the years, part 25. The point about history keeps changing over the years, part 26. The point about history keeps changing over the years, part 27. The point about history keeps changing over the years, part 28. The point about history keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "H": {
+   "name_not": [
+    "Julia Ioffe"
+   ],
+   "role": "host"
+  },
+  "G": {
+   "name": "Julia Ioffe",
+   "role": "guest"
+  }
+ }
+}

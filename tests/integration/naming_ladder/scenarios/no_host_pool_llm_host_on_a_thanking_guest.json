@@ -1,0 +1,52 @@
+{
+ "why": "F4c (The Living Philosophy, Sharon Blackie, prod replay 2026-10-11): the feed states no host, the LLM said 'host' for the guest, and step 5 (LLM host, no pool) seats her although her first words are 'Thank you for inviting me', which is not in the guest speech-act list.",
+ "xfail": "F4c: 'thank you for inviting me' is not a guest act, and the LLM host verdict seats the guest on a no-pool feed",
+ "feed": {
+  "title": "The Living Philosophy",
+  "description": "Conversations on philosophy, meaning and the inner life."
+ },
+ "episode": {
+  "title": "#17 Dr. Sharon Blackie: Can We Re-enchant a Disenchanted World?"
+ },
+ "detected": {},
+ "llm": {
+  "G": [
+   "Sharon Blackie",
+   "host"
+  ]
+ },
+ "turns": [
+  [
+   "H",
+   60,
+   "My guest today is the psychologist and writer Sharon Blackie. The point about myth keeps changing over the years, part 0. The point about myth keeps changing over the years, part 1. The point about myth keeps changing over the years, part 2."
+  ],
+  [
+   "G",
+   300,
+   "Thank you for inviting me. It's a pleasure. The point about enchantment keeps changing over the years, part 0. The point about enchantment keeps changing over the years, part 1. The point about enchantment keeps changing over the years, part 2. The point about enchantment keeps changing over the years, part 3. The point about enchantment keeps changing over the years, part 4. The point about enchantment keeps changing over the years, part 5. The point about enchantment keeps changing over the years, part 6. The point about enchantment keeps changing over the years, part 7. The point about enchantment keeps changing over the years, part 8. The point about enchantment keeps changing over the years, part 9. The point about enchantment keeps changing over the years, part 10. The point about enchantment keeps changing over the years, part 11. The point about enchantment keeps changing over the years, part 12. The point about enchantment keeps changing over the years, part 13. The point about enchantment keeps changing over the years, part 14. The point about enchantment keeps changing over the years, part 15. The point about enchantment keeps changing over the years, part 16. The point about enchantment keeps changing over the years, part 17. The point about enchantment keeps changing over the years, part 18. The point about enchantment keeps changing over the years, part 19. The point about enchantment keeps changing over the years, part 20. The point about enchantment keeps changing over the years, part 21. The point about enchantment keeps changing over the years, part 22. The point about enchantment keeps changing over the years, part 23. The point about enchantment keeps changing over the years, part 24. The point about enchantment keeps changing over the years, part 25. The point about enchantment keeps changing over the years, part 26. The point about enchantment keeps changing over the years, part 27. The point about enchantment keeps changing over the years, part 28. The point about enchantment keeps changing over the years, part 29."
+  ],
+  [
+   "H",
+   60,
+   "The point about questions keeps changing over the years, part 0. The point about questions keeps changing over the years, part 1. The point about questions keeps changing over the years, part 2. The point about questions keeps changing over the years, part 3. The point about questions keeps changing over the years, part 4. The point about questions keeps changing over the years, part 5."
+  ],
+  [
+   "G",
+   300,
+   "The point about psychology keeps changing over the years, part 0. The point about psychology keeps changing over the years, part 1. The point about psychology keeps changing over the years, part 2. The point about psychology keeps changing over the years, part 3. The point about psychology keeps changing over the years, part 4. The point about psychology keeps changing over the years, part 5. The point about psychology keeps changing over the years, part 6. The point about psychology keeps changing over the years, part 7. The point about psychology keeps changing over the years, part 8. The point about psychology keeps changing over the years, part 9. The point about psychology keeps changing over the years, part 10. The point about psychology keeps changing over the years, part 11. The point about psychology keeps changing over the years, part 12. The point about psychology keeps changing over the years, part 13. The point about psychology keeps changing over the years, part 14. The point about psychology keeps changing over the years, part 15. The point about psychology keeps changing over the years, part 16. The point about psychology keeps changing over the years, part 17. The point about psychology keeps changing over the years, part 18. The point about psychology keeps changing over the years, part 19. The point about psychology keeps changing over the years, part 20. The point about psychology keeps changing over the years, part 21. The point about psychology keeps changing over the years, part 22. The point about psychology keeps changing over the years, part 23. The point about psychology keeps changing over the years, part 24. The point about psychology keeps changing over the years, part 25. The point about psychology keeps changing over the years, part 26. The point about psychology keeps changing over the years, part 27. The point about psychology keeps changing over the years, part 28. The point about psychology keeps changing over the years, part 29."
+  ]
+ ],
+ "expect": {
+  "G": {
+   "name": "Sharon Blackie",
+   "role": "guest"
+  },
+  "H": {
+   "name_not": [
+    "Sharon Blackie"
+   ],
+   "role": "host"
+  }
+ }
+}
