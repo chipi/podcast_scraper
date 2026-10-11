@@ -5502,9 +5502,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
                 # Work-list honesty (2026-08-28): declare the planned feed count so a
                 # cap-halted batch reports "not found in the N of M feeds searched"
                 # instead of claiming corpus-wide absence for feeds it never reached.
-                from .workflow.worklist_report import get_worklist_report
+                # A batch is a new work-list: start a fresh report, or a second run in the same
+                # process reads the last run's ids as this one's (2026-10-11).
+                from .workflow.worklist_report import reset_worklist_report
 
-                get_worklist_report().set_feeds_planned(len(feed_targets))
+                reset_worklist_report().set_feeds_planned(len(feed_targets))
                 for entry in feed_targets:
                     url = entry.url
                     sub = filesystem.feed_workspace_dirname(url)
@@ -5748,7 +5750,12 @@ def main(  # noqa: C901 - main function handles multiple command paths
     _log_configuration(cfg, log)
 
     from .utils.corpus_lock import corpus_parent_lock as _single_feed_corpus_lock
+    from .workflow.worklist_report import reset_worklist_report
 
+    # This run's work-list only: the report is process-wide, and a second run in one process (a
+    # long-lived service, a test worker) otherwise reported the last run's ids as unfinished and
+    # exited 1 (2026-10-11).
+    reset_worklist_report()
     try:
         with _single_feed_corpus_lock(cfg.output_dir or ".", logger=log):
             try:
